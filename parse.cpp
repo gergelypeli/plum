@@ -1,9 +1,85 @@
+#include <stdarg.h>
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
- 
- 
+#include <sstream>
+
+/*
+class Error {
+protected:
+    std::vector<std::stringstream> items;
+    
+public:
+    Error() {
+    }
+    
+    std::ostream &log() {
+        items.push_back(std::stringstream());
+        return items.back();
+    }
+}
+
+
+std::ostream &operator<<(std::ostream &os, Error const &error) {
+    os << "Error details:\n";
+    
+    for (item : error.items)
+        os << " " << item.str() << "\n";
+}
+*/
+/*
+class Error: public std::stringstream {
+public:
+    Error() {
+        *this << "Error details:";
+    }
+
+    std::ostream &log() {
+        *this << "\n";
+        *this << " ";
+        return *this;
+    }
+};
+
+
+std::ostream &operator<<(std::ostream &os, Error const &error) {
+    os << " " << error.str() << "\n";
+}
+*/
+
+static std::string vformat(const char *f, va_list ap) {
+    char buffer[65536];
+    
+    unsigned expected = vsnprintf(buffer, sizeof(buffer), f, ap);
+
+    if (expected >= sizeof(buffer))
+        std::cerr << "vformat buffer overflow!\n";
+    
+    return std::string(buffer);
+}
+
+
+class Error {
+public:
+    std::string message;
+    
+    Error(const char *fmt, ...) __attribute__ ((format (printf, 2, 3))) {
+        va_list ap;
+        va_start(ap, fmt);
+        message = vformat(fmt, ap);
+        va_end(ap);
+    }
+};
+
+
+std::ostream &operator<<(std::ostream &os, Error const &error) {
+    os << error.message;
+    return os;
+}
+
+
 std::string read_source(const char *filename) {
     std::ifstream source(filename, std::ios::binary);
     
@@ -28,10 +104,8 @@ bool is_quote(char c) {
     return (c == '\'' || c == '"');
 }
 
- 
-int main(int argc, char **argv) {
-    std::string buffer = read_source(argv[1]);
-    
+
+std::vector<std::string> tokenize(std::string buffer) {
     std::vector<std::string> tokens;
     int i = 0;
     int indent = 0;
@@ -76,8 +150,7 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            std::cerr << "Invalid indentation of " << n << " spaces!\n";
-            return 3;
+            throw Error("Invalid indentation of %d spaces!", n);
         }
         else if (c == ' ') {
             i++;
@@ -133,15 +206,28 @@ int main(int argc, char **argv) {
             } while (ispunct(c) && !is_solo(c) && !is_quote(c));
         }
         else {
-            std::cerr << "Invalid input character: " << c << "!\n";
-            return 2;
+            throw Error("Invalid input character %c!", c);
         }
 
         tokens.push_back(buffer.substr(start, i - start));
     }
     
-    for (auto token : tokens)
-        std::cout << "" << token << "\n";
+    return tokens;
+}
 
+
+int main(int argc, char **argv) {
+    try {
+        std::string buffer = read_source(argv[1]);
+        std::vector<std::string> tokens = tokenize(buffer);
+        
+        for (auto token : tokens)
+            std::cout << "" << token << "\n";
+    }
+    catch (Error &e) {
+        std::cerr << e;
+        return 1;
+    }
+    
     return 0;
 }
