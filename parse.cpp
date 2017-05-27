@@ -34,13 +34,61 @@ int main(int argc, char **argv) {
     
     std::vector<std::string> tokens;
     int i = 0;
+    int indent = 0;
     
     while (buffer[i] != '\0') {
         char c = buffer[i];
         int start = i;
         
-        if (isspace(c)) {
+        if (c == '\n') {
+            int start = i;
+            
+            do {
+                i++;
+                c = buffer[i];
+            } while (c == ' ');
+            
+            if (c == '\n' || c == '#')
+                continue;
+                
+            int n = i - start - 1;
+            int ind = n / 4;
+            int mod = n % 4;
+            
+            if (ind == indent && mod == 0) {
+                tokens.push_back(";;");
+                continue;
+            }
+            else if (ind == indent && mod == 1) {
+                continue;
+            }
+            else if (ind == indent + 1 && mod == 0) {
+                tokens.push_back("{{");
+                indent++;
+                continue;
+            }
+            else if (ind < indent && mod == 0) {
+                for (int j=0; j < indent - ind; j++) {
+                    tokens.push_back("}}");
+                    indent--;
+                }
+                
+                continue;
+            }
+
+            std::cerr << "Invalid indentation of " << n << " spaces!\n";
+            return 3;
+        }
+        else if (c == ' ') {
             i++;
+            continue;
+        }
+        else if (c == '#') {
+            do {
+                i++;
+                c = buffer[i];
+            } while (c != '\n');
+            
             continue;
         }
         else if (isdigit(c) || c == '.') {
@@ -49,11 +97,18 @@ int main(int argc, char **argv) {
                 c = buffer[i];
             } while (isdigit(c) || c == '_' || c == '.');
         }
-        else if (isalpha(c) || c == '_') {
+        else if (isalpha(c) || c == '_' || c == ':') {
+            bool prefixed = (c == ':');
+            
             do {
                 i++;
                 c = buffer[i];
             } while (isalnum(c) || c == '_' || c == '.');
+            
+            if (!prefixed && (c == ':' || c == '?')) {
+                i++;
+                c = buffer[i];
+            }
         }
         else if (is_solo(c)) {
             i++;

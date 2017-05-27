@@ -1,0 +1,11 @@
+# First example
+
+f? :function Integer from:
+    x? Integer
+    y? Integer
+as:
+    :return x + y
+
+
+main? :function as:
+    print(f(1, 2))
