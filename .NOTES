@@ -1,0 +1,15 @@
+A label eats a preceding semicolon, explicit or implicit. But it does not eat
+a comma. So
+
+:if x
+then: y
+
+is one statement, as is
+
+:if x; then: y
+
+But
+
+(:try x, or: y)
+
+are two arguments, not one with a statement.
