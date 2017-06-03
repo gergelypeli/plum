@@ -1,6 +1,3 @@
-#include <util.h>
-#include <stdarg.h>
-
 
 static std::string vformat(const char *f, va_list ap) {
     char buffer[65536];
@@ -14,12 +11,17 @@ static std::string vformat(const char *f, va_list ap) {
 }
 
 
-Error::Error(const char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    message = vformat(fmt, ap);
-    va_end(ap);
-}
+class Error {
+public:
+    std::string message;
+    
+    Error(const char *fmt, ...) __attribute__ ((format (printf, 2, 3))) {
+        va_list ap;
+        va_start(ap, fmt);
+        message = vformat(fmt, ap);
+        va_end(ap);
+    }
+};
 
 
 std::ostream &operator<<(std::ostream &os, Error const &error) {
