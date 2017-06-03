@@ -13,3 +13,16 @@ But
 (:try x, or: y)
 
 are two arguments, not one with a statement.
+
+
+Starting a block with a label should be allowed for the same reason as
+allowing it in parens:
+
+f(a: 1, b: 2)
+
+f
+    a: 1
+    b: 2
+
+Line starting labels would also prevent a new statement, but would still
+insert a separator, but without statements it would mean quite the same.
