@@ -6,6 +6,8 @@ class Declaration;
 typedef std::vector<Type *> TypeSpec;
 //typedef TypeSpec TypeList;
 
+Declaration *generic_builtin = NULL;
+Declaration *tuple_builtin = NULL;
 Type *type_type = NULL;
 Type *void_type = NULL;
 Type *function_type = NULL;
@@ -338,9 +340,12 @@ class Expr {
 public:
     Match match;
     TypeSpec ts;
-    std::unique_ptr<Expr> left, right;
+    std::unique_ptr<Expr> pivot;
+    std::vector<std::unique_ptr<Expr>> args;
+    std::map<std::string, std::unique_ptr<Expr>> kwargs;
     Expr *parent;
     
+    /*
     Expr(TypeSpec t, Expr *l, Expr *r)
         :left(l), right(r) {
         ts = t;
@@ -363,8 +368,85 @@ public:
         if (r)
             r->parent = this;
     }
+    */
 
+    /*
+    Expr(TypeSpec t) {
+        ts = t;
+    }
+
+    Expr(Match m) {
+        match = m;
+        ts = m.decl->get_return_ts(m);
+    }
+    */
+    
+    Expr(Match m, TypeSpec t) {
+        match = m;
+        ts = t;
+    }
+    
+    Expr *set_pivot(Expr *p) {
+        pivot.reset(p);
+        p->parent = this;
+        return this;
+    }
+    
+    Expr *add_arg(Expr *a) {
+        if (kwargs.size())
+            throw Error("Positional params after keyword!");
+            
+        args.push_back(std::unique_ptr<Expr>(a));
+        a->parent = this;
+        return this;
+    }
+    
+    Expr *add_kwarg(std::string k, Expr *v) {
+        kwargs.insert(decltype(kwargs)::value_type(k, v));
+        v->parent = this;
+        return this;
+    }
 };
+
+
+void fill_tuple(Expr *e, Expr *&c) {
+    if (c->match.decl != tuple_builtin) {
+        e->add_arg(c);
+    }
+    else {
+        for (auto &x : c->args)
+            e->add_arg(x.release());
+            
+        for (auto &kv : c->kwargs)
+            e->add_kwarg(kv.first, kv.second.release());
+            
+        delete c;
+    }
+}
+
+
+void fill_statement(Expr *e, Expr *&c) {
+    if (!c)
+        ;
+    else if (c->match.decl != tuple_builtin) {
+        e->set_pivot(c);
+    }
+    else {
+        if (c->args.size() == 0)
+            ;
+        else if (c->args.size() == 1) {
+            e->set_pivot(c->args[0].release());
+            c->args.clear();
+        }
+        else
+            throw Error("Multiple positional arguments in a statement???");  // Can't be!
+            
+        for (auto &kv : c->kwargs)
+            e->add_kwarg(kv.first, kv.second.release());
+            
+        delete c;
+    }
+}
 
 
 Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
@@ -387,18 +469,50 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
             //TypeSpec ts;
             //ts.push_back(inner);
             Match m(inner);
+            TypeSpec ts;
             
-            Expr *e = new Expr(m, NULL, r);
+            Expr *e = (new Expr(m, ts))->add_arg(r);
             return e;
         }
     }
     else if (op.type == CLOSE) {
         return resolve(ops, op.left, scope);
     }
+    else if (op.type == LABEL) {
+        Expr *l = op.left >= 0 ? resolve(ops, op.left, scope) : NULL;
+        Expr *r = resolve(ops, op.right, scope);
+
+        if (r->match.decl == tuple_builtin)
+            throw Error("Can't label a tuple!");
+
+        Type *lt = make_label_type(op.text);
+        TypeSpec ts(r->ts);
+        ts.insert(ts.begin(), lt);
+
+        if (l)
+            ts = make_tuple_typespec(l->ts, ts);
+
+        Match m(tuple_builtin);
+        Expr *e = new Expr(m, ts);
+        
+        if (l)
+            fill_tuple(e, l);
+        
+        e->add_kwarg(op.text, r);
+
+        return e;
+    }
     else if (op.type == SEPARATOR) {
         Expr *l = resolve(ops, op.left, scope);
         Expr *r = resolve(ops, op.right, scope);
-        Expr *e = new Expr(TS_VOID, l, r);  // TODO
+
+        TypeSpec ts = make_tuple_typespec(l->ts, r->ts);
+        Match m(tuple_builtin);
+        Expr *e = new Expr(m, ts);
+
+        fill_tuple(e, l);
+        fill_tuple(e, r);
+        
         return e;
     }
     else if (op.type == STATEMENT) {
@@ -407,31 +521,40 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
             scope->add(inner);
 
             Expr *r = resolve(ops, op.right, inner);
-
-            //Expr *from = r->left->right;
-            //Scope *args = dynamic_cast<Scope *>(from->match.decl);
-            //std::cout << "XXX: " << print_typespec(r->ts) << "\n";
-            TypeSpec ret_ts;
             
-            if (r->left && r->left->left)
-                ret_ts = r->left->left->ts;
-            else {
+            if (!r || r->match.decl != tuple_builtin)
+                throw Error("Function not declared with a tuple!");
+
+            TypeSpec ret_ts;
+                
+            if (r->args.size() == 0) {
                 ret_ts.push_back(type_type);
                 ret_ts.push_back(void_type);
             }
-            
+            else if (r->args.size() == 1) {
+                ret_ts = r->args[0]->ts;
+            }
+            else
+                throw Error("Multiple positional arguments in a statement???");  // Can't be!
+
+            ret_ts[0] = function_type;
             std::cout << "Function ret_ts " << print_typespec(ret_ts) << "\n";
-            //TypeSpec ts;
             
-            //for (unsigned i = 1; i < ret->ts.size(); i++)
-            //    ts.push_back(ret->ts[i]);
-                
-            Expr *e = new Expr(ret_ts, NULL, r);  // FIXME, a lot
+            Match m(generic_builtin);
+            Expr *e = new Expr(m, ret_ts);
+            
+            fill_statement(e, r);
+            
             return e;
         }
         else {
             Expr *r = resolve(ops, op.right, scope);
-            Expr *e = new Expr(TS_VOID, NULL, r);  // TODO
+            
+            Match m(generic_builtin);
+            Expr *e = new Expr(m, TS_VOID);
+
+            fill_statement(e, r);
+                
             return e;
         }
     }
@@ -460,51 +583,60 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
             
         scope->add(decl);
     
-        Expr *e = new Expr(TS_VOID, NULL, r);  // TODO
-        return e;
-    }
-    else if (op.type == LABEL) {
-        // TODO: check if already labeled!
-        Expr *l = op.left >= 0 ? resolve(ops, op.left, scope) : NULL;
-        Expr *r = resolve(ops, op.right, scope);
-        Type *lt = make_label_type(op.text);
-        
-        TypeSpec ts(r->ts);
-        ts.insert(ts.begin(), lt);
-        
-        if (l)
-            ts = make_tuple_typespec(l->ts, ts);
-        
-        Expr *e = new Expr(ts, l, r);  // TODO
+        Match m(generic_builtin);
+        Expr *e = (new Expr(m, TS_VOID))->add_arg(r);  // TODO
         return e;
     }
     else if (op.type == IDENTIFIER) {
         Expr *l = op.left >= 0 ? resolve(ops, op.left, scope) : NULL;
         Expr *r = op.right >= 0 ? resolve(ops, op.right, scope) : NULL;
         
-        TypeSpec lts = l ? l->ts : TS_VOID;
-        TypeSpec rts = r ? r->ts : TS_VOID;
-        TypeSpec ts = make_tuple_typespec(lts, rts);
-        TypeSpec pts = get_pivot_typespec(ts);
-
+        TypeSpec pts = l ? l->ts : TS_VOID;
         std::cout << "Looking up " << op.text << " with pivot type " << print_typespec(pts) << "\n";
 
         for (Scope *s = scope; s; s = s->outer) {
             Match m = s->lookup(op.text, pts);
         
-            if (m.decl)
-                return new Expr(m, l, r);
+            if (m.decl) {
+                TypeSpec ts = m.decl->get_return_ts(m);
+                Expr *e = new Expr(m, ts);
+                
+                if (l)
+                    e->set_pivot(l);
+                    
+                if (r)
+                    fill_tuple(e, r);
+                    
+                return e;
+            }
         }
         
         throw Error("No match for %s!", op.text.c_str());
     }
     else if (op.type == NUMBER) {
+        Match m(generic_builtin);
         TypeSpec ts;
         ts.push_back(integer_type);
         
-        return new Expr(ts, NULL, NULL);  // TODO
+        return new Expr(m, ts);  // TODO
     }
     else
         throw Error("Can't resolve this now %d!", op.type);
 }
 
+
+void print_expr_tree(Expr *e, int indent, const char *prefix) {
+    for (int j=0; j<indent; j++)
+        std::cout << " ";
+        
+    std::cout << prefix << print_typespec(e->ts) << "\n";
+    
+    if (e->pivot)
+        print_expr_tree(e->pivot.get(), indent + 2, "$ ");
+        
+    for (auto &x : e->args)
+        print_expr_tree(x.get(), indent + 2, "# ");
+            
+    for (auto &kv : e->kwargs)
+        print_expr_tree(kv.second.get(), indent + 2, kv.first.c_str());
+}

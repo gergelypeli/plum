@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <map>
 #include <memory>
 #include <iostream>
 #include <sstream>
@@ -36,6 +37,9 @@ int main(int argc, char **argv) {
 
         Scope *root_scope = new Scope();
         
+        generic_builtin = new Declaration();
+        tuple_builtin = new Declaration();
+        
         type_type = new Type("<Type>", 1);
         root_scope->add(type_type);
 
@@ -54,10 +58,12 @@ int main(int argc, char **argv) {
         Declaration *integer_add = new Function("plus", int_ts, int_ts, int_ts);
         root_scope->add(integer_add);
         
-        Declaration *integer_print = new Function("print", TS_VOID, int_ts, TS_VOID);  // FIXME
+        Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, int_ts);  // FIXME
         root_scope->add(integer_print);
         
         std::unique_ptr<Expr> root(resolve(ops, 0, root_scope));
+        
+        print_expr_tree(root.get(), 0, "* ");
         
         //for (auto token : tokens)
         //    std::cout << "" << token << "\n";
