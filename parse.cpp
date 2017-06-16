@@ -10,7 +10,7 @@
 
 #include "util.cpp"
 #include "stage_1_tokenize.cpp"
-#include "stage_2_opize.cpp"
+#include "stage_2_treeize.cpp"
 #include "stage_3_typize.cpp"
 
 
@@ -32,8 +32,10 @@ std::string read_source(const char *filename) {
 int main(int argc, char **argv) {
     try {
         std::string buffer = read_source(argv[1]);
+        
         std::vector<std::string> tokens = tokenize(buffer);
-        std::vector<Op> ops = operate(tokens);
+        
+        std::vector<Node> nodes = treeize(tokens);
 
         Scope *root_scope = new Scope();
         
@@ -61,7 +63,7 @@ int main(int argc, char **argv) {
         Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, int_ts);  // FIXME
         root_scope->add(integer_print);
         
-        std::unique_ptr<Expr> root(resolve(ops, 0, root_scope));
+        std::unique_ptr<Expr> root(resolve(nodes, 0, root_scope));
         
         print_expr_tree(root.get(), 0, "* ");
         

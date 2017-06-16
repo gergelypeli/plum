@@ -41,7 +41,7 @@ bool is_right_associative(Precedence precedence) {
 }
 
 
-enum OpType {
+enum NodeType {
     OPEN, CLOSE,
     NUMBER, STRING, INITIALIZER,
     IDENTIFIER, LABEL, STATEMENT, DECLARATION,
@@ -49,7 +49,7 @@ enum OpType {
 };
 
 
-const char *print_op_type(OpType type) {
+const char *print_op_type(NodeType type) {
     return (
         type == OPEN ? "OPEN" :
         type == CLOSE ? "CLOSE" :
@@ -66,15 +66,15 @@ const char *print_op_type(OpType type) {
 }
 
 
-class Op {
+class Node {
 public:
-    OpType type;
+    NodeType type;
     std::string text;
     Precedence back, fore;
     int left;
     int right;
     
-    Op(OpType type, const std::string &text, Precedence back, Precedence fore) {
+    Node(NodeType type, const std::string &text, Precedence back, Precedence fore) {
         this->type = type;
         this->text = text;
         this->back = back;
@@ -121,32 +121,32 @@ struct {
 };
 
 
-void print_op_node(std::vector<Op> &ops, int i, int indent, const char *prefix) {
-    if (ops[i].left >= 0)
-        print_op_node(ops, ops[i].left, indent + 2, "/ ");
+void print_node(std::vector<Node> &nodes, int i, int indent, const char *prefix) {
+    if (nodes[i].left >= 0)
+        print_node(nodes, nodes[i].left, indent + 2, "/ ");
     
-    //std::cout << i << "(" << ops[i].left << "/" << ops[i].right << ")\n";
+    //std::cout << i << "(" << nodes[i].left << "/" << nodes[i].right << ")\n";
     for (int j=0; j<indent; j++)
         std::cout << " ";
         
-    std::cout << prefix << "[" << print_op_type(ops[i].type) << "] " << ops[i].text << "\n";
+    std::cout << prefix << "[" << print_op_type(nodes[i].type) << "] " << nodes[i].text << "\n";
     
-    if (ops[i].right >= 0)
-        print_op_node(ops, ops[i].right, indent + 2, "\\ ");
+    if (nodes[i].right >= 0)
+        print_node(nodes, nodes[i].right, indent + 2, "\\ ");
 }
 
 
-std::vector<Op> operate(std::vector<std::string> tokens) {
-    std::vector<Op> ops;
+std::vector<Node> treeize(std::vector<std::string> tokens) {
+    std::vector<Node> nodes;
     std::vector<Paren> parens;
     
-    //ops.push_back(Op(OPEN, "", BASE, BASE));
+    //nodes.push_back(Node(OPEN, "", BASE, BASE));
     //parens.push_back(UNIT);
     if (tokens.front() != " indent")
-        throw Error("Oops?");
+        throw Error("Onodes?");
     
     for (auto token : tokens) {
-        OpType type;
+        NodeType type;
         Precedence back, fore;
         std::string text;
         
@@ -292,32 +292,32 @@ std::vector<Op> operate(std::vector<std::string> tokens) {
                 throw Error("No operator %s!", token.c_str());
         }
         
-        int n = ops.size();
+        int n = nodes.size();
         std::cout << "Token " << token << " => " << n << "\n";
         
-        ops.push_back(Op(type, text, back, fore));
+        nodes.push_back(Node(type, text, back, fore));
         int r = -1;
         
         for (int i = n - 1; i >= 0; i--) {
-            if (ops[i].right != r)
+            if (nodes[i].right != r)
                 continue;
                 
             r = i;
 
-            if (ops[i].fore > back)  // || (ops[i].precedence == back && !is_right_associative(back)))
+            if (nodes[i].fore > back)  // || (nodes[i].precedence == back && !is_right_associative(back)))
                 continue;
-            else if (ops[i].fore == back) {
+            else if (nodes[i].fore == back) {
                 if (back == LITERAL)
                     throw Error("Literals can't follow each other!");
                 else if (back == BASE)
-                    ops[i].fore = ops[i].back;
+                    nodes[i].fore = nodes[i].back;
                 else
                     continue;
             }
 
-            // ops[i] will be our parent, and we'll be its right child
-            ops[n].left = ops[i].right;
-            ops[i].right = n;
+            // nodes[i] will be our parent, and we'll be its right child
+            nodes[n].left = nodes[i].right;
+            nodes[i].right = n;
             break;
         }
     }
@@ -325,8 +325,7 @@ std::vector<Op> operate(std::vector<std::string> tokens) {
     if (parens.size() != 1)
         throw Error("Parens remained at the end!");
         
-    print_op_node(ops, 0, 0, "- ");
+    print_node(nodes, 0, 0, "- ");
     
-    return ops;
+    return nodes;
 }
-

@@ -26,3 +26,23 @@ f
 
 Line starting labels would also prevent a new statement, but would still
 insert a separator, but without statements it would mean quite the same.
+
+
+Disallow separating labels if not after a statement:
+
+x foo: y
+
+
+Somehow distinguish between these:
+
+block
+    :foo
+    bar:  # OK
+    
+block
+    foo:
+    bar:  # OK
+    
+block
+    foo
+    bar:  # NOT OK

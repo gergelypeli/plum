@@ -449,17 +449,17 @@ void fill_statement(Expr *e, Expr *&c) {
 }
 
 
-Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
+Expr *resolve(std::vector<Node> nodes, int i, Scope *scope) {
     if (i < 0)
         throw Error("Eiii!");
         
-    Op &op = ops[i];
+    Node &node = nodes[i];
     
-    if (op.type == OPEN) {
+    if (node.type == OPEN) {
         Scope *inner = new Scope(scope);
         scope->add(inner);
         
-        Expr *r = resolve(ops, op.right, inner);
+        Expr *r = resolve(nodes, node.right, inner);
         
         if (inner->get_length() == 0) {
             scope->remove(inner);
@@ -475,17 +475,17 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
             return e;
         }
     }
-    else if (op.type == CLOSE) {
-        return resolve(ops, op.left, scope);
+    else if (node.type == CLOSE) {
+        return resolve(nodes, node.left, scope);
     }
-    else if (op.type == LABEL) {
-        Expr *l = op.left >= 0 ? resolve(ops, op.left, scope) : NULL;
-        Expr *r = resolve(ops, op.right, scope);
+    else if (node.type == LABEL) {
+        Expr *l = node.left >= 0 ? resolve(nodes, node.left, scope) : NULL;
+        Expr *r = resolve(nodes, node.right, scope);
 
         if (r->match.decl == tuple_builtin)
             throw Error("Can't label a tuple!");
 
-        Type *lt = make_label_type(op.text);
+        Type *lt = make_label_type(node.text);
         TypeSpec ts(r->ts);
         ts.insert(ts.begin(), lt);
 
@@ -498,13 +498,13 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
         if (l)
             fill_tuple(e, l);
         
-        e->add_kwarg(op.text, r);
+        e->add_kwarg(node.text, r);
 
         return e;
     }
-    else if (op.type == SEPARATOR) {
-        Expr *l = resolve(ops, op.left, scope);
-        Expr *r = resolve(ops, op.right, scope);
+    else if (node.type == SEPARATOR) {
+        Expr *l = resolve(nodes, node.left, scope);
+        Expr *r = resolve(nodes, node.right, scope);
 
         TypeSpec ts = make_tuple_typespec(l->ts, r->ts);
         Match m(tuple_builtin);
@@ -515,12 +515,12 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
         
         return e;
     }
-    else if (op.type == STATEMENT) {
-        if (op.text == "function") {
+    else if (node.type == STATEMENT) {
+        if (node.text == "function") {
             Scope *inner = new FunctionScope(scope);
             scope->add(inner);
 
-            Expr *r = resolve(ops, op.right, inner);
+            Expr *r = resolve(nodes, node.right, inner);
             
             if (!r || r->match.decl != tuple_builtin)
                 throw Error("Function not declared with a tuple!");
@@ -548,7 +548,7 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
             return e;
         }
         else {
-            Expr *r = resolve(ops, op.right, scope);
+            Expr *r = resolve(nodes, node.right, scope);
             
             Match m(generic_builtin);
             Expr *e = new Expr(m, TS_VOID);
@@ -558,8 +558,8 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
             return e;
         }
     }
-    else if (op.type == DECLARATION) {
-        Expr *r = resolve(ops, op.right, scope);
+    else if (node.type == DECLARATION) {
+        Expr *r = resolve(nodes, node.right, scope);
         
         if (r->ts.size() == 0)
             throw Error("Declaration needs a type!");
@@ -571,14 +571,14 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
             for (unsigned i = 1; i < r->ts.size(); i++)
                 ts.push_back(r->ts[i]);
         
-            decl = new Variable(op.text, ts);
+            decl = new Variable(node.text, ts);
         }
         else if (r->ts[0] == function_type) {
             TypeSpec ts;
             for (unsigned i = 1; i < r->ts.size(); i++)
                 ts.push_back(r->ts[i]);
 
-            decl = new Function(op.text, ts, TS_VOID, TS_VOID);
+            decl = new Function(node.text, ts, TS_VOID, TS_VOID);
         }
             
         scope->add(decl);
@@ -587,15 +587,15 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
         Expr *e = (new Expr(m, TS_VOID))->add_arg(r);  // TODO
         return e;
     }
-    else if (op.type == IDENTIFIER) {
-        Expr *l = op.left >= 0 ? resolve(ops, op.left, scope) : NULL;
-        Expr *r = op.right >= 0 ? resolve(ops, op.right, scope) : NULL;
+    else if (node.type == IDENTIFIER) {
+        Expr *l = node.left >= 0 ? resolve(nodes, node.left, scope) : NULL;
+        Expr *r = node.right >= 0 ? resolve(nodes, node.right, scope) : NULL;
         
         TypeSpec pts = l ? l->ts : TS_VOID;
-        std::cout << "Looking up " << op.text << " with pivot type " << print_typespec(pts) << "\n";
+        std::cout << "Looking up " << node.text << " with pivot type " << print_typespec(pts) << "\n";
 
         for (Scope *s = scope; s; s = s->outer) {
-            Match m = s->lookup(op.text, pts);
+            Match m = s->lookup(node.text, pts);
         
             if (m.decl) {
                 TypeSpec ts = m.decl->get_return_ts(m);
@@ -611,9 +611,9 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
             }
         }
         
-        throw Error("No match for %s!", op.text.c_str());
+        throw Error("No match for %s!", node.text.c_str());
     }
-    else if (op.type == NUMBER) {
+    else if (node.type == NUMBER) {
         Match m(generic_builtin);
         TypeSpec ts;
         ts.push_back(integer_type);
@@ -621,7 +621,7 @@ Expr *resolve(std::vector<Op> ops, int i, Scope *scope) {
         return new Expr(m, ts);  // TODO
     }
     else
-        throw Error("Can't resolve this now %d!", op.type);
+        throw Error("Can't resolve this now %d!", node.type);
 }
 
 
