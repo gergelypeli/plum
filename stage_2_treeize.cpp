@@ -49,7 +49,7 @@ enum NodeType {
 };
 
 
-const char *print_op_type(NodeType type) {
+const char *print_node_type(NodeType type) {
     return (
         type == OPEN ? "OPEN" :
         type == CLOSE ? "CLOSE" :
@@ -129,7 +129,7 @@ void print_node(std::vector<Node> &nodes, int i, int indent, const char *prefix)
     for (int j=0; j<indent; j++)
         std::cout << " ";
         
-    std::cout << prefix << "[" << print_op_type(nodes[i].type) << "] " << nodes[i].text << "\n";
+    std::cout << prefix << "[" << print_node_type(nodes[i].type) << "] " << nodes[i].text << "\n";
     
     if (nodes[i].right >= 0)
         print_node(nodes, nodes[i].right, indent + 2, "\\ ");

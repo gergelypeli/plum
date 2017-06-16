@@ -11,7 +11,8 @@
 #include "util.cpp"
 #include "stage_1_tokenize.cpp"
 #include "stage_2_treeize.cpp"
-#include "stage_3_typize.cpp"
+#include "stage_3_tupleize.cpp"
+//#include "stage_4_typize.cpp"
 
 
 std::string read_source(const char *filename) {
@@ -34,9 +35,16 @@ int main(int argc, char **argv) {
         std::string buffer = read_source(argv[1]);
         
         std::vector<std::string> tokens = tokenize(buffer);
+        //for (auto token : tokens)
+        //    std::cout << "" << token << "\n";
         
         std::vector<Node> nodes = treeize(tokens);
 
+        std::unique_ptr<Expr> root(tupleize(nodes));
+        
+        print_expr_tree(root.get(), 0, "*");
+
+        /*
         Scope *root_scope = new Scope();
         
         generic_builtin = new Declaration();
@@ -62,15 +70,10 @@ int main(int argc, char **argv) {
         
         Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, int_ts);  // FIXME
         root_scope->add(integer_print);
-        
-        std::unique_ptr<Expr> root(resolve(nodes, 0, root_scope));
-        
-        print_expr_tree(root.get(), 0, "* ");
-        
-        //for (auto token : tokens)
-        //    std::cout << "" << token << "\n";
+        */
+        //std::unique_ptr<Expr> root(resolve(nodes, 0, root_scope));
     }
-    catch (Error &e) {
+    catch (int &e) {
         std::cerr << e << "\n";
         throw;
     }
