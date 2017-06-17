@@ -20,6 +20,8 @@ public:
         va_start(ap, fmt);
         message = vformat(fmt, ap);
         va_end(ap);
+        
+        std::cerr << "Oops... " << message << "\n";
     }
 };
 

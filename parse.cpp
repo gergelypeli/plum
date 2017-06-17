@@ -61,10 +61,14 @@ int main(int argc, char **argv) {
         
         TypeSpec int_ts;
         int_ts.push_back(integer_type);
-        Declaration *integer_add = new Function("plus", int_ts, int_ts);
+        
+        std::vector<TypeSpec> arg_ts;
+        arg_ts.push_back(int_ts);
+        
+        Declaration *integer_add = new Function("plus", int_ts, int_ts, arg_ts);
         root_scope->add(integer_add);
         
-        Declaration *integer_print = new Function("print", TS_VOID, TS_VOID);  // FIXME
+        Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, arg_ts);
         root_scope->add(integer_print);
         
         std::unique_ptr<Value> value_root(typize(expr_root.get(), root_scope));
