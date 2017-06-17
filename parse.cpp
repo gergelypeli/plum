@@ -12,7 +12,7 @@
 #include "stage_1_tokenize.cpp"
 #include "stage_2_treeize.cpp"
 #include "stage_3_tupleize.cpp"
-//#include "stage_4_typize.cpp"
+#include "stage_4_typize.cpp"
 
 
 std::string read_source(const char *filename) {
@@ -40,15 +40,11 @@ int main(int argc, char **argv) {
         
         std::vector<Node> nodes = treeize(tokens);
 
-        std::unique_ptr<Expr> root(tupleize(nodes));
+        std::unique_ptr<Expr> expr_root(tupleize(nodes));
         
-        print_expr_tree(root.get(), 0, "*");
-
-        /*
+        print_expr_tree(expr_root.get(), 0, "*");
+        
         Scope *root_scope = new Scope();
-        
-        generic_builtin = new Declaration();
-        tuple_builtin = new Declaration();
         
         type_type = new Type("<Type>", 1);
         root_scope->add(type_type);
@@ -65,13 +61,14 @@ int main(int argc, char **argv) {
         
         TypeSpec int_ts;
         int_ts.push_back(integer_type);
-        Declaration *integer_add = new Function("plus", int_ts, int_ts, int_ts);
+        Declaration *integer_add = new Function("plus", int_ts, int_ts);
         root_scope->add(integer_add);
         
-        Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, int_ts);  // FIXME
+        Declaration *integer_print = new Function("print", TS_VOID, TS_VOID);  // FIXME
         root_scope->add(integer_print);
-        */
-        //std::unique_ptr<Expr> root(resolve(nodes, 0, root_scope));
+        
+        std::unique_ptr<Value> value_root(typize(expr_root.get(), root_scope));
+        
     }
     catch (int &e) {
         std::cerr << e << "\n";

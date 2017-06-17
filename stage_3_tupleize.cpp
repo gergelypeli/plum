@@ -48,7 +48,7 @@ Expr *tupleize(std::vector<Node> nodes, int i);
 
 void fill_arguments(Expr *e, std::vector<Node> nodes, int i) {
     Node &node = nodes[i];
-    std::cerr << "Fill: " << print_node_type(node.type) << " " << node.text << "\n";
+    //std::cerr << "Fill: " << print_node_type(node.type) << " " << node.text << "\n";
 
     if (node.type == OPEN) {
         fill_arguments(e, nodes, node.right);
@@ -76,7 +76,7 @@ void fill_arguments(Expr *e, std::vector<Node> nodes, int i) {
 
 void fill_statement(Expr *e, std::vector<Node> nodes, int i) {
     Node &node = nodes[i];
-    std::cerr << "Fill statement: " << print_node_type(node.type) << " " << node.text << "\n";
+    //std::cerr << "Fill statement: " << print_node_type(node.type) << " " << node.text << "\n";
 
     if (node.type == OPEN) {
         // Positional argument block
@@ -112,7 +112,7 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
         throw Error("Eiii!");
         
     Node &node = nodes[i];
-    std::cerr << "Tupleize: " << print_node_type(node.type) << " " << node.text << "\n";
+    //std::cerr << "Tupleize: " << print_node_type(node.type) << " " << node.text << "\n";
     
     if (node.type == OPEN) {
         return tupleize(nodes, node.right);

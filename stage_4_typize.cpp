@@ -1,13 +1,14 @@
 
-// Stage 3
+// Stage 4
 
-class Type;
 class Declaration;
-typedef std::vector<Type *> TypeSpec;
-//typedef TypeSpec TypeList;
+class Type;
+class Scope;
+class Variable;
+class Function;
 
-Declaration *generic_builtin = NULL;
-Declaration *tuple_builtin = NULL;
+typedef std::vector<Type *> TypeSpec;
+
 Type *type_type = NULL;
 Type *void_type = NULL;
 Type *function_type = NULL;
@@ -16,38 +17,137 @@ Type *integer_type = NULL;
 TypeSpec TS_VOID;
 std::string print_typespec(TypeSpec &ts);
 
+typedef std::vector<std::unique_ptr<Expr>> Args;
+typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
-struct Match {
-    Declaration *decl;
-    std::vector<TypeSpec> params;
+class Value;
+Value *typize(Expr *expr, Scope *scope);
+
+// Value
+
+class Value {
+public:
+    TypeSpec ts;
     
-    Match() {
-        decl = NULL;
+    Value() {
     }
 
-    Match(Declaration *d) {
-        decl = d;
+    virtual void set_ts(TypeSpec ts) {
+        this->ts = ts;
     }
     
-    Match(Declaration *d, std::vector<TypeSpec> p) {
-        decl = d;
-        params = p;
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return (args.size() == 0 && kwargs.size() == 0);
     }
 };
 
 
+class BlockValue: public Value {
+public:
+    std::vector<std::unique_ptr<Value>> items;
+    std::map<std::string, std::unique_ptr<Value>> kwitems;
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        for (auto &arg : args)
+            items.push_back(std::unique_ptr<Value>(typize(arg.get(), scope)));
+            
+        for (auto &kv : kwargs)
+            kwitems.insert(decltype(kwitems)::value_type(kv.first, typize(kv.second.get(), scope)));
+            
+        if (items.size() == 1 && kwitems.size() == 0)
+            set_ts(items[0]->ts);
+
+        return true;
+    }
+};
+
+
+class VariableValue: public Value {
+public:
+    Variable *variable;
+    
+    VariableValue(Variable *v) {
+        variable = v;
+        //set_ts(v->ts);  // TODO: circular reference...
+    }
+};
+
+
+class FunctionValue: public Value {
+public:
+    Function *function;
+    
+    FunctionValue(Function *f) {
+        function = f;
+        //set_ts(f->ts);  // TODO: circular reference...
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return true;  // FIXME
+    }
+};
+
+
+class TypeValue: public Value {
+public:
+    TypeValue(TypeSpec ts) {
+        set_ts(ts);
+    }
+};
+
+
+class ReturnValue: public Value {
+public:
+    Value *value;
+    
+    ReturnValue(Value *v) {
+        value = v;
+    }
+};
+
+
+class FunctionDefinitionValue: public Value {
+public:
+    Value *ret;
+    Value *head;
+    Value *body;
+    
+    FunctionDefinitionValue(Value *r, Value *h, Value *b) {
+        ret = r;
+        head = h;
+        body = b;
+    }
+};
+
+
+class DeclarationValue: public Value {
+public:
+    Declaration *decl;
+    
+    DeclarationValue(Declaration *d) {
+        decl = d;
+    }
+};
+
+
+class NumberValue: public Value {
+public:
+    std::string text;
+    
+    NumberValue(std::string t) {
+        text = t;
+    }
+};
+
+
+// Declaration
+
 class Declaration {
 public:
-    virtual Match match(std::string name, TypeSpec ts) {
-        return Match();
-    }
-    
-    virtual TypeSpec get_return_ts(Match m) {
-        throw Error("No return type!");
-    }
-    
-    virtual TypeSpec get_argument_ts(Match m) {
-        throw Error("No argument types!");
+    Scope *outer;
+
+    virtual Value *match(std::string name, Value *pivot) {
+        return NULL;
     }
 };
 
@@ -55,26 +155,25 @@ public:
 class Variable: public Declaration {
 public:
     std::string name;
-    TypeSpec ts;
+    TypeSpec pivot_ts;
+    TypeSpec var_ts;
     
-    Variable(std::string name, TypeSpec ts) {
+    Variable(std::string name, TypeSpec pts, TypeSpec vts) {
         this->name = name;
-        this->ts = ts;
+        this->pivot_ts = pts;
+        this->var_ts = vts;
     }
     
-    virtual Match match(std::string name, TypeSpec ts) {
-        if (name == this->name && ts == TS_VOID)
-            return Match(this);
+    virtual Value *match(std::string name, Value *pivot) {
+        TypeSpec pts = pivot ? pivot->ts : TS_VOID;
+        
+        if (name == this->name && pts == pivot_ts) {
+            Value *v = new VariableValue(this);
+            v->set_ts(var_ts);
+            return v;
+        }
         else
-            return Match();
-    }
-    
-    virtual TypeSpec get_return_ts(Match m) {
-        return ts;
-    }
-    
-    virtual TypeSpec get_argument_ts(Match m) {
-        return TS_VOID;
+            return NULL;
     }
 };
 
@@ -82,31 +181,28 @@ public:
 class Function: public Declaration {
 public:
     std::string name;
-    TypeSpec ts;
     TypeSpec pivot_ts;
-    TypeSpec argument_ts;
+    TypeSpec ret_ts;
+    //TypeSpec argument_ts;
     
-    Function(std::string name, TypeSpec ts, TypeSpec pivot_ts, TypeSpec argument_ts) {
+    Function(std::string name, TypeSpec pts, TypeSpec rts) {
         this->name = name;
-        this->ts = ts;
-        this->pivot_ts = pivot_ts;
-        this->argument_ts = argument_ts;
+        this->pivot_ts = pts;
+        this->ret_ts = rts;
+        //this->argument_ts = argument_ts;
     }
     
-    virtual Match match(std::string name, TypeSpec ts) {
-        std::cout << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
-        if (name == this->name && ts == pivot_ts)  // TODO: convert
-            return Match(this);
+    virtual Value *match(std::string name, Value *pivot) {
+        TypeSpec pts = pivot ? pivot->ts : TS_VOID;
+        //std::cout << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
+
+        if (name == this->name && pts == pivot_ts) {  // TODO: convert
+            Value *v = new FunctionValue(this);
+            v->set_ts(ret_ts);
+            return v;
+        }
         else
-            return Match();
-    }
-    
-    virtual TypeSpec get_return_ts(Match m) {
-        return ts;
-    }
-    
-    virtual TypeSpec get_argument_ts(Match m) {
-        return argument_ts;
+            return NULL;
     }
 };
 
@@ -114,20 +210,21 @@ public:
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
-    Scope *outer;
     
-    Scope(Scope *outer = NULL) {
-        this->outer = outer;
+    Scope()
+        :Declaration() {
     }
     
     virtual void add(Declaration *decl) {
         contents.push_back(std::unique_ptr<Declaration>(decl));
+        decl->outer = this;
     }
     
     virtual void remove(Declaration *decl) {
         if (contents.back().get() == decl) {
             contents.back().release();
             contents.pop_back();
+            decl->outer = NULL;
         }
         else
             throw Error("Not the last decl to remove!");
@@ -137,38 +234,38 @@ public:
         return contents.size();
     }
     
-    virtual Match lookup(std::string name, TypeSpec ts) {
+    virtual Value *lookup(std::string name, Value *pivot) {
         for (auto &decl : contents) {
-            Match m = decl->match(name, ts);
+            Value *v = decl->match(name, pivot);
             
-            if (m.decl)
-                return m;
+            if (v)
+                return v;
         }
 
-        return Match();
-    }
-    
-    virtual TypeSpec get_return_ts(Match m) {
-        //TypeSpec ts;
-        //ts.push_back();
-        return TS_VOID;  // TODO
+        return NULL;
     }
 };
 
 
 class FunctionScope: public Scope {
 public:
-    FunctionScope(Scope *o)
-        :Scope(o) {
+    Scope *head_scope;
+
+    FunctionScope(Scope *hs)
+        :Scope() {
+        head_scope = hs;
     }
     
-    virtual Match lookup(std::string name, TypeSpec ts) {
-        if (contents.size() > 1) {
-            Scope *s = dynamic_cast<Scope *>(contents[0].get());
-            return s->lookup(name, ts);  // Look up function arguments
-        }
-        else
-            return Match();
+    virtual Value *lookup(std::string name, Value *pivot) {
+        Value *v = Scope::lookup(name, pivot);
+        if (v)
+            return v;
+        
+        v = head_scope->lookup(name, pivot);
+        if (v)
+            return v;
+            
+        return NULL;
     }
 };
 
@@ -195,30 +292,16 @@ public:
         return "";
     }
     
-    virtual Match match(std::string name, TypeSpec ts) {
-        if (name == this->name && ts == TS_VOID && parameter_count == 0)
-            return Match(this);
-        else
-            return Match();
-    }
-    
-    virtual TypeSpec get_return_ts(Match m) {
-        if (m.params.size() != parameter_count)
-            throw Error("Mismatching type parameter count!");
+    virtual Value *match(std::string name, Value *pivot) {
+        if (name == this->name && pivot == NULL && parameter_count == 0) {
+            TypeSpec ts;
+            ts.push_back(type_type);
+            ts.push_back(this);
             
-        TypeSpec ts;
-        ts.push_back(type_type);
-        ts.push_back(this);
-        
-        for (auto &param : m.params)
-            for (auto type : param)
-                ts.push_back(type);
-        
-        return ts;
-    }
-    
-    virtual TypeSpec get_argument_ts(Match m) {
-        return TS_VOID;  // FIXME
+            return new TypeValue(ts);
+        }
+        else
+            return NULL;
     }
 };
 
@@ -255,388 +338,124 @@ std::string print_typespec(TypeSpec &ts) {
 }
 
 
-// FIXME: this is not this simple. For method calls and statements it's the first
-// parameter, but for types it's all parameters.
-TypeSpec get_pivot_typespec(TypeSpec &ts) {
-    if (ts[0]->get_length() == 1)
-        return ts;
+Value *typize(Expr *expr, Scope *scope) {
+    if (expr->type == OPEN) {
+        //Scope *inner = new Scope(scope);
+        //scope->add(inner);
         
-    int start = 1;
-    int end = step_typespec(ts, start);
-    
-    TypeSpec t;
-    
-    for (int i = start; i < end; i++)
-        t.push_back(ts[i]);
+        //Match m(inner);
+        if (expr->pivot)
+            throw Error("An OPEN had a pivot argument!");
+
+        BlockValue *v = new BlockValue();
+        v->check(expr->args, expr->kwargs, scope);
+            
+        return v;
+    }
+    else if (expr->type == STATEMENT) {
+        if (expr->text == "function") {
+            Scope *ret_scope = new Scope();
+            scope->add(ret_scope);
+            Expr *r = expr->pivot.get();
+            Value *ret = r ? typize(r, ret_scope) : NULL;
         
-    return t;
-}
-
-
-class LabelType: public Type {
-public:
-    std::string label;
-    
-    LabelType(std::string l)
-        :Type("<Label>", 1) {
-        label = l;
-    }
-    
-    virtual std::string get_label() {
-        return label;
-    }
-};
-
-
-Type *make_label_type(std::string label) {
-    return new LabelType(label);  // FIXME: cache!
-}
-
-
-class TupleType: public Type {
-public:
-    TupleType(int pc)
-        :Type("<Tuple>", pc) {
-        if (pc < 2)
-            throw Error("A tuple type needs at least 2 parameters!");
-    }
-    
-    virtual int get_length() {
-        return parameter_count;
-    }
-};
-
-
-Type *make_tuple_type(int pc) {
-    return new TupleType(pc);  // FIXME: cache!
-}
-
-
-TypeSpec make_tuple_typespec(TypeSpec a, TypeSpec b) {
-    if (a == TS_VOID)
-        return b;
-        
-    if (b == TS_VOID)
-        return a;
-    
-    int a_length = a[0]->get_length();
-    int b_length = b[0]->get_length();
-    
-    TypeSpec ts;
-    Type *t = make_tuple_type(a_length + b_length);
-    ts.push_back(t);
-    
-    for (unsigned i = (a_length >= 2 ? 1 : 0); i < a.size(); i++)
-        ts.push_back(a[i]);
-        
-    for (unsigned i = (b_length >= 2 ? 1 : 0); i < b.size(); i++)
-        ts.push_back(b[i]);
-    
-    return ts;
-}
-
-
-class Expr {
-public:
-    Match match;
-    TypeSpec ts;
-    std::unique_ptr<Expr> pivot;
-    std::vector<std::unique_ptr<Expr>> args;
-    std::map<std::string, std::unique_ptr<Expr>> kwargs;
-    Expr *parent;
-    
-    /*
-    Expr(TypeSpec t, Expr *l, Expr *r)
-        :left(l), right(r) {
-        ts = t;
-        
-        if (l)
-            l->parent = this;
+            Scope *head_scope = new Scope();
+            scope->add(head_scope);
+            Expr *h = expr->kwargs["from"].get();
+            Value *head = h ? typize(h, head_scope) : NULL;
             
-        if (r)
-            r->parent = this;
-    }
-
-    Expr(Match m, Expr *l, Expr *r)
-        :left(l), right(r) {
-        match = m;
-        ts = m.decl->get_return_ts(m);
-
-        if (l)
-            l->parent = this;
+            Scope *body_scope = new FunctionScope(head_scope);
+            scope->add(body_scope);
+            Expr *b = expr->kwargs["as"].get();
+            Value *body = typize(b, body_scope);
             
-        if (r)
-            r->parent = this;
-    }
-    */
+            TypeSpec fn_ts;
+                
+            if (ret) {
+                if (ret->ts[0] != type_type)
+                    throw Error("Function return type is not a type!");
+                    
+                fn_ts = ret->ts;
+                fn_ts[0] = function_type;
+            }
+            else {
+                fn_ts.push_back(function_type);
+                fn_ts.push_back(void_type);
+            }
 
-    /*
-    Expr(TypeSpec t) {
-        ts = t;
-    }
-
-    Expr(Match m) {
-        match = m;
-        ts = m.decl->get_return_ts(m);
-    }
-    */
-    
-    Expr(Match m, TypeSpec t) {
-        match = m;
-        ts = t;
-    }
-    
-    Expr *set_pivot(Expr *p) {
-        pivot.reset(p);
-        p->parent = this;
-        return this;
-    }
-    
-    Expr *add_arg(Expr *a) {
-        if (kwargs.size())
-            throw Error("Positional params after keyword!");
+            std::cout << "Function ts " << print_typespec(fn_ts) << "\n";
             
-        args.push_back(std::unique_ptr<Expr>(a));
-        a->parent = this;
-        return this;
-    }
-    
-    Expr *add_kwarg(std::string k, Expr *v) {
-        kwargs.insert(decltype(kwargs)::value_type(k, v));
-        v->parent = this;
-        return this;
-    }
-};
-
-
-void fill_tuple(Expr *e, Expr *&c) {
-    if (c->match.decl != tuple_builtin) {
-        e->add_arg(c);
-    }
-    else {
-        for (auto &x : c->args)
-            e->add_arg(x.release());
+            Value *v = new FunctionDefinitionValue(ret, head, body);
+            v->set_ts(fn_ts);
             
-        for (auto &kv : c->kwargs)
-            e->add_kwarg(kv.first, kv.second.release());
-            
-        delete c;
-    }
-}
+            return v;
+        }
+        else if (expr->text == "return") {
+            Expr *r = expr->pivot.get();
+            Value *ret = r ? typize(r, scope) : NULL;  // TODO: inner scope?
 
+            Value *v = new ReturnValue(ret);
 
-void fill_statement(Expr *e, Expr *&c) {
-    if (!c)
-        ;
-    else if (c->match.decl != tuple_builtin) {
-        e->set_pivot(c);
-    }
-    else {
-        if (c->args.size() == 0)
-            ;
-        else if (c->args.size() == 1) {
-            e->set_pivot(c->args[0].release());
-            c->args.clear();
+            return v;
         }
         else
-            throw Error("Multiple positional arguments in a statement???");  // Can't be!
-            
-        for (auto &kv : c->kwargs)
-            e->add_kwarg(kv.first, kv.second.release());
-            
-        delete c;
+            throw Error("Unknown statement!");
     }
-}
-
-
-Expr *resolve(std::vector<Node> nodes, int i, Scope *scope) {
-    if (i < 0)
-        throw Error("Eiii!");
+    else if (expr->type == DECLARATION) {
+        std::string name = expr->text;
+        Value *d = typize(expr->pivot.get(), scope);
         
-    Node &node = nodes[i];
-    
-    if (node.type == OPEN) {
-        Scope *inner = new Scope(scope);
-        scope->add(inner);
-        
-        Expr *r = resolve(nodes, node.right, inner);
-        
-        if (inner->get_length() == 0) {
-            scope->remove(inner);
-            return r;
-        }
-        else {
-            //TypeSpec ts;
-            //ts.push_back(inner);
-            Match m(inner);
-            TypeSpec ts;
-            
-            Expr *e = (new Expr(m, ts))->add_arg(r);
-            return e;
-        }
-    }
-    else if (node.type == CLOSE) {
-        return resolve(nodes, node.left, scope);
-    }
-    else if (node.type == LABEL) {
-        Expr *l = node.left >= 0 ? resolve(nodes, node.left, scope) : NULL;
-        Expr *r = resolve(nodes, node.right, scope);
-
-        if (r->match.decl == tuple_builtin)
-            throw Error("Can't label a tuple!");
-
-        Type *lt = make_label_type(node.text);
-        TypeSpec ts(r->ts);
-        ts.insert(ts.begin(), lt);
-
-        if (l)
-            ts = make_tuple_typespec(l->ts, ts);
-
-        Match m(tuple_builtin);
-        Expr *e = new Expr(m, ts);
-        
-        if (l)
-            fill_tuple(e, l);
-        
-        e->add_kwarg(node.text, r);
-
-        return e;
-    }
-    else if (node.type == SEPARATOR) {
-        Expr *l = resolve(nodes, node.left, scope);
-        Expr *r = resolve(nodes, node.right, scope);
-
-        TypeSpec ts = make_tuple_typespec(l->ts, r->ts);
-        Match m(tuple_builtin);
-        Expr *e = new Expr(m, ts);
-
-        fill_tuple(e, l);
-        fill_tuple(e, r);
-        
-        return e;
-    }
-    else if (node.type == STATEMENT) {
-        if (node.text == "function") {
-            Scope *inner = new FunctionScope(scope);
-            scope->add(inner);
-
-            Expr *r = resolve(nodes, node.right, inner);
-            
-            if (!r || r->match.decl != tuple_builtin)
-                throw Error("Function not declared with a tuple!");
-
-            TypeSpec ret_ts;
-                
-            if (r->args.size() == 0) {
-                ret_ts.push_back(type_type);
-                ret_ts.push_back(void_type);
-            }
-            else if (r->args.size() == 1) {
-                ret_ts = r->args[0]->ts;
-            }
-            else
-                throw Error("Multiple positional arguments in a statement???");  // Can't be!
-
-            ret_ts[0] = function_type;
-            std::cout << "Function ret_ts " << print_typespec(ret_ts) << "\n";
-            
-            Match m(generic_builtin);
-            Expr *e = new Expr(m, ret_ts);
-            
-            fill_statement(e, r);
-            
-            return e;
-        }
-        else {
-            Expr *r = resolve(nodes, node.right, scope);
-            
-            Match m(generic_builtin);
-            Expr *e = new Expr(m, TS_VOID);
-
-            fill_statement(e, r);
-                
-            return e;
-        }
-    }
-    else if (node.type == DECLARATION) {
-        Expr *r = resolve(nodes, node.right, scope);
-        
-        if (r->ts.size() == 0)
+        if (d->ts.size() == 0)
             throw Error("Declaration needs a type!");
 
         Declaration *decl;
 
-        if (r->ts[0] == type_type) {
+        if (d->ts[0] == type_type) {
             TypeSpec ts;
-            for (unsigned i = 1; i < r->ts.size(); i++)
-                ts.push_back(r->ts[i]);
+            for (unsigned i = 1; i < d->ts.size(); i++)
+                ts.push_back(d->ts[i]);
         
-            decl = new Variable(node.text, ts);
+            decl = new Variable(name, TS_VOID, ts);
         }
-        else if (r->ts[0] == function_type) {
+        else if (d->ts[0] == function_type) {
             TypeSpec ts;
-            for (unsigned i = 1; i < r->ts.size(); i++)
-                ts.push_back(r->ts[i]);
+            for (unsigned i = 1; i < d->ts.size(); i++)
+                ts.push_back(d->ts[i]);
 
-            decl = new Function(node.text, ts, TS_VOID, TS_VOID);
+            decl = new Function(name, TS_VOID, ts);  // TODO: store the actual definition!
         }
             
         scope->add(decl);
     
-        Match m(generic_builtin);
-        Expr *e = (new Expr(m, TS_VOID))->add_arg(r);  // TODO
-        return e;
-    }
-    else if (node.type == IDENTIFIER) {
-        Expr *l = node.left >= 0 ? resolve(nodes, node.left, scope) : NULL;
-        Expr *r = node.right >= 0 ? resolve(nodes, node.right, scope) : NULL;
+        Value *v = new DeclarationValue(decl);
         
-        TypeSpec pts = l ? l->ts : TS_VOID;
-        std::cout << "Looking up " << node.text << " with pivot type " << print_typespec(pts) << "\n";
+        return v;
+    }
+    else if (expr->type == IDENTIFIER) {
+        std::string name = expr->text;
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        TypeSpec pts = p ? p->ts : TS_VOID;
+        
+        std::cout << "Looking up " << name << " with pivot type " << print_typespec(pts) << "\n";
 
         for (Scope *s = scope; s; s = s->outer) {
-            Match m = s->lookup(node.text, pts);
+            Value *v = s->lookup(expr->text, p);
         
-            if (m.decl) {
-                TypeSpec ts = m.decl->get_return_ts(m);
-                Expr *e = new Expr(m, ts);
+            if (v) {
+                bool ok = v->check(expr->args, expr->kwargs, scope);
                 
-                if (l)
-                    e->set_pivot(l);
+                if (!ok)
+                    throw Error("Argument problem!");
                     
-                if (r)
-                    fill_tuple(e, r);
-                    
-                return e;
+                return v;
             }
         }
         
-        throw Error("No match for %s!", node.text.c_str());
+        throw Error("No match for %s!", name.c_str());
     }
-    else if (node.type == NUMBER) {
-        Match m(generic_builtin);
-        TypeSpec ts;
-        ts.push_back(integer_type);
-        
-        return new Expr(m, ts);  // TODO
+    else if (expr->type == NUMBER) {
+        return new NumberValue(expr->text);  // TODO
     }
     else
-        throw Error("Can't resolve this now %d!", node.type);
-}
-
-
-void print_expr_tree(Expr *e, int indent, const char *prefix) {
-    for (int j=0; j<indent; j++)
-        std::cout << " ";
-        
-    std::cout << prefix << print_typespec(e->ts) << "\n";
-    
-    if (e->pivot)
-        print_expr_tree(e->pivot.get(), indent + 2, "$ ");
-        
-    for (auto &x : e->args)
-        print_expr_tree(x.get(), indent + 2, "# ");
-            
-    for (auto &kv : e->kwargs)
-        print_expr_tree(kv.second.get(), indent + 2, kv.first.c_str());
+        throw Error("Can't typize this now %d!", expr->type);
 }
