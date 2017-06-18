@@ -1,4 +1,10 @@
 
+enum Error {
+    TOKEN_ERROR, TREE_ERROR, TUPLE_ERROR, TYPE_ERROR,
+    INTERNAL_ERROR
+};
+
+/*
 static std::string vformat(const char *f, va_list ap) {
     char buffer[65536];
     
@@ -9,6 +15,7 @@ static std::string vformat(const char *f, va_list ap) {
     
     return std::string(buffer);
 }
+
 
 
 class Error {
@@ -33,3 +40,4 @@ std::ostream &operator<<(std::ostream &os, Error const &error) {
     os << error.message;
     return os;
 }
+*/

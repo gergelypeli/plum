@@ -94,7 +94,8 @@ std::vector<Token> tokenize(std::string buffer) {
                 continue;
             }
 
-            throw Error("Invalid indentation of %d spaces!", n);
+            std::cerr << "Invalid indentation of " << n << " spaces!\n";
+            throw TOKEN_ERROR;
         }
         else if (c == '#') {
             do {
@@ -152,7 +153,8 @@ std::vector<Token> tokenize(std::string buffer) {
             } while (ispunct(c) && !is_paren(c) && !is_separator(c) && !is_quote(c));
         }
         else {
-            throw Error("Invalid input character %c!", c);
+            std::cerr << "Invalid input character " << c << "!\n";
+            throw TOKEN_ERROR;
         }
 
         tokens.push_back(Token(buffer.substr(start, i - start), row_count, start - row_start));

@@ -68,8 +68,10 @@ public:
             contents.pop_back();
             decl->outer = NULL;
         }
-        else
-            throw Error("Not the last decl to remove!");
+        else {
+            std::cerr << "Not the last decl to remove!\n";
+            throw INTERNAL_ERROR;
+        }
     }
     
     virtual unsigned get_length() {
@@ -505,8 +507,10 @@ Value *make_number_value(std::string text) {
 
 Value *typize(Expr *expr, Scope *scope) {
     if (expr->type == OPEN) {
-        if (expr->pivot)
-            throw Error("An OPEN had a pivot argument!");
+        if (expr->pivot) {
+            std::cerr << "An OPEN had a pivot argument!\n";
+            throw INTERNAL_ERROR;
+        }
 
         Value *v = make_block_value()->set_token(expr->token);
         v->check(expr->args, expr->kwargs, scope);
@@ -533,8 +537,10 @@ Value *typize(Expr *expr, Scope *scope) {
             TypeSpec fn_ts;
                 
             if (ret) {
-                if (ret->ts[0] != type_type)
-                    throw Error("Function return type is not a type!");
+                if (ret->ts[0] != type_type) {
+                    std::cerr << "Function return type is not a type!\n";
+                    throw TYPE_ERROR;
+                }
                     
                 fn_ts = ret->ts;
                 fn_ts[0] = function_type;
@@ -559,8 +565,10 @@ Value *typize(Expr *expr, Scope *scope) {
 
             return v;
         }
-        else
-            throw Error("Unknown statement!");
+        else {
+            std::cerr << "Unknown statement " << expr->token << "!\n";
+            throw TYPE_ERROR;
+        }
     }
     else if (expr->type == DECLARATION) {
         std::string name = expr->text;
@@ -568,8 +576,10 @@ Value *typize(Expr *expr, Scope *scope) {
         
         Value *d = typize(expr->pivot.get(), scope);
         
-        if (d->ts.size() == 0)
-            throw Error("Declaration needs a type!");
+        if (d->ts.size() == 0) {
+            std::cerr << "Declaration needs a type " << expr->token << "!\n";
+            throw TYPE_ERROR;
+        }
 
         Declaration *decl;
 
@@ -636,8 +646,10 @@ Value *typize(Expr *expr, Scope *scope) {
                 v->set_token(expr->token);
                 bool ok = v->check(expr->args, expr->kwargs, scope);
                 
-                if (!ok)
-                    throw Error("Argument problem!");
+                if (!ok) {
+                    std::cerr << "Argument problem for " << expr->token << "!\n";
+                    throw TYPE_ERROR;
+                }
 
                 std::cerr << "Found " << pts << " " << name << " as a " << v->ts << ".\n";
                 return v;
@@ -645,11 +657,13 @@ Value *typize(Expr *expr, Scope *scope) {
         }
         
         std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
-        throw Error();
+        throw TYPE_ERROR;
     }
     else if (expr->type == NUMBER) {
         return make_number_value(expr->text)->set_token(expr->token);  // TODO
     }
-    else
-        throw Error("Can't typize this now %d!", expr->type);
+    else {
+        std::cerr << "Can't typize this now: " << expr->token << "!\n";
+        throw INTERNAL_ERROR;
+    }
 }

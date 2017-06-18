@@ -30,8 +30,10 @@ public:
     }
     
     Expr *add_arg(Expr *a) {
-        if (kwargs.size())
-            throw Error("Positional params after keyword!");
+        if (kwargs.size()) {
+            std::cerr << "Positional params after keyword at " << a->token << "!\n";
+            throw TUPLE_ERROR;
+        }
             
         args.push_back(std::unique_ptr<Expr>(a));
         //a->parent = this;
@@ -88,10 +90,12 @@ void fill_statement(Expr *e, std::vector<Node> nodes, int i) {
         e->set_pivot(f);
     }
     else if (node.type == CLOSE) {
-        throw Error("CLOSE while filling a statement!");
+        std::cerr << "CLOSE while filling a statement!\n";
+        throw INTERNAL_ERROR;
     }
     else if (node.type == SEPARATOR) {
-        throw Error("SEPARATOR while filling a statement!");
+        std::cerr << "SEPARATOR while filling a statement!\n";
+        throw INTERNAL_ERROR;
     }
     else if (node.type == LABEL) {
         if (node.left >= 0)
@@ -111,8 +115,10 @@ void fill_statement(Expr *e, std::vector<Node> nodes, int i) {
 
 
 Expr *tupleize(std::vector<Node> nodes, int i) {
-    if (i < 0)
-        throw Error("Eiii!");
+    if (i < 0) {
+        std::cerr << "Eiii!\n";
+        throw INTERNAL_ERROR;
+    }
         
     Node &node = nodes[i];
     //std::cerr << "Tupleize: " << print_node_type(node.type) << " " << node.text << "\n";
@@ -124,10 +130,12 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
         return tupleize(nodes, node.left);
     }
     else if (node.type == LABEL) {
-        throw Error("Labeling found outside of blocks or statements!");
+        std::cerr << "Labeling found outside of blocks or statements at " << node.token << "!\n";
+        throw TUPLE_ERROR;
     }
     else if (node.type == SEPARATOR) {
-        throw Error("Separator found outside of blocks!");
+        std::cerr << "Separator found outside of blocks at " << node.token << "!\n";
+        throw TUPLE_ERROR;
     }
     else if (node.type == STATEMENT) {
         Expr *e = new Expr(STATEMENT, node.token, node.text);
@@ -159,8 +167,10 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
     else if (node.type == NUMBER) {
         return new Expr(NUMBER, node.token, node.text);
     }
-    else
-        throw Error("Can't tupleize this now %d!", node.type);
+    else {
+        std::cerr << "Can't tupleize this now " << node.token << "!\n";
+        throw INTERNAL_ERROR;
+    }
 }
 
 
