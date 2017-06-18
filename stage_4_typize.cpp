@@ -165,7 +165,7 @@ public:
 
     virtual Value *match(std::string name, Value *pivot) {
         TypeSpec pts = get_typespec(pivot);
-        //std::cout << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
+        //std::cerr << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
 
         if (name == this->name && pts == pivot_ts) {  // TODO: convert
             Value *v = make_function_value(this);
@@ -184,7 +184,7 @@ public:
     }
     
     virtual TypeSpec get_argument_typespec(unsigned i) {
-        //std::cout << "Returning typespec for argument " << i << ".\n";
+        //std::cerr << "Returning typespec for argument " << i << ".\n";
         return arg_tss[i];
     }
 
@@ -266,17 +266,29 @@ std::string print_typespec(TypeSpec &ts) {
 }
 
 
+std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
+    os << print_typespec(ts);
+    return os;
+}
+
+
 // Value
 
 class Value {
 public:
     TypeSpec ts;
+    Token token;
     
     Value() {
     }
 
     virtual void set_ts(TypeSpec ts) {
         this->ts = ts;
+    }
+    
+    virtual Value *set_token(Token t) {
+        token = t;
+        return this;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -493,14 +505,10 @@ Value *make_number_value(std::string text) {
 
 Value *typize(Expr *expr, Scope *scope) {
     if (expr->type == OPEN) {
-        //Scope *inner = new Scope(scope);
-        //scope->add(inner);
-        
-        //Match m(inner);
         if (expr->pivot)
             throw Error("An OPEN had a pivot argument!");
 
-        Value *v = make_block_value();
+        Value *v = make_block_value()->set_token(expr->token);
         v->check(expr->args, expr->kwargs, scope);
             
         return v;
@@ -536,9 +544,9 @@ Value *typize(Expr *expr, Scope *scope) {
                 fn_ts.push_back(void_type);
             }
 
-            std::cout << "Function ts " << print_typespec(fn_ts) << "\n";
+            std::cerr << "Function ts " << print_typespec(fn_ts) << "\n";
             
-            Value *v = make_function_definition_value(ret, head, body, body_scope);
+            Value *v = make_function_definition_value(ret, head, body, body_scope)->set_token(expr->token);
             v->set_ts(fn_ts);
             
             return v;
@@ -547,7 +555,7 @@ Value *typize(Expr *expr, Scope *scope) {
             Expr *r = expr->pivot.get();
             Value *ret = r ? typize(r, scope) : NULL;  // TODO: inner scope?
 
-            Value *v = make_return_value(ret);
+            Value *v = make_return_value(ret)->set_token(expr->token);
 
             return v;
         }
@@ -556,7 +564,7 @@ Value *typize(Expr *expr, Scope *scope) {
     }
     else if (expr->type == DECLARATION) {
         std::string name = expr->text;
-        std::cout << "Declaring " << name << ".\n";
+        std::cerr << "Declaring " << name << ".\n";
         
         Value *d = typize(expr->pivot.get(), scope);
         
@@ -587,7 +595,7 @@ Value *typize(Expr *expr, Scope *scope) {
             else
                 ret_ts.push_back(void_type);
                 
-            std::cout << "It's a function with return type " << print_typespec(ret_ts) << ".\n";
+            std::cerr << "It's a function with return type " << print_typespec(ret_ts) << ".\n";
 
             Scope *head_scope = fdv->fn_scope->head_scope;
             unsigned n = head_scope->get_length();
@@ -608,7 +616,7 @@ Value *typize(Expr *expr, Scope *scope) {
             
         scope->add(decl);
     
-        Value *v = make_declaration_value(decl, d);
+        Value *v = make_declaration_value(decl, d)->set_token(expr->token);
         
         return v;
     }
@@ -617,28 +625,30 @@ Value *typize(Expr *expr, Scope *scope) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         TypeSpec pts = p ? p->ts : TS_VOID;
         
-        std::cout << "Looking up " << name << " with pivot type " << print_typespec(pts) << "\n";
+        std::cerr << "Looking up " << pts << " " << name << "\n";
 
         for (Scope *s = scope; s; s = s->outer) {
-            std::cout << "Trying a scope...\n";
+            //std::cerr << "Trying a scope...\n";
             
             Value *v = s->lookup(expr->text, p);
         
             if (v) {
+                v->set_token(expr->token);
                 bool ok = v->check(expr->args, expr->kwargs, scope);
                 
                 if (!ok)
                     throw Error("Argument problem!");
 
-                std::cout << "Found as a " << print_typespec(v->ts) << ".\n";
+                std::cerr << "Found " << pts << " " << name << " as a " << v->ts << ".\n";
                 return v;
             }
         }
         
-        throw Error("No match for %s!", name.c_str());
+        std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
+        throw Error();
     }
     else if (expr->type == NUMBER) {
-        return make_number_value(expr->text);  // TODO
+        return make_number_value(expr->text)->set_token(expr->token);  // TODO
     }
     else
         throw Error("Can't typize this now %d!", expr->type);

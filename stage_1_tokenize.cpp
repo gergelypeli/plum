@@ -1,6 +1,31 @@
 
 // Stage 1
 
+struct Token {
+    std::string text;
+    int row;  // zero-based
+    int column;  // zero-based
+
+    Token() {
+        text = "";
+        row = -1;
+        column = -1;
+    }
+    
+    Token(const std::string &t, int r, int c) {
+        text = t;
+        row = r;
+        column = c;
+    }
+};
+
+
+std::ostream &operator<<(std::ostream &os, const Token &token) {
+    os << (token.row + 1) << ":" << (token.column + 1) << ":\"" << token.text << "\"";
+    return os;
+}
+
+
 bool is_paren(char c) {
     return (c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}');
 }
@@ -16,8 +41,10 @@ bool is_quote(char c) {
 }
 
 
-std::vector<std::string> tokenize(std::string buffer) {
-    std::vector<std::string> tokens;
+std::vector<Token> tokenize(std::string buffer) {
+    std::vector<Token> tokens;
+    int row_count = 0;
+    int row_start = 0;
     int i = 0;
     int indent = -1;
     
@@ -25,8 +52,13 @@ std::vector<std::string> tokenize(std::string buffer) {
         char c = buffer[i];
         int start = i;
         
-        if (c == '\n') {
-            int start = i;
+        if (c == ' ') {
+            i++;
+            continue;
+        }
+        else if (c == '\n') {
+            row_count += 1;
+            row_start = i + 1;
             
             do {
                 i++;
@@ -36,37 +68,33 @@ std::vector<std::string> tokenize(std::string buffer) {
             if (c == '\n' || c == '#')
                 continue;
                 
-            int n = i - start - 1;
+            int n = i - row_start;
             int ind = n / 4;
             int mod = n % 4;
             
             if (ind == indent && mod == 0) {
-                tokens.push_back(" separate");  // May be removed by subsequent label
+                tokens.push_back(Token(" separate", row_count, 0));  // May be removed by subsequent label
                 continue;
             }
             else if (ind == indent && mod == 1) {
                 continue;
             }
             else if (ind == indent + 1 && mod == 0) {
-                tokens.push_back(" indent");
+                tokens.push_back(Token(" indent", row_count, 0));
                 indent++;
                 continue;
             }
             else if (ind < indent && mod == 0) {
                 for (int j=0; j < indent - ind; j++) {
-                    tokens.push_back(" dedent");
+                    tokens.push_back(Token(" dedent", row_count, 0));
                     indent--;
                 }
                 
-                tokens.push_back(" separate");  // May be removed by subsequent label
+                tokens.push_back(Token(" separate", row_count, 0));  // May be removed by subsequent label
                 continue;
             }
 
             throw Error("Invalid indentation of %d spaces!", n);
-        }
-        else if (c == ' ') {
-            i++;
-            continue;
         }
         else if (c == '#') {
             do {
@@ -91,7 +119,7 @@ std::vector<std::string> tokenize(std::string buffer) {
             } while (isalnum(c) || c == '_' || c == '.');
             
             if (!prefixed && (c == ':' || c == '?')) {
-                if (c == ':' && tokens.back() == " separate")
+                if (c == ':' && tokens.back().text == " separate")
                     tokens.pop_back();
 
                 i++;
@@ -127,10 +155,10 @@ std::vector<std::string> tokenize(std::string buffer) {
             throw Error("Invalid input character %c!", c);
         }
 
-        tokens.push_back(buffer.substr(start, i - start));
+        tokens.push_back(Token(buffer.substr(start, i - start), row_count, start - row_start));
     }
 
-    if (tokens.back() == " separate")
+    if (tokens.back().text == " separate")
         tokens.pop_back();
     
     return tokens;

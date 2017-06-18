@@ -5,18 +5,21 @@
 class Expr {
 public:
     NodeType type;
+    Token token;
     std::string text;
     
     std::unique_ptr<Expr> pivot;
     std::vector<std::unique_ptr<Expr>> args;
     std::map<std::string, std::unique_ptr<Expr>> kwargs;
     
-    Expr(NodeType t) {
+    Expr(NodeType t, Token k) {
         type = t;
+        token = k;
     }
 
-    Expr(NodeType t, std::string tx) {
+    Expr(NodeType t, Token k, std::string tx) {
         type = t;
+        token = k;
         text = tx;
     }
     
@@ -80,7 +83,7 @@ void fill_statement(Expr *e, std::vector<Node> nodes, int i) {
 
     if (node.type == OPEN) {
         // Positional argument block
-        Expr *f = new Expr(OPEN);
+        Expr *f = new Expr(OPEN, node.token);
         fill_arguments(f, nodes, node.right);
         e->set_pivot(f);
     }
@@ -94,13 +97,13 @@ void fill_statement(Expr *e, std::vector<Node> nodes, int i) {
         if (node.left >= 0)
             fill_statement(e, nodes, node.left);
             
-        Expr *f = new Expr(OPEN);
+        Expr *f = new Expr(OPEN, node.token);
         fill_arguments(f, nodes, node.right);
         e->add_kwarg(node.text, f);
     }
     else {
         // Positional argument expression, enclose for consistency
-        Expr *f = new Expr(OPEN);
+        Expr *f = new Expr(OPEN, node.token);
         fill_arguments(f, nodes, i);
         e->set_pivot(f);
     }
@@ -116,9 +119,6 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
     
     if (node.type == OPEN) {
         return tupleize(nodes, node.right);
-        //Expr *e = new Expr(OPEN);
-        //fill(e, nodes, node.right);
-        //return e;
     }
     else if (node.type == CLOSE) {
         return tupleize(nodes, node.left);
@@ -130,20 +130,20 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
         throw Error("Separator found outside of blocks!");
     }
     else if (node.type == STATEMENT) {
-        Expr *e = new Expr(STATEMENT, node.text);
+        Expr *e = new Expr(STATEMENT, node.token, node.text);
         
         fill_statement(e, nodes, node.right);
         
         return e;
     }
     else if (node.type == DECLARATION) {
-        Expr *e = new Expr(DECLARATION, node.text);
+        Expr *e = new Expr(DECLARATION, node.token, node.text);
         Expr *f = tupleize(nodes, node.right);
         e->set_pivot(f);  // Yes, the type/value will be stored in the pivot field
         return e;
     }
     else if (node.type == IDENTIFIER) {
-        Expr *e = new Expr(IDENTIFIER, node.text);
+        Expr *e = new Expr(IDENTIFIER, node.token, node.text);
     
         if (node.left >= 0) {
             Expr *l = tupleize(nodes, node.left);
@@ -157,7 +157,7 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
         return e;
     }
     else if (node.type == NUMBER) {
-        return new Expr(NUMBER, node.text);
+        return new Expr(NUMBER, node.token, node.text);
     }
     else
         throw Error("Can't tupleize this now %d!", node.type);
@@ -165,7 +165,7 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
 
 
 Expr *tupleize(std::vector<Node> nodes) {
-    Expr *root = new Expr(OPEN);
+    Expr *root = new Expr(OPEN, Token("", 0, 0));
     
     fill_arguments(root, nodes, 0);
     
@@ -175,9 +175,9 @@ Expr *tupleize(std::vector<Node> nodes) {
 
 void print_expr_tree(Expr *e, int indent, const char *prefix) {
     for (int j=0; j<indent; j++)
-        std::cout << " ";
+        std::cerr << " ";
         
-    std::cout << prefix << " " << print_node_type(e->type) << " " << e->text << "\n";
+    std::cerr << prefix << " " << print_node_type(e->type) << " " << e->text << "\n";
     
     if (e->pivot)
         print_expr_tree(e->pivot.get(), indent + 2, "$");

@@ -14,6 +14,9 @@ static std::string vformat(const char *f, va_list ap) {
 class Error {
 public:
     std::string message;
+
+    Error() {
+    }
     
     Error(const char *fmt, ...) __attribute__ ((format (printf, 2, 3))) {
         va_list ap;

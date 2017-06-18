@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
     try {
         std::string buffer = read_source(argv[1]);
         
-        std::vector<std::string> tokens = tokenize(buffer);
+        std::vector<Token> tokens = tokenize(buffer);
         //for (auto token : tokens)
-        //    std::cout << "" << token << "\n";
+        //    std::cerr << "" << token << "\n";
         
         std::vector<Node> nodes = treeize(tokens);
 

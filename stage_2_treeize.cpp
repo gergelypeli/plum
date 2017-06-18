@@ -73,12 +73,15 @@ public:
     Precedence back, fore;
     int left;
     int right;
+    Token token;
     
-    Node(NodeType type, const std::string &text, Precedence back, Precedence fore) {
+    Node(NodeType type, const std::string &text, Precedence back, Precedence fore, Token token) {
         this->type = type;
         this->text = text;
         this->back = back;
         this->fore = fore;
+        this->token = token;
+        
         left = -1;
         right = -1;
     }
@@ -125,69 +128,67 @@ void print_node(std::vector<Node> &nodes, int i, int indent, const char *prefix)
     if (nodes[i].left >= 0)
         print_node(nodes, nodes[i].left, indent + 2, "/ ");
     
-    //std::cout << i << "(" << nodes[i].left << "/" << nodes[i].right << ")\n";
+    //std::cerr << i << "(" << nodes[i].left << "/" << nodes[i].right << ")\n";
     for (int j=0; j<indent; j++)
-        std::cout << " ";
+        std::cerr << " ";
         
-    std::cout << prefix << "[" << print_node_type(nodes[i].type) << "] " << nodes[i].text << "\n";
+    std::cerr << prefix << "[" << print_node_type(nodes[i].type) << "] " << nodes[i].text << "\n";
     
     if (nodes[i].right >= 0)
         print_node(nodes, nodes[i].right, indent + 2, "\\ ");
 }
 
 
-std::vector<Node> treeize(std::vector<std::string> tokens) {
+std::vector<Node> treeize(std::vector<Token> tokens) {
     std::vector<Node> nodes;
     std::vector<Paren> parens;
     
-    //nodes.push_back(Node(OPEN, "", BASE, BASE));
-    //parens.push_back(UNIT);
-    if (tokens.front() != " indent")
-        throw Error("Onodes?");
+    if (tokens.front().text != " indent")
+        throw Error("Onodes?");  // WTF?
     
     for (auto token : tokens) {
         NodeType type;
         Precedence back, fore;
         std::string text;
         
-        char c = token[0];
+        char c = token.text[0];
         
         if (isdigit(c) || c == '.') {
             type = NUMBER;
             back = fore = LITERAL;
-            text = token;
+            text = token.text;
         }
         else if (c == ':') {
             type = STATEMENT;
             back = LITERAL;
             fore = SEPARATING;
-            text = token.substr(1);
+            text = token.text.substr(1);
         }
         else if (isalpha(c) || c == '_') {
-            if (token.back() == ':') {
+            if (token.text.back() == ':') {
                 type = LABEL;
                 back = LABELING;
                 fore = LABELING;
-                text = token.substr(0, token.length() - 1);
+                text = token.text.substr(0, token.text.length() - 1);
             }
-            else if (token.back() == '?') {
+            else if (token.text.back() == '?') {
                 type = DECLARATION;
                 back = DECLARING;
                 fore = DECLARING;
-                text = token.substr(0, token.length() - 1);
+                text = token.text.substr(0, token.text.length() - 1);
             }
             else {
                 type = IDENTIFIER;
                 back = TEXTUAL;
                 fore = TEXTUAL;
-                text = token;
+                text = token.text;
             }
         }
         else if (is_quote(c)) {
             type = STRING;
             back = LITERAL;
             fore = LITERAL;
-            text = token.substr(1, token.length() - 1);
+            text = token.text.substr(1, token.text.length() - 1);
         }
         else if (c == ',') {
             type = SEPARATOR;
@@ -204,7 +205,7 @@ std::vector<Node> treeize(std::vector<std::string> tokens) {
             }
             else if (c == ')') {
                 if (parens.back() != PAREN)
-                    throw Error("Mismatched %s!", token.c_str());
+                    throw Error("Mismatched %s!", token.text.c_str());
                     
                 parens.pop_back();
                 
@@ -222,7 +223,7 @@ std::vector<Node> treeize(std::vector<std::string> tokens) {
             }
             else if (c == ']') {
                 if (parens.back() != BRACKET)
-                    throw Error("Mismatched %s!", token.c_str());
+                    throw Error("Mismatched %s!", token.text.c_str());
                     
                 parens.pop_back();
                 
@@ -239,7 +240,7 @@ std::vector<Node> treeize(std::vector<std::string> tokens) {
             }
             else if (c == '}') {
                 if (parens.back() != BRACE)
-                    throw Error("Mismatched %s!", token.c_str());
+                    throw Error("Mismatched %s!", token.text.c_str());
                     
                 parens.pop_back();
                 
@@ -249,16 +250,16 @@ std::vector<Node> treeize(std::vector<std::string> tokens) {
             }
         }
         else if (c == ' ') {
-            if (token == " indent") {
+            if (token.text == " indent") {
                 parens.push_back(BLOCK);
                 
                 type = OPEN;
                 back = LITERAL;
                 fore = BASE;
             }
-            else if (token == " dedent") {
+            else if (token.text == " dedent") {
                 if (parens.back() != BLOCK)
-                    throw Error("Mismatched %s!", token.c_str());
+                    throw Error("Mismatched %s!", token.text.c_str());
                     
                 parens.pop_back();
                 
@@ -266,20 +267,20 @@ std::vector<Node> treeize(std::vector<std::string> tokens) {
                 back = BASE;
                 fore = LITERAL;
             }
-            else if (token == " separate") {
+            else if (token.text == " separate") {
                 if (parens.back() != BLOCK && parens.back() != UNIT)
-                    throw Error("Unclosed parentheses %s!", token.c_str());
+                    throw Error("Unclosed parentheses %s!", token.text.c_str());
                 
                 type = SEPARATOR;
                 back = SEPARATING;
                 fore = SEPARATING;
             }
             else
-                throw Error("Invalid paren thingy %s!", token.c_str());
+                throw Error("Invalid paren thingy %s!", token.text.c_str());
         }
         else {
             for (auto op : operators) {
-                if (op.token == token) {
+                if (op.token == token.text) {
                     type = IDENTIFIER;
                     back = op.precedence;
                     fore = op.precedence;
@@ -289,13 +290,13 @@ std::vector<Node> treeize(std::vector<std::string> tokens) {
             }
             
             if (!type)
-                throw Error("No operator %s!", token.c_str());
+                throw Error("No operator %s!", token.text.c_str());
         }
         
         int n = nodes.size();
-        std::cout << "Token " << token << " => " << n << "\n";
+        std::cerr << "Token " << token.text << " => " << n << "\n";
         
-        nodes.push_back(Node(type, text, back, fore));
+        nodes.push_back(Node(type, text, back, fore, token));
         int r = -1;
         
         for (int i = n - 1; i >= 0; i--) {
