@@ -152,13 +152,15 @@ public:
     std::string name;
     TypeSpec pivot_ts;
     TypeSpec ret_ts;
-    std::vector<TypeSpec> arg_ts;
+    std::vector<TypeSpec> arg_tss;
+    std::vector<std::string> arg_names;
 
-    Function(std::string name, TypeSpec pts, TypeSpec rts, std::vector<TypeSpec> ats) {
+    Function(std::string name, TypeSpec pts, TypeSpec rts, std::vector<TypeSpec> atss, std::vector<std::string> ans) {
         this->name = name;
         this->pivot_ts = pts;
         ret_ts = rts;
-        arg_ts = ats;
+        arg_tss = atss;
+        arg_names = ans;
     }
 
     virtual Value *match(std::string name, Value *pivot) {
@@ -178,16 +180,20 @@ public:
     }
     
     virtual unsigned get_argument_count() {
-        return arg_ts.size();
+        return arg_tss.size();
     }
     
     virtual TypeSpec get_argument_typespec(unsigned i) {
-        std::cout << "Returning typespec for argument " << i << ".\n";
-        return arg_ts[i];
+        //std::cout << "Returning typespec for argument " << i << ".\n";
+        return arg_tss[i];
     }
 
     virtual int get_argument_index(std::string keyword) {  // FIXME
-        return -1;
+        for (unsigned i = 0; i < arg_names.size(); i++)
+            if (arg_names[i] == keyword)
+                return i;
+                
+        return (unsigned)-1;
     }
 };
 
@@ -335,32 +341,62 @@ public:
         function = f;
 
         set_ts(function->get_return_typespec());
+        
+        for (unsigned i = 0; i < function->get_argument_count(); i++)
+            items.push_back(NULL);
+    }
+
+    virtual bool check_arg(unsigned i, Value *v) {
+        if (i >= items.size()) {
+            std::cerr << "Too many arguments!\n";
+            return false;
+        }
+    
+        if (items[i]) {
+            std::cerr << "Argument " << i << " already supplied!\n";
+            return false;
+        }
+            
+        TypeSpec var_ts = function->get_argument_typespec(i);
+        
+        if (v->ts != var_ts) {
+            std::string vts = print_typespec(v->ts);
+            std::string varts = print_typespec(var_ts);
+            std::cerr << "Argument type mismatch, " << vts << " is not " << varts << "!\n";
+            return false;
+        }
+        
+        items[i] = std::unique_ptr<Value>(v);
+        return true;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        unsigned n = function->get_argument_count();
-        unsigned supplied = 0;
-        
         for (unsigned i = 0; i < args.size(); i++) {
-            if (i >= n)
-                return false;
-                
             Expr *e = args[i].get();
-            Value *v = typize(e, scope);
-            TypeSpec var_ts = function->get_argument_typespec(i);
             
-            if (v->ts != var_ts) {
-                std::string vts = print_typespec(v->ts);
-                std::string varts = print_typespec(var_ts);
-                throw Error("Argument type mismatch, %s is not %s!", vts.c_str(), varts.c_str());
+            if (!check_arg(i, typize(e, scope)))
+                return false;
+        }
+                
+        for (auto &kv : kwargs) {
+            unsigned i = function->get_argument_index(kv.first);
+            if (i == (unsigned)-1) {
+                std::cerr << "No argument named " << kv.first << "!\n";
+                return false;
             }
             
-            supplied |= 1 << i;
-            items.push_back(std::unique_ptr<Value>(v));
+            Expr *e = kv.second.get();
+            
+            if (!check_arg(i, typize(e, scope)))
+                return false;
         }
-        
-        if (kwargs.size() > 0)
-            return false;
+
+        for (auto &item : items) {
+            if (!item) {
+                std::cerr << "Not all arguments supplied!\n";
+                return false;
+            }
+        }
         
         return true;
     }
@@ -556,15 +592,18 @@ Value *typize(Expr *expr, Scope *scope) {
             Scope *head_scope = fdv->fn_scope->head_scope;
             unsigned n = head_scope->get_length();
 
-            std::vector<TypeSpec> arg_ts;
+            std::vector<TypeSpec> arg_tss;
+            std::vector<std::string> arg_names;
+            
             for (unsigned i = 0; i < n; i++) {
                 Declaration *xd = head_scope->get_declaration(i);
                 Variable *vd = dynamic_cast<Variable *>(xd);
-                arg_ts.push_back(vd->var_ts);
+                arg_tss.push_back(vd->var_ts);
+                arg_names.push_back(vd->name);
             }
             
             //decl = new UserFunction(name, TS_VOID, fdv);
-            decl = new Function(name, TS_VOID, ret_ts, arg_ts);
+            decl = new Function(name, TS_VOID, ret_ts, arg_tss, arg_names);
         }
             
         scope->add(decl);

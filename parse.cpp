@@ -62,13 +62,15 @@ int main(int argc, char **argv) {
         TypeSpec int_ts;
         int_ts.push_back(integer_type);
         
-        std::vector<TypeSpec> arg_ts;
-        arg_ts.push_back(int_ts);
+        std::vector<TypeSpec> arg_tss;
+        arg_tss.push_back(int_ts);
+        std::vector<std::string> arg_names;
+        arg_names.push_back("myarg");
         
-        Declaration *integer_add = new Function("plus", int_ts, int_ts, arg_ts);
+        Declaration *integer_add = new Function("plus", int_ts, int_ts, arg_tss, arg_names);
         root_scope->add(integer_add);
         
-        Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, arg_ts);
+        Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, arg_tss, arg_names);
         root_scope->add(integer_print);
         
         std::unique_ptr<Value> value_root(typize(expr_root.get(), root_scope));
