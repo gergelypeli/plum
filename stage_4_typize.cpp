@@ -9,6 +9,7 @@ class Variable;
 class Function;
 
 typedef std::vector<Type *> TypeSpec;
+typedef TypeSpec::iterator TypeSpecIter;
 
 Type *type_type = NULL;
 Type *void_type = NULL;
@@ -16,7 +17,6 @@ Type *function_type = NULL;
 Type *integer_type = NULL;
 
 TypeSpec TS_VOID;
-std::string print_typespec(TypeSpec &ts);
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -26,6 +26,7 @@ class FunctionDefinitionValue;
 
 TypeSpec get_typespec(Value *v);
 Value *typize(Expr *expr, Scope *scope);
+bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
 
 Value *make_variable_value(Variable *decl);
 Value *make_function_value(Function *decl);
@@ -139,7 +140,7 @@ public:
     virtual Value *match(std::string name, Value *pivot) {
         TypeSpec pts = get_typespec(pivot);
         
-        if (name == this->name && pts == pivot_ts) {
+        if (name == this->name && pts >> pivot_ts) {
             Value *v = make_variable_value(this);
             return v;
         }
@@ -169,7 +170,7 @@ public:
         TypeSpec pts = get_typespec(pivot);
         //std::cerr << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
 
-        if (name == this->name && pts == pivot_ts) {  // TODO: convert
+        if (name == this->name && pts >> pivot_ts) {
             Value *v = make_function_value(this);
             return v;
         }
@@ -198,6 +199,9 @@ public:
         return (unsigned)-1;
     }
 };
+
+
+bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
 
 
 class Type: virtual public Declaration {
@@ -233,23 +237,48 @@ public:
         else
             return NULL;
     }
+    
+    virtual bool is_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
+        if (*this_tsi != *that_tsi)
+            return false;
+            
+        this_tsi++;
+        that_tsi++;
+        
+        for (unsigned p = 0; p < parameter_count; p++) {
+            if (!are_equal(this_tsi, that_tsi))
+                return false;
+        }
+        
+        return true;
+    }
+
+    virtual bool is_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
+        return is_equal(this_tsi, that_tsi);
+    }
 };
 
 
-int step_typespec(TypeSpec &ts, int i) {
-    Type *t = ts[i];
-    i++;
-    
-    for (unsigned j = 0; j < t->get_parameter_count(); j++)
-        i = step_typespec(ts, i);
-        
-    return i;
+bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
+    return (*this_tsi)->is_equal(this_tsi, that_tsi);
 }
 
 
-std::string print_typespec(TypeSpec &ts) {
-    std::stringstream s;
-    s << "[";
+bool are_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
+    return (*this_tsi)->is_convertible(this_tsi, that_tsi);
+}
+
+
+bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts) {
+    TypeSpecIter this_tsi(this_ts.begin());
+    TypeSpecIter that_tsi(that_ts.begin());
+    
+    return are_convertible(this_tsi, that_tsi);
+}
+
+
+std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
+    os << "[";
     
     bool start = true;
     
@@ -257,19 +286,13 @@ std::string print_typespec(TypeSpec &ts) {
         if (start)
             start = false;
         else
-            s << ",";
+            os << ",";
             
-        s << type->name;
+        os << type->name;
     }
     
-    s << "]";
+    os << "]";
     
-    return s.str();
-}
-
-
-std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
-    os << print_typespec(ts);
     return os;
 }
 
@@ -373,10 +396,8 @@ public:
             
         TypeSpec var_ts = function->get_argument_typespec(i);
         
-        if (v->ts != var_ts) {
-            std::string vts = print_typespec(v->ts);
-            std::string varts = print_typespec(var_ts);
-            std::cerr << "Argument type mismatch, " << vts << " is not " << varts << "!\n";
+        if (!(v->ts >> var_ts)) {
+            std::cerr << "Argument type mismatch, " << v->ts << " is not a " << var_ts << "!\n";
             return false;
         }
         
@@ -503,6 +524,38 @@ Value *make_number_value(std::string text) {
 }
 
 
+Scope *init_types() {
+    Scope *root_scope = new Scope();
+    
+    type_type = new Type("<Type>", 1);
+    root_scope->add(type_type);
+
+    function_type = new Type("<Function>", 1);
+    root_scope->add(function_type);
+    
+    void_type = new Type("<Void>", 0);
+    root_scope->add(void_type);
+    TS_VOID.push_back(void_type);
+
+    integer_type = new Type("Integer", 0);
+    root_scope->add(integer_type);
+    
+    TypeSpec int_ts;
+    int_ts.push_back(integer_type);
+    
+    std::vector<TypeSpec> arg_tss;
+    arg_tss.push_back(int_ts);
+    std::vector<std::string> arg_names;
+    arg_names.push_back("other");
+    
+    Declaration *integer_add = new Function("plus", int_ts, int_ts, arg_tss, arg_names);
+    root_scope->add(integer_add);
+
+    Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, arg_tss, arg_names);
+    root_scope->add(integer_print);
+
+    return root_scope;
+}
 
 
 Value *typize(Expr *expr, Scope *scope) {
@@ -538,7 +591,7 @@ Value *typize(Expr *expr, Scope *scope) {
                 
             if (ret) {
                 if (ret->ts[0] != type_type) {
-                    std::cerr << "Function return type is not a type!\n";
+                    std::cerr << "Function return expression is not a type!\n";
                     throw TYPE_ERROR;
                 }
                     
@@ -550,7 +603,7 @@ Value *typize(Expr *expr, Scope *scope) {
                 fn_ts.push_back(void_type);
             }
 
-            std::cerr << "Function ts " << print_typespec(fn_ts) << "\n";
+            std::cerr << "Function ts " << fn_ts << "\n";
             
             Value *v = make_function_definition_value(ret, head, body, body_scope)->set_token(expr->token);
             v->set_ts(fn_ts);
@@ -584,28 +637,20 @@ Value *typize(Expr *expr, Scope *scope) {
         Declaration *decl;
 
         if (d->ts[0] == type_type) {
-            TypeSpec ts;
+            TypeSpec var_ts;
             for (unsigned i = 1; i < d->ts.size(); i++)
-                ts.push_back(d->ts[i]);
+                var_ts.push_back(d->ts[i]);
         
-            decl = new Variable(name, TS_VOID, ts);
+            decl = new Variable(name, TS_VOID, var_ts);
         }
         else if (d->ts[0] == function_type) {
-            //TypeSpec ts;
-            //for (unsigned i = 1; i < d->ts.size(); i++)
-            //    ts.push_back(d->ts[i]);
-
             FunctionDefinitionValue *fdv = dynamic_cast<FunctionDefinitionValue *>(d);
 
             TypeSpec ret_ts;
-            if (fdv->ret) {
-                for (unsigned i = 1; i < fdv->ret->ts.size(); i++)
-                    ret_ts.push_back(fdv->ret->ts[i]);
-            }
-            else
-                ret_ts.push_back(void_type);
-                
-            std::cerr << "It's a function with return type " << print_typespec(ret_ts) << ".\n";
+            for (unsigned i = 1; i < d->ts.size(); i++)
+                ret_ts.push_back(d->ts[i]);
+
+            std::cerr << "It's a function with return type " << ret_ts << ".\n";
 
             Scope *head_scope = fdv->fn_scope->head_scope;
             unsigned n = head_scope->get_length();
@@ -620,7 +665,6 @@ Value *typize(Expr *expr, Scope *scope) {
                 arg_names.push_back(vd->name);
             }
             
-            //decl = new UserFunction(name, TS_VOID, fdv);
             decl = new Function(name, TS_VOID, ret_ts, arg_tss, arg_names);
         }
             
