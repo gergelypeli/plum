@@ -12,6 +12,7 @@ typedef std::vector<Type *> TypeSpec;
 typedef TypeSpec::iterator TypeSpecIter;
 
 Type *type_type = NULL;
+Type *lvalue_type = NULL;
 Type *void_type = NULL;
 Type *function_type = NULL;
 Type *integer_type = NULL;
@@ -27,6 +28,8 @@ class FunctionDefinitionValue;
 TypeSpec get_typespec(Value *v);
 Value *typize(Expr *expr, Scope *scope);
 bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
+bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
+bool are_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
 
 Value *make_variable_value(Variable *decl);
 Value *make_function_value(Function *decl);
@@ -53,9 +56,15 @@ public:
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
+    bool is_ro;
     
-    Scope()
+    Scope(bool ro = false)
         :Declaration() {
+        is_ro = ro;
+    }
+    
+    virtual bool is_readonly() {
+        return is_ro;
     }
     
     virtual void add(Declaration *decl) {
@@ -255,6 +264,30 @@ public:
 
     virtual bool is_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
         return is_equal(this_tsi, that_tsi);
+    }
+};
+
+
+class LvalueType: public Type {
+public:
+    LvalueType()
+        :Type("<Lvalue>", 1) {
+    }
+    
+    virtual bool is_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
+        if (*this_tsi == *that_tsi) {
+            // When an lvalue is required, only the same type suffices
+            this_tsi++;
+            that_tsi++;
+            
+            return are_equal(this_tsi, that_tsi);
+        }
+        else {
+            // When an rvalue is required, subtypes are also fine
+            this_tsi++;
+            
+            return are_convertible(this_tsi, that_tsi);
+        }
     }
 };
 
@@ -530,6 +563,9 @@ Scope *init_types() {
     type_type = new Type("<Type>", 1);
     root_scope->add(type_type);
 
+    lvalue_type = new LvalueType();
+    root_scope->add(lvalue_type);
+
     function_type = new Type("<Function>", 1);
     root_scope->add(function_type);
     
@@ -577,7 +613,7 @@ Value *typize(Expr *expr, Scope *scope) {
             Expr *r = expr->pivot.get();
             Value *ret = r ? typize(r, ret_scope) : NULL;
         
-            Scope *head_scope = new Scope();
+            Scope *head_scope = new Scope(true);  // readonly
             scope->add(head_scope);
             Expr *h = expr->kwargs["from"].get();
             Value *head = h ? typize(h, head_scope) : NULL;
@@ -638,6 +674,10 @@ Value *typize(Expr *expr, Scope *scope) {
 
         if (d->ts[0] == type_type) {
             TypeSpec var_ts;
+            
+            if (!scope->is_readonly())
+                var_ts.push_back(lvalue_type);
+            
             for (unsigned i = 1; i < d->ts.size(); i++)
                 var_ts.push_back(d->ts[i]);
         
