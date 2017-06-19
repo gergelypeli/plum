@@ -4,7 +4,7 @@ f? :function Integer from:
     x? Integer
     y? Integer
 as:
-    :return x + y
+    :return x * 2 + y * 3
 
 
 main? :function as:

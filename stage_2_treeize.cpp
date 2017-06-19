@@ -8,10 +8,12 @@ enum Precedence {
     ASSIGNING,  // must be lower than DECLARING: x? Int = 8
     DECLARING,
     LOGICAL_LOW,    // must be lower than COMPARING
+    LOGICAL_MED,
     LOGICAL_HIGH,
     COMPARING,
     ADDITIVE,
     MULTIPLICATIVE,
+    EXPONENTIAL,
     TEXTUAL,
     LITERAL
 };
@@ -25,10 +27,12 @@ const char *print_precedence(Precedence p) {
         p == ASSIGNING ? "ASSIGNING" :
         p == DECLARING ? "DECLARING" :
         p == LOGICAL_LOW ? "LOGICAL_LOW" :
+        p == LOGICAL_MED ? "LOGICAL_MED" :
         p == LOGICAL_HIGH ? "LOGICAL_HIGH" :
         p == COMPARING ? "COMPARING" :
         p == ADDITIVE ? "ADDITIVE" :
         p == MULTIPLICATIVE ? "MULTIPLICATIVE" :
+        p == EXPONENTIAL ? "EXPONENTIAL" :
         p == TEXTUAL ? "TEXTUAL" :
         p == LITERAL ? "LITERAL" :
         "???"
@@ -98,28 +102,44 @@ struct {
     const char *text;
     Precedence precedence;
 } operators[] = {
-    { "+", "plus", ADDITIVE },
-    { "-", "minus", ADDITIVE },
-    { "*", "star", MULTIPLICATIVE },
-    { "/", "slash", MULTIPLICATIVE },
-    { "%", "percent", MULTIPLICATIVE },
-    { "=", "assign", ASSIGNING },
-    { "+=", "plus_assign", ASSIGNING },
-    { "-=", "minus_assign", ASSIGNING },
-    { "*=", "star_assign", ASSIGNING },
-    { "/=", "slash_assign", ASSIGNING },
-    { "%=", "percent_assign", ASSIGNING },
-    { "==", "equal", COMPARING },
-    { "!=", "not_equal", COMPARING },
-    { "<", "less", COMPARING },
-    { ">", "greater", COMPARING },
-    { "<=", "less_equal", COMPARING },
-    { ">=", "greater_equal", COMPARING },
-    { "<>", "incomparable", COMPARING },
-    { "!", "not", LOGICAL_HIGH },
-    { "&", "and", LOGICAL_HIGH },
-    { "|", "or", LOGICAL_LOW },
-    { "^", "xor", LOGICAL_LOW }
+    { "**",  "exponent", EXPONENTIAL },  // TODO: do we need this?
+    { "~",   "negate", EXPONENTIAL },
+
+    { "*",   "star", MULTIPLICATIVE },
+    { "/",   "slash", MULTIPLICATIVE },
+    { "%",   "percent", MULTIPLICATIVE },
+    { "&",   "and", MULTIPLICATIVE },
+
+    { "+",   "plus", ADDITIVE },
+    { "-",   "minus", ADDITIVE },
+    { "|",   "or", ADDITIVE },
+    { "^",   "xor", ADDITIVE },
+
+    { "==",  "equal", COMPARING },
+    { "!=",  "not_equal", COMPARING },
+    { "<",   "less", COMPARING },
+    { ">",   "greater", COMPARING },
+    { "<=",  "less_equal", COMPARING },
+    { ">=",  "greater_equal", COMPARING },
+    { "<>",  "incomparable", COMPARING },
+    { "<=>", "compare", COMPARING },
+
+    { "!",   "logical not", LOGICAL_HIGH },  // TODO: or make it ~~, and != into ~=?
+    
+    { "&&",  "logical and", LOGICAL_MED },
+    
+    { "||",  "logical or", LOGICAL_LOW },
+    { "^^",  "logical xor", LOGICAL_LOW },
+    
+    { "=",   "assign", ASSIGNING },
+    { "+=",  "plus_assign", ASSIGNING },
+    { "-=",  "minus_assign", ASSIGNING },
+    { "*=",  "star_assign", ASSIGNING },
+    { "/=",  "slash_assign", ASSIGNING },
+    { "%=",  "percent_assign", ASSIGNING },
+    { "&=",  "and_assign", ASSIGNING },
+    { "|=",  "or_assign", ASSIGNING },
+    { "^=",  "xor_assign", ASSIGNING },
     //{ "", "",  },
 };
 

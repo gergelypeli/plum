@@ -15,6 +15,7 @@ Type *type_type = NULL;
 Type *lvalue_type = NULL;
 Type *void_type = NULL;
 Type *function_type = NULL;
+Type *boolean_type = NULL;
 Type *integer_type = NULL;
 
 TypeSpec TS_VOID;
@@ -167,7 +168,7 @@ public:
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
 
-    Function(std::string name, TypeSpec pts, TypeSpec rts, std::vector<TypeSpec> atss, std::vector<std::string> ans) {
+    Function(std::string name, TypeSpec pts, std::vector<TypeSpec> atss, std::vector<std::string> ans, TypeSpec rts) {
         this->name = name;
         this->pivot_ts = pts;
         ret_ts = rts;
@@ -263,7 +264,7 @@ public:
     }
 
     virtual bool is_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
-        return is_equal(this_tsi, that_tsi);
+        return *that_tsi == boolean_type || is_equal(this_tsi, that_tsi);
     }
 };
 
@@ -573,22 +574,38 @@ Scope *init_types() {
     root_scope->add(void_type);
     TS_VOID.push_back(void_type);
 
+    boolean_type = new Type("Boolean", 0);
+    root_scope->add(boolean_type);
+
     integer_type = new Type("Integer", 0);
     root_scope->add(integer_type);
     
-    TypeSpec int_ts;
-    int_ts.push_back(integer_type);
+    TypeSpec void_ts = { void_type };
+    TypeSpec bool_ts = { boolean_type };
+    TypeSpec int_ts = { integer_type };
+    TypeSpec lint_ts = { lvalue_type, integer_type };
     
-    std::vector<TypeSpec> arg_tss;
-    arg_tss.push_back(int_ts);
-    std::vector<std::string> arg_names;
-    arg_names.push_back("other");
+    std::vector<TypeSpec> int_tss = { int_ts };
+    std::vector<TypeSpec> bool_tss = { bool_ts };
     
-    Declaration *integer_add = new Function("plus", int_ts, int_ts, arg_tss, arg_names);
-    root_scope->add(integer_add);
+    std::vector<std::string> value_names = { "value" };
 
-    Declaration *integer_print = new Function("print", TS_VOID, TS_VOID, arg_tss, arg_names);
-    root_scope->add(integer_print);
+    for (auto name : { "minus", "negate" })
+        root_scope->add(new Function(name, void_ts, int_tss, value_names, int_ts));
+
+    for (auto name : { "plus", "minus", "star", "slash", "percent", "or", "xor", "and", "exponent" })
+        root_scope->add(new Function(name, int_ts, int_tss, value_names, int_ts));
+
+    for (auto name : { "equal", "not_equal", "less", "greater", "less_equal", "greater_equal", "incomparable", "compare" })
+        root_scope->add(new Function(name, int_ts, int_tss, value_names, bool_ts));
+
+    for (auto name : { "logical not", "logical and", "logical or", "logical xor" })
+        root_scope->add(new Function(name, bool_ts, bool_tss, value_names, bool_ts));
+
+    for (auto name : { "plus_assign", "minus_assign", "star_assign", "slash_assign", "percent_assign", "or_assign", "xor_assign", "and_assign" })
+        root_scope->add(new Function(name, lint_ts, int_tss, value_names, int_ts));
+
+    root_scope->add(new Function("print", void_ts, int_tss, value_names, void_ts));
 
     return root_scope;
 }
@@ -705,7 +722,7 @@ Value *typize(Expr *expr, Scope *scope) {
                 arg_names.push_back(vd->name);
             }
             
-            decl = new Function(name, TS_VOID, ret_ts, arg_tss, arg_names);
+            decl = new Function(name, TS_VOID, arg_tss, arg_names, ret_ts);
         }
             
         scope->add(decl);
