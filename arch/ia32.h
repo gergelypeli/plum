@@ -3,10 +3,23 @@
 
 #include "ork.h"
 
+// Oops! Even in 64 bit mode the addressing offsets and immediate operands are limited to
+// 32 bit! The only exceptions are:
+//   REX A1   => MOV RAX, moffset64
+//   REX A3   => MOV moffset64, RAX
+//   REX B8+r => MOV reg64, imm64
+// We now don't support either forms, so for us these constants are never 64 bit!
+
+// Warning: using any Rn registers in the addressing of a memory operand
+// will require the use of the REX prefix, but that turns AH, CH, DH, BH into
+// SPL, BPL, SIL, and DIL! Such addressing is not supported yet, but will be in the future!
+// Since these registers are not that useful, these symbols are now removed
+// to avoid nasty surprises.
 enum Register {
+    RAX=0, RCX, RDX, RBX, RSP, RBP, RSI, RDI,
     EAX=0, ECX, EDX, EBX, ESP, EBP, ESI, EDI,
     AX=0, CX, DX, BX, SP, BP, SI, DI,
-    AL=0, CL, DL, BL, AH, CH, DH, BH,
+    AL=0, CL, DL, BL, //AH, CH, DH, BH,
     NOREG=-1
 };
 
@@ -15,7 +28,7 @@ struct Label {
     unsigned def_index;
     
     Label();
-    Label(int di);
+    Label(unsigned di);
     Label(const Label &c);
     
     explicit operator bool() const {
@@ -27,7 +40,7 @@ struct Label {
 struct Address {
     Label label;
     Register base;
-    int offset;
+    int offset;  // Offsets are never longer than 32 bits, except in some wicked cases
 
     Address(Register r, int x = 0);
     Address(Label &c, int x = 0);
@@ -44,16 +57,16 @@ enum SimpleOp {
 
 
 enum UnaryOp {
-    DECB=0, DECW, DECD,
-    DIVB=4, DIVW, DIVD,
-    IDIVB=8, IDIVW, IDIVD,
-    IMULB=12, IMULW, IMULD,
-    INCB=16, INCW, INCD,
+    DECB=0, DECW, DECD, DECQ,
+    DIVB=4, DIVW, DIVD, DIVQ,
+    IDIVB=8, IDIVW, IDIVD, IDIVQ,
+    IMULB=12, IMULW, IMULD, IMULQ,
+    INCB=16, INCW, INCD, INCQ,
     LLDT=20,
     LTR=24,
-    MULB=28, MULW, MULD,
-    NEGB=32, NEGW, NEGD,
-    NOTB=36, NOTW, NOTD,
+    MULB=28, MULW, MULD, MULQ,
+    NEGB=32, NEGW, NEGD, NEGQ,
+    NOTB=36, NOTW, NOTD, NOTQ,
     SLDT=40,
     STR=44,
     VERR=48,
@@ -62,69 +75,69 @@ enum UnaryOp {
 
 
 enum PortOp {
-    INB=0, INW, IND,
-    OUTB=4, OUTW, OUTD
+    INB=0, INW, IND, INQ,
+    OUTB=4, OUTW, OUTD, OUTQ
 };
 
 
 enum StringOp {
-    INSB=0, INSW, INSD,
-    LODSB=4, LODSW, LODSD,
-    MOVSB=8, MOVSW, MOVSD,
-    OUTSB=12, OUTSW, OUTSD,
-    STOSB=16, STOSW, STOSD,
-    REPINSB=20, REPINSW, REPINSD,
-    REPLODSB=24, REPLODSW, REPLODSD,
-    REPMOVSB=28, REPMOVSW, REPMOVSD,
-    REPOUTSB=32, REPOUTSW, REPOUTSD,
-    REPSTOSB=36, REPSTOSW, REPSTOSD,
-    CMPSB=40, CMPSW, CMPSD,
-    SCASB=44, SCASW, SCASD,
-    REPECMPSB=48, REPECMPSW, REPECMPSD,
-    REPESCASB=52, REPESCASW, REPESCASD,
-    REPNECMPSB=56, REPNECMPSW, REPNECMPSD,
-    REPNESCASB=60, REPNESCASW, REPNESCASD,
+    INSB=0, INSW, INSD, INSQ,
+    LODSB=4, LODSW, LODSD, LODSQ,
+    MOVSB=8, MOVSW, MOVSD, MOVSQ,
+    OUTSB=12, OUTSW, OUTSD, OUTSQ,
+    STOSB=16, STOSW, STOSD, STOSQ,
+    REPINSB=20, REPINSW, REPINSD, REPINSQ,
+    REPLODSB=24, REPLODSW, REPLODSD, REPLODSQ,
+    REPMOVSB=28, REPMOVSW, REPMOVSD, REPMOVSQ,
+    REPOUTSB=32, REPOUTSW, REPOUTSD, REPOUTSQ,
+    REPSTOSB=36, REPSTOSW, REPSTOSD, REPSTOSQ,
+    CMPSB=40, CMPSW, CMPSD, CMPSQ,
+    SCASB=44, SCASW, SCASD, SCASQ,
+    REPECMPSB=48, REPECMPSW, REPECMPSD, REPECMPSQ,
+    REPESCASB=52, REPESCASW, REPESCASD, REPESCASQ,
+    REPNECMPSB=56, REPNECMPSW, REPNECMPSD, REPNECMPSQ,
+    REPNESCASB=60, REPNESCASW, REPNESCASD, REPNESCASQ
 };
 
 
 enum BinaryOp {
-    ADCB=0, ADCW, ADCD,
-    ADDB=4, ADDW, ADDD,
-    ANDB=8, ANDW, ANDD,
-    CMPB=12, CMPW, CMPD,
-    MOVB=16, MOVW, MOVD,
-    ORB=20, ORW, ORD,
-    SBBB=24, SBBW, SBBD,
-    SUBB=28, SUBW, SUBD,
-    TESTB=32, TESTW, TESTD,
-    XORB=36, XORW, XORD
+    ADCB=0, ADCW, ADCD, ADCQ,
+    ADDB=4, ADDW, ADDD, ADDQ,
+    ANDB=8, ANDW, ANDD, ANDQ,
+    CMPB=12, CMPW, CMPD, CMPQ,
+    MOVB=16, MOVW, MOVD, MOVQ,
+    ORB=20, ORW, ORD, ORQ,
+    SBBB=24, SBBW, SBBD, SBBQ,
+    SUBB=28, SUBW, SUBD, SUBQ,
+    TESTB=32, TESTW, TESTD, TESTQ,
+    XORB=36, XORW, XORD, XORQ
 };
 
 
 enum ShiftOp {
-    RCLB=0, RCLW, RCLD,
-    RCRB=4, RCRW, RCRD,
-    ROLB=8, ROLW, ROLD,
-    RORB=12, RORW, RORD,
-    SALB=16, SALW, SALD,
-    SARB=20, SARW, SARD,
-    SHLB=24, SHLW, SHLD,
-    SHRB=28, SHRW, SHRD
+    RCLB=0, RCLW, RCLD, RCLQ,
+    RCRB=4, RCRW, RCRD, RCRQ,
+    ROLB=8, ROLW, ROLD, ROLQ,
+    RORB=12, RORW, RORD, RORQ,
+    SALB=16, SALW, SALD, SALQ,
+    SARB=20, SARW, SARD, SARQ,
+    SHLB=24, SHLW, SHLD, SHLQ,
+    SHRB=28, SHRW, SHRD, SHRQ
 };
 
 
 enum ExchangeOp {
-    XCHGB=0, XCHGW, XCHGD
+    XCHGB=0, XCHGW, XCHGD, XCHGQ
 };
 
 
 enum StackOp {
-    PUSHD, POPD
+    PUSHQ, POPQ
 };
 
 
 enum MemoryOp {
-      LGDT, LIDT, SGDT, SIDT, FILDQ, FISTPQ, FSTCW, FLDCW
+    LGDT, LIDT, SGDT, SIDT, FILDQ, FISTPQ, FSTCW, FLDCW
 };
 
 
@@ -134,7 +147,7 @@ enum RegisterFirstOp {
 
 
 enum RegisterConstantOp {
-    IMUL3D
+    IMUL3Q
 };
 
 
@@ -184,10 +197,10 @@ public:
     struct Def {
         Def_target target;
         std::string name;
-        int location;
-        int size;
-        int glob;
-        int level;
+        int location;  // Can be arbitrary value for absolute symbols
+        unsigned size;
+        bool is_global;
+        unsigned symbol_index;
     };
     
     std::vector<Def> defs;
@@ -197,36 +210,31 @@ public:
     };
     
     struct Ref {
-        int location;
         Ref_type type;
-        int def_index;
-        int level;
+        int location;
+        unsigned def_index;
     };
     
     std::vector<Ref> refs;
 
-    int current_level;
-    
-    int ork_code_begin, ork_data_begin;
+    unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
     
-    int last_opcode;
-
     Label make_label();
-    void level_begin();
-    void level_end();
 
-    void data_byte(int x);
-    void data_word(int x);
+    void data_byte(char x);
+    void data_word(short x);
     void data_dword(int x);
-    void data_label(Label c, int m = 0);
-    int data_allocate(int m);
+    void data_qword(long x);
+    void data_label(Label c, unsigned size = 0);
+    unsigned data_allocate(unsigned size);
     void data_reference(Label c);
 
     void code_align();
-    void code_byte(int x);
-    void code_word(int x);
+    void code_byte(char x);
+    void code_word(short x);
     void code_dword(int x);
+    void code_qword(long x);
     void effective_address(int modrm, Register x);
     void effective_address(int modrm, Address x);
     
@@ -236,19 +244,17 @@ public:
     void init(std::string module_name);
     void done(std::string name);
     
-    void code_label(Label c, int m = 0);
+    void code_label(Label c, unsigned size = 0);
     void code_label_import(Label c, std::string name);
-    void code_label_export(Label c, std::string name, int m, int glob);
-    void absolute_label_export(Label c, std::string name, int value, int m, int glob);
-    void data_label_export(Label c, std::string name, int m, int glob);
+    void code_label_export(Label c, std::string name, unsigned size, bool is_global);
+    void absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global);
+    void data_label_export(Label c, std::string name, unsigned size, bool is_global);
     void absolute_label(Label c, int value);
     int is_defined(Label c);
     void code_reference(Label c, Ref_type f, int offset = 0);
 
     void code_op(int opcode, int size);
 
-    void movd(Register x, Register y);
-    void addd(Address x, int y);
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);
     void op(UnaryOp opcode, Address x);
@@ -262,10 +268,10 @@ public:
     void op(BinaryOp opcode, Register x, Register y);
     void op(BinaryOp opcode, Address x, Register y);
     void op(BinaryOp opcode, Register x, Address y);
-    void op(ShiftOp opcode, Register x);    // Ez a CL szerinti leptetes
-    void op(ShiftOp opcode, Address x);    // Ez a CL szerinti leptetes
-    void op(ShiftOp opcode, Register x, int y);
-    void op(ShiftOp opcode, Address x, int y);
+    void op(ShiftOp opcode, Register x);
+    void op(ShiftOp opcode, Address x);
+    void op(ShiftOp opcode, Register x, char y);
+    void op(ShiftOp opcode, Address x, char y);
     void op(ExchangeOp opcode, Register x, Register y);
     void op(ExchangeOp opcode, Address x, Register y);
     void op(ExchangeOp opcode, Register x, Address y);
@@ -283,7 +289,6 @@ public:
     void op(BitSetOp, Register x);
     void op(BitSetOp, Address x);
     void op(BranchOp opcode, Label c);
-    void branch_instead_of_set(Label c, Register r);
     void op(JumpOp opcode, Label c);
     void op(JumpOp opcode, Address x);
     void op(ConstantOp opcode, int x);

@@ -44,7 +44,7 @@ Address Address::operator + (int x) {
 Address Address::operator + (Label &c) {
      Address m(*this);
      
-     if (m.label.def_index != 0)
+     if (m.label)
         std::cerr << "This Address is too small for the two of these labels!\n";
         
      m.label.def_index = c.def_index;
@@ -57,7 +57,7 @@ Label::Label() {
 }
 
 
-Label::Label(int di) {
+Label::Label(unsigned di) {
     def_index = di;
     
     if (def_index == 0)
@@ -74,17 +74,6 @@ Label::Label(const Label &c) {
 
 
 IA32::IA32() {
-    defs.push_back(Def());
-    defs.back().level = 0;
-    
-    refs.push_back(Ref());
-    refs.back().level = 0;
-    
-    current_level = 0;
-
-    last_opcode = 0x90;  //NOP
-
-    level_begin();
 }
 
 
@@ -95,51 +84,16 @@ IA32::~IA32() {
 void IA32::init(std::string module_name) {
     ork = new Ork;  // New Ork, New Ork...
 
-    ork_code_begin = ork->export_code(module_name + ".code", 0, 0, 1);
-    ork_data_begin = ork->export_data(module_name + ".data", 0, 0, 1);
+    // symbol table indexes
+    code_symbol_index = ork->export_code(module_name + ".code", 0, 0, 1);
+    data_symbol_index = ork->export_data(module_name + ".data", 0, 0, 1);
 
     op(UD2);  // Have fun jumping to address 0
 }
 
 
 void IA32::done(std::string filename) {
-    level_end();
-    
-    ork->set_code(code);
-    ork->set_data(data);
-    ork->done(filename + ".o");
-    
-    delete ork;
-}
-
-
-Label IA32::make_label() {  // ujdef
-    defs.push_back(Def());
-    Def &d = defs.back();
-    
-    d.level = current_level;
-    d.location = 0;
-    d.size = 0;
-    d.glob = 0;
-    //d.name = NULL;
-    d.target = DEF_NONE;
-    
-    return Label(defs.size() - 1);
-}
-
-
-void IA32::level_begin() {
-    current_level += 1;
-}
-
-
-void IA32::level_end() {
-    unsigned i = defs.size() - 1;
-    
-    while (defs[i].level == current_level)
-        i--;
-        
-    for (i += 1; i < defs.size(); i++) {
+    for (unsigned i = 0; i < defs.size(); i++) {
         Def &d(defs[i]);
 
         switch (d.target) {
@@ -149,29 +103,24 @@ void IA32::level_end() {
         case DEF_DATA: break;
         case DEF_ABSOLUTE: break;
         case DEF_IMPORT_CODE:
-            d.location = ork->import(d.name);
+            d.symbol_index = ork->import(d.name);
             break;
         case DEF_EXPORT_CODE:
             //debug << "PROCIEX: " << d.szoveg << "\n";
-            ork->export_code(d.name, d.location, d.size, d.glob);
+            ork->export_code(d.name, d.location, d.size, d.is_global);
             break;
         case DEF_EXPORT_DATA:
-            ork->export_data(d.name, d.location, d.size, d.glob);
+            ork->export_data(d.name, d.location, d.size, d.is_global);
             break;
         case DEF_EXPORT_ABSOLUTE:
-            ork->export_absolute(d.name, d.location, d.size, d.glob);
+            ork->export_absolute(d.name, d.location, d.size, d.is_global);
             break;
         default:
             std::cerr << "He?\n";
         }
     }
 
-    i = refs.size() - 1;
-    while (refs[i].level == current_level)
-        i--;
-        
-    for (i += 1; i < refs.size(); i++) {
-        //debug << "EGY REF!\n";
+    for (unsigned i = 0; i < refs.size(); i++) {
         Ref &r(refs[i]);
         Def &d(defs[r.def_index]);
         
@@ -190,11 +139,11 @@ void IA32::level_end() {
         case DEF_EXPORT_DATA:
             if (r.type == REF_CODE_ABSOLUTE) {
                 *(int *)&code[r.location] += d.location;  // Can also be an offset, too
-                ork->code_relocation(ork_data_begin, r.location, 0);
+                ork->code_relocation(data_symbol_index, r.location, false);
             }
             else if (r.type == REF_DATA_ABSOLUTE) {
                 *(int *)&data[r.location] += d.location;  // Just do it
-                ork->data_relocation(ork_data_begin, r.location);
+                ork->data_relocation(data_symbol_index, r.location);
             }
             else
                 std::cerr << "Only ABSOLUTE Ref can point to a data Def!\n";
@@ -206,12 +155,13 @@ void IA32::level_end() {
                 std::cerr << "Can't refer to imported address like this!\n";
                 break;
             case REF_CODE_RELATIVE:
+                // FIXME: we hope this is the last thing in the instruction!
                 *(int *)&code[r.location] = -4;  // Relative to the end of the instruction
-                ork->code_relocation(d.location, r.location, 1);
+                ork->code_relocation(d.symbol_index, r.location, true);
                 break;
             case REF_CODE_ABSOLUTE:
                 //*(int *)(tar + re->hely) = de->hely;
-                ork->code_relocation(d.location, r.location, 0);
+                ork->code_relocation(d.symbol_index, r.location, false);
                 break;
             }
             break;
@@ -219,19 +169,21 @@ void IA32::level_end() {
         case DEF_EXPORT_CODE:
             switch (r.type) {
                 case REF_CODE_SHORT: {
-                    int distance = d.location - (r.location + 1);
+                    long distance = d.location - (r.location + 1);
+                    
                     if (distance > 127 || distance < -128)
                         std::cerr << "REF_CODE_SHORT can't jump " << distance << " bytes!\n";
                     else
-                        code[r.location] = distance;
+                        code[r.location] = (char)distance;
                     }
                     break;
                 case REF_CODE_RELATIVE:
-                    *(int *)&code[r.location] = d.location - (r.location + 4);
+                    // FIXME: we hope this is the last thing in the instruction!
+                    *(int *)&code[r.location] += d.location - (r.location + 4);
                     break;
                 case REF_CODE_ABSOLUTE:
-                    *(int *)&code[r.location] += d.location;  // Can also be an offset, too
-                    ork->code_relocation(ork_code_begin, r.location, 0);
+                    *(int *)&code[r.location] += d.location;
+                    ork->code_relocation(code_symbol_index, r.location, false);
                     break;
                 case REF_DATA_ABSOLUTE:
                     std::cerr << "A Ref in data can't point to a Def in code!\n";
@@ -243,24 +195,37 @@ void IA32::level_end() {
         }
     }
 
-    while (defs.back().level == current_level)
-        defs.pop_back();
-        
-    while (refs.back().level == current_level)
-        refs.pop_back();
-
-    current_level -= 1;
+    ork->set_code(code);
+    ork->set_data(data);
+    ork->done(filename + ".o");
+    
+    delete ork;
 }
 
 
-void IA32::data_byte(int x) {
-    data.push_back((char)x);
+Label IA32::make_label() {
+    defs.push_back(Def());
+    Def &d = defs.back();
+    
+    d.location = 0;
+    d.size = 0;
+    d.is_global = false;
+    //d.name = NULL;
+    d.target = DEF_NONE;
+    d.symbol_index = 0;
+    
+    return Label(defs.size() - 1);
 }
 
 
-void IA32::data_word(int x) {
+void IA32::data_byte(char x) {
+    data.push_back(x);
+}
+
+
+void IA32::data_word(short x) {
     data.resize(data.size() + 2);
-    *(short *)(data.data() + data.size() - 2) = (short)x;
+    *(short *)(data.data() + data.size() - 2) = x;
 }
 
 
@@ -270,21 +235,27 @@ void IA32::data_dword(int x) {
 }
 
 
-void IA32::data_label(Label c, int m) {
+void IA32::data_qword(long x) {
+    data.resize(data.size() + 8);
+    *(long *)(data.data() + data.size() - 8) = x;
+}
+
+
+void IA32::data_label(Label c, unsigned size) {
     Def &d = defs[c.def_index];
     
     if (d.target != DEF_NONE)
         std::cerr << "Double label definition!\n";
         
     d.location = data.size();
-    d.size = m;
+    d.size = size;
     d.target = DEF_DATA;
 }
 
 
-int IA32::data_allocate(int m) {
-    data.resize(data.size() + m);
-    return data.size() - m;
+unsigned IA32::data_allocate(unsigned size) {
+    data.resize(data.size() + size);
+    return data.size() - size;
 }
 
 
@@ -292,28 +263,27 @@ void IA32::data_reference(Label c) {
     refs.push_back(Ref());
     Ref &r = refs.back();
     
-    r.level = current_level;
     r.location = data.size();  // Store the beginning
     r.type = REF_DATA_ABSOLUTE;
     r.def_index = c.def_index;
     
-    data_dword(0);
+    data_dword(0);  // 32-bit relocations only
 }
 
 
 void IA32::code_align() {
-    code.resize((code.size() + 3) & ~3);
+    code.resize((code.size() + 7) & ~7);  // 8-byte alignment
 }
 
 
-void IA32::code_byte(int x) {
-    code.push_back((char)x);
+void IA32::code_byte(char x) {
+    code.push_back(x);
 }
 
 
-void IA32::code_word(int x) {
+void IA32::code_word(short x) {
     code.resize(code.size() + 2);
-    *(short *)(code.data() + code.size() - 2) = (short)x;
+    *(short *)(code.data() + code.size() - 2) = x;
 }
 
 
@@ -323,17 +293,21 @@ void IA32::code_dword(int x) {
 }
 
 
-void IA32::code_label(Label c, int m) {
+void IA32::code_qword(long x) {
+    code.resize(code.size() + 8);
+    *(long *)(code.data() + code.size() - 8) = x;
+}
+
+
+void IA32::code_label(Label c, unsigned size) {
     Def &d = defs[c.def_index];
     
     if (d.target != DEF_NONE)
         std::cerr << "Double label definition!\n";
         
     d.location = code.size();
-    d.size = m;
+    d.size = size;
     d.target = DEF_CODE;
-
-    last_opcode = 0;  // So that we don't change a part of a larger operation (?)
 }
 
 
@@ -348,43 +322,43 @@ void IA32::code_label_import(Label c, std::string name) {
 }
 
 
-void IA32::code_label_export(Label c, std::string name, int m, int glob) {
+void IA32::code_label_export(Label c, std::string name, unsigned size, bool is_global) {
     Def &d = defs[c.def_index];
     
     if (d.target != DEF_NONE)
         std::cerr << "Double label definition!\n";
 
     d.location = code.size();
-    d.size = m;
-    d.glob = glob;
+    d.size = size;
+    d.is_global = is_global;
     d.name = name;
     d.target = DEF_EXPORT_CODE;
 }
 
 
-void IA32::absolute_label_export(Label c, std::string name, int value, int m, int glob) {
+void IA32::absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global) {
     Def &d = defs[c.def_index];
     
     if (d.target != DEF_NONE)
         std::cerr << "Double label definition!\n";
 
     d.location = value;
-    d.size = m;
-    d.glob = glob;
+    d.size = size;
+    d.is_global = is_global;
     d.name = name;
     d.target = DEF_EXPORT_ABSOLUTE;
 }
 
 
-void IA32::data_label_export(Label c, std::string name, int m, int glob) {
+void IA32::data_label_export(Label c, std::string name, unsigned size, bool is_global) {
     Def &d = defs[c.def_index];
     
     if (d.target != DEF_NONE)
         std::cerr << "Double label definition!\n";
 
     d.location = data.size();
-    d.size = m;
-    d.glob = glob;
+    d.size = size;
+    d.is_global = is_global;
     d.name = name;
     d.target = DEF_EXPORT_DATA;
 }
@@ -414,7 +388,6 @@ void IA32::code_reference(Label c, Ref_type f, int offset) {
     refs.push_back(Ref());
     Ref &r = refs.back();
 
-    r.level = current_level;
     r.location = code.size();  // Store the beginning!
     r.type = f;
     r.def_index = c.def_index;
@@ -425,22 +398,22 @@ void IA32::code_reference(Label c, Ref_type f, int offset) {
     if (f == REF_CODE_SHORT)
         code_byte(offset);
     else
-        code_dword(offset);
+        code_dword(offset);  // 32-bit offset only
 }
 
 
 void IA32::code_op(int code, int size) {
-    // size: 0=byte, 1=word, 2=dword  TODO: qword!
+    // size: 0=byte, 1=word, 2=dword, 3=qword
 
     if (size == 1)
         code_byte(0x66);
+    else if (size == 3)
+        code_byte(0x48);  // REX prefix for 64 operands, but no Rn registers
 
     if (code > 255)  // Two-byte opcodes must be emitted MSB first
         code_byte(code >> 8);
 
-    code_byte(code | (size >= 1 ? 1 : 0));
-    
-    last_opcode = code;  // For the sake of conditional branches
+    code_byte((code & 0xFF) | (size >= 1 ? 1 : 0));
 }
 
 
@@ -473,7 +446,7 @@ void IA32::effective_address(int modrm, Address x) {
         else
             code_byte(0x40 | (modrm << 3) | x.base);
             
-        code_byte(x.offset);
+        code_byte((char)x.offset);
     }
     else {
         if (x.base == SP) {
@@ -484,25 +457,11 @@ void IA32::effective_address(int modrm, Address x) {
             code_byte(0x80 | (modrm << 3) | x.base);
             
         if (!x.label)
-            code_dword(x.offset);
+            code_dword(x.offset);  // 32-bit offsets only
         else
             code_reference(x.label, REF_CODE_ABSOLUTE, x.offset);
     }
 }
-
-
-void IA32::movd(Register x, Register y) {
-    if (x != y)
-        op(MOVD, x, y);
-}
-
-
-void IA32::addd(Address x, int y) {
-    if (y)
-        op(ADDD, x, y);
-}
-
-
 
 
 int simple_info[] = {
@@ -605,7 +564,7 @@ struct {
     {0x80, 1, 0x08, 0x0A},
     {0x80, 3, 0x18, 0x1A},
     {0x80, 5, 0x28, 0x2A},
-    {0xF6, 0, 0x84, 0x84},  // Je, ez szimmetrikus!
+    {0xF6, 0, 0x84, 0x84},  // Look, it's symmetric!
     {0x80, 6, 0x30, 0x32}
 };
 
@@ -613,8 +572,10 @@ struct {
 // constant to r/m
 
 void IA32::op(BinaryOp opcode, Register x, Label c, int offset) {
-    if ((opcode & 3) != 2)
-        std::cerr << "Label addresses are dword constants!\n";
+    // Even if the immediate operand will only be 32 bits, it will be sign-extended,
+    // and since it's semantically an address, it should be moved into a 64-bit register.
+    if ((opcode & 3) != 3)
+        std::cerr << "Label addresses are qword constants!\n";
         
     code_op(binary_info[opcode >> 2].op1, opcode & 3);
     effective_address(binary_info[opcode >> 2].modrm1, x);
@@ -623,8 +584,8 @@ void IA32::op(BinaryOp opcode, Register x, Label c, int offset) {
 
 
 void IA32::op(BinaryOp opcode, Address x, Label c, int offset) {
-    if ((opcode & 3) != 2)
-        std::cerr << "Label addresses are dword constants!\n";
+    if ((opcode & 3) != 3)
+        std::cerr << "Label addresses are qword constants!\n";
 
     code_op(binary_info[opcode >> 2].op1, opcode & 3);
     effective_address(binary_info[opcode >> 2].modrm1, x);
@@ -640,6 +601,7 @@ void IA32::op(BinaryOp opcode, Register x, int y) {
     case 0: code_byte(y); break;
     case 1: code_word(y); break;
     case 2: code_dword(y); break;
+    case 3: code_dword(y); break;  // 32-bit immediate only
     }
 }
 
@@ -651,6 +613,7 @@ void IA32::op(BinaryOp opcode, Address x, int y) {
     case 0: code_byte(y); break;
     case 1: code_word(y); break;
     case 2: code_dword(y); break;
+    case 3: code_dword(y); break;  // 32-bit immediate only
     }
 }
 
@@ -687,7 +650,7 @@ void IA32::op(ShiftOp opcode, Address x) {  // by CL
     effective_address(shift_info[opcode >> 2], x);
 }
 
-void IA32::op(ShiftOp opcode, Register x, int y) {
+void IA32::op(ShiftOp opcode, Register x, char y) {
     if (y == 1) {
         code_op(0xD0, opcode & 3);
         effective_address(shift_info[opcode >> 2], x);
@@ -699,7 +662,7 @@ void IA32::op(ShiftOp opcode, Register x, int y) {
     }
 }
 
-void IA32::op(ShiftOp opcode, Address x, int y) {
+void IA32::op(ShiftOp opcode, Address x, char y) {
     if (y == 1) {
         code_op(0xD0, opcode & 3);
         effective_address(shift_info[opcode >> 2], x);
@@ -732,31 +695,30 @@ void IA32::op(ExchangeOp opcode, Register x, Address y) {
 
 
 void IA32::op(StackOp opcode, Label c, int offset) {
-    //std::cerr << "BAzz: " << c.szama << "\n";
-    if (opcode == PUSHD) {
+    if (opcode == PUSHQ) {
         code_byte(0x68);
         code_reference(c, REF_CODE_ABSOLUTE, offset);
     }
 }
 
 void IA32::op(StackOp opcode, int x) {
-    if (opcode == PUSHD) {
+    if (opcode == PUSHQ) {
         code_byte(0x68);
-        code_dword(x);
+        code_dword(x);  // 32-bit immediate only
     }
     else
         std::cerr << "WAT?\n";
 }
 
 void IA32::op(StackOp opcode, Register x) {
-    if (opcode == PUSHD)
+    if (opcode == PUSHQ)
         code_byte(0x50 + x);
     else
         code_byte(0x58 + x);
 }
 
 void IA32::op(StackOp opcode, Address x) {
-    if (opcode == PUSHD) {
+    if (opcode == PUSHQ) {
         code_byte(0xFF);
         effective_address(6, x);
     }
@@ -809,10 +771,16 @@ void IA32::op(RegisterFirstOp opcode, Register x, Address y) {
 
 
 void IA32::op(RegisterConstantOp opcode, Register x, Register y, int z) {
-    code_op(0x69, 0);
-    effective_address(x, y);
-    code_dword(z);
+    if (opcode == IMUL3Q) {
+        // The lowest bit does not work here the usual way, so...
+        code_byte(0x48);  // Hardcoded REX
+        code_byte(0x69);  // Hardcoded opcode
+        effective_address(x, y);
+        code_dword(z);  // 32-bit immediate only
+    }
 }
+
+
 
 
 int registersecond_info[] = {
@@ -848,13 +816,13 @@ void IA32::op(RegisterMemoryOp opcode, Register x, Address y) {
 
 void IA32::op(BitSetOp opcode, Register x) {
     code_op(0x0F90 | opcode, 0);
-    effective_address(0, x);  // 0 a modrm
+    effective_address(0, x);  // 0 is modrm
 }
 
 
 void IA32::op(BitSetOp opcode, Address x) {
     code_op(0x0F90 | opcode, 0);
-    effective_address(0, x);  // 0 a modrm
+    effective_address(0, x);  // 0 is modrm
 }
 
 
@@ -863,21 +831,6 @@ void IA32::op(BitSetOp opcode, Address x) {
 void IA32::op(BranchOp opcode, Label c) {
     code_op(0x0F80 | opcode, 0);  // use 32-bit offset at first
     code_reference(c, REF_CODE_RELATIVE);
-}
-
-
-
-
-void IA32::branch_instead_of_set(Label c, Register r) {
-    if ((last_opcode & 0xFFF0) == 0x0F90) {  // BitSetOp?
-        code.pop_back();
-        code.back() = (code.back() & 0xEF) ^ 0x01;  // BitSet into Branch with opposite condition
-        code_reference(c, REF_CODE_RELATIVE);
-    }
-    else {
-        op(TESTB, r, 1);
-        op(JE, c);
-    }
 }
 
 
