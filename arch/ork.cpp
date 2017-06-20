@@ -3,92 +3,6 @@
 
 #include "ork.h"
 
-const char *elf_magic = "\177ELF\001\001\001";
-
-
-#define ET_NONE         0  // No file type
-#define ET_REL          1  // Relocatable file
-#define ET_EXEC         2  // Executable file
-#define ET_DYN          3  // Shared object file
-#define ET_CORE         4  // Core file
-#define ET_LOPROC  0xff00  // Processor-specific
-#define ET_HIPROC  0xffff  // Processor-specific
-
-#define EM_NONE       0  // No machine
-#define EM_M32        1  // AT&T WE 32100
-#define EM_SPARC      2  // SPARC
-#define EM_386        3  // Intel 80386
-#define EM_68K        4  // Motorola 68000
-#define EM_88K        5  // Motorola 88000
-#define EM_860        7  // Intel 80860
-#define EM_MIPS       8  // MIPS RS3000
-
-#define EV_NONE       0  // Invalid version
-#define EV_CURRENT    1  // Current version
-
-
-#define SHT_NULL        0
-#define SHT_PROGBITS    1
-#define SHT_SYMTAB      2
-#define SHT_STRTAB	3
-#define SHT_RELA	4
-#define SHT_HASH	5
-#define SHT_DYNAMIC     6
-#define SHT_NOTE	7
-#define SHT_NOBITS	8
-#define SHT_REL	        9
-#define SHT_SHLIB       10
-#define SHT_DYNSYM      11
-#define SHT_LOPROC      0x70000000
-#define SHT_HIPROC      0x7fffffff
-#define SHT_LOUSER      0x80000000
-#define SHT_HIUSER      0xffffffff
-
-#define SHF_WRITE             0x1
-#define SHF_ALLOC             0x2
-#define SHF_EXECINSTR         0x4
-#define SHF_MASKPROC   0xf0000000
-
-#define SHN_ABS 0xfff1
-#define SHN_COMMON 0xfff2
-
-#define ELF32_ST_BIND(i)	((i) >> 4)
-#define ELF32_ST_TYPE(i)	((i) & 0xf)
-#define ELF32_ST_INFO(b, t)	(((b) << 4) + ((t) & 0xf))
-
-#define STB_LOCAL       0
-#define STB_GLOBAL      1
-#define STB_WEAK        2
-#define STB_LOPROC     13
-#define STB_HIPROC     15
-
-#define STT_NOTYPE       0
-#define STT_OBJECT       1
-#define STT_FUNC         2
-#define STT_SECTION      3
-#define STT_FILE         4
-#define STT_LOPROC      13
-#define STT_HIPROC      15
-
-
-#define ELF32_R_SYM(i)	((i) >> 8)
-#define ELF32_R_TYPE(i)	((unsigned char)(i))
-#define ELF32_R_INFO(s, t)	(((s) << 8) + (unsigned char)(t))
-
-#define R_386_NONE        0  //  none    none
-#define R_386_32	  1  //  word32  S + A
-#define R_386_PC32	  2  //  word32  S + A - P
-#define R_386_GOT32	  3  //  word32  G + A - P
-#define R_386_PLT32	  4  //  word32  L + A - P
-#define R_386_COPY	  5  //  none    none
-#define R_386_GLOB_DAT    6  //  word32  S
-#define R_386_JMP_SLOT    7  //  word32  S
-#define R_386_RELATIVE    8  //  word32  B + A
-#define R_386_GOTOFF	  9  //  word32  S + A - GOT
-#define R_386_GOTPC	  10 //   word32  GOT + A - P
-
-
-
 
 Ork::Ork() {
     strings.push_back('\0');
@@ -112,7 +26,15 @@ void Ork::done(std::string filename) {
     const int SECTION_COUNT = 8;
     
     Elf32_Ehdr ehdr;
-    strcpy((char *)ehdr.e_ident, elf_magic);
+    ehdr.e_ident[0] = ELFMAG0;
+    ehdr.e_ident[1] = ELFMAG1;
+    ehdr.e_ident[2] = ELFMAG2;
+    ehdr.e_ident[3] = ELFMAG3;
+    ehdr.e_ident[4] = ELFCLASS32;
+    ehdr.e_ident[5] = ELFDATA2LSB;
+    ehdr.e_ident[6] = EV_CURRENT;
+    ehdr.e_ident[7] = ELFOSABI_LINUX;
+
     ehdr.e_type = ET_REL;
     ehdr.e_machine = EM_386;
     ehdr.e_version = EV_CURRENT;
