@@ -31,6 +31,9 @@ std::string read_source(const char *filename) {
 
 
 int main(int argc, char **argv) {
+    if (argc != 2)
+        return 1;
+        
     std::string buffer = read_source(argv[1]);
     
     std::vector<Token> tokens = tokenize(buffer);

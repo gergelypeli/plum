@@ -169,7 +169,7 @@ void IA32::done(std::string filename) {
         case DEF_EXPORT_CODE:
             switch (r.type) {
                 case REF_CODE_SHORT: {
-                    long distance = d.location - (r.location + 1);
+                    int distance = d.location - (r.location + 1);
                     
                     if (distance > 127 || distance < -128)
                         std::cerr << "REF_CODE_SHORT can't jump " << distance << " bytes!\n";

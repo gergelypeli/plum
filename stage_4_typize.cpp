@@ -4,6 +4,9 @@
 class Declaration;
 class Type;
 class Scope;
+class FunctionReturnScope;
+class FunctionHeadScope;
+class FunctionBodyScope;
 class FunctionScope;
 class Variable;
 class Function;
@@ -32,14 +35,18 @@ bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
 bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
 bool are_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
 
-Value *make_variable_value(Variable *decl);
+Value *make_function_head_value(FunctionHeadScope *s);
+Value *make_function_body_value(FunctionBodyScope *s);
+Value *make_function_return_value(FunctionReturnScope *s, Value *v);
+Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl);
 Value *make_type_value(TypeSpec ts);
 Value *make_block_value();
 Value *make_function_definition_value(Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
-Value *make_return_value(Value *v);
 Value *make_declaration_value(Declaration *decl, Value *v);
 Value *make_number_value(std::string text);
+
+class X64;
 
 
 // Declaration
@@ -47,9 +54,13 @@ Value *make_number_value(std::string text);
 class Declaration {
 public:
     Scope *outer;
+    int offset;
 
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string, Value *) {
         return NULL;
+    }
+    
+    virtual void allocate() {
     }
 };
 
@@ -57,11 +68,15 @@ public:
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
-    bool is_ro;
+    bool is_ro;  // These flags should be subclass behavior instead
+    bool is_downward;
+    unsigned size;
     
-    Scope(bool ro = false)
+    Scope(bool ro = false, bool dw = false)
         :Declaration() {
         is_ro = ro;
+        is_downward = dw;
+        size = 0;
     }
     
     virtual bool is_readonly() {
@@ -103,34 +118,126 @@ public:
 
         return NULL;
     }
+    
+    virtual void allocate() {
+        // TODO: this may not be correct for all kind of scopes
+        for (auto &content : contents)
+            content->allocate();
+    }
+
+    virtual int reserve(unsigned s) {
+        unsigned old_size = size;
+        size += (s + 7) & ~7;
+        
+        if (is_downward) {
+            return -size;
+        }
+        else {
+            return old_size;
+        }
+    }
+    
+    virtual Value *get_implicit_value() {
+        if (outer)
+            return outer->get_implicit_value();
+        else {
+            std::cerr << "No implicit scope value!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
+class FunctionHeadScope: public Scope {
+public:
+    FunctionHeadScope():Scope(true, true) {};
+    
+    virtual Value *get_implicit_value() {
+        return make_function_head_value(this);
+    }
+};
+
+
+class FunctionBodyScope: public Scope {
+public:
+    FunctionBodyScope():Scope(false, true) {};
+    
+    virtual Value *get_implicit_value() {
+        return make_function_body_value(this);
+    }
+};
+
+
+class FunctionReturnScope: public Scope {
+public:
+    FunctionReturnScope():Scope(true, true) {};
+
+    virtual Value *get_implicit_value() {
+        std::cerr << "How the hell did you access a return value variable?\n";
+        throw INTERNAL_ERROR;
+    }
 };
 
 
 class FunctionScope: public Scope {
 public:
-    Scope *ret_scope;
-    Scope *head_scope;
+    FunctionReturnScope *return_scope;
+    FunctionHeadScope *head_scope;
+    FunctionBodyScope *body_scope;
 
-    FunctionScope(Scope *rs, Scope *hs)
+    FunctionScope()
         :Scope() {
-        ret_scope = rs;
-        head_scope = hs;
+        return_scope = NULL;
+        head_scope = NULL;
+        body_scope = NULL;
+    }
+    
+    FunctionReturnScope *add_return_scope() {
+        return_scope = new FunctionReturnScope;
+        add(return_scope);
+        return return_scope;
+    }
+    
+    FunctionHeadScope *add_head_scope() {
+        head_scope = new FunctionHeadScope;
+        add(head_scope);
+        return head_scope;
+    }
+    
+    FunctionBodyScope *add_body_scope() {
+        body_scope = new FunctionBodyScope;
+        add(body_scope);
+        return body_scope;
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
-        Value *v = Scope::lookup(name, pivot);
-        if (v)
-            return v;
+        if (body_scope) {
+            Value *v = head_scope->lookup(name, pivot);
+            if (v)
+                return v;
+        }
         
-        v = head_scope->lookup(name, pivot);
-        if (v)
-            return v;
-            
-        v = ret_scope->lookup(name, pivot);
-        if (v)
-            return v;
+        if (head_scope) {
+            Value *v = return_scope->lookup(name, pivot);
+            if (v)
+                return v;
+        }
             
         return NULL;
+    }
+    
+    virtual void allocate() {
+        Scope::allocate();
+        
+        int offset = 8 + 8;  // From RBP upward, skipping the pushed RBP and RIP
+
+        offset += head_scope->size;
+        head_scope->offset = offset;
+
+        offset += return_scope->size;
+        return_scope->offset = offset;
+        
+        body_scope->offset = 0;
     }
 };
 
@@ -151,7 +258,12 @@ public:
         TypeSpec pts = get_typespec(pivot);
         
         if (name == this->name && pts >> pivot_ts) {
-            Value *v = make_variable_value(this);
+            if (!pivot) {
+                // Include an implicit pivot value for local variables
+                pivot = outer->get_implicit_value();
+            }
+            
+            Value *v = make_variable_value(this, pivot);
             return v;
         }
         else
@@ -350,14 +462,18 @@ public:
         return this;
     }
     
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *) {
         return (args.size() == 0 && kwargs.size() == 0);
+    }
+    
+    virtual void compile(X64 *) {
     }
 };
 
 
 class BlockValue: public Value {
 public:
+    // FIXME: must keep kwarg order!
     std::vector<std::unique_ptr<Value>> items;
     std::map<std::string, std::unique_ptr<Value>> kwitems;
 
@@ -373,20 +489,55 @@ public:
 
         return true;
     }
+    
+    virtual void compile(X64 *x64) {
+        // FIXME: this works for a bunch of declarations, but not in general
+        
+        for (auto &item : items)
+            item->compile(x64);
+            
+        for (auto &kv : kwitems)
+            kv.second->compile(x64);
+    }
+};
+
+
+// Represents the argument list of a function
+class FunctionHeadValue: public Value {
+public:
+    FunctionHeadScope *head_scope;
+    
+    FunctionHeadValue(FunctionHeadScope *s) {
+        head_scope = s;
+    }
+};
+
+
+// Represents the local variable list of a function
+class FunctionBodyValue: public Value {
+public:
+    FunctionBodyScope *body_scope;
+    
+    FunctionBodyValue(FunctionBodyScope *s) {
+        body_scope = s;
+    }
 };
 
 
 class VariableValue: public Value {
 public:
     Variable *variable;
+    Value *pivot;
     
-    VariableValue(Variable *v) {
+    VariableValue(Variable *v, Value *p) {
         variable = v;
+        pivot = p;
         set_ts(v->var_ts);
     }
 };
 
 
+// The value of a :function statement
 class FunctionDefinitionValue: public Value {
 public:
     Value *ret;
@@ -400,9 +551,15 @@ public:
         body = b;
         fn_scope = f;
     }
+    
+    virtual void compile(X64 *x64) {
+        fn_scope->allocate();
+        body->compile(x64);
+    }
 };
 
 
+// The value of calling a function
 class FunctionValue: public Value {
 public:
     Function *function;
@@ -480,11 +637,13 @@ public:
 };
 
 
-class ReturnValue: public Value {
+class FunctionReturnValue: public Value {
 public:
+    FunctionReturnScope *return_scope;
     Value *value;
     
-    ReturnValue(Value *v) {
+    FunctionReturnValue(FunctionReturnScope *s, Value *v) {
+        return_scope = s;
         value = v;
     }
 };
@@ -498,6 +657,11 @@ public:
     DeclarationValue(Declaration *d, Value *v) {
         decl = d;
         value = v;
+    }
+    
+    virtual void compile(X64 *x64) {
+        // TODO: when declaring by value, this should be an initialization, too
+        value->compile(x64);
     }
 };
 
@@ -518,8 +682,23 @@ TypeSpec get_typespec(Value *v) {
 }
 
 
-Value *make_variable_value(Variable *decl) {
-    return new VariableValue(decl);
+Value *make_function_head_value(FunctionHeadScope *s) {
+    return new FunctionHeadValue(s);
+}
+
+
+Value *make_function_body_value(FunctionBodyScope *s) {
+    return new FunctionBodyValue(s);
+}
+
+
+Value *make_function_return_value(FunctionReturnScope *s, Value *v) {
+    return new FunctionReturnValue(s, v);
+}
+
+
+Value *make_variable_value(Variable *decl, Value *pivot) {
+    return new VariableValue(decl, pivot);
 }
 
 
@@ -540,11 +719,6 @@ Value *make_block_value() {
 
 Value *make_function_definition_value(Value *ret, Value *head, Value *body, FunctionScope *fn_scope) {
     return new FunctionDefinitionValue(ret, head, body, fn_scope);
-}
-
-
-Value *make_return_value(Value *v) {
-    return new ReturnValue(v);
 }
 
 
@@ -625,20 +799,20 @@ Value *typize(Expr *expr, Scope *scope) {
     }
     else if (expr->type == STATEMENT) {
         if (expr->text == "function") {
-            Scope *ret_scope = new Scope();
-            scope->add(ret_scope);
-            Expr *r = expr->pivot.get();
-            Value *ret = r ? typize(r, ret_scope) : NULL;
-        
-            Scope *head_scope = new Scope(true);  // readonly
-            scope->add(head_scope);
-            Expr *h = expr->kwargs["from"].get();
-            Value *head = h ? typize(h, head_scope) : NULL;
+            FunctionScope *fn_scope = new FunctionScope();
+            scope->add(fn_scope);
             
-            FunctionScope *body_scope = new FunctionScope(ret_scope, head_scope);
-            scope->add(body_scope);
+            Expr *r = expr->pivot.get();
+            Scope *rs = fn_scope->add_return_scope();
+            Value *ret = r ? typize(r, rs) : NULL;
+        
+            Expr *h = expr->kwargs["from"].get();
+            Scope *hs = fn_scope->add_head_scope();
+            Value *head = h ? typize(h, hs) : NULL;
+            
             Expr *b = expr->kwargs["as"].get();
-            Value *body = typize(b, body_scope);
+            Scope *bs = fn_scope->add_body_scope();
+            Value *body = b ? typize(b, bs) : NULL;
             
             TypeSpec fn_ts;
                 
@@ -647,6 +821,12 @@ Value *typize(Expr *expr, Scope *scope) {
                     std::cerr << "Function return expression is not a type!\n";
                     throw TYPE_ERROR;
                 }
+
+                // Add anon return value variable, so funretscp can compute its size!
+                TypeSpec var_ts = ret->ts;
+                var_ts[0] = lvalue_type;
+                Variable *decl = new Variable("<ret>", TS_VOID, var_ts);
+                rs->add(decl);
                     
                 fn_ts = ret->ts;
                 fn_ts[0] = function_type;
@@ -658,16 +838,30 @@ Value *typize(Expr *expr, Scope *scope) {
 
             std::cerr << "Function ts " << fn_ts << "\n";
             
-            Value *v = make_function_definition_value(ret, head, body, body_scope)->set_token(expr->token);
+            Value *v = make_function_definition_value(ret, head, body, fn_scope)->set_token(expr->token);
             v->set_ts(fn_ts);
             
             return v;
         }
         else if (expr->text == "return") {
+            FunctionScope *fn_scope = NULL;
+            
+            // TODO: should be solved by some form of HardScope base class instead of looping
+            for (Scope *s = scope; s; s = s->outer) {
+                fn_scope = dynamic_cast<FunctionScope *>(s);
+                if (fn_scope)
+                    break;
+            }
+                    
+            if (!fn_scope) {
+                std::cerr << "Return statement outside of a function!\n";
+                throw TYPE_ERROR;
+            }
+        
             Expr *r = expr->pivot.get();
             Value *ret = r ? typize(r, scope) : NULL;  // TODO: inner scope?
 
-            Value *v = make_return_value(ret)->set_token(expr->token);
+            Value *v = make_function_return_value(fn_scope->return_scope, ret)->set_token(expr->token);
 
             return v;
         }

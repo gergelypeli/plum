@@ -40,7 +40,7 @@ const char *print_precedence(Precedence p) {
 }
 
 
-bool is_right_associative(Precedence precedence) {
+bool is_right_associative(Precedence) {
     return false;
 }
 

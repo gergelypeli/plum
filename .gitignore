@@ -2,3 +2,5 @@ plum
 .*
 core.*
 *.sav
+*.o
+arch/test
