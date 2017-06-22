@@ -68,8 +68,10 @@ Label::Label(unsigned di) {
 Label::Label(const Label &c) {
     def_index = c.def_index;
     
-    if (def_index == 0)
-        std::cerr << "C2\n";
+    if (def_index == 0) {
+        std::cerr << "Copied an uninitialized Label!\n";
+        throw true;
+    }
 }
 
 

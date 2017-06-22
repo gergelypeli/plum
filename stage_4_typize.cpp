@@ -34,6 +34,8 @@ Value *typize(Expr *expr, Scope *scope);
 bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
 bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
 bool are_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
+unsigned measure(TypeSpec &ts);
+unsigned measure(TypeSpecIter &tsi);
 
 Value *make_function_head_value(FunctionHeadScope *s);
 Value *make_function_body_value(FunctionBodyScope *s);
@@ -46,7 +48,53 @@ Value *make_function_definition_value(Value *ret, Value *head, Value *body, Func
 Value *make_declaration_value(Declaration *decl, Value *v);
 Value *make_number_value(std::string text);
 
-class X64;
+
+unsigned round_up(unsigned size) {
+    return (size + 7) & ~7;
+}
+
+
+
+enum StorageWhere {
+    // No result
+    NOWHERE,
+    // the value is on the top of the stack (fo=0, so=0)
+    STACK,
+    // the value is in RAX (fo=0, so=0)
+    REGISTER,
+    // the value is in a local variable at [RBP + fo] (so=0)
+    FRAME
+
+    // Not needed yet.
+    // the value is at [[RBP + fo] + so], where [RBP + fo] is an outer frame pointer
+    //FRAME_FRAME,
+
+    // TODO: there will be multiple reference classes, this needs to be rethought.
+    // TODO: and direct member access will only be allowed from methods, and
+    // that will use a borrowed reference only.
+    // the value is at [STACK + so], STACK is refcounted container (fo=0)
+    //STACK_HEAP,
+    // the value is at [RAX + so], RAX is refcounted container (fo=0)
+    //REGISTER_HEAP,
+    // the value is at [[RBP + fo] + so], where [RBP + fo] is refcounted container
+    //FRAME_HEAP
+};
+
+
+struct Storage {
+    StorageWhere where;
+    int frame_offset;
+    //int secondary_offset;
+    
+    Storage(StorageWhere w = NOWHERE, int fo = 0) {
+        where = w;
+        frame_offset = fo;
+    }
+};
+
+
+void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64);
+void store(TypeSpec &ts, Storage s, Storage t, X64 *x64);
 
 
 // Declaration
@@ -60,7 +108,12 @@ public:
         return NULL;
     }
     
-    virtual void allocate() {
+    virtual void allocate(X64 *) {
+    }
+    
+    virtual Label get_rollback_label() {
+        std::cerr << "Can't roll back to this declaration!\n";
+        throw INTERNAL_ERROR;
     }
 };
 
@@ -119,15 +172,15 @@ public:
         return NULL;
     }
     
-    virtual void allocate() {
+    virtual void allocate(X64 *x64) {
         // TODO: this may not be correct for all kind of scopes
         for (auto &content : contents)
-            content->allocate();
+            content->allocate(x64);
     }
 
     virtual int reserve(unsigned s) {
         unsigned old_size = size;
-        size += (s + 7) & ~7;
+        size += round_up(s);
         
         if (is_downward) {
             return -size;
@@ -145,6 +198,11 @@ public:
             throw INTERNAL_ERROR;
         }
     }
+    
+    virtual Declaration *get_rollback_declaration() {
+        std::cerr << "This scope can't roll back!\n";
+        throw INTERNAL_ERROR;
+    }
 };
 
 
@@ -160,10 +218,27 @@ public:
 
 class FunctionBodyScope: public Scope {
 public:
-    FunctionBodyScope():Scope(false, true) {};
+    Declaration *rollback_declaration;  // TODO: generalize to CodeScope
+    Label rollback_label;
+    
+    FunctionBodyScope():Scope(false, true) {
+        rollback_declaration = this;  // Roll back to the beginning of this scope
+    };
     
     virtual Value *get_implicit_value() {
         return make_function_body_value(this);
+    }
+    
+    virtual void allocate(X64 *x64) {
+        rollback_label = x64->make_label();
+    }
+    
+    virtual Declaration *get_rollback_declaration() {
+        return rollback_declaration;
+    }
+    
+    virtual Label get_rollback_label() {
+        return rollback_label;
     }
 };
 
@@ -226,8 +301,8 @@ public:
         return NULL;
     }
     
-    virtual void allocate() {
-        Scope::allocate();
+    virtual void allocate(X64 *x64) {
+        Scope::allocate(x64);
         
         int offset = 8 + 8;  // From RBP upward, skipping the pushed RBP and RIP
 
@@ -247,6 +322,7 @@ public:
     std::string name;
     TypeSpec pivot_ts;
     TypeSpec var_ts;
+    int offset;
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts) {
         this->name = name;
@@ -269,6 +345,10 @@ public:
         else
             return NULL;
     }
+    
+    virtual void allocate(X64 *) {
+        offset = outer->reserve(measure(var_ts));
+    }
 };
 
 
@@ -276,16 +356,16 @@ class Function: public Declaration {
 public:
     std::string name;
     TypeSpec pivot_ts;
+    
     TypeSpec ret_ts;
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
 
-    Function(std::string name, TypeSpec pts, std::vector<TypeSpec> atss, std::vector<std::string> ans, TypeSpec rts) {
+    Label x64_label;
+    
+    Function(std::string name, TypeSpec pts) {
         this->name = name;
         this->pivot_ts = pts;
-        ret_ts = rts;
-        arg_tss = atss;
-        arg_names = ans;
     }
 
     virtual Value *match(std::string name, Value *pivot) {
@@ -320,10 +400,28 @@ public:
                 
         return (unsigned)-1;
     }
+
+    virtual void allocate(X64 *x64) {
+        x64_label = x64->make_label();
+    }
 };
 
 
-bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
+class ImportedFunction: public Function {
+public:
+    ImportedFunction(std::string name, TypeSpec pts, std::vector<TypeSpec> atss, std::vector<std::string> ans, TypeSpec rts)
+        :Function(name, pts) {
+        ret_ts = rts;
+        arg_tss = atss;
+        arg_names = ans;
+    }
+    
+    virtual void allocate(X64 *x64) {
+        Function::allocate(x64);
+        
+        x64->code_label_import(x64_label, name);  // TODO: mangle import name!
+    }
+};
 
 
 class Type: virtual public Declaration {
@@ -378,6 +476,109 @@ public:
     virtual bool is_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
         return *that_tsi == boolean_type || is_equal(this_tsi, that_tsi);
     }
+    
+    virtual unsigned measure(TypeSpecIter &) {
+        std::cerr << "Unmeasurable type!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void store(TypeSpecIter &, Storage, Storage, X64 *) {
+        std::cerr << "Unstorable type!\n";
+        throw INTERNAL_ERROR;
+    }
+};
+
+
+class BasicType: public Type {
+public:
+    unsigned size;
+
+    BasicType(std::string n, unsigned s)
+        :Type(n, 0) {
+        size = s;
+    }
+    
+    virtual unsigned measure(TypeSpecIter &) {
+        return size;
+    }
+
+    virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *x64) {
+        BinaryOp mov = (
+            size == 1 ? MOVB :
+            size == 2 ? MOVW :
+            size == 4 ? MOVD :
+            size == 8 ? MOVQ :
+            throw INTERNAL_ERROR
+        );
+        
+        switch (s.where) {
+        case NOWHERE:
+            switch (t.where) {
+            case NOWHERE:
+                return;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        case STACK:
+            switch (t.where) {
+            case NOWHERE:
+                x64->op(POPQ, RAX);
+                return;
+            case STACK:
+                return;
+            case REGISTER:
+                x64->op(POPQ, RAX);
+                return;
+            case FRAME:
+                if (size == 8)
+                    x64->op(POPQ, Address(RBP, t.frame_offset));
+                else {
+                    x64->op(POPQ, RAX);
+                    x64->op(mov, Address(RBP, t.frame_offset), RAX);
+                }
+                return;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        case REGISTER:
+            switch (t.where) {
+            case NOWHERE:
+                return;
+            case STACK:
+                x64->op(PUSHQ, RAX);
+                return;
+            case REGISTER:
+                return;
+            case FRAME:
+                x64->op(mov, Address(RBP, t.frame_offset), RAX);
+                return;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        case FRAME:
+            switch (t.where) {
+            case NOWHERE:
+                return;
+            case STACK:
+                if (size == 8)
+                    x64->op(PUSHQ, Address(RBP, s.frame_offset));
+                else {
+                    x64->op(mov, RAX, Address(RBP, s.frame_offset));
+                    x64->op(PUSHQ, RAX);
+                }
+                return;
+            case REGISTER: 
+                x64->op(mov, RAX, Address(RBP, s.frame_offset));
+                return;
+            case FRAME:
+                x64->op(mov, RAX, Address(RBP, s.frame_offset));
+                x64->op(mov, Address(RBP, t.frame_offset), RAX);
+                return;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
+    }
 };
 
 
@@ -401,6 +602,16 @@ public:
             
             return are_convertible(this_tsi, that_tsi);
         }
+    }
+    
+    virtual unsigned measure(TypeSpecIter &tsi) {
+        tsi++;
+        return ::measure(tsi);
+    }
+
+    virtual void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64) {
+        tsi++;
+        return ::store(tsi, s, t, x64);
     }
 };
 
@@ -443,6 +654,28 @@ std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
 }
 
 
+unsigned measure(TypeSpecIter &tsi) {
+    return (*tsi)->measure(tsi);
+}
+
+
+unsigned measure(TypeSpec &ts) {
+    TypeSpecIter tsi(ts.begin());
+    return measure(tsi);
+}
+
+
+void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64) {
+    (*tsi)->store(tsi, s, t, x64);
+}
+
+
+void store(TypeSpec &ts, Storage s, Storage t, X64 *x64) {
+    TypeSpecIter tsi(ts.begin());
+    return store(tsi, s, t, x64);
+}
+
+
 // Value
 
 class Value {
@@ -466,7 +699,9 @@ public:
         return (args.size() == 0 && kwargs.size() == 0);
     }
     
-    virtual void compile(X64 *) {
+    virtual Storage compile(X64 *) {
+        std::cerr << "This Value shouldn't have been compiled!\n";
+        throw INTERNAL_ERROR;
     }
 };
 
@@ -490,7 +725,7 @@ public:
         return true;
     }
     
-    virtual void compile(X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         // FIXME: this works for a bunch of declarations, but not in general
         
         for (auto &item : items)
@@ -498,6 +733,8 @@ public:
             
         for (auto &kv : kwitems)
             kv.second->compile(x64);
+            
+        return Storage();
     }
 };
 
@@ -534,6 +771,15 @@ public:
         pivot = p;
         set_ts(v->var_ts);
     }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s = pivot->compile(x64);
+        
+        switch (s.where) {
+        case FRAME: return Storage(FRAME, s.frame_offset + variable->offset);
+        default: throw INTERNAL_ERROR;
+        }
+    }
 };
 
 
@@ -552,9 +798,26 @@ public:
         fn_scope = f;
     }
     
-    virtual void compile(X64 *x64) {
-        fn_scope->allocate();
+    virtual void compile_early(X64 *x64, Label prologue_label) {
+        // This is invoked by our DefinedFunction, not our parent Declaration.
+        
+        // This may generate bodies of inner functions, don't place the label yet.
+        fn_scope->allocate(x64);
+        
+        unsigned frame_size = fn_scope->body_scope->size;
+
+        x64->code_label(prologue_label, 0);
+        x64->op(PUSHQ, RBP);
+        x64->op(MOVQ, RBP, RSP);
+        x64->op(SUBQ, RSP, frame_size);
+        
         body->compile(x64);
+        
+        // TODO: destructors
+        x64->code_label(fn_scope->body_scope->get_rollback_label());
+        x64->op(ADDQ, RSP, frame_size);
+        x64->op(POPQ, RBP);
+        x64->op(RET);
     }
 };
 
@@ -626,6 +889,25 @@ public:
         
         return true;
     }
+    
+    virtual Storage compile(X64 *x64) {
+        // TODO: can't handle pivot yet
+        TypeSpec ret_ts = function->get_return_typespec();
+        unsigned ret_size = measure(ret_ts);
+        x64->op(SUBQ, RSP, ret_size);
+        
+        for (auto &item : items) {
+            Storage s = item->compile(x64);
+            store(item->ts, s, Storage(STACK), x64);
+        }
+        
+        x64->op(CALL, function->x64_label);
+        
+        for (int i = items.size() - 1; i >= 0; i--)
+            store(items[i]->ts, STACK, Storage(), x64);
+            
+        return Storage(STACK);
+    }
 };
 
 
@@ -639,12 +921,39 @@ public:
 
 class FunctionReturnValue: public Value {
 public:
+    Scope *scope;
+    Declaration *rollback_declaration;
     FunctionReturnScope *return_scope;
     Value *value;
     
-    FunctionReturnValue(FunctionReturnScope *s, Value *v) {
-        return_scope = s;
+    FunctionReturnValue(Scope *s, Value *v) {
+        scope = s;
         value = v;
+        
+        // This must be saved now, becaus it changes during the typization!
+        rollback_declaration = scope->get_rollback_declaration();
+        
+        FunctionScope *fn_scope = NULL;
+        
+        // TODO: should be solved by some form of HardScope base class instead of looping
+        for (Scope *s = scope; s; s = s->outer) {
+            fn_scope = dynamic_cast<FunctionScope *>(s);
+            if (fn_scope)
+                break;
+        }
+                
+        if (!fn_scope) {
+            std::cerr << "Return statement outside of a function!\n";
+            throw TYPE_ERROR;
+        }
+    
+        return_scope = fn_scope->return_scope;
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // TODO: destructors
+        x64->op(JMP, rollback_declaration->get_rollback_label());
+        return Storage();
     }
 };
 
@@ -659,20 +968,33 @@ public:
         value = v;
     }
     
-    virtual void compile(X64 *x64) {
+    virtual Storage compile(X64 *) {
         // TODO: when declaring by value, this should be an initialization, too
-        value->compile(x64);
+        // But when declaring by type don't compile. Variables don't need it,
+        // and functions are compiled earlier in the allocate phase, so they
+        // don't get inserted in the middle of their containing function body.
+        //value->compile(x64);
+        
+        // TODO: eventually this must manage the rollback labels, too.
+        return Storage();
     }
 };
 
 
 class NumberValue: public Value {
 public:
-    std::string text;
+    int number;
     
     NumberValue(std::string t) {
-        text = t;
+        number = std::stoi(t);
         ts.push_back(integer_type);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // TODO: this can only handle 32-bit immediates!
+        x64->op(MOVQ, RAX, number);
+        
+        return Storage(REGISTER);
     }
 };
 
@@ -692,7 +1014,7 @@ Value *make_function_body_value(FunctionBodyScope *s) {
 }
 
 
-Value *make_function_return_value(FunctionReturnScope *s, Value *v) {
+Value *make_function_return_value(Scope *s, Value *v) {
     return new FunctionReturnValue(s, v);
 }
 
@@ -732,6 +1054,47 @@ Value *make_number_value(std::string text) {
 }
 
 
+// FIXME
+
+
+class DefinedFunction: public Function {
+public:
+    FunctionDefinitionValue *definition_value;
+    
+    DefinedFunction(std::string name, TypeSpec pts, FunctionDefinitionValue *fdv)
+        :Function(name, pts) {
+        definition_value = fdv;
+        
+        for (unsigned i = 1; i < fdv->ts.size(); i++)
+            ret_ts.push_back(fdv->ts[i]);
+
+        std::cerr << "It's a function with return type " << ret_ts << ".\n";
+
+        Scope *head_scope = fdv->fn_scope->head_scope;
+        unsigned n = head_scope->get_length();
+
+        for (unsigned i = 0; i < n; i++) {
+            Declaration *xd = head_scope->get_declaration(i);
+            Variable *vd = dynamic_cast<Variable *>(xd);
+            arg_tss.push_back(vd->var_ts);
+            arg_names.push_back(vd->name);
+        }
+    }
+    
+    virtual void allocate(X64 *x64) {
+        Function::allocate(x64);
+        
+        // Generate the code for this function now, because during the compilation
+        // of a potential containing function body it will be too late.
+        // And Declaration won't compile it anyway.
+
+        // This must define the label
+        definition_value->compile_early(x64, x64_label);
+    }
+};
+
+
+
 Scope *init_types() {
     Scope *root_scope = new Scope();
     
@@ -744,14 +1107,14 @@ Scope *init_types() {
     function_type = new Type("<Function>", 1);
     root_scope->add(function_type);
     
-    void_type = new Type("<Void>", 0);
+    void_type = new BasicType("<Void>", 0);
     root_scope->add(void_type);
     TS_VOID.push_back(void_type);
 
-    boolean_type = new Type("Boolean", 0);
+    boolean_type = new BasicType("Boolean", 1);
     root_scope->add(boolean_type);
 
-    integer_type = new Type("Integer", 0);
+    integer_type = new BasicType("Integer", 8);
     root_scope->add(integer_type);
     
     TypeSpec void_ts = { void_type };
@@ -765,21 +1128,21 @@ Scope *init_types() {
     std::vector<std::string> value_names = { "value" };
 
     for (auto name : { "minus", "negate" })
-        root_scope->add(new Function(name, void_ts, int_tss, value_names, int_ts));
+        root_scope->add(new ImportedFunction(name, void_ts, int_tss, value_names, int_ts));
 
     for (auto name : { "plus", "minus", "star", "slash", "percent", "or", "xor", "and", "exponent" })
-        root_scope->add(new Function(name, int_ts, int_tss, value_names, int_ts));
+        root_scope->add(new ImportedFunction(name, int_ts, int_tss, value_names, int_ts));
 
     for (auto name : { "equal", "not_equal", "less", "greater", "less_equal", "greater_equal", "incomparable", "compare" })
-        root_scope->add(new Function(name, int_ts, int_tss, value_names, bool_ts));
+        root_scope->add(new ImportedFunction(name, int_ts, int_tss, value_names, bool_ts));
 
     for (auto name : { "logical not", "logical and", "logical or", "logical xor" })
-        root_scope->add(new Function(name, bool_ts, bool_tss, value_names, bool_ts));
+        root_scope->add(new ImportedFunction(name, bool_ts, bool_tss, value_names, bool_ts));
 
     for (auto name : { "plus_assign", "minus_assign", "star_assign", "slash_assign", "percent_assign", "or_assign", "xor_assign", "and_assign" })
-        root_scope->add(new Function(name, lint_ts, int_tss, value_names, int_ts));
+        root_scope->add(new ImportedFunction(name, lint_ts, int_tss, value_names, int_ts));
 
-    root_scope->add(new Function("print", void_ts, int_tss, value_names, void_ts));
+    root_scope->add(new ImportedFunction("print", void_ts, int_tss, value_names, void_ts));
 
     return root_scope;
 }
@@ -844,24 +1207,10 @@ Value *typize(Expr *expr, Scope *scope) {
             return v;
         }
         else if (expr->text == "return") {
-            FunctionScope *fn_scope = NULL;
-            
-            // TODO: should be solved by some form of HardScope base class instead of looping
-            for (Scope *s = scope; s; s = s->outer) {
-                fn_scope = dynamic_cast<FunctionScope *>(s);
-                if (fn_scope)
-                    break;
-            }
-                    
-            if (!fn_scope) {
-                std::cerr << "Return statement outside of a function!\n";
-                throw TYPE_ERROR;
-            }
-        
             Expr *r = expr->pivot.get();
-            Value *ret = r ? typize(r, scope) : NULL;  // TODO: inner scope?
+            Value *ret = r ? typize(r, scope) : NULL;  // TODO: statement scope?
 
-            Value *v = make_function_return_value(fn_scope->return_scope, ret)->set_token(expr->token);
+            Value *v = make_function_return_value(scope, ret)->set_token(expr->token);
 
             return v;
         }
@@ -897,26 +1246,7 @@ Value *typize(Expr *expr, Scope *scope) {
         else if (d->ts[0] == function_type) {
             FunctionDefinitionValue *fdv = dynamic_cast<FunctionDefinitionValue *>(d);
 
-            TypeSpec ret_ts;
-            for (unsigned i = 1; i < d->ts.size(); i++)
-                ret_ts.push_back(d->ts[i]);
-
-            std::cerr << "It's a function with return type " << ret_ts << ".\n";
-
-            Scope *head_scope = fdv->fn_scope->head_scope;
-            unsigned n = head_scope->get_length();
-
-            std::vector<TypeSpec> arg_tss;
-            std::vector<std::string> arg_names;
-            
-            for (unsigned i = 0; i < n; i++) {
-                Declaration *xd = head_scope->get_declaration(i);
-                Variable *vd = dynamic_cast<Variable *>(xd);
-                arg_tss.push_back(vd->var_ts);
-                arg_names.push_back(vd->name);
-            }
-            
-            decl = new Function(name, TS_VOID, arg_tss, arg_names, ret_ts);
+            decl = new DefinedFunction(name, TS_VOID, fdv);
         }
             
         scope->add(decl);

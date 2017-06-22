@@ -9,6 +9,8 @@
 #include <stdarg.h>
 
 #include "util.cpp"
+#include "arch/ia32.h"
+typedef IA32 X64;  // Ugh!
 #include "stage_1_tokenize.cpp"
 #include "stage_2_treeize.cpp"
 #include "stage_3_tupleize.cpp"

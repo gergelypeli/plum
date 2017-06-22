@@ -1,8 +1,8 @@
 .PHONY: build clean
 
-MODULES    = stage_1_tokenize stage_2_treeize stage_3_tupleize stage_4_typize util parse
-SOURCES    = $(MODULES:%=%.cpp)
-MAIN       = parse.cpp
+MAIN       = parse.cpp arch/ia32.cpp arch/ork.cpp
+MODULES    = stage_1_tokenize stage_2_treeize stage_3_tupleize stage_4_typize util
+SOURCES    = $(MODULES:%=%.cpp) $(MAIN)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -g -fdiagnostics-color=always
 
