@@ -52,24 +52,6 @@ Address Address::operator + (Label &c) {
 }
 
 
-unsigned Label::last_def_index = 0;
-
-
-Label::Label() {
-    def_index = ++last_def_index;
-}
-
-
-Label::Label(unsigned di) {
-    def_index = di;
-}
-
-
-Label::Label(const Label &c) {
-    def_index = c.def_index;
-}
-
-
 X64::X64() {
 }
 
@@ -119,6 +101,11 @@ void X64::done(std::string filename) {
     }
 
     for (auto &r : refs) {
+        if (!defs.count(r.def_index)) {
+            std::cerr << "Undefined label " << r.def_index << "!\n";
+            throw X64_ERROR;
+        }
+        
         Def &d(defs.at(r.def_index));
         
         switch (d.type) {
@@ -195,13 +182,18 @@ void X64::done(std::string filename) {
 
     ork->set_code(code);
     ork->set_data(data);
-    ork->done(filename + ".o");
+    ork->done(filename);
     
     delete ork;
 }
 
 
 void X64::add_def(Label label, const Def &def) {
+    if (!label) {
+        std::cerr << "Unallocated label!\n";
+        throw X64_ERROR;
+    }
+    
     if (defs.count(label.def_index)) {
         std::cerr << "Double label definition!\n";
         throw X64_ERROR;
@@ -316,9 +308,6 @@ void X64::absolute_label_export(Label c, std::string name, int value, unsigned s
 
 
 void X64::code_reference(Label c, Ref_type f, int offset) {
-    if (c.def_index <= 0 || c.def_index >= defs.size())
-        std::cerr << "Label gone wild!\n";
-
     refs.push_back(Ref());
     Ref &r = refs.back();
 

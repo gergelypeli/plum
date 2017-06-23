@@ -10,7 +10,7 @@ public:
         return NULL;
     }
     
-    virtual void allocate(X64 *) {
+    virtual void allocate() {
     }
     
     virtual Label get_rollback_label() {
@@ -74,10 +74,10 @@ public:
         return NULL;
     }
     
-    virtual void allocate(X64 *x64) {
+    virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
         for (auto &content : contents)
-            content->allocate(x64);
+            content->allocate();
     }
 
     virtual int reserve(unsigned s) {
@@ -131,9 +131,9 @@ public:
         return make_function_body_value(this);
     }
     
-    //virtual void allocate(X64 *x64) {
-        //rollback_label = x64->make_label();
-    //}
+    virtual void allocate() {
+        rollback_label.allocate();
+    }
     
     virtual Declaration *get_rollback_declaration() {
         return rollback_declaration;
@@ -203,8 +203,8 @@ public:
         return NULL;
     }
     
-    virtual void allocate(X64 *x64) {
-        Scope::allocate(x64);
+    virtual void allocate() {
+        Scope::allocate();
         
         int offset = 8 + 8;  // From RBP upward, skipping the pushed RBP and RIP
 
@@ -248,7 +248,7 @@ public:
             return NULL;
     }
     
-    virtual void allocate(X64 *) {
+    virtual void allocate() {
         offset = outer->reserve(measure(var_ts));
     }
 };
@@ -277,7 +277,7 @@ public:
         //std::cerr << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
 
         if (name == this->name && pts >> pivot_ts) {
-            Value *v = make_function_value(this);
+            Value *v = make_function_value(this, pivot);
             return v;
         }
         else
@@ -309,9 +309,9 @@ public:
         x64->code_label_import(x64_label, name);  // TODO: mangle import name!
     }
 
-    //virtual void allocate(X64 *x64) {
-        //x64_label = x64->make_label();
-    //}
+    virtual void allocate() {
+        x64_label.allocate();
+    }
 };
 
 

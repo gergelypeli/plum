@@ -46,7 +46,22 @@ int main(int argc, char **argv) {
     print_expr_tree(expr_root.get(), 0, "*");
 
     Scope *root_scope = init_types();
-    std::unique_ptr<Value> value_root(typize(expr_root.get(), root_scope));
+    Scope *module_scope = new Scope();
+    root_scope->add(module_scope);
+    std::unique_ptr<Value> value_root(typize(expr_root.get(), module_scope));
+    
+    X64 *x64 = new X64();
+    x64->init("mymodule");
+    
+    root_scope->allocate();
+    value_root->compile(x64);
+    for (auto &decl : root_scope->contents) {
+        Function *f = dynamic_cast<Function *>(decl.get());
+        if (f)
+            f->import(x64);
+    }
+    
+    x64->done("mymodule.o");
     
     return 0;
 }

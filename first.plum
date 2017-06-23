@@ -7,5 +7,5 @@ as:
     :return x * 2 + y * 3
 
 
-main? :function as:
+start? :function as:
     print(f(1, 2))

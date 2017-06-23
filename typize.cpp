@@ -39,7 +39,7 @@ Value *make_function_head_value(FunctionHeadScope *s);
 Value *make_function_body_value(FunctionBodyScope *s);
 Value *make_function_return_value(FunctionReturnScope *s, Value *v);
 Value *make_variable_value(Variable *decl, Value *pivot);
-Value *make_function_value(Function *decl);
+Value *make_function_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
 Value *make_block_value();
 Value *make_function_definition_value(Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
@@ -88,6 +88,22 @@ struct Storage {
         frame_offset = fo;
     }
 };
+
+
+std::ostream &operator<<(std::ostream &os, Storage &s) {
+    if (s.where == NOWHERE)
+        os << "NOWHERE";
+    else if (s.where == STACK)
+        os << "STACK";
+    else if (s.where == REGISTER)
+        os << "REGISTER";
+    else if (s.where == FRAME)
+        os << "FRAME[" << s.frame_offset << "]";
+    else
+        os << "???";
+        
+    return os;
+}
 
 
 void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64);
@@ -212,7 +228,7 @@ Value *typize(Expr *expr, Scope *scope) {
         }
         else if (expr->text == "return") {
             Expr *r = expr->pivot.get();
-            Value *ret = r ? typize(r, scope) : NULL;  // TODO: statement scope?
+            Value *ret = r ? typize(r, scope) : NULL;  // TODO: statement scope? Or already have?
 
             Value *v = make_function_return_value(scope, ret)->set_token(expr->token);
 
