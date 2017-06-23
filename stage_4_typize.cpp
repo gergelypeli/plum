@@ -229,9 +229,9 @@ public:
         return make_function_body_value(this);
     }
     
-    virtual void allocate(X64 *x64) {
-        rollback_label = x64->make_label();
-    }
+    //virtual void allocate(X64 *x64) {
+        //rollback_label = x64->make_label();
+    //}
     
     virtual Declaration *get_rollback_declaration() {
         return rollback_declaration;
@@ -401,9 +401,9 @@ public:
         return (unsigned)-1;
     }
 
-    virtual void allocate(X64 *x64) {
-        x64_label = x64->make_label();
-    }
+    //virtual void allocate(X64 *x64) {
+        //x64_label = x64->make_label();
+    //}
 };
 
 

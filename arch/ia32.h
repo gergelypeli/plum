@@ -1,7 +1,13 @@
 #include <string>
 #include <vector>
+#include <map>
 
 #include "ork.h"
+
+// TODO unify!
+enum IA32Error {
+    ERROR
+};
 
 // Oops! Even in 64 bit mode the addressing offsets and immediate operands are limited to
 // 32 bit! The only exceptions are:
@@ -25,6 +31,7 @@ enum Register {
 
 
 struct Label {
+    static unsigned last_def_index;
     unsigned def_index;
     
     Label();
@@ -187,23 +194,38 @@ public:
     std::vector<char> code;
     std::vector<char> data;
 
-    enum Def_target {
+    enum Def_type {
         DEF_NONE,
-        DEF_CODE, DEF_DATA, DEF_ABSOLUTE,
-        DEF_EXPORT_CODE, DEF_EXPORT_ABSOLUTE, DEF_EXPORT_DATA,
-        DEF_IMPORT_CODE
+        DEF_CODE,
+        DEF_CODE_EXPORT,
+        DEF_CODE_IMPORT,
+        DEF_DATA,
+        DEF_DATA_EXPORT,
+        DEF_ABSOLUTE,
+        DEF_ABSOLUTE_EXPORT
     };
     
     struct Def {
-        Def_target target;
-        std::string name;
+        Def_type type;
         int location;  // Can be arbitrary value for absolute symbols
         unsigned size;
+        std::string name;
         bool is_global;
-        unsigned symbol_index;
+
+        unsigned symbol_index;  // To be filled during importing
+        
+        Def(Def_type t = DEF_NONE, int l = 0, unsigned s = 0, const std::string &n = "", bool ig = false) {
+            type = t;
+            location = l;
+            size = s;
+            name = n;
+            is_global = ig;
+            
+            symbol_index = 0;
+        }
     };
     
-    std::vector<Def> defs;
+    std::map<unsigned, Def> defs;
 
     enum Ref_type {
         REF_CODE_SHORT, REF_CODE_RELATIVE, REF_CODE_ABSOLUTE, REF_DATA_ABSOLUTE
@@ -220,13 +242,14 @@ public:
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
     
-    Label make_label();
+    void add_def(Label label, const Def &def);
 
     void data_byte(char x);
     void data_word(short x);
     void data_dword(int x);
     void data_qword(long x);
     void data_label(Label c, unsigned size = 0);
+    void data_label_export(Label c, std::string name, unsigned size, bool is_global);
     unsigned data_allocate(unsigned size);
     void data_reference(Label c);
 
@@ -247,10 +270,8 @@ public:
     void code_label(Label c, unsigned size = 0);
     void code_label_import(Label c, std::string name);
     void code_label_export(Label c, std::string name, unsigned size, bool is_global);
-    void absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global);
-    void data_label_export(Label c, std::string name, unsigned size, bool is_global);
     void absolute_label(Label c, int value);
-    int is_defined(Label c);
+    void absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global);
     void code_reference(Label c, Ref_type f, int offset = 0);
 
     void code_op(int opcode, int size);

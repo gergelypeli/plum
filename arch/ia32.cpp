@@ -52,26 +52,21 @@ Address Address::operator + (Label &c) {
 }
 
 
+unsigned Label::last_def_index = 0;
+
+
 Label::Label() {
-    def_index = 0;
+    def_index = ++last_def_index;
 }
 
 
 Label::Label(unsigned di) {
     def_index = di;
-    
-    if (def_index == 0)
-        std::cerr << "C1\n";
 }
 
 
 Label::Label(const Label &c) {
     def_index = c.def_index;
-    
-    if (def_index == 0) {
-        std::cerr << "Copied an uninitialized Label!\n";
-        throw true;
-    }
 }
 
 
@@ -95,50 +90,50 @@ void IA32::init(std::string module_name) {
 
 
 void IA32::done(std::string filename) {
-    for (unsigned i = 0; i < defs.size(); i++) {
-        Def &d(defs[i]);
+    for (auto &kv : defs) {
+        Def &d(kv.second);
 
-        switch (d.target) {
+        switch (d.type) {
         case DEF_NONE: 
             break;
         case DEF_CODE: break;
         case DEF_DATA: break;
         case DEF_ABSOLUTE: break;
-        case DEF_IMPORT_CODE:
+        case DEF_CODE_IMPORT:
             d.symbol_index = ork->import(d.name);
             break;
-        case DEF_EXPORT_CODE:
+        case DEF_CODE_EXPORT:
             //debug << "PROCIEX: " << d.szoveg << "\n";
             ork->export_code(d.name, d.location, d.size, d.is_global);
             break;
-        case DEF_EXPORT_DATA:
+        case DEF_DATA_EXPORT:
             ork->export_data(d.name, d.location, d.size, d.is_global);
             break;
-        case DEF_EXPORT_ABSOLUTE:
+        case DEF_ABSOLUTE_EXPORT:
             ork->export_absolute(d.name, d.location, d.size, d.is_global);
             break;
         default:
             std::cerr << "He?\n";
+            throw ERROR;
         }
     }
 
-    for (unsigned i = 0; i < refs.size(); i++) {
-        Ref &r(refs[i]);
-        Def &d(defs[r.def_index]);
+    for (auto &r : refs) {
+        Def &d(defs.at(r.def_index));
         
-        switch (d.target) {
+        switch (d.type) {
         case DEF_NONE:
             std::cerr << "Ref to undefined Def!\n";
             break;
-        case DEF_EXPORT_ABSOLUTE:
         case DEF_ABSOLUTE:
+        case DEF_ABSOLUTE_EXPORT:
             if (r.type == REF_CODE_ABSOLUTE)
                 *(int *)&code[r.location] += d.location;
             else
                 std::cerr << "Only ABSOLUTE Ref can point to an ABSOLUTE Def!\n";
             break;
         case DEF_DATA:
-        case DEF_EXPORT_DATA:
+        case DEF_DATA_EXPORT:
             if (r.type == REF_CODE_ABSOLUTE) {
                 *(int *)&code[r.location] += d.location;  // Can also be an offset, too
                 ork->code_relocation(data_symbol_index, r.location, false);
@@ -150,7 +145,7 @@ void IA32::done(std::string filename) {
             else
                 std::cerr << "Only ABSOLUTE Ref can point to a data Def!\n";
             break;
-        case DEF_IMPORT_CODE:
+        case DEF_CODE_IMPORT:
             switch (r.type) {
             case REF_CODE_SHORT:
             case REF_DATA_ABSOLUTE:
@@ -168,7 +163,7 @@ void IA32::done(std::string filename) {
             }
             break;
         case DEF_CODE:
-        case DEF_EXPORT_CODE:
+        case DEF_CODE_EXPORT:
             switch (r.type) {
                 case REF_CODE_SHORT: {
                     int distance = d.location - (r.location + 1);
@@ -194,6 +189,7 @@ void IA32::done(std::string filename) {
             break;
         default:
             std::cerr << "He??\n";
+            throw ERROR;
         }
     }
 
@@ -205,18 +201,13 @@ void IA32::done(std::string filename) {
 }
 
 
-Label IA32::make_label() {
-    defs.push_back(Def());
-    Def &d = defs.back();
-    
-    d.location = 0;
-    d.size = 0;
-    d.is_global = false;
-    //d.name = NULL;
-    d.target = DEF_NONE;
-    d.symbol_index = 0;
-    
-    return Label(defs.size() - 1);
+void IA32::add_def(Label label, const Def &def) {
+    if (defs.count(label.def_index)) {
+        std::cerr << "Double label definition!\n";
+        throw ERROR;
+    }
+
+    defs[label.def_index] = def;
 }
 
 
@@ -244,14 +235,12 @@ void IA32::data_qword(long x) {
 
 
 void IA32::data_label(Label c, unsigned size) {
-    Def &d = defs[c.def_index];
-    
-    if (d.target != DEF_NONE)
-        std::cerr << "Double label definition!\n";
-        
-    d.location = data.size();
-    d.size = size;
-    d.target = DEF_DATA;
+    add_def(c, Def(DEF_DATA, data.size(), size, "", false));
+}
+
+
+void IA32::data_label_export(Label c, std::string name, unsigned size, bool is_global) {
+    add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, is_global));
 }
 
 
@@ -302,84 +291,27 @@ void IA32::code_qword(long x) {
 
 
 void IA32::code_label(Label c, unsigned size) {
-    Def &d = defs[c.def_index];
-    
-    if (d.target != DEF_NONE)
-        std::cerr << "Double label definition!\n";
-        
-    d.location = code.size();
-    d.size = size;
-    d.target = DEF_CODE;
+    add_def(c, Def(DEF_CODE, code.size(), size, "", false));
 }
 
 
 void IA32::code_label_import(Label c, std::string name) {
-    Def &d = defs[c.def_index];
-    
-    if (d.target != DEF_NONE)
-        std::cerr << "Double label definition!\n";
-        
-    d.target = DEF_IMPORT_CODE;
-    d.name = name;
+    add_def(c, Def(DEF_CODE_IMPORT, 0, 0, name, false));
 }
 
 
 void IA32::code_label_export(Label c, std::string name, unsigned size, bool is_global) {
-    Def &d = defs[c.def_index];
-    
-    if (d.target != DEF_NONE)
-        std::cerr << "Double label definition!\n";
-
-    d.location = code.size();
-    d.size = size;
-    d.is_global = is_global;
-    d.name = name;
-    d.target = DEF_EXPORT_CODE;
-}
-
-
-void IA32::absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global) {
-    Def &d = defs[c.def_index];
-    
-    if (d.target != DEF_NONE)
-        std::cerr << "Double label definition!\n";
-
-    d.location = value;
-    d.size = size;
-    d.is_global = is_global;
-    d.name = name;
-    d.target = DEF_EXPORT_ABSOLUTE;
-}
-
-
-void IA32::data_label_export(Label c, std::string name, unsigned size, bool is_global) {
-    Def &d = defs[c.def_index];
-    
-    if (d.target != DEF_NONE)
-        std::cerr << "Double label definition!\n";
-
-    d.location = data.size();
-    d.size = size;
-    d.is_global = is_global;
-    d.name = name;
-    d.target = DEF_EXPORT_DATA;
+    add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, is_global));
 }
 
 
 void IA32::absolute_label(Label c, int value) {
-    Def &d = defs[c.def_index];
-    
-    if (d.target != DEF_NONE)
-        std::cerr << "Double label definition!\n";
-
-    d.location = value;
-    //d.name = NULL;
-    d.target = DEF_ABSOLUTE;
+    add_def(c, Def(DEF_ABSOLUTE, value, 0, "", false));
 }
 
 
-int IA32::is_defined(Label c) {
-     return (defs[c.def_index].target != DEF_NONE);
+void IA32::absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global) {
+    add_def(c, Def(DEF_ABSOLUTE_EXPORT, value, size, name, is_global));
 }
 
 
