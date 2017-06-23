@@ -2,13 +2,6 @@
 #include <vector>
 #include <map>
 
-//#include "ork.h"
-
-// TODO unify!
-enum X64Error {
-    ERROR
-};
-
 // Oops! Even in 64 bit mode the addressing offsets and immediate operands are limited to
 // 32 bit! The only exceptions are:
 //   REX A1   => MOV RAX, moffset64

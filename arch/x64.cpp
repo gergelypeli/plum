@@ -114,7 +114,7 @@ void X64::done(std::string filename) {
             break;
         default:
             std::cerr << "He?\n";
-            throw ERROR;
+            throw X64_ERROR;
         }
     }
 
@@ -189,7 +189,7 @@ void X64::done(std::string filename) {
             break;
         default:
             std::cerr << "He??\n";
-            throw ERROR;
+            throw X64_ERROR;
         }
     }
 
@@ -204,7 +204,7 @@ void X64::done(std::string filename) {
 void X64::add_def(Label label, const Def &def) {
     if (defs.count(label.def_index)) {
         std::cerr << "Double label definition!\n";
-        throw ERROR;
+        throw X64_ERROR;
     }
 
     defs[label.def_index] = def;
