@@ -1,18 +1,14 @@
 #include <stdio.h>
 
-// Must abuse the x86-64 SysV ABI, the first 6 values are passed in registers
-
-#define ABUSE long x1, long x2, long x3, long x4, long x5, long x6
-
-void star(ABUSE, long a, long b, long ret) {
-    ret = a * b;
+long star(long a, long b) {
+    return a * b;
 }
 
-void plus(ABUSE, long a, long b, long ret) {
-    ret = a + b;
+long plus(long a, long b) {
+    return a + b;
 }
 
-void print(ABUSE, long a) {
+void print(long a) {
     printf("%ld\n", a);
 }
 

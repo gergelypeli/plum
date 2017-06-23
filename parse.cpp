@@ -52,14 +52,17 @@ int main(int argc, char **argv) {
     
     X64 *x64 = new X64();
     x64->init("mymodule");
-    
+
     root_scope->allocate();
-    value_root->compile(x64);
+
+    // Must mark imported functions first as sysv
     for (auto &decl : root_scope->contents) {
         Function *f = dynamic_cast<Function *>(decl.get());
         if (f)
             f->import(x64);
     }
+    
+    value_root->compile(x64);
     
     x64->done("mymodule.o");
     

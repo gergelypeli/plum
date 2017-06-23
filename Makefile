@@ -11,7 +11,9 @@ CORE       = run/core.plum
 
 MAIN       = run/main
 
-build: $(MAIN)
+exe: $(EXE)
+
+main: $(MAIN)
 
 $(EXE): $(SOURCES)
 	@clear
@@ -28,4 +30,4 @@ run/mymodule.o: run/first.plum $(EXE)
 	@cd run && ./plum first.plum
 
 clean:
-	rm -f $(EXE) $(MAIN) run/main.o run/mymodule.o
+	@rm -f $(EXE) $(MAIN) run/main.o run/mymodule.o

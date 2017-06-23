@@ -237,23 +237,65 @@ public:
         return true;
     }
     
+    virtual void sysv_prologue(X64 *x64, unsigned passed_size) {
+        switch (passed_size) {
+        case 0:
+            break;
+        case 8:
+            x64->op(MOVQ, RDI, Address(RSP, 0));
+            break;
+        case 16:
+            x64->op(MOVQ, RDI, Address(RSP, 8));
+            x64->op(MOVQ, RSI, Address(RSP, 0));
+            break;
+        case 24:
+            x64->op(MOVQ, RDI, Address(RSP, 16));
+            x64->op(MOVQ, RSI, Address(RSP, 8));
+            x64->op(MOVQ, RDX, Address(RSP, 0));
+            break;
+        case 32:
+            x64->op(MOVQ, RDI, Address(RSP, 24));
+            x64->op(MOVQ, RSI, Address(RSP, 16));
+            x64->op(MOVQ, RDX, Address(RSP, 8));
+            x64->op(MOVQ, RCX, Address(RSP, 0));
+            break;
+        default:
+            std::cerr << "Oops, too many arguments to a SysV function!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+    
+    virtual void sysv_epilogue(X64 *x64, unsigned passed_size) {
+        x64->op(MOVQ, Address(ESP, passed_size), RAX);
+    }
+    
     virtual Storage compile(X64 *x64) {
         std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
-        unsigned ret_size = measure(ret_ts);
+        unsigned ret_size = round_up(measure(ret_ts));
         x64->op(SUBQ, RSP, ret_size);
+        
+        unsigned passed_size = 0;
         
         if (pivot) {
             Storage s = pivot->compile(x64);
             store(pivot->ts, s, Storage(STACK), x64);
+            passed_size += round_up(measure(pivot->ts));
         }
         
         for (auto &item : items) {
             Storage s = item->compile(x64);
             store(item->ts, s, Storage(STACK), x64);
+            passed_size += round_up(measure(item->ts));
         }
+
+        if (function->is_sysv && passed_size > 0)
+            sysv_prologue(x64, passed_size);
         
         x64->op(CALL, function->x64_label);
+        
+        if (function->is_sysv && ret_size > 0)
+            sysv_epilogue(x64, passed_size);
         
         for (int i = items.size() - 1; i >= 0; i--)
             store(items[i]->ts, Storage(STACK), Storage(), x64);

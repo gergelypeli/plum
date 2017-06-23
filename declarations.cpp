@@ -263,6 +263,7 @@ public:
     TypeSpec ret_ts;
 
     Label x64_label;
+    bool is_sysv;
     
     Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, TypeSpec rts) {
         name = n;
@@ -270,6 +271,8 @@ public:
         arg_tss = ats;
         arg_names = ans;
         ret_ts = rts;
+        
+        is_sysv = false;
     }
 
     virtual Value *match(std::string name, Value *pivot) {
@@ -306,6 +309,7 @@ public:
     }
 
     virtual void import(X64 *x64) {
+        is_sysv = true;
         x64->code_label_import(x64_label, name);  // TODO: mangle import name!
     }
 
