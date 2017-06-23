@@ -5,17 +5,27 @@ SOURCES    = $(MODULES:%=%.cpp)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -g -fdiagnostics-color=always
 
-MAIN       = parse.cpp
-EXE        = plum
-CORE       = core.$(EXE)
+TOP        = parse.cpp
+EXE        = run/plum
+CORE       = run/core.plum
 
+MAIN       = run/main
 
-build: $(EXE)
+build: $(MAIN)
 
 $(EXE): $(SOURCES)
 	@clear
 	@rm -f $(CORE)
-	@$(COMPILE) -o $@ $(CFLAGS) $(MAIN) 2>&1 | head -n 30
+	@$(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
+
+$(MAIN): run/main.o run/mymodule.o
+	@gcc -o $(MAIN) run/main.o run/mymodule.o
+	
+run/main.o: run/main.c
+	@gcc -c -o run/main.o run/main.c
+
+run/mymodule.o: run/first.plum $(EXE)
+	@cd run && ./plum first.plum
 
 clean:
-	rm -f $(EXE)
+	rm -f $(EXE) $(MAIN) run/main.o run/mymodule.o

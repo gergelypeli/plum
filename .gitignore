@@ -1,6 +1,6 @@
 plum
+main
 .*
 core.*
 *.sav
 *.o
-arch/test
