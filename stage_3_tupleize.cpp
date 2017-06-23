@@ -146,8 +146,10 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
     }
     else if (node.type == DECLARATION) {
         Expr *e = new Expr(DECLARATION, node.token, node.text);
-        Expr *f = tupleize(nodes, node.right);
-        e->set_pivot(f);  // Yes, the type/value will be stored in the pivot field
+        if (node.right >= 0)
+            fill_arguments(e, nodes, node.right);
+        //Expr *f = tupleize(nodes, node.right);
+        //e->set_pivot(f);  // Yes, the type/value will be stored in the pivot field
         return e;
     }
     else if (node.type == IDENTIFIER) {

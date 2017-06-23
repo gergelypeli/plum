@@ -356,16 +356,18 @@ class Function: public Declaration {
 public:
     std::string name;
     TypeSpec pivot_ts;
-    
-    TypeSpec ret_ts;
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
+    TypeSpec ret_ts;
 
     Label x64_label;
     
-    Function(std::string name, TypeSpec pts) {
-        this->name = name;
-        this->pivot_ts = pts;
+    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, TypeSpec rts) {
+        name = n;
+        pivot_ts = pts;
+        arg_tss = ats;
+        arg_names = ans;
+        ret_ts = rts;
     }
 
     virtual Value *match(std::string name, Value *pivot) {
@@ -401,26 +403,13 @@ public:
         return (unsigned)-1;
     }
 
+    virtual void import(X64 *x64) {
+        x64->code_label_import(x64_label, name);  // TODO: mangle import name!
+    }
+
     //virtual void allocate(X64 *x64) {
         //x64_label = x64->make_label();
     //}
-};
-
-
-class ImportedFunction: public Function {
-public:
-    ImportedFunction(std::string name, TypeSpec pts, std::vector<TypeSpec> atss, std::vector<std::string> ans, TypeSpec rts)
-        :Function(name, pts) {
-        ret_ts = rts;
-        arg_tss = atss;
-        arg_names = ans;
-    }
-    
-    virtual void allocate(X64 *x64) {
-        Function::allocate(x64);
-        
-        x64->code_label_import(x64_label, name);  // TODO: mangle import name!
-    }
 };
 
 
@@ -791,6 +780,8 @@ public:
     Value *body;
     FunctionScope *fn_scope;
     
+    Function *function;  // If declared with a name, which is always, for now
+        
     FunctionDefinitionValue(Value *r, Value *h, Value *b, FunctionScope *f) {
         ret = r;
         head = h;
@@ -798,15 +789,16 @@ public:
         fn_scope = f;
     }
     
-    virtual void compile_early(X64 *x64, Label prologue_label) {
-        // This is invoked by our DefinedFunction, not our parent Declaration.
-        
-        // This may generate bodies of inner functions, don't place the label yet.
+    void set_function(Function *f) {
+        function = f;
+    }
+    
+    virtual Storage compile(X64 *x64) {
         fn_scope->allocate(x64);
         
         unsigned frame_size = fn_scope->body_scope->size;
 
-        x64->code_label(prologue_label, 0);
+        x64->code_label(function->x64_label, 0);
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
@@ -818,6 +810,8 @@ public:
         x64->op(ADDQ, RSP, frame_size);
         x64->op(POPQ, RBP);
         x64->op(RET);
+        
+        return Storage();
     }
 };
 
@@ -960,20 +954,74 @@ public:
 
 class DeclarationValue: public Value {
 public:
+    std::string name;
     Declaration *decl;
     Value *value;
     
-    DeclarationValue(Declaration *d, Value *v) {
-        decl = d;
-        value = v;
+    DeclarationValue(std::string n) {
+        name = n;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky declaration!\n";
+            throw TYPE_ERROR;
+        }
+        
+        value = typize(args[0].get(), scope);
+        
+        if (value->ts.size() == 0) {
+            std::cerr << "Declaration needs a type " << args[0]->token << "!\n";
+            throw TYPE_ERROR;
+        }
+        else if (value->ts[0] == type_type) {
+            TypeSpec var_ts;
+            
+            if (!scope->is_readonly())
+                var_ts.push_back(lvalue_type);
+            
+            for (unsigned i = 1; i < value->ts.size(); i++)
+                var_ts.push_back(value->ts[i]);
+        
+            Variable *variable = new Variable(name, TS_VOID, var_ts);
+            decl = variable;
+        }
+        else if (value->ts[0] == function_type) {
+            FunctionDefinitionValue *fdv = dynamic_cast<FunctionDefinitionValue *>(value);
+            TypeSpec ret_ts;
+            std::vector<TypeSpec> arg_tss;
+            std::vector<std::string> arg_names;
+
+            for (unsigned i = 1; i < fdv->ts.size(); i++)
+                ret_ts.push_back(fdv->ts[i]);
+
+            std::cerr << "It's a function with return type " << ret_ts << ".\n";
+
+            Scope *head_scope = fdv->fn_scope->head_scope;
+            unsigned n = head_scope->get_length();
+
+            for (unsigned i = 0; i < n; i++) {
+                Declaration *xd = head_scope->get_declaration(i);
+                Variable *vd = dynamic_cast<Variable *>(xd);
+                arg_tss.push_back(vd->var_ts);
+                arg_names.push_back(vd->name);
+            }
+
+            Function *function = new Function(name, TS_VOID, arg_tss, arg_names, ret_ts);
+            fdv->set_function(function);
+            decl = function;
+        }
+        else {
+            std::cerr << "Now what is this?\n";
+            throw TYPE_ERROR;
+        }
+            
+        scope->add(decl);
+        return true;
     }
     
-    virtual Storage compile(X64 *) {
-        // TODO: when declaring by value, this should be an initialization, too
-        // But when declaring by type don't compile. Variables don't need it,
-        // and functions are compiled earlier in the allocate phase, so they
-        // don't get inserted in the middle of their containing function body.
-        //value->compile(x64);
+    virtual Storage compile(X64 *x64) {
+        value->compile(x64);
         
         // TODO: eventually this must manage the rollback labels, too.
         return Storage();
@@ -1044,54 +1092,14 @@ Value *make_function_definition_value(Value *ret, Value *head, Value *body, Func
 }
 
 
-Value *make_declaration_value(Declaration *d, Value *v) {
-    return new DeclarationValue(d, v);
+Value *make_declaration_value(std::string name) {
+    return new DeclarationValue(name);
 }
 
 
 Value *make_number_value(std::string text) {
     return new NumberValue(text);
 }
-
-
-// FIXME
-
-
-class DefinedFunction: public Function {
-public:
-    FunctionDefinitionValue *definition_value;
-    
-    DefinedFunction(std::string name, TypeSpec pts, FunctionDefinitionValue *fdv)
-        :Function(name, pts) {
-        definition_value = fdv;
-        
-        for (unsigned i = 1; i < fdv->ts.size(); i++)
-            ret_ts.push_back(fdv->ts[i]);
-
-        std::cerr << "It's a function with return type " << ret_ts << ".\n";
-
-        Scope *head_scope = fdv->fn_scope->head_scope;
-        unsigned n = head_scope->get_length();
-
-        for (unsigned i = 0; i < n; i++) {
-            Declaration *xd = head_scope->get_declaration(i);
-            Variable *vd = dynamic_cast<Variable *>(xd);
-            arg_tss.push_back(vd->var_ts);
-            arg_names.push_back(vd->name);
-        }
-    }
-    
-    virtual void allocate(X64 *x64) {
-        Function::allocate(x64);
-        
-        // Generate the code for this function now, because during the compilation
-        // of a potential containing function body it will be too late.
-        // And Declaration won't compile it anyway.
-
-        // This must define the label
-        definition_value->compile_early(x64, x64_label);
-    }
-};
 
 
 
@@ -1128,21 +1136,21 @@ Scope *init_types() {
     std::vector<std::string> value_names = { "value" };
 
     for (auto name : { "minus", "negate" })
-        root_scope->add(new ImportedFunction(name, void_ts, int_tss, value_names, int_ts));
+        root_scope->add(new Function(name, void_ts, int_tss, value_names, int_ts));
 
     for (auto name : { "plus", "minus", "star", "slash", "percent", "or", "xor", "and", "exponent" })
-        root_scope->add(new ImportedFunction(name, int_ts, int_tss, value_names, int_ts));
+        root_scope->add(new Function(name, int_ts, int_tss, value_names, int_ts));
 
     for (auto name : { "equal", "not_equal", "less", "greater", "less_equal", "greater_equal", "incomparable", "compare" })
-        root_scope->add(new ImportedFunction(name, int_ts, int_tss, value_names, bool_ts));
+        root_scope->add(new Function(name, int_ts, int_tss, value_names, bool_ts));
 
     for (auto name : { "logical not", "logical and", "logical or", "logical xor" })
-        root_scope->add(new ImportedFunction(name, bool_ts, bool_tss, value_names, bool_ts));
+        root_scope->add(new Function(name, bool_ts, bool_tss, value_names, bool_ts));
 
     for (auto name : { "plus_assign", "minus_assign", "star_assign", "slash_assign", "percent_assign", "or_assign", "xor_assign", "and_assign" })
-        root_scope->add(new ImportedFunction(name, lint_ts, int_tss, value_names, int_ts));
+        root_scope->add(new Function(name, lint_ts, int_tss, value_names, int_ts));
 
-    root_scope->add(new ImportedFunction("print", void_ts, int_tss, value_names, void_ts));
+    root_scope->add(new Function("print", void_ts, int_tss, value_names, void_ts));
 
     return root_scope;
 }
@@ -1223,36 +1231,15 @@ Value *typize(Expr *expr, Scope *scope) {
         std::string name = expr->text;
         std::cerr << "Declaring " << name << ".\n";
         
-        Value *d = typize(expr->pivot.get(), scope);
+        Value *v = make_declaration_value(name)->set_token(expr->token);
+        bool ok = v->check(expr->args, expr->kwargs, scope);
         
-        if (d->ts.size() == 0) {
-            std::cerr << "Declaration needs a type " << expr->token << "!\n";
+        if (!ok) {
+            std::cerr << "Couldn't declare " << name << "!\n";
             throw TYPE_ERROR;
         }
 
-        Declaration *decl;
-
-        if (d->ts[0] == type_type) {
-            TypeSpec var_ts;
-            
-            if (!scope->is_readonly())
-                var_ts.push_back(lvalue_type);
-            
-            for (unsigned i = 1; i < d->ts.size(); i++)
-                var_ts.push_back(d->ts[i]);
-        
-            decl = new Variable(name, TS_VOID, var_ts);
-        }
-        else if (d->ts[0] == function_type) {
-            FunctionDefinitionValue *fdv = dynamic_cast<FunctionDefinitionValue *>(d);
-
-            decl = new DefinedFunction(name, TS_VOID, fdv);
-        }
-            
-        scope->add(decl);
-    
-        Value *v = make_declaration_value(decl, d)->set_token(expr->token);
-        
+        std::cerr << "Declared " << name << ".\n";
         return v;
     }
     else if (expr->type == IDENTIFIER) {
