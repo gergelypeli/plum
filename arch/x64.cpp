@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "ia32.h"
+#include "x64.h"
 
 std::ostream &operator << (std::ostream &os, const Register r) {
     switch (r) {
@@ -70,15 +70,15 @@ Label::Label(const Label &c) {
 }
 
 
-IA32::IA32() {
+X64::X64() {
 }
 
 
-IA32::~IA32() {
+X64::~X64() {
 }
 
 
-void IA32::init(std::string module_name) {
+void X64::init(std::string module_name) {
     ork = new Ork;  // New Ork, New Ork...
 
     // symbol table indexes
@@ -89,7 +89,7 @@ void IA32::init(std::string module_name) {
 }
 
 
-void IA32::done(std::string filename) {
+void X64::done(std::string filename) {
     for (auto &kv : defs) {
         Def &d(kv.second);
 
@@ -201,7 +201,7 @@ void IA32::done(std::string filename) {
 }
 
 
-void IA32::add_def(Label label, const Def &def) {
+void X64::add_def(Label label, const Def &def) {
     if (defs.count(label.def_index)) {
         std::cerr << "Double label definition!\n";
         throw ERROR;
@@ -211,46 +211,46 @@ void IA32::add_def(Label label, const Def &def) {
 }
 
 
-void IA32::data_byte(char x) {
+void X64::data_byte(char x) {
     data.push_back(x);
 }
 
 
-void IA32::data_word(short x) {
+void X64::data_word(short x) {
     data.resize(data.size() + 2);
     *(short *)(data.data() + data.size() - 2) = x;
 }
 
 
-void IA32::data_dword(int x) {
+void X64::data_dword(int x) {
     data.resize(data.size() + 4);
     *(int *)(data.data() + data.size() - 4) = x;
 }
 
 
-void IA32::data_qword(long x) {
+void X64::data_qword(long x) {
     data.resize(data.size() + 8);
     *(long *)(data.data() + data.size() - 8) = x;
 }
 
 
-void IA32::data_label(Label c, unsigned size) {
+void X64::data_label(Label c, unsigned size) {
     add_def(c, Def(DEF_DATA, data.size(), size, "", false));
 }
 
 
-void IA32::data_label_export(Label c, std::string name, unsigned size, bool is_global) {
+void X64::data_label_export(Label c, std::string name, unsigned size, bool is_global) {
     add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, is_global));
 }
 
 
-unsigned IA32::data_allocate(unsigned size) {
+unsigned X64::data_allocate(unsigned size) {
     data.resize(data.size() + size);
     return data.size() - size;
 }
 
 
-void IA32::data_reference(Label c) {
+void X64::data_reference(Label c) {
     refs.push_back(Ref());
     Ref &r = refs.back();
     
@@ -262,60 +262,60 @@ void IA32::data_reference(Label c) {
 }
 
 
-void IA32::code_align() {
+void X64::code_align() {
     code.resize((code.size() + 7) & ~7);  // 8-byte alignment
 }
 
 
-void IA32::code_byte(char x) {
+void X64::code_byte(char x) {
     code.push_back(x);
 }
 
 
-void IA32::code_word(short x) {
+void X64::code_word(short x) {
     code.resize(code.size() + 2);
     *(short *)(code.data() + code.size() - 2) = x;
 }
 
 
-void IA32::code_dword(int x) {
+void X64::code_dword(int x) {
     code.resize(code.size() + 4);
     *(int *)(code.data() + code.size() - 4) = x;
 }
 
 
-void IA32::code_qword(long x) {
+void X64::code_qword(long x) {
     code.resize(code.size() + 8);
     *(long *)(code.data() + code.size() - 8) = x;
 }
 
 
-void IA32::code_label(Label c, unsigned size) {
+void X64::code_label(Label c, unsigned size) {
     add_def(c, Def(DEF_CODE, code.size(), size, "", false));
 }
 
 
-void IA32::code_label_import(Label c, std::string name) {
+void X64::code_label_import(Label c, std::string name) {
     add_def(c, Def(DEF_CODE_IMPORT, 0, 0, name, false));
 }
 
 
-void IA32::code_label_export(Label c, std::string name, unsigned size, bool is_global) {
+void X64::code_label_export(Label c, std::string name, unsigned size, bool is_global) {
     add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, is_global));
 }
 
 
-void IA32::absolute_label(Label c, int value) {
+void X64::absolute_label(Label c, int value) {
     add_def(c, Def(DEF_ABSOLUTE, value, 0, "", false));
 }
 
 
-void IA32::absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global) {
+void X64::absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global) {
     add_def(c, Def(DEF_ABSOLUTE_EXPORT, value, size, name, is_global));
 }
 
 
-void IA32::code_reference(Label c, Ref_type f, int offset) {
+void X64::code_reference(Label c, Ref_type f, int offset) {
     if (c.def_index <= 0 || c.def_index >= defs.size())
         std::cerr << "Label gone wild!\n";
 
@@ -336,7 +336,7 @@ void IA32::code_reference(Label c, Ref_type f, int offset) {
 }
 
 
-void IA32::code_op(int code, int size) {
+void X64::code_op(int code, int size) {
     // size: 0=byte, 1=word, 2=dword, 3=qword
 
     if (size == 1)
@@ -351,14 +351,14 @@ void IA32::code_op(int code, int size) {
 }
 
 
-void IA32::effective_address(int modrm, Register x) {
+void X64::effective_address(int modrm, Register x) {
     code_byte(0xC0 | (modrm << 3) | x);
 }
 
 
 // Fix addresses and scaling and index are not yet supported...
 // TODO: modrm should be called reg officially, the mod and rm fields are generated here.
-void IA32::effective_address(int modrm, Address x) {
+void X64::effective_address(int modrm, Address x) {
      if (x.base == NOREG && x.label) {  // Must have a label here
         // TODO: in 64-bit mode fake EBP base will mean RIP base, must use SIB always!
         code_byte(0x00 | (modrm << 3) | 0x05);  // fake EBP base means no base only offset
@@ -405,7 +405,7 @@ int simple_info[] = {
 };
 
 
-void IA32::op(SimpleOp opcode) {
+void X64::op(SimpleOp opcode) {
     code_op(simple_info[opcode], 0);
 }
 
@@ -433,13 +433,13 @@ struct {
 };
 
 
-void IA32::op(UnaryOp opcode, Register x) {
+void X64::op(UnaryOp opcode, Register x) {
     auto &info = unary_info[opcode >> 2];
     code_op(info.op, opcode & 3);
     effective_address(info.modrm, x);
 }
 
-void IA32::op(UnaryOp opcode, Address x) {
+void X64::op(UnaryOp opcode, Address x) {
     auto &info = unary_info[opcode >> 2];
     code_op(info.op, opcode & 3);
     effective_address(info.modrm, x);
@@ -448,7 +448,7 @@ void IA32::op(UnaryOp opcode, Address x) {
 
 
 
-void IA32::op(PortOp opcode) {
+void X64::op(PortOp opcode) {
     if (opcode < 4)
         code_op(0xEC, opcode & 3);
     else
@@ -456,7 +456,7 @@ void IA32::op(PortOp opcode) {
 }
 
 
-void IA32::op(PortOp opcode, int x) {
+void X64::op(PortOp opcode, int x) {
     if (opcode < 4)
         code_op(0xE4, opcode & 3);
     else
@@ -477,7 +477,7 @@ int string_info[] = {
 };
 
 
-void IA32::op(StringOp opcode) {
+void X64::op(StringOp opcode) {
     code_op(string_info[opcode >> 2], opcode & 3);
 }
 
@@ -505,7 +505,7 @@ struct {
 
 // constant to r/m
 
-void IA32::op(BinaryOp opcode, Register x, Label c, int offset) {
+void X64::op(BinaryOp opcode, Register x, Label c, int offset) {
     // Even if the immediate operand will only be 32 bits, it will be sign-extended,
     // and since it's semantically an address, it should be moved into a 64-bit register.
     if ((opcode & 3) != 3)
@@ -517,7 +517,7 @@ void IA32::op(BinaryOp opcode, Register x, Label c, int offset) {
 }
 
 
-void IA32::op(BinaryOp opcode, Address x, Label c, int offset) {
+void X64::op(BinaryOp opcode, Address x, Label c, int offset) {
     if ((opcode & 3) != 3)
         std::cerr << "Label addresses are qword constants!\n";
 
@@ -527,7 +527,7 @@ void IA32::op(BinaryOp opcode, Address x, Label c, int offset) {
 }
 
 
-void IA32::op(BinaryOp opcode, Register x, int y) {
+void X64::op(BinaryOp opcode, Register x, int y) {
     code_op(binary_info[opcode >> 2].op1, opcode & 3);
     effective_address(binary_info[opcode >> 2].modrm1, x);
     
@@ -539,7 +539,7 @@ void IA32::op(BinaryOp opcode, Register x, int y) {
     }
 }
 
-void IA32::op(BinaryOp opcode, Address x, int y) {
+void X64::op(BinaryOp opcode, Address x, int y) {
     code_op(binary_info[opcode >> 2].op1, opcode & 3);
     effective_address(binary_info[opcode >> 2].modrm1, x);
     
@@ -551,17 +551,17 @@ void IA32::op(BinaryOp opcode, Address x, int y) {
     }
 }
 
-void IA32::op(BinaryOp opcode, Register x, Register y) {
+void X64::op(BinaryOp opcode, Register x, Register y) {
     code_op(binary_info[opcode >> 2].op2, opcode & 3);
     effective_address(y, x);
 }
 
-void IA32::op(BinaryOp opcode, Address x, Register y) {
+void X64::op(BinaryOp opcode, Address x, Register y) {
     code_op(binary_info[opcode >> 2].op2, opcode & 3);
     effective_address(y, x);
 }
 
-void IA32::op(BinaryOp opcode, Register x, Address y) {
+void X64::op(BinaryOp opcode, Register x, Address y) {
     code_op(binary_info[opcode >> 2].op3, opcode & 3);
     effective_address(x, y);
 }
@@ -574,17 +574,17 @@ int shift_info[] = {
 };
 
 
-void IA32::op(ShiftOp opcode, Register x) {  // by CL
+void X64::op(ShiftOp opcode, Register x) {  // by CL
     code_op(0xD2, opcode & 3);
     effective_address(shift_info[opcode >> 2], x);
 }
 
-void IA32::op(ShiftOp opcode, Address x) {  // by CL
+void X64::op(ShiftOp opcode, Address x) {  // by CL
     code_op(0xD2, opcode & 3);
     effective_address(shift_info[opcode >> 2], x);
 }
 
-void IA32::op(ShiftOp opcode, Register x, char y) {
+void X64::op(ShiftOp opcode, Register x, char y) {
     if (y == 1) {
         code_op(0xD0, opcode & 3);
         effective_address(shift_info[opcode >> 2], x);
@@ -596,7 +596,7 @@ void IA32::op(ShiftOp opcode, Register x, char y) {
     }
 }
 
-void IA32::op(ShiftOp opcode, Address x, char y) {
+void X64::op(ShiftOp opcode, Address x, char y) {
     if (y == 1) {
         code_op(0xD0, opcode & 3);
         effective_address(shift_info[opcode >> 2], x);
@@ -611,31 +611,31 @@ void IA32::op(ShiftOp opcode, Address x, char y) {
 
 
 
-void IA32::op(ExchangeOp opcode, Register x, Register y) {
+void X64::op(ExchangeOp opcode, Register x, Register y) {
     code_op(0x86, opcode);
     effective_address(x, y);
 }
 
-void IA32::op(ExchangeOp opcode, Address x, Register y) {
+void X64::op(ExchangeOp opcode, Address x, Register y) {
     code_op(0x86, opcode);
     effective_address(y, x);
 }
 
-void IA32::op(ExchangeOp opcode, Register x, Address y) {
+void X64::op(ExchangeOp opcode, Register x, Address y) {
     code_op(0x86, opcode);
     effective_address(x, y);
 }
 
 
 
-void IA32::op(StackOp opcode, Label c, int offset) {
+void X64::op(StackOp opcode, Label c, int offset) {
     if (opcode == PUSHQ) {
         code_byte(0x68);
         code_reference(c, REF_CODE_ABSOLUTE, offset);
     }
 }
 
-void IA32::op(StackOp opcode, int x) {
+void X64::op(StackOp opcode, int x) {
     if (opcode == PUSHQ) {
         code_byte(0x68);
         code_dword(x);  // 32-bit immediate only
@@ -644,14 +644,14 @@ void IA32::op(StackOp opcode, int x) {
         std::cerr << "WAT?\n";
 }
 
-void IA32::op(StackOp opcode, Register x) {
+void X64::op(StackOp opcode, Register x) {
     if (opcode == PUSHQ)
         code_byte(0x50 + x);
     else
         code_byte(0x58 + x);
 }
 
-void IA32::op(StackOp opcode, Address x) {
+void X64::op(StackOp opcode, Address x) {
     if (opcode == PUSHQ) {
         code_byte(0xFF);
         effective_address(6, x);
@@ -679,7 +679,7 @@ struct {
         {0xD9,    5}
 };
 
-void IA32::op(MemoryOp opcode, Address x) {
+void X64::op(MemoryOp opcode, Address x) {
     code_op(memory_info[opcode].op, 0);
     effective_address(memory_info[opcode].modrm, x);
 }
@@ -691,12 +691,12 @@ int registerfirst_info[] = {
     0x0FAF, 0x0F02, 0x0F03
 };
 
-void IA32::op(RegisterFirstOp opcode, Register x, Register y) {
+void X64::op(RegisterFirstOp opcode, Register x, Register y) {
     code_op(registerfirst_info[opcode], 0);
     effective_address(x, y);
 }
 
-void IA32::op(RegisterFirstOp opcode, Register x, Address y) {
+void X64::op(RegisterFirstOp opcode, Register x, Address y) {
     code_op(registerfirst_info[opcode], 0);
     effective_address(x, y);
 }
@@ -704,7 +704,7 @@ void IA32::op(RegisterFirstOp opcode, Register x, Address y) {
 
 
 
-void IA32::op(RegisterConstantOp opcode, Register x, Register y, int z) {
+void X64::op(RegisterConstantOp opcode, Register x, Register y, int z) {
     if (opcode == IMUL3Q) {
         // The lowest bit does not work here the usual way, so...
         code_byte(0x48);  // Hardcoded REX
@@ -721,12 +721,12 @@ int registersecond_info[] = {
     0x63, 0x0FA5, 0x0FAD
 };
 
-void IA32::op(RegisterSecondOp opcode, Register x, Register y) {
+void X64::op(RegisterSecondOp opcode, Register x, Register y) {
     code_op(registersecond_info[opcode], 0);
     effective_address(y, x);
 }
 
-void IA32::op(RegisterSecondOp opcode, Address x, Register y) {
+void X64::op(RegisterSecondOp opcode, Address x, Register y) {
     code_op(registersecond_info[opcode], 0);
     effective_address(y, x);
 }
@@ -739,7 +739,7 @@ int registermemory_info[] = {
 };
 
 
-void IA32::op(RegisterMemoryOp opcode, Register x, Address y) {
+void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
     //std::cerr << "HIHI\n";
     code_op(registermemory_info[opcode], 0);
     effective_address(x, y);
@@ -748,13 +748,13 @@ void IA32::op(RegisterMemoryOp opcode, Register x, Address y) {
 
 
 
-void IA32::op(BitSetOp opcode, Register x) {
+void X64::op(BitSetOp opcode, Register x) {
     code_op(0x0F90 | opcode, 0);
     effective_address(0, x);  // 0 is modrm
 }
 
 
-void IA32::op(BitSetOp opcode, Address x) {
+void X64::op(BitSetOp opcode, Address x) {
     code_op(0x0F90 | opcode, 0);
     effective_address(0, x);  // 0 is modrm
 }
@@ -762,7 +762,7 @@ void IA32::op(BitSetOp opcode, Address x) {
 
 
 
-void IA32::op(BranchOp opcode, Label c) {
+void X64::op(BranchOp opcode, Label c) {
     code_op(0x0F80 | opcode, 0);  // use 32-bit offset at first
     code_reference(c, REF_CODE_RELATIVE);
 }
@@ -770,7 +770,7 @@ void IA32::op(BranchOp opcode, Label c) {
 
 
 
-void IA32::op(JumpOp opcode, Label c) {
+void X64::op(JumpOp opcode, Label c) {
     if (opcode == CALL) {
         code_op(0xE8, 0);
         code_reference(c, REF_CODE_RELATIVE);
@@ -786,7 +786,7 @@ void IA32::op(JumpOp opcode, Label c) {
 }
 
 
-void IA32::op(JumpOp opcode, Address x) {
+void X64::op(JumpOp opcode, Address x) {
     if (opcode == CALL) {
         code_op(0xFF, 0);
         effective_address(2, x);
@@ -796,7 +796,7 @@ void IA32::op(JumpOp opcode, Address x) {
 }
 
 
-void IA32::op(ConstantOp opcode, int x) {
+void X64::op(ConstantOp opcode, int x) {
     if (opcode == INT) {
         code_op(0xCD, 0);
         code_byte(x);

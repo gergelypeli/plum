@@ -5,7 +5,7 @@
 //#include "ork.h"
 
 // TODO unify!
-enum IA32Error {
+enum X64Error {
     ERROR
 };
 
@@ -189,7 +189,7 @@ enum ConstantOp {
 };
 
 
-class IA32 {
+class X64 {
 public:
     std::vector<char> code;
     std::vector<char> data;
@@ -261,8 +261,8 @@ public:
     void effective_address(int modrm, Register x);
     void effective_address(int modrm, Address x);
     
-    IA32();
-    ~IA32();
+    X64();
+    ~X64();
     
     void init(std::string module_name);
     void done(std::string name);

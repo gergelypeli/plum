@@ -10,12 +10,11 @@
 
 #include "util.cpp"
 #include "arch/ork.cpp"
-#include "arch/ia32.cpp"
-typedef IA32 X64;  // Ugh!
-#include "stage_1_tokenize.cpp"
-#include "stage_2_treeize.cpp"
-#include "stage_3_tupleize.cpp"
-#include "stage_4_typize.cpp"
+#include "arch/x64.cpp"
+#include "tokenize.cpp"
+#include "treeize.cpp"
+#include "tupleize.cpp"
+#include "typize.cpp"
 
 
 std::string read_source(const char *filename) {
