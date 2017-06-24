@@ -376,14 +376,14 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (args.size() != 1 || kwargs.size() != 0) {
             std::cerr << "Whacky declaration!\n";
-            throw TYPE_ERROR;
+            return false;
         }
         
         value.reset(typize(args[0].get(), scope));
         
         if (value->ts.size() == 0) {
             std::cerr << "Declaration needs a type " << args[0]->token << "!\n";
-            throw TYPE_ERROR;
+            return false;
         }
         else if (value->ts[0] == type_type) {
             TypeSpec var_ts;
@@ -394,7 +394,7 @@ public:
             for (unsigned i = 1; i < value->ts.size(); i++)
                 var_ts.push_back(value->ts[i]);
         
-            Variable *variable = new Variable(name, TS_VOID, var_ts);
+            Variable *variable = new Variable(name, VOID_TS, var_ts);
             decl = variable;
         }
         else if (value->ts[0] == function_type) {
@@ -418,13 +418,13 @@ public:
                 arg_names.push_back(vd->name);
             }
 
-            Function *function = new Function(name, TS_VOID, arg_tss, arg_names, ret_ts);
+            Function *function = new Function(name, VOID_TS, arg_tss, arg_names, ret_ts);
             fdv->set_function(function);
             decl = function;
         }
         else {
             std::cerr << "Now what is this?\n";
-            throw TYPE_ERROR;
+            return false;
         }
             
         scope->add(decl);
@@ -458,8 +458,246 @@ public:
 };
 
 
+class IntegerArithmeticValue: public Value {
+public:
+    ArithmeticOperation operation;
+    TypeSpec arg_ts;
+    std::unique_ptr<Value> left, right;
+    
+    IntegerArithmeticValue(ArithmeticOperation o, TypeSpec t, Value *pivot) {
+        operation = o;
+        arg_ts = t;
+        left.reset(pivot);
+        
+        if (is_comparison(operation))
+            ts.push_back(boolean_type);
+        else
+            ts = arg_ts;
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (operation == COMPLEMENT || operation == NEGATE) {
+            if (args.size() != 0 || kwargs.size() != 0) {
+                std::cerr << "Whacky integer unary operation!\n";
+                return false;
+            }
+            
+            return true;
+        }
+        else {
+            if (args.size() != 1 || kwargs.size() != 0) {
+                std::cerr << "Whacky integer binary operation!\n";
+                return false;
+            }
+
+            Value *r = typize(args[0].get(), scope);
+        
+            if (!(r->ts >> arg_ts)) {
+                std::cerr << "Incompatible right argument to integer binary operation!\n";
+                return false;
+            }
+        
+            right.reset(r);
+            return true;
+        }
+    }
+
+    virtual void exponentiation_by_squaring(X64 *x64) {
+        // RAX = RBX ** RCX
+        Label loop_label;
+        Label skip_label;
+        loop_label.allocate();
+        skip_label.allocate();
+        
+        x64->op(MOVQ, RAX, 1);
+        
+        x64->code_label(loop_label);
+        x64->op(TESTQ, RCX, 1);
+        x64->op(JE, skip_label);
+        x64->op(IMUL2Q, RAX, RBX);
+        
+        x64->code_label(skip_label);
+        x64->op(IMUL2Q, RBX, RBX);
+        x64->op(SHRQ, RCX, 1);
+        x64->op(JNE, loop_label);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage ls = left->compile(x64);
+        Address la(NOREG);
+        
+        if (!is_assignment(operation))
+            store(left->ts, ls, Storage(STACK), x64);
+        else if (ls.where == FRAME)
+            la = Address(RBP, ls.frame_offset);
+        else {
+            std::cerr << "Integer lvalue not on the frame!\n";
+            throw INTERNAL_ERROR;
+        }
+        
+        if (right) {
+            Storage rs = right->compile(x64);
+            store(right->ts, rs, Storage(REGISTER), x64);
+        }
+        
+        switch (operation) {
+        case COMPLEMENT:
+            x64->op(NOTQ, RAX);
+            break;
+        case NEGATE:
+            x64->op(NEGQ, RAX);
+            break;
+        case ADD:
+            x64->op(POPQ, RBX);
+            x64->op(ADDQ, RAX, RBX);
+            break;
+        case SUBTRACT:
+            x64->op(POPQ, RBX);
+            x64->op(SUBQ, RAX, RBX);
+            x64->op(NEGQ, RAX);
+            break;
+        case MULTIPLY:
+            x64->op(POPQ, RBX);
+            x64->op(IMUL2Q, RAX, RBX);
+            break;
+        case DIVIDE:
+            x64->op(POPQ, RBX);
+            x64->op(XCHGQ, RAX, RBX);
+            x64->op(CQO);
+            x64->op(IDIVQ, RBX);
+            break;
+        case MODULO:
+            x64->op(POPQ, RBX);
+            x64->op(XCHGQ, RAX, RBX);
+            x64->op(CQO);
+            x64->op(IDIVQ, RBX);
+            x64->op(MOVQ, RAX, RDX);
+            break;
+        case OR:
+            x64->op(POPQ, RBX);
+            x64->op(ORQ, RAX, RBX);
+            break;
+        case XOR:
+            x64->op(POPQ, RBX);
+            x64->op(XORQ, RAX, RBX);
+            break;
+        case AND:
+            x64->op(POPQ, RBX);
+            x64->op(ANDQ, RAX, RBX);
+            break;
+        case SHIFT_LEFT:
+            x64->op(MOVQ, RCX, RAX);
+            x64->op(POPQ, RAX);
+            x64->op(SHLQ, RAX, CL);
+            break;
+        case SHIFT_RIGHT:
+            x64->op(MOVQ, RCX, RAX);
+            x64->op(POPQ, RAX);
+            x64->op(SHRQ, RAX, CL);
+            break;
+        case EXPONENT:
+            x64->op(MOVQ, RCX, RAX);
+            x64->op(POPQ, RBX);
+            exponentiation_by_squaring(x64);
+            break;
+        case EQUAL:
+            x64->op(POPQ, RBX);
+            x64->op(CMPQ, RBX, RAX);
+            x64->op(SETE, AL);
+            break;
+        case NOT_EQUAL:
+            x64->op(POPQ, RBX);
+            x64->op(CMPQ, RBX, RAX);
+            x64->op(SETNE, AL);
+            break;
+        case LESS:
+            x64->op(POPQ, RBX);
+            x64->op(CMPQ, RBX, RAX);
+            x64->op(SETL, AL);
+            break;
+        case GREATER:
+            x64->op(POPQ, RBX);
+            x64->op(CMPQ, RBX, RAX);
+            x64->op(SETG, AL);
+            break;
+        case LESS_EQUAL:
+            x64->op(POPQ, RBX);
+            x64->op(CMPQ, RBX, RAX);
+            x64->op(SETLE, AL);
+            break;
+        case GREATER_EQUAL:
+            x64->op(POPQ, RBX);
+            x64->op(CMPQ, RBX, RAX);
+            x64->op(SETGE, AL);
+            break;
+        case INCOMPARABLE:
+            x64->op(MOVQ, RAX, 0);
+            break;
+        case ASSIGN:
+            x64->op(MOVQ, la, RAX);
+            break;
+        case ASSIGN_ADD:
+            x64->op(ADDQ, la, RAX);
+            break;
+        case ASSIGN_SUBTRACT:
+            x64->op(SUBQ, la, RAX);
+            break;
+        case ASSIGN_MULTIPLY:
+            x64->op(IMUL2Q, RAX, la);
+            x64->op(MOVQ, la, RAX);
+            break;
+        case ASSIGN_DIVIDE:
+            x64->op(MOVQ, RBX, la);
+            x64->op(XCHGQ, RAX, RBX);
+            x64->op(CQO);
+            x64->op(IDIVQ, RBX);
+            x64->op(MOVQ, la, RAX);
+            break;
+        case ASSIGN_MODULO:
+            x64->op(MOVQ, RBX, la);
+            x64->op(XCHGQ, RAX, RBX);
+            x64->op(CQO);
+            x64->op(IDIVQ, RBX);
+            x64->op(MOVQ, la, RDX);
+            break;
+        case ASSIGN_EXPONENT:
+            x64->op(MOVQ, RCX, EAX);
+            x64->op(MOVQ, RBX, la);
+            exponentiation_by_squaring(x64);
+            x64->op(MOVQ, la, RAX);
+            break;
+        case ASSIGN_OR:
+            x64->op(ORQ, la, RAX);
+            break;
+        case ASSIGN_XOR:
+            x64->op(XORQ, la, RAX);
+            break;
+        case ASSIGN_AND:
+            x64->op(ANDQ, la, RAX);
+            break;
+        case ASSIGN_SHIFT_LEFT:
+            x64->op(MOVQ, RCX, RAX);
+            x64->op(SHLQ, la, CL);
+            break;
+        case ASSIGN_SHIFT_RIGHT:
+            x64->op(MOVQ, RCX, RAX);
+            x64->op(SHRQ, la, CL);
+            break;
+        default:
+            std::cerr << "Unknown integer arithmetic operator!\n";
+            throw INTERNAL_ERROR;
+        }
+        
+        if (operation < ASSIGN)
+            return Storage(REGISTER);
+        else
+            return ls;
+    }
+};
+
+
 TypeSpec get_typespec(Value *v) {
-    return v ? v->ts : TS_VOID;
+    return v ? v->ts : VOID_TS;
 }
 
 
@@ -512,3 +750,6 @@ Value *make_number_value(std::string text) {
     return new NumberValue(text);
 }
 
+Value *make_integer_arithmetic_value(ArithmeticOperation o, TypeSpec t, Value *pivot) {
+    return new IntegerArithmeticValue(o, t, pivot);
+}

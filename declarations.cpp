@@ -319,7 +319,32 @@ public:
 };
 
 
-class Type: virtual public Declaration {
+class IntegerArithmeticOperation: public Declaration {
+public:
+    std::string name;
+    TypeSpec ts;
+    ArithmeticOperation operation;
+    
+    IntegerArithmeticOperation(std::string n, TypeSpec t, ArithmeticOperation o) {
+        name = n;
+        ts = t;
+        operation = o;
+    }
+    
+    virtual Value *match(std::string name, Value *pivot) {
+        TypeSpec pts = get_typespec(pivot);
+
+        if (name == this->name && pts >> ts) {
+            Value *v = make_integer_arithmetic_value(operation, ts, pivot);
+            return v;
+        }
+        else
+            return NULL;
+    }
+};
+
+
+class Type: public Declaration {
 public:
     std::string name;
     unsigned parameter_count;

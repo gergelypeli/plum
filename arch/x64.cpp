@@ -5,14 +5,14 @@
 std::ostream &operator << (std::ostream &os, const Register r) {
     switch (r) {
     case NOREG: os << "-"; break;
-    case EAX: os << "EAX"; break;
-    case EBX: os << "EBX"; break;
-    case ECX: os << "ECX"; break;
-    case EDX: os << "EDX"; break;
-    case ESP: os << "ESP"; break;
-    case EBP: os << "EBP"; break;
-    case ESI: os << "ESI"; break;
-    case EDI: os << "EDI"; break;
+    case RAX: os << "RAX"; break;
+    case RBX: os << "RBX"; break;
+    case RCX: os << "RCX"; break;
+    case RDX: os << "RDX"; break;
+    case RSP: os << "RSP"; break;
+    case RBP: os << "RBP"; break;
+    case RSI: os << "RSI"; break;
+    case RDI: os << "RDI"; break;
     default: os << "???"; break;
     }
     
@@ -21,8 +21,8 @@ std::ostream &operator << (std::ostream &os, const Register r) {
 
 
 Address::Address(Register x, int y) {
-     if (x == NOREG)
-          std::cerr << "Address without register!\n";
+    //if (x == NOREG)
+    //      std::cerr << "Address without register!\n";
           
     base = x;
     offset = y;
@@ -326,7 +326,10 @@ void X64::code_reference(Label c, Ref_type f, int offset) {
 
 
 void X64::code_op(int code, int size) {
-    // size: 0=byte, 1=word, 2=dword, 3=qword
+    // size == 0 => byte  => ____ op0
+    // size == 1 => word  => 0x66 op1
+    // size == 2 => dword => ____ op1
+    // size == 3 => qword => 0x48 op1
 
     if (size == 1)
         code_byte(0x66);
@@ -348,7 +351,12 @@ void X64::effective_address(int modrm, Register x) {
 // Fix addresses and scaling and index are not yet supported...
 // TODO: modrm should be called reg officially, the mod and rm fields are generated here.
 void X64::effective_address(int modrm, Address x) {
-     if (x.base == NOREG && x.label) {  // Must have a label here
+    if (x.base == NOREG) {
+        if (!x.label) {
+            std::cerr << "Address without base and label used in addressing!\n";
+            throw X64_ERROR;
+        }
+        
         // TODO: in 64-bit mode fake EBP base will mean RIP base, must use SIB always!
         code_byte(0x00 | (modrm << 3) | 0x05);  // fake EBP base means no base only offset
         code_reference(x.label, REF_CODE_ABSOLUTE, x.offset);
@@ -388,7 +396,7 @@ void X64::effective_address(int modrm, Address x) {
 
 
 int simple_info[] = {
-     0x6698, 0x99, 0xF8, 0xFC, 0xFA, 0x0F06, 0xF5, 0x6699, 0x98, 0xF4, 0xCF, 0x9F, 0x90,
+     0x6698, 0x99, 0x4898, 0xF8, 0xFC, 0xFA, 0x0F06, 0xF5, 0x4899, 0x6699, 0x98, 0xF4, 0xCF, 0x9F, 0x90,
      0x61, 0x9D, 0x60, 0x9C, 0xCB, 0xC3, 0x9E, 0xF9, 0xFD, 0xFB, 0x0F0B, 0xD7,
      0xDEF9, 0xD9FC, 0xDEC9, 0xDEE1, 0xDBE3
 };

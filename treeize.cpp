@@ -103,7 +103,9 @@ struct {
     Precedence precedence;
 } operators[] = {
     { "**",  "exponent", EXPONENTIAL },  // TODO: do we need this?
-    { "~",   "negate", EXPONENTIAL },
+    { "~",   "tilde", EXPONENTIAL },  // Special handling
+    { "<<",  "shift_left", EXPONENTIAL },
+    { ">>",  "shift_right", EXPONENTIAL },
 
     { "*",   "star", MULTIPLICATIVE },
     { "/",   "slash", MULTIPLICATIVE },
@@ -111,7 +113,7 @@ struct {
     { "&",   "and", MULTIPLICATIVE },
 
     { "+",   "plus", ADDITIVE },
-    { "-",   "minus", ADDITIVE },
+    { "-",   "minus", ADDITIVE },  // Special handling
     { "|",   "or", ADDITIVE },
     { "^",   "xor", ADDITIVE },
 
@@ -140,6 +142,8 @@ struct {
     { "&=",  "and_assign", ASSIGNING },
     { "|=",  "or_assign", ASSIGNING },
     { "^=",  "xor_assign", ASSIGNING },
+    { "<<=",  "shift_left_assign", ASSIGNING },
+    { ">>=",  "shift_right_assign", ASSIGNING },
     //{ "", "",  },
 };
 

@@ -164,6 +164,19 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
             fill_arguments(e, nodes, node.right);
         }
 
+        // Special handling for unary operators, move the first positional parameter to pivot
+        if ((node.text == "minus" || node.text == "tilde") && node.left < 0 && node.right >= 0) {
+            if (e->args.size() == 0) {
+                std::cerr << "Unary operator needs a positional argument!\n";
+                throw TUPLE_ERROR;
+            }
+            
+            e->text = "unary_" + e->text;
+            Expr *p = e->args[0].release();
+            e->args.erase(e->args.begin());
+            e->set_pivot(p);
+        }
+
         return e;
     }
     else if (node.type == NUMBER) {

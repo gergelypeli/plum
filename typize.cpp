@@ -21,7 +21,10 @@ Type *function_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
 
-TypeSpec TS_VOID;
+TypeSpec VOID_TS;
+TypeSpec BOOLEAN_TS;
+TypeSpec INTEGER_TS;
+TypeSpec LVALUE_INTEGER_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -31,6 +34,23 @@ bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
 bool are_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
 unsigned measure(TypeSpec &ts);
 unsigned measure(TypeSpecIter &tsi);
+
+enum ArithmeticOperation {
+    COMPLEMENT, NEGATE,
+    ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
+    OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
+    EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL, INCOMPARABLE,
+    ASSIGN, ASSIGN_ADD, ASSIGN_SUBTRACT, ASSIGN_MULTIPLY, ASSIGN_DIVIDE, ASSIGN_MODULO, ASSIGN_EXPONENT,
+    ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT
+};
+
+bool is_comparison(ArithmeticOperation o) {
+    return o >= EQUAL && o <= INCOMPARABLE;
+}
+
+bool is_assignment(ArithmeticOperation o) {
+    return o >= ASSIGN;
+}
 
 class Value;
 Value *typize(Expr *expr, Scope *scope);
@@ -45,6 +65,7 @@ Value *make_block_value();
 Value *make_function_definition_value(Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
+Value *make_integer_arithmetic_value(ArithmeticOperation ooperation, TypeSpec ts, Value *pivot);
 
 
 unsigned round_up(unsigned size) {
@@ -115,6 +136,45 @@ void store(TypeSpec &ts, Storage s, Storage t, X64 *x64);
 #include "values.cpp"
 
 
+struct {
+    const char *name;
+    ArithmeticOperation operation;
+} integer_rvalue_operations[] = {
+    { "unary_minus", NEGATE },
+    { "unary_tilde", COMPLEMENT },
+    { "exponent", EXPONENT },
+    { "shift_left", SHIFT_LEFT },
+    { "shift_right", SHIFT_RIGHT },
+    { "star", MULTIPLY },
+    { "slash", DIVIDE },
+    { "percent", MODULO },
+    { "and", AND },
+    { "plus", ADD },
+    { "minus", SUBTRACT },
+    { "or", OR },
+    { "xor", XOR },
+    { "equal", EQUAL },
+    { "not_equal", NOT_EQUAL },
+    { "less", LESS },
+    { "greater", GREATER },
+    { "less_equal", LESS_EQUAL },
+    { "greater_equal", GREATER_EQUAL },
+    { "incomparable", INCOMPARABLE },
+    //{ "compare",  },
+}, integer_lvalue_operations[] = {
+    { "assign", ASSIGN },
+    { "plus_assign", ASSIGN_ADD },
+    { "minus_assign", ASSIGN_SUBTRACT },
+    { "star_assign", ASSIGN_MULTIPLY },
+    { "slash-assign", ASSIGN_DIVIDE },
+    { "percent_assign", ASSIGN_MODULO },
+    { "and_assign", ASSIGN_AND },
+    { "or_assign", ASSIGN_OR },
+    { "xor_assign", ASSIGN_XOR },
+    { "shift_left_assign", ASSIGN_SHIFT_LEFT },
+    { "shift_right_assign", ASSIGN_SHIFT_RIGHT }
+};
+
 Scope *init_types() {
     Scope *root_scope = new Scope();
     
@@ -129,7 +189,6 @@ Scope *init_types() {
     
     void_type = new BasicType("<Void>", 0);
     root_scope->add(void_type);
-    TS_VOID.push_back(void_type);
 
     boolean_type = new BasicType("Boolean", 1);
     root_scope->add(boolean_type);
@@ -137,32 +196,24 @@ Scope *init_types() {
     integer_type = new BasicType("Integer", 8);
     root_scope->add(integer_type);
     
-    TypeSpec void_ts = { void_type };
-    TypeSpec bool_ts = { boolean_type };
-    TypeSpec int_ts = { integer_type };
-    TypeSpec lint_ts = { lvalue_type, integer_type };
+    VOID_TS.push_back(void_type);
+    BOOLEAN_TS.push_back(boolean_type);
+    INTEGER_TS.push_back(integer_type);
+    LVALUE_INTEGER_TS.push_back(lvalue_type);
+    LVALUE_INTEGER_TS.push_back(integer_type);
     
-    std::vector<TypeSpec> int_tss = { int_ts };
-    std::vector<TypeSpec> bool_tss = { bool_ts };
+    std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
+    std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
     
     std::vector<std::string> value_names = { "value" };
 
-    for (auto name : { "minus", "negate" })
-        root_scope->add(new Function(name, void_ts, int_tss, value_names, int_ts));
+    for (auto &item : integer_rvalue_operations)
+        root_scope->add(new IntegerArithmeticOperation(item.name, INTEGER_TS, item.operation));
 
-    for (auto name : { "plus", "minus", "star", "slash", "percent", "or", "xor", "and", "exponent" })
-        root_scope->add(new Function(name, int_ts, int_tss, value_names, int_ts));
+    for (auto &item : integer_lvalue_operations)
+        root_scope->add(new IntegerArithmeticOperation(item.name, LVALUE_INTEGER_TS, item.operation));
 
-    for (auto name : { "equal", "not_equal", "less", "greater", "less_equal", "greater_equal", "incomparable", "compare" })
-        root_scope->add(new Function(name, int_ts, int_tss, value_names, bool_ts));
-
-    for (auto name : { "logical not", "logical and", "logical or", "logical xor" })
-        root_scope->add(new Function(name, bool_ts, bool_tss, value_names, bool_ts));
-
-    for (auto name : { "plus_assign", "minus_assign", "star_assign", "slash_assign", "percent_assign", "or_assign", "xor_assign", "and_assign" })
-        root_scope->add(new Function(name, lint_ts, int_tss, value_names, int_ts));
-
-    root_scope->add(new Function("print", void_ts, int_tss, value_names, void_ts));
+    root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
 
     return root_scope;
 }
@@ -208,7 +259,7 @@ Value *typize(Expr *expr, Scope *scope) {
                 // Add anon return value variable, so funretscp can compute its size!
                 TypeSpec var_ts = ret->ts;
                 var_ts[0] = lvalue_type;
-                Variable *decl = new Variable("<ret>", TS_VOID, var_ts);
+                Variable *decl = new Variable("<ret>", VOID_TS, var_ts);
                 rs->add(decl);
                     
                 fn_ts = ret->ts;
@@ -257,7 +308,7 @@ Value *typize(Expr *expr, Scope *scope) {
     else if (expr->type == IDENTIFIER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        TypeSpec pts = p ? p->ts : TS_VOID;
+        TypeSpec pts = get_typespec(p);
         
         std::cerr << "Looking up " << pts << " " << name << "\n";
 
