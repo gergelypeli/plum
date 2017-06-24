@@ -44,6 +44,10 @@ enum ArithmeticOperation {
     ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT
 };
 
+bool is_unary(ArithmeticOperation o) {
+    return o == COMPLEMENT || o == NEGATE;
+}
+
 bool is_comparison(ArithmeticOperation o) {
     return o >= EQUAL && o <= INCOMPARABLE;
 }
@@ -75,13 +79,15 @@ unsigned round_up(unsigned size) {
 
 enum StorageWhere {
     // No result
-    NOWHERE,
-    // the value is on the top of the stack (fo=0, so=0)
-    STACK,
-    // the value is in RAX (fo=0, so=0)
-    REGISTER,
-    // the value is in a local variable at [RBP + fo] (so=0)
-    FRAME
+    NOWHERE = 0,
+    // Integer or pointer constant
+    CONSTANT = 1,
+    // The value is in RAX
+    REGISTER = 2,
+    // The value is on the top of the stack
+    STACK = 3,
+    // The value is at a given offset from RBP
+    MEMORY = 4
 
     // Not needed yet.
     // the value is at [[RBP + fo] + so], where [RBP + fo] is an outer frame pointer
@@ -101,12 +107,28 @@ enum StorageWhere {
 
 struct Storage {
     StorageWhere where;
-    int frame_offset;
-    //int secondary_offset;
+    Address address;
+    int value;  // Must be 32-bit only, greater values must be loaded to registers.
     
-    Storage(StorageWhere w = NOWHERE, int fo = 0) {
+    Storage() {
+        where = NOWHERE;
+        value = 0;
+    }
+    
+    Storage(StorageWhere w) {
         where = w;
-        frame_offset = fo;
+        value = 0;
+    }
+    
+    Storage(StorageWhere w, Address a) {
+        where = w;
+        address = a;
+        value = 0;
+    }
+    
+    Storage(StorageWhere w, int v) {
+        where = w;
+        value = v;
     }
 };
 
@@ -114,16 +136,40 @@ struct Storage {
 std::ostream &operator<<(std::ostream &os, Storage &s) {
     if (s.where == NOWHERE)
         os << "NOWHERE";
-    else if (s.where == STACK)
-        os << "STACK";
+    else if (s.where == CONSTANT)
+        os << "CONSTANT(" << s.value << ")";
     else if (s.where == REGISTER)
         os << "REGISTER";
-    else if (s.where == FRAME)
-        os << "FRAME[" << s.frame_offset << "]";
+    else if (s.where == STACK)
+        os << "STACK";
+    else if (s.where == MEMORY)
+        os << "MEMORY(" << s.address.base << "+" << s.address.offset << ")";
     else
         os << "???";
         
     return os;
+}
+
+
+enum StorageWhereWhere {
+    CONSTANT_CONSTANT, CONSTANT_REGISTER, CONSTANT_STACK, CONSTANT_MEMORY,
+    REGISTER_CONSTANT, REGISTER_REGISTER, REGISTER_STACK, REGISTER_MEMORY,
+    STACK_CONSTANT, STACK_REGISTER, STACK_STACK, STACK_MEMORY,
+    MEMORY_CONSTANT, MEMORY_REGISTER, MEMORY_STACK, MEMORY_MEMORY
+};
+
+StorageWhereWhere operator*(StorageWhere l, StorageWhere r) {
+    static StorageWhereWhere cross[] = {
+        CONSTANT_CONSTANT, CONSTANT_REGISTER, CONSTANT_STACK, CONSTANT_MEMORY,
+        REGISTER_CONSTANT, REGISTER_REGISTER, REGISTER_STACK, REGISTER_MEMORY,
+        STACK_CONSTANT, STACK_REGISTER, STACK_STACK, STACK_MEMORY,
+        MEMORY_CONSTANT, MEMORY_REGISTER, MEMORY_STACK, MEMORY_MEMORY
+    };
+
+    if (l == NOWHERE || r == NOWHERE)
+        throw INTERNAL_ERROR;
+    
+    return cross[((int)l - 1) * 4 + ((int)r - 1)];
 }
 
 

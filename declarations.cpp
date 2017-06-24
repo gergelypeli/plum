@@ -439,6 +439,24 @@ public:
             default:
                 throw INTERNAL_ERROR;
             }
+        case CONSTANT:
+            switch (t.where) {
+            case NOWHERE:
+                return;
+            case CONSTANT:
+                return;
+            case STACK:
+                x64->op(PUSHQ, s.value);
+                return;
+            case REGISTER:
+                x64->op(mov, RAX, s.value);
+                return;
+            case MEMORY:
+                x64->op(mov, t.address, s.value);
+                return;
+            default:
+                throw INTERNAL_ERROR;
+            }
         case STACK:
             switch (t.where) {
             case NOWHERE:
@@ -449,12 +467,12 @@ public:
             case REGISTER:
                 x64->op(POPQ, RAX);
                 return;
-            case FRAME:
+            case MEMORY:
                 if (size == 8)
-                    x64->op(POPQ, Address(RBP, t.frame_offset));
+                    x64->op(POPQ, t.address);
                 else {
                     x64->op(POPQ, RAX);
-                    x64->op(mov, Address(RBP, t.frame_offset), RAX);
+                    x64->op(mov, t.address, RAX);
                 }
                 return;
             default:
@@ -469,30 +487,30 @@ public:
                 return;
             case REGISTER:
                 return;
-            case FRAME:
-                x64->op(mov, Address(RBP, t.frame_offset), RAX);
+            case MEMORY:
+                x64->op(mov, t.address, RAX);
                 return;
             default:
                 throw INTERNAL_ERROR;
             }
-        case FRAME:
+        case MEMORY:
             switch (t.where) {
             case NOWHERE:
                 return;
             case STACK:
                 if (size == 8)
-                    x64->op(PUSHQ, Address(RBP, s.frame_offset));
+                    x64->op(PUSHQ, s.address);
                 else {
-                    x64->op(mov, RAX, Address(RBP, s.frame_offset));
+                    x64->op(mov, RAX, s.address);
                     x64->op(PUSHQ, RAX);
                 }
                 return;
             case REGISTER: 
-                x64->op(mov, RAX, Address(RBP, s.frame_offset));
+                x64->op(mov, RAX, s.address);
                 return;
-            case FRAME:
-                x64->op(mov, RAX, Address(RBP, s.frame_offset));
-                x64->op(mov, Address(RBP, t.frame_offset), RAX);
+            case MEMORY:
+                x64->op(mov, RAX, s.address);
+                x64->op(mov, t.address, RAX);
                 return;
             default:
                 throw INTERNAL_ERROR;

@@ -711,6 +711,16 @@ void X64::op(RegisterConstantOp opcode, Register x, Register y, int z) {
     }
 }
 
+void X64::op(RegisterConstantOp opcode, Register x, Address y, int z) {
+    if (opcode == IMUL3Q) {
+        // The lowest bit does not work here the usual way, so...
+        code_byte(0x48);  // Hardcoded REX
+        code_byte(0x69);  // Hardcoded opcode
+        effective_address(x, y);
+        code_dword(z);  // 32-bit immediate only
+    }
+}
+
 
 
 

@@ -53,11 +53,11 @@ struct Label {
 
 
 struct Address {
-    Label label;
     Register base;
     int offset;  // Offsets are never longer than 32 bits, except in some wicked cases
+    Label label;
 
-    Address(Register r, int x = 0);
+    Address(Register r = NOREG, int x = 0);
     Address(Label &c, int x = 0);
     Address operator + (int x);
     Address operator + (Label &c);
@@ -177,7 +177,8 @@ enum RegisterMemoryOp {
 
 
 enum BranchOp {
-    JO, JNO, JB, JAE, JE, JNE, JBE, JA, JS, JNS, JP, JNP, JL, JGE, JLE, JG
+    JO, JNO, JB, JAE, JE, JNE, JBE, JA,
+    JS, JNS, JP, JNP, JL, JGE, JLE, JG
 };
 
 
@@ -312,6 +313,7 @@ public:
     void op(RegisterFirstOp opcode, Register x, Register y);
     void op(RegisterFirstOp opcode, Register x, Address y);
     void op(RegisterConstantOp opcode, Register x, Register y, int z);
+    void op(RegisterConstantOp opcode, Register x, Address y, int z);
     void op(RegisterSecondOp opcode, Register x, Register y);
     void op(RegisterSecondOp opcode, Address x, Register y);
     void op(RegisterMemoryOp opcode, Register x, Address y);
