@@ -22,6 +22,11 @@ public:
         return (args.size() == 0 && kwargs.size() == 0);
     }
     
+    virtual StorageWhere complexity() {
+        std::cerr << "This Value shouldn't have been compiled!\n";
+        throw INTERNAL_ERROR;
+    }
+    
     virtual Storage compile(X64 *) {
         std::cerr << "This Value shouldn't have been compiled!\n";
         throw INTERNAL_ERROR;
@@ -46,6 +51,10 @@ public:
             set_ts(items[0]->ts);
 
         return true;
+    }
+
+    virtual StorageWhere complexity() {
+        return NOWHERE;
     }
     
     virtual Storage compile(X64 *x64) {
@@ -74,6 +83,10 @@ public:
         head_scope = s;
     }
     
+    virtual StorageWhere complexity() {
+        return MEMORY;
+    }
+    
     virtual Storage compile(X64 *) {
         return Storage(MEMORY, Address(RBP, head_scope->offset));
     }
@@ -87,6 +100,10 @@ public:
     
     FunctionBodyValue(FunctionBodyScope *s) {
         body_scope = s;
+    }
+
+    virtual StorageWhere complexity() {
+        return MEMORY;
     }
 
     virtual Storage compile(X64 *) {
@@ -106,6 +123,10 @@ public:
         set_ts(v->var_ts);
     }
     
+    virtual StorageWhere complexity() {
+        return MEMORY;
+    }
+
     virtual Storage compile(X64 *x64) {
         Storage s = pivot->compile(x64);
         
@@ -138,6 +159,10 @@ public:
         function = f;
     }
     
+    virtual StorageWhere complexity() {
+        return NOWHERE;
+    }
+
     virtual Storage compile(X64 *x64) {
         //fn_scope->allocate();  // Hm, do we call all allocate-s in one step?
         
@@ -269,6 +294,10 @@ public:
         x64->op(MOVQ, Address(ESP, passed_size), RAX);
     }
     
+    virtual StorageWhere complexity() {
+        return STACK;
+    }
+
     virtual Storage compile(X64 *x64) {
         std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
@@ -346,6 +375,10 @@ public:
         }
     
         return_scope = fn_scope->return_scope;
+    }
+
+    virtual StorageWhere complexity() {
+        return NOWHERE;
     }
     
     virtual Storage compile(X64 *x64) {
@@ -432,6 +465,10 @@ public:
         return true;
     }
     
+    virtual StorageWhere complexity() {
+        return NOWHERE;
+    }
+
     virtual Storage compile(X64 *x64) {
         value->compile(x64);
         
@@ -453,6 +490,10 @@ public:
     NumberValue(std::string t) {
         number = std::stoi(t);
         ts.push_back(integer_type);
+    }
+
+    virtual StorageWhere complexity() {
+        return CONSTANT;
     }
     
     virtual Storage compile(X64 *) {
@@ -886,27 +927,31 @@ public:
         }
     }
 
+    virtual StorageWhere complexity() {
+        if (is_unary(operation))
+            return left->complexity() == CONSTANT ? CONSTANT : REGISTER;
+        else
+            return left->complexity() == CONSTANT && right->complexity() == CONSTANT ? CONSTANT : REGISTER;
+    }
+
     virtual Storage compile(X64 *x64) {
         Storage ls = left->compile(x64);
         
-        if (is_unary(operation))
-            ;
-        else if (is_assignment(operation)) {
-            if (ls.where != MEMORY) {
-                std::cerr << "Integer lvalue not on the frame!\n";
-                throw INTERNAL_ERROR;
-            }
-        }
-        else {
-            if (ls.where == REGISTER) {
-                store(left->ts, ls, Storage(STACK), x64);
-                ls = Storage(STACK);
-            }
+        if (is_assignment(operation) && ls.where != MEMORY) {
+            std::cerr << "Integer lvalue not on the frame!\n";
+            throw INTERNAL_ERROR;
         }
 
         Storage rs;
 
         if (right) {
+            StorageWhere c = right->complexity();
+
+            if (ls.where == REGISTER && c != CONSTANT && c != MEMORY) {
+                store(left->ts, ls, Storage(STACK), x64);
+                ls = Storage(STACK);
+            }
+            
             rs = right->compile(x64);
             //store(right->ts, rs, Storage(REGISTER), x64);
         }
