@@ -386,7 +386,7 @@ public:
         that_tsi++;
         
         for (unsigned p = 0; p < parameter_count; p++) {
-            if (!are_equal(this_tsi, that_tsi))
+            if (!(*this_tsi)->is_equal(this_tsi, that_tsi))
                 return false;
         }
         
@@ -394,7 +394,7 @@ public:
     }
 
     virtual bool is_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
-        return *that_tsi == boolean_type || is_equal(this_tsi, that_tsi);
+        return *that_tsi == boolean_type || (*this_tsi)->is_equal(this_tsi, that_tsi);
     }
     
     virtual unsigned measure(TypeSpecIter &) {
@@ -539,43 +539,33 @@ public:
             this_tsi++;
             that_tsi++;
             
-            return are_equal(this_tsi, that_tsi);
+            return (*this_tsi)->is_equal(this_tsi, that_tsi);
         }
         else {
             // When an rvalue is required, subtypes are also fine
             this_tsi++;
             
-            return are_convertible(this_tsi, that_tsi);
+            return (*this_tsi)->is_convertible(this_tsi, that_tsi);
         }
     }
     
     virtual unsigned measure(TypeSpecIter &tsi) {
         tsi++;
-        return ::measure(tsi);
+        return (*tsi)->measure(tsi);
     }
 
     virtual void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64) {
         tsi++;
-        return ::store(tsi, s, t, x64);
+        return (*tsi)->store(tsi, s, t, x64);
     }
 };
-
-
-bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
-    return (*this_tsi)->is_equal(this_tsi, that_tsi);
-}
-
-
-bool are_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
-    return (*this_tsi)->is_convertible(this_tsi, that_tsi);
-}
 
 
 bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts) {
     TypeSpecIter this_tsi(this_ts.begin());
     TypeSpecIter that_tsi(that_ts.begin());
     
-    return are_convertible(this_tsi, that_tsi);
+    return (*this_tsi)->is_convertible(this_tsi, that_tsi);
 }
 
 
@@ -599,24 +589,14 @@ std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
 }
 
 
-unsigned measure(TypeSpecIter &tsi) {
-    return (*tsi)->measure(tsi);
-}
-
-
 unsigned measure(TypeSpec &ts) {
     TypeSpecIter tsi(ts.begin());
-    return measure(tsi);
-}
-
-
-void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64) {
-    (*tsi)->store(tsi, s, t, x64);
+    return (*tsi)->measure(tsi);
 }
 
 
 void store(TypeSpec &ts, Storage s, Storage t, X64 *x64) {
     TypeSpecIter tsi(ts.begin());
-    return store(tsi, s, t, x64);
+    return (*tsi)->store(tsi, s, t, x64);
 }
 

@@ -30,10 +30,7 @@ typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
 bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
-bool are_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
-bool are_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi);
 unsigned measure(TypeSpec &ts);
-unsigned measure(TypeSpecIter &tsi);
 
 enum ArithmeticOperation {
     COMPLEMENT, NEGATE,
@@ -218,9 +215,8 @@ StorageWhereWhere operator*(StorageWhere l, StorageWhere r) {
     return (StorageWhereWhere)(l * 10 + r);
 }
 
-
-void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64);
 void store(TypeSpec &ts, Storage s, Storage t, X64 *x64);
+
 
 
 #include "declarations.cpp"
