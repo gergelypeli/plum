@@ -423,6 +423,7 @@ public:
     }
 
     virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *x64) {
+        // We can't use any register, unless saved and restored
         BinaryOp mov = (
             size == 1 ? MOVB :
             size == 2 ? MOVW :
@@ -431,113 +432,96 @@ public:
             throw INTERNAL_ERROR
         );
         
-        switch (s.where) {
-        case NOWHERE:
-            switch (t.where) {
-            case NOWHERE:
-                return;
-            default:
-                throw INTERNAL_ERROR;
-            }
-        case CONSTANT:
-            switch (t.where) {
-            case NOWHERE:
-                return;
-            case CONSTANT:
-                return;
-            case FLAGS:
-                throw INTERNAL_ERROR;
-            case STACK:
-                x64->op(PUSHQ, s.value);
-                return;
-            case REGISTER:
-                x64->op(mov, RAX, s.value);
-                return;
-            case MEMORY:
-                x64->op(mov, t.address, s.value);
-                return;
-            default:
-                throw INTERNAL_ERROR;
-            }
-        case FLAGS:
-            switch (t.where) {
-            case NOWHERE:
-                return;
-            case CONSTANT:
-                throw INTERNAL_ERROR;
-            case FLAGS:
-                return;
-            case STACK:
-                x64->op(PUSHQ, 0);
-                x64->op(s.bitset, Address(RSP, 0));
-                return;
-            case REGISTER:
-                x64->op(s.bitset, t.reg);
-                return;
-            case MEMORY:
-                x64->op(s.bitset, t.address);
-                return;
-            default:
-                throw INTERNAL_ERROR;
-            }
-        case STACK:
-            switch (t.where) {
-            case NOWHERE:
+        switch (s.where * t.where) {
+        case NOWHERE_NOWHERE:
+            return;
+            
+        case CONSTANT_NOWHERE:
+            return;
+        case CONSTANT_CONSTANT:
+            return;
+        case CONSTANT_REGISTER:
+            x64->op(mov, t.reg, s.value);
+            return;
+        case CONSTANT_STACK:
+            x64->op(PUSHQ, s.value);
+            return;
+        case CONSTANT_MEMORY:
+            x64->op(mov, t.address, s.value);
+            return;
+            
+        case FLAGS_NOWHERE:
+            return;
+        case FLAGS_FLAGS:
+            return;
+        case FLAGS_REGISTER:
+            x64->op(s.bitset, t.reg);
+            return;
+        case FLAGS_STACK:
+            x64->op(PUSHQ, 0);
+            x64->op(s.bitset, Address(RSP, 0));
+            return;
+        case FLAGS_MEMORY:
+            x64->op(s.bitset, t.address);
+            return;
+
+        case REGISTER_NOWHERE:
+            return;
+        case REGISTER_REGISTER:
+            return;
+        case REGISTER_STACK:
+            x64->op(PUSHQ, s.reg);
+            return;
+        case REGISTER_MEMORY:
+            x64->op(mov, t.address, s.reg);
+            return;
+
+        case STACK_NOWHERE:
+            x64->op(ADDQ, RSP, 8);
+            return;
+        case STACK_REGISTER:
+            x64->op(POPQ, t.reg);
+            return;
+        case STACK_STACK:
+            return;
+        case STACK_MEMORY:
+            if (size == 8)
+                x64->op(POPQ, t.address);
+            else {
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                x64->op(mov, t.address, RAX);
                 x64->op(POPQ, RAX);
-                return;
-            case STACK:
-                return;
-            case REGISTER:
-                x64->op(POPQ, RAX);
-                return;
-            case MEMORY:
-                if (size == 8)
-                    x64->op(POPQ, t.address);
-                else {
-                    x64->op(POPQ, RAX);
-                    x64->op(mov, t.address, RAX);
-                }
-                return;
-            default:
-                throw INTERNAL_ERROR;
             }
-        case REGISTER:
-            switch (t.where) {
-            case NOWHERE:
-                return;
-            case STACK:
+            return;
+
+        case MEMORY_NOWHERE:
+            return;
+        case MEMORY_REGISTER:
+            x64->op(mov, t.reg, s.address);
+            return;
+        case MEMORY_STACK:
+            if (size == 8)
+                x64->op(PUSHQ, s.address);
+            else {
                 x64->op(PUSHQ, RAX);
-                return;
-            case REGISTER:
-                return;
-            case MEMORY:
-                x64->op(mov, t.address, RAX);
-                return;
-            default:
-                throw INTERNAL_ERROR;
-            }
-        case MEMORY:
-            switch (t.where) {
-            case NOWHERE:
-                return;
-            case STACK:
-                if (size == 8)
-                    x64->op(PUSHQ, s.address);
-                else {
-                    x64->op(mov, RAX, s.address);
-                    x64->op(PUSHQ, RAX);
-                }
-                return;
-            case REGISTER: 
                 x64->op(mov, RAX, s.address);
-                return;
-            case MEMORY:
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+            }
+            return;
+        case MEMORY_MEMORY:
+            if (size == 8) {
+                x64->op(PUSHQ, s.address);
+                x64->op(POPQ, t.address);
+            }
+            else {
+                x64->op(PUSHQ, RAX);
                 x64->op(mov, RAX, s.address);
                 x64->op(mov, t.address, RAX);
-                return;
-            default:
-                throw INTERNAL_ERROR;
+                x64->op(POPQ, RAX);
             }
+            return;
+        default:
+            throw INTERNAL_ERROR;
         }
     }
 };
