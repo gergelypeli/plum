@@ -62,7 +62,8 @@ int main(int argc, char **argv) {
             f->import(x64);
     }
     
-    value_root->compile(x64);
+    Regs allregs = Regs().add(RAX).add(RBX).add(RCX).add(RDX);
+    value_root->compile(x64, allregs);
     
     x64->done("mymodule.o");
     

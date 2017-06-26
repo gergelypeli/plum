@@ -23,6 +23,41 @@ enum Register {
 };
 
 
+struct Regs {
+    int available;
+    
+    Regs &add(Register r) {
+        available |= 1 << (int)r;
+        return *this;
+    }
+    
+    Regs &remove(Register r) {
+        available &= ~(1 << (int)r);
+        return *this;
+    }
+    
+    Register get_any() {
+        for (int i=0; i<8; i++)
+            if (available & (1 << i))
+                return (Register)i;
+                
+        throw X64_ERROR;
+    }
+    
+    bool has(Register r) {
+        return available & (1 << (int)r);
+    }
+    
+    bool has_other(Register r) {
+        return available & ~(1 << (int)r);
+    }
+    
+    bool has_any() {
+        return available;
+    }
+};
+
+
 struct Label {
     unsigned def_index;
     
@@ -39,7 +74,7 @@ struct Label {
         
         if (def_index) {
             std::cerr << "Label already allocated!\n";
-            throw INTERNAL_ERROR;
+            throw X64_ERROR;
         }
         
         def_index = ++last_def_index;

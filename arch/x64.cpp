@@ -549,6 +549,9 @@ void X64::op(BinaryOp opcode, Address x, int y) {
 }
 
 void X64::op(BinaryOp opcode, Register x, Register y) {
+    if ((opcode | 3) == MOVQ && x == y)
+        return;  // Don't embarrass ourselves
+
     code_op(binary_info[opcode >> 2].op2, opcode & 3);
     effective_address(y, x);
 }

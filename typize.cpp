@@ -107,28 +107,65 @@ enum StorageWhere {
 
 struct Storage {
     StorageWhere where;
+    Register reg;
     Address address;
     int value;  // Must be 32-bit only, greater values must be loaded to registers.
+    bool swap;
     
     Storage() {
         where = NOWHERE;
+        reg = NOREG;
         value = 0;
+        swap = false;
     }
     
     Storage(StorageWhere w) {
+        if (w == REGISTER || w == MEMORY || w == CONSTANT) {
+            std::cerr << "Incomplete Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+        
         where = w;
+        reg = NOREG;
         value = 0;
+        swap = false;
+    }
+
+    Storage(StorageWhere w, Register r, bool s = false) {
+        if (w != REGISTER) {
+            std::cerr << "Wrong Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        where = w;
+        reg = r;
+        value = 0;
+        swap = s;
     }
     
     Storage(StorageWhere w, Address a) {
+        if (w != MEMORY) {
+            std::cerr << "Wrong Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+
         where = w;
+        reg = NOREG;
         address = a;
         value = 0;
+        swap = false;
     }
     
     Storage(StorageWhere w, int v) {
+        if (w != CONSTANT) {
+            std::cerr << "Wrong Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+
         where = w;
+        reg = NOREG;
         value = v;
+        swap = false;
     }
 };
 
