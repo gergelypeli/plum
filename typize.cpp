@@ -110,13 +110,11 @@ struct Storage {
     Register reg;
     Address address;
     int value;  // Must be 32-bit only, greater values must be loaded to registers.
-    bool swap;
     
     Storage() {
         where = NOWHERE;
         reg = NOREG;
         value = 0;
-        swap = false;
     }
     
     Storage(StorageWhere w) {
@@ -128,10 +126,9 @@ struct Storage {
         where = w;
         reg = NOREG;
         value = 0;
-        swap = false;
     }
 
-    Storage(StorageWhere w, Register r, bool s = false) {
+    Storage(StorageWhere w, Register r) {
         if (w != REGISTER) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -140,7 +137,6 @@ struct Storage {
         where = w;
         reg = r;
         value = 0;
-        swap = s;
     }
     
     Storage(StorageWhere w, Address a) {
@@ -153,7 +149,6 @@ struct Storage {
         reg = NOREG;
         address = a;
         value = 0;
-        swap = false;
     }
     
     Storage(StorageWhere w, int v) {
@@ -165,7 +160,6 @@ struct Storage {
         where = w;
         reg = NOREG;
         value = v;
-        swap = false;
     }
 };
 

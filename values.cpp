@@ -591,9 +591,9 @@ public:
         }
     }
 
-    virtual Storage binary_simple(X64 *x64, Regs regs, BinaryOp opcode) {
+    virtual Storage binary_simple(X64 *x64, Regs regs, BinaryOp opcode, bool *swap = NULL) {
         // We swap the operands in some cases, which is not healthy for subtractions
-        // and comparisons, so we return the swappedness as the storage value.
+        // and comparisons.
 
         Storage ls = left->compile(x64, regs);
         
@@ -620,11 +620,13 @@ public:
         }
         case CONSTANT_REGISTER:
             x64->op(opcode, rs.reg, ls.value);
-            return Storage(REGISTER, rs.reg, true);
+            if (swap) *swap = true;
+            return Storage(REGISTER, rs.reg);
         case CONSTANT_STACK:
             x64->op(POPQ, reg);
             x64->op(opcode, reg, ls.value);
-            return Storage(REGISTER, reg, true);
+            if (swap) *swap = true;
+            return Storage(REGISTER, reg);
         case CONSTANT_MEMORY:
             x64->op(MOVQ, reg, ls.value);
             x64->op(opcode, reg, rs.address);
@@ -649,7 +651,8 @@ public:
         case STACK_REGISTER:
             x64->op(opcode, rs.reg, Address(RSP, 0));
             x64->op(ADDQ, RSP, 8);
-            return Storage(REGISTER, rs.reg, true);
+            if (swap) *swap = true;
+            return Storage(REGISTER, rs.reg);
         case STACK_STACK:
             x64->op(MOVQ, reg, Address(RSP, 8));
             x64->op(opcode, reg, Address(RSP, 0));
@@ -665,11 +668,13 @@ public:
             return Storage(REGISTER, reg);
         case MEMORY_REGISTER:
             x64->op(opcode, rs.reg, ls.address);
-            return Storage(REGISTER, rs.reg, true);
+            if (swap) *swap = true;
+            return Storage(REGISTER, rs.reg);
         case MEMORY_STACK:
             x64->op(POPQ, reg);
             x64->op(opcode, reg, ls.address);
-            return Storage(REGISTER, reg, true);
+            if (swap) *swap = true;
+            return Storage(REGISTER, reg);
         case MEMORY_MEMORY:
             x64->op(MOVQ, reg, ls.address);
             x64->op(opcode, reg, rs.address);
@@ -680,14 +685,13 @@ public:
     }
 
     virtual Storage binary_subtract(X64 *x64, Regs regs) {
-        Storage s = binary_simple(x64, regs, SUBQ);
+        bool swap = false;
+        Storage s = binary_simple(x64, regs, SUBQ, &swap);
 
-        if (s.where == REGISTER && s.swap) {
+        if (s.where == REGISTER && swap)
             x64->op(NEGQ, s.reg);
-            return Storage(REGISTER, s.reg);
-        }
-        else
-            return s;
+            
+        return s;
     }
 
     virtual Storage binary_multiply(X64 *x64, Regs regs, Address *lsaddr = NULL) {
@@ -992,7 +996,8 @@ public:
     }
 
     virtual Storage binary_compare(X64 *x64, Regs regs, BitSetOp opcode) {
-        Storage s = binary_simple(x64, regs, CMPQ);
+        bool swap = false;
+        Storage s = binary_simple(x64, regs, CMPQ, &swap);
         
         if (s.where == CONSTANT) {
             bool holds = (
@@ -1006,7 +1011,7 @@ public:
         else if (s.where == REGISTER) {
             // Actually in the flags only yet, but a used register is named.
             // But must negate the condition if the arguments were swapped
-            if (s.swap)
+            if (swap)
                 opcode = (BitSetOp)((int)opcode ^ 1);
                 
             x64->op(opcode, s.reg);
