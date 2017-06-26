@@ -33,7 +33,7 @@ std::string read_source(const char *filename) {
 
 
 int main(int argc, char **argv) {
-    if (argc != 2)
+    if (argc != 3)
         return 1;
         
     std::string buffer = read_source(argv[1]);
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     Regs allregs = Regs().add(RAX).add(RBX).add(RCX).add(RDX);
     value_root->compile(x64, allregs);
     
-    x64->done("mymodule.o");
+    x64->done(argv[2]);
     
     return 0;
 }

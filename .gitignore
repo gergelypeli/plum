@@ -1,5 +1,5 @@
 plum
-main
+test
 .*
 core.*
 *.sav

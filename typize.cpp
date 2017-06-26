@@ -219,9 +219,9 @@ void store(TypeSpec &ts, Storage s, Storage t, X64 *x64);
 
 
 
-#include "declarations.cpp"
+#include "typize_declarations.cpp"
 
-#include "values.cpp"
+#include "typize_values.cpp"
 
 
 struct {

@@ -1,33 +1,39 @@
 .PHONY: build clean
 
-MODULES    = tokenize treeize tupleize typize declarations values util parse arch/ork arch/x64
+MODULES    = tokenize treeize tupleize typize typize_declarations typize_values typize_values_integer util plum arch/ork arch/x64
 SOURCES    = $(MODULES:%=%.cpp)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -g -fdiagnostics-color=always
 
-TOP        = parse.cpp
+TOP        = plum.cpp
 EXE        = run/plum
 CORE       = run/core.plum
 
 MAIN       = run/main
 
+TEST       = run/test
+TESTSOURCE = run/test.c
+TESTOBJECT = run/test.o
+TESTMODULE = run/mymodule.o
+TESTPLUM   = run/first.plum
+
 exe: $(EXE)
 
-main: $(MAIN)
+test: $(TEST)
 
 $(EXE): $(SOURCES)
 	@clear
 	@rm -f $(CORE)
 	@$(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
 
-$(MAIN): run/main.o run/mymodule.o
-	@gcc -o $(MAIN) run/main.o run/mymodule.o
+$(TEST): $(TESTOBJECT) $(TESTMODULE)
+	@gcc -o $(TEST) $(TESTOBJECT) $(TESTMODULE)
 	
-run/main.o: run/main.c
-	@gcc -c -o run/main.o run/main.c
+$(TESTOBJECT): $(TESTSOURCE)
+	@gcc -c -o $(TESTOBJECT) $(TESTSOURCE)
 
-run/mymodule.o: run/first.plum $(EXE)
-	@cd run && ./plum first.plum
+$(TESTMODULE): $(TESTPLUM) $(EXE)
+	@$(EXE) $(TESTPLUM) $(TESTMODULE)
 
 clean:
-	@rm -f $(EXE) $(MAIN) run/main.o run/mymodule.o
+	@rm -f $(EXE) $(TEST) $(TESTOBJECT) $(TESTMODULE)
