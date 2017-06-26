@@ -445,6 +445,8 @@ public:
                 return;
             case CONSTANT:
                 return;
+            case FLAGS:
+                throw INTERNAL_ERROR;
             case STACK:
                 x64->op(PUSHQ, s.value);
                 return;
@@ -453,6 +455,27 @@ public:
                 return;
             case MEMORY:
                 x64->op(mov, t.address, s.value);
+                return;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        case FLAGS:
+            switch (t.where) {
+            case NOWHERE:
+                return;
+            case CONSTANT:
+                throw INTERNAL_ERROR;
+            case FLAGS:
+                return;
+            case STACK:
+                x64->op(PUSHQ, 0);
+                x64->op(s.bitset, Address(RSP, 0));
+                return;
+            case REGISTER:
+                x64->op(s.bitset, t.reg);
+                return;
+            case MEMORY:
+                x64->op(s.bitset, t.address);
                 return;
             default:
                 throw INTERNAL_ERROR;

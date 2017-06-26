@@ -82,12 +82,14 @@ enum StorageWhere {
     NOWHERE = 0,
     // Integer or pointer constant
     CONSTANT = 1,
-    // The value is in RAX
-    REGISTER = 2,
+    // The value is in EFLAGS with the specified condition
+    FLAGS = 2,
+    // The value is in the specified register
+    REGISTER = 3,
     // The value is on the top of the stack
-    STACK = 3,
-    // The value is at a given offset from RBP
-    MEMORY = 4
+    STACK = 4,
+    // The value is at the specified address
+    MEMORY = 5
 
     // Not needed yet.
     // the value is at [[RBP + fo] + so], where [RBP + fo] is an outer frame pointer
@@ -107,25 +109,52 @@ enum StorageWhere {
 
 struct Storage {
     StorageWhere where;
+    int value;  // Must be 32-bit only, greater values must be loaded to registers.
+    BitSetOp bitset;
     Register reg;
     Address address;
-    int value;  // Must be 32-bit only, greater values must be loaded to registers.
     
     Storage() {
         where = NOWHERE;
-        reg = NOREG;
         value = 0;
+        bitset = NOSET;
+        reg = NOREG;
     }
-    
+
     Storage(StorageWhere w) {
-        if (w == REGISTER || w == MEMORY || w == CONSTANT) {
+        if (w != STACK) {
             std::cerr << "Incomplete Storage!\n";
             throw INTERNAL_ERROR;
         }
         
         where = w;
-        reg = NOREG;
         value = 0;
+        bitset = NOSET;
+        reg = NOREG;
+    }
+
+    Storage(StorageWhere w, int v) {
+        if (w != CONSTANT) {
+            std::cerr << "Wrong Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        where = w;
+        value = v;
+        bitset = NOSET;
+        reg = NOREG;
+    }
+
+    Storage(StorageWhere w, BitSetOp b) {
+        if (w != FLAGS) {
+            std::cerr << "Wrong Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        where = w;
+        value = 0;
+        bitset = b;
+        reg = NOREG;
     }
 
     Storage(StorageWhere w, Register r) {
@@ -135,8 +164,9 @@ struct Storage {
         }
 
         where = w;
-        reg = r;
         value = 0;
+        bitset = NOSET;
+        reg = r;
     }
     
     Storage(StorageWhere w, Address a) {
@@ -146,21 +176,12 @@ struct Storage {
         }
 
         where = w;
+        value = 0;
+        bitset = NOSET;
         reg = NOREG;
         address = a;
-        value = 0;
     }
     
-    Storage(StorageWhere w, int v) {
-        if (w != CONSTANT) {
-            std::cerr << "Wrong Storage!\n";
-            throw INTERNAL_ERROR;
-        }
-
-        where = w;
-        reg = NOREG;
-        value = v;
-    }
 };
 
 
@@ -169,8 +190,10 @@ std::ostream &operator<<(std::ostream &os, Storage &s) {
         os << "NOWHERE";
     else if (s.where == CONSTANT)
         os << "CONSTANT(" << s.value << ")";
+    else if (s.where == FLAGS)
+        os << "FLAGS(" << s.bitset << ")";
     else if (s.where == REGISTER)
-        os << "REGISTER";
+        os << "REGISTER(" << s.reg << ")";
     else if (s.where == STACK)
         os << "STACK";
     else if (s.where == MEMORY)
@@ -183,24 +206,16 @@ std::ostream &operator<<(std::ostream &os, Storage &s) {
 
 
 enum StorageWhereWhere {
-    CONSTANT_CONSTANT, CONSTANT_REGISTER, CONSTANT_STACK, CONSTANT_MEMORY,
-    REGISTER_CONSTANT, REGISTER_REGISTER, REGISTER_STACK, REGISTER_MEMORY,
-    STACK_CONSTANT, STACK_REGISTER, STACK_STACK, STACK_MEMORY,
-    MEMORY_CONSTANT, MEMORY_REGISTER, MEMORY_STACK, MEMORY_MEMORY
+    NOWHERE_NOWHERE=00, NOWHERE_CONSTANT=01, NOWHERE_FLAGS=02, NOWHERE_REGISTER=03, NOWHERE_STACK=04, NOWHERE_MEMORY=05,
+    CONSTANT_NOWHERE=10, CONSTANT_CONSTANT=11, CONSTANT_FLAGS=12, CONSTANT_REGISTER=13, CONSTANT_STACK=14, CONSTANT_MEMORY=15,
+    FLAGS_NOWHERE=20, FLAGS_CONSTANT=21, FLAGS_FLAGS=22, FLAGS_REGISTER=23, FLAGS_STACK=24, FLAGS_MEMORY=25,
+    REGISTER_NOWHERE=30, REGISTER_CONSTANT=31, REGISTER_FLAGS=32, REGISTER_REGISTER=33, REGISTER_STACK=34, REGISTER_MEMORY=35,
+    STACK_NOWHERE=40, STACK_CONSTANT=41, STACK_FLAGS=42, STACK_REGISTER=43, STACK_STACK=44, STACK_MEMORY=45,
+    MEMORY_NOWHERE=50, MEMORY_CONSTANT=51, MEMORY_FLAGS=52, MEMORY_REGISTER=53, MEMORY_STACK=54, MEMORY_MEMORY=55
 };
 
 StorageWhereWhere operator*(StorageWhere l, StorageWhere r) {
-    static StorageWhereWhere cross[] = {
-        CONSTANT_CONSTANT, CONSTANT_REGISTER, CONSTANT_STACK, CONSTANT_MEMORY,
-        REGISTER_CONSTANT, REGISTER_REGISTER, REGISTER_STACK, REGISTER_MEMORY,
-        STACK_CONSTANT, STACK_REGISTER, STACK_STACK, STACK_MEMORY,
-        MEMORY_CONSTANT, MEMORY_REGISTER, MEMORY_STACK, MEMORY_MEMORY
-    };
-
-    if (l == NOWHERE || r == NOWHERE)
-        throw INTERNAL_ERROR;
-    
-    return cross[((int)l - 1) * 4 + ((int)r - 1)];
+    return (StorageWhereWhere)(l * 10 + r);
 }
 
 

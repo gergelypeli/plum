@@ -629,7 +629,7 @@ public:
             return Storage(REGISTER, reg);
         case CONSTANT_MEMORY:
             x64->op(MOVQ, reg, ls.value);
-            x64->op(opcode, reg, rs.address);
+            x64->op(opcode, reg, rs.address);  // may be shorter for CMP
             return Storage(REGISTER, reg);
         case REGISTER_CONSTANT:
             x64->op(opcode, ls.reg, rs.value);
@@ -664,7 +664,7 @@ public:
             return Storage(REGISTER, reg);
         case MEMORY_CONSTANT:
             x64->op(MOVQ, reg, ls.address);
-            x64->op(opcode, reg, rs.value);
+            x64->op(opcode, reg, rs.value);  // may be shorter for CMP
             return Storage(REGISTER, reg);
         case MEMORY_REGISTER:
             x64->op(opcode, rs.reg, ls.address);
@@ -1009,13 +1009,14 @@ public:
             return Storage(CONSTANT, holds ? 1 : 0);
         }
         else if (s.where == REGISTER) {
-            // Actually in the flags only yet, but a used register is named.
+            // Actually, if the opcode was CMP, then the results are not really in
+            // a register, but only in the flags. That's even better for us.
             // But must negate the condition if the arguments were swapped
             if (swap)
                 opcode = (BitSetOp)((int)opcode ^ 1);
                 
-            x64->op(opcode, s.reg);
-            return Storage(REGISTER, s.reg);
+            //x64->op(opcode, s.reg);
+            return Storage(FLAGS, opcode);
         }
         else
             throw INTERNAL_ERROR;
