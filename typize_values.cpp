@@ -33,9 +33,10 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual void compile_to_void(X64 *x64, Regs regs) {
+    virtual void compile_and_store(X64 *x64, Regs regs, Storage t) {
         Storage s = compile(x64, regs);
-        store(ts, s, Storage(), x64);
+        //std::cerr << "Compiled and storing a " << ts << " from " << s << " to " << t << ".\n";
+        store(ts, s, t, x64);
     }
 };
 
@@ -75,10 +76,10 @@ public:
             return items[0]->compile(x64, regs);
             
         for (auto &item : items)
-            item->compile_to_void(x64, regs);
+            item->compile_and_store(x64, regs, Storage());
             
         for (auto &kv : kwitems)
-            kv.second->compile_to_void(x64, regs);
+            kv.second->compile_and_store(x64, regs, Storage());
             
         return Storage();
     }
@@ -194,7 +195,7 @@ public:
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
         
-        body->compile_to_void(x64, regs);
+        body->compile_and_store(x64, regs, Storage());
         
         // TODO: destructors
         x64->code_label(fn_scope->body_scope->get_rollback_label());
@@ -492,7 +493,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64, Regs regs) {
-        value->compile_to_void(x64, regs);  // no declaration by real values yet
+        value->compile_and_store(x64, regs, Storage());  // no declaration by real values yet
         
         // TODO: eventually this must manage the rollback labels, too.
         return Storage();
@@ -555,7 +556,17 @@ public:
             }
         }
 
-        std::cerr << "XXX boolean if " << !!then_branch << " " << !!else_branch << "\n";
+        if (then_branch && else_branch) {
+            // Can't return an lvalue, because one Storage can only represent
+            // a compile time fixed variable location.
+            TypeSpec tts = rvalue(then_branch->ts);
+            TypeSpec ets = rvalue(else_branch->ts);
+            
+            if (tts != VOID_TS && tts == ets) {
+                ts = tts;
+                std::cerr << "Boolean if at " << token << " is " << ts << ".\n";
+            }
+        }
         
         return true;
     }
@@ -613,8 +624,10 @@ public:
             throw INTERNAL_ERROR;
         }
 
+        Storage s = ts != VOID_TS ? Storage(STACK) : Storage();
+
         if (then_branch) {
-            then_branch->compile_to_void(x64, regs);
+            then_branch->compile_and_store(x64, regs, s);
             
             if (else_branch)
                 x64->op(JMP, else_end);
@@ -623,11 +636,11 @@ public:
         }
         
         if (else_branch) {
-            else_branch->compile_to_void(x64, regs);
+            else_branch->compile_and_store(x64, regs, s);
             x64->code_label(else_end);
         }
     
-        return Storage();
+        return s;
     }
 };
 

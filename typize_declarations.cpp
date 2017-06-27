@@ -440,6 +440,7 @@ public:
     virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
             std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
+            throw INTERNAL_ERROR;
         }
     }
 };

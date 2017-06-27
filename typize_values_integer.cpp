@@ -535,8 +535,12 @@ public:
             x64->op(opcode, ls.address, rs.reg);
             return ls;
         case STACK:
-            x64->op(POPQ, reg);
-            x64->op(opcode, ls.address, reg);
+            if ((opcode | 3) == MOVQ)
+                x64->op(POPQ, ls.address);
+            else {
+                x64->op(POPQ, reg);
+                x64->op(opcode, ls.address, reg);
+            }
             return ls;
         case MEMORY:
             x64->op(MOVQ, reg, rs.address);

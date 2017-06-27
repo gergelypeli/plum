@@ -13,6 +13,11 @@ start? :function as:
     a? Integer
     a = 2
     b? Integer
-    b = 2
+    b = 3
     
     :if a == b then: print(1) else: print(0)
+    
+    c? Integer
+    c = :if a == b then: 100 else: 200
+    print(c)
+    
