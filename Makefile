@@ -7,7 +7,7 @@ CFLAGS     = -Wall -Wextra -Werror -g -fdiagnostics-color=always
 
 TOP        = plum.cpp
 EXE        = run/plum
-CORE       = run/core.plum
+CORE       = core.plum
 
 MAIN       = run/main
 

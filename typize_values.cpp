@@ -6,12 +6,13 @@ public:
     TypeSpec ts;
     Token token;
     
-    Value() {
+    Value(TypeSpec t)
+        :ts(t) {
     }
 
-    virtual void set_ts(TypeSpec ts) {
-        this->ts = ts;
-    }
+    //virtual void set_ts(TypeSpec ts) {
+    //    this->ts = ts;
+    //}
     
     virtual Value *set_token(Token t) {
         token = t;
@@ -31,6 +32,11 @@ public:
         std::cerr << "This Value shouldn't have been compiled!\n";
         throw INTERNAL_ERROR;
     }
+    
+    virtual void compile_to_void(X64 *x64, Regs regs) {
+        Storage s = compile(x64, regs);
+        store(ts, s, Storage(), x64);
+    }
 };
 
 
@@ -40,6 +46,10 @@ public:
     std::vector<std::unique_ptr<Value>> items;
     std::map<std::string, std::unique_ptr<Value>> kwitems;
 
+    BlockValue()
+        :Value(VOID_TS) {
+    }
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         for (auto &arg : args)
             items.push_back(std::unique_ptr<Value>(typize(arg.get(), scope)));
@@ -48,8 +58,9 @@ public:
             kwitems.insert(decltype(kwitems)::value_type(kv.first, typize(kv.second.get(), scope)));
             
         if (items.size() == 1 && kwitems.size() == 0)
-            set_ts(items[0]->ts);
+            ts = items[0]->ts;  // maybe we should get this in the constructor instead?
 
+        std::cerr << "BlockValue " << token << " ts: " << ts << "\n";
         return true;
     }
 
@@ -64,10 +75,10 @@ public:
             return items[0]->compile(x64, regs);
             
         for (auto &item : items)
-            item->compile(x64, regs);
+            item->compile_to_void(x64, regs);
             
         for (auto &kv : kwitems)
-            kv.second->compile(x64, regs);
+            kv.second->compile_to_void(x64, regs);
             
         return Storage();
     }
@@ -79,7 +90,8 @@ class FunctionHeadValue: public Value {
 public:
     FunctionHeadScope *head_scope;
     
-    FunctionHeadValue(FunctionHeadScope *s) {
+    FunctionHeadValue(FunctionHeadScope *s)
+        :Value(BOGUS_TS) {
         head_scope = s;
     }
     
@@ -98,7 +110,8 @@ class FunctionBodyValue: public Value {
 public:
     FunctionBodyScope *body_scope;
     
-    FunctionBodyValue(FunctionBodyScope *s) {
+    FunctionBodyValue(FunctionBodyScope *s)
+        :Value(BOGUS_TS) {
         body_scope = s;
     }
 
@@ -107,6 +120,7 @@ public:
     }
 
     virtual Storage compile(X64 *, Regs) {
+        //std::cerr << "XXX Body offset is " << body_scope->offset << "\n";
         return Storage(MEMORY, Address(RBP, body_scope->offset));
     }
 };
@@ -117,10 +131,10 @@ public:
     Variable *variable;
     std::unique_ptr<Value> pivot;
     
-    VariableValue(Variable *v, Value *p) {
+    VariableValue(Variable *v, Value *p)
+        :Value(v->var_ts) {
         variable = v;
         pivot.reset(p);
-        set_ts(v->var_ts);
     }
     
     virtual StorageWhere complexity() {
@@ -148,7 +162,8 @@ public:
     
     Function *function;  // If declared with a name, which is always, for now
         
-    FunctionDefinitionValue(Value *r, Value *h, Value *b, FunctionScope *f) {
+    FunctionDefinitionValue(TypeSpec fn_ts, Value *r, Value *h, Value *b, FunctionScope *f)
+        :Value(fn_ts) {
         ret.reset(r);
         head.reset(h);
         body.reset(b);
@@ -179,7 +194,7 @@ public:
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
         
-        body->compile(x64, regs);
+        body->compile_to_void(x64, regs);
         
         // TODO: destructors
         x64->code_label(fn_scope->body_scope->get_rollback_label());
@@ -199,11 +214,10 @@ public:
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> items;  // FIXME
     
-    FunctionValue(Function *f, Value *p) {
+    FunctionValue(Function *f, Value *p)
+        :Value(f->get_return_typespec()) {
         function = f;
         pivot.reset(p);
-
-        set_ts(function->get_return_typespec());
         
         for (unsigned i = 0; i < function->get_argument_count(); i++)
             items.push_back(NULL);
@@ -302,7 +316,9 @@ public:
         std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
         unsigned ret_size = round_up(measure(ret_ts));
-        x64->op(SUBQ, RSP, ret_size);
+        
+        if (ret_size)
+            x64->op(SUBQ, RSP, ret_size);
         
         unsigned passed_size = 0;
         
@@ -333,15 +349,19 @@ public:
             store(pivot->ts, Storage(STACK), Storage(), x64);
             
         std::cerr << "Compiled call of " << function->name << ".\n";
-        return Storage(STACK);
+        return ret_size ? Storage(STACK) : Storage();
     }
 };
 
 
 class TypeValue: public Value {
 public:
-    TypeValue(TypeSpec ts) {
-        set_ts(ts);
+    TypeValue(TypeSpec ts)
+        :Value(ts) {
+    }
+    
+    virtual Storage compile(X64 *, Regs) {
+        return Storage();
     }
 };
 
@@ -353,7 +373,8 @@ public:
     FunctionReturnScope *return_scope;
     std::unique_ptr<Value> value;
     
-    FunctionReturnValue(Scope *s, Value *v) {
+    FunctionReturnValue(Scope *s, Value *v)
+        :Value(VOID_TS) {
         scope = s;
         value.reset(v);
         
@@ -403,7 +424,8 @@ public:
     Declaration *decl;
     std::unique_ptr<Value> value;
     
-    DeclarationValue(std::string n) {
+    DeclarationValue(std::string n)
+        :Value(VOID_TS) {
         name = n;
     }
 
@@ -470,7 +492,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64, Regs regs) {
-        value->compile(x64, regs);
+        value->compile_to_void(x64, regs);  // no declaration by real values yet
         
         // TODO: eventually this must manage the rollback labels, too.
         return Storage();
@@ -487,9 +509,9 @@ class NumberValue: public Value {
 public:
     int number;
     
-    NumberValue(std::string t) {
+    NumberValue(std::string t)
+        :Value(INTEGER_TS) {
         number = std::stoi(t);
-        ts.push_back(integer_type);
     }
 
     virtual StorageWhere complexity() {
@@ -504,6 +526,110 @@ public:
 
 #include "typize_values_integer.cpp"
 
+
+class BooleanIfValue: public Value {
+public:
+    std::unique_ptr<Value> condition;
+    std::unique_ptr<Value> then_branch;
+    std::unique_ptr<Value> else_branch;
+    
+    BooleanIfValue(Value *pivot)
+        :Value(VOID_TS) {
+        condition.reset(pivot);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() > 0) {
+            std::cerr << "Positional arguments to Boolean if!\n";
+            return false;
+        }
+        
+        for (auto &kv : kwargs) {
+            if (kv.first == "then")
+                then_branch.reset(typize(kv.second.get(), scope));
+            else if (kv.first == "else")
+                else_branch.reset(typize(kv.second.get(), scope));
+            else {
+                std::cerr << "Invalid argument to Boolean if!\n";
+                return false;
+            }
+        }
+
+        std::cerr << "XXX boolean if " << !!then_branch << " " << !!else_branch << "\n";
+        
+        return true;
+    }
+    
+    virtual Storage compile(X64 *x64, Regs regs) {
+        Label then_end;
+        Label else_end;
+        then_end.allocate();
+        else_end.allocate();
+        
+        Storage cs = condition->compile(x64, regs);
+        
+        switch (cs.where) {
+        case CONSTANT:
+            if (cs.value)
+                else_branch.reset(NULL);
+            else
+                then_branch.reset(NULL);
+                
+            break;
+        case FLAGS:
+            if (then_branch) {
+                BranchOp opcode = branchize(negate(cs.bitset));
+                x64->op(opcode, then_end);
+            }
+            else if (else_branch) {
+                BranchOp opcode = branchize(cs.bitset);
+                x64->op(opcode, else_end);
+            }
+            break;
+            
+        case STACK:
+            x64->op(XCHGQ, RAX, Address(RSP, 0));
+            x64->op(TESTQ, RAX, 1);
+            x64->op(POPQ, RAX);
+            
+            if (then_branch)
+                x64->op(JNE, then_end);
+            else if (else_branch)
+                x64->op(JE, else_end);
+                
+            break;
+            
+        case MEMORY:
+            x64->op(TESTB, cs.address, 1);
+
+            if (then_branch)
+                x64->op(JNE, then_end);
+            else if (else_branch)
+                x64->op(JE, else_end);
+            
+            break;
+            
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        if (then_branch) {
+            then_branch->compile_to_void(x64, regs);
+            
+            if (else_branch)
+                x64->op(JMP, else_end);
+
+            x64->code_label(then_end);
+        }
+        
+        if (else_branch) {
+            else_branch->compile_to_void(x64, regs);
+            x64->code_label(else_end);
+        }
+    
+        return Storage();
+    }
+};
 
 TypeSpec get_typespec(Value *v) {
     return v ? v->ts : VOID_TS;
@@ -545,8 +671,8 @@ Value *make_block_value() {
 }
 
 
-Value *make_function_definition_value(Value *ret, Value *head, Value *body, FunctionScope *fn_scope) {
-    return new FunctionDefinitionValue(ret, head, body, fn_scope);
+Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope) {
+    return new FunctionDefinitionValue(fn_ts, ret, head, body, fn_scope);
 }
 
 
@@ -561,4 +687,8 @@ Value *make_number_value(std::string text) {
 
 Value *make_integer_arithmetic_value(ArithmeticOperation o, TypeSpec t, Value *pivot) {
     return new IntegerArithmeticValue(o, t, pivot);
+}
+
+Value *make_boolean_if_value(Value *pivot) {
+    return new BooleanIfValue(pivot);
 }

@@ -229,6 +229,18 @@ enum BitSetOp {
 };
 
 
+BitSetOp negate(BitSetOp opcode) {
+    // The lowest bit negates the condition meaning
+    return (BitSetOp)(opcode ^ 1);
+}
+
+
+BranchOp branchize(BitSetOp opcode) {
+    // Both enums are just condition bits, so converting between them is straightforward
+    return opcode != NOSET ? (BranchOp)opcode : throw X64_ERROR;
+}
+
+
 enum ConstantOp {
      INT, RETX, RETFX
 };

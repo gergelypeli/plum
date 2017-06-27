@@ -9,3 +9,10 @@ as:
 
 start? :function as:
     print(f(1, 2))
+    
+    a? Integer
+    a = 2
+    b? Integer
+    b = 2
+    
+    :if a == b then: print(1) else: print(0)

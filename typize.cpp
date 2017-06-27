@@ -21,6 +21,7 @@ Type *function_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
 
+TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
@@ -31,6 +32,24 @@ typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
 bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
 unsigned measure(TypeSpec &ts);
+
+TypeSpec rvalue(TypeSpec &ts) {
+    TypeSpec t = ts;
+    
+    if (t[0] == lvalue_type)
+        t.erase(t.begin());
+        
+    return t;
+}
+
+TypeSpec lvalue(TypeSpec &ts) {
+    TypeSpec t = ts;
+    
+    if (t[0] != lvalue_type)
+        t.insert(t.begin(), lvalue_type);
+        
+    return t;
+}
 
 enum ArithmeticOperation {
     COMPLEMENT, NEGATE,
@@ -63,10 +82,11 @@ Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
 Value *make_block_value();
-Value *make_function_definition_value(Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
+Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
 Value *make_integer_arithmetic_value(ArithmeticOperation ooperation, TypeSpec ts, Value *pivot);
+Value *make_boolean_if_value(Value *pivot);
 
 
 unsigned round_up(unsigned size) {
@@ -266,16 +286,16 @@ struct {
 Scope *init_types() {
     Scope *root_scope = new Scope();
     
-    type_type = new Type("<Type>", 1);
+    type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);
 
     lvalue_type = new LvalueType();
     root_scope->add(lvalue_type);
 
-    function_type = new Type("<Function>", 1);
+    function_type = new SpecialType("<Function>", 1);
     root_scope->add(function_type);
     
-    void_type = new BasicType("<Void>", 0);
+    void_type = new SpecialType("<Void>", 0);
     root_scope->add(void_type);
 
     boolean_type = new BasicType("Boolean", 1);
@@ -284,6 +304,7 @@ Scope *init_types() {
     integer_type = new BasicType("Integer", 8);
     root_scope->add(integer_type);
     
+    // BOGUS_TS will contain no Type pointers
     VOID_TS.push_back(void_type);
     BOOLEAN_TS.push_back(boolean_type);
     INTEGER_TS.push_back(integer_type);
@@ -300,6 +321,8 @@ Scope *init_types() {
 
     for (auto &item : integer_lvalue_operations)
         root_scope->add(new IntegerArithmeticOperation(item.name, LVALUE_INTEGER_TS, item.operation));
+
+    //root_scope->add(new BooleanIf());
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
 
@@ -360,8 +383,7 @@ Value *typize(Expr *expr, Scope *scope) {
 
             std::cerr << "Function ts " << fn_ts << "\n";
             
-            Value *v = make_function_definition_value(ret, head, body, fn_scope)->set_token(expr->token);
-            v->set_ts(fn_ts);
+            Value *v = make_function_definition_value(fn_ts, ret, head, body, fn_scope)->set_token(expr->token);
             
             return v;
         }
@@ -370,6 +392,28 @@ Value *typize(Expr *expr, Scope *scope) {
             Value *ret = r ? typize(r, scope) : NULL;  // TODO: statement scope? Or already have?
 
             Value *v = make_function_return_value(scope, ret)->set_token(expr->token);
+
+            return v;
+        }
+        else if (expr->text == "if") {
+            Expr *e = expr->pivot.get();
+            Value *condition = e ? typize(e, scope) : NULL;
+            TypeSpec cts = get_typespec(condition);
+            
+            if (!(cts >> BOOLEAN_TS)) {
+                std::cerr << "Not a boolean condition!\n";
+                throw TYPE_ERROR;
+            }
+            
+            Value *v = make_boolean_if_value(condition)->set_token(expr->token);
+
+            v->set_token(expr->token);
+            bool ok = v->check(expr->args, expr->kwargs, scope);
+                
+            if (!ok) {
+                std::cerr << "Argument problem for " << expr->token << "!\n";
+                throw TYPE_ERROR;
+            }
 
             return v;
         }

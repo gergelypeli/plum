@@ -5,15 +5,11 @@ public:
     TypeSpec arg_ts;
     std::unique_ptr<Value> left, right;
     
-    IntegerArithmeticValue(ArithmeticOperation o, TypeSpec t, Value *pivot) {
+    IntegerArithmeticValue(ArithmeticOperation o, TypeSpec t, Value *pivot)
+        :Value(is_comparison(o) ? BOOLEAN_TS : t) {
         operation = o;
-        arg_ts = t;
+        arg_ts = rvalue(t);
         left.reset(pivot);
-        
-        if (is_comparison(operation))
-            ts.push_back(boolean_type);
-        else
-            ts = arg_ts;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -35,6 +31,7 @@ public:
         
             if (!(r->ts >> arg_ts)) {
                 std::cerr << "Incompatible right argument to integer binary operation!\n";
+                std::cerr << "Type " << r->ts << " is not " << arg_ts << "!\n";
                 return false;
             }
         
@@ -510,7 +507,7 @@ public:
             // a register, but only in the flags. That's even better for us.
             // But must negate the condition if the arguments were swapped
             if (swap)
-                opcode = (BitSetOp)((int)opcode ^ 1);
+                opcode = negate(opcode);
                 
             //x64->op(opcode, s.reg);
             return Storage(FLAGS, opcode);

@@ -132,6 +132,8 @@ public:
     }
     
     virtual void allocate() {
+        Scope::allocate();
+    
         rollback_label.allocate();
     }
     
@@ -344,6 +346,24 @@ public:
 };
 
 
+class BooleanIf: public Declaration {
+public:
+    BooleanIf() {
+    }
+    
+    virtual Value *match(std::string name, Value *pivot) {
+        TypeSpec pts = get_typespec(pivot);
+
+        if (name == "if" && pts >> BOOLEAN_TS) {
+            Value *v = make_boolean_if_value(pivot);
+            return v;
+        }
+        else
+            return NULL;
+    }
+};
+
+
 class Type: public Declaration {
 public:
     std::string name;
@@ -398,13 +418,29 @@ public:
     }
     
     virtual unsigned measure(TypeSpecIter &) {
-        std::cerr << "Unmeasurable type!\n";
+        std::cerr << "Unmeasurable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
     virtual void store(TypeSpecIter &, Storage, Storage, X64 *) {
-        std::cerr << "Unstorable type!\n";
+        std::cerr << "Unstorable type: " << name << "!\n";
         throw INTERNAL_ERROR;
+    }
+};
+
+
+class SpecialType: public Type {
+public:
+    SpecialType(std::string name, unsigned pc):Type(name, pc) {}
+    
+    virtual unsigned measure(TypeSpecIter &) {
+        return 0;
+    }
+
+    virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *) {
+        if (s.where != NOWHERE || t.where != NOWHERE) {
+            std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
+        }
     }
 };
 
