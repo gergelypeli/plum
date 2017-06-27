@@ -321,13 +321,13 @@ public:
 };
 
 
-class IntegerArithmeticOperation: public Declaration {
+class IntegerOperation: public Declaration {
 public:
     std::string name;
     TypeSpec ts;
-    ArithmeticOperation operation;
+    NumericOperation operation;
     
-    IntegerArithmeticOperation(std::string n, TypeSpec t, ArithmeticOperation o) {
+    IntegerOperation(std::string n, TypeSpec t, NumericOperation o) {
         name = n;
         ts = t;
         operation = o;
@@ -337,7 +337,7 @@ public:
         TypeSpec pts = get_typespec(pivot);
 
         if (name == this->name && pts >> ts) {
-            Value *v = make_integer_arithmetic_value(operation, ts, pivot);
+            Value *v = make_integer_operation_value(operation, ts, pivot);
             return v;
         }
         else

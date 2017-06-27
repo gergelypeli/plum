@@ -51,7 +51,7 @@ TypeSpec lvalue(TypeSpec &ts) {
     return t;
 }
 
-enum ArithmeticOperation {
+enum NumericOperation {
     COMPLEMENT, NEGATE,
     ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
     OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
@@ -60,15 +60,15 @@ enum ArithmeticOperation {
     ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT
 };
 
-bool is_unary(ArithmeticOperation o) {
+bool is_unary(NumericOperation o) {
     return o == COMPLEMENT || o == NEGATE;
 }
 
-bool is_comparison(ArithmeticOperation o) {
+bool is_comparison(NumericOperation o) {
     return o >= EQUAL && o <= INCOMPARABLE;
 }
 
-bool is_assignment(ArithmeticOperation o) {
+bool is_assignment(NumericOperation o) {
     return o >= ASSIGN;
 }
 
@@ -85,7 +85,7 @@ Value *make_block_value();
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
-Value *make_integer_arithmetic_value(ArithmeticOperation ooperation, TypeSpec ts, Value *pivot);
+Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 
 
@@ -246,7 +246,7 @@ void store(TypeSpec &ts, Storage s, Storage t, X64 *x64);
 
 struct {
     const char *name;
-    ArithmeticOperation operation;
+    NumericOperation operation;
 } integer_rvalue_operations[] = {
     { "unary_minus", NEGATE },
     { "unary_tilde", COMPLEMENT },
@@ -317,10 +317,10 @@ Scope *init_types() {
     std::vector<std::string> value_names = { "value" };
 
     for (auto &item : integer_rvalue_operations)
-        root_scope->add(new IntegerArithmeticOperation(item.name, INTEGER_TS, item.operation));
+        root_scope->add(new IntegerOperation(item.name, INTEGER_TS, item.operation));
 
     for (auto &item : integer_lvalue_operations)
-        root_scope->add(new IntegerArithmeticOperation(item.name, LVALUE_INTEGER_TS, item.operation));
+        root_scope->add(new IntegerOperation(item.name, LVALUE_INTEGER_TS, item.operation));
 
     //root_scope->add(new BooleanIf());
 

@@ -698,8 +698,8 @@ Value *make_number_value(std::string text) {
     return new NumberValue(text);
 }
 
-Value *make_integer_arithmetic_value(ArithmeticOperation o, TypeSpec t, Value *pivot) {
-    return new IntegerArithmeticValue(o, t, pivot);
+Value *make_integer_operation_value(NumericOperation o, TypeSpec t, Value *pivot) {
+    return new IntegerOperationValue(o, t, pivot);
 }
 
 Value *make_boolean_if_value(Value *pivot) {

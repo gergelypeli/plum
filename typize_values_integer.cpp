@@ -1,11 +1,11 @@
 
-class IntegerArithmeticValue: public Value {
+class IntegerOperationValue: public Value {
 public:
-    ArithmeticOperation operation;
+    NumericOperation operation;
     TypeSpec arg_ts;
     std::unique_ptr<Value> left, right;
     
-    IntegerArithmeticValue(ArithmeticOperation o, TypeSpec t, Value *pivot)
+    IntegerOperationValue(NumericOperation o, TypeSpec t, Value *pivot)
         :Value(is_comparison(o) ? BOOLEAN_TS : t) {
         operation = o;
         arg_ts = rvalue(t);
@@ -851,7 +851,7 @@ public:
         case ASSIGN_SHIFT_RIGHT:
             s = assign_shift(x64, regs, SHRQ); break;
         default:
-            std::cerr << "Unknown integer arithmetic operator!\n";
+            std::cerr << "Unknown integer operator!\n";
             throw INTERNAL_ERROR;
         }
         
