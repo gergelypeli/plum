@@ -613,170 +613,134 @@ public:
     enum Spill {
         SPILL_ANY,
         SPILL_RAX_AND_RDX,
-        SPILL_RDX_AND_RAX,
-        SPILL_ANY_AND_RCX,
+        SPILL_RCX_AND_ANY,
         SPILL_RCX
     };
 
     enum Spilled {
-        SPILLED_NO,
+        SPILLED_NONE,
     
-        SPILLED_RDX,
-        SPILLED_RAX_TO_RDX,
-        SPILLED_RDX_EXCHANGE_RAX,
-        
         SPILLED_RAX,
-        SPILLED_RDX_TO_RAX,
-        SPILLED_RAX_EXCHANGE_RDX,
-        
         SPILLED_RCX,
-        SPILLED_RAX_TO_RCX,
-        SPILLED_RCX_EXCHANGE_RAX,
+        SPILLED_RDX,
         
-        SPILLED_EXCHANGE_RAX
+        SPILLED_RAX_AND_RDX,
+        SPILLED_RAX_AND_RCX
     };
 
-    virtual Spilled spill(X64 *x64, Regs regs, Spill to_spill) {
-        switch (to_spill) {
-        case SPILL_RAX_AND_RDX:
-            if (regs.has(RAX)) {
-                if (regs.has(RDX)) {
-                    return SPILLED_NO;
-                }
-                else {
-                    x64->op(PUSHQ, RDX);
-                    return SPILLED_RDX;
-                }
-            }
-            else {
-                if (regs.has(RDX)) {
-                    x64->op(PUSHQ, RAX);
-                    return SPILLED_RAX_TO_RDX;
-                }
-                else {
-                    x64->op(PUSHQ, RAX);
-                    x64->op(PUSHQ, RDX);
-                    return SPILLED_RDX_EXCHANGE_RAX;
-                }
-            }
-            break;
-        case SPILL_RDX_AND_RAX:
-            if (regs.has(RAX)) {
-                if (regs.has(RDX)) {
-                    return SPILLED_NO;
-                }
-                else {
-                    x64->op(PUSHQ, RDX);
-                    return SPILLED_RDX_TO_RAX;
-                }
-            }
-            else {
-                if (regs.has(RDX)) {
-                    x64->op(PUSHQ, RAX);
-                    return SPILLED_RAX;
-                }
-                else {
-                    x64->op(PUSHQ, RDX);
-                    x64->op(PUSHQ, RAX);
-                    return SPILLED_RAX_EXCHANGE_RDX;
-                }
-            }
-            break;
-        case SPILL_ANY_AND_RCX:
-            if (regs.has(RCX)) {
-                if (regs.has_other(RCX)) {
-                    return SPILLED_NO;
-                }
-                else {
-                    x64->op(PUSHQ, RAX);
-                    return SPILLED_RAX_TO_RCX;
-                }
-            }
-            else {
-                if (regs.has_other(RCX)) {
-                    x64->op(PUSHQ, RCX);
-                    return SPILLED_RCX;
-                }
-                else {
-                    x64->op(PUSHQ, RAX);
-                    x64->op(PUSHQ, RCX);
-                    return SPILLED_RCX_EXCHANGE_RAX;
-                }
-            }
-            break;
-        case SPILL_RCX:
-            if (regs.has(RCX)) {
-                return SPILLED_NO;
-            }
-            else {
-                x64->op(PUSHQ, RCX);
-                return SPILLED_RCX;
-            }
-            break;
-        default:
-            if (regs.has_any()) {
-                return SPILLED_NO;
-            }
-            else {
-                x64->op(PUSHQ, RAX);
-                return SPILLED_EXCHANGE_RAX;
-            }
-        }
+    virtual Spilled spill(X64 *x64, Regs &regs, Spill to_spill) {
+        // NOTE: must take Regs by reference because we modify it
+        Spilled s = (
+            to_spill == SPILL_RAX_AND_RDX ?
+                (regs.has(RAX) ?
+                    (regs.has(RDX) ? SPILLED_NONE : SPILLED_RDX) :
+                    (regs.has(RDX) ? SPILLED_RAX : SPILLED_RAX_AND_RDX)
+                ) :
+            to_spill == SPILL_RCX_AND_ANY ?
+                (regs.has(RCX) ?
+                    (regs.has_other(RCX) ? SPILLED_NONE : SPILLED_RAX) :
+                    (regs.has_other(RCX) ? SPILLED_RCX : SPILLED_RAX_AND_RCX)
+                ) :
+            to_spill == SPILL_RCX ?
+                (regs.has(RCX) ? SPILLED_NONE : SPILLED_RCX) :
+            to_spill == SPILL_ANY ?
+                (regs.has_any() ? SPILLED_NONE : SPILLED_RAX) :
+            throw INTERNAL_ERROR
+        );
+        
+        if (s == SPILLED_RAX || s == SPILLED_RAX_AND_RDX || s == SPILLED_RAX_AND_RCX)
+            x64->op(PUSHQ, RAX);
+            
+        if (s == SPILLED_RCX || s == SPILLED_RAX_AND_RCX)
+            x64->op(PUSHQ, RCX);
+            
+        if (s == SPILLED_RDX || s == SPILLED_RAX_AND_RDX)
+            x64->op(PUSHQ, RDX);
+            
+        return s;
     }
 
     virtual Storage fill(X64 *x64, Storage s, Spilled spilled) {
+        if (s.where == STACK) {
+            std::cerr << "This was a bad idea!";
+            throw INTERNAL_ERROR;
+        }
+        
         switch (spilled) {
-            case SPILLED_RDX:
-                x64->op(POPQ, RDX);
-                return s;
-            case SPILLED_RAX_TO_RDX:
-                x64->op(MOVQ, RDX, RAX);
-                x64->op(POPQ, RAX);
-                return Storage(REGISTER, RDX);
-            case SPILLED_RDX_EXCHANGE_RAX:
-                x64->op(POPQ, RDX);
+        case SPILLED_NONE:
+            return s;
+        case SPILLED_RAX:
+            if (s.where == REGISTER && s.reg == RAX) {
                 x64->op(XCHGQ, RAX, Address(RSP, 0));
                 return Storage(STACK);
-
-            case SPILLED_RAX:
+            }
+            else {
                 x64->op(POPQ, RAX);
                 return s;
-            case SPILLED_RDX_TO_RAX:
-                x64->op(MOVQ, RAX, RDX);
-                x64->op(POPQ, RDX);
-                return Storage(REGISTER, RAX);
-            case SPILLED_RAX_EXCHANGE_RDX:
-                x64->op(POPQ, RAX);
+            }
+        case SPILLED_RCX:
+            if (s.where == REGISTER && s.reg == RCX) {
+                x64->op(XCHGQ, RCX, Address(RSP, 0));
+                return Storage(STACK);
+            }
+            else {
+                x64->op(POPQ, RCX);
+                return s;
+            }
+        case SPILLED_RDX:
+            if (s.where == REGISTER && s.reg == RDX) {
                 x64->op(XCHGQ, RDX, Address(RSP, 0));
                 return Storage(STACK);
-
-            case SPILLED_RCX:
-                x64->op(POPQ, RCX);
+            }
+            else {
+                x64->op(POPQ, RDX);
                 return s;
-            case SPILLED_RAX_TO_RCX:
-                x64->op(MOVQ, RCX, RAX);
+            }
+        case SPILLED_RAX_AND_RCX:
+            if (s.where == REGISTER && s.reg == RAX) {
+                x64->op(POPQ, RCX);
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                return Storage(STACK);
+            }
+            else if (s.where == REGISTER && s.reg == RCX) {
+                x64->op(XCHGQ, RAX, RCX);
+                x64->op(POPQ, RCX);
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                return Storage(STACK);
+            }
+            else {
+                x64->op(POPQ, RCX);
                 x64->op(POPQ, RAX);
-                return Storage(REGISTER, RCX);
-            case SPILLED_RCX_EXCHANGE_RAX:
-                x64->op(POPQ, RCX);
-                x64->op(XCHGQ, RAX, Address(RSP, 0));
-                return Storage(STACK);
-                
-            case SPILLED_EXCHANGE_RAX:
-                x64->op(XCHGQ, RAX, Address(RSP, 0));
-                return Storage(STACK);
-                
-            default:
                 return s;
+            }
+        case SPILLED_RAX_AND_RDX:
+            if (s.where == REGISTER && s.reg == RAX) {
+                x64->op(POPQ, RDX);
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                return Storage(STACK);
+            }
+            else if (s.where == REGISTER && s.reg == RDX) {
+                x64->op(XCHGQ, RAX, RDX);
+                x64->op(POPQ, RDX);
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                return Storage(STACK);
+            }
+            else {
+                x64->op(POPQ, RDX);
+                x64->op(POPQ, RAX);
+                return s;
+            }
+        default:
+            throw INTERNAL_ERROR;
         }
     }
     
     virtual Storage compile(X64 *x64, Regs regs) {
         Spill to_spill = (
             operation == DIVIDE || operation == ASSIGN_DIVIDE ||
+            operation == MODULO || operation == ASSIGN_MODULO ||
             operation == EXPONENT || operation == ASSIGN_EXPONENT ? SPILL_RAX_AND_RDX :
-            operation == MODULO || operation == ASSIGN_MODULO ? SPILL_RDX_AND_RAX :
-            operation == SHIFT_LEFT || operation == SHIFT_RIGHT ? SPILL_ANY_AND_RCX :
+            operation == SHIFT_LEFT || operation == SHIFT_RIGHT ? SPILL_RCX_AND_ANY :
             operation == ASSIGN_SHIFT_LEFT || operation == ASSIGN_SHIFT_RIGHT ? SPILL_RCX :
             SPILL_ANY
         );

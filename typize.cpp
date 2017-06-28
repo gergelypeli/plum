@@ -86,6 +86,7 @@ Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, V
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
 Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Value *pivot);
+Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 
 

@@ -528,6 +528,82 @@ public:
 #include "typize_values_integer.cpp"
 
 
+class BooleanOperationValue: public Value {
+public:
+    NumericOperation operation;
+    std::unique_ptr<Value> left, right;
+    
+    BooleanOperationValue(NumericOperation o, Value *pivot)
+        :Value(BOOLEAN_TS) {
+        operation = o;
+        left.reset(pivot);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (is_unary(operation)) {
+            if (args.size() != 0 || kwargs.size() != 0) {
+                std::cerr << "Whacky boolean unary operation!\n";
+                return false;
+            }
+            
+            return true;
+        }
+        else {
+            if (args.size() != 1 || kwargs.size() != 0) {
+                std::cerr << "Whacky boolean binary operation!\n";
+                return false;
+            }
+
+            Value *r = typize(args[0].get(), scope);
+        
+            if (!(r->ts >> BOOLEAN_TS)) {
+                std::cerr << "Incompatible right argument to boolean binary operation!\n";
+                std::cerr << "Type " << r->ts << " is not " << BOOLEAN_TS << "!\n";
+                return false;
+            }
+        
+            right.reset(r);
+            return true;
+        }
+    }
+
+    virtual Storage compile(X64 *x64, Regs regs) {
+        bool spilled = false;
+        
+        if (!regs.has_any()) {
+            x64->op(PUSHQ, RAX);
+            regs.add(RAX);
+            spilled = true;
+        }            
+
+        Storage s;
+        
+        switch (operation) {
+        //case OR:
+        //    s = binary_simple(x64, regs, ORQ); break;
+        //case AND:
+        //    s = binary_simple(x64, regs, ANDQ); break;
+        default:
+            std::cerr << "Unknown boolean operator!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        if (spilled) {
+            if (s.where == REGISTER) {
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                return Storage(STACK);
+            }
+            else {
+                x64->op(POPQ, RAX);
+                return s;
+            }
+        }
+        else
+            return s;
+    }
+};
+
+
 class BooleanIfValue: public Value {
 public:
     std::unique_ptr<Value> condition;
@@ -700,6 +776,10 @@ Value *make_number_value(std::string text) {
 
 Value *make_integer_operation_value(NumericOperation o, TypeSpec t, Value *pivot) {
     return new IntegerOperationValue(o, t, pivot);
+}
+
+Value *make_boolean_operation_value(NumericOperation o, Value *pivot) {
+    return new BooleanOperationValue(o, pivot);
 }
 
 Value *make_boolean_if_value(Value *pivot) {

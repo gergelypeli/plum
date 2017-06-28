@@ -346,6 +346,29 @@ public:
 };
 
 
+class BooleanOperation: public Declaration {
+public:
+    std::string name;
+    NumericOperation operation;
+    
+    BooleanOperation(std::string n, NumericOperation o) {
+        name = n;
+        operation = o;
+    }
+    
+    virtual Value *match(std::string name, Value *pivot) {
+        TypeSpec pts = get_typespec(pivot);
+
+        if (name == this->name && pts >> BOOLEAN_TS) {
+            Value *v = make_boolean_operation_value(operation, pivot);
+            return v;
+        }
+        else
+            return NULL;
+    }
+};
+
+
 class BooleanIf: public Declaration {
 public:
     BooleanIf() {
