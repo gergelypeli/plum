@@ -123,6 +123,8 @@ enum UnaryOp {
     VERW=52
 };
 
+UnaryOp operator%(UnaryOp x, int y) { return (UnaryOp)((x & ~3) | (y & 3)); }
+
 
 enum PortOp {
     INB=0, INW, IND, INQ,
@@ -162,6 +164,8 @@ enum BinaryOp {
     TESTB=32, TESTW, TESTD, TESTQ,
     XORB=36, XORW, XORD, XORQ
 };
+
+BinaryOp operator%(BinaryOp x, int y) { return (BinaryOp)((x & ~3) | (y & 3)); }
 
 
 enum ShiftOp {
