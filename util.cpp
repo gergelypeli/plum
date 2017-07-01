@@ -4,6 +4,13 @@ enum Error {
     INTERNAL_ERROR, X64_ERROR
 };
 
+// From https://stackoverflow.com/questions/874134/find-if-string-ends-with-another-string-in-c
+inline bool ends_with(std::string const & value, std::string const & ending)
+{
+    if (ending.size() > value.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
 /*
 static std::string vformat(const char *f, va_list ap) {
     char buffer[65536];

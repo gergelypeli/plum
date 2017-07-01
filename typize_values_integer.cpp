@@ -5,6 +5,7 @@ public:
     TypeSpec arg_ts;
     std::unique_ptr<Value> left, right;
     int os;
+    bool is_unsigned;
     
     IntegerOperationValue(NumericOperation o, TypeSpec t, Value *pivot)
         :Value(is_comparison(o) ? BOOLEAN_TS : t) {
@@ -20,6 +21,8 @@ public:
             size == 8 ? 3 :
             throw INTERNAL_ERROR
         );
+        
+        is_unsigned = ::is_unsigned(t);
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -115,12 +118,12 @@ public:
         switch (ls.where * rs.where) {
         case CONSTANT_CONSTANT: {
             int value = (
-                (opcode | 3) == ADDQ ? ls.value + rs.value :
-                (opcode | 3) == SUBQ ? ls.value - rs.value :
-                (opcode | 3) == ANDQ ? ls.value & rs.value :
-                (opcode | 3) == ORQ  ? ls.value | rs.value :
-                (opcode | 3) == XORQ ? ls.value ^ rs.value :
-                (opcode | 3) == CMPQ ? ls.value - rs.value :  // kinda special
+                (opcode % 3) == ADDQ ? ls.value + rs.value :
+                (opcode % 3) == SUBQ ? ls.value - rs.value :
+                (opcode % 3) == ANDQ ? ls.value & rs.value :
+                (opcode % 3) == ORQ  ? ls.value | rs.value :
+                (opcode % 3) == XORQ ? ls.value ^ rs.value :
+                (opcode % 3) == CMPQ ? ls.value - rs.value :  // kinda special
                 throw X64_ERROR
             );
             return Storage(CONSTANT, value);
@@ -320,35 +323,36 @@ public:
         }
 
         SimpleOp prep = (os == 0 ? CBW : os == 1 ? CWD : os == 2 ? CDQ : CQO);
-
+        UnaryOp opcode = (is_unsigned ? DIVQ : IDIVQ);
+        
         switch (rs.where) {
         case CONSTANT:
             x64->op(PUSHQ, rs.value);
             x64->op(prep);
-            x64->op(IDIVQ % os, Address(RSP, 0));
+            x64->op(opcode % os, Address(RSP, 0));
             x64->op(ADDQ, RSP, 8);
             break;
         case REGISTER:
             if (rs.reg == RDX) {
                 x64->op(PUSHQ, RDX);
                 x64->op(prep);
-                x64->op(IDIVQ % os, Address(RSP, 0));
+                x64->op(opcode % os, Address(RSP, 0));
                 x64->op(ADDQ, RSP, 8);
                 break;
             }
             else {
                 x64->op(prep);
-                x64->op(IDIVQ % os, rs.reg);
+                x64->op(opcode % os, rs.reg);
                 break;
             }
         case STACK:
             x64->op(prep);
-            x64->op(IDIVQ % os, Address(RSP, 0));
+            x64->op(opcode % os, Address(RSP, 0));
             x64->op(ADDQ, RSP, 8);
             break;
         case MEMORY:
             x64->op(prep);
-            x64->op(IDIVQ % os, rs.address);
+            x64->op(opcode % os, rs.address);
             break;
         default:
             throw INTERNAL_ERROR;
@@ -526,13 +530,20 @@ public:
         bool swap = false;
         Storage s = binary_simple(x64, regs, CMPQ, &swap);
         
+        // Our constants are always 32-bit, so they fit in a 64-bit signed int.
+        // Except now, because CMP did a subtraction, but we won't pass
+        // the result on.
         if (s.where == CONSTANT) {
             bool holds = (
-                (s.value < 0 && (opcode == SETNE || opcode == SETL || opcode == SETLE)) ||
-                (s.value > 0 && (opcode == SETNE || opcode == SETG || opcode == SETGE)) ||
-                (s.value == 0 && (opcode == SETE || opcode == SETLE || opcode == SETGE))
+                opcode == SETE ? s.value == 0 :
+                opcode == SETNE ? s.value != 0 :
+                opcode == SETL || opcode == SETB ? s.value < 0 :
+                opcode == SETLE || opcode == SETBE ? s.value <= 0 :
+                opcode == SETG || opcode == SETA ? s.value > 0 :
+                opcode == SETGE || opcode == SETAE ? s.value >= 0 :
+                throw INTERNAL_ERROR
             );
-            
+
             return Storage(CONSTANT, holds ? 1 : 0);
         }
         else if (s.where == REGISTER) {
@@ -814,13 +825,13 @@ public:
         case NOT_EQUAL:
             s = binary_compare(x64, regs, SETNE); break;
         case LESS:
-            s = binary_compare(x64, regs, SETL); break;
+            s = binary_compare(x64, regs, is_unsigned ? SETB : SETL); break;
         case GREATER:
-            s = binary_compare(x64, regs, SETG); break;
+            s = binary_compare(x64, regs, is_unsigned ? SETA : SETG); break;
         case LESS_EQUAL:
-            s = binary_compare(x64, regs, SETLE); break;
+            s = binary_compare(x64, regs, is_unsigned ? SETBE : SETLE); break;
         case GREATER_EQUAL:
-            s = binary_compare(x64, regs, SETGE); break;
+            s = binary_compare(x64, regs, is_unsigned ? SETAE : SETGE); break;
         case INCOMPARABLE:
             s = Storage(CONSTANT, 0); break;
         case ASSIGN:

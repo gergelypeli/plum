@@ -516,12 +516,20 @@ public:
     }
 
     static TypeSpec type(std::string &s) {
-        return (
-            s.back() == 'd' ? INTEGER32_TS :
-            s.back() == 'w' ? INTEGER16_TS :
-            s.back() == 'b' ? INTEGER8_TS :
-            INTEGER_TS
+        TypeSpec ts;
+        
+        ts.push_back(
+            ends_with(s, "s32") ? integer32_type :
+            ends_with(s, "s16") ? integer16_type :
+            ends_with(s, "s8") ? integer8_type :
+            ends_with(s, "u32") ? unsigned_integer32_type :
+            ends_with(s, "u16") ? unsigned_integer16_type :
+            ends_with(s, "u8") ? unsigned_integer8_type :
+            ends_with(s, "u") ? unsigned_integer_type :
+            integer_type
         );
+        
+        return ts;
     }
 
     virtual StorageWhere complexity() {

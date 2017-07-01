@@ -23,24 +23,23 @@ Type *integer_type = NULL;
 Type *integer32_type = NULL;
 Type *integer16_type = NULL;
 Type *integer8_type = NULL;
+Type *unsigned_integer_type = NULL;
+Type *unsigned_integer32_type = NULL;
+Type *unsigned_integer16_type = NULL;
+Type *unsigned_integer8_type = NULL;
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
-TypeSpec INTEGER32_TS;
-TypeSpec INTEGER16_TS;
-TypeSpec INTEGER8_TS;
 TypeSpec LVALUE_INTEGER_TS;
-TypeSpec LVALUE_INTEGER32_TS;
-TypeSpec LVALUE_INTEGER16_TS;
-TypeSpec LVALUE_INTEGER8_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
 bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
 unsigned measure(TypeSpec &ts);
+
 
 TypeSpec rvalue(TypeSpec &ts) {
     TypeSpec t = ts;
@@ -58,6 +57,14 @@ TypeSpec lvalue(TypeSpec &ts) {
         t.insert(t.begin(), lvalue_type);
         
     return t;
+}
+
+bool is_unsigned(TypeSpec &ts) {
+    TypeSpec rts = rvalue(ts);
+    Type *t  = rts[0];
+    
+    return t == unsigned_integer_type || t == unsigned_integer32_type ||
+        t == unsigned_integer16_type || t == unsigned_integer8_type;
 }
 
 enum NumericOperation {
@@ -322,29 +329,35 @@ Scope *init_types() {
     
     integer8_type = new BasicType("Integer8", 1);
     root_scope->add(integer8_type);
+
+    unsigned_integer_type = new BasicType("Unsigned_Integer", 8);
+    root_scope->add(unsigned_integer_type);
+    
+    unsigned_integer32_type = new BasicType("Unsigned_Integer32", 4);
+    root_scope->add(unsigned_integer32_type);
+    
+    unsigned_integer16_type = new BasicType("Unsigned_Integer16", 2);
+    root_scope->add(unsigned_integer16_type);
+    
+    unsigned_integer8_type = new BasicType("Unsigned_Integer8", 1);
+    root_scope->add(unsigned_integer8_type);
     
     // BOGUS_TS will contain no Type pointers
     VOID_TS.push_back(void_type);
     BOOLEAN_TS.push_back(boolean_type);
     INTEGER_TS.push_back(integer_type);
-    INTEGER32_TS.push_back(integer32_type);
-    INTEGER16_TS.push_back(integer16_type);
-    INTEGER8_TS.push_back(integer8_type);
     LVALUE_INTEGER_TS.push_back(lvalue_type);
     LVALUE_INTEGER_TS.push_back(integer_type);
-    LVALUE_INTEGER32_TS.push_back(lvalue_type);
-    LVALUE_INTEGER32_TS.push_back(integer32_type);
-    LVALUE_INTEGER16_TS.push_back(lvalue_type);
-    LVALUE_INTEGER16_TS.push_back(integer16_type);
-    LVALUE_INTEGER8_TS.push_back(lvalue_type);
-    LVALUE_INTEGER8_TS.push_back(integer8_type);
     
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
     std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
     
     std::vector<std::string> value_names = { "value" };
 
-    for (Type *t : { integer_type, integer32_type, integer16_type, integer8_type }) {
+    for (Type *t : {
+        integer_type, integer32_type, integer16_type, integer8_type,
+        unsigned_integer_type, unsigned_integer32_type, unsigned_integer16_type, unsigned_integer8_type,
+    }) {
         TypeSpec ts;
         ts.push_back(t);
         
