@@ -325,7 +325,7 @@ void X64::code_reference(Label c, Ref_type f, int offset) {
 }
 
 
-void X64::code_op(int code, int size) {
+void X64::code_op(int code, int size, bool prefix_only) {
     // size == 0 => byte  => ____ op0
     // size == 1 => word  => 0x66 op1
     // size == 2 => dword => ____ op1
@@ -337,9 +337,17 @@ void X64::code_op(int code, int size) {
         code_byte(0x48);  // REX prefix for 64 operands, but no Rn registers
 
     if (code > 255)  // Two-byte opcodes must be emitted MSB first
-        code_byte(code >> 8);
+        code_byte((code >> 8) & 0xFF);
 
-    code_byte((code & 0xFF) | (size >= 1 ? 1 : 0));
+    if (prefix_only) {
+        // No bytes allowed, but we don't touch the lowest bit either
+        if (size == 0)
+            throw X64_ERROR;
+            
+        code_byte((code & 0xFF));
+    }
+    else
+        code_byte((code & 0xFF) | (size >= 1 ? 1 : 0));
 }
 
 
@@ -688,40 +696,35 @@ void X64::op(MemoryOp opcode, Address x) {
 
 
 int registerfirst_info[] = {
-    0x0FAF, 0x0F02, 0x0F03
+    0x0FAF
 };
 
 void X64::op(RegisterFirstOp opcode, Register x, Register y) {
-    code_op(registerfirst_info[opcode], 0);
+    code_op(registerfirst_info[opcode >> 2], opcode & 3, true);
     effective_address(x, y);
 }
 
 void X64::op(RegisterFirstOp opcode, Register x, Address y) {
-    code_op(registerfirst_info[opcode], 0);
+    code_op(registerfirst_info[opcode >> 2], opcode & 3, true);
     effective_address(x, y);
 }
 
 
 
+int registerfirstconstantthird_info[] = {
+    0x69
+};
 
-void X64::op(RegisterConstantOp opcode, Register x, Register y, int z) {
-    if (opcode == IMUL3Q) {
-        // The lowest bit does not work here the usual way, so...
-        code_byte(0x48);  // Hardcoded REX
-        code_byte(0x69);  // Hardcoded opcode
-        effective_address(x, y);
-        code_dword(z);  // 32-bit immediate only
-    }
+void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Register y, int z) {
+    code_op(registerfirstconstantthird_info[opcode >> 2], opcode & 3, true);
+    effective_address(x, y);
+    code_dword(z);  // 32-bit immediate only
 }
 
-void X64::op(RegisterConstantOp opcode, Register x, Address y, int z) {
-    if (opcode == IMUL3Q) {
-        // The lowest bit does not work here the usual way, so...
-        code_byte(0x48);  // Hardcoded REX
-        code_byte(0x69);  // Hardcoded opcode
-        effective_address(x, y);
-        code_dword(z);  // 32-bit immediate only
-    }
+void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Address y, int z) {
+    code_op(registerfirstconstantthird_info[opcode >> 2], opcode & 3, true);
+    effective_address(x, y);
+    code_dword(z);  // 32-bit immediate only
 }
 
 

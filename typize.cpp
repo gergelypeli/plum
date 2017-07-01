@@ -20,12 +20,21 @@ Type *void_type = NULL;
 Type *function_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
+Type *integer32_type = NULL;
+Type *integer16_type = NULL;
+Type *integer8_type = NULL;
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
+TypeSpec INTEGER32_TS;
+TypeSpec INTEGER16_TS;
+TypeSpec INTEGER8_TS;
 TypeSpec LVALUE_INTEGER_TS;
+TypeSpec LVALUE_INTEGER32_TS;
+TypeSpec LVALUE_INTEGER16_TS;
+TypeSpec LVALUE_INTEGER8_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -305,24 +314,49 @@ Scope *init_types() {
     integer_type = new BasicType("Integer", 8);
     root_scope->add(integer_type);
     
+    integer32_type = new BasicType("Integer32", 4);
+    root_scope->add(integer32_type);
+    
+    integer16_type = new BasicType("Integer16", 2);
+    root_scope->add(integer16_type);
+    
+    integer8_type = new BasicType("Integer8", 1);
+    root_scope->add(integer8_type);
+    
     // BOGUS_TS will contain no Type pointers
     VOID_TS.push_back(void_type);
     BOOLEAN_TS.push_back(boolean_type);
     INTEGER_TS.push_back(integer_type);
+    INTEGER32_TS.push_back(integer32_type);
+    INTEGER16_TS.push_back(integer16_type);
+    INTEGER8_TS.push_back(integer8_type);
     LVALUE_INTEGER_TS.push_back(lvalue_type);
     LVALUE_INTEGER_TS.push_back(integer_type);
+    LVALUE_INTEGER32_TS.push_back(lvalue_type);
+    LVALUE_INTEGER32_TS.push_back(integer32_type);
+    LVALUE_INTEGER16_TS.push_back(lvalue_type);
+    LVALUE_INTEGER16_TS.push_back(integer16_type);
+    LVALUE_INTEGER8_TS.push_back(lvalue_type);
+    LVALUE_INTEGER8_TS.push_back(integer8_type);
     
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
     std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
     
     std::vector<std::string> value_names = { "value" };
 
-    for (auto &item : integer_rvalue_operations)
-        root_scope->add(new IntegerOperation(item.name, INTEGER_TS, item.operation));
+    for (Type *t : { integer_type, integer32_type, integer16_type, integer8_type }) {
+        TypeSpec ts;
+        ts.push_back(t);
+        
+        for (auto &item : integer_rvalue_operations)
+            root_scope->add(new IntegerOperation(item.name, ts, item.operation));
 
-    for (auto &item : integer_lvalue_operations)
-        root_scope->add(new IntegerOperation(item.name, LVALUE_INTEGER_TS, item.operation));
-
+        ts.insert(ts.begin(), lvalue_type);
+        
+        for (auto &item : integer_lvalue_operations)
+            root_scope->add(new IntegerOperation(item.name, ts, item.operation));
+    }
+    
     //root_scope->add(new BooleanIf());
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));

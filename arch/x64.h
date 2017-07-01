@@ -179,6 +179,8 @@ enum ShiftOp {
     SHRB=28, SHRW, SHRD, SHRQ
 };
 
+ShiftOp operator%(ShiftOp x, int y) { return (ShiftOp)((x & ~3) | (y & 3)); }
+
 
 enum ExchangeOp {
     XCHGB=0, XCHGW, XCHGD, XCHGQ
@@ -196,13 +198,17 @@ enum MemoryOp {
 
 
 enum RegisterFirstOp {
-    IMUL2Q, LAR, LSL
+    IMUL2W=1, IMUL2D, IMUL2Q
 };
 
+RegisterFirstOp operator%(RegisterFirstOp x, int y) { return (RegisterFirstOp)((x & ~3) | (y & 3)); }
 
-enum RegisterConstantOp {
-    IMUL3Q
+
+enum RegisterFirstConstantThirdOp {
+    IMUL3W=1, IMUL3D, IMUL3Q
 };
+
+RegisterFirstConstantThirdOp operator%(RegisterFirstConstantThirdOp x, int y) { return (RegisterFirstConstantThirdOp)((x & ~3) | (y & 3)); }
 
 
 enum RegisterSecondOp {
@@ -335,7 +341,7 @@ public:
     void absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global);
     void code_reference(Label c, Ref_type f, int offset = 0);
 
-    void code_op(int opcode, int size);
+    void code_op(int opcode, int size, bool prefix_only = false);
 
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);
@@ -364,8 +370,8 @@ public:
     void op(MemoryOp opcode, Address x);
     void op(RegisterFirstOp opcode, Register x, Register y);
     void op(RegisterFirstOp opcode, Register x, Address y);
-    void op(RegisterConstantOp opcode, Register x, Register y, int z);
-    void op(RegisterConstantOp opcode, Register x, Address y, int z);
+    void op(RegisterFirstConstantThirdOp opcode, Register x, Register y, int z);
+    void op(RegisterFirstConstantThirdOp opcode, Register x, Address y, int z);
     void op(RegisterSecondOp opcode, Register x, Register y);
     void op(RegisterSecondOp opcode, Address x, Register y);
     void op(RegisterMemoryOp opcode, Register x, Address y);

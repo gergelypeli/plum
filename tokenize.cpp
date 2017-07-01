@@ -109,7 +109,7 @@ std::vector<Token> tokenize(std::string buffer) {
             do {
                 i++;
                 c = buffer[i];
-            } while (isdigit(c) || c == '_' || c == '.');
+            } while (isalnum(c) || c == '_' || c == '.');
         }
         else if (isalpha(c) || c == '_' || c == ':') {
             bool prefixed = (c == ':');

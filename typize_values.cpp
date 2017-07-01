@@ -511,8 +511,17 @@ public:
     int number;
     
     NumberValue(std::string t)
-        :Value(INTEGER_TS) {
+        :Value(type(t)) {
         number = std::stoi(t);
+    }
+
+    static TypeSpec type(std::string &s) {
+        return (
+            s.back() == 'd' ? INTEGER32_TS :
+            s.back() == 'w' ? INTEGER16_TS :
+            s.back() == 'b' ? INTEGER8_TS :
+            INTEGER_TS
+        );
     }
 
     virtual StorageWhere complexity() {

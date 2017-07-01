@@ -21,3 +21,6 @@ start? :function as:
     c = :if a == b then: 100 else: 200
     print(c)
     
+    d? Integer8
+    d = 7b
+    d = d * d
