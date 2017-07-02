@@ -424,6 +424,7 @@ public:
     std::string name;
     Declaration *decl;
     std::unique_ptr<Value> value;
+    std::unique_ptr<Value> var_value;
     
     DeclarationValue(std::string n)
         :Value(VOID_TS) {
@@ -439,20 +440,8 @@ public:
         value.reset(typize(args[0].get(), scope));
         
         if (value->ts.size() == 0) {
-            std::cerr << "Declaration needs a type " << args[0]->token << "!\n";
+            std::cerr << "Declaration needs something " << args[0]->token << "!\n";
             return false;
-        }
-        else if (value->ts[0] == type_type) {
-            TypeSpec var_ts;
-            
-            if (!scope->is_readonly())
-                var_ts.push_back(lvalue_type);
-            
-            for (unsigned i = 1; i < value->ts.size(); i++)
-                var_ts.push_back(value->ts[i]);
-        
-            Variable *variable = new Variable(name, VOID_TS, var_ts);
-            decl = variable;
         }
         else if (value->ts[0] == function_type) {
             FunctionDefinitionValue *fdv = dynamic_cast<FunctionDefinitionValue *>(value.get());
@@ -479,6 +468,25 @@ public:
             fdv->set_function(function);
             decl = function;
         }
+        else if (value->ts[0] == type_type) {
+            TypeSpec var_ts;
+            
+            if (!scope->is_readonly())
+                var_ts.push_back(lvalue_type);
+            
+            for (unsigned i = 1; i < value->ts.size(); i++)
+                var_ts.push_back(value->ts[i]);
+        
+            Variable *variable = new Variable(name, VOID_TS, var_ts);
+            decl = variable;
+        }
+        else if (value->ts[0] != void_type) {
+            TypeSpec var_ts = scope->is_readonly() ? value->ts : lvalue(value->ts);
+            
+            Variable *variable = new Variable(name, VOID_TS, var_ts);
+            var_value.reset(make_variable_value(variable, scope->get_implicit_value()));
+            decl = variable;
+        }
         else {
             std::cerr << "Now what is this?\n";
             return false;
@@ -493,7 +501,13 @@ public:
     }
 
     virtual Storage compile(X64 *x64, Regs regs) {
-        value->compile_and_store(x64, regs, Storage());  // no declaration by real values yet
+        if (var_value) {
+            Storage t = var_value->compile(x64, regs);
+            Storage s = value->compile(x64, regs);
+            store(var_value->ts, s, t, x64);
+        }
+        else
+            value->compile_and_store(x64, regs, Storage());
         
         // TODO: eventually this must manage the rollback labels, too.
         return Storage();

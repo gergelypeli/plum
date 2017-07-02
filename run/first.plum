@@ -21,6 +21,6 @@ start? :function as:
     c = :if a == b then: 100 else: 200
     print(c)
     
-    d? Unsigned_Integer8
-    d = 7u8
+    d? 6u8
+    d += 7u8
     d = d * d
