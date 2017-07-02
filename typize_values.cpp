@@ -23,11 +23,6 @@ public:
         return (args.size() == 0 && kwargs.size() == 0);
     }
     
-    virtual StorageWhere complexity() {
-        std::cerr << "This Value shouldn't have been compiled!\n";
-        throw INTERNAL_ERROR;
-    }
-    
     virtual Storage compile(X64 *, Regs) {
         std::cerr << "This Value shouldn't have been compiled!\n";
         throw INTERNAL_ERROR;
@@ -65,10 +60,6 @@ public:
         return true;
     }
 
-    virtual StorageWhere complexity() {
-        return NOWHERE;
-    }
-    
     virtual Storage compile(X64 *x64, Regs regs) {
         // FIXME: this works for a bunch of declarations, but not in general
 
@@ -96,10 +87,6 @@ public:
         head_scope = s;
     }
     
-    virtual StorageWhere complexity() {
-        return MEMORY;
-    }
-    
     virtual Storage compile(X64 *, Regs) {
         return Storage(MEMORY, Address(RBP, head_scope->offset));
     }
@@ -114,10 +101,6 @@ public:
     FunctionBodyValue(FunctionBodyScope *s)
         :Value(BOGUS_TS) {
         body_scope = s;
-    }
-
-    virtual StorageWhere complexity() {
-        return MEMORY;
     }
 
     virtual Storage compile(X64 *, Regs) {
@@ -138,10 +121,6 @@ public:
         pivot.reset(p);
     }
     
-    virtual StorageWhere complexity() {
-        return MEMORY;
-    }
-
     virtual Storage compile(X64 *x64, Regs regs) {
         Storage s = pivot->compile(x64, regs);
         
@@ -175,10 +154,6 @@ public:
         function = f;
     }
     
-    virtual StorageWhere complexity() {
-        return NOWHERE;
-    }
-
     virtual Storage compile(X64 *x64, Regs regs) {
         //fn_scope->allocate();  // Hm, do we call all allocate-s in one step?
         
@@ -309,10 +284,6 @@ public:
         x64->op(MOVQ, Address(ESP, passed_size), RAX);
     }
     
-    virtual StorageWhere complexity() {
-        return STACK;
-    }
-
     virtual Storage compile(X64 *x64, Regs regs) {
         std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
@@ -399,10 +370,6 @@ public:
         return_scope = fn_scope->return_scope;
     }
 
-    virtual StorageWhere complexity() {
-        return NOWHERE;
-    }
-    
     virtual Storage compile(X64 *x64, Regs regs) {
         // TODO: destructors
         Storage s = value->compile(x64, regs);
@@ -496,10 +463,6 @@ public:
         return true;
     }
     
-    virtual StorageWhere complexity() {
-        return NOWHERE;
-    }
-
     virtual Storage compile(X64 *x64, Regs regs) {
         if (var_value) {
             Storage t = var_value->compile(x64, regs);
@@ -546,10 +509,6 @@ public:
         return ts;
     }
 
-    virtual StorageWhere complexity() {
-        return CONSTANT;
-    }
-    
     virtual Storage compile(X64 *, Regs) {
         return Storage(CONSTANT, number);
     }

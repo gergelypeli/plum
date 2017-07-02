@@ -753,13 +753,6 @@ public:
         }
     }
 
-    virtual StorageWhere complexity() {
-        if (is_unary(operation))
-            return left->complexity() == CONSTANT ? CONSTANT : REGISTER;
-        else
-            return left->complexity() == CONSTANT && right->complexity() == CONSTANT ? CONSTANT : REGISTER;
-    }
-
     enum Spill {
         SPILL_ANY,
         SPILL_RAX_AND_RDX,
