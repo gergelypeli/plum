@@ -1,4 +1,6 @@
 
+const int MAX_SIGNED_DWORD = 2147483647;
+
 class IntegerOperationValue: public Value {
 public:
     NumericOperation operation;
@@ -76,6 +78,30 @@ public:
         x64->op(JNE, loop_label);
     }
 
+    virtual bool fits8(int value) {
+        return value >= -128 && value <= 127;
+    }
+
+    virtual bool fits(int value) {
+        // We don't want to rely on the C++ truncation mechanism, so
+        // as soon as the values don't fit in our types, stop keeping
+        // them constants. Also, x64 immediate values can only be at
+        // most signed dwords, so anything not fitting in that must
+        // be dropped, too.
+        
+        return (
+            is_unsigned ? (
+                os == 0 ? value >= 0 && value <= 255 :
+                os == 1 ? value >= 0 && value <= 65535 :
+                value >= 0 && value <= MAX_SIGNED_DWORD
+            ) : (
+                os == 0 ? value >= -128 && value <= 127 :
+                os == 1 ? value >= -32768 && value <= 32767 :
+                value >= -1 - MAX_SIGNED_DWORD && value <= MAX_SIGNED_DWORD
+            )
+        );
+    }
+
     virtual Storage unary(X64 *x64, Regs regs, UnaryOp opcode) {
         Storage ls = left->compile(x64, regs);
         Register reg = ls.where != REGISTER ? regs.get_any() : NOREG;
@@ -83,7 +109,13 @@ public:
         switch (ls.where) {
         case CONSTANT: {
             int value = opcode % 3 == NEGQ ? -ls.value : ~ls.value;
-            return Storage(CONSTANT, value);
+            
+            if (fits(value))
+                return Storage(CONSTANT, value);
+                
+            x64->op(MOVQ % os, reg, ls.value);
+            x64->op(opcode % os, reg);
+            return Storage(REGISTER, reg);
         }
         case REGISTER:
             x64->op(opcode % os, ls.reg);
@@ -126,7 +158,13 @@ public:
                 (opcode % 3) == CMPQ ? ls.value - rs.value :  // kinda special
                 throw X64_ERROR
             );
-            return Storage(CONSTANT, value);
+            
+            if (fits(value) || opcode % 3 == CMPQ)
+                return Storage(CONSTANT, value);
+            
+            x64->op(MOVQ % os, reg, ls.value);
+            x64->op(opcode % os, reg, rs.value);
+            return Storage(REGISTER, reg);
         }
         case CONSTANT_REGISTER:
             x64->op(opcode % os, rs.reg, ls.value);
@@ -224,20 +262,60 @@ public:
         int xos = os == 0 ? 1 : os;
 
         switch (ls.where * rs.where) {
-        case CONSTANT_CONSTANT:
-            return Storage(CONSTANT, ls.value * rs.value);
+        case CONSTANT_CONSTANT: {
+            int value = ls.value * rs.value;
+            
+            if (fits(value))
+                return Storage(CONSTANT, value);
+                
+            x64->op(MOVQ % os, reg, ls.value);
+
+            if (fits8(rs.value))
+                x64->op(IMUL3Q % xos, reg, reg, rs.value);
+            else {
+                x64->op(PUSHQ, rs.value);
+                x64->op(IMUL2Q % xos, reg, Address(RSP, 0));
+                x64->op(ADDQ, RSP, 8);
+            }
+
+            return Storage(REGISTER, reg);
+        }
         case CONSTANT_REGISTER:
-            x64->op(IMUL3Q % xos, rs.reg, rs.reg, ls.value);  // TODO; imm8 only!
+            if (fits8(ls.value))
+                x64->op(IMUL3Q % xos, rs.reg, rs.reg, ls.value);
+            else {
+                x64->op(PUSHQ, ls.value);
+                x64->op(IMUL2Q % xos, rs.reg, Address(RSP, 0));
+                x64->op(ADDQ, RSP, 8);
+            }
             return Storage(REGISTER, rs.reg);
         case CONSTANT_STACK:
-            x64->op(POPQ, reg);
-            x64->op(IMUL3Q % xos, reg, reg, ls.value);  // TODO: imm8 only!
+            if (fits8(ls.value)) {
+                x64->op(POPQ, reg);
+                x64->op(IMUL3Q % xos, reg, reg, ls.value);
+            }
+            else {
+                x64->op(MOVQ % os, reg, ls.value);
+                x64->op(IMUL2Q % xos, reg, Address(RSP, 0));
+                x64->op(ADDQ, RSP, 8);
+            }
             return Storage(REGISTER, reg);
         case CONSTANT_MEMORY:
-            x64->op(IMUL3Q % xos, reg, rs.address, ls.value);
+            if (fits8(ls.value))
+                x64->op(IMUL3Q % xos, reg, rs.address, ls.value);
+            else {
+                x64->op(MOVQ % os, reg, ls.value);
+                x64->op(IMUL2Q % xos, reg, rs.address);
+            }
             return Storage(REGISTER, reg);
         case REGISTER_CONSTANT:
-            x64->op(IMUL3Q % xos, ls.reg, ls.reg, rs.value);
+            if (fits8(rs.value))
+                x64->op(IMUL3Q % xos, ls.reg, ls.reg, rs.value);
+            else {
+                x64->op(PUSHQ, rs.value);
+                x64->op(IMUL2Q % xos, ls.reg, Address(RSP, 0));
+                x64->op(ADDQ, RSP, 8);
+            }
             return Storage(REGISTER, ls.reg);
         case REGISTER_REGISTER:
             x64->op(IMUL2Q % xos, ls.reg, rs.reg);
@@ -250,8 +328,15 @@ public:
             x64->op(IMUL2Q % xos, ls.reg, rs.address);
             return Storage(REGISTER, ls.reg);
         case STACK_CONSTANT:
-            x64->op(POPQ, reg);
-            x64->op(IMUL3Q % xos, reg, reg, rs.value);
+            if (fits8(rs.value)) {
+                x64->op(POPQ, reg);
+                x64->op(IMUL3Q % xos, reg, reg, rs.value);
+            }
+            else {
+                x64->op(MOVQ % os, reg, rs.value);
+                x64->op(IMUL2Q % xos, reg, Address(RSP, 0));
+                x64->op(ADDQ, RSP, 8);
+            }
             return Storage(REGISTER, reg);
         case STACK_REGISTER:
             x64->op(IMUL2Q % xos, rs.reg, Address(RSP, 0));
@@ -267,7 +352,12 @@ public:
             x64->op(IMUL2Q % xos, reg, rs.address);
             return Storage(REGISTER, reg);
         case MEMORY_CONSTANT:
-            x64->op(IMUL3Q % xos, reg, ls.address, rs.value);
+            if (fits8(rs.value))
+                x64->op(IMUL3Q % xos, reg, ls.address, rs.value);
+            else {
+                x64->op(MOVQ % os, reg, rs.value);
+                x64->op(IMUL2Q % xos, reg, ls.address);
+            }
             return Storage(REGISTER, reg);
         case MEMORY_REGISTER:
             x64->op(IMUL2Q % xos, rs.reg, ls.address);
@@ -316,10 +406,14 @@ public:
         Storage rs = right->compile(x64, regs);
 
         if (ls.where == CONSTANT) {
-            if (rs.where == CONSTANT)
-                return Storage(CONSTANT, mod ? ls.value % rs.value : ls.value / rs.value);
-            else
-                x64->op(MOVQ % os, RAX, ls.value);
+            if (rs.where == CONSTANT) {
+                int value = mod ? ls.value % rs.value : ls.value / rs.value;
+                
+                if (fits(value))
+                    return Storage(CONSTANT, value);
+            }
+            
+            x64->op(MOVQ % os, RAX, ls.value);
         }
 
         SimpleOp prep = (os == 0 ? CBW : os == 1 ? CWD : os == 2 ? CDQ : CQO);
@@ -392,8 +486,16 @@ public:
         Register reg = (ls.where != REGISTER) ? regs.get_any() : NOREG;
     
         switch (ls.where * rs.where) {
-        case CONSTANT_CONSTANT:
-            return Storage(CONSTANT, opcode == SHLQ ? ls.value << rs.value : ls.value >> rs.value);
+        case CONSTANT_CONSTANT: {
+            int value = opcode == SHLQ ? ls.value << rs.value : ls.value >> rs.value;
+            
+            if (fits(value))
+                return Storage(CONSTANT, value);
+        
+            x64->op(MOVQ % os, reg, ls.value);
+            x64->op(opcode % os, reg, rs.value);
+            return Storage(REGISTER, reg);        
+        }
         case CONSTANT_REGISTER:
             x64->op(MOVQ % os, reg, ls.value);
             x64->op(MOVQ % os, RCX, rs.reg);
@@ -497,10 +599,14 @@ public:
         Storage rs = right->compile(x64, regs);
 
         if (ls.where == CONSTANT) {
-            if (rs.where == CONSTANT)
-                return Storage(CONSTANT, 0);  // FIXME: seriously
-            else
-                x64->op(MOVQ % os, RDX, ls.value);
+            if (rs.where == CONSTANT) {
+                int value = 0;  // FIXME: seriously
+                
+                if (fits(value))
+                    return Storage(CONSTANT, 0);
+            }    
+
+            x64->op(MOVQ % os, RDX, ls.value);
         }
 
         switch (rs.where) {
@@ -530,9 +636,9 @@ public:
         bool swap = false;
         Storage s = binary_simple(x64, regs, CMPQ, &swap);
         
-        // Our constants are always 32-bit, so they fit in a 64-bit signed int.
-        // Except now, because CMP did a subtraction, but we won't pass
-        // the result on.
+        // Our constants are always 32-bit, so the result of the subtraction
+        // that CMP did fits in the 64-bit signed int value properly,
+        // which we'll check, but not pass on.
         if (s.where == CONSTANT) {
             bool holds = (
                 opcode == SETE ? s.value == 0 :
