@@ -122,12 +122,14 @@ public:
     }
     
     virtual Storage compile(X64 *x64, Regs regs) {
-        Storage s = pivot->compile(x64, regs);
+        Storage s;
         
-        switch (s.where) {
-        case MEMORY: return Storage(MEMORY, s.address + variable->offset);
-        default: throw INTERNAL_ERROR;
-        }
+        if (pivot)
+            s = pivot->compile(x64, regs);
+        else
+            s = variable->outer->get_storage();
+        
+        return variable->get_storage(s);
     }
 };
 
@@ -391,7 +393,6 @@ public:
     std::string name;
     Declaration *decl;
     std::unique_ptr<Value> value;
-    std::unique_ptr<Value> var_value;
     
     DeclarationValue(std::string n)
         :Value(VOID_TS) {
@@ -451,7 +452,6 @@ public:
             TypeSpec var_ts = scope->is_readonly() ? value->ts : lvalue(value->ts);
             
             Variable *variable = new Variable(name, VOID_TS, var_ts);
-            var_value.reset(make_variable_value(variable, scope->get_implicit_value()));
             decl = variable;
         }
         else {
@@ -464,10 +464,18 @@ public:
     }
     
     virtual Storage compile(X64 *x64, Regs regs) {
-        if (var_value) {
-            Storage t = var_value->compile(x64, regs);
+        Variable *v = dynamic_cast<Variable *>(decl);
+        
+        if (v) {
             Storage s = value->compile(x64, regs);
-            store(var_value->ts, s, t, x64);
+            Storage t = v->get_storage(v->outer->get_storage());  // local variable
+            
+            if (s.where == NOWHERE)
+                create(v->var_ts, t, x64);
+            else
+                store(v->var_ts, s, t, x64);
+                
+            v->outer->set_rollback_declaration(v);
         }
         else
             value->compile_and_store(x64, regs, Storage());

@@ -92,16 +92,21 @@ public:
         }
     }
     
-    virtual Value *get_implicit_value() {
+    virtual Storage get_storage() {
         if (outer)
-            return outer->get_implicit_value();
+            return outer->get_storage();
         else {
-            std::cerr << "No implicit scope value!\n";
+            std::cerr << "No scope storage!\n";
             throw INTERNAL_ERROR;
         }
     }
     
     virtual Declaration *get_rollback_declaration() {
+        std::cerr << "This scope can't roll back!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void set_rollback_declaration(Declaration *) {
         std::cerr << "This scope can't roll back!\n";
         throw INTERNAL_ERROR;
     }
@@ -112,8 +117,8 @@ class FunctionHeadScope: public Scope {
 public:
     FunctionHeadScope():Scope(true, true) {};
     
-    virtual Value *get_implicit_value() {
-        return make_function_head_value(this);
+    virtual Storage get_storage() {
+        return Storage(MEMORY, Address(RBP, offset));
     }
 };
 
@@ -126,9 +131,9 @@ public:
     FunctionBodyScope():Scope(false, true) {
         rollback_declaration = this;  // Roll back to the beginning of this scope
     };
-    
-    virtual Value *get_implicit_value() {
-        return make_function_body_value(this);
+
+    virtual Storage get_storage() {
+        return Storage(MEMORY, Address(RBP, offset));
     }
     
     virtual void allocate() {
@@ -139,6 +144,10 @@ public:
     
     virtual Declaration *get_rollback_declaration() {
         return rollback_declaration;
+    }
+
+    virtual void set_rollback_declaration(Declaration *d) {
+        rollback_declaration = d;
     }
     
     virtual Label get_rollback_label() {
@@ -151,7 +160,7 @@ class FunctionReturnScope: public Scope {
 public:
     FunctionReturnScope():Scope(true, true) {};
 
-    virtual Value *get_implicit_value() {
+    virtual Storage get_storage() {
         std::cerr << "How the hell did you access a return value variable?\n";
         throw INTERNAL_ERROR;
     }
@@ -238,11 +247,7 @@ public:
         TypeSpec pts = get_typespec(pivot);
         
         if (name == this->name && pts >> pivot_ts) {
-            if (!pivot) {
-                // Include an implicit pivot value for local variables
-                pivot = outer->get_implicit_value();
-            }
-            
+            // pivot may be NULL if this is a local variable
             Value *v = make_variable_value(this, pivot);
             return v;
         }
@@ -252,6 +257,13 @@ public:
     
     virtual void allocate() {
         offset = outer->reserve(measure(var_ts));
+    }
+    
+    virtual Storage get_storage(Storage s) {
+        if (s.where != MEMORY)
+            throw INTERNAL_ERROR;  // for now, variables are all in memory
+            
+        return Storage(MEMORY, s.address + offset);
     }
 };
 
@@ -449,6 +461,16 @@ public:
         std::cerr << "Unstorable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
+    
+    virtual void create(TypeSpecIter &, Storage, X64 *) {
+        std::cerr << "Uncreatable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void destroy(TypeSpecIter &, Storage, X64 *) {
+        std::cerr << "Undestroyable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
 };
 
 
@@ -584,6 +606,25 @@ public:
             throw INTERNAL_ERROR;
         }
     }
+
+    virtual void create(TypeSpecIter &, Storage s, X64 *x64) {
+        BinaryOp mov = (
+            size == 1 ? MOVB :
+            size == 2 ? MOVW :
+            size == 4 ? MOVD :
+            size == 8 ? MOVQ :
+            throw INTERNAL_ERROR
+        );
+
+        if (s.where == MEMORY)
+            x64->op(mov, s.address, 0);
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual void destroy(TypeSpecIter &, Storage, X64 *) {
+        return;
+    }
 };
 
 
@@ -617,6 +658,16 @@ public:
     virtual void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64) {
         tsi++;
         return (*tsi)->store(tsi, s, t, x64);
+    }
+
+    virtual void create(TypeSpecIter &tsi, Storage s, X64 *x64) {
+        tsi++;
+        (*tsi)->create(tsi, s, x64);
+    }
+
+    virtual void destroy(TypeSpecIter &tsi, Storage s, X64 *x64) {
+        tsi++;
+        (*tsi)->destroy(tsi, s, x64);
     }
 };
 
@@ -660,3 +711,12 @@ void store(TypeSpec &ts, Storage s, Storage t, X64 *x64) {
     return (*tsi)->store(tsi, s, t, x64);
 }
 
+void create(TypeSpec &ts, Storage s, X64 *x64) {
+    TypeSpecIter tsi(ts.begin());
+    return (*tsi)->create(tsi, s, x64);
+}
+
+void destroy(TypeSpec &ts, Storage s, X64 *x64) {
+    TypeSpecIter tsi(ts.begin());
+    return (*tsi)->destroy(tsi, s, x64);
+}
