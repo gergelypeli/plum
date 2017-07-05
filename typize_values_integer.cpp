@@ -791,14 +791,20 @@ public:
             throw INTERNAL_ERROR
         );
         
-        if (s == SPILLED_RAX || s == SPILLED_RAX_AND_RDX || s == SPILLED_RAX_AND_RCX)
+        if (s == SPILLED_RAX || s == SPILLED_RAX_AND_RDX || s == SPILLED_RAX_AND_RCX) {
             x64->op(PUSHQ, RAX);
+            regs.add(RAX);
+        }
             
-        if (s == SPILLED_RCX || s == SPILLED_RAX_AND_RCX)
+        if (s == SPILLED_RCX || s == SPILLED_RAX_AND_RCX) {
             x64->op(PUSHQ, RCX);
+            regs.add(RCX);
+        }
             
-        if (s == SPILLED_RDX || s == SPILLED_RAX_AND_RDX)
+        if (s == SPILLED_RDX || s == SPILLED_RAX_AND_RDX) {
             x64->op(PUSHQ, RDX);
+            regs.add(RDX);
+        }
             
         return s;
     }
