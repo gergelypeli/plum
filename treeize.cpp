@@ -366,7 +366,10 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
     }
     
     if (parens.size() != 1) {
-        std::cerr << "Parens remained open at the end!\n";
+        std::cerr << "Paren remained open at the end: ";
+        for (auto p : parens)
+            std::cerr << "#" << p << " ";
+        std::cerr << "\n";
         throw TREE_ERROR;
     }
         

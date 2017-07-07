@@ -574,14 +574,110 @@ public:
             spilled = true;
         }            
 
+        Storage ls = left->compile(x64, regs);
         Storage s;
         
-        switch (operation) {
-        //case OR:
-        //    s = binary_simple(x64, regs, ORQ); break;
-        //case AND:
-        //    s = binary_simple(x64, regs, ANDQ); break;
-        default:
+        if (operation == COMPLEMENT) {
+            switch (ls.where) {
+            case CONSTANT:
+                s = Storage(CONSTANT, !ls.value);
+                break;
+            case FLAGS:
+                s = Storage(FLAGS, negate(ls.bitset));
+                break;
+            case STACK:
+                x64->op(NOTB, Address(RSP, 0));
+                s = Storage(STACK);
+                break;
+            case MEMORY:
+                x64->op(TESTB, ls.address, 1);
+                s = Storage(FLAGS, SETNE);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
+        else if (operation == AND) {
+            Label then_end;
+            Label else_end;
+            then_end.allocate();
+            else_end.allocate();
+            
+            switch (ls.where) {
+            case CONSTANT:
+                if (ls.value)
+                    s = right->compile(x64, regs);
+                else
+                    s = Storage(CONSTANT, 0);
+                break;
+            case FLAGS:
+                x64->op(branchize(negate(ls.bitset)), then_end);
+                break;
+            case STACK:
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                x64->op(TESTQ, RAX, 1);
+                x64->op(POPQ, RAX);
+                x64->op(JE, then_end);
+                break;
+            case MEMORY:
+                x64->op(TESTB, ls.address, 1);
+                x64->op(JE, then_end);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+
+            if (s.where == NOWHERE) {
+                right->compile_and_store(x64, regs, Storage(STACK));  // FIXME: convert!
+                x64->op(JMP, else_end);
+                x64->code_label(then_end);
+                x64->op(PUSHQ, 0);
+                x64->code_label(else_end);
+            
+                s = Storage(STACK);
+            }
+        }
+        else if (operation == OR) {
+            Label then_end;
+            Label else_end;
+            then_end.allocate();
+            else_end.allocate();
+            
+            switch (ls.where) {
+            case CONSTANT:
+                if (ls.value)
+                    s = Storage(CONSTANT, 1);
+                else
+                    s = right->compile(x64, regs);
+                break;
+            case FLAGS:
+                x64->op(branchize(negate(ls.bitset)), then_end);
+                break;
+            case STACK:
+                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                x64->op(TESTQ, RAX, 1);
+                x64->op(POPQ, RAX);
+                x64->op(JE, then_end);
+                break;
+            case MEMORY:
+                x64->op(TESTB, ls.address, 1);
+                x64->op(JE, then_end);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+
+            if (s.where == NOWHERE) {
+                x64->op(PUSHQ, 1);
+                x64->op(JMP, else_end);
+                x64->code_label(then_end);
+                right->compile_and_store(x64, regs, Storage(STACK));  // FIXME: convert!
+                x64->code_label(else_end);
+            
+                s = Storage(STACK);
+            }
+        }
+        else {
             std::cerr << "Unknown boolean operator!\n";
             throw INTERNAL_ERROR;
         }
@@ -678,9 +774,9 @@ public:
             x64->op(POPQ, RAX);
             
             if (then_branch)
-                x64->op(JNE, then_end);
+                x64->op(JE, then_end);
             else if (else_branch)
-                x64->op(JE, else_end);
+                x64->op(JNE, else_end);
                 
             break;
             
@@ -688,9 +784,9 @@ public:
             x64->op(TESTB, cs.address, 1);
 
             if (then_branch)
-                x64->op(JNE, then_end);
+                x64->op(JE, then_end);
             else if (else_branch)
-                x64->op(JE, else_end);
+                x64->op(JNE, else_end);
             
             break;
             

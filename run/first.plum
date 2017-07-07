@@ -17,6 +17,8 @@ start? :function as:
     
     :if a == b then: print(1) else: print(0)
     
+    :if a < b && a > b then: print(11) else: print(22)
+    
     c? Integer
     c = :if a == b then: 100 else: 200
     print(c)

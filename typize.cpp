@@ -370,6 +370,10 @@ Scope *init_types() {
             root_scope->add(new IntegerOperation(item.name, ts, item.operation));
     }
     
+    root_scope->add(new BooleanOperation("logical not", COMPLEMENT));
+    root_scope->add(new BooleanOperation("logical and", AND));
+    root_scope->add(new BooleanOperation("logical or", OR));
+    
     //root_scope->add(new BooleanIf());
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
