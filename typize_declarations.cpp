@@ -361,17 +361,19 @@ public:
 class BooleanOperation: public Declaration {
 public:
     std::string name;
+    TypeSpec ts;
     NumericOperation operation;
     
-    BooleanOperation(std::string n, NumericOperation o) {
+    BooleanOperation(std::string n, TypeSpec t, NumericOperation o) {
         name = n;
+        ts = t;
         operation = o;
     }
     
     virtual Value *match(std::string name, Value *pivot) {
         TypeSpec pts = get_typespec(pivot);
 
-        if (name == this->name && pts >> BOOLEAN_TS) {
+        if (name == this->name && pts >> ts) {
             Value *v = make_boolean_operation_value(operation, pivot);
             return v;
         }

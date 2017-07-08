@@ -575,6 +575,9 @@ public:
         }            
 
         Storage ls = left->compile(x64, regs);
+        // No need to remove anything from regs
+            
+        Register reg = regs.get_any();  // Must have at least one
         Storage s;
         
         if (operation == COMPLEMENT) {
@@ -585,6 +588,9 @@ public:
             case FLAGS:
                 s = Storage(FLAGS, negate(ls.bitset));
                 break;
+            case REGISTER:
+                x64->op(NOTB, ls.reg);
+                return Storage(REGISTER, ls.reg);
             case STACK:
                 x64->op(NOTB, Address(RSP, 0));
                 s = Storage(STACK);
@@ -613,10 +619,13 @@ public:
             case FLAGS:
                 x64->op(branchize(negate(ls.bitset)), then_end);
                 break;
+            case REGISTER:
+                x64->op(TESTB, ls.reg, 1);
+                x64->op(JE, then_end);
+                break;
             case STACK:
-                x64->op(XCHGQ, RAX, Address(RSP, 0));
-                x64->op(TESTQ, RAX, 1);
-                x64->op(POPQ, RAX);
+                x64->op(POPQ, reg);
+                x64->op(TESTB, reg, 1);
                 x64->op(JE, then_end);
                 break;
             case MEMORY:
@@ -628,13 +637,25 @@ public:
             }
 
             if (s.where == NOWHERE) {
-                right->compile_and_store(x64, regs, Storage(STACK));  // FIXME: convert!
+                Storage rs = right->compile(x64, regs);  // FIXME: convert!
+                if (rs.where == CONSTANT || rs.where == FLAGS) {
+                    s = Storage(REGISTER, reg);
+                    store(right->ts, rs, s, x64);
+                }
+                else
+                    s = rs;
+
                 x64->op(JMP, else_end);
                 x64->code_label(then_end);
-                x64->op(PUSHQ, 0);
+                
+                if (s.where == REGISTER)
+                    x64->op(MOVB, s.reg, 0);
+                else if (s.where == STACK)
+                    x64->op(PUSHQ, 0);
+                else
+                    throw INTERNAL_ERROR;
+                    
                 x64->code_label(else_end);
-            
-                s = Storage(STACK);
             }
         }
         else if (operation == OR) {
@@ -653,10 +674,13 @@ public:
             case FLAGS:
                 x64->op(branchize(negate(ls.bitset)), then_end);
                 break;
+            case REGISTER:
+                x64->op(TESTB, ls.reg, 1);
+                x64->op(JE, then_end);
+                break;
             case STACK:
-                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                x64->op(POPQ, reg);
                 x64->op(TESTQ, RAX, 1);
-                x64->op(POPQ, RAX);
                 x64->op(JE, then_end);
                 break;
             case MEMORY:
@@ -668,14 +692,56 @@ public:
             }
 
             if (s.where == NOWHERE) {
-                x64->op(PUSHQ, 1);
+                if (ls.where == FLAGS) {
+                    s = Storage(REGISTER, reg);
+                    store(left->ts, ls, s, x64);
+                }
+                else
+                    s = ls;
+                    
+                if (s.where == REGISTER)
+                    x64->op(MOVB, s.reg, 1);
+                else if (s.where == STACK)
+                    x64->op(PUSHQ, 1);
+                else
+                    throw INTERNAL_ERROR;
+                    
                 x64->op(JMP, else_end);
                 x64->code_label(then_end);
-                right->compile_and_store(x64, regs, Storage(STACK));  // FIXME: convert!
+
+                right->compile_and_store(x64, regs, s);  // FIXME: convert!
                 x64->code_label(else_end);
-            
-                s = Storage(STACK);
             }
+        }
+        else if (operation == ASSIGN) {
+            if (ls.where != MEMORY)
+                throw INTERNAL_ERROR;
+                
+            Storage rs = right->compile(x64, regs);
+            
+            switch (rs.where) {
+            case CONSTANT:
+                x64->op(MOVB, ls.address, rs.value);
+                break;
+            case FLAGS:
+                x64->op(rs.bitset, ls.address);
+                break;
+            case REGISTER:
+                x64->op(MOVB, ls.address, rs.reg);
+                break;
+            case STACK:
+                x64->op(POPQ, reg);
+                x64->op(MOVB, ls.address, reg);
+                break;
+            case MEMORY:
+                x64->op(MOVB, reg, rs.address);
+                x64->op(MOVB, ls.address, reg);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+            
+            s = ls;
         }
         else {
             std::cerr << "Unknown boolean operator!\n";
@@ -767,7 +833,15 @@ public:
                 x64->op(opcode, else_end);
             }
             break;
+        case REGISTER:
+            x64->op(TESTB, cs.reg, 1);
             
+            if (then_branch)
+                x64->op(JE, then_end);
+            else if (else_branch)
+                x64->op(JNE, else_end);
+                
+            break;
         case STACK:
             x64->op(XCHGQ, RAX, Address(RSP, 0));
             x64->op(TESTQ, RAX, 1);
@@ -779,7 +853,6 @@ public:
                 x64->op(JNE, else_end);
                 
             break;
-            
         case MEMORY:
             x64->op(TESTB, cs.address, 1);
 
@@ -789,7 +862,6 @@ public:
                 x64->op(JNE, else_end);
             
             break;
-            
         default:
             throw INTERNAL_ERROR;
         }

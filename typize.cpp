@@ -33,6 +33,7 @@ TypeSpec VOID_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec LVALUE_INTEGER_TS;
+TypeSpec LVALUE_BOOLEAN_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -348,6 +349,8 @@ Scope *init_types() {
     INTEGER_TS.push_back(integer_type);
     LVALUE_INTEGER_TS.push_back(lvalue_type);
     LVALUE_INTEGER_TS.push_back(integer_type);
+    LVALUE_BOOLEAN_TS.push_back(lvalue_type);
+    LVALUE_BOOLEAN_TS.push_back(boolean_type);
     
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
     std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
@@ -370,9 +373,10 @@ Scope *init_types() {
             root_scope->add(new IntegerOperation(item.name, ts, item.operation));
     }
     
-    root_scope->add(new BooleanOperation("logical not", COMPLEMENT));
-    root_scope->add(new BooleanOperation("logical and", AND));
-    root_scope->add(new BooleanOperation("logical or", OR));
+    root_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
+    root_scope->add(new BooleanOperation("logical and", BOOLEAN_TS, AND));
+    root_scope->add(new BooleanOperation("logical or", BOOLEAN_TS, OR));
+    root_scope->add(new BooleanOperation("assign", LVALUE_BOOLEAN_TS, ASSIGN));
     
     //root_scope->add(new BooleanIf());
 
