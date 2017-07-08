@@ -26,3 +26,4 @@ start? :function as:
     d? 6u8
     d += 7u8
     d = d * d
+    

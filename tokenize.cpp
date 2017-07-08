@@ -162,6 +162,12 @@ std::vector<Token> tokenize(std::string buffer) {
 
     if (tokens.back().text == " separate")
         tokens.pop_back();
+
+    // Be nice, and don't complain if the last line is not terminated properly
+    while (indent > 0) {
+        tokens.push_back(Token(" dedent", row_count, 0));
+        indent--;
+    }
     
     return tokens;
 }
