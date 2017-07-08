@@ -246,7 +246,7 @@ public:
     virtual Value *match(std::string name, Value *pivot) {
         TypeSpec pts = get_typespec(pivot);
         
-        if (name == this->name && pts >> pivot_ts) {
+        if (name == this->name && pts.isa(pivot_ts)) {
             // pivot may be NULL if this is a local variable
             Value *v = make_variable_value(this, pivot);
             return v;
@@ -256,7 +256,7 @@ public:
     }
     
     virtual void allocate() {
-        offset = outer->reserve(measure(var_ts));
+        offset = outer->reserve(var_ts.measure());
     }
     
     virtual Storage get_storage(Storage s) {
@@ -293,7 +293,7 @@ public:
         TypeSpec pts = get_typespec(pivot);
         //std::cerr << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
 
-        if (name == this->name && pts >> pivot_ts) {
+        if (name == this->name && pts.isa(pivot_ts)) {
             Value *v = make_function_value(this, pivot);
             return v;
         }
@@ -348,7 +348,7 @@ public:
     virtual Value *match(std::string name, Value *pivot) {
         TypeSpec pts = get_typespec(pivot);
 
-        if (name == this->name && pts >> ts) {
+        if (name == this->name && pts.isa(ts)) {
             Value *v = make_integer_operation_value(operation, ts, pivot);
             return v;
         }
@@ -373,7 +373,7 @@ public:
     virtual Value *match(std::string name, Value *pivot) {
         TypeSpec pts = get_typespec(pivot);
 
-        if (name == this->name && pts >> ts) {
+        if (name == this->name && pts.isa(ts)) {
             Value *v = make_boolean_operation_value(operation, pivot);
             return v;
         }
@@ -391,7 +391,7 @@ public:
     virtual Value *match(std::string name, Value *pivot) {
         TypeSpec pts = get_typespec(pivot);
 
-        if (name == "if" && pts >> BOOLEAN_TS) {
+        if (name == "if" && pts.isa(BOOLEAN_TS)) {
             Value *v = make_boolean_if_value(pivot);
             return v;
         }
@@ -674,11 +674,37 @@ public:
 };
 
 
-bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts) {
-    TypeSpecIter this_tsi(this_ts.begin());
-    TypeSpecIter that_tsi(that_ts.begin());
+bool TypeSpec::isa(TypeSpec &other) {
+    TypeSpecIter this_tsi(begin());
+    TypeSpecIter that_tsi(other.begin());
     
     return (*this_tsi)->is_convertible(this_tsi, that_tsi);
+}
+
+
+TypeSpec TypeSpec::rvalue() {
+    TypeSpec t;
+    
+    unsigned start = at(0) == lvalue_type ? 1 : 0;
+    
+    for (unsigned i = start; i < size(); i++)
+        t.push_back(at(i));
+            
+    return t;
+}
+
+
+TypeSpec TypeSpec::lvalue() {
+    TypeSpec t;
+    
+    if (at(0) != lvalue_type)
+        t.push_back(lvalue_type);
+        
+    for (unsigned i = 0; i < size(); i++)
+        t.push_back(at(i));
+        
+        
+    return t;
 }
 
 
@@ -702,23 +728,23 @@ std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
 }
 
 
-unsigned measure(TypeSpec &ts) {
-    TypeSpecIter tsi(ts.begin());
+unsigned TypeSpec::measure() {
+    TypeSpecIter tsi(begin());
     return (*tsi)->measure(tsi);
 }
 
 
-void store(TypeSpec &ts, Storage s, Storage t, X64 *x64) {
-    TypeSpecIter tsi(ts.begin());
+void TypeSpec::store(Storage s, Storage t, X64 *x64) {
+    TypeSpecIter tsi(begin());
     return (*tsi)->store(tsi, s, t, x64);
 }
 
-void create(TypeSpec &ts, Storage s, X64 *x64) {
-    TypeSpecIter tsi(ts.begin());
+void TypeSpec::create(Storage s, X64 *x64) {
+    TypeSpecIter tsi(begin());
     return (*tsi)->create(tsi, s, x64);
 }
 
-void destroy(TypeSpec &ts, Storage s, X64 *x64) {
-    TypeSpecIter tsi(ts.begin());
+void TypeSpec::destroy(Storage s, X64 *x64) {
+    TypeSpecIter tsi(begin());
     return (*tsi)->destroy(tsi, s, x64);
 }

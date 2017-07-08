@@ -12,10 +12,10 @@ public:
     IntegerOperationValue(NumericOperation o, TypeSpec t, Value *pivot)
         :Value(is_comparison(o) ? BOOLEAN_TS : t) {
         operation = o;
-        arg_ts = rvalue(t);
+        arg_ts = t.rvalue();
         left.reset(pivot);
         
-        int size = measure(t);
+        int size = t.measure();
         os = (
             size == 1 ? 0 :
             size == 2 ? 1 :
@@ -24,7 +24,13 @@ public:
             throw INTERNAL_ERROR
         );
         
-        is_unsigned = ::is_unsigned(t);
+        Type *type = arg_ts[0];
+        is_unsigned = (
+            type == unsigned_integer_type ||
+            type == unsigned_integer32_type ||
+            type == unsigned_integer16_type ||
+            type == unsigned_integer8_type
+        );
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -44,7 +50,7 @@ public:
 
             Value *r = typize(args[0].get(), scope);
         
-            if (!(r->ts >> arg_ts)) {
+            if (!r->ts.isa(arg_ts)) {
                 std::cerr << "Incompatible right argument to integer binary operation!\n";
                 std::cerr << "Type " << r->ts << " is not " << arg_ts << "!\n";
                 return false;

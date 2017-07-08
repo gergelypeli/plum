@@ -1,116 +1,6 @@
 
 // Stage 4
 
-class Declaration;
-class Type;
-class Scope;
-class FunctionReturnScope;
-class FunctionHeadScope;
-class FunctionBodyScope;
-class FunctionScope;
-class Variable;
-class Function;
-
-typedef std::vector<Type *> TypeSpec;
-typedef TypeSpec::iterator TypeSpecIter;
-
-Type *type_type = NULL;
-Type *lvalue_type = NULL;
-Type *void_type = NULL;
-Type *function_type = NULL;
-Type *boolean_type = NULL;
-Type *integer_type = NULL;
-Type *integer32_type = NULL;
-Type *integer16_type = NULL;
-Type *integer8_type = NULL;
-Type *unsigned_integer_type = NULL;
-Type *unsigned_integer32_type = NULL;
-Type *unsigned_integer16_type = NULL;
-Type *unsigned_integer8_type = NULL;
-
-TypeSpec BOGUS_TS;
-TypeSpec VOID_TS;
-TypeSpec BOOLEAN_TS;
-TypeSpec INTEGER_TS;
-TypeSpec LVALUE_INTEGER_TS;
-TypeSpec LVALUE_BOOLEAN_TS;
-
-typedef std::vector<std::unique_ptr<Expr>> Args;
-typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
-
-bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
-unsigned measure(TypeSpec &ts);
-
-
-TypeSpec rvalue(TypeSpec &ts) {
-    TypeSpec t = ts;
-    
-    if (t[0] == lvalue_type)
-        t.erase(t.begin());
-        
-    return t;
-}
-
-TypeSpec lvalue(TypeSpec &ts) {
-    TypeSpec t = ts;
-    
-    if (t[0] != lvalue_type)
-        t.insert(t.begin(), lvalue_type);
-        
-    return t;
-}
-
-bool is_unsigned(TypeSpec &ts) {
-    TypeSpec rts = rvalue(ts);
-    Type *t  = rts[0];
-    
-    return t == unsigned_integer_type || t == unsigned_integer32_type ||
-        t == unsigned_integer16_type || t == unsigned_integer8_type;
-}
-
-enum NumericOperation {
-    COMPLEMENT, NEGATE,
-    ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
-    OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
-    EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL, INCOMPARABLE,
-    ASSIGN, ASSIGN_ADD, ASSIGN_SUBTRACT, ASSIGN_MULTIPLY, ASSIGN_DIVIDE, ASSIGN_MODULO, ASSIGN_EXPONENT,
-    ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT
-};
-
-bool is_unary(NumericOperation o) {
-    return o == COMPLEMENT || o == NEGATE;
-}
-
-bool is_comparison(NumericOperation o) {
-    return o >= EQUAL && o <= INCOMPARABLE;
-}
-
-bool is_assignment(NumericOperation o) {
-    return o >= ASSIGN;
-}
-
-class Value;
-Value *typize(Expr *expr, Scope *scope);
-TypeSpec get_typespec(Value *v);
-Value *make_function_head_value(FunctionHeadScope *s);
-Value *make_function_body_value(FunctionBodyScope *s);
-Value *make_function_return_value(FunctionReturnScope *s, Value *v);
-Value *make_variable_value(Variable *decl, Value *pivot);
-Value *make_function_value(Function *decl, Value *pivot);
-Value *make_type_value(TypeSpec ts);
-Value *make_block_value();
-Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
-Value *make_declaration_value(std::string name);
-Value *make_number_value(std::string text);
-Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Value *pivot);
-Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
-Value *make_boolean_if_value(Value *pivot);
-
-
-unsigned round_up(unsigned size) {
-    return (size + 7) & ~7;
-}
-
 
 enum StorageWhere {
     // No result
@@ -253,7 +143,131 @@ StorageWhereWhere operator*(StorageWhere l, StorageWhere r) {
     return (StorageWhereWhere)(l * 10 + r);
 }
 
-void store(TypeSpec &ts, Storage s, Storage t, X64 *x64);
+//void store(TypeSpec &ts, Storage s, Storage t, X64 *x64);
+
+
+class Declaration;
+class Type;
+class Scope;
+class FunctionReturnScope;
+class FunctionHeadScope;
+class FunctionBodyScope;
+class FunctionScope;
+class Variable;
+class Function;
+
+class TypeSpec: public std::vector<Type *> {
+public:
+    unsigned measure();
+    bool isa(TypeSpec &other);
+    TypeSpec rvalue();
+    TypeSpec lvalue();
+    void store(Storage s, Storage t, X64 *x64);
+    void create(Storage s, X64 *x64);
+    void destroy(Storage s, X64 *x64);
+};
+
+//typedef std::vector<Type *> TypeSpec;
+typedef TypeSpec::iterator TypeSpecIter;
+
+Type *type_type = NULL;
+Type *lvalue_type = NULL;
+Type *void_type = NULL;
+Type *function_type = NULL;
+Type *boolean_type = NULL;
+Type *integer_type = NULL;
+Type *integer32_type = NULL;
+Type *integer16_type = NULL;
+Type *integer8_type = NULL;
+Type *unsigned_integer_type = NULL;
+Type *unsigned_integer32_type = NULL;
+Type *unsigned_integer16_type = NULL;
+Type *unsigned_integer8_type = NULL;
+
+TypeSpec BOGUS_TS;
+TypeSpec VOID_TS;
+TypeSpec BOOLEAN_TS;
+TypeSpec INTEGER_TS;
+TypeSpec LVALUE_INTEGER_TS;
+TypeSpec LVALUE_BOOLEAN_TS;
+
+typedef std::vector<std::unique_ptr<Expr>> Args;
+typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
+
+//bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
+//unsigned measure(TypeSpec &ts);
+
+/*
+TypeSpec rvalue(TypeSpec &ts) {
+    TypeSpec t = ts;
+    
+    if (t[0] == lvalue_type)
+        t.erase(t.begin());
+        
+    return t;
+}
+
+TypeSpec lvalue(TypeSpec &ts) {
+    TypeSpec t = ts;
+    
+    if (t[0] != lvalue_type)
+        t.insert(t.begin(), lvalue_type);
+        
+    return t;
+}
+
+
+bool is_unsigned(TypeSpec &ts) {
+    TypeSpec rts = ts.rvalue();
+    Type *t  = rts[0];
+    
+    return t == unsigned_integer_type || t == unsigned_integer32_type ||
+        t == unsigned_integer16_type || t == unsigned_integer8_type;
+}
+*/
+
+enum NumericOperation {
+    COMPLEMENT, NEGATE,
+    ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
+    OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
+    EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL, INCOMPARABLE,
+    ASSIGN, ASSIGN_ADD, ASSIGN_SUBTRACT, ASSIGN_MULTIPLY, ASSIGN_DIVIDE, ASSIGN_MODULO, ASSIGN_EXPONENT,
+    ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT
+};
+
+bool is_unary(NumericOperation o) {
+    return o == COMPLEMENT || o == NEGATE;
+}
+
+bool is_comparison(NumericOperation o) {
+    return o >= EQUAL && o <= INCOMPARABLE;
+}
+
+bool is_assignment(NumericOperation o) {
+    return o >= ASSIGN;
+}
+
+class Value;
+Value *typize(Expr *expr, Scope *scope);
+TypeSpec get_typespec(Value *v);
+Value *make_function_head_value(FunctionHeadScope *s);
+Value *make_function_body_value(FunctionBodyScope *s);
+Value *make_function_return_value(FunctionReturnScope *s, Value *v);
+Value *make_variable_value(Variable *decl, Value *pivot);
+Value *make_function_value(Function *decl, Value *pivot);
+Value *make_type_value(TypeSpec ts);
+Value *make_block_value();
+Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
+Value *make_declaration_value(std::string name);
+Value *make_number_value(std::string text);
+Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Value *pivot);
+Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
+Value *make_boolean_if_value(Value *pivot);
+
+
+unsigned round_up(unsigned size) {
+    return (size + 7) & ~7;
+}
 
 
 
@@ -456,7 +470,7 @@ Value *typize(Expr *expr, Scope *scope) {
             Value *condition = e ? typize(e, scope) : NULL;
             TypeSpec cts = get_typespec(condition);
             
-            if (!(cts >> BOOLEAN_TS)) {
+            if (!cts.isa(BOOLEAN_TS)) {
                 std::cerr << "Not a boolean condition!\n";
                 throw TYPE_ERROR;
             }

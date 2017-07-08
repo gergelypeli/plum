@@ -31,7 +31,7 @@ public:
     virtual void compile_and_store(X64 *x64, Regs regs, Storage t) {
         Storage s = compile(x64, regs);
         //std::cerr << "Compiled and storing a " << ts << " from " << s << " to " << t << ".\n";
-        store(ts, s, t, x64);
+        ts.store(s, t, x64);
     }
 };
 
@@ -214,7 +214,7 @@ public:
             
         TypeSpec var_ts = function->get_argument_typespec(i);
         
-        if (!(v->ts >> var_ts)) {
+        if (!v->ts.isa(var_ts)) {
             std::cerr << "Argument type mismatch, " << v->ts << " is not a " << var_ts << "!\n";
             return false;
         }
@@ -289,7 +289,7 @@ public:
     virtual Storage compile(X64 *x64, Regs regs) {
         std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
-        unsigned ret_size = round_up(measure(ret_ts));
+        unsigned ret_size = round_up(ret_ts.measure());
         
         if (ret_size)
             x64->op(SUBQ, RSP, ret_size);
@@ -298,14 +298,14 @@ public:
         
         if (pivot) {
             Storage s = pivot->compile(x64, regs);
-            store(pivot->ts, s, Storage(STACK), x64);
-            passed_size += round_up(measure(pivot->ts));
+            pivot->ts.store(s, Storage(STACK), x64);
+            passed_size += round_up(pivot->ts.measure());
         }
         
         for (auto &item : items) {
             Storage s = item->compile(x64, regs);
-            store(item->ts, s, Storage(STACK), x64);
-            passed_size += round_up(measure(item->ts));
+            item->ts.store(s, Storage(STACK), x64);
+            passed_size += round_up(item->ts.measure());
         }
 
         if (function->is_sysv && passed_size > 0)
@@ -317,10 +317,10 @@ public:
             sysv_epilogue(x64, passed_size);
         
         for (int i = items.size() - 1; i >= 0; i--)
-            store(items[i]->ts, Storage(STACK), Storage(), x64);
+            items[i]->ts.store(Storage(STACK), Storage(), x64);
             
         if (pivot)
-            store(pivot->ts, Storage(STACK), Storage(), x64);
+            pivot->ts.store(Storage(STACK), Storage(), x64);
             
         std::cerr << "Compiled call of " << function->name << ".\n";
         return ret_size ? Storage(STACK) : Storage();
@@ -380,7 +380,7 @@ public:
         Variable *anon = dynamic_cast<Variable *>(decl);
         int ret_offset = return_scope->offset + anon->offset;
         Storage ret_storage(MEMORY, Address(RBP, ret_offset));
-        store(value->ts, s, ret_storage, x64);
+        value->ts.store(s, ret_storage, x64);
         
         x64->op(JMP, rollback_declaration->get_rollback_label());
         return Storage();
@@ -449,7 +449,7 @@ public:
             decl = variable;
         }
         else if (value->ts[0] != void_type) {
-            TypeSpec var_ts = scope->is_readonly() ? value->ts : lvalue(value->ts);
+            TypeSpec var_ts = scope->is_readonly() ? value->ts : value->ts.lvalue();
             
             Variable *variable = new Variable(name, VOID_TS, var_ts);
             decl = variable;
@@ -471,9 +471,9 @@ public:
             Storage t = v->get_storage(v->outer->get_storage());  // local variable
             
             if (s.where == NOWHERE)
-                create(v->var_ts, t, x64);
+                v->var_ts.create(t, x64);
             else
-                store(v->var_ts, s, t, x64);
+                v->var_ts.store(s, t, x64);
                 
             v->outer->set_rollback_declaration(v);
         }
@@ -554,7 +554,7 @@ public:
 
             Value *r = typize(args[0].get(), scope);
         
-            if (!(r->ts >> BOOLEAN_TS)) {
+            if (!r->ts.isa(BOOLEAN_TS)) {
                 std::cerr << "Incompatible right argument to boolean binary operation!\n";
                 std::cerr << "Type " << r->ts << " is not " << BOOLEAN_TS << "!\n";
                 return false;
@@ -640,7 +640,7 @@ public:
                 Storage rs = right->compile(x64, regs);  // FIXME: convert!
                 if (rs.where == CONSTANT || rs.where == FLAGS) {
                     s = Storage(REGISTER, reg);
-                    store(right->ts, rs, s, x64);
+                    right->ts.store(rs, s, x64);
                 }
                 else
                     s = rs;
@@ -694,7 +694,7 @@ public:
             if (s.where == NOWHERE) {
                 if (ls.where == FLAGS) {
                     s = Storage(REGISTER, reg);
-                    store(left->ts, ls, s, x64);
+                    left->ts.store(ls, s, x64);
                 }
                 else
                     s = ls;
@@ -795,8 +795,8 @@ public:
         if (then_branch && else_branch) {
             // Can't return an lvalue, because one Storage can only represent
             // a compile time fixed variable location.
-            TypeSpec tts = rvalue(then_branch->ts);
-            TypeSpec ets = rvalue(else_branch->ts);
+            TypeSpec tts = then_branch->ts.rvalue();
+            TypeSpec ets = else_branch->ts.rvalue();
             
             if (tts != VOID_TS && tts == ets) {
                 ts = tts;
