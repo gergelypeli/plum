@@ -156,10 +156,13 @@ class FunctionScope;
 class Variable;
 class Function;
 
+class Value;
+
 class TypeSpec: public std::vector<Type *> {
 public:
     unsigned measure();
-    bool isa(TypeSpec &other);
+    Value *convertible(TypeSpec &other, Value *orig);
+    Storage convert(TypeSpec &other, Storage s, X64 *x64, Regs regs);
     TypeSpec rvalue();
     TypeSpec lvalue();
     void store(Storage s, Storage t, X64 *x64);
@@ -247,9 +250,10 @@ bool is_assignment(NumericOperation o) {
     return o >= ASSIGN;
 }
 
-class Value;
 Value *typize(Expr *expr, Scope *scope);
 TypeSpec get_typespec(Value *v);
+Value *convertible(TypeSpec to, Value *orig);
+
 Value *make_function_head_value(FunctionHeadScope *s);
 Value *make_function_body_value(FunctionBodyScope *s);
 Value *make_function_return_value(FunctionReturnScope *s, Value *v);
@@ -263,7 +267,7 @@ Value *make_number_value(std::string text);
 Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Value *pivot);
 Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
-
+Value *make_converted_value(TypeSpec to, Value *orig);
 
 unsigned round_up(unsigned size) {
     return (size + 7) & ~7;
@@ -467,10 +471,9 @@ Value *typize(Expr *expr, Scope *scope) {
         }
         else if (expr->text == "if") {
             Expr *e = expr->pivot.get();
-            Value *condition = e ? typize(e, scope) : NULL;
-            TypeSpec cts = get_typespec(condition);
+            Value *condition = e ? convertible(BOOLEAN_TS, typize(e, scope)) : NULL;
             
-            if (!cts.isa(BOOLEAN_TS)) {
+            if (!condition) {
                 std::cerr << "Not a boolean condition!\n";
                 throw TYPE_ERROR;
             }

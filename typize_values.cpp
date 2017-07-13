@@ -213,13 +213,14 @@ public:
         }
             
         TypeSpec var_ts = function->get_argument_typespec(i);
+        Value *cv = convertible(var_ts, v);
         
-        if (!v->ts.isa(var_ts)) {
+        if (!cv) {
             std::cerr << "Argument type mismatch, " << v->ts << " is not a " << var_ts << "!\n";
             return false;
         }
         
-        items[i] = std::unique_ptr<Value>(v);
+        items[i] = std::unique_ptr<Value>(cv);
         return true;
     }
 
@@ -553,14 +554,15 @@ public:
             }
 
             Value *r = typize(args[0].get(), scope);
+            Value *cr = convertible(BOOLEAN_TS, r);
         
-            if (!r->ts.isa(BOOLEAN_TS)) {
+            if (!cr) {
                 std::cerr << "Incompatible right argument to boolean binary operation!\n";
                 std::cerr << "Type " << r->ts << " is not " << BOOLEAN_TS << "!\n";
                 return false;
             }
         
-            right.reset(r);
+            right.reset(cr);
             return true;
         }
     }
@@ -886,8 +888,31 @@ public:
     }
 };
 
+
+class ConvertedValue: public Value {
+public:
+    std::unique_ptr<Value> orig;
+    
+    ConvertedValue(TypeSpec t, Value *o)
+        :Value(t) {
+        orig.reset(o);
+    }
+    
+    Storage compile(X64 *x64, Regs regs) {
+        Storage s = orig->compile(x64, regs);
+        Storage t = orig->ts.convert(ts, s, x64, regs);
+        return t;
+    }
+};
+
+
 TypeSpec get_typespec(Value *v) {
     return v ? v->ts : VOID_TS;
+}
+
+
+Value *convertible(TypeSpec to, Value *value) {
+    return value ? value->ts.convertible(to, value) : NULL;
 }
 
 
@@ -940,14 +965,22 @@ Value *make_number_value(std::string text) {
     return new NumberValue(text);
 }
 
+
 Value *make_integer_operation_value(NumericOperation o, TypeSpec t, Value *pivot) {
     return new IntegerOperationValue(o, t, pivot);
 }
+
 
 Value *make_boolean_operation_value(NumericOperation o, Value *pivot) {
     return new BooleanOperationValue(o, pivot);
 }
 
+
 Value *make_boolean_if_value(Value *pivot) {
     return new BooleanIfValue(pivot);
+}
+
+
+Value *make_converted_value(TypeSpec ts, Value *orig) {
+    return new ConvertedValue(ts, orig);
 }

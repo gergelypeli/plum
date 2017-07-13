@@ -244,11 +244,15 @@ public:
     }
     
     virtual Value *match(std::string name, Value *pivot) {
-        TypeSpec pts = get_typespec(pivot);
+        if (name != this->name)
+            return NULL;
         
-        if (name == this->name && pts.isa(pivot_ts)) {
+        //TypeSpec pts = get_typespec(pivot);
+        Value *cpivot = convertible(pivot_ts, pivot);
+        
+        if (cpivot || pivot_ts == VOID_TS) {
             // pivot may be NULL if this is a local variable
-            Value *v = make_variable_value(this, pivot);
+            Value *v = make_variable_value(this, cpivot);
             return v;
         }
         else
@@ -290,11 +294,15 @@ public:
     }
 
     virtual Value *match(std::string name, Value *pivot) {
-        TypeSpec pts = get_typespec(pivot);
+        if (name != this->name)
+            return NULL;
+            
+        //TypeSpec pts = get_typespec(pivot);
         //std::cerr << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
+        Value *cpivot = convertible(pivot_ts, pivot);
 
-        if (name == this->name && pts.isa(pivot_ts)) {
-            Value *v = make_function_value(this, pivot);
+        if (cpivot || pivot_ts == VOID_TS) {
+            Value *v = make_function_value(this, cpivot);
             return v;
         }
         else
@@ -346,10 +354,14 @@ public:
     }
     
     virtual Value *match(std::string name, Value *pivot) {
-        TypeSpec pts = get_typespec(pivot);
+        if (name != this->name)
+            return NULL;
+            
+        //TypeSpec pts = get_typespec(pivot);
+        Value *cpivot = convertible(ts, pivot);
 
-        if (name == this->name && pts.isa(ts)) {
-            Value *v = make_integer_operation_value(operation, ts, pivot);
+        if (cpivot) {
+            Value *v = make_integer_operation_value(operation, ts, cpivot);
             return v;
         }
         else
@@ -371,10 +383,14 @@ public:
     }
     
     virtual Value *match(std::string name, Value *pivot) {
-        TypeSpec pts = get_typespec(pivot);
+        if (name != this->name)
+            return NULL;
+            
+        //TypeSpec pts = get_typespec(pivot);
+        Value *cpivot = convertible(ts, pivot);
 
-        if (name == this->name && pts.isa(ts)) {
-            Value *v = make_boolean_operation_value(operation, pivot);
+        if (cpivot) {
+            Value *v = make_boolean_operation_value(operation, cpivot);
             return v;
         }
         else
@@ -389,10 +405,14 @@ public:
     }
     
     virtual Value *match(std::string name, Value *pivot) {
-        TypeSpec pts = get_typespec(pivot);
+        if (name != "if")
+            return NULL;
+            
+        //TypeSpec pts = get_typespec(pivot);
+        Value *cpivot = convertible(BOOLEAN_TS, pivot);
 
-        if (name == "if" && pts.isa(BOOLEAN_TS)) {
-            Value *v = make_boolean_if_value(pivot);
+        if (cpivot) {
+            Value *v = make_boolean_if_value(cpivot);
             return v;
         }
         else
@@ -450,8 +470,13 @@ public:
         return true;
     }
 
-    virtual bool is_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
-        return *that_tsi == boolean_type || (*this_tsi)->is_equal(this_tsi, that_tsi);
+    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
+        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : NULL;
+    }
+
+    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage, X64 *, Regs) {
+        std::cerr << "Unconvertable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
     }
     
     virtual unsigned measure(TypeSpecIter &) {
@@ -496,10 +521,12 @@ public:
 class BasicType: public Type {
 public:
     unsigned size;
+    int os;
 
     BasicType(std::string n, unsigned s)
         :Type(n, 0) {
         size = s;
+        os = (s == 1 ? 0 : s == 2 ? 1 : s == 4 ? 2 : s == 8 ? 3 : throw INTERNAL_ERROR);        
     }
     
     virtual unsigned measure(TypeSpecIter &) {
@@ -508,13 +535,7 @@ public:
 
     virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *x64) {
         // We can't use any register, unless saved and restored
-        BinaryOp mov = (
-            size == 1 ? MOVB :
-            size == 2 ? MOVW :
-            size == 4 ? MOVD :
-            size == 8 ? MOVQ :
-            throw INTERNAL_ERROR
-        );
+        BinaryOp mov = MOVQ % os;
         
         switch (s.where * t.where) {
         case NOWHERE_NOWHERE:
@@ -627,6 +648,29 @@ public:
     virtual void destroy(TypeSpecIter &, Storage, X64 *) {
         return;
     }
+
+    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
+        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
+    }
+
+    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage s, X64 *x64, Regs) {
+        switch (s.where) {
+        case CONSTANT:
+            return Storage(CONSTANT, s.value != 0);
+        case REGISTER:
+            x64->op(CMPQ % os, s.reg, 0);
+            return Storage(FLAGS, SETNE);
+        case STACK:
+            x64->op(CMPQ % os, Address(RSP, 0), 0);
+            x64->op(SETNE, Address(RSP, 0));
+            return Storage(STACK);
+        case MEMORY:
+            x64->op(CMPQ % os, s.address, 0);
+            return Storage(FLAGS, SETNE);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
 };
 
 
@@ -636,19 +680,19 @@ public:
         :Type("<Lvalue>", 1) {
     }
     
-    virtual bool is_convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
+    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
         if (*this_tsi == *that_tsi) {
             // When an lvalue is required, only the same type suffices
             this_tsi++;
             that_tsi++;
             
-            return (*this_tsi)->is_equal(this_tsi, that_tsi);
+            return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : NULL;
         }
         else {
             // When an rvalue is required, subtypes are also fine
             this_tsi++;
             
-            return (*this_tsi)->is_convertible(this_tsi, that_tsi);
+            return (*this_tsi)->convertible(this_tsi, that_tsi, orig);
         }
     }
     
@@ -674,11 +718,19 @@ public:
 };
 
 
-bool TypeSpec::isa(TypeSpec &other) {
+Value *TypeSpec::convertible(TypeSpec &other, Value *orig) {
     TypeSpecIter this_tsi(begin());
     TypeSpecIter that_tsi(other.begin());
     
-    return (*this_tsi)->is_convertible(this_tsi, that_tsi);
+    return (*this_tsi)->convertible(this_tsi, that_tsi, orig);
+}
+
+
+Storage TypeSpec::convert(TypeSpec &other, Storage s, X64 *x64, Regs regs) {
+    TypeSpecIter this_tsi(begin());
+    TypeSpecIter that_tsi(other.begin());
+    
+    return (*this_tsi)->convert(this_tsi, that_tsi, s, x64, regs);
 }
 
 

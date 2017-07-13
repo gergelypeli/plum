@@ -49,14 +49,15 @@ public:
             }
 
             Value *r = typize(args[0].get(), scope);
+            Value *cr = convertible(arg_ts, r);
         
-            if (!r->ts.isa(arg_ts)) {
+            if (!cr) {
                 std::cerr << "Incompatible right argument to integer binary operation!\n";
                 std::cerr << "Type " << r->ts << " is not " << arg_ts << "!\n";
                 return false;
             }
         
-            right.reset(r);
+            right.reset(cr);
             return true;
         }
     }
