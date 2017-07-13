@@ -230,33 +230,48 @@ public:
 };
 
 
-class Variable: public Declaration {
+class Identifier: public Declaration {
 public:
     std::string name;
     TypeSpec pivot_ts;
+
+    Identifier(std::string n, TypeSpec pts) {
+        name = n;
+        pivot_ts = pts;
+    }
+    
+    virtual Value *matched(Value *) {
+        std::cerr << "Unmatchable identifier!\n";
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual Value *match(std::string n, Value *pivot) {
+        if (n != name)
+            return NULL;
+            
+        Value *cpivot = convertible(pivot_ts, pivot);
+        
+        if (cpivot || pivot_ts == VOID_TS)
+            return matched(cpivot);
+        else
+            return NULL;
+    }
+};
+
+
+class Variable: public Identifier {
+public:
     TypeSpec var_ts;
     int offset;
     
-    Variable(std::string name, TypeSpec pts, TypeSpec vts) {
-        this->name = name;
-        this->pivot_ts = pts;
-        this->var_ts = vts;
+    Variable(std::string name, TypeSpec pts, TypeSpec vts)
+        :Identifier(name, pts) {
+        var_ts = vts;
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
-        if (name != this->name)
-            return NULL;
-        
-        //TypeSpec pts = get_typespec(pivot);
-        Value *cpivot = convertible(pivot_ts, pivot);
-        
-        if (cpivot || pivot_ts == VOID_TS) {
-            // pivot may be NULL if this is a local variable
-            Value *v = make_variable_value(this, cpivot);
-            return v;
-        }
-        else
-            return NULL;
+    virtual Value *matched(Value *cpivot) {
+        // cpivot may be NULL if this is a local variable
+        return make_variable_value(this, cpivot);
     }
     
     virtual void allocate() {
@@ -272,10 +287,8 @@ public:
 };
 
 
-class Function: public Declaration {
+class Function: public Identifier {
 public:
-    std::string name;
-    TypeSpec pivot_ts;
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
     TypeSpec ret_ts;
@@ -283,9 +296,8 @@ public:
     Label x64_label;
     bool is_sysv;
     
-    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, TypeSpec rts) {
-        name = n;
-        pivot_ts = pts;
+    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, TypeSpec rts)
+        :Identifier(n, pts) {
         arg_tss = ats;
         arg_names = ans;
         ret_ts = rts;
@@ -293,20 +305,8 @@ public:
         is_sysv = false;
     }
 
-    virtual Value *match(std::string name, Value *pivot) {
-        if (name != this->name)
-            return NULL;
-            
-        //TypeSpec pts = get_typespec(pivot);
-        //std::cerr << "XXX Function.match " << name << " " << print_typespec(ts) << "\n";
-        Value *cpivot = convertible(pivot_ts, pivot);
-
-        if (cpivot || pivot_ts == VOID_TS) {
-            Value *v = make_function_value(this, cpivot);
-            return v;
-        }
-        else
-            return NULL;
+    virtual Value *matched(Value *cpivot) {
+        return make_function_value(this, cpivot);
     }
 
     virtual TypeSpec get_return_typespec() {
@@ -341,82 +341,44 @@ public:
 };
 
 
-class IntegerOperation: public Declaration {
+class IntegerOperation: public Identifier {
 public:
-    std::string name;
-    TypeSpec ts;
     NumericOperation operation;
     
-    IntegerOperation(std::string n, TypeSpec t, NumericOperation o) {
-        name = n;
-        ts = t;
+    IntegerOperation(std::string n, TypeSpec t, NumericOperation o)
+        :Identifier(n, t) {
         operation = o;
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
-        if (name != this->name)
-            return NULL;
-            
-        //TypeSpec pts = get_typespec(pivot);
-        Value *cpivot = convertible(ts, pivot);
-
-        if (cpivot) {
-            Value *v = make_integer_operation_value(operation, ts, cpivot);
-            return v;
-        }
-        else
-            return NULL;
+    virtual Value *matched(Value *cpivot) {
+        return make_integer_operation_value(operation, pivot_ts, cpivot);
     }
 };
 
 
-class BooleanOperation: public Declaration {
+class BooleanOperation: public Identifier {
 public:
-    std::string name;
-    TypeSpec ts;
     NumericOperation operation;
     
-    BooleanOperation(std::string n, TypeSpec t, NumericOperation o) {
-        name = n;
-        ts = t;
+    BooleanOperation(std::string n, TypeSpec t, NumericOperation o)
+        :Identifier(n, t) {
         operation = o;
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
-        if (name != this->name)
-            return NULL;
-            
-        //TypeSpec pts = get_typespec(pivot);
-        Value *cpivot = convertible(ts, pivot);
-
-        if (cpivot) {
-            Value *v = make_boolean_operation_value(operation, cpivot);
-            return v;
-        }
-        else
-            return NULL;
+    virtual Value *matched(Value *cpivot) {
+        return make_boolean_operation_value(operation, cpivot);
     }
 };
 
 
-class BooleanIf: public Declaration {
+class BooleanIf: public Identifier {
 public:
-    BooleanIf() {
+    BooleanIf()
+        :Identifier("if", BOOLEAN_TS) {
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
-        if (name != "if")
-            return NULL;
-            
-        //TypeSpec pts = get_typespec(pivot);
-        Value *cpivot = convertible(BOOLEAN_TS, pivot);
-
-        if (cpivot) {
-            Value *v = make_boolean_if_value(cpivot);
-            return v;
-        }
-        else
-            return NULL;
+    virtual Value *matched(Value *cpivot) {
+        return make_boolean_if_value(cpivot);
     }
 };
 
