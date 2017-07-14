@@ -27,3 +27,4 @@ start? :function as:
     d += 7u8
     d = d * d
     
+    :if d then: print(1000)

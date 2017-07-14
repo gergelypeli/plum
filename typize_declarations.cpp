@@ -657,6 +657,12 @@ public:
             return (*this_tsi)->convertible(this_tsi, that_tsi, orig);
         }
     }
+
+    virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Storage s, X64 *x64, Regs regs) {
+        // Converting to an rvalue
+        this_tsi++;
+        return (*this_tsi)->convert(this_tsi, that_tsi, s, x64, regs);
+    }
     
     virtual unsigned measure(TypeSpecIter &tsi) {
         tsi++;
