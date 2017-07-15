@@ -214,7 +214,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             type = STRING;
             back = LITERAL;
             fore = LITERAL;
-            text = token.text.substr(1, token.text.length() - 1);
+            text = token.text.substr(1, token.text.length() - 2);
         }
         else if (c == ',') {
             type = SEPARATOR;

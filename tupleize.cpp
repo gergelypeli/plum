@@ -182,6 +182,9 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
     else if (node.type == NUMBER) {
         return new Expr(NUMBER, node.token, node.text);
     }
+    else if (node.type == STRING) {
+        return new Expr(STRING, node.token, node.text);
+    }
     else {
         std::cerr << "Can't tupleize this now " << node.token << "!\n";
         throw INTERNAL_ERROR;

@@ -12,6 +12,11 @@ void print(long a) {
     printf("%ld\n", a);
 }
 
+void prints(const char *s) {
+    int len = *(int *)(s - 8);
+    printf("%*s\n", len, s);
+}
+
 extern void start();
 
 int main(int argc, char **argv) {

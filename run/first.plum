@@ -28,3 +28,5 @@ start? :function as:
     d = d * d
     
     :if d then: print(1000)
+
+    prints("Szia!")

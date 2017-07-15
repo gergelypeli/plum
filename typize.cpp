@@ -186,6 +186,7 @@ Type *unsigned_integer_type = NULL;
 Type *unsigned_integer32_type = NULL;
 Type *unsigned_integer16_type = NULL;
 Type *unsigned_integer8_type = NULL;
+Type *array_type = NULL;
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
@@ -193,6 +194,7 @@ TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec LVALUE_INTEGER_TS;
 TypeSpec LVALUE_BOOLEAN_TS;
+TypeSpec UNSIGNED_INTEGER8_ARRAY_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -264,6 +266,7 @@ Value *make_block_value();
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
+Value *make_string_value(std::string text);
 Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Value *pivot);
 Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
@@ -361,6 +364,9 @@ Scope *init_types() {
     unsigned_integer8_type = new BasicType("Unsigned_Integer8", 1);
     root_scope->add(unsigned_integer8_type);
     
+    array_type = new ArrayType();
+    root_scope->add(array_type);
+    
     // BOGUS_TS will contain no Type pointers
     VOID_TS.push_back(void_type);
     BOOLEAN_TS.push_back(boolean_type);
@@ -369,9 +375,12 @@ Scope *init_types() {
     LVALUE_INTEGER_TS.push_back(integer_type);
     LVALUE_BOOLEAN_TS.push_back(lvalue_type);
     LVALUE_BOOLEAN_TS.push_back(boolean_type);
+    UNSIGNED_INTEGER8_ARRAY_TS.push_back(array_type);
+    UNSIGNED_INTEGER8_ARRAY_TS.push_back(unsigned_integer8_type);
     
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
     std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
+    std::vector<TypeSpec> UNSIGNED_INTEGER8_ARRAY_TSS = { UNSIGNED_INTEGER8_ARRAY_TS };
     
     std::vector<std::string> value_names = { "value" };
 
@@ -399,6 +408,7 @@ Scope *init_types() {
     //root_scope->add(new BooleanIf());
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
+    root_scope->add(new Function("prints", VOID_TS, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, VOID_TS));
 
     return root_scope;
 }
@@ -541,6 +551,9 @@ Value *typize(Expr *expr, Scope *scope) {
     }
     else if (expr->type == NUMBER) {
         return make_number_value(expr->text)->set_token(expr->token);  // TODO
+    }
+    else if (expr->type == STRING) {
+        return make_string_value(expr->text)->set_token(expr->token);
     }
     else {
         std::cerr << "Can't typize this now: " << expr->token << "!\n";

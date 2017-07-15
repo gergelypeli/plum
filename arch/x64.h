@@ -221,6 +221,11 @@ enum RegisterMemoryOp {
 };
 
 
+enum LeaRipOp {
+    LEARIP  // home made instruction for LEA r, [RIP + disp32]
+};
+
+
 enum BranchOp {
     JO, JNO, JB, JAE, JE, JNE, JBE, JA,
     JS, JNS, JP, JNP, JL, JGE, JLE, JG
@@ -262,7 +267,6 @@ public:
     std::vector<char> data;
 
     enum Def_type {
-        DEF_NONE,
         DEF_CODE,
         DEF_CODE_EXPORT,
         DEF_CODE_IMPORT,
@@ -281,7 +285,7 @@ public:
 
         unsigned symbol_index;  // To be filled during importing
         
-        Def(Def_type t = DEF_NONE, int l = 0, unsigned s = 0, const std::string &n = "", bool ig = false) {
+        Def(Def_type t, int l = 0, unsigned s = 0, const std::string &n = "", bool ig = false) {
             type = t;
             location = l;
             size = s;
@@ -375,6 +379,7 @@ public:
     void op(RegisterSecondOp opcode, Register x, Register y);
     void op(RegisterSecondOp opcode, Address x, Register y);
     void op(RegisterMemoryOp opcode, Register x, Address y);
+    void op(LeaRipOp opcode, Register r, Label l, int o);
     void op(BitSetOp, Register x);
     void op(BitSetOp, Address x);
     void op(BranchOp opcode, Label c);

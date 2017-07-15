@@ -76,8 +76,6 @@ void X64::done(std::string filename) {
         Def &d(kv.second);
 
         switch (d.type) {
-        case DEF_NONE: 
-            break;
         case DEF_CODE: break;
         case DEF_DATA: break;
         case DEF_ABSOLUTE: break;
@@ -107,76 +105,85 @@ void X64::done(std::string filename) {
         }
         
         Def &d(defs.at(r.def_index));
-        
-        switch (d.type) {
-        case DEF_NONE:
-            std::cerr << "Ref to undefined Def!\n";
-            break;
-        case DEF_ABSOLUTE:
-        case DEF_ABSOLUTE_EXPORT:
-            if (r.type == REF_CODE_ABSOLUTE)
-                *(int *)&code[r.location] += d.location;
-            else
-                std::cerr << "Only ABSOLUTE Ref can point to an ABSOLUTE Def!\n";
-            break;
-        case DEF_DATA:
-        case DEF_DATA_EXPORT:
-            if (r.type == REF_CODE_ABSOLUTE) {
-                *(int *)&code[r.location] += d.location;  // Can also be an offset, too
-                ork->code_relocation(data_symbol_index, r.location, false);
-            }
-            else if (r.type == REF_DATA_ABSOLUTE) {
-                *(int *)&data[r.location] += d.location;  // Just do it
-                ork->data_relocation(data_symbol_index, r.location);
-            }
-            else
-                std::cerr << "Only ABSOLUTE Ref can point to a data Def!\n";
-            break;
-        case DEF_CODE_IMPORT:
-            switch (r.type) {
-            case REF_CODE_SHORT:
-            case REF_DATA_ABSOLUTE:
-                std::cerr << "Can't refer to imported address like this!\n";
+
+        switch (r.type) {
+        case REF_CODE_SHORT:
+            switch (d.type) {
+            case DEF_CODE:
+            case DEF_CODE_EXPORT: {
+                int distance = d.location - (r.location + 1);
+                    
+                if (distance > 127 || distance < -128)
+                    std::cerr << "REF_CODE_SHORT can't jump " << distance << " bytes!\n";
+                else
+                    code[r.location] = (char)distance;
+                }
                 break;
-            case REF_CODE_RELATIVE:
-                // FIXME: we hope this is the last thing in the instruction!
-                *(int *)&code[r.location] = -4;  // Relative to the end of the instruction
+            default:
+                std::cerr << "Can't short jump to this symbol!\n";
+                throw X64_ERROR;
+            }
+            break;
+            
+        case REF_CODE_RELATIVE:
+            // The offset must be the last part of the instruction
+            
+            switch (d.type) {
+            case DEF_CODE:
+            case DEF_CODE_EXPORT:
+                *(int *)&code[r.location] += d.location - r.location - 4;
+                break;
+            case DEF_CODE_IMPORT:
+                *(int *)&code[r.location] += -4;
                 ork->code_relocation(d.symbol_index, r.location, true);
                 break;
-            case REF_CODE_ABSOLUTE:
-                //*(int *)(tar + re->hely) = de->hely;
+            case DEF_DATA:
+            case DEF_DATA_EXPORT:
+                *(int *)&code[r.location] += d.location - 4;
+                ork->code_relocation(data_symbol_index, r.location, true);
+                break;
+            default:
+                std::cerr << "Can't relocate relative to this symbol!\n";
+                throw X64_ERROR;
+            }
+            break;
+            
+        case REF_CODE_ABSOLUTE:
+            switch (d.type) {
+            case DEF_CODE:
+            case DEF_CODE_EXPORT:
+                *(int *)&code[r.location] += d.location;
+                ork->code_relocation(code_symbol_index, r.location, false);
+                break;
+            case DEF_CODE_IMPORT:
                 ork->code_relocation(d.symbol_index, r.location, false);
                 break;
+            case DEF_DATA:
+            case DEF_DATA_EXPORT:
+                *(int *)&code[r.location] += d.location;
+                ork->code_relocation(data_symbol_index, r.location, false);
+                break;
+            case DEF_ABSOLUTE:
+            case DEF_ABSOLUTE_EXPORT:
+                *(int *)&code[r.location] += d.location;
+                break;
+            default:
+                std::cerr << "Can't relocate absolute to this symbol!\n";
+                throw X64_ERROR;
             }
             break;
-        case DEF_CODE:
-        case DEF_CODE_EXPORT:
-            switch (r.type) {
-                case REF_CODE_SHORT: {
-                    int distance = d.location - (r.location + 1);
-                    
-                    if (distance > 127 || distance < -128)
-                        std::cerr << "REF_CODE_SHORT can't jump " << distance << " bytes!\n";
-                    else
-                        code[r.location] = (char)distance;
-                    }
-                    break;
-                case REF_CODE_RELATIVE:
-                    // FIXME: we hope this is the last thing in the instruction!
-                    *(int *)&code[r.location] += d.location - (r.location + 4);
-                    break;
-                case REF_CODE_ABSOLUTE:
-                    *(int *)&code[r.location] += d.location;
-                    ork->code_relocation(code_symbol_index, r.location, false);
-                    break;
-                case REF_DATA_ABSOLUTE:
-                    std::cerr << "A Ref in data can't point to a Def in code!\n";
-                    break;
+            
+        case REF_DATA_ABSOLUTE:
+            switch (d.type) {
+            case DEF_DATA:
+            case DEF_DATA_EXPORT:
+                *(int *)&data[r.location] += d.location;
+                ork->data_relocation(data_symbol_index, r.location);
+                break;
+            default:
+                std::cerr << "Can't relocate data absolute to this symbol!\n";
+                throw X64_ERROR;
             }
-            break;
-        default:
-            std::cerr << "He??\n";
-            throw X64_ERROR;
         }
     }
 
@@ -199,7 +206,7 @@ void X64::add_def(Label label, const Def &def) {
         throw X64_ERROR;
     }
 
-    defs[label.def_index] = def;
+    defs.insert(decltype(defs)::value_type(label.def_index, def));
 }
 
 
@@ -315,8 +322,8 @@ void X64::code_reference(Label c, Ref_type f, int offset) {
     r.type = f;
     r.def_index = c.def_index;
 
-    if (f != REF_CODE_ABSOLUTE && offset != 0)
-        std::cerr << "Only absolute refs can have offsets!\n";
+    //if (f != REF_CODE_ABSOLUTE && offset != 0)
+    //    std::cerr << "Only absolute refs can have offsets!\n";
     
     if (f == REF_CODE_SHORT)
         code_byte(offset);
@@ -365,8 +372,9 @@ void X64::effective_address(int modrm, Address x) {
             throw X64_ERROR;
         }
         
-        // TODO: in 64-bit mode fake EBP base will mean RIP base, must use SIB always!
-        code_byte(0x00 | (modrm << 3) | 0x05);  // fake EBP base means no base only offset
+        // In 64-bit mode fake EBP base will mean RIP base, must use SIB always!
+        code_byte(0x00 | (modrm << 3) | 0x04);  // Using SIB
+        code_byte(0x00 | (SP << 3) | 0x05);  // fake SP index means no index, fake EBP base no base
         code_reference(x.label, REF_CODE_ABSOLUTE, x.offset);
     }
     else if (x.offset == 0 && !x.label && x.base != BP) {  // SIB EBP base needs offset
@@ -756,6 +764,21 @@ void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
     //std::cerr << "HIHI\n";
     code_op(registermemory_info[opcode], 0);
     effective_address(x, y);
+}
+
+
+
+
+void X64::op(LeaRipOp, Register r, Label l, int o) {
+    // REX 64-bit operands
+    code_byte(0x48);
+    
+    // LEA
+    code_byte(0x8D);
+    
+    // Explicit encoding of the effective address, until proper X64 register support
+    code_byte(0x00 | (r << 3) | 0x05);  // [RIP + disp32]
+    code_reference(l, REF_CODE_RELATIVE, o);
 }
 
 
