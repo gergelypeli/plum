@@ -11,40 +11,7 @@ inline bool ends_with(std::string const & value, std::string const & ending)
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-/*
-static std::string vformat(const char *f, va_list ap) {
-    char buffer[65536];
-    
-    unsigned expected = vsnprintf(buffer, sizeof(buffer), f, ap);
 
-    if (expected >= sizeof(buffer))
-        std::cerr << "vformat buffer overflow!\n";
-    
-    return std::string(buffer);
+unsigned round_up(unsigned size) {
+    return (size + 7) & ~7;
 }
-
-
-
-class Error {
-public:
-    std::string message;
-
-    Error() {
-    }
-    
-    Error(const char *fmt, ...) __attribute__ ((format (printf, 2, 3))) {
-        va_list ap;
-        va_start(ap, fmt);
-        message = vformat(fmt, ap);
-        va_end(ap);
-        
-        std::cerr << "Oops... " << message << "\n";
-    }
-};
-
-
-std::ostream &operator<<(std::ostream &os, Error const &error) {
-    os << error.message;
-    return os;
-}
-*/

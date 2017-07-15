@@ -15,20 +15,6 @@ enum StorageWhere {
     STACK = 4,
     // The value is at the specified address
     MEMORY = 5
-
-    // Not needed yet.
-    // the value is at [[RBP + fo] + so], where [RBP + fo] is an outer frame pointer
-    //FRAME_FRAME,
-
-    // TODO: there will be multiple reference classes, this needs to be rethought.
-    // TODO: and direct member access will only be allowed from methods, and
-    // that will use a borrowed reference only.
-    // the value is at [STACK + so], STACK is refcounted container (fo=0)
-    //STACK_HEAP,
-    // the value is at [RAX + so], RAX is refcounted container (fo=0)
-    //REGISTER_HEAP,
-    // the value is at [[RBP + fo] + so], where [RBP + fo] is refcounted container
-    //FRAME_HEAP
 };
 
 
@@ -143,8 +129,6 @@ StorageWhereWhere operator*(StorageWhere l, StorageWhere r) {
     return (StorageWhereWhere)(l * 10 + r);
 }
 
-//void store(TypeSpec &ts, Storage s, Storage t, X64 *x64);
-
 
 class Declaration;
 class Type;
@@ -170,7 +154,6 @@ public:
     void destroy(Storage s, X64 *x64);
 };
 
-//typedef std::vector<Type *> TypeSpec;
 typedef TypeSpec::iterator TypeSpecIter;
 
 Type *type_type = NULL;
@@ -199,37 +182,6 @@ TypeSpec UNSIGNED_INTEGER8_ARRAY_TS;
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
-//bool operator>>(TypeSpec &this_ts, TypeSpec &that_ts);
-//unsigned measure(TypeSpec &ts);
-
-/*
-TypeSpec rvalue(TypeSpec &ts) {
-    TypeSpec t = ts;
-    
-    if (t[0] == lvalue_type)
-        t.erase(t.begin());
-        
-    return t;
-}
-
-TypeSpec lvalue(TypeSpec &ts) {
-    TypeSpec t = ts;
-    
-    if (t[0] != lvalue_type)
-        t.insert(t.begin(), lvalue_type);
-        
-    return t;
-}
-
-
-bool is_unsigned(TypeSpec &ts) {
-    TypeSpec rts = ts.rvalue();
-    Type *t  = rts[0];
-    
-    return t == unsigned_integer_type || t == unsigned_integer32_type ||
-        t == unsigned_integer16_type || t == unsigned_integer8_type;
-}
-*/
 
 enum NumericOperation {
     COMPLEMENT, NEGATE,
@@ -253,7 +205,6 @@ bool is_assignment(NumericOperation o) {
 }
 
 Value *typize(Expr *expr, Scope *scope);
-TypeSpec get_typespec(Value *v);
 Value *convertible(TypeSpec to, Value *orig);
 
 Value *make_function_head_value(FunctionHeadScope *s);
@@ -272,15 +223,9 @@ Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
 
-unsigned round_up(unsigned size) {
-    return (size + 7) & ~7;
-}
 
-
-
-#include "typize_declarations.cpp"
-
-#include "typize_values.cpp"
+#include "declarations/declaration.cpp"
+#include "values/value.cpp"
 
 
 struct {
@@ -523,8 +468,8 @@ Value *typize(Expr *expr, Scope *scope) {
     else if (expr->type == IDENTIFIER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        TypeSpec pts = get_typespec(p);
-        
+
+        TypeSpec pts = p ? p->ts : VOID_TS;
         std::cerr << "Looking up " << pts << " " << name << "\n";
 
         for (Scope *s = scope; s; s = s->outer) {

@@ -1,6 +1,9 @@
 .PHONY: build clean
 
-MODULES    = tokenize treeize tupleize typize typize_declarations typize_values typize_values_integer util plum arch/ork arch/x64
+DECLS      = declaration identifier scope type
+VALUES     = value literal function boolean integer
+ARCHS      = ork x64
+MODULES    = tokenize treeize tupleize typize util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
 SOURCES    = $(MODULES:%=%.cpp)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -g -fdiagnostics-color=always
