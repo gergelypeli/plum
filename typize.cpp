@@ -146,7 +146,7 @@ class TypeSpec: public std::vector<Type *> {
 public:
     unsigned measure();
     Value *convertible(TypeSpec &other, Value *orig);
-    Storage convert(TypeSpec &other, Storage s, X64 *x64, Regs regs);
+    Storage convert(TypeSpec &other, Storage s, X64 *x64);
     TypeSpec rvalue();
     TypeSpec lvalue();
     void store(Storage s, Storage t, X64 *x64);

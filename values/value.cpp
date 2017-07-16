@@ -19,13 +19,18 @@ public:
         return (args.size() == 0 && kwargs.size() == 0);
     }
     
-    virtual Storage compile(X64 *, Regs) {
+    virtual Regs precompile(Regs) {
+        std::cerr << "This Value shouldn't have been precompiled!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Storage compile(X64 *) {
         std::cerr << "This Value shouldn't have been compiled!\n";
         throw INTERNAL_ERROR;
     }
     
-    virtual void compile_and_store(X64 *x64, Regs regs, Storage t) {
-        Storage s = compile(x64, regs);
+    virtual void compile_and_store(X64 *x64, Storage t) {
+        Storage s = compile(x64);
         //std::cerr << "Compiled and storing a " << ts << " from " << s << " to " << t << ".\n";
         ts.store(s, t, x64);
     }
@@ -38,7 +43,11 @@ public:
         :Value(ts) {
     }
     
-    virtual Storage compile(X64 *, Regs) {
+    virtual Regs precompile(Regs regs) {
+        return regs;
+    }
+    
+    virtual Storage compile(X64 *) {
         return Storage();
     }
 };
@@ -53,9 +62,13 @@ public:
         orig.reset(o);
     }
     
-    Storage compile(X64 *x64, Regs regs) {
-        Storage s = orig->compile(x64, regs);
-        Storage t = orig->ts.convert(ts, s, x64, regs);
+    virtual Regs precompile(Regs regs) {
+        return regs;  // TODO: allow the conversion to allocate registers?
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s = orig->compile(x64);
+        Storage t = orig->ts.convert(ts, s, x64);
         return t;
     }
 };
@@ -72,11 +85,15 @@ public:
         pivot.reset(p);
     }
     
-    virtual Storage compile(X64 *x64, Regs regs) {
+    virtual Regs precompile(Regs regs) {
+        return regs;
+    }
+    
+    virtual Storage compile(X64 *x64) {
         Storage s;
         
         if (pivot)
-            s = pivot->compile(x64, regs);
+            s = pivot->compile(x64);
         else
             s = variable->outer->get_storage();
         
@@ -109,17 +126,31 @@ public:
         return true;
     }
 
-    virtual Storage compile(X64 *x64, Regs regs) {
+    virtual Regs precompile(Regs regs) {
+        if (items.size() == 1 && kwitems.size() == 0)
+            return items[0]->precompile(regs);
+            
+        for (auto &item : items)
+            item->precompile(regs);
+            
+        for (auto &kv : kwitems)
+            kv.second->precompile(regs);
+            
+        return regs;
+        
+    }
+
+    virtual Storage compile(X64 *x64) {
         // FIXME: this works for a bunch of declarations, but not in general
 
         if (items.size() == 1 && kwitems.size() == 0)
-            return items[0]->compile(x64, regs);
+            return items[0]->compile(x64);
             
         for (auto &item : items)
-            item->compile_and_store(x64, regs, Storage());
+            item->compile_and_store(x64, Storage());
             
         for (auto &kv : kwitems)
-            kv.second->compile_and_store(x64, regs, Storage());
+            kv.second->compile_and_store(x64, Storage());
             
         return Storage();
     }
@@ -207,11 +238,15 @@ public:
         return true;
     }
     
-    virtual Storage compile(X64 *x64, Regs regs) {
+    virtual Regs precompile(Regs regs) {
+        return value->precompile(regs);
+    }
+    
+    virtual Storage compile(X64 *x64) {
         Variable *v = dynamic_cast<Variable *>(decl);
         
         if (v) {
-            Storage s = value->compile(x64, regs);
+            Storage s = value->compile(x64);
             Storage t = v->get_storage(v->outer->get_storage());  // local variable
             
             if (s.where == NOWHERE)
@@ -222,7 +257,7 @@ public:
             v->outer->set_rollback_declaration(v);
         }
         else
-            value->compile_and_store(x64, regs, Storage());
+            value->compile_and_store(x64, Storage());
         
         // TODO: eventually this must manage the rollback labels, too.
         return Storage();

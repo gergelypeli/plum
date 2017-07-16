@@ -26,34 +26,31 @@ enum Register {
 struct Regs {
     int available;
     
-    Regs &add(Register r) {
+    void add(Register r) {
         available |= 1 << (int)r;
-        return *this;
     }
-    
-    Regs &remove(Register r) {
-        available &= ~(1 << (int)r);
-        return *this;
-    }
-    
-    Register get_any() {
-        for (int i=0; i<8; i++)
-            if (available & (1 << i))
-                return (Register)i;
-                
-        throw X64_ERROR;
-    }
-    
+
     bool has(Register r) {
         return available & (1 << (int)r);
     }
-    
-    bool has_other(Register r) {
-        return available & ~(1 << (int)r);
+
+    Register remove(Register r) {
+        available &= ~(1 << (int)r);
+        return r;
     }
     
-    bool has_any() {
-        return available;
+    Register remove_any() {
+        for (int i=0; i<8; i++)
+            if (available & (1 << i)) {
+                available &= ~(1 << i);
+                return (Register)i;
+            }
+    
+        return RAX;
+    }
+    
+    void intersect(Regs other) {
+        available &= other.available;
     }
 };
 

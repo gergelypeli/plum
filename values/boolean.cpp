@@ -3,6 +3,7 @@ class BooleanOperationValue: public Value {
 public:
     NumericOperation operation;
     std::unique_ptr<Value> left, right;
+    Register reg;
     
     BooleanOperationValue(NumericOperation o, Value *pivot)
         :Value(BOOLEAN_TS) {
@@ -39,40 +40,37 @@ public:
         }
     }
 
-    virtual Storage compile(X64 *x64, Regs regs) {
-        bool spilled = false;
+    virtual Regs precompile(Regs regs) {
+        Regs ret = regs;
         
-        if (!regs.has_any()) {
-            x64->op(PUSHQ, RAX);
-            regs.add(RAX);
-            spilled = true;
-        }            
+        if (left)
+            ret.intersect(left->precompile(regs));
+        
+        if (right)
+            ret.intersect(right->precompile(regs));
+        
+        reg = ret.remove_any();
+        return ret;
+    }
 
-        Storage ls = left->compile(x64, regs);
-        // No need to remove anything from regs
+    virtual Storage compile(X64 *x64) {
+        Storage ls = left->compile(x64);
             
-        Register reg = regs.get_any();  // Must have at least one
-        Storage s;
-        
         if (operation == COMPLEMENT) {
             switch (ls.where) {
             case CONSTANT:
-                s = Storage(CONSTANT, !ls.value);
-                break;
+                return Storage(CONSTANT, !ls.value);
             case FLAGS:
-                s = Storage(FLAGS, negate(ls.bitset));
-                break;
+                return Storage(FLAGS, negate(ls.bitset));
             case REGISTER:
                 x64->op(NOTB, ls.reg);
                 return Storage(REGISTER, ls.reg);
             case STACK:
                 x64->op(NOTB, Address(RSP, 0));
-                s = Storage(STACK);
-                break;
+                return Storage(STACK);
             case MEMORY:
                 x64->op(TESTB, ls.address, 1);
-                s = Storage(FLAGS, SETNE);
-                break;
+                return Storage(FLAGS, SETNE);
             default:
                 throw INTERNAL_ERROR;
             }
@@ -86,10 +84,9 @@ public:
             switch (ls.where) {
             case CONSTANT:
                 if (ls.value)
-                    s = right->compile(x64, regs);
+                    return right->compile(x64);
                 else
-                    s = Storage(CONSTANT, 0);
-                break;
+                    return Storage(CONSTANT, 0);
             case FLAGS:
                 x64->op(branchize(negate(ls.bitset)), then_end);
                 break;
@@ -110,27 +107,31 @@ public:
                 throw INTERNAL_ERROR;
             }
 
-            if (s.where == NOWHERE) {
-                Storage rs = right->compile(x64, regs);  // FIXME: convert!
-                if (rs.where == CONSTANT || rs.where == FLAGS) {
-                    s = Storage(REGISTER, reg);
-                    right->ts.store(rs, s, x64);
-                }
-                else
-                    s = rs;
-
-                x64->op(JMP, else_end);
-                x64->code_label(then_end);
-                
-                if (s.where == REGISTER)
-                    x64->op(MOVB, s.reg, 0);
-                else if (s.where == STACK)
-                    x64->op(PUSHQ, 0);
-                else
-                    throw INTERNAL_ERROR;
-                    
-                x64->code_label(else_end);
+            // Then branch
+            Storage rs = right->compile(x64);
+            Storage s;
+            
+            if (rs.where == CONSTANT || rs.where == FLAGS) {
+                s = Storage(REGISTER, reg);
+                right->ts.store(rs, s, x64);
             }
+            else
+                s = rs;
+
+            x64->op(JMP, else_end);
+            x64->code_label(then_end);
+            
+            // Else branch (use same storage as the then branch)
+            if (s.where == REGISTER)
+                x64->op(MOVB, s.reg, 0);
+            else if (s.where == STACK)
+                x64->op(PUSHQ, 0);
+            else
+                throw INTERNAL_ERROR;
+                
+            x64->code_label(else_end);
+            
+            return s;
         }
         else if (operation == OR) {
             Label then_end;
@@ -141,10 +142,9 @@ public:
             switch (ls.where) {
             case CONSTANT:
                 if (ls.value)
-                    s = Storage(CONSTANT, 1);
+                    return Storage(CONSTANT, 1);
                 else
-                    s = right->compile(x64, regs);
-                break;
+                    return right->compile(x64);
             case FLAGS:
                 x64->op(branchize(negate(ls.bitset)), then_end);
                 break;
@@ -165,33 +165,37 @@ public:
                 throw INTERNAL_ERROR;
             }
 
-            if (s.where == NOWHERE) {
-                if (ls.where == FLAGS) {
-                    s = Storage(REGISTER, reg);
-                    left->ts.store(ls, s, x64);
-                }
-                else
-                    s = ls;
-                    
-                if (s.where == REGISTER)
-                    x64->op(MOVB, s.reg, 1);
-                else if (s.where == STACK)
-                    x64->op(PUSHQ, 1);
-                else
-                    throw INTERNAL_ERROR;
-                    
-                x64->op(JMP, else_end);
-                x64->code_label(then_end);
+            Storage s;
 
-                right->compile_and_store(x64, regs, s);  // FIXME: convert!
-                x64->code_label(else_end);
+            // Then branch
+            if (ls.where == FLAGS) {
+                s = Storage(REGISTER, reg);
+                left->ts.store(ls, s, x64);
             }
+            else
+                s = ls;
+                
+            if (s.where == REGISTER)
+                x64->op(MOVB, s.reg, 1);
+            else if (s.where == STACK)
+                x64->op(PUSHQ, 1);
+            else
+                throw INTERNAL_ERROR;
+                
+            x64->op(JMP, else_end);
+            x64->code_label(then_end);
+
+            // Else branch (use same storage as the condition)
+            right->compile_and_store(x64, s);
+            x64->code_label(else_end);
+            
+            return s;
         }
         else if (operation == ASSIGN) {
             if (ls.where != MEMORY)
                 throw INTERNAL_ERROR;
                 
-            Storage rs = right->compile(x64, regs);
+            Storage rs = right->compile(x64);
             
             switch (rs.where) {
             case CONSTANT:
@@ -215,25 +219,12 @@ public:
                 throw INTERNAL_ERROR;
             }
             
-            s = ls;
+            return ls;
         }
         else {
             std::cerr << "Unknown boolean operator!\n";
             throw INTERNAL_ERROR;
         }
-
-        if (spilled) {
-            if (s.where == REGISTER) {
-                x64->op(XCHGQ, RAX, Address(RSP, 0));
-                return Storage(STACK);
-            }
-            else {
-                x64->op(POPQ, RAX);
-                return s;
-            }
-        }
-        else
-            return s;
     }
 };
 
@@ -243,6 +234,7 @@ public:
     std::unique_ptr<Value> condition;
     std::unique_ptr<Value> then_branch;
     std::unique_ptr<Value> else_branch;
+    Register reg;
     
     BooleanIfValue(Value *pivot)
         :Value(VOID_TS) {
@@ -281,13 +273,28 @@ public:
         return true;
     }
     
-    virtual Storage compile(X64 *x64, Regs regs) {
+    virtual Regs precompile(Regs regs) {
+        Regs ret = regs;
+        
+        ret.intersect(condition->precompile(regs));
+        
+        if (then_branch)
+            ret.intersect(then_branch->precompile(regs));
+                       
+        if (else_branch)
+            ret.intersect(else_branch->precompile(regs));
+        
+        reg = ret.remove_any();
+        return ret;
+    }
+    
+    virtual Storage compile(X64 *x64) {
         Label then_end;
         Label else_end;
         then_end.allocate();
         else_end.allocate();
         
-        Storage cs = condition->compile(x64, regs);
+        Storage cs = condition->compile(x64);
         
         switch (cs.where) {
         case CONSTANT:
@@ -317,9 +324,8 @@ public:
                 
             break;
         case STACK:
-            x64->op(XCHGQ, RAX, Address(RSP, 0));
+            x64->op(POPQ, reg);
             x64->op(TESTQ, RAX, 1);
-            x64->op(POPQ, RAX);
             
             if (then_branch)
                 x64->op(JE, then_end);
@@ -343,7 +349,7 @@ public:
         Storage s = ts != VOID_TS ? Storage(STACK) : Storage();
 
         if (then_branch) {
-            then_branch->compile_and_store(x64, regs, s);
+            then_branch->compile_and_store(x64, s);
             
             if (else_branch)
                 x64->op(JMP, else_end);
@@ -352,7 +358,7 @@ public:
         }
         
         if (else_branch) {
-            else_branch->compile_and_store(x64, regs, s);
+            else_branch->compile_and_store(x64, s);
             x64->code_label(else_end);
         }
     

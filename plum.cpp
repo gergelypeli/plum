@@ -62,8 +62,14 @@ int main(int argc, char **argv) {
             f->import(x64);
     }
     
-    Regs allregs = Regs().add(RAX).add(RBX).add(RCX).add(RDX);
-    value_root->compile(x64, allregs);
+    Regs allregs;
+    allregs.add(RAX);
+    allregs.add(RBX);
+    allregs.add(RCX);
+    allregs.add(RDX);
+
+    value_root->precompile(allregs);
+    value_root->compile(x64);
     
     x64->done(argv[2]);
     

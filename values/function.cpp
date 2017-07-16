@@ -9,7 +9,11 @@ public:
         head_scope = s;
     }
     
-    virtual Storage compile(X64 *, Regs) {
+    virtual Regs precompile(Regs regs) {
+        return regs;
+    }
+    
+    virtual Storage compile(X64 *) {
         return Storage(MEMORY, Address(RBP, head_scope->offset));
     }
 };
@@ -25,7 +29,11 @@ public:
         body_scope = s;
     }
 
-    virtual Storage compile(X64 *, Regs) {
+    virtual Regs precompile(Regs regs) {
+        return regs;
+    }
+
+    virtual Storage compile(X64 *) {
         //std::cerr << "XXX Body offset is " << body_scope->offset << "\n";
         return Storage(MEMORY, Address(RBP, body_scope->offset));
     }
@@ -53,8 +61,12 @@ public:
     void set_function(Function *f) {
         function = f;
     }
+
+    virtual Regs precompile(Regs regs) {
+        return body->precompile(regs);
+    }
     
-    virtual Storage compile(X64 *x64, Regs regs) {
+    virtual Storage compile(X64 *x64) {
         //fn_scope->allocate();  // Hm, do we call all allocate-s in one step?
         
         unsigned frame_size = fn_scope->body_scope->size;
@@ -70,7 +82,7 @@ public:
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
         
-        body->compile_and_store(x64, regs, Storage());
+        body->compile_and_store(x64, Storage());
         
         // TODO: destructors
         x64->code_label(fn_scope->body_scope->get_rollback_label());
@@ -185,7 +197,19 @@ public:
         x64->op(MOVQ, Address(ESP, passed_size), RAX);
     }
     
-    virtual Storage compile(X64 *x64, Regs regs) {
+    virtual Regs precompile(Regs regs) {
+        Regs res = regs;
+        
+        if (pivot)
+            res.intersect(pivot->precompile(regs));
+        
+        for (auto &item : items)
+            res.intersect(item->precompile(regs));
+        
+        return res;
+    }
+    
+    virtual Storage compile(X64 *x64) {
         std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
         unsigned ret_size = stack_size(ret_ts.measure());
@@ -196,13 +220,13 @@ public:
         unsigned passed_size = 0;
         
         if (pivot) {
-            Storage s = pivot->compile(x64, regs);
+            Storage s = pivot->compile(x64);
             pivot->ts.store(s, Storage(STACK), x64);
             passed_size += stack_size(pivot->ts.measure());
         }
         
         for (auto &item : items) {
-            Storage s = item->compile(x64, regs);
+            Storage s = item->compile(x64);
             item->ts.store(s, Storage(STACK), x64);
             passed_size += stack_size(item->ts.measure());
         }
@@ -259,9 +283,13 @@ public:
         return_scope = fn_scope->return_scope;
     }
 
-    virtual Storage compile(X64 *x64, Regs regs) {
+    virtual Regs precompile(Regs regs) {
+        return value->precompile(regs);
+    }
+
+    virtual Storage compile(X64 *x64) {
         // TODO: destructors
-        Storage s = value->compile(x64, regs);
+        Storage s = value->compile(x64);
         
         Declaration *decl = return_scope->contents[0].get();
         Variable *anon = dynamic_cast<Variable *>(decl);

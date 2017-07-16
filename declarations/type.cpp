@@ -52,7 +52,7 @@ public:
         return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : NULL;
     }
 
-    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage, X64 *, Regs) {
+    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage, X64 *) {
         std::cerr << "Unconvertable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -233,7 +233,7 @@ public:
         return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
     }
 
-    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage s, X64 *x64, Regs) {
+    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage s, X64 *x64) {
         switch (s.where) {
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
@@ -345,7 +345,7 @@ public:
         return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
     }
 
-    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage s, X64 *x64, Regs) {
+    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage s, X64 *x64) {
         switch (s.where) {
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
@@ -388,10 +388,10 @@ public:
         }
     }
 
-    virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Storage s, X64 *x64, Regs regs) {
+    virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Storage s, X64 *x64) {
         // Converting to an rvalue
         this_tsi++;
-        return (*this_tsi)->convert(this_tsi, that_tsi, s, x64, regs);
+        return (*this_tsi)->convert(this_tsi, that_tsi, s, x64);
     }
     
     virtual unsigned measure(TypeSpecIter &tsi) {
@@ -424,11 +424,11 @@ Value *TypeSpec::convertible(TypeSpec &other, Value *orig) {
 }
 
 
-Storage TypeSpec::convert(TypeSpec &other, Storage s, X64 *x64, Regs regs) {
+Storage TypeSpec::convert(TypeSpec &other, Storage s, X64 *x64) {
     TypeSpecIter this_tsi(begin());
     TypeSpecIter that_tsi(other.begin());
     
-    return (*this_tsi)->convert(this_tsi, that_tsi, s, x64, regs);
+    return (*this_tsi)->convert(this_tsi, that_tsi, s, x64);
 }
 
 

@@ -30,7 +30,11 @@ public:
         return ts;
     }
 
-    virtual Storage compile(X64 *, Regs) {
+    virtual Regs precompile(Regs regs) {
+        return regs;
+    }
+
+    virtual Storage compile(X64 *) {
         return Storage(CONSTANT, number);
     }
 };
@@ -39,13 +43,19 @@ public:
 class StringValue: public Value {
 public:
     std::string text;
+    Register reg;
     
     StringValue(std::string t)
         :Value(UNSIGNED_INTEGER8_ARRAY_TS) {
         text = t;
     }
 
-    virtual Storage compile(X64 *x64, Regs regs) {
+    virtual Regs precompile(Regs regs) {
+        reg = regs.remove_any();
+        return regs;
+    }
+
+    virtual Storage compile(X64 *x64) {
         Label l;
         l.allocate();
         
@@ -54,19 +64,7 @@ public:
         for (char &c : text)
             x64->data_byte(c);
 
-        if (regs.has_any()) {
-            Register reg = regs.get_any();
-            x64->op(LEARIP, reg, l, 0);
-            //x64->op(MOVQ, reg, l);
-            return Storage(REGISTER, reg);
-        }
-        else {
-            //x64->op(PUSHQ, l);
-            x64->op(PUSHQ, RAX);
-            x64->op(LEARIP, RAX, l, 0);
-            x64->op(XCHGQ, RAX, Address(RSP, 0));
-            return Storage(STACK);
-        }
+        x64->op(LEARIP, reg, l, 0);
+        return Storage(REGISTER, reg);
     }
 };
-
