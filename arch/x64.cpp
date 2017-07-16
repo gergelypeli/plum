@@ -20,35 +20,39 @@ std::ostream &operator << (std::ostream &os, const Register r) {
 }
 
 
-Address::Address(Register x, int y) {
-    //if (x == NOREG)
-    //      std::cerr << "Address without register!\n";
-          
-    base = x;
-    offset = y;
+Address::Address() {
+    base = NOREG;
+    index = NOREG;
+    offset = 0;
 }
 
 
-Address::Address(Label &c, int x)
-    :label(c) {
-    base = NOREG;
-    offset = x;
+Address::Address(Register b, int o) {
+    if (b == NOREG) {
+        std::cerr << "Address without register!\n";
+        throw X64_ERROR;
+    }
+          
+    base = b;
+    index = NOREG;
+    offset = o;
+}
+
+
+Address::Address(Register b, Register i, int o) {
+    if (b == NOREG) {
+        std::cerr << "Address without register!\n";
+        throw X64_ERROR;
+    }
+          
+    base = b;
+    index = i;
+    offset = o;
 }
 
 
 Address Address::operator + (int x) {
     return Address(base, offset + x);
-}
-
-
-Address Address::operator + (Label &c) {
-     Address m(*this);
-     
-     if (m.label)
-        std::cerr << "This Address is too small for the two of these labels!\n";
-        
-     m.label.def_index = c.def_index;
-     return m;
 }
 
 
@@ -363,50 +367,92 @@ void X64::effective_address(int modrm, Register x) {
 }
 
 
-// Fix addresses and scaling and index are not yet supported...
-// TODO: modrm should be called reg officially, the mod and rm fields are generated here.
-void X64::effective_address(int modrm, Address x) {
+void X64::effective_address(int regfield, Address x) {
+    // Quirks:
+    // Offsetless RBP in r/m is interpreted as [RIP + disp32]
+    // Offsetless RBP in SIB base is interpreted as [disp32]
+    // RSP in r/m is interpreted as SIB byte following
+    // RSP in SIB index means no index
+    
+    const int DISP0 = 0;
+    const int DISP8 = 1;
+    const int DISP32 = 2;
+    
+    const int SCALE1 = 0;
+    //const int SCALE2 = 1;
+    //const int SCALE4 = 2;
+    //const int SCALE8 = 3;
+    
+    const Register USE_SIB = RSP;
+    const Register NO_INDEX = RSP;
+    
+    if (x.index == NO_INDEX) {
+        std::cerr << "Oops, can't use RSP as SIB index register!\n";
+        throw X64_ERROR;
+    }
+
     if (x.base == NOREG) {
-        if (!x.label) {
-            std::cerr << "Address without base and label used in addressing!\n";
+        // We no longer use absolute addresses, so it's better to throw something instead.
+        std::cerr << "Address without base register used for addressing!\n";
+        throw X64_ERROR;
+    }
+    
+    if (x.base == NOREG) {
+        if (x.index != NOREG) {
+            std::cerr << "Not funny.\n";
             throw X64_ERROR;
         }
         
-        // In 64-bit mode fake EBP base will mean RIP base, must use SIB always!
-        code_byte(0x00 | (modrm << 3) | 0x04);  // Using SIB
-        code_byte(0x00 | (SP << 3) | 0x05);  // fake SP index means no index, fake EBP base no base
-        code_reference(x.label, REF_CODE_ABSOLUTE, x.offset);
+        // Must encode as offsetless RBP base with SIB
+        code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
+        code_byte((SCALE1 << 6) | (NO_INDEX << 3) | RBP);
+        code_dword(x.offset);
     }
-    else if (x.offset == 0 && !x.label && x.base != BP) {  // SIB EBP base needs offset
-        if (x.base == SP) {
-            code_byte(0x00 | (modrm << 3) | 0x04);  // Using SIB
-            code_byte(0x00 | (SP << 3) | x.base);  // fake SP index means no index
+    else if (x.offset == 0 && x.base != RBP) {  // Can't encode [RBP] without offset
+        // Omit offset
+        
+        if (x.index != NOREG) {
+            code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
+            code_byte((SCALE1 << 6) | (x.index << 3)  | x.base);
+        }
+        else if (x.base == USE_SIB) {
+            code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
+            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | x.base);
         }
         else 
-            code_byte(0x00 | (modrm << 3) | x.base);
+            code_byte((DISP0 << 6)  | (regfield << 3) | x.base);
     }
-    else if (x.offset <= 127 && x.offset >= -128 && !x.label) {
-        if (x.base == SP) {
-            code_byte(0x40 | (modrm << 3) | 0x04);  // Using SIB
-            code_byte(0x00 | (SP << 3) | x.base);  // fake SP index means no index
+    else if (x.offset <= 127 && x.offset >= -128) {
+        // Byte offset
+        
+        if (x.index != NOREG) {
+            code_byte((DISP8 << 6)  | (regfield << 3) | USE_SIB);
+            code_byte((SCALE1 << 6) | (x.index << 3)  | x.base);
+        }
+        else if (x.base == USE_SIB) {
+            code_byte((DISP8 << 6)  | (regfield << 3) | USE_SIB);
+            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | x.base);
         }
         else
-            code_byte(0x40 | (modrm << 3) | x.base);
+            code_byte((DISP8 << 6)  | (regfield << 3) | x.base);
             
         code_byte((char)x.offset);
     }
     else {
-        if (x.base == SP) {
-            code_byte(0x80 | (modrm << 3) | 0x04); // Using SIB
-            code_byte(0x00 | (SP << 3) | x.base); // fake SP index means no index
+        // Dword offset
+        
+        if (x.index != NOREG) {
+            code_byte((DISP32 << 6) | (regfield << 3) | USE_SIB);
+            code_byte((SCALE1 << 6) | (x.index << 3)  | x.base);
+        }
+        else if (x.base == USE_SIB) {
+            code_byte((DISP32 << 6) | (regfield << 3) | USE_SIB);
+            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | x.base);
         }
         else
-            code_byte(0x80 | (modrm << 3) | x.base);
+            code_byte((DISP32 << 6) | (regfield << 3) | x.base);
             
-        if (!x.label)
-            code_dword(x.offset);  // 32-bit offsets only
-        else
-            code_reference(x.label, REF_CODE_ABSOLUTE, x.offset);
+        code_dword(x.offset);  // 32-bit offsets only
     }
 }
 
@@ -427,7 +473,7 @@ void X64::op(SimpleOp opcode) {
 
 struct {
     int op;
-    int modrm;
+    int regfield;
 } unary_info[] = {
     {0xFE, 1},
     {0xF6, 6},
@@ -449,13 +495,13 @@ struct {
 void X64::op(UnaryOp opcode, Register x) {
     auto &info = unary_info[opcode >> 2];
     code_op(info.op, opcode & 3);
-    effective_address(info.modrm, x);
+    effective_address(info.regfield, x);
 }
 
 void X64::op(UnaryOp opcode, Address x) {
     auto &info = unary_info[opcode >> 2];
     code_op(info.op, opcode & 3);
-    effective_address(info.modrm, x);
+    effective_address(info.regfield, x);
 }
 
 
@@ -499,7 +545,7 @@ void X64::op(StringOp opcode) {
 
 struct {
     int op1;
-    int modrm1;
+    int regfield1;
     int op2;
     int op3;
 } binary_info[] = {
@@ -525,7 +571,7 @@ void X64::op(BinaryOp opcode, Register x, Label c, int offset) {
         std::cerr << "Label addresses are qword constants!\n";
         
     code_op(binary_info[opcode >> 2].op1, opcode & 3);
-    effective_address(binary_info[opcode >> 2].modrm1, x);
+    effective_address(binary_info[opcode >> 2].regfield1, x);
     code_reference(c, REF_CODE_ABSOLUTE, offset);
 }
 
@@ -535,14 +581,14 @@ void X64::op(BinaryOp opcode, Address x, Label c, int offset) {
         std::cerr << "Label addresses are qword constants!\n";
 
     code_op(binary_info[opcode >> 2].op1, opcode & 3);
-    effective_address(binary_info[opcode >> 2].modrm1, x);
+    effective_address(binary_info[opcode >> 2].regfield1, x);
     code_reference(c, REF_CODE_ABSOLUTE, offset);
 }
 
 
 void X64::op(BinaryOp opcode, Register x, int y) {
     code_op(binary_info[opcode >> 2].op1, opcode & 3);
-    effective_address(binary_info[opcode >> 2].modrm1, x);
+    effective_address(binary_info[opcode >> 2].regfield1, x);
     
     switch (opcode & 3) {
     case 0: code_byte(y); break;
@@ -554,7 +600,7 @@ void X64::op(BinaryOp opcode, Register x, int y) {
 
 void X64::op(BinaryOp opcode, Address x, int y) {
     code_op(binary_info[opcode >> 2].op1, opcode & 3);
-    effective_address(binary_info[opcode >> 2].modrm1, x);
+    effective_address(binary_info[opcode >> 2].regfield1, x);
     
     switch (opcode & 3) {
     case 0: code_byte(y); break;
@@ -683,7 +729,7 @@ void X64::op(StackOp opcode, Address x) {
 
 struct {
         int op;
-        int modrm;
+        int regfield;
 } memory_info[] = {
         {0x0F01, 2},
         {0x0F01, 3},
@@ -697,7 +743,7 @@ struct {
 
 void X64::op(MemoryOp opcode, Address x) {
     code_op(memory_info[opcode].op, 0);
-    effective_address(memory_info[opcode].modrm, x);
+    effective_address(memory_info[opcode].regfield, x);
 }
 
 
@@ -770,14 +816,16 @@ void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
 
 
 void X64::op(LeaRipOp, Register r, Label l, int o) {
+    const int DISP0 = 0;
+    
     // REX 64-bit operands
     code_byte(0x48);
     
     // LEA
     code_byte(0x8D);
     
-    // Explicit encoding of the effective address, until proper X64 register support
-    code_byte(0x00 | (r << 3) | 0x05);  // [RIP + disp32]
+    // Can't specify RIP base in Address, encode it explicitly
+    code_byte((DISP0 << 6) | (r << 3) | RBP);  // means [RIP + disp32]
     code_reference(l, REF_CODE_RELATIVE, o);
 }
 
@@ -786,13 +834,13 @@ void X64::op(LeaRipOp, Register r, Label l, int o) {
 
 void X64::op(BitSetOp opcode, Register x) {
     code_op(0x0F90 | opcode, 0);
-    effective_address(0, x);  // 0 is modrm
+    effective_address(0, x);  // 0 is regfield
 }
 
 
 void X64::op(BitSetOp opcode, Address x) {
     code_op(0x0F90 | opcode, 0);
-    effective_address(0, x);  // 0 is modrm
+    effective_address(0, x);  // 0 is regfield
 }
 
 
