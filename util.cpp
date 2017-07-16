@@ -12,6 +12,11 @@ inline bool ends_with(std::string const & value, std::string const & ending)
 }
 
 
-unsigned round_up(unsigned size) {
+unsigned stack_size(unsigned size) {
     return (size + 7) & ~7;
+}
+
+
+unsigned item_size(unsigned size) {
+    return size <= 2 ? size : size <= 4 ? 4 : size <= 8 ? 8 : stack_size(size);
 }

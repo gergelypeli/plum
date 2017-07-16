@@ -61,7 +61,7 @@ public:
 
     virtual int reserve(unsigned s) {
         unsigned old_size = size;
-        size += round_up(s);
+        size += stack_size(s);
         
         if (is_downward) {
             return -size;

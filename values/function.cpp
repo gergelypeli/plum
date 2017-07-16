@@ -188,7 +188,7 @@ public:
     virtual Storage compile(X64 *x64, Regs regs) {
         std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
-        unsigned ret_size = round_up(ret_ts.measure());
+        unsigned ret_size = stack_size(ret_ts.measure());
         
         if (ret_size)
             x64->op(SUBQ, RSP, ret_size);
@@ -198,13 +198,13 @@ public:
         if (pivot) {
             Storage s = pivot->compile(x64, regs);
             pivot->ts.store(s, Storage(STACK), x64);
-            passed_size += round_up(pivot->ts.measure());
+            passed_size += stack_size(pivot->ts.measure());
         }
         
         for (auto &item : items) {
             Storage s = item->compile(x64, regs);
             item->ts.store(s, Storage(STACK), x64);
-            passed_size += round_up(item->ts.measure());
+            passed_size += stack_size(item->ts.measure());
         }
 
         if (function->is_sysv && passed_size > 0)
