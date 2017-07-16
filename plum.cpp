@@ -63,10 +63,20 @@ int main(int argc, char **argv) {
     }
     
     Regs allregs;
-    allregs.add(RAX);
-    allregs.add(RBX);
-    allregs.add(RCX);
-    allregs.add(RDX);
+    //allregs.add(RAX);
+    //allregs.add(RBX);
+    //allregs.add(RCX);
+    //allregs.add(RDX);
+
+    allregs.add(R8);
+    allregs.add(R9);
+    allregs.add(R10);
+    allregs.add(R11);
+
+    allregs.add(R12);
+    allregs.add(R13);
+    allregs.add(R14);
+    allregs.add(R15);
 
     value_root->precompile(allregs);
     value_root->compile(x64);

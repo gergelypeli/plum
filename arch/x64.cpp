@@ -2,6 +2,16 @@
 
 #include "x64.h"
 
+const int OPSIZE_RAW = 4;
+const int OSP = 0x66;
+
+const int REX =   0x40;
+const int REX_W = 0x08;
+const int REX_R = 0x04;
+const int REX_X = 0x02;
+const int REX_B = 0x01;
+
+
 std::ostream &operator << (std::ostream &os, const Register r) {
     switch (r) {
     case NOREG: os << "-"; break;
@@ -336,34 +346,85 @@ void X64::code_reference(Label c, Ref_type f, int offset) {
 }
 
 
-void X64::code_op(int code, int size, bool prefix_only) {
+void X64::rex(int wrxb) {
+    if (wrxb)
+        code_byte(REX | wrxb);
+}
+
+
+int X64::rxb(int regfield, Register rm) {
+    return
+        (regfield >= 8 ? REX_R : 0x00) |
+        (rm >= 8 ? REX_B : 0x00);
+}
+
+
+int X64::rxb(int regfield, Address rm) {
+    return
+        (regfield >= 8 ? REX_R : 0x00) |
+        (rm.index != NOREG && rm.index >= 8 ? REX_X : 0x00) |
+        (rm.base != NOREG && rm.base >= 8 ? REX_B : 0x00);
+}
+
+
+void X64::code_op(int code, int size, int rxb) {
     // size == 0 => byte  => ____ op0
     // size == 1 => word  => 0x66 op1
     // size == 2 => dword => ____ op1
     // size == 3 => qword => 0x48 op1
+    // size == 4 => N/A   => ____ op
+    // size == 5 => word  => 0x66 op
+    // size == 6 => dword => ____ op
+    // size == 7 => qword => 0x48 op
 
-    if (size == 1)
+    switch (size) {
+    case 0:
+        rex(rxb);
+        code &= ~1;
+        break;
+    case 1:
         code_byte(0x66);
-    else if (size == 3)
-        code_byte(0x48);  // REX prefix for 64 operands, but no Rn registers
+        rex(rxb);
+        code |= 1;
+        break;
+    case 2:
+        rex(rxb);
+        code |= 1;
+        break;
+    case 3:
+        rex(REX_W | rxb);
+        code |= 1;
+        break;
+    case 4:
+        rex(rxb);
+        break;
+    case 5:
+        code_byte(0x66);
+        rex(rxb);
+        break;
+    case 6:
+        rex(rxb);
+        break;
+    case 7:
+        rex(REX_W | rxb);
+        break;
+    default:
+        throw X64_ERROR;
+    }
 
-    if (code > 255)  // Two-byte opcodes must be emitted MSB first
+    if (code & 0xFF00)  // Two-byte opcodes must be emitted MSB first
         code_byte((code >> 8) & 0xFF);
 
-    if (prefix_only) {
-        // No bytes allowed, but we don't touch the lowest bit either
-        if (size == 0)
-            throw X64_ERROR;
-            
-        code_byte((code & 0xFF));
-    }
-    else
-        code_byte((code & 0xFF) | (size >= 1 ? 1 : 0));
+    code_byte(code & 0xFF);
 }
 
 
-void X64::effective_address(int modrm, Register x) {
-    code_byte(0xC0 | (modrm << 3) | x);
+void X64::effective_address(int regfield, Register x) {
+    // The cut off bits belong to the REX prefix
+    regfield &= 7;
+    int rm = x & 7;
+    
+    code_byte(0xC0 | (regfield << 3) | rm);
 }
 
 
@@ -397,8 +458,14 @@ void X64::effective_address(int regfield, Address x) {
         throw X64_ERROR;
     }
     
-    if (x.base == NOREG) {
-        if (x.index != NOREG) {
+    // The cut off bits belong to the REX prefix
+    regfield &= 7;
+    int base = x.base == NOREG ? NOREG : x.base & 7;  // RSP and R12 need a SIB
+    int index = x.index == NOREG ? NOREG : x.index & 7;
+    int offset = x.offset;
+    
+    if (base == NOREG) {
+        if (index != NOREG) {
             std::cerr << "Not funny.\n";
             throw X64_ERROR;
         }
@@ -406,54 +473,66 @@ void X64::effective_address(int regfield, Address x) {
         // Must encode as offsetless RBP base with SIB
         code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
         code_byte((SCALE1 << 6) | (NO_INDEX << 3) | RBP);
-        code_dword(x.offset);
+        code_dword(offset);
     }
-    else if (x.offset == 0 && x.base != RBP) {  // Can't encode [RBP] without offset
+    else if (offset == 0 && base != RBP) {  // Can't encode [RBP] and [R13] without offset
         // Omit offset
         
-        if (x.index != NOREG) {
+        if (index != NOREG) {
             code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (x.index << 3)  | x.base);
+            code_byte((SCALE1 << 6) | (index << 3)    | base);  // R12 can be index
         }
-        else if (x.base == USE_SIB) {
+        else if (base == USE_SIB) {
             code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | x.base);
+            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | base);
         }
         else 
-            code_byte((DISP0 << 6)  | (regfield << 3) | x.base);
+            code_byte((DISP0 << 6)  | (regfield << 3) | base);
     }
-    else if (x.offset <= 127 && x.offset >= -128) {
+    else if (offset <= 127 && offset >= -128) {
         // Byte offset
         
-        if (x.index != NOREG) {
+        if (index != NOREG) {
             code_byte((DISP8 << 6)  | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (x.index << 3)  | x.base);
+            code_byte((SCALE1 << 6) | (index << 3)    | base);  // R12 can be index
         }
-        else if (x.base == USE_SIB) {
+        else if (base == USE_SIB) {
             code_byte((DISP8 << 6)  | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | x.base);
+            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | base);
         }
         else
-            code_byte((DISP8 << 6)  | (regfield << 3) | x.base);
+            code_byte((DISP8 << 6)  | (regfield << 3) | base);
             
-        code_byte((char)x.offset);
+        code_byte((char)offset);
     }
     else {
         // Dword offset
         
-        if (x.index != NOREG) {
+        if (index != NOREG) {
             code_byte((DISP32 << 6) | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (x.index << 3)  | x.base);
+            code_byte((SCALE1 << 6) | (index << 3)    | base);  // R12 can be index
         }
-        else if (x.base == USE_SIB) {
+        else if (base == USE_SIB) {
             code_byte((DISP32 << 6) | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | x.base);
+            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | base);
         }
         else
-            code_byte((DISP32 << 6) | (regfield << 3) | x.base);
+            code_byte((DISP32 << 6) | (regfield << 3) | base);
             
-        code_dword(x.offset);  // 32-bit offsets only
+        code_dword(offset);  // 32-bit offsets only
     }
+}
+
+
+void X64::code_op(int opcode, int opsize, int regfield, Register rm) {
+    code_op(opcode, opsize, rxb(regfield, rm));
+    effective_address(regfield, rm);
+}
+
+
+void X64::code_op(int opcode, int opsize, int regfield, Address rm) {
+    code_op(opcode, opsize, rxb(regfield, rm));
+    effective_address(regfield, rm);
 }
 
 
@@ -465,7 +544,7 @@ int simple_info[] = {
 
 
 void X64::op(SimpleOp opcode) {
-    code_op(simple_info[opcode], 0);
+    code_op(simple_info[opcode], OPSIZE_RAW);
 }
 
 
@@ -494,21 +573,21 @@ struct {
 
 void X64::op(UnaryOp opcode, Register x) {
     auto &info = unary_info[opcode >> 2];
-    code_op(info.op, opcode & 3);
-    effective_address(info.regfield, x);
+    code_op(info.op, opcode & 3, info.regfield, x);
+    //effective_address(info.regfield, x);
 }
 
 void X64::op(UnaryOp opcode, Address x) {
     auto &info = unary_info[opcode >> 2];
-    code_op(info.op, opcode & 3);
-    effective_address(info.regfield, x);
+    code_op(info.op, opcode & 3, info.regfield, x);
+    //effective_address(info.regfield, x);
 }
 
 
 
 
 void X64::op(PortOp opcode) {
-    if (opcode < 4)
+    if ((opcode | 3) == INQ)
         code_op(0xEC, opcode & 3);
     else
         code_op(0xEE, opcode & 3);
@@ -516,7 +595,7 @@ void X64::op(PortOp opcode) {
 
 
 void X64::op(PortOp opcode, int x) {
-    if (opcode < 4)
+    if ((opcode | 3) == INQ)
         code_op(0xE4, opcode & 3);
     else
         code_op(0xE6, opcode & 3);
@@ -562,33 +641,9 @@ struct {
 };
 
 
-// constant to r/m
-
-void X64::op(BinaryOp opcode, Register x, Label c, int offset) {
-    // Even if the immediate operand will only be 32 bits, it will be sign-extended,
-    // and since it's semantically an address, it should be moved into a 64-bit register.
-    if ((opcode & 3) != 3)
-        std::cerr << "Label addresses are qword constants!\n";
-        
-    code_op(binary_info[opcode >> 2].op1, opcode & 3);
-    effective_address(binary_info[opcode >> 2].regfield1, x);
-    code_reference(c, REF_CODE_ABSOLUTE, offset);
-}
-
-
-void X64::op(BinaryOp opcode, Address x, Label c, int offset) {
-    if ((opcode & 3) != 3)
-        std::cerr << "Label addresses are qword constants!\n";
-
-    code_op(binary_info[opcode >> 2].op1, opcode & 3);
-    effective_address(binary_info[opcode >> 2].regfield1, x);
-    code_reference(c, REF_CODE_ABSOLUTE, offset);
-}
-
-
 void X64::op(BinaryOp opcode, Register x, int y) {
-    code_op(binary_info[opcode >> 2].op1, opcode & 3);
-    effective_address(binary_info[opcode >> 2].regfield1, x);
+    auto &info = binary_info[opcode >> 2];
+    code_op(info.op1, opcode & 3, info.regfield1, x);
     
     switch (opcode & 3) {
     case 0: code_byte(y); break;
@@ -599,8 +654,8 @@ void X64::op(BinaryOp opcode, Register x, int y) {
 }
 
 void X64::op(BinaryOp opcode, Address x, int y) {
-    code_op(binary_info[opcode >> 2].op1, opcode & 3);
-    effective_address(binary_info[opcode >> 2].regfield1, x);
+    auto &info = binary_info[opcode >> 2];
+    code_op(info.op1, opcode & 3, info.regfield1, x);
     
     switch (opcode & 3) {
     case 0: code_byte(y); break;
@@ -614,18 +669,18 @@ void X64::op(BinaryOp opcode, Register x, Register y) {
     if ((opcode | 3) == MOVQ && x == y)
         return;  // Don't embarrass ourselves
 
-    code_op(binary_info[opcode >> 2].op2, opcode & 3);
-    effective_address(y, x);
+    auto &info = binary_info[opcode >> 2];
+    code_op(info.op2, opcode & 3, y, x);
 }
 
 void X64::op(BinaryOp opcode, Address x, Register y) {
-    code_op(binary_info[opcode >> 2].op2, opcode & 3);
-    effective_address(y, x);
+    auto &info = binary_info[opcode >> 2];
+    code_op(info.op2, opcode & 3, y, x);
 }
 
 void X64::op(BinaryOp opcode, Register x, Address y) {
-    code_op(binary_info[opcode >> 2].op3, opcode & 3);
-    effective_address(x, y);
+    auto &info = binary_info[opcode >> 2];
+    code_op(info.op3, opcode & 3, x, y);
 }
 
 
@@ -637,35 +692,35 @@ int shift_info[] = {
 
 
 void X64::op(ShiftOp opcode, Register x) {  // by CL
-    code_op(0xD2, opcode & 3);
-    effective_address(shift_info[opcode >> 2], x);
+    auto &info = shift_info[opcode >> 2];
+    code_op(0xD2, opcode & 3, info, x);
 }
 
 void X64::op(ShiftOp opcode, Address x) {  // by CL
-    code_op(0xD2, opcode & 3);
-    effective_address(shift_info[opcode >> 2], x);
+    auto &info = shift_info[opcode >> 2];
+    code_op(0xD2, opcode & 3, info, x);
 }
 
 void X64::op(ShiftOp opcode, Register x, char y) {
+    auto &info = shift_info[opcode >> 2];
+
     if (y == 1) {
-        code_op(0xD0, opcode & 3);
-        effective_address(shift_info[opcode >> 2], x);
+        code_op(0xD0, opcode & 3, info, x);
     }
     else {
-        code_op(0xC0, opcode & 3);
-        effective_address(shift_info[opcode >> 2], x);
+        code_op(0xC0, opcode & 3, info, x);
         code_byte(y);
     }
 }
 
 void X64::op(ShiftOp opcode, Address x, char y) {
+    auto &info = shift_info[opcode >> 2];
+
     if (y == 1) {
-        code_op(0xD0, opcode & 3);
-        effective_address(shift_info[opcode >> 2], x);
+        code_op(0xD0, opcode & 3, info, x);
     }
     else {
-        code_op(0xC0, opcode & 3);
-        effective_address(shift_info[opcode >> 2], x);
+        code_op(0xC0, opcode & 3, info, x);
         code_byte(y);
     }
 }
@@ -674,53 +729,42 @@ void X64::op(ShiftOp opcode, Address x, char y) {
 
 
 void X64::op(ExchangeOp opcode, Register x, Register y) {
-    code_op(0x86, opcode);
-    effective_address(x, y);
+    code_op(0x86, opcode & 3, x, y);
 }
 
 void X64::op(ExchangeOp opcode, Address x, Register y) {
-    code_op(0x86, opcode);
-    effective_address(y, x);
+    code_op(0x86, opcode & 3, y, x);
 }
 
 void X64::op(ExchangeOp opcode, Register x, Address y) {
-    code_op(0x86, opcode);
-    effective_address(x, y);
+    code_op(0x86, opcode & 3, x, y);
 }
 
 
 
-void X64::op(StackOp opcode, Label c, int offset) {
-    if (opcode == PUSHQ) {
-        code_byte(0x68);
-        code_reference(c, REF_CODE_ABSOLUTE, offset);
-    }
-}
 
 void X64::op(StackOp opcode, int x) {
     if (opcode == PUSHQ) {
-        code_byte(0x68);
+        code_byte(0x68);  // Defaults to 64-bit operand size
         code_dword(x);  // 32-bit immediate only
     }
     else
-        std::cerr << "WAT?\n";
+        throw X64_ERROR;
 }
 
 void X64::op(StackOp opcode, Register x) {
     if (opcode == PUSHQ)
-        code_byte(0x50 + x);
+        code_op(0x50 | (x & 0x07), OPSIZE_RAW, (x & 0x08 ? REX_B : 0));
     else
-        code_byte(0x58 + x);
+        code_op(0x58 | (x & 0x07), OPSIZE_RAW, (x & 0x08 ? REX_B : 0));
 }
 
 void X64::op(StackOp opcode, Address x) {
     if (opcode == PUSHQ) {
-        code_byte(0xFF);
-        effective_address(6, x);
+        code_op(0xFF, OPSIZE_RAW, 6, x);
     }
     else {
-        code_byte(0x8F);
-        effective_address(0, x);
+        code_op(0x8F, OPSIZE_RAW, 0, x);
     }
 }
 
@@ -742,8 +786,8 @@ struct {
 };
 
 void X64::op(MemoryOp opcode, Address x) {
-    code_op(memory_info[opcode].op, 0);
-    effective_address(memory_info[opcode].regfield, x);
+    auto &info = memory_info[opcode];
+    code_op(info.op, 0, info.regfield, x);
 }
 
 
@@ -754,13 +798,13 @@ int registerfirst_info[] = {
 };
 
 void X64::op(RegisterFirstOp opcode, Register x, Register y) {
-    code_op(registerfirst_info[opcode >> 2], opcode & 3, true);
-    effective_address(x, y);
+    auto &info = registerfirst_info[opcode >> 2];
+    code_op(info, (opcode & 3) | OPSIZE_RAW, x, y);
 }
 
 void X64::op(RegisterFirstOp opcode, Register x, Address y) {
-    code_op(registerfirst_info[opcode >> 2], opcode & 3, true);
-    effective_address(x, y);
+    auto &info = registerfirst_info[opcode >> 2];
+    code_op(info, (opcode & 3) | OPSIZE_RAW, x, y);
 }
 
 
@@ -770,14 +814,14 @@ int registerfirstconstantthird_info[] = {
 };
 
 void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Register y, int z) {
-    code_op(registerfirstconstantthird_info[opcode >> 2], opcode & 3, true);
-    effective_address(x, y);
+    auto &info = registerfirstconstantthird_info[opcode >> 2];
+    code_op(info, (opcode & 3) | OPSIZE_RAW, x, y);
     code_dword(z);  // 32-bit immediate only
 }
 
 void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Address y, int z) {
-    code_op(registerfirstconstantthird_info[opcode >> 2], opcode & 3, true);
-    effective_address(x, y);
+    auto &info = registerfirstconstantthird_info[opcode >> 2];
+    code_op(info, (opcode & 3) | OPSIZE_RAW, x, y);
     code_dword(z);  // 32-bit immediate only
 }
 
@@ -789,13 +833,13 @@ int registersecond_info[] = {
 };
 
 void X64::op(RegisterSecondOp opcode, Register x, Register y) {
-    code_op(registersecond_info[opcode], 0);
-    effective_address(y, x);
+    auto &info = registersecond_info[opcode];
+    code_op(info, 0, y, x);
 }
 
 void X64::op(RegisterSecondOp opcode, Address x, Register y) {
-    code_op(registersecond_info[opcode], 0);
-    effective_address(y, x);
+    auto &info = registersecond_info[opcode];
+    code_op(info, 0, y, x);
 }
 
 
@@ -807,9 +851,8 @@ int registermemory_info[] = {
 
 
 void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
-    //std::cerr << "HIHI\n";
-    code_op(registermemory_info[opcode], 0);
-    effective_address(x, y);
+    auto &info = registermemory_info[opcode];
+    code_op(info, 0, x, y);
 }
 
 
@@ -818,14 +861,10 @@ void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
 void X64::op(LeaRipOp, Register r, Label l, int o) {
     const int DISP0 = 0;
     
-    // REX 64-bit operands
-    code_byte(0x48);
-    
-    // LEA
-    code_byte(0x8D);
+    code_op(0x8D, 3 | OPSIZE_RAW, r >= 8 ? REX_R : 0);
     
     // Can't specify RIP base in Address, encode it explicitly
-    code_byte((DISP0 << 6) | (r << 3) | RBP);  // means [RIP + disp32]
+    code_byte((DISP0 << 6) | ((r & 7) << 3) | RBP);  // means [RIP + disp32]
     code_reference(l, REF_CODE_RELATIVE, o);
 }
 
@@ -833,21 +872,19 @@ void X64::op(LeaRipOp, Register r, Label l, int o) {
 
 
 void X64::op(BitSetOp opcode, Register x) {
-    code_op(0x0F90 | opcode, 0);
-    effective_address(0, x);  // 0 is regfield
+    code_op(0x0F90 | opcode, OPSIZE_RAW, 0, x);
 }
 
 
 void X64::op(BitSetOp opcode, Address x) {
-    code_op(0x0F90 | opcode, 0);
-    effective_address(0, x);  // 0 is regfield
+    code_op(0x0F90 | opcode, OPSIZE_RAW, 0, x);
 }
 
 
 
 
 void X64::op(BranchOp opcode, Label c) {
-    code_op(0x0F80 | opcode, 0);  // use 32-bit offset at first
+    code_op(0x0F80 | opcode, OPSIZE_RAW);  // use 32-bit offset at first
     code_reference(c, REF_CODE_RELATIVE);
 }
 
@@ -856,15 +893,15 @@ void X64::op(BranchOp opcode, Label c) {
 
 void X64::op(JumpOp opcode, Label c) {
     if (opcode == CALL) {
-        code_op(0xE8, 0);
+        code_op(0xE8, OPSIZE_RAW);
         code_reference(c, REF_CODE_RELATIVE);
     }
     else if (opcode == JMP) {
-        code_op(0xE9, 0);
+        code_op(0xE9, OPSIZE_RAW);
         code_reference(c, REF_CODE_RELATIVE);
     }
     else if (opcode == LOOP) {
-        code_op(0xE2, 0);
+        code_op(0xE2, OPSIZE_RAW);
         code_reference(c, REF_CODE_RELATIVE);
     }
 }
@@ -872,8 +909,7 @@ void X64::op(JumpOp opcode, Label c) {
 
 void X64::op(JumpOp opcode, Address x) {
     if (opcode == CALL) {
-        code_op(0xFF, 0);
-        effective_address(2, x);
+        code_op(0xFF, OPSIZE_RAW, 2, x);
     }
     else
         std::cerr << "Whacky jump!\n\a";
@@ -882,15 +918,15 @@ void X64::op(JumpOp opcode, Address x) {
 
 void X64::op(ConstantOp opcode, int x) {
     if (opcode == INT) {
-        code_op(0xCD, 0);
+        code_op(0xCD, OPSIZE_RAW);
         code_byte(x);
     }
     else if (opcode == RETX) {
-        code_op(0xC2, 0);
+        code_op(0xC2, OPSIZE_RAW);
         code_word(x);
     }
     else if (opcode == RETFX) {
-        code_op(0xCA, 0);
+        code_op(0xCA, OPSIZE_RAW);
         code_word(x);
     }
 }

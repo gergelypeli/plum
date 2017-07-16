@@ -107,7 +107,7 @@ struct Storage {
             return false;
         case MEMORY:
             return (
-                (address.base != NOREG && !regs.has(address.base)) ||
+                (address.base != NOREG && address.base != RBP && !regs.has(address.base)) ||
                 (address.index != NOREG && !regs.has(address.index))
             );
         default:

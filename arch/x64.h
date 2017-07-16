@@ -11,14 +11,13 @@
 
 // Warning: using any Rn registers in the addressing of a memory operand
 // will require the use of the REX prefix, but that turns AH, CH, DH, BH into
-// SPL, BPL, SIL, and DIL! Such addressing is not supported yet, but will be in the future!
-// Since these registers are not that useful, these symbols are now removed
-// to avoid nasty surprises.
+// SPL, BPL, SIL, and DIL! To avoid confusion, these byte registers are all unsupported.
+// In fact, registers 4-7 should only be used for storing qwords.
 enum Register {
-    RAX=0, RCX, RDX, RBX, RSP, RBP, RSI, RDI,
-    EAX=0, ECX, EDX, EBX, ESP, EBP, ESI, EDI,
-    AX=0, CX, DX, BX, SP, BP, SI, DI,
-    AL=0, CL, DL, BL, //AH, CH, DH, BH,
+    RAX=0, RCX, RDX, RBX, RSP, RBP, RSI, RDI, R8,  R9,  R10,  R11,  R12,  R13,  R14,  R15,
+    EAX=0, ECX, EDX, EBX, ESP, EBP, ESI, EDI, R8D, R9D, R10D, R11D, R12D, R13D, R14D, R15D,
+    AX=0, CX, DX, BX, SP, BP, SI, DI,         R8W, R9W, R10W, R11W, R12W, R13W, R14W, R15W,
+    AL=0, CL, DL, BL, X4B, X5B, X6B, X7B,     R8B, R9B, R10B, R11B, R12B, R13B, R14B, R15B,
     NOREG=-1
 };
 
@@ -40,7 +39,7 @@ struct Regs {
     }
     
     Register remove_any() {
-        for (int i=0; i<8; i++)
+        for (int i=0; i<16; i++)
             if (available & (1 << i)) {
                 available &= ~(1 << i);
                 return (Register)i;
@@ -342,7 +341,13 @@ public:
     void absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global);
     void code_reference(Label c, Ref_type f, int offset = 0);
 
-    void code_op(int opcode, int size, bool prefix_only = false);
+    void rex(int wrxb);
+    int rxb(int regfield, Register rm);
+    int rxb(int regfield, Address rm);
+
+    void code_op(int opcode, int opsize, int rxb = 0);
+    void code_op(int opcode, int opsize, int regfield, Register rm);
+    void code_op(int opcode, int opsize, int regfield, Address rm);
 
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);
