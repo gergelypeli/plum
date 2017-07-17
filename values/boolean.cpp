@@ -40,17 +40,20 @@ public:
         }
     }
 
-    virtual Regs precompile(Regs regs) {
-        Regs ret = regs;
+    virtual Regs precompile(Regs preferred) {
+        Regs clobbered;
         
         if (left)
-            ret.intersect(left->precompile(regs));
+            clobbered |= left->precompile(preferred);
         
         if (right)
-            ret.intersect(right->precompile(regs));
+            clobbered |= right->precompile(preferred);
         
-        reg = ret.remove_any();
-        return ret;
+        // This won't be bothered by either branches
+        reg = preferred.get_any();
+        clobbered.add(reg);
+        
+        return clobbered;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -273,19 +276,22 @@ public:
         return true;
     }
     
-    virtual Regs precompile(Regs regs) {
-        Regs ret = regs;
+    virtual Regs precompile(Regs preferred) {
+        Regs clobbered = Regs();
         
-        ret.intersect(condition->precompile(regs));
+        clobbered |= condition->precompile();
         
         if (then_branch)
-            ret.intersect(then_branch->precompile(regs));
+            clobbered |= then_branch->precompile(preferred);
                        
         if (else_branch)
-            ret.intersect(else_branch->precompile(regs));
+            clobbered |= else_branch->precompile(preferred);
         
-        reg = ret.remove_any();
-        return ret;
+        // This won't be bothered by either branches
+        reg = preferred.get_any();
+        clobbered.add(reg);
+        
+        return clobbered;
     }
     
     virtual Storage compile(X64 *x64) {

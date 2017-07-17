@@ -9,8 +9,8 @@ public:
         head_scope = s;
     }
     
-    virtual Regs precompile(Regs regs) {
-        return regs;
+    virtual Regs precompile(Regs) {
+        return Regs();
     }
     
     virtual Storage compile(X64 *) {
@@ -29,8 +29,8 @@ public:
         body_scope = s;
     }
 
-    virtual Regs precompile(Regs regs) {
-        return regs;
+    virtual Regs precompile(Regs) {
+        return Regs();
     }
 
     virtual Storage compile(X64 *) {
@@ -62,8 +62,9 @@ public:
         function = f;
     }
 
-    virtual Regs precompile(Regs regs) {
-        return body->precompile(regs);
+    virtual Regs precompile(Regs) {
+        body->precompile();
+        return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -197,16 +198,14 @@ public:
         x64->op(MOVQ, Address(ESP, passed_size), RAX);
     }
     
-    virtual Regs precompile(Regs regs) {
-        Regs res = regs;
-        
+    virtual Regs precompile(Regs) {
         if (pivot)
-            res.intersect(pivot->precompile(regs));
+            pivot->precompile();
         
         for (auto &item : items)
-            res.intersect(item->precompile(regs));
+            item->precompile();
         
-        return res;
+        return Regs::all();  // assume everything is clobbered
     }
     
     virtual Storage compile(X64 *x64) {
@@ -283,12 +282,11 @@ public:
         return_scope = fn_scope->return_scope;
     }
 
-    virtual Regs precompile(Regs regs) {
-        return value->precompile(regs);
+    virtual Regs precompile(Regs) {
+        return value->precompile();
     }
 
     virtual Storage compile(X64 *x64) {
-        // TODO: destructors
         Storage s = value->compile(x64);
         
         Declaration *decl = return_scope->contents[0].get();
@@ -296,7 +294,8 @@ public:
         int ret_offset = return_scope->offset + anon->offset;
         Storage ret_storage(MEMORY, Address(RBP, ret_offset));
         value->ts.store(s, ret_storage, x64);
-        
+
+        // TODO: is this proper stack unwinding?        
         x64->op(JMP, rollback_declaration->get_rollback_label());
         return Storage();
     }

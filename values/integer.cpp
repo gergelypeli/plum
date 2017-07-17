@@ -9,7 +9,7 @@ public:
     int os;
     bool is_unsigned;
     Register reg;
-    Regs rregs;
+    Regs rclob;
     
     IntegerOperationValue(NumericOperation o, TypeSpec t, Value *pivot)
         :Value(is_comparison(o) ? BOOLEAN_TS : t) {
@@ -114,7 +114,7 @@ public:
     virtual Storage left_compile(X64 *x64) {
         Storage ls = left->compile(x64);
         
-        if (ls.where == REGISTER && !rregs.has(ls.reg)) {
+        if (ls.is_clobbered(rclob)) {
             x64->op(PUSHQ, ls.reg);
             ls = Storage(STACK);
         }
@@ -684,13 +684,10 @@ public:
         }
     }
 
-    virtual Regs precompile(Regs regs) {
-        if (right)
-            regs = right->precompile(regs);
-
-        rregs = regs;
-            
-        regs = left->precompile(regs);
+    virtual Regs precompile(Regs preferred) {
+        rclob = right ? right->precompile() : Regs();
+        Regs lclob = left->precompile(preferred.clobbered(rclob));
+        Regs xclob = Regs();
     
         switch (operation) {
         case DIVIDE:
@@ -699,25 +696,30 @@ public:
         case ASSIGN_MODULO:
         case EXPONENT:
         case ASSIGN_EXPONENT:
-            regs.remove(RAX);
-            regs.remove(RDX);
-            regs.remove(RBX);   // will use RBX, too
-            rregs.remove(RBX);  // don't let left use RBX
-            return regs;
+            xclob.add(RAX);
+            xclob.add(RDX);
+            xclob.add(RBX);   // will use RBX, too
+            rclob.add(RBX);  // left value should be pushed out of RBX
+            break;
         case SHIFT_LEFT:
         case SHIFT_RIGHT:
-            regs.remove(RCX);
-            regs.remove(RBX);   // will use RBX, too
-            rregs.remove(RCX);  // don't let left use RCX
-            return regs;
+            xclob.add(RCX);
+            xclob.add(RBX);   // will use RBX, too
+            rclob.add(RCX);  // left value should be pushed out of RCX
+            break;
         case ASSIGN_SHIFT_LEFT:
         case ASSIGN_SHIFT_RIGHT:
-            regs.remove(RCX);
-            return regs;
+            xclob.add(RCX);
+            break;
         default:
-            reg = regs.remove_any();
-            return regs;
+            // If the left value didn't need a register, we get one for ourselves
+            if (!lclob) {
+                reg = preferred.get_any();
+                xclob.add(reg);
+            }
         }
+
+        return rclob | lclob | xclob;
     }
     
     virtual Storage compile(X64 *x64) {

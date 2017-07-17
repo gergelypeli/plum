@@ -23,33 +23,66 @@ enum Register {
 
 
 struct Regs {
+    static const int ALL = 0xFF0F;
+    static const int SYSV_CLOBBERED = 0x0FF7;
+    static const int REGISTER_COUNT = 16;
     int available;
     
-    void add(Register r) {
+    Regs(int a = 0) {
+        available = a;
+    }
+    
+    static Regs all() {
+        return Regs(ALL);  // All except RSP, RBP, RSI, RDI
+    }
+    
+    static Regs sysv_clobbered() {
+        return Regs(SYSV_CLOBBERED);  // Except RBX, R12, R13, R14, R15
+    }
+    
+    Regs add(Register r) {
         available |= 1 << (int)r;
+        return *this;
+    }
+
+    Regs remove(Register r) {
+        available &= ~(1 << (int)r);
+        return *this;
+    }
+
+    Regs clobbered(Regs other) {
+        available &= ~other.available;
+        
+        if (!available)
+            available = ALL;
+            
+        return *this;
     }
 
     bool has(Register r) {
         return available & (1 << (int)r);
     }
-
-    Register remove(Register r) {
-        available &= ~(1 << (int)r);
-        return r;
-    }
     
-    Register remove_any() {
-        for (int i=0; i<16; i++)
+    Register get_any() {
+        for (int i=0; i<REGISTER_COUNT; i++)
             if (available & (1 << i)) {
-                available &= ~(1 << i);
                 return (Register)i;
             }
     
-        return RAX;
+        std::cerr << "No register in set!\n";
+        throw X64_ERROR;
     }
     
-    void intersect(Regs other) {
-        available &= other.available;
+    Regs operator |(Regs other) {
+        return Regs(available | other.available);
+    }
+    
+    void operator |=(Regs other) {
+        available |= other.available;
+    }
+    
+    bool operator!() {
+        return !available;
     }
 };
 

@@ -24,6 +24,10 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual Regs precompile() {
+        return precompile(Regs::all());  // no particular preference
+    }
+
     virtual Storage compile(X64 *) {
         std::cerr << "This Value shouldn't have been compiled!\n";
         throw INTERNAL_ERROR;
@@ -43,8 +47,8 @@ public:
         :Value(ts) {
     }
     
-    virtual Regs precompile(Regs regs) {
-        return regs;
+    virtual Regs precompile(Regs) {
+        return Regs();
     }
     
     virtual Storage compile(X64 *) {
@@ -62,8 +66,8 @@ public:
         orig.reset(o);
     }
     
-    virtual Regs precompile(Regs regs) {
-        return regs;  // TODO: allow the conversion to allocate registers?
+    virtual Regs precompile(Regs) {
+        return Regs();  // TODO: allow the conversion to allocate registers?
     }
     
     virtual Storage compile(X64 *x64) {
@@ -85,8 +89,8 @@ public:
         pivot.reset(p);
     }
     
-    virtual Regs precompile(Regs regs) {
-        return regs;
+    virtual Regs precompile(Regs) {
+        return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -105,7 +109,7 @@ public:
 class ArrayItemValue: public Value {
 public:
     std::unique_ptr<Value> array, index;
-    Regs iregs;
+    Regs iclob;
     Register areg, ireg;
     
     ArrayItemValue(Value *a)
@@ -131,12 +135,22 @@ public:
         return true;
     }
     
-    virtual Regs precompile(Regs regs) {
-        iregs = index->precompile(regs);
-        regs = array->precompile(iregs);
-        areg = regs.remove_any();
-        ireg = regs.remove_any();  // TODO: this is a bit too much for the worst case only
-        return regs;
+    virtual Regs precompile(Regs preferred) {
+        iclob = index->precompile();
+
+        if (!iclob) {
+            ireg = Regs::all().get_any();
+            iclob.add(ireg);
+        }
+        
+        Regs aclob = array->precompile(preferred.clobbered(iclob));
+
+        if (!aclob) {
+            areg = preferred.clobbered(iclob).get_any();
+            aclob.add(areg);
+        }
+        
+        return aclob | iclob;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -144,7 +158,7 @@ public:
     
         Storage as = array->compile(x64);
         
-        if (as.is_clobbered(iregs)) {
+        if (as.is_clobbered(iclob)) {
             array->ts.store(as, Storage(STACK), x64);
             as = Storage(STACK);
         }
@@ -213,18 +227,19 @@ public:
         return true;
     }
 
-    virtual Regs precompile(Regs regs) {
+    virtual Regs precompile(Regs preferred) {
         if (items.size() == 1 && kwitems.size() == 0)
-            return items[0]->precompile(regs);
+            return items[0]->precompile(preferred);
+            
+        Regs clobbered;
             
         for (auto &item : items)
-            item->precompile(regs);
+            clobbered |= item->precompile();
             
         for (auto &kv : kwitems)
-            kv.second->precompile(regs);
+            clobbered |= kv.second->precompile();
             
-        return regs;
-        
+        return clobbered;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -329,8 +344,8 @@ public:
         return true;
     }
     
-    virtual Regs precompile(Regs regs) {
-        return value->precompile(regs);
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {

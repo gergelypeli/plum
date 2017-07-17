@@ -30,8 +30,8 @@ public:
         return ts;
     }
 
-    virtual Regs precompile(Regs regs) {
-        return regs;
+    virtual Regs precompile(Regs) {
+        return Regs();
     }
 
     virtual Storage compile(X64 *) {
@@ -50,9 +50,9 @@ public:
         text = t;
     }
 
-    virtual Regs precompile(Regs regs) {
-        reg = regs.remove_any();
-        return regs;
+    virtual Regs precompile(Regs preferred) {
+        reg = preferred.get_any();
+        return Regs().add(reg);
     }
 
     virtual Storage compile(X64 *x64) {

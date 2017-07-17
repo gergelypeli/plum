@@ -93,7 +93,7 @@ struct Storage {
         address = a;
     }
     
-    bool is_clobbered(Regs regs) {
+    bool is_clobbered(Regs clobbered) {
         switch (where) {
         case NOWHERE:
             return false;
@@ -102,13 +102,13 @@ struct Storage {
         case FLAGS:
             return true;
         case REGISTER:
-            return !regs.has(reg);
+            return clobbered.has(reg);
         case STACK:
             return false;
         case MEMORY:
             return (
-                (address.base != NOREG && address.base != RBP && !regs.has(address.base)) ||
-                (address.index != NOREG && !regs.has(address.index))
+                (address.base != NOREG && address.base != RBP && clobbered.has(address.base)) ||
+                (address.index != NOREG && clobbered.has(address.index))
             );
         default:
             throw INTERNAL_ERROR;
