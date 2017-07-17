@@ -59,8 +59,8 @@ public:
         Label l;
         l.allocate();
         
-        x64->data_qword(text.size());
         x64->data_label(l);
+        x64->data_qword(text.size());
         for (char &c : text)
             x64->data_byte(c);
 

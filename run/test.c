@@ -17,8 +17,8 @@ void printu8(char a) {
 }
 
 void prints(const char *s) {
-    int len = *(int *)(s - 8);
-    printf("%*s\n", len, s);
+    int len = *(int *)s;
+    printf("%*s\n", len, s + 8);
 }
 
 extern void start();

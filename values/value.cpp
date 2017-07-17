@@ -162,26 +162,26 @@ public:
         
         switch (is.where) {
         case CONSTANT:
-            return Storage(MEMORY, Address(areg, s * is.value));
+            return Storage(MEMORY, Address(areg, s * is.value + 8));
         case REGISTER:
             if (s > 1)
                 x64->op(IMUL3Q, is.reg, is.reg, s);
                 
-            return Storage(MEMORY, Address(areg, is.reg, 0));
+            return Storage(MEMORY, Address(areg, is.reg, 8));
         case STACK:
             x64->op(POPQ, ireg);
 
             if (s > 1)
                 x64->op(IMUL3Q, ireg, ireg, s);
                 
-            return Storage(MEMORY, Address(areg, ireg, 0));
+            return Storage(MEMORY, Address(areg, ireg, 8));
         case MEMORY:
             if (s > 1)
                 x64->op(IMUL3Q, ireg, is.address, s);
             else
                 x64->op(MOVQ, ireg, is.address);
                 
-            return Storage(MEMORY, Address(areg, ireg, 0));
+            return Storage(MEMORY, Address(areg, ireg, 8));
         default:
             throw INTERNAL_ERROR;
         }
