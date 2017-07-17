@@ -29,4 +29,6 @@ start? :function as:
     
     :if d then: print(1000)
 
-    prints("Szia!")
+    s? "Szia!"
+    prints(s)
+    printu8(s[4])

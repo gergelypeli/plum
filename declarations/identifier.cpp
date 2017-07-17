@@ -151,3 +151,14 @@ public:
     }
 };
 
+
+class ArrayIndexing: public Identifier {
+public:
+    ArrayIndexing(TypeSpec t)
+        :Identifier("index", t) {
+    }
+    
+    virtual Value *matched(Value *cpivot) {
+        return make_array_item_value(cpivot);
+    }
+};

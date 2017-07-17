@@ -432,29 +432,37 @@ Storage TypeSpec::convert(TypeSpec &other, Storage s, X64 *x64) {
 }
 
 
-TypeSpec TypeSpec::rvalue() {
-    TypeSpec t;
-    
-    unsigned start = at(0) == lvalue_type ? 1 : 0;
-    
-    for (unsigned i = start; i < size(); i++)
-        t.push_back(at(i));
+TypeSpec TypeSpec::prefix(Type *t) {
+    TypeSpec ts;
+    ts.push_back(t);
+        
+    for (unsigned i = 0; i < size(); i++)
+        ts.push_back(at(i));
+        
+    return ts;
+}
+
+
+TypeSpec TypeSpec::unprefix(Type *t) {
+    if (at(0) != t || t->parameter_count != 1)
+        throw INTERNAL_ERROR;
+        
+    TypeSpec ts;
+
+    for (unsigned i = 1; i < size(); i++)
+        ts.push_back(at(i));
             
-    return t;
+    return ts;
+}
+
+
+TypeSpec TypeSpec::rvalue() {
+    return at(0) == lvalue_type ? unprefix(lvalue_type) : *this;
 }
 
 
 TypeSpec TypeSpec::lvalue() {
-    TypeSpec t;
-    
-    if (at(0) != lvalue_type)
-        t.push_back(lvalue_type);
-        
-    for (unsigned i = 0; i < size(); i++)
-        t.push_back(at(i));
-        
-        
-    return t;
+    return at(0) == lvalue_type ? *this : prefix(lvalue_type);
 }
 
 

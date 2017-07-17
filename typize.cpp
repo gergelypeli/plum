@@ -168,6 +168,8 @@ public:
     unsigned measure();
     Value *convertible(TypeSpec &other, Value *orig);
     Storage convert(TypeSpec &other, Storage s, X64 *x64);
+    TypeSpec prefix(Type *t);
+    TypeSpec unprefix(Type *t);
     TypeSpec rvalue();
     TypeSpec lvalue();
     void store(Storage s, Storage t, X64 *x64);
@@ -198,6 +200,7 @@ TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec LVALUE_INTEGER_TS;
 TypeSpec LVALUE_BOOLEAN_TS;
+TypeSpec UNSIGNED_INTEGER8_TS;
 TypeSpec UNSIGNED_INTEGER8_ARRAY_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
@@ -243,6 +246,7 @@ Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Val
 Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
+Value *make_array_item_value(Value *array);
 
 
 #include "declarations/declaration.cpp"
@@ -341,11 +345,13 @@ Scope *init_types() {
     LVALUE_INTEGER_TS.push_back(integer_type);
     LVALUE_BOOLEAN_TS.push_back(lvalue_type);
     LVALUE_BOOLEAN_TS.push_back(boolean_type);
+    UNSIGNED_INTEGER8_TS.push_back(unsigned_integer8_type);
     UNSIGNED_INTEGER8_ARRAY_TS.push_back(array_type);
     UNSIGNED_INTEGER8_ARRAY_TS.push_back(unsigned_integer8_type);
     
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
     std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
+    std::vector<TypeSpec> UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
     std::vector<TypeSpec> UNSIGNED_INTEGER8_ARRAY_TSS = { UNSIGNED_INTEGER8_ARRAY_TS };
     
     std::vector<std::string> value_names = { "value" };
@@ -372,9 +378,12 @@ Scope *init_types() {
     root_scope->add(new BooleanOperation("assign", LVALUE_BOOLEAN_TS, ASSIGN));
     
     //root_scope->add(new BooleanIf());
+    
+    root_scope->add(new ArrayIndexing(UNSIGNED_INTEGER8_ARRAY_TS));
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
     root_scope->add(new Function("prints", VOID_TS, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, VOID_TS));
+    root_scope->add(new Function("printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
 
     return root_scope;
 }

@@ -102,6 +102,93 @@ public:
 };
 
 
+class ArrayItemValue: public Value {
+public:
+    std::unique_ptr<Value> array, index;
+    Regs iregs;
+    Register areg, ireg;
+    
+    ArrayItemValue(Value *a)
+        :Value(a->ts.rvalue().unprefix(array_type)) {
+        array.reset(a);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky array indexing!\n";
+            return false;
+        }
+        
+        Value *i = typize(args[0].get(), scope);
+        Value *ci = convertible(INTEGER_TS, i);
+        
+        if (!ci) {
+            std::cerr << "Arry index is not Integer!\n";
+            return false;
+        }
+        
+        index.reset(ci);
+        return true;
+    }
+    
+    virtual Regs precompile(Regs regs) {
+        iregs = index->precompile(regs);
+        regs = array->precompile(iregs);
+        areg = regs.remove_any();
+        ireg = regs.remove_any();  // TODO: this is a bit too much for the worst case only
+        return regs;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int s = item_size(ts.measure());
+    
+        Storage as = array->compile(x64);
+        
+        if (as.is_clobbered(iregs)) {
+            array->ts.store(as, Storage(STACK), x64);
+            as = Storage(STACK);
+        }
+        
+        Storage is = index->compile(x64);
+        
+        if (as.where == STACK)
+            x64->op(POPQ, areg);
+        else if (as.where == REGISTER)
+            areg = as.reg;
+        else if (as.where == MEMORY)
+            x64->op(MOVQ, areg, as.address);
+        else
+            throw INTERNAL_ERROR;
+        
+        switch (is.where) {
+        case CONSTANT:
+            return Storage(MEMORY, Address(areg, s * is.value));
+        case REGISTER:
+            if (s > 1)
+                x64->op(IMUL3Q, is.reg, is.reg, s);
+                
+            return Storage(MEMORY, Address(areg, is.reg, 0));
+        case STACK:
+            x64->op(POPQ, ireg);
+
+            if (s > 1)
+                x64->op(IMUL3Q, ireg, ireg, s);
+                
+            return Storage(MEMORY, Address(areg, ireg, 0));
+        case MEMORY:
+            if (s > 1)
+                x64->op(IMUL3Q, ireg, is.address, s);
+            else
+                x64->op(MOVQ, ireg, is.address);
+                
+            return Storage(MEMORY, Address(areg, ireg, 0));
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }    
+};
+
+
 class BlockValue: public Value {
 public:
     // FIXME: must keep kwarg order!
@@ -146,11 +233,15 @@ public:
         if (items.size() == 1 && kwitems.size() == 0)
             return items[0]->compile(x64);
             
-        for (auto &item : items)
+        for (auto &item : items) {
             item->compile_and_store(x64, Storage());
+            x64->op(NOP);  // For readability
+        }
             
-        for (auto &kv : kwitems)
+        for (auto &kv : kwitems) {
             kv.second->compile_and_store(x64, Storage());
+            x64->op(NOP);  // For readability
+        }
             
         return Storage();
     }
@@ -342,4 +433,9 @@ Value *make_boolean_if_value(Value *pivot) {
 
 Value *make_converted_value(TypeSpec ts, Value *orig) {
     return new ConvertedValue(ts, orig);
+}
+
+
+Value *make_array_item_value(Value *array) {
+    return new ArrayItemValue(array);
 }
