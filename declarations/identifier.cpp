@@ -162,3 +162,15 @@ public:
         return make_array_item_value(cpivot);
     }
 };
+
+
+class ArrayConcatenation: public Identifier {
+public:
+    ArrayConcatenation(TypeSpec t)
+        :Identifier("plus", t) {
+    }
+    
+    virtual Value *matched(Value *cpivot) {
+        return make_array_concatenation_value(cpivot);
+    }
+};

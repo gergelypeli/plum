@@ -127,7 +127,7 @@ public:
         Value *ci = convertible(INTEGER_TS, i);
         
         if (!ci) {
-            std::cerr << "Arry index is not Integer!\n";
+            std::cerr << "Array index is not Integer!\n";
             return false;
         }
         
@@ -200,6 +200,92 @@ public:
             throw INTERNAL_ERROR;
         }
     }    
+};
+
+
+class ArrayConcatenationValue: public Value {
+public:
+    int item_size;
+    std::unique_ptr<Value> left, right;
+    
+    ArrayConcatenationValue(Value *l)
+        :Value(l->ts.rvalue()) {
+        left.reset(l);
+        item_size = ::item_size(ts.unprefix(array_type).measure());
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky array concatenation!\n";
+            return false;
+        }
+        
+        Value *r = typize(args[0].get(), scope);
+        Value *cr = convertible(ts, r);
+        
+        if (!cr) {
+            std::cerr << "Array concatenation with incompatible argument!\n";
+            return false;
+        }
+        
+        right.reset(cr);
+        return true;
+    }
+    
+    virtual Regs precompile(Regs) {
+        /*
+        rclob = right->precompile();
+
+        if (!rclob) {
+            rreg = Regs::all().get_any();
+            rclob.add(rreg);
+        }
+        
+        Regs lclob = left->precompile(preferred.clobbered(rclob));
+
+        if (!lclob) {
+            lreg = preferred.clobbered(rclob).get_any();
+            lclob.add(lreg);
+        }
+        */
+        
+        return Regs::all();  // will call a memory allocation function, clobber everything
+    }
+
+    virtual Storage compile(X64 *x64) {
+        // TODO: this only works for basic types now, that can be just copied
+        
+        left->compile_and_store(x64, Storage(STACK));
+        right->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(MOVQ, RAX, Address(RSP, 8));
+        x64->op(MOVQ, RBX, Address(RAX, 0));
+        
+        x64->op(MOVQ, RAX, Address(RSP, 0));
+        x64->op(ADDQ, RBX, Address(RAX, 0));  // Will be preserved
+        
+        x64->op(IMUL3Q, RDI, RBX, item_size);
+        x64->op(ADDQ, RDI, 8);
+        x64->op(CALL, alloc_function->x64_label);
+        
+        x64->op(MOVQ, RDI, RAX);
+        x64->op(MOVQ, Address(RDI, 0), RBX);
+        x64->op(ADDQ, RDI, 8);
+        
+        x64->op(MOVQ, RSI, Address(RSP, 8));
+        x64->op(IMUL3Q, RCX, Address(RSI, 0), item_size);
+        x64->op(ADDQ, RSI, 8);
+        x64->op(REPMOVSB);
+
+        x64->op(MOVQ, RSI, Address(RSP, 0));
+        x64->op(IMUL3Q, RCX, Address(RSI, 0), item_size);
+        x64->op(ADDQ, RSI, 8);
+        x64->op(REPMOVSB);
+        
+        x64->op(ADDQ, RSP, 16);
+        
+        return Storage(REGISTER, RAX);
+    }
 };
 
 
@@ -453,4 +539,9 @@ Value *make_converted_value(TypeSpec ts, Value *orig) {
 
 Value *make_array_item_value(Value *array) {
     return new ArrayItemValue(array);
+}
+
+
+Value *make_array_concatenation_value(Value *array) {
+    return new ArrayConcatenationValue(array);
 }

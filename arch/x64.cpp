@@ -266,6 +266,11 @@ unsigned X64::data_allocate(unsigned size) {
 
 
 void X64::data_reference(Label c) {
+    if (!c.def_index) {
+        std::cerr << "Reference to unallocated label!\n";
+        throw X64_ERROR;
+    }
+    
     refs.push_back(Ref());
     Ref &r = refs.back();
     
@@ -331,6 +336,11 @@ void X64::absolute_label_export(Label c, std::string name, int value, unsigned s
 
 
 void X64::code_reference(Label c, Ref_type f, int offset) {
+    if (!c.def_index) {
+        std::cerr << "Reference to unallocated label!\n";
+        throw X64_ERROR;
+    }
+
     refs.push_back(Ref());
     Ref &r = refs.back();
 
@@ -624,6 +634,7 @@ int string_info[] = {
 
 
 void X64::op(StringOp opcode) {
+    // 64-bit mode uses the RCX, RSI, RDI registers because of using 64-bit ADDRESS size
     code_op(string_info[opcode >> 2], opcode & 3);
 }
 

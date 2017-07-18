@@ -114,6 +114,27 @@ struct Storage {
             throw INTERNAL_ERROR;
         }
     }
+
+    bool is_dangling(Regs clobbered) {
+        switch (where) {
+        case NOWHERE:
+        case CONSTANT:
+        case FLAGS:
+        case REGISTER:
+        case STACK:
+            return false;
+        case MEMORY:
+            // We have an address of an array item, which is not guaranteed to stay
+            // valid if another expression has side effects. Only allow to stay
+            // this way if that other expression does not clobber any registers.
+            return (
+                (address.base != NOREG && address.base != RBP) ||
+                (address.index != NOREG)
+            ) && !!clobbered;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
 };
 
 
@@ -206,6 +227,7 @@ TypeSpec UNSIGNED_INTEGER8_ARRAY_TS;
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
+Function *alloc_function = NULL;
 
 enum NumericOperation {
     COMPLEMENT, NEGATE,
@@ -247,6 +269,7 @@ Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
 Value *make_array_item_value(Value *array);
+Value *make_array_concatenation_value(Value *array);
 
 
 #include "declarations/declaration.cpp"
@@ -349,6 +372,7 @@ Scope *init_types() {
     UNSIGNED_INTEGER8_ARRAY_TS.push_back(array_type);
     UNSIGNED_INTEGER8_ARRAY_TS.push_back(unsigned_integer8_type);
     
+    std::vector<TypeSpec> NO_TSS = { };
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
     std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
     std::vector<TypeSpec> UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
@@ -380,10 +404,14 @@ Scope *init_types() {
     //root_scope->add(new BooleanIf());
     
     root_scope->add(new ArrayIndexing(UNSIGNED_INTEGER8_ARRAY_TS));
+    root_scope->add(new ArrayConcatenation(UNSIGNED_INTEGER8_ARRAY_TS));
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
     root_scope->add(new Function("prints", VOID_TS, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, VOID_TS));
     root_scope->add(new Function("printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
+
+    // Not for the user
+    alloc_function = new Function("alloc", VOID_TS, NO_TSS, value_names, VOID_TS);
 
     return root_scope;
 }

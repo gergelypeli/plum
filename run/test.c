@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 long star(long a, long b) {
     return a * b;
@@ -21,8 +22,12 @@ void prints(const char *s) {
     printf("%*s\n", len, s + 8);
 }
 
+void *alloc(long size) {
+    return malloc(size);
+}
+
 extern void start();
 
-int main(int argc, char **argv) {
+int main() {
     start();
 }

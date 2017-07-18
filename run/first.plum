@@ -31,4 +31,8 @@ start? :function as:
 
     s? "Szia!"
     prints(s)
-    printu8(s[4])
+    
+    c = 4
+    printu8(s[c])
+    
+    prints(s + s)

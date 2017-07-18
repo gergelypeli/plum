@@ -115,8 +115,14 @@ public:
         Storage ls = left->compile(x64);
         
         if (ls.is_clobbered(rclob)) {
-            x64->op(PUSHQ, ls.reg);
-            ls = Storage(STACK);
+            Storage s(STACK);
+            left->ts.store(ls, s, x64);
+            return s;
+        }
+        else if (ls.is_dangling(rclob)) {
+            Storage s(REGISTER, ls.address.base);
+            left->ts.store(ls, s, x64);
+            return s;
         }
         
         return ls;

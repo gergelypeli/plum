@@ -62,6 +62,10 @@ int main(int argc, char **argv) {
             f->import(x64);
     }
     
+    // This one is not part of the user scope
+    alloc_function->allocate();
+    alloc_function->import(x64);
+    
     value_root->precompile();
     value_root->compile(x64);
     
