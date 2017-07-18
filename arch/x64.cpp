@@ -2,10 +2,12 @@
 
 #include "x64.h"
 
-const int OPSIZE_RAW = 4;
-const int OSP = 0x66;
+const int OPSIZE_NONBYTE = 4;
+const int OPSIZE_DEFAULT = 6;
 
-const int REX =   0x40;
+const int OPSIZE_WORD_PREFIX = 0x66;
+const int OPSIZE_REX_PREFIX = 0x40;
+
 const int REX_W = 0x08;
 const int REX_R = 0x04;
 const int REX_X = 0x02;
@@ -346,12 +348,6 @@ void X64::code_reference(Label c, Ref_type f, int offset) {
 }
 
 
-void X64::rex(int wrxb) {
-    if (wrxb)
-        code_byte(REX | wrxb);
-}
-
-
 int X64::rxb(int regfield, Register rm) {
     return
         (regfield >= 8 ? REX_R : 0x00) |
@@ -367,15 +363,29 @@ int X64::rxb(int regfield, Address rm) {
 }
 
 
+void X64::rex(int wrxb) {
+    if (wrxb)
+        code_byte(OPSIZE_REX_PREFIX | wrxb);
+}
+
+
+void X64::code_op(int code) {
+    if (code & 0xFF00)  // Two-byte opcodes must be emitted MSB first
+        code_byte((code >> 8) & 0xFF);
+
+    code_byte(code & 0xFF);
+}
+
+
 void X64::code_op(int code, int size, int rxb) {
-    // size == 0 => byte  => ____ op0
-    // size == 1 => word  => 0x66 op1
-    // size == 2 => dword => ____ op1
-    // size == 3 => qword => 0x48 op1
-    // size == 4 => N/A   => ____ op
-    // size == 5 => word  => 0x66 op
-    // size == 6 => dword => ____ op
-    // size == 7 => qword => 0x48 op
+    // size == 0 => byte  =>      _RXB op0
+    // size == 1 => word  => 0x66 _RXB op1
+    // size == 2 => dword =>      _RXB op1
+    // size == 3 => qword =>      WRXB op1
+    // size == 4 => INVALID
+    // size == 5 => word  => 0x66 _RXB opc
+    // size == 6 => dword =>      _RXB opc
+    // size == 7 => qword =>      WRXB opc
 
     switch (size) {
     case 0:
@@ -383,7 +393,7 @@ void X64::code_op(int code, int size, int rxb) {
         code &= ~1;
         break;
     case 1:
-        code_byte(0x66);
+        code_byte(OPSIZE_WORD_PREFIX);
         rex(rxb);
         code |= 1;
         break;
@@ -396,10 +406,9 @@ void X64::code_op(int code, int size, int rxb) {
         code |= 1;
         break;
     case 4:
-        rex(rxb);
-        break;
+        throw X64_ERROR;
     case 5:
-        code_byte(0x66);
+        code_byte(OPSIZE_WORD_PREFIX);
         rex(rxb);
         break;
     case 6:
@@ -412,10 +421,7 @@ void X64::code_op(int code, int size, int rxb) {
         throw X64_ERROR;
     }
 
-    if (code & 0xFF00)  // Two-byte opcodes must be emitted MSB first
-        code_byte((code >> 8) & 0xFF);
-
-    code_byte(code & 0xFF);
+    code_op(code);
 }
 
 
@@ -536,6 +542,8 @@ void X64::code_op(int opcode, int opsize, int regfield, Address rm) {
 }
 
 
+
+
 int simple_info[] = {
      0x6698, 0x99, 0x4898, 0xF8, 0xFC, 0xFA, 0x0F06, 0xF5, 0x4899, 0x6699, 0x98, 0xF4, 0xCF, 0x9F, 0x90,
      0x61, 0x9D, 0x60, 0x9C, 0xCB, 0xC3, 0x9E, 0xF9, 0xFD, 0xFB, 0x0F0B, 0xD7,
@@ -544,7 +552,7 @@ int simple_info[] = {
 
 
 void X64::op(SimpleOp opcode) {
-    code_op(simple_info[opcode], OPSIZE_RAW);
+    code_op(simple_info[opcode]);
 }
 
 
@@ -754,17 +762,17 @@ void X64::op(StackOp opcode, int x) {
 
 void X64::op(StackOp opcode, Register x) {
     if (opcode == PUSHQ)
-        code_op(0x50 | (x & 0x07), OPSIZE_RAW, (x & 0x08 ? REX_B : 0));
+        code_op(0x50 | (x & 0x07), OPSIZE_DEFAULT, (x & 0x08 ? REX_B : 0));
     else
-        code_op(0x58 | (x & 0x07), OPSIZE_RAW, (x & 0x08 ? REX_B : 0));
+        code_op(0x58 | (x & 0x07), OPSIZE_DEFAULT, (x & 0x08 ? REX_B : 0));
 }
 
 void X64::op(StackOp opcode, Address x) {
     if (opcode == PUSHQ) {
-        code_op(0xFF, OPSIZE_RAW, 6, x);
+        code_op(0xFF, OPSIZE_DEFAULT, 6, x);
     }
     else {
-        code_op(0x8F, OPSIZE_RAW, 0, x);
+        code_op(0x8F, OPSIZE_DEFAULT, 0, x);
     }
 }
 
@@ -799,13 +807,14 @@ int registerfirst_info[] = {
 
 void X64::op(RegisterFirstOp opcode, Register x, Register y) {
     auto &info = registerfirst_info[opcode >> 2];
-    code_op(info, (opcode & 3) | OPSIZE_RAW, x, y);
+    code_op(info, (opcode & 3) | OPSIZE_NONBYTE, x, y);
 }
 
 void X64::op(RegisterFirstOp opcode, Register x, Address y) {
     auto &info = registerfirst_info[opcode >> 2];
-    code_op(info, (opcode & 3) | OPSIZE_RAW, x, y);
+    code_op(info, (opcode & 3) | OPSIZE_NONBYTE, x, y);
 }
+
 
 
 
@@ -815,14 +824,26 @@ int registerfirstconstantthird_info[] = {
 
 void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Register y, int z) {
     auto &info = registerfirstconstantthird_info[opcode >> 2];
-    code_op(info, (opcode & 3) | OPSIZE_RAW, x, y);
-    code_dword(z);  // 32-bit immediate only
+    code_op(info, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+
+    switch (opcode & 3) {
+    case 0: throw X64_ERROR;
+    case 1: code_word(z); break;
+    case 2: code_dword(z); break;
+    case 3: code_dword(z); break;  // 32-bit immediate only
+    }
 }
 
 void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Address y, int z) {
     auto &info = registerfirstconstantthird_info[opcode >> 2];
-    code_op(info, (opcode & 3) | OPSIZE_RAW, x, y);
-    code_dword(z);  // 32-bit immediate only
+    code_op(info, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+
+    switch (opcode & 3) {
+    case 0: throw X64_ERROR;
+    case 1: code_word(z); break;
+    case 2: code_dword(z); break;
+    case 3: code_dword(z); break;  // 32-bit immediate only
+    }
 }
 
 
@@ -861,7 +882,7 @@ void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
 void X64::op(LeaRipOp, Register r, Label l, int o) {
     const int DISP0 = 0;
     
-    code_op(0x8D, 3 | OPSIZE_RAW, r >= 8 ? REX_R : 0);
+    code_op(0x8D, 3 | OPSIZE_NONBYTE, r & 8 ? REX_R : 0);  // must use 64-bit opsize
     
     // Can't specify RIP base in Address, encode it explicitly
     code_byte((DISP0 << 6) | ((r & 7) << 3) | RBP);  // means [RIP + disp32]
@@ -872,19 +893,19 @@ void X64::op(LeaRipOp, Register r, Label l, int o) {
 
 
 void X64::op(BitSetOp opcode, Register x) {
-    code_op(0x0F90 | opcode, OPSIZE_RAW, 0, x);
+    code_op(0x0F90 | opcode, OPSIZE_DEFAULT, 0, x);
 }
 
 
 void X64::op(BitSetOp opcode, Address x) {
-    code_op(0x0F90 | opcode, OPSIZE_RAW, 0, x);
+    code_op(0x0F90 | opcode, OPSIZE_DEFAULT, 0, x);
 }
 
 
 
 
 void X64::op(BranchOp opcode, Label c) {
-    code_op(0x0F80 | opcode, OPSIZE_RAW);  // use 32-bit offset at first
+    code_op(0x0F80 | opcode);
     code_reference(c, REF_CODE_RELATIVE);
 }
 
@@ -893,15 +914,15 @@ void X64::op(BranchOp opcode, Label c) {
 
 void X64::op(JumpOp opcode, Label c) {
     if (opcode == CALL) {
-        code_op(0xE8, OPSIZE_RAW);
+        code_op(0xE8);
         code_reference(c, REF_CODE_RELATIVE);
     }
     else if (opcode == JMP) {
-        code_op(0xE9, OPSIZE_RAW);
+        code_op(0xE9);
         code_reference(c, REF_CODE_RELATIVE);
     }
     else if (opcode == LOOP) {
-        code_op(0xE2, OPSIZE_RAW);
+        code_op(0xE2);
         code_reference(c, REF_CODE_RELATIVE);
     }
 }
@@ -909,7 +930,7 @@ void X64::op(JumpOp opcode, Label c) {
 
 void X64::op(JumpOp opcode, Address x) {
     if (opcode == CALL) {
-        code_op(0xFF, OPSIZE_RAW, 2, x);
+        code_op(0xFF, OPSIZE_DEFAULT, 2, x);
     }
     else
         std::cerr << "Whacky jump!\n\a";
@@ -918,15 +939,15 @@ void X64::op(JumpOp opcode, Address x) {
 
 void X64::op(ConstantOp opcode, int x) {
     if (opcode == INT) {
-        code_op(0xCD, OPSIZE_RAW);
+        code_op(0xCD);
         code_byte(x);
     }
     else if (opcode == RETX) {
-        code_op(0xC2, OPSIZE_RAW);
+        code_op(0xC2);
         code_word(x);
     }
     else if (opcode == RETFX) {
-        code_op(0xCA, OPSIZE_RAW);
+        code_op(0xCA);
         code_word(x);
     }
 }

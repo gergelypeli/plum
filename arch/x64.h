@@ -374,10 +374,11 @@ public:
     void absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global);
     void code_reference(Label c, Ref_type f, int offset = 0);
 
-    void rex(int wrxb);
     int rxb(int regfield, Register rm);
     int rxb(int regfield, Address rm);
+    void rex(int wrxb);
 
+    void code_op(int opcode);
     void code_op(int opcode, int opsize, int rxb = 0);
     void code_op(int opcode, int opsize, int regfield, Register rm);
     void code_op(int opcode, int opsize, int regfield, Address rm);
