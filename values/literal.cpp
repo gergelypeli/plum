@@ -57,7 +57,6 @@ public:
 
     virtual Storage compile(X64 *x64) {
         Label l;
-        l.allocate();
         
         x64->data_label(l);
         x64->data_qword(text.size());

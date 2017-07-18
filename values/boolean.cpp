@@ -81,8 +81,6 @@ public:
         else if (operation == AND) {
             Label then_end;
             Label else_end;
-            then_end.allocate();
-            else_end.allocate();
             
             switch (ls.where) {
             case CONSTANT:
@@ -139,8 +137,6 @@ public:
         else if (operation == OR) {
             Label then_end;
             Label else_end;
-            then_end.allocate();
-            else_end.allocate();
             
             switch (ls.where) {
             case CONSTANT:
@@ -297,8 +293,6 @@ public:
     virtual Storage compile(X64 *x64) {
         Label then_end;
         Label else_end;
-        then_end.allocate();
-        else_end.allocate();
         
         Storage cs = condition->compile(x64);
         

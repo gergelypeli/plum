@@ -117,8 +117,6 @@ public:
     
     virtual void allocate() {
         Scope::allocate();
-    
-        rollback_label.allocate();
     }
     
     virtual Declaration *get_rollback_declaration() {

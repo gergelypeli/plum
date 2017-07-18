@@ -91,28 +91,13 @@ struct Label {
     unsigned def_index;
     
     Label() {
-        def_index = 0;
+        static unsigned last_def_index = 0;
+        def_index = ++last_def_index;
     }
     
     Label(const Label &c) {
         def_index = c.def_index;
     }
-
-    void allocate() {
-        static unsigned last_def_index = 0;
-        
-        if (def_index) {
-            std::cerr << "Label already allocated!\n";
-            throw X64_ERROR;
-        }
-        
-        def_index = ++last_def_index;
-    }
-    
-    explicit operator bool() const {
-        return def_index > 0;
-    }
-    
 };
 
 

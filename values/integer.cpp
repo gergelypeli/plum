@@ -71,8 +71,6 @@ public:
         
         Label loop_label;
         Label skip_label;
-        loop_label.allocate();
-        skip_label.allocate();
         
         x64->op(MOVQ % os, RAX, 1);
         

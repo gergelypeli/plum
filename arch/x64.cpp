@@ -212,11 +212,6 @@ void X64::done(std::string filename) {
 
 
 void X64::add_def(Label label, const Def &def) {
-    if (!label) {
-        std::cerr << "Unallocated label!\n";
-        throw X64_ERROR;
-    }
-    
     if (defs.count(label.def_index)) {
         std::cerr << "Double label definition!\n";
         throw X64_ERROR;
@@ -266,11 +261,6 @@ unsigned X64::data_allocate(unsigned size) {
 
 
 void X64::data_reference(Label c) {
-    if (!c.def_index) {
-        std::cerr << "Reference to unallocated label!\n";
-        throw X64_ERROR;
-    }
-    
     refs.push_back(Ref());
     Ref &r = refs.back();
     
@@ -336,11 +326,6 @@ void X64::absolute_label_export(Label c, std::string name, int value, unsigned s
 
 
 void X64::code_reference(Label c, Ref_type f, int offset) {
-    if (!c.def_index) {
-        std::cerr << "Reference to unallocated label!\n";
-        throw X64_ERROR;
-    }
-
     refs.push_back(Ref());
     Ref &r = refs.back();
 

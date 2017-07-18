@@ -105,7 +105,6 @@ public:
     }
 
     virtual void allocate() {
-        x64_label.allocate();
     }
 };
 

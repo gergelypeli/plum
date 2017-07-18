@@ -254,6 +254,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         // TODO: this only works for basic types now, that can be just copied
+        // TODO: don't inline this
         
         left->compile_and_store(x64, Storage(STACK));
         right->compile_and_store(x64, Storage(STACK));
