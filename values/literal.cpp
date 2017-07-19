@@ -50,20 +50,29 @@ public:
         text = t;
     }
 
-    virtual Regs precompile(Regs preferred) {
-        reg = preferred.get_any();
-        return Regs().add(reg);
+    virtual Regs precompile(Regs) {
+        //reg = preferred.get();
+        //return Regs().add(reg);
+        return Regs::all();  // FIXME
     }
 
     virtual Storage compile(X64 *x64) {
         Label l;
         
         x64->data_label(l);
-        x64->data_qword(text.size());
+        //x64->data_qword(text.size());
         for (char &c : text)
             x64->data_byte(c);
 
-        x64->op(LEARIP, reg, l, 0);
-        return Storage(REGISTER, reg);
+        x64->op(MOVQ, RAX, text.size() + 8);  // FIXME: it clobbers these!
+        x64->alloc(RAX);
+
+        x64->op(MOVQ, Address(RAX, 0), text.size());
+        x64->op(LEA, RDI, Address(RAX, 8));
+        x64->op(LEARIP, RSI, l, 0);
+        x64->op(MOVQ, RCX, text.size());
+        x64->op(REPMOVSB);  // TODO: Use qwords, the length is constant!
+        
+        return Storage(REGISTER, RAX);
     }
 };

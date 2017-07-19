@@ -44,13 +44,13 @@ public:
         Regs clobbered;
         
         if (left)
-            clobbered |= left->precompile(preferred);
+            clobbered = clobbered | left->precompile(preferred);
         
         if (right)
-            clobbered |= right->precompile(preferred);
+            clobbered = clobbered | right->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get_any();
+        reg = preferred.get();
         clobbered.add(reg);
         
         return clobbered;
@@ -275,16 +275,16 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clobbered = Regs();
         
-        clobbered |= condition->precompile();
+        clobbered = clobbered | condition->precompile();
         
         if (then_branch)
-            clobbered |= then_branch->precompile(preferred);
+            clobbered = clobbered | then_branch->precompile(preferred);
                        
         if (else_branch)
-            clobbered |= else_branch->precompile(preferred);
+            clobbered = clobbered | else_branch->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get_any();
+        reg = preferred.get();
         clobbered.add(reg);
         
         return clobbered;
@@ -346,7 +346,8 @@ public:
             throw INTERNAL_ERROR;
         }
 
-        Storage s = ts != VOID_TS ? Storage(STACK) : Storage();
+        // TODO: we need a function to get the recommended storage for this type!
+        Storage s = ts != VOID_TS ? Storage(REGISTER, reg) : Storage();
 
         if (then_branch) {
             then_branch->compile_and_store(x64, s);

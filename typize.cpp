@@ -92,6 +92,33 @@ struct Storage {
         reg = NOREG;
         address = a;
     }
+
+    Regs regs() {
+        Regs regs;
+        
+        switch (where) {
+        case NOWHERE:
+            return regs;
+        case CONSTANT:
+            return regs;
+        case FLAGS:
+            return regs;
+        case REGISTER:
+            return regs.add(reg);
+        case STACK:
+            return regs;
+        case MEMORY:
+            if (address.base != NOREG)
+                regs.add(address.base);
+
+            if (address.index != NOREG)
+                regs.add(address.index);
+                
+            return regs;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
     
     bool is_clobbered(Regs clobbered) {
         switch (where) {
@@ -228,6 +255,7 @@ typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
 Function *alloc_function = NULL;
+Function *free_function = NULL;
 
 enum NumericOperation {
     COMPLEMENT, NEGATE,
@@ -268,8 +296,8 @@ Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Val
 Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
-Value *make_array_item_value(Value *array);
-Value *make_array_concatenation_value(Value *array);
+Value *make_array_item_value(TypeSpec t, Value *array);
+Value *make_array_concatenation_value(TypeSpec t, Value *array);
 
 
 #include "declarations/declaration.cpp"
@@ -411,7 +439,8 @@ Scope *init_types() {
     root_scope->add(new Function("printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
 
     // Not for the user
-    alloc_function = new Function("alloc", VOID_TS, NO_TSS, value_names, VOID_TS);
+    alloc_function = new Function("memalloc", VOID_TS, NO_TSS, value_names, VOID_TS);
+    free_function = new Function("memfree", VOID_TS, NO_TSS, value_names, VOID_TS);
 
     return root_scope;
 }

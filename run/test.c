@@ -22,8 +22,15 @@ void prints(const char *s) {
     printf("%*s\n", len, s + 8);
 }
 
-void *alloc(long size) {
-    return malloc(size);
+void *memalloc(long size) {
+    void *x = malloc(size);
+    //printf("malloc %p\n", x);
+    return x;
+}
+
+void memfree(void *m) {
+    //printf("free %p\n", m);
+    free(m);
 }
 
 extern void start();

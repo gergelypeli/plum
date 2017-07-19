@@ -106,96 +106,262 @@ public:
 };
 
 
-class ArrayItemValue: public Value {
+class GenericOperationValue: public Value {
 public:
-    std::unique_ptr<Value> array, index;
-    Regs iclob;
-    Register areg, ireg;
+    NumericOperation operation;
+    TypeSpec arg_ts;
+    std::unique_ptr<Value> left, right;
+    Regs clob, rclob;
+    Register reg;
+    Storage ls, rs;
     
-    ArrayItemValue(Value *a)
-        :Value(a->ts.rvalue().unprefix(array_type)) {
-        array.reset(a);
+    GenericOperationValue(NumericOperation o, TypeSpec at, TypeSpec rt, Value *l)
+        :Value(rt) {
+        operation = o;
+        arg_ts = at;
+        left.reset(l);
+        reg = NOREG;
     }
-
+    
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() != 0) {
-            std::cerr << "Whacky array indexing!\n";
-            return false;
+        if (is_unary(operation)) {
+            if (args.size() != 0 || kwargs.size() != 0) {
+                std::cerr << "Operation needs no arguments!\n";
+                return false;
+            }
+            
+            return true;
         }
+        else {
+            if (args.size() != 1 || kwargs.size() != 0) {
+                std::cerr << "Operation needs one positional argument!\n";
+                return false;
+            }
         
-        Value *i = typize(args[0].get(), scope);
-        Value *ci = convertible(INTEGER_TS, i);
+            Value *r = typize(args[0].get(), scope);
+            Value *cr = convertible(arg_ts, r);
         
-        if (!ci) {
-            std::cerr << "Array index is not Integer!\n";
-            return false;
+            if (!cr) {
+                std::cerr << "Operation with incompatible argument!\n";
+                return false;
+            }
+        
+            right.reset(cr);
+            return true;
         }
-        
-        index.reset(ci);
-        return true;
     }
-    
+
     virtual Regs precompile(Regs preferred) {
-        iclob = index->precompile();
-
-        if (!iclob) {
-            ireg = Regs::all().get_any();
-            iclob.add(ireg);
+        rclob = right ? right->precompile() : Regs();
+        Regs pref = preferred & ~rclob ? preferred & ~rclob : preferred;  // must be nonempty
+        Regs lclob = left->precompile(pref);
+        clob = lclob | rclob;
+        
+        // We'll need a working general register that we can also use to pop
+        // a clobbered left value back.
+        
+        if (lclob & ~rclob) {
+            reg = (lclob & ~rclob).get(); // Great, the left side will have one
+        }
+        else if (preferred & ~rclob) {
+            reg = (preferred & ~rclob).get();
+            clob.add(reg);  // Good, we can allocate a preferred one
+        }
+        else if (rclob.count() >= 2) {
+            ; // Okay, we'll be able to get one of these non-preferred registers
+        }
+        else {
+            reg = (~rclob).get();
+            clob.add(reg);  // Just allocate one more
         }
         
-        Regs aclob = array->precompile(preferred.clobbered(iclob));
+        return clob;
+    }
 
-        if (!aclob) {
-            areg = preferred.clobbered(iclob).get_any();
-            aclob.add(areg);
+    virtual void subcompile(X64 *x64) {
+        ls = left->compile(x64);
+        
+        if (is_assignment(operation)) {
+            if (ls.where != MEMORY)
+                throw INTERNAL_ERROR;
+                
+            if (ls.is_clobbered(rclob)) {
+                // We don't have an official support for stack-pushed addresses,
+                // so just hack this in temporarily.
+                x64->op(PUSHQ, ls.address.base);
+                ls = Storage(CONSTANT, ls.address.offset);
+            }
+        }
+        else {
+            if (ls.is_clobbered(rclob)) {
+                left->ts.store(ls, Storage(STACK), x64);
+                ls = Storage(STACK);
+            }
+            else if (ls.where == MEMORY) {
+                // TODO
+                // We can't really gain anything by leaving the left side in memory,
+                // but we would risk letting it altered before using it, so grab it now.
+                // This is just an overcautious solution now, in the future we may
+                // be smarter, and let MEMORY storage for the left side, once we make
+                // sure the right side has no side effects.
+                
+                if (!rclob)
+                    ;  // Okay, we can relax in this case
+                else if (reg != NOREG) {
+                    // We already know a register that won't be clobbered, use that
+                    left->ts.store(ls, Storage(REGISTER, reg), x64);
+                    ls = Storage(REGISTER, reg);
+                }
+                else {
+                    // Nothing is sure, push it onto the stack
+                    left->ts.store(ls, Storage(STACK), x64);
+                    ls = Storage(STACK);
+                }
+            }
+        }
+
+        rs = right ? right->compile(x64) : Storage();
+        
+        if (rs.where == STACK) {
+            std::cerr << "The decision was that basic values are not passed as STACK!\n";
+            std::cerr << right->token << "\n";
+            throw INTERNAL_ERROR;
         }
         
-        return aclob | iclob;
+        if (reg == NOREG) {
+            std::cerr << "clob=" << clob.available << " rs regs=" << rs.regs().available << "\n";
+            reg = (clob & ~rs.regs()).get();
+        }
+            
+        if (is_assignment(operation)) {
+            if (ls.where == CONSTANT) {
+                // We hacked the pushed address, now get it back to a good register
+                Register mreg = (rs.where == MEMORY && rs.address.base == RSI ? RDI : RSI);
+                x64->op(POPQ, mreg);
+                ls = Storage(MEMORY, Address(mreg, ls.value));
+            }
+        }
+        else {
+            if (ls.where == STACK) {
+                left->ts.store(ls, Storage(REGISTER, reg), x64);
+                ls = Storage(REGISTER, reg);
+            }
+        }
+    }
+};
+
+
+class ArrayOperationValue: public GenericOperationValue {
+public:
+    ArrayOperationValue(NumericOperation o, TypeSpec t, Value *l)
+        :GenericOperationValue(o, t.rvalue(), is_comparison(o) ? BOOLEAN_TS : t, l) {
+    }
+
+    virtual Storage equal(X64 *x64, BitSetOp op) {
+        subcompile(x64);
+        
+        switch (ls.where * rs.where) {
+        case REGISTER_REGISTER:
+            x64->decref(ls.reg);
+            x64->decref(rs.reg);
+            x64->op(CMPQ, ls.reg, rs.reg);
+            return Storage(FLAGS, op);
+        case REGISTER_MEMORY:
+            x64->decref(ls.reg);
+            x64->op(CMPQ, ls.reg, rs.address);
+            return Storage(FLAGS, op);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual Storage assign(X64 *x64) {
+        subcompile(x64);
+
+        switch (ls.where * rs.where) {
+        case MEMORY_REGISTER:
+            x64->incref(rs.reg);
+            x64->op(XCHGQ, rs.reg, ls.address);
+            x64->decref(rs.reg);
+            return ls;
+        case MEMORY_MEMORY:
+            x64->op(MOVQ, reg, rs.address);
+            x64->incref(reg);
+            x64->op(XCHGQ, reg, ls.address);
+            x64->decref(reg);
+            return ls;
+        default:
+            throw INTERNAL_ERROR;
+        }
     }
 
     virtual Storage compile(X64 *x64) {
-        int s = item_size(ts.measure());
-    
-        Storage as = array->compile(x64);
-        
-        if (as.is_clobbered(iclob)) {
-            array->ts.store(as, Storage(STACK), x64);
-            as = Storage(STACK);
-        }
-        
-        Storage is = index->compile(x64);
-        
-        if (as.where == STACK)
-            x64->op(POPQ, areg);
-        else if (as.where == REGISTER)
-            areg = as.reg;
-        else if (as.where == MEMORY)
-            x64->op(MOVQ, areg, as.address);
-        else
+        switch (operation) {
+        case EQUAL:
+            return equal(x64, SETE);
+        case NOT_EQUAL:
+            return equal(x64, SETNE);
+        case ASSIGN:
+            return assign(x64);
+        default:
             throw INTERNAL_ERROR;
-        
-        switch (is.where) {
-        case CONSTANT:
-            return Storage(MEMORY, Address(areg, s * is.value + 8));
-        case REGISTER:
-            if (s > 1)
-                x64->op(IMUL3Q, is.reg, is.reg, s);
-                
-            return Storage(MEMORY, Address(areg, is.reg, 8));
-        case STACK:
-            x64->op(POPQ, ireg);
+        }
+    }
+};
 
-            if (s > 1)
-                x64->op(IMUL3Q, ireg, ireg, s);
-                
-            return Storage(MEMORY, Address(areg, ireg, 8));
-        case MEMORY:
-            if (s > 1)
-                x64->op(IMUL3Q, ireg, is.address, s);
-            else
-                x64->op(MOVQ, ireg, is.address);
-                
-            return Storage(MEMORY, Address(areg, ireg, 8));
+
+class ArrayItemValue: public GenericOperationValue {
+public:
+    Register mreg;
+
+    ArrayItemValue(TypeSpec t, Value *a)  // FIXME: ADD?
+        :GenericOperationValue(ADD, INTEGER_TS, t.rvalue().unprefix(array_type).lvalue(), a) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = GenericOperationValue::precompile(preferred);
+        
+        // And we need to allocate a special address-only register for the real return value
+        mreg = preferred.has(RDI) ? RDI : RSI;
+        clob.add(mreg);
+        return clob;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int size = item_size(ts.measure());
+        int offset = 8;
+        
+        subcompile(x64);
+    
+        // TODO: probably this is the point where we need to borrow a reference to the
+        // array, and unborrow it sometimes later during the stack unwinding.
+    
+        switch (ls.where * rs.where) {
+        case REGISTER_CONSTANT:
+            x64->op(LEA, mreg, Address(ls.reg, rs.value * size + offset));
+            return Storage(MEMORY, Address(mreg, 0));
+        case REGISTER_REGISTER:
+            x64->op(IMUL3Q, rs.reg, rs.reg, size);
+            x64->op(LEA, mreg, Address(ls.reg, rs.reg, offset));
+            return Storage(MEMORY, Address(mreg, 0));
+        case REGISTER_MEMORY:
+            x64->op(IMUL3Q, mreg, rs.address, size);
+            x64->op(LEA, mreg, Address(ls.reg, mreg, offset));
+            return Storage(MEMORY, Address(mreg, 0));
+        case MEMORY_CONSTANT:
+            x64->op(MOVQ, mreg, ls.address);
+            x64->op(ADDQ, mreg, rs.value * size + offset);
+            return Storage(MEMORY, Address(mreg, 0));
+        case MEMORY_REGISTER:
+            x64->op(MOVQ, mreg, ls.address);
+            x64->op(IMUL3Q, rs.reg, rs.reg, size);
+            x64->op(LEA, mreg, Address(mreg, rs.reg, offset));
+            return Storage(MEMORY, Address(mreg, 0));
+        case MEMORY_MEMORY:
+            x64->op(MOVQ, mreg, ls.address);
+            x64->op(IMUL3Q, reg, rs.address, size);
+            x64->op(LEA, mreg, Address(mreg, reg, offset));
+            return Storage(MEMORY, Address(mreg, 0));
         default:
             throw INTERNAL_ERROR;
         }
@@ -203,87 +369,54 @@ public:
 };
 
 
-class ArrayConcatenationValue: public Value {
+class ArrayConcatenationValue: public GenericOperationValue {
 public:
-    int item_size;
-    std::unique_ptr<Value> left, right;
-    
-    ArrayConcatenationValue(Value *l)
-        :Value(l->ts.rvalue()) {
-        left.reset(l);
-        item_size = ::item_size(ts.unprefix(array_type).measure());
+    ArrayConcatenationValue(TypeSpec t, Value *l)
+        :GenericOperationValue(ADD /*FIXME*/, t, t, l) {
     }
 
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() != 0) {
-            std::cerr << "Whacky array concatenation!\n";
-            return false;
-        }
-        
-        Value *r = typize(args[0].get(), scope);
-        Value *cr = convertible(ts, r);
-        
-        if (!cr) {
-            std::cerr << "Array concatenation with incompatible argument!\n";
-            return false;
-        }
-        
-        right.reset(cr);
-        return true;
-    }
-    
-    virtual Regs precompile(Regs) {
-        /*
-        rclob = right->precompile();
-
-        if (!rclob) {
-            rreg = Regs::all().get_any();
-            rclob.add(rreg);
-        }
-        
-        Regs lclob = left->precompile(preferred.clobbered(rclob));
-
-        if (!lclob) {
-            lreg = preferred.clobbered(rclob).get_any();
-            lclob.add(lreg);
-        }
-        */
-        
+    virtual Regs precompile(Regs preferred) {
+        GenericOperationValue::precompile(preferred);
         return Regs::all();  // will call a memory allocation function, clobber everything
+        // FIXME: this may not be true, we pusha everything
     }
 
     virtual Storage compile(X64 *x64) {
-        // TODO: this only works for basic types now, that can be just copied
+        // TODO: this only works for arrays of basic types now, that can be just copied
         // TODO: don't inline this
+        int size = item_size(ts.unprefix(array_type).measure());
         
-        left->compile_and_store(x64, Storage(STACK));
-        right->compile_and_store(x64, Storage(STACK));
+        subcompile(x64);
+        
+        left->ts.store(ls, Storage(STACK), x64);
+        right->ts.store(rs, Storage(STACK), x64);
         
         x64->op(MOVQ, RAX, Address(RSP, 8));
         x64->op(MOVQ, RBX, Address(RAX, 0));
         
         x64->op(MOVQ, RAX, Address(RSP, 0));
-        x64->op(ADDQ, RBX, Address(RAX, 0));  // Will be preserved
+        x64->op(ADDQ, RBX, Address(RAX, 0));  // Will be preserved, total size
         
-        x64->op(IMUL3Q, RDI, RBX, item_size);
-        x64->op(ADDQ, RDI, 8);
-        x64->op(CALL, alloc_function->x64_label);
+        x64->op(IMUL3Q, RAX, RBX, size);
+        x64->op(ADDQ, RAX, 8);
         
-        x64->op(MOVQ, RDI, RAX);
-        x64->op(MOVQ, Address(RDI, 0), RBX);
-        x64->op(ADDQ, RDI, 8);
+        x64->alloc(RAX);  // Allocate this many bytes with a refcount of 1, return in RAX
+        
+        x64->op(MOVQ, Address(RAX, 0), RBX);
+        x64->op(LEA, RDI, Address(RAX, 8));
         
         x64->op(MOVQ, RSI, Address(RSP, 8));
-        x64->op(IMUL3Q, RCX, Address(RSI, 0), item_size);
+        x64->op(IMUL3Q, RCX, Address(RSI, 0), size);
         x64->op(ADDQ, RSI, 8);
         x64->op(REPMOVSB);
 
         x64->op(MOVQ, RSI, Address(RSP, 0));
-        x64->op(IMUL3Q, RCX, Address(RSI, 0), item_size);
+        x64->op(IMUL3Q, RCX, Address(RSI, 0), size);
         x64->op(ADDQ, RSI, 8);
         x64->op(REPMOVSB);
         
-        x64->op(ADDQ, RSP, 16);
+        right->ts.store(Storage(STACK), Storage(), x64);
+        left->ts.store(Storage(STACK), Storage(), x64);
         
         return Storage(REGISTER, RAX);
     }
@@ -318,15 +451,13 @@ public:
         if (items.size() == 1 && kwitems.size() == 0)
             return items[0]->precompile(preferred);
             
-        Regs clobbered;
-            
         for (auto &item : items)
-            clobbered |= item->precompile();
+            item->precompile();
             
         for (auto &kv : kwitems)
-            clobbered |= kv.second->precompile();
+            kv.second->precompile();
             
-        return clobbered;
+        return Regs::all();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -439,12 +570,14 @@ public:
         Variable *v = dynamic_cast<Variable *>(decl);
         
         if (v) {
-            Storage s = value->compile(x64);
+            // TODO: for references, we need to first zero out the variable, then
+            // the store will do an assignment. This could be simpler.
             Storage t = v->get_storage(v->outer->get_storage());  // local variable
+            v->var_ts.create(t, x64);
+
+            Storage s = value->compile(x64);
             
-            if (s.where == NOWHERE)
-                v->var_ts.create(t, x64);
-            else
+            if (s.where != NOWHERE)
                 v->var_ts.store(s, t, x64);
                 
             v->outer->set_rollback_declaration(v);
@@ -538,11 +671,11 @@ Value *make_converted_value(TypeSpec ts, Value *orig) {
 }
 
 
-Value *make_array_item_value(Value *array) {
-    return new ArrayItemValue(array);
+Value *make_array_item_value(TypeSpec t, Value *array) {
+    return new ArrayItemValue(t, array);
 }
 
 
-Value *make_array_concatenation_value(Value *array) {
-    return new ArrayConcatenationValue(array);
+Value *make_array_concatenation_value(TypeSpec t, Value *array) {
+    return new ArrayConcatenationValue(t, array);
 }

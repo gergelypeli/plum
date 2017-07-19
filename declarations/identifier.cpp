@@ -158,7 +158,7 @@ public:
     }
     
     virtual Value *matched(Value *cpivot) {
-        return make_array_item_value(cpivot);
+        return make_array_item_value(pivot_ts, cpivot);
     }
 };
 
@@ -170,6 +170,6 @@ public:
     }
     
     virtual Value *matched(Value *cpivot) {
-        return make_array_concatenation_value(cpivot);
+        return make_array_concatenation_value(pivot_ts, cpivot);
     }
 };

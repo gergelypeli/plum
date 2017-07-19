@@ -274,21 +274,8 @@ public:
         case NOWHERE_NOWHERE:
             return;
             
-        case CONSTANT_NOWHERE:
-            return;
-        case CONSTANT_CONSTANT:
-            return;
-        case CONSTANT_REGISTER:
-            x64->op(MOVQ, t.reg, s.value);
-            return;
-        case CONSTANT_STACK:
-            x64->op(PUSHQ, s.value);
-            return;
-        case CONSTANT_MEMORY:
-            x64->op(MOVQ, t.address, s.value);
-            return;
-            
         case REGISTER_NOWHERE:
+            x64->decref(s.reg);
             return;
         case REGISTER_REGISTER:
             if (s.reg != t.reg)
@@ -298,11 +285,16 @@ public:
             x64->op(PUSHQ, s.reg);
             return;
         case REGISTER_MEMORY:
-            x64->op(MOVQ, t.address, s.reg);
+            x64->op(XCHGQ, t.address, s.reg);
+            x64->decref(s.reg);
             return;
 
         case STACK_NOWHERE:
-            x64->op(ADDQ, RSP, 8);
+            //x64->op(ADDQ, RSP, 8);
+            // FIXME: clob, clob...
+            x64->op(XCHGQ, RAX, Address(RSP, 0));
+            x64->decref(RAX);
+            x64->op(POPQ, RAX);
             return;
         case STACK_REGISTER:
             x64->op(POPQ, t.reg);
@@ -310,20 +302,31 @@ public:
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            x64->op(POPQ, t.address);
+            x64->op(XCHGQ, RAX, Address(RSP, 0));
+            x64->op(XCHGQ, RAX, t.address);
+            x64->decref(RAX);
+            x64->op(POPQ, RAX);
             return;
 
         case MEMORY_NOWHERE:
             return;
         case MEMORY_REGISTER:
             x64->op(MOVQ, t.reg, s.address);
+            x64->incref(t.reg);
             return;
         case MEMORY_STACK:
-            x64->op(PUSHQ, s.address);
+            x64->op(PUSHQ, RAX);
+            x64->op(MOVQ, RAX, s.address);
+            x64->incref(RAX);
+            x64->op(XCHGQ, RAX, Address(RSP, 0));
             return;
         case MEMORY_MEMORY:
-            x64->op(PUSHQ, s.address);
-            x64->op(POPQ, t.address);
+            x64->op(PUSHQ, RAX);
+            x64->op(MOVQ, RAX, s.address);
+            x64->incref(RAX);
+            x64->op(XCHGQ, RAX, t.address);
+            x64->decref(RAX);
+            x64->op(POPQ, RAX);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -337,8 +340,15 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void destroy(TypeSpecIter &, Storage, X64 *) {
-        return;
+    virtual void destroy(TypeSpecIter &, Storage s, X64 *x64) {
+        if (s.where == MEMORY) {
+            x64->op(PUSHQ, RAX);
+            x64->op(MOVQ, RAX, s.address);
+            x64->decref(RAX);
+            x64->op(POPQ, RAX);
+        }
+        else
+            throw INTERNAL_ERROR;
     }
 
     virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
@@ -352,10 +362,6 @@ public:
         case REGISTER:
             x64->op(CMPQ, s.reg, 0);
             return Storage(FLAGS, SETNE);
-        case STACK:
-            x64->op(CMPQ, Address(RSP, 0), 0);
-            x64->op(SETNE, Address(RSP, 0));
-            return Storage(STACK);
         case MEMORY:
             x64->op(CMPQ, s.address, 0);
             return Storage(FLAGS, SETNE);

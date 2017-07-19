@@ -783,15 +783,15 @@ struct {
         {0x0F01, 3},
         {0x0F01, 0},
         {0x0F01, 1},
-        {0xDF,    5},
-        {0xDF,    7},
-        {0xD9,    7},
-        {0xD9,    5}
+        {0xDF,   5},
+        {0xDF,   7},
+        {0xD9,   7},
+        {0xD9,   5}
 };
 
 void X64::op(MemoryOp opcode, Address x) {
     auto &info = memory_info[opcode];
-    code_op(info.op, 0, info.regfield, x);
+    code_op(info.op, OPSIZE_DEFAULT, info.regfield, x);
 }
 
 
@@ -845,31 +845,14 @@ void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Address y, int z) 
 
 
 
-int registersecond_info[] = {
-    0x63, 0x0FA5, 0x0FAD
-};
-
-void X64::op(RegisterSecondOp opcode, Register x, Register y) {
-    auto &info = registersecond_info[opcode];
-    code_op(info, 0, y, x);
-}
-
-void X64::op(RegisterSecondOp opcode, Address x, Register y) {
-    auto &info = registersecond_info[opcode];
-    code_op(info, 0, y, x);
-}
-
-
-
-
 int registermemory_info[] = {
-    0xC5, 0x8D, 0xC4
+    0x8D
 };
 
 
 void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
     auto &info = registermemory_info[opcode];
-    code_op(info, 0, x, y);
+    code_op(info, 3 | OPSIZE_NONBYTE, x, y);
 }
 
 
@@ -946,4 +929,68 @@ void X64::op(ConstantOp opcode, int x) {
         code_op(0xCA);
         code_word(x);
     }
+}
+
+
+void X64::pusha() {
+    op(PUSHQ, RAX);
+    op(PUSHQ, RCX);
+    op(PUSHQ, RDX);
+    op(PUSHQ, RSI);
+    op(PUSHQ, RDI);
+    op(PUSHQ, R8);
+    op(PUSHQ, R9);
+    op(PUSHQ, R10);
+    op(PUSHQ, R11);
+}
+
+void X64::popa() {
+    op(POPQ, R11);
+    op(POPQ, R10);
+    op(POPQ, R9);
+    op(POPQ, R8);
+    op(POPQ, RDI);
+    op(POPQ, RSI);
+    op(POPQ, RDX);
+    op(POPQ, RCX);
+    op(POPQ, RAX);
+}
+
+void X64::incref(Register reg) {
+    Label l;
+    op(CMPQ, reg, 0);
+    op(JE, l);
+    op(INCQ, Address(reg, HEAP_REFCOUNT_OFFSET));
+    code_label(l);
+}
+
+void X64::decref(Register reg) {
+    Label l;
+    op(CMPQ, reg, 0);
+    op(JE, l);
+    op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
+    op(JNE, l);
+
+    // TODO
+    pusha();
+    op(LEA, RDI, Address(reg, -HEAP_HEADER_SIZE));
+    op(CALL, free_function_x64_label);
+    popa();
+    
+    code_label(l);
+}
+
+void X64::alloc(Register reg) {
+    op(LEA, RDI, Address(reg, HEAP_HEADER_SIZE));
+    op(CALL, alloc_function_x64_label);
+    op(LEA, reg, Address(RAX, HEAP_HEADER_SIZE));
+    op(MOVQ, Address(reg, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
+}
+
+void X64::set_alloc_function_x64_label(Label l) {
+    alloc_function_x64_label = l;
+}
+
+void X64::set_free_function_x64_label(Label l) {
+    free_function_x64_label = l;
 }

@@ -209,7 +209,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        std::cerr << "Compiling call of " << function->name << "...\n";
+        //std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
         unsigned ret_size = stack_size(ret_ts.measure());
         
@@ -244,7 +244,8 @@ public:
         if (pivot)
             pivot->ts.store(Storage(STACK), Storage(), x64);
             
-        std::cerr << "Compiled call of " << function->name << ".\n";
+        //std::cerr << "Compiled call of " << function->name << ".\n";
+        // FIXME: basic types mustn't be returned as STACK anymore, implement!
         return ret_size ? Storage(STACK) : Storage();
     }
 };

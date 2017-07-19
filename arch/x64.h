@@ -50,20 +50,42 @@ struct Regs {
         return *this;
     }
 
-    Regs clobbered(Regs other) {
-        available &= ~other.available;
+    Regs operator |(Regs other) {
+        return Regs(available | other.available);
+    }
+
+    Regs operator &(Regs other) {
+        return Regs(available & other.available);
+    }
+
+    Regs operator~() {
+        return Regs(~available & ALL);  // Reserved registers must stay reserved
+    }
+    
+    //void operator |=(Regs other) {
+    //    available |= other.available;
+    //}
+    
+    explicit operator bool() {
+        return available != 0;
+    }
+
+    int count() {
+        int n = 0;
         
-        if (!available)
-            available = ALL;
-            
-        return *this;
+        for (int i=0; i<REGISTER_COUNT; i++)
+            if (available & (1 << i)) {
+                n++;
+            }
+    
+        return n;
     }
 
     bool has(Register r) {
         return available & (1 << (int)r);
     }
-    
-    Register get_any() {
+
+    Register get() {
         for (int i=0; i<REGISTER_COUNT; i++)
             if (available & (1 << i)) {
                 return (Register)i;
@@ -72,18 +94,44 @@ struct Regs {
         std::cerr << "No register in set!\n";
         throw X64_ERROR;
     }
-    
-    Regs operator |(Regs other) {
-        return Regs(available | other.available);
+    /*
+    Regs add_any(Regs preferred) {
+        int extra = preferred.available & ~available;
+        
+        if (!extra)
+            extra = ~available;
+        
+        for (int i=0; i<REGISTER_COUNT; i++)
+            if (extra & (1 << i)) {
+                available |= (1 << i);
+                return *this;
+            }
+            
+        std::cerr << "No extra registers!\n";
+        throw X64_ERROR;
+    }
+
+    Regs clobbered(Regs other) {
+        available &= ~other.available;
+        
+        if (!available)
+            available = ALL;
+            
+        return *this;
     }
     
-    void operator |=(Regs other) {
-        available |= other.available;
-    }
+
+    Register get_not(Regs clob) {
+        int good = available & ~clob;
+            
+        for (int i=0; i<REGISTER_COUNT; i++)
+            if (good & (1 << i)) {
+                return (Register)i;
+            }
     
-    bool operator!() {
-        return !available;
+        return NOREG;
     }
+    */
 };
 
 
@@ -200,6 +248,8 @@ enum ExchangeOp {
     XCHGB=0, XCHGW, XCHGD, XCHGQ
 };
 
+ExchangeOp operator%(ExchangeOp x, int y) { return (ExchangeOp)((x & ~3) | (y & 3)); }
+
 
 enum StackOp {
     PUSHQ, POPQ
@@ -225,13 +275,8 @@ enum RegisterFirstConstantThirdOp {
 RegisterFirstConstantThirdOp operator%(RegisterFirstConstantThirdOp x, int y) { return (RegisterFirstConstantThirdOp)((x & ~3) | (y & 3)); }
 
 
-enum RegisterSecondOp {
-    ARPL, SHLDD, SHRDD
-};
-
-
 enum RegisterMemoryOp {
-    LDS, LEA, LES
+    LEA
 };
 
 
@@ -277,6 +322,9 @@ enum ConstantOp {
 
 class X64 {
 public:
+    static const int HEAP_HEADER_SIZE = 8;
+    static const int HEAP_REFCOUNT_OFFSET = -8;
+
     std::vector<char> code;
     std::vector<char> data;
 
@@ -326,6 +374,8 @@ public:
 
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
+    
+    Label alloc_function_x64_label, free_function_x64_label;
     
     void add_def(Label label, const Def &def);
 
@@ -397,8 +447,6 @@ public:
     void op(RegisterFirstOp opcode, Register x, Address y);
     void op(RegisterFirstConstantThirdOp opcode, Register x, Register y, int z);
     void op(RegisterFirstConstantThirdOp opcode, Register x, Address y, int z);
-    void op(RegisterSecondOp opcode, Register x, Register y);
-    void op(RegisterSecondOp opcode, Address x, Register y);
     void op(RegisterMemoryOp opcode, Register x, Address y);
     void op(LeaRipOp opcode, Register r, Label l, int o);
     void op(BitSetOp, Register x);
@@ -407,4 +455,13 @@ public:
     void op(JumpOp opcode, Label c);
     void op(JumpOp opcode, Address x);
     void op(ConstantOp opcode, int x);
+
+    void pusha();
+    void popa();
+    void incref(Register reg);
+    void decref(Register reg);
+    
+    void alloc(Register reg);
+    void set_alloc_function_x64_label(Label l);
+    void set_free_function_x64_label(Label l);
 };
