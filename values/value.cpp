@@ -340,6 +340,10 @@ public:
         // TODO: probably this is the point where we need to borrow a reference to the
         // array, and unborrow it sometimes later during the stack unwinding.
     
+        // NOTE: the reg we selected is a PTR register, and that means that either
+        // MEMORY side may be using it. So before we overwrite it, we must make sure
+        // we already dereferenced it.
+    
         switch (ls.where * rs.where) {
         case REGISTER_CONSTANT:
             x64->op(LEA, reg, Address(ls.reg, rs.value * size + offset));
@@ -349,19 +353,34 @@ public:
             x64->op(ADDQ, reg, ls.reg);
             return Storage(MEMORY, Address(reg, offset));
         case REGISTER_MEMORY:
-            x64->op(IMUL3Q, reg, rs.address, size);
+            x64->op(IMUL3Q, reg, rs.address, size);  // reg may be the base of rs.address
             x64->op(ADDQ, reg, ls.reg);
             return Storage(MEMORY, Address(reg, offset));
         case MEMORY_CONSTANT:
-            x64->op(MOVQ, reg, ls.address);
+            x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
             return Storage(MEMORY, Address(reg, rs.value * size + offset));
         case MEMORY_REGISTER:
-            x64->op(IMUL3Q, reg, rs.reg, size);
-            x64->op(ADDQ, reg, ls.address);
+            if (reg != ls.address.base) {
+                x64->op(IMUL3Q, reg, rs.reg, size);  // reg is not the base of ls.address
+                x64->op(ADDQ, reg, ls.address);
+            }
+            else {
+                x64->op(IMUL3Q, rs.reg, rs.reg, size);
+                x64->op(MOVQ, reg, ls.address);  // reg is the base of ls.address
+                x64->op(ADDQ, reg, rs.reg);
+            }
             return Storage(MEMORY, Address(reg, offset));
         case MEMORY_MEMORY:
-            x64->op(IMUL3Q, reg, rs.address, size);
-            x64->op(ADDQ, reg, ls.address);
+            if (reg != ls.address.base) {
+                x64->op(IMUL3Q, reg, rs.address, size);  // reg may be the base of rs.address
+                x64->op(ADDQ, reg, ls.address);
+            }
+            else {
+                x64->op(PUSHQ, ls.address);
+                x64->op(IMUL3Q, reg, rs.address, size);  // reg is the base of ls.address
+                x64->op(ADDQ, reg, Address(RSP, 0));
+                x64->op(ADDQ, RSP, 8);
+            }
             return Storage(MEMORY, Address(reg, offset));
         default:
             throw INTERNAL_ERROR;
