@@ -153,25 +153,25 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         rclob = right ? right->precompile() : Regs();
-        Regs pref = preferred & ~rclob ? preferred & ~rclob : preferred;  // must be nonempty
+        Regs pref = (preferred & ~rclob).has_gpr() ? preferred & ~rclob : preferred;  // must be nonempty
         Regs lclob = left->precompile(pref);
         clob = lclob | rclob;
         
         // We'll need a working general register that we can also use to pop
         // a clobbered left value back.
         
-        if (lclob & ~rclob) {
-            reg = (lclob & ~rclob).get(); // Great, the left side will have one
+        if ((lclob & ~rclob).has_gpr()) {
+            reg = (lclob & ~rclob).get_gpr(); // Great, the left side will have one
         }
-        else if (preferred & ~rclob) {
-            reg = (preferred & ~rclob).get();
+        else if ((preferred & ~rclob).has_gpr()) {
+            reg = (preferred & ~rclob).get_gpr();
             clob.add(reg);  // Good, we can allocate a preferred one
         }
-        else if (rclob.count() >= 2) {
+        else if (rclob.count_gpr() >= 2) {
             ; // Okay, we'll be able to get one of these non-preferred registers
         }
         else {
-            reg = (~rclob).get();
+            reg = (~rclob).get_gpr();
             clob.add(reg);  // Just allocate one more
         }
         
@@ -205,7 +205,7 @@ public:
                 // be smarter, and let MEMORY storage for the left side, once we make
                 // sure the right side has no side effects.
                 
-                if (!rclob)
+                if (!rclob.has_gpr() && !rclob.has_ptr())
                     ;  // Okay, we can relax in this case
                 else if (reg != NOREG) {
                     // We already know a register that won't be clobbered, use that
@@ -229,14 +229,15 @@ public:
         }
         
         if (reg == NOREG) {
-            std::cerr << "clob=" << clob.available << " rs regs=" << rs.regs().available << "\n";
-            reg = (clob & ~rs.regs()).get();
+            //std::cerr << "clob=" << clob.available << " rs regs=" << rs.regs().available << "\n";
+            reg = (clob & ~rs.regs()).get_gpr();
         }
             
         if (is_assignment(operation)) {
             if (ls.where == CONSTANT) {
                 // We hacked the pushed address, now get it back to a good register
-                Register mreg = (rs.where == MEMORY && rs.address.base == RSI ? RDI : RSI);
+                Register mreg = (~rs.regs()).get_ptr();
+                //Register mreg = (rs.where == MEMORY && rs.address.base == RSI ? RDI : RSI);
                 x64->op(POPQ, mreg);
                 ls = Storage(MEMORY, Address(mreg, ls.value));
             }
@@ -322,7 +323,7 @@ public:
         Regs clob = GenericOperationValue::precompile(preferred);
         
         // And we need to allocate a special address-only register for the real return value
-        mreg = preferred.has(RDI) ? RDI : RSI;
+        mreg = preferred.has_ptr() ? preferred.get_ptr() : Regs::all_ptrs().get_ptr();
         clob.add(mreg);
         return clob;
     }
@@ -350,8 +351,7 @@ public:
             return Storage(MEMORY, Address(mreg, 0));
         case MEMORY_CONSTANT:
             x64->op(MOVQ, mreg, ls.address);
-            x64->op(ADDQ, mreg, rs.value * size + offset);
-            return Storage(MEMORY, Address(mreg, 0));
+            return Storage(MEMORY, Address(mreg, rs.value * size + offset));
         case MEMORY_REGISTER:
             x64->op(MOVQ, mreg, ls.address);
             x64->op(IMUL3Q, rs.reg, rs.reg, size);

@@ -36,3 +36,6 @@ start? :function as:
     printu8(s[c])
     
     prints(s + s)
+
+    s[3] = s[4]
+    prints(s)

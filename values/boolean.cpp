@@ -50,7 +50,7 @@ public:
             clobbered = clobbered | right->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get();
+        reg = preferred.get_gpr();
         clobbered.add(reg);
         
         return clobbered;
@@ -284,7 +284,7 @@ public:
             clobbered = clobbered | else_branch->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get();
+        reg = preferred.get_gpr();
         clobbered.add(reg);
         
         return clobbered;

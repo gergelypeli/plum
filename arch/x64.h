@@ -23,7 +23,9 @@ enum Register {
 
 
 struct Regs {
-    static const int ALL = 0xFF0F;
+    static const int ALL_MASK = 0xFFFF;
+    static const int GPR_MASK = 0xFF0F;
+    static const int PTR_MASK = 0x00C0;
     static const int SYSV_CLOBBERED = 0x0FF7;
     static const int REGISTER_COUNT = 16;
     int available;
@@ -33,7 +35,15 @@ struct Regs {
     }
     
     static Regs all() {
-        return Regs(ALL);  // All except RSP, RBP, RSI, RDI
+        return Regs(ALL_MASK);
+    }
+
+    static Regs all_gprs() {
+        return Regs(GPR_MASK);
+    }
+
+    static Regs all_ptrs() {
+        return Regs(PTR_MASK);
     }
     
     static Regs sysv_clobbered() {
@@ -59,79 +69,51 @@ struct Regs {
     }
 
     Regs operator~() {
-        return Regs(~available & ALL);  // Reserved registers must stay reserved
+        return Regs(~available);
     }
     
-    //void operator |=(Regs other) {
-    //    available |= other.available;
-    //}
-    
-    explicit operator bool() {
-        return available != 0;
+    bool has(Register r) {
+        return available & (1 << (int)r);
     }
 
-    int count() {
+    bool has_gpr() {
+        return (available & GPR_MASK) != 0;
+    }
+
+    bool has_ptr() {
+        return (available & PTR_MASK) != 0;
+    }
+
+    int count_gpr() {
         int n = 0;
         
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & (1 << i)) {
+            if (available & GPR_MASK & (1 << i)) {
                 n++;
             }
     
         return n;
     }
 
-    bool has(Register r) {
-        return available & (1 << (int)r);
-    }
-
-    Register get() {
+    Register get_gpr() {
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & (1 << i)) {
+            if (available & GPR_MASK & (1 << i)) {
                 return (Register)i;
             }
     
-        std::cerr << "No register in set!\n";
-        throw X64_ERROR;
-    }
-    /*
-    Regs add_any(Regs preferred) {
-        int extra = preferred.available & ~available;
-        
-        if (!extra)
-            extra = ~available;
-        
-        for (int i=0; i<REGISTER_COUNT; i++)
-            if (extra & (1 << i)) {
-                available |= (1 << i);
-                return *this;
-            }
-            
-        std::cerr << "No extra registers!\n";
+        std::cerr << "No GPR in register set!\n";
         throw X64_ERROR;
     }
 
-    Regs clobbered(Regs other) {
-        available &= ~other.available;
-        
-        if (!available)
-            available = ALL;
-            
-        return *this;
-    }
-    
-
-    Register get_not(Regs clob) {
-        int good = available & ~clob;
-            
+    Register get_ptr() {
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (good & (1 << i)) {
+            if (available & PTR_MASK & (1 << i)) {
                 return (Register)i;
             }
     
-        return NOREG;
+        std::cerr << "No PTR in register set!\n";
+        throw X64_ERROR;
     }
-    */
 };
 
 

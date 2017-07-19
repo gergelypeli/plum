@@ -141,27 +141,6 @@ struct Storage {
             throw INTERNAL_ERROR;
         }
     }
-
-    bool is_dangling(Regs clobbered) {
-        switch (where) {
-        case NOWHERE:
-        case CONSTANT:
-        case FLAGS:
-        case REGISTER:
-        case STACK:
-            return false;
-        case MEMORY:
-            // We have an address of an array item, which is not guaranteed to stay
-            // valid if another expression has side effects. Only allow to stay
-            // this way if that other expression does not clobber any registers.
-            return (
-                (address.base != NOREG && address.base != RBP) ||
-                (address.index != NOREG)
-            ) && !!clobbered;
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
 };
 
 
