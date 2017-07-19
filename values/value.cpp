@@ -151,6 +151,25 @@ public:
         }
     }
 
+    virtual Register pick_early_register(Regs preferred) {
+        if ((clob & ~rclob).has_gpr()) {
+            return (clob & ~rclob).get_gpr();  // Great, the left side will have one
+        }
+        else if ((preferred & ~rclob).has_gpr()) {
+            return (preferred & ~rclob).get_gpr();  // Good, we can allocate a preferred one
+        }
+        else if (rclob.count_gpr() >= 2) {
+            return NOREG; // Okay, we'll be able to get one of these non-preferred registers
+        }
+        else {
+            return (~rclob).get_gpr();  // Just allocate one more
+        }
+    }
+
+    virtual Register pick_late_register() {
+        return (clob & ~rs.regs()).get_gpr();
+    }
+
     virtual Regs precompile(Regs preferred) {
         rclob = right ? right->precompile() : Regs();
         Regs pref = (preferred & ~rclob).has_gpr() ? preferred & ~rclob : preferred;  // must be nonempty
@@ -159,21 +178,9 @@ public:
         
         // We'll need a working general register that we can also use to pop
         // a clobbered left value back.
-        
-        if ((lclob & ~rclob).has_gpr()) {
-            reg = (lclob & ~rclob).get_gpr(); // Great, the left side will have one
-        }
-        else if ((preferred & ~rclob).has_gpr()) {
-            reg = (preferred & ~rclob).get_gpr();
-            clob.add(reg);  // Good, we can allocate a preferred one
-        }
-        else if (rclob.count_gpr() >= 2) {
-            ; // Okay, we'll be able to get one of these non-preferred registers
-        }
-        else {
-            reg = (~rclob).get_gpr();
-            clob.add(reg);  // Just allocate one more
-        }
+        reg = pick_early_register(preferred);
+        if (reg != NOREG)
+            clob.add(reg);
         
         return clob;
     }
@@ -230,7 +237,7 @@ public:
         
         if (reg == NOREG) {
             //std::cerr << "clob=" << clob.available << " rs regs=" << rs.regs().available << "\n";
-            reg = (clob & ~rs.regs()).get_gpr();
+            reg = pick_late_register();
         }
             
         if (is_assignment(operation)) {
@@ -319,13 +326,9 @@ public:
         :GenericOperationValue(ADD, INTEGER_TS, t.rvalue().unprefix(array_type).lvalue(), a) {
     }
 
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = GenericOperationValue::precompile(preferred);
-        
+    virtual Register pick_early_register(Regs preferred) {
         // And we need to allocate a special address-only register for the real return value
-        mreg = preferred.has_ptr() ? preferred.get_ptr() : Regs::all_ptrs().get_ptr();
-        clob.add(mreg);
-        return clob;
+        return preferred.has_ptr() ? preferred.get_ptr() : Regs::all_ptrs().get_ptr();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -339,29 +342,27 @@ public:
     
         switch (ls.where * rs.where) {
         case REGISTER_CONSTANT:
-            x64->op(LEA, mreg, Address(ls.reg, rs.value * size + offset));
-            return Storage(MEMORY, Address(mreg, 0));
+            x64->op(LEA, reg, Address(ls.reg, rs.value * size + offset));
+            return Storage(MEMORY, Address(reg, 0));
         case REGISTER_REGISTER:
-            x64->op(IMUL3Q, rs.reg, rs.reg, size);
-            x64->op(LEA, mreg, Address(ls.reg, rs.reg, offset));
-            return Storage(MEMORY, Address(mreg, 0));
+            x64->op(IMUL3Q, reg, rs.reg, size);
+            x64->op(ADDQ, reg, ls.reg);
+            return Storage(MEMORY, Address(reg, offset));
         case REGISTER_MEMORY:
-            x64->op(IMUL3Q, mreg, rs.address, size);
-            x64->op(LEA, mreg, Address(ls.reg, mreg, offset));
-            return Storage(MEMORY, Address(mreg, 0));
-        case MEMORY_CONSTANT:
-            x64->op(MOVQ, mreg, ls.address);
-            return Storage(MEMORY, Address(mreg, rs.value * size + offset));
-        case MEMORY_REGISTER:
-            x64->op(MOVQ, mreg, ls.address);
-            x64->op(IMUL3Q, rs.reg, rs.reg, size);
-            x64->op(LEA, mreg, Address(mreg, rs.reg, offset));
-            return Storage(MEMORY, Address(mreg, 0));
-        case MEMORY_MEMORY:
-            x64->op(MOVQ, mreg, ls.address);
             x64->op(IMUL3Q, reg, rs.address, size);
-            x64->op(LEA, mreg, Address(mreg, reg, offset));
-            return Storage(MEMORY, Address(mreg, 0));
+            x64->op(ADDQ, reg, ls.reg);
+            return Storage(MEMORY, Address(reg, offset));
+        case MEMORY_CONSTANT:
+            x64->op(MOVQ, reg, ls.address);
+            return Storage(MEMORY, Address(reg, rs.value * size + offset));
+        case MEMORY_REGISTER:
+            x64->op(IMUL3Q, reg, rs.reg, size);
+            x64->op(ADDQ, reg, ls.address);
+            return Storage(MEMORY, Address(reg, offset));
+        case MEMORY_MEMORY:
+            x64->op(IMUL3Q, reg, rs.address, size);
+            x64->op(ADDQ, reg, ls.address);
+            return Storage(MEMORY, Address(reg, offset));
         default:
             throw INTERNAL_ERROR;
         }
