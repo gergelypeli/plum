@@ -22,15 +22,31 @@ public:
     }
     
     virtual Value *match(std::string name, Value *pivot) {
-        if (name == this->name && pivot == NULL && parameter_count == 0) {
+        if (name != this->name)
+            return NULL;
+        else if (parameter_count == 0) {
+            if (pivot != NULL)
+                return NULL;
+                
             TypeSpec ts;
             ts.push_back(type_type);
             ts.push_back(this);
             
             return make_type_value(ts);
         }
+        else if (parameter_count == 1 && pivot != NULL) {
+            TypeSpec pts = get_typespec(pivot);
+            
+            if (pts[0] != type_type)
+                return NULL;
+                
+            TypeSpec ts = pts.unprefix(type_type).prefix(this).prefix(type_type);
+            // FIXME: do something with pivot!
+            
+            return make_type_value(ts);
+        }
         else
-            return NULL;
+            throw INTERNAL_ERROR;
     }
     
     virtual bool is_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
@@ -102,6 +118,14 @@ public:
             std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
         }
+    }
+};
+
+
+class HeapType: public Type {
+public:
+    HeapType(std::string name, unsigned pc)
+        :Type(name, pc) {
     }
 };
 
@@ -261,14 +285,14 @@ public:
 };
 
 
-class ArrayType: public Type {
+class ReferenceType: public Type {
 public:
-    ArrayType()
-        :Type("Array", 1) {
+    ReferenceType()
+        :Type("<Reference>", 1) {
     }
     
     virtual unsigned measure(TypeSpecIter &) {
-        return 8;  // TODO: this is somewhat questionable for reference types
+        return 8;
     }
 
     virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *x64) {
@@ -375,8 +399,17 @@ public:
     virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &, Storage s, X64 *x64) {
         // This must be a conversion to bool.
         
-        if (s.where == REGISTER)
+        switch (s.where) {
+        case CONSTANT:
+            break;
+        case REGISTER:
             x64->decref(s.reg);
+            break;
+        case MEMORY:
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
             
         return boolval(this_tsi, s, x64);
     }
@@ -443,6 +476,26 @@ public:
 };
 
 
+std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
+    os << "[";
+    
+    bool start = true;
+    
+    for (auto type : ts) {
+        if (start)
+            start = false;
+        else
+            os << ",";
+            
+        os << type->name;
+    }
+    
+    os << "]";
+    
+    return os;
+}
+
+
 StorageWhere TypeSpec::where() {
     TypeSpecIter this_tsi(begin());
     
@@ -485,8 +538,15 @@ TypeSpec TypeSpec::prefix(Type *t) {
 
 
 TypeSpec TypeSpec::unprefix(Type *t) {
-    if (at(0) != t || t->parameter_count != 1)
+    if (at(0) != t) {
+        std::cerr << "TypeSpec doesn't start with " << t->name << ": " << *this << "!\n";
         throw INTERNAL_ERROR;
+    }
+
+    if (t->parameter_count != 1) {
+        std::cerr << "Can't unprefix Type with " << t->parameter_count << " parameters: " << *this << "!\n";
+        throw INTERNAL_ERROR;
+    }
         
     TypeSpec ts;
 
@@ -504,26 +564,6 @@ TypeSpec TypeSpec::rvalue() {
 
 TypeSpec TypeSpec::lvalue() {
     return at(0) == lvalue_type ? *this : prefix(lvalue_type);
-}
-
-
-std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
-    os << "[";
-    
-    bool start = true;
-    
-    for (auto type : ts) {
-        if (start)
-            start = false;
-        else
-            os << ",";
-            
-        os << type->name;
-    }
-    
-    os << "]";
-    
-    return os;
 }
 
 

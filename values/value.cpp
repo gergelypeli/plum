@@ -323,7 +323,7 @@ public:
     Register mreg;
 
     ArrayItemValue(TypeSpec t, Value *a)  // FIXME: ADD?
-        :GenericOperationValue(ADD, INTEGER_TS, t.rvalue().unprefix(array_type).lvalue(), a) {
+        :GenericOperationValue(ADD, INTEGER_TS, t.rvalue().unprefix(reference_type).unprefix(array_type).lvalue(), a) {
     }
 
     virtual Register pick_early_register(Regs preferred) {
@@ -402,7 +402,7 @@ public:
     virtual Storage compile(X64 *x64) {
         // TODO: this only works for arrays of basic types now, that can be just copied
         // TODO: don't inline this
-        int size = item_size(ts.unprefix(array_type).measure());
+        int size = item_size(ts.unprefix(reference_type).unprefix(array_type).measure());
         
         subcompile(x64);
         
@@ -554,14 +554,14 @@ public:
             decl = function;
         }
         else if (value->ts[0] == type_type) {
-            TypeSpec var_ts;
+            TypeSpec var_ts = value->ts.unprefix(type_type);
+
+            if (dynamic_cast<HeapType *>(var_ts[0]))
+                var_ts = var_ts.prefix(reference_type);
             
             if (!scope->is_readonly())
-                var_ts.push_back(lvalue_type);
+                var_ts = var_ts.lvalue();
             
-            for (unsigned i = 1; i < value->ts.size(); i++)
-                var_ts.push_back(value->ts[i]);
-        
             Variable *variable = new Variable(name, VOID_TS, var_ts);
             decl = variable;
         }
@@ -611,6 +611,11 @@ public:
 
 Value *convertible(TypeSpec to, Value *value) {
     return value ? value->ts.convertible(to, value) : NULL;
+}
+
+
+TypeSpec get_typespec(Value *value) {
+    return value ? value->ts : VOID_TS;
 }
 
 

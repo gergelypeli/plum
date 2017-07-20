@@ -63,6 +63,10 @@ int main(int argc, char **argv) {
     }
     
     // This one is not part of the user scope
+    std::vector<TypeSpec> no_types;
+    std::vector<std::string> no_names;
+    Function *alloc_function = new Function("memalloc", VOID_TS, no_types, no_names, VOID_TS);
+    Function *free_function = new Function("memfree", VOID_TS, no_types, no_names, VOID_TS);
     alloc_function->allocate();
     alloc_function->import(x64);
     free_function->allocate();

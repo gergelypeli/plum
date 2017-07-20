@@ -46,7 +46,7 @@ public:
     Register reg;
     
     StringValue(std::string t)
-        :Value(UNSIGNED_INTEGER8_ARRAY_TS) {
+        :Value(UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS) {
         text = t;
     }
 

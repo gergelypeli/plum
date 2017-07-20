@@ -136,6 +136,19 @@ public:
     virtual Value *matched(Value *cpivot) {
         return make_boolean_operation_value(operation, cpivot);
     }
+
+    virtual Value *match(std::string n, Value *pivot) {
+        if (n != name)
+            return NULL;
+    
+        // Don't force a type conversion for and/or, those are polymorphic operations.
+        Value *cpivot = (operation == COMPLEMENT ? convertible(BOOLEAN_TS, pivot) : pivot);
+            
+        if (cpivot)
+            return matched(cpivot);
+        else
+            return NULL;
+    }
 };
 
 

@@ -221,6 +221,7 @@ Type *unsigned_integer_type = NULL;
 Type *unsigned_integer32_type = NULL;
 Type *unsigned_integer16_type = NULL;
 Type *unsigned_integer8_type = NULL;
+Type *reference_type = NULL;
 Type *array_type = NULL;
 
 TypeSpec BOGUS_TS;
@@ -230,13 +231,10 @@ TypeSpec INTEGER_TS;
 TypeSpec LVALUE_INTEGER_TS;
 TypeSpec LVALUE_BOOLEAN_TS;
 TypeSpec UNSIGNED_INTEGER8_TS;
-TypeSpec UNSIGNED_INTEGER8_ARRAY_TS;
+TypeSpec UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
-
-Function *alloc_function = NULL;
-Function *free_function = NULL;
 
 enum NumericOperation {
     COMPLEMENT, NEGATE,
@@ -261,6 +259,7 @@ bool is_assignment(NumericOperation o) {
 
 Value *typize(Expr *expr, Scope *scope);
 Value *convertible(TypeSpec to, Value *orig);
+TypeSpec get_typespec(Value *value);
 
 Value *make_function_head_value(FunctionHeadScope *s);
 Value *make_function_body_value(FunctionBodyScope *s);
@@ -365,8 +364,11 @@ Scope *init_types() {
     
     unsigned_integer8_type = new BasicType("Unsigned_Integer8", 1);
     root_scope->add(unsigned_integer8_type);
+
+    reference_type = new ReferenceType();
+    root_scope->add(reference_type);
     
-    array_type = new ArrayType();
+    array_type = new HeapType("Array", 1);
     root_scope->add(array_type);
     
     // BOGUS_TS will contain no Type pointers
@@ -378,14 +380,15 @@ Scope *init_types() {
     LVALUE_BOOLEAN_TS.push_back(lvalue_type);
     LVALUE_BOOLEAN_TS.push_back(boolean_type);
     UNSIGNED_INTEGER8_TS.push_back(unsigned_integer8_type);
-    UNSIGNED_INTEGER8_ARRAY_TS.push_back(array_type);
-    UNSIGNED_INTEGER8_ARRAY_TS.push_back(unsigned_integer8_type);
+    UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(reference_type);
+    UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(array_type);
+    UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(unsigned_integer8_type);
     
     std::vector<TypeSpec> NO_TSS = { };
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
     std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
     std::vector<TypeSpec> UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
-    std::vector<TypeSpec> UNSIGNED_INTEGER8_ARRAY_TSS = { UNSIGNED_INTEGER8_ARRAY_TS };
+    std::vector<TypeSpec> UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS = { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS };
     
     std::vector<std::string> value_names = { "value" };
 
@@ -412,16 +415,12 @@ Scope *init_types() {
     
     //root_scope->add(new BooleanIf());
     
-    root_scope->add(new ArrayIndexing(UNSIGNED_INTEGER8_ARRAY_TS));
-    root_scope->add(new ArrayConcatenation(UNSIGNED_INTEGER8_ARRAY_TS));
+    root_scope->add(new ArrayIndexing(UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS));
+    root_scope->add(new ArrayConcatenation(UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS));
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
-    root_scope->add(new Function("prints", VOID_TS, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, VOID_TS));
+    root_scope->add(new Function("prints", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
     root_scope->add(new Function("printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
-
-    // Not for the user
-    alloc_function = new Function("memalloc", VOID_TS, NO_TSS, value_names, VOID_TS);
-    free_function = new Function("memfree", VOID_TS, NO_TSS, value_names, VOID_TS);
 
     return root_scope;
 }

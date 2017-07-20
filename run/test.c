@@ -18,8 +18,12 @@ void printu8(char a) {
 }
 
 void prints(const char *s) {
-    int len = *(int *)s;
-    printf("%*s\n", len, s + 8);
+    if (s) {
+        int len = *(int *)s;
+        printf("%*s\n", len, s + 8);
+    }
+    else
+        printf("(null)\n");
 }
 
 void *memalloc(long size) {

@@ -39,3 +39,6 @@ start? :function as:
 
     s[3] = s[4]
     prints(s)
+
+    z? Unsigned_Integer8 Array
+    prints(z || "Upsz")
