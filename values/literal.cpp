@@ -53,7 +53,7 @@ public:
     virtual Regs precompile(Regs) {
         //reg = preferred.get();
         //return Regs().add(reg);
-        return Regs::all();  // FIXME
+        return Regs().add(RAX).add(RCX).add(RSI).add(RDI);
     }
 
     virtual Storage compile(X64 *x64) {

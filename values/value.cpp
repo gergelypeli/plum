@@ -376,10 +376,9 @@ public:
                 x64->op(ADDQ, reg, ls.address);
             }
             else {
-                x64->op(PUSHQ, ls.address);
-                x64->op(IMUL3Q, reg, rs.address, size);  // reg is the base of ls.address
-                x64->op(ADDQ, reg, Address(RSP, 0));
-                x64->op(ADDQ, RSP, 8);
+                x64->op(MOVQ, reg, ls.address);  // reg is the base of ls.address
+                x64->op(IMUL3Q, RBX, rs.address, size);
+                x64->op(ADDQ, reg, RBX);
             }
             return Storage(MEMORY, Address(reg, offset));
         default:
@@ -397,8 +396,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         GenericOperationValue::precompile(preferred);
-        return Regs::all();  // will call a memory allocation function, clobber everything
-        // FIXME: this may not be true, we pusha everything
+        return Regs().add(RAX).add(RBX).add(RCX).add(RSI).add(RDI);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -415,7 +413,7 @@ public:
         x64->op(MOVQ, RBX, Address(RAX, 0));
         
         x64->op(MOVQ, RAX, Address(RSP, 0));
-        x64->op(ADDQ, RBX, Address(RAX, 0));  // Will be preserved, total size
+        x64->op(ADDQ, RBX, Address(RAX, 0));  // total size
         
         x64->op(IMUL3Q, RAX, RBX, size);
         x64->op(ADDQ, RAX, 8);

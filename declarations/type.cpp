@@ -141,8 +141,8 @@ public:
             x64->op(s.bitset, t.reg);
             return;
         case FLAGS_STACK:
-            x64->op(PUSHQ, 0);
-            x64->op(s.bitset, Address(RSP, 0));
+            x64->op(s.bitset, BL);
+            x64->op(PUSHQ, RBX);
             return;
         case FLAGS_MEMORY:
             x64->op(s.bitset, t.address);
@@ -162,7 +162,7 @@ public:
             return;
 
         case STACK_NOWHERE:
-            x64->op(ADDQ, RSP, 8);
+            x64->op(POPQ, RBX);
             return;
         case STACK_REGISTER:
             x64->op(POPQ, t.reg);
@@ -173,9 +173,8 @@ public:
             if (size == 8)
                 x64->op(POPQ, t.address);
             else {
-                x64->op(XCHGQ, RAX, Address(RSP, 0));
-                x64->op(mov, t.address, RAX);
-                x64->op(POPQ, RAX);
+                x64->op(POPQ, RBX);
+                x64->op(mov, t.address, RBX);
             }
             return;
 
@@ -188,22 +187,13 @@ public:
             if (size == 8)
                 x64->op(PUSHQ, s.address);
             else {
-                x64->op(PUSHQ, RAX);
-                x64->op(mov, RAX, s.address);
-                x64->op(XCHGQ, RAX, Address(RSP, 0));
+                x64->op(mov, RBX, s.address);
+                x64->op(PUSHQ, RBX);
             }
             return;
         case MEMORY_MEMORY:
-            if (size == 8) {
-                x64->op(PUSHQ, s.address);
-                x64->op(POPQ, t.address);
-            }
-            else {
-                x64->op(PUSHQ, RAX);
-                x64->op(mov, RAX, s.address);
-                x64->op(mov, t.address, RAX);
-                x64->op(POPQ, RAX);
-            }
+            x64->op(mov, RBX, s.address);
+            x64->op(mov, t.address, RBX);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -241,9 +231,9 @@ public:
             x64->op(CMPQ % os, s.reg, 0);
             return Storage(FLAGS, SETNE);
         case STACK:
-            x64->op(CMPQ % os, Address(RSP, 0), 0);
-            x64->op(SETNE, Address(RSP, 0));
-            return Storage(STACK);
+            x64->op(POPQ, RBX);
+            x64->op(CMPQ % os, RBX, 0);
+            return Storage(FLAGS, SETNE);
         case MEMORY:
             x64->op(CMPQ % os, s.address, 0);
             return Storage(FLAGS, SETNE);
@@ -261,14 +251,12 @@ public:
     }
     
     virtual unsigned measure(TypeSpecIter &) {
-        return 8;
+        return 8;  // TODO: this is somewhat questionable for reference types
     }
 
     virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *x64) {
-        // We can't use any register, unless saved and restored
         // Constants must be static arrays linked such that their offset
         // fits in 32-bit relocations.
-        // No lifetime management yet.
         
         switch (s.where * t.where) {
         case NOWHERE_NOWHERE:
@@ -290,11 +278,8 @@ public:
             return;
 
         case STACK_NOWHERE:
-            //x64->op(ADDQ, RSP, 8);
-            // FIXME: clob, clob...
-            x64->op(XCHGQ, RAX, Address(RSP, 0));
-            x64->decref(RAX);
-            x64->op(POPQ, RAX);
+            x64->op(POPQ, RBX);
+            x64->decref(RBX);
             return;
         case STACK_REGISTER:
             x64->op(POPQ, t.reg);
@@ -302,10 +287,9 @@ public:
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            x64->op(XCHGQ, RAX, Address(RSP, 0));
-            x64->op(XCHGQ, RAX, t.address);
-            x64->decref(RAX);
-            x64->op(POPQ, RAX);
+            x64->op(POPQ, RBX);
+            x64->op(XCHGQ, RBX, t.address);
+            x64->decref(RBX);
             return;
 
         case MEMORY_NOWHERE:
@@ -315,18 +299,15 @@ public:
             x64->incref(t.reg);
             return;
         case MEMORY_STACK:
-            x64->op(PUSHQ, RAX);
-            x64->op(MOVQ, RAX, s.address);
-            x64->incref(RAX);
-            x64->op(XCHGQ, RAX, Address(RSP, 0));
+            x64->op(MOVQ, RBX, s.address);
+            x64->incref(RBX);
+            x64->op(PUSHQ, RBX);
             return;
         case MEMORY_MEMORY:
-            x64->op(PUSHQ, RAX);
-            x64->op(MOVQ, RAX, s.address);
-            x64->incref(RAX);
-            x64->op(XCHGQ, RAX, t.address);
-            x64->decref(RAX);
-            x64->op(POPQ, RAX);
+            x64->op(MOVQ, RBX, s.address);
+            x64->incref(RBX);
+            x64->op(XCHGQ, RBX, t.address);
+            x64->decref(RBX);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -342,10 +323,8 @@ public:
 
     virtual void destroy(TypeSpecIter &, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
-            x64->op(PUSHQ, RAX);
-            x64->op(MOVQ, RAX, s.address);
-            x64->decref(RAX);
-            x64->op(POPQ, RAX);
+            x64->op(MOVQ, RBX, s.address);
+            x64->decref(RBX);
         }
         else
             throw INTERNAL_ERROR;
@@ -360,7 +339,13 @@ public:
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
         case REGISTER:
+            decref(s.reg);
             x64->op(CMPQ, s.reg, 0);
+            return Storage(FLAGS, SETNE);
+        case STACK:
+            x64->op(POPQ, RBX);
+            decref(RBX);
+            x64->op(CMPQ % os, RBX, 0);
             return Storage(FLAGS, SETNE);
         case MEMORY:
             x64->op(CMPQ, s.address, 0);

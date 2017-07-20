@@ -112,6 +112,7 @@ public:
             Storage rs = right->compile(x64);
             Storage s;
             
+            // Assume that if CONSTANT or FLAGS storage is possible, then REGISTER is, too
             if (rs.where == CONSTANT || rs.where == FLAGS) {
                 s = Storage(REGISTER, reg);
                 right->ts.store(rs, s, x64);
@@ -153,7 +154,7 @@ public:
                 break;
             case STACK:
                 x64->op(POPQ, reg);
-                x64->op(TESTQ, RAX, 1);
+                x64->op(TESTQ, reg, 1);
                 x64->op(JE, then_end);
                 break;
             case MEMORY:
@@ -167,7 +168,8 @@ public:
             Storage s;
 
             // Then branch
-            if (ls.where == FLAGS) {
+            // Assume that if CONSTANT or FLAGS storage is possible, then REGISTER is, too
+            if (ls.where == CONSTANT || ls.where == FLAGS) {
                 s = Storage(REGISTER, reg);
                 left->ts.store(ls, s, x64);
             }
