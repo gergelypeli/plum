@@ -153,15 +153,26 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
         return e;
     }
     else if (node.type == IDENTIFIER) {
-        Expr *e = new Expr(IDENTIFIER, node.token, node.text);
+        // Special handling for some operators
+        if (node.fore != TEXTUAL) {
+            bool swap = false;
 
-        // Special handling for logical and, swap the arguments
-        // TODO: move to treeize?
-        if (node.text == "logical and") {
-            int x = node.left;
-            node.left = node.right;
-            node.right = x;
+            if (node.text == "logical and")
+                swap = true;
+                
+            if ((node.text == "minus" || node.text == "tilde") && node.left < 0 && node.right >= 0) {
+                node.text = "unary_" + node.text;
+                swap = true;
+            }
+            
+            if (swap) {
+                int x = node.left;
+                node.left = node.right;
+                node.right = x;
+            }
         }
+
+        Expr *e = new Expr(IDENTIFIER, node.token, node.text);
     
         if (node.left >= 0) {
             Expr *l = tupleize(nodes, node.left);
@@ -171,22 +182,6 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
         if (node.right >= 0) {
             fill_arguments(e, nodes, node.right);
         }
-
-        // Special handling for unary operators, move the first positional parameter to pivot
-        // TODO: move to treeize?
-        if ((node.text == "minus" || node.text == "tilde") && node.left < 0 && node.right >= 0) {
-            if (e->args.size() == 0) {
-                std::cerr << "Unary operator needs a positional argument!\n";
-                throw TUPLE_ERROR;
-            }
-            
-            e->text = "unary_" + e->text;
-            Expr *p = e->args[0].release();
-            e->args.erase(e->args.begin());
-            e->set_pivot(p);
-        }
-
-        
 
         return e;
     }
