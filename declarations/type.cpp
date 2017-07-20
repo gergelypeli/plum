@@ -48,6 +48,16 @@ public:
         return true;
     }
 
+    virtual StorageWhere where(TypeSpecIter &) {
+        std::cerr << "Nowhere type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Storage boolval(TypeSpecIter &, Storage, X64 *) {
+        std::cerr << "Unboolable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
     virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
         return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : NULL;
     }
@@ -209,7 +219,9 @@ public:
             throw INTERNAL_ERROR
         );
 
-        if (s.where == MEMORY)
+        if (s.where == REGISTER)
+            x64->op(mov, s.reg, 0);
+        else if (s.where == MEMORY)
             x64->op(mov, s.address, 0);
         else
             throw INTERNAL_ERROR;
@@ -219,20 +231,16 @@ public:
         return;
     }
 
-    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
-        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
+    virtual StorageWhere where(TypeSpecIter &) {
+        return REGISTER;
     }
 
-    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage s, X64 *x64) {
+    virtual Storage boolval(TypeSpecIter &, Storage s, X64 *x64) {
         switch (s.where) {
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
         case REGISTER:
             x64->op(CMPQ % os, s.reg, 0);
-            return Storage(FLAGS, SETNE);
-        case STACK:
-            x64->op(POPQ, RBX);
-            x64->op(CMPQ % os, RBX, 0);
             return Storage(FLAGS, SETNE);
         case MEMORY:
             x64->op(CMPQ % os, s.address, 0);
@@ -240,6 +248,15 @@ public:
         default:
             throw INTERNAL_ERROR;
         }
+    }
+
+    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
+        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
+    }
+
+    virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &, Storage s, X64 *x64) {
+        // This must be a conversion to bool. Fortunately no storage needs cleanup.
+        return boolval(this_tsi, s, x64);
     }
 };
 
@@ -315,7 +332,9 @@ public:
     }
 
     virtual void create(TypeSpecIter &, Storage s, X64 *x64) {
-        if (s.where == MEMORY)
+        if (s.where == REGISTER)
+            x64->op(MOVQ, s.reg, 0);
+        else if (s.where == MEMORY)
             x64->op(MOVQ, s.address, 0);
         else
             throw INTERNAL_ERROR;
@@ -330,22 +349,16 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
-        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
+    virtual StorageWhere where(TypeSpecIter &) {
+        return REGISTER;
     }
 
-    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage s, X64 *x64) {
+    virtual Storage boolval(TypeSpecIter &, Storage s, X64 *x64) {
         switch (s.where) {
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
         case REGISTER:
-            decref(s.reg);
             x64->op(CMPQ, s.reg, 0);
-            return Storage(FLAGS, SETNE);
-        case STACK:
-            x64->op(POPQ, RBX);
-            decref(RBX);
-            x64->op(CMPQ % os, RBX, 0);
             return Storage(FLAGS, SETNE);
         case MEMORY:
             x64->op(CMPQ, s.address, 0);
@@ -354,6 +367,19 @@ public:
             throw INTERNAL_ERROR;
         }
     }
+
+    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
+        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
+    }
+
+    virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &, Storage s, X64 *x64) {
+        // This must be a conversion to bool.
+        
+        if (s.where == REGISTER)
+            x64->decref(s.reg);
+            
+        return boolval(this_tsi, s, x64);
+    }
 };
 
 
@@ -361,6 +387,16 @@ class LvalueType: public Type {
 public:
     LvalueType()
         :Type("<Lvalue>", 1) {
+    }
+
+    virtual StorageWhere where(TypeSpecIter &this_tsi) {
+        this_tsi++;
+        return (*this_tsi)->where(this_tsi);
+    }
+
+    virtual Storage boolval(TypeSpecIter &this_tsi, Storage s, X64 *x64) {
+        this_tsi++;
+        return (*this_tsi)->boolval(this_tsi, s, x64);
     }
     
     virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
@@ -405,6 +441,20 @@ public:
         (*tsi)->destroy(tsi, s, x64);
     }
 };
+
+
+StorageWhere TypeSpec::where() {
+    TypeSpecIter this_tsi(begin());
+    
+    return (*this_tsi)->where(this_tsi);
+}
+
+
+Storage TypeSpec::boolval(Storage s, X64 *x64) {
+    TypeSpecIter this_tsi(begin());
+    
+    return (*this_tsi)->boolval(this_tsi, s, x64);
+}
 
 
 Value *TypeSpec::convertible(TypeSpec &other, Value *orig) {

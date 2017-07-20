@@ -193,6 +193,8 @@ class Value;
 class TypeSpec: public std::vector<Type *> {
 public:
     unsigned measure();
+    StorageWhere where();
+    Storage boolval(Storage s, X64 *x64);
     Value *convertible(TypeSpec &other, Value *orig);
     Storage convert(TypeSpec &other, Storage s, X64 *x64);
     TypeSpec prefix(Type *t);
