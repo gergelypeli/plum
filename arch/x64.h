@@ -31,9 +31,11 @@ enum Register {
 
 struct Regs {
     static const int ALL_MASK = 0xFFFF;
-    static const int GPR_MASK = 0xFF0F;
-    static const int PTR_MASK = 0x00C0;
-    static const int SYSV_CLOBBERED = 0x0FF7;
+    static const int GPR_MASK = 0xFF07;  // general purpose registers
+    static const int PTR_MASK = 0x00C0;  // registers for borrowed references, RSI and RDI
+    static const int SCR_MASK = 0x0008;  // scratch registers, RBX only
+    static const int RES_MASK = 0x0030;  // reserved registers, RSP and RBP
+    
     int available;
     
     Regs(int a = 0) {
@@ -50,10 +52,6 @@ struct Regs {
 
     static Regs all_ptrs() {
         return Regs(PTR_MASK);
-    }
-    
-    static Regs sysv_clobbered() {
-        return Regs(SYSV_CLOBBERED);  // Except RBX, R12, R13, R14, R15
     }
     
     Regs add(Register r) {

@@ -943,6 +943,8 @@ void X64::op(ConstantOp opcode, int x) {
 
 
 void X64::pusha(bool except_rax) {
+    // RBX and the last 4 are preserved by the System V ABI
+    
     if (!except_rax)
         op(PUSHQ, RAX);
     op(PUSHQ, RCX);
@@ -956,6 +958,8 @@ void X64::pusha(bool except_rax) {
 }
 
 void X64::popa(bool except_rax) {
+    // RBX and the last 4 are preserved by the System V ABI
+
     op(POPQ, R11);
     op(POPQ, R10);
     op(POPQ, R9);
