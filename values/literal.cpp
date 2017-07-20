@@ -64,8 +64,8 @@ public:
         for (char &c : text)
             x64->data_byte(c);
 
-        x64->op(MOVQ, RAX, text.size() + 8);  // FIXME: it clobbers these!
-        x64->alloc(RAX);
+        x64->op(MOVQ, RAX, text.size() + 8);
+        x64->alloc();
 
         x64->op(MOVQ, Address(RAX, 0), text.size());
         x64->op(LEA, RDI, Address(RAX, 8));

@@ -68,8 +68,7 @@ int main(int argc, char **argv) {
     free_function->allocate();
     free_function->import(x64);
     
-    x64->set_alloc_function_x64_label(alloc_function->x64_label);
-    x64->set_free_function_x64_label(free_function->x64_label);
+    x64->init_memory_management(alloc_function->x64_label, free_function->x64_label);
     
     value_root->precompile();
     value_root->compile(x64);

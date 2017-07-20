@@ -13,6 +13,13 @@
 // will require the use of the REX prefix, but that turns AH, CH, DH, BH into
 // SPL, BPL, SIL, and DIL! To avoid confusion, these byte registers are all unsupported.
 // In fact, registers 4-7 should only be used for storing qwords.
+
+static const int REGISTER_COUNT = 16;
+const char *REGISTER_NAMES[] = {
+    "RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RSI", "RDI",
+    "R8",  "R9",  "R10", "R11", "R12", "R13", "R14", "R15"
+};
+
 enum Register {
     RAX=0, RCX, RDX, RBX, RSP, RBP, RSI, RDI, R8,  R9,  R10,  R11,  R12,  R13,  R14,  R15,
     EAX=0, ECX, EDX, EBX, ESP, EBP, ESI, EDI, R8D, R9D, R10D, R11D, R12D, R13D, R14D, R15D,
@@ -27,7 +34,6 @@ struct Regs {
     static const int GPR_MASK = 0xFF0F;
     static const int PTR_MASK = 0x00C0;
     static const int SYSV_CLOBBERED = 0x0FF7;
-    static const int REGISTER_COUNT = 16;
     int available;
     
     Regs(int a = 0) {
@@ -120,9 +126,10 @@ struct Regs {
 struct Label {
     unsigned def_index;
     
-    Label() {
+    Label(bool leave_uninitialized = false) {
         static unsigned last_def_index = 0;
-        def_index = ++last_def_index;
+        
+        def_index = leave_uninitialized ? 0 : ++last_def_index;
     }
     
     Label(const Label &c) {
@@ -250,11 +257,11 @@ enum RegisterFirstOp {
 RegisterFirstOp operator%(RegisterFirstOp x, int y) { return (RegisterFirstOp)((x & ~3) | (y & 3)); }
 
 
-enum RegisterFirstConstantThirdOp {
+enum Imul3Op {
     IMUL3W=1, IMUL3D, IMUL3Q
 };
 
-RegisterFirstConstantThirdOp operator%(RegisterFirstConstantThirdOp x, int y) { return (RegisterFirstConstantThirdOp)((x & ~3) | (y & 3)); }
+Imul3Op operator%(Imul3Op x, int y) { return (Imul3Op)((x & ~3) | (y & 3)); }
 
 
 enum RegisterMemoryOp {
@@ -307,9 +314,6 @@ public:
     static const int HEAP_HEADER_SIZE = 8;
     static const int HEAP_REFCOUNT_OFFSET = -8;
 
-    std::vector<char> code;
-    std::vector<char> data;
-
     enum Def_type {
         DEF_CODE,
         DEF_CODE_EXPORT,
@@ -340,8 +344,6 @@ public:
         }
     };
     
-    std::map<unsigned, Def> defs;
-
     enum Ref_type {
         REF_CODE_SHORT, REF_CODE_RELATIVE, REF_CODE_ABSOLUTE, REF_DATA_ABSOLUTE
     };
@@ -352,12 +354,15 @@ public:
         unsigned def_index;
     };
     
+    std::vector<char> code;
+    std::vector<char> data;
+    std::map<unsigned, Def> defs;
     std::vector<Ref> refs;
-
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
-    
+    Label alloc_RAX_label;
     Label alloc_function_x64_label, free_function_x64_label;
+    std::vector<Label> incref_labels, decref_labels;
     
     void add_def(Label label, const Def &def);
 
@@ -427,8 +432,8 @@ public:
     void op(MemoryOp opcode, Address x);
     void op(RegisterFirstOp opcode, Register x, Register y);
     void op(RegisterFirstOp opcode, Register x, Address y);
-    void op(RegisterFirstConstantThirdOp opcode, Register x, Register y, int z);
-    void op(RegisterFirstConstantThirdOp opcode, Register x, Address y, int z);
+    void op(Imul3Op opcode, Register x, Register y, int z);
+    void op(Imul3Op opcode, Register x, Address y, int z);
     void op(RegisterMemoryOp opcode, Register x, Address y);
     void op(LeaRipOp opcode, Register r, Label l, int o);
     void op(BitSetOp, Register x);
@@ -438,12 +443,10 @@ public:
     void op(JumpOp opcode, Address x);
     void op(ConstantOp opcode, int x);
 
-    void pusha();
-    void popa();
+    void pusha(bool except_rax = false);
+    void popa(bool except_rax = false);
     void incref(Register reg);
     void decref(Register reg);
-    
-    void alloc(Register reg);
-    void set_alloc_function_x64_label(Label l);
-    void set_free_function_x64_label(Label l);
+    void init_memory_management(Label al, Label fl);
+    void alloc();
 };

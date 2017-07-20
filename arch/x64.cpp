@@ -15,19 +15,7 @@ const int REX_B = 0x01;
 
 
 std::ostream &operator << (std::ostream &os, const Register r) {
-    switch (r) {
-    case NOREG: os << "-"; break;
-    case RAX: os << "RAX"; break;
-    case RBX: os << "RBX"; break;
-    case RCX: os << "RCX"; break;
-    case RDX: os << "RDX"; break;
-    case RSP: os << "RSP"; break;
-    case RBP: os << "RBP"; break;
-    case RSI: os << "RSI"; break;
-    case RDI: os << "RDI"; break;
-    default: os << "???"; break;
-    }
-    
+    os << (r == NOREG ? "---" : REGISTER_NAMES[r]);
     return os;
 }
 
@@ -68,7 +56,8 @@ Address Address::operator + (int x) {
 }
 
 
-X64::X64() {
+X64::X64()
+    :alloc_function_x64_label(true), free_function_x64_label(true) {
 }
 
 
@@ -116,7 +105,7 @@ void X64::done(std::string filename) {
 
     for (auto &r : refs) {
         if (!defs.count(r.def_index)) {
-            std::cerr << "Undefined label " << r.def_index << "!\n";
+            std::cerr << "Reference to undefined label " << r.def_index << "!\n";
             throw X64_ERROR;
         }
         
@@ -212,8 +201,13 @@ void X64::done(std::string filename) {
 
 
 void X64::add_def(Label label, const Def &def) {
+    if (!label.def_index) {
+        std::cerr << "Can't define an undeclared label!\n";
+        throw X64_ERROR;
+    }
+
     if (defs.count(label.def_index)) {
-        std::cerr << "Double label definition!\n";
+        std::cerr << "Can't redefine label!\n";
         throw X64_ERROR;
     }
 
@@ -260,13 +254,18 @@ unsigned X64::data_allocate(unsigned size) {
 }
 
 
-void X64::data_reference(Label c) {
+void X64::data_reference(Label label) {
+    if (!label.def_index) {
+        std::cerr << "Can't reference an undeclared label!\n";
+        throw X64_ERROR;
+    }
+
     refs.push_back(Ref());
     Ref &r = refs.back();
     
     r.location = data.size();  // Store the beginning
     r.type = REF_DATA_ABSOLUTE;
-    r.def_index = c.def_index;
+    r.def_index = label.def_index;
     
     data_dword(0);  // 32-bit relocations only
 }
@@ -325,13 +324,18 @@ void X64::absolute_label_export(Label c, std::string name, int value, unsigned s
 }
 
 
-void X64::code_reference(Label c, Ref_type f, int offset) {
+void X64::code_reference(Label label, Ref_type f, int offset) {
+    if (!label.def_index) {
+        std::cerr << "Can't reference an undeclared label!\n";
+        throw X64_ERROR;
+    }
+
     refs.push_back(Ref());
     Ref &r = refs.back();
 
     r.location = code.size();  // Store the beginning!
     r.type = f;
-    r.def_index = c.def_index;
+    r.def_index = label.def_index;
 
     //if (f != REF_CODE_ABSOLUTE && offset != 0)
     //    std::cerr << "Only absolute refs can have offsets!\n";
@@ -814,31 +818,37 @@ void X64::op(RegisterFirstOp opcode, Register x, Address y) {
 
 
 
-int registerfirstconstantthird_info[] = {
-    0x69
-};
+void X64::op(Imul3Op opcode, Register x, Register y, int z) {
+    if (z >= -128 && z <= 127) {
+        code_op(0x6B, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+        code_byte(z);
+    }
+    else {
+        code_op(0x69, (opcode & 3) | OPSIZE_NONBYTE, x, y);
 
-void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Register y, int z) {
-    auto &info = registerfirstconstantthird_info[opcode >> 2];
-    code_op(info, (opcode & 3) | OPSIZE_NONBYTE, x, y);
-
-    switch (opcode & 3) {
-    case 0: throw X64_ERROR;
-    case 1: code_word(z); break;
-    case 2: code_dword(z); break;
-    case 3: code_dword(z); break;  // 32-bit immediate only
+        switch (opcode & 3) {
+        case 0: throw X64_ERROR;
+        case 1: code_word(z); break;
+        case 2: code_dword(z); break;
+        case 3: code_dword(z); break;  // 32-bit immediate only
+        }
     }
 }
 
-void X64::op(RegisterFirstConstantThirdOp opcode, Register x, Address y, int z) {
-    auto &info = registerfirstconstantthird_info[opcode >> 2];
-    code_op(info, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+void X64::op(Imul3Op opcode, Register x, Address y, int z) {
+    if (z >= -128 && z <= 127) {
+        code_op(0x6B, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+        code_byte(z);
+    }
+    else {
+        code_op(0x69, (opcode & 3) | OPSIZE_NONBYTE, x, y);
 
-    switch (opcode & 3) {
-    case 0: throw X64_ERROR;
-    case 1: code_word(z); break;
-    case 2: code_dword(z); break;
-    case 3: code_dword(z); break;  // 32-bit immediate only
+        switch (opcode & 3) {
+        case 0: throw X64_ERROR;
+        case 1: code_word(z); break;
+        case 2: code_dword(z); break;
+        case 3: code_dword(z); break;  // 32-bit immediate only
+        }
     }
 }
 
@@ -932,8 +942,9 @@ void X64::op(ConstantOp opcode, int x) {
 }
 
 
-void X64::pusha() {
-    op(PUSHQ, RAX);
+void X64::pusha(bool except_rax) {
+    if (!except_rax)
+        op(PUSHQ, RAX);
     op(PUSHQ, RCX);
     op(PUSHQ, RDX);
     op(PUSHQ, RSI);
@@ -944,7 +955,7 @@ void X64::pusha() {
     op(PUSHQ, R11);
 }
 
-void X64::popa() {
+void X64::popa(bool except_rax) {
     op(POPQ, R11);
     op(POPQ, R10);
     op(POPQ, R9);
@@ -953,44 +964,69 @@ void X64::popa() {
     op(POPQ, RSI);
     op(POPQ, RDX);
     op(POPQ, RCX);
-    op(POPQ, RAX);
+    if (!except_rax)
+        op(POPQ, RAX);
+}
+
+void X64::init_memory_management(Label al, Label fl) {
+    alloc_function_x64_label = al;
+    free_function_x64_label = fl;
+
+    incref_labels.resize(REGISTER_COUNT);
+    decref_labels.resize(REGISTER_COUNT);
+    
+    for (Register reg : { RAX, RBX, RCX, RDX, R8, R9, R10, R11, R12, R13, R14, R15 }) {
+        Label il;
+        
+        code_label_export(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg], 0, false);
+        op(CMPQ, reg, 0);
+        op(JE, il);
+        op(INCQ, Address(reg, HEAP_REFCOUNT_OFFSET));
+        code_label(il);
+        op(RET);
+        
+        Label dl;
+        
+        code_label_export(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg], 0, false);
+        op(CMPQ, reg, 0);
+        op(JE, dl);
+        op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
+        op(JNE, dl);
+
+        // TODO
+        pusha();
+        op(LEA, RDI, Address(reg, -HEAP_HEADER_SIZE));
+        op(CALL, free_function_x64_label);
+        popa();
+    
+        code_label(dl);
+        op(RET);
+    }
+
+    code_label_export(alloc_RAX_label, "alloc_RAX", 0, false);
+    pusha(true);
+    op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
+    op(CALL, alloc_function_x64_label);
+    op(LEA, RAX, Address(RAX, HEAP_HEADER_SIZE));
+    op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
+    popa(true);
+    op(RET);
 }
 
 void X64::incref(Register reg) {
-    Label l;
-    op(CMPQ, reg, 0);
-    op(JE, l);
-    op(INCQ, Address(reg, HEAP_REFCOUNT_OFFSET));
-    code_label(l);
+    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI)
+        throw X64_ERROR;
+        
+    op(CALL, incref_labels[reg]);
 }
 
 void X64::decref(Register reg) {
-    Label l;
-    op(CMPQ, reg, 0);
-    op(JE, l);
-    op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
-    op(JNE, l);
+    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI)
+        throw X64_ERROR;
 
-    // TODO
-    pusha();
-    op(LEA, RDI, Address(reg, -HEAP_HEADER_SIZE));
-    op(CALL, free_function_x64_label);
-    popa();
-    
-    code_label(l);
+    op(CALL, decref_labels[reg]);
 }
 
-void X64::alloc(Register reg) {
-    op(LEA, RDI, Address(reg, HEAP_HEADER_SIZE));
-    op(CALL, alloc_function_x64_label);
-    op(LEA, reg, Address(RAX, HEAP_HEADER_SIZE));
-    op(MOVQ, Address(reg, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
-}
-
-void X64::set_alloc_function_x64_label(Label l) {
-    alloc_function_x64_label = l;
-}
-
-void X64::set_free_function_x64_label(Label l) {
-    free_function_x64_label = l;
+void X64::alloc() {
+    op(CALL, alloc_RAX_label);
 }

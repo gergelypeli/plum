@@ -420,7 +420,7 @@ public:
         x64->op(IMUL3Q, RAX, RBX, size);
         x64->op(ADDQ, RAX, 8);
         
-        x64->alloc(RAX);  // Allocate this many bytes with a refcount of 1, return in RAX
+        x64->alloc();  // Allocate this many bytes with a refcount of 1, return in RAX
         
         x64->op(MOVQ, Address(RAX, 0), RBX);
         x64->op(LEA, RDI, Address(RAX, 8));
