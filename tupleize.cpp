@@ -79,9 +79,9 @@ void fill_arguments(Expr *e, std::vector<Node> nodes, int i) {
 }
 
 
-void fill_statement(Expr *e, std::vector<Node> nodes, int i) {
+void fill_control(Expr *e, std::vector<Node> nodes, int i) {
     Node &node = nodes[i];
-    //std::cerr << "Fill statement: " << print_node_type(node.type) << " " << node.text << "\n";
+    //std::cerr << "Fill control: " << print_node_type(node.type) << " " << node.text << "\n";
 
     if (node.type == OPEN) {
         // Positional argument block
@@ -90,16 +90,16 @@ void fill_statement(Expr *e, std::vector<Node> nodes, int i) {
         e->set_pivot(f);
     }
     else if (node.type == CLOSE) {
-        std::cerr << "CLOSE while filling a statement!\n";
+        std::cerr << "CLOSE while filling a control!\n";
         throw INTERNAL_ERROR;
     }
     else if (node.type == SEPARATOR) {
-        std::cerr << "SEPARATOR while filling a statement!\n";
+        std::cerr << "SEPARATOR while filling a control!\n";
         throw INTERNAL_ERROR;
     }
     else if (node.type == LABEL) {
         if (node.left >= 0)
-            fill_statement(e, nodes, node.left);
+            fill_control(e, nodes, node.left);
             
         Expr *f = new Expr(OPEN, node.token);
         fill_arguments(f, nodes, node.right);
@@ -130,17 +130,17 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
         return tupleize(nodes, node.left);
     }
     else if (node.type == LABEL) {
-        std::cerr << "Labeling found outside of blocks or statements at " << node.token << "!\n";
+        std::cerr << "Labeling found outside of blocks or controls at " << node.token << "!\n";
         throw TUPLE_ERROR;
     }
     else if (node.type == SEPARATOR) {
         std::cerr << "Separator found outside of blocks at " << node.token << "!\n";
         throw TUPLE_ERROR;
     }
-    else if (node.type == STATEMENT) {
-        Expr *e = new Expr(STATEMENT, node.token, node.text);
+    else if (node.type == CONTROL) {
+        Expr *e = new Expr(CONTROL, node.token, node.text);
         
-        fill_statement(e, nodes, node.right);
+        fill_control(e, nodes, node.right);
         
         return e;
     }

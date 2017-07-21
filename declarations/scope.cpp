@@ -133,12 +133,12 @@ public:
 };
 
 
-class FunctionReturnScope: public Scope {
+class FunctionResultScope: public Scope {
 public:
-    FunctionReturnScope():Scope(true, true) {};
+    FunctionResultScope():Scope(true, true) {};
 
     virtual Storage get_storage() {
-        std::cerr << "How the hell did you access a return value variable?\n";
+        std::cerr << "How the hell did you access a result value variable?\n";
         throw INTERNAL_ERROR;
     }
 };
@@ -146,21 +146,21 @@ public:
 
 class FunctionScope: public Scope {
 public:
-    FunctionReturnScope *return_scope;
+    FunctionResultScope *result_scope;
     FunctionHeadScope *head_scope;
     FunctionBodyScope *body_scope;
 
     FunctionScope()
         :Scope() {
-        return_scope = NULL;
+        result_scope = NULL;
         head_scope = NULL;
         body_scope = NULL;
     }
     
-    FunctionReturnScope *add_return_scope() {
-        return_scope = new FunctionReturnScope;
-        add(return_scope);
-        return return_scope;
+    FunctionResultScope *add_result_scope() {
+        result_scope = new FunctionResultScope;
+        add(result_scope);
+        return result_scope;
     }
     
     FunctionHeadScope *add_head_scope() {
@@ -183,7 +183,7 @@ public:
         }
         
         if (head_scope) {
-            Value *v = return_scope->lookup(name, pivot);
+            Value *v = result_scope->lookup(name, pivot);
             if (v)
                 return v;
         }
@@ -199,8 +199,8 @@ public:
         offset += head_scope->size;
         head_scope->offset = offset;
 
-        offset += return_scope->size;
-        return_scope->offset = offset;
+        offset += result_scope->size;
+        result_scope->offset = offset;
         
         body_scope->offset = 0;
     }

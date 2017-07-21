@@ -40,7 +40,7 @@ public:
 };
 
 
-// The value of a :function statement
+// The value of a :function control
 class FunctionDefinitionValue: public Value {
 public:
     std::unique_ptr<Value> ret;
@@ -255,7 +255,7 @@ class FunctionReturnValue: public Value {
 public:
     Scope *scope;
     Declaration *rollback_declaration;
-    FunctionReturnScope *return_scope;
+    FunctionResultScope *result_scope;
     std::unique_ptr<Value> value;
     
     FunctionReturnValue(Scope *s, Value *v)
@@ -276,11 +276,11 @@ public:
         }
                 
         if (!fn_scope) {
-            std::cerr << "Return statement outside of a function!\n";
+            std::cerr << "Return control outside of a function!\n";
             throw TYPE_ERROR;
         }
     
-        return_scope = fn_scope->return_scope;
+        result_scope = fn_scope->result_scope;
     }
 
     virtual Regs precompile(Regs) {
@@ -290,9 +290,9 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage s = value->compile(x64);
         
-        Declaration *decl = return_scope->contents[0].get();
+        Declaration *decl = result_scope->contents[0].get();
         Variable *anon = dynamic_cast<Variable *>(decl);
-        int ret_offset = return_scope->offset + anon->offset;
+        int ret_offset = result_scope->offset + anon->offset;
         Storage ret_storage(MEMORY, Address(RBP, ret_offset));
         value->ts.store(s, ret_storage, x64);
 

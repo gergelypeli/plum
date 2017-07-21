@@ -181,7 +181,7 @@ StorageWhereWhere operator*(StorageWhere l, StorageWhere r) {
 class Declaration;
 class Type;
 class Scope;
-class FunctionReturnScope;
+class FunctionResultScope;
 class FunctionHeadScope;
 class FunctionBodyScope;
 class FunctionScope;
@@ -263,7 +263,7 @@ TypeSpec get_typespec(Value *value);
 
 Value *make_function_head_value(FunctionHeadScope *s);
 Value *make_function_body_value(FunctionBodyScope *s);
-Value *make_function_return_value(FunctionReturnScope *s, Value *v);
+Value *make_function_return_value(FunctionResultScope *s, Value *v);
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
@@ -438,13 +438,13 @@ Value *typize(Expr *expr, Scope *scope) {
             
         return v;
     }
-    else if (expr->type == STATEMENT) {
+    else if (expr->type == CONTROL) {
         if (expr->text == "function") {
             FunctionScope *fn_scope = new FunctionScope();
             scope->add(fn_scope);
             
             Expr *r = expr->pivot.get();
-            Scope *rs = fn_scope->add_return_scope();
+            Scope *rs = fn_scope->add_result_scope();
             Value *ret = r ? typize(r, rs) : NULL;
         
             Expr *h = expr->kwargs["from"].get();
@@ -513,7 +513,7 @@ Value *typize(Expr *expr, Scope *scope) {
             return v;
         }
         else {
-            std::cerr << "Unknown statement " << expr->token << "!\n";
+            std::cerr << "Unknown control " << expr->token << "!\n";
             throw TYPE_ERROR;
         }
     }

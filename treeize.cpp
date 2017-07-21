@@ -3,7 +3,7 @@
 
 enum Precedence {
     BASE,
-    SEPARATING, // comma must end statements: :if x then: y else: z, ...
+    SEPARATING, // comma must end controls: :if x then: y else: z, ...
     LABELING,   // must be lower than DECLARING: each: i?
     ASSIGNING,  // must be lower than DECLARING: x? Int = 8
     DECLARING,
@@ -48,7 +48,7 @@ bool is_right_associative(Precedence) {
 enum NodeType {
     OPEN, CLOSE,
     NUMBER, STRING, INITIALIZER,
-    IDENTIFIER, LABEL, STATEMENT, DECLARATION,
+    IDENTIFIER, LABEL, CONTROL, DECLARATION,
     SEPARATOR
 };
 
@@ -62,7 +62,7 @@ const char *print_node_type(NodeType type) {
         type == INITIALIZER ? "INITIALIZER" :
         type == IDENTIFIER ? "IDENTIFIER" :
         type == LABEL ? "LABEL" :
-        type == STATEMENT ? "STATEMENT" :
+        type == CONTROL ? "CONTROL" :
         type == DECLARATION ? "DECLARATION" :
         type == SEPARATOR ? "SEPARATOR" :
         "???"
@@ -185,7 +185,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             text = token.text;
         }
         else if (c == ':') {
-            type = STATEMENT;
+            type = CONTROL;
             back = LITERAL;
             fore = SEPARATING;
             text = token.text.substr(1);
