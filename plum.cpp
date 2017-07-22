@@ -11,6 +11,7 @@
 #include "util.cpp"
 #include "arch/ork.cpp"
 #include "arch/x64.cpp"
+#include "arch/storage.cpp"
 #include "tokenize.cpp"
 #include "treeize.cpp"
 #include "tupleize.cpp"

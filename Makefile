@@ -2,9 +2,9 @@
 
 DECLS      = declaration identifier scope type
 VALUES     = value literal function boolean integer
-ARCHS      = ork x64
+ARCHS      = ork x64 storage
 MODULES    = tokenize treeize tupleize typize util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
-SOURCES    = $(MODULES:%=%.cpp) $(ARCHS:%=arch/%.h)
+SOURCES    = $(MODULES:%=%.cpp) arch/ork.h arch/x64.h
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=always
 
