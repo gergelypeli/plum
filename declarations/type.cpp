@@ -476,7 +476,7 @@ public:
 };
 
 
-std::ostream &operator<<(std::ostream &os, TypeSpec &ts) {
+std::ostream &operator<<(std::ostream &os, const TypeSpec &ts) {
     os << "[";
     
     bool start = true;

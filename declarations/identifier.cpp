@@ -35,6 +35,7 @@ public:
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts)
         :Identifier(name, pts) {
+        offset = 0;
         var_ts = vts;
     }
     
@@ -44,16 +45,29 @@ public:
     }
     
     virtual void allocate() {
-        offset = outer->reserve(var_ts.measure());
+        offset = outer_scope->reserve(var_ts.measure());
+        //std::cerr << "Variable " << name << " offset is " << offset << "\n";
     }
     
     virtual Storage get_storage(Storage s) {
         if (s.where != MEMORY)
             throw INTERNAL_ERROR;  // for now, variables are all in memory
             
+        //std::cerr << "Variable " << name << " offset is now " << offset << "\n";
         return Storage(MEMORY, s.address + offset);
     }
+    
+    virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
+        var_ts.destroy(get_storage(s), x64);
+        
+        Identifier::finalize(ft, s, x64);
+    }
 };
+
+
+Variable *variable_cast(Declaration *decl) {
+    return dynamic_cast<Variable *>(decl);
+}
 
 
 class Function: public Identifier {
@@ -134,15 +148,18 @@ public:
     }
     
     virtual Value *matched(Value *cpivot) {
+        //std::cerr << "YYY: " << cpivot->ts << "\n";
         return make_boolean_operation_value(operation, cpivot);
     }
 
     virtual Value *match(std::string n, Value *pivot) {
         if (n != name)
             return NULL;
-    
+
         // Don't force a type conversion for and/or, those are polymorphic operations.
         Value *cpivot = (operation == COMPLEMENT ? convertible(BOOLEAN_TS, pivot) : pivot);
+
+        //std::cerr << "YYY: " << get_typespec(pivot) << " " << get_typespec(cpivot) << "\n";
             
         if (cpivot)
             return matched(cpivot);

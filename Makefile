@@ -6,7 +6,7 @@ ARCHS      = ork x64
 MODULES    = tokenize treeize tupleize typize util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
 SOURCES    = $(MODULES:%=%.cpp) $(ARCHS:%=arch/%.h)
 COMPILE    = g++
-CFLAGS     = -Wall -Wextra -Werror -g -fdiagnostics-color=always
+CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=always
 
 TOP        = plum.cpp
 EXE        = run/plum

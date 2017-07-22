@@ -1,10 +1,24 @@
 
+enum FinalizationType {
+    SCOPE_FINALIZATION, UNWINDING_FINALIZATION
+};
+
 // Declarations
 
 class Declaration {
 public:
-    Scope *outer;
-    int offset;
+    Scope *outer_scope;
+    Declaration *previous_declaration;
+
+    Declaration() {
+        outer_scope = NULL;
+        previous_declaration = NULL;
+    }
+    
+    virtual void added(Scope *os, Declaration *pd) {
+        outer_scope = os;
+        previous_declaration = pd;
+    }
 
     virtual Value *match(std::string, Value *) {
         return NULL;
@@ -13,9 +27,11 @@ public:
     virtual void allocate() {
     }
     
-    virtual Label get_rollback_label() {
-        std::cerr << "Can't roll back to this declaration!\n";
-        throw INTERNAL_ERROR;
+    virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
+        if (previous_declaration)
+            previous_declaration->finalize(ft, s, x64);
+        else if (ft != SCOPE_FINALIZATION)
+            reinterpret_cast<Declaration *>(outer_scope)->finalize(ft, s, x64);
     }
 };
 

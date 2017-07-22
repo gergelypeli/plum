@@ -207,6 +207,8 @@ public:
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
+std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
+
 
 Type *type_type = NULL;
 Type *lvalue_type = NULL;
@@ -260,10 +262,11 @@ bool is_assignment(NumericOperation o) {
 Value *typize(Expr *expr, Scope *scope);
 Value *convertible(TypeSpec to, Value *orig);
 TypeSpec get_typespec(Value *value);
+Variable *variable_cast(Declaration *decl);
 
-Value *make_function_head_value(FunctionHeadScope *s);
-Value *make_function_body_value(FunctionBodyScope *s);
-Value *make_function_return_value(FunctionResultScope *s, Value *v);
+//Value *make_function_head_value(FunctionHeadScope *s);
+//Value *make_function_body_value(FunctionBodyScope *s);
+Value *make_function_return_value(Variable *result_var, Declaration *marker, Value *v);
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
@@ -446,6 +449,29 @@ Value *typize(Expr *expr, Scope *scope) {
             Expr *r = expr->pivot.get();
             Scope *rs = fn_scope->add_result_scope();
             Value *ret = r ? typize(r, rs) : NULL;
+
+            TypeSpec fn_ts;
+
+            if (ret) {
+                if (ret->ts[0] != type_type) {
+                    std::cerr << "Function return expression is not a type!\n";
+                    throw TYPE_ERROR;
+                }
+
+                // Add internal result variable
+                TypeSpec var_ts = ret->ts;
+                var_ts[0] = lvalue_type;
+                Variable *decl = new Variable("<result>", VOID_TS, var_ts);
+                rs->add(decl);
+                    
+                fn_ts = ret->ts.unprefix(type_type).prefix(function_type);
+            }
+            else {
+                fn_ts.push_back(function_type);
+                fn_ts.push_back(void_type);
+            }
+
+            std::cerr << "Function ts " << fn_ts << "\n";
         
             Expr *h = expr->kwargs["from"].get();
             Scope *hs = fn_scope->add_head_scope();
@@ -455,39 +481,40 @@ Value *typize(Expr *expr, Scope *scope) {
             Scope *bs = fn_scope->add_body_scope();
             Value *body = b ? typize(b, bs) : NULL;
             
-            TypeSpec fn_ts;
-                
-            if (ret) {
-                if (ret->ts[0] != type_type) {
-                    std::cerr << "Function return expression is not a type!\n";
-                    throw TYPE_ERROR;
-                }
-
-                // Add anon return value variable, so funretscp can compute its size!
-                TypeSpec var_ts = ret->ts;
-                var_ts[0] = lvalue_type;
-                Variable *decl = new Variable("<ret>", VOID_TS, var_ts);
-                rs->add(decl);
-                    
-                fn_ts = ret->ts;
-                fn_ts[0] = function_type;
-            }
-            else {
-                fn_ts.push_back(function_type);
-                fn_ts.push_back(void_type);
-            }
-
-            std::cerr << "Function ts " << fn_ts << "\n";
-            
             Value *v = make_function_definition_value(fn_ts, ret, head, body, fn_scope)->set_token(expr->token);
             
             return v;
         }
         else if (expr->text == "return") {
             Expr *r = expr->pivot.get();
-            Value *ret = r ? typize(r, scope) : NULL;  // TODO: statement scope? Or already have?
+            Value *value = r ? typize(r, scope) : NULL;  // TODO: statement scope? Or already have?
 
-            Value *v = make_function_return_value(scope, ret)->set_token(expr->token);
+            FunctionScope *fn_scope = scope->get_function_scope();
+            if (!fn_scope) {
+                std::cerr << "A :return control outside of a function!\n";
+                throw TYPE_ERROR;
+            }
+            
+            Variable *result_var = fn_scope->get_result_variable();
+            if (!result_var) {
+                std::cerr << "A :return control with value in a void function!\n";
+                throw TYPE_ERROR;
+            }
+            
+            std::cerr << "XXX: result is called " << result_var->name << "\n";
+            
+            TypeSpec result_ts = result_var->var_ts.rvalue();
+            Value *cv = convertible(result_ts, value);
+            if (!cv) {
+                std::cerr << "A :return control with incompatible value!\n";
+                std::cerr << "Type " << get_typespec(value) << " is not " << result_ts << "!\n";
+                throw TYPE_ERROR;
+            }
+            
+            Declaration *marker = new Declaration();
+            scope->add(marker);
+            
+            Value *v = make_function_return_value(result_var, marker, cv)->set_token(expr->token);
 
             return v;
         }
@@ -539,15 +566,14 @@ Value *typize(Expr *expr, Scope *scope) {
         TypeSpec pts = p ? p->ts : VOID_TS;
         std::cerr << "Looking up " << pts << " " << name << "\n";
 
-        for (Scope *s = scope; s; s = s->outer) {
+        for (Scope *s = scope; s; s = s->outer_scope) {
             //std::cerr << "Trying a scope...\n";
-            
             Value *v = s->lookup(expr->text, p);
-        
+            
             if (v) {
                 v->set_token(expr->token);
                 bool ok = v->check(expr->args, expr->kwargs, scope);
-                
+            
                 if (!ok) {
                     std::cerr << "Argument problem for " << expr->token << "!\n";
                     throw TYPE_ERROR;

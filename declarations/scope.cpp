@@ -2,31 +2,22 @@
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
-    bool is_ro;  // These flags should be subclass behavior instead
-    bool is_downward;
-    unsigned size;
     
-    Scope(bool ro = false, bool dw = false)
+    Scope()
         :Declaration() {
-        is_ro = ro;
-        is_downward = dw;
-        size = 0;
-    }
-    
-    virtual bool is_readonly() {
-        return is_ro;
     }
     
     virtual void add(Declaration *decl) {
+        Declaration *p = contents.size() ? contents.back().get() : this;
+        decl->added(this, p);
         contents.push_back(std::unique_ptr<Declaration>(decl));
-        decl->outer = this;
     }
     
     virtual void remove(Declaration *decl) {
         if (contents.back().get() == decl) {
             contents.back().release();
             contents.pop_back();
-            decl->outer = NULL;
+            decl->added(NULL, NULL);
         }
         else {
             std::cerr << "Not the last decl to remove!\n";
@@ -34,23 +25,30 @@ public:
         }
     }
     
-    virtual unsigned get_length() {
-        return contents.size();
-    }
+    //virtual unsigned get_length() {  // ?
+    //    return contents.size();
+    //}
     
-    virtual Declaration *get_declaration(unsigned i) {
-        return contents[i].get();
-    }
+    //virtual Declaration *get_declaration(unsigned i) {  // ?
+    //    return contents[i].get();
+    //}
     
     virtual Value *lookup(std::string name, Value *pivot) {
+        // FIXME: backwards, please!
         for (auto &decl : contents) {
             Value *v = decl->match(name, pivot);
             
-            if (v)
+            if (v) {
+                std::cerr << "XXX: " << name << " " << get_typespec(pivot) << " => " << get_typespec(v) << "\n";
                 return v;
+            }
         }
 
         return NULL;
+    }
+    
+    virtual FunctionScope *get_function_scope() {
+        return outer_scope->get_function_scope();
     }
     
     virtual void allocate() {
@@ -59,118 +57,159 @@ public:
             content->allocate();
     }
 
-    virtual int reserve(unsigned s) {
-        unsigned old_size = size;
-        size += stack_size(s);
-        
-        if (is_downward) {
-            return -size;
-        }
-        else {
-            return old_size;
-        }
-    }
-    
-    virtual Storage get_storage() {
-        if (outer)
-            return outer->get_storage();
-        else {
-            std::cerr << "No scope storage!\n";
-            throw INTERNAL_ERROR;
-        }
-    }
-    
-    virtual Declaration *get_rollback_declaration() {
-        std::cerr << "This scope can't roll back!\n";
+    virtual int reserve(unsigned) {
         throw INTERNAL_ERROR;
     }
 
-    virtual void set_rollback_declaration(Declaration *) {
-        std::cerr << "This scope can't roll back!\n";
+    virtual void expand(unsigned) {
         throw INTERNAL_ERROR;
+    }
+    
+    //virtual Storage get_storage() {  // Maybe make this a CodeScope only method?
+    //    throw INTERNAL_ERROR;
+        //if (outer)
+        //    return outer->get_storage();
+        //else {
+        //    std::cerr << "No scope storage!\n";
+        //    throw INTERNAL_ERROR;
+        //}
+    //}
+    
+    //virtual void finalize(Storage, X64 *x64) {
+    //    previ
+    //    for (int i = contents.size() - 1; i >= 0; i--)
+    //        contents[i]->finalize(get_storage(), x64);
+    //}
+    
+    virtual void finalize_scope(Storage s, X64 *x64) {
+        if (contents.size())
+            contents.back().get()->finalize(SCOPE_FINALIZATION, s, x64);
     }
 };
 
 
-class FunctionHeadScope: public Scope {
+
+
+class CodeScope: virtual public Scope {
 public:
-    FunctionHeadScope():Scope(true, true) {};
+    unsigned size;
+    unsigned expanded_size;
     
-    virtual Storage get_storage() {
-        return Storage(MEMORY, Address(RBP, offset));
-    }
-};
-
-
-class FunctionBodyScope: public Scope {
-public:
-    Declaration *rollback_declaration;  // TODO: generalize to CodeScope
-    Label rollback_label;
-    
-    FunctionBodyScope():Scope(false, true) {
-        rollback_declaration = this;  // Roll back to the beginning of this scope
-    };
-
-    virtual Storage get_storage() {
-        return Storage(MEMORY, Address(RBP, offset));
+    CodeScope()
+        :Scope() {
+        size = 0;
+        expanded_size = 0;
     }
     
     virtual void allocate() {
         Scope::allocate();
-    }
-    
-    virtual Declaration *get_rollback_declaration() {
-        return rollback_declaration;
+        outer_scope->expand(expanded_size);
     }
 
-    virtual void set_rollback_declaration(Declaration *d) {
-        rollback_declaration = d;
+    virtual int reserve(unsigned s) {
+        if (s) {
+            // Variables allocate nonzero bytes
+            unsigned ss = stack_size(s);  // Simple strategy
+            size += ss;
+        
+            if (size > expanded_size)
+                expanded_size = size;
+        
+            return outer_scope->reserve(0) - size;
+        }
+        else {
+            // Inner CodeScope-s just probe
+            return outer_scope->reserve(0) - stack_size(size);
+        }
     }
     
-    virtual Label get_rollback_label() {
-        return rollback_label;
+    virtual void expand(unsigned s) {
+        unsigned es = stack_size(size) + s;
+        
+        if (es > expanded_size)
+            expanded_size = es;
     }
+    
+    //virtual Storage get_storage() {
+    //    Storage s = outer_scope->get_storage();
+        
+    //    if (s.where == MEMORY)
+    //        return Storage(MEMORY, s.address + offset + size);
+    //    else
+    //        throw INTERNAL_ERROR;
+    //}
 };
 
 
-class FunctionResultScope: public Scope {
+
+
+class ArgumentScope: virtual public Scope {
 public:
-    FunctionResultScope():Scope(true, true) {};
+    unsigned size;
+    
+    ArgumentScope()
+        :Scope() {
+        size = 0;
+    }
 
-    virtual Storage get_storage() {
-        std::cerr << "How the hell did you access a result value variable?\n";
-        throw INTERNAL_ERROR;
+    virtual void add(Declaration *decl) {
+        if (!variable_cast(decl))
+            throw INTERNAL_ERROR;
+            
+        Scope::add(decl);
+    }
+    
+    virtual void allocate() {
+        // Backward, because the last arguments align to [RBP+16]
+        for (int i = contents.size() - 1; i >= 0; i--)
+            contents[i]->allocate();
+    }
+
+    virtual int reserve(unsigned s) {
+        // Each argument must be rounded up separately
+        unsigned ss = stack_size(s);
+        std::cerr << "Reserving " << ss << " bytes for an argument.\n";
+        unsigned offset = size;
+        size += ss;
+        std::cerr << "Now size is " << size << " bytes.\n";
+        return offset;
     }
 };
+
+
 
 
 class FunctionScope: public Scope {
 public:
-    FunctionResultScope *result_scope;
-    FunctionHeadScope *head_scope;
-    FunctionBodyScope *body_scope;
+    ArgumentScope *result_scope;
+    ArgumentScope *head_scope;
+    CodeScope *body_scope;
+    unsigned frame_size;
+    Label epilogue_label;
 
     FunctionScope()
         :Scope() {
         result_scope = NULL;
         head_scope = NULL;
         body_scope = NULL;
+        
+        frame_size = 0;
     }
     
-    FunctionResultScope *add_result_scope() {
-        result_scope = new FunctionResultScope;
+    Scope *add_result_scope() {
+        result_scope = new ArgumentScope;
         add(result_scope);
         return result_scope;
     }
     
-    FunctionHeadScope *add_head_scope() {
-        head_scope = new FunctionHeadScope;
+    Scope *add_head_scope() {
+        head_scope = new ArgumentScope;
         add(head_scope);
         return head_scope;
     }
     
-    FunctionBodyScope *add_body_scope() {
-        body_scope = new FunctionBodyScope;
+    Scope *add_body_scope() {
+        body_scope = new CodeScope;
         add(body_scope);
         return body_scope;
     }
@@ -187,22 +226,62 @@ public:
             if (v)
                 return v;
         }
-            
+
         return NULL;
     }
     
+    virtual int reserve(unsigned s) {
+        if (s)
+            throw INTERNAL_ERROR;
+        
+        return 0;
+    }
+    
+    virtual void expand(unsigned s) {
+        frame_size = stack_size(s);
+    }
+    
     virtual void allocate() {
-        Scope::allocate();
-        
-        int offset = 8 + 8;  // From RBP upward, skipping the pushed RBP and RIP
+        head_scope->reserve(8 + 8);
+        head_scope->allocate();
 
-        offset += head_scope->size;
-        head_scope->offset = offset;
+        result_scope->reserve(head_scope->size);
+        result_scope->allocate();
 
-        offset += result_scope->size;
-        result_scope->offset = offset;
-        
-        body_scope->offset = 0;
+        std::cerr << "Function head is " << head_scope->size - 16 << " bytes, result is " << result_scope->size - head_scope->size << " bytes.\n";
+
+        body_scope->allocate();
+    }
+    
+    virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
+        // If we got here, someone is returning or throwing something
+        x64->op(JMP, epilogue_label);
+    }
+    
+    virtual void finalize_scope(Storage s, X64 *x64) {
+        body_scope->finalize_scope(s, x64);
+    }
+    
+    virtual unsigned get_frame_size() {
+        return frame_size;
+    }
+    
+    virtual Label get_epilogue_label() {
+        return epilogue_label;
+    }
+
+    virtual FunctionScope *get_function_scope() {
+        return this;
+    }
+    
+    virtual Variable *get_result_variable() {
+        switch (result_scope->contents.size()) {
+        case 0:
+            return NULL;
+        case 1:
+            return variable_cast(result_scope->contents.back().get());
+        default:
+            throw INTERNAL_ERROR;
+        }
     }
 };
-

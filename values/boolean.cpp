@@ -6,7 +6,7 @@ public:
     Register reg;
     
     BooleanOperationValue(NumericOperation o, Value *p)
-        :Value(operation == COMPLEMENT ? BOOLEAN_TS : p->ts.rvalue()) {
+        :Value(o == COMPLEMENT ? BOOLEAN_TS : p->ts.rvalue()) {
         // !T     => B
         // T || U => T
         // T && U => U (the second argument is our pivot, special handling!)

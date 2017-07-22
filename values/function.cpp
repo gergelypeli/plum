@@ -1,10 +1,10 @@
-
+/*
 // Represents the argument list of a function
 class FunctionHeadValue: public Value {
 public:
-    FunctionHeadScope *head_scope;
+    Scope *head_scope;
     
-    FunctionHeadValue(FunctionHeadScope *s)
+    FunctionHeadValue(Scope *s)
         :Value(BOGUS_TS) {
         head_scope = s;
     }
@@ -14,7 +14,7 @@ public:
     }
     
     virtual Storage compile(X64 *) {
-        return Storage(MEMORY, Address(RBP, head_scope->offset));
+        return head_scope->get_storage();
     }
 };
 
@@ -22,9 +22,9 @@ public:
 // Represents the local variable list of a function
 class FunctionBodyValue: public Value {
 public:
-    FunctionBodyScope *body_scope;
+    Scope *body_scope;
     
-    FunctionBodyValue(FunctionBodyScope *s)
+    FunctionBodyValue(Scope *s)
         :Value(BOGUS_TS) {
         body_scope = s;
     }
@@ -35,15 +35,15 @@ public:
 
     virtual Storage compile(X64 *) {
         //std::cerr << "XXX Body offset is " << body_scope->offset << "\n";
-        return Storage(MEMORY, Address(RBP, body_scope->offset));
+        return body_scope->get_storage();
     }
 };
-
+*/
 
 // The value of a :function control
 class FunctionDefinitionValue: public Value {
 public:
-    std::unique_ptr<Value> ret;
+    std::unique_ptr<Value> result;
     std::unique_ptr<Value> head;
     std::unique_ptr<Value> body;
     FunctionScope *fn_scope;
@@ -52,7 +52,7 @@ public:
         
     FunctionDefinitionValue(TypeSpec fn_ts, Value *r, Value *h, Value *b, FunctionScope *f)
         :Value(fn_ts) {
-        ret.reset(r);
+        result.reset(r);
         head.reset(h);
         body.reset(b);
         fn_scope = f;
@@ -60,6 +60,21 @@ public:
     
     void set_function(Function *f) {
         function = f;
+    }
+
+    void get_interesting_stuff(std::vector<TypeSpec> &arg_tss, std::vector<std::string> &arg_names, TypeSpec &result_ts) {
+        for (auto &d : fn_scope->head_scope->contents) {
+            Variable *v = dynamic_cast<Variable *>(d.get());
+            arg_tss.push_back(v->var_ts.rvalue());
+            arg_names.push_back(v->name);
+        }
+        
+        if (fn_scope->result_scope->contents.size()) {
+            Variable *v = dynamic_cast<Variable *>(fn_scope->result_scope->contents.back().get());
+            result_ts = v->var_ts.rvalue();
+        }
+        else
+            result_ts = VOID_TS;
     }
 
     virtual Regs precompile(Regs) {
@@ -70,7 +85,8 @@ public:
     virtual Storage compile(X64 *x64) {
         //fn_scope->allocate();  // Hm, do we call all allocate-s in one step?
         
-        unsigned frame_size = fn_scope->body_scope->size;
+        unsigned frame_size = fn_scope->get_frame_size();
+        Label epilogue_label = fn_scope->get_epilogue_label();
 
         if (function)
             x64->code_label_export(function->x64_label, function->name, 0, true);
@@ -86,7 +102,11 @@ public:
         body->compile_and_store(x64, Storage());
         
         // TODO: destructors
-        x64->code_label(fn_scope->body_scope->get_rollback_label());
+        //x64->code_label(fn_scope->body_scope->get_rollback_label());
+        Storage s(MEMORY, Address(RBP, 0));
+        fn_scope->finalize_scope(s, x64);
+        
+        x64->code_label(epilogue_label);
         x64->op(ADDQ, RSP, frame_size);
         x64->op(POPQ, RBP);
         x64->op(RET);
@@ -253,51 +273,32 @@ public:
 
 class FunctionReturnValue: public Value {
 public:
-    Scope *scope;
-    Declaration *rollback_declaration;
-    FunctionResultScope *result_scope;
+    Variable *result_var;
+    Declaration *marker;
     std::unique_ptr<Value> value;
     
-    FunctionReturnValue(Scope *s, Value *v)
+    FunctionReturnValue(Variable *r, Declaration *m, Value *v)
         :Value(VOID_TS) {
-        scope = s;
+        result_var = r;
+        marker = m;
         value.reset(v);
-        
-        // This must be saved now, becaus it changes during the typization!
-        rollback_declaration = scope->get_rollback_declaration();
-        
-        FunctionScope *fn_scope = NULL;
-        
-        // TODO: should be solved by some form of HardScope base class instead of looping
-        for (Scope *s = scope; s; s = s->outer) {
-            fn_scope = dynamic_cast<FunctionScope *>(s);
-            if (fn_scope)
-                break;
-        }
-                
-        if (!fn_scope) {
-            std::cerr << "Return control outside of a function!\n";
-            throw TYPE_ERROR;
-        }
-    
-        result_scope = fn_scope->result_scope;
     }
 
     virtual Regs precompile(Regs) {
-        return value->precompile();
+        value->precompile();
+        return Regs();  // We won't return
     }
 
     virtual Storage compile(X64 *x64) {
+        Storage fn_storage(MEMORY, Address(RBP, 0));
         Storage s = value->compile(x64);
-        
-        Declaration *decl = result_scope->contents[0].get();
-        Variable *anon = dynamic_cast<Variable *>(decl);
-        int ret_offset = result_scope->offset + anon->offset;
-        Storage ret_storage(MEMORY, Address(RBP, ret_offset));
-        value->ts.store(s, ret_storage, x64);
+        Storage t = result_var->get_storage(fn_storage);
 
-        // TODO: is this proper stack unwinding?        
-        x64->op(JMP, rollback_declaration->get_rollback_label());
+        value->ts.store(s, t, x64);
+
+        // TODO: is this proper stack unwinding?
+        marker->finalize(UNWINDING_FINALIZATION, fn_storage, x64);
+        
         return Storage();
     }
 };

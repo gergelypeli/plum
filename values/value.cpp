@@ -99,7 +99,7 @@ public:
         if (pivot)
             s = pivot->compile(x64);
         else
-            s = variable->outer->get_storage();
+            s = Storage(MEMORY, Address(RBP, 0));
         
         return variable->get_storage(s);
     }
@@ -530,26 +530,14 @@ public:
         }
         else if (value->ts[0] == function_type) {
             FunctionDefinitionValue *fdv = dynamic_cast<FunctionDefinitionValue *>(value.get());
-            TypeSpec ret_ts;
             std::vector<TypeSpec> arg_tss;
             std::vector<std::string> arg_names;
+            TypeSpec result_ts;
+            
+            fdv->get_interesting_stuff(arg_tss, arg_names, result_ts);
+            std::cerr << "It's a function with result type " << result_ts << ".\n";
 
-            for (unsigned i = 1; i < fdv->ts.size(); i++)
-                ret_ts.push_back(fdv->ts[i]);
-
-            std::cerr << "It's a function with return type " << ret_ts << ".\n";
-
-            Scope *head_scope = fdv->fn_scope->head_scope;
-            unsigned n = head_scope->get_length();
-
-            for (unsigned i = 0; i < n; i++) {
-                Declaration *xd = head_scope->get_declaration(i);
-                Variable *vd = dynamic_cast<Variable *>(xd);
-                arg_tss.push_back(vd->var_ts);
-                arg_names.push_back(vd->name);
-            }
-
-            Function *function = new Function(name, VOID_TS, arg_tss, arg_names, ret_ts);
+            Function *function = new Function(name, VOID_TS, arg_tss, arg_names, result_ts);
             fdv->set_function(function);
             decl = function;
         }
@@ -559,14 +547,13 @@ public:
             if (dynamic_cast<HeapType *>(var_ts[0]))
                 var_ts = var_ts.prefix(reference_type);
             
-            if (!scope->is_readonly())
-                var_ts = var_ts.lvalue();
+            var_ts = var_ts.lvalue();
             
             Variable *variable = new Variable(name, VOID_TS, var_ts);
             decl = variable;
         }
         else if (value->ts[0] != void_type) {
-            TypeSpec var_ts = scope->is_readonly() ? value->ts : value->ts.lvalue();
+            TypeSpec var_ts = value->ts.lvalue();
             
             Variable *variable = new Variable(name, VOID_TS, var_ts);
             decl = variable;
@@ -588,17 +575,16 @@ public:
         Variable *v = dynamic_cast<Variable *>(decl);
         
         if (v) {
-            // TODO: for references, we need to first zero out the variable, then
+            // TODO: for references, we now need to first zero out the variable, then
             // the store will do an assignment. This could be simpler.
-            Storage t = v->get_storage(v->outer->get_storage());  // local variable
+            Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
+            Storage t = v->get_storage(fn_storage);
             v->var_ts.create(t, x64);
 
             Storage s = value->compile(x64);
             
             if (s.where != NOWHERE)
                 v->var_ts.store(s, t, x64);
-                
-            v->outer->set_rollback_declaration(v);
         }
         else
             value->compile_and_store(x64, Storage());
@@ -618,7 +604,7 @@ TypeSpec get_typespec(Value *value) {
     return value ? value->ts : VOID_TS;
 }
 
-
+/*
 Value *make_function_head_value(FunctionHeadScope *s) {
     return new FunctionHeadValue(s);
 }
@@ -627,10 +613,10 @@ Value *make_function_head_value(FunctionHeadScope *s) {
 Value *make_function_body_value(FunctionBodyScope *s) {
     return new FunctionBodyValue(s);
 }
+*/
 
-
-Value *make_function_return_value(Scope *s, Value *v) {
-    return new FunctionReturnValue(s, v);
+Value *make_function_return_value(Variable *result_var, Declaration *marker, Value *value) {
+    return new FunctionReturnValue(result_var, marker, value);
 }
 
 
@@ -680,6 +666,7 @@ Value *make_integer_operation_value(NumericOperation o, TypeSpec t, Value *pivot
 
 
 Value *make_boolean_operation_value(NumericOperation o, Value *pivot) {
+    std::cerr << "YYY: " << (int)o << " " << pivot->ts << "\n";
     return new BooleanOperationValue(o, pivot);
 }
 
