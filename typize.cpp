@@ -264,8 +264,6 @@ Value *convertible(TypeSpec to, Value *orig);
 TypeSpec get_typespec(Value *value);
 Variable *variable_cast(Declaration *decl);
 
-//Value *make_function_head_value(FunctionHeadScope *s);
-//Value *make_function_body_value(FunctionBodyScope *s);
 Value *make_function_return_value(Variable *result_var, Declaration *marker, Value *v);
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl, Value *pivot);

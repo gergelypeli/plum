@@ -8,7 +8,7 @@ public:
     }
     
     virtual void add(Declaration *decl) {
-        Declaration *p = contents.size() ? contents.back().get() : this;
+        Declaration *p = contents.size() ? contents.back().get() : NULL;
         decl->added(this, p);
         contents.push_back(std::unique_ptr<Declaration>(decl));
     }
@@ -20,18 +20,10 @@ public:
             decl->added(NULL, NULL);
         }
         else {
-            std::cerr << "Not the last decl to remove!\n";
+            std::cerr << "Not the last declaration to remove!\n";
             throw INTERNAL_ERROR;
         }
     }
-    
-    //virtual unsigned get_length() {  // ?
-    //    return contents.size();
-    //}
-    
-    //virtual Declaration *get_declaration(unsigned i) {  // ?
-    //    return contents[i].get();
-    //}
     
     virtual Value *lookup(std::string name, Value *pivot) {
         // FIXME: backwards, please!
@@ -39,7 +31,7 @@ public:
             Value *v = decl->match(name, pivot);
             
             if (v) {
-                std::cerr << "XXX: " << name << " " << get_typespec(pivot) << " => " << get_typespec(v) << "\n";
+                //std::cerr << "XXX: " << name << " " << get_typespec(pivot) << " => " << get_typespec(v) << "\n";
                 return v;
             }
         }
@@ -64,22 +56,6 @@ public:
     virtual void expand(unsigned) {
         throw INTERNAL_ERROR;
     }
-    
-    //virtual Storage get_storage() {  // Maybe make this a CodeScope only method?
-    //    throw INTERNAL_ERROR;
-        //if (outer)
-        //    return outer->get_storage();
-        //else {
-        //    std::cerr << "No scope storage!\n";
-        //    throw INTERNAL_ERROR;
-        //}
-    //}
-    
-    //virtual void finalize(Storage, X64 *x64) {
-    //    previ
-    //    for (int i = contents.size() - 1; i >= 0; i--)
-    //        contents[i]->finalize(get_storage(), x64);
-    //}
     
     virtual void finalize_scope(Storage s, X64 *x64) {
         if (contents.size())
@@ -129,15 +105,6 @@ public:
         if (es > expanded_size)
             expanded_size = es;
     }
-    
-    //virtual Storage get_storage() {
-    //    Storage s = outer_scope->get_storage();
-        
-    //    if (s.where == MEMORY)
-    //        return Storage(MEMORY, s.address + offset + size);
-    //    else
-    //        throw INTERNAL_ERROR;
-    //}
 };
 
 
@@ -168,10 +135,10 @@ public:
     virtual int reserve(unsigned s) {
         // Each argument must be rounded up separately
         unsigned ss = stack_size(s);
-        std::cerr << "Reserving " << ss << " bytes for an argument.\n";
+        //std::cerr << "Reserving " << ss << " bytes for an argument.\n";
         unsigned offset = size;
         size += ss;
-        std::cerr << "Now size is " << size << " bytes.\n";
+        //std::cerr << "Now size is " << size << " bytes.\n";
         return offset;
     }
 };
@@ -248,7 +215,7 @@ public:
         result_scope->reserve(head_scope->size);
         result_scope->allocate();
 
-        std::cerr << "Function head is " << head_scope->size - 16 << " bytes, result is " << result_scope->size - head_scope->size << " bytes.\n";
+        //std::cerr << "Function head is " << head_scope->size - 16 << " bytes, result is " << result_scope->size - head_scope->size << " bytes.\n";
 
         body_scope->allocate();
     }

@@ -604,16 +604,6 @@ TypeSpec get_typespec(Value *value) {
     return value ? value->ts : VOID_TS;
 }
 
-/*
-Value *make_function_head_value(FunctionHeadScope *s) {
-    return new FunctionHeadValue(s);
-}
-
-
-Value *make_function_body_value(FunctionBodyScope *s) {
-    return new FunctionBodyValue(s);
-}
-*/
 
 Value *make_function_return_value(Variable *result_var, Declaration *marker, Value *value) {
     return new FunctionReturnValue(result_var, marker, value);
