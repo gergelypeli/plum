@@ -49,7 +49,15 @@ public:
             throw INTERNAL_ERROR;
     }
     
-    virtual bool is_equal(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi) {
+    virtual void skip(TypeSpecIter &tsi) {
+        unsigned pc = (*tsi)->parameter_count;
+        tsi++;
+        
+        for (unsigned i = 0; i < pc; i++)
+            skip(tsi);
+    }
+    
+    virtual bool is_equal(TypeSpecIter this_tsi, TypeSpecIter that_tsi) {
         if (*this_tsi != *that_tsi)
             return false;
             
@@ -59,46 +67,49 @@ public:
         for (unsigned p = 0; p < parameter_count; p++) {
             if (!(*this_tsi)->is_equal(this_tsi, that_tsi))
                 return false;
+                
+            skip(this_tsi);
+            skip(that_tsi);
         }
         
         return true;
     }
 
-    virtual StorageWhere where(TypeSpecIter &) {
+    virtual StorageWhere where(TypeSpecIter tsi) {
         std::cerr << "Nowhere type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual Storage boolval(TypeSpecIter &, Storage, X64 *) {
+    virtual Storage boolval(TypeSpecIter tsi, Storage, X64 *) {
         std::cerr << "Unboolable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
+    virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
         return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : NULL;
     }
 
-    virtual Storage convert(TypeSpecIter &, TypeSpecIter &, Storage, X64 *) {
+    virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage, X64 *) {
         std::cerr << "Unconvertable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
     
-    virtual unsigned measure(TypeSpecIter &) {
+    virtual unsigned measure(TypeSpecIter tsi) {
         std::cerr << "Unmeasurable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual void store(TypeSpecIter &, Storage, Storage, X64 *) {
+    virtual void store(TypeSpecIter this_tsi, Storage s, Storage t, X64 *x64) {
         std::cerr << "Unstorable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
     
-    virtual void create(TypeSpecIter &, Storage, X64 *) {
+    virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
         std::cerr << "Uncreatable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual void destroy(TypeSpecIter &, Storage, X64 *) {
+    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         std::cerr << "Undestroyable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -109,11 +120,11 @@ class SpecialType: public Type {
 public:
     SpecialType(std::string name, unsigned pc):Type(name, pc) {}
     
-    virtual unsigned measure(TypeSpecIter &) {
+    virtual unsigned measure(TypeSpecIter ) {
         return 0;
     }
 
-    virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *) {
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
             std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
@@ -135,17 +146,17 @@ public:
     unsigned size;
     int os;
 
-    BasicType(std::string n, unsigned s)
-        :Type(n, 0) {
+    BasicType(std::string n, unsigned pc, unsigned s)
+        :Type(n, pc) {
         size = s;
         os = (s == 1 ? 0 : s == 2 ? 1 : s == 4 ? 2 : s == 8 ? 3 : throw INTERNAL_ERROR);        
     }
     
-    virtual unsigned measure(TypeSpecIter &) {
+    virtual unsigned measure(TypeSpecIter tsi) {
         return size;
     }
 
-    virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         // We can't use any register, unless saved and restored
         BinaryOp mov = MOVQ % os;
         
@@ -234,7 +245,7 @@ public:
         }
     }
 
-    virtual void create(TypeSpecIter &, Storage s, X64 *x64) {
+    virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
         BinaryOp mov = (
             size == 1 ? MOVB :
             size == 2 ? MOVW :
@@ -251,15 +262,15 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void destroy(TypeSpecIter &, Storage, X64 *) {
+    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         return;
     }
 
-    virtual StorageWhere where(TypeSpecIter &) {
+    virtual StorageWhere where(TypeSpecIter tsi) {
         return REGISTER;
     }
 
-    virtual Storage boolval(TypeSpecIter &, Storage s, X64 *x64) {
+    virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64) {
         switch (s.where) {
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
@@ -274,11 +285,20 @@ public:
         }
     }
 
-    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
-        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
+    virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
+        if ((*this_tsi)->is_equal(this_tsi, that_tsi))
+            return orig;
+        else if (*that_tsi == boolean_type)
+            return make_converted_value(BOOLEAN_TS, orig);
+        else if (*that_tsi == code_type) {
+            Value *c = convertible(this_tsi, that_tsi + 1, orig);
+            return make_code_value(c);
+        }
+        else
+            return NULL;
     }
 
-    virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &, Storage s, X64 *x64) {
+    virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage s, X64 *x64) {
         // This must be a conversion to bool. Fortunately no storage needs cleanup.
         return boolval(this_tsi, s, x64);
     }
@@ -291,11 +311,11 @@ public:
         :Type("<Reference>", 1) {
     }
     
-    virtual unsigned measure(TypeSpecIter &) {
+    virtual unsigned measure(TypeSpecIter ) {
         return 8;
     }
 
-    virtual void store(TypeSpecIter &, Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeSpecIter , Storage s, Storage t, X64 *x64) {
         // Constants must be static arrays linked such that their offset
         // fits in 32-bit relocations.
         
@@ -355,7 +375,7 @@ public:
         }
     }
 
-    virtual void create(TypeSpecIter &, Storage s, X64 *x64) {
+    virtual void create(TypeSpecIter , Storage s, X64 *x64) {
         if (s.where == REGISTER)
             x64->op(MOVQ, s.reg, 0);
         else if (s.where == MEMORY)
@@ -364,7 +384,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void destroy(TypeSpecIter &, Storage s, X64 *x64) {
+    virtual void destroy(TypeSpecIter , Storage s, X64 *x64) {
         if (s.where == MEMORY) {
             x64->op(MOVQ, RBX, s.address);
             x64->decref(RBX);
@@ -373,11 +393,11 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeSpecIter &) {
+    virtual StorageWhere where(TypeSpecIter ) {
         return REGISTER;
     }
 
-    virtual Storage boolval(TypeSpecIter &, Storage s, X64 *x64) {
+    virtual Storage boolval(TypeSpecIter , Storage s, X64 *x64) {
         switch (s.where) {
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
@@ -392,11 +412,11 @@ public:
         }
     }
 
-    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
+    virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
         return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
     }
 
-    virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &, Storage s, X64 *x64) {
+    virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter , Storage s, X64 *x64) {
         // This must be a conversion to bool.
         
         switch (s.where) {
@@ -422,17 +442,17 @@ public:
         :Type("<Lvalue>", 1) {
     }
 
-    virtual StorageWhere where(TypeSpecIter &this_tsi) {
+    virtual StorageWhere where(TypeSpecIter this_tsi) {
         this_tsi++;
         return (*this_tsi)->where(this_tsi);
     }
 
-    virtual Storage boolval(TypeSpecIter &this_tsi, Storage s, X64 *x64) {
+    virtual Storage boolval(TypeSpecIter this_tsi, Storage s, X64 *x64) {
         this_tsi++;
         return (*this_tsi)->boolval(this_tsi, s, x64);
     }
     
-    virtual Value *convertible(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Value *orig) {
+    virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
         if (*this_tsi == *that_tsi) {
             // When an lvalue is required, only the same type suffices
             this_tsi++;
@@ -448,28 +468,28 @@ public:
         }
     }
 
-    virtual Storage convert(TypeSpecIter &this_tsi, TypeSpecIter &that_tsi, Storage s, X64 *x64) {
+    virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage s, X64 *x64) {
         // Converting to an rvalue
         this_tsi++;
         return (*this_tsi)->convert(this_tsi, that_tsi, s, x64);
     }
     
-    virtual unsigned measure(TypeSpecIter &tsi) {
+    virtual unsigned measure(TypeSpecIter tsi) {
         tsi++;
         return (*tsi)->measure(tsi);
     }
 
-    virtual void store(TypeSpecIter &tsi, Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         tsi++;
         return (*tsi)->store(tsi, s, t, x64);
     }
 
-    virtual void create(TypeSpecIter &tsi, Storage s, X64 *x64) {
+    virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
         tsi++;
         (*tsi)->create(tsi, s, x64);
     }
 
-    virtual void destroy(TypeSpecIter &tsi, Storage s, X64 *x64) {
+    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         tsi++;
         (*tsi)->destroy(tsi, s, x64);
     }
@@ -493,6 +513,25 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts) {
     os << "]";
     
     return os;
+}
+
+
+void fill_typespec(TypeSpec &ts, TypeSpecIter &tsi) {
+    unsigned pc = (*tsi)->parameter_count;
+    
+    ts.push_back(*tsi++);
+        
+    for (unsigned i = 0; i < pc; i++)
+        fill_typespec(ts, tsi);
+}
+
+
+TypeSpec::TypeSpec() {
+}
+
+
+TypeSpec::TypeSpec(TypeSpecIter tsi) {
+    fill_typespec(*this, tsi);
 }
 
 

@@ -3,6 +3,20 @@ enum FinalizationType {
     SCOPE_FINALIZATION, UNWINDING_FINALIZATION
 };
 
+
+struct Marker {
+    Scope *scope;
+    Declaration *last;
+    
+    Marker() {
+        scope = NULL;
+        last = NULL;
+    }
+};
+
+
+Declaration *declaration_cast(Scope *);
+
 // Declarations
 
 class Declaration {
@@ -15,9 +29,9 @@ public:
         previous_declaration = NULL;
     }
     
-    virtual void added(Scope *os, Declaration *pd) {
-        outer_scope = os;
-        previous_declaration = pd;
+    virtual void added(Marker marker) {
+        outer_scope = marker.scope;
+        previous_declaration = marker.last;
     }
 
     virtual Value *match(std::string name, Value *pivot) {
@@ -30,6 +44,8 @@ public:
     virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
         if (previous_declaration)
             previous_declaration->finalize(ft, s, x64);
+        else if (ft != SCOPE_FINALIZATION)
+            declaration_cast(outer_scope)->finalize(ft, s, x64);
     }
 };
 

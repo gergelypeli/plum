@@ -16,6 +16,8 @@ class Value;
 
 class TypeSpec: public std::vector<Type *> {
 public:
+    TypeSpec();
+    TypeSpec(iterator tsi);
     unsigned measure();
     StorageWhere where();
     Storage boolval(Storage s, X64 *x64);
@@ -38,6 +40,7 @@ Type *type_type = NULL;
 Type *lvalue_type = NULL;
 Type *void_type = NULL;
 Type *function_type = NULL;
+Type *code_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
 Type *integer32_type = NULL;
@@ -101,6 +104,7 @@ Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Val
 Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
+Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
 Value *make_array_concatenation_value(TypeSpec t, Value *array);
 
@@ -164,31 +168,34 @@ Scope *init_types() {
     void_type = new SpecialType("<Void>", 0);
     root_scope->add(void_type);
 
-    boolean_type = new BasicType("Boolean", 1);
+    code_type = new BasicType("<Code>", 1, 8);
+    root_scope->add(code_type);
+
+    boolean_type = new BasicType("Boolean", 0, 1);
     root_scope->add(boolean_type);
 
-    integer_type = new BasicType("Integer", 8);
+    integer_type = new BasicType("Integer", 0, 8);
     root_scope->add(integer_type);
     
-    integer32_type = new BasicType("Integer32", 4);
+    integer32_type = new BasicType("Integer32", 0, 4);
     root_scope->add(integer32_type);
     
-    integer16_type = new BasicType("Integer16", 2);
+    integer16_type = new BasicType("Integer16", 0, 2);
     root_scope->add(integer16_type);
     
-    integer8_type = new BasicType("Integer8", 1);
+    integer8_type = new BasicType("Integer8", 0, 1);
     root_scope->add(integer8_type);
 
-    unsigned_integer_type = new BasicType("Unsigned_Integer", 8);
+    unsigned_integer_type = new BasicType("Unsigned_Integer", 0, 8);
     root_scope->add(unsigned_integer_type);
     
-    unsigned_integer32_type = new BasicType("Unsigned_Integer32", 4);
+    unsigned_integer32_type = new BasicType("Unsigned_Integer32", 0, 4);
     root_scope->add(unsigned_integer32_type);
     
-    unsigned_integer16_type = new BasicType("Unsigned_Integer16", 2);
+    unsigned_integer16_type = new BasicType("Unsigned_Integer16", 0, 2);
     root_scope->add(unsigned_integer16_type);
     
-    unsigned_integer8_type = new BasicType("Unsigned_Integer8", 1);
+    unsigned_integer8_type = new BasicType("Unsigned_Integer8", 0, 1);
     root_scope->add(unsigned_integer8_type);
 
     reference_type = new ReferenceType();
@@ -254,7 +261,7 @@ Scope *init_types() {
 
 Value *typize(Expr *expr, Scope *scope) {
     Value *value = NULL;
-    Declaration *marker = scope->mark();
+    Marker marker = scope->mark();
     
     if (expr->type == Expr::TUPLE) {
         if (expr->pivot) {

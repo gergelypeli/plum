@@ -1,16 +1,15 @@
 
+
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
-    bool scope_finalization;
     
     Scope()
         :Declaration() {
-        scope_finalization = false;
     }
     
     virtual void add(Declaration *decl) {
-        decl->added(this, mark());
+        decl->added(mark());
         contents.push_back(std::unique_ptr<Declaration>(decl));
     }
     
@@ -18,7 +17,11 @@ public:
         if (contents.back().get() == decl) {
             contents.back().release();
             contents.pop_back();
-            decl->added(NULL, NULL);
+            
+            Marker marker;
+            marker.scope = NULL;
+            marker.last = NULL;
+            decl->added(marker);
         }
         else {
             std::cerr << "Not the last declaration to remove!\n";
@@ -26,8 +29,11 @@ public:
         }
     }
     
-    virtual Declaration *mark() {
-        return contents.size() ? contents.back().get() : this;
+    virtual Marker mark() {
+        Marker marker;
+        marker.scope = this;
+        marker.last = contents.size() ? contents.back().get() : NULL;
+        return marker;
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
@@ -62,21 +68,36 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
-        if (scope_finalization)
-            scope_finalization = false;
-        else
-            Declaration::finalize(ft, s, x64);
-    }
-    
     virtual void finalize_scope(Storage s, X64 *x64) {
-        if (contents.size()) {
-            scope_finalization = true;
+        if (contents.size())
             contents.back().get()->finalize(SCOPE_FINALIZATION, s, x64);
+    }
+
+    virtual void intrude(Declaration *last, Scope *intruder) {
+        // Insert a Scope taking all remaining declarations
+        
+        std::stack<Declaration *> victims;
+        
+        while (contents.size() && contents.back().get() != last) {
+            Declaration *d = contents.back().release();
+            contents.pop_back();
+            victims.push(d);
+        }
+        
+        add(intruder);
+        
+        while (victims.size()) {
+            Declaration *d = victims.top();
+            victims.pop();
+            intruder->add(d);
         }
     }
 };
 
+
+Declaration *declaration_cast(Scope *scope) {
+    return static_cast<Declaration *>(scope);
+}
 
 
 
@@ -119,6 +140,7 @@ public:
         if (es > expanded_size)
             expanded_size = es;
     }
+    
 };
 
 
@@ -192,6 +214,14 @@ public:
     Scope *add_body_scope() {
         body_scope = new CodeScope;
         add(body_scope);
+        
+        // Let's pretend that body has nobody before it, so it won't accidentally
+        // finalize the arguments
+        Marker m;
+        m.scope = this;
+        m.last = NULL;
+        body_scope->added(m);
+        
         return body_scope;
     }
     

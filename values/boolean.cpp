@@ -233,7 +233,7 @@ public:
     Register reg;
     
     BooleanIfValue(Value *pivot)
-        :Value(VOID_TS) {
+        :Value(VOID_TS) {  // Will be overridden later
         condition.reset(pivot);
     }
 
@@ -245,9 +245,9 @@ public:
         
         for (auto &kv : kwargs) {
             if (kv.first == "then")
-                then_branch.reset(typize(kv.second.get(), scope));
+                then_branch.reset(make_code_value(typize(kv.second.get(), scope)));
             else if (kv.first == "else")
-                else_branch.reset(typize(kv.second.get(), scope));
+                else_branch.reset(make_code_value(typize(kv.second.get(), scope)));
             else {
                 std::cerr << "Invalid argument to Boolean if!\n";
                 return false;
@@ -257,8 +257,8 @@ public:
         if (then_branch && else_branch) {
             // Can't return an lvalue, because one Storage can only represent
             // a compile time fixed variable location.
-            TypeSpec tts = then_branch->ts.rvalue();
-            TypeSpec ets = else_branch->ts.rvalue();
+            TypeSpec tts = then_branch->ts.unprefix(code_type);
+            TypeSpec ets = else_branch->ts.unprefix(code_type);
             
             if (tts != VOID_TS && tts == ets) {
                 ts = tts;

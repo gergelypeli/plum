@@ -254,7 +254,8 @@ public:
         value->ts.store(s, t, x64);
 
         // TODO: is this proper stack unwinding?
-        marker->finalize(UNWINDING_FINALIZATION, fn_storage, x64);
+        Declaration *d = (marker.last ? marker.last : marker.scope);
+        d->finalize(UNWINDING_FINALIZATION, fn_storage, x64);
         
         return Storage();
     }

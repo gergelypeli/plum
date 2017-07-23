@@ -5,11 +5,10 @@ class Value {
 public:
     TypeSpec ts;
     Token token;
-    Declaration *marker;
+    Marker marker;
     
     Value(TypeSpec t)
         :ts(t) {
-        marker = NULL;
     }
 
     virtual Value *set_token(Token t) {
@@ -17,12 +16,12 @@ public:
         return this;
     }
     
-    virtual Value *set_marker(Declaration *m) {
+    virtual Value *set_marker(Marker m) {
         marker = m;
         return this;
     }
     
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *) {
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         return (args.size() == 0 && kwargs.size() == 0);
     }
     
@@ -149,7 +148,7 @@ public:
             Value *cr = convertible(arg_ts, r);
         
             if (!cr) {
-                std::cerr << "Operation with incompatible argument!\n";
+                std::cerr << "Argument is " << r->ts << ", not " << arg_ts << "!\n";
                 return false;
             }
         
@@ -465,8 +464,10 @@ public:
         for (auto &kv : kwargs)
             kwitems.insert(decltype(kwitems)::value_type(kv.first, typize(kv.second.get(), scope)));
             
-        if (items.size() == 1 && kwitems.size() == 0)
-            ts = items[0]->ts;  // maybe we should get this in the constructor instead?
+        if (items.size() == 1 && kwitems.size() == 0) {
+            throw INTERNAL_ERROR;  // This shouldn't happen anymore, blocks have at least 2 statements
+            //ts = items[0]->ts;  // maybe we should get this in the constructor instead?
+        }
 
         //std::cerr << "BlockValue " << token << " ts: " << ts << "\n";
         return true;
@@ -502,6 +503,34 @@ public:
         }
             
         return Storage();
+    }
+};
+
+
+class CodeValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+    CodeScope *code_scope;
+
+    CodeValue(Value *v)
+        :Value(v->ts.rvalue().prefix(code_type)) {
+        value.reset(v);
+        code_scope = new CodeScope();
+        value->marker.scope->intrude(value->marker.last, code_scope);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = value->compile(x64);
+        code_scope->finalize_scope(Storage(MEMORY, Address(RBP, 0)), x64);
+        return s;
     }
 };
 
@@ -674,6 +703,11 @@ Value *make_boolean_if_value(Value *pivot) {
 
 Value *make_converted_value(TypeSpec ts, Value *orig) {
     return new ConvertedValue(ts, orig);
+}
+
+
+Value *make_code_value(Value *orig) {
+    return new CodeValue(orig);
 }
 
 

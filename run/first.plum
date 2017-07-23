@@ -44,3 +44,9 @@ start? :function as:
     prints(z || "Upsz")
 
     #(1, 2) + (3, 4)
+
+    :if a == a then:
+        zz? "ZZ"
+        prints(zz)
+    
+    prints("--")
