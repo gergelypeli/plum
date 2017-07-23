@@ -233,13 +233,11 @@ public:
 class FunctionReturnValue: public Value {
 public:
     Variable *result_var;
-    Declaration *marker;
     std::unique_ptr<Value> value;
     
-    FunctionReturnValue(Variable *r, Declaration *m, Value *v)
+    FunctionReturnValue(Variable *r, Value *v)
         :Value(VOID_TS) {
         result_var = r;
-        marker = m;
         value.reset(v);
     }
 

@@ -5,13 +5,20 @@ class Value {
 public:
     TypeSpec ts;
     Token token;
+    Declaration *marker;
     
     Value(TypeSpec t)
         :ts(t) {
+        marker = NULL;
     }
 
     virtual Value *set_token(Token t) {
         token = t;
+        return this;
+    }
+    
+    virtual Value *set_marker(Declaration *m) {
+        marker = m;
         return this;
     }
     
@@ -605,8 +612,8 @@ TypeSpec get_typespec(Value *value) {
 }
 
 
-Value *make_function_return_value(Variable *result_var, Declaration *marker, Value *value) {
-    return new FunctionReturnValue(result_var, marker, value);
+Value *make_function_return_value(Variable *result_var, Value *value) {
+    return new FunctionReturnValue(result_var, value);
 }
 
 

@@ -88,7 +88,7 @@ Value *convertible(TypeSpec to, Value *orig);
 TypeSpec get_typespec(Value *value);
 Variable *variable_cast(Declaration *decl);
 
-Value *make_function_return_value(Variable *result_var, Declaration *marker, Value *v);
+Value *make_function_return_value(Variable *result_var, Value *v);
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
@@ -253,16 +253,17 @@ Scope *init_types() {
 
 
 Value *typize(Expr *expr, Scope *scope) {
+    Value *value = NULL;
+    Declaration *marker = scope->mark();
+    
     if (expr->type == Expr::TUPLE) {
         if (expr->pivot) {
             std::cerr << "A TUPLE had a pivot argument!\n";
             throw INTERNAL_ERROR;
         }
 
-        Value *v = make_block_value()->set_token(expr->token);
-        v->check(expr->args, expr->kwargs, scope);
-            
-        return v;
+        value = make_block_value();
+        value->check(expr->args, expr->kwargs, scope);
     }
     else if (expr->type == Expr::CONTROL) {
         if (expr->text == "function") {
@@ -304,13 +305,11 @@ Value *typize(Expr *expr, Scope *scope) {
             Scope *bs = fn_scope->add_body_scope();
             Value *body = b ? typize(b, bs) : NULL;
             
-            Value *v = make_function_definition_value(fn_ts, ret, head, body, fn_scope)->set_token(expr->token);
-            
-            return v;
+            value = make_function_definition_value(fn_ts, ret, head, body, fn_scope);
         }
         else if (expr->text == "return") {
             Expr *r = expr->pivot.get();
-            Value *value = r ? typize(r, scope) : NULL;  // TODO: statement scope? Or already have?
+            Value *result = r ? typize(r, scope) : NULL;  // TODO: statement scope? Or already have?
 
             FunctionScope *fn_scope = scope->get_function_scope();
             if (!fn_scope) {
@@ -324,22 +323,15 @@ Value *typize(Expr *expr, Scope *scope) {
                 throw TYPE_ERROR;
             }
             
-            std::cerr << "XXX: result is called " << result_var->name << "\n";
-            
             TypeSpec result_ts = result_var->var_ts.rvalue();
-            Value *cv = convertible(result_ts, value);
-            if (!cv) {
+            Value *cr = convertible(result_ts, result);
+            if (!cr) {
                 std::cerr << "A :return control with incompatible value!\n";
-                std::cerr << "Type " << get_typespec(value) << " is not " << result_ts << "!\n";
+                std::cerr << "Type " << get_typespec(result) << " is not " << result_ts << "!\n";
                 throw TYPE_ERROR;
             }
             
-            Declaration *marker = new Declaration();
-            scope->add(marker);
-            
-            Value *v = make_function_return_value(result_var, marker, cv)->set_token(expr->token);
-
-            return v;
+            value = make_function_return_value(result_var, cr);
         }
         else if (expr->text == "if") {
             Expr *e = expr->pivot.get();
@@ -350,17 +342,14 @@ Value *typize(Expr *expr, Scope *scope) {
                 throw TYPE_ERROR;
             }
             
-            Value *v = make_boolean_if_value(condition)->set_token(expr->token);
+            value = make_boolean_if_value(condition);
 
-            v->set_token(expr->token);
-            bool ok = v->check(expr->args, expr->kwargs, scope);
+            bool ok = value->check(expr->args, expr->kwargs, scope);
                 
             if (!ok) {
                 std::cerr << "Argument problem for " << expr->token << "!\n";
                 throw TYPE_ERROR;
             }
-
-            return v;
         }
         else {
             std::cerr << "Unknown control " << expr->token << "!\n";
@@ -371,8 +360,8 @@ Value *typize(Expr *expr, Scope *scope) {
         std::string name = expr->text;
         std::cerr << "Declaring " << name << ".\n";
         
-        Value *v = make_declaration_value(name)->set_token(expr->token);
-        bool ok = v->check(expr->args, expr->kwargs, scope);
+        value = make_declaration_value(name);
+        bool ok = value->check(expr->args, expr->kwargs, scope);
         
         if (!ok) {
             std::cerr << "Couldn't declare " << name << "!\n";
@@ -380,7 +369,6 @@ Value *typize(Expr *expr, Scope *scope) {
         }
 
         std::cerr << "Declared " << name << ".\n";
-        return v;
     }
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
@@ -391,12 +379,11 @@ Value *typize(Expr *expr, Scope *scope) {
 
         for (Scope *s = scope; s; s = s->outer_scope) {
             //std::cerr << "Trying a scope...\n";
-            Value *v = s->lookup(expr->text, p);
+            value = s->lookup(expr->text, p);
             
-            if (v) {
-                std::cerr << "Checking   " << pts << " " << name << " as a " << v->ts << ".\n";
-                v->set_token(expr->token);
-                bool ok = v->check(expr->args, expr->kwargs, scope);
+            if (value) {
+                std::cerr << "Checking   " << pts << " " << name << " as a " << value->ts << ".\n";
+                bool ok = value->check(expr->args, expr->kwargs, scope);
             
                 if (!ok) {
                     std::cerr << "Argument problem for " << expr->token << "!\n";
@@ -404,21 +391,28 @@ Value *typize(Expr *expr, Scope *scope) {
                 }
 
                 std::cerr << "Accepted   " << pts << " " << name << " arguments.\n";
-                return v;
+                break;
             }
         }
         
-        std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
-        throw TYPE_ERROR;
+        if (!value) {
+            std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
+            throw TYPE_ERROR;
+        }
     }
     else if (expr->type == Expr::NUMBER) {
-        return make_number_value(expr->text)->set_token(expr->token);  // TODO
+        value = make_number_value(expr->text);
     }
     else if (expr->type == Expr::STRING) {
-        return make_string_value(expr->text)->set_token(expr->token);
+        value = make_string_value(expr->text);
     }
     else {
         std::cerr << "Can't typize this now: " << expr->token << "!\n";
         throw INTERNAL_ERROR;
     }
+    
+    value->set_token(expr->token);
+    value->set_marker(marker);
+    
+    return value;
 }

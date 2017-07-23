@@ -20,7 +20,7 @@ public:
         previous_declaration = pd;
     }
 
-    virtual Value *match(std::string, Value *) {
+    virtual Value *match(std::string name, Value *pivot) {
         return NULL;
     }
     
@@ -30,8 +30,6 @@ public:
     virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
         if (previous_declaration)
             previous_declaration->finalize(ft, s, x64);
-        else if (ft != SCOPE_FINALIZATION)
-            reinterpret_cast<Declaration *>(outer_scope)->finalize(ft, s, x64);
     }
 };
 

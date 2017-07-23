@@ -2,14 +2,15 @@
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
+    bool scope_finalization;
     
     Scope()
         :Declaration() {
+        scope_finalization = false;
     }
     
     virtual void add(Declaration *decl) {
-        Declaration *p = contents.size() ? contents.back().get() : NULL;
-        decl->added(this, p);
+        decl->added(this, mark());
         contents.push_back(std::unique_ptr<Declaration>(decl));
     }
     
@@ -23,6 +24,10 @@ public:
             std::cerr << "Not the last declaration to remove!\n";
             throw INTERNAL_ERROR;
         }
+    }
+    
+    virtual Declaration *mark() {
+        return contents.size() ? contents.back().get() : this;
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
@@ -57,9 +62,18 @@ public:
         throw INTERNAL_ERROR;
     }
     
+    virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
+        if (scope_finalization)
+            scope_finalization = false;
+        else
+            Declaration::finalize(ft, s, x64);
+    }
+    
     virtual void finalize_scope(Storage s, X64 *x64) {
-        if (contents.size())
+        if (contents.size()) {
+            scope_finalization = true;
             contents.back().get()->finalize(SCOPE_FINALIZATION, s, x64);
+        }
     }
 };
 
