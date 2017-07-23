@@ -57,6 +57,7 @@ public:
     Precedence back, fore;
     int left;
     int right;
+    int up;
     Token token;
     
     Node(NodeType type, const std::string &text, Precedence back, Precedence fore, Token token) {
@@ -68,6 +69,7 @@ public:
         
         left = 0;
         right = 0;
+        up = 0;
     }
     
     //std::ostream &operator<<(std::ostream &os, NodeType type) {
@@ -345,14 +347,8 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         std::cerr << "Token " << token.text << " => " << n << "\n";
 
         nodes.push_back(Node(type, text, back, fore, token));
-        int r = 0;
         
-        for (int i = n - 1; i >= 0; i--) {
-            if (nodes[i].right != r)
-                continue;
-                
-            r = i;
-
+        for (int i = n - 1; i >= 0; i = nodes[i].up) {
             if (nodes[i].fore > back)  // || (nodes[i].precedence == back && !is_right_associative(back)))
                 continue;
             else if (nodes[i].fore == back) {
@@ -367,8 +363,15 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
 
             // nodes[i] will be our parent, and we'll be its right child
-            nodes[n].left = nodes[i].right;
+            int x = nodes[i].right;
+
+            nodes[n].left = x;
+            if (x)
+                nodes[x].up = n;
+
+            nodes[n].up = i;
             nodes[i].right = n;
+            
             break;
         }
     }
