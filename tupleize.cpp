@@ -64,26 +64,26 @@ public:
 };
 
 
-Expr *tupleize(std::vector<Node> nodes, int i);
+Expr *tupleize(std::vector<Node> &nodes, int i);
 
 
-void fill_arguments(Expr *e, std::vector<Node> nodes, int i) {
+void tupleize_into(Expr *e, std::vector<Node> &nodes, int i) {
     Node &node = nodes[i];
     //std::cerr << "Fill: " << print_node_type(node.type) << " " << node.text << "\n";
 
     if (node.type == Node::OPEN) {
-        fill_arguments(e, nodes, node.right);
+        tupleize_into(e, nodes, node.right);
     }
     else if (node.type == Node::CLOSE) {
-        fill_arguments(e, nodes, node.left);
+        tupleize_into(e, nodes, node.left);
     }
     else if (node.type == Node::SEPARATOR) {
-        fill_arguments(e, nodes, node.left);
-        fill_arguments(e, nodes, node.right);
+        tupleize_into(e, nodes, node.left);
+        tupleize_into(e, nodes, node.right);
     }
     else if (node.type == Node::LABEL) {
         if (node.left >= 0)
-            fill_arguments(e, nodes, node.left);  // May be needed in a block of labels
+            tupleize_into(e, nodes, node.left);  // May be needed in a block of labels
             
         Expr *f = tupleize(nodes, node.right);
         e->add_kwarg(node.text, f);
@@ -95,42 +95,7 @@ void fill_arguments(Expr *e, std::vector<Node> nodes, int i) {
 }
 
 
-void fill_control(Expr *e, std::vector<Node> nodes, int i) {
-    Node &node = nodes[i];
-    //std::cerr << "Fill control: " << print_node_type(node.type) << " " << node.text << "\n";
-
-    if (node.type == Node::OPEN) {
-        // Positional argument block
-        Expr *f = new Expr(Expr::TUPLE, node.token);
-        fill_arguments(f, nodes, node.right);
-        e->set_pivot(f);
-    }
-    else if (node.type == Node::CLOSE) {
-        std::cerr << "CLOSE while filling a control!\n";
-        throw INTERNAL_ERROR;
-    }
-    else if (node.type == Node::SEPARATOR) {
-        std::cerr << "SEPARATOR while filling a control!\n";
-        throw INTERNAL_ERROR;
-    }
-    else if (node.type == Node::LABEL) {
-        if (node.left >= 0)
-            fill_control(e, nodes, node.left);
-            
-        Expr *f = new Expr(Expr::TUPLE, node.token);
-        fill_arguments(f, nodes, node.right);
-        e->add_kwarg(node.text, f);
-    }
-    else {
-        // Positional argument expression, enclose for consistency
-        Expr *f = new Expr(Expr::TUPLE, node.token);
-        fill_arguments(f, nodes, i);
-        e->set_pivot(f);
-    }
-}
-
-
-Expr *tupleize(std::vector<Node> nodes, int i) {
+Expr *tupleize(std::vector<Node> &nodes, int i) {
     if (i < 0) {
         std::cerr << "Eiii!\n";
         throw INTERNAL_ERROR;
@@ -140,32 +105,59 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
     //std::cerr << "Tupleize: " << print_node_type(node.type) << " " << node.text << "\n";
     
     if (node.type == Node::OPEN) {
+        // Grouping operators are ignored from now on
         return tupleize(nodes, node.right);
     }
     else if (node.type == Node::CLOSE) {
+        // Grouping operators are ignored from now on
         return tupleize(nodes, node.left);
     }
     else if (node.type == Node::LABEL) {
-        std::cerr << "Labeling found outside of blocks or controls at " << node.token << "!\n";
-        throw TUPLE_ERROR;
+        Expr *e = new Expr(Expr::TUPLE, node.token);
+        
+        if (node.left >= 0)
+            tupleize_into(e, nodes, node.left);
+            
+        Expr *f = tupleize(nodes, node.right);
+        e->add_kwarg(node.text, f);
+        return e;
     }
     else if (node.type == Node::SEPARATOR) {
-        std::cerr << "Separator found outside of blocks at " << node.token << "!\n";
-        throw TUPLE_ERROR;
+        Expr *e = new Expr(Expr::TUPLE, node.token);
+        
+        tupleize_into(e, nodes, node.left);
+        tupleize_into(e, nodes, node.right);
+        
+        return e;
     }
     else if (node.type == Node::CONTROL) {
         Expr *e = new Expr(Expr::CONTROL, node.token, node.text);
         
-        fill_control(e, nodes, node.right);
+        if (node.left >= 0)
+            throw TUPLE_ERROR;
+            
+        if (node.right) {
+            tupleize_into(e, nodes, node.right);
+            
+            if (e->args.size() > 1)
+                throw INTERNAL_ERROR;  // This should be impossible by the precedence rules
+            else if (e->args.size() == 1) {
+                e->set_pivot(e->args.back().release());
+                e->args.pop_back();
+            }
+        }
         
         return e;
     }
     else if (node.type == Node::DECLARATION) {
         Expr *e = new Expr(Expr::DECLARATION, node.token, node.text);
+        
+        if (node.left >= 0)
+            throw TUPLE_ERROR;
+        
         if (node.right >= 0)
-            fill_arguments(e, nodes, node.right);
-        //Expr *f = tupleize(nodes, node.right);
-        //e->set_pivot(f);  // Yes, the type/value will be stored in the pivot field
+            tupleize_into(e, nodes, node.right);
+            
         return e;
     }
     else if (node.type == Node::IDENTIFIER) {
@@ -196,7 +188,7 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
         }
         
         if (node.right >= 0) {
-            fill_arguments(e, nodes, node.right);
+            tupleize_into(e, nodes, node.right);
         }
 
         return e;
@@ -217,7 +209,7 @@ Expr *tupleize(std::vector<Node> nodes, int i) {
 Expr *tupleize(std::vector<Node> nodes) {
     Expr *root = new Expr(Expr::TUPLE, Token("", 0, 0));
     
-    fill_arguments(root, nodes, 0);
+    tupleize_into(root, nodes, 0);
     
     return root;
 }
