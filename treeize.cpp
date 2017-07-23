@@ -66,8 +66,8 @@ public:
         this->fore = fore;
         this->token = token;
         
-        left = -1;
-        right = -1;
+        left = 0;
+        right = 0;
     }
     
     //std::ostream &operator<<(std::ostream &os, NodeType type) {
@@ -146,7 +146,7 @@ struct {
 
 
 void print_node(std::vector<Node> &nodes, int i, int indent, const char *prefix) {
-    if (nodes[i].left >= 0)
+    if (nodes[i].left)
         print_node(nodes, nodes[i].left, indent + 2, "/ ");
     
     //std::cerr << i << "(" << nodes[i].left << "/" << nodes[i].right << ")\n";
@@ -155,7 +155,7 @@ void print_node(std::vector<Node> &nodes, int i, int indent, const char *prefix)
         
     std::cerr << prefix << "[" << nodes[i].print_type() << "] " << nodes[i].text << "\n";
     
-    if (nodes[i].right >= 0)
+    if (nodes[i].right)
         print_node(nodes, nodes[i].right, indent + 2, "\\ ");
 }
 
@@ -345,7 +345,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         std::cerr << "Token " << token.text << " => " << n << "\n";
 
         nodes.push_back(Node(type, text, back, fore, token));
-        int r = -1;
+        int r = 0;
         
         for (int i = n - 1; i >= 0; i--) {
             if (nodes[i].right != r)

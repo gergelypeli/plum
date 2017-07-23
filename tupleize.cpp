@@ -82,7 +82,7 @@ void tupleize_into(Expr *e, std::vector<Node> &nodes, int i) {
         tupleize_into(e, nodes, node.right);
     }
     else if (node.type == Node::LABEL) {
-        if (node.left >= 0)
+        if (node.left)
             tupleize_into(e, nodes, node.left);  // May be needed in a block of labels
             
         Expr *f = tupleize(nodes, node.right);
@@ -115,7 +115,7 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     else if (node.type == Node::LABEL) {
         Expr *e = new Expr(Expr::TUPLE, node.token);
         
-        if (node.left >= 0)
+        if (node.left)
             tupleize_into(e, nodes, node.left);
             
         Expr *f = tupleize(nodes, node.right);
@@ -133,7 +133,7 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     else if (node.type == Node::CONTROL) {
         Expr *e = new Expr(Expr::CONTROL, node.token, node.text);
         
-        if (node.left >= 0)
+        if (node.left)
             throw TUPLE_ERROR;
             
         if (node.right) {
@@ -152,10 +152,10 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     else if (node.type == Node::DECLARATION) {
         Expr *e = new Expr(Expr::DECLARATION, node.token, node.text);
         
-        if (node.left >= 0)
+        if (node.left)
             throw TUPLE_ERROR;
         
-        if (node.right >= 0)
+        if (node.right)
             tupleize_into(e, nodes, node.right);
             
         return e;
@@ -168,7 +168,7 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
             if (node.text == "logical and")
                 swap = true;
                 
-            if ((node.text == "minus" || node.text == "tilde") && node.left < 0 && node.right >= 0) {
+            if ((node.text == "minus" || node.text == "tilde") && !node.left && !node.right) {
                 node.text = "unary_" + node.text;
                 swap = true;
             }
@@ -182,12 +182,12 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
 
         Expr *e = new Expr(Expr::IDENTIFIER, node.token, node.text);
     
-        if (node.left >= 0) {
+        if (node.left) {
             Expr *l = tupleize(nodes, node.left);
             e->set_pivot(l);
         }
         
-        if (node.right >= 0) {
+        if (node.right) {
             tupleize_into(e, nodes, node.right);
         }
 
