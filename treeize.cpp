@@ -45,34 +45,14 @@ bool is_right_associative(Precedence) {
 }
 
 
-enum NodeType {
-    OPEN, CLOSE,
-    NUMBER, STRING, INITIALIZER,
-    IDENTIFIER, LABEL, CONTROL, DECLARATION,
-    SEPARATOR
-};
-
-
-const char *print_node_type(NodeType type) {
-    return (
-        type == OPEN ? "OPEN" :
-        type == CLOSE ? "CLOSE" :
-        type == NUMBER ? "NUMBER" :
-        type == STRING ? "STRING" :
-        type == INITIALIZER ? "INITIALIZER" :
-        type == IDENTIFIER ? "IDENTIFIER" :
-        type == LABEL ? "LABEL" :
-        type == CONTROL ? "CONTROL" :
-        type == DECLARATION ? "DECLARATION" :
-        type == SEPARATOR ? "SEPARATOR" :
-        "???"
-    );
-}
-
-
 class Node {
 public:
-    NodeType type;
+    enum NodeType {
+        OPEN, CLOSE,
+        NUMBER, STRING, INITIALIZER,
+        IDENTIFIER, LABEL, CONTROL, DECLARATION,
+        SEPARATOR
+    } type;
     std::string text;
     Precedence back, fore;
     int left;
@@ -88,6 +68,23 @@ public:
         
         left = -1;
         right = -1;
+    }
+    
+    //std::ostream &operator<<(std::ostream &os, NodeType type) {
+    const char *print_type() {
+        return (
+            type == OPEN ? "OPEN" :
+            type == CLOSE ? "CLOSE" :
+            type == NUMBER ? "NUMBER" :
+            type == STRING ? "STRING" :
+            type == INITIALIZER ? "INITIALIZER" :
+            type == IDENTIFIER ? "IDENTIFIER" :
+            type == LABEL ? "LABEL" :
+            type == CONTROL ? "CONTROL" :
+            type == DECLARATION ? "DECLARATION" :
+            type == SEPARATOR ? "SEPARATOR" :
+            throw TREE_ERROR
+        );
     }
 };
 
@@ -156,12 +153,23 @@ void print_node(std::vector<Node> &nodes, int i, int indent, const char *prefix)
     for (int j=0; j<indent; j++)
         std::cerr << " ";
         
-    std::cerr << prefix << "[" << print_node_type(nodes[i].type) << "] " << nodes[i].text << "\n";
+    std::cerr << prefix << "[" << nodes[i].print_type() << "] " << nodes[i].text << "\n";
     
     if (nodes[i].right >= 0)
         print_node(nodes, nodes[i].right, indent + 2, "\\ ");
 }
 
+
+// The handling of parentheses will look like this:
+//
+//          CONTENTS
+//                  |
+//                   CLOSE
+//                  /
+//              OPEN
+//             /
+// When the matching CLOSE is found, the precedence of the OPEN
+// is set to the precedence of the CLOSE.
 
 std::vector<Node> treeize(std::vector<Token> tokens) {
     std::vector<Node> nodes;
@@ -173,51 +181,51 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
     }
     
     for (auto token : tokens) {
-        NodeType type;
+        Node::NodeType type;
         Precedence back, fore;
         std::string text;
         
         char c = token.text[0];
         
         if (isdigit(c) || c == '.') {
-            type = NUMBER;
+            type = Node::NUMBER;
             back = fore = LITERAL;
             text = token.text;
         }
         else if (c == ':') {
-            type = CONTROL;
+            type = Node::CONTROL;
             back = LITERAL;
             fore = SEPARATING;
             text = token.text.substr(1);
         }
         else if (isalpha(c) || c == '_') {
             if (token.text.back() == ':') {
-                type = LABEL;
+                type = Node::LABEL;
                 back = LABELING;
                 fore = LABELING;
                 text = token.text.substr(0, token.text.length() - 1);
             }
             else if (token.text.back() == '?') {
-                type = DECLARATION;
+                type = Node::DECLARATION;
                 back = DECLARING;
                 fore = DECLARING;
                 text = token.text.substr(0, token.text.length() - 1);
             }
             else {
-                type = IDENTIFIER;
+                type = Node::IDENTIFIER;
                 back = TEXTUAL;
                 fore = TEXTUAL;
                 text = token.text;
             }
         }
         else if (is_quote(c)) {
-            type = STRING;
+            type = Node::STRING;
             back = LITERAL;
             fore = LITERAL;
             text = token.text.substr(1, token.text.length() - 2);
         }
         else if (c == ',') {
-            type = SEPARATOR;
+            type = Node::SEPARATOR;
             back = SEPARATING;
             fore = SEPARATING;
         }
@@ -225,7 +233,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             if (c == '(') {
                 parens.push_back(PAREN);
                 
-                type = OPEN;
+                type = Node::OPEN;
                 back = LITERAL;
                 fore = BASE;
             }
@@ -237,14 +245,14 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                     
                 parens.pop_back();
                 
-                type = CLOSE;
+                type = Node::CLOSE;
                 back = BASE;
                 fore = LITERAL;
             }
             else if (c == '[') {
                 parens.push_back(BRACKET);
                 
-                type = IDENTIFIER;
+                type = Node::IDENTIFIER;
                 back = TEXTUAL;
                 fore = BASE;
                 text = "index";
@@ -257,14 +265,14 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                     
                 parens.pop_back();
                 
-                type = CLOSE;
+                type = Node::CLOSE;
                 back = BASE;
                 fore = LITERAL;
             }
             else if (c == '{') {
                 parens.push_back(BRACE);
                 
-                type = INITIALIZER;
+                type = Node::INITIALIZER;
                 back = LITERAL;
                 fore = BASE;
             }
@@ -276,7 +284,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                     
                 parens.pop_back();
                 
-                type = CLOSE;
+                type = Node::CLOSE;
                 back = BASE;
                 fore = LITERAL;
             }
@@ -285,7 +293,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             if (token.text == " indent") {
                 parens.push_back(BLOCK);
                 
-                type = OPEN;
+                type = Node::OPEN;
                 back = LITERAL;
                 fore = BASE;
             }
@@ -297,7 +305,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                     
                 parens.pop_back();
                 
-                type = CLOSE;
+                type = Node::CLOSE;
                 back = BASE;
                 fore = LITERAL;
             }
@@ -307,7 +315,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                     throw TREE_ERROR;
                 }
                 
-                type = SEPARATOR;
+                type = Node::SEPARATOR;
                 back = SEPARATING;
                 fore = SEPARATING;
             }
@@ -319,7 +327,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         else {
             for (auto op : operators) {
                 if (op.token == token.text) {
-                    type = IDENTIFIER;
+                    type = Node::IDENTIFIER;
                     back = op.precedence;
                     fore = op.precedence;
                     text = op.text;

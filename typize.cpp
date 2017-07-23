@@ -148,6 +148,7 @@ struct {
     { "shift_right_assign", ASSIGN_SHIFT_RIGHT }
 };
 
+
 Scope *init_types() {
     Scope *root_scope = new Scope();
     
@@ -252,9 +253,9 @@ Scope *init_types() {
 
 
 Value *typize(Expr *expr, Scope *scope) {
-    if (expr->type == OPEN) {
+    if (expr->type == Expr::TUPLE) {
         if (expr->pivot) {
-            std::cerr << "An OPEN had a pivot argument!\n";
+            std::cerr << "A TUPLE had a pivot argument!\n";
             throw INTERNAL_ERROR;
         }
 
@@ -263,7 +264,7 @@ Value *typize(Expr *expr, Scope *scope) {
             
         return v;
     }
-    else if (expr->type == CONTROL) {
+    else if (expr->type == Expr::CONTROL) {
         if (expr->text == "function") {
             FunctionScope *fn_scope = new FunctionScope();
             scope->add(fn_scope);
@@ -366,7 +367,7 @@ Value *typize(Expr *expr, Scope *scope) {
             throw TYPE_ERROR;
         }
     }
-    else if (expr->type == DECLARATION) {
+    else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;
         std::cerr << "Declaring " << name << ".\n";
         
@@ -381,18 +382,19 @@ Value *typize(Expr *expr, Scope *scope) {
         std::cerr << "Declared " << name << ".\n";
         return v;
     }
-    else if (expr->type == IDENTIFIER) {
+    else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
 
         TypeSpec pts = p ? p->ts : VOID_TS;
-        std::cerr << "Looking up " << pts << " " << name << "\n";
+        std::cerr << "Looking up " << pts << " " << name << " definition.\n";
 
         for (Scope *s = scope; s; s = s->outer_scope) {
             //std::cerr << "Trying a scope...\n";
             Value *v = s->lookup(expr->text, p);
             
             if (v) {
+                std::cerr << "Checking   " << pts << " " << name << " as a " << v->ts << ".\n";
                 v->set_token(expr->token);
                 bool ok = v->check(expr->args, expr->kwargs, scope);
             
@@ -401,7 +403,7 @@ Value *typize(Expr *expr, Scope *scope) {
                     throw TYPE_ERROR;
                 }
 
-                std::cerr << "Found " << pts << " " << name << " as a " << v->ts << ".\n";
+                std::cerr << "Accepted   " << pts << " " << name << " arguments.\n";
                 return v;
             }
         }
@@ -409,10 +411,10 @@ Value *typize(Expr *expr, Scope *scope) {
         std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
         throw TYPE_ERROR;
     }
-    else if (expr->type == NUMBER) {
+    else if (expr->type == Expr::NUMBER) {
         return make_number_value(expr->text)->set_token(expr->token);  // TODO
     }
-    else if (expr->type == STRING) {
+    else if (expr->type == Expr::STRING) {
         return make_string_value(expr->text)->set_token(expr->token);
     }
     else {

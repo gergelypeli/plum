@@ -42,3 +42,5 @@ start? :function as:
 
     z? Unsigned_Integer8 Array
     prints(z || "Upsz")
+
+    #(1, 2) + (3, 4)

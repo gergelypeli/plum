@@ -461,7 +461,7 @@ public:
         if (items.size() == 1 && kwitems.size() == 0)
             ts = items[0]->ts;  // maybe we should get this in the constructor instead?
 
-        std::cerr << "BlockValue " << token << " ts: " << ts << "\n";
+        //std::cerr << "BlockValue " << token << " ts: " << ts << "\n";
         return true;
     }
 
@@ -656,7 +656,6 @@ Value *make_integer_operation_value(NumericOperation o, TypeSpec t, Value *pivot
 
 
 Value *make_boolean_operation_value(NumericOperation o, Value *pivot) {
-    std::cerr << "YYY: " << (int)o << " " << pivot->ts << "\n";
     return new BooleanOperationValue(o, pivot);
 }
 
