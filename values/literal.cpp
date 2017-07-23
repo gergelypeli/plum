@@ -42,12 +42,14 @@ public:
 
 class StringValue: public Value {
 public:
-    std::string text;
+    std::vector<unsigned short> characters;
     Register reg;
     
-    StringValue(std::string t)
-        :Value(UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS) {
-        text = t;
+    StringValue(std::string text)
+        :Value(CHARACTER_ARRAY_REFERENCE_TS) {
+        characters.resize(text.size());
+        int charlen = decode_utf8_raw(text.data(), text.size(), characters.data());
+        characters.resize(charlen);
     }
 
     virtual Regs precompile(Regs) {
@@ -60,18 +62,17 @@ public:
         Label l;
         
         x64->data_label(l);
-        //x64->data_qword(text.size());
-        for (char &c : text)
-            x64->data_byte(c);
+        for (unsigned short &c : characters)
+            x64->data_word(c);
 
-        x64->op(MOVQ, RAX, text.size() + 8);
+        x64->op(MOVQ, RAX, characters.size() * 2 + 8);
         x64->alloc();
 
-        x64->op(MOVQ, Address(RAX, 0), text.size());
+        x64->op(MOVQ, Address(RAX, 0), characters.size());
         x64->op(LEA, RDI, Address(RAX, 8));
         x64->op(LEARIP, RSI, l, 0);
-        x64->op(MOVQ, RCX, text.size());
-        x64->op(REPMOVSB);  // TODO: Use qwords, the length is constant!
+        x64->op(MOVQ, RCX, characters.size());
+        x64->op(REPMOVSW);  // TODO: Use qwords, the length is constant!
         
         return Storage(REGISTER, RAX);
     }

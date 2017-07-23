@@ -51,6 +51,7 @@ Type *unsigned_integer_type = NULL;
 Type *unsigned_integer32_type = NULL;
 Type *unsigned_integer16_type = NULL;
 Type *unsigned_integer8_type = NULL;
+Type *character_type = NULL;
 Type *reference_type = NULL;
 Type *array_type = NULL;
 
@@ -62,6 +63,7 @@ TypeSpec LVALUE_INTEGER_TS;
 TypeSpec LVALUE_BOOLEAN_TS;
 TypeSpec UNSIGNED_INTEGER8_TS;
 TypeSpec UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS;
+TypeSpec CHARACTER_ARRAY_REFERENCE_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -200,6 +202,9 @@ Scope *init_types() {
     unsigned_integer8_type = new BasicType("Unsigned_Integer8", 0, 1);
     root_scope->add(unsigned_integer8_type);
 
+    character_type = new BasicType("Character", 0, 2);
+    root_scope->add(character_type);
+
     reference_type = new ReferenceType();
     root_scope->add(reference_type);
     
@@ -218,12 +223,16 @@ Scope *init_types() {
     UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(reference_type);
     UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(array_type);
     UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(unsigned_integer8_type);
+    CHARACTER_ARRAY_REFERENCE_TS.push_back(reference_type);
+    CHARACTER_ARRAY_REFERENCE_TS.push_back(array_type);
+    CHARACTER_ARRAY_REFERENCE_TS.push_back(character_type);
     
     std::vector<TypeSpec> NO_TSS = { };
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
     std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
     std::vector<TypeSpec> UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
     std::vector<TypeSpec> UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS = { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS };
+    std::vector<TypeSpec> CHARACTER_ARRAY_REFERENCE_TSS = { CHARACTER_ARRAY_REFERENCE_TS };
     
     std::vector<std::string> value_names = { "value" };
 
@@ -250,11 +259,11 @@ Scope *init_types() {
     
     //root_scope->add(new BooleanIf());
     
-    root_scope->add(new ArrayIndexing(UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS));
-    root_scope->add(new ArrayConcatenation(UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS));
+    root_scope->add(new ArrayIndexing(CHARACTER_ARRAY_REFERENCE_TS));
+    root_scope->add(new ArrayConcatenation(CHARACTER_ARRAY_REFERENCE_TS));
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
-    root_scope->add(new Function("prints", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
+    root_scope->add(new Function("prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
     root_scope->add(new Function("printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
 
     return root_scope;

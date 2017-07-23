@@ -32,15 +32,16 @@ start? :function as:
     s? "Szia!"
     prints(s)
     
-    c = 4
-    printu8(s[c])
+    #c = 4
+    #printu8(s[c])
     
     prints(s + s)
 
-    s[3] = s[4]
-    prints(s)
+    # WTF, is this executed as boolean?
+    #s[3] = s[4]
+    #prints(s)
 
-    z? Unsigned_Integer8 Array
+    z? Character Array
     prints(z || "Upsz")
 
     #(1, 2) + (3, 4)
@@ -49,4 +50,5 @@ start? :function as:
         zz? "ZZ"
         prints(zz)
     
-    print((xx? 1) + xx)
+    prints((xx? "hi") + xx)
+    

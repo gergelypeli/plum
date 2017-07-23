@@ -50,6 +50,14 @@ public:
                     return false;
                 }
             }
+            else if (operation == ASSIGN) {
+                ca = convertible(BOOLEAN_TS, a);
+        
+                if (!ca) {
+                    std::cerr << "Non-boolean right argument to logical assignment operation!\n";
+                    return false;
+                }
+            }
             else
                 throw INTERNAL_ERROR;
         

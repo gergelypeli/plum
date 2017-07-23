@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "../utf8.c"
 
 static int allocation_count = 0;
 
@@ -19,10 +20,13 @@ void printu8(char a) {
     printf("%c\n", a);
 }
 
-void prints(const char *s) {
+void prints(void *s) {
     if (s) {
         int len = *(int *)s;
-        printf("%.*s\n", len, s + 8);
+        char *bytes = malloc(len * 3);
+        int byte_length = encode_utf8_raw(s + 8, len, bytes);
+        printf("%.*s\n", byte_length, bytes);
+        free(bytes);
     }
     else
         printf("(null)\n");
@@ -40,6 +44,43 @@ void memfree(void *m) {
     //printf("free %p\n", m);
     free(m);
 }
+
+
+void *decode_utf8(void *byte_array) {
+    int byte_length = *(int *)byte_array;
+    char *bytes = byte_array + 8;
+
+    void *character_blob = malloc(8 + 8 + byte_length * 2);
+    *(int *)character_blob = 1;
+    void *character_array = character_blob + 8;
+    unsigned short *characters = character_array + 8;
+    
+    int character_length = decode_utf8_raw(bytes, byte_length, characters);
+    
+    *(int *)character_array = character_length;
+    character_blob = realloc(character_blob, 8 + 8 + character_length * 2);
+    
+    return character_blob + 8;
+}
+
+
+void *encode_utf8(void *character_array) {
+    int character_length = *(int *)character_array;
+    unsigned short *characters = character_array + 8;
+    
+    void *byte_blob = malloc(8 + 8 + character_length * 3);
+    *(int *)byte_blob = 1;
+    void *byte_array = byte_blob + 8;
+    char *bytes = byte_array + 8;
+
+    int byte_length = encode_utf8_raw(characters, character_length, bytes);
+    
+    *(int *)byte_array = byte_length;
+    byte_blob = realloc(byte_blob, 8 + 8 + byte_length);
+    
+    return byte_blob + 8;
+}
+
 
 extern void start();
 
