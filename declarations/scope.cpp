@@ -161,7 +161,7 @@ public:
             
         Scope::add(decl);
     }
-    
+
     virtual void allocate() {
         // Backward, because the last arguments align to [RBP+16]
         for (int i = contents.size() - 1; i >= 0; i--)

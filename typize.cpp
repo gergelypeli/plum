@@ -13,6 +13,7 @@ class Variable;
 class Function;
 
 class Value;
+class DeclarationValue;
 
 class TypeSpec: public std::vector<Type *> {
 public:
@@ -90,6 +91,7 @@ Value *typize(Expr *expr, Scope *scope);
 Value *convertible(TypeSpec to, Value *orig);
 TypeSpec get_typespec(Value *value);
 Variable *variable_cast(Declaration *decl);
+DeclarationValue *declaration_value_cast(Value *value);
 
 Value *make_function_return_value(Variable *result_var, Value *v);
 Value *make_variable_value(Variable *decl, Value *pivot);

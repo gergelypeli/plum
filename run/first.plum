@@ -49,4 +49,4 @@ start? :function as:
         zz? "ZZ"
         prints(zz)
     
-    prints("--")
+    print((xx? 1) + xx)

@@ -449,60 +449,55 @@ public:
 
 class BlockValue: public Value {
 public:
-    // FIXME: must keep kwarg order!
-    std::vector<std::unique_ptr<Value>> items;
-    std::map<std::string, std::unique_ptr<Value>> kwitems;
+    std::vector<std::unique_ptr<Value>> statements;
 
     BlockValue()
-        :Value(VOID_TS) {
+        :Value(VOID_TS) {  // Will be overridden
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        for (auto &arg : args)
-            items.push_back(std::unique_ptr<Value>(typize(arg.get(), scope)));
-            
-        for (auto &kv : kwargs)
-            kwitems.insert(decltype(kwitems)::value_type(kv.first, typize(kv.second.get(), scope)));
-            
-        if (items.size() == 1 && kwitems.size() == 0) {
-            throw INTERNAL_ERROR;  // This shouldn't happen anymore, blocks have at least 2 statements
-            //ts = items[0]->ts;  // maybe we should get this in the constructor instead?
+        if (args.size() < 2) {
+            std::cerr << "Weird, I thought tuples contain at least two expressions!\n";
+            throw INTERNAL_ERROR;
         }
 
-        //std::cerr << "BlockValue " << token << " ts: " << ts << "\n";
+        if (kwargs.size() > 0) {
+            std::cerr << "Labeled statements make no sense!\n";
+            throw TYPE_ERROR;
+        }
+        
+        for (auto &arg : args) {
+            Value *value = typize(arg.get(), scope);
+            
+            if (!declaration_value_cast(value))
+                value = make_code_value(value);
+                
+            statements.push_back(std::unique_ptr<Value>(value));
+        }
+            
+        ts = statements.back()->ts;  // TODO: rip code_type
+            
         return true;
     }
 
     virtual Regs precompile(Regs preferred) {
-        if (items.size() == 1 && kwitems.size() == 0)
-            return items[0]->precompile(preferred);
+        Regs clob;
+        
+        for (unsigned i = 0; i < statements.size() - 1; i++)
+            clob = clob | statements[i]->precompile();
+
+        clob = clob | statements.back()->precompile(preferred);
             
-        for (auto &item : items)
-            item->precompile();
-            
-        for (auto &kv : kwitems)
-            kv.second->precompile();
-            
-        return Regs::all();
+        return clob;
     }
 
     virtual Storage compile(X64 *x64) {
-        // FIXME: this works for a bunch of declarations, but not in general
-
-        if (items.size() == 1 && kwitems.size() == 0)
-            return items[0]->compile(x64);
-            
-        for (auto &item : items) {
-            item->compile_and_store(x64, Storage());
+        for (unsigned i = 0; i < statements.size() - 1; i++) {
+            statements[i]->compile_and_store(x64, Storage());
             x64->op(NOP);  // For readability
         }
-            
-        for (auto &kv : kwitems) {
-            kv.second->compile_and_store(x64, Storage());
-            x64->op(NOP);  // For readability
-        }
-            
-        return Storage();
+        
+        return statements.back()->compile(x64);
     }
 };
 
@@ -584,12 +579,14 @@ public:
                 var_ts = var_ts.prefix(reference_type);
             
             var_ts = var_ts.lvalue();
+            ts = var_ts;
             
             Variable *variable = new Variable(name, VOID_TS, var_ts);
             decl = variable;
         }
         else if (value->ts[0] != void_type) {
             TypeSpec var_ts = value->ts.lvalue();
+            ts = var_ts;
             
             Variable *variable = new Variable(name, VOID_TS, var_ts);
             decl = variable;
@@ -621,15 +618,20 @@ public:
             
             if (s.where != NOWHERE)
                 v->var_ts.store(s, t, x64);
+                
+            return v->get_storage(Storage(MEMORY, Address(RBP, 0)));
         }
-        else
+        else {
             value->compile_and_store(x64, Storage());
-        
-        // TODO: eventually this must manage the rollback labels, too.
-        return Storage();
+            return Storage();
+        }
     }
 };
 
+
+DeclarationValue *declaration_value_cast(Value *value) {
+    return dynamic_cast<DeclarationValue *>(value);
+}
 
 Value *convertible(TypeSpec to, Value *value) {
     return value ? value->ts.convertible(to, value) : NULL;
