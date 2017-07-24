@@ -157,7 +157,10 @@ public:
             return NULL;
 
         // Don't force a type conversion for and/or, those are polymorphic operations.
-        Value *cpivot = (operation == COMPLEMENT ? convertible(BOOLEAN_TS, pivot) : pivot);
+        Value *cpivot = (
+            operation == AND || operation == OR ? pivot :
+            convertible(pivot_ts, pivot)
+        );
 
         //std::cerr << "YYY: " << get_typespec(pivot) << " " << get_typespec(cpivot) << "\n";
             

@@ -634,7 +634,10 @@ DeclarationValue *declaration_value_cast(Value *value) {
 }
 
 Value *convertible(TypeSpec to, Value *value) {
-    return value ? value->ts.convertible(to, value) : NULL;
+    Value *v = value ? value->ts.convertible(to, value) : NULL;
+    //if (v)
+    //    std::cerr << "XXX " << value->ts << " is convertible to " << to << "\n";
+    return v;
 }
 
 

@@ -99,6 +99,11 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual bool is_unsigned(TypeSpecIter tsi) {
+        std::cerr << "Unsignable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
     virtual void store(TypeSpecIter this_tsi, Storage s, Storage t, X64 *x64) {
         std::cerr << "Unstorable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -146,8 +151,8 @@ public:
     unsigned size;
     int os;
 
-    BasicType(std::string n, unsigned pc, unsigned s)
-        :Type(n, pc) {
+    BasicType(std::string n, unsigned s)
+        :Type(n, 0) {
         size = s;
         os = (s == 1 ? 0 : s == 2 ? 1 : s == 4 ? 2 : s == 8 ? 3 : throw INTERNAL_ERROR);        
     }
@@ -305,6 +310,30 @@ public:
 };
 
 
+class SignedIntegerType: public BasicType {
+public:
+    SignedIntegerType(std::string n, unsigned s)
+        :BasicType(n, s) {
+    }
+    
+    virtual bool is_unsigned(TypeSpecIter tsi) {
+        return false;
+    }
+};
+
+
+class UnsignedIntegerType: public BasicType {
+public:
+    UnsignedIntegerType(std::string n, unsigned s)
+        :BasicType(n, s) {
+    }
+    
+    virtual bool is_unsigned(TypeSpecIter tsi) {
+        return true;
+    }
+};
+
+
 class ReferenceType: public Type {
 public:
     ReferenceType()
@@ -436,10 +465,10 @@ public:
 };
 
 
-class LvalueType: public Type {
+class AttributeType: public Type {
 public:
-    LvalueType()
-        :Type("<Lvalue>", 1) {
+    AttributeType(std::string n)
+        :Type(n, 1) {
     }
 
     virtual StorageWhere where(TypeSpecIter this_tsi) {
@@ -612,15 +641,23 @@ unsigned TypeSpec::measure() {
 }
 
 
+bool TypeSpec::is_unsigned() {
+    TypeSpecIter tsi(begin());
+    return (*tsi)->is_unsigned(tsi);
+}
+
+
 void TypeSpec::store(Storage s, Storage t, X64 *x64) {
     TypeSpecIter tsi(begin());
     return (*tsi)->store(tsi, s, t, x64);
 }
 
+
 void TypeSpec::create(Storage s, X64 *x64) {
     TypeSpecIter tsi(begin());
     return (*tsi)->create(tsi, s, x64);
 }
+
 
 void TypeSpec::destroy(Storage s, X64 *x64) {
     TypeSpecIter tsi(begin());

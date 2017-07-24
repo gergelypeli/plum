@@ -16,14 +16,9 @@ public:
             size == 8 ? 3 :
             throw INTERNAL_ERROR
         );
-        
-        Type *type = arg_ts[0];
-        is_unsigned = (
-            type == unsigned_integer_type ||
-            type == unsigned_integer32_type ||
-            type == unsigned_integer16_type ||
-            type == unsigned_integer8_type
-        );
+
+        if (operation != ASSIGN && operation != EQUAL && operation != NOT_EQUAL)
+            is_unsigned = arg_ts.is_unsigned();
     }
     
     virtual void exponentiation_by_squaring(X64 *x64) {

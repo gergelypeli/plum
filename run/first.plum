@@ -38,8 +38,8 @@ start? :function as:
     prints(s + s)
 
     # WTF, is this executed as boolean?
-    #s[3] = s[4]
-    #prints(s)
+    s[3] = s[4]
+    prints(s)
 
     z? Character Array
     prints(z || "Upsz")

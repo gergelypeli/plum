@@ -20,6 +20,7 @@ public:
     TypeSpec();
     TypeSpec(iterator tsi);
     unsigned measure();
+    bool is_unsigned();
     StorageWhere where();
     Storage boolval(Storage s, X64 *x64);
     Value *convertible(TypeSpec &other, Value *orig);
@@ -59,10 +60,12 @@ TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
-TypeSpec LVALUE_INTEGER_TS;
-TypeSpec LVALUE_BOOLEAN_TS;
+TypeSpec INTEGER_LVALUE_TS;
+TypeSpec BOOLEAN_LVALUE_TS;
 TypeSpec UNSIGNED_INTEGER8_TS;
 TypeSpec UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS;
+TypeSpec CHARACTER_TS;
+TypeSpec CHARACTER_LVALUE_TS;
 TypeSpec CHARACTER_ARRAY_REFERENCE_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
@@ -163,47 +166,47 @@ Scope *init_types() {
     type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);
 
-    lvalue_type = new LvalueType();
-    root_scope->add(lvalue_type);
-
-    function_type = new SpecialType("<Function>", 1);
-    root_scope->add(function_type);
-    
     void_type = new SpecialType("<Void>", 0);
     root_scope->add(void_type);
 
-    code_type = new BasicType("<Code>", 1, 8);
-    root_scope->add(code_type);
+    function_type = new AttributeType("<Function>");
+    root_scope->add(function_type);
 
-    boolean_type = new BasicType("Boolean", 0, 1);
+    lvalue_type = new AttributeType("<Lvalue>");
+    root_scope->add(lvalue_type);
+
+    code_type = new AttributeType("<Code>");
+    root_scope->add(code_type);
+    
+    boolean_type = new BasicType("Boolean", 1);
     root_scope->add(boolean_type);
 
-    integer_type = new BasicType("Integer", 0, 8);
+    character_type = new BasicType("Character", 2);
+    root_scope->add(character_type);
+
+    integer_type = new SignedIntegerType("Integer", 8);
     root_scope->add(integer_type);
     
-    integer32_type = new BasicType("Integer32", 0, 4);
+    integer32_type = new SignedIntegerType("Integer32", 4);
     root_scope->add(integer32_type);
     
-    integer16_type = new BasicType("Integer16", 0, 2);
+    integer16_type = new SignedIntegerType("Integer16", 2);
     root_scope->add(integer16_type);
     
-    integer8_type = new BasicType("Integer8", 0, 1);
+    integer8_type = new SignedIntegerType("Integer8", 1);
     root_scope->add(integer8_type);
 
-    unsigned_integer_type = new BasicType("Unsigned_Integer", 0, 8);
+    unsigned_integer_type = new UnsignedIntegerType("Unsigned_Integer", 8);
     root_scope->add(unsigned_integer_type);
     
-    unsigned_integer32_type = new BasicType("Unsigned_Integer32", 0, 4);
+    unsigned_integer32_type = new UnsignedIntegerType("Unsigned_Integer32", 4);
     root_scope->add(unsigned_integer32_type);
     
-    unsigned_integer16_type = new BasicType("Unsigned_Integer16", 0, 2);
+    unsigned_integer16_type = new UnsignedIntegerType("Unsigned_Integer16", 2);
     root_scope->add(unsigned_integer16_type);
     
-    unsigned_integer8_type = new BasicType("Unsigned_Integer8", 0, 1);
+    unsigned_integer8_type = new UnsignedIntegerType("Unsigned_Integer8", 1);
     root_scope->add(unsigned_integer8_type);
-
-    character_type = new BasicType("Character", 0, 2);
-    root_scope->add(character_type);
 
     reference_type = new ReferenceType();
     root_scope->add(reference_type);
@@ -215,14 +218,17 @@ Scope *init_types() {
     VOID_TS.push_back(void_type);
     BOOLEAN_TS.push_back(boolean_type);
     INTEGER_TS.push_back(integer_type);
-    LVALUE_INTEGER_TS.push_back(lvalue_type);
-    LVALUE_INTEGER_TS.push_back(integer_type);
-    LVALUE_BOOLEAN_TS.push_back(lvalue_type);
-    LVALUE_BOOLEAN_TS.push_back(boolean_type);
+    INTEGER_LVALUE_TS.push_back(lvalue_type);
+    INTEGER_LVALUE_TS.push_back(integer_type);
+    BOOLEAN_LVALUE_TS.push_back(lvalue_type);
+    BOOLEAN_LVALUE_TS.push_back(boolean_type);
     UNSIGNED_INTEGER8_TS.push_back(unsigned_integer8_type);
     UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(reference_type);
     UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(array_type);
     UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(unsigned_integer8_type);
+    CHARACTER_TS.push_back(character_type);
+    CHARACTER_LVALUE_TS.push_back(lvalue_type);
+    CHARACTER_LVALUE_TS.push_back(character_type);
     CHARACTER_ARRAY_REFERENCE_TS.push_back(reference_type);
     CHARACTER_ARRAY_REFERENCE_TS.push_back(array_type);
     CHARACTER_ARRAY_REFERENCE_TS.push_back(character_type);
@@ -252,10 +258,12 @@ Scope *init_types() {
             root_scope->add(new IntegerOperation(item.name, ts, item.operation));
     }
     
+    root_scope->add(new IntegerOperation("assign", CHARACTER_LVALUE_TS, ASSIGN));
+    
     root_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
     root_scope->add(new BooleanOperation("logical and", BOOLEAN_TS, AND));
     root_scope->add(new BooleanOperation("logical or", BOOLEAN_TS, OR));
-    root_scope->add(new BooleanOperation("assign", LVALUE_BOOLEAN_TS, ASSIGN));
+    root_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
     
     //root_scope->add(new BooleanIf());
     
@@ -400,7 +408,7 @@ Value *typize(Expr *expr, Scope *scope) {
             value = s->lookup(expr->text, p);
             
             if (value) {
-                std::cerr << "Checking   " << pts << " " << name << " as a " << value->ts << ".\n";
+                std::cerr << "Found      " << pts << " " << name << " returning " << value->ts << ".\n";
                 bool ok = value->check(expr->args, expr->kwargs, scope);
             
                 if (!ok) {
