@@ -109,6 +109,8 @@ Value *make_number_value(std::string text);
 Value *make_string_value(std::string text);
 Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Value *pivot);
 Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
+Value *make_boolean_and_value(Value *pivot);
+Value *make_boolean_or_value(Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
 Value *make_code_value(Value *orig);
@@ -261,9 +263,11 @@ Scope *init_types() {
     root_scope->add(new IntegerOperation("assign", CHARACTER_LVALUE_TS, ASSIGN));
     
     root_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
-    root_scope->add(new BooleanOperation("logical and", BOOLEAN_TS, AND));
-    root_scope->add(new BooleanOperation("logical or", BOOLEAN_TS, OR));
+    root_scope->add(new BooleanOperation("equal", BOOLEAN_TS, EQUAL));
+    root_scope->add(new BooleanOperation("not_equal", BOOLEAN_TS, NOT_EQUAL));
     root_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
+    root_scope->add(new BooleanOperation("logical and", VOID_TS, AND));
+    root_scope->add(new BooleanOperation("logical or", VOID_TS, OR));
     
     //root_scope->add(new BooleanIf());
     

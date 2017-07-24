@@ -149,7 +149,12 @@ public:
     
     virtual Value *matched(Value *cpivot) {
         //std::cerr << "YYY: " << cpivot->ts << "\n";
-        return make_boolean_operation_value(operation, cpivot);
+        if (operation == AND)
+            return make_boolean_and_value(cpivot);
+        else if (operation == OR)
+            return make_boolean_or_value(cpivot);
+        else
+            return make_boolean_operation_value(operation, cpivot);
     }
 
     virtual Value *match(std::string n, Value *pivot) {
@@ -158,8 +163,9 @@ public:
 
         // Don't force a type conversion for and/or, those are polymorphic operations.
         Value *cpivot = (
-            operation == AND || operation == OR ? pivot :
-            convertible(pivot_ts, pivot)
+            (operation == AND || operation == OR) && get_typespec(pivot) != VOID_TS ? pivot :
+            (operation != AND && operation != OR) ? convertible(pivot_ts, pivot) :
+            throw INTERNAL_ERROR
         );
 
         //std::cerr << "YYY: " << get_typespec(pivot) << " " << get_typespec(cpivot) << "\n";

@@ -701,6 +701,16 @@ Value *make_boolean_operation_value(NumericOperation o, Value *pivot) {
 }
 
 
+Value *make_boolean_and_value(Value *pivot) {
+    return new BooleanAndValue(pivot);
+}
+
+
+Value *make_boolean_or_value(Value *pivot) {
+    return new BooleanOrValue(pivot);
+}
+
+
 Value *make_boolean_if_value(Value *pivot) {
     return new BooleanIfValue(pivot);
 }

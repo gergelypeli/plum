@@ -1,76 +1,162 @@
 
-class BooleanOperationValue: public Value {
+class BooleanOperationValue: public GenericOperationValue {
 public:
-    NumericOperation operation;
-    std::unique_ptr<Value> pivot, arg;
+    BooleanOperationValue(NumericOperation o, Value *p)
+        :GenericOperationValue(o, BOOLEAN_TS, o == ASSIGN ? BOOLEAN_LVALUE_TS : BOOLEAN_TS, p) {
+    }
+    
+    virtual Storage complement(X64 *x64) {
+        subcompile(x64);
+        
+        switch (ls.where) {
+        case CONSTANT:
+            return Storage(CONSTANT, !ls.value);
+        case FLAGS:
+            return Storage(FLAGS, negate(ls.bitset));
+        case REGISTER:
+            x64->op(XORB, ls.reg, 1);
+            return Storage(REGISTER, ls.reg);
+        case MEMORY:
+            x64->op(MOVB, reg, ls.address);
+            x64->op(XORB, reg, 1);
+            return Storage(REGISTER, reg);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual Storage compare(X64 *x64) {
+        subcompile(x64);
+
+        switch (ls.where * rs.where) {
+        case CONSTANT_CONSTANT:
+            return Storage(CONSTANT, ls.value == rs.value);
+        case CONSTANT_FLAGS:
+            return Storage(FLAGS, ls.value ? rs.bitset : negate(rs.bitset));
+        case CONSTANT_REGISTER:
+            x64->op(CMPB, rs.reg, ls.value);
+            return Storage(FLAGS, SETE);
+        case CONSTANT_MEMORY:
+            x64->op(CMPB, rs.address, ls.value);
+            return Storage(FLAGS, SETE);
+        case FLAGS_CONSTANT:
+            return Storage(FLAGS, rs.value ? ls.bitset : negate(ls.bitset));
+        case REGISTER_CONSTANT:
+            x64->op(CMPB, ls.reg, rs.value);
+            return Storage(FLAGS, SETE);
+        case REGISTER_FLAGS:
+            x64->op(rs.bitset, BL);
+            x64->op(CMPB, ls.reg, BL);
+            return Storage(FLAGS, SETE);
+        case REGISTER_REGISTER:
+            x64->op(CMPB, ls.reg, rs.reg);
+            return Storage(FLAGS, SETE);
+        case REGISTER_MEMORY:
+            x64->op(CMPB, ls.reg, rs.address);
+            return Storage(FLAGS, SETE);
+        case MEMORY_CONSTANT:
+            x64->op(CMPB, ls.address, rs.value);
+            return Storage(FLAGS, SETE);
+        case MEMORY_FLAGS:
+            x64->op(rs.bitset, BL);
+            x64->op(CMPB, BL, ls.address);
+            return Storage(FLAGS, SETE);
+        case MEMORY_REGISTER:
+            x64->op(CMPB, rs.reg, ls.address);
+            return Storage(FLAGS, SETE);
+        case MEMORY_MEMORY:
+            x64->op(MOVB, reg, ls.address);
+            x64->op(CMPB, reg, rs.address);
+            return Storage(FLAGS, SETE);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual Storage assign(X64 *x64) {
+        subcompile(x64);
+
+        if (ls.where != MEMORY)
+            throw INTERNAL_ERROR;
+
+        switch (rs.where) {
+        case CONSTANT:
+            x64->op(MOVB, ls.address, rs.value);
+            return ls;
+        case FLAGS:
+            x64->op(rs.bitset, ls.address);
+            return ls;
+        case REGISTER:
+            x64->op(MOVB, ls.address, rs.reg);
+            return ls;
+        case MEMORY:
+            x64->op(MOVB, reg, rs.address);
+            x64->op(MOVB, ls.address, reg);
+            return ls;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual Storage compile(X64 *x64) {
+        switch (operation) {
+        case COMPLEMENT:
+            return complement(x64);
+        case EQUAL:
+            return compare(x64);
+        case NOT_EQUAL: {
+            Storage s = compare(x64);
+            if (s.where == CONSTANT)
+                return Storage(CONSTANT, !s.value);
+            else if (s.where == FLAGS)
+                return Storage(FLAGS, negate(s.bitset));
+            else
+                throw INTERNAL_ERROR;
+        }
+        case ASSIGN:
+            return assign(x64);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
+class BooleanOrValue: public Value {
+public:
+    std::unique_ptr<Value> left, right;
     Register reg;
     
-    BooleanOperationValue(NumericOperation o, Value *p)
-        :Value(o == COMPLEMENT ? BOOLEAN_TS : p->ts.rvalue()) {
-        // !T     => B
-        // T || U => T
-        // T && U => U (the second argument is our pivot, special handling!)
-        operation = o;
-        pivot.reset(p);
+    BooleanOrValue(Value *p)
+        :Value(p->ts.rvalue()) {
+        left.reset(p);
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (is_unary(operation)) {
-            if (args.size() != 0 || kwargs.size() != 0) {
-                std::cerr << "Whacky boolean not operation!\n";
-                return false;
-            }
-            
-            return true;
+        if (args.size() != 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky boolean or operation!\n";
+            return false;
         }
-        else {
-            if (args.size() != 1 || kwargs.size() != 0) {
-                std::cerr << "Whacky boolean binary operation!\n";
-                return false;
-            }
 
-            TypeSpec arg_ts = (operation == OR ? ts : BOOLEAN_TS);
-            Value *a = typize(args[0].get(), scope);
-            Value *ca;
+        Value *r = typize(args[0].get(), scope);
+        Value *cr = convertible(ts, r);
+    
+        if (!cr) {
+            ts = BOOLEAN_TS;
             
-            if (operation == OR) {
-                ca = convertible(ts, a);
-        
-                if (!ca) {
-                    std::cerr << "Incompatible right argument to logical or operation!\n";
-                    return false;
-                }
-            }
-            else if (operation == AND) {
-                ca = convertible(BOOLEAN_TS, a);
-        
-                if (!ca) {
-                    // Yes, this is the left argument according to the user
-                    std::cerr << "Non-valued left argument to logical and operation!\n";
-                    return false;
-                }
-            }
-            else if (operation == ASSIGN) {
-                ca = convertible(BOOLEAN_TS, a);
-        
-                if (!ca) {
-                    std::cerr << "Non-boolean right argument to logical assignment operation!\n";
-                    return false;
-                }
-            }
-            else
-                throw INTERNAL_ERROR;
-        
-            arg.reset(ca);
-            return true;
+            Value *l = left.release();
+            l = convertible(ts, l);
+            left.reset(l);
+            
+            cr = convertible(ts, r);
         }
+    
+        right.reset(cr);
+        return true;
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clobbered = pivot->precompile(preferred);
-        
-        if (arg)
-            clobbered = clobbered | arg->precompile(preferred);
+        Regs clobbered = left->precompile(preferred) | right->precompile(preferred);
         
         // This won't be bothered by either branches
         reg = preferred.get_gpr();
@@ -80,155 +166,145 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        if (operation == COMPLEMENT) {
-            // Just complement a boolean value
-            Storage ps = pivot->compile(x64);
-            
-            switch (ps.where) {
-            case CONSTANT:
-                return Storage(CONSTANT, !ps.value);
-            case FLAGS:
-                return Storage(FLAGS, negate(ps.bitset));
-            case REGISTER:
-                x64->op(CMPB, ps.reg, 0);
-                return Storage(FLAGS, SETNE);
-            case MEMORY:
-                x64->op(CMPB, ps.address, 0);
-                return Storage(FLAGS, SETNE);
-            default:
-                throw INTERNAL_ERROR;
+        // Evaluate pivot (left), and check its boolean value without converting.
+        // If true, return it. If false, evaluate arg (right), and return that.
+
+        StorageWhere where = ts.where();
+        Storage s = (
+            where == REGISTER ? Storage(REGISTER, reg) :
+            where == STACK ? Storage(STACK) :
+            throw INTERNAL_ERROR
+        );
+        
+        left->compile_and_store(x64, s);
+        
+        Storage bs = ts.boolval(s, x64);
+        Label else_end;
+        
+        switch (bs.where) {
+        case CONSTANT:
+            if (bs.value)
+                return s;
+            else {
+                ts.store(s, Storage(), x64);
+                right->compile_and_store(x64, s);
+                return s;
             }
-        }
-        else if (operation == AND) {
-            // Evaluate arg (left), which is boolean. It true, evaluate pivot (right),
-            // and return it. If false, return the clear value of the pivot type.
-            
-            StorageWhere where = pivot->ts.where();
-            Storage s = (
-                where == REGISTER ? Storage(REGISTER, reg) :
-                where == STACK ? Storage(STACK) :
-                throw INTERNAL_ERROR
-            );
-            
-            Storage as = arg->compile(x64);
-            Label then_end;
-            Label else_end;
-            
-            switch (as.where) {
-            case CONSTANT:
-                if (as.value)
-                    return pivot->compile(x64);
-                else {
-                    // By the way, this is a compile time decision, so it
-                    // doesn't need to be sync with any "other" branch.
-                    pivot->ts.create(s, x64);
-                    return s;
-                }
-            case FLAGS:
-                x64->op(branchize(negate(as.bitset)), then_end);
-                break;
-            case REGISTER:
-                x64->op(CMPB, as.reg, 0);
-                x64->op(JE, then_end);
-                break;
-            case MEMORY:
-                x64->op(CMPB, as.address, 0);
-                x64->op(JE, then_end);
-                break;
-            default:
-                throw INTERNAL_ERROR;
-            }
-
-            // Then branch, evaluate the main expression
-            pivot->compile_and_store(x64, s);
-            x64->op(JMP, else_end);
-            x64->code_label(then_end);
-            
-            // Else branch, create a clear value of the main type (use the same storage)
-            pivot->ts.create(s, x64);
-            x64->code_label(else_end);
-            
-            return s;
-        }
-        else if (operation == OR) {
-            // Evaluate pivot (left), and check its boolean value without converting.
-            // If true, return it. If false, evaluate arg (right), and return that.
-
-            StorageWhere where = pivot->ts.where();
-            Storage s = (
-                where == REGISTER ? Storage(REGISTER, reg) :
-                where == STACK ? Storage(STACK) :
-                throw INTERNAL_ERROR
-            );
-            
-            pivot->compile_and_store(x64, s);
-            
-            Storage bs = pivot->ts.boolval(s, x64);
-            Label else_end;
-            
-            switch (bs.where) {
-            case CONSTANT:
-                if (bs.value)
-                    return s;
-                else {
-                    pivot->ts.store(s, Storage(), x64);
-                    arg->compile_and_store(x64, s);
-                    return s;
-                }
-            case FLAGS:
-                x64->op(branchize(bs.bitset), else_end);
-                break;
-            case REGISTER:
-                x64->op(CMPB, bs.reg, 0);
-                x64->op(JNE, else_end);
-                break;
-            default:
-                throw INTERNAL_ERROR;
-            }
-
-            // These boolean storage types can be just thrown away
-
-            // Our then branch is empty, we just return the previously computed value
-
-            // Else branch, evaluate the arg, and return that (use the same storage)
-            pivot->ts.store(s, Storage(), x64);
-            arg->compile_and_store(x64, s);
-            x64->code_label(else_end);
-            
-            return s;
-        }
-        else if (operation == ASSIGN) {
-            Storage ps = pivot->compile(x64);
-
-            if (ps.where != MEMORY)
-                throw INTERNAL_ERROR;
-                
-            Storage as = arg->compile(x64);
-            
-            switch (as.where) {
-            case CONSTANT:
-                x64->op(MOVB, ps.address, as.value);
-                break;
-            case FLAGS:
-                x64->op(as.bitset, ps.address);
-                break;
-            case REGISTER:
-                x64->op(MOVB, ps.address, as.reg);
-                break;
-            case MEMORY:
-                x64->op(MOVB, reg, as.address);
-                x64->op(MOVB, ps.address, reg);
-                break;
-            default:
-                throw INTERNAL_ERROR;
-            }
-            
-            return ps;
-        }
-        else {
-            std::cerr << "Unknown boolean operator!\n";
+        case FLAGS:
+            x64->op(branchize(bs.bitset), else_end);
+            break;
+        case REGISTER:
+            x64->op(CMPB, bs.reg, 0);
+            x64->op(JNE, else_end);
+            break;
+        default:
             throw INTERNAL_ERROR;
         }
+
+        // These boolean storage types can be just thrown away
+
+        // Our then branch is empty, we just return the previously computed value
+
+        // Else branch, evaluate the arg, and return that (use the same storage)
+        ts.store(s, Storage(), x64);
+        right->compile_and_store(x64, s);
+        x64->code_label(else_end);
+        
+        return s;
+    }
+};
+
+
+class BooleanAndValue: public Value {
+public:
+    std::unique_ptr<Value> left, right;
+    Register reg;
+    
+    BooleanAndValue(Value *p)
+        :Value(VOID_TS) {  // Will be overridden
+        left.reset(p);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky boolean and operation!\n";
+            return false;
+        }
+
+        left.reset(convertible(BOOLEAN_TS, left.release()));
+        
+        if (!left) {
+            std::cerr << "Non-valuable left operand to boolean and operation!\n";
+            return false;
+        }
+
+        Value *r = typize(args[0].get(), scope);
+        ts = r->ts.rvalue();
+        right.reset(r);
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clobbered = left->precompile(preferred) | right->precompile(preferred);
+        
+        // This won't be bothered by either branches
+        reg = preferred.get_gpr();
+        clobbered.add(reg);
+        
+        return clobbered;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        // Evaluate arg (left), which is boolean. It true, evaluate pivot (right),
+        // and return it. If false, return the clear value of the pivot type.
+        
+        StorageWhere where = ts.where();
+        Storage s = (
+            where == REGISTER ? Storage(REGISTER, reg) :
+            where == STACK ? Storage(STACK) :
+            throw INTERNAL_ERROR
+        );
+        
+        Storage ls = left->compile(x64);
+        Label then_end;
+        Label else_end;
+        
+        switch (ls.where) {
+        case CONSTANT:
+            if (ls.value)
+                return right->compile(x64);
+            else {
+                // By the way, this is a compile time decision, so it
+                // doesn't need to be sync with any "other" branch.
+                ts.create(s, x64);
+                return s;
+            }
+        case FLAGS:
+            x64->op(branchize(negate(ls.bitset)), then_end);
+            break;
+        case REGISTER:
+            x64->op(CMPB, ls.reg, 0);
+            x64->op(JE, then_end);
+            break;
+        case MEMORY:
+            x64->op(CMPB, ls.address, 0);
+            x64->op(JE, then_end);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        // Then branch, evaluate the right expression
+        right->compile_and_store(x64, s);
+        x64->op(JMP, else_end);
+        x64->code_label(then_end);
+        
+        // Else branch, create a clear value of the right type (use the same storage)
+        ts.create(s, x64);
+        x64->code_label(else_end);
+        
+        return s;
     }
 };
 

@@ -14,6 +14,7 @@ enum Precedence {
     ADDITIVE,
     MULTIPLICATIVE,
     EXPONENTIAL,
+    UNARY,
     TEXTUAL,
     LITERAL
 };
@@ -33,6 +34,7 @@ const char *print_precedence(Precedence p) {
         p == ADDITIVE ? "ADDITIVE" :
         p == MULTIPLICATIVE ? "MULTIPLICATIVE" :
         p == EXPONENTIAL ? "EXPONENTIAL" :
+        p == UNARY ? "UNARY" :
         p == TEXTUAL ? "TEXTUAL" :
         p == LITERAL ? "LITERAL" :
         "???"
@@ -102,7 +104,7 @@ struct {
     Precedence precedence;
 } operators[] = {
     { "**",  "exponent", EXPONENTIAL },  // TODO: do we need this?
-    { "~",   "tilde", EXPONENTIAL },  // Special handling
+    { "~",   "tilde", EXPONENTIAL },
     { "<<",  "shift_left", EXPONENTIAL },
     { ">>",  "shift_right", EXPONENTIAL },
 
@@ -112,7 +114,7 @@ struct {
     { "&",   "and", MULTIPLICATIVE },
 
     { "+",   "plus", ADDITIVE },
-    { "-",   "minus", ADDITIVE },  // Special handling
+    { "-",   "minus", ADDITIVE },
     { "|",   "or", ADDITIVE },
     { "^",   "xor", ADDITIVE },
 
@@ -191,7 +193,8 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         
         if (isdigit(c) || c == '.') {
             type = Node::NUMBER;
-            back = fore = LITERAL;
+            back = LITERAL;
+            fore = LITERAL;
             text = token.text;
         }
         else if (c == ':') {
@@ -330,9 +333,27 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             for (auto op : operators) {
                 if (op.token == token.text) {
                     type = Node::IDENTIFIER;
-                    back = op.precedence;
-                    fore = op.precedence;
-                    text = op.text;
+                    
+                    if (nodes.back().fore < UNARY) {
+                        if (op.precedence < ADDITIVE) {
+                            std::cerr << "Operator " << op.text << " cannot be unary!\n";
+                            throw TREE_ERROR;
+                        }
+                        
+                        // This operator either follows another, or the first one
+                        // in an expression. We will treat it as a unary prefix operator,
+                        // instead of nagging the user for using unreasonable parentheses.
+                        text = "unary_";
+                        text += op.text;
+                        back = UNARY;
+                        fore = UNARY;
+                    }
+                    else {
+                        text = op.text;
+                        back = op.precedence;
+                        fore = op.precedence;
+                    }
+                    
                     break;
                 }
             }

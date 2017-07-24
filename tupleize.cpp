@@ -161,34 +161,23 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         return e;
     }
     else if (node.type == Node::IDENTIFIER) {
-        // Special handling for some operators
-        if (node.fore != TEXTUAL) {
-            bool swap = false;
-
-            if (node.text == "logical and")
-                swap = true;
-                
-            if ((node.text == "minus" || node.text == "tilde") && !node.left && !node.right) {
-                node.text = "unary_" + node.text;
-                swap = true;
-            }
-            
-            if (swap) {
-                int x = node.left;
-                node.left = node.right;
-                node.right = x;
-            }
-        }
-
         Expr *e = new Expr(Expr::IDENTIFIER, node.token, node.text);
     
-        if (node.left) {
-            Expr *l = tupleize(nodes, node.left);
-            e->set_pivot(l);
+        if (node.fore == UNARY) {
+            if (node.right) {
+                Expr *r = tupleize(nodes, node.right);
+                e->set_pivot(r);
+            }
         }
+        else {
+            if (node.left) {
+                Expr *l = tupleize(nodes, node.left);
+                e->set_pivot(l);
+            }
         
-        if (node.right) {
-            tupleize_into(e, nodes, node.right);
+            if (node.right) {
+                tupleize_into(e, nodes, node.right);
+            }
         }
 
         return e;
