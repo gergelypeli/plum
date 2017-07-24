@@ -60,43 +60,57 @@ void *memrealloc(void *m, long size) {
     return x;
 }
 
+
+void *allocate_array(long length, long size) {
+    void *blob = malloc(8 + 8 + length * size);
+    *(long *)blob = 1;
+    void *array = blob + 8;
+    *(long *)array = length;
+    allocation_count += 1;
+    return array;
+}
+
+
+void *reallocate_array(void *array, long length, long size) {
+    array = realloc(array - 8, 8 + 8 + length * size) + 8;
+    *(long *)array = length;
+    return array;
+}
+
+
 void *decode_utf8(void *byte_array) {
-    int byte_length = *(int *)byte_array;
+    long byte_length = *(long *)byte_array;
     char *bytes = byte_array + 8;
 
-    void *character_blob = malloc(8 + 8 + byte_length * 2);
-    *(int *)character_blob = 1;
-    void *character_array = character_blob + 8;
+    void *character_array = allocate_array(byte_length, 2);
     unsigned short *characters = character_array + 8;
     
-    int character_length = decode_utf8_raw(bytes, byte_length, characters);
+    long character_length = decode_utf8_raw(bytes, byte_length, characters);
     
-    *(int *)character_array = character_length;
-    character_blob = realloc(character_blob, 8 + 8 + character_length * 2);
-    
-    allocation_count += 1;
-    return character_blob + 8;
+    return reallocate_array(character_array, character_length, 2);
 }
 
 
 void *encode_utf8(void *character_array) {
-    int character_length = *(int *)character_array;
+    long character_length = *(long *)character_array;
     unsigned short *characters = character_array + 8;
     
-    void *byte_blob = malloc(8 + 8 + character_length * 3);
-    *(int *)byte_blob = 1;
-    void *byte_array = byte_blob + 8;
+    void *byte_array = allocate_array(character_length * 3, 1);
     char *bytes = byte_array + 8;
 
-    int byte_length = encode_utf8_raw(characters, character_length, bytes);
+    long byte_length = encode_utf8_raw(characters, character_length, bytes);
     
-    *(int *)byte_array = byte_length;
-    byte_blob = realloc(byte_blob, 8 + 8 + byte_length);
-    
-    allocation_count += 1;
-    return byte_blob + 8;
+    return reallocate_array(byte_array, byte_length, 1);
 }
 
+#define STRINGIFY(fmt, val) \
+    char byte_array[40]; \
+    *(long *)byte_array = snprintf(byte_array + 8, sizeof(byte_array) - 8, fmt, val); \
+    return decode_utf8(byte_array);
+
+void *stringify_integer(long x) {
+    STRINGIFY("%ld", x);
+}
 
 extern void start();
 

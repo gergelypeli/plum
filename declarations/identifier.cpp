@@ -113,12 +113,23 @@ public:
         return (unsigned)-1;
     }
 
-    virtual void import(X64 *x64) {
-        is_sysv = true;
-        x64->code_label_import(x64_label, name);  // TODO: mangle import name!
+    virtual void allocate() {
+    }
+};
+
+
+class ImportedFunction: public Function {
+public:
+    std::string import_name;
+    
+    ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, TypeSpec rts)
+        :Function(n, pts, ats, ans, rts) {
+        import_name = in;
     }
 
-    virtual void allocate() {
+    virtual void import(X64 *x64) {
+        is_sysv = true;
+        x64->code_label_import(x64_label, import_name);
     }
 };
 

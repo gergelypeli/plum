@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
 
     // Must mark imported functions first as sysv
     for (auto &decl : root_scope->contents) {
-        Function *f = dynamic_cast<Function *>(decl.get());
+        ImportedFunction *f = dynamic_cast<ImportedFunction *>(decl.get());
         if (f)
             f->import(x64);
     }

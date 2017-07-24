@@ -59,9 +59,8 @@ public:
         x64->op(SUBQ, RSP, frame_size);
         
         body->compile_and_store(x64, Storage());
+        x64->op(NOP);
         
-        // TODO: destructors
-        //x64->code_label(fn_scope->body_scope->get_rollback_label());
         Storage s(MEMORY, Address(RBP, 0));
         fn_scope->finalize_scope(s, x64);
         
