@@ -42,7 +42,8 @@ start? :function as:
     prints(s)
 
     z? Character Array
-    prints(z || "Upsz")
+    prints(z || "Ez tök 대박")
+    printb("Ez tök 대박" encode_utf8)
 
     #(1, 2) + (3, 4)
 

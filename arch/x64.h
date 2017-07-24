@@ -363,8 +363,9 @@ public:
     std::vector<Ref> refs;
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
-    Label alloc_RAX_label;
-    Label alloc_function_x64_label, free_function_x64_label;
+    Label alloc_RAX_label, realloc_RAX_RBX_label;
+    //Label alloc_function_x64_label, free_function_x64_label, realloc_function_x64_label;
+    Label memalloc_label, memfree_label, memrealloc_label;
     std::vector<Label> incref_labels, decref_labels;
     
     void add_def(Label label, const Def &def);
@@ -450,6 +451,9 @@ public:
     void popa(bool except_rax = false);
     void incref(Register reg);
     void decref(Register reg);
-    void init_memory_management(Label al, Label fl);
+    void getref(Register reg);
+    void cmpref(Register reg, int count);
+    void init_memory_management();
     void alloc();
+    void realloc();
 };

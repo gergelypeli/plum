@@ -397,12 +397,12 @@ public:
 class ArrayConcatenationValue: public GenericOperationValue {
 public:
     ArrayConcatenationValue(TypeSpec t, Value *l)
-        :GenericOperationValue(ADD /*FIXME*/, t, t, l) {
+        :GenericOperationValue(TWEAK, t, t, l) {
     }
 
     virtual Regs precompile(Regs preferred) {
-        GenericOperationValue::precompile(preferred);
-        return Regs().add(RAX).add(RBX).add(RCX).add(RSI).add(RDI);
+        Regs clob = GenericOperationValue::precompile(preferred);
+        return clob.add(RAX).add(RBX).add(RCX).add(RSI).add(RDI);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -443,6 +443,57 @@ public:
         left->ts.store(Storage(STACK), Storage(), x64);
         
         return Storage(REGISTER, RAX);
+    }
+};
+
+
+class ArrayReallocValue: public GenericOperationValue {
+public:
+    ArrayReallocValue(TypeSpec t, Value *l)
+        :GenericOperationValue(TWEAK, INTEGER_TS, VOID_TS, l) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = GenericOperationValue::precompile(preferred);
+        return clob.add(RAX).add(RBX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        // TODO: this only works for arrays of basic types now, that can be just copied
+        // TODO: don't inline this either
+        Label end;
+        int size = item_size(ts.unprefix(reference_type).unprefix(array_type).measure());
+        
+        subcompile(x64);
+        
+        if (ls.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        switch (rs.where) {
+        case CONSTANT:
+            x64->op(MOVQ, RBX, rs.value * size + 8);
+            break;
+        case REGISTER:
+            x64->op(IMUL3Q, RBX, rs.reg, size);
+            x64->op(ADDQ, RBX, 8);
+            break;
+        case MEMORY:
+            x64->op(IMUL3Q, RBX, rs.address, size);
+            x64->op(ADDQ, RBX, 8);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+            
+        x64->op(MOVQ, RAX, ls.address);
+        x64->cmpref(RAX, 1);
+        x64->op(JNE, end);
+        
+        x64->realloc();
+        
+        x64->op(MOVQ, ls.address, RAX);
+        
+        return Storage();
     }
 };
 
@@ -733,4 +784,8 @@ Value *make_array_item_value(TypeSpec t, Value *array) {
 
 Value *make_array_concatenation_value(TypeSpec t, Value *array) {
     return new ArrayConcatenationValue(t, array);
+}
+
+Value *make_array_realloc_value(TypeSpec t, Value *array) {
+    return new ArrayReallocValue(t, array);
 }

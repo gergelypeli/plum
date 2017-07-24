@@ -72,6 +72,7 @@ typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
 enum NumericOperation {
+    TWEAK,
     COMPLEMENT, NEGATE,
     ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
     OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
@@ -116,6 +117,7 @@ Value *make_converted_value(TypeSpec to, Value *orig);
 Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
 Value *make_array_concatenation_value(TypeSpec t, Value *array);
+Value *make_array_realloc_value(TypeSpec t, Value *array);
 
 
 #include "declarations/declaration.cpp"
@@ -242,6 +244,7 @@ Scope *init_types() {
     std::vector<TypeSpec> UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS = { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS };
     std::vector<TypeSpec> CHARACTER_ARRAY_REFERENCE_TSS = { CHARACTER_ARRAY_REFERENCE_TS };
     
+    std::vector<std::string> no_names = { };
     std::vector<std::string> value_names = { "value" };
 
     for (Type *t : {
@@ -275,8 +278,11 @@ Scope *init_types() {
     root_scope->add(new ArrayConcatenation(CHARACTER_ARRAY_REFERENCE_TS));
 
     root_scope->add(new Function("print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
-    root_scope->add(new Function("prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
     root_scope->add(new Function("printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
+    root_scope->add(new Function("printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
+    root_scope->add(new Function("prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
+    root_scope->add(new Function("decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, CHARACTER_ARRAY_REFERENCE_TS));
+    root_scope->add(new Function("encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS));
 
     return root_scope;
 }

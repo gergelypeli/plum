@@ -65,18 +65,6 @@ int main(int argc, char **argv) {
             f->import(x64);
     }
     
-    // This one is not part of the user scope
-    std::vector<TypeSpec> no_types;
-    std::vector<std::string> no_names;
-    Function *alloc_function = new Function("memalloc", VOID_TS, no_types, no_names, VOID_TS);
-    Function *free_function = new Function("memfree", VOID_TS, no_types, no_names, VOID_TS);
-    alloc_function->allocate();
-    alloc_function->import(x64);
-    free_function->allocate();
-    free_function->import(x64);
-    
-    x64->init_memory_management(alloc_function->x64_label, free_function->x64_label);
-    
     value_root->precompile();
     value_root->compile(x64);
     

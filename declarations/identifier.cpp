@@ -212,3 +212,15 @@ public:
         return make_array_concatenation_value(pivot_ts, cpivot);
     }
 };
+
+
+class ArrayReallocation: public Identifier {
+public:
+    ArrayReallocation(TypeSpec t)
+        :Identifier("realloc", t) {
+    }
+    
+    virtual Value *matched(Value *cpivot) {
+        return make_array_realloc_value(pivot_ts, cpivot);
+    }
+};

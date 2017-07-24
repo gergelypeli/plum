@@ -32,6 +32,16 @@ void prints(void *s) {
         printf("(null)\n");
 }
 
+void printb(void *s) {
+    if (s) {
+        int len = *(int *)s;
+        char *bytes = s + 8;
+        printf("%.*s\n", len, bytes);
+    }
+    else
+        printf("(null)\n");
+}
+
 void *memalloc(long size) {
     allocation_count += 1;
     void *x = malloc(size);
@@ -45,6 +55,10 @@ void memfree(void *m) {
     free(m);
 }
 
+void *memrealloc(void *m, long size) {
+    void *x = realloc(m, size);
+    return x;
+}
 
 void *decode_utf8(void *byte_array) {
     int byte_length = *(int *)byte_array;
@@ -60,6 +74,7 @@ void *decode_utf8(void *byte_array) {
     *(int *)character_array = character_length;
     character_blob = realloc(character_blob, 8 + 8 + character_length * 2);
     
+    allocation_count += 1;
     return character_blob + 8;
 }
 
@@ -78,6 +93,7 @@ void *encode_utf8(void *character_array) {
     *(int *)byte_array = byte_length;
     byte_blob = realloc(byte_blob, 8 + 8 + byte_length);
     
+    allocation_count += 1;
     return byte_blob + 8;
 }
 

@@ -56,8 +56,9 @@ Address Address::operator + (int x) {
 }
 
 
-X64::X64()
-    :alloc_function_x64_label(true), free_function_x64_label(true) {
+X64::X64() {
+    init_memory_management();
+    //:alloc_function_x64_label(true), free_function_x64_label(true), realloc_function_x64_label(true) {
 }
 
 
@@ -972,9 +973,14 @@ void X64::popa(bool except_rax) {
         op(POPQ, RAX);
 }
 
-void X64::init_memory_management(Label al, Label fl) {
-    alloc_function_x64_label = al;
-    free_function_x64_label = fl;
+void X64::init_memory_management() {
+    code_label_import(memalloc_label, "memalloc");
+    code_label_import(memfree_label, "memfree");
+    code_label_import(memrealloc_label, "memrealloc");
+
+    //alloc_function_x64_label = al;
+    //free_function_x64_label = fl;
+    //realloc_function_x64_label = rl;
 
     incref_labels.resize(REGISTER_COUNT);
     decref_labels.resize(REGISTER_COUNT);
@@ -1000,7 +1006,7 @@ void X64::init_memory_management(Label al, Label fl) {
         // TODO
         pusha();
         op(LEA, RDI, Address(reg, -HEAP_HEADER_SIZE));
-        op(CALL, free_function_x64_label);
+        op(CALL, memfree_label);
         popa();
     
         code_label(dl);
@@ -1010,9 +1016,18 @@ void X64::init_memory_management(Label al, Label fl) {
     code_label_export(alloc_RAX_label, "alloc_RAX", 0, false);
     pusha(true);
     op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
-    op(CALL, alloc_function_x64_label);
+    op(CALL, memalloc_label);
     op(LEA, RAX, Address(RAX, HEAP_HEADER_SIZE));
     op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
+    popa(true);
+    op(RET);
+    
+    code_label_export(realloc_RAX_RBX_label, "realloc_RAX_RBX", 0, false);
+    pusha(true);
+    op(LEA, RDI, Address(RAX, -HEAP_HEADER_SIZE));
+    op(LEA, RSI, Address(RBX, +HEAP_HEADER_SIZE));
+    op(CALL, memrealloc_label);
+    op(LEA, RAX, Address(RAX, HEAP_HEADER_SIZE));
     popa(true);
     op(RET);
 }
@@ -1031,6 +1046,24 @@ void X64::decref(Register reg) {
     op(CALL, decref_labels[reg]);
 }
 
+void X64::getref(Register reg) {
+    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI)
+        throw X64_ERROR;
+
+    op(MOVQ, reg, Address(reg, HEAP_REFCOUNT_OFFSET));
+}
+
+void X64::cmpref(Register reg, int count) {
+    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI)
+        throw X64_ERROR;
+
+    op(CMPQ, Address(reg, HEAP_REFCOUNT_OFFSET), count);
+}
+
 void X64::alloc() {
     op(CALL, alloc_RAX_label);
+}
+
+void X64::realloc() {
+    op(CALL, realloc_RAX_RBX_label);
 }
