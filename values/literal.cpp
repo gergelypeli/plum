@@ -42,14 +42,12 @@ public:
 
 class StringValue: public Value {
 public:
-    std::vector<unsigned short> characters;
+    std::string text;
     Register reg;
     
-    StringValue(std::string text)
+    StringValue(std::string t)
         :Value(CHARACTER_ARRAY_REFERENCE_TS) {
-        characters.resize(text.size());
-        int charlen = decode_utf8_raw(text.data(), text.size(), characters.data());
-        characters.resize(charlen);
+        text = t;
     }
 
     virtual Regs precompile(Regs) {
@@ -59,6 +57,11 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        std::vector<unsigned short> characters;
+        characters.resize(text.size());
+        int charlen = decode_utf8_raw(text.data(), text.size(), characters.data());
+        characters.resize(charlen);
+
         Label l;
         
         x64->data_label(l);
@@ -76,4 +79,10 @@ public:
         
         return Storage(REGISTER, RAX);
     }
+};
+
+
+class StringInterpolationValue: public Value {
+public:
+    
 };

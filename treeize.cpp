@@ -365,7 +365,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         }
         
         int n = nodes.size();
-        std::cerr << "Token " << token.text << " => " << n << "\n";
+        //std::cerr << "Token " << token.text << " => " << n << "\n";
 
         nodes.push_back(Node(type, text, back, fore, token));
         
@@ -373,14 +373,12 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             if (nodes[i].fore > back)  // || (nodes[i].precedence == back && !is_right_associative(back)))
                 continue;
             else if (nodes[i].fore == back) {
-                if (back == LITERAL) {
-                    std::cerr << "Literals can't follow each other at " << token << "!\n";
-                    throw TREE_ERROR;
-                }
-                else if (back == BASE)
-                    nodes[i].fore = nodes[i].back;
-                else
+                if (back != BASE)
                     continue;
+
+                // A group is closed. Insert the CLOSE node so that it becomes the last one,
+                // and the next operator won't traverse into the enclosed nodes.
+                nodes[i].fore = LITERAL;
             }
 
             // nodes[i] will be our parent, and we'll be its right child

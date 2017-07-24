@@ -130,8 +130,12 @@ public:
 
 class ArrayConcatenationValue: public GenericOperationValue {
 public:
-    ArrayConcatenationValue(TypeSpec t, Value *l)
+    ArrayConcatenationValue(TypeSpec t, Value *l, Value *other)
         :GenericOperationValue(TWEAK, t, t, l) {
+        if (other) {
+            // This shortcut is used in string interpolation only
+            right.reset(other);
+        }
     }
 
     virtual Regs precompile(Regs preferred) {

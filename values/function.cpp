@@ -80,6 +80,7 @@ public:
     Function *function;
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> items;  // FIXME
+    Register reg;
     
     FunctionValue(Function *f, Value *p)
         :Value(f->get_return_typespec()) {
@@ -176,12 +177,14 @@ public:
         x64->op(MOVQ, Address(ESP, passed_size), RAX);
     }
     
-    virtual Regs precompile(Regs) {
+    virtual Regs precompile(Regs preferred) {
         if (pivot)
             pivot->precompile();
         
         for (auto &item : items)
             item->precompile();
+        
+        reg = preferred.get_gpr();
         
         return Regs::all();  // assume everything is clobbered
     }
@@ -223,8 +226,17 @@ public:
             pivot->ts.store(Storage(STACK), Storage(), x64);
             
         //std::cerr << "Compiled call of " << function->name << ".\n";
-        // FIXME: basic types mustn't be returned as STACK anymore, implement!
-        return ret_size ? Storage(STACK) : Storage();
+        switch (ts.where()) {
+        case NOWHERE:
+            return Storage();
+        case REGISTER:
+            ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
+            return Storage(REGISTER, reg);
+        case STACK:
+            return Storage(STACK);
+        default:
+            throw INTERNAL_ERROR;
+        }
     }
 };
 

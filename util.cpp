@@ -20,3 +20,23 @@ unsigned stack_size(unsigned size) {
 unsigned item_size(unsigned size) {
     return size <= 2 ? size : size <= 4 ? 4 : size <= 8 ? 8 : stack_size(size);
 }
+
+
+std::vector<std::string> brace_split(std::string s) {
+    std::vector<std::string> fragments;
+    unsigned p = 0;
+    bool inside = false;
+    
+    for (unsigned i = 0; i < s.size(); i++) {
+        if (s[i] != (inside ? '}' : '{'))
+            continue;
+            
+        fragments.push_back(s.substr(p, i - p));
+        p = i + 1;
+        inside = !inside;
+    }
+    
+    fragments.push_back(s.substr(p, s.size() - p));
+    
+    return fragments;
+}

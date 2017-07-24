@@ -116,7 +116,7 @@ Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
 Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
-Value *make_array_concatenation_value(TypeSpec t, Value *array);
+Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other = NULL);
 Value *make_array_realloc_value(TypeSpec t, Value *array);
 
 
@@ -290,6 +290,33 @@ Scope *init_types() {
 }
 
 
+Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token &token, Scope *scope) {
+    TypeSpec pts = pivot ? pivot->ts : VOID_TS;
+    std::cerr << "Looking up " << pts << " " << name << " definition.\n";
+    
+    for (Scope *s = scope; s; s = s->outer_scope) {
+        //std::cerr << "Trying a scope...\n";
+        Value *value = s->lookup(name, pivot);
+        
+        if (value) {
+            std::cerr << "Found      " << pts << " " << name << " returning " << value->ts << ".\n";
+            bool ok = value->check(args, kwargs, scope);
+        
+            if (!ok) {
+                std::cerr << "Argument problem for " << token << "!\n";
+                throw TYPE_ERROR;
+            }
+
+            std::cerr << "Accepted   " << pts << " " << name << " arguments.\n";
+            return value;
+        }
+    }
+    
+    std::cerr << "No match for " << pts << " " << name << " at " << token << "!\n";
+    throw TYPE_ERROR;
+}
+
+
 Value *typize(Expr *expr, Scope *scope) {
     Value *value = NULL;
     Marker marker = scope->mark();
@@ -411,30 +438,44 @@ Value *typize(Expr *expr, Scope *scope) {
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-
-        TypeSpec pts = p ? p->ts : VOID_TS;
-        std::cerr << "Looking up " << pts << " " << name << " definition.\n";
-
-        for (Scope *s = scope; s; s = s->outer_scope) {
-            //std::cerr << "Trying a scope...\n";
-            value = s->lookup(expr->text, p);
-            
-            if (value) {
-                std::cerr << "Found      " << pts << " " << name << " returning " << value->ts << ".\n";
-                bool ok = value->check(expr->args, expr->kwargs, scope);
-            
-                if (!ok) {
-                    std::cerr << "Argument problem for " << expr->token << "!\n";
-                    throw TYPE_ERROR;
-                }
-
-                std::cerr << "Accepted   " << pts << " " << name << " arguments.\n";
-                break;
-            }
-        }
+        value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
+    }
+    else if (expr->type == Expr::INITIALIZER) {
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        StringValue *s = dynamic_cast<StringValue *>(p);
         
-        if (!value) {
-            std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
+        if (s) {
+            std::vector<std::string> fragments = brace_split(s->text);
+            Value *root = NULL;
+            bool identifier = false;
+            Args no_args;
+            Kwargs no_kwargs;
+            Token no_token = s->token;
+            
+            for (auto &fragment : fragments) {
+                Value *next;
+                
+                if (identifier) {
+                    Value *pivot = lookup(fragment, NULL, no_args, no_kwargs, no_token, scope);
+                    next = lookup("stringify", pivot, no_args, no_kwargs, no_token, scope);
+                    //next = make_string_value("<" + fragment + ">");
+                }
+                else {
+                    next = make_string_value(fragment);
+                }
+                
+                if (root)
+                    root = make_array_concatenation_value(CHARACTER_ARRAY_REFERENCE_TS, root, next);
+                else
+                    root = next;
+                
+                identifier = !identifier;
+            }
+            
+            value = root;
+        }
+        else {
+            std::cerr << "Can't process this initialization yet!\n";
             throw TYPE_ERROR;
         }
     }

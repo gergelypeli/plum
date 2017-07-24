@@ -129,6 +129,10 @@ public:
         return 0;
     }
 
+    virtual StorageWhere where(TypeSpecIter tsi) {
+        return NOWHERE;
+    }
+
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
             std::cerr << "Invalid special store from " << s << " to " << t << "!\n";

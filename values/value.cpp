@@ -550,8 +550,8 @@ Value *make_array_item_value(TypeSpec t, Value *array) {
 }
 
 
-Value *make_array_concatenation_value(TypeSpec t, Value *array) {
-    return new ArrayConcatenationValue(t, array);
+Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other) {
+    return new ArrayConcatenationValue(t, array, other);
 }
 
 Value *make_array_realloc_value(TypeSpec t, Value *array) {

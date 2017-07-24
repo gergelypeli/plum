@@ -54,3 +54,5 @@ start? :function as:
     prints((xx? "hi") + xx)
     
     prints(333 stringify)
+
+    prints("X{a}Y" {})
