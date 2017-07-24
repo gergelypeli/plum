@@ -296,6 +296,11 @@ BitSetOp negate(BitSetOp opcode) {
 }
 
 
+BitSetOp negate_ordering(BitSetOp opcode) {
+    return opcode == SETE || opcode == SETNE ? opcode : opcode != NOSET ? negate(opcode) : throw X64_ERROR;
+}
+
+
 BranchOp branchize(BitSetOp opcode) {
     // Both enums are just condition bits, so converting between them is straightforward
     return opcode != NOSET ? (BranchOp)opcode : throw X64_ERROR;

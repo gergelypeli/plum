@@ -62,7 +62,7 @@ public:
             x64->op(CMPB, BL, ls.address);
             return Storage(FLAGS, SETE);
         case MEMORY_REGISTER:
-            x64->op(CMPB, rs.reg, ls.address);
+            x64->op(CMPB, ls.address, rs.reg);
             return Storage(FLAGS, SETE);
         case MEMORY_MEMORY:
             x64->op(MOVB, reg, ls.address);

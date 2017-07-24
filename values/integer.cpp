@@ -93,7 +93,7 @@ public:
     }
 
     virtual Storage binary_simple(X64 *x64, BinaryOp opcode) {
-        bool commutative = (opcode % 3) != SUBQ && (opcode % 3) != CMPQ;
+        bool commutative = (opcode % 3) != SUBQ;
 
         subcompile(x64);
 
@@ -105,11 +105,10 @@ public:
                 (opcode % 3) == ANDQ ? ls.value & rs.value :
                 (opcode % 3) == ORQ  ? ls.value | rs.value :
                 (opcode % 3) == XORQ ? ls.value ^ rs.value :
-                (opcode % 3) == CMPQ ? ls.value - rs.value :  // kinda special
                 throw X64_ERROR
             );
             
-            if (fits32(value) || opcode % 3 == CMPQ)
+            if (fits32(value))
                 return Storage(CONSTANT, value);
             
             x64->op(MOVQ % os, reg, ls.value);
@@ -126,11 +125,9 @@ public:
                 x64->op(opcode % os, reg, rs.reg);
                 return Storage(REGISTER, reg);
             }
-            //if (swap) *swap = true;
-            //return Storage(REGISTER, rs.reg);
         case CONSTANT_MEMORY:
             x64->op(MOVQ % os, reg, ls.value);
-            x64->op(opcode % os, reg, rs.address);  // may be shorter for CMP
+            x64->op(opcode % os, reg, rs.address);
             return Storage(REGISTER, reg);
         case REGISTER_CONSTANT:
             x64->op(opcode % os, ls.reg, rs.value);
@@ -143,7 +140,7 @@ public:
             return Storage(REGISTER, ls.reg);
         case MEMORY_CONSTANT:
             x64->op(MOVQ % os, reg, ls.address);
-            x64->op(opcode % os, reg, rs.value);  // may be shorter for CMP
+            x64->op(opcode % os, reg, rs.value);
             return Storage(REGISTER, reg);
         case MEMORY_REGISTER:
             if (commutative) {
@@ -387,31 +384,50 @@ public:
     }
 
     virtual Storage binary_compare(X64 *x64, BitSetOp opcode) {
-        Storage s = binary_simple(x64, CMPQ);
-        
-        // Our constants are always 32-bit, so the result of the subtraction
-        // that CMP did fits in the 64-bit signed int value properly,
-        // which we'll check, but not pass on.
-        if (s.where == CONSTANT) {
+        subcompile(x64);
+
+        switch (ls.where * rs.where) {
+        case CONSTANT_CONSTANT: {
             bool holds = (
-                opcode == SETE ? s.value == 0 :
-                opcode == SETNE ? s.value != 0 :
-                opcode == SETL || opcode == SETB ? s.value < 0 :
-                opcode == SETLE || opcode == SETBE ? s.value <= 0 :
-                opcode == SETG || opcode == SETA ? s.value > 0 :
-                opcode == SETGE || opcode == SETAE ? s.value >= 0 :
+                opcode == SETE ? ls.value == rs.value :
+                opcode == SETNE ? ls.value != rs.value :
+                opcode == SETL || opcode == SETB ? ls.value < rs.value :
+                opcode == SETLE || opcode == SETBE ? ls.value <= rs.value :
+                opcode == SETG || opcode == SETA ? ls.value > rs.value :
+                opcode == SETGE || opcode == SETAE ? ls.value >= rs.value :
                 throw INTERNAL_ERROR
             );
 
             return Storage(CONSTANT, holds ? 1 : 0);
-        }
-        else if (s.where == REGISTER) {
-            // Actually, if the opcode was CMP, then the results are not really in
-            // a register, but only in the flags. That's even better for us.
+            }
+        case CONSTANT_REGISTER:
+            x64->op(CMPQ % os, rs.reg, ls.value);
+            return Storage(FLAGS, negate_ordering(opcode));
+        case CONSTANT_MEMORY:
+            x64->op(CMPQ % os, rs.address, ls.value);
+            return Storage(FLAGS, negate_ordering(opcode));
+        case REGISTER_CONSTANT:
+            x64->op(CMPQ % os, ls.reg, rs.value);
             return Storage(FLAGS, opcode);
-        }
-        else
+        case REGISTER_REGISTER:
+            x64->op(CMPQ % os, ls.reg, rs.reg);
+            return Storage(FLAGS, opcode);
+        case REGISTER_MEMORY:
+            x64->op(CMPQ % os, ls.reg, rs.address);
+            return Storage(FLAGS, opcode);
+        case MEMORY_CONSTANT:
+            x64->op(CMPQ % os, ls.address, rs.value);
+            return Storage(FLAGS, opcode);
+        case MEMORY_REGISTER:
+            x64->op(CMPQ % os, ls.address, rs.reg);
+            return Storage(FLAGS, opcode);
+        case MEMORY_MEMORY:
+            x64->op(MOVB, reg, ls.address);
+            x64->op(CMPQ % os, reg, rs.address);
+            return Storage(FLAGS, opcode);
+        default:
             throw INTERNAL_ERROR;
+        }
     }
 
     virtual Storage assign_binary(X64 *x64, BinaryOp opcode) {
