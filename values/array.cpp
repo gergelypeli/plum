@@ -171,14 +171,10 @@ public:
         
         x64->op(LEA, RSI, Address(RBX, ARRAY_ITEMS_OFFSET));
         x64->op(IMUL3Q, RCX, Address(RBX, ARRAY_LENGTH_OFFSET), size);
-        //x64->op(ADDQ, RCX, 7);
-        //x64->op(SHRQ, RCX, 3);
         x64->op(REPMOVSB);
 
         x64->op(LEA, RSI, Address(RDX, ARRAY_ITEMS_OFFSET));
         x64->op(IMUL3Q, RCX, Address(RDX, ARRAY_LENGTH_OFFSET), size);
-        //x64->op(ADDQ, RCX, 7);
-        //x64->op(SHRQ, RCX, 3);
         x64->op(REPMOVSB);
         
         right->ts.store(Storage(REGISTER, RDX), Storage(), x64);

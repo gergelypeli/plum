@@ -624,8 +624,16 @@ int string_info[] = {
 
 
 void X64::op(StringOp opcode) {
-    // 64-bit mode uses the RCX, RSI, RDI registers because of using 64-bit ADDRESS size
-    code_op(string_info[opcode >> 2], opcode & 3);
+    // 64-bit mode uses the RCX, RSI, RDI registers because of using 64-bit ADDRESS size.
+    // The REP prefixes must precede the REX prefix, so we must encode it manually.
+    // NOTE: REP MOVSB/STOSB is really fast on post Ivy Bridge processors, even if they
+    // have a relatively high (~35 cycles?) setup cost. Even faster than MOVSQ/STOSQ.
+    int info = string_info[opcode >> 2];
+    
+    if (info & 0xFF00)
+        code_byte(info >> 8);
+        
+    code_op(info & 0xFF, opcode & 3);
 }
 
 

@@ -77,9 +77,7 @@ public:
         
         x64->op(LEA, RDI, Address(RAX, ARRAY_ITEMS_OFFSET));
         x64->op(LEARIP, RSI, l, 0);
-        //x64->op(MOVQ, RCX, ((charlen * size) + 7) >> 3);
-        //x64->op(REPMOVSQ);
-        x64->op(MOVQ, RCX, (charlen * size));
+        x64->op(MOVQ, RCX, charlen * size);
         x64->op(REPMOVSB);
         
         return Storage(REGISTER, RAX);
