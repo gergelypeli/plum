@@ -978,10 +978,6 @@ void X64::init_memory_management() {
     code_label_import(memfree_label, "memfree");
     code_label_import(memrealloc_label, "memrealloc");
 
-    //alloc_function_x64_label = al;
-    //free_function_x64_label = fl;
-    //realloc_function_x64_label = rl;
-
     incref_labels.resize(REGISTER_COUNT);
     decref_labels.resize(REGISTER_COUNT);
     
@@ -1005,7 +1001,7 @@ void X64::init_memory_management() {
 
         // TODO
         pusha();
-        op(LEA, RDI, Address(reg, -HEAP_HEADER_SIZE));
+        op(LEA, RDI, Address(reg, HEAP_HEADER_OFFSET));
         op(CALL, memfree_label);
         popa();
     
@@ -1017,17 +1013,17 @@ void X64::init_memory_management() {
     pusha(true);
     op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
     op(CALL, memalloc_label);
-    op(LEA, RAX, Address(RAX, HEAP_HEADER_SIZE));
+    op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
     op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
     popa(true);
     op(RET);
     
     code_label_export(realloc_RAX_RBX_label, "realloc_RAX_RBX", 0, false);
     pusha(true);
-    op(LEA, RDI, Address(RAX, -HEAP_HEADER_SIZE));
-    op(LEA, RSI, Address(RBX, +HEAP_HEADER_SIZE));
+    op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
+    op(LEA, RSI, Address(RBX, HEAP_HEADER_SIZE));
     op(CALL, memrealloc_label);
-    op(LEA, RAX, Address(RAX, HEAP_HEADER_SIZE));
+    op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
     popa(true);
     op(RET);
 }

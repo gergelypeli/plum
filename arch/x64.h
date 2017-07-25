@@ -314,9 +314,6 @@ enum ConstantOp {
 
 class X64 {
 public:
-    static const int HEAP_HEADER_SIZE = 8;
-    static const int HEAP_REFCOUNT_OFFSET = -8;
-
     enum Def_type {
         DEF_CODE,
         DEF_CODE_EXPORT,

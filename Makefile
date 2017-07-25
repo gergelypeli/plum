@@ -4,7 +4,7 @@ DECLS      = declaration identifier scope type
 VALUES     = value literal function boolean integer array
 ARCHS      = ork x64 storage
 MODULES    = tokenize treeize tupleize typize util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
-SOURCES    = $(MODULES:%=%.cpp) arch/ork.h arch/x64.h
+SOURCES    = $(MODULES:%=%.cpp) arch/ork.h arch/x64.h arch/heap.h
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=always
 

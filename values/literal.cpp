@@ -51,16 +51,16 @@ public:
     }
 
     virtual Regs precompile(Regs) {
-        //reg = preferred.get();
-        //return Regs().add(reg);
         return Regs().add(RAX).add(RCX).add(RSI).add(RDI);
     }
 
     virtual Storage compile(X64 *x64) {
+        int bytelen = text.size();
         std::vector<unsigned short> characters;
-        characters.resize(text.size());
-        int charlen = decode_utf8_raw(text.data(), text.size(), characters.data());
+        characters.resize(bytelen);
+        int charlen = decode_utf8_raw(text.data(), bytelen, characters.data());
         characters.resize(charlen);
+        int size = 2;
 
         Label l;
         
@@ -68,21 +68,20 @@ public:
         for (unsigned short &c : characters)
             x64->data_word(c);
 
-        x64->op(MOVQ, RAX, characters.size() * 2 + 8);
+        x64->op(MOVQ, RAX, charlen * size + ARRAY_HEADER_SIZE);
+        
         x64->alloc();
 
-        x64->op(MOVQ, Address(RAX, 0), characters.size());
-        x64->op(LEA, RDI, Address(RAX, 8));
+        x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), charlen);
+        x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), charlen);
+        
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ITEMS_OFFSET));
         x64->op(LEARIP, RSI, l, 0);
-        x64->op(MOVQ, RCX, characters.size());
-        x64->op(REPMOVSW);  // TODO: Use qwords, the length is constant!
+        //x64->op(MOVQ, RCX, ((charlen * size) + 7) >> 3);
+        //x64->op(REPMOVSQ);
+        x64->op(MOVQ, RCX, (charlen * size));
+        x64->op(REPMOVSB);
         
         return Storage(REGISTER, RAX);
     }
-};
-
-
-class StringInterpolationValue: public Value {
-public:
-    
 };

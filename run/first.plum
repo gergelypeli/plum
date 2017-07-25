@@ -29,6 +29,8 @@ start? :function as:
     
     :if d then: print(1000)
 
+    prints("Hello!")
+
     s? "Szia!"
     prints(s)
     
@@ -37,7 +39,6 @@ start? :function as:
     
     prints(s + s)
 
-    # WTF, is this executed as boolean?
     s[3] = s[4]
     prints(s)
 

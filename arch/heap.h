@@ -1,0 +1,9 @@
+const int HEAP_HEADER_SIZE = 16;
+const int HEAP_HEADER_OFFSET = -16;
+const int HEAP_REFCOUNT_OFFSET = -16;
+const int HEAP_WEAKCOUNT_OFFSET = -8;
+
+const int ARRAY_HEADER_SIZE = 16;
+const int ARRAY_RESERVATION_OFFSET = 0;
+const int ARRAY_LENGTH_OFFSET = 8;
+const int ARRAY_ITEMS_OFFSET = 16;
