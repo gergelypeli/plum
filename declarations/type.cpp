@@ -289,14 +289,14 @@ public:
     }
 
     virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
-        if (*that_tsi == boolean_type)
+        if (*that_tsi == boolean_type && *this_tsi != boolean_type)
             return make_converted_value(BOOLEAN_TS, orig);
         else
             return Type::convertible(this_tsi, that_tsi, orig);
     }
 
     virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage s, X64 *x64) {
-        if (*that_tsi == boolean_type)
+        if (*that_tsi == boolean_type && *this_tsi != boolean_type)
             return boolval(this_tsi, s, x64);  // Fortunately basic types need no cleanup
         else
             return Type::convert(this_tsi, that_tsi, s, x64);
