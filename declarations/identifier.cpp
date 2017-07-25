@@ -235,3 +235,18 @@ public:
         return make_array_realloc_value(pivot_ts, cpivot);
     }
 };
+
+
+class ReferenceOperation: public Identifier {
+public:
+    NumericOperation operation;
+
+    ReferenceOperation(std::string n, TypeSpec t, NumericOperation o)
+        :Identifier(n, t) {
+        operation = o;
+    }
+    
+    virtual Value *matched(Value *cpivot) {
+        return make_reference_operation_value(operation, get_typespec(cpivot), cpivot);
+    }
+};

@@ -44,7 +44,8 @@ start? :function as:
 
     z? Character Array
     prints(z || "Ez tök 대박")
-    printb("Ez tök 대박" encode_utf8)
+    z = s
+    printb(z encode_utf8)
 
     #(1, 2) + (3, 4)
 

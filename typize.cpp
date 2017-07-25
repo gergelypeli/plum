@@ -35,14 +35,15 @@ public:
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
+bool equalish(TypeSpecIter this_tsi, TypeSpecIter that_tsi);
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
-
+Type *any_type = NULL;
 Type *type_type = NULL;
 Type *lvalue_type = NULL;
-Type *void_type = NULL;
 Type *function_type = NULL;
 Type *code_type = NULL;
+Type *void_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
 Type *integer32_type = NULL;
@@ -58,6 +59,7 @@ Type *array_type = NULL;
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
+TypeSpec ANY_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;
@@ -67,6 +69,8 @@ TypeSpec UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS;
 TypeSpec CHARACTER_TS;
 TypeSpec CHARACTER_LVALUE_TS;
 TypeSpec CHARACTER_ARRAY_REFERENCE_TS;
+TypeSpec ANY_REFERENCE_TS;
+TypeSpec ANY_REFERENCE_LVALUE_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -118,6 +122,7 @@ Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
 Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other = NULL);
 Value *make_array_realloc_value(TypeSpec t, Value *array);
+Value *make_reference_operation_value(NumericOperation o, TypeSpec t, Value *p);
 
 
 #include "declarations/declaration.cpp"
@@ -166,6 +171,9 @@ struct {
 
 Scope *init_types() {
     Scope *root_scope = new Scope();
+
+    any_type = new SpecialType("<Any>", 0);
+    root_scope->add(any_type);
     
     type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);
@@ -219,6 +227,7 @@ Scope *init_types() {
     root_scope->add(array_type);
     
     // BOGUS_TS will contain no Type pointers
+    ANY_TS.push_back(any_type);
     VOID_TS.push_back(void_type);
     BOOLEAN_TS.push_back(boolean_type);
     INTEGER_TS.push_back(integer_type);
@@ -236,6 +245,11 @@ Scope *init_types() {
     CHARACTER_ARRAY_REFERENCE_TS.push_back(reference_type);
     CHARACTER_ARRAY_REFERENCE_TS.push_back(array_type);
     CHARACTER_ARRAY_REFERENCE_TS.push_back(character_type);
+    ANY_REFERENCE_TS.push_back(reference_type);
+    ANY_REFERENCE_TS.push_back(any_type);
+    ANY_REFERENCE_LVALUE_TS.push_back(lvalue_type);
+    ANY_REFERENCE_LVALUE_TS.push_back(reference_type);
+    ANY_REFERENCE_LVALUE_TS.push_back(any_type);
     
     std::vector<TypeSpec> NO_TSS = { };
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
@@ -273,6 +287,10 @@ Scope *init_types() {
     root_scope->add(new BooleanOperation("logical or", VOID_TS, OR));
     
     //root_scope->add(new BooleanIf());
+
+    root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
+    root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
+    root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
     
     root_scope->add(new ArrayIndexing(CHARACTER_ARRAY_REFERENCE_TS));
     root_scope->add(new ArrayConcatenation(CHARACTER_ARRAY_REFERENCE_TS));
@@ -299,6 +317,7 @@ Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token 
         Value *value = s->lookup(name, pivot);
         
         if (value) {
+            // TODO: we should print the definition pivot type, not the value type
             std::cerr << "Found      " << pts << " " << name << " returning " << value->ts << ".\n";
             bool ok = value->check(args, kwargs, scope);
         

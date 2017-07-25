@@ -72,8 +72,8 @@ public:
         orig.reset(o);
     }
     
-    virtual Regs precompile(Regs) {
-        return Regs();  // TODO: allow the conversion to allocate registers?
+    virtual Regs precompile(Regs preferred) {
+        return orig->precompile(preferred);  // TODO: allow the conversion to allocate registers?
     }
     
     virtual Storage compile(X64 *x64) {
@@ -353,6 +353,7 @@ public:
 #include "integer.cpp"
 #include "boolean.cpp"
 #include "array.cpp"
+#include "reference.cpp"
 
 
 class DeclarationValue: public Value {
@@ -554,6 +555,12 @@ Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other) {
     return new ArrayConcatenationValue(t, array, other);
 }
 
+
 Value *make_array_realloc_value(TypeSpec t, Value *array) {
     return new ArrayReallocValue(t, array);
+}
+
+
+Value *make_reference_operation_value(NumericOperation o, TypeSpec t, Value *p) {
+    return new ReferenceOperationValue(o, t, p);
 }

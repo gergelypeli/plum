@@ -49,32 +49,33 @@ public:
             throw INTERNAL_ERROR;
     }
     
-    virtual void skip(TypeSpecIter &tsi) {
-        unsigned pc = (*tsi)->parameter_count;
-        tsi++;
-        
-        for (unsigned i = 0; i < pc; i++)
-            skip(tsi);
-    }
-    
-    virtual bool is_equal(TypeSpecIter this_tsi, TypeSpecIter that_tsi) {
-        if (*this_tsi != *that_tsi)
-            return false;
-            
-        this_tsi++;
-        that_tsi++;
-        
-        for (unsigned p = 0; p < parameter_count; p++) {
-            if (!(*this_tsi)->is_equal(this_tsi, that_tsi))
-                return false;
-                
-            skip(this_tsi);
-            skip(that_tsi);
+    virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
+        if (equalish(this_tsi, that_tsi))
+            return orig;
+        else if (*that_tsi == any_type)
+            return orig;
+        else if (*that_tsi == void_type)
+            return make_converted_value(VOID_TS, orig);
+        else if (*that_tsi == code_type) {
+            that_tsi++;
+            Value *c = convertible(this_tsi, that_tsi, orig);
+            return make_code_value(c);
         }
-        
-        return true;
+        else
+            return NULL;
     }
 
+    virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage s, X64 *x64) {
+        if (*that_tsi == void_type) {
+            store(this_tsi, s, Storage(), x64);
+            return Storage();
+        }
+        else {
+            std::cerr << "Unconvertable type: " << name << "!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+    
     virtual StorageWhere where(TypeSpecIter tsi) {
         std::cerr << "Nowhere type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -85,15 +86,6 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
-        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : NULL;
-    }
-
-    virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage, X64 *) {
-        std::cerr << "Unconvertable type: " << name << "!\n";
-        throw INTERNAL_ERROR;
-    }
-    
     virtual unsigned measure(TypeSpecIter tsi) {
         std::cerr << "Unmeasurable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -283,6 +275,8 @@ public:
         switch (s.where) {
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
+        case FLAGS:
+            return Storage(FLAGS, s.bitset);
         case REGISTER:
             x64->op(CMPQ % os, s.reg, 0);
             return Storage(FLAGS, SETNE);
@@ -295,21 +289,17 @@ public:
     }
 
     virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
-        if ((*this_tsi)->is_equal(this_tsi, that_tsi))
-            return orig;
-        else if (*that_tsi == boolean_type)
+        if (*that_tsi == boolean_type)
             return make_converted_value(BOOLEAN_TS, orig);
-        else if (*that_tsi == code_type) {
-            Value *c = convertible(this_tsi, that_tsi + 1, orig);
-            return make_code_value(c);
-        }
         else
-            return NULL;
+            return Type::convertible(this_tsi, that_tsi, orig);
     }
 
     virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage s, X64 *x64) {
-        // This must be a conversion to bool. Fortunately no storage needs cleanup.
-        return boolval(this_tsi, s, x64);
+        if (*that_tsi == boolean_type)
+            return boolval(this_tsi, s, x64);  // Fortunately basic types need no cleanup
+        else
+            return Type::convert(this_tsi, that_tsi, s, x64);
     }
 };
 
@@ -446,25 +436,33 @@ public:
     }
 
     virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
-        return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : *that_tsi == boolean_type ? make_converted_value(BOOLEAN_TS, orig) : NULL;
+        if (*that_tsi == boolean_type)
+            return make_converted_value(BOOLEAN_TS, orig);
+        else
+            return Type::convertible(this_tsi, that_tsi, orig);
     }
 
-    virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter , Storage s, X64 *x64) {
-        // This must be a conversion to bool.
-        
-        switch (s.where) {
-        case CONSTANT:
-            break;
-        case REGISTER:
-            x64->decref(s.reg);
-            break;
-        case MEMORY:
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
+    virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage s, X64 *x64) {
+        if (*that_tsi == boolean_type) {
+            // First we have to destroy, then compute the boolval, making sure that the
+            // destruction left the value still accessible for that.
             
-        return boolval(this_tsi, s, x64);
+            switch (s.where) {
+            case CONSTANT:
+                break;
+            case REGISTER:
+                x64->decref(s.reg);
+                break;
+            case MEMORY:
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        
+            return boolval(this_tsi, s, x64);
+        }
+        else
+            return Type::convert(this_tsi, that_tsi, s, x64);
     }
 };
 
@@ -487,14 +485,15 @@ public:
     
     virtual Value *convertible(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Value *orig) {
         if (*this_tsi == *that_tsi) {
-            // When an lvalue is required, only the same type suffices
+            // When the same attribute is required, accept only the exact same type.
+            // This is necessary for lvalues.
             this_tsi++;
             that_tsi++;
             
-            return (*this_tsi)->is_equal(this_tsi, that_tsi) ? orig : NULL;
+            return equalish(this_tsi, that_tsi) ? orig : NULL;
         }
         else {
-            // When an rvalue is required, subtypes are also fine
+            // When the same attribute is not required, remove it and try regular conversions.
             this_tsi++;
             
             return (*this_tsi)->convertible(this_tsi, that_tsi, orig);
@@ -502,7 +501,7 @@ public:
     }
 
     virtual Storage convert(TypeSpecIter this_tsi, TypeSpecIter that_tsi, Storage s, X64 *x64) {
-        // Converting to an rvalue
+        // Must be a conversion as above
         this_tsi++;
         return (*this_tsi)->convert(this_tsi, that_tsi, s, x64);
     }
@@ -565,6 +564,39 @@ TypeSpec::TypeSpec() {
 
 TypeSpec::TypeSpec(TypeSpecIter tsi) {
     fill_typespec(*this, tsi);
+}
+
+
+void skip(TypeSpecIter &tsi) {
+    unsigned counter = 1;
+    
+    while (counter--)
+        counter += (*tsi++)->parameter_count;
+}
+
+
+bool equalish(TypeSpecIter this_tsi, TypeSpecIter that_tsi) {
+    // Almost exact equality, except conversion to ANY is always accepted for
+    // any type parameter
+    
+    if (*that_tsi == any_type)
+        return true;
+    else if (*this_tsi != *that_tsi)
+        return false;
+        
+    unsigned parameter_count = (*this_tsi)->parameter_count;
+    this_tsi++;
+    that_tsi++;
+    
+    for (unsigned p = 0; p < parameter_count; p++) {
+        if (!equalish(this_tsi, that_tsi))
+            return false;
+            
+        skip(this_tsi);
+        skip(that_tsi);
+    }
+    
+    return true;
 }
 
 

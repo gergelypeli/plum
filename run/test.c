@@ -84,6 +84,9 @@ void *reallocate_array(void *array, long length, long size) {
 
 
 void *decode_utf8(void *byte_array) {
+    if (!byte_array)
+        return NULL;
+
     long byte_length = ALEN(byte_array);
     char *bytes = AITE(byte_array);
 
@@ -98,6 +101,9 @@ void *decode_utf8(void *byte_array) {
 
 
 void *encode_utf8(void *character_array) {
+    if (!character_array)
+        return NULL;
+
     long character_length = ALEN(character_array);
     unsigned short *characters = AITE(character_array);
     

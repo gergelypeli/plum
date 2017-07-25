@@ -1,7 +1,7 @@
 .PHONY: build clean
 
 DECLS      = declaration identifier scope type
-VALUES     = value literal function boolean integer array
+VALUES     = value literal function boolean integer array reference
 ARCHS      = ork x64 storage
 MODULES    = tokenize treeize tupleize typize util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
 SOURCES    = $(MODULES:%=%.cpp) arch/ork.h arch/x64.h arch/heap.h
