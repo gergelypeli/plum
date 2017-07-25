@@ -1,7 +1,7 @@
 
 class ReferenceOperationValue: public GenericOperationValue {
 public:
-    ReferenceOperationValue(NumericOperation o, TypeSpec t, Value *l)
+    ReferenceOperationValue(GenericOperation o, TypeSpec t, Value *l)
         :GenericOperationValue(o, t.rvalue(), is_comparison(o) ? BOOLEAN_TS : t, l) {
     }
 

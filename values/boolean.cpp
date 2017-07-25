@@ -1,7 +1,7 @@
 
 class BooleanOperationValue: public GenericOperationValue {
 public:
-    BooleanOperationValue(NumericOperation o, Value *p)
+    BooleanOperationValue(GenericOperation o, Value *p)
         :GenericOperationValue(o, BOOLEAN_TS, o == ASSIGN ? BOOLEAN_LVALUE_TS : BOOLEAN_TS, p) {
     }
     

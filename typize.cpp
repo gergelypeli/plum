@@ -75,7 +75,7 @@ TypeSpec ANY_REFERENCE_LVALUE_TS;
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
-enum NumericOperation {
+enum GenericOperation {
     TWEAK,
     COMPLEMENT, NEGATE,
     ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
@@ -85,15 +85,15 @@ enum NumericOperation {
     ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT
 };
 
-bool is_unary(NumericOperation o) {
+bool is_unary(GenericOperation o) {
     return o == COMPLEMENT || o == NEGATE;
 }
 
-bool is_comparison(NumericOperation o) {
+bool is_comparison(GenericOperation o) {
     return o >= EQUAL && o <= INCOMPARABLE;
 }
 
-bool is_assignment(NumericOperation o) {
+bool is_assignment(GenericOperation o) {
     return o >= ASSIGN;
 }
 
@@ -112,8 +112,8 @@ Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, V
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
 Value *make_string_value(std::string text);
-Value *make_integer_operation_value(NumericOperation operation, TypeSpec ts, Value *pivot);
-Value *make_boolean_operation_value(NumericOperation operation, Value *pivot);
+Value *make_integer_operation_value(GenericOperation operation, TypeSpec ts, Value *pivot);
+Value *make_boolean_operation_value(GenericOperation operation, Value *pivot);
 Value *make_boolean_and_value(Value *pivot);
 Value *make_boolean_or_value(Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
@@ -122,7 +122,7 @@ Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
 Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other = NULL);
 Value *make_array_realloc_value(TypeSpec t, Value *array);
-Value *make_reference_operation_value(NumericOperation o, TypeSpec t, Value *p);
+Value *make_reference_operation_value(GenericOperation o, TypeSpec t, Value *p);
 
 
 #include "declarations/declaration.cpp"
@@ -131,7 +131,7 @@ Value *make_reference_operation_value(NumericOperation o, TypeSpec t, Value *p);
 
 struct {
     const char *name;
-    NumericOperation operation;
+    GenericOperation operation;
 } integer_rvalue_operations[] = {
     { "unary_minus", NEGATE },
     { "unary_tilde", COMPLEMENT },

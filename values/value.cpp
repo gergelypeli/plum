@@ -114,14 +114,14 @@ public:
 
 class GenericOperationValue: public Value {
 public:
-    NumericOperation operation;
+    GenericOperation operation;
     TypeSpec arg_ts;
     std::unique_ptr<Value> left, right;
     Regs clob, rclob;
     Register reg;
     Storage ls, rs;
     
-    GenericOperationValue(NumericOperation o, TypeSpec at, TypeSpec rt, Value *l)
+    GenericOperationValue(GenericOperation o, TypeSpec at, TypeSpec rt, Value *l)
         :Value(rt) {
         operation = o;
         arg_ts = at;
@@ -511,12 +511,12 @@ Value *make_string_value(std::string text) {
 }
 
 
-Value *make_integer_operation_value(NumericOperation o, TypeSpec t, Value *pivot) {
+Value *make_integer_operation_value(GenericOperation o, TypeSpec t, Value *pivot) {
     return new IntegerOperationValue(o, t, pivot);
 }
 
 
-Value *make_boolean_operation_value(NumericOperation o, Value *pivot) {
+Value *make_boolean_operation_value(GenericOperation o, Value *pivot) {
     return new BooleanOperationValue(o, pivot);
 }
 
@@ -561,6 +561,6 @@ Value *make_array_realloc_value(TypeSpec t, Value *array) {
 }
 
 
-Value *make_reference_operation_value(NumericOperation o, TypeSpec t, Value *p) {
+Value *make_reference_operation_value(GenericOperation o, TypeSpec t, Value *p) {
     return new ReferenceOperationValue(o, t, p);
 }

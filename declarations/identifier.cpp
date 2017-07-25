@@ -136,9 +136,9 @@ public:
 
 class IntegerOperation: public Identifier {
 public:
-    NumericOperation operation;
+    GenericOperation operation;
     
-    IntegerOperation(std::string n, TypeSpec t, NumericOperation o)
+    IntegerOperation(std::string n, TypeSpec t, GenericOperation o)
         :Identifier(n, t) {
         operation = o;
     }
@@ -151,9 +151,9 @@ public:
 
 class BooleanOperation: public Identifier {
 public:
-    NumericOperation operation;
+    GenericOperation operation;
     
-    BooleanOperation(std::string n, TypeSpec t, NumericOperation o)
+    BooleanOperation(std::string n, TypeSpec t, GenericOperation o)
         :Identifier(n, t) {
         operation = o;
     }
@@ -239,9 +239,9 @@ public:
 
 class ReferenceOperation: public Identifier {
 public:
-    NumericOperation operation;
+    GenericOperation operation;
 
-    ReferenceOperation(std::string n, TypeSpec t, NumericOperation o)
+    ReferenceOperation(std::string n, TypeSpec t, GenericOperation o)
         :Identifier(n, t) {
         operation = o;
     }
