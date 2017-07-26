@@ -284,7 +284,6 @@ public:
         :Value(VOID_TS) {
         result.reset(v);
         result_var = NULL;
-        std::cerr << "XXX " << result.get() << "!\n";
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -300,35 +299,50 @@ public:
         }
         
         result_var = fn_scope->get_result_variable();
-        if (!result_var) {
-            std::cerr << "A :return control with value in a void function!\n";
-            return false;
+        
+        if (result_var) {
+            if (!result) {
+                std::cerr << "A :return control without value in a nonvoid function!\n";
+                return false;
+            }
+            
+            TypeSpec result_ts = result_var->var_ts.rvalue();
+            Value *cr = convertible(result_ts, result.get());
+            
+            if (!cr) {
+                std::cerr << "A :return control with incompatible value!\n";
+                std::cerr << "Type " << get_typespec(result.get()) << " is not " << result_ts << "!\n";
+                return false;
+            }
+
+            result.release();
+            result.reset(cr);
+        }
+        else {
+            if (result) {
+                std::cerr << "A :return control with value in a void function!\n";
+                return false;
+            }
         }
         
-        TypeSpec result_ts = result_var->var_ts.rvalue();
-        Value *cr = convertible(result_ts, result.get());
-        if (!cr) {
-            std::cerr << "A :return control with incompatible value!\n";
-            std::cerr << "Type " << get_typespec(result.get()) << " is not " << result_ts << "!\n";
-            return false;
-        }
-        
-        result.release();
-        result.reset(cr);
         return true;
     }
 
     virtual Regs precompile(Regs) {
-        result->precompile();
+        if (result)
+            result->precompile();
+            
         return Regs();  // We won't return
     }
 
     virtual Storage compile(X64 *x64) {
         Storage fn_storage(MEMORY, Address(RBP, 0));
-        Storage s = result->compile(x64);
-        Storage t = result_var->get_storage(fn_storage);
 
-        result->ts.store(s, t, x64);
+        if (result) {
+            Storage s = result->compile(x64);
+            Storage t = result_var->get_storage(fn_storage);
+            result->ts.store(s, t, x64);
+        }
 
         // TODO: is this proper stack unwinding?
         Declaration *d = (marker.last ? marker.last : marker.scope);

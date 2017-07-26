@@ -58,3 +58,5 @@ start? :function as:
     prints(333 stringify)
 
     prints("X{a}Y" {})
+
+    :return

@@ -293,7 +293,7 @@ Scope *init_types() {
     root_scope->add(new TemplateOperation<BooleanOrValue>("logical or", ANY_TS, OR));
     
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", BOOLEAN_TS, TWEAK));
-    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));  // FIXME: this may not work
+    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", ANY_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", ANY_TYPE_TS, TWEAK));
