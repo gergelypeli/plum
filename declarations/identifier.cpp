@@ -134,11 +134,45 @@ public:
 };
 
 
+typedef Value *(*GenericValueFactory)(OperationType, TypeSpec, TypeSpec, Value *);
+
+class GenericOperation: public Identifier {  // TODO: not an Identifier?
+public:
+    GenericValueFactory factory;
+    OperationType operation;
+    
+    GenericOperation(std::string n, TypeSpec t, GenericValueFactory f, OperationType o)
+        :Identifier(n, t) {
+        factory = f;
+        operation = o;
+    }
+
+    virtual Value *match(std::string n, Value *pivot) {
+        if (n != name)
+            return NULL;
+            
+        TypeMatch match = typematch(get_typespec(pivot), pivot_ts);
+        
+        Value *cpivot = convertible(pivot_ts, pivot);
+        
+        if (cpivot || pivot_ts == VOID_TS)
+            return matched(cpivot);
+        else
+            return NULL;
+    }
+    
+    virtual Value *matched(Value *cpivot) {
+        TypeSpec arg_ts = 
+        return factory(operation, pivot_ts, cpivot);
+    }
+};
+
+
 class IntegerOperation: public Identifier {
 public:
-    GenericOperation operation;
+    OperationType operation;
     
-    IntegerOperation(std::string n, TypeSpec t, GenericOperation o)
+    IntegerOperation(std::string n, TypeSpec t, OperationType o)
         :Identifier(n, t) {
         operation = o;
     }
@@ -151,9 +185,9 @@ public:
 
 class BooleanOperation: public Identifier {
 public:
-    GenericOperation operation;
+    OperationType operation;
     
-    BooleanOperation(std::string n, TypeSpec t, GenericOperation o)
+    BooleanOperation(std::string n, TypeSpec t, OperationType o)
         :Identifier(n, t) {
         operation = o;
     }
@@ -239,9 +273,9 @@ public:
 
 class ReferenceOperation: public Identifier {
 public:
-    GenericOperation operation;
+    OperationType operation;
 
-    ReferenceOperation(std::string n, TypeSpec t, GenericOperation o)
+    ReferenceOperation(std::string n, TypeSpec t, OperationType o)
         :Identifier(n, t) {
         operation = o;
     }

@@ -699,3 +699,112 @@ void TypeSpec::destroy(Storage s, X64 *x64) {
     TypeSpecIter tsi(begin());
     return (*tsi)->destroy(tsi, s, x64);
 }
+
+
+// New-style type matching
+
+typedef std::vector<TypeSpec> TypeMatch;
+
+TypeMatch typematch(TypeSpec ss, TypeSpec tt) {
+    TypeSpecIter s(ss.begin());
+    TypeSpecIter t(tt.begin());
+    
+    TypeMatch match;
+    match.push_back(TypeSpec());
+    bool strict = false;
+
+    if (*t == lvalue_type) {
+        if (*s != lvalue_type) {
+            std::cerr << "No match, lvalue expected!\n";
+            return TypeMatch();
+        }
+        
+        match[0].push_back(*t);
+        s++;
+        t++;
+        strict = true;
+    }
+    else if (*t == code_type) {  // evalue
+        match[0].push_back(*t);
+        t++;
+    }
+    
+    if (*s == lvalue_type) {
+        s++;
+    }
+
+    if (*s == reference_type && *t == reference_type) {
+        match[0].push_back(*t);
+        s++;
+        t++;
+    }
+    else if (*s == reference_type || *t == reference_type) {
+        std::cerr << "No match, reference mismatch!\n";
+        return TypeMatch();
+    }
+
+    if (*t == any_type) {
+        match.push_back(TypeSpec());
+        unsigned c = 1;
+
+        while (c--) {
+            c += (*s)->parameter_count;
+            match.back().push_back(*s);
+            match[0].push_back(*s);
+            s++;
+        }
+
+        return match;
+    }
+
+    if (*s != *t) {
+        if (strict) {
+            std::cerr << "No match, lvalue types differ!\n";
+            return TypeMatch();
+        }
+        else if (*t == void_type) {
+            match[0].push_back(*t);
+            return match;
+        }
+        else if (*t == boolean_type) {
+            match[0].push_back(*t);
+            return match;
+        }
+        //else if (!(*s)->convertable(*t)) {
+            std::cerr << "No match, unconvertable types!\n";
+            return TypeMatch();
+        //}
+    }
+
+    unsigned counter = (*s)->parameter_count;
+    match[0].push_back(*t);
+    s++;
+    t++;
+    
+    while (counter--) {
+        if (*s == *t) {
+            counter += (*s)->parameter_count;
+            s++;
+            t++;
+        }
+        else if (*t == any_type) {
+            match.push_back(TypeSpec());
+            unsigned c = 1;
+    
+            while (c--) {
+                c += (*s)->parameter_count;
+                match.back().push_back(*s);
+                match[0].push_back(*s);
+                s++;
+            }
+
+            t++;
+        }
+        else {
+            std::cerr << "No match, type parameters differ!\n";
+            return TypeMatch();
+        }
+    }
+    
+    return match;
+}

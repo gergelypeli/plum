@@ -6,7 +6,7 @@ public:
     int os;
     bool is_unsigned;
     
-    IntegerOperationValue(GenericOperation o, TypeSpec t, Value *pivot)
+    IntegerOperationValue(OperationType o, TypeSpec t, Value *pivot)
         :GenericOperationValue(o, t.rvalue(), is_comparison(o) ? BOOLEAN_TS : t, pivot) {
         int size = t.measure();
         os = (
