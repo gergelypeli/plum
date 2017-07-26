@@ -1,8 +1,8 @@
 
 class BooleanOperationValue: public GenericOperationValue {
 public:
-    BooleanOperationValue(OperationType o, Value *p)
-        :GenericOperationValue(o, BOOLEAN_TS, o == ASSIGN ? BOOLEAN_LVALUE_TS : BOOLEAN_TS, p) {
+    BooleanOperationValue(OperationType o, Value *p, TypeMatch &match)
+        :GenericOperationValue(o, match[0].rvalue(), match[0], p) {
     }
     
     virtual Storage complement(X64 *x64) {
@@ -127,8 +127,8 @@ public:
     std::unique_ptr<Value> left, right;
     Register reg;
     
-    BooleanOrValue(Value *p)
-        :Value(p->ts.rvalue()) {
+    BooleanOrValue(OperationType o, Value *p, TypeMatch &match)
+        :Value(match[0]) {
         left.reset(p);
     }
     
@@ -220,7 +220,7 @@ public:
     std::unique_ptr<Value> left, right;
     Register reg;
     
-    BooleanAndValue(Value *p)
+    BooleanAndValue(OperationType o, Value *p, TypeMatch &match)
         :Value(VOID_TS) {  // Will be overridden
         left.reset(p);
     }

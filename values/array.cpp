@@ -4,8 +4,8 @@ class ArrayItemValue: public GenericOperationValue {
 public:
     Register mreg;
 
-    ArrayItemValue(TypeSpec t, Value *a)
-        :GenericOperationValue(TWEAK, INTEGER_TS, t.rvalue().unprefix(reference_type).unprefix(array_type).lvalue(), a) {
+    ArrayItemValue(OperationType o, Value *pivot, TypeMatch &match)
+        :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
     }
 
     virtual Register pick_early_register(Regs preferred) {
@@ -71,12 +71,8 @@ public:
 
 class ArrayConcatenationValue: public GenericOperationValue {
 public:
-    ArrayConcatenationValue(TypeSpec t, Value *l, Value *other)
-        :GenericOperationValue(TWEAK, t, t, l) {
-        if (other) {
-            // This shortcut is used in string interpolation only
-            right.reset(other);
-        }
+    ArrayConcatenationValue(OperationType o, Value *l, TypeMatch &match)
+        :GenericOperationValue(o, match[0], match[0], l) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -128,8 +124,8 @@ public:
 
 class ArrayReallocValue: public GenericOperationValue {
 public:
-    ArrayReallocValue(TypeSpec t, Value *l)
-        :GenericOperationValue(TWEAK, INTEGER_TS, VOID_TS, l) {
+    ArrayReallocValue(OperationType o, Value *l, TypeMatch &match)
+        :GenericOperationValue(o, INTEGER_TS, VOID_TS, l) {
     }
 
     virtual Regs precompile(Regs preferred) {

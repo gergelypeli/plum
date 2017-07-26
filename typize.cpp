@@ -118,17 +118,17 @@ Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, V
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
 Value *make_string_value(std::string text);
-Value *make_integer_operation_value(OperationType operation, TypeSpec ts, Value *pivot);
-Value *make_boolean_operation_value(OperationType operation, Value *pivot);
-Value *make_boolean_and_value(Value *pivot);
-Value *make_boolean_or_value(Value *pivot);
+//Value *make_integer_operation_value(OperationType operation, TypeSpec ts, Value *pivot);
+//Value *make_boolean_operation_value(OperationType operation, Value *pivot);
+//Value *make_boolean_and_value(Value *pivot);
+//Value *make_boolean_or_value(Value *pivot);
 Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
 Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
-Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other = NULL);
-Value *make_array_realloc_value(TypeSpec t, Value *array);
-Value *make_reference_operation_value(OperationType o, TypeSpec t, Value *p);
+//Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other = NULL);
+//Value *make_array_realloc_value(TypeSpec t, Value *array);
+//Value *make_reference_operation_value(OperationType o, TypeSpec t, Value *p);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 
@@ -280,31 +280,42 @@ Scope *init_types() {
         ts.push_back(t);
         
         for (auto &item : integer_rvalue_operations)
-            root_scope->add(new IntegerOperation(item.name, ts, item.operation));
+            root_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ts, item.operation));
 
         ts.insert(ts.begin(), lvalue_type);
         
         for (auto &item : integer_lvalue_operations)
-            root_scope->add(new IntegerOperation(item.name, ts, item.operation));
+            root_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ts, item.operation));
     }
     
-    root_scope->add(new IntegerOperation("assign", CHARACTER_LVALUE_TS, ASSIGN));
+    root_scope->add(new TemplateOperation<IntegerOperationValue>("assign", CHARACTER_LVALUE_TS, ASSIGN));
     
+    typedef TemplateOperation<BooleanOperationValue> BooleanOperation;
     root_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
     root_scope->add(new BooleanOperation("equal", BOOLEAN_TS, EQUAL));
     root_scope->add(new BooleanOperation("not_equal", BOOLEAN_TS, NOT_EQUAL));
     root_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
-    root_scope->add(new BooleanOperation("logical and", VOID_TS, AND));
-    root_scope->add(new BooleanOperation("logical or", VOID_TS, OR));
+    
+    root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", ANY_TS, AND));
+    root_scope->add(new TemplateOperation<BooleanOrValue>("logical or", ANY_TS, OR));
     
     //root_scope->add(new BooleanIf());
 
+    //root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
+    //root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
+    //root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
+
+    typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
     root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
     root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
     root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
+
+    root_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    root_scope->add(new TemplateOperation<ArrayConcatenationValue>("plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    root_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     
-    root_scope->add(new ArrayIndexing(ANY_ARRAY_REFERENCE_TS));
-    root_scope->add(new ArrayConcatenation(ANY_ARRAY_REFERENCE_TS));
+    //root_scope->add(new ArrayIndexing(ANY_ARRAY_REFERENCE_TS));
+    //root_scope->add(new ArrayConcatenation(ANY_ARRAY_REFERENCE_TS));
 
     root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
@@ -494,8 +505,14 @@ Value *typize(Expr *expr, Scope *scope) {
                     next = make_string_value(fragment);
                 }
                 
-                if (root)
-                    root = make_array_concatenation_value(CHARACTER_ARRAY_REFERENCE_TS, root, next);
+                if (root) {
+                    // Ugly hacks follow
+                    TypeMatch match;
+                    match.push_back(CHARACTER_ARRAY_REFERENCE_TS);
+                    ArrayConcatenationValue *acv = new ArrayConcatenationValue(TWEAK, root, match);
+                    acv->right.reset(next);
+                    root = acv;
+                }
                 else
                     root = next;
                 

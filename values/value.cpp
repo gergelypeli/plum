@@ -553,24 +553,24 @@ Value *make_string_value(std::string text) {
 }
 
 
-Value *make_integer_operation_value(OperationType o, TypeSpec t, Value *pivot) {
-    return new IntegerOperationValue(o, t, pivot);
-}
+//Value *make_integer_operation_value(OperationType o, TypeSpec t, Value *pivot) {
+//    return new IntegerOperationValue(o, t, pivot);
+//}
 
 
-Value *make_boolean_operation_value(OperationType o, Value *pivot) {
-    return new BooleanOperationValue(o, pivot);
-}
+//Value *make_boolean_operation_value(OperationType o, Value *pivot) {
+//    return new BooleanOperationValue(o, pivot);
+//}
 
 
-Value *make_boolean_and_value(Value *pivot) {
-    return new BooleanAndValue(pivot);
-}
+//Value *make_boolean_and_value(Value *pivot) {
+//    return new BooleanAndValue(pivot);
+//}
 
 
-Value *make_boolean_or_value(Value *pivot) {
-    return new BooleanOrValue(pivot);
-}
+//Value *make_boolean_or_value(Value *pivot) {
+//    return new BooleanOrValue(pivot);
+//}
 
 
 Value *make_boolean_if_value(Value *pivot) {
@@ -588,24 +588,24 @@ Value *make_code_value(Value *orig) {
 }
 
 
-Value *make_array_item_value(TypeSpec t, Value *array) {
-    return new ArrayItemValue(t, array);
-}
+//Value *make_array_item_value(TypeSpec t, Value *array) {
+//    return new ArrayItemValue(t, array);
+//}
 
 
-Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other) {
-    return new ArrayConcatenationValue(t, array, other);
-}
+//Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other) {
+//    return new ArrayConcatenationValue(t, array, other);
+//}
 
 
-Value *make_array_realloc_value(TypeSpec t, Value *array) {
-    return new ArrayReallocValue(t, array);
-}
+//Value *make_array_realloc_value(TypeSpec t, Value *array) {
+//    return new ArrayReallocValue(t, array);
+//}
 
 
-Value *make_reference_operation_value(OperationType o, TypeSpec t, Value *p) {
-    return new ReferenceOperationValue(o, t, p);
-}
+//Value *make_reference_operation_value(OperationType o, TypeSpec t, Value *p) {
+//    return new ReferenceOperationValue(o, t, p);
+//}
 
 
 Value *make_void_conversion_value(Value *p) {

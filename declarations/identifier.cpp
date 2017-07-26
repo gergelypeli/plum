@@ -155,6 +155,35 @@ public:
 };
 
 
+template <typename T>
+class TemplateOperation: public Identifier {
+public:
+    OperationType operation;
+
+    TemplateOperation(std::string n, TypeSpec t, OperationType o)
+        :Identifier(n, t) {
+        operation = o;
+    }
+    
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return new T(operation, cpivot, match);
+    }
+};
+
+
+template <typename T>
+class TemplateIdentifier: public Identifier {
+public:
+    TemplateIdentifier(std::string n, TypeSpec t)
+        :Identifier(n, t) {
+    }
+    
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return new T(cpivot, match);
+    }
+};
+
+/*
 class IntegerOperation: public Identifier {
 public:
     OperationType operation;
@@ -168,8 +197,8 @@ public:
         return make_integer_operation_value(operation, pivot_ts, cpivot);
     }
 };
-
-
+*/
+/*
 class BooleanOperation: public Identifier {
 public:
     OperationType operation;
@@ -210,7 +239,7 @@ public:
             return NULL;
     }
 };
-
+*/
 
 class BooleanIf: public Identifier {
 public:
@@ -223,7 +252,7 @@ public:
     }
 };
 
-
+/*
 class ArrayIndexing: public Identifier {
 public:
     ArrayIndexing(TypeSpec t)
@@ -234,8 +263,8 @@ public:
         return make_array_item_value(match[0], cpivot);
     }
 };
-
-
+*/
+/*
 class ArrayConcatenation: public Identifier {
 public:
     ArrayConcatenation(TypeSpec t)
@@ -258,8 +287,8 @@ public:
         return make_array_realloc_value(pivot_ts, cpivot);
     }
 };
-
-
+*/
+/*
 class ReferenceOperation: public Identifier {
 public:
     OperationType operation;
@@ -273,3 +302,4 @@ public:
         return make_reference_operation_value(operation, get_typespec(cpivot), cpivot);
     }
 };
+*/

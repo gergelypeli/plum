@@ -27,7 +27,7 @@ test: $(TEST)
 $(EXE): $(SOURCES)
 	@clear
 	@rm -f $(CORE)
-	@$(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
+	@set -e; $(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
 
 $(TEST): $(TESTOBJECT) $(TESTMODULE)
 	@gcc $(CFLAGS) -o $(TEST) $(TESTOBJECT) $(TESTMODULE)

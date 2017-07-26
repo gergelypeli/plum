@@ -799,7 +799,9 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     }
 
     // Checking references
-    if (*s == reference_type && *t == reference_type) {
+    if (*t == any_type)
+        ;
+    else if (*s == reference_type && *t == reference_type) {
         match[0].push_back(*t);
         s++;
         t++;
@@ -810,11 +812,11 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     }
 
     // Checking main type
-    if (*s == *t) {
-        // Exact match is always OK
-    }
-    else if (*t == any_type) {
+    if (*t == any_type) {
         // Maybe call this nonvoid?
+    }
+    else if (*s == *t) {
+        // Exact match is always OK
     }
     else if (strict) {
         // For conversion to lvalue, only an exact match was acceptable
