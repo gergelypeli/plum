@@ -14,9 +14,7 @@ public:
     }
 
     static TypeSpec type(std::string &s) {
-        TypeSpec ts;
-        
-        ts.push_back(
+        TypeSpec ts = {
             ends_with(s, "s32") ? integer32_type :
             ends_with(s, "s16") ? integer16_type :
             ends_with(s, "s8") ? integer8_type :
@@ -25,7 +23,7 @@ public:
             ends_with(s, "u8") ? unsigned_integer8_type :
             ends_with(s, "u") ? unsigned_integer_type :
             integer_type
-        );
+        };
         
         return ts;
     }

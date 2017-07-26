@@ -28,9 +28,7 @@ public:
             if (pivot != NULL)
                 return NULL;
                 
-            TypeSpec ts;
-            ts.push_back(type_type);
-            ts.push_back(this);
+            TypeSpec ts = { type_type, this };
             
             return make_type_value(ts);
         }

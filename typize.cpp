@@ -238,38 +238,23 @@ Scope *init_types() {
     root_scope->add(array_type);
     
     // BOGUS_TS will contain no Type pointers
-    ANY_TS.push_back(any_type);
-    ANY_TYPE_TS.push_back(type_type);
-    ANY_TYPE_TS.push_back(any_type);
-    VOID_TS.push_back(void_type);
-    BOOLEAN_TS.push_back(boolean_type);
-    INTEGER_TS.push_back(integer_type);
-    INTEGER_LVALUE_TS.push_back(lvalue_type);
-    INTEGER_LVALUE_TS.push_back(integer_type);
-    BOOLEAN_LVALUE_TS.push_back(lvalue_type);
-    BOOLEAN_LVALUE_TS.push_back(boolean_type);
-    UNSIGNED_INTEGER8_TS.push_back(unsigned_integer8_type);
-    UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(reference_type);
-    UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(array_type);
-    UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS.push_back(unsigned_integer8_type);
-    CHARACTER_TS.push_back(character_type);
-    CHARACTER_LVALUE_TS.push_back(lvalue_type);
-    CHARACTER_LVALUE_TS.push_back(character_type);
-    CHARACTER_ARRAY_REFERENCE_TS.push_back(reference_type);
-    CHARACTER_ARRAY_REFERENCE_TS.push_back(array_type);
-    CHARACTER_ARRAY_REFERENCE_TS.push_back(character_type);
-    ANY_REFERENCE_TS.push_back(reference_type);
-    ANY_REFERENCE_TS.push_back(any_type);
-    ANY_REFERENCE_LVALUE_TS.push_back(lvalue_type);
-    ANY_REFERENCE_LVALUE_TS.push_back(reference_type);
-    ANY_REFERENCE_LVALUE_TS.push_back(any_type);
-    ANY_ARRAY_REFERENCE_TS.push_back(reference_type);
-    ANY_ARRAY_REFERENCE_TS.push_back(array_type);
-    ANY_ARRAY_REFERENCE_TS.push_back(any_type);
-    VOID_CODE_TS.push_back(code_type);
-    VOID_CODE_TS.push_back(void_type);
-    VOID_FUNCTION_TS.push_back(function_type);
-    VOID_FUNCTION_TS.push_back(void_type);
+    ANY_TS = { any_type };
+    ANY_TYPE_TS = { type_type, any_type };
+    VOID_TS = { void_type };
+    BOOLEAN_TS = { boolean_type };
+    INTEGER_TS = { integer_type };
+    INTEGER_LVALUE_TS = { lvalue_type, integer_type };
+    BOOLEAN_LVALUE_TS = { lvalue_type, boolean_type };
+    UNSIGNED_INTEGER8_TS = { unsigned_integer8_type };
+    UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS = { reference_type, array_type, unsigned_integer8_type };
+    CHARACTER_TS = { character_type };
+    CHARACTER_LVALUE_TS = { lvalue_type, character_type };
+    CHARACTER_ARRAY_REFERENCE_TS = { reference_type, array_type, character_type };
+    ANY_REFERENCE_TS = { reference_type, any_type };
+    ANY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, any_type };
+    ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
+    VOID_CODE_TS = { code_type, void_type };
+    VOID_FUNCTION_TS = { function_type, void_type };
     
     std::vector<TypeSpec> NO_TSS = { };
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
@@ -285,16 +270,15 @@ Scope *init_types() {
         integer_type, integer32_type, integer16_type, integer8_type,
         unsigned_integer_type, unsigned_integer32_type, unsigned_integer16_type, unsigned_integer8_type,
     }) {
-        TypeSpec ts;
-        ts.push_back(t);
+        TypeSpec ts = { t };
         
         for (auto &item : integer_rvalue_operations)
             root_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ts, item.operation));
 
-        ts.insert(ts.begin(), lvalue_type);
+        TypeSpec lts = { lvalue_type, t };
         
         for (auto &item : integer_lvalue_operations)
-            root_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ts, item.operation));
+            root_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, lts, item.operation));
     }
     
     root_scope->add(new TemplateOperation<IntegerOperationValue>("assign", CHARACTER_LVALUE_TS, ASSIGN));
