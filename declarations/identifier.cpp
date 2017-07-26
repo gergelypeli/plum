@@ -240,7 +240,7 @@ public:
     }
 };
 */
-
+/*
 class BooleanIf: public Identifier {
 public:
     BooleanIf()
@@ -251,7 +251,7 @@ public:
         return make_boolean_if_value(cpivot);
     }
 };
-
+*/
 /*
 class ArrayIndexing: public Identifier {
 public:

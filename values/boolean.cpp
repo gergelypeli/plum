@@ -316,7 +316,7 @@ public:
     std::unique_ptr<Value> else_branch;
     Register reg;
     
-    BooleanIfValue(Value *pivot)
+    BooleanIfValue(OperationType o, Value *pivot, TypeMatch &match)
         :Value(VOID_TS) {  // Will be overridden later
         condition.reset(pivot);
     }

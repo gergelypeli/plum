@@ -65,6 +65,7 @@ Type *array_type = NULL;
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
 TypeSpec ANY_TS;
+TypeSpec ANY_TYPE_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;
@@ -77,6 +78,8 @@ TypeSpec CHARACTER_ARRAY_REFERENCE_TS;
 TypeSpec ANY_REFERENCE_TS;
 TypeSpec ANY_REFERENCE_LVALUE_TS;
 TypeSpec ANY_ARRAY_REFERENCE_TS;
+TypeSpec VOID_CODE_TS;
+TypeSpec VOID_FUNCTION_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -109,7 +112,7 @@ TypeSpec get_typespec(Value *value);
 Variable *variable_cast(Declaration *decl);
 DeclarationValue *declaration_value_cast(Value *value);
 
-Value *make_function_return_value(Variable *result_var, Value *v);
+//Value *make_function_return_value(Variable *result_var, Value *v);
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
@@ -122,7 +125,7 @@ Value *make_string_value(std::string text);
 //Value *make_boolean_operation_value(OperationType operation, Value *pivot);
 //Value *make_boolean_and_value(Value *pivot);
 //Value *make_boolean_or_value(Value *pivot);
-Value *make_boolean_if_value(Value *pivot);
+//Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
 Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
@@ -236,6 +239,8 @@ Scope *init_types() {
     
     // BOGUS_TS will contain no Type pointers
     ANY_TS.push_back(any_type);
+    ANY_TYPE_TS.push_back(type_type);
+    ANY_TYPE_TS.push_back(any_type);
     VOID_TS.push_back(void_type);
     BOOLEAN_TS.push_back(boolean_type);
     INTEGER_TS.push_back(integer_type);
@@ -261,6 +266,10 @@ Scope *init_types() {
     ANY_ARRAY_REFERENCE_TS.push_back(reference_type);
     ANY_ARRAY_REFERENCE_TS.push_back(array_type);
     ANY_ARRAY_REFERENCE_TS.push_back(any_type);
+    VOID_CODE_TS.push_back(code_type);
+    VOID_CODE_TS.push_back(void_type);
+    VOID_FUNCTION_TS.push_back(function_type);
+    VOID_FUNCTION_TS.push_back(void_type);
     
     std::vector<TypeSpec> NO_TSS = { };
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
@@ -299,8 +308,12 @@ Scope *init_types() {
     root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", ANY_TS, AND));
     root_scope->add(new TemplateOperation<BooleanOrValue>("logical or", ANY_TS, OR));
     
-    //root_scope->add(new BooleanIf());
-
+    root_scope->add(new TemplateOperation<BooleanIfValue>(":if", BOOLEAN_TS, TWEAK));
+    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));  // FIXME: this may not work
+    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", ANY_TS, TWEAK));
+    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", VOID_TS, TWEAK));
+    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", ANY_TYPE_TS, TWEAK));
+    
     //root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
     //root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
     //root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
@@ -372,6 +385,7 @@ Value *typize(Expr *expr, Scope *scope) {
         value->check(expr->args, expr->kwargs, scope);
     }
     else if (expr->type == Expr::CONTROL) {
+        /*
         if (expr->text == "function") {
             FunctionScope *fn_scope = new FunctionScope();
             scope->add(fn_scope);
@@ -413,6 +427,8 @@ Value *typize(Expr *expr, Scope *scope) {
             
             value = make_function_definition_value(fn_ts, ret, head, body, fn_scope);
         }
+        */
+        /*
         else if (expr->text == "return") {
             Expr *r = expr->pivot.get();
             Value *result = r ? typize(r, scope) : NULL;  // TODO: statement scope? Or already have?
@@ -439,6 +455,8 @@ Value *typize(Expr *expr, Scope *scope) {
             
             value = make_function_return_value(result_var, cr);
         }
+        */
+        /*
         else if (expr->text == "if") {
             Expr *e = expr->pivot.get();
             Value *condition = e ? convertible(BOOLEAN_TS, typize(e, scope)) : NULL;
@@ -457,10 +475,17 @@ Value *typize(Expr *expr, Scope *scope) {
                 throw TYPE_ERROR;
             }
         }
-        else {
-            std::cerr << "Unknown control " << expr->token << "!\n";
-            throw TYPE_ERROR;
-        }
+        */
+        //else {
+            std::string name = ":" + expr->text;
+            Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+            value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
+            
+            if (!value) {
+                std::cerr << "Unknown control " << expr->token << "!\n";
+                throw TYPE_ERROR;
+            }
+        //}
     }
     else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;

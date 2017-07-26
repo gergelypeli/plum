@@ -9,16 +9,50 @@ public:
     
     Function *function;  // If declared with a name, which is always, for now
         
-    FunctionDefinitionValue(TypeSpec fn_ts, Value *r, Value *h, Value *b, FunctionScope *f)
-        :Value(fn_ts) {
+    FunctionDefinitionValue(OperationType o, Value *r, TypeMatch &match)
+        :Value(VOID_TS) {  // Will be overridden
         result.reset(r);
-        head.reset(h);
-        body.reset(b);
-        fn_scope = f;
     }
     
     void set_function(Function *f) {
         function = f;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        fn_scope = new FunctionScope();
+        scope->add(fn_scope);
+
+        Scope *rs = fn_scope->add_result_scope();
+        
+        if (result) {
+            if (result->ts[0] != type_type) {
+                std::cerr << "Function result expression is not a type!\n";
+                return false;
+            }
+
+            // Add internal result variable
+            TypeSpec var_ts = result->ts;
+            var_ts[0] = lvalue_type;
+            Variable *decl = new Variable("<result>", VOID_TS, var_ts);
+            rs->add(decl);
+                
+            ts = result->ts.unprefix(type_type).prefix(function_type);
+        }
+        else {
+            ts = VOID_FUNCTION_TS;
+        }
+
+        std::cerr << "Function ts " << ts << "\n";
+    
+        Scope *hs = fn_scope->add_head_scope();
+        Expr *h = kwargs["from"].get();
+        head.reset(h ? typize(h, hs) : NULL);
+        
+        Scope *bs = fn_scope->add_body_scope();
+        Expr *b = kwargs["as"].get();
+        body.reset(b ? typize(b, bs) : NULL);
+        
+        return true;
     }
 
     void get_interesting_stuff(std::vector<TypeSpec> &arg_tss, std::vector<std::string> &arg_names, TypeSpec &result_ts) {
@@ -244,25 +278,57 @@ public:
 class FunctionReturnValue: public Value {
 public:
     Variable *result_var;
-    std::unique_ptr<Value> value;
+    std::unique_ptr<Value> result;
     
-    FunctionReturnValue(Variable *r, Value *v)
+    FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(VOID_TS) {
-        result_var = r;
-        value.reset(v);
+        result.reset(v);
+        result_var = NULL;
+        std::cerr << "XXX " << result.get() << "!\n";
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 0 && kwargs.size() != 0) {
+            std::cerr << "Whacky :return!\n";
+            return false;
+        }
+
+        FunctionScope *fn_scope = scope->get_function_scope();
+        if (!fn_scope) {
+            std::cerr << "A :return control outside of a function!\n";
+            return false;
+        }
+        
+        result_var = fn_scope->get_result_variable();
+        if (!result_var) {
+            std::cerr << "A :return control with value in a void function!\n";
+            return false;
+        }
+        
+        TypeSpec result_ts = result_var->var_ts.rvalue();
+        Value *cr = convertible(result_ts, result.get());
+        if (!cr) {
+            std::cerr << "A :return control with incompatible value!\n";
+            std::cerr << "Type " << get_typespec(result.get()) << " is not " << result_ts << "!\n";
+            return false;
+        }
+        
+        result.release();
+        result.reset(cr);
+        return true;
     }
 
     virtual Regs precompile(Regs) {
-        value->precompile();
+        result->precompile();
         return Regs();  // We won't return
     }
 
     virtual Storage compile(X64 *x64) {
         Storage fn_storage(MEMORY, Address(RBP, 0));
-        Storage s = value->compile(x64);
+        Storage s = result->compile(x64);
         Storage t = result_var->get_storage(fn_storage);
 
-        value->ts.store(s, t, x64);
+        result->ts.store(s, t, x64);
 
         // TODO: is this proper stack unwinding?
         Declaration *d = (marker.last ? marker.last : marker.scope);

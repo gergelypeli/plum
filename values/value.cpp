@@ -508,9 +508,9 @@ TypeSpec get_typespec(Value *value) {
 }
 
 
-Value *make_function_return_value(Variable *result_var, Value *value) {
-    return new FunctionReturnValue(result_var, value);
-}
+//Value *make_function_return_value(Variable *result_var, Value *value) {
+//    return new FunctionReturnValue(result_var, value);
+//}
 
 
 Value *make_variable_value(Variable *decl, Value *pivot) {
@@ -533,9 +533,9 @@ Value *make_block_value() {
 }
 
 
-Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope) {
-    return new FunctionDefinitionValue(fn_ts, ret, head, body, fn_scope);
-}
+//Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope) {
+//    return new FunctionDefinitionValue(fn_ts, ret, head, body, fn_scope);
+//}
 
 
 Value *make_declaration_value(std::string name) {
@@ -573,9 +573,9 @@ Value *make_string_value(std::string text) {
 //}
 
 
-Value *make_boolean_if_value(Value *pivot) {
-    return new BooleanIfValue(pivot);
-}
+//Value *make_boolean_if_value(Value *pivot) {
+//    return new BooleanIfValue(pivot);
+//}
 
 
 Value *make_converted_value(TypeSpec ts, Value *orig) {
