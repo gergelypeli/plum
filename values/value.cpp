@@ -84,6 +84,48 @@ public:
 };
 
 
+class VoidConversionValue: public Value {
+public:
+    std::unique_ptr<Value> orig;
+    
+    VoidConversionValue(Value *o)
+        :Value(VOID_TS) {
+        orig.reset(o);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return orig->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s = orig->compile(x64);
+        Storage t = Storage();
+        orig->ts.store(s, t, x64);
+        return t;
+    }
+};
+
+
+class BooleanConversionValue: public Value {
+public:
+    std::unique_ptr<Value> orig;
+    
+    BooleanConversionValue(Value *o)
+        :Value(BOOLEAN_TS) {
+        orig.reset(o);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return orig->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s = orig->compile(x64);
+        return orig->ts.convert(BOOLEAN_TS, s, x64);
+    }
+};
+
+
 class VariableValue: public Value {
 public:
     Variable *variable;
@@ -563,4 +605,14 @@ Value *make_array_realloc_value(TypeSpec t, Value *array) {
 
 Value *make_reference_operation_value(OperationType o, TypeSpec t, Value *p) {
     return new ReferenceOperationValue(o, t, p);
+}
+
+
+Value *make_void_conversion_value(Value *p) {
+    return new VoidConversionValue(p);
+}
+
+
+Value *make_boolean_conversion_value(Value *p) {
+    return new BooleanConversionValue(p);
 }

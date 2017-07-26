@@ -40,6 +40,9 @@ typedef TypeSpec::iterator TypeSpecIter;
 bool equalish(TypeSpecIter this_tsi, TypeSpecIter that_tsi);
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
+typedef std::vector<TypeSpec> TypeMatch;
+bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
+
 Type *any_type = NULL;
 Type *type_type = NULL;
 Type *lvalue_type = NULL;
@@ -73,6 +76,7 @@ TypeSpec CHARACTER_LVALUE_TS;
 TypeSpec CHARACTER_ARRAY_REFERENCE_TS;
 TypeSpec ANY_REFERENCE_TS;
 TypeSpec ANY_REFERENCE_LVALUE_TS;
+TypeSpec ANY_ARRAY_REFERENCE_TS;
 
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
@@ -125,6 +129,8 @@ Value *make_array_item_value(TypeSpec t, Value *array);
 Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other = NULL);
 Value *make_array_realloc_value(TypeSpec t, Value *array);
 Value *make_reference_operation_value(OperationType o, TypeSpec t, Value *p);
+Value *make_void_conversion_value(Value *orig);
+Value *make_boolean_conversion_value(Value *orig);
 
 
 #include "declarations/declaration.cpp"
@@ -252,6 +258,9 @@ Scope *init_types() {
     ANY_REFERENCE_LVALUE_TS.push_back(lvalue_type);
     ANY_REFERENCE_LVALUE_TS.push_back(reference_type);
     ANY_REFERENCE_LVALUE_TS.push_back(any_type);
+    ANY_ARRAY_REFERENCE_TS.push_back(reference_type);
+    ANY_ARRAY_REFERENCE_TS.push_back(array_type);
+    ANY_ARRAY_REFERENCE_TS.push_back(any_type);
     
     std::vector<TypeSpec> NO_TSS = { };
     std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
@@ -294,8 +303,8 @@ Scope *init_types() {
     root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
     root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
     
-    root_scope->add(new ArrayIndexing(CHARACTER_ARRAY_REFERENCE_TS));
-    root_scope->add(new ArrayConcatenation(CHARACTER_ARRAY_REFERENCE_TS));
+    root_scope->add(new ArrayIndexing(ANY_ARRAY_REFERENCE_TS));
+    root_scope->add(new ArrayConcatenation(ANY_ARRAY_REFERENCE_TS));
 
     root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));

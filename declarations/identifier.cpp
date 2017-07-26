@@ -9,7 +9,7 @@ public:
         pivot_ts = pts;
     }
     
-    virtual Value *matched(Value *) {
+    virtual Value *matched(Value *, TypeMatch &match) {
         std::cerr << "Unmatchable identifier!\n";
         throw INTERNAL_ERROR;
     }
@@ -18,10 +18,10 @@ public:
         if (n != name)
             return NULL;
             
-        Value *cpivot = convertible(pivot_ts, pivot);
+        TypeMatch match;
         
-        if (cpivot || pivot_ts == VOID_TS)
-            return matched(cpivot);
+        if (typematch(pivot_ts, pivot, match))
+            return matched(pivot, match);
         else
             return NULL;
     }
@@ -39,7 +39,7 @@ public:
         var_ts = vts;
     }
     
-    virtual Value *matched(Value *cpivot) {
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable
         return make_variable_value(this, cpivot);
     }
@@ -88,7 +88,7 @@ public:
         is_sysv = false;
     }
 
-    virtual Value *matched(Value *cpivot) {
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make_function_value(this, cpivot);
     }
 
@@ -134,9 +134,9 @@ public:
 };
 
 
-typedef Value *(*GenericValueFactory)(OperationType, TypeSpec, TypeSpec, Value *);
+typedef Value *(*GenericValueFactory)(OperationType, Value *, TypeMatch &);
 
-class GenericOperation: public Identifier {  // TODO: not an Identifier?
+class GenericOperation: public Identifier {
 public:
     GenericValueFactory factory;
     OperationType operation;
@@ -147,23 +147,10 @@ public:
         operation = o;
     }
 
-    virtual Value *match(std::string n, Value *pivot) {
-        if (n != name)
-            return NULL;
-            
-        TypeMatch match = typematch(get_typespec(pivot), pivot_ts);
-        
-        Value *cpivot = convertible(pivot_ts, pivot);
-        
-        if (cpivot || pivot_ts == VOID_TS)
-            return matched(cpivot);
-        else
-            return NULL;
-    }
-    
-    virtual Value *matched(Value *cpivot) {
-        TypeSpec arg_ts = 
-        return factory(operation, pivot_ts, cpivot);
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        //TypeSpec arg_ts = pivot_ts.rvalue();
+        //TypeSpec ret_ts = is_comparison(operation) ? BOOLEAN_TS : pivot_ts;
+        return factory(operation, cpivot, match);
     }
 };
 
@@ -177,7 +164,7 @@ public:
         operation = o;
     }
     
-    virtual Value *matched(Value *cpivot) {
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make_integer_operation_value(operation, pivot_ts, cpivot);
     }
 };
@@ -192,7 +179,7 @@ public:
         operation = o;
     }
     
-    virtual Value *matched(Value *cpivot) {
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
         //std::cerr << "YYY: " << cpivot->ts << "\n";
         if (operation == AND)
             return make_boolean_and_value(cpivot);
@@ -214,9 +201,11 @@ public:
         );
 
         //std::cerr << "YYY: " << get_typespec(pivot) << " " << get_typespec(cpivot) << "\n";
-            
+        
+        TypeMatch match;
+        
         if (cpivot)
-            return matched(cpivot);
+            return matched(cpivot, match);
         else
             return NULL;
     }
@@ -229,7 +218,7 @@ public:
         :Identifier("if", BOOLEAN_TS) {
     }
     
-    virtual Value *matched(Value *cpivot) {
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make_boolean_if_value(cpivot);
     }
 };
@@ -241,8 +230,8 @@ public:
         :Identifier("index", t) {
     }
     
-    virtual Value *matched(Value *cpivot) {
-        return make_array_item_value(pivot_ts, cpivot);
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_array_item_value(match[0], cpivot);
     }
 };
 
@@ -253,8 +242,8 @@ public:
         :Identifier("plus", t) {
     }
     
-    virtual Value *matched(Value *cpivot) {
-        return make_array_concatenation_value(pivot_ts, cpivot);
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_array_concatenation_value(match[0], cpivot);
     }
 };
 
@@ -265,7 +254,7 @@ public:
         :Identifier("realloc", t) {
     }
     
-    virtual Value *matched(Value *cpivot) {
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make_array_realloc_value(pivot_ts, cpivot);
     }
 };
@@ -280,7 +269,7 @@ public:
         operation = o;
     }
     
-    virtual Value *matched(Value *cpivot) {
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make_reference_operation_value(operation, get_typespec(cpivot), cpivot);
     }
 };

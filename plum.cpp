@@ -71,14 +71,14 @@ int main(int argc, char **argv) {
     
     x64->done(argv[2]);
     
-    std::cerr << "Test.\n";
-    TypeSpec s = { lvalue_type, reference_type, array_type, character_type };
-    TypeSpec t = { reference_type, any_type };
-    TypeMatch m = typematch(s, t);
+    //std::cerr << "Test.\n";
+    //TypeSpec s = { lvalue_type, reference_type, array_type, character_type };
+    //TypeSpec t = { reference_type, any_type };
+    //TypeMatch m = typematch(s, t);
     
-    for (auto &msg : m)
-        std::cerr << msg << "\n";
+    //for (auto &msg : m)
+    //    std::cerr << msg << "\n";
     
-    std::cerr << "Done.\n";
+    //std::cerr << "Done.\n";
     return 0;
 }
