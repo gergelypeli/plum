@@ -62,7 +62,7 @@ public:
     }
 };
 
-
+/*
 class ConvertedValue: public Value {
 public:
     std::unique_ptr<Value> orig;
@@ -82,7 +82,7 @@ public:
         return t;
     }
 };
-
+*/
 
 class VoidConversionValue: public Value {
 public:
@@ -121,7 +121,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Storage s = orig->compile(x64);
-        return orig->ts.convert(BOOLEAN_TS, s, x64);
+        return orig->ts.boolval(s, x64, false);
     }
 };
 
@@ -187,14 +187,15 @@ public:
             }
         
             Value *r = typize(args[0].get(), scope);
-            Value *cr = convertible(arg_ts, r);
+            //Value *cr = convertible(arg_ts, r);
+            TypeMatch match;
         
-            if (!cr) {
+            if (!typematch(arg_ts, r, match)) {
                 std::cerr << "Argument is " << r->ts << ", not " << arg_ts << "!\n";
                 return false;
             }
         
-            right.reset(cr);
+            right.reset(r);
             return true;
         }
     }
@@ -495,12 +496,12 @@ DeclarationValue *declaration_value_cast(Value *value) {
     return dynamic_cast<DeclarationValue *>(value);
 }
 
-Value *convertible(TypeSpec to, Value *value) {
-    Value *v = value ? value->ts.convertible(to, value) : NULL;
+//Value *convertible(TypeSpec to, Value *value) {
+//    Value *v = value ? value->ts.convertible(to, value) : NULL;
     //if (v)
     //    std::cerr << "XXX " << value->ts << " is convertible to " << to << "\n";
-    return v;
-}
+//    return v;
+//}
 
 
 TypeSpec get_typespec(Value *value) {
@@ -578,9 +579,9 @@ Value *make_string_value(std::string text) {
 //}
 
 
-Value *make_converted_value(TypeSpec ts, Value *orig) {
-    return new ConvertedValue(ts, orig);
-}
+//Value *make_converted_value(TypeSpec ts, Value *orig) {
+//    return new ConvertedValue(ts, orig);
+//}
 
 
 Value *make_code_value(Value *orig) {

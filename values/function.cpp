@@ -137,14 +137,14 @@ public:
         }
             
         TypeSpec var_ts = function->get_argument_typespec(i);
-        Value *cv = convertible(var_ts, v);
+        TypeMatch match;
         
-        if (!cv) {
+        if (!typematch(var_ts, v, match)) {
             std::cerr << "Argument type mismatch, " << v->ts << " is not a " << var_ts << "!\n";
             return false;
         }
         
-        items[i] = std::unique_ptr<Value>(cv);
+        items[i] = std::unique_ptr<Value>(v);
         return true;
     }
 
@@ -307,16 +307,16 @@ public:
             }
             
             TypeSpec result_ts = result_var->var_ts.rvalue();
-            Value *cr = convertible(result_ts, result.get());
+            TypeMatch match;
+            Value *r = result.release();
             
-            if (!cr) {
+            if (!typematch(result_ts, r, match)) {
                 std::cerr << "A :return control with incompatible value!\n";
-                std::cerr << "Type " << get_typespec(result.get()) << " is not " << result_ts << "!\n";
+                std::cerr << "Type " << get_typespec(r) << " is not " << result_ts << "!\n";
                 return false;
             }
 
-            result.release();
-            result.reset(cr);
+            result.reset(r);
         }
         else {
             if (result) {

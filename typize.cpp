@@ -24,9 +24,9 @@ public:
     unsigned measure();
     bool is_unsigned();
     StorageWhere where();
-    Storage boolval(Storage s, X64 *x64);
-    Value *convertible(TypeSpec &other, Value *orig);
-    Storage convert(TypeSpec &other, Storage s, X64 *x64);
+    Storage boolval(Storage s, X64 *x64, bool probe);
+    //Value *convertible(TypeSpec &other, Value *orig);
+    //Storage convert(TypeSpec &other, Storage s, X64 *x64);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t);
     TypeSpec rvalue();
@@ -107,7 +107,7 @@ bool is_assignment(OperationType o) {
 }
 
 Value *typize(Expr *expr, Scope *scope);
-Value *convertible(TypeSpec to, Value *orig);
+//Value *convertible(TypeSpec to, Value *orig);
 TypeSpec get_typespec(Value *value);
 Variable *variable_cast(Declaration *decl);
 DeclarationValue *declaration_value_cast(Value *value);
@@ -289,7 +289,7 @@ Scope *init_types() {
     root_scope->add(new BooleanOperation("not_equal", BOOLEAN_TS, NOT_EQUAL));
     root_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
     
-    root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", ANY_TS, AND));
+    root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", BOOLEAN_TS, AND));
     root_scope->add(new TemplateOperation<BooleanOrValue>("logical or", ANY_TS, OR));
     
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", BOOLEAN_TS, TWEAK));

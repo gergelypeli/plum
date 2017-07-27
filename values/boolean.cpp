@@ -139,19 +139,24 @@ public:
         }
 
         Value *r = typize(args[0].get(), scope);
-        Value *cr = convertible(ts, r);
+        //Value *cr = convertible(ts, r);
+        TypeMatch match;
     
-        if (!cr) {
+        if (!typematch(ts, r, match)) {
             ts = BOOLEAN_TS;
             
             Value *l = left.release();
-            l = convertible(ts, l);
+            
+            if (!typematch(ts, l, match))
+                throw INTERNAL_ERROR;
+                
             left.reset(l);
             
-            cr = convertible(ts, r);
+            if (!typematch(ts, r, match))
+                throw INTERNAL_ERROR;
         }
     
-        right.reset(cr);
+        right.reset(r);
         return true;
     }
 
@@ -178,7 +183,7 @@ public:
         
         left->compile_and_store(x64, s);
         
-        Storage bs = ts.boolval(s, x64);
+        Storage bs = ts.boolval(s, x64, true);
         Label else_end;
         
         switch (bs.where) {
@@ -231,15 +236,13 @@ public:
             return false;
         }
 
-        left.reset(convertible(BOOLEAN_TS, left.release()));
-        
-        if (!left) {
-            std::cerr << "Non-valuable left operand to boolean and operation!\n";
-            return false;
-        }
-
         Value *r = typize(args[0].get(), scope);
-        ts = r->ts.rvalue();
+        TypeMatch match;
+        
+        if (!typematch(ANY_TS, r, match))
+            throw INTERNAL_ERROR;
+            
+        ts = match[0];
         right.reset(r);
         
         return true;
