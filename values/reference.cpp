@@ -5,10 +5,6 @@ public:
         :GenericOperationValue(o, match[0].rvalue(), is_comparison(o) ? BOOLEAN_TS : match[0], l) {
     }
 
-    //ReferenceOperationValue(OperationType o, TypeSpec t, Value *l)
-    //    :GenericOperationValue(o, t.rvalue(), is_comparison(o) ? BOOLEAN_TS : t, l) {
-    //}
-
     virtual Storage equal(X64 *x64, BitSetOp op) {
         subcompile(x64);
         

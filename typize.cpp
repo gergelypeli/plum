@@ -25,8 +25,6 @@ public:
     bool is_unsigned();
     StorageWhere where();
     Storage boolval(Storage s, X64 *x64, bool probe);
-    //Value *convertible(TypeSpec &other, Value *orig);
-    //Storage convert(TypeSpec &other, Storage s, X64 *x64);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t);
     TypeSpec rvalue();
@@ -107,12 +105,10 @@ bool is_assignment(OperationType o) {
 }
 
 Value *typize(Expr *expr, Scope *scope);
-//Value *convertible(TypeSpec to, Value *orig);
 TypeSpec get_typespec(Value *value);
 Variable *variable_cast(Declaration *decl);
 DeclarationValue *declaration_value_cast(Value *value);
 
-//Value *make_function_return_value(Variable *result_var, Value *v);
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
@@ -121,17 +117,9 @@ Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, V
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
 Value *make_string_value(std::string text);
-//Value *make_integer_operation_value(OperationType operation, TypeSpec ts, Value *pivot);
-//Value *make_boolean_operation_value(OperationType operation, Value *pivot);
-//Value *make_boolean_and_value(Value *pivot);
-//Value *make_boolean_or_value(Value *pivot);
-//Value *make_boolean_if_value(Value *pivot);
 Value *make_converted_value(TypeSpec to, Value *orig);
 Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
-//Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other = NULL);
-//Value *make_array_realloc_value(TypeSpec t, Value *array);
-//Value *make_reference_operation_value(OperationType o, TypeSpec t, Value *p);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 
@@ -266,6 +254,7 @@ Scope *init_types() {
     std::vector<std::string> no_names = { };
     std::vector<std::string> value_names = { "value" };
 
+    // Integer operations
     for (Type *t : {
         integer_type, integer32_type, integer16_type, integer8_type,
         unsigned_integer_type, unsigned_integer32_type, unsigned_integer16_type, unsigned_integer8_type,
@@ -281,46 +270,43 @@ Scope *init_types() {
             root_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, lts, item.operation));
     }
     
+    // Character operations
     root_scope->add(new TemplateOperation<IntegerOperationValue>("assign", CHARACTER_LVALUE_TS, ASSIGN));
     
+    // Boolean operations
     typedef TemplateOperation<BooleanOperationValue> BooleanOperation;
     root_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
     root_scope->add(new BooleanOperation("equal", BOOLEAN_TS, EQUAL));
     root_scope->add(new BooleanOperation("not_equal", BOOLEAN_TS, NOT_EQUAL));
     root_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
-    
     root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", BOOLEAN_TS, AND));
     root_scope->add(new TemplateOperation<BooleanOrValue>("logical or", ANY_TS, OR));
+
+    // Reference operations
+    typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
+    root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
+    root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
+    root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
+
+    // Array operations
+    root_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    root_scope->add(new TemplateOperation<ArrayConcatenationValue>("plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    root_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     
+    // Builtin controls
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", BOOLEAN_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", ANY_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", ANY_TYPE_TS, TWEAK));
     
-    //root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
-    //root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
-    //root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
-
-    typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
-    root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
-    root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
-    root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
-
-    root_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    root_scope->add(new TemplateOperation<ArrayConcatenationValue>("plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    root_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    
-    //root_scope->add(new ArrayIndexing(ANY_ARRAY_REFERENCE_TS));
-    //root_scope->add(new ArrayConcatenation(ANY_ARRAY_REFERENCE_TS));
-
+    // Library functions
     root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, CHARACTER_ARRAY_REFERENCE_TS));
     root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS));
-
     root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, CHARACTER_ARRAY_REFERENCE_TS));
 
     return root_scope;
@@ -369,107 +355,9 @@ Value *typize(Expr *expr, Scope *scope) {
         value->check(expr->args, expr->kwargs, scope);
     }
     else if (expr->type == Expr::CONTROL) {
-        /*
-        if (expr->text == "function") {
-            FunctionScope *fn_scope = new FunctionScope();
-            scope->add(fn_scope);
-            
-            Expr *r = expr->pivot.get();
-            Scope *rs = fn_scope->add_result_scope();
-            Value *ret = r ? typize(r, rs) : NULL;
-
-            TypeSpec fn_ts;
-
-            if (ret) {
-                if (ret->ts[0] != type_type) {
-                    std::cerr << "Function return expression is not a type!\n";
-                    throw TYPE_ERROR;
-                }
-
-                // Add internal result variable
-                TypeSpec var_ts = ret->ts;
-                var_ts[0] = lvalue_type;
-                Variable *decl = new Variable("<result>", VOID_TS, var_ts);
-                rs->add(decl);
-                    
-                fn_ts = ret->ts.unprefix(type_type).prefix(function_type);
-            }
-            else {
-                fn_ts.push_back(function_type);
-                fn_ts.push_back(void_type);
-            }
-
-            std::cerr << "Function ts " << fn_ts << "\n";
-        
-            Expr *h = expr->kwargs["from"].get();
-            Scope *hs = fn_scope->add_head_scope();
-            Value *head = h ? typize(h, hs) : NULL;
-            
-            Expr *b = expr->kwargs["as"].get();
-            Scope *bs = fn_scope->add_body_scope();
-            Value *body = b ? typize(b, bs) : NULL;
-            
-            value = make_function_definition_value(fn_ts, ret, head, body, fn_scope);
-        }
-        */
-        /*
-        else if (expr->text == "return") {
-            Expr *r = expr->pivot.get();
-            Value *result = r ? typize(r, scope) : NULL;  // TODO: statement scope? Or already have?
-
-            FunctionScope *fn_scope = scope->get_function_scope();
-            if (!fn_scope) {
-                std::cerr << "A :return control outside of a function!\n";
-                throw TYPE_ERROR;
-            }
-            
-            Variable *result_var = fn_scope->get_result_variable();
-            if (!result_var) {
-                std::cerr << "A :return control with value in a void function!\n";
-                throw TYPE_ERROR;
-            }
-            
-            TypeSpec result_ts = result_var->var_ts.rvalue();
-            Value *cr = convertible(result_ts, result);
-            if (!cr) {
-                std::cerr << "A :return control with incompatible value!\n";
-                std::cerr << "Type " << get_typespec(result) << " is not " << result_ts << "!\n";
-                throw TYPE_ERROR;
-            }
-            
-            value = make_function_return_value(result_var, cr);
-        }
-        */
-        /*
-        else if (expr->text == "if") {
-            Expr *e = expr->pivot.get();
-            Value *condition = e ? convertible(BOOLEAN_TS, typize(e, scope)) : NULL;
-            
-            if (!condition) {
-                std::cerr << "Not a boolean condition!\n";
-                throw TYPE_ERROR;
-            }
-            
-            value = make_boolean_if_value(condition);
-
-            bool ok = value->check(expr->args, expr->kwargs, scope);
-                
-            if (!ok) {
-                std::cerr << "Argument problem for " << expr->token << "!\n";
-                throw TYPE_ERROR;
-            }
-        }
-        */
-        //else {
-            std::string name = ":" + expr->text;
-            Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-            value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
-            
-            if (!value) {
-                std::cerr << "Unknown control " << expr->token << "!\n";
-                throw TYPE_ERROR;
-            }
-        //}
+        std::string name = ":" + expr->text;
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
     }
     else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;

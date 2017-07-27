@@ -58,7 +58,6 @@ Address Address::operator + (int x) {
 
 X64::X64() {
     init_memory_management();
-    //:alloc_function_x64_label(true), free_function_x64_label(true), realloc_function_x64_label(true) {
 }
 
 
@@ -338,9 +337,6 @@ void X64::code_reference(Label label, Ref_type f, int offset) {
     r.type = f;
     r.def_index = label.def_index;
 
-    //if (f != REF_CODE_ABSOLUTE && offset != 0)
-    //    std::cerr << "Only absolute refs can have offsets!\n";
-    
     if (f == REF_CODE_SHORT)
         code_byte(offset);
     else

@@ -62,27 +62,6 @@ public:
     }
 };
 
-/*
-class ConvertedValue: public Value {
-public:
-    std::unique_ptr<Value> orig;
-    
-    ConvertedValue(TypeSpec t, Value *o)
-        :Value(t) {
-        orig.reset(o);
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        return orig->precompile(preferred);  // TODO: allow the conversion to allocate registers?
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Storage s = orig->compile(x64);
-        Storage t = orig->ts.convert(ts, s, x64);
-        return t;
-    }
-};
-*/
 
 class VoidConversionValue: public Value {
 public:
@@ -496,22 +475,10 @@ DeclarationValue *declaration_value_cast(Value *value) {
     return dynamic_cast<DeclarationValue *>(value);
 }
 
-//Value *convertible(TypeSpec to, Value *value) {
-//    Value *v = value ? value->ts.convertible(to, value) : NULL;
-    //if (v)
-    //    std::cerr << "XXX " << value->ts << " is convertible to " << to << "\n";
-//    return v;
-//}
-
 
 TypeSpec get_typespec(Value *value) {
     return value ? value->ts : VOID_TS;
 }
-
-
-//Value *make_function_return_value(Variable *result_var, Value *value) {
-//    return new FunctionReturnValue(result_var, value);
-//}
 
 
 Value *make_variable_value(Variable *decl, Value *pivot) {
@@ -534,11 +501,6 @@ Value *make_block_value() {
 }
 
 
-//Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope) {
-//    return new FunctionDefinitionValue(fn_ts, ret, head, body, fn_scope);
-//}
-
-
 Value *make_declaration_value(std::string name) {
     return new DeclarationValue(name);
 }
@@ -554,59 +516,9 @@ Value *make_string_value(std::string text) {
 }
 
 
-//Value *make_integer_operation_value(OperationType o, TypeSpec t, Value *pivot) {
-//    return new IntegerOperationValue(o, t, pivot);
-//}
-
-
-//Value *make_boolean_operation_value(OperationType o, Value *pivot) {
-//    return new BooleanOperationValue(o, pivot);
-//}
-
-
-//Value *make_boolean_and_value(Value *pivot) {
-//    return new BooleanAndValue(pivot);
-//}
-
-
-//Value *make_boolean_or_value(Value *pivot) {
-//    return new BooleanOrValue(pivot);
-//}
-
-
-//Value *make_boolean_if_value(Value *pivot) {
-//    return new BooleanIfValue(pivot);
-//}
-
-
-//Value *make_converted_value(TypeSpec ts, Value *orig) {
-//    return new ConvertedValue(ts, orig);
-//}
-
-
 Value *make_code_value(Value *orig) {
     return new CodeValue(orig);
 }
-
-
-//Value *make_array_item_value(TypeSpec t, Value *array) {
-//    return new ArrayItemValue(t, array);
-//}
-
-
-//Value *make_array_concatenation_value(TypeSpec t, Value *array, Value *other) {
-//    return new ArrayConcatenationValue(t, array, other);
-//}
-
-
-//Value *make_array_realloc_value(TypeSpec t, Value *array) {
-//    return new ArrayReallocValue(t, array);
-//}
-
-
-//Value *make_reference_operation_value(OperationType o, TypeSpec t, Value *p) {
-//    return new ReferenceOperationValue(o, t, p);
-//}
 
 
 Value *make_void_conversion_value(Value *p) {
