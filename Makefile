@@ -1,6 +1,6 @@
 .PHONY: build clean
 
-DECLS      = declaration identifier scope type
+DECLS      = declaration identifier scope type typespec
 VALUES     = value literal function boolean integer array reference
 ARCHS      = ork x64 storage
 MODULES    = tokenize treeize tupleize typize util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)

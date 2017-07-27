@@ -96,6 +96,10 @@ public:
         return ret_ts;
     }
     
+    virtual TypeSpec get_pivot_typespec() {
+        return pivot_ts;
+    }
+    
     virtual unsigned get_argument_count() {
         return arg_tss.size();
     }

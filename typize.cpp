@@ -66,6 +66,7 @@ TypeSpec UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS;
 TypeSpec CHARACTER_TS;
 TypeSpec CHARACTER_LVALUE_TS;
 TypeSpec CHARACTER_ARRAY_REFERENCE_TS;
+TypeSpec CHARACTER_ARRAY_REFERENCE_LVALUE_TS;
 TypeSpec ANY_REFERENCE_TS;
 TypeSpec ANY_REFERENCE_LVALUE_TS;
 TypeSpec ANY_ARRAY_REFERENCE_TS;
@@ -208,21 +209,24 @@ Scope *init_builtins() {
     CHARACTER_TS = { character_type };
     CHARACTER_LVALUE_TS = { lvalue_type, character_type };
     CHARACTER_ARRAY_REFERENCE_TS = { reference_type, array_type, character_type };
+    CHARACTER_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, character_type };
     ANY_REFERENCE_TS = { reference_type, any_type };
     ANY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, any_type };
     ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
     VOID_CODE_TS = { code_type, void_type };
     VOID_FUNCTION_TS = { function_type, void_type };
-    
-    std::vector<TypeSpec> NO_TSS = { };
-    std::vector<TypeSpec> INTEGER_TSS = { INTEGER_TS };
-    std::vector<TypeSpec> BOOLEAN_TSS = { BOOLEAN_TS };
-    std::vector<TypeSpec> UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
-    std::vector<TypeSpec> UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS = { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS };
-    std::vector<TypeSpec> CHARACTER_ARRAY_REFERENCE_TSS = { CHARACTER_ARRAY_REFERENCE_TS };
-    
-    std::vector<std::string> no_names = { };
-    std::vector<std::string> value_names = { "value" };
+
+    typedef std::vector<TypeSpec> TSs;
+    TSs NO_TSS = { };
+    TSs INTEGER_TSS = { INTEGER_TS };
+    TSs BOOLEAN_TSS = { BOOLEAN_TS };
+    TSs UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
+    TSs UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS = { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS };
+    TSs CHARACTER_ARRAY_REFERENCE_TSS = { CHARACTER_ARRAY_REFERENCE_TS };
+
+    typedef std::vector<std::string> Ss;
+    Ss no_names = { };
+    Ss value_names = { "value" };
 
     // Integer operations
     for (Type *t : {
@@ -277,7 +281,10 @@ Scope *init_builtins() {
     root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, CHARACTER_ARRAY_REFERENCE_TS));
     root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS));
+
     root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, CHARACTER_ARRAY_REFERENCE_TS));
+    root_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
+    root_scope->add(new ImportedFunction("streamify_string", "streamify", CHARACTER_ARRAY_REFERENCE_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
 
     return root_scope;
 }
@@ -317,6 +324,78 @@ Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token 
     
     std::cerr << "No match for " << pts << " " << name << " at " << token << "!\n";
     return NULL;
+}
+
+
+Value *interpolate(std::string text, Token token, Scope *scope) {
+    std::vector<std::string> fragments = brace_split(text);
+    Args no_args;
+    Kwargs no_kwargs;
+    Token no_token = token;
+
+    Marker marker = scope->mark();
+    BlockValue *block = new BlockValue();
+    block->set_marker(marker);
+    
+    DeclarationValue *dv = new DeclarationValue("xxx");
+    Value *initial_value = make_string_value("INTERPOLATED: ");
+    Variable *v = dv->force_variable(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, initial_value, scope);
+    block->force_add(dv);
+
+    bool identifier = false;
+    
+    for (auto &fragment : fragments) {
+        Value *pivot;
+        
+        if (identifier) {
+            for (Scope *s = scope; s; s = s->outer_scope) {
+                pivot = s->lookup(fragment, NULL);
+        
+                if (pivot)
+                    break;
+            }
+            
+            if (!pivot) {
+                std::cerr << "Cannot interpolate undefined {" << fragment << "}!\n";
+                throw TYPE_ERROR;
+            }
+        }
+        else {
+            pivot = make_string_value(fragment);
+        }
+
+        // TODO: this is kinda awkward expecting that this will be a function, but
+        // we can't supply arguments to anything else!
+        FunctionValue *streamify;
+
+        for (Scope *s = scope; s; s = s->outer_scope) {
+            Value *value = s->lookup("streamify", pivot);
+        
+            if (value) {
+                streamify = dynamic_cast<FunctionValue *>(value);
+                if (!streamify)
+                    throw INTERNAL_ERROR;
+                    
+                break;
+            }
+        }
+        
+        if (!streamify) {
+            std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
+            throw TYPE_ERROR;
+        }
+        
+        Value *arg = make_variable_value(v, NULL);
+        streamify->force_arg(arg);
+        
+        block->force_add(streamify);
+        identifier = !identifier;
+    }
+
+    Value *ret = make_variable_value(v, NULL);
+    block->force_add(ret);
+    
+    return make_code_value(block);
 }
 
 
@@ -368,40 +447,7 @@ Value *typize(Expr *expr, Scope *scope) {
         StringValue *s = dynamic_cast<StringValue *>(p);
         
         if (s) {
-            std::vector<std::string> fragments = brace_split(s->text);
-            Value *root = NULL;
-            bool identifier = false;
-            Args no_args;
-            Kwargs no_kwargs;
-            Token no_token = s->token;
-            
-            for (auto &fragment : fragments) {
-                Value *next;
-                
-                if (identifier) {
-                    Value *pivot = lookup(fragment, NULL, no_args, no_kwargs, no_token, scope);
-                    next = lookup("stringify", pivot, no_args, no_kwargs, no_token, scope);
-                    //next = make_string_value("<" + fragment + ">");
-                }
-                else {
-                    next = make_string_value(fragment);
-                }
-                
-                if (root) {
-                    // Ugly hacks follow
-                    TypeMatch match;
-                    match.push_back(CHARACTER_ARRAY_REFERENCE_TS);
-                    ArrayConcatenationValue *acv = new ArrayConcatenationValue(TWEAK, root, match);
-                    acv->right.reset(next);
-                    root = acv;
-                }
-                else
-                    root = next;
-                
-                identifier = !identifier;
-            }
-            
-            value = root;
+            value = interpolate(s->text, expr->token, scope);
         }
         else {
             std::cerr << "Can't process this initialization yet!\n";

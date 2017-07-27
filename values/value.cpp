@@ -320,6 +320,11 @@ public:
         return true;
     }
 
+    virtual void force_add(Value *value) {
+        statements.push_back(std::unique_ptr<Value>(value));
+        ts = statements.back()->ts;  // TODO: rip code_type
+    }
+
     virtual Regs precompile(Regs preferred) {
         Regs clob;
         
@@ -346,6 +351,7 @@ class CodeValue: public Value {
 public:
     std::unique_ptr<Value> value;
     CodeScope *code_scope;
+    Register reg;
 
     CodeValue(Value *v)
         :Value(v->ts.rvalue().prefix(code_type)) {
@@ -359,11 +365,32 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return value->precompile(preferred);
+        Regs clob = value->precompile(preferred);
+        reg = preferred.get_gpr();
+        return clob.add(reg);
     }
 
     virtual Storage compile(X64 *x64) {
+        // Can't let the result be passed as a MEMORY storage, because it may
+        // point to a local variable that we're about to destroy. So grab that
+        // value while we can. 
         Storage s = value->compile(x64);
+        
+        if (s.where == MEMORY) {
+            switch (value->ts.where()) {
+            case REGISTER:
+                value->ts.store(s, Storage(REGISTER, reg), x64);
+                s = Storage(REGISTER, reg);
+                break;
+            case STACK:
+                value->ts.store(s, Storage(STACK), x64);
+                s = Storage(STACK);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
+        
         code_scope->finalize_scope(Storage(MEMORY, Address(RBP, 0)), x64);
         return s;
     }
@@ -440,6 +467,16 @@ public:
             
         scope->add(decl);
         return true;
+    }
+
+    virtual Variable *force_variable(TypeSpec var_ts, Value *v, Scope *scope) {
+        ts = var_ts;
+        value.reset(v);
+        Variable *variable = new Variable(name, VOID_TS, var_ts);
+        decl = variable;
+        scope->add(decl);
+        
+        return variable;
     }
     
     virtual Regs precompile(Regs preferred) {

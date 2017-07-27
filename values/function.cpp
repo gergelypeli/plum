@@ -58,13 +58,13 @@ public:
     void get_interesting_stuff(std::vector<TypeSpec> &arg_tss, std::vector<std::string> &arg_names, TypeSpec &result_ts) {
         for (auto &d : fn_scope->head_scope->contents) {
             Variable *v = dynamic_cast<Variable *>(d.get());
-            arg_tss.push_back(v->var_ts.rvalue());
+            arg_tss.push_back(v->var_ts.rvalue());  // FIXME
             arg_names.push_back(v->name);
         }
         
         if (fn_scope->result_scope->contents.size()) {
             Variable *v = dynamic_cast<Variable *>(fn_scope->result_scope->contents.back().get());
-            result_ts = v->var_ts.rvalue();
+            result_ts = v->var_ts.rvalue();  // FIXME
         }
         else
             result_ts = VOID_TS;
@@ -178,6 +178,18 @@ public:
         
         return true;
     }
+
+    virtual void force_arg(Value *arg) {
+        if (!check_arg(0, arg))
+            throw INTERNAL_ERROR;
+
+        for (auto &item : items) {
+            if (!item) {
+                std::cerr << "Not all arguments supplied!\n";
+                throw INTERNAL_ERROR;
+            }
+        }
+    }
     
     virtual void sysv_prologue(X64 *x64, unsigned passed_size) {
         switch (passed_size) {
@@ -223,6 +235,30 @@ public:
         return Regs::all();  // assume everything is clobbered
     }
     
+    virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+        Storage s = arg_value->compile(x64);
+        
+        if (arg_ts[0] == lvalue_type) {
+            if (s.where != MEMORY)
+                throw INTERNAL_ERROR;
+                
+            x64->op(LEA, RBX, s.address);
+            x64->op(PUSHQ, RBX);
+            return 8;
+        }
+        else {
+            arg_ts.store(s, Storage(STACK), x64);
+            return stack_size(arg_ts.measure());
+        }
+    }
+
+    virtual void pop_arg(TypeSpec arg_ts, X64 *x64) {
+        if (arg_ts[0] == lvalue_type)
+            x64->op(ADDQ, RSP, 8);
+        else
+            arg_ts.store(Storage(STACK), Storage(), x64);
+    }
+    
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
         TypeSpec ret_ts = function->get_return_typespec();
@@ -233,18 +269,12 @@ public:
         
         unsigned passed_size = 0;
         
-        if (pivot) {
-            Storage s = pivot->compile(x64);
-            pivot->ts.store(s, Storage(STACK), x64);
-            passed_size += stack_size(pivot->ts.measure());
-        }
+        if (pivot)
+            passed_size += push_arg(function->get_pivot_typespec(), pivot.get(), x64);
         
-        for (auto &item : items) {
-            Storage s = item->compile(x64);
-            item->ts.store(s, Storage(STACK), x64);
-            passed_size += stack_size(item->ts.measure());
-        }
-
+        for (unsigned i = 0; i < items.size(); i++)
+            passed_size += push_arg(function->get_argument_typespec(i), items[i].get(), x64);
+            
         if (function->is_sysv && passed_size > 0)
             sysv_prologue(x64, passed_size);
         
@@ -254,10 +284,10 @@ public:
             sysv_epilogue(x64, passed_size);
         
         for (int i = items.size() - 1; i >= 0; i--)
-            items[i]->ts.store(Storage(STACK), Storage(), x64);
+            pop_arg(function->get_argument_typespec(i), x64);
             
         if (pivot)
-            pivot->ts.store(Storage(STACK), Storage(), x64);
+            pop_arg(function->get_pivot_typespec(), x64);
             
         //std::cerr << "Compiled call of " << function->name << ".\n";
         switch (ts.where()) {

@@ -199,7 +199,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     }
     
     // Drop unnecessary attribute
-    if (*s == lvalue_type) {
+    if (*s == lvalue_type || *s == code_type) {
         s++;
     }
 
