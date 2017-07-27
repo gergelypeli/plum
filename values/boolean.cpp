@@ -14,12 +14,11 @@ public:
         case FLAGS:
             return Storage(FLAGS, negate(ls.bitset));
         case REGISTER:
-            x64->op(XORB, ls.reg, 1);
-            return Storage(REGISTER, ls.reg);
+            x64->op(CMPB, ls.reg, 0);
+            return Storage(FLAGS, SETE);
         case MEMORY:
-            x64->op(MOVB, reg, ls.address);
-            x64->op(XORB, reg, 1);
-            return Storage(REGISTER, reg);
+            x64->op(CMPB, ls.address, 0);
+            return Storage(FLAGS, SETE);
         default:
             throw INTERNAL_ERROR;
         }

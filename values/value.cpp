@@ -529,3 +529,9 @@ Value *make_void_conversion_value(Value *p) {
 Value *make_boolean_conversion_value(Value *p) {
     return new BooleanConversionValue(p);
 }
+
+
+Value *make_boolean_not_value(Value *p) {
+    TypeMatch match;
+    return new BooleanOperationValue(COMPLEMENT, p, match);
+}

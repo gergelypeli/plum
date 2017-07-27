@@ -122,6 +122,7 @@ Value *make_code_value(Value *orig);
 Value *make_array_item_value(TypeSpec t, Value *array);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
+Value *make_boolean_not_value(Value *value);
 
 
 #include "declarations/declaration.cpp"
@@ -134,37 +135,37 @@ struct {
 } integer_rvalue_operations[] = {
     { "unary_minus", NEGATE },
     { "unary_tilde", COMPLEMENT },
-    { "exponent", EXPONENT },
-    { "shift_left", SHIFT_LEFT },
-    { "shift_right", SHIFT_RIGHT },
-    { "star", MULTIPLY },
-    { "slash", DIVIDE },
-    { "percent", MODULO },
-    { "and", AND },
-    { "plus", ADD },
-    { "minus", SUBTRACT },
-    { "or", OR },
-    { "xor", XOR },
-    { "equal", EQUAL },
+    { "binary_exponent", EXPONENT },
+    { "binary_shift_left", SHIFT_LEFT },
+    { "binary_shift_right", SHIFT_RIGHT },
+    { "binary_star", MULTIPLY },
+    { "binary_slash", DIVIDE },
+    { "binary_percent", MODULO },
+    { "binary_and", AND },
+    { "binary_plus", ADD },
+    { "binary_minus", SUBTRACT },
+    { "binary_or", OR },
+    { "binary_xor", XOR },
+    { "is_equal", EQUAL },
     { "not_equal", NOT_EQUAL },
-    { "less", LESS },
-    { "greater", GREATER },
-    { "less_equal", LESS_EQUAL },
-    { "greater_equal", GREATER_EQUAL },
-    { "incomparable", INCOMPARABLE },
+    { "is_less", LESS },
+    { "is_greater", GREATER },
+    { "not_greater", LESS_EQUAL },
+    { "not_less", GREATER_EQUAL },
+    //{ "incomparable", INCOMPARABLE },
     //{ "compare",  },
 }, integer_lvalue_operations[] = {
     { "assign", ASSIGN },
-    { "plus_assign", ASSIGN_ADD },
-    { "minus_assign", ASSIGN_SUBTRACT },
-    { "star_assign", ASSIGN_MULTIPLY },
-    { "slash-assign", ASSIGN_DIVIDE },
-    { "percent_assign", ASSIGN_MODULO },
-    { "and_assign", ASSIGN_AND },
-    { "or_assign", ASSIGN_OR },
-    { "xor_assign", ASSIGN_XOR },
-    { "shift_left_assign", ASSIGN_SHIFT_LEFT },
-    { "shift_right_assign", ASSIGN_SHIFT_RIGHT }
+    { "assign_plus", ASSIGN_ADD },
+    { "assign_minus", ASSIGN_SUBTRACT },
+    { "assign_star", ASSIGN_MULTIPLY },
+    { "assign_slash", ASSIGN_DIVIDE },
+    { "assign_percent", ASSIGN_MODULO },
+    { "assign_and", ASSIGN_AND },
+    { "assign_or", ASSIGN_OR },
+    { "assign_xor", ASSIGN_XOR },
+    { "assign_shift_left", ASSIGN_SHIFT_LEFT },
+    { "assign_shift_right", ASSIGN_SHIFT_RIGHT }
 };
 
 
@@ -276,7 +277,7 @@ Scope *init_types() {
     // Boolean operations
     typedef TemplateOperation<BooleanOperationValue> BooleanOperation;
     root_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
-    root_scope->add(new BooleanOperation("equal", BOOLEAN_TS, EQUAL));
+    root_scope->add(new BooleanOperation("is_equal", BOOLEAN_TS, EQUAL));
     root_scope->add(new BooleanOperation("not_equal", BOOLEAN_TS, NOT_EQUAL));
     root_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
     root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", BOOLEAN_TS, AND));
@@ -285,12 +286,12 @@ Scope *init_types() {
     // Reference operations
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
     root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
-    root_scope->add(new ReferenceOperation("equal", ANY_REFERENCE_TS, EQUAL));
+    root_scope->add(new ReferenceOperation("is_equal", ANY_REFERENCE_TS, EQUAL));
     root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
 
     // Array operations
     root_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    root_scope->add(new TemplateOperation<ArrayConcatenationValue>("plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    root_scope->add(new TemplateOperation<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
     root_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     
     // Builtin controls
@@ -336,8 +337,17 @@ Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token 
         }
     }
     
+    if (name == "is equal") {
+        Value *value = lookup("equality", pivot, args, kwargs, token, scope);
+        return value;
+    }
+    else if (name == "not equal") {
+        Value *value = lookup("equality", pivot, args, kwargs, token, scope);
+        return value ? make_boolean_not_value(value) : NULL;
+    }
+    
     std::cerr << "No match for " << pts << " " << name << " at " << token << "!\n";
-    throw TYPE_ERROR;
+    return NULL;
 }
 
 
@@ -358,6 +368,9 @@ Value *typize(Expr *expr, Scope *scope) {
         std::string name = ":" + expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
+
+        if (!value)
+            throw TYPE_ERROR;
     }
     else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;
@@ -377,6 +390,9 @@ Value *typize(Expr *expr, Scope *scope) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
+        
+        if (!value)
+            throw TYPE_ERROR;
     }
     else if (expr->type == Expr::INITIALIZER) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;

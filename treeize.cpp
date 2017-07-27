@@ -103,29 +103,29 @@ struct {
     const char *text;
     Precedence precedence;
 } operators[] = {
-    { "**",  "exponent", EXPONENTIAL },  // TODO: do we need this?
-    { "~",   "tilde", EXPONENTIAL },
-    { "<<",  "shift_left", EXPONENTIAL },
-    { ">>",  "shift_right", EXPONENTIAL },
+    { "**",  "_exponent", EXPONENTIAL },  // TODO: do we need this?
+    { "~",   "_tilde", EXPONENTIAL },
+    { "<<",  "_shift_left", EXPONENTIAL },
+    { ">>",  "_shift_right", EXPONENTIAL },
 
-    { "*",   "star", MULTIPLICATIVE },
-    { "/",   "slash", MULTIPLICATIVE },
-    { "%",   "percent", MULTIPLICATIVE },
-    { "&",   "and", MULTIPLICATIVE },
+    { "*",   "_star", MULTIPLICATIVE },
+    { "/",   "_slash", MULTIPLICATIVE },
+    { "%",   "_percent", MULTIPLICATIVE },
+    { "&",   "_and", MULTIPLICATIVE },
 
-    { "+",   "plus", ADDITIVE },
-    { "-",   "minus", ADDITIVE },
-    { "|",   "or", ADDITIVE },
-    { "^",   "xor", ADDITIVE },
+    { "+",   "_plus", ADDITIVE },
+    { "-",   "_minus", ADDITIVE },
+    { "|",   "_or", ADDITIVE },
+    { "^",   "_xor", ADDITIVE },
 
-    { "==",  "equal", COMPARING },
+    { "==",  "is_equal", COMPARING },
     { "!=",  "not_equal", COMPARING },
-    { "<",   "less", COMPARING },
-    { ">",   "greater", COMPARING },
-    { "<=",  "less_equal", COMPARING },
-    { ">=",  "greater_equal", COMPARING },
-    { "<>",  "incomparable", COMPARING },
-    { "<=>", "compare", COMPARING },
+    { "<",   "is_less", COMPARING },
+    { ">",   "is_greater", COMPARING },
+    { "<=",  "not_greater", COMPARING },
+    { ">=",  "not_less", COMPARING },
+    //{ "<>",  "not comparable", COMPARING },
+    //{ "<=>", "ordering", COMPARING },
 
     { "!",   "logical not", LOGICAL_HIGH },  // TODO: or make it ~~, and != into ~=?
     
@@ -135,16 +135,16 @@ struct {
     { "^^",  "logical xor", LOGICAL_LOW },
     
     { "=",   "assign", ASSIGNING },
-    { "+=",  "plus_assign", ASSIGNING },
-    { "-=",  "minus_assign", ASSIGNING },
-    { "*=",  "star_assign", ASSIGNING },
-    { "/=",  "slash_assign", ASSIGNING },
-    { "%=",  "percent_assign", ASSIGNING },
-    { "&=",  "and_assign", ASSIGNING },
-    { "|=",  "or_assign", ASSIGNING },
-    { "^=",  "xor_assign", ASSIGNING },
-    { "<<=",  "shift_left_assign", ASSIGNING },
-    { ">>=",  "shift_right_assign", ASSIGNING },
+    { "+=",  "assign_plus", ASSIGNING },
+    { "-=",  "assign_minus", ASSIGNING },
+    { "*=",  "assign_star", ASSIGNING },
+    { "/=",  "assign_slash", ASSIGNING },
+    { "%=",  "assign_percent", ASSIGNING },
+    { "&=",  "assign_and", ASSIGNING },
+    { "|=",  "assign_or", ASSIGNING },
+    { "^=",  "assign_xor", ASSIGNING },
+    { "<<=", "assign_shift_left", ASSIGNING },
+    { ">>=", "assign_shift_right", ASSIGNING },
     //{ "", "",  },
 };
 
@@ -343,13 +343,19 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                         // This operator either follows another, or the first one
                         // in an expression. We will treat it as a unary prefix operator,
                         // instead of nagging the user for using unreasonable parentheses.
-                        text = "unary_";
+                        text = "unary";
                         text += op.text;
                         back = UNARY;
                         fore = UNARY;
                     }
                     else {
-                        text = op.text;
+                        if (op.precedence < ADDITIVE)
+                            text = op.text;
+                        else {
+                            text = "binary";
+                            text += op.text;
+                        }
+                        
                         back = op.precedence;
                         fore = op.precedence;
                     }
