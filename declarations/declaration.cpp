@@ -53,3 +53,4 @@ public:
 #include "scope.cpp"
 #include "identifier.cpp"
 #include "type.cpp"
+#include "typespec.cpp"

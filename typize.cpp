@@ -5,41 +5,11 @@
 class Declaration;
 class Type;
 class Scope;
-class FunctionResultScope;
-class FunctionHeadScope;
-class FunctionBodyScope;
 class FunctionScope;
 class Variable;
 class Function;
 
-class Value;
-class DeclarationValue;
-
-class TypeSpec: public std::vector<Type *> {
-public:
-    TypeSpec();
-    TypeSpec(iterator tsi);
-    TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
-    
-    unsigned measure();
-    bool is_unsigned();
-    StorageWhere where();
-    Storage boolval(Storage s, X64 *x64, bool probe);
-    TypeSpec prefix(Type *t);
-    TypeSpec unprefix(Type *t);
-    TypeSpec rvalue();
-    TypeSpec lvalue();
-    void store(Storage s, Storage t, X64 *x64);
-    void create(Storage s, X64 *x64);
-    void destroy(Storage s, X64 *x64);
-};
-
-typedef TypeSpec::iterator TypeSpecIter;
-bool equalish(TypeSpecIter this_tsi, TypeSpecIter that_tsi);
-std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
-
-typedef std::vector<TypeSpec> TypeMatch;
-bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
+Variable *variable_cast(Declaration *decl);
 
 Type *any_type = NULL;
 Type *type_type = NULL;
@@ -60,6 +30,29 @@ Type *character_type = NULL;
 Type *reference_type = NULL;
 Type *array_type = NULL;
 
+
+class TypeSpec: public std::vector<Type *> {
+public:
+    TypeSpec();
+    TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
+    
+    unsigned measure();
+    bool is_unsigned();
+    StorageWhere where();
+    Storage boolval(Storage s, X64 *x64, bool probe);
+    TypeSpec prefix(Type *t);
+    TypeSpec unprefix(Type *t);
+    TypeSpec rvalue();
+    TypeSpec lvalue();
+    void store(Storage s, Storage t, X64 *x64);
+    void create(Storage s, X64 *x64);
+    void destroy(Storage s, X64 *x64);
+};
+
+typedef TypeSpec::iterator TypeSpecIter;
+typedef std::vector<TypeSpec> TypeMatch;
+std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
+
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
 TypeSpec ANY_TS;
@@ -79,47 +72,23 @@ TypeSpec ANY_ARRAY_REFERENCE_TS;
 TypeSpec VOID_CODE_TS;
 TypeSpec VOID_FUNCTION_TS;
 
-typedef std::vector<std::unique_ptr<Expr>> Args;
-typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
-enum OperationType {
-    TWEAK,
-    COMPLEMENT, NEGATE,
-    ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
-    OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
-    EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL, INCOMPARABLE,
-    ASSIGN, ASSIGN_ADD, ASSIGN_SUBTRACT, ASSIGN_MULTIPLY, ASSIGN_DIVIDE, ASSIGN_MODULO, ASSIGN_EXPONENT,
-    ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT
-};
-
-bool is_unary(OperationType o) {
-    return o == COMPLEMENT || o == NEGATE;
-}
-
-bool is_comparison(OperationType o) {
-    return o >= EQUAL && o <= INCOMPARABLE;
-}
-
-bool is_assignment(OperationType o) {
-    return o >= ASSIGN;
-}
+class Value;
+class DeclarationValue;
 
 Value *typize(Expr *expr, Scope *scope);
 TypeSpec get_typespec(Value *value);
-Variable *variable_cast(Declaration *decl);
 DeclarationValue *declaration_value_cast(Value *value);
+bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
-Value *make_block_value();
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
 Value *make_string_value(std::string text);
-Value *make_converted_value(TypeSpec to, Value *orig);
 Value *make_code_value(Value *orig);
-Value *make_array_item_value(TypeSpec t, Value *array);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
@@ -169,7 +138,7 @@ struct {
 };
 
 
-Scope *init_types() {
+Scope *init_builtins() {
     Scope *root_scope = new Scope();
 
     any_type = new SpecialType("<Any>", 0);

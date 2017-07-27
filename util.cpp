@@ -40,3 +40,26 @@ std::vector<std::string> brace_split(std::string s) {
     
     return fragments;
 }
+
+
+enum OperationType {
+    TWEAK,
+    COMPLEMENT, NEGATE,
+    ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
+    OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
+    EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL, INCOMPARABLE,
+    ASSIGN, ASSIGN_ADD, ASSIGN_SUBTRACT, ASSIGN_MULTIPLY, ASSIGN_DIVIDE, ASSIGN_MODULO, ASSIGN_EXPONENT,
+    ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT
+};
+
+bool is_unary(OperationType o) {
+    return o == COMPLEMENT || o == NEGATE;
+}
+
+bool is_comparison(OperationType o) {
+    return o >= EQUAL && o <= INCOMPARABLE;
+}
+
+bool is_assignment(OperationType o) {
+    return o >= ASSIGN;
+}

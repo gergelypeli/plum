@@ -1,19 +1,22 @@
 
 // Stage 3
 
+class Expr;
+typedef std::vector<std::unique_ptr<Expr>> Args;
+typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
+
 
 class Expr {
 public:
     enum ExprType {
         TUPLE, NUMBER, STRING, INITIALIZER, IDENTIFIER, CONTROL, DECLARATION
     } type;
-    //NodeType type;
     Token token;
     std::string text;
     
     std::unique_ptr<Expr> pivot;
-    std::vector<std::unique_ptr<Expr>> args;
-    std::map<std::string, std::unique_ptr<Expr>> kwargs;
+    Args args;
+    Kwargs kwargs;
     
     Expr(ExprType t, Token k) {
         type = t;
@@ -28,7 +31,6 @@ public:
     
     Expr *set_pivot(Expr *p) {
         pivot.reset(p);
-        //p->parent = this;
         return this;
     }
     
@@ -39,13 +41,11 @@ public:
         }
             
         args.push_back(std::unique_ptr<Expr>(a));
-        //a->parent = this;
         return this;
     }
     
     Expr *add_kwarg(std::string k, Expr *v) {
         kwargs.insert(decltype(kwargs)::value_type(k, v));
-        //v->parent = this;
         return this;
     }
 
@@ -72,7 +72,6 @@ Expr *tupleize(std::vector<Node> &nodes, int i);
 
 void tupleize_into(Expr *e, std::vector<Node> &nodes, int i) {
     Node &node = nodes[i];
-    //std::cerr << "Fill: " << print_node_type(node.type) << " " << node.text << "\n";
 
     if (node.type == Node::OPEN) {
         tupleize_into(e, nodes, node.right);
@@ -124,7 +123,6 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     }
         
     Node &node = nodes[i];
-    //std::cerr << "Tupleize: " << print_node_type(node.type) << " " << node.text << "\n";
     
     if (node.type == Node::OPEN) {
         // Grouping operators are ignored from now on
