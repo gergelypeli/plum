@@ -79,7 +79,7 @@ TypeSpec VOID_FUNCTION_TS;
 
 class DeclarationValue;
 
-Value *typize(Expr *expr, Scope *scope);
+Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
@@ -421,7 +421,7 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
 }
 
 
-Value *typize(Expr *expr, Scope *scope) {
+Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     Value *value = NULL;
     Marker marker = scope->mark();
     
@@ -465,33 +465,43 @@ Value *typize(Expr *expr, Scope *scope) {
             throw TYPE_ERROR;
     }
     else if (expr->type == Expr::INITIALIZER) {
+        std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
         
         if (s) {
-            value = interpolate(s->text, expr->token, expr->args, expr->kwargs, scope);
-        }
-        else if (expr->text.size()) {
-            //if (!context.size()) {
-            //    std::cerr << "Can't process initializer without type context!\n";
-            //    throw TYPE_ERROR;
-            //}
-            
-            Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-            TypeMatch match;
-            
-            if (!typematch(ANY_TYPE_TS, p, match)) {
-                std::cerr << "Can't process initializer without explicit type yet!\n";
+            if (name.size()) {
+                std::cerr << "No named initializers for string literals!\n";
                 throw TYPE_ERROR;
             }
             
-            value = match[1].initializer(expr->text);
+            value = interpolate(s->text, expr->token, expr->args, expr->kwargs, scope);
+        }
+        else if (name.size()) {
+            TypeMatch match;
+            
+            if (typematch(ANY_TYPE_TS, p, match))
+                context = &match[1];
+            else if (!context) {
+                std::cerr << "Initializer with neither explicit nor implicit type!\n";
+                throw TYPE_ERROR;
+            }
+            
+            value = (*context).initializer(name);
+            
+            if (!value) {
+                std::cerr << "No initializer " << *context << " `" << name << "!\n";
+                throw TYPE_ERROR;
+            }
+            
             bool ok = value->check(expr->args, expr->kwargs, scope);
         
             if (!ok) {
                 std::cerr << "Initializer argument problem for " << expr->token << "!\n";
                 throw TYPE_ERROR;
             }
+            
+            std::cerr << "Using initializer " << *context << " `" << name << ".\n";
         }
         else {
             std::cerr << "Can't process this initialization yet!\n";

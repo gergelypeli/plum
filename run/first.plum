@@ -50,7 +50,7 @@ start? :function as:
     z = s
     printb(z encode_utf8)
 
-    :if z == Character Array Reference `null then: prints("z is null")
+    :if z == `null then: prints("z is null")
 
     #(1, 2) + (3, 4)
 

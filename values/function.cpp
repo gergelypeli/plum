@@ -137,6 +137,7 @@ public:
         }
             
         TypeSpec var_ts = function->get_argument_typespec(i);
+        
         TypeMatch match;
         
         if (!typematch(var_ts, v, match)) {
@@ -151,8 +152,9 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         for (unsigned i = 0; i < args.size(); i++) {
             Expr *e = args[i].get();
+            TypeSpec var_ts = function->get_argument_typespec(i);
             
-            if (!check_arg(i, typize(e, scope)))
+            if (!check_arg(i, typize(e, scope, &var_ts)))
                 return false;
         }
                 
@@ -164,8 +166,9 @@ public:
             }
             
             Expr *e = kv.second.get();
+            TypeSpec var_ts = function->get_argument_typespec(i);
             
-            if (!check_arg(i, typize(e, scope)))
+            if (!check_arg(i, typize(e, scope, &var_ts)))
                 return false;
         }
 

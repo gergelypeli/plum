@@ -137,8 +137,7 @@ public:
             return false;
         }
 
-        Value *r = typize(args[0].get(), scope);
-        //Value *cr = convertible(ts, r);
+        Value *r = typize(args[0].get(), scope, &ts);
         TypeMatch match;
     
         if (!typematch(ts, r, match)) {
