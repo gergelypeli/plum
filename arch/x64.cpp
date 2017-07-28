@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "x64.h"
+#include "heap.h"
 
 const int OPSIZE_NONBYTE = 4;
 const int OPSIZE_DEFAULT = 6;
@@ -990,6 +991,7 @@ void X64::init_memory_management() {
     code_label_import(memalloc_label, "memalloc");
     code_label_import(memfree_label, "memfree");
     code_label_import(memrealloc_label, "memrealloc");
+    code_label_import(die_label, "die");
 
     incref_labels.resize(REGISTER_COUNT);
     decref_labels.resize(REGISTER_COUNT);
@@ -1032,6 +1034,8 @@ void X64::init_memory_management() {
     op(RET);
     
     code_label_export(realloc_RAX_RBX_label, "realloc_RAX_RBX", 0, false);
+    op(CMPQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);
+    op(JNE, die_label);
     pusha(true);
     op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
     op(LEA, RSI, Address(RBX, HEAP_HEADER_SIZE));
@@ -1055,24 +1059,51 @@ void X64::decref(Register reg) {
     op(CALL, decref_labels[reg]);
 }
 
-void X64::getref(Register reg) {
-    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI)
-        throw X64_ERROR;
-
-    op(MOVQ, reg, Address(reg, HEAP_REFCOUNT_OFFSET));
-}
-
-void X64::cmpref(Register reg, int count) {
-    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI)
-        throw X64_ERROR;
-
-    op(CMPQ, Address(reg, HEAP_REFCOUNT_OFFSET), count);
-}
-
-void X64::alloc() {
+void X64::alloc_RAX() {
     op(CALL, alloc_RAX_label);
 }
 
-void X64::realloc() {
+void X64::realloc_RAX_RBX() {
     op(CALL, realloc_RAX_RBX_label);
 }
+
+void X64::alloc_array_RAX(int item_size) {
+    op(PUSHQ, RAX);
+    op(IMUL3Q, RAX, RAX, item_size);
+    op(ADDQ, RAX, ARRAY_HEADER_SIZE);
+    alloc_RAX();
+    op(POPQ, Address(RAX, ARRAY_RESERVATION_OFFSET));
+    op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
+}
+
+void X64::realloc_array_RAX_RBX(int item_size) {
+    op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), RBX);
+    op(IMUL3Q, RBX, RBX, item_size);
+    op(ADDQ, RBX, ARRAY_HEADER_SIZE);
+    
+    realloc_RAX_RBX();
+}
+
+void X64::preappend_array_RAX_RBX(int item_size) {
+    op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
+    op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+    Label x;
+    op(JBE, x);
+    
+    realloc_array_RAX_RBX(item_size);
+    
+    code_label(x);
+}
+
+Address X64::array_reservation_address(Register reg) {
+    return Address(reg, ARRAY_RESERVATION_OFFSET);
+}
+
+Address X64::array_length_address(Register reg) {
+    return Address(reg, ARRAY_LENGTH_OFFSET);
+}
+
+Address X64::array_items_address(Register reg) {
+    return Address(reg, ARRAY_ITEMS_OFFSET);
+}
+

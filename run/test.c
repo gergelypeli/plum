@@ -11,22 +11,28 @@ static int allocation_count = 0;
 void *memalloc(long size) {
     allocation_count += 1;
     void *x = malloc(size);
-    printf(" -- malloc %p %ld\n", x, size);
+    fprintf(stderr, " -- malloc %p %ld\n", x, size);
     return x;
 }
 
 
 void memfree(void *m) {
     allocation_count -= 1;
-    printf(" -- free %p\n", m);
+    fprintf(stderr, " -- free %p\n", m);
     free(m);
 }
 
 
 void *memrealloc(void *m, long size) {
     void *x = realloc(m, size);
-    printf(" -- realloc %p %ld %p\n", m, size, x);
+    fprintf(stderr, " -- realloc %p %ld %p\n", m, size, x);
     return x;
+}
+
+
+void die() {
+    fprintf(stderr, "I have a bad feeling about this...\n");
+    abort();
 }
 
 

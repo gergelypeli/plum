@@ -11,7 +11,6 @@
 
 #include "util.cpp"
 #include "utf8.c"
-#include "arch/heap.h"
 #include "arch/ork.cpp"
 #include "arch/x64.cpp"
 #include "arch/storage.cpp"

@@ -117,12 +117,8 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        x64->op(MOVQ, RAX, length * 2 + ARRAY_HEADER_SIZE);
-        
-        x64->alloc();
-
-        x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), length);
-        x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
+        x64->op(MOVQ, RAX, length);
+        x64->alloc_array_RAX(2);
         
         return Storage(REGISTER, RAX);
     }
@@ -161,31 +157,18 @@ public:
         // RAX - target array, RBX - tmp, RCX - , RDX - source array
         x64->op(MOVQ, RDX, ls.reg);
         x64->op(MOVQ, RAX, rs.address);
-        x64->op(MOVQ, RCX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-        x64->op(SUBQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(CMPQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
-        Label x;
-        x64->op(JAE, x);
-        
-        // Must reallocate the array with more characters
-        x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
-        x64->op(IMUL3Q, RBX, RBX, 2);
-        x64->op(ADDQ, RBX, ARRAY_HEADER_SIZE);
-        
-        x64->realloc();
-        
-        x64->op(MOVQ, rs.address, RAX);  // rs.address is no longer needed, PTRs can be clobbed
-        
-        x64->code_label(x);
-        
-        x64->op(LEA, RDI, Address(RAX, ARRAY_ITEMS_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
 
-        x64->op(LEA, RSI, Address(RDX, ARRAY_ITEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(MOVQ, RBX, x64->array_length_address(RDX));
+        x64->preappend_array_RAX_RBX(2);
+        x64->op(MOVQ, rs.address, RAX);  // rs.address is no longer needed, PTRs can be clobbed
+
+        x64->op(LEA, RDI, x64->array_items_address(RAX));
+        x64->op(ADDQ, RDI, x64->array_length_address(RAX));
+        x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
+
+        x64->op(LEA, RSI, x64->array_items_address(RDX));
+        x64->op(MOVQ, RCX, x64->array_length_address(RDX));
+        x64->op(ADDQ, x64->array_length_address(RAX), RCX);
         x64->op(SHLQ, RCX, 1);
         
         x64->op(REPMOVSB);
