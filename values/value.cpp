@@ -548,8 +548,8 @@ Value *make_number_value(std::string text) {
 }
 
 
-Value *make_string_value(std::string text) {
-    return new StringValue(text);
+Value *make_string_literal_value(std::string text) {
+    return new StringLiteralValue(text);
 }
 
 

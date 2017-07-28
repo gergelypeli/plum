@@ -38,20 +38,20 @@ public:
 };
 
 
-class StringValue: public Value {
+class StringLiteralValue: public Value {
 public:
     std::string text;
     Register reg;
     
-    StringValue(std::string t)
+    StringLiteralValue(std::string t)
         :Value(CHARACTER_ARRAY_REFERENCE_TS) {
         text = t;
     }
 
     virtual Regs precompile(Regs preferred) {
-        //reg = preferred.get_gpr();
-        //return Regs().add(reg);
-        return Regs().add(RAX).add(RCX).add(RSI).add(RDI);
+        reg = preferred.get_gpr();
+        return Regs().add(reg);
+        //return Regs().add(RAX).add(RCX).add(RSI).add(RDI);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -60,23 +60,24 @@ public:
         characters.resize(bytelen);
         int charlen = decode_utf8_buffer(text.data(), bytelen, characters.data());
         characters.resize(charlen);
-        int size = 2;
+        //int size = 2;
 
         // Static headers with a refcount of 2
         // Not yet usable, since some of our code expects Character Array-s to be reallocable
-        //x64->data_heap_header();
-        //Label l;
-        //x64->data_label(l);
-        //x64->data_qword(charlen);
-        //x64->data_qword(charlen);
+        x64->data_heap_header();
+        Label l;
+        x64->data_label(l);
+        x64->data_qword(charlen);
+        x64->data_qword(charlen);
 
-        //for (unsigned short &c : characters)
-        //    x64->data_word(c);
+        for (unsigned short &c : characters)
+            x64->data_word(c);
         
-        //x64->op(LEARIP, reg, l, 0);
+        x64->op(LEARIP, reg, l, 0);
         
-        //return Storage(REGISTER, reg);
+        return Storage(REGISTER, reg);
         
+        /*
         // Code to allocate a new buffer and return that
         Label l;
         x64->data_label(l);
@@ -94,6 +95,34 @@ public:
         x64->op(LEARIP, RSI, l, 0);
         x64->op(MOVQ, RCX, charlen * size);
         x64->op(REPMOVSB);
+        
+        return Storage(REGISTER, RAX);
+        */
+    }
+};
+
+
+class StringBufferValue: public Value {
+public:
+    int length;
+    Register reg;
+    
+    StringBufferValue(int l)
+        :Value(CHARACTER_ARRAY_REFERENCE_TS) {
+        length = l;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return Regs().add(RAX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        x64->op(MOVQ, RAX, length * 2 + ARRAY_HEADER_SIZE);
+        
+        x64->alloc();
+
+        x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), length);
+        x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
         
         return Storage(REGISTER, RAX);
     }

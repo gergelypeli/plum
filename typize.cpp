@@ -88,7 +88,7 @@ Value *make_type_value(TypeSpec ts);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name);
 Value *make_number_value(std::string text);
-Value *make_string_value(std::string text);
+Value *make_string_literal_value(std::string text);
 Value *make_code_value(Value *orig);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
@@ -341,7 +341,7 @@ Value *interpolate(std::string text, Token token, Scope *scope) {
     block->set_marker(marker);
     
     DeclarationValue *dv = new DeclarationValue("xxx");
-    Value *initial_value = make_string_value("INTERPOLATED: ");
+    Value *initial_value = new StringBufferValue(100);
     Variable *v = dv->force_variable(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, initial_value, scope);
     block->force_add(dv);
 
@@ -364,7 +364,7 @@ Value *interpolate(std::string text, Token token, Scope *scope) {
             }
         }
         else {
-            pivot = make_string_value(fragment);
+            pivot = make_string_literal_value(fragment);
         }
 
         Value *streamify;
@@ -450,7 +450,7 @@ Value *typize(Expr *expr, Scope *scope) {
     }
     else if (expr->type == Expr::INITIALIZER) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        StringValue *s = dynamic_cast<StringValue *>(p);
+        StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
         
         if (s) {
             value = interpolate(s->text, expr->token, scope);
@@ -464,7 +464,7 @@ Value *typize(Expr *expr, Scope *scope) {
         value = make_number_value(expr->text);
     }
     else if (expr->type == Expr::STRING) {
-        value = make_string_value(expr->text);
+        value = make_string_literal_value(expr->text);
     }
     else {
         std::cerr << "Can't typize this now: " << expr->token << "!\n";
