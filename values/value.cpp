@@ -572,3 +572,8 @@ Value *make_boolean_not_value(Value *p) {
     TypeMatch match;
     return new BooleanOperationValue(COMPLEMENT, p, match);
 }
+
+
+Value *make_null_reference_value(TypeSpec ts) {
+    return new NullReferenceValue(ts);
+}

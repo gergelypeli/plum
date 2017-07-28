@@ -111,8 +111,8 @@ std::vector<Token> tokenize(std::string buffer) {
                 c = buffer[i];
             } while (isalnum(c) || c == '_' || c == '.');
         }
-        else if (isalpha(c) || c == '_' || c == ':') {
-            bool prefixed = (c == ':');
+        else if (isalpha(c) || c == '_' || c == ':' || c == '`') {
+            bool prefixed = (c == ':' || c == '`');
             
             do {
                 i++;

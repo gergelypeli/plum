@@ -1,6 +1,7 @@
 
 // Stage 4
 
+class Value;
 
 class Declaration;
 class Type;
@@ -34,6 +35,7 @@ Type *array_type = NULL;
 class TypeSpec: public std::vector<Type *> {
 public:
     TypeSpec();
+    TypeSpec(iterator tsi);
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
     
     unsigned measure();
@@ -47,6 +49,7 @@ public:
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, X64 *x64);
     void destroy(Storage s, X64 *x64);
+    Value *initializer(std::string name);
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
@@ -74,7 +77,6 @@ TypeSpec VOID_CODE_TS;
 TypeSpec VOID_FUNCTION_TS;
 
 
-class Value;
 class DeclarationValue;
 
 Value *typize(Expr *expr, Scope *scope);
@@ -93,6 +95,7 @@ Value *make_code_value(Value *orig);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
+Value *make_null_reference_value(TypeSpec ts);
 
 
 #include "declarations/declaration.cpp"
@@ -190,7 +193,7 @@ Scope *init_builtins() {
     unsigned_integer8_type = new UnsignedIntegerType("Unsigned_Integer8", 1);
     root_scope->add(unsigned_integer8_type);
 
-    reference_type = new ReferenceType();
+    reference_type = new ReferenceType("Reference");
     root_scope->add(reference_type);
     
     array_type = new HeapType("Array", 1);
@@ -454,6 +457,28 @@ Value *typize(Expr *expr, Scope *scope) {
         
         if (s) {
             value = interpolate(s->text, expr->token, scope);
+        }
+        else if (expr->text.size()) {
+            //if (!context.size()) {
+            //    std::cerr << "Can't process initializer without type context!\n";
+            //    throw TYPE_ERROR;
+            //}
+            
+            Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+            TypeMatch match;
+            
+            if (!typematch(ANY_TYPE_TS, p, match)) {
+                std::cerr << "Can't process initializer without explicit type yet!\n";
+                throw TYPE_ERROR;
+            }
+            
+            value = match[1].initializer(expr->text);
+            bool ok = value->check(expr->args, expr->kwargs, scope);
+        
+            if (!ok) {
+                std::cerr << "Initializer argument problem for " << expr->token << "!\n";
+                throw TYPE_ERROR;
+            }
         }
         else {
             std::cerr << "Can't process this initialization yet!\n";

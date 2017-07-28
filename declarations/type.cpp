@@ -81,6 +81,11 @@ public:
         std::cerr << "Undestroyable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
+    
+    virtual Value *initializer(TypeSpecIter tsi, std::string n) {
+        std::cerr << "Uninitializable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
 };
 
 
@@ -289,8 +294,8 @@ public:
 
 class ReferenceType: public Type {
 public:
-    ReferenceType()
-        :Type("<Reference>", 1) {
+    ReferenceType(std::string name)
+        :Type(name, 1) {
     }
     
     virtual unsigned measure(TypeSpecIter ) {
@@ -394,6 +399,16 @@ public:
             return Storage(FLAGS, SETNE);
         default:
             throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual Value *initializer(TypeSpecIter tsi, std::string name) {
+        if (name == "null") {
+            return make_null_reference_value(TypeSpec(tsi));
+        }
+        else {
+            std::cerr << "No reference initializer called " << name << "!\n";
+            return NULL;
         }
     }
 };

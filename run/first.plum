@@ -44,8 +44,13 @@ start? :function as:
 
     z? Character Array
     prints(z || "Ez tök 대박")
+    
+    :if z == Character Array Reference `null then: prints("z is null")
+    
     z = s
     printb(z encode_utf8)
+
+    :if z == Character Array Reference `null then: prints("z is null")
 
     #(1, 2) + (3, 4)
 

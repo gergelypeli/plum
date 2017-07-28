@@ -23,6 +23,17 @@ TypeSpec::TypeSpec() {
 }
 
 
+TypeSpec::TypeSpec(TypeSpecIter tsi) {
+    unsigned counter = 1;
+    
+    while (counter--) {
+        push_back(*tsi);
+        counter += (*tsi)->parameter_count;
+        tsi++;
+    }
+}
+
+
 StorageWhere TypeSpec::where() {
     TypeSpecIter this_tsi(begin());
     
@@ -105,6 +116,12 @@ void TypeSpec::create(Storage s, X64 *x64) {
 void TypeSpec::destroy(Storage s, X64 *x64) {
     TypeSpecIter tsi(begin());
     return (*tsi)->destroy(tsi, s, x64);
+}
+
+
+Value *TypeSpec::initializer(std::string name) {
+    TypeSpecIter tsi(begin());
+    return (*tsi)->initializer(tsi, name);
 }
 
 
