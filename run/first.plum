@@ -15,19 +15,19 @@ start? :function as:
     b? Integer
     b = 3
     
-    :if a == b then: print(1) else: print(0)
+    :if a == b then: prints("a == b") else: prints("a != b")
     
-    :if a < b && a > b then: print(11) else: print(22)
+    :if a < b && a > b then: prints("Huh?") else: prints("Huh.")
     
     c? Integer
     c = :if a == b then: 100 else: 200
-    print(c)
+    prints("This should be 200: {c}" {})
     
     d? 6u8
     d += 7u8
     d = d * d
     
-    :if d then: print(1000)
+    :if d then: prints("Yes, d is nonzero.")
 
     prints("Hello!")
 
@@ -63,5 +63,7 @@ start? :function as:
     prints(333 stringify)
 
     prints("XXXXX{a}YYYYY" {})
+
+    prints("{six} and {seven}" { six: 6, seven: 7 })
 
     :return

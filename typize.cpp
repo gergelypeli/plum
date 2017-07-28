@@ -333,20 +333,31 @@ Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token 
 }
 
 
-Value *interpolate(std::string text, Token token, Scope *scope) {
+Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Scope *scope) {
     std::vector<std::string> fragments = brace_split(text);
-    Args no_args;
-    Kwargs no_kwargs;
-    Token no_token = token;
-
+    
+    if (args.size() > 0) {
+        std::cerr << "String interpolation must use keyword arguments only!\n";
+        throw TYPE_ERROR;
+    }
+    
     Marker marker = scope->mark();
     BlockValue *block = new BlockValue();
     block->set_marker(marker);
     
-    DeclarationValue *dv = new DeclarationValue("xxx");
+    DeclarationValue *dv = new DeclarationValue("<result>");
     Value *initial_value = new StringBufferValue(100);
     Variable *v = dv->force_variable(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, initial_value, scope);
     block->force_add(dv);
+
+    for (auto &kv : kwargs) {
+        std::string keyword = kv.first;
+        Expr *expr = kv.second.get();
+        Value *keyword_value = typize(expr, scope);
+        DeclarationValue *kwdv = new DeclarationValue(keyword);
+        kwdv->force_variable(keyword_value->ts.lvalue(), keyword_value, scope);
+        block->force_add(kwdv);
+    }
 
     bool identifier = false;
     
@@ -359,6 +370,8 @@ Value *interpolate(std::string text, Token token, Scope *scope) {
         
                 if (pivot)
                     break;
+                else if (kwargs.size() > 0)
+                    break;  // Look up only pseudo variables in this scope
             }
             
             if (!pivot) {
@@ -456,7 +469,7 @@ Value *typize(Expr *expr, Scope *scope) {
         StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
         
         if (s) {
-            value = interpolate(s->text, expr->token, scope);
+            value = interpolate(s->text, expr->token, expr->args, expr->kwargs, scope);
         }
         else if (expr->text.size()) {
             //if (!context.size()) {
