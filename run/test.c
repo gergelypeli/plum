@@ -6,6 +6,30 @@
 static int allocation_count = 0;
 
 
+// Exported helpers
+
+void *memalloc(long size) {
+    allocation_count += 1;
+    void *x = malloc(size);
+    printf(" -- malloc %p %ld\n", x, size);
+    return x;
+}
+
+
+void memfree(void *m) {
+    allocation_count -= 1;
+    printf(" -- free %p\n", m);
+    free(m);
+}
+
+
+void *memrealloc(void *m, long size) {
+    void *x = realloc(m, size);
+    printf(" -- realloc %p %ld %p\n", m, size, x);
+    return x;
+}
+
+
 // Internal helpers
 
 #define ALEN(x) *(long *)((x) + ARRAY_LENGTH_OFFSET)
@@ -15,10 +39,9 @@ static int allocation_count = 0;
 
 
 void *allocate_array(long length, long size) {
-    void *array = malloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     HREF(array) = 1;
     ARES(array) = length;
-    allocation_count += 1;
     return array;
 }
 
@@ -27,7 +50,7 @@ void *reallocate_array(void *array, long length, long size) {
     if (HREF(array) != 1)
         fprintf(stderr, "Oops, reallocating an array with %ld references!\n", HREF(array));
 
-    array = realloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    array = memrealloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     ARES(array) = length;
     return array;
 }
@@ -41,50 +64,9 @@ void *append_decode_utf8(void *character_array, char *bytes, long byte_length) {
         character_array = reallocate_array(character_array, character_length + byte_length, 2);
         
     unsigned short *characters = AITE(character_array);
-    ALEN(character_array) += decode_utf8_raw(bytes, byte_length, characters + character_length);
+    ALEN(character_array) += decode_utf8_buffer(bytes, byte_length, characters + character_length);
     
     return character_array;
-}
-
-
-void *append_other(void *character_array, unsigned short *other, long other_length) {
-    long character_length = ALEN(character_array);
-    long character_reserve = ARES(character_array);
-    
-    if (character_reserve - character_length < other_length)
-        character_array = reallocate_array(character_array, character_length + other_length, 2);
-        
-    unsigned short *characters = AITE(character_array);
-    
-    for (unsigned i = 0; i < other_length; i++)
-        characters[character_length + i] = other[i];
-        
-    ALEN(character_array) += other_length;
-    
-    return character_array;
-}
-
-
-// Exported helpers
-
-void *memalloc(long size) {
-    allocation_count += 1;
-    void *x = malloc(size);
-    //printf("malloc %p\n", x);
-    return x;
-}
-
-
-void memfree(void *m) {
-    allocation_count -= 1;
-    //printf("free %p\n", m);
-    free(m);
-}
-
-
-void *memrealloc(void *m, long size) {
-    void *x = realloc(m, size);
-    return x;
 }
 
 
@@ -103,10 +85,9 @@ void printu8(char a) {
 void prints(void *s) {
     if (s) {
         long character_length = ALEN(s);
-        char *bytes = malloc(character_length * 3);
-        int byte_length = encode_utf8_raw(AITE(s), character_length, bytes);
+        char bytes[character_length * 3];
+        int byte_length = encode_utf8_buffer(AITE(s), character_length, bytes);
         printf("%.*s\n", byte_length, bytes);
-        free(bytes);
     }
     else
         printf("(null)\n");
@@ -134,7 +115,7 @@ void *decode_utf8(void *byte_array) {
     void *character_array = allocate_array(byte_length, 2);
     unsigned short *characters = AITE(character_array);
     
-    long character_length = decode_utf8_raw(bytes, byte_length, characters);
+    long character_length = decode_utf8_buffer(bytes, byte_length, characters);
     ALEN(character_array) = character_length;
     
     return reallocate_array(character_array, character_length, 2);
@@ -151,7 +132,7 @@ void *encode_utf8(void *character_array) {
     void *byte_array = allocate_array(character_length * 3, 1);
     char *bytes = AITE(byte_array);
 
-    long byte_length = encode_utf8_raw(characters, character_length, bytes);
+    long byte_length = encode_utf8_buffer(characters, character_length, bytes);
     ALEN(byte_array) = byte_length;
     
     return reallocate_array(byte_array, byte_length, 1);
@@ -171,18 +152,11 @@ void *stringify_integer(long x) {
 
 
 void streamify_integer(long x, void **character_array_lvalue) {
-    char byte_array[20];
+    char byte_array[30];
     int byte_length = snprintf(byte_array, sizeof(byte_array), "%ld", x);
     
     void *character_array = *character_array_lvalue;
     character_array = append_decode_utf8(character_array, byte_array, byte_length);
-    *character_array_lvalue = character_array;
-}
-
-
-void streamify_string(void *string, void **character_array_lvalue) {
-    void *character_array = *character_array_lvalue;
-    character_array = append_other(character_array, AITE(string), ALEN(string));
     *character_array_lvalue = character_array;
 }
 

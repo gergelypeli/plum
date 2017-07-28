@@ -57,6 +57,6 @@ start? :function as:
     
     prints(333 stringify)
 
-    prints("X{a}Y" {})
+    prints("XXXXX{a}YYYYY" {})
 
     :return

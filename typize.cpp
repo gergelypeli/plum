@@ -266,6 +266,9 @@ Scope *init_builtins() {
     root_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
     root_scope->add(new TemplateOperation<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
     root_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
+
+    // String functions
+    root_scope->add(new TemplateOperation<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS, TWEAK));
     
     // Builtin controls
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", BOOLEAN_TS, TWEAK));
@@ -284,7 +287,7 @@ Scope *init_builtins() {
 
     root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, CHARACTER_ARRAY_REFERENCE_TS));
     root_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
-    root_scope->add(new ImportedFunction("streamify_string", "streamify", CHARACTER_ARRAY_REFERENCE_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
+    //root_scope->add(new ImportedFunction("streamify_string", "streamify", CHARACTER_ARRAY_REFERENCE_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
 
     return root_scope;
 }
@@ -364,29 +367,32 @@ Value *interpolate(std::string text, Token token, Scope *scope) {
             pivot = make_string_value(fragment);
         }
 
-        // TODO: this is kinda awkward expecting that this will be a function, but
-        // we can't supply arguments to anything else!
-        FunctionValue *streamify;
+        Value *streamify;
 
         for (Scope *s = scope; s; s = s->outer_scope) {
-            Value *value = s->lookup("streamify", pivot);
+            streamify = s->lookup("streamify", pivot);
         
-            if (value) {
-                streamify = dynamic_cast<FunctionValue *>(value);
-                if (!streamify)
-                    throw INTERNAL_ERROR;
-                    
+            if (streamify)
                 break;
-            }
         }
         
         if (!streamify) {
             std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
             throw TYPE_ERROR;
         }
-        
+
         Value *arg = make_variable_value(v, NULL);
-        streamify->force_arg(arg);
+        
+        // This is kinda awkward
+        FunctionValue *fv = dynamic_cast<FunctionValue *>(streamify);;
+        StringStreamificationValue *ssv = dynamic_cast<StringStreamificationValue *>(streamify);
+        
+        if (fv)
+            fv->force_arg(arg);
+        else if (ssv)
+            ssv->force_arg(arg);
+        else
+            throw INTERNAL_ERROR;
         
         block->force_add(streamify);
         identifier = !identifier;

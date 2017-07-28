@@ -1,5 +1,5 @@
 
-long decode_utf8_raw(const char *bytes, long byte_length, unsigned short *characters) {
+long decode_utf8_buffer(const char *bytes, long byte_length, unsigned short *characters) {
     const char *bytes_end = bytes + byte_length;
     const unsigned short *characters_start = characters;
     
@@ -53,7 +53,7 @@ long decode_utf8_raw(const char *bytes, long byte_length, unsigned short *charac
 }
 
 
-long encode_utf8_raw(const unsigned short *characters, long character_length, char *bytes) {
+long encode_utf8_buffer(const unsigned short *characters, long character_length, char *bytes) {
     const unsigned short *characters_end = characters + character_length;
     const char *bytes_start = bytes;
     

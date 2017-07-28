@@ -375,6 +375,7 @@ public:
     void data_label_export(Label c, std::string name, unsigned size, bool is_global);
     unsigned data_allocate(unsigned size);
     void data_reference(Label c);
+    void data_heap_header();
 
     void code_align();
     void code_byte(char x);

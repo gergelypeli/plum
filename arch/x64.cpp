@@ -271,6 +271,15 @@ void X64::data_reference(Label label) {
 }
 
 
+void X64::data_heap_header() {
+    if (HEAP_HEADER_SIZE != 16 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKCOUNT_OFFSET != -8)
+        throw X64_ERROR;
+        
+    data_qword(2);
+    data_qword(0);
+}
+
+
 void X64::code_align() {
     code.resize((code.size() + 7) & ~7);  // 8-byte alignment
 }
