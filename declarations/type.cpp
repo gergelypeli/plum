@@ -86,6 +86,10 @@ public:
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
+    
+    virtual Scope *get_inner_scope() {
+        return NULL;
+    }
 };
 
 
@@ -469,14 +473,21 @@ public:
         
         return NULL;
     }
+    
+    virtual Scope *get_inner_scope() {
+        return enumeration_metatype->get_inner_scope();
+    }
 };
 
 
 class EnumerationMetaType: public Type {
 public:
+    std::unique_ptr<Scope> inner_scope;
     
     EnumerationMetaType(std::string name)
         :Type(name, 0) {
+        
+        inner_scope.reset(new Scope);
     }
     
     virtual Value *match(std::string name, Value *pivot) {
@@ -484,5 +495,9 @@ public:
             return NULL;
             
         return make_enumeration_type_value();
-    }    
+    }
+    
+    virtual Scope *get_inner_scope() {
+        return inner_scope.get();
+    }
 };

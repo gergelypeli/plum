@@ -13,6 +13,7 @@ class Function;
 Variable *variable_cast(Declaration *decl);
 
 Type *any_type = NULL;
+Type *same_type = NULL;
 Type *type_type = NULL;
 Type *uncertain_type = NULL;
 Type *lvalue_type = NULL;
@@ -152,6 +153,9 @@ Scope *init_builtins() {
 
     any_type = new SpecialType("<Any>", 0);
     root_scope->add(any_type);
+
+    same_type = new SpecialType("<Same>", 0);
+    root_scope->add(same_type);
     
     uncertain_type = new SpecialType("<Uncertain>", 0);
     root_scope->add(uncertain_type);
@@ -265,11 +269,15 @@ Scope *init_builtins() {
     // Boolean operations
     typedef TemplateOperation<BooleanOperationValue> BooleanOperation;
     root_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
-    root_scope->add(new BooleanOperation("is_equal", BOOLEAN_TS, EQUAL));
-    root_scope->add(new BooleanOperation("not_equal", BOOLEAN_TS, NOT_EQUAL));
+    //root_scope->add(new BooleanOperation("is_equal", BOOLEAN_TS, EQUAL));
+    //root_scope->add(new BooleanOperation("not_equal", BOOLEAN_TS, NOT_EQUAL));
     root_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
     root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", BOOLEAN_TS, AND));
     root_scope->add(new TemplateOperation<BooleanOrValue>("logical or", ANY_TS, OR));
+
+    // Enum operations
+    Scope *enum_scope = enumeration_metatype->get_inner_scope();
+    enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
 
     // Reference operations
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
@@ -329,6 +337,14 @@ Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token 
             std::cerr << "Accepted   " << pts << " " << name << " arguments.\n";
             return value;
         }
+    }
+
+    Type *t = pts.rvalue()[0];
+    Scope *inner_scope = t->get_inner_scope();
+    if (inner_scope) {
+        Value *value = lookup(name, pivot, args, kwargs, token, inner_scope);
+        if (value)
+            return value;
     }
     
     if (name == "is equal") {

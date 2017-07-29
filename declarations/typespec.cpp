@@ -146,7 +146,19 @@ Value *rolematch(Value *v, TypeSpecIter s, Type *t) {
 // No other type accepts Void, not even Any.
 
 bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
-    match.push_back(TypeSpec());
+    // This may overwrite an older match, but that's OK, we just need to
+    // preserve the type parameters.
+    if (match.size() > 0)
+        match[0].clear();
+    else
+        match.push_back(TypeSpec());
+
+    for (TypeSpecIter tti = tt.begin(); tti != tt.end(); tti++) {
+        if (*tti == same_type) {
+            tt.erase(tti);
+            std::copy(match.at(1).begin(), match.at(1).end(), tti);
+        }
+    }
 
     // Checking NULL value
     if (!value) {
