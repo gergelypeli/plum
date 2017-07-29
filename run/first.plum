@@ -69,7 +69,7 @@ start? :function as:
     Myenum? Enumeration
         FOO?, BAR?, BAZ?
 
-    fbb? Myenum `BAR
+    fbb? Myenum `FOO
     :if fbb == `FOO then: prints("fbb is FOO") else: prints("fbb is not FOO")
 
     :return

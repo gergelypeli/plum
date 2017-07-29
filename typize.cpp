@@ -33,6 +33,7 @@ Type *character_type = NULL;
 Type *reference_type = NULL;
 Type *array_type = NULL;
 Type *enumeration_metatype = NULL;
+Type *integer_metatype = NULL;
 
 
 class TypeSpec: public std::vector<Type *> {
@@ -64,6 +65,7 @@ TypeSpec VOID_TS;
 TypeSpec UNCERTAIN_TS;
 TypeSpec ANY_TS;
 TypeSpec ANY_TYPE_TS;
+TypeSpec ANY_LVALUE_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;
@@ -162,6 +164,9 @@ Scope *init_builtins() {
 
     enumeration_metatype = new EnumerationMetaType("Enumeration");
     root_scope->add(enumeration_metatype);
+
+    integer_metatype = new IntegerMetaType("Integerlike");
+    root_scope->add(integer_metatype);
     
     type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);
@@ -217,6 +222,7 @@ Scope *init_builtins() {
     // BOGUS_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };
+    ANY_LVALUE_TS = { lvalue_type, any_type };
     UNCERTAIN_TS = { uncertain_type };
     VOID_TS = { void_type };
     BOOLEAN_TS = { boolean_type };
@@ -248,20 +254,13 @@ Scope *init_builtins() {
     Ss value_names = { "value" };
 
     // Integer operations
-    for (Type *t : {
-        integer_type, integer32_type, integer16_type, integer8_type,
-        unsigned_integer_type, unsigned_integer32_type, unsigned_integer16_type, unsigned_integer8_type,
-    }) {
-        TypeSpec ts = { t };
-        
-        for (auto &item : integer_rvalue_operations)
-            root_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ts, item.operation));
+    Scope *integer_scope = integer_metatype->get_inner_scope();
+    
+    for (auto &item : integer_rvalue_operations)
+        integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_TS, item.operation));
 
-        TypeSpec lts = { lvalue_type, t };
-        
-        for (auto &item : integer_lvalue_operations)
-            root_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, lts, item.operation));
-    }
+    for (auto &item : integer_lvalue_operations)
+        integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
     
     // Character operations
     root_scope->add(new TemplateOperation<IntegerOperationValue>("assign", CHARACTER_LVALUE_TS, ASSIGN));
@@ -316,33 +315,45 @@ Scope *init_builtins() {
 }
 
 
+Value *lookup_scope(Scope *s, std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token &token, Scope *scope) {
+    //std::cerr << "Trying a scope...\n";
+    Value *value = s->lookup(name, pivot);
+    
+    if (value) {
+        // TODO: we should print the definition pivot type, not the value type
+        std::cerr << "Found       " << get_typespec(pivot) << " " << name << " returning " << value->ts << ".\n";
+        bool ok = value->check(args, kwargs, scope);
+    
+        if (!ok) {
+            std::cerr << "Argument problem for " << token << "!\n";
+            throw TYPE_ERROR;
+        }
+
+        std::cerr << "Accepted    " << get_typespec(pivot) << " " << name << " arguments.\n";
+        return value;
+    }
+    else
+        return NULL;
+}
+
+
 Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token &token, Scope *scope) {
     TypeSpec pts = pivot ? pivot->ts : VOID_TS;
-    std::cerr << "Looking up " << pts << " " << name << " definition.\n";
+    std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
     
     for (Scope *s = scope; s; s = s->outer_scope) {
-        //std::cerr << "Trying a scope...\n";
-        Value *value = s->lookup(name, pivot);
+        Value *value = lookup_scope(s, name, pivot, args, kwargs, token, scope);
         
-        if (value) {
-            // TODO: we should print the definition pivot type, not the value type
-            std::cerr << "Found      " << pts << " " << name << " returning " << value->ts << ".\n";
-            bool ok = value->check(args, kwargs, scope);
-        
-            if (!ok) {
-                std::cerr << "Argument problem for " << token << "!\n";
-                throw TYPE_ERROR;
-            }
-
-            std::cerr << "Accepted   " << pts << " " << name << " arguments.\n";
+        if (value)
             return value;
-        }
     }
 
     Type *t = pts.rvalue()[0];
     Scope *inner_scope = t->get_inner_scope();
+    
     if (inner_scope) {
-        Value *value = lookup(name, pivot, args, kwargs, token, inner_scope);
+        Value *value = lookup_scope(inner_scope, name, pivot, args, kwargs, token, scope);
+        
         if (value)
             return value;
     }

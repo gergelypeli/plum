@@ -281,6 +281,10 @@ public:
     virtual bool is_unsigned(TypeSpecIter tsi) {
         return false;
     }
+
+    virtual Scope *get_inner_scope() {
+        return integer_metatype->get_inner_scope();
+    }
 };
 
 
@@ -292,6 +296,10 @@ public:
     
     virtual bool is_unsigned(TypeSpecIter tsi) {
         return true;
+    }
+
+    virtual Scope *get_inner_scope() {
+        return integer_metatype->get_inner_scope();
     }
 };
 
@@ -480,14 +488,26 @@ public:
 };
 
 
-class EnumerationMetaType: public Type {
+class MetaType: public Type {
 public:
     std::unique_ptr<Scope> inner_scope;
     
-    EnumerationMetaType(std::string name)
+    MetaType(std::string name)
         :Type(name, 0) {
         
         inner_scope.reset(new Scope);
+    }
+    
+    virtual Scope *get_inner_scope() {
+        return inner_scope.get();
+    }
+};
+
+
+class EnumerationMetaType: public MetaType {
+public:
+    EnumerationMetaType(std::string name)
+        :MetaType(name) {
     }
     
     virtual Value *match(std::string name, Value *pivot) {
@@ -496,8 +516,20 @@ public:
             
         return make_enumeration_type_value();
     }
+};
+
+
+class IntegerMetaType: public MetaType {
+public:
+    IntegerMetaType(std::string name)
+        :MetaType(name) {
+    }
     
-    virtual Scope *get_inner_scope() {
-        return inner_scope.get();
+    virtual Value *match(std::string name, Value *pivot) {
+        if (name != this->name)
+            return NULL;
+            
+        std::cerr << "Can't create custom integer types yet!\n";
+        return NULL;
     }
 };
