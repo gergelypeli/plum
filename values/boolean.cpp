@@ -145,8 +145,10 @@ public:
             
             Value *l = left.release();
             
-            if (!typematch(ts, l, match))
+            if (!typematch(ts, l, match)) {
+                std::cerr << "Logical or left is not boolean: " << get_typespec(l) << "\n";
                 throw INTERNAL_ERROR;
+            }
                 
             left.reset(l);
             

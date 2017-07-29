@@ -21,24 +21,23 @@ public:
         return "";
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         if (name != this->name)
             return NULL;
-        else if (parameter_count == 0) {
-            if (pivot != NULL)
+            
+        if (parameter_count == 0) {
+            if (!typematch(VOID_TS, pivot, match))
                 return NULL;
                 
             TypeSpec ts = { type_type, this };
             
             return make_type_value(ts);
         }
-        else if (parameter_count == 1 && pivot != NULL) {
-            TypeSpec pts = get_typespec(pivot);
-            
-            if (pts[0] != type_type)
+        else if (parameter_count == 1) {
+            if (!typematch(ANY_TYPE_TS, pivot, match))
                 return NULL;
                 
-            TypeSpec ts = pts.unprefix(type_type).prefix(this).prefix(type_type);
+            TypeSpec ts = match[1].prefix(this).prefix(type_type);
             // FIXME: do something with pivot!
             
             return make_type_value(ts);
@@ -510,8 +509,11 @@ public:
         :MetaType(name) {
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         if (name != this->name)
+            return NULL;
+            
+        if (!typematch(VOID_TS, pivot, match))
             return NULL;
             
         return make_enumeration_type_value();
@@ -525,8 +527,11 @@ public:
         :MetaType(name) {
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         if (name != this->name)
+            return NULL;
+
+        if (!typematch(VOID_TS, pivot, match))
             return NULL;
             
         std::cerr << "Can't create custom integer types yet!\n";

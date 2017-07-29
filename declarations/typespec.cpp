@@ -164,10 +164,12 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     if (!value) {
         if (tt[0] == void_type) {
             std::cerr << "Matched nothing for Void.\n";
+            match[0] = tt;
             return true;
         }
         else if (tt[0] == code_type && tt[1] == void_type) {
             std::cerr << "Matched nothing for Void Code.\n";
+            match[0] = tt;
             return true;
         }
         else {
@@ -187,6 +189,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     if (ss[0] == void_type) {
         if (tt[0] == code_type && tt[1] == void_type) {
             std::cerr << "Matched Void for Void Code.\n";
+            match[0] = tt;
             return true;
         }
         else {

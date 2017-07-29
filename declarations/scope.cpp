@@ -36,10 +36,9 @@ public:
         return marker;
     }
     
-    virtual Value *lookup(std::string name, Value *pivot) {
-        // FIXME: backwards, please!
-        for (auto &decl : contents) {
-            Value *v = decl->match(name, pivot);
+    virtual Value *lookup(std::string name, Value *pivot, TypeMatch &match) {
+        for (int i = contents.size() - 1; i >= 0; i--) {
+            Value *v = contents[i]->match(name, pivot, match);
             
             if (v) {
                 //std::cerr << "XXX: " << name << " " << get_typespec(pivot) << " => " << get_typespec(v) << "\n";
@@ -225,15 +224,15 @@ public:
         return body_scope;
     }
     
-    virtual Value *lookup(std::string name, Value *pivot) {
+    virtual Value *lookup(std::string name, Value *pivot, TypeMatch &match) {
         if (body_scope) {
-            Value *v = head_scope->lookup(name, pivot);
+            Value *v = head_scope->lookup(name, pivot, match);
             if (v)
                 return v;
         }
         
         if (head_scope) {
-            Value *v = result_scope->lookup(name, pivot);
+            Value *v = result_scope->lookup(name, pivot, match);
             if (v)
                 return v;
         }

@@ -34,7 +34,7 @@ public:
         previous_declaration = marker.last;
     }
 
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         return NULL;
     }
     

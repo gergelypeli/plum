@@ -317,11 +317,12 @@ Scope *init_builtins() {
 
 Value *lookup_scope(Scope *s, std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token &token, Scope *scope) {
     //std::cerr << "Trying a scope...\n";
-    Value *value = s->lookup(name, pivot);
+    TypeMatch match;
+    Value *value = s->lookup(name, pivot, match);
     
     if (value) {
         // TODO: we should print the definition pivot type, not the value type
-        std::cerr << "Found       " << get_typespec(pivot) << " " << name << " returning " << value->ts << ".\n";
+        std::cerr << "Found       " << match[0] << " " << name << " returning " << value->ts << ".\n";
         bool ok = value->check(args, kwargs, scope);
     
         if (!ok) {
@@ -329,7 +330,7 @@ Value *lookup_scope(Scope *s, std::string name, Value *pivot, Args &args, Kwargs
             throw TYPE_ERROR;
         }
 
-        std::cerr << "Accepted    " << get_typespec(pivot) << " " << name << " arguments.\n";
+        std::cerr << "Accepted    " << match[0] << " " << name << " arguments.\n";
         return value;
     }
     else
@@ -399,13 +400,21 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     }
 
     bool identifier = false;
+    Args fake_args;
+    Kwargs fake_kwargs;
+    fake_args.push_back(std::unique_ptr<Expr>(new Expr(Expr::IDENTIFIER, token, "<result>")));
     
     for (auto &fragment : fragments) {
         Value *pivot;
+        TypeMatch match;
         
         if (identifier) {
+            // For explicit keywords, we only look up in the innermost scope.
+            // For identifiers, we look up outer scopes, but we don't need to look
+            // in inner scopes, because that would need a pivot value, which we don't have.
+            
             for (Scope *s = scope; s; s = s->outer_scope) {
-                pivot = s->lookup(fragment, NULL);
+                pivot = s->lookup(fragment, NULL, match);
         
                 if (pivot)
                     break;
@@ -422,33 +431,12 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
             pivot = make_string_literal_value(fragment);
         }
 
-        Value *streamify;
-
-        for (Scope *s = scope; s; s = s->outer_scope) {
-            streamify = s->lookup("streamify", pivot);
-        
-            if (streamify)
-                break;
-        }
-        
+        Value *streamify = lookup("streamify", pivot, fake_args, fake_kwargs, token, scope);
         if (!streamify) {
             std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
             throw TYPE_ERROR;
         }
 
-        Value *arg = make_variable_value(v, NULL);
-        
-        // This is kinda awkward
-        FunctionValue *fv = dynamic_cast<FunctionValue *>(streamify);;
-        StringStreamificationValue *ssv = dynamic_cast<StringStreamificationValue *>(streamify);
-        
-        if (fv)
-            fv->force_arg(arg);
-        else if (ssv)
-            ssv->force_arg(arg);
-        else
-            throw INTERNAL_ERROR;
-        
         block->force_add(streamify);
         identifier = !identifier;
     }
