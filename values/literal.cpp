@@ -38,6 +38,25 @@ public:
 };
 
 
+class EnumerationValue: public Value {
+public:
+    int number;
+    
+    EnumerationValue(TypeSpec ts, int i)
+        :Value(ts) {
+        number = i;
+    }
+
+    virtual Regs precompile(Regs) {
+        return Regs();
+    }
+
+    virtual Storage compile(X64 *) {
+        return Storage(CONSTANT, number);
+    }
+};
+
+
 class StringLiteralValue: public Value {
 public:
     std::string text;

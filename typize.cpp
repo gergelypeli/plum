@@ -14,6 +14,7 @@ Variable *variable_cast(Declaration *decl);
 
 Type *any_type = NULL;
 Type *type_type = NULL;
+Type *uncertain_type = NULL;
 Type *lvalue_type = NULL;
 Type *function_type = NULL;
 Type *code_type = NULL;
@@ -30,6 +31,7 @@ Type *unsigned_integer8_type = NULL;
 Type *character_type = NULL;
 Type *reference_type = NULL;
 Type *array_type = NULL;
+Type *enumeration_metatype = NULL;
 
 
 class TypeSpec: public std::vector<Type *> {
@@ -58,6 +60,7 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
+TypeSpec UNCERTAIN_TS;
 TypeSpec ANY_TS;
 TypeSpec ANY_TYPE_TS;
 TypeSpec BOOLEAN_TS;
@@ -82,6 +85,7 @@ class DeclarationValue;
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
+std::string declaration_get_name(DeclarationValue *dv);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 
 Value *make_variable_value(Variable *decl, Value *pivot);
@@ -96,7 +100,8 @@ Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
-
+Value *make_enumeration_type_value();
+Value *make_enumeration_value(TypeSpec ts, int i);
 
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
@@ -148,6 +153,12 @@ Scope *init_builtins() {
     any_type = new SpecialType("<Any>", 0);
     root_scope->add(any_type);
     
+    uncertain_type = new SpecialType("<Uncertain>", 0);
+    root_scope->add(uncertain_type);
+
+    enumeration_metatype = new EnumerationMetaType("Enumeration");
+    root_scope->add(enumeration_metatype);
+    
     type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);
 
@@ -198,10 +209,11 @@ Scope *init_builtins() {
     
     array_type = new HeapType("Array", 1);
     root_scope->add(array_type);
-    
+
     // BOGUS_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };
+    UNCERTAIN_TS = { uncertain_type };
     VOID_TS = { void_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };

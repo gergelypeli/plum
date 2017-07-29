@@ -450,3 +450,39 @@ public:
         (*tsi)->destroy(tsi, s, x64);
     }
 };
+
+
+class EnumerationType: public BasicType {
+public:
+    std::vector<std::string> keywords;
+
+    EnumerationType(std::string n, std::vector<std::string> kw)
+        :BasicType(n, 1) {  // TODO: different sizes based on the keyword count!
+        
+        keywords = kw;
+    }
+    
+    virtual Value *initializer(TypeSpecIter tsi, std::string n) {
+        for (unsigned i = 0; i < keywords.size(); i++)
+            if (keywords[i] == n)
+                return make_enumeration_value(TypeSpec(tsi), i);
+        
+        return NULL;
+    }
+};
+
+
+class EnumerationMetaType: public Type {
+public:
+    
+    EnumerationMetaType(std::string name)
+        :Type(name, 0) {
+    }
+    
+    virtual Value *match(std::string name, Value *pivot) {
+        if (name != this->name)
+            return NULL;
+            
+        return make_enumeration_type_value();
+    }    
+};

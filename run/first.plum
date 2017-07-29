@@ -66,4 +66,10 @@ start? :function as:
 
     prints("{six} and {seven}" { six: 6, seven: 7 })
 
+    Myenum? Enumeration
+        FOO?, BAR?, BAZ?
+
+    fbb? Myenum `FOO
+    #:if fbb == `FOO then: prints("fbb is FOO")
+
     :return

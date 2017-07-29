@@ -47,10 +47,23 @@ public:
 };
 
 
-class TypeValue: public Value {
+class DeclarableValue: public Value {
+public:
+    DeclarableValue(TypeSpec ts)
+        :Value(ts) {
+    }
+
+    virtual Declaration *declare(std::string name) {
+        std::cerr << "Undeclarable declarable!\n";
+        throw INTERNAL_ERROR;
+    }
+};
+
+
+class TypeValue: public DeclarableValue {
 public:
     TypeValue(TypeSpec ts)
-        :Value(ts) {
+        :DeclarableValue(ts) {
     }
     
     virtual Regs precompile(Regs) {
@@ -59,6 +72,63 @@ public:
     
     virtual Storage compile(X64 *) {
         return Storage();
+    }
+
+    virtual Declaration *declare(std::string name) {
+        TypeSpec var_ts = ts.unprefix(type_type);
+        
+        if (dynamic_cast<HeapType *>(var_ts[0]))
+            var_ts = var_ts.prefix(reference_type);
+            
+        return new Variable(name, VOID_TS, var_ts.lvalue());
+    }
+};
+
+
+class EnumerationTypeValue: public DeclarableValue {
+public:
+    std::vector<std::string> keywords;
+
+    EnumerationTypeValue()
+        :DeclarableValue(TypeSpec { type_type, enumeration_metatype }) {
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        for (auto &a : args) {
+            Value *kwv = typize(a.get(), scope);
+            
+            DeclarationValue *dv = declaration_value_cast(kwv);
+            if (!dv) {
+                std::cerr << "Not a declaration in an Enumeration definition!\n";
+                return false;
+            }
+            
+            if (get_typespec(kwv)[0] != uncertain_type) {
+                std::cerr << "Not an uncertain declaration in an Enumeration definition!\n";
+                return false;
+            }
+            
+            keywords.push_back(declaration_get_name(dv));
+        }
+        
+        if (kwargs.size() > 0) {
+            std::cerr << "Keyword arguments in an Enumeration definition!\n";
+            return false;
+        }
+        
+        return true;
+    }
+    
+    virtual Regs precompile(Regs) {
+        return Regs();
+    }
+    
+    virtual Storage compile(X64 *) {
+        return Storage();
+    }
+
+    virtual Declaration *declare(std::string name) {
+        return new EnumerationType(name, keywords);
     }
 };
 
@@ -415,10 +485,19 @@ public:
         name = n;
     }
 
+    virtual std::string get_name() {
+        return name;
+    }
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() != 0) {
+        if (args.size() > 1 || kwargs.size() != 0) {
             std::cerr << "Whacky declaration!\n";
             return false;
+        }
+        
+        if (args.size() == 0) {
+            ts = UNCERTAIN_TS;
+            return true;
         }
         
         value.reset(typize(args[0].get(), scope));
@@ -441,16 +520,28 @@ public:
             decl = function;
         }
         else if (value->ts[0] == type_type) {
-            TypeSpec var_ts = value->ts.unprefix(type_type);
+            DeclarableValue *dv = dynamic_cast<DeclarableValue *>(value.get());
+            if (!dv)
+                throw INTERNAL_ERROR;
+            
+            decl = dv->declare(name);
+            
+            // TODO
+            Variable *v = dynamic_cast<Variable *>(decl);
+            if (v) {
+                ts = v->var_ts;
+            }
+            
+            //TypeSpec var_ts = value->ts.unprefix(type_type);
 
-            if (dynamic_cast<HeapType *>(var_ts[0]))
-                var_ts = var_ts.prefix(reference_type);
+            //if (dynamic_cast<HeapType *>(var_ts[0]))
+            //    var_ts = var_ts.prefix(reference_type);
             
-            var_ts = var_ts.lvalue();
-            ts = var_ts;
+            //var_ts = var_ts.lvalue();
+            //ts = var_ts;
             
-            Variable *variable = new Variable(name, VOID_TS, var_ts);
-            decl = variable;
+            //Variable *variable = new Variable(name, VOID_TS, var_ts);
+            //decl = variable;
         }
         else if (value->ts[0] != void_type) {
             TypeSpec var_ts = value->ts.lvalue();
@@ -497,7 +588,9 @@ public:
             if (s.where != NOWHERE)
                 v->var_ts.store(s, t, x64);
                 
-            return v->get_storage(Storage(MEMORY, Address(RBP, 0)));
+            s = v->get_storage(Storage(MEMORY, Address(RBP, 0)));
+            //std::cerr << "XXX " << ts << " " << v->var_ts << " " << s << "\n";
+            return s;
         }
         else {
             value->compile_and_store(x64, Storage());
@@ -509,6 +602,11 @@ public:
 
 DeclarationValue *declaration_value_cast(Value *value) {
     return dynamic_cast<DeclarationValue *>(value);
+}
+
+
+std::string declaration_get_name(DeclarationValue *dv) {
+    return dv->get_name();
 }
 
 
@@ -575,4 +673,14 @@ Value *make_boolean_not_value(Value *p) {
 
 Value *make_null_reference_value(TypeSpec ts) {
     return new NullReferenceValue(ts);
+}
+
+
+Value *make_enumeration_type_value() {
+    return new EnumerationTypeValue();
+}
+
+
+Value *make_enumeration_value(TypeSpec ts, int i) {
+    return new EnumerationValue(ts, i);
 }

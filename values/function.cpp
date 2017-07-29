@@ -1,6 +1,6 @@
 
 // The value of a :function control
-class FunctionDefinitionValue: public Value {
+class FunctionDefinitionValue: public DeclarableValue {
 public:
     std::unique_ptr<Value> result;
     std::unique_ptr<Value> head;
@@ -10,7 +10,7 @@ public:
     Function *function;  // If declared with a name, which is always, for now
         
     FunctionDefinitionValue(OperationType o, Value *r, TypeMatch &match)
-        :Value(VOID_TS) {  // Will be overridden
+        :DeclarableValue(VOID_TS) {  // Will be overridden
         result.reset(r);
     }
     
@@ -105,6 +105,9 @@ public:
         
         return Storage();
     }
+    
+    //virtual Declaration *declare(std::string name) {
+    //}
 };
 
 

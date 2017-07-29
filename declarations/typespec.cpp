@@ -274,6 +274,11 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             t++;
         }
         else if (*t == any_type) {
+            if (*s == uncertain_type) {
+                std::cerr << "No match, uncertain for any.\n";
+                return false;
+            }
+            
             match.push_back(TypeSpec());
             unsigned c = 1;
     
