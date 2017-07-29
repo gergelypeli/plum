@@ -13,14 +13,6 @@ public:
         return parameter_count;
     }
     
-    virtual int get_length() {
-        return 1;
-    }
-    
-    virtual std::string get_label() {
-        return "";
-    }
-    
     virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         if (name != this->name)
             return NULL;
@@ -516,7 +508,7 @@ public:
         if (!typematch(VOID_TS, pivot, match))
             return NULL;
             
-        return make_enumeration_type_value();
+        return make_enumeration_definition_value();
     }
 };
 

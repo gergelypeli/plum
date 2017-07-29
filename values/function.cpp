@@ -12,6 +12,7 @@ public:
     FunctionDefinitionValue(OperationType o, Value *r, TypeMatch &match)
         :DeclarableValue(VOID_TS) {  // Will be overridden
         result.reset(r);
+        function = NULL;
     }
     
     void set_function(Function *f) {
@@ -55,29 +56,12 @@ public:
         return true;
     }
 
-    void get_interesting_stuff(std::vector<TypeSpec> &arg_tss, std::vector<std::string> &arg_names, TypeSpec &result_ts) {
-        for (auto &d : fn_scope->head_scope->contents) {
-            Variable *v = dynamic_cast<Variable *>(d.get());
-            arg_tss.push_back(v->var_ts.rvalue());  // FIXME
-            arg_names.push_back(v->name);
-        }
-        
-        if (fn_scope->result_scope->contents.size()) {
-            Variable *v = dynamic_cast<Variable *>(fn_scope->result_scope->contents.back().get());
-            result_ts = v->var_ts.rvalue();  // FIXME
-        }
-        else
-            result_ts = VOID_TS;
-    }
-
     virtual Regs precompile(Regs) {
         body->precompile();
         return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
-        //fn_scope->allocate();  // Hm, do we call all allocate-s in one step?
-        
         unsigned frame_size = fn_scope->get_frame_size();
         Label epilogue_label = fn_scope->get_epilogue_label();
 
@@ -106,20 +90,39 @@ public:
         return Storage();
     }
     
-    //virtual Declaration *declare(std::string name) {
-    //}
+    virtual Declaration *declare(std::string name) {
+        std::vector<TypeSpec> arg_tss;
+        std::vector<std::string> arg_names;
+        TypeSpec result_ts;
+
+        for (auto &d : fn_scope->head_scope->contents) {
+            Variable *v = dynamic_cast<Variable *>(d.get());
+            arg_tss.push_back(v->var_ts.rvalue());  // FIXME
+            arg_names.push_back(v->name);
+        }
+        
+        if (fn_scope->result_scope->contents.size()) {
+            Variable *v = dynamic_cast<Variable *>(fn_scope->result_scope->contents.back().get());
+            result_ts = v->var_ts.rvalue();  // FIXME
+        }
+        else
+            result_ts = VOID_TS;
+            
+        function = new Function(name, VOID_TS, arg_tss, arg_names, result_ts);
+        return function;
+    }
 };
 
 
 // The value of calling a function
-class FunctionValue: public Value {
+class FunctionCallValue: public Value {
 public:
     Function *function;
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> items;  // FIXME
     Register reg;
     
-    FunctionValue(Function *f, Value *p)
+    FunctionCallValue(Function *f, Value *p)
         :Value(f->get_return_typespec()) {
         function = f;
         pivot.reset(p);

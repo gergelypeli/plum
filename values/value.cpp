@@ -85,11 +85,11 @@ public:
 };
 
 
-class EnumerationTypeValue: public DeclarableValue {
+class EnumerationDefinitionValue: public DeclarableValue {
 public:
     std::vector<std::string> keywords;
 
-    EnumerationTypeValue()
+    EnumerationDefinitionValue()
         :DeclarableValue(TypeSpec { type_type, enumeration_metatype }) {
     }
     
@@ -502,50 +502,15 @@ public:
         
         value.reset(typize(args[0].get(), scope));
         
-        if (value->ts.size() == 0) {
-            std::cerr << "Declaration needs something " << args[0]->token << "!\n";
-            return false;
-        }
-        else if (value->ts[0] == function_type) {
-            FunctionDefinitionValue *fdv = dynamic_cast<FunctionDefinitionValue *>(value.get());
-            std::vector<TypeSpec> arg_tss;
-            std::vector<std::string> arg_names;
-            TypeSpec result_ts;
-            
-            fdv->get_interesting_stuff(arg_tss, arg_names, result_ts);
-            std::cerr << "It's a function with result type " << result_ts << ".\n";
-
-            Function *function = new Function(name, VOID_TS, arg_tss, arg_names, result_ts);
-            fdv->set_function(function);
-            decl = function;
-        }
-        else if (value->ts[0] == type_type) {
+        if (value->ts[0] == function_type || value->ts[0] == type_type) {
             DeclarableValue *dv = dynamic_cast<DeclarableValue *>(value.get());
             if (!dv)
                 throw INTERNAL_ERROR;
             
             decl = dv->declare(name);
-            
-            // TODO
-            Variable *v = dynamic_cast<Variable *>(decl);
-            if (v) {
-                ts = v->var_ts;
-            }
-            
-            //TypeSpec var_ts = value->ts.unprefix(type_type);
-
-            //if (dynamic_cast<HeapType *>(var_ts[0]))
-            //    var_ts = var_ts.prefix(reference_type);
-            
-            //var_ts = var_ts.lvalue();
-            //ts = var_ts;
-            
-            //Variable *variable = new Variable(name, VOID_TS, var_ts);
-            //decl = variable;
         }
         else if (value->ts[0] != void_type) {
             TypeSpec var_ts = value->ts.lvalue();
-            ts = var_ts;
             
             Variable *variable = new Variable(name, VOID_TS, var_ts);
             decl = variable;
@@ -554,6 +519,10 @@ public:
             std::cerr << "Now what is this?\n";
             return false;
         }
+
+        Variable *v = dynamic_cast<Variable *>(decl);
+        if (v)
+            ts = v->var_ts;
             
         scope->add(decl);
         return true;
@@ -620,8 +589,8 @@ Value *make_variable_value(Variable *decl, Value *pivot) {
 }
 
 
-Value *make_function_value(Function *decl, Value *pivot) {
-    return new FunctionValue(decl, pivot);
+Value *make_function_call_value(Function *decl, Value *pivot) {
+    return new FunctionCallValue(decl, pivot);
 }
 
 
@@ -676,8 +645,8 @@ Value *make_null_reference_value(TypeSpec ts) {
 }
 
 
-Value *make_enumeration_type_value() {
-    return new EnumerationTypeValue();
+Value *make_enumeration_definition_value() {
+    return new EnumerationDefinitionValue();
 }
 
 

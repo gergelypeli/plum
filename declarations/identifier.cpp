@@ -87,7 +87,7 @@ public:
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_function_value(this, cpivot);
+        return make_function_call_value(this, cpivot);
     }
 
     virtual TypeSpec get_return_typespec() {

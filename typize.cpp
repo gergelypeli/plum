@@ -92,7 +92,7 @@ std::string declaration_get_name(DeclarationValue *dv);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 
 Value *make_variable_value(Variable *decl, Value *pivot);
-Value *make_function_value(Function *decl, Value *pivot);
+Value *make_function_call_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name);
@@ -103,7 +103,7 @@ Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
-Value *make_enumeration_type_value();
+Value *make_enumeration_definition_value();
 Value *make_enumeration_value(TypeSpec ts, int i);
 
 #include "declarations/declaration.cpp"
