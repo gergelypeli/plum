@@ -2,9 +2,8 @@
 // Stage 3
 
 class Expr;
-typedef std::vector<std::unique_ptr<Expr>> Args;
-typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
-
+typedef GenericArgs<Expr> Args;
+typedef GenericKwargs<Expr> Kwargs;
 
 class Expr {
 public:
@@ -45,7 +44,12 @@ public:
     }
     
     Expr *add_kwarg(std::string k, Expr *v) {
-        kwargs.insert(decltype(kwargs)::value_type(k, v));
+        if (kwargs[k]) {
+            std::cerr << "Duplicate keyword argument " << k << " at " << token << "!\n";
+            throw TUPLE_ERROR;
+        }
+            
+        kwargs[k] = std::unique_ptr<Expr>(v);
         return this;
     }
 
