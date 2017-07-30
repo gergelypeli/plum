@@ -117,12 +117,6 @@ public:
         :GenericOperationValue(o, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
     }
     
-    virtual void force_arg(Value *r) {
-        // Necessary to support string interpolation
-        
-        right.reset(r);
-    }
-    
     virtual Regs precompile(Regs preferred) {
         GenericOperationValue::precompile(preferred);
             

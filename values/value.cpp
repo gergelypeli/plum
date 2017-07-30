@@ -44,18 +44,11 @@ public:
         //std::cerr << "Compiled and storing a " << ts << " from " << s << " to " << t << ".\n";
         ts.store(s, t, x64);
     }
-};
-
-
-class DeclarableValue: public Value {
-public:
-    DeclarableValue(TypeSpec ts)
-        :Value(ts) {
-    }
-
-    virtual Declaration *declare(std::string name) {
-        std::cerr << "Undeclarable declarable!\n";
-        throw INTERNAL_ERROR;
+    
+    virtual Variable *declare(std::string name, Scope *scope) {
+        Variable *v = new Variable(name, VOID_TS, ts.lvalue());
+        scope->add(v);
+        return v;
     }
 };
 

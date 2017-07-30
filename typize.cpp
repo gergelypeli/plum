@@ -17,7 +17,7 @@ Type *same_type = NULL;
 Type *type_type = NULL;
 Type *uncertain_type = NULL;
 Type *lvalue_type = NULL;
-Type *function_type = NULL;
+Type *metatype_type = NULL;
 Type *code_type = NULL;
 Type *void_type = NULL;
 Type *boolean_type = NULL;
@@ -65,6 +65,7 @@ TypeSpec UNCERTAIN_TS;
 TypeSpec ANY_TS;
 TypeSpec ANY_TYPE_TS;
 TypeSpec ANY_LVALUE_TS;
+TypeSpec METATYPE_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;
@@ -79,7 +80,6 @@ TypeSpec ANY_REFERENCE_TS;
 TypeSpec ANY_REFERENCE_LVALUE_TS;
 TypeSpec ANY_ARRAY_REFERENCE_TS;
 TypeSpec VOID_CODE_TS;
-TypeSpec VOID_FUNCTION_TS;
 
 
 class DeclarationValue;
@@ -173,8 +173,8 @@ Scope *init_builtins() {
     void_type = new SpecialType("<Void>", 0);
     root_scope->add(void_type);
 
-    function_type = new AttributeType("<Function>");
-    root_scope->add(function_type);
+    metatype_type = new SpecialType("<Metatype>", 0);
+    root_scope->add(metatype_type);
 
     lvalue_type = new AttributeType("<Lvalue>");
     root_scope->add(lvalue_type);
@@ -223,6 +223,7 @@ Scope *init_builtins() {
     ANY_TYPE_TS = { type_type, any_type };
     ANY_LVALUE_TS = { lvalue_type, any_type };
     UNCERTAIN_TS = { uncertain_type };
+    METATYPE_TS = { metatype_type };
     VOID_TS = { void_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
@@ -238,7 +239,6 @@ Scope *init_builtins() {
     ANY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, any_type };
     ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
     VOID_CODE_TS = { code_type, void_type };
-    VOID_FUNCTION_TS = { function_type, void_type };
 
     typedef std::vector<TypeSpec> TSs;
     TSs NO_TSS = { };
@@ -386,16 +386,16 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     
     DeclarationValue *dv = new DeclarationValue("<result>");
     Value *initial_value = new StringBufferValue(100);
-    Variable *v = dv->force_variable(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, initial_value, scope);
-    block->force_add(dv);
+    Variable *v = dv->use(initial_value, scope);
+    block->add_statement(dv);
 
     for (auto &kv : kwargs) {
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
         Value *keyword_value = typize(expr, scope);
-        DeclarationValue *kwdv = new DeclarationValue(keyword);
-        kwdv->force_variable(keyword_value->ts.lvalue(), keyword_value, scope);
-        block->force_add(kwdv);
+        DeclarationValue *decl_value = new DeclarationValue(keyword);
+        decl_value->use(keyword_value, scope);
+        block->add_statement(decl_value);
     }
 
     bool identifier = false;
@@ -436,12 +436,12 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
             throw TYPE_ERROR;
         }
 
-        block->force_add(streamify);
+        block->add_statement(streamify);
         identifier = !identifier;
     }
 
     Value *ret = make_variable_value(v, NULL);
-    block->force_add(ret);
+    block->add_statement(ret);
     
     return make_code_value(block);
 }

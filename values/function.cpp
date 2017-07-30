@@ -1,6 +1,6 @@
 
 // The value of a :function control
-class FunctionDefinitionValue: public DeclarableValue {
+class FunctionDefinitionValue: public Value {
 public:
     std::unique_ptr<Value> result;
     std::unique_ptr<Value> head;
@@ -10,7 +10,7 @@ public:
     Function *function;  // If declared with a name, which is always, for now
         
     FunctionDefinitionValue(OperationType o, Value *r, TypeMatch &match)
-        :DeclarableValue(VOID_TS) {  // Will be overridden
+        :Value(METATYPE_TS) {
         result.reset(r);
         function = NULL;
     }
@@ -36,15 +36,8 @@ public:
             var_ts[0] = lvalue_type;
             Variable *decl = new Variable("<result>", VOID_TS, var_ts);
             rs->add(decl);
-                
-            ts = result->ts.unprefix(type_type).prefix(function_type);
-        }
-        else {
-            ts = VOID_FUNCTION_TS;
         }
 
-        std::cerr << "Function ts " << ts << "\n";
-    
         Scope *hs = fn_scope->add_head_scope();
         Expr *h = kwargs["from"].get();
         head.reset(h ? typize(h, hs) : NULL);
@@ -90,7 +83,7 @@ public:
         return Storage();
     }
     
-    virtual Declaration *declare(std::string name) {
+    virtual Variable *declare(std::string name, Scope *scope) {
         std::vector<TypeSpec> arg_tss;
         std::vector<std::string> arg_names;
         TypeSpec result_ts;
@@ -109,7 +102,8 @@ public:
             result_ts = VOID_TS;
             
         function = new Function(name, VOID_TS, arg_tss, arg_names, result_ts);
-        return function;
+        scope->add(function);
+        return NULL;
     }
 };
 
@@ -188,18 +182,6 @@ public:
         return true;
     }
 
-    virtual void force_arg(Value *arg) {
-        if (!check_arg(0, arg))
-            throw INTERNAL_ERROR;
-
-        for (auto &item : items) {
-            if (!item) {
-                std::cerr << "Not all arguments supplied!\n";
-                throw INTERNAL_ERROR;
-            }
-        }
-    }
-    
     virtual void sysv_prologue(X64 *x64, unsigned passed_size) {
         switch (passed_size) {
         case 0:

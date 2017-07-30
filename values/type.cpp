@@ -1,8 +1,8 @@
 
-class TypeValue: public DeclarableValue {
+class TypeValue: public Value {
 public:
     TypeValue(TypeSpec ts)
-        :DeclarableValue(ts) {
+        :Value(ts) {
     }
     
     virtual Regs precompile(Regs) {
@@ -13,25 +13,27 @@ public:
         return Storage();
     }
 
-    virtual Declaration *declare(std::string name) {
+    virtual Variable *declare(std::string name, Scope *scope) {
         TypeSpec var_ts = ts.unprefix(type_type);
         
         if (dynamic_cast<HeapType *>(var_ts[0]))
             var_ts = var_ts.prefix(reference_type);
             
-        return new Variable(name, VOID_TS, var_ts.lvalue());
+        Variable *v = new Variable(name, VOID_TS, var_ts.lvalue());
+        scope->add(v);
+        return v;
     }
 };
 
 
-class IntegerDefinitionValue: public DeclarableValue {
+class IntegerDefinitionValue: public Value {
 public:
     int size;
     bool is_not_signed;
     std::unique_ptr<Value> bs, iu;
 
     IntegerDefinitionValue()
-        :DeclarableValue(TypeSpec { type_type, integer_metatype }) {
+        :Value(METATYPE_TS) {
         size = 0;
         is_not_signed = false;
     }
@@ -87,18 +89,19 @@ public:
         return Storage();
     }
 
-    virtual Declaration *declare(std::string name) {
-        return new IntegerType(name, size, is_not_signed);
+    virtual Variable *declare(std::string name, Scope *scope) {
+        scope->add(new IntegerType(name, size, is_not_signed));
+        return NULL;
     }
 };
 
 
-class EnumerationDefinitionValue: public DeclarableValue {
+class EnumerationDefinitionValue: public Value {
 public:
     std::vector<std::string> keywords;
 
     EnumerationDefinitionValue()
-        :DeclarableValue(TypeSpec { type_type, enumeration_metatype }) {
+        :Value(METATYPE_TS) {
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -135,8 +138,9 @@ public:
         return Storage();
     }
 
-    virtual Declaration *declare(std::string name) {
-        return new EnumerationType(name, keywords);
+    virtual Variable *declare(std::string name, Scope *scope) {
+        scope->add(new EnumerationType(name, keywords));
+        return NULL;
     }
 };
 

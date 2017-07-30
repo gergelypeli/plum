@@ -7,6 +7,11 @@ public:
         :Value(VOID_TS) {  // Will be overridden
     }
 
+    virtual void add_statement(Value *value) {
+        statements.push_back(std::unique_ptr<Value>(value));
+        ts = value->ts;  // TODO: rip code_type
+    }
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (args.size() < 2) {
             std::cerr << "Weird, I thought tuples contain at least two expressions!\n";
@@ -24,17 +29,10 @@ public:
             if (!declaration_value_cast(value))
                 value = make_code_value(value);
                 
-            statements.push_back(std::unique_ptr<Value>(value));
+            add_statement(value);
         }
             
-        ts = statements.back()->ts;  // TODO: rip code_type
-            
         return true;
-    }
-
-    virtual void force_add(Value *value) {
-        statements.push_back(std::unique_ptr<Value>(value));
-        ts = statements.back()->ts;  // TODO: rip code_type
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -112,16 +110,28 @@ public:
 class DeclarationValue: public Value {
 public:
     std::string name;
-    Declaration *decl;
+    Variable *var;
     std::unique_ptr<Value> value;
     
     DeclarationValue(std::string n)
         :Value(VOID_TS) {
         name = n;
+        var = NULL;
     }
 
     virtual std::string get_name() {
         return name;
+    }
+
+    virtual Variable *use(Value *v, Scope *scope) {
+        value.reset(v);
+        
+        var = value->declare(name, scope);
+        
+        if (var)
+            ts = var->var_ts;
+            
+        return var;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -135,64 +145,30 @@ public:
             return true;
         }
         
-        value.reset(typize(args[0].get(), scope));
-        
-        if (value->ts[0] == function_type || value->ts[0] == type_type) {
-            DeclarableValue *dv = dynamic_cast<DeclarableValue *>(value.get());
-            if (!dv)
-                throw INTERNAL_ERROR;
-            
-            decl = dv->declare(name);
-        }
-        else if (value->ts[0] != void_type) {
-            TypeSpec var_ts = value->ts.lvalue();
-            
-            Variable *variable = new Variable(name, VOID_TS, var_ts);
-            decl = variable;
-        }
-        else {
-            std::cerr << "Now what is this?\n";
-            return false;
-        }
+        Value *v = typize(args[0].get(), scope);
+        use(v, scope);
 
-        Variable *v = dynamic_cast<Variable *>(decl);
-        if (v)
-            ts = v->var_ts;
-            
-        scope->add(decl);
         return true;
     }
 
-    virtual Variable *force_variable(TypeSpec var_ts, Value *v, Scope *scope) {
-        ts = var_ts;
-        value.reset(v);
-        Variable *variable = new Variable(name, VOID_TS, var_ts);
-        decl = variable;
-        scope->add(decl);
-        
-        return variable;
-    }
-    
     virtual Regs precompile(Regs preferred) {
         return value->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
-        Variable *v = dynamic_cast<Variable *>(decl);
-        
-        if (v) {
+        if (var) {
             // TODO: for references, we now need to first zero out the variable, then
             // the store will do an assignment. This could be simpler.
             Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
-            Storage t = v->get_storage(fn_storage);
-            v->var_ts.create(t, x64);
+            Storage t = var->get_storage(fn_storage);
+            var->var_ts.create(t, x64);
 
             Storage s = value->compile(x64);
             
             if (s.where != NOWHERE)
-                v->var_ts.store(s, t, x64);
+                var->var_ts.store(s, t, x64);
                 
-            s = v->get_storage(Storage(MEMORY, Address(RBP, 0)));
+            s = var->get_storage(Storage(MEMORY, Address(RBP, 0)));
             //std::cerr << "XXX " << ts << " " << v->var_ts << " " << s << "\n";
             return s;
         }
