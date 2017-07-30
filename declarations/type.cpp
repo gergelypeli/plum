@@ -223,6 +223,8 @@ public:
 
         if (s.where == REGISTER)
             x64->op(mov, s.reg, 0);
+        else if (s.where == STACK)
+            x64->op(PUSHQ, 0);
         else if (s.where == MEMORY)
             x64->op(mov, s.address, 0);
         else
@@ -369,6 +371,8 @@ public:
     virtual void create(TypeSpecIter , Storage s, X64 *x64) {
         if (s.where == REGISTER)
             x64->op(MOVQ, s.reg, 0);
+        else if (s.where == STACK)
+            x64->op(PUSHQ, 0);
         else if (s.where == MEMORY)
             x64->op(MOVQ, s.address, 0);
         else

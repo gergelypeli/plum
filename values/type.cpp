@@ -19,7 +19,7 @@ public:
         if (dynamic_cast<HeapType *>(var_ts[0]))
             var_ts = var_ts.prefix(reference_type);
             
-        Variable *v = new Variable(name, VOID_TS, var_ts.lvalue());
+        Variable *v = new Variable(name, VOID_TS, var_ts.nonrvalue());
         scope->add(v);
         return v;
     }

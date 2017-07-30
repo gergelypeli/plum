@@ -16,7 +16,7 @@ Variable *variable_cast(Declaration *decl);
 Type *any_type = NULL;
 Type *same_type = NULL;
 Type *type_type = NULL;
-Type *uncertain_type = NULL;
+Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;
 Type *metatype_type = NULL;
 Type *code_type = NULL;
@@ -50,6 +50,8 @@ public:
     TypeSpec unprefix(Type *t);
     TypeSpec rvalue();
     TypeSpec lvalue();
+    TypeSpec nonlvalue();
+    TypeSpec nonrvalue();
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, X64 *x64);
     void destroy(Storage s, X64 *x64);
@@ -62,9 +64,9 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
-TypeSpec UNCERTAIN_TS;
 TypeSpec ANY_TS;
 TypeSpec ANY_TYPE_TS;
+TypeSpec ANY_OVALUE_TS;
 TypeSpec ANY_LVALUE_TS;
 TypeSpec METATYPE_TS;
 TypeSpec BOOLEAN_TS;
@@ -159,9 +161,6 @@ Scope *init_builtins() {
 
     same_type = new SpecialType("<Same>", 0);
     root_scope->add(same_type);
-    
-    uncertain_type = new SpecialType("<Uncertain>", 0);
-    root_scope->add(uncertain_type);
 
     enumeration_metatype = new EnumerationMetaType(":Enumeration");
     root_scope->add(enumeration_metatype);
@@ -180,6 +179,9 @@ Scope *init_builtins() {
 
     lvalue_type = new AttributeType("<Lvalue>");
     root_scope->add(lvalue_type);
+    
+    ovalue_type = new AttributeType("Ovalue");
+    root_scope->add(ovalue_type);
 
     code_type = new AttributeType("<Code>");
     root_scope->add(code_type);
@@ -224,7 +226,7 @@ Scope *init_builtins() {
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };
     ANY_LVALUE_TS = { lvalue_type, any_type };
-    UNCERTAIN_TS = { uncertain_type };
+    ANY_OVALUE_TS = { ovalue_type, any_type };
     METATYPE_TS = { metatype_type };
     VOID_TS = { void_type };
     BOOLEAN_TS = { boolean_type };

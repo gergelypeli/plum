@@ -98,7 +98,7 @@ public:
             Variable *v = dynamic_cast<Variable *>(d.get());
             
             if (v) {
-                arg_tss.push_back(v->var_ts.rvalue());  // FIXME
+                arg_tss.push_back(v->var_ts.nonlvalue());  // FIXME
                 arg_names.push_back(v->name);
             }
         }
@@ -154,7 +154,7 @@ public:
         TypeMatch match;
         
         if (!typematch(var_ts, v, match)) {
-            std::cerr << "Argument type mismatch, " << v->ts << " is not a " << var_ts << "!\n";
+            std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << var_ts << "!\n";
             return false;
         }
         
@@ -185,10 +185,15 @@ public:
                 return false;
         }
 
-        for (auto &item : items) {
-            if (!item) {
-                std::cerr << "Not all arguments supplied!\n";
-                return false;
+        for (unsigned i = 0; i < items.size(); i++) {
+            if (!items[i]) {
+                TypeSpec arg_ts = function->get_argument_typespec(i);
+                if (arg_ts[0] != ovalue_type) {
+                    std::cerr << "Argument " << i << " not supplied: " << arg_ts << "!\n";
+                    return false;
+                }
+
+                std::cerr << "Argument " << i << " is omitted.\n";
             }
         }
         
@@ -232,7 +237,8 @@ public:
             pivot->precompile();
         
         for (auto &item : items)
-            item->precompile();
+            if (item)
+                item->precompile();
         
         reg = preferred.get_gpr();
         
@@ -240,18 +246,24 @@ public:
     }
     
     virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
-        Storage s = arg_value->compile(x64);
+        if (arg_value) {
+            Storage s = arg_value->compile(x64);
         
-        if (arg_ts[0] == lvalue_type) {
-            if (s.where != MEMORY)
-                throw INTERNAL_ERROR;
+            if (arg_ts[0] == lvalue_type) {
+                if (s.where != MEMORY)
+                    throw INTERNAL_ERROR;
                 
-            x64->op(LEA, RBX, s.address);
-            x64->op(PUSHQ, RBX);
-            return 8;
+                x64->op(LEA, RBX, s.address);
+                x64->op(PUSHQ, RBX);
+                return 8;
+            }
+            else {
+                arg_ts.store(s, Storage(STACK), x64);
+                return stack_size(arg_ts.measure());
+            }
         }
         else {
-            arg_ts.store(s, Storage(STACK), x64);
+            arg_ts.create(Storage(STACK), x64);
             return stack_size(arg_ts.measure());
         }
     }

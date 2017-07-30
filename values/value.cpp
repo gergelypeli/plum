@@ -40,7 +40,7 @@ public:
     }
     
     virtual Variable *declare(std::string name, Scope *scope) {
-        Variable *v = new Variable(name, VOID_TS, ts.lvalue());
+        Variable *v = new Variable(name, VOID_TS, ts.nonrvalue());
         scope->add(v);
         return v;
     }

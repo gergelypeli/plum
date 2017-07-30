@@ -1,11 +1,19 @@
 # First example
 
+
 f? :function Integer from:
     x? Integer
     y? Integer
 as:
     :return x * 2 + y * 3
 
+
+g? :function Integer from:
+    xxx? Integer Ovalue
+    yyy? Integer Ovalue
+as:
+    :return xxx + yyy
+    
 
 start? :function as:
     print(f(1, 2))
@@ -74,5 +82,9 @@ start? :function as:
 
     Myint? :Integer bytes: 8 is_unsigned: `false
     myvar? Myint
+
+    print(g(100, 100))
+    print(g(100))
+    print(g)
 
     :return

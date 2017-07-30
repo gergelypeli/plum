@@ -80,12 +80,22 @@ TypeSpec TypeSpec::unprefix(Type *t) {
 
 
 TypeSpec TypeSpec::rvalue() {
-    return at(0) == lvalue_type ? unprefix(lvalue_type) : *this;
+    return at(0) == lvalue_type ? unprefix(lvalue_type) : at(0) == ovalue_type ? unprefix(ovalue_type) : *this;
 }
 
 
 TypeSpec TypeSpec::lvalue() {
-    return at(0) == lvalue_type ? *this : prefix(lvalue_type);
+    return at(0) == lvalue_type ? *this : at(0) == ovalue_type ? unprefix(ovalue_type).prefix(lvalue_type) : prefix(lvalue_type);
+}
+
+
+TypeSpec TypeSpec::nonlvalue() {
+    return at(0) == lvalue_type ? unprefix(lvalue_type) : *this;
+}
+
+
+TypeSpec TypeSpec::nonrvalue() {
+    return at(0) != lvalue_type && at(0) != ovalue_type ? prefix(lvalue_type) : *this;
 }
 
 
@@ -154,6 +164,8 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         }
     }
 
+    std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
+
     // Checking NULL value
     if (!value) {
         if (tt[0] == void_type) {
@@ -164,6 +176,11 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         else if (tt[0] == code_type && tt[1] == void_type) {
             std::cerr << "Matched nothing for Void Code.\n";
             match[0] = tt;
+            return true;
+        }
+        else if (tt[0] == ovalue_type) {
+            std::cerr << "Matched nothing for Ovalue.\n";
+            match[0] == VOID_TS;
             return true;
         }
         else {
@@ -223,9 +240,13 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             return true;
         }
     }
+    else if (*t == ovalue_type) {
+        t++;
+    }
     
     // Drop unnecessary attribute
-    if (*s == lvalue_type || *s == code_type) {
+    if (*s == lvalue_type || *s == ovalue_type) {
+        std::cerr << "XXX Dropped.\n";
         s++;
     }
 
@@ -283,11 +304,6 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             t++;
         }
         else if (*t == any_type) {
-            if (*s == uncertain_type) {
-                std::cerr << "No match, uncertain for any.\n";
-                return false;
-            }
-            
             match.push_back(TypeSpec());
             unsigned c = 1;
     
