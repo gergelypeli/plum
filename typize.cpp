@@ -298,7 +298,7 @@ Scope *init_builtins() {
     // Builtin controls
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
-    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", VOID_TS, TWEAK));
+    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     
     // Library functions
     root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));

@@ -1,21 +1,21 @@
 # First example
 
 
-f? :function Integer from:
+f? :Function Integer from:
     x? Integer
     y? Integer
 as:
     :return x * 2 + y * 3
 
 
-g? :function Integer from:
+g? :Function Integer from:
     xxx? Integer Ovalue
     yyy? Integer Ovalue
 as:
     :return xxx + yyy
     
 
-start? :function as:
+start? :Function as:
     print(f(1, 2))
     
     a? Integer
