@@ -95,12 +95,6 @@ unsigned TypeSpec::measure() {
 }
 
 
-bool TypeSpec::is_unsigned() {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->is_unsigned(tsi);
-}
-
-
 void TypeSpec::store(Storage s, Storage t, X64 *x64) {
     TypeSpecIter tsi(begin());
     return (*tsi)->store(tsi, s, t, x64);

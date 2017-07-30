@@ -53,11 +53,6 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual bool is_unsigned(TypeSpecIter tsi) {
-        std::cerr << "Unsignable type: " << name << "!\n";
-        throw INTERNAL_ERROR;
-    }
-
     virtual void store(TypeSpecIter this_tsi, Storage s, Storage t, X64 *x64) {
         std::cerr << "Unstorable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -263,14 +258,17 @@ public:
 };
 
 
-class SignedIntegerType: public BasicType {
+class IntegerType: public BasicType {
 public:
-    SignedIntegerType(std::string n, unsigned s)
+    bool is_not_signed;
+    
+    IntegerType(std::string n, unsigned s, bool iu)
         :BasicType(n, s) {
+        is_not_signed = iu;
     }
     
-    virtual bool is_unsigned(TypeSpecIter tsi) {
-        return false;
+    virtual bool is_unsigned() {
+        return is_not_signed;
     }
 
     virtual Scope *get_inner_scope() {
@@ -279,18 +277,21 @@ public:
 };
 
 
-class UnsignedIntegerType: public BasicType {
+class BooleanType: public BasicType {
 public:
-    UnsignedIntegerType(std::string n, unsigned s)
+    BooleanType(std::string n, unsigned s)
         :BasicType(n, s) {
     }
-    
-    virtual bool is_unsigned(TypeSpecIter tsi) {
-        return true;
-    }
 
-    virtual Scope *get_inner_scope() {
-        return integer_metatype->get_inner_scope();
+    virtual Value *initializer(TypeSpecIter tsi, std::string name) {
+        if (name == "false")
+            return make_basic_value(TypeSpec(tsi), 0);
+        else if (name == "true")
+            return make_basic_value(TypeSpec(tsi), 1);
+        else {
+            std::cerr << "No Boolean initializer called " << name << "!\n";
+            return NULL;
+        }
     }
 };
 
@@ -468,7 +469,7 @@ public:
     virtual Value *initializer(TypeSpecIter tsi, std::string n) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
-                return make_enumeration_value(TypeSpec(tsi), i);
+                return make_basic_value(TypeSpec(tsi), i);
         
         return NULL;
     }
@@ -525,8 +526,7 @@ public:
 
         if (!typematch(VOID_TS, pivot, match))
             return NULL;
-            
-        std::cerr << "Can't create custom integer types yet!\n";
-        return NULL;
+
+        return make_integer_definition_value();
     }
 };

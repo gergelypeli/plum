@@ -72,4 +72,7 @@ start? :function as:
     fbb? Myenum `FOO
     :if fbb == `FOO then: prints("fbb is FOO") else: prints("fbb is not FOO")
 
+    Myint? :Integer bytes: 8 is_unsigned: `false
+    myvar? Myint
+
     :return

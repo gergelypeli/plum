@@ -24,6 +24,75 @@ public:
 };
 
 
+class IntegerDefinitionValue: public DeclarableValue {
+public:
+    int size;
+    bool is_not_signed;
+    std::unique_ptr<Value> bs, iu;
+
+    IntegerDefinitionValue()
+        :DeclarableValue(TypeSpec { type_type, integer_metatype }) {
+        size = 0;
+        is_not_signed = false;
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() > 0) {
+            std::cerr << "Positional arguments in an integer definition!\n";
+            return false;
+        }
+
+        Expr *b = kwargs["bytes"].get();
+        bs.reset(typize(b, scope, &INTEGER_TS));
+        if (!bs) {
+            std::cerr << "Missing bytes keyword argument in integer definition!\n";
+            return false;
+        }
+        else {
+            BasicValue *bv = dynamic_cast<BasicValue *>(bs.get());
+            
+            if (!bv) {
+                std::cerr << "Nonconstant bytes keyword argument in integer definition!\n";
+                return false;
+            }
+            
+            size = bv->number;
+        }
+        
+        Expr *u = kwargs["is_unsigned"].get();
+        iu.reset(typize(u, scope, &BOOLEAN_TS));
+        if (!iu) {
+            std::cerr << "Missing is_unsigned keyword argument in integer definition!\n";
+            return false;
+        }
+        else {
+            BasicValue *bv = dynamic_cast<BasicValue *>(iu.get());
+            
+            if (!bv) {
+                std::cerr << "Nonconstant is_unsigned keyword argument in integer definition!\n";
+                return false;
+            }
+            
+            is_not_signed = (bool)bv->number;
+        }
+        
+        return true;
+    }
+    
+    virtual Regs precompile(Regs) {
+        return Regs();
+    }
+    
+    virtual Storage compile(X64 *) {
+        return Storage();
+    }
+
+    virtual Declaration *declare(std::string name) {
+        return new IntegerType(name, size, is_not_signed);
+    }
+};
+
+
 class EnumerationDefinitionValue: public DeclarableValue {
 public:
     std::vector<std::string> keywords;
@@ -38,12 +107,12 @@ public:
             
             DeclarationValue *dv = declaration_value_cast(kwv);
             if (!dv) {
-                std::cerr << "Not a declaration in an Enumeration definition!\n";
+                std::cerr << "Not a declaration in an enumeration definition!\n";
                 return false;
             }
             
             if (get_typespec(kwv)[0] != uncertain_type) {
-                std::cerr << "Not an uncertain declaration in an Enumeration definition!\n";
+                std::cerr << "Not an uncertain declaration in an enumeration definition!\n";
                 return false;
             }
             
@@ -51,7 +120,7 @@ public:
         }
         
         if (kwargs.size() > 0) {
-            std::cerr << "Keyword arguments in an Enumeration definition!\n";
+            std::cerr << "Keyword arguments in an enumeration definition!\n";
             return false;
         }
         

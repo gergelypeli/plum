@@ -18,7 +18,7 @@ public:
         );
 
         if (operation != ASSIGN && operation != EQUAL && operation != NOT_EQUAL)
-            is_unsigned = arg_ts.is_unsigned();
+            dynamic_cast<IntegerType *>(arg_ts[0])->is_unsigned();
     }
     
     virtual void exponentiation_by_squaring(X64 *x64) {

@@ -43,7 +43,6 @@ public:
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
     
     unsigned measure();
-    bool is_unsigned();
     StorageWhere where();
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
@@ -96,7 +95,7 @@ Value *make_function_call_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name);
-Value *make_number_value(std::string text);
+Value *make_basic_value(TypeSpec ts, int number);
 Value *make_string_literal_value(std::string text);
 Value *make_code_value(Value *orig);
 Value *make_void_conversion_value(Value *orig);
@@ -104,7 +103,7 @@ Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
 Value *make_enumeration_definition_value();
-Value *make_enumeration_value(TypeSpec ts, int i);
+Value *make_integer_definition_value();
 
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
@@ -165,7 +164,7 @@ Scope *init_builtins() {
     enumeration_metatype = new EnumerationMetaType("Enumeration");
     root_scope->add(enumeration_metatype);
 
-    integer_metatype = new IntegerMetaType("Integerlike");
+    integer_metatype = new IntegerMetaType(":Integer");
     root_scope->add(integer_metatype);
     
     type_type = new SpecialType("<Type>", 1);
@@ -183,34 +182,34 @@ Scope *init_builtins() {
     code_type = new AttributeType("<Code>");
     root_scope->add(code_type);
     
-    boolean_type = new BasicType("Boolean", 1);
+    boolean_type = new BooleanType("Boolean", 1);
     root_scope->add(boolean_type);
 
     character_type = new BasicType("Character", 2);
     root_scope->add(character_type);
 
-    integer_type = new SignedIntegerType("Integer", 8);
+    integer_type = new IntegerType("Integer", 8, false);
     root_scope->add(integer_type);
     
-    integer32_type = new SignedIntegerType("Integer32", 4);
+    integer32_type = new IntegerType("Integer32", 4, false);
     root_scope->add(integer32_type);
     
-    integer16_type = new SignedIntegerType("Integer16", 2);
+    integer16_type = new IntegerType("Integer16", 2, false);
     root_scope->add(integer16_type);
     
-    integer8_type = new SignedIntegerType("Integer8", 1);
+    integer8_type = new IntegerType("Integer8", 1, false);
     root_scope->add(integer8_type);
 
-    unsigned_integer_type = new UnsignedIntegerType("Unsigned_Integer", 8);
+    unsigned_integer_type = new IntegerType("Unteger", 8, true);
     root_scope->add(unsigned_integer_type);
     
-    unsigned_integer32_type = new UnsignedIntegerType("Unsigned_Integer32", 4);
+    unsigned_integer32_type = new IntegerType("Unteger32", 4, true);
     root_scope->add(unsigned_integer32_type);
     
-    unsigned_integer16_type = new UnsignedIntegerType("Unsigned_Integer16", 2);
+    unsigned_integer16_type = new IntegerType("Unteger16", 2, true);
     root_scope->add(unsigned_integer16_type);
     
-    unsigned_integer8_type = new UnsignedIntegerType("Unsigned_Integer8", 1);
+    unsigned_integer8_type = new IntegerType("Unteger8", 1, true);
     root_scope->add(unsigned_integer8_type);
 
     reference_type = new ReferenceType("Reference");
@@ -452,7 +451,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     Value *value = NULL;
     Marker marker = scope->mark();
     
-    if (expr->type == Expr::TUPLE) {
+    if (!expr)
+        return NULL;
+    else if (expr->type == Expr::TUPLE) {
         if (expr->pivot) {
             std::cerr << "A TUPLE had a pivot argument!\n";
             throw INTERNAL_ERROR;
@@ -536,7 +537,18 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
     }
     else if (expr->type == Expr::NUMBER) {
-        value = make_number_value(expr->text);
+        TypeSpec ts = {
+            ends_with(expr->text, "s32") ? integer32_type :
+            ends_with(expr->text, "s16") ? integer16_type :
+            ends_with(expr->text, "s8") ? integer8_type :
+            ends_with(expr->text, "u32") ? unsigned_integer32_type :
+            ends_with(expr->text, "u16") ? unsigned_integer16_type :
+            ends_with(expr->text, "u8") ? unsigned_integer8_type :
+            ends_with(expr->text, "u") ? unsigned_integer_type :
+            integer_type
+        };
+
+        value = make_basic_value(ts, std::stoi(expr->text));
     }
     else if (expr->type == Expr::STRING) {
         value = make_string_literal_value(expr->text);

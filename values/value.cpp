@@ -247,6 +247,7 @@ public:
 #include "boolean.cpp"
 #include "array.cpp"
 #include "reference.cpp"
+#include "block.cpp"
 #include "type.cpp"
 
 
@@ -280,8 +281,8 @@ Value *make_declaration_value(std::string name) {
 }
 
 
-Value *make_number_value(std::string text) {
-    return new NumberValue(text);
+Value *make_basic_value(TypeSpec ts, int number) {
+    return new BasicValue(ts, number);
 }
 
 
@@ -321,6 +322,6 @@ Value *make_enumeration_definition_value() {
 }
 
 
-Value *make_enumeration_value(TypeSpec ts, int i) {
-    return new EnumerationValue(ts, i);
+Value *make_integer_definition_value() {
+    return new IntegerDefinitionValue();
 }

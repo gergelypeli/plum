@@ -4,47 +4,13 @@
 // If a greater value is specified, it must be loaded into a register, and
 // returned as REGISTER.
 
-class NumberValue: public Value {
+class BasicValue: public Value {
 public:
     int number;
     
-    NumberValue(std::string t)
-        :Value(type(t)) {
-        number = std::stoi(t);
-    }
-
-    static TypeSpec type(std::string &s) {
-        TypeSpec ts = {
-            ends_with(s, "s32") ? integer32_type :
-            ends_with(s, "s16") ? integer16_type :
-            ends_with(s, "s8") ? integer8_type :
-            ends_with(s, "u32") ? unsigned_integer32_type :
-            ends_with(s, "u16") ? unsigned_integer16_type :
-            ends_with(s, "u8") ? unsigned_integer8_type :
-            ends_with(s, "u") ? unsigned_integer_type :
-            integer_type
-        };
-        
-        return ts;
-    }
-
-    virtual Regs precompile(Regs) {
-        return Regs();
-    }
-
-    virtual Storage compile(X64 *) {
-        return Storage(CONSTANT, number);
-    }
-};
-
-
-class EnumerationValue: public Value {
-public:
-    int number;
-    
-    EnumerationValue(TypeSpec ts, int i)
+    BasicValue(TypeSpec ts, int n)
         :Value(ts) {
-        number = i;
+        number = n;
     }
 
     virtual Regs precompile(Regs) {
