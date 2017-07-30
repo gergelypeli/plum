@@ -182,4 +182,3 @@ public:
         return new T(cpivot, match);
     }
 };
-

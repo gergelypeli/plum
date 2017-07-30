@@ -342,9 +342,9 @@ public:
         
         for (auto &kv : kwargs) {
             if (kv.first == "then")
-                then_branch.reset(make_code_value(typize(kv.second.get(), scope)));
+                then_branch.reset(code_scoped_typize(kv.second.get(), scope));
             else if (kv.first == "else")
-                else_branch.reset(make_code_value(typize(kv.second.get(), scope)));
+                else_branch.reset(code_scoped_typize(kv.second.get(), scope));
             else {
                 std::cerr << "Invalid argument to Boolean if!\n";
                 return false;

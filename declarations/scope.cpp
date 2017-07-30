@@ -71,26 +71,6 @@ public:
         if (contents.size())
             contents.back().get()->finalize(SCOPE_FINALIZATION, s, x64);
     }
-
-    virtual void intrude(Declaration *last, Scope *intruder) {
-        // Insert a Scope taking all remaining declarations
-        
-        std::stack<Declaration *> victims;
-        
-        while (contents.size() && contents.back().get() != last) {
-            Declaration *d = contents.back().release();
-            contents.pop_back();
-            victims.push(d);
-        }
-        
-        add(intruder);
-        
-        while (victims.size()) {
-            Declaration *d = victims.top();
-            victims.pop();
-            intruder->add(d);
-        }
-    }
 };
 
 
@@ -139,7 +119,6 @@ public:
         if (es > expanded_size)
             expanded_size = es;
     }
-    
 };
 
 

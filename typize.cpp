@@ -6,6 +6,7 @@ class Value;
 class Declaration;
 class Type;
 class Scope;
+class CodeScope;
 class FunctionScope;
 class Variable;
 class Function;
@@ -85,6 +86,7 @@ TypeSpec VOID_CODE_TS;
 class DeclarationValue;
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
+Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 std::string declaration_get_name(DeclarationValue *dv);
@@ -97,7 +99,7 @@ Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, V
 Value *make_declaration_value(std::string name);
 Value *make_basic_value(TypeSpec ts, int number);
 Value *make_string_literal_value(std::string text);
-Value *make_code_value(Value *orig);
+Value *make_code_value(CodeScope *scope, Value *value);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
@@ -377,10 +379,15 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
         std::cerr << "String interpolation must use keyword arguments only!\n";
         throw TYPE_ERROR;
     }
+
+    // We must scope ourselves
+    CodeScope *s = new CodeScope;
+    scope->add(s);
+    scope = s;
     
-    Marker marker = scope->mark();
+    //Marker marker = scope->mark();
     BlockValue *block = new BlockValue();
-    block->set_marker(marker);
+    //block->set_marker(marker);
     
     DeclarationValue *dv = new DeclarationValue("<result>");
     Value *initial_value = new StringBufferValue(100);
@@ -441,13 +448,13 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     Value *ret = make_variable_value(v, NULL);
     block->add_statement(ret);
     
-    return make_code_value(block);
+    return make_code_value(s, block);
 }
 
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     Value *value = NULL;
-    Marker marker = scope->mark();
+    //Marker marker = scope->mark();
     
     if (!expr)
         return NULL;
@@ -557,7 +564,15 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     }
     
     value->set_token(expr->token);
-    value->set_marker(marker);
+    //value->set_marker(marker);
     
     return value;
+}
+
+
+Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context) {
+    CodeScope *s = new CodeScope;
+    scope->add(s);
+    Value *value = typize(expr, s, context);
+    return make_code_value(s, value);
 }

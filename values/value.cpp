@@ -5,7 +5,6 @@ class Value {
 public:
     TypeSpec ts;
     Token token;
-    Marker marker;
     
     Value(TypeSpec t)
         :ts(t) {
@@ -13,11 +12,6 @@ public:
 
     virtual Value *set_token(Token t) {
         token = t;
-        return this;
-    }
-    
-    virtual Value *set_marker(Marker m) {
-        marker = m;
         return this;
     }
     
@@ -284,8 +278,8 @@ Value *make_string_literal_value(std::string text) {
 }
 
 
-Value *make_code_value(Value *orig) {
-    return new CodeValue(orig);
+Value *make_code_value(CodeScope *scope, Value *value) {
+    return new CodeValue(scope, value);
 }
 
 

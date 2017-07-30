@@ -24,10 +24,12 @@ public:
         }
         
         for (auto &arg : args) {
-            Value *value = typize(arg.get(), scope);
+            Value *value;
             
-            if (!declaration_value_cast(value))
-                value = make_code_value(value);
+            if (arg->type == Expr::DECLARATION)
+                value = typize(arg.get(), scope);
+            else
+                value = code_scoped_typize(arg.get(), scope);
                 
             add_statement(value);
         }
@@ -63,11 +65,10 @@ public:
     CodeScope *code_scope;
     Register reg;
 
-    CodeValue(Value *v)
+    CodeValue(CodeScope *s, Value *v)
         :Value(v->ts.rvalue().prefix(code_type)) {
         value.reset(v);
-        code_scope = new CodeScope();
-        value->marker.scope->intrude(value->marker.last, code_scope);
+        code_scope = s;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

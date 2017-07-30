@@ -305,14 +305,16 @@ class FunctionReturnValue: public Value {
 public:
     Variable *result_var;
     std::unique_ptr<Value> result;
+    Marker marker;
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(VOID_TS) {
-        //result.reset(v);
         result_var = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        marker = scope->mark();
+        
         if (kwargs.size() != 0) {
             std::cerr << "Whacky :return!\n";
             return false;
