@@ -94,14 +94,22 @@ public:
         TypeSpec result_ts;
 
         for (auto &d : fn_scope->head_scope->contents) {
+            // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
             Variable *v = dynamic_cast<Variable *>(d.get());
-            arg_tss.push_back(v->var_ts.rvalue());  // FIXME
-            arg_names.push_back(v->name);
+            
+            if (v) {
+                arg_tss.push_back(v->var_ts.rvalue());  // FIXME
+                arg_names.push_back(v->name);
+            }
         }
         
         if (fn_scope->result_scope->contents.size()) {
             Variable *v = dynamic_cast<Variable *>(fn_scope->result_scope->contents.back().get());
-            result_ts = v->var_ts.rvalue();  // FIXME
+            
+            if (v)
+                result_ts = v->var_ts.rvalue();  // FIXME
+            else
+                throw INTERNAL_ERROR;
         }
         else
             result_ts = VOID_TS;

@@ -66,7 +66,7 @@ public:
     Register reg;
 
     CodeValue(CodeScope *s, Value *v)
-        :Value(v->ts.rvalue().prefix(code_type)) {
+        :Value(v->ts.rvalue()) {
         value.reset(v);
         code_scope = s;
     }
@@ -104,6 +104,11 @@ public:
         
         code_scope->finalize_scope(Storage(MEMORY, Address(RBP, 0)), x64);
         return s;
+    }
+    
+    virtual Variable *declare(std::string name, Scope *scope) {
+        // We may enclose the declaration's right hand size, so must forward this call
+        return value->declare(name, scope);
     }
 };
 
@@ -146,7 +151,7 @@ public:
             return true;
         }
         
-        Value *v = typize(args[0].get(), scope);
+        Value *v = code_scoped_typize(args[0].get(), scope);
         use(v, scope);
 
         return true;

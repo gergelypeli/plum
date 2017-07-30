@@ -354,8 +354,8 @@ public:
         if (then_branch && else_branch) {
             // Can't return an lvalue, because one Storage can only represent
             // a compile time fixed variable location.
-            TypeSpec tts = then_branch->ts.unprefix(code_type);
-            TypeSpec ets = else_branch->ts.unprefix(code_type);
+            TypeSpec tts = then_branch->ts;
+            TypeSpec ets = else_branch->ts;
             
             if (tts != VOID_TS && tts == ets) {
                 ts = tts;

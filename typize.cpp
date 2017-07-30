@@ -573,6 +573,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context) {
     CodeScope *s = new CodeScope;
     scope->add(s);
+    
     Value *value = typize(expr, s, context);
     return make_code_value(s, value);
 }

@@ -63,8 +63,10 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual void expand(unsigned) {
-        throw INTERNAL_ERROR;
+    virtual void expand(unsigned s) {
+        // CodeScope-s in the declarations may call this, but just with 0 size
+        if (s > 0)
+            throw INTERNAL_ERROR;
     }
     
     virtual void finalize_scope(Storage s, X64 *x64) {
@@ -131,13 +133,6 @@ public:
     ArgumentScope()
         :Scope() {
         size = 0;
-    }
-
-    virtual void add(Declaration *decl) {
-        if (!variable_cast(decl))
-            throw INTERNAL_ERROR;
-            
-        Scope::add(decl);
     }
 
     virtual void allocate() {
