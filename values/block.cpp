@@ -1,0 +1,215 @@
+
+class BlockValue: public Value {
+public:
+    std::vector<std::unique_ptr<Value>> statements;
+
+    BlockValue()
+        :Value(VOID_TS) {  // Will be overridden
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() < 2) {
+            std::cerr << "Weird, I thought tuples contain at least two expressions!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        if (kwargs.size() > 0) {
+            std::cerr << "Labeled statements make no sense!\n";
+            throw TYPE_ERROR;
+        }
+        
+        for (auto &arg : args) {
+            Value *value = typize(arg.get(), scope);
+            
+            if (!declaration_value_cast(value))
+                value = make_code_value(value);
+                
+            statements.push_back(std::unique_ptr<Value>(value));
+        }
+            
+        ts = statements.back()->ts;  // TODO: rip code_type
+            
+        return true;
+    }
+
+    virtual void force_add(Value *value) {
+        statements.push_back(std::unique_ptr<Value>(value));
+        ts = statements.back()->ts;  // TODO: rip code_type
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob;
+        
+        for (unsigned i = 0; i < statements.size() - 1; i++)
+            clob = clob | statements[i]->precompile();
+
+        clob = clob | statements.back()->precompile(preferred);
+            
+        return clob;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        for (unsigned i = 0; i < statements.size() - 1; i++) {
+            statements[i]->compile_and_store(x64, Storage());
+            x64->op(NOP);  // For readability
+        }
+        
+        return statements.back()->compile(x64);
+    }
+};
+
+
+class CodeValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+    CodeScope *code_scope;
+    Register reg;
+
+    CodeValue(Value *v)
+        :Value(v->ts.rvalue().prefix(code_type)) {
+        value.reset(v);
+        code_scope = new CodeScope();
+        value->marker.scope->intrude(value->marker.last, code_scope);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = value->precompile(preferred);
+        reg = preferred.get_gpr();
+        return clob.add(reg);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        // Can't let the result be passed as a MEMORY storage, because it may
+        // point to a local variable that we're about to destroy. So grab that
+        // value while we can. 
+        Storage s = value->compile(x64);
+        
+        if (s.where == MEMORY) {
+            switch (value->ts.where()) {
+            case REGISTER:
+                value->ts.store(s, Storage(REGISTER, reg), x64);
+                s = Storage(REGISTER, reg);
+                break;
+            case STACK:
+                value->ts.store(s, Storage(STACK), x64);
+                s = Storage(STACK);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
+        
+        code_scope->finalize_scope(Storage(MEMORY, Address(RBP, 0)), x64);
+        return s;
+    }
+};
+
+
+class DeclarationValue: public Value {
+public:
+    std::string name;
+    Declaration *decl;
+    std::unique_ptr<Value> value;
+    
+    DeclarationValue(std::string n)
+        :Value(VOID_TS) {
+        name = n;
+    }
+
+    virtual std::string get_name() {
+        return name;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() > 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky declaration!\n";
+            return false;
+        }
+        
+        if (args.size() == 0) {
+            ts = UNCERTAIN_TS;
+            return true;
+        }
+        
+        value.reset(typize(args[0].get(), scope));
+        
+        if (value->ts[0] == function_type || value->ts[0] == type_type) {
+            DeclarableValue *dv = dynamic_cast<DeclarableValue *>(value.get());
+            if (!dv)
+                throw INTERNAL_ERROR;
+            
+            decl = dv->declare(name);
+        }
+        else if (value->ts[0] != void_type) {
+            TypeSpec var_ts = value->ts.lvalue();
+            
+            Variable *variable = new Variable(name, VOID_TS, var_ts);
+            decl = variable;
+        }
+        else {
+            std::cerr << "Now what is this?\n";
+            return false;
+        }
+
+        Variable *v = dynamic_cast<Variable *>(decl);
+        if (v)
+            ts = v->var_ts;
+            
+        scope->add(decl);
+        return true;
+    }
+
+    virtual Variable *force_variable(TypeSpec var_ts, Value *v, Scope *scope) {
+        ts = var_ts;
+        value.reset(v);
+        Variable *variable = new Variable(name, VOID_TS, var_ts);
+        decl = variable;
+        scope->add(decl);
+        
+        return variable;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Variable *v = dynamic_cast<Variable *>(decl);
+        
+        if (v) {
+            // TODO: for references, we now need to first zero out the variable, then
+            // the store will do an assignment. This could be simpler.
+            Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
+            Storage t = v->get_storage(fn_storage);
+            v->var_ts.create(t, x64);
+
+            Storage s = value->compile(x64);
+            
+            if (s.where != NOWHERE)
+                v->var_ts.store(s, t, x64);
+                
+            s = v->get_storage(Storage(MEMORY, Address(RBP, 0)));
+            //std::cerr << "XXX " << ts << " " << v->var_ts << " " << s << "\n";
+            return s;
+        }
+        else {
+            value->compile_and_store(x64, Storage());
+            return Storage();
+        }
+    }
+};
+
+
+DeclarationValue *declaration_value_cast(Value *value) {
+    return dynamic_cast<DeclarationValue *>(value);
+}
+
+
+std::string declaration_get_name(DeclarationValue *dv) {
+    return dv->get_name();
+}
+
