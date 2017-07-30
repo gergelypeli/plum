@@ -110,17 +110,22 @@ public:
             return false;
         }
         
+        std::unique_ptr<Scope> fake_scope;
+        fake_scope.reset(new Scope);
+        
         for (auto &a : args) {
-            Value *kwv = typize(a.get(), scope);
-            DeclarationValue *dv = declaration_value_cast(kwv);
+            std::unique_ptr<Value> kwv;
+            kwv.reset(typize(a.get(), fake_scope.get(), &INTEGER_TS));
+            
+            DeclarationValue *dv = declaration_value_cast(kwv.get());
 
             if (!dv) {
                 std::cerr << "Not a declaration in an enumeration definition!\n";
                 return false;
             }
             
-            if (dv->ts != UNCERTAIN_TS) {
-                std::cerr << "Not an uncertain declaration in an enumeration definition!\n";
+            if (dv->ts != INTEGER_LVALUE_TS) {
+                std::cerr << "Not an integer declaration in an enumeration definition!\n";
                 return false;
             }
             

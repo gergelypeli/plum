@@ -24,13 +24,8 @@ public:
         }
         
         for (auto &arg : args) {
-            Value *value;
-            
-            if (arg->type == Expr::DECLARATION)
-                value = typize(arg.get(), scope);
-            else
-                value = code_scoped_typize(arg.get(), scope);
-                
+            bool escape_last = (arg->type == Expr::DECLARATION);
+            Value *value = code_scoped_typize(arg.get(), scope, NULL, escape_last);
             add_statement(value);
         }
             
@@ -105,11 +100,6 @@ public:
         code_scope->finalize_scope(Storage(MEMORY, Address(RBP, 0)), x64);
         return s;
     }
-    
-    virtual Variable *declare(std::string name, Scope *scope) {
-        // We may enclose the declaration's right hand size, so must forward this call
-        return value->declare(name, scope);
-    }
 };
 
 
@@ -118,10 +108,12 @@ public:
     std::string name;
     Variable *var;
     std::unique_ptr<Value> value;
+    TypeSpec *context;
     
-    DeclarationValue(std::string n)
+    DeclarationValue(std::string n, TypeSpec *c = NULL)
         :Value(VOID_TS) {
         name = n;
+        context = c;  // This may have a limited lifetime!
         var = NULL;
     }
 
@@ -146,12 +138,19 @@ public:
             return false;
         }
         
-        if (args.size() == 0) {
-            ts = UNCERTAIN_TS;
-            return true;
-        }
+        Value *v;
         
-        Value *v = code_scoped_typize(args[0].get(), scope);
+        if (args.size() == 0) {
+            if (!context) {
+                std::cerr << "Can't declare without context!\n";
+                throw TYPE_ERROR;
+            }
+            
+            v = make_type_value((*context).rvalue().prefix(type_type));
+        }
+        else
+            v = typize(args[0].get(), scope);
+            
         use(v, scope);
 
         return true;

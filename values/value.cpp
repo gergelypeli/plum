@@ -263,8 +263,8 @@ Value *make_block_value() {
 }
 
 
-Value *make_declaration_value(std::string name) {
-    return new DeclarationValue(name);
+Value *make_declaration_value(std::string name, TypeSpec *context) {
+    return new DeclarationValue(name, context);
 }
 
 

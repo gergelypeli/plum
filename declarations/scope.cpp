@@ -121,6 +121,12 @@ public:
         if (es > expanded_size)
             expanded_size = es;
     }
+    
+    virtual void escape_last() {
+        Declaration *d = contents.back().release();
+        contents.pop_back();
+        outer_scope->add(d);
+    }
 };
 
 

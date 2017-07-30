@@ -86,7 +86,7 @@ TypeSpec VOID_CODE_TS;
 class DeclarationValue;
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
-Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
+Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context = NULL, bool escape_last = false);
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 std::string declaration_get_name(DeclarationValue *dv);
@@ -96,7 +96,7 @@ Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_call_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
-Value *make_declaration_value(std::string name);
+Value *make_declaration_value(std::string name, TypeSpec *context);
 Value *make_basic_value(TypeSpec ts, int number);
 Value *make_string_literal_value(std::string text);
 Value *make_code_value(CodeScope *scope, Value *value);
@@ -479,7 +479,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::string name = expr->text;
         std::cerr << "Declaring " << name << ".\n";
         
-        value = make_declaration_value(name);
+        value = make_declaration_value(name, context);
         bool ok = value->check(expr->args, expr->kwargs, scope);
         
         if (!ok) {
@@ -570,10 +570,14 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 }
 
 
-Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context) {
+Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context, bool escape_last) {
     CodeScope *s = new CodeScope;
     scope->add(s);
     
     Value *value = typize(expr, s, context);
+    
+    if (escape_last)
+        s->escape_last();
+    
     return make_code_value(s, value);
 }
