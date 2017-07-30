@@ -11,7 +11,7 @@ public:
         
     FunctionDefinitionValue(OperationType o, Value *r, TypeMatch &match)
         :Value(METATYPE_TS) {
-        result.reset(r);
+        //result.reset(r);
         function = NULL;
     }
     
@@ -25,11 +25,16 @@ public:
 
         Scope *rs = fn_scope->add_result_scope();
         
-        if (result) {
-            if (result->ts[0] != type_type) {
+        if (args.size() == 1) {
+            Value *r = typize(args[0].get(), scope);
+            TypeMatch match;
+        
+            if (!typematch(ANY_TYPE_TS, r, match)) {
                 std::cerr << "Function result expression is not a type!\n";
                 return false;
             }
+            
+            result.reset(r);
 
             // Add internal result variable
             TypeSpec var_ts = result->ts;
@@ -303,12 +308,12 @@ public:
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(VOID_TS) {
-        result.reset(v);
+        //result.reset(v);
         result_var = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 && kwargs.size() != 0) {
+        if (kwargs.size() != 0) {
             std::cerr << "Whacky :return!\n";
             return false;
         }
@@ -320,16 +325,16 @@ public:
         }
         
         result_var = fn_scope->get_result_variable();
-        
+
         if (result_var) {
-            if (!result) {
+            if (args.size() == 0) {
                 std::cerr << "A :return control without value in a nonvoid function!\n";
                 return false;
             }
             
             TypeSpec result_ts = result_var->var_ts.rvalue();
+            Value *r = typize(args[0].get(), scope, &result_ts);
             TypeMatch match;
-            Value *r = result.release();
             
             if (!typematch(result_ts, r, match)) {
                 std::cerr << "A :return control with incompatible value!\n";
@@ -340,7 +345,7 @@ public:
             result.reset(r);
         }
         else {
-            if (result) {
+            if (args.size() > 0) {
                 std::cerr << "A :return control with value in a void function!\n";
                 return false;
             }

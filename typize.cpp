@@ -161,7 +161,7 @@ Scope *init_builtins() {
     uncertain_type = new SpecialType("<Uncertain>", 0);
     root_scope->add(uncertain_type);
 
-    enumeration_metatype = new EnumerationMetaType("Enumeration");
+    enumeration_metatype = new EnumerationMetaType(":Enumeration");
     root_scope->add(enumeration_metatype);
 
     integer_metatype = new IntegerMetaType(":Integer");
@@ -292,11 +292,9 @@ Scope *init_builtins() {
     root_scope->add(new TemplateOperation<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS, TWEAK));
     
     // Builtin controls
-    root_scope->add(new TemplateOperation<BooleanIfValue>(":if", BOOLEAN_TS, TWEAK));
+    root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
-    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", ANY_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", VOID_TS, TWEAK));
-    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":function", ANY_TYPE_TS, TWEAK));
     
     // Library functions
     root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));

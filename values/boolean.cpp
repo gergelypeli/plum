@@ -321,14 +321,24 @@ public:
     
     BooleanIfValue(OperationType o, Value *pivot, TypeMatch &match)
         :Value(VOID_TS) {  // Will be overridden later
-        condition.reset(pivot);
+        //condition.reset(pivot);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() > 0) {
-            std::cerr << "Positional arguments to Boolean if!\n";
+        if (args.size() != 1) {
+            std::cerr << "Not one positional argument to :if!\n";
             return false;
         }
+        
+        Value *c = typize(args[0].get(), scope, &BOOLEAN_TS);
+        TypeMatch match;
+        
+        if (!typematch(BOOLEAN_TS, c, match)) {
+            std::cerr << "Not a Boolean condition to :if!\n";
+            return false;
+        }
+        
+        condition.reset(c);
         
         for (auto &kv : kwargs) {
             if (kv.first == "then")

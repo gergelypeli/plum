@@ -158,12 +158,12 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         if (node.right) {
             tupleize_into(e, nodes, node.right);
             
-            if (e->args.size() > 1)
-                throw INTERNAL_ERROR;  // This should be impossible by the precedence rules
-            else if (e->args.size() == 1) {
-                e->set_pivot(e->args.back().release());
-                e->args.pop_back();
-            }
+            //if (e->args.size() > 1)
+            //    throw INTERNAL_ERROR;  // This should be impossible by the precedence rules
+            //else if (e->args.size() == 1) {
+            //    e->set_pivot(e->args.back().release());
+            //    e->args.pop_back();
+            //}
         }
         
         return e;

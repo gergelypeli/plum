@@ -105,16 +105,21 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() == 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky enumeration!\n";
+            return false;
+        }
+        
         for (auto &a : args) {
             Value *kwv = typize(a.get(), scope);
-            
             DeclarationValue *dv = declaration_value_cast(kwv);
+
             if (!dv) {
                 std::cerr << "Not a declaration in an enumeration definition!\n";
                 return false;
             }
             
-            if (get_typespec(kwv)[0] != uncertain_type) {
+            if (dv->ts != UNCERTAIN_TS) {
                 std::cerr << "Not an uncertain declaration in an enumeration definition!\n";
                 return false;
             }
