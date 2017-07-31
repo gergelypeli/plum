@@ -190,6 +190,19 @@ void X64::done(std::string filename) {
                 std::cerr << "Can't relocate data absolute to this symbol!\n";
                 throw X64_ERROR;
             }
+            
+        case REF_DATA_RELATIVE:
+            switch (d.type) {
+            case DEF_DATA:
+            case DEF_DATA_EXPORT:
+                *(int *)&data[r.location] += d.location - r.location;
+                break;
+            default:
+                std::cerr << "Can't relocate relative to this symbol!\n";
+                throw X64_ERROR;
+            }
+            break;
+
         }
     }
 
@@ -255,7 +268,7 @@ unsigned X64::data_allocate(unsigned size) {
 }
 
 
-void X64::data_reference(Label label) {
+void X64::data_reference(Label label, Ref_type f) {
     if (!label.def_index) {
         std::cerr << "Can't reference an undeclared label!\n";
         throw X64_ERROR;
@@ -265,7 +278,7 @@ void X64::data_reference(Label label) {
     Ref &r = refs.back();
     
     r.location = data.size();  // Store the beginning
-    r.type = REF_DATA_ABSOLUTE;
+    r.type = f;
     r.def_index = label.def_index;
     
     data_dword(0);  // 32-bit relocations only
@@ -276,8 +289,23 @@ void X64::data_heap_header() {
     if (HEAP_HEADER_SIZE != 16 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKCOUNT_OFFSET != -8)
         throw X64_ERROR;
         
-    data_qword(2);
+    data_qword(1);  // artificial reference to prevent freeing
     data_qword(0);
+}
+
+
+Label X64::data_heap_string(std::vector<unsigned short> characters) {
+    Label l;
+    
+    data_heap_header();
+    data_label(l);
+    data_qword(characters.size());
+    data_qword(characters.size());
+
+    for (unsigned short &c : characters)
+        data_word(c);
+
+    return l;
 }
 
 
@@ -817,7 +845,7 @@ void X64::op(MemoryOp opcode, Address x) {
 
 
 int registerfirst_info[] = {
-    0x0FAF
+    0x0FAF, 0x63
 };
 
 void X64::op(RegisterFirstOp opcode, Register x, Register y) {

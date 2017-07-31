@@ -99,6 +99,7 @@ public:
 class EnumerationDefinitionValue: public Value {
 public:
     std::vector<std::string> keywords;
+    Label stringifications_label;
 
     EnumerationDefinitionValue()
         :Value(METATYPE_TS) {
@@ -144,12 +145,24 @@ public:
         return Regs();
     }
     
-    virtual Storage compile(X64 *) {
+    virtual Storage compile(X64 *x64) {
+        // This storage method is quite verbose (32 bytes overhead for each string!),
+        // but will be fine for a while.
+        std::vector<Label> labels;
+        
+        for (auto &keyword : keywords) 
+            labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
+            
+        x64->data_label_export(stringifications_label, "enum_stringifications", 0, false);
+        
+        for (auto &label : labels)
+            x64->data_reference(label, X64::REF_DATA_RELATIVE);  // 32-bit relative
+        
         return Storage();
     }
 
     virtual Variable *declare(std::string name, Scope *scope) {
-        scope->add(new EnumerationType(name, keywords));
+        scope->add(new EnumerationType(name, keywords, stringifications_label));
         return NULL;
     }
 };

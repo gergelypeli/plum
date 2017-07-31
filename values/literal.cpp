@@ -86,25 +86,11 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int bytelen = text.size();
-        std::vector<unsigned short> characters;
-        characters.resize(bytelen);
-        int charlen = decode_utf8_buffer(text.data(), bytelen, characters.data());
-        characters.resize(charlen);
-        //int size = 2;
-
-        // Static headers with a refcount of 2
-        // Not yet usable, since some of our code expects Character Array-s to be reallocable
-        x64->data_heap_header();
-        Label l;
-        x64->data_label(l);
-        x64->data_qword(charlen);
-        x64->data_qword(charlen);
-
-        for (unsigned short &c : characters)
-            x64->data_word(c);
+        std::vector<unsigned short> characters = decode_utf8(text);
+        Label l = x64->data_heap_string(characters);
         
         x64->op(LEARIP, reg, l, 0);
+        x64->incref(reg);  // This way we can return the same static string many times
         
         return Storage(REGISTER, reg);
         
@@ -173,9 +159,8 @@ public:
         // TODO: don't inline, may just use fixed RDX/RDI
         subcompile(x64);
         
-        if (ls.where != REGISTER)
-            throw INTERNAL_ERROR;
-        
+        left->ts.store(ls, Storage(REGISTER, RDX), x64);
+
         if (rs.where != MEMORY)
             throw INTERNAL_ERROR;
             
@@ -200,6 +185,105 @@ public:
         
         x64->decref(RDX);
         
+        return Storage();
+    }
+};
+
+
+class CharacterStreamificationValue: public GenericOperationValue {
+public:
+
+    CharacterStreamificationValue(OperationType o, Value *p, TypeMatch &match)
+        :GenericOperationValue(o, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        GenericOperationValue::precompile(preferred);
+            
+        return Regs::all();  // We're Void
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // TODO: don't inline, may just use fixed RDX/RDI
+        subcompile(x64);
+
+        left->ts.store(ls, Storage(REGISTER, DX), x64);
+        
+        if (rs.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        // RAX - target array, RBX - tmp, RCX - , RDX - source character
+        x64->op(MOVQ, RAX, rs.address);
+
+        x64->op(MOVQ, RBX, 1);
+        x64->preappend_array_RAX_RBX(2);
+        x64->op(MOVQ, rs.address, RAX);  // rs.address is no longer needed, PTRs can be clobbed
+
+        x64->op(LEA, RDI, x64->array_items_address(RAX));
+        x64->op(ADDQ, RDI, x64->array_length_address(RAX));
+        x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
+
+        x64->op(MOVW, Address(RDI, 0), DX);
+            
+        x64->op(ADDQ, x64->array_length_address(RAX), 1);
+
+        return Storage();
+    }
+};
+
+
+class EnumStreamificationValue: public GenericOperationValue {
+public:
+
+    EnumStreamificationValue(OperationType o, Value *p, TypeMatch &match)
+        :GenericOperationValue(o, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        GenericOperationValue::precompile(preferred);
+            
+        return Regs::all();  // We're Void
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // TODO: don't inline, may just use fixed RDX/RDI
+        subcompile(x64);
+
+        left->ts.store(ls, Storage(REGISTER, RDX), x64);
+        
+        if (rs.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        EnumerationType *t = dynamic_cast<EnumerationType *>(left->ts.rvalue()[0]);
+            
+        // Find the string for this enum value
+        x64->op(ANDQ, RDX, 0xFF);
+        x64->op(SHLQ, RDX, 2);  // 32-bit relative offsets are stored in our table
+        x64->op(LEARIP, RBX, t->stringifications_label, 0);  // table start
+        x64->op(ADDQ, RBX, RDX);  // entry start
+        x64->op(MOVSXQ, RDX, Address(RBX, 0));  // offset to string
+        x64->op(ADDQ, RDX, RBX);  // absolute address of string
+            
+        // RAX - target array, RBX - tmp, RCX - , RDX - source array
+        x64->op(MOVQ, RAX, rs.address);
+
+        x64->op(MOVQ, RBX, x64->array_length_address(RDX));
+        x64->preappend_array_RAX_RBX(2);
+        x64->op(MOVQ, rs.address, RAX);  // rs.address is no longer needed, PTRs can be clobbed
+
+        x64->op(LEA, RDI, x64->array_items_address(RAX));
+        x64->op(ADDQ, RDI, x64->array_length_address(RAX));
+        x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
+
+        x64->op(LEA, RSI, x64->array_items_address(RDX));
+        x64->op(MOVQ, RCX, x64->array_length_address(RDX));
+        x64->op(ADDQ, x64->array_length_address(RAX), RCX);
+        x64->op(SHLQ, RCX, 1);
+        
+        x64->op(REPMOVSB);
+        
+        // No decref, we reuse these strings multiple times!
+
         return Storage();
     }
 };

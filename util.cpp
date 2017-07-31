@@ -86,3 +86,13 @@ public:
         return this->at(i).second;
     }
 };
+
+
+std::vector<unsigned short> decode_utf8(std::string text) {
+    int bytelen = text.size();
+    std::vector<unsigned short> characters;
+    characters.resize(bytelen);
+    int charlen = decode_utf8_buffer(text.data(), bytelen, characters.data());
+    characters.resize(charlen);
+    return characters;
+}

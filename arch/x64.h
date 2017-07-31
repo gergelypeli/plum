@@ -249,7 +249,8 @@ enum MemoryOp {
 
 
 enum RegisterFirstOp {
-    IMUL2W=1, IMUL2D, IMUL2Q
+    IMUL2W=1, IMUL2D, IMUL2Q,
+    MOVSXQ=7
 };
 
 RegisterFirstOp operator%(RegisterFirstOp x, int y) { return (RegisterFirstOp)((x & ~3) | (y & 3)); }
@@ -345,7 +346,11 @@ public:
     };
     
     enum Ref_type {
-        REF_CODE_SHORT, REF_CODE_RELATIVE, REF_CODE_ABSOLUTE, REF_DATA_ABSOLUTE
+        REF_CODE_SHORT,
+        REF_CODE_RELATIVE,
+        REF_CODE_ABSOLUTE,
+        REF_DATA_RELATIVE,
+        REF_DATA_ABSOLUTE
     };
     
     struct Ref {
@@ -373,8 +378,9 @@ public:
     void data_label(Label c, unsigned size = 0);
     void data_label_export(Label c, std::string name, unsigned size, bool is_global);
     unsigned data_allocate(unsigned size);
-    void data_reference(Label c);
+    void data_reference(Label c, Ref_type f);
     void data_heap_header();
+    Label data_heap_string(std::vector<unsigned short> characters);
 
     void code_align();
     void code_byte(char x);

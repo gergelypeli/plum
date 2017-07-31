@@ -503,11 +503,13 @@ public:
 class EnumerationType: public BasicType {
 public:
     std::vector<std::string> keywords;
+    Label stringifications_label;
 
-    EnumerationType(std::string n, std::vector<std::string> kw)
+    EnumerationType(std::string n, std::vector<std::string> kw, Label sl)
         :BasicType(n, 1) {  // TODO: different sizes based on the keyword count!
         
         keywords = kw;
+        stringifications_label = sl;
     }
     
     virtual Value *initializer(TypeSpecIter tsi, std::string n) {
