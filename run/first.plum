@@ -50,6 +50,9 @@ start? :Function as:
     s[3] = s[4]
     prints(s)
 
+    s[3] = `unicode 592
+    prints(s)
+
     z? Character Array
     prints(z || "Ez tök 대박")
     

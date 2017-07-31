@@ -100,14 +100,6 @@ public:
 };
 
 
-class HeapType: public Type {
-public:
-    HeapType(std::string name, unsigned pc)
-        :Type(name, pc) {
-    }
-};
-
-
 class BasicType: public Type {
 public:
     unsigned size;
@@ -281,8 +273,11 @@ public:
 
 class BooleanType: public BasicType {
 public:
+    std::unique_ptr<Scope> inner_scope;
+    
     BooleanType(std::string n, unsigned s)
         :BasicType(n, s) {
+        inner_scope.reset(new Scope);
     }
 
     virtual Value *initializer(TypeSpecIter tsi, std::string name) {
@@ -294,6 +289,36 @@ public:
             std::cerr << "No Boolean initializer called " << name << "!\n";
             return NULL;
         }
+    }
+
+    virtual Scope *get_inner_scope() {
+        return inner_scope.get();
+    }
+};
+
+
+class CharacterType: public BasicType {
+public:
+    std::unique_ptr<Scope> inner_scope;
+    
+    CharacterType(std::string n, unsigned s)
+        :BasicType(n, s) {
+        inner_scope.reset(new Scope);
+    }
+
+    virtual Value *initializer(TypeSpecIter tsi, std::string name) {
+        if (name == "zero")
+            return make_basic_value(TypeSpec(tsi), 0);
+        else if (name == "unicode")
+            return make_unicode_character_value();
+        else {
+            std::cerr << "No Character initializer called " << name << "!\n";
+            return NULL;
+        }
+    }
+
+    virtual Scope *get_inner_scope() {
+        return inner_scope.get();
     }
 };
 
@@ -418,6 +443,21 @@ public:
             std::cerr << "No reference initializer called " << name << "!\n";
             return NULL;
         }
+    }
+};
+
+
+class HeapType: public Type {
+public:
+    std::unique_ptr<Scope> inner_scope;
+
+    HeapType(std::string name, unsigned pc)
+        :Type(name, pc) {
+        inner_scope.reset(new Scope);
+    }
+    
+    virtual Scope *get_inner_scope() {
+        return inner_scope.get();
     }
 };
 

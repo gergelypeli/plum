@@ -1,4 +1,5 @@
 .PHONY: build clean
+SHELL      = /bin/zsh
 
 DECLS      = declaration identifier scope type typespec
 VALUES     = value literal function boolean integer array reference type block
@@ -27,7 +28,7 @@ test: $(TEST)
 $(EXE): $(SOURCES)
 	@clear
 	@rm -f $(CORE)
-	@set -e; $(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
+	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
 
 $(TEST): $(TESTOBJECT) $(TESTMODULE)
 	@gcc $(CFLAGS) -o $(TEST) $(TESTOBJECT) $(TESTMODULE)

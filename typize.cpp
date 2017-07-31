@@ -106,6 +106,7 @@ Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
+Value *make_unicode_character_value();
 Value *make_enumeration_definition_value();
 Value *make_integer_definition_value();
 
@@ -189,7 +190,7 @@ Scope *init_builtins() {
     boolean_type = new BooleanType("Boolean", 1);
     root_scope->add(boolean_type);
 
-    character_type = new BasicType("Character", 2);
+    character_type = new CharacterType("Character", 2);
     root_scope->add(character_type);
 
     integer_type = new IntegerType("Integer", 8, false);
@@ -266,14 +267,16 @@ Scope *init_builtins() {
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
     
     // Character operations
-    root_scope->add(new TemplateOperation<IntegerOperationValue>("assign", CHARACTER_LVALUE_TS, ASSIGN));
+    Scope *char_scope = character_type->get_inner_scope();
+    char_scope->add(new TemplateOperation<IntegerOperationValue>("assign", CHARACTER_LVALUE_TS, ASSIGN));
     
     // Boolean operations
+    Scope *bool_scope = boolean_type->get_inner_scope();
     typedef TemplateOperation<BooleanOperationValue> BooleanOperation;
-    root_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
-    //root_scope->add(new BooleanOperation("is_equal", BOOLEAN_TS, EQUAL));
-    //root_scope->add(new BooleanOperation("not_equal", BOOLEAN_TS, NOT_EQUAL));
-    root_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
+    bool_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
+    bool_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
+
+    // Logical operations, unscoped
     root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", BOOLEAN_TS, AND));
     root_scope->add(new TemplateOperation<BooleanOrValue>("logical or", ANY_TS, OR));
 
@@ -281,26 +284,27 @@ Scope *init_builtins() {
     Scope *enum_scope = enumeration_metatype->get_inner_scope();
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
 
-    // Reference operations
+    // Reference operations, unscoped
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
     root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
     root_scope->add(new ReferenceOperation("is_equal", ANY_REFERENCE_TS, EQUAL));
     root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
 
     // Array operations
-    root_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    root_scope->add(new TemplateOperation<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    root_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    Scope *array_scope = array_type->get_inner_scope();
+    array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    array_scope->add(new TemplateOperation<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
 
-    // String functions
+    // String functions, unscoped, no string type yet
     root_scope->add(new TemplateOperation<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS, TWEAK));
     
-    // Builtin controls
+    // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     
-    // Library functions
+    // Library functions, unscoped
     root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
     root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
@@ -350,8 +354,13 @@ Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token 
             return value;
     }
 
-    Type *t = pts.rvalue()[0];
-    Scope *inner_scope = t->get_inner_scope();
+    unsigned i = 0;
+    if (pts[i] == lvalue_type || pts[i] == ovalue_type || pts[i] == code_type)
+        i++;
+    if (pts[i] == reference_type)
+        i++;
+        
+    Scope *inner_scope = pts[i]->get_inner_scope();
     
     if (inner_scope) {
         Value *value = lookup_scope(inner_scope, name, pivot, args, kwargs, token, scope);

@@ -304,6 +304,11 @@ Value *make_null_reference_value(TypeSpec ts) {
 }
 
 
+Value *make_unicode_character_value() {
+    return new UnicodeCharacterValue();
+}
+
+
 Value *make_enumeration_definition_value() {
     return new EnumerationDefinitionValue();
 }

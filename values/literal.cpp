@@ -23,6 +23,52 @@ public:
 };
 
 
+class UnicodeCharacterValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+
+    UnicodeCharacterValue()
+        :Value(CHARACTER_TS) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() == 1 && kwargs.size() == 0) {
+            Value *v = typize(args[0].get(), scope, &INTEGER_TS);
+            TypeMatch match;
+            
+            if (!typematch(INTEGER_TS, v, match)) {
+                std::cerr << "Integer unicode code point expected!\n";
+                return false;
+            }
+            
+            value.reset(v);
+            return true;
+        }
+        else
+            return false;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = value->compile(x64);
+        
+        switch (s.where) {
+        case CONSTANT:
+            return Storage(CONSTANT, s.value & 0xFFFF);
+        case REGISTER:
+            return Storage(REGISTER, s.reg);
+        case MEMORY:
+            return Storage(MEMORY, s.address);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
 class StringLiteralValue: public Value {
 public:
     std::string text;
