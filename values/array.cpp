@@ -122,7 +122,7 @@ public:
 class ArrayReallocValue: public GenericOperationValue {
 public:
     ArrayReallocValue(OperationType o, Value *l, TypeMatch &match)
-        :GenericOperationValue(o, INTEGER_TS, VOID_TS, l) {
+        :GenericOperationValue(o, INTEGER_OVALUE_TS, l->ts, l) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -134,14 +134,19 @@ public:
         // TODO: this only works for arrays of basic types now, that can be just copied
         // TODO: don't inline this either
         Label end;
-        int item_size = ::item_size(ts.unprefix(reference_type).unprefix(array_type).measure());
+        int item_size = ::item_size(ts.rvalue().unprefix(reference_type).unprefix(array_type).measure());
         
         subcompile(x64);
         
         if (ls.where != MEMORY)
             throw INTERNAL_ERROR;
+
+        x64->op(MOVQ, RAX, ls.address);
             
         switch (rs.where) {
+        case NOWHERE:
+            x64->op(MOVQ, RBX, x64->array_length_address(RAX));  // shrink to fit
+            break;
         case CONSTANT:
             x64->op(MOVQ, RBX, rs.value);
             break;
@@ -155,10 +160,9 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        x64->op(MOVQ, RAX, ls.address);
         x64->realloc_array_RAX_RBX(item_size);
         x64->op(MOVQ, ls.address, RAX);
         
-        return Storage();
+        return ls;
     }
 };

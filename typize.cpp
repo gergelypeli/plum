@@ -72,6 +72,7 @@ TypeSpec METATYPE_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;
+TypeSpec INTEGER_OVALUE_TS;
 TypeSpec BOOLEAN_LVALUE_TS;
 TypeSpec UNSIGNED_INTEGER8_TS;
 TypeSpec UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS;
@@ -233,6 +234,7 @@ Scope *init_builtins() {
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };
+    INTEGER_OVALUE_TS = { ovalue_type, integer_type };
     BOOLEAN_LVALUE_TS = { lvalue_type, boolean_type };
     UNSIGNED_INTEGER8_TS = { unsigned_integer8_type };
     UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS = { reference_type, array_type, unsigned_integer8_type };
@@ -457,6 +459,8 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     }
 
     Value *ret = make_variable_value(v, NULL);
+    TypeMatch match;  // kinda unnecessary
+    ret = new ArrayReallocValue(TWEAK, ret, match);
     block->add_statement(ret);
     
     return make_code_value(s, block);
