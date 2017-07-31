@@ -139,11 +139,13 @@ struct Label {
 struct Address {
     Register base;
     Register index;
+    int scale;
     int offset;  // Offsets are never longer than 32 bits, except in some wicked cases
 
     Address();
     Address(Register b, int o);
     Address(Register b, Register i, int o);
+    Address(Register b, Register i, int scale, int o);
     Address operator + (int o);
 };
 

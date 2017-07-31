@@ -24,6 +24,7 @@ std::ostream &operator << (std::ostream &os, const Register r) {
 Address::Address() {
     base = NOREG;
     index = NOREG;
+    scale = 0;
     offset = 0;
 }
 
@@ -36,6 +37,7 @@ Address::Address(Register b, int o) {
           
     base = b;
     index = NOREG;
+    scale = 0;
     offset = o;
 }
 
@@ -48,6 +50,23 @@ Address::Address(Register b, Register i, int o) {
           
     base = b;
     index = i;
+    scale = 1;
+    offset = o;
+}
+
+
+Address::Address(Register b, Register i, int s, int o) {
+    if (b == NOREG) {
+        std::cerr << "Address without register!\n";
+        throw X64_ERROR;
+    }
+    
+    if (s != 1 && s != 2 && s != 4 && s != 8)
+        throw X64_ERROR;
+    
+    base = b;
+    index = i;
+    scale = s;
     offset = o;
 }
 
@@ -480,9 +499,6 @@ void X64::effective_address(int regfield, Address x) {
     const int DISP32 = 2;
     
     const int SCALE1 = 0;
-    //const int SCALE2 = 1;
-    //const int SCALE4 = 2;
-    //const int SCALE8 = 3;
     
     const Register USE_SIB = RSP;
     const Register NO_INDEX = RSP;
@@ -502,6 +518,7 @@ void X64::effective_address(int regfield, Address x) {
     regfield &= 7;
     int base = x.base == NOREG ? NOREG : x.base & 7;  // RSP and R12 need a SIB
     int index = x.index == NOREG ? NOREG : x.index & 7;
+    int scale = (x.scale == 1 ? 0 : x.scale == 2 ? 1 : x.scale == 4 ? 2 : 3);
     int offset = x.offset;
     
     if (base == NOREG) {
@@ -520,7 +537,7 @@ void X64::effective_address(int regfield, Address x) {
         
         if (index != NOREG) {
             code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (index << 3)    | base);  // R12 can be index
+            code_byte((scale << 6)  | (index << 3)    | base);  // R12 can be index
         }
         else if (base == USE_SIB) {
             code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
@@ -534,7 +551,7 @@ void X64::effective_address(int regfield, Address x) {
         
         if (index != NOREG) {
             code_byte((DISP8 << 6)  | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (index << 3)    | base);  // R12 can be index
+            code_byte((scale << 6)  | (index << 3)    | base);  // R12 can be index
         }
         else if (base == USE_SIB) {
             code_byte((DISP8 << 6)  | (regfield << 3) | USE_SIB);
@@ -550,7 +567,7 @@ void X64::effective_address(int regfield, Address x) {
         
         if (index != NOREG) {
             code_byte((DISP32 << 6) | (regfield << 3) | USE_SIB);
-            code_byte((SCALE1 << 6) | (index << 3)    | base);  // R12 can be index
+            code_byte((scale << 6)  | (index << 3)    | base);  // R12 can be index
         }
         else if (base == USE_SIB) {
             code_byte((DISP32 << 6) | (regfield << 3) | USE_SIB);

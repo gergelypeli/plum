@@ -82,7 +82,7 @@ start? :Function as:
     Myenum? :Enumeration
         FOO?, BAR?, BAZ?
 
-    fbb? Myenum `FOO
+    fbb? Myenum `BAR
     :if fbb == `FOO then: prints("fbb is FOO") else: prints("fbb is not FOO")
 
     prints("fbb is actually {f}!" { f: fbb })
