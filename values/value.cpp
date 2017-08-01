@@ -45,10 +45,17 @@ public:
         ts.store(s, t, x64);
     }
     
-    virtual Variable *declare(std::string name, Scope *scope) {
-        Variable *v = new Variable(name, VOID_TS, ts.nonrvalue());
-        scope->add(v);
-        return v;
+    // DeclarationValue invokes these methods if this expression appears in a declaration.
+    // In clode blocks first declare_impure is called, which may or may not return a Variable.
+    // If not, then declare_pure is called, which must return any Declaration.
+    // Data blocks invoke only declare_pure, and if that returns NULL, that's a semantic error.
+    
+    virtual Variable *declare_impure(std::string name) {
+        return new Variable(name, VOID_TS, ts.nonrvalue());
+    }
+    
+    virtual Declaration *declare_pure(std::string name) {
+        return NULL;
     }
 };
 

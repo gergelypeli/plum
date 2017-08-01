@@ -18,8 +18,9 @@ Type *same_type = NULL;
 Type *type_type = NULL;
 Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;
-Type *metatype_type = NULL;
 Type *code_type = NULL;
+Type *metatype_type = NULL;
+Type *pure_type = NULL;
 Type *void_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
@@ -69,6 +70,7 @@ TypeSpec ANY_TYPE_TS;
 TypeSpec ANY_OVALUE_TS;
 TypeSpec ANY_LVALUE_TS;
 TypeSpec METATYPE_TS;
+TypeSpec PURE_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;
@@ -178,6 +180,9 @@ Scope *init_builtins() {
     metatype_type = new SpecialType("<Metatype>", 0);
     root_scope->add(metatype_type);
 
+    pure_type = new SpecialType("<Pure>", 0);
+    root_scope->add(pure_type);
+
     lvalue_type = new AttributeType("<Lvalue>");
     root_scope->add(lvalue_type);
     
@@ -229,6 +234,7 @@ Scope *init_builtins() {
     ANY_LVALUE_TS = { lvalue_type, any_type };
     ANY_OVALUE_TS = { ovalue_type, any_type };
     METATYPE_TS = { metatype_type };
+    PURE_TS = { pure_type };
     VOID_TS = { void_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
@@ -403,7 +409,8 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     
     DeclarationValue *dv = new DeclarationValue("<result>");
     Value *initial_value = new StringBufferValue(100);
-    Variable *v = dv->use(initial_value, scope);
+    dv->use(initial_value, scope);
+    Variable *v = dv->get_var();
     block->add_statement(dv);
 
     for (auto &kv : kwargs) {
@@ -481,17 +488,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         value = make_block_value();
         value->check(expr->args, expr->kwargs, scope);
     }
-    else if (expr->type == Expr::CONTROL) {
-        std::string name = ":" + expr->text;
-        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        if (p)
-            p->set_marker(marker);
-        
-        value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
-
-        if (!value)
-            throw TYPE_ERROR;
-    }
     else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;
         std::cerr << "Declaring " << name << ".\n";
@@ -514,6 +510,17 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         
         value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
         
+        if (!value)
+            throw TYPE_ERROR;
+    }
+    else if (expr->type == Expr::CONTROL) {
+        std::string name = ":" + expr->text;
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        if (p)
+            p->set_marker(marker);
+        
+        value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
+
         if (!value)
             throw TYPE_ERROR;
     }

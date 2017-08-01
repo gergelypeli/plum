@@ -87,8 +87,12 @@ public:
         
         return Storage();
     }
+
+    virtual Variable *declare_impure(std::string name) {
+        return NULL;
+    }
     
-    virtual Variable *declare(std::string name, Scope *scope) {
+    virtual Declaration *declare_pure(std::string name) {
         std::vector<TypeSpec> arg_tss;
         std::vector<std::string> arg_names;
         TypeSpec result_ts;
@@ -115,8 +119,8 @@ public:
             result_ts = VOID_TS;
             
         function = new Function(name, VOID_TS, arg_tss, arg_names, result_ts);
-        scope->add(function);
-        return NULL;
+        
+        return function;
     }
 };
 

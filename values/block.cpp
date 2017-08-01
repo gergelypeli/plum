@@ -130,16 +130,34 @@ public:
     virtual std::string get_name() {
         return name;
     }
+    
+    virtual Variable *get_var() {
+        return var;
+    }
 
-    virtual Variable *use(Value *v, Scope *scope) {
+    virtual bool use(Value *v, Scope *scope) {
         value.reset(v);
         
-        var = value->declare(name, scope);
+        if (!context || (*context)[0] != pure_type) {
+            // Allow declaration by value or type
+            var = value->declare_impure(name);
         
-        if (var)
-            ts = var->var_ts;
-            
-        return var;
+            if (var) {
+                scope->add(var);
+                ts = var->var_ts;
+                return true;
+            }
+        }
+        
+        // Allow declaration by type or metatype
+        Declaration *d = value->declare_pure(name);
+        
+        if (d) {
+            scope->add(d);
+            return true;
+        }
+        
+        return false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -159,11 +177,9 @@ public:
             v = make_type_value((*context).rvalue().prefix(type_type));
         }
         else
-            v = typize(args[0].get(), scope);
+            v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
             
-        use(v, scope);
-
-        return true;
+        return use(v, scope);
     }
 
     virtual Regs precompile(Regs preferred) {

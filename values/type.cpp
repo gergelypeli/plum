@@ -13,15 +13,17 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare(std::string name, Scope *scope) {
+    virtual Variable *declare_impure(std::string name) {
         TypeSpec var_ts = ts.unprefix(type_type);
         
         if (dynamic_cast<HeapType *>(var_ts[0]))
             var_ts = var_ts.prefix(reference_type);
             
-        Variable *v = new Variable(name, VOID_TS, var_ts.nonrvalue());
-        scope->add(v);
-        return v;
+        return new Variable(name, VOID_TS, var_ts.nonrvalue());
+    }
+    
+    virtual Declaration *declare_pure(std::string name) {
+        return declare_impure(name);
     }
 };
 
@@ -89,9 +91,12 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare(std::string name, Scope *scope) {
-        scope->add(new IntegerType(name, size, is_not_signed));
+    virtual Variable *declare_impure(std::string name) {
         return NULL;
+    }
+
+    virtual Declaration *declare_pure(std::string name) {
+        return new IntegerType(name, size, is_not_signed);
     }
 };
 
@@ -161,9 +166,12 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare(std::string name, Scope *scope) {
-        scope->add(new EnumerationType(name, keywords, stringifications_label));
+    virtual Variable *declare_impure(std::string name) {
         return NULL;
+    }
+
+    virtual Declaration *declare_pure(std::string name) {
+        return new EnumerationType(name, keywords, stringifications_label);
     }
 };
 
