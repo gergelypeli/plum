@@ -89,7 +89,7 @@ public:
         std::vector<unsigned short> characters = decode_utf8(text);
         Label l = x64->data_heap_string(characters);
         
-        x64->op(LEARIP, reg, l, 0);
+        x64->op(LEARIP, reg, l);
         x64->incref(reg);  // This way we can return the same static string many times
         
         return Storage(REGISTER, reg);
@@ -259,7 +259,7 @@ public:
         // Find the string for this enum value
         x64->op(ANDQ, RDX, 0xFF);
         x64->op(SHLQ, RDX, 2);  // 32-bit relative offsets are stored in our table
-        x64->op(LEARIP, RBX, t->stringifications_label, 0);  // table start
+        x64->op(LEARIP, RBX, t->stringifications_label);  // table start
         x64->op(ADDQ, RBX, RDX);  // entry start
         x64->op(MOVSXQ, RDX, Address(RBX, 0));  // offset to string
         x64->op(ADDQ, RDX, RBX);  // absolute address of string

@@ -350,9 +350,7 @@ public:
     enum Ref_type {
         REF_CODE_SHORT,
         REF_CODE_RELATIVE,
-        REF_CODE_ABSOLUTE,
         REF_DATA_RELATIVE,
-        REF_DATA_ABSOLUTE
     };
     
     struct Ref {
@@ -380,7 +378,7 @@ public:
     void data_label(Label c, unsigned size = 0);
     void data_label_export(Label c, std::string name, unsigned size, bool is_global);
     unsigned data_allocate(unsigned size);
-    void data_reference(Label c, Ref_type f);
+    void data_reference(Label c);
     void data_heap_header();
     Label data_heap_string(std::vector<unsigned short> characters);
 
@@ -401,9 +399,7 @@ public:
     void code_label(Label c, unsigned size = 0);
     void code_label_import(Label c, std::string name);
     void code_label_export(Label c, std::string name, unsigned size, bool is_global);
-    void absolute_label(Label c, int value);
-    void absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global);
-    void code_reference(Label c, Ref_type f, int offset = 0);
+    void code_reference(Label c, bool is_short = false);
 
     int rxb(int regfield, Register rm);
     int rxb(int regfield, Address rm);
@@ -444,7 +440,7 @@ public:
     void op(Imul3Op opcode, Register x, Register y, int z);
     void op(Imul3Op opcode, Register x, Address y, int z);
     void op(RegisterMemoryOp opcode, Register x, Address y);
-    void op(LeaRipOp opcode, Register r, Label l, int o);
+    void op(LeaRipOp opcode, Register r, Label l);
     void op(BitSetOp, Register x);
     void op(BitSetOp, Address x);
     void op(BranchOp opcode, Label c);

@@ -156,7 +156,7 @@ public:
         x64->data_label_export(stringifications_label, "enum_stringifications", 0, false);
         
         for (auto &label : labels)
-            x64->data_reference(label, X64::REF_DATA_RELATIVE);  // 32-bit relative
+            x64->data_reference(label);  // 32-bit relative
         
         return Storage();
     }

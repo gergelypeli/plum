@@ -275,7 +275,7 @@ unsigned Ork::import(std::string name) {
 }
 
 
-void Ork::code_relocation(unsigned index, int location, bool is_relative) {
+void Ork::code_relocation(unsigned index, int location) {
     if (!index) {
         std::cerr << "Invalid symbol index for code relocation!\n";
         throw X64_ERROR;
@@ -285,10 +285,7 @@ void Ork::code_relocation(unsigned index, int location, bool is_relative) {
     Elf64_Rel &r = code_relocations.back();
 
     r.r_offset = location;    // 32-bit offsets only
-    r.r_info = ELF64_R_INFO(index, (is_relative ? R_X86_64_PC32 : R_X86_64_32S));
-    
-    if (!is_relative)
-        std::cerr << "Warning, absolute code relocation used!\n";
+    r.r_info = ELF64_R_INFO(index, R_X86_64_PC32);
 }
 
 
@@ -302,7 +299,5 @@ void Ork::data_relocation(unsigned index, int location) {
     Elf64_Rel &r = data_relocations.back();
 
     r.r_offset = location;    // 32-bit offsets only
-    r.r_info = ELF64_R_INFO(index, R_X86_64_32S);
-
-    std::cerr << "Warning, absolute data relocation used!\n";
+    r.r_info = ELF64_R_INFO(index, R_X86_64_PC32);
 }

@@ -160,55 +160,18 @@ void X64::done(std::string filename) {
                 break;
             case DEF_CODE_IMPORT:
                 *(int *)&code[r.location] += -4;
-                ork->code_relocation(d.symbol_index, r.location, true);
+                ork->code_relocation(d.symbol_index, r.location);
                 break;
             case DEF_DATA:
             case DEF_DATA_EXPORT:
                 *(int *)&code[r.location] += d.location - 4;
-                ork->code_relocation(data_symbol_index, r.location, true);
+                ork->code_relocation(data_symbol_index, r.location);
                 break;
             default:
                 std::cerr << "Can't relocate relative to this symbol!\n";
                 throw X64_ERROR;
             }
             break;
-            
-        case REF_CODE_ABSOLUTE:
-            switch (d.type) {
-            case DEF_CODE:
-            case DEF_CODE_EXPORT:
-                *(int *)&code[r.location] += d.location;
-                ork->code_relocation(code_symbol_index, r.location, false);
-                break;
-            case DEF_CODE_IMPORT:
-                ork->code_relocation(d.symbol_index, r.location, false);
-                break;
-            case DEF_DATA:
-            case DEF_DATA_EXPORT:
-                *(int *)&code[r.location] += d.location;
-                ork->code_relocation(data_symbol_index, r.location, false);
-                break;
-            case DEF_ABSOLUTE:
-            case DEF_ABSOLUTE_EXPORT:
-                *(int *)&code[r.location] += d.location;
-                break;
-            default:
-                std::cerr << "Can't relocate absolute to this symbol!\n";
-                throw X64_ERROR;
-            }
-            break;
-            
-        case REF_DATA_ABSOLUTE:
-            switch (d.type) {
-            case DEF_DATA:
-            case DEF_DATA_EXPORT:
-                *(int *)&data[r.location] += d.location;
-                ork->data_relocation(data_symbol_index, r.location);
-                break;
-            default:
-                std::cerr << "Can't relocate data absolute to this symbol!\n";
-                throw X64_ERROR;
-            }
             
         case REF_DATA_RELATIVE:
             switch (d.type) {
@@ -287,7 +250,7 @@ unsigned X64::data_allocate(unsigned size) {
 }
 
 
-void X64::data_reference(Label label, Ref_type f) {
+void X64::data_reference(Label label) {
     if (!label.def_index) {
         std::cerr << "Can't reference an undeclared label!\n";
         throw X64_ERROR;
@@ -297,7 +260,7 @@ void X64::data_reference(Label label, Ref_type f) {
     Ref &r = refs.back();
     
     r.location = data.size();  // Store the beginning
-    r.type = f;
+    r.type = REF_DATA_RELATIVE;
     r.def_index = label.def_index;
     
     data_dword(0);  // 32-bit relocations only
@@ -371,17 +334,7 @@ void X64::code_label_export(Label c, std::string name, unsigned size, bool is_gl
 }
 
 
-void X64::absolute_label(Label c, int value) {
-    add_def(c, Def(DEF_ABSOLUTE, value, 0, "", false));
-}
-
-
-void X64::absolute_label_export(Label c, std::string name, int value, unsigned size, bool is_global) {
-    add_def(c, Def(DEF_ABSOLUTE_EXPORT, value, size, name, is_global));
-}
-
-
-void X64::code_reference(Label label, Ref_type f, int offset) {
+void X64::code_reference(Label label, bool is_short) {
     if (!label.def_index) {
         std::cerr << "Can't reference an undeclared label!\n";
         throw X64_ERROR;
@@ -391,13 +344,13 @@ void X64::code_reference(Label label, Ref_type f, int offset) {
     Ref &r = refs.back();
 
     r.location = code.size();  // Store the beginning!
-    r.type = f;
+    r.type = (is_short ? REF_CODE_SHORT : REF_CODE_RELATIVE);
     r.def_index = label.def_index;
 
-    if (f == REF_CODE_SHORT)
-        code_byte(offset);
+    if (is_short)
+        code_byte(0);
     else
-        code_dword(offset);  // 32-bit offset only
+        code_dword(0);  // 32-bit offset only
 }
 
 
@@ -928,14 +881,14 @@ void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
 
 
 
-void X64::op(LeaRipOp, Register r, Label l, int o) {
+void X64::op(LeaRipOp, Register r, Label l) {
     const int DISP0 = 0;
     
     code_op(0x8D, 3 | OPSIZE_NONBYTE, r & 8 ? REX_R : 0);  // must use 64-bit opsize
     
     // Can't specify RIP base in Address, encode it explicitly
     code_byte((DISP0 << 6) | ((r & 7) << 3) | RBP);  // means [RIP + disp32]
-    code_reference(l, REF_CODE_RELATIVE, o);
+    code_reference(l);
 }
 
 
@@ -955,7 +908,7 @@ void X64::op(BitSetOp opcode, Address x) {
 
 void X64::op(BranchOp opcode, Label c) {
     code_op(0x0F80 | opcode);
-    code_reference(c, REF_CODE_RELATIVE);
+    code_reference(c);
 }
 
 
@@ -964,15 +917,15 @@ void X64::op(BranchOp opcode, Label c) {
 void X64::op(JumpOp opcode, Label c) {
     if (opcode == CALL) {
         code_op(0xE8);
-        code_reference(c, REF_CODE_RELATIVE);
+        code_reference(c);
     }
     else if (opcode == JMP) {
         code_op(0xE9);
-        code_reference(c, REF_CODE_RELATIVE);
+        code_reference(c);
     }
     else if (opcode == LOOP) {
         code_op(0xE2);
-        code_reference(c, REF_CODE_RELATIVE);
+        code_reference(c);
     }
 }
 

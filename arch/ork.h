@@ -26,6 +26,6 @@ public:
     unsigned export_code(std::string name, int location, unsigned size, bool is_global);
     unsigned import(std::string name);
     
-    void code_relocation(unsigned index, int location, bool is_relative);
+    void code_relocation(unsigned index, int location);
     void data_relocation(unsigned index, int location);
 };
