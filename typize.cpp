@@ -335,6 +335,7 @@ Value *lookup_scope(Scope *s, std::string name, Value *pivot, Args &args, Kwargs
     if (value) {
         // TODO: we should print the definition pivot type, not the value type
         std::cerr << "Found       " << match[0] << " " << name << " returning " << value->ts << ".\n";
+        value->set_token(token);
         bool ok = value->check(args, kwargs, scope);
     
         if (!ok) {
@@ -404,7 +405,7 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     //scope = s;
     
     Marker marker = scope->mark();
-    BlockValue *block = new BlockValue();
+    BlockValue *block = new BlockValue(NULL);
     block->set_marker(marker);
     
     DeclarationValue *dv = new DeclarationValue("<result>");
@@ -467,7 +468,7 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     Value *ret = make_variable_value(v, NULL);
     TypeMatch match;  // kinda unnecessary
     ret = new ArrayReallocValue(TWEAK, ret, match);
-    block->add_statement(ret);
+    block->add_statement(ret, true);
     
     return make_code_value(block);
 }
@@ -485,7 +486,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw INTERNAL_ERROR;
         }
 
-        value = make_block_value();
+        value = make_block_value(context);
+        value->set_token(expr->token);
         value->check(expr->args, expr->kwargs, scope);
     }
     else if (expr->type == Expr::DECLARATION) {
@@ -493,6 +495,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::cerr << "Declaring " << name << ".\n";
         
         value = make_declaration_value(name, context);
+        value->set_token(expr->token);
         bool ok = value->check(expr->args, expr->kwargs, scope);
         
         if (!ok) {
@@ -557,6 +560,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
             
+            value->set_token(expr->token);
             bool ok = value->check(expr->args, expr->kwargs, scope);
         
             if (!ok) {
@@ -584,16 +588,16 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         };
 
         value = make_basic_value(ts, std::stoi(expr->text));
+        value->set_token(expr->token);
     }
     else if (expr->type == Expr::STRING) {
         value = make_string_literal_value(expr->text);
+        value->set_token(expr->token);
     }
     else {
         std::cerr << "Can't typize this now: " << expr->token << "!\n";
         throw INTERNAL_ERROR;
     }
-    
-    value->set_token(expr->token);
     
     if (context && (*context)[0] == code_type)
         value->set_marker(marker);

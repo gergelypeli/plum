@@ -271,8 +271,8 @@ Value *make_type_value(TypeSpec ts) {
 }
 
 
-Value *make_block_value() {
-    return new BlockValue();
+Value *make_block_value(TypeSpec *context) {
+    return new BlockValue(context);
 }
 
 

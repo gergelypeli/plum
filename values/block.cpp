@@ -2,14 +2,18 @@
 class BlockValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> statements;
+    TypeSpec *context;
 
-    BlockValue()
+    BlockValue(TypeSpec *c)
         :Value(VOID_TS) {  // Will be overridden
+        context = c;
     }
 
-    virtual void add_statement(Value *value) {
+    virtual void add_statement(Value *value, bool result = false) {
         statements.push_back(std::unique_ptr<Value>(value));
-        ts = value->ts;  // TODO: rip code_type
+        
+        if (result)
+            ts = value->ts;  // TODO: rip code_type
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -23,11 +27,28 @@ public:
             throw TYPE_ERROR;
         }
         
-        for (auto &arg : args) {
-            bool escape_last = (arg->type == Expr::DECLARATION);
-            Value *value = typize(arg.get(), scope, &VOID_CODE_TS);
-            value = make_code_value(value, escape_last);
-            add_statement(value);
+        if (context && (*context)[0] == pure_type) {
+            for (auto &arg : args) {
+                Value *value = typize(arg.get(), scope, context);
+                
+                if (value->ts != PURE_TS) {
+                    std::cerr << "Impure expression not allowed in a pure context: " << value->token << "!\n";
+                    return false;
+                }
+                
+                add_statement(value, false);
+            }
+        }
+        else {
+            for (unsigned i = 0; i < args.size() - 1; i++) {
+                bool escape_last = (args[i]->type == Expr::DECLARATION);
+                Value *value = typize(args[i].get(), scope, &VOID_CODE_TS);
+                value = make_code_value(value, escape_last);
+                add_statement(value, false);
+            }
+            
+            Value *value = typize(args.back().get(), scope, context);
+            add_statement(value, true);
         }
             
         return true;
@@ -137,8 +158,10 @@ public:
 
     virtual bool use(Value *v, Scope *scope) {
         value.reset(v);
-        
-        if (!context || (*context)[0] != pure_type) {
+
+        if (context && (*context)[0] == pure_type)
+            ts = PURE_TS;
+        else {
             // Allow declaration by value or type
             var = value->declare_impure(name);
         
@@ -157,6 +180,7 @@ public:
             return true;
         }
         
+        std::cerr << "Impure declaration not allowed in a pure context: " << token << "!\n";
         return false;
     }
 

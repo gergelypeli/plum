@@ -150,6 +150,8 @@ Value *rolematch(Value *v, TypeSpecIter s, Type *t) {
 // No other type accepts Void, not even Any.
 
 bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
+#define MATCHLOG if (false)
+
     // This may overwrite an older match, but that's OK, we just need to
     // preserve the type parameters.
     if (match.size() > 0)
@@ -164,33 +166,33 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         }
     }
 
-    std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
+    //std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
 
     // Checking NULL value
     if (!value) {
         if (tt[0] == void_type) {
-            std::cerr << "Matched nothing for Void.\n";
+            MATCHLOG std::cerr << "Matched nothing for Void.\n";
             match[0] = tt;
             return true;
         }
         else if (tt[0] == code_type && tt[1] == void_type) {
-            std::cerr << "Matched nothing for Void Code.\n";
+            MATCHLOG std::cerr << "Matched nothing for Void Code.\n";
             match[0] = tt;
             return true;
         }
         else if (tt[0] == ovalue_type) {
-            std::cerr << "Matched nothing for Ovalue.\n";
+            MATCHLOG std::cerr << "Matched nothing for Ovalue.\n";
             match[0] == VOID_TS;
             return true;
         }
         else {
-            std::cerr << "No match, nothing for something.\n";
+            MATCHLOG std::cerr << "No match, nothing for something.\n";
             return false;
         }
     }
     
     if (tt[0] == void_type) {
-        std::cerr << "No match, something for Void.\n";
+        MATCHLOG std::cerr << "No match, something for Void.\n";
         return false;
     }
     
@@ -199,13 +201,13 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     // Checking Void value
     if (ss[0] == void_type) {
         if (tt[0] == code_type && tt[1] == void_type) {
-            std::cerr << "Matched Void for Void Code.\n";
+            MATCHLOG std::cerr << "Matched Void for Void Code.\n";
             match[0] = tt;
             value = make_code_value(value);
             return true;
         }
         else {
-            std::cerr << "No match, Void for something.\n";
+            MATCHLOG std::cerr << "No match, Void for something.\n";
             return false;
         }
     }
@@ -218,7 +220,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     // Checking attribute templates
     if (*t == lvalue_type) {
         if (*s != lvalue_type) {
-            std::cerr << "No match, lvalue expected!\n";
+            MATCHLOG std::cerr << "No match, lvalue expected!\n";
             return false;
         }
         
@@ -236,7 +238,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
 
         if (*t == void_type) {
             match[0].push_back(*t);
-            std::cerr << "Matched something for Void Code.\n";
+            MATCHLOG std::cerr << "Matched something for Void Code.\n";
             value = make_void_conversion_value(value);
             value = make_code_value(value);
             return true;
@@ -248,7 +250,6 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     
     // Drop unnecessary attribute
     if (*s == lvalue_type || *s == ovalue_type) {
-        std::cerr << "XXX Dropped.\n";
         s++;
     }
 
@@ -261,7 +262,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         t++;
     }
     else if (*s == reference_type || *t == reference_type) {
-        std::cerr << "No match, reference mismatch!\n";
+        MATCHLOG std::cerr << "No match, reference mismatch!\n";
         return false;
     }
 
@@ -274,12 +275,12 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     }
     else if (strict) {
         // For conversion to lvalue, only an exact match was acceptable
-        std::cerr << "No match, lvalue types differ!\n";
+        MATCHLOG std::cerr << "No match, lvalue types differ!\n";
         return false;
     }
     else if (*t == boolean_type) {
         match[0].push_back(*t);
-        std::cerr << "Matched as " << match[0] << ".\n";
+        MATCHLOG std::cerr << "Matched as " << match[0] << ".\n";
         value = make_boolean_conversion_value(value);
         if (tt[0] == code_type)
             value = make_code_value(value);
@@ -289,7 +290,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         Value *role = rolematch(value, s, *t);
         
         if (!role) {
-            std::cerr << "No match, unconvertable types!\n";
+            MATCHLOG std::cerr << "No match, unconvertable types!\n";
             return false;
         }
         
@@ -321,18 +322,14 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             t++;
         }
         else {
-            std::cerr << "No match, type parameters differ!\n";
+            MATCHLOG std::cerr << "No match, type parameters differ!\n";
             return false;
         }
     }
     
-    std::cerr << "Matched as " << match[0];
-    if (match.size() > 1) {
-        std::cerr << ", parameters";
-        for (unsigned i = 1; i < match.size(); i++)
-            std::cerr << " " << match[i];
-    }
-    std::cerr << ".\n";
+    MATCHLOG std::cerr << "Matched as " << match[0];
+    MATCHLOG if (match.size() > 1) { std::cerr << ", parameters"; for (unsigned i = 1; i < match.size(); i++) std::cerr << " " << match[i]; }
+    MATCHLOG std::cerr << ".\n";
 
     if (tt[0] == code_type)
         value = make_code_value(value);
