@@ -11,7 +11,7 @@ CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=
 
 TOP        = plum.cpp
 EXE        = run/plum
-CORE       = core.plum.* core.test.*
+CORE       = core.plum.*(N) core.test.*(N)
 
 MAIN       = run/main
 

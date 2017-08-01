@@ -327,7 +327,7 @@ Scope *init_builtins() {
 }
 
 
-Value *lookup_scope(Scope *s, std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token &token, Scope *scope) {
+Value *lookup_scope(Scope *s, std::string name, Value *pivot, Expr *expr, Scope *scope) {
     //std::cerr << "Trying a scope...\n";
     TypeMatch match;
     Value *value = s->lookup(name, pivot, match);
@@ -335,11 +335,11 @@ Value *lookup_scope(Scope *s, std::string name, Value *pivot, Args &args, Kwargs
     if (value) {
         // TODO: we should print the definition pivot type, not the value type
         std::cerr << "Found       " << match[0] << " " << name << " returning " << value->ts << ".\n";
-        value->set_token(token);
-        bool ok = value->check(args, kwargs, scope);
+        value->set_token(expr->token);
+        bool ok = value->check(expr->args, expr->kwargs, scope);
     
         if (!ok) {
-            std::cerr << "Argument problem for " << token << "!\n";
+            std::cerr << "Argument problem for " << expr->token << "!\n";
             throw TYPE_ERROR;
         }
 
@@ -351,12 +351,12 @@ Value *lookup_scope(Scope *s, std::string name, Value *pivot, Args &args, Kwargs
 }
 
 
-Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token &token, Scope *scope) {
+Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope) {
     TypeSpec pts = pivot ? pivot->ts : VOID_TS;
     std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
     
     for (Scope *s = scope; s; s = s->outer_scope) {
-        Value *value = lookup_scope(s, name, pivot, args, kwargs, token, scope);
+        Value *value = lookup_scope(s, name, pivot, expr, scope);
         
         if (value)
             return value;
@@ -371,30 +371,30 @@ Value *lookup(std::string name, Value *pivot, Args &args, Kwargs &kwargs, Token 
     Scope *inner_scope = pts[i]->get_inner_scope();
     
     if (inner_scope) {
-        Value *value = lookup_scope(inner_scope, name, pivot, args, kwargs, token, scope);
+        Value *value = lookup_scope(inner_scope, name, pivot, expr, scope);
         
         if (value)
             return value;
     }
     
     if (name == "is equal") {
-        Value *value = lookup("equality", pivot, args, kwargs, token, scope);
+        Value *value = lookup("equality", pivot, expr, scope);
         return value;
     }
     else if (name == "not equal") {
-        Value *value = lookup("equality", pivot, args, kwargs, token, scope);
+        Value *value = lookup("equality", pivot, expr, scope);
         return value ? make_boolean_not_value(value) : NULL;
     }
     
-    std::cerr << "No match for " << pts << " " << name << " at " << token << "!\n";
+    std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
     return NULL;
 }
 
 
-Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Scope *scope) {
+Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     std::vector<std::string> fragments = brace_split(text);
     
-    if (args.size() > 0) {
+    if (expr->args.size() > 0) {
         std::cerr << "String interpolation must use keyword arguments only!\n";
         throw TYPE_ERROR;
     }
@@ -414,7 +414,7 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     Variable *v = dv->get_var();
     block->add_statement(dv);
 
-    for (auto &kv : kwargs) {
+    for (auto &kv : expr->kwargs) {
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
         Value *keyword_value = typize(expr, scope);
@@ -424,9 +424,8 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     }
 
     bool identifier = false;
-    Args fake_args;
-    Kwargs fake_kwargs;
-    fake_args.push_back(std::unique_ptr<Expr>(new Expr(Expr::IDENTIFIER, token, "<result>")));
+    Expr streamify_expr(Expr::IDENTIFIER, expr->token, "streamify");
+    streamify_expr.add_arg(new Expr(Expr::IDENTIFIER, expr->token, "<result>"));
     
     for (auto &fragment : fragments) {
         Value *pivot;
@@ -442,7 +441,7 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
         
                 if (pivot)
                     break;
-                else if (kwargs.size() > 0)
+                else if (expr->kwargs.size() > 0)
                     break;  // Look up only pseudo variables in this scope
             }
             
@@ -455,7 +454,7 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
             pivot = make_string_literal_value(fragment);
         }
 
-        Value *streamify = lookup("streamify", pivot, fake_args, fake_kwargs, token, scope);
+        Value *streamify = lookup("streamify", pivot, &streamify_expr, scope);
         if (!streamify) {
             std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
             throw TYPE_ERROR;
@@ -492,7 +491,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     }
     else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;
-        std::cerr << "Declaring " << name << ".\n";
         
         value = make_declaration_value(name, context);
         value->set_token(expr->token);
@@ -511,7 +509,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         if (p)
             p->set_marker(marker);
         
-        value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
+        value = lookup(name, p, expr, scope);
         
         if (!value)
             throw TYPE_ERROR;
@@ -522,7 +520,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         if (p)
             p->set_marker(marker);
         
-        value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
+        value = lookup(name, p, expr, scope);
 
         if (!value)
             throw TYPE_ERROR;
@@ -541,7 +539,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
             
-            value = interpolate(s->text, expr->token, expr->args, expr->kwargs, scope);
+            value = interpolate(s->text, expr, scope);
         }
         else if (name.size()) {
             TypeMatch match;

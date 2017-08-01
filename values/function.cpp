@@ -67,7 +67,7 @@ public:
             x64->code_label_export(function->x64_label, function->name, 0, true);
         else {
             std::cerr << "Nameless function!\n";
-            throw TYPE_ERROR;
+            throw INTERNAL_ERROR;
         }
         
         x64->op(PUSHQ, RBP);

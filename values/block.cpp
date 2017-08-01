@@ -24,7 +24,7 @@ public:
 
         if (kwargs.size() > 0) {
             std::cerr << "Labeled statements make no sense!\n";
-            throw TYPE_ERROR;
+            return false;
         }
         
         if (context && (*context)[0] == pure_type) {
@@ -194,8 +194,8 @@ public:
         
         if (args.size() == 0) {
             if (!context) {
-                std::cerr << "Can't declare without context!\n";
-                throw TYPE_ERROR;
+                std::cerr << "Can't declare implicitly without context!\n";
+                return false;
             }
             
             v = make_type_value((*context).rvalue().prefix(type_type));
