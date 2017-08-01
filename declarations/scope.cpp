@@ -73,6 +73,49 @@ public:
         if (contents.size())
             contents.back().get()->finalize(SCOPE_FINALIZATION, s, x64);
     }
+    
+    virtual bool intrude(Scope *intruder, Marker before, bool escape_last) {
+        // Insert a Scope taking all remaining declarations, maybe not the last one
+
+        if (before.scope != this)
+            throw INTERNAL_ERROR;
+
+        Declaration *escaped = NULL;
+        
+        if (escape_last) {
+            escaped = contents.back().release();
+            contents.pop_back();
+        }
+
+        std::stack<Declaration *> victims;
+
+        while (contents.size() && contents.back().get() != before.last) {
+            Declaration *d = contents.back().release();
+            contents.pop_back();
+            victims.push(d);
+        }
+
+        if (victims.size() > 0) {
+            add(intruder);
+
+            while (victims.size()) {
+                Declaration *d = victims.top();
+                victims.pop();
+                intruder->add(d);
+            }
+        
+            if (escaped)
+                add(escaped);
+                
+            return true;
+        }
+        else {
+            if (escaped)
+                add(escaped);
+                
+            return false;
+        }
+    }
 };
 
 
@@ -122,11 +165,11 @@ public:
             expanded_size = es;
     }
     
-    virtual void escape_last() {
-        Declaration *d = contents.back().release();
-        contents.pop_back();
-        outer_scope->add(d);
-    }
+    //virtual void escape_last() {
+    //    Declaration *d = contents.back().release();
+    //    contents.pop_back();
+    //    outer_scope->add(d);
+    //}
 };
 
 

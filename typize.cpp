@@ -89,7 +89,6 @@ TypeSpec VOID_CODE_TS;
 class DeclarationValue;
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
-Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context = NULL, bool escape_last = false);
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 std::string declaration_get_name(DeclarationValue *dv);
@@ -102,7 +101,7 @@ Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, V
 Value *make_declaration_value(std::string name, TypeSpec *context);
 Value *make_basic_value(TypeSpec ts, int number);
 Value *make_string_literal_value(std::string text);
-Value *make_code_value(CodeScope *scope, Value *value);
+Value *make_code_value(Value *value, bool escape_last = false);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
@@ -394,13 +393,13 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     }
 
     // We must scope ourselves
-    CodeScope *s = new CodeScope;
-    scope->add(s);
-    scope = s;
+    //CodeScope *s = new CodeScope;
+    //scope->add(s);
+    //scope = s;
     
-    //Marker marker = scope->mark();
+    Marker marker = scope->mark();
     BlockValue *block = new BlockValue();
-    //block->set_marker(marker);
+    block->set_marker(marker);
     
     DeclarationValue *dv = new DeclarationValue("<result>");
     Value *initial_value = new StringBufferValue(100);
@@ -463,13 +462,13 @@ Value *interpolate(std::string text, Token token, Args &args, Kwargs &kwargs, Sc
     ret = new ArrayReallocValue(TWEAK, ret, match);
     block->add_statement(ret);
     
-    return make_code_value(s, block);
+    return make_code_value(block);
 }
 
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     Value *value = NULL;
-    //Marker marker = scope->mark();
+    Marker marker = scope->mark();
     
     if (!expr)
         return NULL;
@@ -485,6 +484,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::CONTROL) {
         std::string name = ":" + expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        if (p)
+            p->set_marker(marker);
+        
         value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
 
         if (!value)
@@ -507,6 +509,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        if (p)
+            p->set_marker(marker);
+        
         value = lookup(name, p, expr->args, expr->kwargs, expr->token, scope);
         
         if (!value)
@@ -515,6 +520,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::INITIALIZER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        if (p)
+            p->set_marker(marker);  // just in case
+        
         StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
         
         if (s) {
@@ -579,20 +587,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     }
     
     value->set_token(expr->token);
-    //value->set_marker(marker);
+    
+    if (context && (*context)[0] == code_type)
+        value->set_marker(marker);
     
     return value;
-}
-
-
-Value *code_scoped_typize(Expr *expr, Scope *scope, TypeSpec *context, bool escape_last) {
-    CodeScope *s = new CodeScope;
-    scope->add(s);
-    
-    Value *value = typize(expr, s, context);
-    
-    if (escape_last)
-        s->escape_last();
-    
-    return make_code_value(s, value);
 }

@@ -325,7 +325,7 @@ class FunctionReturnValue: public Value {
 public:
     Variable *result_var;
     std::unique_ptr<Value> result;
-    Marker marker;
+    Declaration *dummy;
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(VOID_TS) {
@@ -333,8 +333,6 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        marker = scope->mark();
-        
         if (kwargs.size() != 0) {
             std::cerr << "Whacky :return!\n";
             return false;
@@ -372,6 +370,11 @@ public:
                 return false;
             }
         }
+
+        // We must insert this after all potential declarations inside the result expression,
+        // because we must finalize those variables upon return.
+        dummy = new Declaration;
+        scope->add(dummy);
         
         return true;
     }
@@ -393,8 +396,7 @@ public:
         }
 
         // TODO: is this proper stack unwinding?
-        Declaration *d = (marker.last ? marker.last : marker.scope);
-        d->finalize(UNWINDING_FINALIZATION, fn_storage, x64);
+        dummy->finalize(UNWINDING_FINALIZATION, fn_storage, x64);
         
         return Storage();
     }

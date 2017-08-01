@@ -25,7 +25,8 @@ public:
         
         for (auto &arg : args) {
             bool escape_last = (arg->type == Expr::DECLARATION);
-            Value *value = code_scoped_typize(arg.get(), scope, NULL, escape_last);
+            Value *value = typize(arg.get(), scope, &VOID_CODE_TS);
+            value = make_code_value(value, escape_last);
             add_statement(value);
         }
             
@@ -60,10 +61,17 @@ public:
     CodeScope *code_scope;
     Register reg;
 
-    CodeValue(CodeScope *s, Value *v)
+    CodeValue(Value *v, bool escape_last)
         :Value(v->ts.rvalue()) {
         value.reset(v);
-        code_scope = s;
+        code_scope = NULL;
+        
+        CodeScope *intruder = new CodeScope;
+        
+        if (value->marker.scope->intrude(intruder, value->marker, escape_last))
+            code_scope = intruder;
+        else
+            delete intruder;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -97,7 +105,9 @@ public:
             }
         }
         
-        code_scope->finalize_scope(Storage(MEMORY, Address(RBP, 0)), x64);
+        if (code_scope)
+            code_scope->finalize_scope(Storage(MEMORY, Address(RBP, 0)), x64);
+            
         return s;
     }
 };

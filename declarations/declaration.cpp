@@ -28,6 +28,9 @@ public:
         outer_scope = NULL;
         previous_declaration = NULL;
     }
+
+    virtual ~Declaration() {
+    }
     
     virtual void added(Marker marker) {
         outer_scope = marker.scope;

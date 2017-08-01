@@ -201,6 +201,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         if (tt[0] == code_type && tt[1] == void_type) {
             std::cerr << "Matched Void for Void Code.\n";
             match[0] = tt;
+            value = make_code_value(value);
             return true;
         }
         else {
@@ -237,6 +238,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             match[0].push_back(*t);
             std::cerr << "Matched something for Void Code.\n";
             value = make_void_conversion_value(value);
+            value = make_code_value(value);
             return true;
         }
     }
@@ -279,6 +281,8 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         match[0].push_back(*t);
         std::cerr << "Matched as " << match[0] << ".\n";
         value = make_boolean_conversion_value(value);
+        if (tt[0] == code_type)
+            value = make_code_value(value);
         return true;
     }
     else {
@@ -329,5 +333,9 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             std::cerr << " " << match[i];
     }
     std::cerr << ".\n";
+
+    if (tt[0] == code_type)
+        value = make_code_value(value);
+
     return true;
 }
