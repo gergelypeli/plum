@@ -51,7 +51,16 @@ int main(int argc, char **argv) {
     Scope *root_scope = init_builtins();
     Scope *module_scope = new Scope();
     root_scope->add(module_scope);
-    std::unique_ptr<Value> value_root(typize(expr_root.get(), module_scope, &PURE_TS));
+    std::unique_ptr<Value> value_root;
+    
+    try {
+        Value *v = typize(expr_root.get(), module_scope, &PURE_TS);
+        value_root.reset(v);
+    } catch (Error) {
+        std::cerr << "Typize error, terminating!\n";
+        //return 1;
+        throw;
+    }
 
     root_scope->allocate();
     

@@ -27,13 +27,25 @@ public:
             return false;
         }
         
+        Value *value;
+        bool error = false;
+        
         if (context && (*context)[0] == pure_type) {
             for (auto &arg : args) {
-                Value *value = typize(arg.get(), scope, context);
+                try {
+                    value = typize(arg.get(), scope, context);
+                } catch (Error) {
+                    error = true;
+                    //std::cerr << "Continuing...\n";
+                    //continue;
+                    throw;
+                }
                 
                 if (value->ts != PURE_TS) {
-                    std::cerr << "Impure expression not allowed in a pure context: " << value->token << "!\n";
-                    return false;
+                    error = true;
+                    std::cerr << "Impure statement not allowed in a pure context: " << value->token << "!\n";
+                    //continue;
+                    throw;
                 }
                 
                 add_statement(value, false);
@@ -42,16 +54,31 @@ public:
         else {
             for (unsigned i = 0; i < args.size() - 1; i++) {
                 bool escape_last = (args[i]->type == Expr::DECLARATION);
-                Value *value = typize(args[i].get(), scope, &VOID_CODE_TS);
+                
+                try {
+                    value = typize(args[i].get(), scope, &VOID_CODE_TS);
+                } catch (Error) {
+                    error = true;
+                    //std::cerr << "Continuing...\n";
+                    //continue;
+                    throw;
+                }
+                
                 value = make_code_value(value, escape_last);
                 add_statement(value, false);
             }
             
-            Value *value = typize(args.back().get(), scope, context);
-            add_statement(value, true);
+            try {
+                value = typize(args.back().get(), scope, context);
+                add_statement(value, true);
+            } catch (Error) {
+                error = true;
+                //std::cerr << "Continuing...\n";
+                throw;
+            }
         }
-            
-        return true;
+
+        return !error;
     }
 
     virtual Regs precompile(Regs preferred) {

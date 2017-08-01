@@ -487,7 +487,12 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 
         value = make_block_value(context);
         value->set_token(expr->token);
-        value->check(expr->args, expr->kwargs, scope);
+        
+        bool ok = value->check(expr->args, expr->kwargs, scope);
+        if (!ok) {
+            std::cerr << "Block error.\n";
+            throw TYPE_ERROR;
+        }
     }
     else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;
