@@ -85,7 +85,7 @@ std::vector<Token> tokenize(std::string buffer) {
                 continue;
             }
             else if (ind < indent && mod == 0) {
-                for (int j=0; j < indent - ind; j++) {
+                while (ind < indent) {
                     tokens.push_back(Token(" dedent", row_count, 0));
                     indent--;
                 }

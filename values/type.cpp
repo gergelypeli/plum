@@ -216,10 +216,16 @@ public:
     }
     
     virtual Regs precompile(Regs) {
+        for (auto &v : values)
+            v->precompile(Regs());
+
         return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
+        for (auto &v : values)
+            v->compile(x64);
+            
         return Storage();
     }
 
