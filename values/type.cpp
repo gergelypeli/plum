@@ -138,11 +138,6 @@ public:
             keywords.push_back(declaration_get_name(dv));
         }
         
-        if (kwargs.size() > 0) {
-            std::cerr << "Keyword arguments in an enumeration definition!\n";
-            return false;
-        }
-        
         return true;
     }
     
@@ -172,6 +167,56 @@ public:
 
     virtual Declaration *declare_pure(std::string name) {
         return new EnumerationType(name, keywords, stringifications_label);
+    }
+};
+
+
+class RecordDefinitionValue: public Value {
+public:
+    std::unique_ptr<Scope> inner_scope;
+    std::vector<std::unique_ptr<Value>> values;
+    
+    RecordDefinitionValue()
+        :Value(METATYPE_TS) {
+        inner_scope.reset(new DataScope);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() == 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky record!\n";
+            return false;
+        }
+        
+        for (auto &a : args) {
+            Value *v = typize(a.get(), inner_scope.get(), &PURE_TS);
+            
+            DeclarationValue *dv = declaration_value_cast(v);
+
+            if (!dv) {
+                std::cerr << "Not a declaration in a record definition!\n";
+                return false;
+            }
+            
+            values.push_back(std::unique_ptr<Value>(v));
+        }
+        
+        return true;
+    }
+    
+    virtual Regs precompile(Regs) {
+        return Regs();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return Storage();
+    }
+
+    virtual Variable *declare_impure(std::string name) {
+        return NULL;
+    }
+
+    virtual Declaration *declare_pure(std::string name) {
+        return new RecordType(name, inner_scope.get());
     }
 };
 

@@ -3,9 +3,11 @@
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
+    unsigned size;
     
     Scope()
         :Declaration() {
+        size = 0;
     }
     
     virtual void add(Declaration *decl) {
@@ -27,6 +29,10 @@ public:
             std::cerr << "Not the last declaration to remove!\n";
             throw INTERNAL_ERROR;
         }
+    }
+    
+    unsigned get_size() {
+        return size;
     }
     
     virtual Marker mark() {
@@ -65,7 +71,7 @@ public:
 
     virtual void expand(unsigned s) {
         // CodeScope-s in the declarations may call this, but just with 0 size
-        if (s > 0)
+        //if (s > 0)
             throw INTERNAL_ERROR;
     }
     
@@ -124,15 +130,28 @@ Declaration *declaration_cast(Scope *scope) {
 }
 
 
-
-class CodeScope: virtual public Scope {
+class DataScope: public Scope {
 public:
-    unsigned size;
+    DataScope()
+        :Scope() {
+    }
+    
+    virtual int reserve(unsigned s) {
+        // Variables allocate nonzero bytes
+        unsigned ss = stack_size(s);  // Simple strategy
+        size += ss;
+    
+        return size - ss;
+    }
+};
+
+
+class CodeScope: public Scope {
+public:
     unsigned expanded_size;
     
     CodeScope()
         :Scope() {
-        size = 0;
         expanded_size = 0;
     }
     
@@ -175,13 +194,10 @@ public:
 
 
 
-class ArgumentScope: virtual public Scope {
+class ArgumentScope: public Scope {
 public:
-    unsigned size;
-    
     ArgumentScope()
         :Scope() {
-        size = 0;
     }
 
     virtual void allocate() {
@@ -209,7 +225,6 @@ public:
     ArgumentScope *result_scope;
     ArgumentScope *head_scope;
     CodeScope *body_scope;
-    unsigned frame_size;
     Label epilogue_label;
 
     FunctionScope()
@@ -217,8 +232,6 @@ public:
         result_scope = NULL;
         head_scope = NULL;
         body_scope = NULL;
-        
-        frame_size = 0;
     }
     
     Scope *add_result_scope() {
@@ -271,7 +284,7 @@ public:
     }
     
     virtual void expand(unsigned s) {
-        frame_size = stack_size(s);
+        size = stack_size(s);
     }
     
     virtual void allocate() {
@@ -296,7 +309,7 @@ public:
     }
     
     virtual unsigned get_frame_size() {
-        return frame_size;
+        return size;
     }
     
     virtual Label get_epilogue_label() {

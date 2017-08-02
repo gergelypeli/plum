@@ -267,7 +267,7 @@ public:
             }
         }
         else {
-            arg_ts.create(Storage(STACK), x64);
+            arg_ts.store(Storage(), Storage(STACK), x64);
             return stack_size(arg_ts.measure());
         }
     }

@@ -322,11 +322,16 @@ Value *make_unicode_character_value() {
 }
 
 
+Value *make_integer_definition_value() {
+    return new IntegerDefinitionValue();
+}
+
+
 Value *make_enumeration_definition_value() {
     return new EnumerationDefinitionValue();
 }
 
 
-Value *make_integer_definition_value() {
-    return new IntegerDefinitionValue();
+Value *make_record_definition_value() {
+    return new RecordDefinitionValue();
 }

@@ -36,6 +36,7 @@ Type *reference_type = NULL;
 Type *array_type = NULL;
 Type *enumeration_metatype = NULL;
 Type *integer_metatype = NULL;
+Type *record_metatype = NULL;
 
 
 class TypeSpec: public std::vector<Type *> {
@@ -109,8 +110,10 @@ Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
 Value *make_unicode_character_value();
-Value *make_enumeration_definition_value();
 Value *make_integer_definition_value();
+Value *make_enumeration_definition_value();
+Value *make_record_definition_value();
+
 
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
@@ -165,11 +168,14 @@ Scope *init_builtins() {
     same_type = new SpecialType("<Same>", 0);
     root_scope->add(same_type);
 
+    integer_metatype = new IntegerMetaType(":Integer");
+    root_scope->add(integer_metatype);
+
     enumeration_metatype = new EnumerationMetaType(":Enumeration");
     root_scope->add(enumeration_metatype);
 
-    integer_metatype = new IntegerMetaType(":Integer");
-    root_scope->add(integer_metatype);
+    record_metatype = new RecordMetaType(":Record");
+    root_scope->add(record_metatype);
     
     type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);

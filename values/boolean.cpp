@@ -304,7 +304,7 @@ public:
         x64->code_label(then_end);
         
         // Else branch, create a clear value of the right type (use the same storage)
-        ts.create(s, x64);
+        ts.store(Storage(), s, x64);
         x64->code_label(else_end);
         
         return s;

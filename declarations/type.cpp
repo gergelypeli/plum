@@ -67,7 +67,7 @@ public:
         std::cerr << "Undestroyable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
-    
+
     virtual Value *initializer(TypeSpecIter tsi, std::string n) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -116,12 +116,20 @@ public:
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        // We can't use any register, unless saved and restored
+        // Only RBX is usable as scratch
         BinaryOp mov = MOVQ % os;
         
         switch (s.where * t.where) {
         case NOWHERE_NOWHERE:
             return;
+        case NOWHERE_REGISTER:
+            x64->op(mov, t.reg, 0);
+            return;
+        case NOWHERE_STACK:
+            x64->op(PUSHQ, 0);
+            return;
+        case NOWHERE_MEMORY:
+            x64->op(mov, t.address, 0);
             
         case CONSTANT_NOWHERE:
             return;
@@ -205,26 +213,19 @@ public:
     }
 
     virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
-        BinaryOp mov = (
-            size == 1 ? MOVB :
-            size == 2 ? MOVW :
-            size == 4 ? MOVD :
-            size == 8 ? MOVQ :
-            throw INTERNAL_ERROR
-        );
+        BinaryOp mov = MOVQ % os;
 
-        if (s.where == REGISTER)
-            x64->op(mov, s.reg, 0);
-        else if (s.where == STACK)
-            x64->op(PUSHQ, 0);
-        else if (s.where == MEMORY)
+        if (s.where == MEMORY)
             x64->op(mov, s.address, 0);
         else
             throw INTERNAL_ERROR;
     }
 
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
-        return;
+        if (s.where == MEMORY)
+            ;
+        else
+            throw INTERNAL_ERROR;
     }
 
     virtual StorageWhere where(TypeSpecIter tsi) {
@@ -340,7 +341,15 @@ public:
         switch (s.where * t.where) {
         case NOWHERE_NOWHERE:
             return;
-            
+        case NOWHERE_REGISTER:
+            x64->op(MOVQ, t.reg, 0);
+            return;
+        case NOWHERE_STACK:
+            x64->op(PUSHQ, 0);
+            return;
+        case NOWHERE_MEMORY:
+            x64->op(MOVQ, t.address, 0);
+
         case REGISTER_NOWHERE:
             x64->decref(s.reg);
             return;
@@ -352,8 +361,7 @@ public:
             x64->op(PUSHQ, s.reg);
             return;
         case REGISTER_MEMORY:
-            x64->op(XCHGQ, t.address, s.reg);
-            x64->decref(s.reg);
+            x64->op(MOVQ, t.address, s.reg);
             return;
 
         case STACK_NOWHERE:
@@ -366,9 +374,7 @@ public:
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            x64->op(POPQ, RBX);
-            x64->op(XCHGQ, RBX, t.address);
-            x64->decref(RBX);
+            x64->op(POPQ, t.address);
             return;
 
         case MEMORY_NOWHERE:
@@ -385,8 +391,7 @@ public:
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
             x64->incref(RBX);
-            x64->op(XCHGQ, RBX, t.address);
-            x64->decref(RBX);
+            x64->op(MOVQ, t.address, RBX);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -394,11 +399,7 @@ public:
     }
 
     virtual void create(TypeSpecIter , Storage s, X64 *x64) {
-        if (s.where == REGISTER)
-            x64->op(MOVQ, s.reg, 0);
-        else if (s.where == STACK)
-            x64->op(PUSHQ, 0);
-        else if (s.where == MEMORY)
+        if (s.where == MEMORY)
             x64->op(MOVQ, s.address, 0);
         else
             throw INTERNAL_ERROR;
@@ -526,6 +527,147 @@ public:
 };
 
 
+class RecordType: public Type {
+public:
+    Scope *inner_scope;
+    std::vector<std::pair<TypeSpec, int>> members;
+
+    RecordType(std::string n, Scope *is)
+        :Type(n, 0) {
+        
+        inner_scope = is;
+        
+        for (auto &c : inner_scope->contents) {
+            Variable *v = dynamic_cast<Variable *>(c.get());
+            
+            if (v) {
+                int offset = v->get_storage(Storage(MEMORY, Address(RAX, 0))).address.offset;
+                members.push_back(std::make_pair(v->var_ts, offset));
+            }
+        }
+    }
+    
+    virtual unsigned measure(TypeSpecIter tsi) {
+        return inner_scope->get_size();
+    }
+
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        // Only RBX is usable as scratch
+        unsigned size = measure(tsi);
+        
+        switch (s.where * t.where) {
+        case NOWHERE_NOWHERE:
+            return;
+        case NOWHERE_STACK:
+            x64->op(SUBQ, RSP, stack_size(size));
+            for (auto &member : members)
+                member.first.store(Storage(), Storage(MEMORY, Address(RSP, member.second)), x64);
+            return;
+        case NOWHERE_MEMORY:
+            for (auto &member : members)
+                member.first.store(Storage(), Storage(MEMORY, t.address + member.second), x64);
+            return;
+            
+        case STACK_NOWHERE:
+            for (auto &member : members)  // FIXME: reverse!
+                member.first.destroy(Storage(MEMORY, s.address + member.second), x64);
+            x64->op(ADDQ, RSP, stack_size(size));
+            return;
+        case STACK_STACK:
+            return;
+        case STACK_MEMORY:  // moves data TODO: this could be a bigpop operation
+            for (auto &member : members)
+                member.first.store(Storage(MEMORY, Address(RSP, member.second)), Storage(MEMORY, t.address + member.second), x64);
+            x64->op(ADDQ, RSP, stack_size(size));
+            return;
+            
+        case MEMORY_NOWHERE:
+            return;
+        case MEMORY_STACK:  // duplicates data
+            x64->op(SUBQ, RSP, stack_size(size));
+            for (auto &member : members)
+                member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, Address(RSP, member.second)), x64);
+            return;
+        case MEMORY_MEMORY:  // duplicates data
+            for (auto &member : members)
+                member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, t.address + member.second), x64);
+            return;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
+        if (s.where == MEMORY)
+            for (auto &member : members)
+                member.first.create(Storage(MEMORY, s.address + member.second), x64);
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
+        if (s.where == MEMORY)
+            for (auto &member : members)  // FIXME: reverse!
+                member.first.destroy(Storage(MEMORY, s.address + member.second), x64);
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual StorageWhere where(TypeSpecIter tsi) {
+        return STACK;
+    }
+
+    virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
+        Address address;
+        
+        switch (s.where) {
+        case STACK:
+            address = Address(RSP, 0);
+        case MEMORY:
+            address = s.address;
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        Label done;
+        
+        for (auto &member : members) {
+            Storage t = member.first.boolval(Storage(MEMORY, address + member.second), x64, true);
+            
+            if (t.where == FLAGS && t.bitset == SETNE)
+                x64->op(JNE, done);
+            else
+                throw INTERNAL_ERROR;
+        }
+
+        x64->code_label(done);
+        
+        if (!probe && s.where == STACK) {
+            // This is plain ugly, but can't tell now if any member has a nontrivial finalizer
+            unsigned size = measure(tsi);
+            
+            x64->op(SETNE, BL);
+            x64->op(PUSHQ, RBX);
+            destroy(tsi, Storage(MEMORY, Address(RSP, 8)), x64);
+            x64->op(POPQ, RBX);
+            x64->op(ADDQ, RSP, stack_size(size));
+            x64->op(CMPB, BL, 0);
+        }
+                
+        return Storage(FLAGS, SETNE);
+    }
+    
+    virtual Value *initializer(TypeSpecIter tsi, std::string n) {
+        return NULL;
+    }
+    
+    virtual Scope *get_inner_scope() {
+        return inner_scope;
+    }
+};
+
+
 class MetaType: public Type {
 public:
     std::unique_ptr<Scope> inner_scope;
@@ -538,6 +680,24 @@ public:
     
     virtual Scope *get_inner_scope() {
         return inner_scope.get();
+    }
+};
+
+
+class IntegerMetaType: public MetaType {
+public:
+    IntegerMetaType(std::string name)
+        :MetaType(name) {
+    }
+    
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+        if (name != this->name)
+            return NULL;
+
+        if (!typematch(VOID_TS, pivot, match))
+            return NULL;
+
+        return make_integer_definition_value();
     }
 };
 
@@ -560,19 +720,19 @@ public:
 };
 
 
-class IntegerMetaType: public MetaType {
+class RecordMetaType: public MetaType {
 public:
-    IntegerMetaType(std::string name)
+    RecordMetaType(std::string name)
         :MetaType(name) {
     }
     
     virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         if (name != this->name)
             return NULL;
-
+            
         if (!typematch(VOID_TS, pivot, match))
             return NULL;
-
-        return make_integer_definition_value();
+            
+        return make_record_definition_value();
     }
 };
