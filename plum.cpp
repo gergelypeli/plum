@@ -49,18 +49,19 @@ int main(int argc, char **argv) {
     print_expr_tree(expr_root.get(), 0, "*");
 
     Scope *root_scope = init_builtins();
-    Scope *module_scope = new Scope();
+    DataScope *module_scope = new DataScope;
+    module_scope->set_scope_type(VOID_TS);
     root_scope->add(module_scope);
     std::unique_ptr<Value> value_root;
     
-    try {
-        Value *v = typize(expr_root.get(), module_scope, &PURE_TS);
+    //try {
+        Value *v = typize(expr_root.get(), module_scope);
         value_root.reset(v);
-    } catch (Error) {
-        std::cerr << "Typize error, terminating!\n";
-        //return 1;
-        throw;
-    }
+    //} catch (Error) {
+    //    std::cerr << "Typize error, terminating!\n";
+    //    //return 1;
+    //    throw;
+    //}
 
     root_scope->allocate();
     

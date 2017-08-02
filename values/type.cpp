@@ -22,8 +22,13 @@ public:
         return new Variable(name, VOID_TS, var_ts.nonrvalue());
     }
     
-    virtual Declaration *declare_pure(std::string name) {
-        return declare_impure(name);
+    virtual Declaration *declare_pure(std::string name, TypeSpec scope_ts) {
+        TypeSpec var_ts = ts.unprefix(type_type);
+        
+        if (dynamic_cast<HeapType *>(var_ts[0]))
+            var_ts = var_ts.prefix(reference_type);
+            
+        return new Variable(name, scope_ts, var_ts.nonrvalue());
     }
 };
 
@@ -95,7 +100,7 @@ public:
         return NULL;
     }
 
-    virtual Declaration *declare_pure(std::string name) {
+    virtual Declaration *declare_pure(std::string name, TypeSpec scope_ts) {
         return new IntegerType(name, size, is_not_signed);
     }
 };
@@ -116,12 +121,12 @@ public:
             return false;
         }
         
-        std::unique_ptr<Scope> fake_scope;
-        fake_scope.reset(new Scope);
+        Scope *fake_scope = new DataScope;
+        scope->add(fake_scope);
         
         for (auto &a : args) {
             std::unique_ptr<Value> kwv;
-            kwv.reset(typize(a.get(), fake_scope.get(), &INTEGER_TS));
+            kwv.reset(typize(a.get(), fake_scope, &INTEGER_TS));
             
             DeclarationValue *dv = declaration_value_cast(kwv.get());
 
@@ -165,7 +170,7 @@ public:
         return NULL;
     }
 
-    virtual Declaration *declare_pure(std::string name) {
+    virtual Declaration *declare_pure(std::string name, TypeSpec scope_type) {
         return new EnumerationType(name, keywords, stringifications_label);
     }
 };
@@ -173,12 +178,12 @@ public:
 
 class RecordDefinitionValue: public Value {
 public:
-    std::unique_ptr<Scope> inner_scope;
+    DataScope *inner_scope;
+    std::unique_ptr<RecordType> record_type;
     std::vector<std::unique_ptr<Value>> values;
     
     RecordDefinitionValue()
         :Value(METATYPE_TS) {
-        inner_scope.reset(new DataScope);
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -186,9 +191,16 @@ public:
             std::cerr << "Whacky record!\n";
             return false;
         }
+
+
+        inner_scope = new DataScope;
+        scope->add(inner_scope);
+
+        record_type.reset(new RecordType("<anonymous>", inner_scope));
+        inner_scope->set_scope_type(TypeSpec { record_type.get() });
         
         for (auto &a : args) {
-            Value *v = typize(a.get(), inner_scope.get(), &PURE_TS);
+            Value *v = typize(a.get(), inner_scope);
             
             DeclarationValue *dv = declaration_value_cast(v);
 
@@ -199,7 +211,7 @@ public:
             
             values.push_back(std::unique_ptr<Value>(v));
         }
-        
+
         return true;
     }
     
@@ -215,8 +227,9 @@ public:
         return NULL;
     }
 
-    virtual Declaration *declare_pure(std::string name) {
-        return new RecordType(name, inner_scope.get());
+    virtual Declaration *declare_pure(std::string name, TypeSpec scope_ts) {
+        record_type->set_name(name);
+        return record_type.release();
     }
 };
 

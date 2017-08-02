@@ -17,6 +17,17 @@ as:
     :return xxx + yyy
 
 
+Pair? :Record
+    first? Integer
+    second? Integer
+    
+    
+print_pair? :Function from:
+    p? Pair
+as:
+    prints("A pair of ({x}, {y})" { x: p first, y: p second })
+
+
 start? :Function as:
     print(f(1, 2))
     
@@ -96,4 +107,10 @@ start? :Function as:
     print(g(100))
     print(g)
 
+    p? Pair
+
+    p first = 123
+    p second = 456
+    print_pair(p)
+    
     :return

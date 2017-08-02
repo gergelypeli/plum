@@ -54,7 +54,7 @@ public:
         return new Variable(name, VOID_TS, ts.nonrvalue());
     }
     
-    virtual Declaration *declare_pure(std::string name) {
+    virtual Declaration *declare_pure(std::string name, TypeSpec scope_ts) {
         return NULL;
     }
 };

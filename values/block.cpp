@@ -29,24 +29,26 @@ public:
         
         Value *value;
         bool error = false;
-        
-        if (context && (*context)[0] == pure_type) {
+
+        if (scope->get_scope_type() != BOGUS_TS) {
             for (auto &arg : args) {
-                try {
-                    value = typize(arg.get(), scope, context);
-                } catch (Error) {
+                bool is_allowed = (arg->type == Expr::DECLARATION);
+
+                if (!is_allowed) {
                     error = true;
+                    std::cerr << "Impure statement not allowed in a pure context: " << arg->token << "!\n";
+                    //continue;
+                    throw TYPE_ERROR;
+                }
+
+                //try {
+                    value = typize(arg.get(), scope, context);
+                //} catch (Error) {
+                //    error = true;
                     //std::cerr << "Continuing...\n";
                     //continue;
-                    throw;
-                }
-                
-                if (value->ts != PURE_TS) {
-                    error = true;
-                    std::cerr << "Impure statement not allowed in a pure context: " << value->token << "!\n";
-                    //continue;
-                    throw;
-                }
+                //    throw;
+                //}
                 
                 add_statement(value, false);
             }
@@ -55,27 +57,27 @@ public:
             for (unsigned i = 0; i < args.size() - 1; i++) {
                 bool escape_last = (args[i]->type == Expr::DECLARATION);
                 
-                try {
+                //try {
                     value = typize(args[i].get(), scope, &VOID_CODE_TS);
-                } catch (Error) {
-                    error = true;
+                //} catch (Error) {
+                //    error = true;
                     //std::cerr << "Continuing...\n";
                     //continue;
-                    throw;
-                }
+                //    throw;
+                //}
                 
                 value = make_code_value(value, escape_last);
                 add_statement(value, false);
             }
             
-            try {
+            //try {
                 value = typize(args.back().get(), scope, context);
                 add_statement(value, true);
-            } catch (Error) {
-                error = true;
-                //std::cerr << "Continuing...\n";
-                throw;
-            }
+            //} catch (Error) {
+            //    error = true;
+            //    //std::cerr << "Continuing...\n";
+            //    throw;
+            //}
         }
 
         return !error;
@@ -186,9 +188,9 @@ public:
     virtual bool use(Value *v, Scope *scope) {
         value.reset(v);
 
-        if (context && (*context)[0] == pure_type)
-            ts = PURE_TS;
-        else {
+        TypeSpec scope_type = scope->get_scope_type();
+        
+        if (scope_type == BOGUS_TS) {
             // Allow declaration by value or type
             var = value->declare_impure(name);
         
@@ -200,7 +202,7 @@ public:
         }
         
         // Allow declaration by type or metatype
-        Declaration *d = value->declare_pure(name);
+        Declaration *d = value->declare_pure(name, scope_type);
         
         if (d) {
             scope->add(d);
@@ -243,6 +245,7 @@ public:
             // the store will do an assignment. This could be simpler.
             Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
             Storage t = var->get_storage(fn_storage);
+            
             var->var_ts.create(t, x64);
 
             Storage s = value->compile(x64);
@@ -251,7 +254,6 @@ public:
                 var->var_ts.store(s, t, x64);
                 
             s = var->get_storage(Storage(MEMORY, Address(RBP, 0)));
-            //std::cerr << "XXX " << ts << " " << v->var_ts << " " << s << "\n";
             return s;
         }
         else {

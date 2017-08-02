@@ -10,6 +10,10 @@ public:
         size = 0;
     }
     
+    virtual TypeSpec get_scope_type() {
+        return BOGUS_TS;
+    }
+    
     virtual void add(Declaration *decl) {
         decl->added(mark());
         contents.push_back(std::unique_ptr<Declaration>(decl));
@@ -132,8 +136,19 @@ Declaration *declaration_cast(Scope *scope) {
 
 class DataScope: public Scope {
 public:
+    TypeSpec ts;
+    
     DataScope()
         :Scope() {
+        ts = BOGUS_TS;
+    }
+    
+    virtual TypeSpec get_scope_type() {
+        return ts;
+    }
+    
+    virtual void set_scope_type(TypeSpec t) {
+        ts = t;
     }
     
     virtual int reserve(unsigned s) {

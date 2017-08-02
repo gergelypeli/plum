@@ -92,7 +92,7 @@ public:
         return NULL;
     }
     
-    virtual Declaration *declare_pure(std::string name) {
+    virtual Declaration *declare_pure(std::string name, TypeSpec scope_type) {
         std::vector<TypeSpec> arg_tss;
         std::vector<std::string> arg_names;
         TypeSpec result_ts;
@@ -118,7 +118,7 @@ public:
         else
             result_ts = VOID_TS;
             
-        function = new Function(name, VOID_TS, arg_tss, arg_names, result_ts);
+        function = new Function(name, scope_type, arg_tss, arg_names, result_ts);
         
         return function;
     }

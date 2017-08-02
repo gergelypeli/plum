@@ -20,7 +20,6 @@ Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;
 Type *code_type = NULL;
 Type *metatype_type = NULL;
-Type *pure_type = NULL;
 Type *void_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
@@ -71,7 +70,6 @@ TypeSpec ANY_TYPE_TS;
 TypeSpec ANY_OVALUE_TS;
 TypeSpec ANY_LVALUE_TS;
 TypeSpec METATYPE_TS;
-TypeSpec PURE_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;
@@ -186,9 +184,6 @@ Scope *init_builtins() {
     metatype_type = new SpecialType("<Metatype>", 0);
     root_scope->add(metatype_type);
 
-    pure_type = new SpecialType("<Pure>", 0);
-    root_scope->add(pure_type);
-
     lvalue_type = new AttributeType("<Lvalue>");
     root_scope->add(lvalue_type);
     
@@ -240,7 +235,6 @@ Scope *init_builtins() {
     ANY_LVALUE_TS = { lvalue_type, any_type };
     ANY_OVALUE_TS = { ovalue_type, any_type };
     METATYPE_TS = { metatype_type };
-    PURE_TS = { pure_type };
     VOID_TS = { void_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
@@ -349,7 +343,7 @@ Value *lookup_scope(Scope *s, std::string name, Value *pivot, Expr *expr, Scope 
             throw TYPE_ERROR;
         }
 
-        std::cerr << "Accepted    " << match[0] << " " << name << " arguments.\n";
+        //std::cerr << "Accepted    " << match[0] << " " << name << " arguments.\n";
         return value;
     }
     else
@@ -359,7 +353,7 @@ Value *lookup_scope(Scope *s, std::string name, Value *pivot, Expr *expr, Scope 
 
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope) {
     TypeSpec pts = pivot ? pivot->ts : VOID_TS;
-    std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
+    //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
     
     for (Scope *s = scope; s; s = s->outer_scope) {
         Value *value = lookup_scope(s, name, pivot, expr, scope);

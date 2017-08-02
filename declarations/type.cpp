@@ -13,6 +13,10 @@ public:
         return parameter_count;
     }
     
+    virtual void set_name(std::string n) {
+        name = n;
+    }
+    
     virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         if (name != this->name)
             return NULL;
@@ -534,8 +538,11 @@ public:
 
     RecordType(std::string n, Scope *is)
         :Type(n, 0) {
-        
         inner_scope = is;
+    }
+    
+    virtual void allocate() {
+        inner_scope->allocate();
         
         for (auto &c : inner_scope->contents) {
             Variable *v = dynamic_cast<Variable *>(c.get());
@@ -570,7 +577,7 @@ public:
             
         case STACK_NOWHERE:
             for (auto &member : members)  // FIXME: reverse!
-                member.first.destroy(Storage(MEMORY, s.address + member.second), x64);
+                member.first.destroy(Storage(MEMORY, Address(RSP, member.second)), x64);
             x64->op(ADDQ, RSP, stack_size(size));
             return;
         case STACK_STACK:

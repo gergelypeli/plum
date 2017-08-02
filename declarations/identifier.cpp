@@ -8,7 +8,7 @@ public:
         name = n;
         pivot_ts = pts;
     }
-    
+
     virtual Value *matched(Value *, TypeMatch &match) {
         std::cerr << "Unmatchable identifier!\n";
         throw INTERNAL_ERROR;
@@ -30,11 +30,13 @@ class Variable: public Identifier {
 public:
     TypeSpec var_ts;
     int offset;
+    bool xxx_is_allocated;
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts)
         :Identifier(name, pts) {
         offset = 0;
         var_ts = vts;
+        xxx_is_allocated = false;
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
@@ -44,12 +46,16 @@ public:
     
     virtual void allocate() {
         offset = outer_scope->reserve(var_ts.measure());
+        xxx_is_allocated = true;
         //std::cerr << "Variable " << name << " offset is " << offset << "\n";
     }
     
     virtual Storage get_storage(Storage s) {
         if (s.where != MEMORY)
             throw INTERNAL_ERROR;  // for now, variables are all in memory
+            
+        if (!xxx_is_allocated)
+            throw INTERNAL_ERROR;
             
         //std::cerr << "Variable " << name << " offset is now " << offset << "\n";
         return Storage(MEMORY, s.address + offset);
