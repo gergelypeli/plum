@@ -133,6 +133,9 @@ std::vector<Token> tokenize(std::string buffer) {
         else if (is_separator(c)) {
             i++;
         }
+        else if (c == '$') {
+            i++;
+        }
         else if (is_quote(c)) {
             char quote = c;
             

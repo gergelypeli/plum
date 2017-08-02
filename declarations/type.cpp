@@ -542,8 +542,6 @@ public:
     }
     
     virtual void allocate() {
-        inner_scope->allocate();
-        
         for (auto &c : inner_scope->contents) {
             Variable *v = dynamic_cast<Variable *>(c.get());
             
@@ -561,6 +559,7 @@ public:
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         // Only RBX is usable as scratch
         unsigned size = measure(tsi);
+        std::cerr << "Storing record from " << s << " to " << t << "\n";
         
         switch (s.where * t.where) {
         case NOWHERE_NOWHERE:

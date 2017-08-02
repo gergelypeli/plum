@@ -66,6 +66,16 @@ public:
                 //    throw;
                 //}
                 
+                // This matters, because makes the expression Void before putting it
+                // in CodeValue, which would be sensitive about MEMORY return values,
+                // and push them unnecessarily.
+                // Using typematch would be nicer, but we can't pass the escape_last
+                // flag to CodeValue...
+                
+                Marker marker = value->marker;  // CodeValue would complain without this
+                value = make_void_conversion_value(value);
+                value->set_marker(marker);
+                
                 value = make_code_value(value, escape_last);
                 add_statement(value, false);
             }
@@ -246,12 +256,15 @@ public:
             Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
             Storage t = var->get_storage(fn_storage);
             
+            //std::cerr << "Initializing variable " << var->name << ".\n";
             var->var_ts.create(t, x64);
 
             Storage s = value->compile(x64);
             
-            if (s.where != NOWHERE)
+            if (s.where != NOWHERE) {
+                //std::cerr << "Initializing variable " << var->name << " from value.\n";
                 var->var_ts.store(s, t, x64);
+            }
                 
             s = var->get_storage(Storage(MEMORY, Address(RBP, 0)));
             return s;

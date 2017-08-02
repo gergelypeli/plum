@@ -192,7 +192,9 @@ public:
             return false;
         }
 
-
+        // Order matters here, the inner_scope is created first, then the RecordType,
+        // so this is the order they will be allocated. This matters in RecordType
+        // when gathering the offsets of member variables.
         inner_scope = new DataScope;
         scope->add(inner_scope);
 

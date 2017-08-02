@@ -153,7 +153,7 @@ std::ostream &operator<<(std::ostream &os, Storage &s) {
     else if (s.where == STACK)
         os << "STACK";
     else if (s.where == MEMORY)
-        os << "MEMORY(" << s.address.base << "+" << s.address.offset << ")";
+        os << "MEMORY(" << s.address.base << (s.address.offset >= 0 ? "+" : "") << s.address.offset << ")";
     else
         os << "???";
         

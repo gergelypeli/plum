@@ -21,8 +21,9 @@ Pair? :Record
     first? Integer
     second? Integer
 
-    meth? :Function as:
+    meth? :Function Integer as:
         prints("Meth!")
+        :return $ first + $ second
         
     
 print_pair? :Function from:
@@ -115,6 +116,6 @@ start? :Function as:
     p first = 123
     p second = 456
     print_pair(p)
-    p meth
+    print(p meth)
     
     :return

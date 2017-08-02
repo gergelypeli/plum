@@ -42,6 +42,8 @@ int main(int argc, char **argv) {
     std::string buffer = read_source(argv[1]);
     
     std::vector<Token> tokens = tokenize(buffer);
+    for (auto &token : tokens)
+        std::cerr << "Token: " << token.text << "\n";
     
     std::vector<Node> nodes = treeize(tokens);
 

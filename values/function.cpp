@@ -43,6 +43,11 @@ public:
             rs->add(decl);
         }
 
+        TypeSpec scope_ts = scope->get_scope_type();
+        Scope *ss = fn_scope->add_self_scope();
+        if (scope_ts != BOGUS_TS && scope_ts != VOID_TS)
+            ss->add(new Variable("$", VOID_TS, scope_ts));
+
         Scope *hs = fn_scope->add_head_scope();
         Expr *h = kwargs["from"].get();
         head.reset(h ? typize(h, hs) : NULL);
@@ -289,8 +294,10 @@ public:
         
         unsigned passed_size = 0;
         
-        if (pivot)
+        if (pivot) {
             passed_size += push_arg(function->get_pivot_typespec(), pivot.get(), x64);
+            std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
+        }
         
         for (unsigned i = 0; i < items.size(); i++)
             passed_size += push_arg(function->get_argument_typespec(i), items[i].get(), x64);

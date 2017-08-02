@@ -50,7 +50,7 @@ bool is_right_associative(Precedence) {
 class Node {
 public:
     enum NodeType {
-        OPEN, CLOSE,
+        NONE, OPEN, CLOSE,
         NUMBER, STRING, INITIALIZER,
         IDENTIFIER, LABEL, CONTROL, DECLARATION,
         SEPARATOR
@@ -209,7 +209,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             fore = TEXTUAL;
             text = token.text.substr(1);
         }
-        else if (isalpha(c) || c == '_') {
+        else if (isalpha(c) || c == '_' || c == '$') {
             if (token.text.back() == ':') {
                 type = Node::LABEL;
                 back = LABELING;
@@ -336,6 +336,8 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
         }
         else {
+            type = Node::NONE;
+            
             for (auto op : operators) {
                 if (op.token == token.text) {
                     type = Node::IDENTIFIER;
@@ -370,7 +372,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 }
             }
             
-            if (!type) {
+            if (type == Node::NONE) {
                 std::cerr << "No operator " << token << "!\n";
                 throw TREE_ERROR;
             }

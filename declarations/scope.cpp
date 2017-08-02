@@ -156,6 +156,8 @@ public:
         unsigned ss = stack_size(s);  // Simple strategy
         size += ss;
     
+        std::cerr << "DataScope is now " << size << " bytes.\n";
+    
         return size - ss;
     }
 };
@@ -238,6 +240,7 @@ public:
 class FunctionScope: public Scope {
 public:
     ArgumentScope *result_scope;
+    ArgumentScope *self_scope;
     ArgumentScope *head_scope;
     CodeScope *body_scope;
     Label epilogue_label;
@@ -245,6 +248,7 @@ public:
     FunctionScope()
         :Scope() {
         result_scope = NULL;
+        self_scope = NULL;
         head_scope = NULL;
         body_scope = NULL;
     }
@@ -253,6 +257,12 @@ public:
         result_scope = new ArgumentScope;
         add(result_scope);
         return result_scope;
+    }
+    
+    Scope *add_self_scope() {
+        self_scope = new ArgumentScope;
+        add(self_scope);
+        return self_scope;
     }
     
     Scope *add_head_scope() {
@@ -283,6 +293,12 @@ public:
         }
         
         if (head_scope) {
+            Value *v = self_scope->lookup(name, pivot, match);
+            if (v)
+                return v;
+        }
+
+        if (self_scope) {
             Value *v = result_scope->lookup(name, pivot, match);
             if (v)
                 return v;
@@ -306,7 +322,10 @@ public:
         head_scope->reserve(8 + 8);
         head_scope->allocate();
 
-        result_scope->reserve(head_scope->size);
+        self_scope->reserve(head_scope->size);
+        self_scope->allocate();
+
+        result_scope->reserve(self_scope->size);
         result_scope->allocate();
 
         //std::cerr << "Function head is " << head_scope->size - 16 << " bytes, result is " << result_scope->size - head_scope->size << " bytes.\n";
