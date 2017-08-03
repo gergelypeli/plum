@@ -156,7 +156,7 @@ public:
         unsigned ss = stack_size(s);  // Simple strategy
         size += ss;
     
-        std::cerr << "DataScope is now " << size << " bytes.\n";
+        //std::cerr << "DataScope is now " << size << " bytes.\n";
     
         return size - ss;
     }

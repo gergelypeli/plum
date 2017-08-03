@@ -1044,14 +1044,14 @@ void X64::init_memory_management() {
 }
 
 void X64::incref(Register reg) {
-    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI)
+    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI || reg == NOREG)
         throw X64_ERROR;
         
     op(CALL, incref_labels[reg]);
 }
 
 void X64::decref(Register reg) {
-    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI)
+    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI || reg == NOREG)
         throw X64_ERROR;
 
     op(CALL, decref_labels[reg]);

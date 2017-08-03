@@ -251,23 +251,11 @@ public:
     
     virtual Storage compile(X64 *x64) {
         if (var) {
-            // TODO: for references, we now need to first zero out the variable, then
-            // the store will do an assignment. This could be simpler.
+            Storage s = value->compile(x64);
             Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
             Storage t = var->get_storage(fn_storage);
-            
-            //std::cerr << "Initializing variable " << var->name << ".\n";
-            var->var_ts.create(t, x64);
-
-            Storage s = value->compile(x64);
-            
-            if (s.where != NOWHERE) {
-                //std::cerr << "Initializing variable " << var->name << " from value.\n";
-                var->var_ts.store(s, t, x64);
-            }
-                
-            s = var->get_storage(Storage(MEMORY, Address(RBP, 0)));
-            return s;
+            var->var_ts.store(s, t, x64);  // this can initialize from NOWHERE, too
+            return t;
         }
         else {
             value->compile_and_store(x64, Storage());

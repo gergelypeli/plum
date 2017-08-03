@@ -57,11 +57,15 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    // NOTE: this method is not an assignment
+    // s being MEMORY means an initialized variable
+    // t being MEMORY means an uninitialized variable
     virtual void store(TypeSpecIter this_tsi, Storage s, Storage t, X64 *x64) {
         std::cerr << "Unstorable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
     
+    // NOTE: currently unused
     virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
         std::cerr << "Uncreatable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -353,7 +357,8 @@ public:
             return;
         case NOWHERE_MEMORY:
             x64->op(MOVQ, t.address, 0);
-
+            return;
+            
         case REGISTER_NOWHERE:
             x64->decref(s.reg);
             return;

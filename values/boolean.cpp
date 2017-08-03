@@ -280,7 +280,7 @@ public:
             else {
                 // By the way, this is a compile time decision, so it
                 // doesn't need to be sync with any "other" branch.
-                ts.create(s, x64);
+                ts.store(Storage(), s, x64);
                 return s;
             }
         case FLAGS:
