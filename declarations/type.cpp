@@ -47,6 +47,11 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
+        std::cerr << "Unpassable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
     virtual Storage boolval(TypeSpecIter tsi, Storage, X64 *, bool probe) {
         std::cerr << "Unboolable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -73,6 +78,16 @@ public:
 
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         std::cerr << "Undestroyable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        std::cerr << "Unaliaspushable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        std::cerr << "Unaliaspopable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
@@ -236,8 +251,25 @@ public:
             throw INTERNAL_ERROR;
     }
 
+    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        if (s.where == MEMORY) {
+            x64->op(LEA, RBX, s.address);
+            x64->op(PUSHQ, RBX);
+        }
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        x64->op(POPQ, RBX);
+    }
+
     virtual StorageWhere where(TypeSpecIter tsi) {
         return REGISTER;
+    }
+
+    virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
+        return is_lvalue;
     }
 
     virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
@@ -423,8 +455,25 @@ public:
             throw INTERNAL_ERROR;
     }
 
+    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        if (s.where == MEMORY) {
+            x64->op(LEA, RBX, s.address);
+            x64->op(PUSHQ, RBX);
+        }
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        x64->op(POPQ, RBX);
+    }
+
     virtual StorageWhere where(TypeSpecIter ) {
         return REGISTER;
+    }
+
+    virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
+        return is_lvalue;
     }
 
     virtual Storage boolval(TypeSpecIter , Storage s, X64 *x64, bool probe) {
@@ -472,6 +521,11 @@ public:
 };
 
 
+HeapType *heap_type_cast(Type *t) {
+    return dynamic_cast<HeapType *>(t);
+}
+
+
 class AttributeType: public Type {
 public:
     AttributeType(std::string n)
@@ -481,6 +535,11 @@ public:
     virtual StorageWhere where(TypeSpecIter this_tsi) {
         this_tsi++;
         return (*this_tsi)->where(this_tsi);
+    }
+
+    virtual bool pass_alias(TypeSpecIter this_tsi, bool is_lvalue) {
+        this_tsi++;
+        return (*this_tsi)->pass_alias(this_tsi, is_lvalue || this == lvalue_type);
     }
 
     virtual Storage boolval(TypeSpecIter this_tsi, Storage s, X64 *x64, bool probe) {
@@ -506,6 +565,16 @@ public:
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         tsi++;
         (*tsi)->destroy(tsi, s, x64);
+    }
+
+    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        tsi++;
+        (*tsi)->push_alias(tsi, s, x64);
+    }
+
+    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        tsi++;
+        (*tsi)->pop_alias(tsi, s, x64);
     }
 };
 
@@ -624,8 +693,25 @@ public:
             throw INTERNAL_ERROR;
     }
 
+    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        if (s.where == MEMORY) {
+            x64->op(LEA, RBX, s.address);
+            x64->op(PUSHQ, RBX);
+        }
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+        x64->op(POPQ, RBX);
+    }
+
     virtual StorageWhere where(TypeSpecIter tsi) {
         return STACK;
+    }
+
+    virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
+        return is_lvalue;  // for now
     }
 
     virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {

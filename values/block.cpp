@@ -30,7 +30,7 @@ public:
         Value *value;
         bool error = false;
 
-        if (scope->get_scope_type() != BOGUS_TS) {
+        if (scope->is_pure()) {
             for (auto &arg : args) {
                 bool is_allowed = (arg->type == Expr::DECLARATION);
 
@@ -198,11 +198,9 @@ public:
     virtual bool use(Value *v, Scope *scope) {
         value.reset(v);
 
-        TypeSpec scope_type = scope->get_scope_type();
-        
-        if (scope_type == BOGUS_TS) {
+        if (!scope->is_pure()) {
             // Allow declaration by value or type
-            var = value->declare_impure(name);
+            var = value->declare_impure(name, scope);
         
             if (var) {
                 scope->add(var);
@@ -212,7 +210,7 @@ public:
         }
         
         // Allow declaration by type or metatype
-        Declaration *d = value->declare_pure(name, scope_type);
+        Declaration *d = value->declare_pure(name, scope);
         
         if (d) {
             scope->add(d);

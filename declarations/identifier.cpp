@@ -31,12 +31,22 @@ public:
     TypeSpec var_ts;
     int offset;
     bool xxx_is_allocated;
+    bool is_alias;
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts)
         :Identifier(name, pts) {
         offset = 0;
         var_ts = vts;
+        
+        if (var_ts == BOGUS_TS)
+            throw INTERNAL_ERROR;
+            
         xxx_is_allocated = false;
+        is_alias = false;
+    }
+    
+    virtual void be_alias() {
+        is_alias = true;
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
@@ -76,6 +86,8 @@ public:
 Variable *variable_cast(Declaration *decl) {
     return dynamic_cast<Variable *>(decl);
 }
+
+
 
 
 class Function: public Identifier {

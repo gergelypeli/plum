@@ -41,6 +41,27 @@ StorageWhere TypeSpec::where() {
 }
 
 
+bool TypeSpec::pass_alias() {
+    TypeSpecIter this_tsi(begin());
+    
+    return (*this_tsi)->pass_alias(this_tsi, false);  // assume not lvalue
+}
+
+
+void TypeSpec::push_alias(Storage s, X64 *x64) {
+    TypeSpecIter this_tsi(begin());
+    
+    return (*this_tsi)->push_alias(this_tsi, s, x64);
+}
+
+
+void TypeSpec::pop_alias(Storage s, X64 *x64) {
+    TypeSpecIter this_tsi(begin());
+    
+    return (*this_tsi)->pop_alias(this_tsi, s, x64);
+}
+
+
 Storage TypeSpec::boolval(Storage s, X64 *x64, bool probe) {
     TypeSpecIter this_tsi(begin());
     

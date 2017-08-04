@@ -43,10 +43,13 @@ public:
             rs->add(decl);
         }
 
-        TypeSpec scope_ts = scope->get_scope_type();
         Scope *ss = fn_scope->add_self_scope();
-        if (scope_ts != BOGUS_TS && scope_ts != VOID_TS)
-            ss->add(new Variable("$", VOID_TS, scope_ts));
+        if (scope->is_pure()) {
+            TypeSpec pivot_ts = scope->pivot_type_hint();
+            
+            if (pivot_ts != VOID_TS)
+                ss->add(new Variable("$", VOID_TS, pivot_ts));
+        }
 
         Scope *hs = fn_scope->add_head_scope();
         Expr *h = kwargs["from"].get();
@@ -93,11 +96,11 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare_impure(std::string name) {
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
         return NULL;
     }
     
-    virtual Declaration *declare_pure(std::string name, TypeSpec scope_type) {
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
         std::vector<TypeSpec> arg_tss;
         std::vector<std::string> arg_names;
         TypeSpec result_ts;
@@ -107,23 +110,30 @@ public:
             Variable *v = dynamic_cast<Variable *>(d.get());
             
             if (v) {
-                arg_tss.push_back(v->var_ts.nonlvalue());  // FIXME
+                arg_tss.push_back(v->var_ts);  // FIXME
                 arg_names.push_back(v->name);
+                
+                if (v->var_ts.pass_alias())
+                    v->be_alias();
             }
         }
         
         if (fn_scope->result_scope->contents.size()) {
             Variable *v = dynamic_cast<Variable *>(fn_scope->result_scope->contents.back().get());
             
-            if (v)
-                result_ts = v->var_ts.rvalue();  // FIXME
+            if (v) {
+                result_ts = v->var_ts;  // FIXME
+                
+                if (v->var_ts.pass_alias())
+                    v->be_alias();
+            }
             else
                 throw INTERNAL_ERROR;
         }
         else
             result_ts = VOID_TS;
             
-        function = new Function(name, scope_type, arg_tss, arg_names, result_ts);
+        function = new Function(name, scope->pivot_type_hint(), arg_tss, arg_names, result_ts);
         
         return function;
     }
@@ -136,6 +146,7 @@ public:
     Function *function;
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> items;  // FIXME
+    std::vector<Storage> arg_storages;
     Register reg;
     
     FunctionCallValue(Function *f, Value *p)
@@ -255,31 +266,28 @@ public:
     }
     
     virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
-        if (arg_value) {
-            Storage s = arg_value->compile(x64);
-        
-            if (arg_ts[0] == lvalue_type) {
-                if (s.where != MEMORY)
-                    throw INTERNAL_ERROR;
-                
-                x64->op(LEA, RBX, s.address);
-                x64->op(PUSHQ, RBX);
-                return 8;
-            }
-            else {
-                arg_ts.store(s, Storage(STACK), x64);
-                return stack_size(arg_ts.measure());
-            }
+        Storage arg_storage = arg_value ? arg_value->compile(x64) : Storage();
+        unsigned size;
+
+        if (arg_ts.pass_alias()) {
+            arg_ts.push_alias(arg_storage, x64);  // arg_storage may be NOWHERE!
+            size = 8;
         }
         else {
-            arg_ts.store(Storage(), Storage(STACK), x64);
-            return stack_size(arg_ts.measure());
+            arg_ts.store(arg_storage, Storage(STACK), x64);  // arg_storage may be NOWHERE!
+            size = stack_size(arg_ts.measure());
         }
+
+        arg_storages.push_back(arg_storage);
+        return size;
     }
 
     virtual void pop_arg(TypeSpec arg_ts, X64 *x64) {
-        if (arg_ts[0] == lvalue_type)
-            x64->op(ADDQ, RSP, 8);
+        Storage arg_storage = arg_storages.back();
+        arg_storages.pop_back();
+        
+        if (arg_ts.pass_alias())
+            arg_ts.pop_alias(arg_storage, x64);
         else
             arg_ts.store(Storage(STACK), Storage(), x64);
     }

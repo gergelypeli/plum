@@ -10,10 +10,6 @@ public:
         size = 0;
     }
     
-    virtual TypeSpec get_scope_type() {
-        return BOGUS_TS;
-    }
-    
     virtual void add(Declaration *decl) {
         decl->added(mark());
         contents.push_back(std::unique_ptr<Declaration>(decl));
@@ -78,6 +74,27 @@ public:
         //if (s > 0)
             throw INTERNAL_ERROR;
     }
+
+    virtual bool is_pure() {
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual TypeSpec variable_type_hint(TypeSpec t) {
+        TypeSpec ts = t;
+        TypeSpecIter tsi(ts.begin());
+        
+        if (*tsi == lvalue_type || *tsi == ovalue_type || *tsi == code_type)
+            tsi++;
+            
+        if (heap_type_cast(*tsi))
+            ts.insert(tsi, reference_type);
+            
+        return ts;
+    }
+    
+    virtual TypeSpec pivot_type_hint() {
+        throw INTERNAL_ERROR;
+    }
     
     virtual void finalize_scope(Storage s, X64 *x64) {
         if (contents.size())
@@ -136,19 +153,19 @@ Declaration *declaration_cast(Scope *scope) {
 
 class DataScope: public Scope {
 public:
-    TypeSpec ts;
+    TypeSpec pivot_ts;
     
     DataScope()
         :Scope() {
-        ts = BOGUS_TS;
+        pivot_ts = BOGUS_TS;
     }
     
-    virtual TypeSpec get_scope_type() {
-        return ts;
+    virtual bool is_pure() {
+        return true;
     }
     
-    virtual void set_scope_type(TypeSpec t) {
-        ts = t;
+    virtual void set_pivot_type_hint(TypeSpec t) {
+        pivot_ts = t;
     }
     
     virtual int reserve(unsigned s) {
@@ -159,6 +176,20 @@ public:
         //std::cerr << "DataScope is now " << size << " bytes.\n";
     
         return size - ss;
+    }
+
+    virtual TypeSpec variable_type_hint(TypeSpec ts) {
+        if (ts[0] == lvalue_type || ts[0] == ovalue_type || ts[0] == code_type)
+            throw TYPE_ERROR;
+        
+        return Scope::variable_type_hint(ts).lvalue();
+    }
+    
+    virtual TypeSpec pivot_type_hint() {
+        if (pivot_ts == BOGUS_TS)
+            throw INTERNAL_ERROR;
+            
+        return pivot_ts;
     }
 };
 
@@ -201,11 +232,20 @@ public:
             expanded_size = es;
     }
     
-    //virtual void escape_last() {
-    //    Declaration *d = contents.back().release();
-    //    contents.pop_back();
-    //    outer_scope->add(d);
-    //}
+    virtual bool is_pure() {
+        return false;
+    }
+    
+    virtual TypeSpec variable_type_hint(TypeSpec ts) {
+        if (ts[0] == lvalue_type || ts[0] == ovalue_type || ts[0] == code_type)
+            throw TYPE_ERROR;
+        
+        return Scope::variable_type_hint(ts).lvalue();
+    }
+    
+    virtual TypeSpec pivot_type_hint() {
+        return VOID_TS;
+    }
 };
 
 
@@ -231,6 +271,18 @@ public:
         size += ss;
         //std::cerr << "Now size is " << size << " bytes.\n";
         return offset;
+    }
+
+    virtual bool is_pure() {
+        return true;
+    }
+
+    virtual TypeSpec variable_type_hint(TypeSpec ts) {
+        return Scope::variable_type_hint(ts);
+    }
+    
+    virtual TypeSpec pivot_type_hint() {
+        return VOID_TS;
     }
 };
 

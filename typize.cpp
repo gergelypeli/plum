@@ -5,6 +5,7 @@ class Value;
 
 class Declaration;
 class Type;
+class HeapType;
 class Scope;
 class CodeScope;
 class FunctionScope;
@@ -12,6 +13,7 @@ class Variable;
 class Function;
 
 Variable *variable_cast(Declaration *decl);
+HeapType *heap_type_cast(Type *t);
 
 Type *any_type = NULL;
 Type *same_type = NULL;
@@ -56,6 +58,9 @@ public:
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, X64 *x64);
     void destroy(Storage s, X64 *x64);
+    bool pass_alias();
+    void push_alias(Storage s, X64 *x64);
+    void pop_alias(Storage s, X64 *x64);
     Value *initializer(std::string name);
 };
 

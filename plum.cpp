@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
 
     Scope *root_scope = init_builtins();
     DataScope *module_scope = new DataScope;
-    module_scope->set_scope_type(VOID_TS);
+    module_scope->set_pivot_type_hint(VOID_TS);  // FIXME: something else!
     root_scope->add(module_scope);
     std::unique_ptr<Value> value_root;
     

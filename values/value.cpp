@@ -50,11 +50,14 @@ public:
     // If not, then declare_pure is called, which must return any Declaration.
     // Data blocks invoke only declare_pure, and if that returns NULL, that's a semantic error.
     
-    virtual Variable *declare_impure(std::string name) {
-        return new Variable(name, VOID_TS, ts.nonrvalue());
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
+        if (ts == VOID_TS)
+            return NULL;
+            
+        return new Variable(name, VOID_TS, scope->variable_type_hint(ts.rvalue()));
     }
     
-    virtual Declaration *declare_pure(std::string name, TypeSpec scope_ts) {
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
         return NULL;
     }
 };
@@ -64,6 +67,7 @@ class VariableValue: public Value {
 public:
     Variable *variable;
     std::unique_ptr<Value> pivot;
+    Register reg;
     
     VariableValue(Variable *v, Value *p)
         :Value(v->var_ts) {
@@ -71,11 +75,21 @@ public:
         pivot.reset(p);
     }
     
-    virtual Regs precompile(Regs) {
-        return Regs();
+    virtual Regs precompile(Regs preferred) {
+        if (variable->is_alias) {
+            reg = preferred.get_ptr();
+            return Regs().add(reg);
+        }
+        else
+            return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
+        if (variable->is_alias) {
+            x64->op(MOVQ, reg, Address(RBP, variable->offset));
+            return Storage(MEMORY, Address(reg, 0));
+        }
+
         Storage s;
         
         if (pivot)
@@ -87,6 +101,38 @@ public:
     }
 };
 
+/*
+class ArgumentValue: public Value {
+public:
+    Argument *argument;
+    Register reg;
+    
+    ArgumentValue(Argument *a)
+        :Value(a->var_ts) {
+        argument = a;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        if (argument->is_alias) {
+            reg = preferred.get_ptr();
+            return Regs().add(reg);
+        }
+        else
+            return Regs();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s;
+        
+        if (argument->is_alias) {
+            x64->op(MOVQ, reg, Address(RBP, argument->offset));
+            return Storage(MEMORY, Address(reg, 0));
+        }
+        else
+            return Storage(MEMORY, Address(RBP, argument->offset));
+    }
+};
+*/
 
 class GenericOperationValue: public Value {
 public:
@@ -260,6 +306,11 @@ Value *make_variable_value(Variable *decl, Value *pivot) {
     return new VariableValue(decl, pivot);
 }
 
+/*
+Value *make_argument_value(Argument *decl) {
+    return new ArgumentValue(decl);
+}
+*/
 
 Value *make_function_call_value(Function *decl, Value *pivot) {
     return new FunctionCallValue(decl, pivot);

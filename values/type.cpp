@@ -13,22 +13,14 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare_impure(std::string name) {
-        TypeSpec var_ts = ts.unprefix(type_type);
-        
-        if (dynamic_cast<HeapType *>(var_ts[0]))
-            var_ts = var_ts.prefix(reference_type);
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
+        TypeSpec var_ts = scope->variable_type_hint(ts.unprefix(type_type));
             
-        return new Variable(name, VOID_TS, var_ts.nonrvalue());
+        return new Variable(name, scope->pivot_type_hint(), var_ts);
     }
     
-    virtual Declaration *declare_pure(std::string name, TypeSpec scope_ts) {
-        TypeSpec var_ts = ts.unprefix(type_type);
-        
-        if (dynamic_cast<HeapType *>(var_ts[0]))
-            var_ts = var_ts.prefix(reference_type);
-            
-        return new Variable(name, scope_ts, var_ts.nonrvalue());
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
+        return declare_impure(name, scope);
     }
 };
 
@@ -96,11 +88,11 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare_impure(std::string name) {
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
         return NULL;
     }
 
-    virtual Declaration *declare_pure(std::string name, TypeSpec scope_ts) {
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
         return new IntegerType(name, size, is_not_signed);
     }
 };
@@ -121,7 +113,8 @@ public:
             return false;
         }
         
-        Scope *fake_scope = new DataScope;
+        DataScope *fake_scope = new DataScope;
+        fake_scope->set_pivot_type_hint(VOID_TS);  // TODO: any better idea?
         scope->add(fake_scope);
         
         for (auto &a : args) {
@@ -135,10 +128,11 @@ public:
                 return false;
             }
             
-            if (dv->ts != INTEGER_LVALUE_TS) {
-                std::cerr << "Not an integer declaration in an enumeration definition!\n";
-                return false;
-            }
+            // Can't check the dv ts in pure blocks anymore...
+            //if (dv->ts != INTEGER_TS) {
+            //    std::cerr << "Not an integer declaration in an enumeration definition: " << dv->ts << "!\n";
+            //    return false;
+            //}
             
             keywords.push_back(declaration_get_name(dv));
         }
@@ -166,11 +160,11 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare_impure(std::string name) {
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
         return NULL;
     }
 
-    virtual Declaration *declare_pure(std::string name, TypeSpec scope_type) {
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
         return new EnumerationType(name, keywords, stringifications_label);
     }
 };
@@ -199,7 +193,7 @@ public:
         scope->add(inner_scope);
 
         record_type.reset(new RecordType("<anonymous>", inner_scope));
-        inner_scope->set_scope_type(TypeSpec { record_type.get() });
+        inner_scope->set_pivot_type_hint(TypeSpec { record_type.get() });
         
         for (auto &a : args) {
             Value *v = typize(a.get(), inner_scope);
@@ -231,11 +225,11 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare_impure(std::string name) {
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
         return NULL;
     }
 
-    virtual Declaration *declare_pure(std::string name, TypeSpec scope_ts) {
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
         record_type->set_name(name);
         return record_type.release();
     }
