@@ -58,7 +58,7 @@ public:
         if (xxx_is_allocated)
             throw INTERNAL_ERROR;
             
-        offset = outer_scope->reserve(var_ts.measure());
+        offset = outer_scope->reserve(is_alias ? 8 : var_ts.measure());
         
         xxx_is_allocated = true;
         //std::cerr << "Variable " << name << " offset is " << offset << "\n";

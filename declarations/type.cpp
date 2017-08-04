@@ -90,7 +90,7 @@ public:
         std::cerr << "Unaliaspopable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
-
+    
     virtual Value *initializer(TypeSpecIter tsi, std::string n) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -711,7 +711,7 @@ public:
     }
 
     virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
-        return is_lvalue;  // for now
+        return true;
     }
 
     virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {

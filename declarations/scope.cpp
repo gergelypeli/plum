@@ -380,7 +380,7 @@ public:
         result_scope->reserve(self_scope->size);
         result_scope->allocate();
 
-        //std::cerr << "Function head is " << head_scope->size - 16 << " bytes, result is " << result_scope->size - head_scope->size << " bytes.\n";
+        std::cerr << "Function head is " << head_scope->size - 16 << "bytes, self is " << self_scope->size - head_scope->size << " bytes, result is " << result_scope->size - self_scope->size << " bytes.\n";
 
         body_scope->allocate();
     }

@@ -25,6 +25,13 @@ Pair? :Record
         prints("Meth!")
         :return $ first + $ second
         
+        
+make_pair? :Function Pair as:
+    p? Pair
+    p first = 11
+    p second = 22
+    :return p
+
     
 print_pair? :Function from:
     p? Pair
@@ -117,5 +124,7 @@ start? :Function as:
     p second = 456
     print_pair(p)
     print(p meth)
+
+    print(make_pair second)
     
     :return

@@ -37,8 +37,7 @@ public:
             result.reset(r);
 
             // Add internal result variable
-            TypeSpec var_ts = result->ts;
-            var_ts[0] = lvalue_type;
+            TypeSpec var_ts = result->ts.unprefix(type_type);
             Variable *decl = new Variable("<result>", VOID_TS, var_ts);
             rs->add(decl);
         }
@@ -117,6 +116,16 @@ public:
                     v->be_alias();
             }
         }
+
+        for (auto &d : fn_scope->self_scope->contents) {
+            // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
+            Variable *v = dynamic_cast<Variable *>(d.get());
+            
+            if (v) {
+                if (v->var_ts.pass_alias())
+                    v->be_alias();
+            }
+        }
         
         if (fn_scope->result_scope->contents.size()) {
             Variable *v = dynamic_cast<Variable *>(fn_scope->result_scope->contents.back().get());
@@ -147,12 +156,14 @@ public:
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> items;  // FIXME
     std::vector<Storage> arg_storages;
+    Variable *result_variable;
     Register reg;
     
     FunctionCallValue(Function *f, Value *p)
         :Value(f->get_return_typespec()) {
         function = f;
         pivot.reset(p);
+        result_variable = NULL;
         
         for (unsigned i = 0; i < function->get_argument_count(); i++)
             items.push_back(NULL);
@@ -183,6 +194,11 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (ts != VOID_TS && ts.pass_alias()) {
+            result_variable = new Variable("<result>", VOID_TS, ts);
+            scope->add(result_variable);
+        }
+
         for (unsigned i = 0; i < args.size(); i++) {
             Expr *e = args[i].get();
             TypeSpec var_ts = function->get_argument_typespec(i);
@@ -216,6 +232,7 @@ public:
                 std::cerr << "Argument " << i << " is omitted.\n";
             }
         }
+        
         
         return true;
     }
@@ -294,11 +311,20 @@ public:
     
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
-        TypeSpec ret_ts = function->get_return_typespec();
-        unsigned ret_size = stack_size(ret_ts.measure());
+        Storage ret_storage;
+        unsigned ret_size = 0;
         
-        if (ret_size)
-            x64->op(SUBQ, RSP, ret_size);
+        if (result_variable) {
+            ret_storage = result_variable->get_storage(Storage(MEMORY, Address(RBP, 0)));
+            x64->op(LEA, RBX, ret_storage.address);
+            x64->op(PUSHQ, RBX);
+        }
+        else {
+            ret_size = stack_size(ts.measure());
+        
+            if (ret_size)
+                x64->op(SUBQ, RSP, ret_size);
+        }
         
         unsigned passed_size = 0;
         
@@ -325,16 +351,22 @@ public:
             pop_arg(function->get_pivot_typespec(), x64);
             
         //std::cerr << "Compiled call of " << function->name << ".\n";
-        switch (ts.where()) {
-        case NOWHERE:
-            return Storage();
-        case REGISTER:
-            ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
-            return Storage(REGISTER, reg);
-        case STACK:
-            return Storage(STACK);
-        default:
-            throw INTERNAL_ERROR;
+        if (result_variable) {
+            x64->op(ADDQ, RSP, 8);
+            return ret_storage;
+        }
+        else {
+            switch (ts.where()) {
+            case NOWHERE:
+                return Storage();
+            case REGISTER:
+                ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
+                return Storage(REGISTER, reg);
+            case STACK:
+                return Storage(STACK);
+            default:
+                throw INTERNAL_ERROR;
+            }
         }
     }
 };
@@ -371,7 +403,7 @@ public:
                 return false;
             }
             
-            TypeSpec result_ts = result_var->var_ts.rvalue();
+            TypeSpec result_ts = result_var->var_ts;
             Value *r = typize(args[0].get(), scope, &result_ts);
             TypeMatch match;
             
@@ -410,7 +442,16 @@ public:
 
         if (result) {
             Storage s = result->compile(x64);
-            Storage t = result_var->get_storage(fn_storage);
+            Storage t;
+            
+            if (result_var->is_alias) {
+                Register reg = (Regs::all_ptrs() & ~s.regs()).get_ptr();
+                x64->op(MOVQ, reg, result_var->get_storage(fn_storage).address);
+                t = Storage(MEMORY, Address(reg, 0));
+            }
+            else 
+                t = result_var->get_storage(fn_storage);
+                
             result->ts.store(s, t, x64);
         }
 
