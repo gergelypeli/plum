@@ -167,6 +167,15 @@ public:
     virtual void set_pivot_type_hint(TypeSpec t) {
         pivot_ts = t;
     }
+
+    virtual Value *lookup(std::string name, Value *pivot, TypeMatch &match) {
+        if (name == "<datatype>" && !pivot) {
+            match.push_back(VOID_TS);
+            return make_type_value(pivot_type_hint().prefix(type_type));
+        }
+        else
+            return Scope::lookup(name, pivot, match);
+    }
     
     virtual int reserve(unsigned s) {
         // Variables allocate nonzero bytes

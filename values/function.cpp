@@ -15,10 +15,6 @@ public:
         function = NULL;
     }
     
-    void set_function(Function *f) {
-        function = f;
-    }
-
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         fn_scope = new FunctionScope();
         scope->add(fn_scope);
@@ -62,6 +58,7 @@ public:
     }
 
     virtual Regs precompile(Regs) {
+        std::cerr << "XXX precompile function " << function->name << "\n";
         body->precompile();
         return Regs();
     }

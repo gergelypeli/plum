@@ -632,42 +632,42 @@ public:
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         // Only RBX is usable as scratch
-        unsigned size = measure(tsi);
-        std::cerr << "Storing record from " << s << " to " << t << "\n";
+        //unsigned size = measure(tsi);
+        //std::cerr << "Storing record from " << s << " to " << t << "\n";
         
         switch (s.where * t.where) {
         case NOWHERE_NOWHERE:
             return;
-        case NOWHERE_STACK:
-            x64->op(SUBQ, RSP, stack_size(size));
-            for (auto &member : members)
-                member.first.store(Storage(), Storage(MEMORY, Address(RSP, member.second)), x64);
-            return;
+        //case NOWHERE_STACK:
+        //    x64->op(SUBQ, RSP, stack_size(size));
+        //    for (auto &member : members)
+        //        member.first.store(Storage(), Storage(MEMORY, Address(RSP, member.second)), x64);
+        //    return;
         case NOWHERE_MEMORY:
             for (auto &member : members)
                 member.first.store(Storage(), Storage(MEMORY, t.address + member.second), x64);
             return;
             
-        case STACK_NOWHERE:
-            for (auto &member : members)  // FIXME: reverse!
-                member.first.destroy(Storage(MEMORY, Address(RSP, member.second)), x64);
-            x64->op(ADDQ, RSP, stack_size(size));
-            return;
-        case STACK_STACK:
-            return;
-        case STACK_MEMORY:  // moves data TODO: this could be a bigpop operation
-            for (auto &member : members)
-                member.first.store(Storage(MEMORY, Address(RSP, member.second)), Storage(MEMORY, t.address + member.second), x64);
-            x64->op(ADDQ, RSP, stack_size(size));
-            return;
+        //case STACK_NOWHERE:
+        //    for (auto &member : members)  // FIXME: reverse!
+        //        member.first.destroy(Storage(MEMORY, Address(RSP, member.second)), x64);
+        //    x64->op(ADDQ, RSP, stack_size(size));
+        //    return;
+        //case STACK_STACK:
+        //    return;
+        //case STACK_MEMORY:  // moves data TODO: this could be a bigpop operation
+        //    for (auto &member : members)
+        //        member.first.store(Storage(MEMORY, Address(RSP, member.second)), Storage(MEMORY, t.address + member.second), x64);
+        //    x64->op(ADDQ, RSP, stack_size(size));
+        //    return;
             
         case MEMORY_NOWHERE:
             return;
-        case MEMORY_STACK:  // duplicates data
-            x64->op(SUBQ, RSP, stack_size(size));
-            for (auto &member : members)
-                member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, Address(RSP, member.second)), x64);
-            return;
+        //case MEMORY_STACK:  // duplicates data
+        //    x64->op(SUBQ, RSP, stack_size(size));
+        //    for (auto &member : members)
+        //        member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, Address(RSP, member.second)), x64);
+        //    return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &member : members)
                 member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, t.address + member.second), x64);
@@ -707,7 +707,7 @@ public:
     }
 
     virtual StorageWhere where(TypeSpecIter tsi) {
-        return STACK;
+        return MEMORY;
     }
 
     virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
@@ -718,8 +718,8 @@ public:
         Address address;
         
         switch (s.where) {
-        case STACK:
-            address = Address(RSP, 0);
+        //case STACK:
+        //    address = Address(RSP, 0);
         case MEMORY:
             address = s.address;
             break;
@@ -740,17 +740,17 @@ public:
 
         x64->code_label(done);
         
-        if (!probe && s.where == STACK) {
-            // This is plain ugly, but can't tell now if any member has a nontrivial finalizer
-            unsigned size = measure(tsi);
+        //if (!probe && s.where == STACK) {
+        //    // This is plain ugly, but can't tell now if any member has a nontrivial finalizer
+        //    unsigned size = measure(tsi);
             
-            x64->op(SETNE, BL);
-            x64->op(PUSHQ, RBX);
-            destroy(tsi, Storage(MEMORY, Address(RSP, 8)), x64);
-            x64->op(POPQ, RBX);
-            x64->op(ADDQ, RSP, stack_size(size));
-            x64->op(CMPB, BL, 0);
-        }
+        //    x64->op(SETNE, BL);
+        //    x64->op(PUSHQ, RBX);
+        //    destroy(tsi, Storage(MEMORY, Address(RSP, 8)), x64);
+        //    x64->op(POPQ, RBX);
+        //    x64->op(ADDQ, RSP, stack_size(size));
+        //    x64->op(CMPB, BL, 0);
+        //}
                 
         return Storage(FLAGS, SETNE);
     }

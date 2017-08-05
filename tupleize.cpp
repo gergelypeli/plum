@@ -269,3 +269,77 @@ void print_expr_tree(Expr *e, int indent, const char *prefix) {
     for (auto &kv : e->kwargs)
         print_expr_tree(kv.second.get(), indent + 2, kv.first.c_str());
 }
+
+
+// Further helper functions
+
+Expr *mkexpr(std::string name, Expr *left = NULL, Expr *right = NULL) {
+    Expr *e = new Expr(Expr::IDENTIFIER, Token(), name);
+    
+    if (left)
+        e->set_pivot(left);
+        
+    if (right)
+        e->add_arg(right);
+        
+    return e;
+}
+
+
+Expr *mkctrl(std::string name, Expr *arg0 = NULL,
+    const char *kw1 = NULL, Expr *arg1 = NULL,
+    const char *kw2 = NULL, Expr *arg2 = NULL,
+    const char *kw3 = NULL, Expr *arg3 = NULL,
+    const char *kw4 = NULL, Expr *arg4 = NULL
+) {
+    Expr *e = new Expr(Expr::CONTROL, Token(), name);
+    
+    if (arg0)
+        e->add_arg(arg0);
+    
+    if (kw1 && arg1)
+        e->add_kwarg(kw1, arg1);
+
+    if (kw2 && arg2)
+        e->add_kwarg(kw2, arg2);
+
+    if (kw3 && arg3)
+        e->add_kwarg(kw3, arg3);
+
+    if (kw4 && arg4)
+        e->add_kwarg(kw4, arg4);
+        
+    return e;
+}
+
+
+Expr *mktupl(Expr *arg0 = NULL,
+    Expr *arg1 = NULL,
+    Expr *arg2 = NULL,
+    Expr *arg3 = NULL
+) {
+    Expr *e = new Expr(Expr::TUPLE, Token());
+    
+    if (arg0)
+        e->add_arg(arg0);
+    
+    if (arg1)
+        e->add_arg(arg1);
+    
+    if (arg2)
+        e->add_arg(arg2);
+    
+    if (arg3)
+        e->add_arg(arg3);
+        
+    return e;
+}
+
+
+Expr *mkdecl(std::string name, Expr *arg) {
+    Expr *e = new Expr(Expr::DECLARATION, Token(), name);
+    
+    e->add_arg(arg);
+        
+    return e;
+}

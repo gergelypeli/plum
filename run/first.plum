@@ -127,4 +127,9 @@ start? :Function as:
 
     print(make_pair second)
     
+    q? Pair
+    q first = 123
+    q second = 456
+    :if p == q then: prints("Equal tuples.") else: prints("Inequal tuples.")
+    
     :return

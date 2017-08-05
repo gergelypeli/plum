@@ -271,7 +271,6 @@ public:
         
         Storage ls = left->compile(x64);
         Label then_end;
-        Label else_end;
         
         switch (ls.where) {
         case CONSTANT:
@@ -299,15 +298,27 @@ public:
         }
 
         // Then branch, evaluate the right expression
-        right->compile_and_store(x64, s);
-        x64->op(JMP, else_end);
-        x64->code_label(then_end);
+        Storage rs = right->compile(x64);
         
-        // Else branch, create a clear value of the right type (use the same storage)
-        ts.store(Storage(), s, x64);
-        x64->code_label(else_end);
+        if (ls.where == FLAGS && rs.where == FLAGS && ls.bitset == rs.bitset) {
+            // Optimized special case it both subexpressions returned the same flags.
+            // This happens when the same comparison is used on both sides.
+            x64->code_label(then_end);
+            return ls;
+        }
+        else {
+            Label else_end;
+            
+            ts.store(rs, s, x64);
+            x64->op(JMP, else_end);
+            x64->code_label(then_end);
         
-        return s;
+            // Else branch, create a clear value of the right type (use the same storage)
+            ts.store(Storage(), s, x64);
+            x64->code_label(else_end);
+        
+            return s;
+        }
     }
 };
 

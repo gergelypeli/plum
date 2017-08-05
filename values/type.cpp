@@ -181,7 +181,7 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() == 1 || kwargs.size() != 0) {
+        if (args.size() == 0 || kwargs.size() != 0) {
             std::cerr << "Whacky record!\n";
             return false;
         }
@@ -197,21 +197,44 @@ public:
         
         for (auto &a : args) {
             Value *v = typize(a.get(), inner_scope);
-            
-            DeclarationValue *dv = declaration_value_cast(v);
-
-            if (!dv) {
-                std::cerr << "Not a declaration in a record definition!\n";
-                return false;
-            }
-            
             values.push_back(std::unique_ptr<Value>(v));
         }
+
+        std::vector<std::string> member_names;
+        
+        for (auto &item : inner_scope->contents) {
+            Variable *var = dynamic_cast<Variable *>(item.get());
+            
+            if (var)
+                member_names.push_back(var->name);
+        }
+
+        Expr *expr = NULL;
+        
+        for (auto &member_name : member_names) {
+            Expr *c = mkexpr("is_equal", mkexpr(member_name, mkexpr("$")), mkexpr(member_name, mkexpr("other")));
+        
+            if (expr)
+                expr = mkexpr("logical and", expr, c);
+            else
+                expr = c;
+        }
+    
+        Expr *fn = mkctrl("Function", mkexpr("Boolean"),
+            "from", mkdecl("other", mkexpr("<datatype>")),
+            "as", mkctrl("return", expr)
+        );
+
+        Expr *eqdecl = mkdecl("is_equal", fn);
+        Value *v = typize(eqdecl, inner_scope);
+        values.push_back(std::unique_ptr<Value>(v));
 
         return true;
     }
     
     virtual Regs precompile(Regs) {
+        std::cerr << "XXX record precompile.\n";
+        
         for (auto &v : values)
             v->precompile(Regs());
 

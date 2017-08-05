@@ -73,15 +73,28 @@ public:
         :Value(v->var_ts) {
         variable = v;
         pivot.reset(p);
+        reg = NOREG;
     }
     
     virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot ? pivot->precompile(preferred) : Regs();
+            
+        if (!variable->xxx_is_allocated)
+            throw INTERNAL_ERROR;
+            
+        //std::cerr << "Variable " << variable->name << (variable->is_alias ? " is " : " is not ") << "an alias.\n";
+
         if (variable->is_alias) {
+            // Just a sanity check, aliases are function arguments, and must have no pivot
+            if (pivot)
+                throw INTERNAL_ERROR;
+                
             reg = preferred.get_ptr();
-            return Regs().add(reg);
+            std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
+            return clob.add(reg);
         }
         else
-            return Regs();
+            return clob;
     }
     
     virtual Storage compile(X64 *x64) {

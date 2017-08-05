@@ -422,7 +422,7 @@ public:
             x64->op(CMPQ % os, ls.address, rs.reg);
             return Storage(FLAGS, opcode);
         case MEMORY_MEMORY:
-            x64->op(MOVB, reg, ls.address);
+            x64->op(MOVQ % os, reg, ls.address);
             x64->op(CMPQ % os, reg, rs.address);
             return Storage(FLAGS, opcode);
         default:
