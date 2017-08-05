@@ -372,6 +372,10 @@ Value *make_boolean_conversion_value(Value *p) {
 
 Value *make_boolean_not_value(Value *p) {
     TypeMatch match;
+    
+    if (!typematch(BOOLEAN_TS, p, match))
+        throw INTERNAL_ERROR;
+        
     return new BooleanOperationValue(COMPLEMENT, p, match);
 }
 

@@ -382,12 +382,8 @@ Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope) {
             return value;
     }
     
-    if (name == "is equal") {
-        Value *value = lookup("equality", pivot, expr, scope);
-        return value;
-    }
-    else if (name == "not equal") {
-        Value *value = lookup("equality", pivot, expr, scope);
+    if (name == "not_equal") {
+        Value *value = lookup("is_equal", pivot, expr, scope);
         return value ? make_boolean_not_value(value) : NULL;
     }
     
