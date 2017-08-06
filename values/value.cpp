@@ -308,6 +308,7 @@ public:
 #include "reference.cpp"
 #include "block.cpp"
 #include "type.cpp"
+#include "record.cpp"
 
 
 TypeSpec get_typespec(Value *value) {

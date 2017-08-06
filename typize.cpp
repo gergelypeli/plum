@@ -56,11 +56,11 @@ public:
     TypeSpec nonlvalue();
     TypeSpec nonrvalue();
     void store(Storage s, Storage t, X64 *x64);
-    void create(Storage s, X64 *x64);
+    void create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);
     bool pass_alias();
     void push_alias(Storage s, X64 *x64);
-    void pop_alias(Storage s, X64 *x64);
+    void pop_alias(X64 *x64);
     Value *initializer(std::string name);
 };
 
@@ -148,7 +148,7 @@ struct {
     //{ "incomparable", INCOMPARABLE },
     //{ "compare",  },
 }, integer_lvalue_operations[] = {
-    { "assign", ASSIGN },
+    { "assign other", ASSIGN },
     { "assign_plus", ASSIGN_ADD },
     { "assign_minus", ASSIGN_SUBTRACT },
     { "assign_star", ASSIGN_MULTIPLY },
@@ -280,14 +280,14 @@ Scope *init_builtins() {
     
     // Character operations
     Scope *char_scope = character_type->get_inner_scope();
-    char_scope->add(new TemplateOperation<IntegerOperationValue>("assign", CHARACTER_LVALUE_TS, ASSIGN));
+    char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
     char_scope->add(new TemplateOperation<CharacterStreamificationValue>("streamify", CHARACTER_TS, TWEAK));
     
     // Boolean operations
     Scope *bool_scope = boolean_type->get_inner_scope();
     typedef TemplateOperation<BooleanOperationValue> BooleanOperation;
     bool_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
-    bool_scope->add(new BooleanOperation("assign", BOOLEAN_LVALUE_TS, ASSIGN));
+    bool_scope->add(new BooleanOperation("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
 
     // Logical operations, unscoped
     root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", BOOLEAN_TS, AND));
@@ -295,12 +295,17 @@ Scope *init_builtins() {
 
     // Enum operations
     Scope *enum_scope = enumeration_metatype->get_inner_scope();
+    enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     enum_scope->add(new TemplateOperation<EnumStreamificationValue>("streamify", ANY_TS, TWEAK));
 
+    // Record operations
+    Scope *record_scope = record_metatype->get_inner_scope();
+    record_scope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
+
     // Reference operations, unscoped
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
-    root_scope->add(new ReferenceOperation("assign", ANY_REFERENCE_LVALUE_TS, ASSIGN));
+    root_scope->add(new ReferenceOperation("assign other", ANY_REFERENCE_LVALUE_TS, ASSIGN));
     root_scope->add(new ReferenceOperation("is_equal", ANY_REFERENCE_TS, EQUAL));
     root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
 

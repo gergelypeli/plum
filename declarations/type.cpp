@@ -62,16 +62,12 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    // NOTE: this method is not an assignment
-    // s being MEMORY means an initialized variable
-    // t being MEMORY means an uninitialized variable
     virtual void store(TypeSpecIter this_tsi, Storage s, Storage t, X64 *x64) {
         std::cerr << "Unstorable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
     
-    // NOTE: currently unused
-    virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         std::cerr << "Uncreatable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -86,7 +82,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
         std::cerr << "Unaliaspopable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -143,17 +139,6 @@ public:
         BinaryOp mov = MOVQ % os;
         
         switch (s.where * t.where) {
-        case NOWHERE_NOWHERE:
-            return;
-        case NOWHERE_REGISTER:
-            x64->op(mov, t.reg, 0);
-            return;
-        case NOWHERE_STACK:
-            x64->op(PUSHQ, 0);
-            return;
-        case NOWHERE_MEMORY:
-            x64->op(mov, t.address, 0);
-            
         case CONSTANT_NOWHERE:
             return;
         case CONSTANT_CONSTANT:
@@ -235,13 +220,43 @@ public:
         }
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         BinaryOp mov = MOVQ % os;
-
-        if (s.where == MEMORY)
-            x64->op(mov, s.address, 0);
-        else
+        
+        switch (s.where * t.where) {
+        case NOWHERE_MEMORY:
+            x64->op(mov, t.address, 0);
+            return;
+        case NOWHERE_REGISTER:  // this is used by the boolean and operation
+            x64->op(mov, t.reg, 0);
+            return;
+        case NOWHERE_STACK:  // this is used by pushing optional function arguments
+            x64->op(PUSHQ, 0);
+            return;
+        case CONSTANT_MEMORY:
+            x64->op(mov, t.address, s.value);
+            return;
+        case FLAGS_MEMORY:
+            x64->op(s.bitset, t.address);
+            return;
+        case REGISTER_MEMORY:
+            x64->op(mov, t.address, s.reg);
+            return;
+        case STACK_MEMORY:
+            if (size == 8)
+                x64->op(POPQ, t.address);
+            else {
+                x64->op(POPQ, RBX);
+                x64->op(mov, t.address, RBX);
+            }
+            return;
+        case MEMORY_MEMORY:
+            x64->op(mov, RBX, s.address);
+            x64->op(mov, t.address, RBX);
+            return;
+        default:
             throw INTERNAL_ERROR;
+        }
     }
 
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
@@ -260,7 +275,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
         x64->op(POPQ, RBX);
     }
 
@@ -375,22 +390,7 @@ public:
     }
 
     virtual void store(TypeSpecIter , Storage s, Storage t, X64 *x64) {
-        // Constants must be static arrays linked such that their offset
-        // fits in 32-bit relocations.
-        
         switch (s.where * t.where) {
-        case NOWHERE_NOWHERE:
-            return;
-        case NOWHERE_REGISTER:
-            x64->op(MOVQ, t.reg, 0);
-            return;
-        case NOWHERE_STACK:
-            x64->op(PUSHQ, 0);
-            return;
-        case NOWHERE_MEMORY:
-            x64->op(MOVQ, t.address, 0);
-            return;
-            
         case REGISTER_NOWHERE:
             x64->decref(s.reg);
             return;
@@ -402,7 +402,8 @@ public:
             x64->op(PUSHQ, s.reg);
             return;
         case REGISTER_MEMORY:
-            x64->op(MOVQ, t.address, s.reg);
+            x64->op(XCHGQ, t.address, s.reg);
+            x64->decref(s.reg);
             return;
 
         case STACK_NOWHERE:
@@ -415,7 +416,9 @@ public:
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            x64->op(POPQ, t.address);
+            x64->op(POPQ, RBX);
+            x64->op(XCHGQ, RBX, t.address);
+            x64->decref(RBX);
             return;
 
         case MEMORY_NOWHERE:
@@ -432,18 +435,35 @@ public:
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
             x64->incref(RBX);
-            x64->op(MOVQ, t.address, RBX);
+            x64->op(XCHGQ, RBX, t.address);
+            x64->decref(RBX);
             return;
         default:
             throw INTERNAL_ERROR;
         }
     }
 
-    virtual void create(TypeSpecIter , Storage s, X64 *x64) {
-        if (s.where == MEMORY)
-            x64->op(MOVQ, s.address, 0);
-        else
+    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        // Assume the target MEMORY is uninitialized
+        
+        switch (s.where * t.where) {
+        case NOWHERE_MEMORY:
+            x64->op(MOVQ, t.address, 0);
+            return;
+        case REGISTER_MEMORY:
+            x64->op(MOVQ, t.address, s.reg);
+            return;
+        case STACK_MEMORY:
+            x64->op(POPQ, t.address);
+            return;
+        case MEMORY_MEMORY:
+            x64->op(MOVQ, RBX, s.address);
+            x64->incref(RBX);
+            x64->op(MOVQ, t.address, RBX);
+            return;
+        default:
             throw INTERNAL_ERROR;
+        }
     }
 
     virtual void destroy(TypeSpecIter , Storage s, X64 *x64) {
@@ -464,7 +484,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
         x64->op(POPQ, RBX);
     }
 
@@ -557,9 +577,9 @@ public:
         return (*tsi)->store(tsi, s, t, x64);
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         tsi++;
-        (*tsi)->create(tsi, s, x64);
+        (*tsi)->create(tsi, s, t, x64);
     }
 
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
@@ -572,9 +592,9 @@ public:
         (*tsi)->push_alias(tsi, s, x64);
     }
 
-    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
         tsi++;
-        (*tsi)->pop_alias(tsi, s, x64);
+        (*tsi)->pop_alias(tsi, x64);
     }
 };
 
@@ -631,43 +651,9 @@ public:
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        // Only RBX is usable as scratch
-        //unsigned size = measure(tsi);
-        //std::cerr << "Storing record from " << s << " to " << t << "\n";
-        
         switch (s.where * t.where) {
-        case NOWHERE_NOWHERE:
-            return;
-        //case NOWHERE_STACK:
-        //    x64->op(SUBQ, RSP, stack_size(size));
-        //    for (auto &member : members)
-        //        member.first.store(Storage(), Storage(MEMORY, Address(RSP, member.second)), x64);
-        //    return;
-        case NOWHERE_MEMORY:
-            for (auto &member : members)
-                member.first.store(Storage(), Storage(MEMORY, t.address + member.second), x64);
-            return;
-            
-        //case STACK_NOWHERE:
-        //    for (auto &member : members)  // FIXME: reverse!
-        //        member.first.destroy(Storage(MEMORY, Address(RSP, member.second)), x64);
-        //    x64->op(ADDQ, RSP, stack_size(size));
-        //    return;
-        //case STACK_STACK:
-        //    return;
-        //case STACK_MEMORY:  // moves data TODO: this could be a bigpop operation
-        //    for (auto &member : members)
-        //        member.first.store(Storage(MEMORY, Address(RSP, member.second)), Storage(MEMORY, t.address + member.second), x64);
-        //    x64->op(ADDQ, RSP, stack_size(size));
-        //    return;
-            
         case MEMORY_NOWHERE:
             return;
-        //case MEMORY_STACK:  // duplicates data
-        //    x64->op(SUBQ, RSP, stack_size(size));
-        //    for (auto &member : members)
-        //        member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, Address(RSP, member.second)), x64);
-        //    return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &member : members)
                 member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, t.address + member.second), x64);
@@ -677,12 +663,19 @@ public:
         }
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, X64 *x64) {
-        if (s.where == MEMORY)
+    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        switch (s.where * t.where) {
+        case NOWHERE_MEMORY:
             for (auto &member : members)
-                member.first.create(Storage(MEMORY, s.address + member.second), x64);
-        else
+                member.first.create(Storage(), Storage(MEMORY, t.address + member.second), x64);
+            return;
+        case MEMORY_MEMORY:  // duplicates data
+            for (auto &member : members)
+                member.first.create(Storage(MEMORY, s.address + member.second), Storage(MEMORY, t.address + member.second), x64);
+            return;
+        default:
             throw INTERNAL_ERROR;
+        }
     }
 
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
@@ -702,7 +695,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void pop_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
         x64->op(POPQ, RBX);
     }
 
@@ -718,8 +711,6 @@ public:
         Address address;
         
         switch (s.where) {
-        //case STACK:
-        //    address = Address(RSP, 0);
         case MEMORY:
             address = s.address;
             break;
@@ -740,18 +731,6 @@ public:
 
         x64->code_label(done);
         
-        //if (!probe && s.where == STACK) {
-        //    // This is plain ugly, but can't tell now if any member has a nontrivial finalizer
-        //    unsigned size = measure(tsi);
-            
-        //    x64->op(SETNE, BL);
-        //    x64->op(PUSHQ, RBX);
-        //    destroy(tsi, Storage(MEMORY, Address(RSP, 8)), x64);
-        //    x64->op(POPQ, RBX);
-        //    x64->op(ADDQ, RSP, stack_size(size));
-        //    x64->op(CMPB, BL, 0);
-        //}
-                
         return Storage(FLAGS, SETNE);
     }
     

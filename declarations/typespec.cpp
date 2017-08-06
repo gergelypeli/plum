@@ -55,10 +55,10 @@ void TypeSpec::push_alias(Storage s, X64 *x64) {
 }
 
 
-void TypeSpec::pop_alias(Storage s, X64 *x64) {
+void TypeSpec::pop_alias(X64 *x64) {
     TypeSpecIter this_tsi(begin());
     
-    return (*this_tsi)->pop_alias(this_tsi, s, x64);
+    return (*this_tsi)->pop_alias(this_tsi, x64);
 }
 
 
@@ -132,9 +132,9 @@ void TypeSpec::store(Storage s, Storage t, X64 *x64) {
 }
 
 
-void TypeSpec::create(Storage s, X64 *x64) {
+void TypeSpec::create(Storage s, Storage t, X64 *x64) {
     TypeSpecIter tsi(begin());
-    return (*tsi)->create(tsi, s, x64);
+    return (*tsi)->create(tsi, s, t, x64);
 }
 
 

@@ -179,36 +179,8 @@ public:
     RecordDefinitionValue()
         :Value(METATYPE_TS) {
     }
-    
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() == 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky record!\n";
-            return false;
-        }
 
-        // Order matters here, the inner_scope is created first, then the RecordType,
-        // so this is the order they will be allocated. This matters in RecordType
-        // when gathering the offsets of member variables.
-        inner_scope = new DataScope;
-        scope->add(inner_scope);
-
-        record_type.reset(new RecordType("<anonymous>", inner_scope));
-        inner_scope->set_pivot_type_hint(TypeSpec { record_type.get() });
-        
-        for (auto &a : args) {
-            Value *v = typize(a.get(), inner_scope);
-            values.push_back(std::unique_ptr<Value>(v));
-        }
-
-        std::vector<std::string> member_names;
-        
-        for (auto &item : inner_scope->contents) {
-            Variable *var = dynamic_cast<Variable *>(item.get());
-            
-            if (var)
-                member_names.push_back(var->name);
-        }
-
+    Expr *make_equality(std::vector<std::string> member_names) {
         Expr *expr = NULL;
         
         for (auto &member_name : member_names) {
@@ -225,9 +197,42 @@ public:
             "as", mkctrl("return", expr)
         );
 
-        Expr *eqdecl = mkdecl("is_equal", fn);
-        Value *v = typize(eqdecl, inner_scope);
-        values.push_back(std::unique_ptr<Value>(v));
+        return mkdecl("is_equal", fn);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() == 0 || kwargs.size() != 0) {
+            std::cerr << "Whacky record!\n";
+            return false;
+        }
+
+        // Order matters here, the inner_scope is created first, then the RecordType,
+        // so this is the order they will be allocated. This matters in RecordType
+        // when gathering the offsets of member variables.
+        inner_scope = new DataScope;
+        scope->add(inner_scope);
+
+        record_type.reset(new RecordType("<anonymous>", inner_scope));
+        inner_scope->set_pivot_type_hint(TypeSpec { record_type.get() });
+        inner_scope->set_meta_scope(record_metatype->get_inner_scope());
+        
+        for (auto &a : args) {
+            Value *v = typize(a.get(), inner_scope);
+            values.push_back(std::unique_ptr<Value>(v));
+        }
+
+        std::vector<std::string> member_names;
+        
+        for (auto &item : inner_scope->contents) {
+            Variable *var = dynamic_cast<Variable *>(item.get());
+            
+            if (var)
+                member_names.push_back(var->name);
+        }
+
+        // TODO: this should be a fallback if the user didn't define his own
+        Value *eq = typize(make_equality(member_names), inner_scope);
+        values.push_back(std::unique_ptr<Value>(eq));
 
         return true;
     }

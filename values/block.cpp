@@ -249,10 +249,10 @@ public:
     
     virtual Storage compile(X64 *x64) {
         if (var) {
-            Storage s = value->compile(x64);
+            Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
             Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
             Storage t = var->get_storage(fn_storage);
-            var->var_ts.store(s, t, x64);  // this can initialize from NOWHERE, too
+            var->var_ts.create(s, t, x64);
             return t;
         }
         else {

@@ -154,14 +154,20 @@ Declaration *declaration_cast(Scope *scope) {
 class DataScope: public Scope {
 public:
     TypeSpec pivot_ts;
+    Scope *meta_scope;
     
     DataScope()
         :Scope() {
         pivot_ts = BOGUS_TS;
+        meta_scope = NULL;
     }
     
     virtual bool is_pure() {
         return true;
+    }
+    
+    virtual void set_meta_scope(Scope *ms) {
+        meta_scope = ms;
     }
     
     virtual void set_pivot_type_hint(TypeSpec t) {
@@ -173,8 +179,14 @@ public:
             match.push_back(VOID_TS);
             return make_type_value(pivot_type_hint().prefix(type_type));
         }
-        else
-            return Scope::lookup(name, pivot, match);
+        else {
+            Value *value = Scope::lookup(name, pivot, match);
+            
+            if (!value && meta_scope)
+                value = meta_scope->lookup(name, pivot, match);
+                
+            return value;
+        }
     }
     
     virtual int reserve(unsigned s) {

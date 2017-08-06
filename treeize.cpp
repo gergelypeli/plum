@@ -134,7 +134,7 @@ struct {
     { "||",  "logical or", LOGICAL_LOW },
     { "^^",  "logical xor", LOGICAL_LOW },
     
-    { "=",   "assign", ASSIGNING },
+    { "=",   "assign other", ASSIGNING },
     { "+=",  "assign_plus", ASSIGNING },
     { "-=",  "assign_minus", ASSIGNING },
     { "*=",  "assign_star", ASSIGNING },
