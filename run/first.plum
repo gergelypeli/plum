@@ -24,6 +24,9 @@ Pair? :Record
     meth? :Function Integer as:
         prints("Meth!")
         :return $ first + $ second
+
+    dump? :Function as:
+        prints("Pair({x}, {y})" { x: $ first, y: $ second })
         
         
 make_pair? :Function Pair as:
@@ -133,5 +136,7 @@ start? :Function as:
     :if p == q then: prints("Equal tuples.") else: prints("Inequal tuples.")
     
     print_pair
+    
+    p dump dump
     
     :return

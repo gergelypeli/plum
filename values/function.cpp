@@ -157,6 +157,9 @@ public:
         
         for (unsigned i = 0; i < function->get_argument_count(); i++)
             items.push_back(NULL);
+            
+        if (ts == VOID_TS)
+            ts = f->get_pivot_typespec();
     }
 
     virtual bool check_arg(unsigned i, Value *v) {
@@ -184,8 +187,10 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (ts != VOID_TS && ts.where(true) == ALIAS) {
-            result_variable = new Variable("<result>", VOID_TS, ts);
+        TypeSpec ret_ts = function->get_return_typespec();
+        
+        if (ret_ts != VOID_TS && ret_ts.where(true) == ALIAS) {
+            result_variable = new Variable("<result>", VOID_TS, ret_ts);
             scope->add(result_variable);
         }
 
@@ -278,7 +283,8 @@ public:
             if (item)
                 item->precompile();
         
-        reg = preferred.get_gpr();
+        if (ts != VOID_TS)
+            reg = ts.where(false) == REGISTER ? preferred.get_gpr() : preferred.get_ptr();
         
         return Regs::all();  // assume everything is clobbered
     }
@@ -308,20 +314,21 @@ public:
     
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
-        bool is_void = ts == VOID_TS;
+        TypeSpec ret_ts = function->get_return_typespec();
+        bool is_void = ret_ts == VOID_TS;
         Storage ret_storage;
         
         if (!is_void) {
-            StorageWhere ret_where = ts.where(true);
+            StorageWhere ret_where = ret_ts.where(true);
         
             if (ret_where == ALIAS) {
                 // pass an alias to the allocated result variable
                 ret_storage = result_variable->get_storage(Storage(MEMORY, Address(RBP, 0)));
-                ts.store(ret_storage, Storage(ALISTACK), x64);
+                ret_ts.store(ret_storage, Storage(ALISTACK), x64);
             }
             else if (ret_where == MEMORY) {
                 // Must skip some place for uninitialized data
-                x64->op(SUBQ, RSP, ts.measure(STACK));
+                x64->op(SUBQ, RSP, ret_ts.measure(STACK));
             }
             else
                 throw INTERNAL_ERROR;
@@ -348,23 +355,55 @@ public:
         for (int i = items.size() - 1; i >= 0; i--)
             pop_arg(function->get_argument_typespec(i), x64);
             
-        if (pivot)
-            pop_arg(function->get_pivot_typespec(), x64);
+        if (pivot) {
+            TypeSpec pivot_ts = function->get_pivot_typespec();
+            
+            if (is_void) {
+                // Return the pivot argument instead of nothing.
+                // Choose a popped storage just like with normal return values.
+                
+                switch (pivot_ts.where(true)) {
+                case MEMORY:
+                    switch (pivot_ts.where(false)) {
+                    case REGISTER:
+                        pivot_ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
+                        return Storage(REGISTER, reg);
+                    default:
+                        throw INTERNAL_ERROR;
+                    }
+                case ALIAS:
+                    switch (pivot_ts.where(false)) {
+                    case MEMORY:
+                        // Pop the address into a MEMORY with a dynamic base register
+                        pivot_ts.store(Storage(ALISTACK), Storage(MEMORY, Address(reg, 0)), x64);
+                        return Storage(MEMORY, Address(reg, 0));
+                    default:
+                        throw INTERNAL_ERROR;
+                    }
+                default:
+                    throw INTERNAL_ERROR;
+                }
+            }
+            
+            pop_arg(pivot_ts, x64);
+        }
             
         //std::cerr << "Compiled call of " << function->name << ".\n";
         if (is_void)
             return Storage();
         else if (result_variable) {
-            ts.store(Storage(ALISTACK), Storage(), x64);
+            // No need to keep anything on the stack, the result is in a temp variable
+            // at an RBP relative address (popping an ALISTACK to such MEMORY is illegal).
+            ret_ts.store(Storage(ALISTACK), Storage(), x64);
             return ret_storage;
         }
         else {
-            switch (ts.where(false)) {
+            // Return value in a non-STACK storage
+            
+            switch (ret_ts.where(false)) {
             case REGISTER:
-                ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
+                ret_ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
                 return Storage(REGISTER, reg);
-            case STACK:
-                return Storage(STACK);
             default:
                 throw INTERNAL_ERROR;
             }
