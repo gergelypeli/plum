@@ -42,13 +42,8 @@ public:
             throw INTERNAL_ERROR;
     }
     
-    virtual StorageWhere where(TypeSpecIter tsi) {
+    virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
         std::cerr << "Nowhere type: " << name << "!\n";
-        throw INTERNAL_ERROR;
-    }
-
-    virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
-        std::cerr << "Unpassable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
@@ -57,14 +52,64 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual unsigned measure(TypeSpecIter tsi) {
-        std::cerr << "Unmeasurable type: " << name << "!\n";
-        throw INTERNAL_ERROR;
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+        switch (where) {
+        case ALISTACK:
+            return 8;
+        case ALIAS:
+            return 8;
+        default:
+            std::cerr << "Unmeasurable type: " << name << "!\n";
+            throw INTERNAL_ERROR;
+        }
     }
 
     virtual void store(TypeSpecIter this_tsi, Storage s, Storage t, X64 *x64) {
-        std::cerr << "Unstorable type: " << name << "!\n";
-        throw INTERNAL_ERROR;
+        switch (s.where * t.where) {
+        case MEMORY_ALISTACK:
+            x64->op(LEA, RBX, s.address);
+            x64->op(PUSHQ, RBX);
+            return;
+        case MEMORY_ALIAS:
+            x64->op(LEA, RBX, s.address);
+            x64->op(MOVQ, t.address, RBX);
+            return;
+            
+        case ALISTACK_NOWHERE:
+            x64->op(ADDQ, RSP, 8);
+            return;
+        case ALISTACK_MEMORY:
+            if (t.address.base == NOREG || t.address.index != NOREG || t.address.offset != 0)
+                throw INTERNAL_ERROR;
+                
+            x64->op(POPQ, t.address.base);
+            return;
+        case ALISTACK_ALISTACK:
+            return;
+        case ALISTACK_ALIAS:
+            x64->op(POPQ, t.address);
+            return;
+            
+        case ALIAS_NOWHERE:
+            return;
+        case ALIAS_MEMORY:
+            if (t.address.base == NOREG || t.address.index != NOREG || t.address.offset != 0)
+                throw INTERNAL_ERROR;
+                
+            x64->op(MOVQ, t.address.base, s.address);
+            return;
+        case ALIAS_ALISTACK:
+            x64->op(PUSHQ, s.address);
+            return;
+        case ALIAS_ALIAS:
+            x64->op(MOVQ, RBX, s.address);
+            x64->op(MOVQ, t.address, RBX);
+            return;
+            
+        default:
+            std::cerr << "Unstorable type: " << name << "!\n";
+            throw INTERNAL_ERROR;
+        }
     }
     
     virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
@@ -77,17 +122,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
-        std::cerr << "Unaliaspushable type: " << name << "!\n";
-        throw INTERNAL_ERROR;
-    }
-
-    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
-        std::cerr << "Unaliaspopable type: " << name << "!\n";
-        throw INTERNAL_ERROR;
-    }
-    
-    virtual Value *initializer(TypeSpecIter tsi, std::string n) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -102,13 +137,13 @@ class SpecialType: public Type {
 public:
     SpecialType(std::string name, unsigned pc):Type(name, pc) {}
     
-    virtual unsigned measure(TypeSpecIter ) {
+    virtual unsigned measure(TypeSpecIter, StorageWhere) {
         return 0;
     }
 
-    virtual StorageWhere where(TypeSpecIter tsi) {
-        return NOWHERE;
-    }
+    //virtual StorageWhere where(TypeSpecIter tsi) {
+    //    return NOWHERE;
+    //}
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
@@ -130,8 +165,15 @@ public:
         os = (s == 1 ? 0 : s == 2 ? 1 : s == 4 ? 2 : s == 8 ? 3 : throw INTERNAL_ERROR);        
     }
     
-    virtual unsigned measure(TypeSpecIter tsi) {
-        return size;
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+        switch (where) {
+        case STACK:
+            return stack_size(size);
+        case MEMORY:
+            return size;
+        default:
+            return Type::measure(tsi, where);
+        }
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
@@ -215,8 +257,9 @@ public:
             x64->op(mov, RBX, s.address);
             x64->op(mov, t.address, RBX);
             return;
+        
         default:
-            throw INTERNAL_ERROR;
+            Type::store(tsi, s, t, x64);
         }
     }
 
@@ -266,25 +309,8 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
-        if (s.where == MEMORY) {
-            x64->op(LEA, RBX, s.address);
-            x64->op(PUSHQ, RBX);
-        }
-        else
-            throw INTERNAL_ERROR;
-    }
-
-    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
-        x64->op(POPQ, RBX);
-    }
-
-    virtual StorageWhere where(TypeSpecIter tsi) {
-        return REGISTER;
-    }
-
-    virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
-        return is_lvalue;
+    virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
+        return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : REGISTER));
     }
 
     virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
@@ -336,7 +362,7 @@ public:
         inner_scope.reset(new Scope);
     }
 
-    virtual Value *initializer(TypeSpecIter tsi, std::string name) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name) {
         if (name == "false")
             return make_basic_value(TypeSpec(tsi), 0);
         else if (name == "true")
@@ -362,7 +388,7 @@ public:
         inner_scope.reset(new Scope);
     }
 
-    virtual Value *initializer(TypeSpecIter tsi, std::string name) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name) {
         if (name == "zero")
             return make_basic_value(TypeSpec(tsi), 0);
         else if (name == "unicode")
@@ -385,11 +411,18 @@ public:
         :Type(name, 1) {
     }
     
-    virtual unsigned measure(TypeSpecIter ) {
-        return 8;
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+        switch (where) {
+        case STACK:
+            return 8;
+        case MEMORY:
+            return 8;
+        default:
+            return Type::measure(tsi, where);
+        }
     }
 
-    virtual void store(TypeSpecIter , Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
         case REGISTER_NOWHERE:
             x64->decref(s.reg);
@@ -439,7 +472,7 @@ public:
             x64->decref(RBX);
             return;
         default:
-            throw INTERNAL_ERROR;
+            Type::store(tsi, s, t, x64);
         }
     }
 
@@ -475,25 +508,8 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
-        if (s.where == MEMORY) {
-            x64->op(LEA, RBX, s.address);
-            x64->op(PUSHQ, RBX);
-        }
-        else
-            throw INTERNAL_ERROR;
-    }
-
-    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
-        x64->op(POPQ, RBX);
-    }
-
-    virtual StorageWhere where(TypeSpecIter ) {
-        return REGISTER;
-    }
-
-    virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
-        return is_lvalue;
+    virtual StorageWhere where(TypeSpecIter, bool is_arg, bool is_lvalue) {
+        return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : REGISTER));
     }
 
     virtual Storage boolval(TypeSpecIter , Storage s, X64 *x64, bool probe) {
@@ -514,7 +530,7 @@ public:
         }
     }
 
-    virtual Value *initializer(TypeSpecIter tsi, std::string name) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name) {
         if (name == "null") {
             return make_null_reference_value(TypeSpec(tsi));
         }
@@ -552,14 +568,9 @@ public:
         :Type(n, 1) {
     }
 
-    virtual StorageWhere where(TypeSpecIter this_tsi) {
+    virtual StorageWhere where(TypeSpecIter this_tsi, bool is_arg, bool is_lvalue) {
         this_tsi++;
-        return (*this_tsi)->where(this_tsi);
-    }
-
-    virtual bool pass_alias(TypeSpecIter this_tsi, bool is_lvalue) {
-        this_tsi++;
-        return (*this_tsi)->pass_alias(this_tsi, is_lvalue || this == lvalue_type);
+        return (*this_tsi)->where(this_tsi, is_arg, is_lvalue || this == lvalue_type);
     }
 
     virtual Storage boolval(TypeSpecIter this_tsi, Storage s, X64 *x64, bool probe) {
@@ -567,9 +578,9 @@ public:
         return (*this_tsi)->boolval(this_tsi, s, x64, probe);
     }
     
-    virtual unsigned measure(TypeSpecIter tsi) {
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
         tsi++;
-        return (*tsi)->measure(tsi);
+        return (*tsi)->measure(tsi, where);
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
@@ -586,16 +597,6 @@ public:
         tsi++;
         (*tsi)->destroy(tsi, s, x64);
     }
-
-    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
-        tsi++;
-        (*tsi)->push_alias(tsi, s, x64);
-    }
-
-    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
-        tsi++;
-        (*tsi)->pop_alias(tsi, x64);
-    }
 };
 
 
@@ -611,7 +612,7 @@ public:
         stringifications_label = sl;
     }
     
-    virtual Value *initializer(TypeSpecIter tsi, std::string n) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make_basic_value(TypeSpec(tsi), i);
@@ -646,8 +647,15 @@ public:
         }
     }
     
-    virtual unsigned measure(TypeSpecIter tsi) {
-        return inner_scope->get_size();
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+        switch (where) {
+        case MEMORY:
+            return inner_scope->get_size();
+        case STACK:
+            return stack_size(inner_scope->get_size());
+        default:
+            return Type::measure(tsi, where);
+        }
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
@@ -659,7 +667,7 @@ public:
                 member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, t.address + member.second), x64);
             return;
         default:
-            throw INTERNAL_ERROR;
+            Type::store(tsi, s, t, x64);
         }
     }
 
@@ -686,27 +694,10 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void push_alias(TypeSpecIter tsi, Storage s, X64 *x64) {
-        if (s.where == MEMORY) {
-            x64->op(LEA, RBX, s.address);
-            x64->op(PUSHQ, RBX);
-        }
-        else
-            throw INTERNAL_ERROR;
+    virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
+        return (is_arg ? ALIAS : MEMORY);
     }
-
-    virtual void pop_alias(TypeSpecIter tsi, X64 *x64) {
-        x64->op(POPQ, RBX);
-    }
-
-    virtual StorageWhere where(TypeSpecIter tsi) {
-        return MEMORY;
-    }
-
-    virtual bool pass_alias(TypeSpecIter tsi, bool is_lvalue) {
-        return true;
-    }
-
+    
     virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
         Address address;
         
@@ -734,7 +725,7 @@ public:
         return Storage(FLAGS, SETNE);
     }
     
-    virtual Value *initializer(TypeSpecIter tsi, std::string n) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n) {
         return NULL;
     }
     

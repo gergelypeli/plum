@@ -34,31 +34,10 @@ TypeSpec::TypeSpec(TypeSpecIter tsi) {
 }
 
 
-StorageWhere TypeSpec::where() {
+StorageWhere TypeSpec::where(bool is_arg) {
     TypeSpecIter this_tsi(begin());
     
-    return (*this_tsi)->where(this_tsi);
-}
-
-
-bool TypeSpec::pass_alias() {
-    TypeSpecIter this_tsi(begin());
-    
-    return (*this_tsi)->pass_alias(this_tsi, false);  // assume not lvalue
-}
-
-
-void TypeSpec::push_alias(Storage s, X64 *x64) {
-    TypeSpecIter this_tsi(begin());
-    
-    return (*this_tsi)->push_alias(this_tsi, s, x64);
-}
-
-
-void TypeSpec::pop_alias(X64 *x64) {
-    TypeSpecIter this_tsi(begin());
-    
-    return (*this_tsi)->pop_alias(this_tsi, x64);
+    return (*this_tsi)->where(this_tsi, is_arg, false);  // initially assume not lvalue
 }
 
 
@@ -120,9 +99,9 @@ TypeSpec TypeSpec::nonrvalue() {
 }
 
 
-unsigned TypeSpec::measure() {
+unsigned TypeSpec::measure(StorageWhere where) {
     TypeSpecIter tsi(begin());
-    return (*tsi)->measure(tsi);
+    return (*tsi)->measure(tsi, where);
 }
 
 
@@ -144,9 +123,9 @@ void TypeSpec::destroy(Storage s, X64 *x64) {
 }
 
 
-Value *TypeSpec::initializer(std::string name) {
+Value *TypeSpec::lookup_initializer(std::string name) {
     TypeSpecIter tsi(begin());
-    return (*tsi)->initializer(tsi, name);
+    return (*tsi)->lookup_initializer(tsi, name);
 }
 
 

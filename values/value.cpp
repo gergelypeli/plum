@@ -82,9 +82,7 @@ public:
         if (!variable->xxx_is_allocated)
             throw INTERNAL_ERROR;
             
-        //std::cerr << "Variable " << variable->name << (variable->is_alias ? " is " : " is not ") << "an alias.\n";
-
-        if (variable->is_alias) {
+        if (variable->where == ALIAS) {
             // Just a sanity check, aliases are function arguments, and must have no pivot
             if (pivot)
                 throw INTERNAL_ERROR;
@@ -98,11 +96,6 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        if (variable->is_alias) {
-            x64->op(MOVQ, reg, Address(RBP, variable->offset));
-            return Storage(MEMORY, Address(reg, 0));
-        }
-
         Storage s;
         
         if (pivot)
@@ -110,42 +103,17 @@ public:
         else
             s = Storage(MEMORY, Address(RBP, 0));
         
-        return variable->get_storage(s);
+        Storage t = variable->get_storage(s);
+        
+        if (t.where == ALIAS) {
+            x64->op(MOVQ, reg, t.address);
+            t = Storage(MEMORY, Address(reg, 0));
+        }
+        
+        return t;    
     }
 };
 
-/*
-class ArgumentValue: public Value {
-public:
-    Argument *argument;
-    Register reg;
-    
-    ArgumentValue(Argument *a)
-        :Value(a->var_ts) {
-        argument = a;
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        if (argument->is_alias) {
-            reg = preferred.get_ptr();
-            return Regs().add(reg);
-        }
-        else
-            return Regs();
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Storage s;
-        
-        if (argument->is_alias) {
-            x64->op(MOVQ, reg, Address(RBP, argument->offset));
-            return Storage(MEMORY, Address(reg, 0));
-        }
-        else
-            return Storage(MEMORY, Address(RBP, argument->offset));
-    }
-};
-*/
 
 class GenericOperationValue: public Value {
 public:

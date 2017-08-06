@@ -108,9 +108,7 @@ public:
             if (v) {
                 arg_tss.push_back(v->var_ts);  // FIXME
                 arg_names.push_back(v->name);
-                
-                if (v->var_ts.pass_alias())
-                    v->be_alias();
+                v->be_argument();
             }
         }
 
@@ -119,8 +117,7 @@ public:
             Variable *v = dynamic_cast<Variable *>(d.get());
             
             if (v) {
-                if (v->var_ts.pass_alias())
-                    v->be_alias();
+                v->be_argument();
             }
         }
         
@@ -129,9 +126,7 @@ public:
             
             if (v) {
                 result_ts = v->var_ts;  // FIXME
-                
-                if (v->var_ts.pass_alias())
-                    v->be_alias();
+                v->be_argument();
             }
             else
                 throw INTERNAL_ERROR;
@@ -190,7 +185,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (ts != VOID_TS && ts.pass_alias()) {
+        if (ts != VOID_TS && ts.where(true) == ALIAS) {
             result_variable = new Variable("<result>", VOID_TS, ts);
             scope->add(result_variable);
         }
@@ -279,54 +274,47 @@ public:
     }
     
     virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+        StorageWhere where = arg_ts.where(true);
+        where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+
         if (arg_value) {
             // Specified argument
-            Storage arg_storage = arg_value->compile(x64);
-            
-            if (arg_ts.pass_alias()) {
-                arg_ts.push_alias(arg_storage, x64);
-                return 8;
-            }
-            else {
-                arg_ts.store(arg_storage, Storage(STACK), x64);
-                return stack_size(arg_ts.measure());
-            }
+            arg_value->compile_and_store(x64, Storage(where));
         }
         else {
-            // Optional argument
-            if (arg_ts.pass_alias()) {
-                // FIXME: implement optional alias arguments!
-                throw INTERNAL_ERROR;
-            }
-            else {
-                arg_ts.create(Storage(), Storage(STACK), x64);
-                return stack_size(arg_ts.measure());
-            }
+            // Optional argument (FIXME: can't create ALIAS, must allocate something first!)
+            arg_ts.create(Storage(), Storage(where), x64);
         }
+        
+        return arg_ts.measure(where);
     }
 
     virtual void pop_arg(TypeSpec arg_ts, X64 *x64) {
-        if (arg_ts.pass_alias())
-            arg_ts.pop_alias(x64);
-        else
-            arg_ts.store(Storage(STACK), Storage(), x64);
+        StorageWhere where = arg_ts.where(true);
+        where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+        
+        arg_ts.store(Storage(where), Storage(), x64);
     }
     
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
+        bool is_void = ts == VOID_TS;
         Storage ret_storage;
-        unsigned ret_size = 0;
         
-        if (result_variable) {
-            ret_storage = result_variable->get_storage(Storage(MEMORY, Address(RBP, 0)));
-            x64->op(LEA, RBX, ret_storage.address);
-            x64->op(PUSHQ, RBX);
-        }
-        else {
-            ret_size = stack_size(ts.measure());
+        if (!is_void) {
+            StorageWhere ret_where = ts.where(true);
         
-            if (ret_size)
-                x64->op(SUBQ, RSP, ret_size);
+            if (ret_where == ALIAS) {
+                // pass an alias to the allocated result variable
+                ret_storage = result_variable->get_storage(Storage(MEMORY, Address(RBP, 0)));
+                ts.store(ret_storage, Storage(ALISTACK), x64);
+            }
+            else if (ret_where == MEMORY) {
+                // Must skip some place for uninitialized data
+                x64->op(SUBQ, RSP, ts.measure(STACK));
+            }
+            else
+                throw INTERNAL_ERROR;
         }
         
         unsigned passed_size = 0;
@@ -344,7 +332,7 @@ public:
         
         x64->op(CALL, function->x64_label);
         
-        if (function->is_sysv && ret_size > 0)
+        if (function->is_sysv && !is_void)
             sysv_epilogue(x64, passed_size);
         
         for (int i = items.size() - 1; i >= 0; i--)
@@ -354,14 +342,14 @@ public:
             pop_arg(function->get_pivot_typespec(), x64);
             
         //std::cerr << "Compiled call of " << function->name << ".\n";
-        if (result_variable) {
-            x64->op(ADDQ, RSP, 8);
+        if (is_void)
+            return Storage();
+        else if (result_variable) {
+            ts.store(Storage(ALISTACK), Storage(), x64);
             return ret_storage;
         }
         else {
-            switch (ts.where()) {
-            case NOWHERE:
-                return Storage();
+            switch (ts.where(false)) {
             case REGISTER:
                 ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
                 return Storage(REGISTER, reg);
@@ -445,15 +433,14 @@ public:
 
         if (result) {
             Storage s = result->compile(x64);
-            Storage t;
+            Storage t = result_var->get_storage(fn_storage);
             
-            if (result_var->is_alias) {
+            if (t.where == ALIAS) {
                 Register reg = (Regs::all_ptrs() & ~s.regs()).get_ptr();
-                x64->op(MOVQ, reg, result_var->get_storage(fn_storage).address);
-                t = Storage(MEMORY, Address(reg, 0));
+                Storage m = Storage(MEMORY, Address(reg, 0));
+                result_var->var_ts.store(t, m, x64);
+                t = m;
             }
-            else 
-                t = result_var->get_storage(fn_storage);
                 
             result->ts.store(s, t, x64);
         }

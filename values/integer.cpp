@@ -8,7 +8,7 @@ public:
     
     IntegerOperationValue(OperationType o, Value *pivot, TypeMatch &match)
         :GenericOperationValue(o, match[0].rvalue(), is_comparison(o) ? BOOLEAN_TS : match[0], pivot) {
-        int size = arg_ts.measure();
+        int size = arg_ts.measure(MEMORY);
         os = (
             size == 1 ? 0 :
             size == 2 ? 1 :

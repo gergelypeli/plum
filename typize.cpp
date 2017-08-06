@@ -46,8 +46,8 @@ public:
     TypeSpec(iterator tsi);
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
     
-    unsigned measure();
-    StorageWhere where();
+    unsigned measure(StorageWhere where);
+    StorageWhere where(bool is_arg);
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t);
@@ -58,10 +58,7 @@ public:
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);
-    bool pass_alias();
-    void push_alias(Storage s, X64 *x64);
-    void pop_alias(X64 *x64);
-    Value *initializer(std::string name);
+    Value *lookup_initializer(std::string name);
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
@@ -562,7 +559,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
             
-            value = (*context).initializer(name);
+            value = context->lookup_initializer(name);
             
             if (!value) {
                 std::cerr << "No initializer " << *context << " `" << name << "!\n";

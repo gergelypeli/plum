@@ -151,7 +151,7 @@ public:
         Storage s = value->compile(x64);
         
         if (s.where == MEMORY) {
-            switch (value->ts.where()) {
+            switch (value->ts.rvalue().where(false)) {
             case REGISTER:
                 value->ts.store(s, Storage(REGISTER, reg), x64);
                 s = Storage(REGISTER, reg);

@@ -31,7 +31,7 @@ public:
     TypeSpec var_ts;
     int offset;
     bool xxx_is_allocated;
-    bool is_alias;
+    StorageWhere where;
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts)
         :Identifier(name, pts) {
@@ -42,11 +42,11 @@ public:
             throw INTERNAL_ERROR;
             
         xxx_is_allocated = false;
-        is_alias = false;
+        where = var_ts.where(false);
     }
     
-    virtual void be_alias() {
-        is_alias = true;
+    virtual void be_argument() {
+        where = var_ts.where(true);
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
@@ -58,7 +58,7 @@ public:
         if (xxx_is_allocated)
             throw INTERNAL_ERROR;
             
-        offset = outer_scope->reserve(is_alias ? 8 : var_ts.measure());
+        offset = outer_scope->reserve(var_ts.measure(where));
         
         xxx_is_allocated = true;
         //std::cerr << "Variable " << name << " offset is " << offset << "\n";
@@ -66,13 +66,13 @@ public:
     
     virtual Storage get_storage(Storage s) {
         if (s.where != MEMORY)
-            throw INTERNAL_ERROR;  // for now, variables are all in memory
+            throw INTERNAL_ERROR;  // all variable containers must use MEMORY
             
         if (!xxx_is_allocated)
             throw INTERNAL_ERROR;
             
         //std::cerr << "Variable " << name << " offset is now " << offset << "\n";
-        return Storage(MEMORY, s.address + offset);
+        return Storage(where, s.address + offset);
     }
     
     virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {

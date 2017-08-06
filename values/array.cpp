@@ -14,7 +14,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int size = item_size(ts.measure());
+        int size = item_size(ts.measure(MEMORY));
         
         subcompile(x64);
     
@@ -83,7 +83,7 @@ public:
     virtual Storage compile(X64 *x64) {
         // TODO: this only works for arrays of basic types now, that can be just copied
         // TODO: don't inline this
-        int item_size = ::item_size(ts.unprefix(reference_type).unprefix(array_type).measure());
+        int item_size = ::item_size(ts.unprefix(reference_type).unprefix(array_type).measure(MEMORY));
         
         subcompile(x64);
         
@@ -134,7 +134,7 @@ public:
         // TODO: this only works for arrays of basic types now, that can be just copied
         // TODO: don't inline this either
         Label end;
-        int item_size = ::item_size(ts.rvalue().unprefix(reference_type).unprefix(array_type).measure());
+        int item_size = ::item_size(ts.rvalue().unprefix(reference_type).unprefix(array_type).measure(MEMORY));
         
         subcompile(x64);
         
