@@ -238,8 +238,6 @@ public:
     }
     
     virtual Regs precompile(Regs) {
-        std::cerr << "XXX record precompile.\n";
-        
         for (auto &v : values)
             v->precompile(Regs());
 

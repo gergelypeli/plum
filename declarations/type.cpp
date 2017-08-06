@@ -135,11 +135,13 @@ public:
 
 class SpecialType: public Type {
 public:
-    SpecialType(std::string name, unsigned pc):Type(name, pc) {}
-    
-    virtual unsigned measure(TypeSpecIter, StorageWhere) {
-        return 0;
+    SpecialType(std::string name, unsigned pc)
+        :Type(name, pc) {
     }
+    
+    //virtual unsigned measure(TypeSpecIter, StorageWhere) {
+    //    return 0;
+    //}
 
     //virtual StorageWhere where(TypeSpecIter tsi) {
     //    return NOWHERE;

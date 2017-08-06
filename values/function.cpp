@@ -58,7 +58,6 @@ public:
     }
 
     virtual Regs precompile(Regs) {
-        std::cerr << "XXX precompile function " << function->name << "\n";
         body->precompile();
         return Regs();
     }
@@ -221,9 +220,20 @@ public:
                 }
 
                 std::cerr << "Argument " << i << " is omitted.\n";
+
+                if (arg_ts.where(true) == ALIAS) {
+                    // We can't just initialize an optional ALIAS, because it needs an
+                    // allocated MEMORY storage first. So let's allocate it now.
+                    
+                    DeclarationValue *dv = new DeclarationValue("<dummy>");
+                    Value *right = new TypeValue(arg_ts.unprefix(ovalue_type).prefix(type_type));
+                    dv->use(right, scope);
+                    items[i].reset(dv);
+                    
+                    std::cerr << "Argument " << i << " is now a dummy.\n";
+                }
             }
         }
-        
         
         return true;
     }
@@ -282,7 +292,7 @@ public:
             arg_value->compile_and_store(x64, Storage(where));
         }
         else {
-            // Optional argument (FIXME: can't create ALIAS, must allocate something first!)
+            // Optional argument
             arg_ts.create(Storage(), Storage(where), x64);
         }
         
@@ -321,7 +331,7 @@ public:
         
         if (pivot) {
             passed_size += push_arg(function->get_pivot_typespec(), pivot.get(), x64);
-            std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
+            //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
         
         for (unsigned i = 0; i < items.size(); i++)

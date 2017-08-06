@@ -34,7 +34,7 @@ make_pair? :Function Pair as:
 
     
 print_pair? :Function from:
-    p? Pair
+    p? Pair Ovalue
 as:
     prints("A pair of ({x}, {y})" { x: p first, y: p second })
 
@@ -131,5 +131,7 @@ start? :Function as:
     q first = 123
     q second = 456
     :if p == q then: prints("Equal tuples.") else: prints("Inequal tuples.")
+    
+    print_pair
     
     :return

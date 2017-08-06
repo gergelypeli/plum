@@ -88,7 +88,7 @@ public:
                 throw INTERNAL_ERROR;
                 
             reg = preferred.get_ptr();
-            std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
+            //std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
             return clob.add(reg);
         }
         else
@@ -268,14 +268,14 @@ public:
 };
 
 
-#include "function.cpp"
 #include "literal.cpp"
+#include "type.cpp"
+#include "block.cpp"
+#include "function.cpp"
 #include "integer.cpp"
 #include "boolean.cpp"
 #include "array.cpp"
 #include "reference.cpp"
-#include "block.cpp"
-#include "type.cpp"
 #include "record.cpp"
 
 
@@ -288,11 +288,6 @@ Value *make_variable_value(Variable *decl, Value *pivot) {
     return new VariableValue(decl, pivot);
 }
 
-/*
-Value *make_argument_value(Argument *decl) {
-    return new ArgumentValue(decl);
-}
-*/
 
 Value *make_function_call_value(Function *decl, Value *pivot) {
     return new FunctionCallValue(decl, pivot);
