@@ -135,42 +135,52 @@ public:
 
     virtual Storage compile(X64 *x64) {
         x64->op(MOVQ, RAX, length);
-        x64->alloc_array_RAX(2);
+        x64->op(MOVQ, RBX, 2);
+        x64->alloc_array_RAX_RBX();
         
         return Storage(REGISTER, RAX);
     }
 };
 
 
-class StringStreamificationValue: public GenericOperationValue {
+class StringStreamificationValue: public GenericValue {
 public:
-
-    StringStreamificationValue(OperationType o, Value *p, TypeMatch &match)
-        :GenericOperationValue(o, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
+    StringStreamificationValue(Value *p, TypeMatch &match)
+        :GenericValue(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
     }
     
     virtual Regs precompile(Regs preferred) {
-        GenericOperationValue::precompile(preferred);
+        left->precompile(preferred);
+        right->precompile(preferred);
             
         return Regs::all();  // We're Void
     }
     
     virtual Storage compile(X64 *x64) {
-        // TODO: don't inline, may just use fixed RDX/RDI
-        subcompile(x64);
+        Label ss_label = x64->once(compile_string_streamification);
+
+        left->compile_and_store(x64, Storage(STACK));
+        right->compile_and_store(x64, Storage(ALISTACK));
         
-        left->ts.store(ls, Storage(REGISTER, RDX), x64);
-
-        if (rs.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
-        // RAX - target array, RBX - tmp, RCX - , RDX - source array
-        x64->op(MOVQ, RDX, ls.reg);
-        x64->op(MOVQ, RAX, rs.address);
-
+        x64->op(CALL, ss_label);
+        
+        right->ts.store(Storage(ALISTACK), Storage(), x64);
+        left->ts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage();
+    }
+    
+    static void compile_string_streamification(X64 *x64) {
+        // RAX - target array, RBX - tmp, RCX - alias, RDX - source array
+        x64->op(MOVQ, RCX, Address(RSP, 8));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, 16));  // reference to the string
+        
+        x64->op(MOVQ, RAX, Address(RCX, 0));
         x64->op(MOVQ, RBX, x64->array_length_address(RDX));
+        
         x64->preappend_array_RAX_RBX(2);
-        x64->op(MOVQ, rs.address, RAX);  // rs.address is no longer needed, PTRs can be clobbed
+        
+        x64->op(MOVQ, Address(RCX, 0), RAX);  // RCX no longer needed
 
         x64->op(LEA, RDI, x64->array_items_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));
@@ -183,41 +193,50 @@ public:
         
         x64->op(REPMOVSB);
         
-        x64->decref(RDX);
-        
-        return Storage();
+        x64->op(RET);
     }
 };
 
 
-class CharacterStreamificationValue: public GenericOperationValue {
+class CharacterStreamificationValue: public GenericValue {
 public:
 
-    CharacterStreamificationValue(OperationType o, Value *p, TypeMatch &match)
-        :GenericOperationValue(o, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
+    CharacterStreamificationValue(Value *p, TypeMatch &match)
+        :GenericValue(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
     }
     
     virtual Regs precompile(Regs preferred) {
-        GenericOperationValue::precompile(preferred);
+        left->precompile(preferred);
+        right->precompile(preferred);
             
         return Regs::all();  // We're Void
     }
     
     virtual Storage compile(X64 *x64) {
-        // TODO: don't inline, may just use fixed RDX/RDI
-        subcompile(x64);
+        Label cs_label = x64->once(compile_character_streamification);
 
-        left->ts.store(ls, Storage(REGISTER, DX), x64);
+        left->compile_and_store(x64, Storage(STACK));
+        right->compile_and_store(x64, Storage(ALISTACK));
         
-        if (rs.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
-        // RAX - target array, RBX - tmp, RCX - , RDX - source character
-        x64->op(MOVQ, RAX, rs.address);
+        x64->op(CALL, cs_label);
+        
+        right->ts.store(Storage(ALISTACK), Storage(), x64);
+        left->ts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage();
+    }
+    
+    static void compile_character_streamification(X64 *x64) {
+        // RAX - target array, RBX - tmp, RCX - alias, RDX - source character
+        x64->op(MOVQ, RCX, Address(RSP, 8));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, 16));  // the character
 
+        x64->op(MOVQ, RAX, Address(RCX, 0));
         x64->op(MOVQ, RBX, 1);
+        
         x64->preappend_array_RAX_RBX(2);
-        x64->op(MOVQ, rs.address, RAX);  // rs.address is no longer needed, PTRs can be clobbed
+        
+        x64->op(MOVQ, Address(RCX, 0), RAX);  // RCX no longer needed
 
         x64->op(LEA, RDI, x64->array_items_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));
@@ -227,49 +246,58 @@ public:
             
         x64->op(ADDQ, x64->array_length_address(RAX), 1);
 
-        return Storage();
+        x64->op(RET);
     }
 };
 
 
-class EnumStreamificationValue: public GenericOperationValue {
+class EnumStreamificationValue: public GenericValue {
 public:
 
-    EnumStreamificationValue(OperationType o, Value *p, TypeMatch &match)
-        :GenericOperationValue(o, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
+    EnumStreamificationValue(Value *p, TypeMatch &match)
+        :GenericValue(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
     }
     
     virtual Regs precompile(Regs preferred) {
-        GenericOperationValue::precompile(preferred);
+        left->precompile(preferred);
+        right->precompile(preferred);
             
         return Regs::all();  // We're Void
     }
     
     virtual Storage compile(X64 *x64) {
-        // TODO: don't inline, may just use fixed RDX/RDI
-        subcompile(x64);
+        Label es_label = x64->once(compile_enum_streamification);
 
-        left->ts.store(ls, Storage(REGISTER, RDX), x64);
+        left->compile_and_store(x64, Storage(STACK));
+        right->compile_and_store(x64, Storage(ALISTACK));
         
-        if (rs.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
         EnumerationType *t = dynamic_cast<EnumerationType *>(left->ts.rvalue()[0]);
-            
+        x64->op(LEARIP, RBX, t->stringifications_label);  // table start
+        x64->op(CALL, es_label);
+        
+        right->ts.store(Storage(ALISTACK), Storage(), x64);
+        left->ts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage();
+    }
+    
+    static void compile_enum_streamification(X64 *x64) {
+        // RAX - target array, RBX - table start, RCX - alias, RDX - source enum
+        x64->op(MOVQ, RCX, Address(RSP, 8));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, 16));  // the enum
+
         // Find the string for this enum value
         x64->op(ANDQ, RDX, 0xFF);
         x64->op(SHLQ, RDX, 2);  // 32-bit relative offsets are stored in our table
-        x64->op(LEARIP, RBX, t->stringifications_label);  // table start
         x64->op(ADDQ, RBX, RDX);  // entry start
         x64->op(MOVSXQ, RDX, Address(RBX, 0));  // offset to string
         x64->op(ADDQ, RDX, RBX);  // absolute address of string
             
-        // RAX - target array, RBX - tmp, RCX - , RDX - source array
-        x64->op(MOVQ, RAX, rs.address);
+        x64->op(MOVQ, RAX, Address(RCX, 0));
 
         x64->op(MOVQ, RBX, x64->array_length_address(RDX));
         x64->preappend_array_RAX_RBX(2);
-        x64->op(MOVQ, rs.address, RAX);  // rs.address is no longer needed, PTRs can be clobbed
+        x64->op(MOVQ, Address(RCX, 0), RAX);  // RCX no longer needed
 
         x64->op(LEA, RDI, x64->array_items_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));
@@ -282,8 +310,6 @@ public:
         
         x64->op(REPMOVSB);
         
-        // No decref, we reuse these strings multiple times!
-
-        return Storage();
+        x64->op(RET);
     }
 };

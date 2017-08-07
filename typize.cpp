@@ -278,7 +278,7 @@ Scope *init_builtins() {
     // Character operations
     Scope *char_scope = character_type->get_inner_scope();
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
-    char_scope->add(new TemplateOperation<CharacterStreamificationValue>("streamify", CHARACTER_TS, TWEAK));
+    char_scope->add(new TemplateIdentifier<CharacterStreamificationValue>("streamify", CHARACTER_TS));
     
     // Boolean operations
     Scope *bool_scope = boolean_type->get_inner_scope();
@@ -294,7 +294,7 @@ Scope *init_builtins() {
     Scope *enum_scope = enumeration_metatype->get_inner_scope();
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    enum_scope->add(new TemplateOperation<EnumStreamificationValue>("streamify", ANY_TS, TWEAK));
+    enum_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
 
     // Record operations
     Scope *record_scope = record_metatype->get_inner_scope();
@@ -309,9 +309,9 @@ Scope *init_builtins() {
     // Array operations
     Scope *array_scope = array_type->get_inner_scope();
     array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    array_scope->add(new TemplateOperation<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    array_scope->add(new TemplateOperation<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS, TWEAK));
+    array_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS));
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));

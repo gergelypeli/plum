@@ -356,6 +356,8 @@ public:
         int location;
         unsigned def_index;
     };
+
+    typedef void (*FunctionCompiler)(X64 *);
     
     std::vector<char> code;
     std::vector<char> data;
@@ -366,6 +368,7 @@ public:
     Label alloc_RAX_label, realloc_RAX_RBX_label;
     Label memalloc_label, memfree_label, memrealloc_label, die_label;
     std::vector<Label> incref_labels, decref_labels;
+    std::map<FunctionCompiler, Label> function_compiler_labels;
     
     void add_def(Label label, const Def &def);
 
@@ -393,6 +396,8 @@ public:
     
     void init(std::string module_name);
     void done(std::string name);
+    
+    Label once(FunctionCompiler fc);
     
     void code_label(Label c, unsigned size = 0);
     void code_label_import(Label c, std::string name);
@@ -454,7 +459,7 @@ public:
     void alloc_RAX();
     void realloc_RAX_RBX();
     
-    void alloc_array_RAX(int item_size);
+    void alloc_array_RAX_RBX();
     void realloc_array_RAX_RBX(int item_size);
     void preappend_array_RAX_RBX(int item_size);
     Address array_reservation_address(Register reg);

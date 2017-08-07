@@ -24,54 +24,6 @@ public:
         }
     }
 
-    virtual Storage compare(X64 *x64) {
-        subcompile(x64);
-
-        switch (ls.where * rs.where) {
-        case CONSTANT_CONSTANT:
-            return Storage(CONSTANT, ls.value == rs.value);
-        case CONSTANT_FLAGS:
-            return Storage(FLAGS, ls.value ? rs.bitset : negate(rs.bitset));
-        case CONSTANT_REGISTER:
-            x64->op(CMPB, rs.reg, ls.value);
-            return Storage(FLAGS, SETE);
-        case CONSTANT_MEMORY:
-            x64->op(CMPB, rs.address, ls.value);
-            return Storage(FLAGS, SETE);
-        case FLAGS_CONSTANT:
-            return Storage(FLAGS, rs.value ? ls.bitset : negate(ls.bitset));
-        case REGISTER_CONSTANT:
-            x64->op(CMPB, ls.reg, rs.value);
-            return Storage(FLAGS, SETE);
-        case REGISTER_FLAGS:
-            x64->op(rs.bitset, BL);
-            x64->op(CMPB, ls.reg, BL);
-            return Storage(FLAGS, SETE);
-        case REGISTER_REGISTER:
-            x64->op(CMPB, ls.reg, rs.reg);
-            return Storage(FLAGS, SETE);
-        case REGISTER_MEMORY:
-            x64->op(CMPB, ls.reg, rs.address);
-            return Storage(FLAGS, SETE);
-        case MEMORY_CONSTANT:
-            x64->op(CMPB, ls.address, rs.value);
-            return Storage(FLAGS, SETE);
-        case MEMORY_FLAGS:
-            x64->op(rs.bitset, BL);
-            x64->op(CMPB, BL, ls.address);
-            return Storage(FLAGS, SETE);
-        case MEMORY_REGISTER:
-            x64->op(CMPB, ls.address, rs.reg);
-            return Storage(FLAGS, SETE);
-        case MEMORY_MEMORY:
-            x64->op(MOVB, reg, ls.address);
-            x64->op(CMPB, reg, rs.address);
-            return Storage(FLAGS, SETE);
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-
     virtual Storage assign(X64 *x64) {
         subcompile(x64);
 
@@ -89,8 +41,8 @@ public:
             x64->op(MOVB, ls.address, rs.reg);
             return ls;
         case MEMORY:
-            x64->op(MOVB, reg, rs.address);
-            x64->op(MOVB, ls.address, reg);
+            x64->op(MOVB, BL, rs.address);
+            x64->op(MOVB, ls.address, BL);
             return ls;
         default:
             throw INTERNAL_ERROR;
@@ -101,17 +53,6 @@ public:
         switch (operation) {
         case COMPLEMENT:
             return complement(x64);
-        case EQUAL:
-            return compare(x64);
-        case NOT_EQUAL: {
-            Storage s = compare(x64);
-            if (s.where == CONSTANT)
-                return Storage(CONSTANT, !s.value);
-            else if (s.where == FLAGS)
-                return Storage(FLAGS, negate(s.bitset));
-            else
-                throw INTERNAL_ERROR;
-        }
         case ASSIGN:
             return assign(x64);
         default:

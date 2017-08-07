@@ -96,7 +96,17 @@ void X64::init(std::string module_name) {
 }
 
 
+Label X64::once(FunctionCompiler fc) {
+    return function_compiler_labels[fc];
+}
+
+
 void X64::done(std::string filename) {
+    for (auto &kv : function_compiler_labels) {
+        code_label(kv.second);
+        (kv.first)(this);
+    }
+
     for (auto &kv : defs) {
         Def &d(kv.second);
 
@@ -1077,9 +1087,9 @@ void X64::realloc_RAX_RBX() {
     op(CALL, realloc_RAX_RBX_label);
 }
 
-void X64::alloc_array_RAX(int item_size) {
+void X64::alloc_array_RAX_RBX() {
     op(PUSHQ, RAX);
-    op(IMUL3Q, RAX, RAX, item_size);
+    op(IMUL2Q, RAX, RBX);
     op(ADDQ, RAX, ARRAY_HEADER_SIZE);
     alloc_RAX();
     op(POPQ, Address(RAX, ARRAY_RESERVATION_OFFSET));

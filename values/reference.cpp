@@ -33,10 +33,10 @@ public:
             x64->decref(rs.reg);
             return ls;
         case MEMORY_MEMORY:
-            x64->op(MOVQ, reg, rs.address);
-            x64->incref(reg);
-            x64->op(XCHGQ, reg, ls.address);
-            x64->decref(reg);
+            x64->op(MOVQ, RBX, rs.address);
+            x64->incref(RBX);
+            x64->op(XCHGQ, RBX, ls.address);
+            x64->decref(RBX);
             return ls;
         default:
             throw INTERNAL_ERROR;

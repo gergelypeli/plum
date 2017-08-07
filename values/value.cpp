@@ -115,27 +115,19 @@ public:
 };
 
 
-class GenericOperationValue: public Value {
+class GenericValue: public Value {
 public:
-    OperationType operation;
-    bool is_left_lvalue;
     TypeSpec arg_ts;
     std::unique_ptr<Value> left, right;
-    Regs clob, rclob;
-    Register reg;
-    Storage ls, rs;
     
-    GenericOperationValue(OperationType o, TypeSpec at, TypeSpec rt, Value *l)
+    GenericValue(TypeSpec at, TypeSpec rt, Value *l)
         :Value(rt) {
-        operation = o;
-        is_left_lvalue = is_assignment(o);
         arg_ts = at;
         left.reset(l);
-        reg = NOREG;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (is_unary(operation)) {
+        if (arg_ts == VOID_TS) {
             if (args.size() != 0 || kwargs.size() != 0) {
                 std::cerr << "Operation needs no arguments!\n";
                 return false;
@@ -161,7 +153,24 @@ public:
             return true;
         }
     }
+};
 
+
+class GenericOperationValue: public GenericValue {
+public:
+    OperationType operation;
+    bool is_left_lvalue;
+    Regs clob, rclob;
+    Register reg;
+    Storage ls, rs;
+    
+    GenericOperationValue(OperationType o, TypeSpec at, TypeSpec rt, Value *l)
+        :GenericValue(at, rt, l) {
+        operation = o;
+        is_left_lvalue = is_assignment(o);
+        reg = NOREG;
+    }
+    
     virtual Register pick_early_register(Regs preferred) {
         if ((clob & ~rclob).has_any()) {
             // We have registers clobbered by the left side only, use one
