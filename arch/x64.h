@@ -9,10 +9,8 @@
 //   REX B8+r => MOV reg64, imm64
 // We now don't support either forms, so for us these constants are never 64 bit!
 
-// Warning: using any Rn registers in the addressing of a memory operand
-// will require the use of the REX prefix, but that turns AH, CH, DH, BH into
-// SPL, BPL, SIL, and DIL! To avoid confusion, these byte registers are all unsupported.
-// In fact, registers 4-7 should only be used for storing qwords.
+// We force a REX prefix for all byte operations, so we gain access to SIL/DIL/BPL/SPL
+// instead of AH/BH/CH/DH.
 
 static const int REGISTER_COUNT = 16;
 const char *REGISTER_NAMES[] = {
@@ -24,7 +22,7 @@ enum Register {
     RAX=0, RCX, RDX, RBX, RSP, RBP, RSI, RDI, R8,  R9,  R10,  R11,  R12,  R13,  R14,  R15,
     EAX=0, ECX, EDX, EBX, ESP, EBP, ESI, EDI, R8D, R9D, R10D, R11D, R12D, R13D, R14D, R15D,
     AX=0, CX, DX, BX, SP, BP, SI, DI,         R8W, R9W, R10W, R11W, R12W, R13W, R14W, R15W,
-    AL=0, CL, DL, BL, X4B, X5B, X6B, X7B,     R8B, R9B, R10B, R11B, R12B, R13B, R14B, R15B,
+    AL=0, CL, DL, BL, SPL, BPL, SIL, DIL,     R8B, R9B, R10B, R11B, R12B, R13B, R14B, R15B,
     NOREG=-1
 };
 
@@ -403,7 +401,7 @@ public:
 
     int rxb(int regfield, Register rm);
     int rxb(int regfield, Address rm);
-    void rex(int wrxb);
+    void rex(int wrxb, bool force = false);
 
     void code_op(int opcode);
     void code_op(int opcode, int opsize, int rxb = 0);
@@ -423,8 +421,8 @@ public:
     void op(BinaryOp opcode, Register x, Register y);
     void op(BinaryOp opcode, Address x, Register y);
     void op(BinaryOp opcode, Register x, Address y);
-    void op(ShiftOp opcode, Register x);
-    void op(ShiftOp opcode, Address x);
+    void op(ShiftOp opcode, Register x, Register cl);
+    void op(ShiftOp opcode, Address x, Register cl);
     void op(ShiftOp opcode, Register x, char y);
     void op(ShiftOp opcode, Address x, char y);
     void op(ExchangeOp opcode, Register x, Register y);

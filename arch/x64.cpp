@@ -369,8 +369,8 @@ int X64::rxb(int regfield, Address rm) {
 }
 
 
-void X64::rex(int wrxb) {
-    if (wrxb)
+void X64::rex(int wrxb, bool force) {
+    if (wrxb || force)
         code_byte(OPSIZE_REX_PREFIX | wrxb);
 }
 
@@ -395,7 +395,9 @@ void X64::code_op(int code, int size, int rxb) {
 
     switch (size) {
     case 0:
-        rex(rxb);
+        // We force a REX prefix for byte operations to allow access to SIL and DIL.
+        // This is unnecessary for AL/BL/CL/DL, but we can live with that.
+        rex(rxb, true);
         code &= ~1;
         break;
     case 1:
@@ -712,12 +714,22 @@ int shift_info[] = {
 };
 
 
-void X64::op(ShiftOp opcode, Register x) {  // by CL
+// We explicitly take CL as an argument, because by convention we always
+// spell it out. But CL would automatically convert to char, and encode
+// the constant shifts! So calling these function with a second operand of CL
+// would encode shifts by 1 (CL numeric value)!
+void X64::op(ShiftOp opcode, Register x, Register cl) {
+    if (cl != CL)
+        throw X64_ERROR;
+        
     auto &info = shift_info[opcode >> 2];
     code_op(0xD2, opcode & 3, info, x);
 }
 
-void X64::op(ShiftOp opcode, Address x) {  // by CL
+void X64::op(ShiftOp opcode, Address x, Register cl) {
+    if (cl != CL)
+        throw X64_ERROR;
+
     auto &info = shift_info[opcode >> 2];
     code_op(0xD2, opcode & 3, info, x);
 }

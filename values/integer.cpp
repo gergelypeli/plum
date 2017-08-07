@@ -105,7 +105,7 @@ public:
                 (opcode % 3) == ANDQ ? ls.value & rs.value :
                 (opcode % 3) == ORQ  ? ls.value | rs.value :
                 (opcode % 3) == XORQ ? ls.value ^ rs.value :
-                throw X64_ERROR
+                throw INTERNAL_ERROR
             );
             
             if (fits32(value))
