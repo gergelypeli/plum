@@ -284,7 +284,7 @@ public:
                 item->precompile();
         
         if (ts != VOID_TS)
-            reg = ts.where(false) == REGISTER ? preferred.get_gpr() : preferred.get_ptr();
+            reg = preferred.get_any();
         
         return Regs::all();  // assume everything is clobbered
     }
@@ -485,7 +485,7 @@ public:
             Storage t = result_var->get_storage(fn_storage);
             
             if (t.where == ALIAS) {
-                Register reg = (Regs::all_ptrs() & ~s.regs()).get_ptr();
+                Register reg = (Regs::all() & ~s.regs()).get_any();
                 Storage m = Storage(MEMORY, Address(reg, 0));
                 result_var->var_ts.store(t, m, x64);
                 t = m;

@@ -28,9 +28,9 @@ enum Register {
 
 
 struct Regs {
-    static const int ALL_MASK = 0xFFFF;
-    static const int GPR_MASK = 0xFF07;  // general purpose registers
-    static const int PTR_MASK = 0x00C0;  // registers for borrowed references, RSI and RDI
+    static const int ALL_MASK = 0xFFC7;
+    //static const int GPR_MASK = 0xFF07;  // general purpose registers
+    //static const int PTR_MASK = 0x00C0;  // registers for borrowed references, RSI and RDI
     static const int SCR_MASK = 0x0008;  // scratch registers, RBX only
     static const int RES_MASK = 0x0030;  // reserved registers, RSP and RBP
     
@@ -44,13 +44,13 @@ struct Regs {
         return Regs(ALL_MASK);
     }
 
-    static Regs all_gprs() {
-        return Regs(GPR_MASK);
-    }
+    //static Regs all_gprs() {
+    //    return Regs(GPR_MASK);
+    //}
 
-    static Regs all_ptrs() {
-        return Regs(PTR_MASK);
-    }
+    //static Regs all_ptrs() {
+    //    return Regs(PTR_MASK);
+    //}
     
     Regs add(Register r) {
         available |= 1 << (int)r;
@@ -78,44 +78,44 @@ struct Regs {
         return available & (1 << (int)r);
     }
 
-    bool has_gpr() {
-        return (available & GPR_MASK) != 0;
+    bool has_any() {
+        return (available & ALL_MASK) != 0;
     }
 
-    bool has_ptr() {
-        return (available & PTR_MASK) != 0;
-    }
+    //bool has_ptr() {
+    //    return (available & PTR_MASK) != 0;
+    //}
 
-    int count_gpr() {
+    int count() {
         int n = 0;
         
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & GPR_MASK & (1 << i)) {
+            if (available & ALL_MASK & (1 << i)) {
                 n++;
             }
     
         return n;
     }
 
-    Register get_gpr() {
+    Register get_any() {
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & GPR_MASK & (1 << i)) {
+            if (available & ALL_MASK & (1 << i)) {
                 return (Register)i;
             }
     
-        std::cerr << "No GPR in register set!\n";
+        std::cerr << "No available register!\n";
         throw X64_ERROR;
     }
 
-    Register get_ptr() {
-        for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & PTR_MASK & (1 << i)) {
-                return (Register)i;
-            }
-    
-        std::cerr << "No PTR in register set!\n";
-        throw X64_ERROR;
-    }
+    //Register get_ptr() {
+    //    for (int i=0; i<REGISTER_COUNT; i++)
+    //        if (available & PTR_MASK & (1 << i)) {
+    //            return (Register)i;
+    //        }
+    //
+    //    std::cerr << "No PTR in register set!\n";
+    //    throw X64_ERROR;
+    //}
 };
 
 

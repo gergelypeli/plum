@@ -140,7 +140,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = value->precompile(preferred);
-        reg = preferred.get_gpr();
+        reg = preferred.get_any();
         return clob.add(reg);
     }
 

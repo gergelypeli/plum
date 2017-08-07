@@ -79,7 +79,7 @@ public:
             x64->op(ADDQ, RSP, 8);
             return;
         case ALISTACK_MEMORY:
-            if ((t.address.base != RSI && t.address.base != RDI) || t.address.index != NOREG || t.address.offset != 0)
+            if (t.address.base == NOREG || t.address.base == RBP || t.address.base == RSP || t.address.index != NOREG || t.address.offset != 0)
                 throw INTERNAL_ERROR;
                 
             x64->op(POPQ, t.address.base);
@@ -93,7 +93,7 @@ public:
         case ALIAS_NOWHERE:
             return;
         case ALIAS_MEMORY:
-            if ((t.address.base != RSI && t.address.base != RDI) || t.address.index != NOREG || t.address.offset != 0)
+            if (t.address.base == NOREG || t.address.base == RBP || t.address.base == RSP || t.address.index != NOREG || t.address.offset != 0)
                 throw INTERNAL_ERROR;
                 
             x64->op(MOVQ, t.address.base, s.address);

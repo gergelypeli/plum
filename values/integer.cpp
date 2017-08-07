@@ -167,7 +167,7 @@ public:
         // Yay, IMUL2 and IMUL3 truncates the result, so it can be used for
         // both signed and unsigned multiplication.
         // Use IMULW for bytes, and ignore the upper byte.
-        int xos = os == 0 ? 1 : os;
+        int ios = os == 0 ? 1 : os;
 
         switch (ls.where * rs.where) {
         case CONSTANT_CONSTANT: {
@@ -177,34 +177,34 @@ public:
                 return Storage(CONSTANT, value);
                 
             x64->op(MOVQ % os, reg, ls.value);
-            x64->op(IMUL3Q % xos, reg, reg, rs.value);
+            x64->op(IMUL3Q % ios, reg, reg, rs.value);
 
             return Storage(REGISTER, reg);
         }
         case CONSTANT_REGISTER:
-            x64->op(IMUL3Q % xos, rs.reg, rs.reg, ls.value);
+            x64->op(IMUL3Q % ios, rs.reg, rs.reg, ls.value);
             return Storage(REGISTER, rs.reg);
         case CONSTANT_MEMORY:
-            x64->op(IMUL3Q % xos, reg, rs.address, ls.value);
+            x64->op(IMUL3Q % ios, reg, rs.address, ls.value);
             return Storage(REGISTER, reg);
         case REGISTER_CONSTANT:
-            x64->op(IMUL3Q % xos, ls.reg, ls.reg, rs.value);
+            x64->op(IMUL3Q % ios, ls.reg, ls.reg, rs.value);
             return Storage(REGISTER, ls.reg);
         case REGISTER_REGISTER:
-            x64->op(IMUL2Q % xos, ls.reg, rs.reg);
+            x64->op(IMUL2Q % ios, ls.reg, rs.reg);
             return Storage(REGISTER, ls.reg);
         case REGISTER_MEMORY:
-            x64->op(IMUL2Q % xos, ls.reg, rs.address);
+            x64->op(IMUL2Q % ios, ls.reg, rs.address);
             return Storage(REGISTER, ls.reg);
         case MEMORY_CONSTANT:
-            x64->op(IMUL3Q % xos, reg, ls.address, rs.value);
+            x64->op(IMUL3Q % ios, reg, ls.address, rs.value);
             return Storage(REGISTER, reg);
         case MEMORY_REGISTER:
-            x64->op(IMUL2Q % xos, rs.reg, ls.address);
+            x64->op(IMUL2Q % ios, rs.reg, ls.address);
             return Storage(REGISTER, rs.reg);
         case MEMORY_MEMORY:
             x64->op(MOVQ % os, reg, ls.address);
-            x64->op(IMUL2Q % xos, reg, rs.address);
+            x64->op(IMUL2Q % ios, reg, rs.address);
             return Storage(REGISTER, reg);
         default:
             throw INTERNAL_ERROR;
@@ -212,70 +212,62 @@ public:
     }
 
     virtual void arrange_in_rax_rcx(X64 *x64) {
+        // Careful, not to destroy the base register of the other address before dereferencing!
+
         switch (ls.where * rs.where) {
         case CONSTANT_CONSTANT:
             x64->op(MOVQ % os, RAX, ls.value);
             x64->op(MOVQ % os, RCX, rs.value);
             break;
         case CONSTANT_REGISTER:
-            x64->op(MOVQ % os, RCX, rs.reg);
+            x64->op(MOVQ % os, RCX, rs.reg);  // Order!
             x64->op(MOVQ % os, RAX, ls.value);
             break;
         case CONSTANT_MEMORY:
+            x64->op(MOVQ % os, RCX, rs.address);  // Order!
             x64->op(MOVQ % os, RAX, ls.value);
-            x64->op(MOVQ % os, RCX, rs.address);
             break;
         case REGISTER_CONSTANT:
-            x64->op(MOVQ % os, RAX, ls.reg);
+            x64->op(MOVQ % os, RAX, ls.reg);  // Order!
             x64->op(MOVQ % os, RCX, rs.value);
             break;
         case REGISTER_REGISTER:
-            if (ls.reg == RAX) {
-                if (rs.reg != RCX)
-                    x64->op(MOVQ % os, RCX, rs.reg);
-            }
-            else if (rs.reg == RCX) {
-                x64->op(MOVQ % os, RAX, ls.reg);
-            }
-            else if (ls.reg == RCX) {
-                if (rs.reg == RAX)
-                    x64->op(XCHGQ % os, RAX, RCX);
-                else {
-                    x64->op(MOVQ % os, RAX, ls.reg);
-                    x64->op(MOVQ % os, RCX, rs.reg);
-                }
-            }
-            else {
-                x64->op(MOVQ % os, RCX, rs.reg);
-                x64->op(MOVQ % os, RAX, ls.reg);
-            }
+            x64->op(MOVQ % os, RBX, rs.reg);
+            x64->op(MOVQ % os, RAX, ls.reg);
+            x64->op(MOVQ % os, RCX, RBX);
             break;
         case REGISTER_MEMORY:
+            x64->op(MOVQ % os, RBX, rs.address);
             x64->op(MOVQ % os, RAX, ls.reg);
-            x64->op(MOVQ % os, RCX, rs.address);
+            x64->op(MOVQ % os, RCX, RBX);
             break;
         case MEMORY_CONSTANT:
-            x64->op(MOVQ % os, RAX, ls.address);
+            x64->op(MOVQ % os, RAX, ls.address);  // Order!
             x64->op(MOVQ % os, RCX, rs.value);
             break;
         case MEMORY_REGISTER:
-            x64->op(MOVQ % os, RCX, rs.reg);
+            x64->op(MOVQ % os, RBX, rs.reg);
             x64->op(MOVQ % os, RAX, ls.address);
+            x64->op(MOVQ % os, RCX, RBX);
             break;
         case MEMORY_MEMORY:
+            x64->op(MOVQ % os, RBX, rs.address);
             x64->op(MOVQ % os, RAX, ls.address);
-            x64->op(MOVQ % os, RCX, rs.address);
+            x64->op(MOVQ % os, RCX, RBX);
             break;
         default:
             throw INTERNAL_ERROR;
         }
     }
 
-    virtual Storage binary_divmod(X64 *x64, bool mod, Address *lsaddr = NULL) {
+    virtual Storage binary_divmod(X64 *x64, bool mod, bool save_lsaddr) {
         subcompile(x64);
 
         if (ls.where == CONSTANT && rs.where == CONSTANT)
             return Storage(CONSTANT, mod ? ls.value % rs.value : ls.value / rs.value);
+
+        if (save_lsaddr && ls.where == MEMORY && ls.address.base != RBP)
+            x64->op(PUSHQ, ls.address.base);
         
         arrange_in_rax_rcx(x64);
         
@@ -284,6 +276,11 @@ public:
 
         x64->op(prep);
         x64->op(opcode % os, RCX);
+            
+        if (save_lsaddr && ls.where == MEMORY && ls.address.base != RBP) {
+            x64->op(POPQ, RCX);
+            ls.address.base = RCX;
+        }
             
         if (!mod)
             return Storage(REGISTER, RAX);
@@ -372,13 +369,21 @@ public:
         }
     }
 
-    virtual Storage binary_exponent(X64 *x64, Address *lsaddr = NULL) {
+    virtual Storage binary_exponent(X64 *x64, bool save_lsaddr) {
         subcompile(x64);
-        
+
+        if (save_lsaddr && ls.where == MEMORY && ls.address.base != RBP)
+            x64->op(PUSHQ, ls.address.base);
+
         arrange_in_rax_rcx(x64);
         
         // base in RAX, exponent in RCX, result in RDX
         exponentiation_by_squaring(x64);
+
+        if (save_lsaddr && ls.where == MEMORY && ls.address.base != RBP) {
+            x64->op(POPQ, RCX);
+            ls.address.base = RCX;
+        }
         
         return Storage(REGISTER, RDX);
     }
@@ -430,7 +435,15 @@ public:
         }
     }
 
+    // NOTE: for lvalue operations, reg is allocated so that it can be used
+    // for the left operand. Since it is MEMORY, it may be the base register of its
+    // address, and it may have been chosen to restore a spilled dynamic address.
+    // As such, unlike with rvalue operations, reg is not guaranteed to be
+    // distinct from ls.address.base. Since these operations return the left address,
+    // for a working register for values RBX must be used.
+    
     virtual Storage assign_binary(X64 *x64, BinaryOp opcode) {
+        reg = RBX;
         subcompile(x64);
         
         if (ls.where != MEMORY)
@@ -453,6 +466,7 @@ public:
     }
 
     virtual Storage assign_multiply(X64 *x64) {
+        reg = RBX;
         Storage s = binary_multiply(x64);
 
         if (ls.where != MEMORY)
@@ -467,13 +481,13 @@ public:
     }
 
     virtual Storage assign_divmod(X64 *x64, bool mod) {
-        Storage s = binary_divmod(x64, mod);
+        Storage s = binary_divmod(x64, mod, true);
 
         if (ls.where != MEMORY)
             throw INTERNAL_ERROR;
         
         if (s.where == REGISTER)
-            x64->op(MOVQ % os, ls.address, s.reg);
+            x64->op(MOVQ % os, ls.address, s.reg);  // ls.address.base is either RBP or RCX
         else
             throw INTERNAL_ERROR;
 
@@ -481,13 +495,13 @@ public:
     }
 
     virtual Storage assign_exponent(X64 *x64) {
-        Storage s = binary_exponent(x64);
+        Storage s = binary_exponent(x64, true);
 
         if (ls.where != MEMORY)
             throw INTERNAL_ERROR;
         
         if (s.where == REGISTER)
-            x64->op(MOVQ % os, ls.address, s.reg);
+            x64->op(MOVQ % os, ls.address, s.reg);  // ls.address.base is either RBP or RCX
         else
             throw INTERNAL_ERROR;
 
@@ -505,13 +519,33 @@ public:
             x64->op(opcode % os, ls.address, rs.value);
             return ls;
         case REGISTER:
-            x64->op(MOVQ % os, RCX, rs.reg);
-            x64->op(opcode % os, ls.address, CL);
-            return ls;
+            if (ls.address.base != RCX) {
+                x64->op(MOVB, CL, rs.reg);
+                x64->op(opcode % os, ls.address, CL);
+                return ls;
+            }
+            else {
+                x64->op(XCHGQ, ls.address.base, rs.reg);
+                x64->op(MOVB, CL, ls.address.base);
+                ls.address.base = rs.reg;
+                x64->op(opcode % os, ls.address, CL);
+                return ls;
+            }
         case MEMORY:
-            x64->op(MOVQ % os, RCX, rs.address);
-            x64->op(opcode % os, ls.address, CL);
-            return ls;
+            if (ls.address.base != RCX) {
+                x64->op(MOVB, CL, rs.address);
+                x64->op(opcode % os, ls.address, CL);
+                return ls;
+            }
+            else {
+                x64->op(MOVQ, RBX, RCX);
+                ls.address.base = RBX;
+                x64->op(MOVB, CL, rs.address);
+                x64->op(opcode % os, ls.address, CL);
+                x64->op(MOVQ, RCX, RBX);
+                ls.address.base = RCX;
+                return ls;
+            }
         default:
             throw INTERNAL_ERROR;
         }
@@ -560,9 +594,9 @@ public:
         case MULTIPLY:
             return binary_multiply(x64);
         case DIVIDE:
-            return binary_divmod(x64, false);
+            return binary_divmod(x64, false, false);
         case MODULO:
-            return binary_divmod(x64, true);
+            return binary_divmod(x64, true, false);
         case OR:
             return binary_simple(x64, ORQ);
         case XOR:
@@ -574,7 +608,7 @@ public:
         case SHIFT_RIGHT:
             return binary_shift(x64, SHRQ);
         case EXPONENT:
-            return binary_exponent(x64);
+            return binary_exponent(x64, false);
         case EQUAL:
             return binary_compare(x64, SETE);
         case NOT_EQUAL:

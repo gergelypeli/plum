@@ -164,7 +164,7 @@ public:
         Regs clobbered = left->precompile(preferred) | right->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get_gpr();
+        reg = preferred.get_any();
         clobbered.add(reg);
         
         return clobbered;
@@ -252,7 +252,7 @@ public:
         Regs clobbered = left->precompile(preferred) | right->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get_gpr();
+        reg = preferred.get_any();
         clobbered.add(reg);
         
         return clobbered;
@@ -389,7 +389,7 @@ public:
             clobbered = clobbered | else_branch->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get_gpr();
+        reg = preferred.get_any();
         clobbered.add(reg);
         
         return clobbered;

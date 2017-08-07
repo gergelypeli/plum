@@ -80,7 +80,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        reg = preferred.get_gpr();
+        reg = preferred.get_any();
         return Regs().add(reg);
         //return Regs().add(RAX).add(RCX).add(RSI).add(RDI);
     }

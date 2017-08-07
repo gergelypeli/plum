@@ -87,7 +87,7 @@ public:
             if (pivot)
                 throw INTERNAL_ERROR;
                 
-            reg = preferred.get_ptr();
+            reg = preferred.get_any();
             //std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
             return clob.add(reg);
         }
@@ -118,6 +118,7 @@ public:
 class GenericOperationValue: public Value {
 public:
     OperationType operation;
+    bool is_left_lvalue;
     TypeSpec arg_ts;
     std::unique_ptr<Value> left, right;
     Regs clob, rclob;
@@ -127,6 +128,7 @@ public:
     GenericOperationValue(OperationType o, TypeSpec at, TypeSpec rt, Value *l)
         :Value(rt) {
         operation = o;
+        is_left_lvalue = is_assignment(o);
         arg_ts = at;
         left.reset(l);
         reg = NOREG;
@@ -161,32 +163,38 @@ public:
     }
 
     virtual Register pick_early_register(Regs preferred) {
-        if ((clob & ~rclob).has_gpr()) {
-            return (clob & ~rclob).get_gpr();  // Great, the left side will have one
+        if ((clob & ~rclob).has_any()) {
+            // We have registers clobbered by the left side only, use one
+            return (clob & ~rclob).get_any();
         }
-        else if ((preferred & ~rclob).has_gpr()) {
-            return (preferred & ~rclob).get_gpr();  // Good, we can allocate a preferred one
+        else if ((preferred & ~rclob).has_any()) {
+            // We have preferred registers not clobbered by the right side, allocate one
+            return (preferred & ~rclob).get_any();
         }
-        else if (rclob.count_gpr() >= 2) {
-            return NOREG; // Okay, we'll be able to get one of these non-preferred registers
+        else if (rclob.count() >= 2) {
+            // The right side clobbers many (all?) registers, so pick one for the left later
+            return NOREG;
         }
         else {
-            return (~rclob).get_gpr();  // Just allocate one more
+            // Just allocate a register that is not clobbered by the right side
+            return (~rclob).get_any();
         }
     }
 
     virtual Register pick_late_register() {
-        return (clob & ~rs.regs()).get_gpr();
+        // The right side clobbered many registers, pick one that is not used by its value
+        return (clob & ~rs.regs()).get_any();
     }
 
     virtual Regs precompile(Regs preferred) {
         rclob = right ? right->precompile() : Regs();
-        Regs pref = (preferred & ~rclob).has_gpr() ? preferred & ~rclob : preferred;  // must be nonempty
-        Regs lclob = left->precompile(pref);
+        Regs lpref = (preferred & ~rclob).has_any() ? preferred & ~rclob : preferred;  // must be nonempty
+        Regs lclob = left->precompile(lpref);
         clob = lclob | rclob;
         
-        // We'll need a working general register that we can also use to pop
-        // a clobbered left value back.
+        // We may need a register to perform the operation, and also return the result with.
+        // If the left value is spilled, we also reload it to this one. For a lvo this
+        // register may contain the address of the returned lvalue.
         reg = pick_early_register(preferred);
         if (reg != NOREG)
             clob.add(reg);
@@ -196,51 +204,147 @@ public:
 
     virtual void subcompile(X64 *x64) {
         ls = left->compile(x64);
-        
-        if (is_assignment(operation)) {
-            if (ls.where != MEMORY)
+
+        // Put the left value in a safe place
+        if (is_left_lvalue) {
+            switch (ls.where) {
+            case MEMORY:
+                if (ls.is_clobbered(rclob)) {
+                    // We got a dynamic address clobbered by the right side, spill to stack
+                    left->ts.store(ls, Storage(ALISTACK), x64);
+                    ls = Storage(ALISTACK);
+                }
+                break;
+            case ALISTACK:
+                // Already on stack, fine
+                break;
+            case ALIAS:
+                // Aliases are at static addresses, can't be clobbered.
+                // And they never change, so we don't have to load them just to be sure.
+                break;
+            default:
                 throw INTERNAL_ERROR;
-                
-            if (ls.is_clobbered(rclob)) {
-                // We don't have an official support for stack-pushed addresses,
-                // so just hack this in temporarily.
-                x64->op(PUSHQ, ls.address.base);
-                ls = Storage(CONSTANT, ls.address.offset);
             }
         }
         else {
-            if (ls.is_clobbered(rclob)) {
-                left->ts.store(ls, Storage(STACK), x64);
-                ls = Storage(STACK);
-            }
-            else if (ls.where == MEMORY) {
-                // TODO
-                // We can't really gain anything by leaving the left side in memory,
-                // but we would risk letting it altered before using it, so grab it now.
-                // This is just an overcautious solution now, in the future we may
-                // be smarter, and let MEMORY storage for the left side, once we make
-                // sure the right side has no side effects.
+            switch (ls.where) {
+            case CONSTANT:
+                break;
+            case FLAGS:
+                break;
+            case REGISTER:
+                if (ls.is_clobbered(rclob)) {
+                    left->ts.store(ls, Storage(STACK), x64);
+                    ls = Storage(STACK);
+                }
+                break;
+            case STACK:
+                break;
+            case MEMORY:
+                // We must also be careful that the right side may change any variable!
+                // And reg is a register that we allocate for values, so make sure
+                // a dynamic address is not using that!
                 
-                if (!rclob.has_gpr() && !rclob.has_ptr())
-                    ;  // Okay, we can relax in this case
+                if (!rclob.has_any() && reg != ls.address.base) {
+                    // Okay, the right side has no side effects, and we don't want to
+                    // destroy the address either, so keep the MEMORY storage.
+                }
                 else if (reg != NOREG) {
-                    // We already know a register that won't be clobbered, use that
+                    // We already know a register that won't be clobbered, save value there
+                    // This may actually reuse the same register, but that's OK
                     left->ts.store(ls, Storage(REGISTER, reg), x64);
                     ls = Storage(REGISTER, reg);
                 }
                 else {
-                    // Nothing is sure, push it onto the stack
+                    // Nothing is sure, push the value onto the stack
                     left->ts.store(ls, Storage(STACK), x64);
                     ls = Storage(STACK);
                 }
+                break;
+            case ALISTACK:
+                // The address itself may be safe, but the value may be not.
+                // Store is only defined from ALISTACK to MEMORY, so do this manually.
+                // And we can't leave any address in RBX, that's for scratch only.
+
+                x64->op(POPQ, RBX);
+                ls = Storage(MEMORY, Address(RBX, 0));
+                
+                if (reg != NOREG) {
+                    // We already know a register that won't be clobbered, save value there
+                    left->ts.store(ls, Storage(REGISTER, reg), x64);
+                    ls = Storage(REGISTER, reg);
+                }
+                else {
+                    // Nothing is sure, push the value onto the stack
+                    left->ts.store(ls, Storage(STACK), x64);
+                    ls = Storage(STACK);
+                }
+                break;
+            case ALIAS:
+                // The address itself may be safe, but the value may be not.
+                // Store is only defined from ALIAS to MEMORY, so do this manually.
+                // And we can't leave any address in RBX, that's for scratch only.
+
+                x64->op(MOVQ, RBX, ls.address);
+                ls = Storage(MEMORY, Address(RBX, 0));
+                
+                if (reg != NOREG) {
+                    // We already know a register that won't be clobbered, save value there
+                    left->ts.store(ls, Storage(REGISTER, reg), x64);
+                    ls = Storage(REGISTER, reg);
+                }
+                else {
+                    // Nothing is sure, push the value onto the stack
+                    left->ts.store(ls, Storage(STACK), x64);
+                    ls = Storage(STACK);
+                }
+                break;
+            default:
+                throw INTERNAL_ERROR;
             }
         }
-
+        
         rs = right ? right->compile(x64) : Storage();
         
-        if (rs.where == STACK) {
-            std::cerr << "The decision was that basic values are not passed as STACK!\n";
-            std::cerr << right->token << "\n";
+        switch (rs.where) {
+        case NOWHERE:
+            break;
+        case CONSTANT:
+            break;
+        case FLAGS:
+            break;
+        case REGISTER:
+            break;
+        case STACK: {
+            if (!rclob.has_any())
+                throw INTERNAL_ERROR;
+        
+            Storage s(REGISTER, rclob.get_any());
+            right->ts.store(rs, s, x64);
+            rs = s;
+            }
+            break;
+        case MEMORY:
+            break;
+        case ALISTACK: {
+            if (!rclob.has_any())
+                throw INTERNAL_ERROR;
+
+            Storage s(MEMORY, Address(rclob.get_any(), 0));
+            right->ts.store(rs, s, x64);
+            rs = s;
+            }
+            break;
+        case ALIAS: {
+            if (!rclob.has_any())
+                throw INTERNAL_ERROR;
+                
+            Storage s(MEMORY, Address(rclob.get_any(), 0));
+            right->ts.store(rs, s, x64);
+            rs = s;
+            }
+            break;
+        default:
             throw INTERNAL_ERROR;
         }
         
@@ -248,21 +352,31 @@ public:
             //std::cerr << "clob=" << clob.available << " rs regs=" << rs.regs().available << "\n";
             reg = pick_late_register();
         }
-            
-        if (is_assignment(operation)) {
-            if (ls.where == CONSTANT) {
-                // We hacked the pushed address, now get it back to a good register
-                Register mreg = (~rs.regs()).get_ptr();
-                //Register mreg = (rs.where == MEMORY && rs.address.base == RSI ? RDI : RSI);
-                x64->op(POPQ, mreg);
-                ls = Storage(MEMORY, Address(mreg, ls.value));
-            }
-        }
-        else {
-            if (ls.where == STACK) {
-                left->ts.store(ls, Storage(REGISTER, reg), x64);
-                ls = Storage(REGISTER, reg);
-            }
+        
+        // Restore the spilled left side
+        switch (ls.where) {
+        case CONSTANT:
+            break;
+        case FLAGS:
+            break;
+        case REGISTER:
+            break;
+        case STACK:
+            left->ts.store(ls, Storage(REGISTER, reg), x64);
+            ls = Storage(REGISTER, reg);
+            break;
+        case MEMORY:
+            break;
+        case ALISTACK:
+            left->ts.store(ls, Storage(MEMORY, Address(reg, 0)), x64);
+            ls = Storage(MEMORY, Address(reg, 0));
+            break;
+        case ALIAS:
+            left->ts.store(ls, Storage(MEMORY, Address(reg, 0)), x64);
+            ls = Storage(MEMORY, Address(reg, 0));
+            break;
+        default:
+            throw INTERNAL_ERROR;
         }
     }
 };

@@ -67,7 +67,7 @@ public:
     }
     
     Regs precompile(Regs preferred) {
-        reg = preferred.get_gpr();
+        reg = preferred.get_any();
         return Regs().add(reg);
     }
     

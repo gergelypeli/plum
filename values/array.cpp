@@ -8,10 +8,10 @@ public:
         :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
     }
 
-    virtual Register pick_early_register(Regs preferred) {
+    //virtual Register pick_early_register(Regs preferred) {
         // And we need to allocate a special address-only register for the real return value
-        return preferred.has_ptr() ? preferred.get_ptr() : Regs::all_ptrs().get_ptr();
-    }
+    //    return preferred.has_ptr() ? preferred.get_ptr() : Regs::all_ptrs().get_ptr();
+    //}
 
     virtual Storage compile(X64 *x64) {
         int size = item_size(ts.measure(MEMORY));
