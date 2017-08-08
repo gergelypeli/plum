@@ -23,36 +23,14 @@ public:
         }
     }
 
-    virtual Storage assign(X64 *x64) {
-        subcompile(x64);
-
-        switch (ls.where * rs.where) {
-        case MEMORY_REGISTER:
-            x64->incref(rs.reg);
-            x64->op(XCHGQ, rs.reg, ls.address);
-            x64->decref(rs.reg);
-            return ls;
-        case MEMORY_MEMORY:
-            x64->op(MOVQ, RBX, rs.address);
-            x64->incref(RBX);
-            x64->op(XCHGQ, RBX, ls.address);
-            x64->decref(RBX);
-            return ls;
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-
     virtual Storage compile(X64 *x64) {
         switch (operation) {
         case EQUAL:
             return equal(x64, SETE);
         case NOT_EQUAL:
             return equal(x64, SETNE);
-        case ASSIGN:
-            return assign(x64);
         default:
-            throw INTERNAL_ERROR;
+            return GenericOperationValue::compile(x64);
         }
     }
 };

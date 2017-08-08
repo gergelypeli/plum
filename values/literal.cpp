@@ -171,16 +171,17 @@ public:
     }
     
     static void compile_string_streamification(X64 *x64) {
-        // RAX - target array, RBX - tmp, RCX - alias, RDX - source array
-        x64->op(MOVQ, RCX, Address(RSP, 8));  // alias to the stream reference
+        // RAX - target array, RBX - tmp, RCX - size, RDX - source array, RDI - alias
+        x64->op(MOVQ, RDI, Address(RSP, 8));  // alias to the stream reference
         x64->op(MOVQ, RDX, Address(RSP, 16));  // reference to the string
         
-        x64->op(MOVQ, RAX, Address(RCX, 0));
+        x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, x64->array_length_address(RDX));
+
+        x64->op(MOVQ, RCX, 2);
+        x64->preappend_array_RAX_RBX_RCX();
         
-        x64->preappend_array_RAX_RBX(2);
-        
-        x64->op(MOVQ, Address(RCX, 0), RAX);  // RCX no longer needed
+        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
         x64->op(LEA, RDI, x64->array_items_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));
@@ -227,16 +228,17 @@ public:
     }
     
     static void compile_character_streamification(X64 *x64) {
-        // RAX - target array, RBX - tmp, RCX - alias, RDX - source character
-        x64->op(MOVQ, RCX, Address(RSP, 8));  // alias to the stream reference
+        // RAX - target array, RBX - tmp, RCX - size, RDX - source character, RDI - alias
+        x64->op(MOVQ, RDI, Address(RSP, 8));  // alias to the stream reference
         x64->op(MOVQ, RDX, Address(RSP, 16));  // the character
 
-        x64->op(MOVQ, RAX, Address(RCX, 0));
+        x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, 1);
         
-        x64->preappend_array_RAX_RBX(2);
+        x64->op(MOVQ, RCX, 2);
+        x64->preappend_array_RAX_RBX_RCX();
         
-        x64->op(MOVQ, Address(RCX, 0), RAX);  // RCX no longer needed
+        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
         x64->op(LEA, RDI, x64->array_items_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));
@@ -282,8 +284,8 @@ public:
     }
     
     static void compile_enum_streamification(X64 *x64) {
-        // RAX - target array, RBX - table start, RCX - alias, RDX - source enum
-        x64->op(MOVQ, RCX, Address(RSP, 8));  // alias to the stream reference
+        // RAX - target array, RBX - table start, RCX - size, RDX - source enum, RDI - alias
+        x64->op(MOVQ, RDI, Address(RSP, 8));  // alias to the stream reference
         x64->op(MOVQ, RDX, Address(RSP, 16));  // the enum
 
         // Find the string for this enum value
@@ -293,11 +295,13 @@ public:
         x64->op(MOVSXQ, RDX, Address(RBX, 0));  // offset to string
         x64->op(ADDQ, RDX, RBX);  // absolute address of string
             
-        x64->op(MOVQ, RAX, Address(RCX, 0));
-
+        x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, x64->array_length_address(RDX));
-        x64->preappend_array_RAX_RBX(2);
-        x64->op(MOVQ, Address(RCX, 0), RAX);  // RCX no longer needed
+        x64->op(MOVQ, RCX, 2);
+        
+        x64->preappend_array_RAX_RBX_RCX();
+        
+        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
         x64->op(LEA, RDI, x64->array_items_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));

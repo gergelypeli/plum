@@ -2,16 +2,9 @@
 
 class ArrayItemValue: public GenericOperationValue {
 public:
-    //Register mreg;
-
     ArrayItemValue(OperationType o, Value *pivot, TypeMatch &match)
         :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
     }
-
-    //virtual Register pick_early_register(Regs preferred) {
-        // And we need to allocate a special address-only register for the real return value
-    //    return preferred.has_ptr() ? preferred.get_ptr() : Regs::all_ptrs().get_ptr();
-    //}
 
     virtual Storage compile(X64 *x64) {
         int size = item_size(ts.measure(MEMORY));
@@ -134,12 +127,11 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = GenericOperationValue::precompile(preferred);
-        return clob.add(RAX);
+        return clob.add(RAX).add(RCX);
     }
 
     virtual Storage compile(X64 *x64) {
         // TODO: this only works for arrays of basic types now, that can be just copied
-        int item_size = ::item_size(ts.rvalue().unprefix(reference_type).unprefix(array_type).measure(MEMORY));
         
         subcompile(x64);
         
@@ -170,7 +162,9 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        x64->realloc_array_RAX_RBX(item_size);
+        int item_size = ::item_size(ts.rvalue().unprefix(reference_type).unprefix(array_type).measure(MEMORY));
+        x64->op(MOVQ, RCX, item_size);
+        x64->realloc_array_RAX_RBX_RCX();
         
         if (ls.address.base == RAX) {
             x64->op(MOVQ, RBX, RAX);

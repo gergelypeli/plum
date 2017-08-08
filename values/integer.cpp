@@ -623,8 +623,8 @@ public:
             return binary_compare(x64, is_unsigned ? SETAE : SETGE);
         case INCOMPARABLE:
             return Storage(CONSTANT, 0);
-        case ASSIGN:
-            return assign_binary(x64, MOVQ);
+        //case ASSIGN:
+        //    return assign_binary(x64, MOVQ);
         case ASSIGN_ADD:
             return assign_binary(x64, ADDQ);
         case ASSIGN_SUBTRACT:
@@ -648,8 +648,7 @@ public:
         case ASSIGN_SHIFT_RIGHT:
             return assign_shift(x64, SHRQ);
         default:
-            std::cerr << "Unknown integer operator!\n";
-            throw INTERNAL_ERROR;
+            return GenericOperationValue::compile(x64);
         }
     }
 };

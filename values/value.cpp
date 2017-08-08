@@ -388,6 +388,26 @@ public:
             throw INTERNAL_ERROR;
         }
     }
+
+    virtual Storage assign(X64 *x64) {
+        subcompile(x64);
+
+        if (ls.where != MEMORY)
+            throw INTERNAL_ERROR;
+
+        ts.store(rs, ls, x64);
+        
+        return ls;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        switch (operation) {
+        case ASSIGN:
+            return assign(x64);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
 };
 
 

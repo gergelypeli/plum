@@ -24,39 +24,12 @@ public:
         }
     }
 
-    virtual Storage assign(X64 *x64) {
-        subcompile(x64);
-
-        if (ls.where != MEMORY)
-            throw INTERNAL_ERROR;
-
-        switch (rs.where) {
-        case CONSTANT:
-            x64->op(MOVB, ls.address, rs.value);
-            return ls;
-        case FLAGS:
-            x64->op(rs.bitset, ls.address);
-            return ls;
-        case REGISTER:
-            x64->op(MOVB, ls.address, rs.reg);
-            return ls;
-        case MEMORY:
-            x64->op(MOVB, BL, rs.address);
-            x64->op(MOVB, ls.address, BL);
-            return ls;
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-
     virtual Storage compile(X64 *x64) {
         switch (operation) {
         case COMPLEMENT:
             return complement(x64);
-        case ASSIGN:
-            return assign(x64);
         default:
-            throw INTERNAL_ERROR;
+            return GenericOperationValue::compile(x64);
         }
     }
 };

@@ -1096,21 +1096,21 @@ void X64::alloc_array_RAX_RBX() {
     op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
 }
 
-void X64::realloc_array_RAX_RBX(int item_size) {
+void X64::realloc_array_RAX_RBX_RCX() {
     op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), RBX);
-    op(IMUL3Q, RBX, RBX, item_size);
+    op(IMUL2Q, RBX, RCX);
     op(ADDQ, RBX, ARRAY_HEADER_SIZE);
     
     realloc_RAX_RBX();
 }
 
-void X64::preappend_array_RAX_RBX(int item_size) {
+void X64::preappend_array_RAX_RBX_RCX() {
     op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
     op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
     Label x;
     op(JBE, x);
     
-    realloc_array_RAX_RBX(item_size);
+    realloc_array_RAX_RBX_RCX();
     
     code_label(x);
 }

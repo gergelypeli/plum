@@ -460,8 +460,8 @@ public:
     void realloc_RAX_RBX();
     
     void alloc_array_RAX_RBX();
-    void realloc_array_RAX_RBX(int item_size);
-    void preappend_array_RAX_RBX(int item_size);
+    void realloc_array_RAX_RBX_RCX();
+    void preappend_array_RAX_RBX_RCX();
     Address array_reservation_address(Register reg);
     Address array_length_address(Register reg);
     Address array_items_address(Register reg);
