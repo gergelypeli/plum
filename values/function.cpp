@@ -230,9 +230,10 @@ public:
                     // We can't just initialize an optional ALIAS, because it needs an
                     // allocated MEMORY storage first. So let's allocate it now.
                     
-                    DeclarationValue *dv = new DeclarationValue("<dummy>");
-                    Value *right = new TypeValue(arg_ts.unprefix(ovalue_type).prefix(type_type));
-                    dv->use(right, scope);
+                    //DeclarationValue *dv = new DeclarationValue("<dummy>");
+                    //Value *right = new TypeValue(arg_ts.unprefix(ovalue_type).prefix(type_type));
+                    //dv->use(right, scope);
+                    Value *dv = make_declaration_by_type("<dummy>", arg_ts.unprefix(ovalue_type), scope);
                     items[i].reset(dv);
                     
                     std::cerr << "Argument " << i << " is now a dummy.\n";

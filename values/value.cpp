@@ -510,3 +510,19 @@ Value *make_enumeration_definition_value() {
 Value *make_record_definition_value() {
     return new RecordDefinitionValue();
 }
+
+
+DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope) {
+    DeclarationValue *dv = new DeclarationValue(name);
+    bool ok = dv->use(v, scope);
+    if (!ok)
+        throw INTERNAL_ERROR;
+    return dv;
+}
+
+
+Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope) {
+    Value *v = new TypeValue(ts.prefix(type_type));
+    return make_declaration_by_value(name, v, scope);
+}
+

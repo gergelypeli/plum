@@ -21,6 +21,10 @@ Pair? :Record
     first? Integer
     second? Integer
 
+    new? :Function as:
+        $ first = 1
+        $ second = 2
+
     meth? :Function Integer as:
         prints("Meth!")
         :return $ first + $ second
@@ -138,5 +142,8 @@ start? :Function as:
     print_pair
     
     p dump dump
+    
+    r? Pair `new
+    r dump
     
     :return

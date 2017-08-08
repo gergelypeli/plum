@@ -58,7 +58,7 @@ public:
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);
-    Value *lookup_initializer(std::string name);
+    Value *lookup_initializer(std::string name, Scope *scope);
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
@@ -113,6 +113,9 @@ Value *make_unicode_character_value();
 Value *make_integer_definition_value();
 Value *make_enumeration_definition_value();
 Value *make_record_definition_value();
+
+DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
+Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
 
 
 #include "declarations/declaration.cpp"
@@ -411,9 +414,10 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     BlockValue *block = new BlockValue(NULL);
     block->set_marker(marker);
     
-    DeclarationValue *dv = new DeclarationValue("<result>");
-    Value *initial_value = new StringBufferValue(100);
-    dv->use(initial_value, scope);
+    DeclarationValue *dv = make_declaration_by_value("<result>", new StringBufferValue(100), scope);
+    //DeclarationValue *dv = new DeclarationValue("<result>");
+    //Value *initial_value = new StringBufferValue(100);
+    //dv->use(initial_value, scope);
     Variable *v = dv->get_var();
     block->add_statement(dv);
 
@@ -421,8 +425,9 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
         Value *keyword_value = typize(expr, scope);
-        DeclarationValue *decl_value = new DeclarationValue(keyword);
-        decl_value->use(keyword_value, scope);
+        //DeclarationValue *decl_value = new DeclarationValue(keyword);
+        //decl_value->use(keyword_value, scope);
+        DeclarationValue *decl_value = make_declaration_by_value(keyword, keyword_value, scope);
         block->add_statement(decl_value);
     }
 
@@ -559,7 +564,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
             
-            value = context->lookup_initializer(name);
+            value = context->lookup_initializer(name, scope);
             
             if (!value) {
                 std::cerr << "No initializer " << *context << " `" << name << "!\n";

@@ -123,9 +123,9 @@ void TypeSpec::destroy(Storage s, X64 *x64) {
 }
 
 
-Value *TypeSpec::lookup_initializer(std::string name) {
+Value *TypeSpec::lookup_initializer(std::string name, Scope *scope) {
     TypeSpecIter tsi(begin());
-    return (*tsi)->lookup_initializer(tsi, name);
+    return (*tsi)->lookup_initializer(tsi, name, scope);
 }
 
 

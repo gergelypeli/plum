@@ -122,7 +122,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -364,7 +364,7 @@ public:
         inner_scope.reset(new Scope);
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
         if (name == "false")
             return make_basic_value(TypeSpec(tsi), 0);
         else if (name == "true")
@@ -390,7 +390,7 @@ public:
         inner_scope.reset(new Scope);
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
         if (name == "zero")
             return make_basic_value(TypeSpec(tsi), 0);
         else if (name == "unicode")
@@ -532,7 +532,7 @@ public:
         }
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
         if (name == "null") {
             return make_null_reference_value(TypeSpec(tsi));
         }
@@ -614,7 +614,7 @@ public:
         stringifications_label = sl;
     }
     
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make_basic_value(TypeSpec(tsi), i);
@@ -727,7 +727,33 @@ public:
         return Storage(FLAGS, SETNE);
     }
     
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n) {
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+        //Variable *new_variable = new Variable("<new>", VOID_TS, TypeSpec(tsi));
+        //scope->add(new_variable);
+        
+        // Initialize a hidden value, and pass it to a method
+        //DeclarationValue *dv = new DeclarationValue("<new>");
+        //TypeSpec ts(tsi);
+        //Value *right = new TypeValue(ts.prefix(type_type));
+        //dv->use(right, scope);
+        TypeSpec ts(tsi);
+        Value *dv = make_declaration_by_type("<new>", ts, scope);
+
+        TypeMatch match;
+        Value *value = inner_scope->lookup(n, dv, match);
+
+        if (value)
+            return value;
+            
+        std::cerr << "Can't initialize record as " << n << "!\n";
+        
+        // OK, we gonna leak dv here, because it's just not possible to delete it.
+        //   error: possible problem detected in invocation of delete operator
+        //   error: ‘dv’ has incomplete type
+        //   note: neither the destructor nor the class-specific operator delete
+        //     will be called, even if they are declared when the class is defined
+        // Thanks, C++!
+        
         return NULL;
     }
     
