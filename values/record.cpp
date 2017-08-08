@@ -24,7 +24,7 @@ public:
         //std::vector<TypeSpec> arg_tss = record_type->member_tss;
         //std::vector<std::string> arg_names = record_type->member_names;
         
-        return check_arguments(args, kwargs, scope, record_type->member_variables, false, values);
+        return check_arguments(args, kwargs, scope, record_type->member_tss, record_type->member_names, values);
     }
 
     virtual Regs precompile(Regs preferred) {

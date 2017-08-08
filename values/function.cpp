@@ -155,35 +155,11 @@ public:
         pivot.reset(p);
         result_variable = NULL;
         
-        for (unsigned i = 0; i < function->get_argument_count(); i++)
-            items.push_back(NULL);
+        //for (unsigned i = 0; i < function->get_argument_count(); i++)
+        //    items.push_back(NULL);
             
         if (ts == VOID_TS)
             ts = f->get_pivot_typespec();
-    }
-
-    virtual bool check_arg(unsigned i, Value *v) {
-        if (i >= items.size()) {
-            std::cerr << "Too many arguments!\n";
-            return false;
-        }
-    
-        if (items[i]) {
-            std::cerr << "Argument " << i << " already supplied!\n";
-            return false;
-        }
-            
-        TypeSpec var_ts = function->get_argument_typespec(i);
-        
-        TypeMatch match;
-        
-        if (!typematch(var_ts, v, match)) {
-            std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << var_ts << "!\n";
-            return false;
-        }
-        
-        items[i] = std::unique_ptr<Value>(v);
-        return true;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -194,31 +170,17 @@ public:
             scope->add(result_variable);
         }
 
-        for (unsigned i = 0; i < args.size(); i++) {
-            Expr *e = args[i].get();
-            TypeSpec var_ts = function->get_argument_typespec(i);
-            
-            if (!check_arg(i, typize(e, scope, &var_ts)))
-                return false;
-        }
-                
-        for (auto &kv : kwargs) {
-            unsigned i = function->get_argument_index(kv.first);
-            if (i == (unsigned)-1) {
-                std::cerr << "No argument named " << kv.first << "!\n";
-                return false;
-            }
-            
-            Expr *e = kv.second.get();
-            TypeSpec var_ts = function->get_argument_typespec(i);
-            
-            if (!check_arg(i, typize(e, scope, &var_ts)))
-                return false;
-        }
-
+        std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
+        std::vector<std::string> &arg_names = function->get_argument_names();
+        
+        bool ok = check_arguments(args, kwargs, scope, arg_tss, arg_names, items);
+        if (!ok)
+            return false;
+        
         for (unsigned i = 0; i < items.size(); i++) {
             if (!items[i]) {
-                TypeSpec arg_ts = function->get_argument_typespec(i);
+                TypeSpec arg_ts = arg_tss[i];
+                
                 if (arg_ts[0] != ovalue_type) {
                     std::cerr << "Argument " << i << " not supplied: " << arg_ts << "!\n";
                     return false;
@@ -315,6 +277,8 @@ public:
     
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
+        std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
+
         TypeSpec ret_ts = function->get_return_typespec();
         bool is_void = ret_ts == VOID_TS;
         Storage ret_storage;
@@ -343,7 +307,7 @@ public:
         }
         
         for (unsigned i = 0; i < items.size(); i++)
-            passed_size += push_arg(function->get_argument_typespec(i), items[i].get(), x64);
+            passed_size += push_arg(arg_tss[i], items[i].get(), x64);
             
         if (function->is_sysv && passed_size > 0)
             sysv_prologue(x64, passed_size);
@@ -354,7 +318,7 @@ public:
             sysv_epilogue(x64, passed_size);
         
         for (int i = items.size() - 1; i >= 0; i--)
-            pop_arg(function->get_argument_typespec(i), x64);
+            pop_arg(arg_tss[i], x64);
             
         if (pivot) {
             TypeSpec pivot_ts = function->get_pivot_typespec();

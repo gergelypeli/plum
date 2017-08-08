@@ -411,7 +411,7 @@ public:
 };
 
 
-bool check_argument(unsigned i, Expr *e, Scope *scope, std::vector<Variable *> arg_vars, bool is_arg, std::vector<std::unique_ptr<Value>> &values) {
+bool check_argument(unsigned i, Expr *e, Scope *scope, std::vector<TypeSpec> &arg_tss, std::vector<std::unique_ptr<Value>> &values) {
     if (i >= values.size()) {
         std::cerr << "Too many arguments!\n";
         return false;
@@ -422,10 +422,7 @@ bool check_argument(unsigned i, Expr *e, Scope *scope, std::vector<Variable *> a
         return false;
     }
         
-    TypeSpec arg_ts = arg_vars[i]->var_ts;
-    if (!is_arg)
-        arg_ts = arg_ts.rvalue();  // Initializing record members is possible from rvalues
-    
+    TypeSpec arg_ts = arg_tss[i];
     Value *v = typize(e, scope, &arg_ts);
     TypeMatch match;
     
@@ -441,24 +438,25 @@ bool check_argument(unsigned i, Expr *e, Scope *scope, std::vector<Variable *> a
 
 bool check_arguments(
     Args &args, Kwargs &kwargs, Scope *scope,
-    std::vector<Variable *> &arg_vars, bool is_arg,
+    std::vector<TypeSpec> &arg_tss,
+    std::vector<std::string> &arg_names,
     std::vector<std::unique_ptr<Value>> &values
 ) {
-    for (unsigned i = 0; i< arg_vars.size(); i++)
+    for (unsigned i = 0; i< arg_tss.size(); i++)
         values.push_back(NULL);
 
     for (unsigned i = 0; i < args.size(); i++) {
         Expr *e = args[i].get();
         
-        if (!check_argument(i, e, scope, arg_vars, is_arg, values))
+        if (!check_argument(i, e, scope, arg_tss, values))
             return false;
     }
             
     for (auto &kv : kwargs) {
         unsigned i = (unsigned)-1;
         
-        for (unsigned j = 0; j < arg_vars.size(); j++)
-            if (arg_vars[j]->name == kv.first) {
+        for (unsigned j = 0; j < arg_names.size(); j++)
+            if (arg_names[j] == kv.first) {
                 i = j;
                 break;
             }
@@ -470,7 +468,7 @@ bool check_arguments(
         
         Expr *e = kv.second.get();
         
-        if (!check_argument(i, e, scope, arg_vars, is_arg, values))
+        if (!check_argument(i, e, scope, arg_tss, values))
             return false;
     }
     

@@ -632,6 +632,8 @@ class RecordType: public Type {
 public:
     Scope *inner_scope;
     std::vector<Variable *> member_variables;
+    std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
+    std::vector<std::string> member_names;
 
     RecordType(std::string n)
         :Type(n, 0) {
@@ -644,8 +646,11 @@ public:
         for (auto &c : inner_scope->contents) {
             Variable *v = dynamic_cast<Variable *>(c.get());
             
-            if (v)
+            if (v) {
                 member_variables.push_back(v);
+                member_tss.push_back(v->var_ts.rvalue());
+                member_names.push_back(v->name);
+            }
         }
         
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";

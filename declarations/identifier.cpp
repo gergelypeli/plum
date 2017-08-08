@@ -120,24 +120,12 @@ public:
         return pivot_ts;
     }
     
-    virtual unsigned get_argument_count() {
-        return arg_tss.size();
+    virtual std::vector<TypeSpec> &get_argument_tss() {
+        return arg_tss;
     }
     
-    virtual TypeSpec get_argument_typespec(unsigned i) {
-        //std::cerr << "Returning typespec for argument " << i << ".\n";
-        return arg_tss[i];
-    }
-
-    virtual int get_argument_index(std::string keyword) {  // FIXME
-        for (unsigned i = 0; i < arg_names.size(); i++)
-            if (arg_names[i] == keyword)
-                return i;
-                
-        return (unsigned)-1;
-    }
-
-    virtual void allocate() {
+    virtual std::vector<std::string> &get_argument_names() {
+        return arg_names;
     }
 };
 
