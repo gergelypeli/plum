@@ -146,4 +146,7 @@ start? :Function as:
     r? Pair `new
     r dump
     
+    s? Pair { second: 222 }
+    s dump
+    
     :return

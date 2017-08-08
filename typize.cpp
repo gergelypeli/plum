@@ -113,6 +113,7 @@ Value *make_unicode_character_value();
 Value *make_integer_definition_value();
 Value *make_enumeration_definition_value();
 Value *make_record_definition_value();
+Value *make_record_initializer_value(Variable *var);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
@@ -554,7 +555,10 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             
             value = interpolate(s->text, expr, scope);
         }
-        else if (name.size()) {
+        else {
+            if (name.size() == 0)
+                name = "{}";
+            
             TypeMatch match;
             
             if (typematch(ANY_TYPE_TS, p, match))
@@ -580,10 +584,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
             
             std::cerr << "Using initializer " << *context << " `" << name << ".\n";
-        }
-        else {
-            std::cerr << "Can't process this initialization yet!\n";
-            throw TYPE_ERROR;
         }
     }
     else if (expr->type == Expr::NUMBER) {

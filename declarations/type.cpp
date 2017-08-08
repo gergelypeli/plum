@@ -631,22 +631,24 @@ public:
 class RecordType: public Type {
 public:
     Scope *inner_scope;
-    std::vector<std::pair<TypeSpec, int>> members;
+    std::vector<Variable *> member_variables;
 
-    RecordType(std::string n, Scope *is)
+    RecordType(std::string n)
         :Type(n, 0) {
-        inner_scope = is;
+        inner_scope = NULL;
     }
     
-    virtual void allocate() {
+    virtual void set_inner_scope(Scope *is) {
+        inner_scope = is;
+        
         for (auto &c : inner_scope->contents) {
             Variable *v = dynamic_cast<Variable *>(c.get());
             
-            if (v) {
-                int offset = v->get_storage(Storage(MEMORY, Address(RAX, 0))).address.offset;
-                members.push_back(std::make_pair(v->var_ts, offset));
-            }
+            if (v)
+                member_variables.push_back(v);
         }
+        
+        std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
     }
     
     virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
@@ -665,8 +667,8 @@ public:
         case MEMORY_NOWHERE:
             return;
         case MEMORY_MEMORY:  // duplicates data
-            for (auto &member : members)
-                member.first.store(Storage(MEMORY, s.address + member.second), Storage(MEMORY, t.address + member.second), x64);
+            for (auto &var : member_variables)
+                var->var_ts.store(Storage(MEMORY, s.address + var->offset), Storage(MEMORY, t.address + var->offset), x64);
             return;
         default:
             Type::store(tsi, s, t, x64);
@@ -676,12 +678,12 @@ public:
     virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
         case NOWHERE_MEMORY:
-            for (auto &member : members)
-                member.first.create(Storage(), Storage(MEMORY, t.address + member.second), x64);
+            for (auto &var : member_variables)
+                var->var_ts.create(Storage(), Storage(MEMORY, t.address + var->offset), x64);
             return;
         case MEMORY_MEMORY:  // duplicates data
-            for (auto &member : members)
-                member.first.create(Storage(MEMORY, s.address + member.second), Storage(MEMORY, t.address + member.second), x64);
+            for (auto &var : member_variables)
+                var->var_ts.create(Storage(MEMORY, s.address + var->offset), Storage(MEMORY, t.address + var->offset), x64);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -690,8 +692,8 @@ public:
 
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         if (s.where == MEMORY)
-            for (auto &member : members)  // FIXME: reverse!
-                member.first.destroy(Storage(MEMORY, s.address + member.second), x64);
+            for (auto &var : member_variables)  // FIXME: reverse!
+                var->var_ts.destroy(Storage(MEMORY, s.address + var->offset), x64);
         else
             throw INTERNAL_ERROR;
     }
@@ -713,8 +715,8 @@ public:
         
         Label done;
         
-        for (auto &member : members) {
-            Storage t = member.first.boolval(Storage(MEMORY, address + member.second), x64, true);
+        for (auto &var : member_variables) {
+            Storage t = var->var_ts.boolval(Storage(MEMORY, address + var->offset), x64, true);
             
             if (t.where == FLAGS && t.bitset == SETNE)
                 x64->op(JNE, done);
@@ -728,33 +730,35 @@ public:
     }
     
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
-        //Variable *new_variable = new Variable("<new>", VOID_TS, TypeSpec(tsi));
-        //scope->add(new_variable);
-        
-        // Initialize a hidden value, and pass it to a method
-        //DeclarationValue *dv = new DeclarationValue("<new>");
-        //TypeSpec ts(tsi);
-        //Value *right = new TypeValue(ts.prefix(type_type));
-        //dv->use(right, scope);
-        TypeSpec ts(tsi);
-        Value *dv = make_declaration_by_type("<new>", ts, scope);
-
-        TypeMatch match;
-        Value *value = inner_scope->lookup(n, dv, match);
-
-        if (value)
-            return value;
+        if (n == "{}") {
+            // Anonymous initializer
+            Variable *var = new Variable("<new>", VOID_TS, TypeSpec(tsi));
+            scope->add(var);
             
-        std::cerr << "Can't initialize record as " << n << "!\n";
+            return make_record_initializer_value(var);
+        }
+        else {
+            // Named initializer
+            TypeSpec ts(tsi);
+            Value *dv = make_declaration_by_type("<new>", ts, scope);
+
+            TypeMatch match;
+            Value *value = inner_scope->lookup(n, dv, match);
+
+            if (value)
+                return value;
+            
+            std::cerr << "Can't initialize record as " << n << "!\n";
         
-        // OK, we gonna leak dv here, because it's just not possible to delete it.
-        //   error: possible problem detected in invocation of delete operator
-        //   error: ‘dv’ has incomplete type
-        //   note: neither the destructor nor the class-specific operator delete
-        //     will be called, even if they are declared when the class is defined
-        // Thanks, C++!
+            // OK, we gonna leak dv here, because it's just not possible to delete it.
+            //   error: possible problem detected in invocation of delete operator
+            //   error: ‘dv’ has incomplete type
+            //   note: neither the destructor nor the class-specific operator delete
+            //     will be called, even if they are declared when the class is defined
+            // Thanks, C++!
         
-        return NULL;
+            return NULL;
+        }
     }
     
     virtual Scope *get_inner_scope() {

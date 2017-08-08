@@ -206,13 +206,10 @@ public:
             return false;
         }
 
-        // Order matters here, the inner_scope is created first, then the RecordType,
-        // so this is the order they will be allocated. This matters in RecordType
-        // when gathering the offsets of member variables.
+        record_type.reset(new RecordType("<anonymous>"));
+
         inner_scope = new DataScope;
         scope->add(inner_scope);
-
-        record_type.reset(new RecordType("<anonymous>", inner_scope));
         inner_scope->set_pivot_type_hint(TypeSpec { record_type.get() });
         inner_scope->set_meta_scope(record_metatype->get_inner_scope());
         
@@ -233,6 +230,8 @@ public:
         // TODO: this should be a fallback if the user didn't define his own
         Value *eq = typize(make_equality(member_names), inner_scope);
         values.push_back(std::unique_ptr<Value>(eq));
+
+        record_type->set_inner_scope(inner_scope);
 
         return true;
     }

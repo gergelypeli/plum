@@ -411,6 +411,73 @@ public:
 };
 
 
+bool check_argument(unsigned i, Expr *e, Scope *scope, std::vector<Variable *> arg_vars, bool is_arg, std::vector<std::unique_ptr<Value>> &values) {
+    if (i >= values.size()) {
+        std::cerr << "Too many arguments!\n";
+        return false;
+    }
+
+    if (values[i]) {
+        std::cerr << "Argument " << i << " already supplied!\n";
+        return false;
+    }
+        
+    TypeSpec arg_ts = arg_vars[i]->var_ts;
+    if (!is_arg)
+        arg_ts = arg_ts.rvalue();  // Initializing record members is possible from rvalues
+    
+    Value *v = typize(e, scope, &arg_ts);
+    TypeMatch match;
+    
+    if (!typematch(arg_ts, v, match)) {
+        std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << arg_ts << "!\n";
+        return false;
+    }
+    
+    values[i] = std::unique_ptr<Value>(v);
+    return true;
+}
+
+
+bool check_arguments(
+    Args &args, Kwargs &kwargs, Scope *scope,
+    std::vector<Variable *> &arg_vars, bool is_arg,
+    std::vector<std::unique_ptr<Value>> &values
+) {
+    for (unsigned i = 0; i< arg_vars.size(); i++)
+        values.push_back(NULL);
+
+    for (unsigned i = 0; i < args.size(); i++) {
+        Expr *e = args[i].get();
+        
+        if (!check_argument(i, e, scope, arg_vars, is_arg, values))
+            return false;
+    }
+            
+    for (auto &kv : kwargs) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < arg_vars.size(); j++)
+            if (arg_vars[j]->name == kv.first) {
+                i = j;
+                break;
+            }
+            
+        if (i == (unsigned)-1) {
+            std::cerr << "No argument named " << kv.first << "!\n";
+            return false;
+        }
+        
+        Expr *e = kv.second.get();
+        
+        if (!check_argument(i, e, scope, arg_vars, is_arg, values))
+            return false;
+    }
+    
+    return true;
+}
+
+
 #include "literal.cpp"
 #include "type.cpp"
 #include "block.cpp"
@@ -509,6 +576,11 @@ Value *make_enumeration_definition_value() {
 
 Value *make_record_definition_value() {
     return new RecordDefinitionValue();
+}
+
+
+Value *make_record_initializer_value(Variable *var) {
+    return new RecordInitializerValue(var);
 }
 
 
