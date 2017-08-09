@@ -268,6 +268,7 @@ public:
     VoidConversionValue(Value *o)
         :Value(VOID_TS) {
         orig.reset(o);
+        marker = orig->marker;
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -290,6 +291,7 @@ public:
     BooleanConversionValue(Value *o)
         :Value(BOOLEAN_TS) {
         orig.reset(o);
+        marker = orig->marker;
     }
     
     virtual Regs precompile(Regs preferred) {
