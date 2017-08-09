@@ -527,8 +527,8 @@ Value *make_string_literal_value(std::string text) {
 }
 
 
-Value *make_code_value(Value *value, bool escape_last) {
-    return new CodeValue(value, escape_last);
+Value *make_code_value(Value *value, Declaration *escape) {
+    return new CodeValue(value, escape);
 }
 
 

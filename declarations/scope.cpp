@@ -101,22 +101,32 @@ public:
             contents.back().get()->finalize(SCOPE_FINALIZATION, s, x64);
     }
     
-    virtual bool intrude(Scope *intruder, Marker before, bool escape_last) {
-        // Insert a Scope taking all remaining declarations, maybe not the last one
+    virtual bool intrude(Scope *intruder, Marker before, Declaration *escape) {
+        // Insert a Scope taking all remaining declarations, except the first or the last one
 
         if (before.scope != this)
             throw INTERNAL_ERROR;
 
-        Declaration *escaped = NULL;
+        Declaration *stop = before.last;
+        Declaration *escaped_last = NULL;
         
-        if (escape_last) {
-            escaped = contents.back().release();
-            contents.pop_back();
+        if (escape) {
+            std::cerr << "XXX Will escape\n";
+            
+            if (escape == contents.back().get()) {
+                escaped_last = contents.back().release();
+                contents.pop_back();
+            }
+            else if (escape == contents.front().get()) {
+                stop = escape;
+            }
+            else
+                throw INTERNAL_ERROR;
         }
 
         std::stack<Declaration *> victims;
 
-        while (contents.size() && contents.back().get() != before.last) {
+        while (contents.size() && contents.back().get() != stop) {
             Declaration *d = contents.back().release();
             contents.pop_back();
             victims.push(d);
@@ -131,14 +141,14 @@ public:
                 intruder->add(d);
             }
         
-            if (escaped)
-                add(escaped);
+            if (escaped_last)
+                add(escaped_last);
                 
             return true;
         }
         else {
-            if (escaped)
-                add(escaped);
+            if (escaped_last)
+                add(escaped_last);
                 
             return false;
         }

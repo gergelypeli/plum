@@ -55,16 +55,10 @@ public:
         }
         else {
             for (unsigned i = 0; i < args.size() - 1; i++) {
-                bool escape_last = (args[i]->type == Expr::DECLARATION);
+                value = typize(args[i].get(), scope, &VOID_CODE_TS);
                 
-                //try {
-                    value = typize(args[i].get(), scope, &VOID_CODE_TS);
-                //} catch (Error) {
-                //    error = true;
-                    //std::cerr << "Continuing...\n";
-                    //continue;
-                //    throw;
-                //}
+                DeclarationValue *dv = declaration_value_cast(value);
+                Declaration *escape = dv ? declaration_get_decl(dv) : NULL;
                 
                 // This matters, because makes the expression Void before putting it
                 // in CodeValue, which would be sensitive about MEMORY return values,
@@ -76,18 +70,12 @@ public:
                 value = make_void_conversion_value(value);
                 value->set_marker(marker);
                 
-                value = make_code_value(value, escape_last);
+                value = make_code_value(value, escape);
                 add_statement(value, false);
             }
             
-            //try {
-                value = typize(args.back().get(), scope, context);
-                add_statement(value, true);
-            //} catch (Error) {
-            //    error = true;
-            //    //std::cerr << "Continuing...\n";
-            //    throw;
-            //}
+            value = typize(args.back().get(), scope, context);
+            add_statement(value, true);
         }
 
         return !error;
@@ -121,14 +109,14 @@ public:
     CodeScope *code_scope;
     Register reg;
 
-    CodeValue(Value *v, bool escape_last)
+    CodeValue(Value *v, Declaration *escape)
         :Value(v->ts.rvalue()) {
         value.reset(v);
         code_scope = NULL;
         
         CodeScope *intruder = new CodeScope;
         
-        if (value->marker.scope->intrude(intruder, value->marker, escape_last))
+        if (value->marker.scope->intrude(intruder, value->marker, escape))
             code_scope = intruder;
         else
             delete intruder;
@@ -176,6 +164,7 @@ public:
 class DeclarationValue: public Value {
 public:
     std::string name;
+    Declaration *decl;
     Variable *var;
     std::unique_ptr<Value> value;
     TypeSpec *context;
@@ -184,11 +173,16 @@ public:
         :Value(VOID_TS) {
         name = n;
         context = c;  // This may have a limited lifetime!
+        decl = NULL;
         var = NULL;
     }
 
     virtual std::string get_name() {
         return name;
+    }
+
+    virtual Declaration *get_decl() {
+        return decl;
     }
     
     virtual Variable *get_var() {
@@ -203,17 +197,18 @@ public:
             var = value->declare_impure(name, scope);
         
             if (var) {
-                scope->add(var);
+                decl = var;
+                scope->add(decl);
                 ts = var->var_ts;
                 return true;
             }
         }
         
         // Allow declaration by type or metatype
-        Declaration *d = value->declare_pure(name, scope);
+        decl = value->declare_pure(name, scope);
         
-        if (d) {
-            scope->add(d);
+        if (decl) {
+            scope->add(decl);
             return true;
         }
         
@@ -272,3 +267,7 @@ std::string declaration_get_name(DeclarationValue *dv) {
     return dv->get_name();
 }
 
+
+Declaration *declaration_get_decl(DeclarationValue *dv) {
+    return dv->get_decl();
+}

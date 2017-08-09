@@ -95,6 +95,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 std::string declaration_get_name(DeclarationValue *dv);
+Declaration *declaration_get_decl(DeclarationValue *dv);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 
 Value *make_variable_value(Variable *decl, Value *pivot);
@@ -104,7 +105,7 @@ Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, V
 Value *make_declaration_value(std::string name, TypeSpec *context);
 Value *make_basic_value(TypeSpec ts, int number);
 Value *make_string_literal_value(std::string text);
-Value *make_code_value(Value *value, bool escape_last = false);
+Value *make_code_value(Value *value, Declaration *escape = NULL);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_boolean_not_value(Value *value);
