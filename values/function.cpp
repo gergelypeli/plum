@@ -374,6 +374,21 @@ public:
             }
         }
     }
+    
+    virtual Variable *declare_dirty(std::string name, Scope *scope) {
+        DeclarationValue *pivot_dv = declaration_value_cast(pivot.get());
+        
+        if (function->get_return_typespec() == VOID_TS && pivot_dv) {
+            Variable *var = declaration_get_var(pivot_dv);
+            
+            if (var->name == "<new>") {
+                var->name = name;
+                return var;
+            }
+        }
+            
+        return NULL;
+    }
 };
 
 

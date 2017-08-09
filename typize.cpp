@@ -96,6 +96,7 @@ TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
+Variable *declaration_get_var(DeclarationValue *dv);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 
 Value *make_variable_value(Variable *decl, Value *pivot);

@@ -166,6 +166,7 @@ public:
     std::string name;
     Declaration *decl;
     Variable *var;
+    bool var_needs_initialization;
     std::unique_ptr<Value> value;
     TypeSpec *context;
     
@@ -175,6 +176,7 @@ public:
         context = c;  // This may have a limited lifetime!
         decl = NULL;
         var = NULL;
+        var_needs_initialization = false;
     }
 
     virtual std::string get_name() {
@@ -193,6 +195,17 @@ public:
         value.reset(v);
 
         if (!scope->is_pure()) {
+            var = value->declare_dirty(name, scope);
+            
+            if (var) {
+                // This is an already added automatic variable used in a constructor.
+                // We just need it so it can be escaped from the enclosing CodeScope.
+                decl = var;
+                ts = var->var_ts;
+                var_needs_initialization = false;
+                return true;
+            }
+        
             // Allow declaration by value or type
             var = value->declare_impure(name, scope);
         
@@ -200,6 +213,7 @@ public:
                 decl = var;
                 scope->add(decl);
                 ts = var->var_ts;
+                var_needs_initialization = true;
                 return true;
             }
         }
@@ -247,7 +261,16 @@ public:
             Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
             Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
             Storage t = var->get_storage(fn_storage);
-            var->var_ts.create(s, t, x64);
+
+            if (var_needs_initialization) {
+                // Use the value to initialize the variable, then return the variable
+                var->var_ts.create(s, t, x64);
+            }
+            else {
+                // Drop the value, just return the variable, it's already initialized
+                value->ts.store(s, Storage(), x64);
+            }
+            
             return t;
         }
         else {
@@ -270,4 +293,9 @@ std::string declaration_get_name(DeclarationValue *dv) {
 
 Declaration *declaration_get_decl(DeclarationValue *dv) {
     return dv->get_decl();
+}
+
+
+Variable *declaration_get_var(DeclarationValue *dv) {
+    return dv->get_var();
 }
