@@ -65,14 +65,8 @@ public:
             content->allocate();
     }
 
-    virtual int reserve(unsigned) {
+    virtual int reserve(unsigned size) {
         throw INTERNAL_ERROR;
-    }
-
-    virtual void expand(unsigned s) {
-        // CodeScope-s in the declarations may call this, but just with 0 size
-        //if (s > 0)
-            throw INTERNAL_ERROR;
     }
 
     virtual bool is_pure() {
@@ -227,40 +221,46 @@ public:
 
 class CodeScope: public Scope {
 public:
-    unsigned expanded_size;
+    int offset;
     
     CodeScope()
         :Scope() {
-        expanded_size = 0;
+    }
+
+    virtual bool is_transient() {
+        return true;
     }
     
     virtual void allocate() {
-        Scope::allocate();
-        outer_scope->expand(expanded_size);
+        offset = outer_scope->reserve(0);
+        
+        for (auto &d : contents)
+            if (!d->is_transient())
+                d->allocate();
+                
+        size = stack_size(size);
+        unsigned min_size = size;
+        unsigned max_size = size;
+
+        for (auto &d : contents)
+            if (d->is_transient()) {
+                d->allocate();
+                
+                if (size > max_size)
+                    max_size = size;
+                    
+                size = min_size;
+            }
+        
+        //std::cerr << "CodeScope reserving " << min_size << "+" << (max_size - min_size) << " bytes.\n";
+        outer_scope->reserve(max_size);
     }
 
     virtual int reserve(unsigned s) {
-        if (s) {
-            // Variables allocate nonzero bytes
-            unsigned ss = stack_size(s);  // Simple strategy
-            size += ss;
+        unsigned ss = stack_size(s);  // Simple strategy
+        size += ss;
         
-            if (size > expanded_size)
-                expanded_size = size;
-        
-            return outer_scope->reserve(0) - size;
-        }
-        else {
-            // Inner CodeScope-s just probe
-            return outer_scope->reserve(0) - stack_size(size);
-        }
-    }
-    
-    virtual void expand(unsigned s) {
-        unsigned es = stack_size(size) + s;
-        
-        if (es > expanded_size)
-            expanded_size = es;
+        return offset - size;
     }
     
     virtual bool is_pure() {
@@ -391,14 +391,8 @@ public:
     }
     
     virtual int reserve(unsigned s) {
-        if (s)
-            throw INTERNAL_ERROR;
-        
-        return 0;
-    }
-    
-    virtual void expand(unsigned s) {
-        size = stack_size(s);
+        size += s;
+        return -size;
     }
     
     virtual void allocate() {

@@ -40,6 +40,10 @@ public:
     virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         return NULL;
     }
+
+    virtual bool is_transient() {
+        return false;
+    }
     
     virtual void allocate() {
     }
