@@ -489,7 +489,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     Marker marker = scope->mark();
     
     if (!expr)
-        return NULL;
+        throw INTERNAL_ERROR;
     else if (expr->type == Expr::TUPLE) {
         if (expr->pivot) {
             std::cerr << "A TUPLE had a pivot argument!\n";
@@ -561,19 +561,23 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             if (name.size() == 0)
                 name = "{}";
             
+            TypeSpec ts;
             TypeMatch match;
             
             if (typematch(ANY_TYPE_TS, p, match))
-                context = &match[1];
-            else if (!context) {
+                ts = match[1];
+            else if (context) {
+                ts = *context;
+            }
+            else {
                 std::cerr << "Initializer with neither explicit nor implicit type!\n";
                 throw TYPE_ERROR;
             }
             
-            value = context->lookup_initializer(name, scope);
+            value = ts.lookup_initializer(name, scope);
             
             if (!value) {
-                std::cerr << "No initializer " << *context << " `" << name << "!\n";
+                std::cerr << "No initializer " << ts << " `" << name << "!\n";
                 throw TYPE_ERROR;
             }
             
@@ -585,7 +589,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
             
-            std::cerr << "Using initializer " << *context << " `" << name << ".\n";
+            std::cerr << "Using initializer " << ts << " `" << name << ".\n";
         }
     }
     else if (expr->type == Expr::NUMBER) {
