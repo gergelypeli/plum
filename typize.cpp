@@ -23,6 +23,7 @@ Type *lvalue_type = NULL;
 Type *code_type = NULL;
 Type *metatype_type = NULL;
 Type *void_type = NULL;
+Type *multi_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
 Type *integer32_type = NULL;
@@ -67,6 +68,7 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
+TypeSpec MULTI_TS;
 TypeSpec ANY_TS;
 TypeSpec ANY_TYPE_TS;
 TypeSpec ANY_OVALUE_TS;
@@ -192,6 +194,9 @@ Scope *init_builtins() {
     metatype_type = new SpecialType("<Metatype>", 0);
     root_scope->add(metatype_type);
 
+    multi_type = new SpecialType("<Multi>", 0);
+    root_scope->add(multi_type);
+
     lvalue_type = new AttributeType("<Lvalue>");
     root_scope->add(lvalue_type);
     
@@ -244,6 +249,7 @@ Scope *init_builtins() {
     ANY_OVALUE_TS = { ovalue_type, any_type };
     METATYPE_TS = { metatype_type };
     VOID_TS = { void_type };
+    MULTI_TS = { multi_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };
@@ -325,15 +331,15 @@ Scope *init_builtins() {
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     
     // Library functions, unscoped
-    root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, VOID_TS));
-    root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, VOID_TS));
-    root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
-    root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, VOID_TS));
-    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, CHARACTER_ARRAY_REFERENCE_TS));
-    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS));
+    root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, NO_TSS));
+    root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS));
+    root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, NO_TSS));
+    root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, NO_TSS));
+    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }));
+    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS }));
 
-    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, CHARACTER_ARRAY_REFERENCE_TS));
-    root_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
+    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }));
+    root_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, NO_TSS));
     //root_scope->add(new ImportedFunction("streamify_string", "streamify", CHARACTER_ARRAY_REFERENCE_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
 
     return root_scope;

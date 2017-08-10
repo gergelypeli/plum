@@ -94,16 +94,16 @@ class Function: public Identifier {
 public:
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
-    TypeSpec ret_ts;
+    std::vector<TypeSpec> res_tss;
 
     Label x64_label;
     bool is_sysv;
     
-    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, TypeSpec rts)
+    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts)
         :Identifier(n, pts) {
         arg_tss = ats;
         arg_names = ans;
-        ret_ts = rts;
+        res_tss = rts;
         
         is_sysv = false;
     }
@@ -112,8 +112,8 @@ public:
         return make_function_call_value(this, cpivot);
     }
 
-    virtual TypeSpec get_return_typespec() {
-        return ret_ts;
+    virtual std::vector<TypeSpec> &get_result_tss() {
+        return res_tss;
     }
     
     virtual TypeSpec get_pivot_typespec() {
@@ -134,7 +134,7 @@ class ImportedFunction: public Function {
 public:
     std::string import_name;
     
-    ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, TypeSpec rts)
+    ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts)
         :Function(n, pts, ats, ans, rts) {
         import_name = in;
     }

@@ -431,14 +431,12 @@ public:
         return this;
     }
     
-    virtual Variable *get_result_variable() {
-        switch (result_scope->contents.size()) {
-        case 0:
-            return NULL;
-        case 1:
-            return variable_cast(result_scope->contents.back().get());
-        default:
-            throw INTERNAL_ERROR;
-        }
+    virtual std::vector<Variable *> get_result_variables() {
+        std::vector<Variable *> vars;
+        
+        for (auto &d : result_scope->contents)
+            vars.push_back(variable_cast(d.get()));
+            
+        return vars;
     }
 };

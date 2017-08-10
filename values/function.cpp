@@ -1,8 +1,8 @@
 
-// The value of a :function control
+// The value of a :Function control
 class FunctionDefinitionValue: public Value {
 public:
-    std::unique_ptr<Value> result;
+    std::vector<std::unique_ptr<Value>> results;
     std::unique_ptr<Value> head;
     std::unique_ptr<Value> body;
     FunctionScope *fn_scope;
@@ -21,8 +21,8 @@ public:
 
         Scope *rs = fn_scope->add_result_scope();
         
-        if (args.size() == 1) {
-            Value *r = typize(args[0].get(), scope);
+        for (auto &arg : args) {
+            Value *r = typize(arg.get(), scope);
             TypeMatch match;
         
             if (!typematch(ANY_TYPE_TS, r, match)) {
@@ -30,10 +30,10 @@ public:
                 return false;
             }
             
-            result.reset(r);
+            results.push_back(std::unique_ptr<Value>(r));
 
             // Add internal result variable
-            TypeSpec var_ts = result->ts.unprefix(type_type);
+            TypeSpec var_ts = r->ts.unprefix(type_type);
             Variable *decl = new Variable("<result>", VOID_TS, var_ts);
             rs->add(decl);
         }
@@ -98,7 +98,7 @@ public:
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
         std::vector<TypeSpec> arg_tss;
         std::vector<std::string> arg_names;
-        TypeSpec result_ts;
+        std::vector<TypeSpec> result_tss;
 
         for (auto &d : fn_scope->head_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
@@ -111,6 +111,7 @@ public:
             }
         }
 
+        // Not returned, but must be processed
         for (auto &d : fn_scope->self_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
             Variable *v = dynamic_cast<Variable *>(d.get());
@@ -120,20 +121,18 @@ public:
             }
         }
         
-        if (fn_scope->result_scope->contents.size()) {
-            Variable *v = dynamic_cast<Variable *>(fn_scope->result_scope->contents.back().get());
+        for (auto &d : fn_scope->result_scope->contents) {
+            Variable *v = dynamic_cast<Variable *>(d.get());
             
             if (v) {
-                result_ts = v->var_ts;  // FIXME
+                result_tss.push_back(v->var_ts);  // FIXME
                 v->be_argument();
             }
             else
                 throw INTERNAL_ERROR;
         }
-        else
-            result_ts = VOID_TS;
             
-        function = new Function(name, scope->pivot_type_hint(), arg_tss, arg_names, result_ts);
+        function = new Function(name, scope->pivot_type_hint(), arg_tss, arg_names, result_tss);
         
         return function;
     }
@@ -146,28 +145,35 @@ public:
     Function *function;
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> items;  // FIXME
-    Variable *result_variable;
+    std::vector<Variable *> result_variables;
     Register reg;
     
     FunctionCallValue(Function *f, Value *p)
-        :Value(f->get_return_typespec()) {
+        :Value(BOGUS_TS) {
         function = f;
         pivot.reset(p);
-        result_variable = NULL;
+
+        std::vector<TypeSpec> &res_tss = function->get_result_tss();
         
-        //for (unsigned i = 0; i < function->get_argument_count(); i++)
-        //    items.push_back(NULL);
-            
-        if (ts == VOID_TS)
+        if (res_tss.size() == 0)
             ts = f->get_pivot_typespec();
+        else if (res_tss.size() == 1)
+            ts = res_tss[0];
+        else if (res_tss.size() > 1)
+            ts = MULTI_TS;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        TypeSpec ret_ts = function->get_return_typespec();
+        std::vector<TypeSpec> &res_tss = function->get_result_tss();
         
-        if (ret_ts != VOID_TS && ret_ts.where(true) == ALIAS) {
-            result_variable = new Variable("<result>", VOID_TS, ret_ts);
-            scope->add(result_variable);
+        for (auto &res_ts : res_tss) {
+            result_variables.push_back(NULL);
+            
+            if (res_ts.where(true) == ALIAS) {
+                Variable *result_variable = new Variable("<result>", VOID_TS, res_ts);
+                scope->add(result_variable);
+                result_variables.back() = result_variable;
+            }
         }
 
         std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
@@ -274,26 +280,60 @@ public:
         
         arg_ts.store(Storage(where), Storage(), x64);
     }
+
+    virtual Storage ret_res(TypeSpec res_ts, X64 *x64) {
+        // Return a result from the stack in its native storage
+        Storage s, t;
+        
+        switch (res_ts.where(true)) {
+        case MEMORY:
+            switch (res_ts.where(false)) {
+            case REGISTER:
+                s = Storage(STACK);
+                t = Storage(REGISTER, reg);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+            break;
+        case ALIAS:
+            switch (res_ts.where(false)) {
+            case MEMORY:
+                // Pop the address into a MEMORY with a dynamic base register
+                s = Storage(ALISTACK);
+                t = Storage(MEMORY, Address(reg, 0));
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        res_ts.store(s, t, x64);
+        return t;
+    }
     
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
         std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
+        std::vector<TypeSpec> &res_tss = function->get_result_tss();
 
-        TypeSpec ret_ts = function->get_return_typespec();
-        bool is_void = ret_ts == VOID_TS;
-        Storage ret_storage;
+        bool is_void = res_tss.size() == 0;
         
-        if (!is_void) {
-            StorageWhere ret_where = ret_ts.where(true);
+        for (unsigned i = 0; i < res_tss.size(); i++) {
+            TypeSpec res_ts = res_tss[i];
+            StorageWhere res_where = res_ts.where(true);
         
-            if (ret_where == ALIAS) {
+            if (res_where == ALIAS) {
                 // pass an alias to the allocated result variable
-                ret_storage = result_variable->get_storage(Storage(MEMORY, Address(RBP, 0)));
-                ret_ts.store(ret_storage, Storage(ALISTACK), x64);
+                Storage s = result_variables[i]->get_storage(Storage(MEMORY, Address(RBP, 0)));
+                res_ts.store(s, Storage(ALISTACK), x64);
             }
-            else if (ret_where == MEMORY) {
+            else if (res_where == MEMORY) {
                 // Must skip some place for uninitialized data
-                x64->op(SUBQ, RSP, ret_ts.measure(STACK));
+                x64->op(SUBQ, RSP, res_ts.measure(STACK));
             }
             else
                 throw INTERNAL_ERROR;
@@ -323,32 +363,8 @@ public:
         if (pivot) {
             TypeSpec pivot_ts = function->get_pivot_typespec();
             
-            if (is_void) {
-                // Return the pivot argument instead of nothing.
-                // Choose a popped storage just like with normal return values.
-                
-                switch (pivot_ts.where(true)) {
-                case MEMORY:
-                    switch (pivot_ts.where(false)) {
-                    case REGISTER:
-                        pivot_ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
-                        return Storage(REGISTER, reg);
-                    default:
-                        throw INTERNAL_ERROR;
-                    }
-                case ALIAS:
-                    switch (pivot_ts.where(false)) {
-                    case MEMORY:
-                        // Pop the address into a MEMORY with a dynamic base register
-                        pivot_ts.store(Storage(ALISTACK), Storage(MEMORY, Address(reg, 0)), x64);
-                        return Storage(MEMORY, Address(reg, 0));
-                    default:
-                        throw INTERNAL_ERROR;
-                    }
-                default:
-                    throw INTERNAL_ERROR;
-                }
-            }
+            if (is_void)
+                return ret_res(pivot_ts, x64);
             
             pop_arg(pivot_ts, x64);
         }
@@ -356,29 +372,16 @@ public:
         //std::cerr << "Compiled call of " << function->name << ".\n";
         if (is_void)
             return Storage();
-        else if (result_variable) {
-            // No need to keep anything on the stack, the result is in a temp variable
-            // at an RBP relative address (popping an ALISTACK to such MEMORY is illegal).
-            ret_ts.store(Storage(ALISTACK), Storage(), x64);
-            return ret_storage;
-        }
-        else {
-            // Return value in a non-STACK storage
-            
-            switch (ret_ts.where(false)) {
-            case REGISTER:
-                ret_ts.store(Storage(STACK), Storage(REGISTER, reg), x64);
-                return Storage(REGISTER, reg);
-            default:
-                throw INTERNAL_ERROR;
-            }
-        }
+        else if (res_tss.size() == 1)
+            return ret_res(res_tss[0], x64);
+        else
+            return Storage(STACK);  // Multiple result values
     }
     
     virtual Variable *declare_dirty(std::string name, Scope *scope) {
         DeclarationValue *pivot_dv = declaration_value_cast(pivot.get());
         
-        if (function->get_return_typespec() == VOID_TS && pivot_dv) {
+        if (function->get_result_tss().size() == 0 && pivot_dv) {
             Variable *var = declaration_get_var(pivot_dv);
             
             if (var->name == "<new>") {
@@ -394,13 +397,14 @@ public:
 
 class FunctionReturnValue: public Value {
 public:
-    Variable *result_var;
-    std::unique_ptr<Value> result;
+    std::vector<Variable *> result_vars;
+    std::vector<std::unique_ptr<Value>> values;
     Declaration *dummy;
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(VOID_TS) {
-        result_var = NULL;
+        if (v)
+            throw INTERNAL_ERROR;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -415,31 +419,28 @@ public:
             return false;
         }
         
-        result_var = fn_scope->get_result_variable();
+        result_vars = fn_scope->get_result_variables();
 
-        if (result_var) {
-            if (args.size() == 0) {
-                std::cerr << "A :return control without value in a nonvoid function!\n";
-                return false;
-            }
+        if (result_vars.size() != args.size()) {
+            std::cerr << "Wrong number of :return values!\n";
+            return false;
+        }
+
+        for (unsigned i = 0; i < args.size(); i++) {
+            Variable *result_var = result_vars[i];
+            Expr *expr = args[i].get();
             
             TypeSpec result_ts = result_var->var_ts;
-            Value *r = typize(args[0].get(), scope, &result_ts);
+            Value *r = typize(expr, scope, &result_ts);
             TypeMatch match;
-            
+        
             if (!typematch(result_ts, r, match)) {
                 std::cerr << "A :return control with incompatible value!\n";
                 std::cerr << "Type " << get_typespec(r) << " is not " << result_ts << "!\n";
                 return false;
             }
 
-            result.reset(r);
-        }
-        else {
-            if (args.size() > 0) {
-                std::cerr << "A :return control with value in a void function!\n";
-                return false;
-            }
+            values.push_back(std::unique_ptr<Value>(r));
         }
 
         // We must insert this after all potential declarations inside the result expression,
@@ -451,8 +452,8 @@ public:
     }
 
     virtual Regs precompile(Regs) {
-        if (result)
-            result->precompile();
+        for (auto &v : values)
+            v->precompile();
             
         return Regs();  // We won't return
     }
@@ -460,18 +461,19 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage fn_storage(MEMORY, Address(RBP, 0));
 
-        if (result) {
-            Storage s = result->compile(x64);
-            Storage t = result_var->get_storage(fn_storage);
+        for (unsigned i = 0; i < values.size(); i++) {
+            Storage s = values[i]->compile(x64);
+            Storage t = result_vars[i]->get_storage(fn_storage);
             
             if (t.where == ALIAS) {
+                // Load the address, and store the result there
                 Register reg = (Regs::all() & ~s.regs()).get_any();
                 Storage m = Storage(MEMORY, Address(reg, 0));
-                result_var->var_ts.store(t, m, x64);
+                result_vars[i]->var_ts.store(t, m, x64);
                 t = m;
             }
                 
-            result->ts.store(s, t, x64);
+            values[i]->ts.store(s, t, x64);
         }
 
         // TODO: is this proper stack unwinding?
