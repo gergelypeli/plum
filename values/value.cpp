@@ -491,6 +491,7 @@ bool check_arguments(
 #include "array.cpp"
 #include "reference.cpp"
 #include "record.cpp"
+#include "multi.cpp"
 
 
 TypeSpec get_typespec(Value *value) {
@@ -515,6 +516,11 @@ Value *make_type_value(TypeSpec ts) {
 
 Value *make_block_value(TypeSpec *context) {
     return new BlockValue(context);
+}
+
+
+Value *make_multi_value() {
+    return new MultiValue();
 }
 
 
@@ -601,4 +607,3 @@ Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope) {
     Value *v = new TypeValue(ts.prefix(type_type));
     return make_declaration_by_value(name, v, scope);
 }
-

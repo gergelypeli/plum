@@ -52,7 +52,7 @@ public:
         
         Scope *bs = fn_scope->add_body_scope();
         Expr *b = kwargs["as"].get();
-        body.reset(b ? typize(b, bs) : NULL);
+        body.reset(b ? typize(b, bs, &VOID_TS) : NULL);
         
         return true;
     }

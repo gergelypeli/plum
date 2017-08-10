@@ -105,8 +105,6 @@ public:
         Declaration *escaped_last = NULL;
         
         if (escape) {
-            std::cerr << "XXX Will escape\n";
-            
             if (escape == contents.back().get()) {
                 escaped_last = contents.back().release();
                 contents.pop_back();

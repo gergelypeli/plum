@@ -69,6 +69,7 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
 TypeSpec MULTI_TS;
+TypeSpec MULTI_LVALUE_TS;
 TypeSpec ANY_TS;
 TypeSpec ANY_TYPE_TS;
 TypeSpec ANY_OVALUE_TS;
@@ -104,6 +105,8 @@ bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_call_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
+Value *make_block_value(TypeSpec *context);
+Value *make_multi_value();
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name, TypeSpec *context);
 Value *make_basic_value(TypeSpec ts, int number);
@@ -250,6 +253,7 @@ Scope *init_builtins() {
     METATYPE_TS = { metatype_type };
     VOID_TS = { void_type };
     MULTI_TS = { multi_type };
+    MULTI_LVALUE_TS = { lvalue_type, multi_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };
@@ -324,6 +328,9 @@ Scope *init_builtins() {
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS));
+    
+    // Unpacking
+    root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
@@ -502,13 +509,25 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw INTERNAL_ERROR;
         }
 
-        value = make_block_value(context);
-        value->set_token(expr->token);
+        if (context || scope->is_pure()) {
+            value = make_block_value(context);
+            value->set_token(expr->token);
         
-        bool ok = value->check(expr->args, expr->kwargs, scope);
-        if (!ok) {
-            std::cerr << "Block error.\n";
-            throw TYPE_ERROR;
+            bool ok = value->check(expr->args, expr->kwargs, scope);
+            if (!ok) {
+                std::cerr << "Block error.\n";
+                throw TYPE_ERROR;
+            }
+        }
+        else {
+            value = make_multi_value();
+            value->set_token(expr->token);
+        
+            bool ok = value->check(expr->args, expr->kwargs, scope);
+            if (!ok) {
+                std::cerr << "Multi error.\n";
+                throw TYPE_ERROR;
+            }
         }
     }
     else if (expr->type == Expr::DECLARATION) {

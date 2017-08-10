@@ -39,6 +39,10 @@ make_pair? :Function Pair as:
     p second = 22
     :return p
 
+
+double? :Function (Integer, Integer) as:
+    :return (98, 99)
+
     
 print_pair? :Function from:
     p? Pair Ovalue
@@ -148,5 +152,10 @@ start? :Function as:
     
     s? Pair { second: 222 }
     s dump
+
+    x1? Integer
+    x2? Integer
+    (x1, x2) = double
+    prints("Double returned {x1} and {x2}." {})
     
     :return
