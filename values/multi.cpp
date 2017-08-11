@@ -3,9 +3,12 @@
 class MultiValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> values;
+    std::vector<TypeSpec> tss;
+    bool is_rvalue;
 
     MultiValue()
-        :Value(MULTI_LVALUE_TS) {
+        :Value(BOGUS_TS) {
+        is_rvalue = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -18,14 +21,22 @@ public:
             Value *value = typize(arg.get(), scope);
             TypeMatch match;
             
-            if (!typematch(ANY_LVALUE_TS, value, match)) {
-                std::cerr << "Lvalue is needed in a multivalue!\n";
-                return false;
-            }
+            if (!typematch(ANY_LVALUE_TS, value, match))
+                is_rvalue = true;
             
             values.push_back(std::unique_ptr<Value>(value));
         }
         
+        ts = is_rvalue ? MULTI_TS : MULTI_LVALUE_TS;
+        
+        for (auto &v : values)
+            tss.push_back(is_rvalue ? v->ts.rvalue() : v->ts);
+        
+        return true;
+    }
+
+    bool unpack(std::vector<TypeSpec> &t) {
+        t = tss;
         return true;
     }
 
@@ -39,10 +50,13 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        for (unsigned i = 0; i < values.size(); i++)
-            values[i]->compile_and_store(x64, Storage(ALISTACK));
-            
-        return Storage(ALISTACK);
+        for (unsigned i = 0; i < values.size(); i++) {
+            StorageWhere where = tss[i].where(true);
+            where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+            values[i]->compile_and_store(x64, Storage(where));
+        }
+        
+        return Storage();  // Well...
     }
 };
 
@@ -50,7 +64,7 @@ public:
 class UnpackingValue: public Value {
 public:
     std::unique_ptr<Value> left, right;
-    std::vector<TypeSpec> res_tss;
+    std::vector<TypeSpec> left_tss, right_tss;
     
     UnpackingValue(Value *l, TypeMatch &match)
         :Value(VOID_TS) {
@@ -58,12 +72,21 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() != 0) {
+        if (args.size() == 0 || kwargs.size() != 0) {
             std::cerr << "Whacky unpacking!\n";
             return false;
         }
         
-        Value *value = typize(args[0].get(), scope);
+        Value *value;
+        
+        if (args.size() > 1) {
+            value = new MultiValue();
+            if (!value->check(args, kwargs, scope))
+                return false;
+        }
+        else
+            value = typize(args[0].get(), scope);
+
         TypeMatch match;
         
         if (!typematch(MULTI_TS, value, match)) {
@@ -71,27 +94,23 @@ public:
             return false;
         }
         
-        MultiValue *mv = dynamic_cast<MultiValue *>(left.get());
-        if (!mv)
+        if (!left->unpack(left_tss))
             throw INTERNAL_ERROR;
         
-        FunctionCallValue *fcv = dynamic_cast<FunctionCallValue *>(value);
-        if (!fcv)
+        if (!value->unpack(right_tss))
             throw INTERNAL_ERROR;
             
-        res_tss = fcv->function->get_result_tss();
-        
-        for (unsigned i = 0; i < mv->values.size(); i++) {
-            Value *v = mv->values[i].get();
+        for (unsigned i = 0; i < left_tss.size(); i++) {
+            TypeSpec left_ts = left_tss[i];
             
-            if (i >= res_tss.size())
+            if (i >= right_tss.size())
                 break;
             
-            TypeSpec &res_ts = res_tss[i];
+            TypeSpec &right_ts = right_tss[i];
             
             // TODO: this may be too strict, but we can't call typespec, because we don't
             // have a value for the right side, and we can't convert the type either.
-            if (res_ts != v->ts.rvalue()) {
+            if (right_ts != left_ts && right_ts != left_ts.rvalue()) {
                 std::cerr << "Mismatching types in unpacking!\n";
                 return false;
             }
@@ -109,46 +128,73 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Storage x = left->compile(x64);
-        if (x.where != ALISTACK)
-            throw INTERNAL_ERROR;
-            
-        Storage y = right->compile(x64);
-        if (y.where != STACK)
-            throw INTERNAL_ERROR;
+        left->compile(x64);
+        right->compile(x64);
 
-        std::vector<StorageWhere> res_wheres;
-        std::vector<unsigned> res_sizes;
+        std::vector<StorageWhere> right_wheres;
+        std::vector<unsigned> right_sizes;
+        int right_total = 0;
         
-        for (auto &res_ts : res_tss) {
-            StorageWhere where = res_ts.where(true);
-            res_wheres.push_back(where);
-            res_sizes.push_back(res_ts.measure(where));
+        for (auto &right_ts : right_tss) {
+            StorageWhere where = right_ts.where(true);
+            right_wheres.push_back(where);
+            int size = right_ts.measure(where);
+            right_sizes.push_back(size);
+            right_total += size;
+        }
+
+        std::vector<StorageWhere> left_wheres;
+        std::vector<unsigned> left_sizes;
+        int left_total = 0;
+        
+        for (auto &left_ts : left_tss) {
+            StorageWhere where = left_ts.where(true);
+            left_wheres.push_back(where);
+            int size = left_ts.measure(where);
+            left_sizes.push_back(size);
+            left_total += size;
         }
             
-        int aliases_total = 8 * res_tss.size();
-        int offset = 0;
-        for (unsigned &s : res_sizes)
-            offset += s;
+        int offset = right_total;
 
-        for (int i = res_tss.size() - 1; i >= 0; i--) {
-            StorageWhere where = (res_wheres[i] == MEMORY ? STACK : res_wheres[i] == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
-            Storage s(where);
+        for (int i = right_tss.size() - 1; i >= 0; i--) {
+            Storage s, t;
+
+            // Order of these two matters, because we must first load an RSP relative address,
+            // then the right may pop an ALISTACK, which moves RSP.
             
-            Storage t(MEMORY, Address(RAX, 0));
-            res_tss[i].store(Storage(ALIAS, Address(RSP, offset)), t, x64);
+            switch (left_wheres[i]) {
+            case ALIAS:  // TODO: it would be nice not to have to ALISTACK all these
+                t = Storage(MEMORY, Address(RAX, 0));
+                left_tss[i].store(Storage(ALIAS, Address(RSP, offset)), t, x64);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+
+            switch (right_wheres[i]) {
+            case MEMORY:
+                s = Storage(STACK);
+                break;
+            case ALIAS:
+                s = Storage(MEMORY, Address(RCX, 0));
+                right_tss[i].store(Storage(ALISTACK), s, x64);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
             
-            std::cerr << "Unpacking item " << i << " from " << s << " occupying " << res_sizes[i] << " bytes.\n";
-            res_tss[i].store(s, t, x64);
+            std::cerr << "Unpacking item " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
+            right_tss[i].store(s, t, x64);
             
-            offset += 8;
-            offset -= res_sizes[i];
+            offset += left_sizes[i];
+            offset -= right_sizes[i];
         }
         
-        if (offset != aliases_total)
+        if (offset != left_total)
             throw INTERNAL_ERROR;
             
-        x64->op(ADDQ, RSP, aliases_total);
+        x64->op(ADDQ, RSP, left_total);
             
         return Storage();
     }

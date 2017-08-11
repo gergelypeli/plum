@@ -163,6 +163,17 @@ public:
             ts = MULTI_TS;
     }
 
+    virtual bool unpack(std::vector<TypeSpec> &tss) {
+        std::vector<TypeSpec> &res_tss = function->get_result_tss();
+
+        if (res_tss.size() > 1) {
+            tss = res_tss;
+            return true;
+        }
+        else
+            return false;
+    }
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         std::vector<TypeSpec> &res_tss = function->get_result_tss();
         

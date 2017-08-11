@@ -66,6 +66,10 @@ public:
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
         return NULL;
     }
+    
+    virtual bool unpack(std::vector<TypeSpec> &tss) {
+        return false;
+    }
 };
 
 

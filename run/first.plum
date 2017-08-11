@@ -157,5 +157,7 @@ start? :Function as:
     x2? Integer
     (x1, x2) = double
     prints("Double returned {x1} and {x2}." {})
+    (x1, x2) = (100, 101)
+    prints("Double assigned {x1} and {x2}." {})
     
     :return
