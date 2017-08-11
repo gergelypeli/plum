@@ -199,3 +199,52 @@ public:
         return Storage();
     }
 };
+
+
+class ScalarConversionValue: public Value {
+public:
+    std::unique_ptr<Value> orig;
+    std::vector<TypeSpec> tss;
+    
+    ScalarConversionValue(Value *p)
+        :Value(BOGUS_TS) {
+        orig.reset(p);
+        
+        if (!p->unpack(tss))
+            throw INTERNAL_ERROR;
+            
+        ts = tss[0];
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = orig->precompile(preferred);
+        clob.add(RAX);
+        return clob;
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        orig->compile(x64);
+        
+        Storage t;
+        
+        for (int i = tss.size() - 1; i >= 0; i--) {
+            TypeSpec ts = tss[i];
+            StorageWhere where = ts.where(true);
+            where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+            Storage s(where);
+            
+            if (i > 0) {
+                std::cerr << "Discarding item " << i << " from " << s << ".\n";
+                ts.store(s, Storage(), x64);
+            }
+            else {
+                where = ts.where(false);
+                t = (where == REGISTER ? Storage(REGISTER, RAX) : where == MEMORY ? Storage(MEMORY, Address(RAX, 0)) : throw INTERNAL_ERROR);
+                std::cerr << "Scalarizing item " << i << " from " << s << " to " << t << ".\n";
+                ts.store(s, t, x64);
+            }
+        }
+
+        return t;
+    }
+};

@@ -101,12 +101,14 @@ std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 Variable *declaration_get_var(DeclarationValue *dv);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
+bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_call_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
 Value *make_block_value(TypeSpec *context);
 Value *make_multi_value();
+Value *make_scalar_conversion_value(Value *p);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name, TypeSpec *context);
 Value *make_basic_value(TypeSpec ts, int number);

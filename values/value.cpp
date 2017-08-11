@@ -548,6 +548,11 @@ Value *make_code_value(Value *value, Declaration *escape) {
 }
 
 
+Value *make_scalar_conversion_value(Value *p) {
+    return new ScalarConversionValue(p);
+}
+
+
 Value *make_void_conversion_value(Value *p) {
     return new VoidConversionValue(p);
 }
@@ -610,4 +615,9 @@ DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *s
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope) {
     Value *v = new TypeValue(ts.prefix(type_type));
     return make_declaration_by_value(name, v, scope);
+}
+
+
+bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
+    return v->unpack(tss);
 }

@@ -159,5 +159,8 @@ start? :Function as:
     prints("Double returned {x1} and {x2}." {})
     (x1, x2) = (100, 101)
     prints("Double assigned {x1} and {x2}." {})
+    x3? Integer
+    x3 = double
+    prints("Scalarized to {x3}" {})
     
     :return

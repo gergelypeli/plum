@@ -216,6 +216,9 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     TypeSpecIter t(tt.begin());
     
     bool strict = false;
+    bool need_code_conversion = false;
+    bool need_scalar_conversion = false;
+    bool need_boolean_conversion = false;
 
     // Checking attribute templates
     if (*t == lvalue_type) {
@@ -243,6 +246,8 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             value = make_code_value(value);
             return true;
         }
+        
+        need_code_conversion = true;
     }
     else if (*t == ovalue_type) {
         t++;
@@ -266,39 +271,58 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         return false;
     }
 
+    bool ok = false;
+
     // Checking main type
     if (*t == any_type) {
-        // Maybe call this nonvoid?
+        ok = true;
     }
-    else if (*s == *t) {
-        // Exact match is always OK
+    
+    if (!ok && *s == *t) {
+        ok = true;
     }
-    else if (strict) {
+    
+    if (!ok && strict) {
         // For conversion to lvalue, only an exact match was acceptable
         MATCHLOG std::cerr << "No match, lvalue types differ!\n";
         return false;
     }
-    else if (*t == boolean_type) {
-        match[0].push_back(*t);
-        MATCHLOG std::cerr << "Matched as " << match[0] << ".\n";
-        value = make_boolean_conversion_value(value);
-        if (tt[0] == code_type)
-            value = make_code_value(value);
-        return true;
+
+    if (!ok && *s == multi_type) {
+        std::vector<TypeSpec> tss;
+        
+        if (!unpack_value(value, tss))
+            throw INTERNAL_ERROR;
+        
+        ss = tss[0];
+        s = ss.begin();
+        need_scalar_conversion = true;
+        // Not yet ok, keep on matching
+        std::cerr << "Trying unpacking to " << ss << ".\n";
     }
-    else {
+    
+    if (!ok && *t == boolean_type) {
+        //match[0].push_back(*t);
+        MATCHLOG std::cerr << "Matched as " << match[0] << ".\n";
+        //value = make_boolean_conversion_value(value);
+        //if (tt[0] == code_type)
+        //    value = make_code_value(value);
+        //return true;
+        s = BOOLEAN_TS.begin();
+        ok = true;
+        need_boolean_conversion = true;
+    }
+    
+    if (!ok) {
         Value *role = rolematch(value, s, *t);
         
-        if (!role) {
-            MATCHLOG std::cerr << "No match, unconvertable types!\n";
-            return false;
+        if (role) {
+            value = role;
+            ss = get_typespec(value);
+            s = ss.begin();
         }
-        
-        value = role;
-        ss = get_typespec(value);
-        s = ss.begin();
     }
-
+    
     unsigned counter = 1;
     
     while (counter--) {
@@ -322,7 +346,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             t++;
         }
         else {
-            MATCHLOG std::cerr << "No match, type parameters differ!\n";
+            MATCHLOG std::cerr << "No match, types differ!\n";
             return false;
         }
     }
@@ -331,8 +355,14 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     MATCHLOG if (match.size() > 1) { std::cerr << ", parameters"; for (unsigned i = 1; i < match.size(); i++) std::cerr << " " << match[i]; }
     MATCHLOG std::cerr << ".\n";
 
-    if (tt[0] == code_type)
-        value = make_code_value(value);
+    if (need_scalar_conversion)
+        value = make_scalar_conversion_value(value);
+        
+    if (need_boolean_conversion)
+        value = make_boolean_conversion_value(value);
 
+    if (need_code_conversion)
+        value = make_code_value(value);
+        
     return true;
 }
