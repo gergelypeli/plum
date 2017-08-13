@@ -42,13 +42,13 @@ int main(int argc, char **argv) {
     std::string buffer = read_source(argv[1]);
     
     std::vector<Token> tokens = tokenize(buffer);
-    for (auto &token : tokens)
-        std::cerr << "Token: " << token.text << "\n";
+    //for (auto &token : tokens)
+    //    std::cerr << "Token: " << token.text << "\n";
     
     std::vector<Node> nodes = treeize(tokens);
 
     std::unique_ptr<Expr> expr_root(tupleize(nodes));
-    print_expr_tree(expr_root.get(), 0, "*");
+    //print_expr_tree(expr_root.get(), 0, "*");
 
     Scope *root_scope = init_builtins();
     DataScope *module_scope = new DataScope;
@@ -69,6 +69,9 @@ int main(int argc, char **argv) {
     
     X64 *x64 = new X64();
     x64->init("mymodule");
+
+    UnwindStack unwind_stack;
+    x64->unwind = &unwind_stack;
 
     // Must mark imported functions first as sysv
     for (auto &decl : root_scope->contents) {

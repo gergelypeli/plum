@@ -52,7 +52,16 @@ public:
         
         Scope *bs = fn_scope->add_body_scope();
         Expr *b = kwargs["as"].get();
-        body.reset(b ? typize(b, bs, &VOID_TS) : NULL);
+        
+        if (b) {
+            Value *bv = typize(b, bs, &VOID_CODE_TS);
+            TypeMatch match;
+        
+            if (!typematch(VOID_CODE_TS, bv, match))
+                throw INTERNAL_ERROR;
+            
+            body.reset(bv);
+        }
         
         return true;
     }
@@ -64,7 +73,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         unsigned frame_size = fn_scope->get_frame_size();
-        Label epilogue_label = fn_scope->get_epilogue_label();
+        //Label epilogue_label = fn_scope->get_epilogue_label();
 
         if (function)
             x64->code_label_export(function->x64_label, function->name, 0, true);
@@ -80,10 +89,10 @@ public:
         body->compile_and_store(x64, Storage());
         x64->op(NOP);
         
-        Storage s(MEMORY, Address(RBP, 0));
-        fn_scope->finalize_scope(s, x64);
+        //Storage s(MEMORY, Address(RBP, 0));
+        //fn_scope->finalize_scope(s, x64);
         
-        x64->code_label(epilogue_label);
+        //x64->code_label(epilogue_label);
         x64->op(ADDQ, RSP, frame_size);
         x64->op(POPQ, RBP);
         x64->op(RET);
@@ -181,7 +190,7 @@ public:
             result_variables.push_back(NULL);
             
             if (res_ts.where(true) == ALIAS) {
-                Variable *result_variable = new Variable("<result>", VOID_TS, res_ts);
+                Variable *result_variable = new Variable("<presult>", VOID_TS, res_ts);
                 scope->add(result_variable);
                 result_variables.back() = result_variable;
             }
@@ -212,7 +221,7 @@ public:
                     //DeclarationValue *dv = new DeclarationValue("<dummy>");
                     //Value *right = new TypeValue(arg_ts.unprefix(ovalue_type).prefix(type_type));
                     //dv->use(right, scope);
-                    Value *dv = make_declaration_by_type("<dummy>", arg_ts.unprefix(ovalue_type), scope);
+                    Value *dv = make_declaration_by_type("<omitted>", arg_ts.unprefix(ovalue_type), scope);
                     items[i].reset(dv);
                     
                     std::cerr << "Argument " << i << " is now a dummy.\n";
@@ -487,8 +496,13 @@ public:
             values[i]->ts.store(s, t, x64);
         }
 
+        Marker m;
+        m.scope = dummy->outer_scope;
+        m.last = dummy->previous_declaration;
+
         // TODO: is this proper stack unwinding?
-        dummy->finalize(UNWINDING_FINALIZATION, fn_storage, x64);
+        x64->unwind->compile(m, x64);
+        //dummy->finalize(UNWINDING_FINALIZATION, fn_storage, x64);
         
         return Storage();
     }

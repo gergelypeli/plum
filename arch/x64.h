@@ -313,6 +313,9 @@ enum ConstantOp {
 };
 
 
+class UnwindStack;  // TODO
+
+
 class X64 {
 public:
     enum Def_type {
@@ -370,6 +373,8 @@ public:
     Label exception_label;
     std::vector<Label> incref_labels, decref_labels;
     std::map<FunctionCompiler, Label> function_compiler_labels;
+    
+    UnwindStack *unwind;  // TODO: this has no reason to be in this class, except laziness
     
     void add_def(Label label, const Def &def);
 

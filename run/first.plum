@@ -162,5 +162,9 @@ start? :Function as:
     x3? Integer
     x3 = double
     prints("Scalarized to {x3}" {})
+
+    :if `true then:
+        last? 0
+        :return
     
     :return

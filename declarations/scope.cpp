@@ -90,11 +90,6 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual void finalize_scope(Storage s, X64 *x64) {
-        if (contents.size())
-            contents.back().get()->finalize(SCOPE_FINALIZATION, s, x64);
-    }
-    
     virtual bool intrude(Scope *intruder, Marker before, Declaration *escape) {
         // Insert a Scope taking all remaining declarations, except the first or the last one
 
@@ -220,9 +215,12 @@ public:
 class CodeScope: public Scope {
 public:
     int offset;
+    bool may_be_aborted;
+    Label epilogue_label;
     
     CodeScope()
         :Scope() {
+        may_be_aborted = false;
     }
 
     virtual bool is_transient() {
@@ -275,6 +273,35 @@ public:
     virtual TypeSpec pivot_type_hint() {
         return VOID_TS;
     }
+    
+    virtual void may_abort() {
+        may_be_aborted = true;
+    }
+
+    virtual void jump_to_epilogue(X64 *x64) {
+        x64->op(JMP, epilogue_label);
+    }
+
+    virtual void finalize_contents(X64 *x64) {
+        for (int i = contents.size() - 1; i >= 0; i--)
+            contents[i]->finalize(x64);
+        
+        // Unwinds before the first declaration will jump to this location
+        if (may_be_aborted) {
+            x64->code_label(epilogue_label);
+            std::cerr << "Code scope may be aborted, checking for exceptions.\n";
+            Label ok;
+            x64->op(CMPQ, x64->exception_label, 0);
+            x64->op(JE, ok);
+        
+            Marker m;  // TODO: store the marker instead
+            m.scope = outer_scope;
+            m.last = previous_declaration;
+        
+            x64->unwind->compile(m, x64);
+            x64->code_label(ok);
+        }
+    }
 };
 
 
@@ -324,7 +351,7 @@ public:
     ArgumentScope *self_scope;
     ArgumentScope *head_scope;
     CodeScope *body_scope;
-    Label epilogue_label;
+    //Label epilogue_label;
 
     FunctionScope()
         :Scope() {
@@ -408,22 +435,17 @@ public:
         body_scope->allocate();
     }
     
-    virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
-        // If we got here, someone is returning or throwing something
-        x64->op(JMP, epilogue_label);
-    }
-    
-    virtual void finalize_scope(Storage s, X64 *x64) {
-        body_scope->finalize_scope(s, x64);
-    }
+    //virtual void finalize_scope(Storage s, X64 *x64) {
+    //    body_scope->finalize_scope(s, x64);
+    //}
     
     virtual unsigned get_frame_size() {
         return size;
     }
     
-    virtual Label get_epilogue_label() {
-        return epilogue_label;
-    }
+    //virtual Label get_epilogue_label() {
+    //    return epilogue_label;
+    //}
 
     virtual FunctionScope *get_function_scope() {
         return this;

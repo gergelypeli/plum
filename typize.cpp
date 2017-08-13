@@ -432,7 +432,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     BlockValue *block = new BlockValue(NULL);
     block->set_marker(marker);
     
-    DeclarationValue *dv = make_declaration_by_value("<result>", new StringBufferValue(100), scope);
+    DeclarationValue *dv = make_declaration_by_value("<interpolated>", new StringBufferValue(100), scope);
     //DeclarationValue *dv = new DeclarationValue("<result>");
     //Value *initial_value = new StringBufferValue(100);
     //dv->use(initial_value, scope);
@@ -451,7 +451,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
 
     bool identifier = false;
     Expr streamify_expr(Expr::IDENTIFIER, expr->token, "streamify");
-    streamify_expr.add_arg(new Expr(Expr::IDENTIFIER, expr->token, "<result>"));
+    streamify_expr.add_arg(new Expr(Expr::IDENTIFIER, expr->token, "<interpolated>"));
     
     for (auto &fragment : fragments) {
         Value *pivot;

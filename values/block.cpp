@@ -103,6 +103,36 @@ public:
 };
 
 
+class CodeUnwind: public Unwind {
+public:
+    CodeScope *scope;
+    
+    CodeUnwind(CodeScope *cs)
+        :Unwind() {
+        scope = cs;
+    }
+    
+    bool compile(Marker marker, X64 *x64) {
+        if (!scope)
+            return false;
+
+        if (marker.scope != scope)
+            throw INTERNAL_ERROR;
+
+        // Tell the scope that an exception check will be necessary in the finalization code
+        scope->may_abort();
+
+        if (marker.last)
+            marker.last->jump_to_finalization(x64);
+        else
+            scope->jump_to_epilogue(x64);
+        
+        std::cerr << "Code scope will be unwound.\n";
+        return true;
+    }
+};
+
+
 class CodeValue: public Value {
 public:
     std::unique_ptr<Value> value;
@@ -133,10 +163,14 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        CodeUnwind u(code_scope);
+        x64->unwind->push(&u);
+    
         // Can't let the result be passed as a MEMORY storage, because it may
         // point to a local variable that we're about to destroy. So grab that
         // value while we can. 
         Storage s = value->compile(x64);
+        x64->unwind->pop(&u);
         
         if (s.where == MEMORY) {
             switch (value->ts.rvalue().where(false)) {
@@ -153,8 +187,10 @@ public:
             }
         }
         
-        if (code_scope)
-            code_scope->finalize_scope(Storage(MEMORY, Address(RBP, 0)), x64);
+        if (code_scope) {
+            // Unwinds after declarations will jump to these locations
+            code_scope->finalize_contents(x64);
+        }
             
         return s;
     }

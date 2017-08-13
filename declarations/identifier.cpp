@@ -75,10 +75,13 @@ public:
         return Storage(where, s.address + offset);
     }
     
-    virtual void finalize(FinalizationType ft, Storage s, X64 *x64) {
-        var_ts.destroy(get_storage(s), x64);
+    virtual void finalize(X64 *x64) {
+        Identifier::finalize(x64);  // Place label
+        std::cerr << "Finalizing variable " << name << ".\n";
         
-        Identifier::finalize(ft, s, x64);
+        // This method is only called on local variables
+        Storage fn_storage(MEMORY, Address(RBP, 0));
+        var_ts.destroy(get_storage(fn_storage), x64);
     }
 };
 

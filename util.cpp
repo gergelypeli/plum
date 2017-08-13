@@ -96,3 +96,4 @@ std::vector<unsigned short> decode_utf8(std::string text) {
     characters.resize(charlen);
     return characters;
 }
+
