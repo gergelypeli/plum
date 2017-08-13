@@ -367,6 +367,7 @@ public:
     Ork *ork;
     Label alloc_RAX_label, realloc_RAX_RBX_label;
     Label memalloc_label, memfree_label, memrealloc_label, die_label;
+    Label exception_label;
     std::vector<Label> incref_labels, decref_labels;
     std::map<FunctionCompiler, Label> function_compiler_labels;
     
@@ -390,6 +391,7 @@ public:
     void code_qword(long x);
     void effective_address(int modrm, Register x);
     void effective_address(int modrm, Address x);
+    void effective_address(int modrm, Label l, int offset);
     
     X64();
     ~X64();
@@ -402,8 +404,9 @@ public:
     void code_label(Label c, unsigned size = 0);
     void code_label_import(Label c, std::string name);
     void code_label_export(Label c, std::string name, unsigned size, bool is_global);
-    void code_reference(Label c, bool is_short = false);
+    void code_reference(Label c, int offset = 0);
 
+    int rxb(int regfield);
     int rxb(int regfield, Register rm);
     int rxb(int regfield, Address rm);
     void rex(int wrxb, bool force = false);
@@ -412,6 +415,7 @@ public:
     void code_op(int opcode, int opsize, int rxb = 0);
     void code_op(int opcode, int opsize, int regfield, Register rm);
     void code_op(int opcode, int opsize, int regfield, Address rm);
+    void code_op(int opcode, int opsize, int regfield, Label l, int offset);
 
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);
@@ -419,13 +423,14 @@ public:
     void op(PortOp opcode);
     void op(PortOp opcode, int x);
     void op(StringOp opcode);
-    void op(BinaryOp opcode, Register x, Label c, int offset = 0);
-    void op(BinaryOp opcode, Address x, Label c, int offset = 0);
     void op(BinaryOp opcode, Register x, int y);
     void op(BinaryOp opcode, Address x, int y);
     void op(BinaryOp opcode, Register x, Register y);
     void op(BinaryOp opcode, Address x, Register y);
     void op(BinaryOp opcode, Register x, Address y);
+    void op(BinaryOp opcode, Register x, Label y);
+    void op(BinaryOp opcode, Label x, Register y);
+    void op(BinaryOp opcode, Label x, int y);
     void op(ShiftOp opcode, Register x, Register cl);
     void op(ShiftOp opcode, Address x, Register cl);
     void op(ShiftOp opcode, Register x, char y);

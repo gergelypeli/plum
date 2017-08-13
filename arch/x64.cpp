@@ -93,6 +93,9 @@ void X64::init(std::string module_name) {
     data_symbol_index = ork->export_data(module_name + ".data", 0, 0, 1);
 
     op(UD2);  // Have fun jumping to address 0
+    
+    data_label(exception_label);
+    data_qword(0);
 }
 
 
@@ -216,6 +219,9 @@ void X64::add_def(Label label, const Def &def) {
         std::cerr << "Can't redefine label!\n";
         throw X64_ERROR;
     }
+
+    //if (label.def_index == 353)
+    //    throw X64_ERROR;
 
     defs.insert(decltype(defs)::value_type(label.def_index, def));
 }
@@ -344,7 +350,7 @@ void X64::code_label_export(Label c, std::string name, unsigned size, bool is_gl
 }
 
 
-void X64::code_reference(Label label, bool is_short) {
+void X64::code_reference(Label label, int offset) {
     if (!label.def_index) {
         std::cerr << "Can't reference an undeclared label!\n";
         throw X64_ERROR;
@@ -354,13 +360,19 @@ void X64::code_reference(Label label, bool is_short) {
     Ref &r = refs.back();
 
     r.location = code.size();  // Store the beginning!
-    r.type = (is_short ? REF_CODE_SHORT : REF_CODE_RELATIVE);
+    r.type = REF_CODE_RELATIVE;
     r.def_index = label.def_index;
 
-    if (is_short)
-        code_byte(0);
-    else
-        code_dword(0);  // 32-bit offset only
+    //if (is_short)
+    //    code_byte(0);
+    //else
+    code_dword(offset);  // 32-bit offset only
+}
+
+
+int X64::rxb(int regfield) {
+    return
+        (regfield >= 8 ? REX_R : 0x00);
 }
 
 
@@ -546,6 +558,13 @@ void X64::effective_address(int regfield, Address x) {
 }
 
 
+void X64::effective_address(int regfield, Label l, int offset) {
+    const int DISP0 = 0;
+    code_byte((DISP0 << 6) | ((regfield & 7) << 3) | RBP);  // means [RIP + disp32]
+    code_reference(l, offset);
+}
+
+
 void X64::code_op(int opcode, int opsize, int regfield, Register rm) {
     code_op(opcode, opsize, rxb(regfield, rm));
     effective_address(regfield, rm);
@@ -555,6 +574,12 @@ void X64::code_op(int opcode, int opsize, int regfield, Register rm) {
 void X64::code_op(int opcode, int opsize, int regfield, Address rm) {
     code_op(opcode, opsize, rxb(regfield, rm));
     effective_address(regfield, rm);
+}
+
+
+void X64::code_op(int opcode, int opsize, int regfield, Label l, int offset) {
+    code_op(opcode, opsize, rxb(regfield));
+    effective_address(regfield, l, offset);
 }
 
 
@@ -714,6 +739,31 @@ void X64::op(BinaryOp opcode, Address x, Register y) {
 void X64::op(BinaryOp opcode, Register x, Address y) {
     auto &info = binary_info[opcode >> 2];
     code_op(info.op3, opcode & 3, x, y);
+}
+
+void X64::op(BinaryOp opcode, Register x, Label y) {
+    auto &info = binary_info[opcode >> 2];
+    code_op(info.op3, opcode & 3, x, y, 0);
+}
+
+void X64::op(BinaryOp opcode, Label x, Register y) {
+    auto &info = binary_info[opcode >> 2];
+    code_op(info.op2, opcode & 3, y, x, 0);
+}
+
+void X64::op(BinaryOp opcode, Label x, int y) {
+    auto &info = binary_info[opcode >> 2];
+    int os = (opcode & 3);
+    int offset = (os == 0 ? -1 : os == 1 ? -2 : -4);
+    
+    code_op(info.op1, os, info.regfield1, x, offset);
+    
+    switch (opcode & 3) {
+    case 0: code_byte(y); break;
+    case 1: code_word(y); break;
+    case 2: code_dword(y); break;
+    case 3: code_dword(y); break;  // 32-bit immediate only
+    }
 }
 
 
@@ -904,13 +954,7 @@ void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
 
 
 void X64::op(LeaRipOp, Register r, Label l) {
-    const int DISP0 = 0;
-    
-    code_op(0x8D, 3 | OPSIZE_NONBYTE, r & 8 ? REX_R : 0);  // must use 64-bit opsize
-    
-    // Can't specify RIP base in Address, encode it explicitly
-    code_byte((DISP0 << 6) | ((r & 7) << 3) | RBP);  // means [RIP + disp32]
-    code_reference(l);
+    code_op(0x8D, 3 | OPSIZE_NONBYTE, r, l, 0);  // must use 64-bit opsize
 }
 
 
