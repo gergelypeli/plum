@@ -5,3 +5,4 @@ core.*
 *.sav
 *.o
 *.log
+*.diff
