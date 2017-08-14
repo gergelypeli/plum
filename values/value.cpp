@@ -1,4 +1,8 @@
 
+const long NO_EXCEPTION = 0;
+const long RETURN_EXCEPTION = 1;
+
+
 // Values
 
 class Value {
@@ -544,7 +548,17 @@ Value *make_string_literal_value(std::string text) {
 
 
 Value *make_code_value(Value *value, Declaration *escape) {
-    return new CodeValue(value, escape);
+    if (!value->marker.scope)
+        return value;
+        
+    CodeScope *intruder = new CodeScope;
+    
+    if (value->marker.scope->intrude(intruder, value->marker, escape))
+        return new CodeValue(value, intruder);
+    else {
+        delete intruder;
+        return value;
+    }
 }
 
 

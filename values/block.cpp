@@ -66,10 +66,7 @@ public:
                 // Using typematch would be nicer, but we can't pass the escape_last
                 // flag to CodeValue...
                 
-                Marker marker = value->marker;  // CodeValue would complain without this
                 value = make_void_conversion_value(value);
-                value->set_marker(marker);
-                
                 value = make_code_value(value, escape);
                 add_statement(value, false);
             }
@@ -113,21 +110,7 @@ public:
     }
     
     bool compile(Marker marker, X64 *x64) {
-        if (!scope)
-            return false;
-
-        if (marker.scope != scope)
-            throw INTERNAL_ERROR;
-
-        // Tell the scope that an exception check will be necessary in the finalization code
-        scope->may_abort();
-
-        if (marker.last)
-            marker.last->jump_to_finalization(x64);
-        else
-            scope->jump_to_epilogue(x64);
-        
-        std::cerr << "Code scope will be unwound.\n";
+        scope->jump_to_content_finalization(marker, x64);
         return true;
     }
 };
@@ -139,17 +122,10 @@ public:
     CodeScope *code_scope;
     Register reg;
 
-    CodeValue(Value *v, Declaration *escape)
+    CodeValue(Value *v, CodeScope *s)
         :Value(v->ts.rvalue()) {
         value.reset(v);
-        code_scope = NULL;
-        
-        CodeScope *intruder = new CodeScope;
-        
-        if (value->marker.scope->intrude(intruder, value->marker, escape))
-            code_scope = intruder;
-        else
-            delete intruder;
+        code_scope = s;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -187,10 +163,7 @@ public:
             }
         }
         
-        if (code_scope) {
-            // Unwinds after declarations will jump to these locations
-            code_scope->finalize_contents(x64);
-        }
+        code_scope->finalize_contents(x64);
             
         return s;
     }

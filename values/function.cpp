@@ -93,6 +93,13 @@ public:
         //fn_scope->finalize_scope(s, x64);
         
         //x64->code_label(epilogue_label);
+        
+        Label ok;
+        x64->op(CMPQ, x64->exception_label, RETURN_EXCEPTION);
+        x64->op(JNE, ok);
+        x64->op(MOVQ, x64->exception_label, 0);
+        x64->code_label(ok);
+        
         x64->op(ADDQ, RSP, frame_size);
         x64->op(POPQ, RBP);
         x64->op(RET);
@@ -496,13 +503,13 @@ public:
             values[i]->ts.store(s, t, x64);
         }
 
+        x64->op(MOVQ, x64->exception_label, RETURN_EXCEPTION);
+
         Marker m;
         m.scope = dummy->outer_scope;
         m.last = dummy->previous_declaration;
 
-        // TODO: is this proper stack unwinding?
         x64->unwind->compile(m, x64);
-        //dummy->finalize(UNWINDING_FINALIZATION, fn_storage, x64);
         
         return Storage();
     }

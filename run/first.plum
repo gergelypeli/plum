@@ -167,4 +167,6 @@ start? :Function as:
         last? 0
         :return
     
+    prints("Don't print this!")
+    
     :return
