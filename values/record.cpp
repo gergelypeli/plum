@@ -39,18 +39,31 @@ public:
         Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
         Storage rec_storage = variable->get_storage(fn_storage);
         
+        std::vector<std::unique_ptr<DestroyingUnwind>> res_unwinds;
+        
         for (unsigned i = 0; i < values.size(); i++) {
-            Value *v = values[i].get();
             Variable *var = record_type->member_variables[i];
-            Storage t = var->get_storage(rec_storage);
+            Storage var_storage = var->get_storage(rec_storage);
+            TypeSpec var_ts = var->var_ts;
+
+            Value *v = values[i].get();
+            Storage t = var_storage;
             Storage s;
             
             if (v)
                 s = v->compile(x64);
             
-            var->var_ts.create(s, t, x64);
+            var_ts.create(s, t, x64);
+            
+            res_unwinds.push_back(std::unique_ptr<DestroyingUnwind>(new DestroyingUnwind(var_ts, var_storage)));
+            x64->unwind->push(res_unwinds.back().get());
         }
-        
+
+        for (int i = values.size() - 1; i >= 0; i--) {
+            x64->unwind->pop(res_unwinds.back().get());
+            res_unwinds.pop_back();
+        }
+
         return rec_storage;
     }
 };

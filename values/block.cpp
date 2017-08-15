@@ -91,7 +91,13 @@ public:
 
     virtual Storage compile(X64 *x64) {
         for (unsigned i = 0; i < statements.size() - 1; i++) {
+            Unwind *u = (x64->unwind->stack.size() ? x64->unwind->stack.back() : NULL);
+            
             statements[i]->compile_and_store(x64, Storage());
+            
+            if (u != (x64->unwind->stack.size() ? x64->unwind->stack.back() : NULL))
+                throw INTERNAL_ERROR;
+                
             x64->op(NOP);  // For readability
         }
         

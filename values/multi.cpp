@@ -50,13 +50,47 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        std::vector<std::unique_ptr<GenericUnwind>> arg_unwinds;
+
         for (unsigned i = 0; i < values.size(); i++) {
             StorageWhere where = tss[i].where(true);
             where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
-            values[i]->compile_and_store(x64, Storage(where));
+            Storage t(where);
+            values[i]->compile_and_store(x64, t);
+            
+            arg_unwinds.push_back(std::unique_ptr<GenericUnwind>(new GenericUnwind(tss[i], t)));
+            x64->unwind->push(arg_unwinds.back().get());
         }
         
+        for (int i = values.size() - 1; i >= 0; i--) {
+            x64->unwind->pop(arg_unwinds.back().get());
+            arg_unwinds.pop_back();
+        }
+
         return Storage();  // Well...
+    }
+};
+
+
+class MultiUnwind: public Unwind {
+public:
+    Value *value;
+    
+    MultiUnwind(Value *v)
+        :Unwind() {
+        value = v;
+    }
+    
+    virtual void compile(X64 *x64) {
+        std::vector<TypeSpec> tss;
+        
+        if (!value->unpack(tss))
+            throw INTERNAL_ERROR;
+            
+        for (int i = tss.size() - 1; i >= 0; i--) {
+            ArgumentUnwind u(tss[i]);
+            u.compile(x64);
+        }
     }
 };
 
@@ -129,7 +163,13 @@ public:
     
     virtual Storage compile(X64 *x64) {
         left->compile(x64);
+        
+        MultiUnwind u(left.get());
+        x64->unwind->push(&u);
+        
         right->compile(x64);
+        
+        x64->unwind->pop(&u);
 
         std::vector<StorageWhere> right_wheres;
         std::vector<unsigned> right_sizes;

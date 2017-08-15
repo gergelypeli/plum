@@ -129,10 +129,66 @@ public:
 };
 
 
+class DestroyingUnwind: public Unwind {
+public:
+    TypeSpec ts;
+    Storage storage;
+    
+    DestroyingUnwind(TypeSpec t, Storage s)
+        :Unwind() {
+        ts = t;
+        storage = s;
+    }
+    
+    virtual void compile(X64 *x64) {
+        if (storage.where == ALIAS) {
+            // Load the address, and destroy the result there
+            Register reg = RAX;  // FIXME: is this okay to clobber this register?
+            Storage m = Storage(MEMORY, Address(reg, 0));
+            ts.store(storage, m, x64);
+            ts.destroy(m, x64);
+        }
+        else
+            ts.destroy(storage, x64);
+    }
+};
+
+
+
+class GenericUnwind: public Unwind {
+public:
+    TypeSpec ts;
+    Storage storage;
+    
+    GenericUnwind(TypeSpec &t, Storage s)
+        :Unwind() {
+        ts = t;
+        storage = s;
+    }
+    
+    virtual bool compile(X64 *x64) {
+        ts.store(storage, Storage(), x64);
+        return false;
+    }
+};
+
+
+class ArgumentUnwind: public GenericUnwind {
+public:
+    ArgumentUnwind(TypeSpec &t)
+        :GenericUnwind(t, Storage()) {
+        StorageWhere where = ts.where(true);
+        where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+        storage = Storage(where);
+    }
+};
+
+
 class GenericValue: public Value {
 public:
     TypeSpec arg_ts;
     std::unique_ptr<Value> left, right;
+    Storage ls, rs;
     
     GenericValue(TypeSpec at, TypeSpec rt, Value *l)
         :Value(rt) {
@@ -167,6 +223,19 @@ public:
             return true;
         }
     }
+    
+    virtual void compile_and_store_both(X64 *x64, Storage l, Storage r) {
+        ls = l;
+        left->compile_and_store(x64, ls);
+        
+        GenericUnwind u(left->ts, ls);
+        x64->unwind->push(&u);
+        
+        rs = r;
+        right->compile_and_store(x64, rs);
+        
+        x64->unwind->pop(&u);
+    }
 };
 
 
@@ -176,7 +245,6 @@ public:
     bool is_left_lvalue;
     Regs clob, rclob;
     Register reg;
-    Storage ls, rs;
     
     GenericOperationValue(OperationType o, TypeSpec at, TypeSpec rt, Value *l)
         :GenericValue(at, rt, l) {
@@ -327,7 +395,12 @@ public:
             }
         }
         
+        GenericUnwind u(left->ts, ls);
+        x64->unwind->push(&u);
+        
         rs = right ? right->compile(x64) : Storage();
+        
+        x64->unwind->pop(&u);
         
         switch (rs.where) {
         case NOWHERE:

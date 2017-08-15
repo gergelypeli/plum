@@ -96,48 +96,52 @@ public:
         if (before.scope != this)
             throw INTERNAL_ERROR;
 
-        Declaration *stop = before.last;
-        Declaration *escaped_last = NULL;
-        
-        if (escape) {
-            if (escape == contents.back().get()) {
-                escaped_last = contents.back().release();
-                contents.pop_back();
-            }
-            else if (escape == contents.front().get()) {
-                stop = escape;
-            }
-            else
-                throw INTERNAL_ERROR;
-        }
+        std::vector<Declaration *> victims;
 
-        std::stack<Declaration *> victims;
-
-        while (contents.size() && contents.back().get() != stop) {
+        // If last is given, but not in contents, then we have a problem
+        while (before.last ? contents.back().get() != before.last : contents.size() > 0) {
             Declaration *d = contents.back().release();
             contents.pop_back();
-            victims.push(d);
+            victims.push_back(d);
         }
 
-        if (victims.size() > 0) {
+        if (victims.size() == 0) {
+            if (escape)
+                throw INTERNAL_ERROR;
+                
+            return false;
+        }
+        else if (victims.size() == 1 && escape) {
+            if (victims.back() != escape)
+                throw INTERNAL_ERROR;
+                
+            add(victims.back());
+            victims.pop_back();
+            return false;
+        }
+        else {
+            if (escape && escape != victims.front() && escape != victims.back())
+                throw INTERNAL_ERROR;
+
+            if (escape == victims.back()) {
+                add(escape);
+                victims.pop_back();
+            }
+
             add(intruder);
 
-            while (victims.size()) {
-                Declaration *d = victims.top();
-                victims.pop();
+            while (victims.size() > 0 && victims.back() != escape) {
+                Declaration *d = victims.back();
+                victims.pop_back();
                 intruder->add(d);
             }
         
-            if (escaped_last)
-                add(escaped_last);
-                
+            if (victims.size() > 0) {
+                add(escape);
+                victims.pop_back();
+            }
+            
             return true;
-        }
-        else {
-            if (escaped_last)
-                add(escaped_last);
-                
-            return false;
         }
     }
 };

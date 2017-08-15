@@ -159,13 +159,12 @@ public:
     virtual Storage compile(X64 *x64) {
         Label ss_label = x64->once(compile_string_streamification);
 
-        left->compile_and_store(x64, Storage(STACK));
-        right->compile_and_store(x64, Storage(ALISTACK));
+        compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
         
         x64->op(CALL, ss_label);
         
-        right->ts.store(Storage(ALISTACK), Storage(), x64);
-        left->ts.store(Storage(STACK), Storage(), x64);
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
         
         return Storage();
     }
@@ -216,13 +215,12 @@ public:
     virtual Storage compile(X64 *x64) {
         Label cs_label = x64->once(compile_character_streamification);
 
-        left->compile_and_store(x64, Storage(STACK));
-        right->compile_and_store(x64, Storage(ALISTACK));
+        compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
         
         x64->op(CALL, cs_label);
         
-        right->ts.store(Storage(ALISTACK), Storage(), x64);
-        left->ts.store(Storage(STACK), Storage(), x64);
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
         
         return Storage();
     }
@@ -270,15 +268,14 @@ public:
     virtual Storage compile(X64 *x64) {
         Label es_label = x64->once(compile_enum_streamification);
 
-        left->compile_and_store(x64, Storage(STACK));
-        right->compile_and_store(x64, Storage(ALISTACK));
+        compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
         
         EnumerationType *t = dynamic_cast<EnumerationType *>(left->ts.rvalue()[0]);
         x64->op(LEARIP, RBX, t->stringifications_label);  // table start
         x64->op(CALL, es_label);
         
-        right->ts.store(Storage(ALISTACK), Storage(), x64);
-        left->ts.store(Storage(STACK), Storage(), x64);
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
         
         return Storage();
     }

@@ -72,9 +72,8 @@ public:
     virtual Storage compile(X64 *x64) {
         // TODO: this only works for arrays of basic types now, that can be just copied
         Label l = x64->once(compile_array_concatenation);
-        
-        left->compile_and_store(x64, Storage(STACK));
-        right->compile_and_store(x64, Storage(STACK));
+
+        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
         int item_size = ::item_size(ts.unprefix(reference_type).unprefix(array_type).measure(MEMORY));
         x64->op(PUSHQ, item_size);
@@ -82,8 +81,8 @@ public:
         x64->op(CALL, l);
         
         x64->op(ADDQ, RSP, 8);
-        right->ts.store(Storage(STACK), Storage(), x64);
-        left->ts.store(Storage(STACK), Storage(), x64);
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
         
         return Storage(REGISTER, RAX);
     }
