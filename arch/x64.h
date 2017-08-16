@@ -126,6 +126,9 @@ struct Label {
         static unsigned last_def_index = 0;
         
         def_index = leave_uninitialized ? 0 : ++last_def_index;
+        
+        //if (def_index == 108)
+        //    throw X64_ERROR;
     }
     
     Label(const Label &c) {

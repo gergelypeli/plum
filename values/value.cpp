@@ -74,7 +74,50 @@ public:
     virtual bool unpack(std::vector<TypeSpec> &tss) {
         return false;
     }
+    
+    virtual bool unwind(X64 *x64) {
+        std::cerr << "This Value can't be unwound!\n";
+        throw INTERNAL_ERROR;
+    }
 };
+
+
+class UnwindStack {
+public:
+    std::vector<Value *> stack;
+    
+    virtual void push(Value *v) {
+        stack.push_back(v);
+    }
+    
+    virtual void pop(Value *v) {
+        if (v != stack.back())
+            throw INTERNAL_ERROR;
+            
+        stack.pop_back();
+    }
+    
+    virtual void unwind(Scope *scope, Declaration *last, X64 *x64) {
+        for (int i = stack.size() - 1; i >= 0; i--)
+            if (stack[i]->unwind(x64))
+                break;
+                
+        scope->jump_to_content_finalization(last, x64);
+    }
+};
+
+
+void unwind_destroy_var(TypeSpec &ts, Storage s, X64 *x64) {
+    if (s.where == ALIAS) {
+        // Load the address, and destroy the result there
+        Register reg = RAX;  // FIXME: is this okay to clobber this register?
+        Storage t = Storage(MEMORY, Address(reg, 0));
+        ts.store(s, t, x64);
+        ts.destroy(t, x64);
+    }
+    else
+        ts.destroy(s, x64);
+}
 
 
 class VariableValue: public Value {
@@ -128,7 +171,7 @@ public:
     }
 };
 
-
+/*
 class DestroyingUnwind: public Unwind {
 public:
     TypeSpec ts;
@@ -182,7 +225,7 @@ public:
         storage = Storage(where);
     }
 };
-
+*/
 
 class GenericValue: public Value {
 public:
@@ -225,16 +268,20 @@ public:
     }
     
     virtual void compile_and_store_both(X64 *x64, Storage l, Storage r) {
+        left->compile_and_store(x64, l);
         ls = l;
-        left->compile_and_store(x64, ls);
         
-        GenericUnwind u(left->ts, ls);
-        x64->unwind->push(&u);
+        x64->unwind->push(this);
         
+        right->compile_and_store(x64, r);
         rs = r;
-        right->compile_and_store(x64, rs);
         
-        x64->unwind->pop(&u);
+        x64->unwind->pop(this);
+    }
+    
+    virtual bool unwind(X64 *x64) {
+        left->ts.store(ls, Storage(), x64);
+        return false;
     }
 };
 
@@ -395,12 +442,11 @@ public:
             }
         }
         
-        GenericUnwind u(left->ts, ls);
-        x64->unwind->push(&u);
+        x64->unwind->push(this);
         
         rs = right ? right->compile(x64) : Storage();
         
-        x64->unwind->pop(&u);
+        x64->unwind->pop(this);
         
         switch (rs.where) {
         case NOWHERE:
@@ -494,6 +540,11 @@ public:
         default:
             throw INTERNAL_ERROR;
         }
+    }
+    
+    virtual bool unwind(X64 *x64) {
+        left->ts.store(ls, Storage(), x64);
+        return false;
     }
 };
 

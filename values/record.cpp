@@ -14,6 +14,9 @@ public:
     Variable *variable;
     std::vector<std::unique_ptr<Value>> values;
     
+    std::vector<Storage> var_storages;
+    
+    
     RecordInitializerValue(Variable *var)
         :Value(var->var_ts) {
         record_type = dynamic_cast<RecordType *>(ts[0]);
@@ -38,12 +41,13 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
         Storage rec_storage = variable->get_storage(fn_storage);
-        
-        std::vector<std::unique_ptr<DestroyingUnwind>> res_unwinds;
+
+        x64->unwind->push(this);
         
         for (unsigned i = 0; i < values.size(); i++) {
             Variable *var = record_type->member_variables[i];
             Storage var_storage = var->get_storage(rec_storage);
+            var_storages.push_back(var_storage);
             TypeSpec var_ts = var->var_ts;
 
             Value *v = values[i].get();
@@ -54,16 +58,17 @@ public:
                 s = v->compile(x64);
             
             var_ts.create(s, t, x64);
-            
-            res_unwinds.push_back(std::unique_ptr<DestroyingUnwind>(new DestroyingUnwind(var_ts, var_storage)));
-            x64->unwind->push(res_unwinds.back().get());
         }
-
-        for (int i = values.size() - 1; i >= 0; i--) {
-            x64->unwind->pop(res_unwinds.back().get());
-            res_unwinds.pop_back();
-        }
+        
+        x64->unwind->pop(this);
 
         return rec_storage;
+    }
+    
+    virtual bool unwind(X64 *x64) {
+        for (int i = var_storages.size() - 1; i >= 0; i--)
+            unwind_destroy_var(record_type->member_variables[i]->var_ts, var_storages[i], x64);
+            
+        return false;
     }
 };

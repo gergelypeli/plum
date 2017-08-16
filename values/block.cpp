@@ -91,13 +91,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         for (unsigned i = 0; i < statements.size() - 1; i++) {
-            Unwind *u = (x64->unwind->stack.size() ? x64->unwind->stack.back() : NULL);
-            
             statements[i]->compile_and_store(x64, Storage());
-            
-            if (u != (x64->unwind->stack.size() ? x64->unwind->stack.back() : NULL))
-                throw INTERNAL_ERROR;
-                
             x64->op(NOP);  // For readability
         }
         
@@ -105,7 +99,7 @@ public:
     }
 };
 
-
+/*
 class CodeUnwind: public Unwind {
 public:
     CodeScope *scope;
@@ -120,7 +114,7 @@ public:
         return true;
     }
 };
-
+*/
 
 class CodeValue: public Value {
 public:
@@ -145,15 +139,13 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        CodeUnwind u(code_scope);
-        x64->unwind->push(&u);
-    
+        x64->unwind->push(this);
+        Storage s = value->compile(x64);
+        x64->unwind->pop(this);
+        
         // Can't let the result be passed as a MEMORY storage, because it may
         // point to a local variable that we're about to destroy. So grab that
         // value while we can. 
-        Storage s = value->compile(x64);
-        x64->unwind->pop(&u);
-        
         if (s.where == MEMORY) {
             switch (value->ts.rvalue().where(false)) {
             case REGISTER:
@@ -169,9 +161,23 @@ public:
             }
         }
         
-        code_scope->finalize_contents(x64);
+        bool may_be_aborted = code_scope->finalize_contents(x64);
+
+        if (may_be_aborted) {
+            Label ok;
+            x64->op(CMPQ, x64->exception_label, 0);
+            x64->op(JE, ok);
+    
+            x64->unwind->unwind(code_scope->outer_scope, code_scope->previous_declaration, x64);
+
+            x64->code_label(ok);
+        }
             
         return s;
+    }
+    
+    virtual bool unwind(X64 *x64) {
+        return true;  // stop unwinding here, and start destroying scoped variables
     }
 };
 

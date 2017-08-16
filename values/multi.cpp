@@ -5,6 +5,9 @@ public:
     std::vector<std::unique_ptr<Value>> values;
     std::vector<TypeSpec> tss;
     bool is_rvalue;
+    
+    std::vector<Storage> storages;
+    
 
     MultiValue()
         :Value(BOGUS_TS) {
@@ -50,28 +53,30 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        std::vector<std::unique_ptr<GenericUnwind>> arg_unwinds;
+        x64->unwind->push(this);
 
         for (unsigned i = 0; i < values.size(); i++) {
-            StorageWhere where = tss[i].where(true);
-            where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+            StorageWhere where = stacked(tss[i].where(true));
             Storage t(where);
-            values[i]->compile_and_store(x64, t);
+            storages.push_back(t);
             
-            arg_unwinds.push_back(std::unique_ptr<GenericUnwind>(new GenericUnwind(tss[i], t)));
-            x64->unwind->push(arg_unwinds.back().get());
+            values[i]->compile_and_store(x64, t);
         }
         
-        for (int i = values.size() - 1; i >= 0; i--) {
-            x64->unwind->pop(arg_unwinds.back().get());
-            arg_unwinds.pop_back();
-        }
+        x64->unwind->pop(this);
 
         return Storage();  // Well...
     }
+
+    virtual bool unwind(X64 *x64) {
+        for (int i = storages.size() - 1; i >= 0; i--)
+            tss[i].store(storages[i], Storage(), x64);
+            
+        return false;
+    }
 };
 
-
+/*
 class MultiUnwind: public Unwind {
 public:
     Value *value;
@@ -93,7 +98,7 @@ public:
         }
     }
 };
-
+*/
 
 class UnpackingValue: public Value {
 public:
@@ -164,12 +169,11 @@ public:
     virtual Storage compile(X64 *x64) {
         left->compile(x64);
         
-        MultiUnwind u(left.get());
-        x64->unwind->push(&u);
+        x64->unwind->push(this);
         
         right->compile(x64);
         
-        x64->unwind->pop(&u);
+        x64->unwind->pop(this);
 
         std::vector<StorageWhere> right_wheres;
         std::vector<unsigned> right_sizes;
@@ -237,6 +241,17 @@ public:
         x64->op(ADDQ, RSP, left_total);
             
         return Storage();
+    }
+
+    virtual bool unwind(X64 *x64) {
+        for (int i = left_tss.size() - 1; i >= 0; i--) {
+            StorageWhere where = stacked(left_tss[i].where(true));
+            Storage s(where);
+        
+            left_tss[i].store(s, Storage(), x64);
+        }
+            
+        return false;
     }
 };
 

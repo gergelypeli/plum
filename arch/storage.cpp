@@ -19,6 +19,11 @@ enum StorageWhere {
 };
 
 
+StorageWhere stacked(StorageWhere w) {
+    return (w == MEMORY ? STACK : w == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+}
+
+
 struct Storage {
     StorageWhere where;
     int value;  // Must be 32-bit only, greater values must be loaded to registers.

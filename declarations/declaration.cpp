@@ -15,37 +15,6 @@ struct Marker {
 };
 
 
-class Unwind {
-public:
-    virtual bool compile(Marker marker, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
-};
-
-
-class UnwindStack {
-public:
-    std::vector<Unwind *> stack;
-    
-    virtual void push(Unwind *u) {
-        stack.push_back(u);
-    }
-    
-    virtual void pop(Unwind *u) {
-        if (u != stack.back())
-            throw INTERNAL_ERROR;
-            
-        stack.pop_back();
-    }
-    
-    virtual void compile(Marker marker, X64 *x64) {
-        for (int i = stack.size() - 1; i >= 0; i--)
-            if (stack[i]->compile(marker, x64))
-                break;
-    }
-};
-
-
 Declaration *declaration_cast(Scope *);
 
 // Declarations

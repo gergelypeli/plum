@@ -54,12 +54,9 @@ public:
         Expr *b = kwargs["as"].get();
         
         if (b) {
+            // The body is in a separate CodeScope, but instead of a dedicated CodeValue,
+            // we'll handle its compilation.
             Value *bv = typize(b, bs, &VOID_CODE_TS);
-            TypeMatch match;
-        
-            if (!typematch(VOID_CODE_TS, bv, match))
-                throw INTERNAL_ERROR;
-            
             body.reset(bv);
         }
         
@@ -86,25 +83,31 @@ public:
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
         
+        x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
+        x64->unwind->pop(this);
+        
         x64->op(NOP);
+
+        bool may_be_aborted = fn_scope->body_scope->finalize_contents(x64);
         
-        //Storage s(MEMORY, Address(RBP, 0));
-        //fn_scope->finalize_scope(s, x64);
-        
-        //x64->code_label(epilogue_label);
-        
-        Label ok;
-        x64->op(CMPQ, x64->exception_label, RETURN_EXCEPTION);
-        x64->op(JNE, ok);
-        x64->op(MOVQ, x64->exception_label, 0);
-        x64->code_label(ok);
+        if (may_be_aborted) {
+            Label ok;
+            x64->op(CMPQ, x64->exception_label, RETURN_EXCEPTION);
+            x64->op(JNE, ok);
+            x64->op(MOVQ, x64->exception_label, 0);
+            x64->code_label(ok);
+        }
         
         x64->op(ADDQ, RSP, frame_size);
         x64->op(POPQ, RBP);
         x64->op(RET);
         
         return Storage();
+    }
+
+    virtual bool unwind(X64 *x64) {
+        return true;  // stop unwinding here, and start destroying scoped variables
     }
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
@@ -154,7 +157,7 @@ public:
     }
 };
 
-
+/*
 class StackReleaseUnwind: public Unwind {
 public:
     int bytes;
@@ -169,7 +172,7 @@ public:
         return false;
     }
 };
-
+*/
 
 // The value of calling a function
 class FunctionCallValue: public Value {
@@ -180,6 +183,10 @@ public:
     std::vector<Variable *> result_variables;
     Register reg;
     Declaration *dummy;
+    
+    unsigned res_total;
+    std::vector<Storage> arg_storages;
+    
     
     FunctionCallValue(Function *f, Value *p)
         :Value(BOGUS_TS) {
@@ -194,6 +201,8 @@ public:
             ts = res_tss[0];
         else if (res_tss.size() > 1)
             ts = MULTI_TS;
+            
+        res_total = 0;
     }
 
     virtual bool unpack(std::vector<TypeSpec> &tss) {
@@ -308,9 +317,8 @@ public:
         return Regs::all();  // assume everything is clobbered
     }
     
-    virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64, std::vector<std::unique_ptr<GenericUnwind>> &arg_unwinds) {
-        StorageWhere where = arg_ts.where(true);
-        where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+    virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+        StorageWhere where = stacked(arg_ts.where(true));
         Storage t(where);
 
         if (arg_value) {
@@ -322,20 +330,18 @@ public:
             arg_ts.create(Storage(), t, x64);
         }
 
-        arg_unwinds.push_back(std::unique_ptr<GenericUnwind>(new GenericUnwind(arg_ts, t)));
-        x64->unwind->push(arg_unwinds.back().get());
+        arg_storages.push_back(t);  // For unwinding
         
         return arg_ts.measure(where);
     }
 
-    virtual void pop_arg(TypeSpec arg_ts, X64 *x64, std::vector<std::unique_ptr<GenericUnwind>> &arg_unwinds) {
+    virtual void pop_arg(TypeSpec arg_ts, X64 *x64) {
         StorageWhere where = arg_ts.where(true);
         where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
         
         arg_ts.store(Storage(where), Storage(), x64);
         
-        x64->unwind->pop(arg_unwinds.back().get());
-        arg_unwinds.pop_back();
+        arg_storages.pop_back();
     }
 
     virtual Storage ret_res(TypeSpec res_ts, X64 *x64) {
@@ -378,7 +384,6 @@ public:
         std::vector<TypeSpec> &res_tss = function->get_result_tss();
 
         bool is_void = res_tss.size() == 0;
-        int res_total = 0;
         
         for (unsigned i = 0; i < res_tss.size(); i++) {
             TypeSpec res_ts = res_tss[i];
@@ -399,21 +404,17 @@ public:
             else
                 throw INTERNAL_ERROR;
         }
-        
-        StackReleaseUnwind res_unwind(res_total);
-        x64->unwind->push(&res_unwind);
-        
-        std::vector<std::unique_ptr<GenericUnwind>> arg_unwinds;
-        
+
+        x64->unwind->push(this);
         unsigned passed_size = 0;
         
         if (pivot) {
-            passed_size += push_arg(function->get_pivot_typespec(), pivot.get(), x64, arg_unwinds);
+            passed_size += push_arg(function->get_pivot_typespec(), pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
         
         for (unsigned i = 0; i < items.size(); i++)
-            passed_size += push_arg(arg_tss[i], items[i].get(), x64, arg_unwinds);
+            passed_size += push_arg(arg_tss[i], items[i].get(), x64);
             
         if (function->is_sysv && passed_size > 0)
             sysv_prologue(x64, passed_size);
@@ -425,24 +426,20 @@ public:
         
         // TODO: check for thrown exceptions!
         // Use the dummy to initiate unwinding!
+
+        x64->unwind->pop(this);
         
         for (int i = items.size() - 1; i >= 0; i--)
-            pop_arg(arg_tss[i], x64, arg_unwinds);
+            pop_arg(arg_tss[i], x64);
             
         if (pivot) {
             TypeSpec pivot_ts = function->get_pivot_typespec();
             
-            if (is_void) {
-                x64->unwind->pop(arg_unwinds.back().get());
-                arg_unwinds.pop_back();
-                x64->unwind->pop(&res_unwind);
+            if (is_void)
                 return ret_res(pivot_ts, x64);
-            }
             
-            pop_arg(pivot_ts, x64, arg_unwinds);
+            pop_arg(pivot_ts, x64);
         }
-            
-        x64->unwind->pop(&res_unwind);
             
         //std::cerr << "Compiled call of " << function->name << ".\n";
         if (is_void)
@@ -451,6 +448,18 @@ public:
             return ret_res(res_tss[0], x64);
         else
             return Storage(STACK);  // Multiple result values
+    }
+
+    virtual bool unwind(X64 *x64) {
+        std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
+
+        for (int i = arg_storages.size() - 1; i >= 0; i--) {
+            arg_tss[i].store(arg_storages[i], Storage(), x64);
+        }
+        
+        // This area is either uninitialized, or contains aliases to uninitialized variables
+        x64->op(ADDQ, RSP, res_total);
+        return false;
     }
     
     virtual Variable *declare_dirty(std::string name, Scope *scope) {
@@ -475,6 +484,9 @@ public:
     std::vector<Variable *> result_vars;
     std::vector<std::unique_ptr<Value>> values;
     Declaration *dummy;
+
+    std::vector<Storage> var_storages;
+    
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(VOID_TS) {
@@ -539,10 +551,11 @@ public:
         // Since we store each result in a variable, upon an exception we must
         // destroy the already set ones before unwinding!
         
-        std::vector<std::unique_ptr<DestroyingUnwind>> res_unwinds;
-
+        x64->unwind->push(this);
+        
         for (unsigned i = 0; i < values.size(); i++) {
             Storage var_storage = result_vars[i]->get_storage(fn_storage);
+            var_storages.push_back(var_storage);
             TypeSpec var_ts = result_vars[i]->var_ts;
             
             Storage s = values[i]->compile(x64);
@@ -557,25 +570,22 @@ public:
             }
                 
             var_ts.create(s, t, x64);
-            
-            res_unwinds.push_back(std::unique_ptr<DestroyingUnwind>(new DestroyingUnwind(var_ts, var_storage)));
-            x64->unwind->push(res_unwinds.back().get());
         }
 
-        for (int i = values.size() - 1; i >= 0; i--) {
-            x64->unwind->pop(res_unwinds.back().get());
-            res_unwinds.pop_back();
-        }
+        x64->unwind->pop(this);
 
         x64->op(MOVQ, x64->exception_label, RETURN_EXCEPTION);
 
-        Marker m;
-        m.scope = dummy->outer_scope;
-        m.last = dummy->previous_declaration;
-
-        x64->unwind->compile(m, x64);
+        x64->unwind->unwind(dummy->outer_scope, dummy->previous_declaration, x64);
         
         return Storage();
+    }
+    
+    virtual bool unwind(X64 *x64) {
+        for (int i = var_storages.size() - 1; i >= 0; i--)
+            unwind_destroy_var(result_vars[i]->var_ts, var_storages[i], x64);
+            
+        return false;
     }
 };
 

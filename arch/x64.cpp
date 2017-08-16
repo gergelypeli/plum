@@ -220,7 +220,7 @@ void X64::add_def(Label label, const Def &def) {
         throw X64_ERROR;
     }
 
-    //if (label.def_index == 353)
+    //if (label.def_index == 108)
     //    throw X64_ERROR;
 
     defs.insert(decltype(defs)::value_type(label.def_index, def));
