@@ -159,7 +159,7 @@ class RecordDefinitionValue: public Value {
 public:
     DataScope *inner_scope;
     RecordType *record_type;
-    std::unique_ptr<DataValue> data_value;
+    std::unique_ptr<DataBlockValue> data_value;
     std::vector<Expr *> deferred_exprs;
     
     RecordDefinitionValue()
@@ -208,7 +208,7 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing record definition.\n";
-        data_value.reset(new DataValue(inner_scope));
+        data_value.reset(new DataBlockValue(inner_scope));
         
         for (Expr *expr : deferred_exprs)
             if (!data_value->check_statement(expr))

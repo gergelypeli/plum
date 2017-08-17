@@ -106,7 +106,7 @@ bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_function_call_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
-Value *make_block_value(TypeSpec *context);
+Value *make_code_block_value(TypeSpec *context);
 Value *make_multi_value();
 Value *make_scalar_conversion_value(Value *p);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
@@ -429,7 +429,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     //scope = s;
     
     Marker marker = scope->mark();
-    BlockValue *block = new BlockValue(NULL);
+    CodeBlockValue *block = new CodeBlockValue(NULL);
     block->set_marker(marker);
     
     DeclarationValue *dv = make_declaration_by_value("<interpolated>", new StringBufferValue(100), scope);
@@ -512,12 +512,12 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
 
         if (context) {
-            value = make_block_value(context);
+            value = make_code_block_value(context);
             value->set_token(expr->token);
         
             bool ok = value->check(expr->args, expr->kwargs, scope);
             if (!ok) {
-                std::cerr << "Block error.\n";
+                std::cerr << "Code block error!\n";
                 throw TYPE_ERROR;
             }
         }
@@ -527,7 +527,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         
             bool ok = value->check(expr->args, expr->kwargs, scope);
             if (!ok) {
-                std::cerr << "Multi error.\n";
+                std::cerr << "Multi value error!\n";
                 throw TYPE_ERROR;
             }
         }

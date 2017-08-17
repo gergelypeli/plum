@@ -1,10 +1,10 @@
 
-class DataValue: public Value {
+class DataBlockValue: public Value {
 public:
     DataScope *scope;
     std::vector<std::unique_ptr<Value>> statements;
 
-    DataValue(DataScope *s)
+    DataBlockValue(DataScope *s)
         :Value(VOID_TS) {
         scope = s;
         
@@ -50,12 +50,12 @@ public:
 };
 
 
-class BlockValue: public Value {
+class CodeBlockValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> statements;
     TypeSpec *context;
 
-    BlockValue(TypeSpec *c)
+    CodeBlockValue(TypeSpec *c)
         :Value(VOID_TS) {  // Will be overridden
         context = c;
     }
@@ -81,38 +81,30 @@ public:
         }
         
         Value *value;
-        bool error = false;
-
-        if (scope->is_pure()) {
-            throw INTERNAL_ERROR;
-        }
-        else {
-            for (unsigned i = 0; i < args.size() - 1; i++) {
-                value = typize(args[i].get(), scope, &VOID_CODE_TS);
-                
-                DeclarationValue *dv = declaration_value_cast(value);
-                Declaration *escape = NULL;
-                
-                if (dv) {
-                    escape = declaration_get_decl(dv);
-                }
-                
-                // This matters, because makes the expression Void before putting it
-                // in CodeValue, which would be sensitive about MEMORY return values,
-                // and push them unnecessarily.
-                // Using typematch would be nicer, but we can't pass the escape_last
-                // flag to CodeValue...
-                
-                value = make_void_conversion_value(value);
-                value = make_code_value(value, escape);
-                add_statement(value, false);
-            }
+        for (unsigned i = 0; i < args.size() - 1; i++) {
+            value = typize(args[i].get(), scope, &VOID_CODE_TS);
             
-            value = typize(args.back().get(), scope, context);
-            add_statement(value, true);
+            DeclarationValue *dv = declaration_value_cast(value);
+            Declaration *escape = NULL;
+            
+            if (dv)
+                escape = declaration_get_decl(dv);
+            
+            // This matters, because makes the expression Void before putting it
+            // in CodeValue, which would be sensitive about MEMORY return values,
+            // and push them unnecessarily.
+            // Using typematch would be nicer, but we can't pass the escape_last
+            // flag to CodeValue...
+            
+            value = make_void_conversion_value(value);
+            value = make_code_value(value, escape);
+            add_statement(value, false);
         }
+        
+        value = typize(args.back().get(), scope, context);
+        add_statement(value, true);
 
-        return !error;
+        return true;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -136,22 +128,6 @@ public:
     }
 };
 
-/*
-class CodeUnwind: public Unwind {
-public:
-    CodeScope *scope;
-    
-    CodeUnwind(CodeScope *cs)
-        :Unwind() {
-        scope = cs;
-    }
-    
-    bool compile(Marker marker, X64 *x64) {
-        scope->jump_to_content_finalization(marker, x64);
-        return true;
-    }
-};
-*/
 
 class CodeValue: public Value {
 public:

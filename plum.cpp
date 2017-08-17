@@ -54,9 +54,9 @@ int main(int argc, char **argv) {
     DataScope *module_scope = new DataScope;
     module_scope->set_pivot_type_hint(VOID_TS);  // FIXME: something else!
     root_scope->add(module_scope);
-    std::unique_ptr<DataValue> value_root;
+    std::unique_ptr<DataBlockValue> value_root;
     
-    value_root.reset(new DataValue(module_scope));
+    value_root.reset(new DataBlockValue(module_scope));
     for (auto &a : expr_root->args)
         value_root->check_statement(a.get());
         
