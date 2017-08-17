@@ -6,6 +6,7 @@ public:
     std::unique_ptr<Value> head;
     std::unique_ptr<Value> body;
     FunctionScope *fn_scope;
+    Expr *deferred_body_expr;
     
     Function *function;  // If declared with a name, which is always, for now
         
@@ -13,6 +14,7 @@ public:
         :Value(METATYPE_TS) {
         //result.reset(r);
         function = NULL;
+        deferred_body_expr = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -50,16 +52,23 @@ public:
         Expr *h = kwargs["from"].get();
         head.reset(h ? typize(h, hs) : NULL);
         
-        Scope *bs = fn_scope->add_body_scope();
-        Expr *b = kwargs["as"].get();
+        deferred_body_expr = kwargs["as"].get();
+        std::cerr << "Deferring definition of function body.\n";
         
-        if (b) {
+        return true;
+    }
+
+    virtual bool complete_definition() {
+        std::cerr << "Completing definition of function body.\n";
+        Scope *bs = fn_scope->add_body_scope();
+        
+        if (deferred_body_expr) {
             // The body is in a separate CodeScope, but instead of a dedicated CodeValue,
             // we'll handle its compilation.
-            Value *bv = typize(b, bs, &VOID_CODE_TS);
+            Value *bv = typize(deferred_body_expr, bs, &VOID_CODE_TS);
             body.reset(bv);
         }
-        
+
         return true;
     }
 

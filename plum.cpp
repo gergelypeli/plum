@@ -54,16 +54,14 @@ int main(int argc, char **argv) {
     DataScope *module_scope = new DataScope;
     module_scope->set_pivot_type_hint(VOID_TS);  // FIXME: something else!
     root_scope->add(module_scope);
-    std::unique_ptr<Value> value_root;
+    std::unique_ptr<DataValue> value_root;
     
-    //try {
-        Value *v = typize(expr_root.get(), module_scope);
-        value_root.reset(v);
-    //} catch (Error) {
-    //    std::cerr << "Typize error, terminating!\n";
-    //    //return 1;
-    //    throw;
-    //}
+    value_root.reset(new DataValue(module_scope));
+    for (auto &a : expr_root->args)
+        value_root->check_statement(a.get());
+        
+    value_root->complete_definition();
+    //Value *v = typize(expr_root.get(), module_scope);
 
     root_scope->allocate();
     
@@ -80,7 +78,7 @@ int main(int argc, char **argv) {
             f->import(x64);
     }
     
-    value_root->precompile();
+    value_root->precompile(Regs::all());
     value_root->compile(x64);
     
     x64->done(argv[2]);

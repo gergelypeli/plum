@@ -511,7 +511,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw INTERNAL_ERROR;
         }
 
-        if (context || scope->is_pure()) {
+        if (context) {
             value = make_block_value(context);
             value->set_token(expr->token);
         

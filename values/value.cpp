@@ -79,6 +79,10 @@ public:
         std::cerr << "This Value can't be unwound!\n";
         throw INTERNAL_ERROR;
     }
+    
+    virtual bool complete_definition() {
+        return true;
+    }
 };
 
 
@@ -615,8 +619,8 @@ bool check_arguments(
 
 
 #include "literal.cpp"
-#include "type.cpp"
 #include "block.cpp"
+#include "type.cpp"
 #include "function.cpp"
 #include "integer.cpp"
 #include "boolean.cpp"

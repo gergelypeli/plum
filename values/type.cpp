@@ -108,38 +108,23 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() == 1 || kwargs.size() != 0) {
+        if (args.size() == 0 || kwargs.size() != 0) {
             std::cerr << "Whacky enumeration!\n";
             return false;
         }
         
-        DataScope *fake_scope = new DataScope;
-        fake_scope->set_pivot_type_hint(VOID_TS);  // TODO: any better idea?
-        scope->add(fake_scope);
-        
         for (auto &a : args) {
-            std::unique_ptr<Value> kwv;
-            kwv.reset(typize(a.get(), fake_scope, &INTEGER_TS));
-            
-            DeclarationValue *dv = declaration_value_cast(kwv.get());
-
-            if (!dv) {
-                std::cerr << "Not a declaration in an enumeration definition!\n";
+            if (a->type != Expr::DECLARATION || a->args.size() > 0 || a->kwargs.size() > 0) {
+                std::cerr << "Whacky enum symbol!\n";
                 return false;
             }
             
-            // Can't check the dv ts in pure blocks anymore...
-            //if (dv->ts != INTEGER_TS) {
-            //    std::cerr << "Not an integer declaration in an enumeration definition: " << dv->ts << "!\n";
-            //    return false;
-            //}
-            
-            keywords.push_back(declaration_get_name(dv));
+            keywords.push_back(a->text);
         }
         
         return true;
     }
-    
+
     virtual Regs precompile(Regs) {
         return Regs();
     }
@@ -173,8 +158,9 @@ public:
 class RecordDefinitionValue: public Value {
 public:
     DataScope *inner_scope;
-    std::unique_ptr<RecordType> record_type;
-    std::vector<std::unique_ptr<Value>> values;
+    RecordType *record_type;
+    std::unique_ptr<DataValue> data_value;
+    std::vector<Expr *> deferred_exprs;
     
     RecordDefinitionValue()
         :Value(METATYPE_TS) {
@@ -201,22 +187,32 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() == 0 || kwargs.size() != 0) {
+        if (kwargs.size() != 0) {
             std::cerr << "Whacky record!\n";
             return false;
         }
 
-        record_type.reset(new RecordType("<anonymous>"));
+        record_type = new RecordType("<anonymous>");
 
         inner_scope = new DataScope;
         scope->add(inner_scope);
-        inner_scope->set_pivot_type_hint(TypeSpec { record_type.get() });
+        inner_scope->set_pivot_type_hint(TypeSpec { record_type });
         inner_scope->set_meta_scope(record_metatype->get_inner_scope());
+
+        for (auto &a : args)
+            deferred_exprs.push_back(a.get());
+            
+        std::cerr << "Deferring record definition.\n";
+        return true;
+    }
+
+    virtual bool complete_definition() {
+        std::cerr << "Completing record definition.\n";
+        data_value.reset(new DataValue(inner_scope));
         
-        for (auto &a : args) {
-            Value *v = typize(a.get(), inner_scope);
-            values.push_back(std::unique_ptr<Value>(v));
-        }
+        for (Expr *expr : deferred_exprs)
+            if (!data_value->check_statement(expr))
+                return false;
 
         std::vector<std::string> member_names;
         
@@ -228,26 +224,26 @@ public:
         }
 
         // TODO: this should be a fallback if the user didn't define his own
-        Value *eq = typize(make_equality(member_names), inner_scope);
-        values.push_back(std::unique_ptr<Value>(eq));
+        //Value *eq = typize(make_equality(member_names), inner_scope);
+        //values.push_back(std::unique_ptr<Value>(eq));
+        if (!data_value->check_statement(make_equality(member_names)))
+            return false;
+
+        if (!data_value->complete_definition())
+            return false;
 
         record_type->set_inner_scope(inner_scope);
 
         return true;
+        
     }
     
-    virtual Regs precompile(Regs) {
-        for (auto &v : values)
-            v->precompile(Regs());
-
-        return Regs();
+    virtual Regs precompile(Regs preferred) {
+        return data_value->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
-        for (auto &v : values)
-            v->compile(x64);
-            
-        return Storage();
+        return data_value->compile(x64);
     }
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
@@ -256,7 +252,7 @@ public:
 
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
         record_type->set_name(name);
-        return record_type.release();
+        return record_type;
     }
 };
 

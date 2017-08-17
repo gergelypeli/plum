@@ -50,6 +50,10 @@ as:
     prints("A pair of ({x}, {y})" { x: p first, y: p second })
 
 
+restart? :Function as:
+    start  # check predeclarations
+
+
 start? :Function as:
     print(f(1, 2))
     

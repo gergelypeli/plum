@@ -1,4 +1,55 @@
 
+class DataValue: public Value {
+public:
+    DataScope *scope;
+    std::vector<std::unique_ptr<Value>> statements;
+
+    DataValue(DataScope *s)
+        :Value(VOID_TS) {
+        scope = s;
+        
+        if (!s->is_pure())
+            throw INTERNAL_ERROR;
+    }
+
+    virtual bool check_statement(Expr *expr) {
+        bool is_allowed = (expr->type == Expr::DECLARATION);
+
+        if (!is_allowed) {
+            std::cerr << "Impure statement not allowed in a pure context: " << expr->token << "!\n";
+            return false;
+        }
+
+        Value *value = typize(expr, scope);
+        
+        statements.push_back(std::unique_ptr<Value>(value));
+        return true;
+    }
+
+    virtual bool complete_definition() {
+        for (unsigned i = 0; i < statements.size(); i++)
+            if (!statements[i]->complete_definition())
+                return false;
+                
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        for (unsigned i = 0; i < statements.size(); i++)
+            statements[i]->precompile();
+            
+        return Regs();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        for (unsigned i = 0; i < statements.size(); i++)
+            statements[i]->compile(x64);
+            
+        return Storage();
+    }
+};
+
+
 class BlockValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> statements;
@@ -11,6 +62,8 @@ public:
 
     virtual void add_statement(Value *value, bool result = false) {
         statements.push_back(std::unique_ptr<Value>(value));
+        
+        value->complete_definition();
         
         if (result)
             ts = value->ts;  // TODO: rip code_type
@@ -31,34 +84,18 @@ public:
         bool error = false;
 
         if (scope->is_pure()) {
-            for (auto &arg : args) {
-                bool is_allowed = (arg->type == Expr::DECLARATION);
-
-                if (!is_allowed) {
-                    error = true;
-                    std::cerr << "Impure statement not allowed in a pure context: " << arg->token << "!\n";
-                    //continue;
-                    throw TYPE_ERROR;
-                }
-
-                //try {
-                    value = typize(arg.get(), scope, context);
-                //} catch (Error) {
-                //    error = true;
-                    //std::cerr << "Continuing...\n";
-                    //continue;
-                //    throw;
-                //}
-                
-                add_statement(value, false);
-            }
+            throw INTERNAL_ERROR;
         }
         else {
             for (unsigned i = 0; i < args.size() - 1; i++) {
                 value = typize(args[i].get(), scope, &VOID_CODE_TS);
                 
                 DeclarationValue *dv = declaration_value_cast(value);
-                Declaration *escape = dv ? declaration_get_decl(dv) : NULL;
+                Declaration *escape = NULL;
+                
+                if (dv) {
+                    escape = declaration_get_decl(dv);
+                }
                 
                 // This matters, because makes the expression Void before putting it
                 // in CodeValue, which would be sensitive about MEMORY return values,
@@ -269,8 +306,12 @@ public:
         }
         else
             v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
-            
+        
         return use(v, scope);
+    }
+
+    virtual bool complete_definition() {
+        return value->complete_definition();
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -299,6 +340,7 @@ public:
             return Storage();
         }
     }
+    
 };
 
 
