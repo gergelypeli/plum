@@ -119,7 +119,7 @@ start? :Function as:
     prints("{six} and {seven}" { six: 6, seven: 7 })
 
     Myenum? :Enumeration
-        FOO?, BAR?, BAZ?
+        FOO, BAR, BAZ
 
     fbb? Myenum `BAR
     :if fbb == `FOO then: prints("fbb is FOO") else: prints("fbb is not FOO")

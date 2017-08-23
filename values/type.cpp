@@ -114,7 +114,7 @@ public:
         }
         
         for (auto &a : args) {
-            if (a->type != Expr::DECLARATION || a->args.size() > 0 || a->kwargs.size() > 0) {
+            if (a->type != Expr::IDENTIFIER || a->args.size() > 0 || a->kwargs.size() > 0) {
                 std::cerr << "Whacky enum symbol!\n";
                 return false;
             }
