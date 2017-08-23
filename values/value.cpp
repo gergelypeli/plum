@@ -1,8 +1,4 @@
 
-const long NO_EXCEPTION = 0;
-const long RETURN_EXCEPTION = 1;
-
-
 // Values
 
 class Value {
@@ -187,6 +183,7 @@ public:
 #include "reference.cpp"
 #include "record.cpp"
 #include "multi.cpp"
+#include "control.cpp"
 
 
 TypeSpec get_typespec(Value *value) {

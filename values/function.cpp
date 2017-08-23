@@ -104,7 +104,7 @@ public:
             Label ok;
             x64->op(CMPQ, x64->exception_label, RETURN_EXCEPTION);
             x64->op(JNE, ok);
-            x64->op(MOVQ, x64->exception_label, 0);
+            x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
             x64->code_label(ok);
         }
         
@@ -166,22 +166,6 @@ public:
     }
 };
 
-/*
-class StackReleaseUnwind: public Unwind {
-public:
-    int bytes;
-    
-    StackReleaseUnwind(int b)
-        :Unwind() {
-        bytes = b;
-    }
-    
-    virtual bool compile(X64 *x64) {
-        x64->op(ADDQ, RSP, bytes);
-        return false;
-    }
-};
-*/
 
 // The value of calling a function
 class FunctionCallValue: public Value {

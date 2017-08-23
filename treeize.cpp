@@ -341,28 +341,36 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             for (auto op : operators) {
                 if (op.token == token.text) {
                     type = Node::IDENTIFIER;
+                    bool dual = (op.precedence == ADDITIVE || op.precedence == MULTIPLICATIVE || op.precedence == EXPONENTIAL);
                     
                     if (nodes.back().fore < UNARY) {
-                        if (op.precedence < ADDITIVE) {
-                            std::cerr << "Operator " << op.text << " cannot be unary!\n";
-                            throw TREE_ERROR;
-                        }
-                        
                         // This operator either follows another, or the first one
                         // in an expression. We will treat it as a unary prefix operator,
                         // instead of nagging the user for using unreasonable parentheses.
-                        text = "unary";
-                        text += op.text;
-                        back = UNARY;
-                        fore = UNARY;
+                        
+                        if (op.precedence == LOGICAL_HIGH) {
+                            text = op.text;
+                            back = op.precedence;
+                            fore = op.precedence;
+                        }
+                        else if (dual) {
+                            text = "unary";
+                            text += op.text;
+                            back = UNARY;
+                            fore = UNARY;
+                        }
+                        else {
+                            std::cerr << "Operator " << op.text << " cannot be unary!\n";
+                            throw TREE_ERROR;
+                        }
                     }
                     else {
-                        if (op.precedence < ADDITIVE)
-                            text = op.text;
-                        else {
+                        if (dual) {
                             text = "binary";
                             text += op.text;
                         }
+                        else
+                            text = op.text;
                         
                         back = op.precedence;
                         fore = op.precedence;

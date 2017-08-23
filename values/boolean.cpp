@@ -5,31 +5,57 @@ public:
         :GenericOperationValue(o, match[0].rvalue(), match[0], p) {
     }
     
-    virtual Storage complement(X64 *x64) {
-        subcompile(x64);
-        
-        switch (ls.where) {
-        case CONSTANT:
-            return Storage(CONSTANT, !ls.value);
-        case FLAGS:
-            return Storage(FLAGS, negate(ls.bitset));
-        case REGISTER:
-            x64->op(CMPB, ls.reg, 0);
-            return Storage(FLAGS, SETE);
-        case MEMORY:
-            x64->op(CMPB, ls.address, 0);
-            return Storage(FLAGS, SETE);
-        default:
-            throw INTERNAL_ERROR;
+    virtual Storage compile(X64 *x64) {
+        return GenericOperationValue::compile(x64);
+    }
+};
+
+
+class BooleanNotValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+    
+    BooleanNotValue(Value *p, TypeMatch &match)
+        :Value(BOOLEAN_TS) {
+        value.reset(p);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 0 || kwargs.size() != 0) {
+            std::cerr << "Whacky boolean not operation!\n";
+            return false;
         }
+
+        Value *v = value.release();
+        TypeMatch match;
+    
+        if (!typematch(BOOLEAN_TS, v, match))
+            throw INTERNAL_ERROR;
+            
+        value.reset(v);
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
     }
 
     virtual Storage compile(X64 *x64) {
-        switch (operation) {
-        case COMPLEMENT:
-            return complement(x64);
+        Storage s = value->compile(x64);
+        
+        switch (s.where) {
+        case CONSTANT:
+            return Storage(CONSTANT, !s.value);
+        case FLAGS:
+            return Storage(FLAGS, negate(s.bitset));
+        case REGISTER:
+            x64->op(CMPB, s.reg, 0);
+            return Storage(FLAGS, SETE);
+        case MEMORY:
+            x64->op(CMPB, s.address, 0);
+            return Storage(FLAGS, SETE);
         default:
-            return GenericOperationValue::compile(x64);
+            throw INTERNAL_ERROR;
         }
     }
 };
@@ -40,7 +66,7 @@ public:
     std::unique_ptr<Value> left, right;
     Register reg;
     
-    BooleanOrValue(OperationType o, Value *p, TypeMatch &match)
+    BooleanOrValue(Value *p, TypeMatch &match)
         :Value(match[0]) {
         left.reset(p);
     }
@@ -139,7 +165,7 @@ public:
     std::unique_ptr<Value> left, right;
     Register reg;
     
-    BooleanAndValue(OperationType o, Value *p, TypeMatch &match)
+    BooleanAndValue(Value *p, TypeMatch &match)
         :Value(VOID_TS) {  // Will be overridden
         left.reset(p);
     }

@@ -1,4 +1,10 @@
 
+const long NO_EXCEPTION = 0;
+const long RETURN_EXCEPTION = 1;
+const long BREAK_EXCEPTION = 2;
+const long CONTINUE_EXCEPTION = 3;
+
+
 // Stage 4
 
 class Value;
@@ -300,13 +306,12 @@ Scope *init_builtins() {
     
     // Boolean operations
     Scope *bool_scope = boolean_type->get_inner_scope();
-    typedef TemplateOperation<BooleanOperationValue> BooleanOperation;
-    bool_scope->add(new BooleanOperation("logical not", BOOLEAN_TS, COMPLEMENT));
-    bool_scope->add(new BooleanOperation("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
+    bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
 
     // Logical operations, unscoped
-    root_scope->add(new TemplateOperation<BooleanAndValue>("logical and", BOOLEAN_TS, AND));
-    root_scope->add(new TemplateOperation<BooleanOrValue>("logical or", ANY_TS, OR));
+    root_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", ANY_TS));
+    root_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and", BOOLEAN_TS));
+    root_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", ANY_TS));
 
     // Enum operations
     Scope *enum_scope = enumeration_metatype->get_inner_scope();
@@ -336,6 +341,9 @@ Scope *init_builtins() {
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
+    root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", VOID_TS));
+    root_scope->add(new TemplateIdentifier<BreakValue>(":break", VOID_TS));
+    root_scope->add(new TemplateIdentifier<ContinueValue>(":continue", VOID_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     

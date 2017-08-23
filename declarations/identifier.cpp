@@ -77,7 +77,7 @@ public:
     
     virtual void finalize(X64 *x64) {
         Identifier::finalize(x64);  // Place label
-        std::cerr << "Finalizing variable " << name << ".\n";
+        //std::cerr << "Finalizing variable " << name << ".\n";
         
         // This method is only called on local variables
         Storage fn_storage(MEMORY, Address(RBP, 0));

@@ -182,7 +182,7 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     else if (node.type == Node::IDENTIFIER) {
         Expr *e = new Expr(Expr::IDENTIFIER, node.token, node.text);
     
-        if (node.fore == UNARY) {
+        if (node.fore == UNARY || node.fore == LOGICAL_HIGH) {
             if (!node.right) {
                 std::cerr << "Unary operator without argument: " << node.token << "!\n";
                 throw TUPLE_ERROR;
