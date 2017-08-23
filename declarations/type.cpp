@@ -191,6 +191,11 @@ public:
         tsi++;
         (*tsi)->destroy(tsi, s, x64);
     }
+
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+        tsi++;
+        return (*tsi)->lookup_initializer(tsi, n, scope);
+    }
 };
 
 
