@@ -43,6 +43,7 @@ Type *character_type = NULL;
 Type *reference_type = NULL;
 Type *array_type = NULL;
 Type *enumeration_metatype = NULL;
+Type *treenumeration_metatype = NULL;
 Type *integer_metatype = NULL;
 Type *record_metatype = NULL;
 
@@ -128,6 +129,7 @@ Value *make_null_reference_value(TypeSpec ts);
 Value *make_unicode_character_value();
 Value *make_integer_definition_value();
 Value *make_enumeration_definition_value();
+Value *make_treenumeration_definition_value();
 Value *make_record_definition_value();
 Value *make_record_initializer_value(Variable *var);
 
@@ -193,6 +195,9 @@ Scope *init_builtins() {
 
     enumeration_metatype = new EnumerationMetaType(":Enumeration");
     root_scope->add(enumeration_metatype);
+
+    treenumeration_metatype = new TreenumerationMetaType(":Treenumeration");
+    root_scope->add(treenumeration_metatype);
 
     record_metatype = new RecordMetaType(":Record");
     root_scope->add(record_metatype);

@@ -155,6 +155,113 @@ public:
 };
 
 
+class TreenumerationDefinitionValue: public Value {
+public:
+    std::vector<std::string> keywords;
+    std::vector<unsigned> lengths;
+    Label stringifications_label;
+
+    TreenumerationDefinitionValue()
+        :Value(METATYPE_TS) {
+    }
+
+    virtual unsigned add_keyword(std::string kw) {
+        for (auto &k : keywords)
+            if (k == kw)
+                return 0;
+                
+        keywords.push_back(kw);
+        lengths.push_back(0);
+        
+        return keywords.size() - 1;
+    }
+    
+    virtual bool parse_level(Args &args) {
+        for (unsigned i = 0; i < args.size(); i++) {
+            Expr *e = args[i].get();
+            
+            if (e->type == Expr::IDENTIFIER) {
+                if (e->args.size() != 0 || e->kwargs.size() != 0) {
+                    std::cerr << "Whacky treenum symbol!\n";
+                    return false;
+                }
+
+                unsigned x = add_keyword(e->text);
+                
+                if (!x)
+                    return false;
+            }
+            else if (e->type == Expr::INITIALIZER) {
+                if (!e->pivot || e->pivot->type != Expr::IDENTIFIER || e->kwargs.size() != 0) {
+                    std::cerr << "Whacky treenum subtree!\n";
+                    return false;
+                }
+
+                unsigned x = add_keyword(e->pivot->text);
+                
+                if (!x)
+                    return false;
+
+                unsigned pos = keywords.size();
+
+                if (!parse_level(e->args))
+                    return false;
+
+                lengths[x] = keywords.size() - pos;
+            }
+            else {
+                std::cerr << "Whacky treenum syntax!\n";
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() == 0 || kwargs.size() != 0) {
+            std::cerr << "Whacky treenumeration!\n";
+            return false;
+        }
+
+        add_keyword("");
+        
+        if (!parse_level(args))
+            return false;
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs) {
+        return Regs();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // This storage method is quite verbose (32 bytes overhead for each string!),
+        // but will be fine for a while.
+        std::vector<Label> labels;
+        
+        for (auto &keyword : keywords) 
+            labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
+            
+        x64->data_label_export(stringifications_label, "treenum_stringifications", 0, false);
+        
+        for (auto &label : labels)
+            x64->data_reference(label);  // 32-bit relative
+        
+        return Storage();
+    }
+
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
+        return NULL;
+    }
+
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
+        return new TreenumerationType(name, keywords, lengths, stringifications_label);
+    }
+};
+
+
 class RecordDefinitionValue: public Value {
 public:
     DataScope *inner_scope;

@@ -172,6 +172,15 @@ start? :Function as:
 
     prints("Done.")
 
+    MyTree? :Treenumeration
+        ONE { TEN, ELEVEN, TWELVE },
+        TWO { TWENTY },
+        THREE,
+        FOUR
+
+    my_tree? MyTree `TWENTY
+    prints("This tree is {my_tree}." {})
+
     :if `true then:
         last? 0
         :return

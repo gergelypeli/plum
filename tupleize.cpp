@@ -85,8 +85,12 @@ void tupleize_into(Expr *e, std::vector<Node> &nodes, int i) {
             tupleize_into(e, nodes, node.left);
     }
     else if (node.type == Node::SEPARATOR) {
-        tupleize_into(e, nodes, node.left);
-        tupleize_into(e, nodes, node.right);
+        // We allowed extra separators
+        if (node.left)
+            tupleize_into(e, nodes, node.left);
+            
+        if (node.right)
+            tupleize_into(e, nodes, node.right);
     }
     else if (node.type == Node::LABEL) {
         if (node.left)

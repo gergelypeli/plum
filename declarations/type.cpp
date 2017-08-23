@@ -251,6 +251,24 @@ public:
 };
 
 
+class TreenumerationMetaType: public MetaType {
+public:
+    TreenumerationMetaType(std::string name)
+        :MetaType(name) {
+    }
+    
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+        if (name != this->name)
+            return NULL;
+            
+        if (!typematch(VOID_TS, pivot, match))
+            return NULL;
+            
+        return make_treenumeration_definition_value();
+    }
+};
+
+
 class RecordMetaType: public MetaType {
 public:
     RecordMetaType(std::string name)

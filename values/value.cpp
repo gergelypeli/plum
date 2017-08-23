@@ -291,6 +291,11 @@ Value *make_enumeration_definition_value() {
 }
 
 
+Value *make_treenumeration_definition_value() {
+    return new TreenumerationDefinitionValue();
+}
+
+
 Value *make_record_definition_value() {
     return new RecordDefinitionValue();
 }
