@@ -1,7 +1,7 @@
 
 class RepeatValue: public Value {
 public:
-    std::unique_ptr<Value> body;
+    std::unique_ptr<Value> setup, condition, step, body;
     Label start, end;
     
     RepeatValue(Value *pivot, TypeMatch &match)
@@ -9,14 +9,26 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0) {
-            std::cerr << "Positional argument to :repeat!\n";
-            return false;
+        if (args.size() > 1) {
+            Value *s = make_code_block_value(NULL);
+            Kwargs fake_kwargs;
+        
+            if (!s->check(args, fake_kwargs, scope))
+                return false;
+            
+            setup.reset(s);
+        }
+        else if (args.size() == 1) {
+            setup.reset(typize(args[0].get(), scope));
         }
         
         for (auto &kv : kwargs) {
             if (kv.first == "do")
                 body.reset(make_code_value(typize(kv.second.get(), scope, &VOID_CODE_TS)));
+            else if (kv.first == "on")
+                condition.reset(make_code_value(typize(kv.second.get(), scope, &BOOLEAN_CODE_TS)));
+            else if (kv.first == "by")
+                step.reset(make_code_value(typize(kv.second.get(), scope, &VOID_CODE_TS)));
             else {
                 std::cerr << "Invalid argument to :repeat!\n";
                 return false;
@@ -27,18 +39,58 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
+        if (setup)
+            setup->precompile(Regs::all());
+            
+        if (condition)
+            condition->precompile(Regs::all());
+            
+        if (step)
+            step->precompile(Regs::all());
+            
         if (body)
-            body->precompile(preferred);
+            body->precompile(Regs::all());
             
         return Regs::all();  // We're Void
     }
     
     virtual Storage compile(X64 *x64) {
+        // Exceptions are only caught from the loop body
+        if (setup)
+            setup->compile_and_store(x64, Storage());
+    
         x64->code_label(start);
+
+        if (condition) {
+            Storage cs = condition->compile(x64);
+            
+            switch (cs.where) {
+            case CONSTANT:
+                if (!cs.value)
+                    x64->op(JMP, end);
+                break;
+            case FLAGS:
+                x64->op(branchize(negate(cs.bitset)), end);
+                break;
+            case REGISTER:
+                x64->op(CMPB, cs.reg, 0);
+                x64->op(JE, end);
+                break;
+            case MEMORY:
+                x64->op(CMPB, cs.address, 0);
+                x64->op(JE, end);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
         
         x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
+        
+        if (step)
+            step->compile_and_store(x64, Storage());
         
         x64->op(JMP, start);
         

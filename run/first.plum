@@ -167,11 +167,8 @@ start? :Function as:
     x3 = double
     prints("Scalarized to {x3}" {})
 
-    prints("Let's print something {b} times!" {})
-    :repeat do:
+    :repeat i? 0 on: i < 5 by: i += 1 do:
         prints("something")
-        b -= 1
-        :if !b then: :break
 
     prints("Done.")
 

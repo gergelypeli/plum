@@ -96,6 +96,7 @@ TypeSpec ANY_REFERENCE_TS;
 TypeSpec ANY_REFERENCE_LVALUE_TS;
 TypeSpec ANY_ARRAY_REFERENCE_TS;
 TypeSpec VOID_CODE_TS;
+TypeSpec BOOLEAN_CODE_TS;
 
 
 class DeclarationValue;
@@ -277,6 +278,7 @@ Scope *init_builtins() {
     ANY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, any_type };
     ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
     VOID_CODE_TS = { code_type, void_type };
+    BOOLEAN_CODE_TS = { code_type, boolean_type };
 
     typedef std::vector<TypeSpec> TSs;
     TSs NO_TSS = { };
