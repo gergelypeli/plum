@@ -329,6 +329,14 @@ Scope *init_builtins() {
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     enum_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
+    enum_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
+
+    // Treenum operations
+    Scope *treenum_scope = treenumeration_metatype->get_inner_scope();
+    treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
+    treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
+    treenum_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
+    treenum_scope->add(new TemplateOperation<TreenumCoveringValue>("cover", ANY_TS, TWEAK));
 
     // Record operations
     Scope *record_scope = record_metatype->get_inner_scope();

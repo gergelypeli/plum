@@ -277,20 +277,22 @@ public:
 
 class TreenumerationType: public EnumerationType {
 public:
-    std::vector<unsigned> lengths;
+    Label tails_label;
 
-    TreenumerationType(std::string n, std::vector<std::string> kw, std::vector<unsigned> ln, Label sl)
+    TreenumerationType(std::string n, std::vector<std::string> kw, Label sl, Label tl)
         :EnumerationType(n, kw, sl) {
-        lengths = ln;
+        tails_label = tl;
     }
     
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
-        // TODO: return the length, too!
-        
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make_basic_value(TypeSpec(tsi), i);
         
         return NULL;
+    }
+    
+    virtual Scope *get_inner_scope() {
+        return treenumeration_metatype->get_inner_scope();
     }
 };

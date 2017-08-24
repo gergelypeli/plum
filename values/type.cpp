@@ -158,8 +158,9 @@ public:
 class TreenumerationDefinitionValue: public Value {
 public:
     std::vector<std::string> keywords;
-    std::vector<unsigned> lengths;
+    std::vector<unsigned> tails;
     Label stringifications_label;
+    Label tails_label;
 
     TreenumerationDefinitionValue()
         :Value(METATYPE_TS) {
@@ -170,10 +171,11 @@ public:
             if (k == kw)
                 return 0;
                 
+        unsigned x = keywords.size();
         keywords.push_back(kw);
-        lengths.push_back(0);
+        tails.push_back(x);
         
-        return keywords.size() - 1;
+        return x;
     }
     
     virtual bool parse_level(Args &args) {
@@ -202,12 +204,10 @@ public:
                 if (!x)
                     return false;
 
-                unsigned pos = keywords.size();
-
                 if (!parse_level(e->args))
                     return false;
 
-                lengths[x] = keywords.size() - pos;
+                tails[x] = keywords.size() - 1;
             }
             else {
                 std::cerr << "Whacky treenum syntax!\n";
@@ -248,6 +248,11 @@ public:
         
         for (auto &label : labels)
             x64->data_reference(label);  // 32-bit relative
+
+        x64->data_label_export(tails_label, "treenum_tails", 0, false);
+        
+        for (unsigned tail : tails)
+            x64->data_byte(tail);
         
         return Storage();
     }
@@ -257,7 +262,7 @@ public:
     }
 
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        return new TreenumerationType(name, keywords, lengths, stringifications_label);
+        return new TreenumerationType(name, keywords, stringifications_label, tails_label);
     }
 };
 
