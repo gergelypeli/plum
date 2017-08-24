@@ -3,7 +3,7 @@ const long NO_EXCEPTION = 0;
 const long RETURN_EXCEPTION = 1;
 const long BREAK_EXCEPTION = 2;
 const long CONTINUE_EXCEPTION = 3;
-
+const long UNSWITCH_EXCEPTION = 4;
 
 // Stage 4
 
@@ -103,6 +103,8 @@ TypeSpec BOOLEAN_CODE_TS;
 class DeclarationValue;
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
+Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope);
+
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 std::string declaration_get_name(DeclarationValue *dv);
@@ -305,6 +307,8 @@ Scope *init_builtins() {
 
     for (auto &item : integer_lvalue_operations)
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
+
+    integer_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
     
     // Character operations
     Scope *char_scope = character_type->get_inner_scope();
@@ -351,6 +355,8 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", VOID_TS));
     root_scope->add(new TemplateIdentifier<BreakValue>(":break", VOID_TS));
     root_scope->add(new TemplateIdentifier<ContinueValue>(":continue", VOID_TS));
+    root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", VOID_TS));
+    root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     

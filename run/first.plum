@@ -180,9 +180,16 @@ start? :Function as:
 
     my_tree? MyTree `TWENTY
     prints("This tree is {my_tree}." {})
+    
+    :switch 1 do:
+        :when 2 then:
+            prints("One.")
+            
+        prints("Switching.")
 
     :if `true then:
         last? 0
+        prints("Exiting.")
         :return
     
     prints("Don't print this!")

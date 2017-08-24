@@ -58,7 +58,7 @@ public:
     virtual FunctionScope *get_function_scope() {
         return outer_scope->get_function_scope();
     }
-    
+
     virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
         for (auto &content : contents)
