@@ -182,7 +182,7 @@ start? :Function as:
     prints("This tree is {my_tree}." {})
     
     :switch my_tree do:
-        :when MyTree `TWO then:
+        :when `TWO then:
             prints("Two-something.")
             
         prints("Not any.")

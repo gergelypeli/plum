@@ -59,6 +59,10 @@ public:
         return outer_scope->get_function_scope();
     }
 
+    virtual SwitchScope *get_switch_scope() {
+        return outer_scope->get_switch_scope();
+    }
+
     virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
         for (auto &content : contents)
@@ -308,6 +312,16 @@ public:
 
 
 
+class SwitchScope: public CodeScope {
+public:
+    SwitchScope *get_switch_scope() {
+        return this;
+    }
+};
+
+
+
+
 class ArgumentScope: public Scope {
 public:
     ArgumentScope()
@@ -436,20 +450,16 @@ public:
         body_scope->allocate();
     }
     
-    //virtual void finalize_scope(Storage s, X64 *x64) {
-    //    body_scope->finalize_scope(s, x64);
-    //}
-    
     virtual unsigned get_frame_size() {
         return size;
     }
     
-    //virtual Label get_epilogue_label() {
-    //    return epilogue_label;
-    //}
-
     virtual FunctionScope *get_function_scope() {
         return this;
+    }
+
+    virtual SwitchScope *get_switch_scope() {
+        return NULL;
     }
     
     virtual std::vector<Variable *> get_result_variables() {

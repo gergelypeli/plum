@@ -192,11 +192,12 @@ class SwitchValue: public Value {
 public:
     std::unique_ptr<Value> value, body;
     Variable *value_var;
-    Label end;
+    SwitchScope *switch_scope;
     
     SwitchValue(Value *v, TypeMatch &m)
         :Value(VOID_TS) {
         value_var = NULL;
+        switch_scope = NULL;
         // TODO: return something?
     }
     
@@ -209,12 +210,14 @@ public:
         value.reset(typize(args[0].get(), scope));
     
         // Insert variable before the body to keep the finalization order
+        switch_scope = new SwitchScope;
+        scope->add(switch_scope);
         value_var = new Variable("<switched>", VOID_TS, value->ts.lvalue());
-        scope->add(value_var);
+        switch_scope->add(value_var);
         
         for (auto &kv : kwargs) {
             if (kv.first == "do")
-                body.reset(make_code_value(typize(kv.second.get(), scope, &VOID_CODE_TS)));
+                body.reset(make_code_value(typize(kv.second.get(), switch_scope, &VOID_CODE_TS)));
             else {
                 std::cerr << "Invalid argument to :switch!\n";
                 return false;
@@ -247,21 +250,31 @@ public:
         
         x64->unwind->pop(this);
 
-        x64->code_label(end);
+        // Doing mostly what CodeValue does with CodeScope
+        bool may_be_aborted = switch_scope->finalize_contents(x64);
+
+        if (may_be_aborted) {
+            Label ok, nonunswitch;
+            
+            x64->op(CMPQ, x64->exception_label, 0);
+            x64->op(JE, ok);
+
+            x64->op(CMPQ, x64->exception_label, UNSWITCH_EXCEPTION);
+            x64->op(JNE, nonunswitch);
+            x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+            x64->op(JMP, ok);
+            x64->code_label(nonunswitch);
+    
+            x64->unwind->unwind(switch_scope->outer_scope, switch_scope->previous_declaration, x64);
+
+            x64->code_label(ok);
+        }
         
         return Storage();
     }
     
     virtual bool unwind(X64 *x64) {
-        Label nonunswitch;
-        
-        x64->op(CMPQ, x64->exception_label, UNSWITCH_EXCEPTION);
-        x64->op(JNE, nonunswitch);
-        x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
-        x64->op(JMP, end);
-        x64->code_label(nonunswitch);
-        
-        return false;
+        return true;  // Start finalizing the variable
     }
 };
 
@@ -278,24 +291,26 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        //SwitchScope *switch_scope = scope->get_switch_scope();
+        SwitchScope *switch_scope = scope->get_switch_scope();
         
-        //if (!switch_scope) {
-        //    std::cerr << "Not in :switch!\n";
-        //    return false;
-        //}
+        if (!switch_scope) {
+            std::cerr << "Not in :switch!\n";
+            return false;
+        }
         
-        //value_var = variable_cast(switch_scope->contents[0].get());
+        Variable *value_var = variable_cast(switch_scope->contents[0].get());
         
-        //if (!value_var)
-        //    throw INTERNAL_ERROR;
+        if (!value_var)
+            throw INTERNAL_ERROR;
+            
+        TypeSpec val_ts = value_var->var_ts.rvalue();
     
         if (args.size() != 1) {
             std::cerr << "Whacky :when!\n";
             return false;
         }
         
-        Value *pivot = typize(args[0].get(), scope);
+        Value *pivot = typize(args[0].get(), scope, &val_ts);
 
         Expr cover_expr(Expr::IDENTIFIER, Token(), "cover");
         cover_expr.add_arg(new Expr(Expr::IDENTIFIER, Token(), "<switched>"));

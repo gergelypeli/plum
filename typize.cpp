@@ -14,6 +14,7 @@ class Type;
 class HeapType;
 class Scope;
 class CodeScope;
+class SwitchScope;
 class FunctionScope;
 class Variable;
 class Function;
