@@ -134,11 +134,13 @@ public:
     std::unique_ptr<Value> value;
     CodeScope *code_scope;
     Register reg;
+    bool may_be_aborted;
 
     CodeValue(Value *v, CodeScope *s)
         :Value(v->ts.rvalue()) {
         value.reset(v);
         code_scope = s;
+        may_be_aborted = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -174,14 +176,14 @@ public:
             }
         }
         
-        bool may_be_aborted = code_scope->finalize_contents(x64);
+        code_scope->finalize_contents(x64);
 
         if (may_be_aborted) {
             Label ok;
             x64->op(CMPQ, x64->exception_label, 0);
             x64->op(JE, ok);
     
-            x64->unwind->unwind(code_scope->outer_scope, code_scope->previous_declaration, x64);
+            x64->unwind->initiate(code_scope, x64);
 
             x64->code_label(ok);
         }
@@ -189,8 +191,9 @@ public:
         return s;
     }
     
-    virtual bool unwind(X64 *x64) {
-        return true;  // stop unwinding here, and start destroying scoped variables
+    virtual Scope *unwind(X64 *x64) {
+        may_be_aborted = true;
+        return code_scope;  // stop unwinding here, and start destroying scoped variables
     }
 };
 

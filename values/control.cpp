@@ -98,7 +98,7 @@ public:
         return Storage();
     }
     
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         Label noncontinue, nonbreak;
         
         x64->op(CMPQ, x64->exception_label, CONTINUE_EXCEPTION);
@@ -113,7 +113,7 @@ public:
         x64->op(JMP, end);
         x64->code_label(nonbreak);
 
-        return false;
+        return NULL;
     }
 };
 
@@ -147,7 +147,7 @@ public:
     virtual Storage compile(X64 *x64) {
         x64->op(MOVQ, x64->exception_label, BREAK_EXCEPTION);
 
-        x64->unwind->unwind(dummy->outer_scope, dummy->previous_declaration, x64);
+        x64->unwind->initiate(dummy, x64);
         
         return Storage();
     }
@@ -181,7 +181,7 @@ public:
     virtual Storage compile(X64 *x64) {
         x64->op(MOVQ, x64->exception_label, CONTINUE_EXCEPTION);
 
-        x64->unwind->unwind(dummy->outer_scope, dummy->previous_declaration, x64);
+        x64->unwind->initiate(dummy, x64);
         
         return Storage();
     }
@@ -193,11 +193,13 @@ public:
     std::unique_ptr<Value> value, body;
     Variable *value_var;
     SwitchScope *switch_scope;
+    bool may_be_aborted;
     
     SwitchValue(Value *v, TypeMatch &m)
         :Value(VOID_TS) {
         value_var = NULL;
         switch_scope = NULL;
+        may_be_aborted = false;
         // TODO: return something?
     }
     
@@ -251,7 +253,7 @@ public:
         x64->unwind->pop(this);
 
         // Doing mostly what CodeValue does with CodeScope
-        bool may_be_aborted = switch_scope->finalize_contents(x64);
+        switch_scope->finalize_contents(x64);
 
         if (may_be_aborted) {
             Label ok, nonunswitch;
@@ -265,7 +267,7 @@ public:
             x64->op(JMP, ok);
             x64->code_label(nonunswitch);
     
-            x64->unwind->unwind(switch_scope->outer_scope, switch_scope->previous_declaration, x64);
+            x64->unwind->initiate(switch_scope, x64);
 
             x64->code_label(ok);
         }
@@ -273,8 +275,9 @@ public:
         return Storage();
     }
     
-    virtual bool unwind(X64 *x64) {
-        return true;  // Start finalizing the variable
+    virtual Scope *unwind(X64 *x64) {
+        may_be_aborted = true;
+        return switch_scope;  // Start finalizing the variable
     }
 };
 
@@ -383,7 +386,7 @@ public:
             body->compile_and_store(x64, Storage());
         
         x64->op(MOVQ, x64->exception_label, UNSWITCH_EXCEPTION);
-        x64->unwind->unwind(dummy->outer_scope, dummy->previous_declaration, x64);
+        x64->unwind->initiate(dummy, x64);
         
         x64->code_label(end);
         

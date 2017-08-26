@@ -68,11 +68,11 @@ public:
         return Storage();  // Well...
     }
 
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         for (int i = storages.size() - 1; i >= 0; i--)
             tss[i].store(storages[i], Storage(), x64);
             
-        return false;
+        return NULL;
     }
 };
 
@@ -243,7 +243,7 @@ public:
         return Storage();
     }
 
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         for (int i = left_tss.size() - 1; i >= 0; i--) {
             StorageWhere where = stacked(left_tss[i].where(true));
             Storage s(where);
@@ -251,7 +251,7 @@ public:
             left_tss[i].store(s, Storage(), x64);
         }
             
-        return false;
+        return NULL;
     }
 };
 

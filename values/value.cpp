@@ -71,7 +71,7 @@ public:
         return false;
     }
     
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         std::cerr << "This Value can't be unwound!\n";
         throw INTERNAL_ERROR;
     }
@@ -97,12 +97,20 @@ public:
         stack.pop_back();
     }
     
-    virtual void unwind(Scope *scope, Declaration *last, X64 *x64) {
-        for (int i = stack.size() - 1; i >= 0; i--)
-            if (stack[i]->unwind(x64))
-                break;
-                
-        scope->jump_to_content_finalization(last, x64);
+    virtual void initiate(Declaration *last, X64 *x64) {
+        for (int i = stack.size() - 1; i >= 0; i--) {
+            Scope *s = stack[i]->unwind(x64);
+            
+            if (s) {
+                if (s != last->outer_scope)
+                    throw INTERNAL_ERROR;
+                    
+                last->jump_to_finalization(x64);
+                return;
+            }
+        }
+        
+        throw INTERNAL_ERROR;
     }
 };
 

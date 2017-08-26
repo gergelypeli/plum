@@ -65,10 +65,10 @@ public:
         return rec_storage;
     }
     
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         for (int i = var_storages.size() - 1; i >= 0; i--)
             unwind_destroy_var(record_type->member_variables[i]->var_ts, var_storages[i], x64);
             
-        return false;
+        return NULL;
     }
 };

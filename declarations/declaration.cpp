@@ -1,9 +1,4 @@
 
-enum FinalizationType {
-    SCOPE_FINALIZATION, UNWINDING_FINALIZATION
-};
-
-
 struct Marker {
     Scope *scope;
     Declaration *last;
@@ -54,10 +49,6 @@ public:
     virtual void finalize(X64 *x64) {
         if (need_finalization_label)
             x64->code_label(finalization_label);
-        //if (previous_declaration)
-        //    previous_declaration->finalize(ft, s, x64);
-        //else if (ft != SCOPE_FINALIZATION)
-        //    declaration_cast(outer_scope)->finalize(ft, s, x64);
     }
     
     virtual void jump_to_finalization(X64 *x64) {

@@ -7,6 +7,7 @@ public:
     std::unique_ptr<Value> body;
     FunctionScope *fn_scope;
     Expr *deferred_body_expr;
+    bool may_be_aborted;
     
     Function *function;  // If declared with a name, which is always, for now
         
@@ -15,6 +16,7 @@ public:
         //result.reset(r);
         function = NULL;
         deferred_body_expr = NULL;
+        may_be_aborted = false;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -98,7 +100,7 @@ public:
         
         x64->op(NOP);
 
-        bool may_be_aborted = fn_scope->body_scope->finalize_contents(x64);
+        fn_scope->body_scope->finalize_contents(x64);
         
         if (may_be_aborted) {
             Label ok;
@@ -115,8 +117,9 @@ public:
         return Storage();
     }
 
-    virtual bool unwind(X64 *x64) {
-        return true;  // stop unwinding here, and start destroying scoped variables
+    virtual Scope *unwind(X64 *x64) {
+        may_be_aborted = true;
+        return fn_scope->body_scope;  // stop unwinding here, and start destroying scoped variables
     }
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
@@ -443,7 +446,7 @@ public:
             return Storage(STACK);  // Multiple result values
     }
 
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
 
         for (int i = arg_storages.size() - 1; i >= 0; i--) {
@@ -452,7 +455,7 @@ public:
         
         // This area is either uninitialized, or contains aliases to uninitialized variables
         x64->op(ADDQ, RSP, res_total);
-        return false;
+        return NULL;
     }
     
     virtual Variable *declare_dirty(std::string name, Scope *scope) {
@@ -569,16 +572,16 @@ public:
 
         x64->op(MOVQ, x64->exception_label, RETURN_EXCEPTION);
 
-        x64->unwind->unwind(dummy->outer_scope, dummy->previous_declaration, x64);
+        x64->unwind->initiate(dummy, x64);
         
         return Storage();
     }
     
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         for (int i = var_storages.size() - 1; i >= 0; i--)
             unwind_destroy_var(result_vars[i]->var_ts, var_storages[i], x64);
             
-        return false;
+        return NULL;
     }
 };
 

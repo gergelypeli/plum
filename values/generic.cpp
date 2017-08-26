@@ -51,9 +51,9 @@ public:
         x64->unwind->pop(this);
     }
     
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         left->ts.store(ls, Storage(), x64);
-        return false;
+        return NULL;
     }
 };
 
@@ -314,9 +314,9 @@ public:
         }
     }
     
-    virtual bool unwind(X64 *x64) {
+    virtual Scope *unwind(X64 *x64) {
         left->ts.store(ls, Storage(), x64);
-        return false;
+        return NULL;
     }
 };
 
