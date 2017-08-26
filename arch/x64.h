@@ -478,4 +478,6 @@ public:
     Address array_reservation_address(Register reg);
     Address array_length_address(Register reg);
     Address array_items_address(Register reg);
+    
+    void die(const char *message);
 };

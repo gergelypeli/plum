@@ -254,23 +254,26 @@ public:
 
         // Doing mostly what CodeValue does with CodeScope
         switch_scope->finalize_contents(x64);
+        Label die, live;
 
         if (may_be_aborted) {
-            Label ok, nonunswitch;
+            Label nonbreak;
             
             x64->op(CMPQ, x64->exception_label, 0);
-            x64->op(JE, ok);
+            x64->op(JE, die);
 
-            x64->op(CMPQ, x64->exception_label, UNSWITCH_EXCEPTION);
-            x64->op(JNE, nonunswitch);
+            x64->op(CMPQ, x64->exception_label, BREAK_EXCEPTION);
+            x64->op(JNE, nonbreak);
             x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
-            x64->op(JMP, ok);
-            x64->code_label(nonunswitch);
+            x64->op(JMP, live);
+            x64->code_label(nonbreak);
     
             x64->unwind->initiate(switch_scope, x64);
-
-            x64->code_label(ok);
         }
+        
+        x64->code_label(die);
+        x64->die("Switch assertion failed!");
+        x64->code_label(live);
         
         return Storage();
     }
@@ -287,6 +290,7 @@ public:
     std::unique_ptr<Value> cover, body;
     //Variable *value_var;
     Declaration *dummy;
+    Label end;
     
     WhenValue(Value *v, TypeMatch &m)
         :Value(VOID_TS) {
@@ -356,7 +360,6 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label end;
         Storage cs = cover->compile(x64);
 
         switch (cs.where) {
@@ -379,17 +382,30 @@ public:
             throw INTERNAL_ERROR;
         }
 
-        // Need no unwinding, because we don't store temporary values, and
-        // the variable will be destroyed separately.
+        x64->unwind->push(this);
         
         if (body)
             body->compile_and_store(x64, Storage());
+            
+        x64->unwind->pop(this);
         
-        x64->op(MOVQ, x64->exception_label, UNSWITCH_EXCEPTION);
+        x64->op(MOVQ, x64->exception_label, BREAK_EXCEPTION);
         x64->unwind->initiate(dummy, x64);
         
         x64->code_label(end);
         
         return Storage();
+    }
+    
+    Scope *unwind(X64 *x64) {
+        Label noncontinue;
+        
+        x64->op(CMPQ, x64->exception_label, CONTINUE_EXCEPTION);
+        x64->op(JNE, noncontinue);
+        x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+        x64->op(JMP, end);
+        x64->code_label(noncontinue);
+        
+        return NULL;
     }
 };

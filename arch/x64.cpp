@@ -1098,8 +1098,9 @@ void X64::init_memory_management() {
     op(RET);
     
     code_label_export(realloc_RAX_RBX_label, "realloc_RAX_RBX", 0, false);
+    Label realloc_die;
     op(CMPQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);
-    op(JNE, die_label);
+    op(JNE, realloc_die);
     pusha(true);
     op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
     op(LEA, RSI, Address(RBX, HEAP_HEADER_SIZE));
@@ -1107,6 +1108,9 @@ void X64::init_memory_management() {
     op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
     popa(true);
     op(RET);
+    
+    code_label(realloc_die);
+    die("Realloc of shared array!");
 }
 
 void X64::incref(Register reg) {
@@ -1171,3 +1175,17 @@ Address X64::array_items_address(Register reg) {
     return Address(reg, ARRAY_ITEMS_OFFSET);
 }
 
+void X64::die(const char *message) {
+    // TODO: this encodes the message several times unnecessarily!
+    Label message_label;
+    data_label(message_label);
+    
+    for (const char *x = message; *x; x++)
+        data_byte(*x);
+        
+    data_byte(0);
+    
+    op(LEARIP, RDI, message_label);
+    op(CALL, die_label);
+    op(UD2);
+}

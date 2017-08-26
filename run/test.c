@@ -30,8 +30,8 @@ void *memrealloc(void *m, long size) {
 }
 
 
-void die() {
-    fprintf(stderr, "I have a bad feeling about this...\n");
+void die(const char *message) {
+    fprintf(stderr, "Can't go on like this... %s\n", message);
     abort();
 }
 

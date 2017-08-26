@@ -184,8 +184,13 @@ start? :Function as:
     :switch my_tree do:
         :when `TWO then:
             prints("Two-something.")
+            :continue
+
+        :when `TWENTY then:
+            prints("Twenty.")
             
         prints("Not any.")
+        :break
 
     :if `true then:
         last? 0
