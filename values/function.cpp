@@ -5,6 +5,7 @@ public:
     std::vector<std::unique_ptr<Value>> results;
     std::unique_ptr<Value> head;
     std::unique_ptr<Value> body;
+    std::unique_ptr<Value> exception_type_value;
     FunctionScope *fn_scope;
     Expr *deferred_body_expr;
     bool may_be_aborted;
@@ -50,6 +51,29 @@ public:
                 ss->add(new Variable("$", VOID_TS, pivot_ts));
         }
 
+        // TODO: why do we store this in the fn scope?
+        Expr *e = kwargs["may"].get();
+        if (e) {
+            Value *v = typize(e, fn_scope, &TREENUMMETA_TS);
+            TreenumerationDefinitionValue *tdv = dynamic_cast<TreenumerationDefinitionValue *>(v);
+            
+            if (v) {
+                Declaration *ed = tdv->declare_pure("<may>", scope);
+                Type *t = dynamic_cast<Type *>(ed);
+                
+                if (t) {
+                    fn_scope->add(t);
+                    fn_scope->set_exception_type(t);
+                }
+                else
+                    throw INTERNAL_ERROR;
+            }
+            else
+                throw INTERNAL_ERROR;
+                
+            exception_type_value.reset(tdv);
+        }
+                
         Scope *hs = fn_scope->add_head_scope();
         Expr *h = kwargs["from"].get();
         head.reset(h ? typize(h, hs) : NULL);
@@ -163,7 +187,7 @@ public:
                 throw INTERNAL_ERROR;
         }
             
-        function = new Function(name, scope->pivot_type_hint(), arg_tss, arg_names, result_tss);
+        function = new Function(name, scope->pivot_type_hint(), arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
         
         return function;
     }
@@ -419,9 +443,14 @@ public:
         
         if (function->is_sysv && !is_void)
             sysv_epilogue(x64, passed_size);
-        
-        // TODO: check for thrown exceptions!
-        // Use the dummy to initiate unwinding!
+
+        if (function->exception_type) {
+            Label noex;
+            x64->op(CMPQ, x64->exception_label, NO_EXCEPTION);
+            x64->op(JE, noex);
+            x64->unwind->initiate(dummy, x64);  // unwinds ourselves, too
+            x64->code_label(noex);
+        }
 
         x64->unwind->pop(this);
         

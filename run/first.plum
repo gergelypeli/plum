@@ -54,6 +54,10 @@ restart? :Function as:
     start  # check predeclarations
 
 
+nasty? :Function may: { BIG_ERROR, SMALL_ERROR } as:
+    :raise `SMALL_ERROR
+    
+
 start? :Function as:
     print(f(1, 2))
     
@@ -191,6 +195,8 @@ start? :Function as:
             
         prints("Not any.")
         :break
+
+    nasty
 
     :if `true then:
         last? 0

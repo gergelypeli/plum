@@ -409,3 +409,73 @@ public:
         return NULL;
     }
 };
+
+
+class RaiseValue: public Value {
+public:
+    Declaration *dummy;
+    std::unique_ptr<Value> value;
+    int exception_value;
+    
+    RaiseValue(Value *v, TypeMatch &m)
+        :Value(VOID_TS) {
+        dummy = NULL;
+        exception_value = 0;
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky :raise!\n";
+            return false;
+        }
+        
+        FunctionScope *fn_scope = scope->get_function_scope();
+        if (!fn_scope) {
+            std::cerr << ":raise not in function!\n";
+            return false;
+        }
+        
+        Type *et = fn_scope->get_exception_type();
+        if (!et) {
+            std::cerr << ":raise in a function not raising exceptions!\n";
+            return false;
+        }
+        
+        TypeSpec ets = { et };
+        Value *v = typize(args[0].get(), scope, &ets);
+        
+        if (!v)
+            return false;
+            
+        value.reset(v);
+        
+        dummy = new Declaration;
+        scope->add(dummy);
+        
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        value->precompile(Regs::all());
+            
+        return Regs::all();  // We're Void
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s = value->compile(x64);
+        
+        switch (s.where) {
+        case CONSTANT:
+            x64->op(MOVQ, x64->exception_label, s.value);
+            break;
+        case REGISTER:
+            x64->op(MOVQ, x64->exception_label, s.reg);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        x64->unwind->initiate(dummy, x64);
+        return Storage();
+    }
+};

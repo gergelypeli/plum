@@ -266,6 +266,14 @@ public:
             
         return make_treenumeration_definition_value();
     }
+
+    // NOTE: experimental thing for exception specifications
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+        if (n == "{}")
+            return make_treenumeration_definition_value();
+        
+        return NULL;
+    }
 };
 
 

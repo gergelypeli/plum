@@ -347,7 +347,7 @@ public:
     ArgumentScope *self_scope;
     ArgumentScope *head_scope;
     CodeScope *body_scope;
-    //Label epilogue_label;
+    Type *exception_type;
 
     FunctionScope()
         :Scope() {
@@ -355,6 +355,7 @@ public:
         self_scope = NULL;
         head_scope = NULL;
         body_scope = NULL;
+        exception_type = NULL;
     }
     
     Scope *add_result_scope() {
@@ -387,6 +388,14 @@ public:
         body_scope->added(m);
         
         return body_scope;
+    }
+    
+    void set_exception_type(Type *et) {
+        exception_type = et;
+    }
+    
+    Type *get_exception_type() {
+        return exception_type;
     }
     
     virtual Value *lookup(std::string name, Value *pivot, TypeMatch &match) {

@@ -98,15 +98,17 @@ public:
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
     std::vector<TypeSpec> res_tss;
+    Type *exception_type;
 
     Label x64_label;
     bool is_sysv;
     
-    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts)
+    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, Type *et)
         :Identifier(n, pts) {
         arg_tss = ats;
         arg_names = ans;
         res_tss = rts;
+        exception_type = et;
         
         is_sysv = false;
     }
@@ -137,8 +139,8 @@ class ImportedFunction: public Function {
 public:
     std::string import_name;
     
-    ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts)
-        :Function(n, pts, ats, ans, rts) {
+    ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, Type *et)
+        :Function(n, pts, ats, ans, rts, et) {
         import_name = in;
     }
 

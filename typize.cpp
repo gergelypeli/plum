@@ -1,9 +1,8 @@
 
 const long NO_EXCEPTION = 0;
-const long RETURN_EXCEPTION = 1;
-const long BREAK_EXCEPTION = 2;
-const long CONTINUE_EXCEPTION = 3;
-const long UNSWITCH_EXCEPTION = 4;
+const long RETURN_EXCEPTION = -1;
+const long BREAK_EXCEPTION = -2;
+const long CONTINUE_EXCEPTION = -3;
 
 // Stage 4
 
@@ -83,6 +82,7 @@ TypeSpec ANY_TYPE_TS;
 TypeSpec ANY_OVALUE_TS;
 TypeSpec ANY_LVALUE_TS;
 TypeSpec METATYPE_TS;
+TypeSpec TREENUMMETA_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;
@@ -268,6 +268,7 @@ Scope *init_builtins() {
     ANY_LVALUE_TS = { lvalue_type, any_type };
     ANY_OVALUE_TS = { ovalue_type, any_type };
     METATYPE_TS = { metatype_type };
+    TREENUMMETA_TS = { treenumeration_metatype };
     VOID_TS = { void_type };
     MULTI_TS = { multi_type };
     MULTI_LVALUE_TS = { lvalue_type, multi_type };
@@ -366,19 +367,20 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<ContinueValue>(":continue", VOID_TS));
     root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", VOID_TS));
     root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
+    root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     
     // Library functions, unscoped
-    root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, NO_TSS));
-    root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS));
-    root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, NO_TSS));
-    root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, NO_TSS));
-    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }));
-    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS }));
+    root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }, NULL));
+    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS }, NULL));
 
-    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }));
-    root_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, NO_TSS));
+    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }, NULL));
+    root_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
     //root_scope->add(new ImportedFunction("streamify_string", "streamify", CHARACTER_ARRAY_REFERENCE_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
 
     return root_scope;
