@@ -63,6 +63,10 @@ public:
         return outer_scope->get_switch_scope();
     }
 
+    virtual TryScope *get_try_scope() {
+        return outer_scope->get_try_scope();
+    }
+
     virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
         for (auto &content : contents)
@@ -298,6 +302,39 @@ public:
     SwitchScope *get_switch_scope() {
         return this;
     }
+    
+    const char *get_variable_name() {
+        return "<switched>";
+    }
+};
+
+
+
+
+class TryScope: public CodeScope {
+public:
+    Type *exception_type;
+
+    TryScope()
+        :CodeScope() {
+        exception_type = NULL;
+    }
+
+    TryScope *get_try_scope() {
+        return this;
+    }
+    
+    bool set_exception_type(Type *et) {
+        if (exception_type && exception_type != et)
+            return false;
+            
+        exception_type = et;
+        return true;
+    }
+    
+    Type *get_exception_type() {
+        return exception_type;
+    }
 };
 
 
@@ -449,6 +486,10 @@ public:
     }
 
     virtual SwitchScope *get_switch_scope() {
+        return NULL;
+    }
+
+    virtual TryScope *get_try_scope() {
         return NULL;
     }
     

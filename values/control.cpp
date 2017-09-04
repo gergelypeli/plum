@@ -214,7 +214,7 @@ public:
         // Insert variable before the body to keep the finalization order
         switch_scope = new SwitchScope;
         scope->add(switch_scope);
-        value_var = new Variable("<switched>", VOID_TS, value->ts.lvalue());
+        value_var = new Variable(switch_scope->get_variable_name(), VOID_TS, value->ts.lvalue());
         switch_scope->add(value_var);
         
         for (auto &kv : kwargs) {
@@ -259,7 +259,7 @@ public:
         if (may_be_aborted) {
             Label nonbreak;
             
-            x64->op(CMPQ, x64->exception_label, 0);
+            x64->op(CMPQ, x64->exception_label, NO_EXCEPTION);
             x64->op(JE, die);
 
             x64->op(CMPQ, x64->exception_label, BREAK_EXCEPTION);
@@ -320,7 +320,7 @@ public:
         Value *pivot = typize(args[0].get(), scope, &val_ts);
 
         Expr cover_expr(Expr::IDENTIFIER, Token(), "cover");
-        cover_expr.add_arg(new Expr(Expr::IDENTIFIER, Token(), "<switched>"));
+        cover_expr.add_arg(new Expr(Expr::IDENTIFIER, Token(), switch_scope->get_variable_name()));
         Value *cover = lookup("cover", pivot, &cover_expr, scope);
         
         if (!cover) {
@@ -477,5 +477,137 @@ public:
         
         x64->unwind->initiate(dummy, x64);
         return Storage();
+    }
+};
+
+
+class TryValue: public Value {
+public:
+    std::unique_ptr<Value> body, handler;
+    Variable *exception_var;
+    TryScope *try_scope;
+    SwitchScope *switch_scope;
+    bool handling;
+    bool may_be_aborted;
+    
+    TryValue(Value *v, TypeMatch &m)
+        :Value(VOID_TS) {
+        exception_var = NULL;
+        try_scope = NULL;
+        switch_scope = NULL;
+        
+        handling = false;
+        may_be_aborted = false;
+        // TODO: return something?
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1) {
+            std::cerr << "Whacky :try!\n";
+            return false;
+        }
+
+        try_scope = new TryScope;
+        scope->add(try_scope);
+        
+        body.reset(typize(args[0].get(), try_scope));
+
+        switch_scope = new SwitchScope;
+        scope->add(switch_scope);
+
+        for (auto &kv : kwargs) {
+            if (kv.first == "or") {
+                Type *et = try_scope->get_exception_type();
+                
+                if (et) {
+                    TypeSpec ets = { lvalue_type, et };
+                    exception_var = new Variable(switch_scope->get_variable_name(), VOID_TS, ets);
+                    switch_scope->add(exception_var);
+                }
+                
+                handler.reset(make_code_value(typize(kv.second.get(), switch_scope, &VOID_CODE_TS)));
+            }
+            else {
+                std::cerr << "Invalid argument to :try!\n";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        body->precompile(Regs::all());
+            
+        if (handler)
+            handler->precompile(Regs::all());
+            
+        return Regs::all();  // We're Void TODO: or not
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        x64->unwind->push(this);
+        handling = false;
+        body->compile_and_store(x64, Storage());  // TODO
+        x64->unwind->pop(this);
+
+        try_scope->finalize_contents(x64);  // for the sake of consistency only
+        
+        if (may_be_aborted) {
+            // The body may throw an exception
+            Label die, live;
+            x64->op(CMPB, x64->exception_label, NO_EXCEPTION);
+            x64->op(JLE, live);
+            
+            // User exception, prepare for handling
+            if (exception_var) {
+                // TODO: we can't initialize a variable from the global exception value,
+                // because its address is a label, and Address can't handle it in a MEMORY Storage.
+                // So do this directly for now. The global variable should go away eventually.
+                //value->ts.create(, var_storage, x64);
+                Storage fn_storage(MEMORY, Address(RBP, 0));
+                Storage var_storage = exception_var->get_storage(fn_storage);
+                x64->op(MOVB, BL, x64->exception_label);
+                x64->op(MOVB, var_storage.address, BL);
+            }
+
+            x64->op(MOVB, x64->exception_label, NO_EXCEPTION);
+        
+            x64->unwind->push(this);
+            handling = true;
+            may_be_aborted = false;
+            if (handler)
+                handler->compile_and_store(x64, Storage());
+            x64->unwind->pop(this);
+
+            switch_scope->finalize_contents(x64);
+            
+            if (may_be_aborted) {
+                // The handling may throw an exception
+                Label nonbreak;
+            
+                x64->op(CMPQ, x64->exception_label, NO_EXCEPTION);
+                x64->op(JE, die);
+
+                x64->op(CMPQ, x64->exception_label, BREAK_EXCEPTION);
+                x64->op(JNE, nonbreak);
+                x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+                x64->op(JMP, live);
+                x64->code_label(nonbreak);
+    
+                x64->unwind->initiate(switch_scope, x64);
+            }
+        
+            x64->code_label(die);
+            x64->die("Try assertion failed!");
+            x64->code_label(live);
+        }
+        
+        return Storage();
+    }
+    
+    virtual Scope *unwind(X64 *x64) {
+        may_be_aborted = true;
+        return handling ? (Scope *)switch_scope : (Scope *)try_scope;
     }
 };

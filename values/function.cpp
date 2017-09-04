@@ -104,6 +104,9 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
+        if (exception_type_value)
+            exception_type_value->compile(x64);  // to compile treenum definitions
+    
         unsigned frame_size = fn_scope->get_frame_size();
         //Label epilogue_label = fn_scope->get_epilogue_label();
 
@@ -270,9 +273,23 @@ public:
             }
         }
 
-        // Insert declaration dummy here, destroy variables before it if we get an exception
-        dummy = new Declaration;
-        scope->add(dummy);
+        if (function->exception_type) {
+            TryScope *try_scope = scope->get_try_scope();
+            
+            if (!try_scope) {
+                std::cerr << "Function " << function->name << " raises exceptions!\n";
+                return false;
+            }
+            
+            if (!try_scope->set_exception_type(function->exception_type)) {
+                std::cerr << "Function " << function->name << " raises different exceptions!\n";
+                return false;
+            }
+            
+            // Insert declaration dummy here, destroy variables before it if we get an exception
+            dummy = new Declaration;
+            scope->add(dummy);
+        }
 
         // These are only initialized if the function returns successfully, so must
         // declare them last, even if we use their address soon.

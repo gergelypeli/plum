@@ -14,6 +14,7 @@ class HeapType;
 class Scope;
 class CodeScope;
 class SwitchScope;
+class TryScope;
 class FunctionScope;
 class Variable;
 class Function;
@@ -368,6 +369,7 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", VOID_TS));
     root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));
+    root_scope->add(new TemplateIdentifier<TryValue>(":try", VOID_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     

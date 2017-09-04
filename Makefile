@@ -27,12 +27,12 @@ test: $(TEST)
 
 $(EXE): $(SOURCES)
 	@clear
-	@rm -f $(CORE)
 	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
 
 $(TEST): $(TESTOBJECT) $(TESTMODULE)
+	@rm -f $(CORE)
 	@gcc $(CFLAGS) -o $(TEST) $(TESTOBJECT) $(TESTMODULE)
-	
+
 $(TESTOBJECT): $(TESTSOURCE)
 	@gcc $(CFLAGS) -c -o $(TESTOBJECT) $(TESTSOURCE)
 

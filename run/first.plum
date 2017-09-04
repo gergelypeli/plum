@@ -196,7 +196,17 @@ start? :Function as:
         prints("Not any.")
         :break
 
-    nasty
+    :try
+        nasty
+    or:
+        :when `BIG_ERROR then:
+            prints("This was a big error!")
+            :continue
+            
+        :when `SMALL_ERROR then:
+            prints("This was a small error!")
+            
+        prints("Too bad!")
 
     :if `true then:
         last? 0
