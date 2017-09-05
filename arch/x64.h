@@ -150,6 +150,8 @@ struct Address {
     Address operator + (int o);
 };
 
+#define EXCEPTION_ADDRESS Address(RBP, -8)
+
 
 enum SimpleOp {
     CBW, CDQ, CDQE, CLC, CLD, CLI, CLTS, CMC, CQO, CWD, CWDE, HLT, IRET, LAHF, NOP,
@@ -373,7 +375,6 @@ public:
     Ork *ork;
     Label alloc_RAX_label, realloc_RAX_RBX_label;
     Label memalloc_label, memfree_label, memrealloc_label, die_label;
-    Label exception_label;
     std::vector<Label> incref_labels, decref_labels;
     std::map<FunctionCompiler, Label> function_compiler_labels;
     

@@ -4,7 +4,6 @@
 #include "../arch/heap.h"
 
 static int allocation_count = 0;
-extern long exception;
 
 
 // Exported helpers
@@ -175,9 +174,6 @@ extern void start();
 int main() {
     start();
 
-    if (exception)
-        printf("Oops, start raised an exception!\n");
-    
     if (allocation_count)
         printf("Oops, the allocation count is %d!\n", allocation_count);
 }

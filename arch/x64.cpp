@@ -93,9 +93,6 @@ void X64::init(std::string module_name) {
     data_symbol_index = ork->export_data(module_name + ".data", 0, 0, 1);
 
     op(UD2);  // Have fun jumping to address 0
-    
-    data_label_export(exception_label, "exception", 0, true);  // must be global for linking!
-    data_qword(0);
 }
 
 

@@ -120,6 +120,7 @@ public:
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         
         x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
@@ -131,13 +132,15 @@ public:
         
         if (may_be_aborted) {
             Label ok;
-            x64->op(CMPQ, x64->exception_label, RETURN_EXCEPTION);
+            x64->op(CMPB, EXCEPTION_ADDRESS, RETURN_EXCEPTION);
             x64->op(JNE, ok);
-            x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+            x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
             x64->code_label(ok);
         }
         
+        x64->op(MOVB, BL, EXCEPTION_ADDRESS);
         x64->op(ADDQ, RSP, frame_size);
+        x64->op(CMPB, BL, 0);  // ZF => OK
         x64->op(POPQ, RBP);
         x64->op(RET);
         
@@ -463,8 +466,8 @@ public:
 
         if (function->exception_type) {
             Label noex;
-            x64->op(CMPQ, x64->exception_label, NO_EXCEPTION);
-            x64->op(JE, noex);
+            x64->op(JE, noex);  // Expect ZF if OK
+            x64->op(MOVB, EXCEPTION_ADDRESS, BL);  // Expect BL if not OK
             x64->unwind->initiate(dummy, x64);  // unwinds ourselves, too
             x64->code_label(noex);
         }
@@ -616,8 +619,7 @@ public:
 
         x64->unwind->pop(this);
 
-        x64->op(MOVQ, x64->exception_label, RETURN_EXCEPTION);
-
+        x64->op(MOVB, EXCEPTION_ADDRESS, RETURN_EXCEPTION);
         x64->unwind->initiate(dummy, x64);
         
         return Storage();

@@ -180,7 +180,7 @@ public:
 
         if (may_be_aborted) {
             Label ok;
-            x64->op(CMPQ, x64->exception_label, 0);
+            x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
             x64->op(JE, ok);
     
             x64->unwind->initiate(code_scope, x64);

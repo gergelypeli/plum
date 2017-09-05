@@ -101,15 +101,15 @@ public:
     virtual Scope *unwind(X64 *x64) {
         Label noncontinue, nonbreak;
         
-        x64->op(CMPQ, x64->exception_label, CONTINUE_EXCEPTION);
+        x64->op(CMPB, EXCEPTION_ADDRESS, CONTINUE_EXCEPTION);
         x64->op(JNE, noncontinue);
-        x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         x64->op(JMP, start);
         x64->code_label(noncontinue);
         
-        x64->op(CMPQ, x64->exception_label, BREAK_EXCEPTION);
+        x64->op(CMPB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
         x64->op(JNE, nonbreak);
-        x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         x64->op(JMP, end);
         x64->code_label(nonbreak);
 
@@ -145,7 +145,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        x64->op(MOVQ, x64->exception_label, BREAK_EXCEPTION);
+        x64->op(MOVB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
 
         x64->unwind->initiate(dummy, x64);
         
@@ -179,7 +179,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        x64->op(MOVQ, x64->exception_label, CONTINUE_EXCEPTION);
+        x64->op(MOVB, EXCEPTION_ADDRESS, CONTINUE_EXCEPTION);
 
         x64->unwind->initiate(dummy, x64);
         
@@ -259,12 +259,12 @@ public:
         if (may_be_aborted) {
             Label nonbreak;
             
-            x64->op(CMPQ, x64->exception_label, NO_EXCEPTION);
+            x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
             x64->op(JE, die);
 
-            x64->op(CMPQ, x64->exception_label, BREAK_EXCEPTION);
+            x64->op(CMPB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
             x64->op(JNE, nonbreak);
-            x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+            x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
             x64->op(JMP, live);
             x64->code_label(nonbreak);
     
@@ -389,7 +389,7 @@ public:
             
         x64->unwind->pop(this);
         
-        x64->op(MOVQ, x64->exception_label, BREAK_EXCEPTION);
+        x64->op(MOVB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
         x64->unwind->initiate(dummy, x64);
         
         x64->code_label(end);
@@ -400,9 +400,9 @@ public:
     Scope *unwind(X64 *x64) {
         Label noncontinue;
         
-        x64->op(CMPQ, x64->exception_label, CONTINUE_EXCEPTION);
+        x64->op(CMPB, EXCEPTION_ADDRESS, CONTINUE_EXCEPTION);
         x64->op(JNE, noncontinue);
-        x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         x64->op(JMP, end);
         x64->code_label(noncontinue);
         
@@ -466,10 +466,10 @@ public:
         
         switch (s.where) {
         case CONSTANT:
-            x64->op(MOVQ, x64->exception_label, s.value);
+            x64->op(MOVB, EXCEPTION_ADDRESS, s.value);
             break;
         case REGISTER:
-            x64->op(MOVQ, x64->exception_label, s.reg);
+            x64->op(MOVB, EXCEPTION_ADDRESS, s.reg);
             break;
         default:
             throw INTERNAL_ERROR;
@@ -556,7 +556,7 @@ public:
         if (may_be_aborted) {
             // The body may throw an exception
             Label die, live;
-            x64->op(CMPB, x64->exception_label, NO_EXCEPTION);
+            x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
             x64->op(JLE, live);
             
             // User exception, prepare for handling
@@ -567,11 +567,11 @@ public:
                 //value->ts.create(, var_storage, x64);
                 Storage fn_storage(MEMORY, Address(RBP, 0));
                 Storage var_storage = exception_var->get_storage(fn_storage);
-                x64->op(MOVB, BL, x64->exception_label);
+                x64->op(MOVB, BL, EXCEPTION_ADDRESS);
                 x64->op(MOVB, var_storage.address, BL);
             }
 
-            x64->op(MOVB, x64->exception_label, NO_EXCEPTION);
+            x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         
             x64->unwind->push(this);
             handling = true;
@@ -586,12 +586,12 @@ public:
                 // The handling may throw an exception
                 Label nonbreak;
             
-                x64->op(CMPQ, x64->exception_label, NO_EXCEPTION);
+                x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
                 x64->op(JE, die);
 
-                x64->op(CMPQ, x64->exception_label, BREAK_EXCEPTION);
+                x64->op(CMPB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
                 x64->op(JNE, nonbreak);
-                x64->op(MOVQ, x64->exception_label, NO_EXCEPTION);
+                x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
                 x64->op(JMP, live);
                 x64->code_label(nonbreak);
     

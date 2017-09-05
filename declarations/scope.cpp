@@ -474,6 +474,7 @@ public:
 
         //std::cerr << "Function head is " << head_scope->size - 16 << "bytes, self is " << self_scope->size - head_scope->size << " bytes, result is " << result_scope->size - self_scope->size << " bytes.\n";
 
+        body_scope->reserve(8);  // Reserve [RBP - 8] for local exceptions
         body_scope->allocate();
     }
     
