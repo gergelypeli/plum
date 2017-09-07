@@ -1,5 +1,44 @@
 
 
+class ArrayLengthValue: public GenericValue {
+public:
+    Register reg;
+    
+    ArrayLengthValue(Value *l, TypeMatch &match)
+        :GenericValue(VOID_TS, INTEGER_TS, l) {
+        reg = NOREG;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = left->precompile(preferred);
+        
+        if (!clob.has_any())
+            clob.add(RAX);
+        
+        reg = clob.get_any();
+            
+        return clob;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        ls = left->compile(x64);
+
+        switch (ls.where) {
+        case REGISTER:
+            x64->decref(ls.reg);
+            x64->op(MOVQ, ls.reg, x64->array_length_address(ls.reg));
+            return Storage(REGISTER, ls.reg);
+        case MEMORY:
+            x64->op(MOVQ, reg, ls.address);
+            x64->op(MOVQ, reg, x64->array_length_address(reg));
+            return Storage(REGISTER, reg);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
 class ArrayItemValue: public GenericOperationValue {
 public:
     ArrayItemValue(OperationType o, Value *pivot, TypeMatch &match)

@@ -77,6 +77,25 @@ Counter? :Record
             :return $ current
 
 
+Stringiterator? :Record
+    string? Character Array
+    index? Integer
+    
+    new? :Function from:
+        s? Character Array
+    as:
+        $ string = s
+        $ index = -1
+        
+    next? :Function Character may: { DONE } as:
+        $ index += 1
+        
+        :if $ index == $ string length then:
+            :raise `DONE
+        else:
+            :return $ string[$ index]
+
+
 start? :Function as:
     print(f(1, 2))
     
@@ -229,6 +248,9 @@ start? :Function as:
 
     :for Counter `new 7 each: c? do:
         prints("Counting: {c}" {})
+
+    :for Stringiterator `new "Abcdef" each: c? do:
+        prints("Iterating: {c}" {})
 
     :if `true then:
         last? 0
