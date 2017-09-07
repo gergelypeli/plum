@@ -277,7 +277,12 @@ public:
         
         if (args.size() == 0) {
             if (!context) {
-                std::cerr << "Can't declare implicitly without context!\n";
+                std::cerr << "Can't declare implicitly without type context!\n";
+                return false;
+            }
+            
+            if ((*context)[0] != lvalue_type) {
+                std::cerr << "Can't declare implicitly without lvalue type context!\n";
                 return false;
             }
             

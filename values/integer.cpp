@@ -7,8 +7,8 @@ public:
     bool is_unsigned;
     
     IntegerOperationValue(OperationType o, Value *pivot, TypeMatch &match)
-        :GenericOperationValue(o, match[0].rvalue(), is_comparison(o) ? BOOLEAN_TS : match[0], pivot) {
-        int size = arg_ts.measure(MEMORY);
+        :GenericOperationValue(o, is_unary(o) ? VOID_TS : match[0].rvalue(), is_comparison(o) ? BOOLEAN_TS : match[0], pivot) {
+        int size = match[0].measure(MEMORY);
         os = (
             size == 1 ? 0 :
             size == 2 ? 1 :
@@ -18,7 +18,7 @@ public:
         );
 
         if (operation != ASSIGN && operation != EQUAL && operation != NOT_EQUAL)
-            dynamic_cast<IntegerType *>(arg_ts[0])->is_unsigned();
+            dynamic_cast<IntegerType *>(match[0].rvalue()[0])->is_unsigned();
     }
     
     virtual void exponentiation_by_squaring(X64 *x64) {

@@ -21,16 +21,18 @@ TESTOBJECT = run/test.o
 TESTMODULE = run/mymodule.o
 TESTPLUM   = run/first.plum
 
-exe: $(EXE)
+exe: uncore $(EXE)
 
-test: $(TEST)
+test: uncore $(TEST)
+
+uncore:
+	@rm -f $(CORE)
 
 $(EXE): $(SOURCES)
 	@clear
 	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
 
 $(TEST): $(TESTOBJECT) $(TESTMODULE)
-	@rm -f $(CORE)
 	@gcc $(CFLAGS) -o $(TEST) $(TESTOBJECT) $(TESTMODULE)
 
 $(TESTOBJECT): $(TESTSOURCE)

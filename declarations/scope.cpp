@@ -232,9 +232,11 @@ public:
 class CodeScope: public Scope {
 public:
     int offset;
+    bool contents_finalized;  // for sanity check
     
     CodeScope()
         :Scope() {
+        contents_finalized = false;
     }
 
     virtual bool is_transient() {
@@ -291,6 +293,15 @@ public:
     virtual void finalize_contents(X64 *x64) {
         for (int i = contents.size() - 1; i >= 0; i--)
             contents[i]->finalize(x64);
+            
+        contents_finalized = true;
+    }
+    
+    virtual void finalize(X64 *x64) {
+        if (!contents_finalized)
+            throw INTERNAL_ERROR;
+            
+        Scope::finalize(x64);
     }
 };
 

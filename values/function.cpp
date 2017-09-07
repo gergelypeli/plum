@@ -110,8 +110,10 @@ public:
         unsigned frame_size = fn_scope->get_frame_size();
         //Label epilogue_label = fn_scope->get_epilogue_label();
 
-        if (function)
-            x64->code_label_export(function->x64_label, function->name, 0, true);
+        if (function) {
+            bool is_global = (function->name == "start");
+            x64->code_label_export(function->x64_label, function->name, 0, is_global);
+        }
         else {
             std::cerr << "Nameless function!\n";
             throw INTERNAL_ERROR;
@@ -497,9 +499,11 @@ public:
 
     virtual Scope *unwind(X64 *x64) {
         std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
+        TypeSpec pivot_ts = function->get_pivot_typespec();
 
         for (int i = arg_storages.size() - 1; i >= 0; i--) {
-            arg_tss[i].store(arg_storages[i], Storage(), x64);
+            TypeSpec ts = (pivot ? (i > 0 ? arg_tss[i - 1] : pivot_ts) : arg_tss[i]);
+            ts.store(arg_storages[i], Storage(), x64);
         }
         
         // This area is either uninitialized, or contains aliases to uninitialized variables

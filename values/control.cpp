@@ -118,6 +118,141 @@ public:
 };
 
 
+
+class ForEachValue: public Value {
+public:
+    std::unique_ptr<Value> iterator, each, body, next;
+    Variable *iterator_var;
+    TryScope *next_try_scope;
+    TypeSpec each_ts;
+    Label start, end;
+    bool performing;
+    
+    ForEachValue(Value *pivot, TypeMatch &match)
+        :Value(VOID_TS) {
+        iterator_var = NULL;
+        performing = false;
+        next_try_scope = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() == 1) {
+            iterator.reset(typize(args[0].get(), scope));
+            
+            // TODO: this should be a "local variable", to be destroyed once we're done
+            // instead of letting the enclosing scope destroy it.
+            TypeSpec its = iterator->ts.lvalue();
+            iterator_var = new Variable("<iterator>", VOID_TS, its);
+            scope->add(iterator_var);
+
+            next_try_scope = new TryScope;
+            scope->add(next_try_scope);
+
+            Expr it_expr(Expr::IDENTIFIER, Token(), "<iterator>");
+            Value *it = lookup("<iterator>", NULL, &it_expr, next_try_scope);
+            
+            Expr next_expr(Expr::IDENTIFIER, Token(), "next");
+            Value *next = lookup("next", it, &next_expr, next_try_scope);
+            
+            if (!next) {
+                std::cerr << ":for argument has no next method!\n";
+                return false;
+            }
+            
+            this->next.reset(next);
+            
+            each_ts = next->ts.lvalue();
+        }
+        else {
+            std::cerr << "Missing iterator in :for!\n";
+            return false;
+        }
+        
+        for (auto &kv : kwargs) {
+            if (kv.first == "each") {
+                Value *v = typize(kv.second.get(), scope, &each_ts);
+                TypeMatch match;
+                
+                if (!typematch(each_ts, v, match)) {
+                    std::cerr << "Wrong each argument!\n";
+                    return false;
+                }
+                
+                each.reset(v);
+            }
+            else if (kv.first == "do")
+                body.reset(make_code_value(typize(kv.second.get(), scope, &VOID_CODE_TS)));
+            else {
+                std::cerr << "Invalid argument to :for!\n";
+                return false;
+            }
+        }
+
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        if (iterator)
+            iterator->precompile(Regs::all());
+            
+        if (each)
+            each->precompile(Regs::all());
+            
+        if (body)
+            body->precompile(Regs::all());
+            
+        if (next)
+            next->precompile(Regs::all());
+            
+        return Regs::all();  // We're Void
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage is = iterator->compile(x64);
+        Storage fn_storage(MEMORY, Address(RBP, 0));
+        Storage var_storage = iterator_var->get_storage(fn_storage);
+        iterator->ts.create(is, var_storage, x64);
+        
+        Storage es = each->compile(x64);
+        if (es.where != MEMORY || es.address.base != RBP)
+            throw INTERNAL_ERROR;  // FIXME: lame temporary restriction only
+        
+        x64->code_label(start);
+
+        x64->unwind->push(this);
+        performing = false;
+        Storage ns = next->compile(x64);
+        
+        next->ts.store(ns, es, x64);
+        // Finalize after storing, so the return value won't be lost
+        next_try_scope->finalize_contents(x64);
+
+        performing = true;
+        body->compile_and_store(x64, Storage());
+        
+        x64->unwind->pop(this);
+        
+        x64->op(JMP, start);
+        
+        x64->code_label(end);
+        // We don't need to clean up local variables yet
+        
+        return Storage();
+    }
+    
+    virtual Scope *unwind(X64 *x64) {
+        if (!performing) {
+            x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+            x64->op(JMP, end);
+            return next_try_scope;
+        }
+
+        // We don't need to clean up temporary values yet
+        return NULL;
+    }
+};
+
+
 // TOOD: these two classes are almost the same
 
 class BreakValue: public Value {

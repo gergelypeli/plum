@@ -57,6 +57,25 @@ restart? :Function as:
 nasty? :Function may: { BIG_ERROR, SMALL_ERROR } as:
     :raise `SMALL_ERROR
     
+    
+Counter? :Record
+    current? Integer
+    limit? Integer
+    
+    new? :Function from:
+        n? Integer
+    as:
+        $ current = -1
+        $ limit = n
+        
+    next? :Function Integer may: { DONE } as:
+        $ current += 1
+        
+        :if $ current == $ limit then:
+            :raise `DONE
+        else:
+            :return $ current
+
 
 start? :Function as:
     print(f(1, 2))
@@ -207,6 +226,9 @@ start? :Function as:
             prints("This was a small error!")
             
         prints("Too bad!")
+
+    :for Counter `new 7 each: c? do:
+        prints("Counting: {c}" {})
 
     :if `true then:
         last? 0
