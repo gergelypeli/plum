@@ -252,6 +252,14 @@ start? :Function as:
     :for Stringiterator `new "Abcdef" each: c? do:
         prints("Iterating: {c}" {})
 
+    x3 = :eval
+        prints("Now yielding.")
+        :yield 33
+        prints("Don't print this!")
+        44
+        
+    prints("Let's hope that {x3} == 33." {})
+
     :if `true then:
         last? 0
         prints("Exiting.")

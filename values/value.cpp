@@ -21,6 +21,11 @@ public:
         return this;
     }
     
+    virtual Value *set_context_ts(TypeSpec *c) {
+        // Generally we don't need it, only in controls
+        return this;
+    }
+    
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         return (args.size() == 0 && kwargs.size() == 0);
     }

@@ -66,6 +66,10 @@ public:
     virtual TryScope *get_try_scope() {
         return outer_scope->get_try_scope();
     }
+    
+    virtual EvalScope *get_eval_scope() {
+        return outer_scope->get_eval_scope();
+    }
 
     virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
@@ -351,6 +355,49 @@ public:
 
 
 
+class EvalScope: public CodeScope {
+public:
+    TypeSpec ts;
+    std::string label;
+    Variable *value_var;
+
+    EvalScope(TypeSpec t, std::string l)
+        :CodeScope() {
+        ts = t;
+        label = l;
+        value_var = NULL;
+    }
+
+    EvalScope *get_eval_scope() {
+        return this;
+    }
+
+    int get_exception_value() {
+        EvalScope *es = outer_scope->get_eval_scope();
+        
+        return (es ? es->get_exception_value() : 0) - 1;
+    }
+    
+    TypeSpec get_ts() {
+        return ts;
+    }
+    
+    const char *get_variable_name() {
+        return "<evaluated>";
+    }
+    
+    void set_value_var(Variable *v) {
+        value_var = v;
+    }
+    
+    Variable *get_value_var() {
+        return value_var;
+    }
+};
+
+
+
+
 class ArgumentScope: public Scope {
 public:
     ArgumentScope()
@@ -502,6 +549,10 @@ public:
     }
 
     virtual TryScope *get_try_scope() {
+        return NULL;
+    }
+
+    virtual EvalScope *get_eval_scope() {
         return NULL;
     }
     

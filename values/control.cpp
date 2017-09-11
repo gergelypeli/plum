@@ -746,3 +746,204 @@ public:
         return handling ? (Scope *)switch_scope : (Scope *)try_scope;
     }
 };
+
+
+class EvalValue: public Value {
+public:
+    std::unique_ptr<Value> body;
+    EvalScope *eval_scope;
+    Variable *value_var;
+    TypeSpec *context;
+    
+    EvalValue(Value *pivot, TypeMatch &match)
+        :Value(VOID_TS) {  // may be overridden
+        eval_scope = NULL;
+        value_var = NULL;
+        context = NULL;
+    }
+
+    virtual Value *set_context_ts(TypeSpec *c) {
+        context = c;
+        return this;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() == 0 || kwargs.size() != 0) {
+            std::cerr << "Whacky :eval!\n";
+            return false;
+        }
+
+        if (context) {
+            ts = *context;
+            
+            if (ts[0] == code_type)
+                ts = ts.unprefix(code_type);
+            else if (ts[0] == lvalue_type) {
+                std::cerr << ":eval in lvalue context!\n";
+                return false;
+            }
+        }
+            
+        eval_scope = new EvalScope(ts, "");
+        scope->add(eval_scope);
+        
+        if (ts != VOID_TS) {
+            // Add the variable after the EvalScope, so it can survive the finalization
+            // of the scope, and can be left uninitialized until the successful completion.
+            value_var = new Variable(eval_scope->get_variable_name(), VOID_TS, ts.lvalue());
+            scope->add(value_var);
+            eval_scope->set_value_var(value_var);
+        }
+        
+        Value *v;
+        
+        if (args.size() > 1) {
+            v = make_code_block_value(context);
+            Kwargs fake_kwargs;
+        
+            if (!v->check(args, fake_kwargs, eval_scope))
+                return false;
+        }
+        else
+            v = typize(args[0].get(), eval_scope, context);
+        
+        if (ts != VOID_TS) {
+            TypeMatch match;
+            
+            if (!typematch(ts, v, match)) {
+                std::cerr << "Wrong :eval result type!\n";
+                return false;
+            }
+        }
+        
+        body.reset(v);
+        
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return body->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        x64->unwind->push(this);
+        Storage s = body->compile(x64);
+        x64->unwind->pop(this);
+        
+        Storage var_storage;
+        
+        if (value_var) {
+            Storage fn_storage(MEMORY, Address(RBP, 0));
+            var_storage = value_var->get_storage(fn_storage);
+            body->ts.create(s, var_storage, x64);
+        }
+        
+        eval_scope->finalize_contents(x64);
+
+        Label ok, caught;
+        
+        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        x64->op(JE, ok);
+        
+        x64->op(CMPB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
+        x64->op(JE, caught);
+        
+        x64->unwind->initiate(eval_scope, x64);
+        
+        x64->code_label(caught);
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        
+        x64->code_label(ok);
+        
+        return value_var ? var_storage : Storage();
+    }
+    
+    virtual Scope *unwind(X64 *x64) {
+        return eval_scope;
+    }
+};
+
+
+class YieldValue: public Value {
+public:
+    Declaration *dummy;
+    std::unique_ptr<Value> value;
+    int exception_value;
+    Variable *value_var;
+    
+    YieldValue(Value *v, TypeMatch &m)
+        :Value(VOID_TS) {
+        dummy = NULL;
+        exception_value = 0;
+        value_var = NULL;
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() > 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky :yield!\n";
+            return false;
+        }
+        
+        EvalScope *eval_scope = scope->get_eval_scope();
+        if (!eval_scope) {
+            std::cerr << ":yield not in :eval!\n";
+            return false;
+        }
+        
+        exception_value = eval_scope->get_exception_value();
+        
+        TypeSpec vts = eval_scope->get_ts();
+        
+        if (vts == VOID_TS) {
+            if (args.size() != 0) {
+                std::cerr << ":yield with arguments!\n";
+                return false;
+            }
+        }
+        else {
+            if (args.size() != 1) {
+                std::cerr << ":yield without arguments!\n";
+                return false;
+            }
+
+            Value *v = typize(args[0].get(), scope, &vts);
+        
+            TypeMatch match;
+            
+            if (!typematch(vts, v, match)) {
+                std::cerr << "Wrong :yield result type!\n";
+                return false;
+            }
+            
+            value.reset(v);
+        }
+
+        value_var = eval_scope->get_value_var();
+        
+        dummy = new Declaration;
+        scope->add(dummy);
+        
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        if (value)
+            value->precompile(preferred);
+            
+        return Regs::all();  // We're Void
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        if (value) {
+            Storage s = value->compile(x64);
+
+            Storage fn_storage(MEMORY, Address(RBP, 0));
+            Storage var_storage = value_var->get_storage(fn_storage);
+            value->ts.create(s, var_storage, x64);
+        }
+        
+        x64->op(MOVB, EXCEPTION_ADDRESS, exception_value);
+        x64->unwind->initiate(dummy, x64);
+        return Storage();
+    }
+};

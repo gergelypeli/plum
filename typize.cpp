@@ -15,6 +15,7 @@ class Scope;
 class CodeScope;
 class SwitchScope;
 class TryScope;
+class EvalScope;
 class FunctionScope;
 class Variable;
 class Function;
@@ -105,7 +106,7 @@ TypeSpec BOOLEAN_CODE_TS;
 class DeclarationValue;
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
-Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope);
+Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
 
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
@@ -372,6 +373,8 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));
     root_scope->add(new TemplateIdentifier<TryValue>(":try", VOID_TS));
+    root_scope->add(new TemplateIdentifier<EvalValue>(":eval", VOID_TS));
+    root_scope->add(new TemplateIdentifier<YieldValue>(":yield", VOID_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     
@@ -391,36 +394,37 @@ Scope *init_builtins() {
 }
 
 
-Value *lookup_scope(Scope *s, std::string name, Value *pivot, Expr *expr, Scope *scope) {
+Value *lookup_scope(Scope *s, std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
     //std::cerr << "Trying a scope...\n";
     TypeMatch match;
     Value *value = s->lookup(name, pivot, match);
     
-    if (value) {
-        // TODO: we should print the definition pivot type, not the value type
-        std::cerr << "Found       " << match[0] << " " << name << " returning " << value->ts << ".\n";
-        value->set_token(expr->token);
-        bool ok = value->check(expr->args, expr->kwargs, scope);
-    
-        if (!ok) {
-            std::cerr << "Argument problem for " << expr->token << "!\n";
-            throw TYPE_ERROR;
-        }
-
-        //std::cerr << "Accepted    " << match[0] << " " << name << " arguments.\n";
-        return value;
-    }
-    else
+    if (!value)
         return NULL;
+    
+    // TODO: we should print the definition pivot type, not the value type
+    std::cerr << "Found       " << match[0] << " " << name << " returning " << value->ts << ".\n";
+    value->set_token(expr->token);
+    value->set_context_ts(context);
+    
+    bool ok = value->check(expr->args, expr->kwargs, scope);
+
+    if (!ok) {
+        std::cerr << "Argument problem for " << expr->token << "!\n";
+        throw TYPE_ERROR;
+    }
+
+    //std::cerr << "Accepted    " << match[0] << " " << name << " arguments.\n";
+    return value;
 }
 
 
-Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope) {
+Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
     TypeSpec pts = pivot ? pivot->ts : VOID_TS;
     //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
     
     for (Scope *s = scope; s; s = s->outer_scope) {
-        Value *value = lookup_scope(s, name, pivot, expr, scope);
+        Value *value = lookup_scope(s, name, pivot, expr, scope, context);
         
         if (value)
             return value;
@@ -435,14 +439,14 @@ Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope) {
     Scope *inner_scope = pts[i]->get_inner_scope();
     
     if (inner_scope) {
-        Value *value = lookup_scope(inner_scope, name, pivot, expr, scope);
+        Value *value = lookup_scope(inner_scope, name, pivot, expr, scope, context);
         
         if (value)
             return value;
     }
     
     if (name == "not_equal") {
-        Value *value = lookup("is_equal", pivot, expr, scope);
+        Value *value = lookup("is_equal", pivot, expr, scope, context);
         return value ? make_boolean_not_value(value) : NULL;
     }
     
@@ -599,7 +603,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         if (p)
             p->set_marker(marker);
         
-        value = lookup(name, p, expr, scope);
+        value = lookup(name, p, expr, scope, context);
 
         if (!value)
             throw TYPE_ERROR;
