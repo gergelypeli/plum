@@ -367,8 +367,8 @@ Scope *init_builtins() {
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
     root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", VOID_TS));
     root_scope->add(new TemplateIdentifier<ForEachValue>(":for", VOID_TS));
-    root_scope->add(new TemplateIdentifier<BreakValue>(":break", VOID_TS));
-    root_scope->add(new TemplateIdentifier<ContinueValue>(":continue", VOID_TS));
+    //root_scope->add(new TemplateIdentifier<BreakValue>(":break", VOID_TS));
+    //root_scope->add(new TemplateIdentifier<ContinueValue>(":continue", VOID_TS));
     root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", VOID_TS));
     root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));

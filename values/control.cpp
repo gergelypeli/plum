@@ -1,4 +1,61 @@
 
+class YieldableValue: public Value {
+public:
+    EvalScope *eval_scope;
+    Variable *value_var;
+    TypeSpec *context;
+    
+    YieldableValue()
+        :Value(VOID_TS) {  // may be overridden
+        eval_scope = NULL;
+        value_var = NULL;
+        context = NULL;
+    }
+
+    virtual Value *set_context_ts(TypeSpec *c) {
+        context = c;
+        return this;
+    }
+
+    virtual bool check_eval(Scope *scope) {
+        if (context) {
+            ts = *context;
+            
+            if (ts[0] == code_type)
+                ts = ts.unprefix(code_type);
+            else if (ts[0] == lvalue_type) {
+                std::cerr << "Yieldable in lvalue context!\n";
+                return false;
+            }
+        }
+            
+        eval_scope = new EvalScope(ts, "");
+        scope->add(eval_scope);
+        
+        if (ts != VOID_TS) {
+            // Add the variable after the EvalScope, so it can survive the finalization
+            // of the scope, and can be left uninitialized until the successful completion.
+            value_var = new Variable(eval_scope->get_variable_name(), VOID_TS, ts.lvalue());
+            scope->add(value_var);
+            eval_scope->set_value_var(value_var);
+        }
+        
+        return true;
+    }
+    
+    virtual Storage get_var_storage() {
+        if (value_var) {
+            Storage fn_storage(MEMORY, Address(RBP, 0));
+            return value_var->get_storage(fn_storage);
+        }
+        else
+            return Storage();
+    }
+};
+
+
+
+
 class RepeatValue: public Value {
 public:
     std::unique_ptr<Value> setup, condition, step, body;
@@ -55,7 +112,6 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        // Exceptions are only caught from the loop body
         if (setup)
             setup->compile_and_store(x64, Storage());
     
@@ -85,9 +141,7 @@ public:
             }
         }
         
-        x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
-        x64->unwind->pop(this);
         
         if (step)
             step->compile_and_store(x64, Storage());
@@ -96,24 +150,6 @@ public:
         
         x64->code_label(end);
         return Storage();
-    }
-    
-    virtual Scope *unwind(X64 *x64) {
-        Label noncontinue, nonbreak;
-        
-        x64->op(CMPB, EXCEPTION_ADDRESS, CONTINUE_EXCEPTION);
-        x64->op(JNE, noncontinue);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JMP, start);
-        x64->code_label(noncontinue);
-        
-        x64->op(CMPB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
-        x64->op(JNE, nonbreak);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JMP, end);
-        x64->code_label(nonbreak);
-
-        return NULL;
     }
 };
 
@@ -126,12 +162,10 @@ public:
     TryScope *next_try_scope;
     TypeSpec each_ts;
     Label start, end;
-    bool performing;
     
     ForEachValue(Value *pivot, TypeMatch &match)
         :Value(VOID_TS) {
         iterator_var = NULL;
-        performing = false;
         next_try_scope = NULL;
     }
 
@@ -220,17 +254,14 @@ public:
         x64->code_label(start);
 
         x64->unwind->push(this);
-        performing = false;
         Storage ns = next->compile(x64);
+        x64->unwind->pop(this);
         
         next->ts.store(ns, es, x64);
         // Finalize after storing, so the return value won't be lost
         next_try_scope->finalize_contents(x64);
 
-        performing = true;
         body->compile_and_store(x64, Storage());
-        
-        x64->unwind->pop(this);
         
         x64->op(JMP, start);
         
@@ -241,101 +272,26 @@ public:
     }
     
     virtual Scope *unwind(X64 *x64) {
-        if (!performing) {
-            x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-            x64->op(JMP, end);
-            return next_try_scope;
-        }
-
-        // We don't need to clean up temporary values yet
-        return NULL;
+        // May be called only while executing next
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        x64->op(JMP, end);
+        return next_try_scope;
     }
 };
 
 
-// TOOD: these two classes are almost the same
-
-class BreakValue: public Value {
-public:
-    Declaration *dummy;
-    
-    BreakValue(Value *v, TypeMatch &m)
-        :Value(VOID_TS) {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky :break!\n";
-            return false;
-        }
-
-        dummy = new Declaration;
-        scope->add(dummy);
-
-        return true;
-    }
-
-    virtual Regs precompile(Regs) {
-        return Regs();  // We won't return
-    }
-
-    virtual Storage compile(X64 *x64) {
-        x64->op(MOVB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
-
-        x64->unwind->initiate(dummy, x64);
-        
-        return Storage();
-    }
-};
 
 
-class ContinueValue: public Value {
-public:
-    Declaration *dummy;
-    
-    ContinueValue(Value *v, TypeMatch &m)
-        :Value(VOID_TS) {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky :continue!\n";
-            return false;
-        }
-
-        dummy = new Declaration;
-        scope->add(dummy);
-
-        return true;
-    }
-
-    virtual Regs precompile(Regs) {
-        return Regs();  // We won't return
-    }
-
-    virtual Storage compile(X64 *x64) {
-        x64->op(MOVB, EXCEPTION_ADDRESS, CONTINUE_EXCEPTION);
-
-        x64->unwind->initiate(dummy, x64);
-        
-        return Storage();
-    }
-};
-
-
-class SwitchValue: public Value {
+class SwitchValue: public YieldableValue {
 public:
     std::unique_ptr<Value> value, body;
-    Variable *value_var;
     SwitchScope *switch_scope;
-    bool may_be_aborted;
+    Variable *switch_var;
     
     SwitchValue(Value *v, TypeMatch &m)
-        :Value(VOID_TS) {
-        value_var = NULL;
+        :YieldableValue() {
         switch_scope = NULL;
-        may_be_aborted = false;
-        // TODO: return something?
+        switch_var = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -347,11 +303,15 @@ public:
         value.reset(typize(args[0].get(), scope));
     
         // Insert variable before the body to keep the finalization order
+        if (!check_eval(scope))
+            return false;
+            
         switch_scope = new SwitchScope;
-        scope->add(switch_scope);
-        value_var = new Variable(switch_scope->get_variable_name(), VOID_TS, value->ts.lvalue());
-        switch_scope->add(value_var);
+        eval_scope->add(switch_scope);
         
+        switch_var = new Variable(switch_scope->get_variable_name(), VOID_TS, value->ts.lvalue());
+        switch_scope->add(switch_var);
+            
         for (auto &kv : kwargs) {
             if (kv.first == "do")
                 body.reset(make_code_value(typize(kv.second.get(), switch_scope, &VOID_CODE_TS)));
@@ -365,20 +325,20 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        value->precompile(Regs::all());
+        Regs clob = value->precompile(Regs::all());
             
         if (body)
-            body->precompile(Regs::all());
+            clob = clob | body->precompile(Regs::all());
             
-        return Regs::all();  // We're Void
+        return clob;
     }
     
     virtual Storage compile(X64 *x64) {
         Storage vs = value->compile(x64);
-
+        
         Storage fn_storage(MEMORY, Address(RBP, 0));
-        Storage var_storage = value_var->get_storage(fn_storage);
-        value->ts.create(vs, var_storage, x64);
+        Storage switch_storage = switch_var->get_storage(fn_storage);
+        value->ts.create(vs, switch_storage, x64);
         
         x64->unwind->push(this);
         
@@ -387,34 +347,25 @@ public:
         
         x64->unwind->pop(this);
 
-        // Doing mostly what CodeValue does with CodeScope
-        switch_scope->finalize_contents(x64);
-        Label die, live;
-
-        if (may_be_aborted) {
-            Label nonbreak;
-            
-            x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-            x64->op(JE, die);
-
-            x64->op(CMPB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
-            x64->op(JNE, nonbreak);
-            x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-            x64->op(JMP, live);
-            x64->code_label(nonbreak);
-    
-            x64->unwind->initiate(switch_scope, x64);
-        }
-        
-        x64->code_label(die);
         x64->die("Switch assertion failed!");
-        x64->code_label(live);
+
+        switch_scope->finalize_contents(x64);
+        eval_scope->finalize_contents(x64);
         
-        return Storage();
+        Label live;
+        
+        x64->op(CMPB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
+        x64->op(JE, live);
+
+        x64->unwind->initiate(eval_scope, x64);
+
+        x64->code_label(live);
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+
+        return get_var_storage();
     }
     
     virtual Scope *unwind(X64 *x64) {
-        may_be_aborted = true;
         return switch_scope;  // Start finalizing the variable
     }
 };
@@ -423,13 +374,10 @@ public:
 class WhenValue: public Value {
 public:
     std::unique_ptr<Value> cover, body;
-    //Variable *value_var;
-    Declaration *dummy;
     Label end;
     
     WhenValue(Value *v, TypeMatch &m)
         :Value(VOID_TS) {
-        dummy = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -440,19 +388,19 @@ public:
             return false;
         }
         
-        Variable *value_var = variable_cast(switch_scope->contents[0].get());
+        Variable *switch_var = variable_cast(switch_scope->contents[0].get());
         
-        if (!value_var)
+        if (!switch_var)
             throw INTERNAL_ERROR;
             
-        TypeSpec val_ts = value_var->var_ts.rvalue();
+        TypeSpec switch_ts = switch_var->var_ts.rvalue();
     
         if (args.size() != 1) {
             std::cerr << "Whacky :when!\n";
             return false;
         }
         
-        Value *pivot = typize(args[0].get(), scope, &val_ts);
+        Value *pivot = typize(args[0].get(), scope, &switch_ts);
 
         Expr cover_expr(Expr::IDENTIFIER, Token(), "cover");
         cover_expr.add_arg(new Expr(Expr::IDENTIFIER, Token(), switch_scope->get_variable_name()));
@@ -470,8 +418,8 @@ public:
         
         this->cover.reset(cover);
     
-        dummy = new Declaration;
-        scope->add(dummy);
+        //dummy = new Declaration;
+        //scope->add(dummy);
     
         for (auto &kv : kwargs) {
             if (kv.first == "then")
@@ -517,31 +465,12 @@ public:
             throw INTERNAL_ERROR;
         }
 
-        x64->unwind->push(this);
-        
         if (body)
             body->compile_and_store(x64, Storage());
             
-        x64->unwind->pop(this);
-        
-        x64->op(MOVB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
-        x64->unwind->initiate(dummy, x64);
-        
         x64->code_label(end);
         
         return Storage();
-    }
-    
-    Scope *unwind(X64 *x64) {
-        Label noncontinue;
-        
-        x64->op(CMPB, EXCEPTION_ADDRESS, CONTINUE_EXCEPTION);
-        x64->op(JNE, noncontinue);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JMP, end);
-        x64->code_label(noncontinue);
-        
-        return NULL;
     }
 };
 
@@ -616,24 +545,23 @@ public:
 };
 
 
-class TryValue: public Value {
+class TryValue: public YieldableValue {
 public:
     std::unique_ptr<Value> body, handler;
-    Variable *exception_var;
     TryScope *try_scope;
+    Variable *switch_var;
     SwitchScope *switch_scope;
     bool handling;
     bool may_be_aborted;
     
     TryValue(Value *v, TypeMatch &m)
-        :Value(VOID_TS) {
-        exception_var = NULL;
+        :YieldableValue() {
         try_scope = NULL;
+        switch_var = NULL;
         switch_scope = NULL;
         
         handling = false;
         may_be_aborted = false;
-        // TODO: return something?
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -647,8 +575,11 @@ public:
         
         body.reset(typize(args[0].get(), try_scope));
 
+        if (!check_eval(scope))
+            return false;
+
         switch_scope = new SwitchScope;
-        scope->add(switch_scope);
+        eval_scope->add(switch_scope);
 
         for (auto &kv : kwargs) {
             if (kv.first == "or") {
@@ -656,8 +587,8 @@ public:
                 
                 if (et) {
                     TypeSpec ets = { lvalue_type, et };
-                    exception_var = new Variable(switch_scope->get_variable_name(), VOID_TS, ets);
-                    switch_scope->add(exception_var);
+                    switch_var = new Variable(switch_scope->get_variable_name(), VOID_TS, ets);
+                    switch_scope->add(switch_var);
                 }
                 
                 handler.reset(make_code_value(typize(kv.second.get(), switch_scope, &VOID_CODE_TS)));
@@ -672,21 +603,26 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        body->precompile(Regs::all());
+        Regs clob = body->precompile(preferred);
             
         if (handler)
-            handler->precompile(Regs::all());
+            clob = clob | handler->precompile(preferred);
             
-        return Regs::all();  // We're Void TODO: or not
+        return clob;
     }
     
     virtual Storage compile(X64 *x64) {
         x64->unwind->push(this);
         handling = false;
-        body->compile_and_store(x64, Storage());  // TODO
+        Storage s = body->compile(x64);
         x64->unwind->pop(this);
+        
+        Storage var_storage = get_var_storage();
 
-        try_scope->finalize_contents(x64);  // for the sake of consistency only
+        if (var_storage.where != NOWHERE)
+            body->ts.create(s, var_storage, x64);
+
+        try_scope->finalize_contents(x64);
         
         if (may_be_aborted) {
             // The body may throw an exception
@@ -695,46 +631,36 @@ public:
             x64->op(JLE, live);
             
             // User exception, prepare for handling
-            if (exception_var) {
-                // TODO: we can't initialize a variable from the global exception value,
-                // because its address is a label, and Address can't handle it in a MEMORY Storage.
-                // So do this directly for now. The global variable should go away eventually.
-                //value->ts.create(, var_storage, x64);
+            if (switch_var) {
                 Storage fn_storage(MEMORY, Address(RBP, 0));
-                Storage var_storage = exception_var->get_storage(fn_storage);
+                Storage switch_storage = switch_var->get_storage(fn_storage);
                 x64->op(MOVB, BL, EXCEPTION_ADDRESS);
-                x64->op(MOVB, var_storage.address, BL);
+                x64->op(MOVB, switch_storage.address, BL);
             }
 
             x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         
             x64->unwind->push(this);
             handling = true;
-            may_be_aborted = false;
             if (handler)
                 handler->compile_and_store(x64, Storage());
             x64->unwind->pop(this);
 
-            switch_scope->finalize_contents(x64);
-            
-            if (may_be_aborted) {
-                // The handling may throw an exception
-                Label nonbreak;
-            
-                x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-                x64->op(JE, die);
-
-                x64->op(CMPB, EXCEPTION_ADDRESS, BREAK_EXCEPTION);
-                x64->op(JNE, nonbreak);
-                x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-                x64->op(JMP, live);
-                x64->code_label(nonbreak);
-    
-                x64->unwind->initiate(switch_scope, x64);
-            }
-        
-            x64->code_label(die);
             x64->die("Try assertion failed!");
+
+            switch_scope->finalize_contents(x64);
+            eval_scope->finalize_contents(x64);
+            
+            Label caught;
+        
+            x64->op(CMPB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
+            x64->op(JE, caught);
+
+            x64->unwind->initiate(eval_scope, x64);
+
+            x64->code_label(caught);
+            x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        
             x64->code_label(live);
         }
         
@@ -748,23 +674,12 @@ public:
 };
 
 
-class EvalValue: public Value {
+class EvalValue: public YieldableValue {
 public:
     std::unique_ptr<Value> body;
-    EvalScope *eval_scope;
-    Variable *value_var;
-    TypeSpec *context;
     
     EvalValue(Value *pivot, TypeMatch &match)
-        :Value(VOID_TS) {  // may be overridden
-        eval_scope = NULL;
-        value_var = NULL;
-        context = NULL;
-    }
-
-    virtual Value *set_context_ts(TypeSpec *c) {
-        context = c;
-        return this;
+        :YieldableValue() {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -773,27 +688,8 @@ public:
             return false;
         }
 
-        if (context) {
-            ts = *context;
-            
-            if (ts[0] == code_type)
-                ts = ts.unprefix(code_type);
-            else if (ts[0] == lvalue_type) {
-                std::cerr << ":eval in lvalue context!\n";
-                return false;
-            }
-        }
-            
-        eval_scope = new EvalScope(ts, "");
-        scope->add(eval_scope);
-        
-        if (ts != VOID_TS) {
-            // Add the variable after the EvalScope, so it can survive the finalization
-            // of the scope, and can be left uninitialized until the successful completion.
-            value_var = new Variable(eval_scope->get_variable_name(), VOID_TS, ts.lvalue());
-            scope->add(value_var);
-            eval_scope->set_value_var(value_var);
-        }
+        if (!check_eval(scope))
+            return false;
         
         Value *v;
         
@@ -830,13 +726,10 @@ public:
         Storage s = body->compile(x64);
         x64->unwind->pop(this);
         
-        Storage var_storage;
+        Storage var_storage = get_var_storage();
         
-        if (value_var) {
-            Storage fn_storage(MEMORY, Address(RBP, 0));
-            var_storage = value_var->get_storage(fn_storage);
+        if (var_storage.where != NOWHERE)
             body->ts.create(s, var_storage, x64);
-        }
         
         eval_scope->finalize_contents(x64);
 

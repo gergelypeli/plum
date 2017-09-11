@@ -226,23 +226,23 @@ start? :Function as:
     :switch my_tree do:
         :when `TWO then:
             prints("Two-something.")
-            :continue
 
         :when `TWENTY then:
             prints("Twenty.")
+            :yield
             
         prints("Not any.")
-        :break
+        :yield
 
     :try
         nasty
     or:
         :when `BIG_ERROR then:
             prints("This was a big error!")
-            :continue
             
         :when `SMALL_ERROR then:
             prints("This was a small error!")
+            :yield
             
         prints("Too bad!")
 
