@@ -214,7 +214,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         }
         else if (c == '`') {
             type = Node::INITIALIZER;
-            back = TEXTUAL;
+            back = LITERAL;
             fore = TEXTUAL;
             text = token.text.substr(1);
         }
@@ -293,7 +293,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 parens.push_back(BRACE);
                 
                 type = Node::INITIALIZER;
-                back = TEXTUAL;
+                back = LITERAL;
                 fore = BASE;
             }
             else if (c == '}') {

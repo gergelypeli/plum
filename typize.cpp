@@ -622,9 +622,14 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         if (p)
             p->set_marker(marker);  // just in case
         
-        StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
+        if (p) {
+            StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
         
-        if (s) {
+            if (!s) {
+                std::cerr << "Invalid literal initializer!\n";
+                throw TYPE_ERROR;
+            }
+            
             if (name.size()) {
                 std::cerr << "No named initializers for string literals!\n";
                 throw TYPE_ERROR;
@@ -633,22 +638,15 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             value = interpolate(s->text, expr, scope);
         }
         else {
-            if (name.size() == 0)
-                name = "{}";
-            
-            TypeSpec ts;
-            TypeMatch match;
-            
-            if (typematch(ANY_TYPE_TS, p, match))
-                ts = match[1];
-            else if (context) {
-                ts = *context;
-            }
-            else {
-                std::cerr << "Initializer with neither explicit nor implicit type!\n";
+            if (!context) {
+                std::cerr << "Initializer without type context!\n";
                 throw TYPE_ERROR;
             }
             
+            if (name.size() == 0)
+                name = "{}";
+            
+            TypeSpec ts = *context;
             value = ts.lookup_initializer(name, scope);
             
             if (!value) {

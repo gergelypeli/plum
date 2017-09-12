@@ -267,6 +267,10 @@ start? :Function as:
     x3 = :try 55
 
     prints("Let's hope that {x3} == 55." {})
+    
+    x4? Integer :try 66
+
+    prints("Let's hope that {x4} == 66." {})
 
     :if `true then:
         last? 0

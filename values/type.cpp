@@ -1,20 +1,50 @@
 
 class TypeValue: public Value {
 public:
+    std::unique_ptr<Value> value;
+    
     TypeValue(TypeSpec ts)
         :Value(ts) {
     }
-    
-    virtual Regs precompile(Regs) {
-        return Regs();
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() > 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky type name!\n";
+            return false;
+        }
+        
+        if (args.size() == 0)
+            return true;
+            
+        ts = ts.unprefix(type_type);
+        
+        Value *v = typize(args[0].get(), scope, &ts);
+        TypeMatch match;
+        
+        if (!typematch(ts, v, match))
+            return false;
+            
+        value.reset(v);
+        return true;
     }
     
-    virtual Storage compile(X64 *) {
-        return Storage();
+    virtual Regs precompile(Regs preferred) {
+        if (value)
+            return value->precompile(preferred);
+        else
+            return Regs();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        if (value)
+            return value->compile(x64);
+        else
+            return Storage();
     }
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
-        TypeSpec var_ts = scope->variable_type_hint(ts.unprefix(type_type));
+        TypeSpec t = value ? ts : ts.unprefix(type_type);
+        TypeSpec var_ts = scope->variable_type_hint(t);
             
         return new Variable(name, scope->pivot_type_hint(), var_ts);
     }
@@ -183,7 +213,7 @@ public:
             Expr *e = args[i].get();
             
             if (e->type == Expr::IDENTIFIER) {
-                if (e->args.size() != 0 || e->kwargs.size() != 0) {
+                if (e->args.size() > 1 || e->kwargs.size() != 0) {
                     std::cerr << "Whacky treenum symbol!\n";
                     return false;
                 }
@@ -192,22 +222,20 @@ public:
                 
                 if (!x)
                     return false;
-            }
-            else if (e->type == Expr::INITIALIZER) {
-                if (!e->pivot || e->pivot->type != Expr::IDENTIFIER || e->kwargs.size() != 0) {
-                    std::cerr << "Whacky treenum subtree!\n";
-                    return false;
+                    
+                if (e->args.size() == 1) {
+                    Expr *f = e->args[0].get();
+                    
+                    if (f->type != Expr::INITIALIZER || f->kwargs.size() != 0) {
+                        std::cerr << "Whacky treenum subtree!\n";
+                        return false;
+                    }
+                    
+                    if (!parse_level(f->args))
+                        return false;
+                        
+                    tails[x] = keywords.size() - 1;
                 }
-
-                unsigned x = add_keyword(e->pivot->text);
-                
-                if (!x)
-                    return false;
-
-                if (!parse_level(e->args))
-                    return false;
-
-                tails[x] = keywords.size() - 1;
             }
             else {
                 std::cerr << "Whacky treenum syntax!\n";
