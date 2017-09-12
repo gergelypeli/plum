@@ -1,6 +1,4 @@
 
-class YieldValue;
-
 class YieldableValue: public Value {
 public:
     std::string eval_name;
@@ -37,7 +35,7 @@ public:
         scope->add(eval_scope);
         
         if (eval_name.size())
-            eval_scope->add(new TemplateIdentifier<YieldValue>(":" + eval_name, VOID_TS));
+            eval_scope->add(new Yield(":" + eval_name, eval_scope));
         
         if (ts != VOID_TS) {
             // Add the variable after the EvalScope, so it can survive the finalization
@@ -296,7 +294,7 @@ public:
     Variable *switch_var;
     
     SwitchValue(Value *v, TypeMatch &m)
-        :YieldableValue("") {
+        :YieldableValue("yield") {
         switch_scope = NULL;
         switch_var = NULL;
     }
@@ -562,7 +560,7 @@ public:
     bool may_be_aborted;
     
     TryValue(Value *v, TypeMatch &m)
-        :YieldableValue("") {
+        :YieldableValue("yield") {
         try_scope = NULL;
         switch_var = NULL;
         switch_scope = NULL;
@@ -685,9 +683,9 @@ class EvalValue: public YieldableValue {
 public:
     std::unique_ptr<Value> body;
     
-    EvalValue(Value *pivot, TypeMatch &match)
-        :YieldableValue("") {
-    }
+    //EvalValue(Value *pivot, TypeMatch &match)
+    //    :YieldableValue("") {
+    //}
 
     EvalValue(std::string en)
         :YieldableValue(en) {
@@ -772,14 +770,26 @@ class YieldValue: public Value {
 public:
     Declaration *dummy;
     std::unique_ptr<Value> value;
-    int exception_value;
-    Variable *value_var;
+    EvalScope *eval_scope;
+    //TypeSpec arg_ts;
+    //int exception_value;
+    //Variable *value_var;
     
-    YieldValue(Value *v, TypeMatch &m)
+    //YieldValue(Value *v, TypeMatch &m)
+    //    :Value(VOID_TS) {
+    //    dummy = NULL;
+    //    arg_ts = VOID_TS;
+    //    exception_value = 0;
+    //    value_var = NULL;
+    //}
+
+    YieldValue(EvalScope *es)
         :Value(VOID_TS) {
         dummy = NULL;
-        exception_value = 0;
-        value_var = NULL;
+        eval_scope = es;
+        //arg_ts = at;
+        //exception_value = ev;
+        //value_var = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -788,17 +798,17 @@ public:
             return false;
         }
         
-        EvalScope *eval_scope = scope->get_eval_scope();
-        if (!eval_scope) {
-            std::cerr << ":yield not in :eval!\n";
-            return false;
-        }
+        //EvalScope *eval_scope = scope->get_eval_scope();
+        //if (!eval_scope) {
+        //    std::cerr << ":yield not in :eval!\n";
+        //    return false;
+        //}
         
-        exception_value = eval_scope->get_exception_value();
+        //exception_value = eval_scope->get_exception_value();
         
-        TypeSpec vts = eval_scope->get_ts();
+        TypeSpec arg_ts = eval_scope->get_ts();
         
-        if (vts == VOID_TS) {
+        if (arg_ts == VOID_TS) {
             if (args.size() != 0) {
                 std::cerr << ":yield with arguments!\n";
                 return false;
@@ -810,11 +820,11 @@ public:
                 return false;
             }
 
-            Value *v = typize(args[0].get(), scope, &vts);
+            Value *v = typize(args[0].get(), scope, &arg_ts);
         
             TypeMatch match;
             
-            if (!typematch(vts, v, match)) {
+            if (!typematch(arg_ts, v, match)) {
                 std::cerr << "Wrong :yield result type!\n";
                 return false;
             }
@@ -822,7 +832,7 @@ public:
             value.reset(v);
         }
 
-        value_var = eval_scope->get_value_var();
+        //value_var = eval_scope->get_value_var();
         
         dummy = new Declaration;
         scope->add(dummy);
@@ -842,11 +852,11 @@ public:
             Storage s = value->compile(x64);
 
             Storage fn_storage(MEMORY, Address(RBP, 0));
-            Storage var_storage = value_var->get_storage(fn_storage);
+            Storage var_storage = eval_scope->get_value_var()->get_storage(fn_storage);
             value->ts.create(s, var_storage, x64);
         }
         
-        x64->op(MOVB, EXCEPTION_ADDRESS, exception_value);
+        x64->op(MOVB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
         x64->unwind->initiate(dummy, x64);
         return Storage();
     }

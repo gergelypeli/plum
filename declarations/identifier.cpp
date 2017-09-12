@@ -197,3 +197,18 @@ public:
         return new T(cpivot, match);
     }
 };
+
+
+class Yield: public Identifier {
+public:
+    EvalScope *eval_scope;
+    
+    Yield(std::string n, EvalScope *es)
+        :Identifier(n, VOID_TS) {
+        eval_scope = es;
+    }
+    
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_yield_value(eval_scope);
+    }
+};

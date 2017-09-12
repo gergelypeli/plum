@@ -122,6 +122,7 @@ Value *make_type_value(TypeSpec ts);
 Value *make_code_block_value(TypeSpec *context);
 Value *make_multi_value();
 Value *make_eval_value(std::string en);
+Value *make_yield_value(EvalScope *es);
 Value *make_scalar_conversion_value(Value *p);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name, TypeSpec *context);
@@ -372,8 +373,8 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));
     root_scope->add(new TemplateIdentifier<TryValue>(":try", VOID_TS));
-    root_scope->add(new TemplateIdentifier<EvalValue>(":eval", VOID_TS));
-    root_scope->add(new TemplateIdentifier<YieldValue>(":yield", VOID_TS));
+    //root_scope->add(new TemplateIdentifier<EvalValue>(":eval", VOID_TS));
+    //root_scope->add(new TemplateIdentifier<YieldValue>(":yield", VOID_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     

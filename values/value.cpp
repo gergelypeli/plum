@@ -234,6 +234,11 @@ Value *make_eval_value(std::string en) {
 }
 
 
+Value *make_yield_value(EvalScope *es) {
+    return new YieldValue(es);
+}
+
+
 Value *make_declaration_value(std::string name, TypeSpec *context) {
     return new DeclarationValue(name, context);
 }
