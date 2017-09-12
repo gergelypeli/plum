@@ -259,6 +259,14 @@ start? :Function as:
         44
         
     prints("Let's hope that {x3} == 33." {})
+    
+    x3 = :switch 1 do: :yield 44
+    
+    prints("Let's hope that {x3} == 44." {})
+    
+    x3 = :try 55
+
+    prints("Let's hope that {x3} == 55." {})
 
     :if `true then:
         last? 0

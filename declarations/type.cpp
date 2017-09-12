@@ -107,7 +107,7 @@ public:
             return;
             
         default:
-            std::cerr << "Unstorable type: " << name << "!\n";
+            std::cerr << "Unstorable type: " << name << " from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
         }
     }

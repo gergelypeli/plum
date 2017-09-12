@@ -70,10 +70,10 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() < 2) {
-            std::cerr << "Weird, I thought tuples contain at least two expressions!\n";
-            throw INTERNAL_ERROR;
-        }
+        //if (args.size() < 2) {
+        //    std::cerr << "Weird, I thought tuples contain at least two expressions!\n";
+        //    throw INTERNAL_ERROR;
+        //}
 
         if (kwargs.size() > 0) {
             std::cerr << "Labeled statements make no sense!\n";
