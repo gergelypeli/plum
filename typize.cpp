@@ -121,6 +121,7 @@ Value *make_function_call_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
 Value *make_code_block_value(TypeSpec *context);
 Value *make_multi_value();
+Value *make_eval_value(std::string en);
 Value *make_scalar_conversion_value(Value *p);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name, TypeSpec *context);
@@ -367,8 +368,6 @@ Scope *init_builtins() {
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
     root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", VOID_TS));
     root_scope->add(new TemplateIdentifier<ForEachValue>(":for", VOID_TS));
-    //root_scope->add(new TemplateIdentifier<BreakValue>(":break", VOID_TS));
-    //root_scope->add(new TemplateIdentifier<ContinueValue>(":continue", VOID_TS));
     root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", VOID_TS));
     root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));
@@ -606,6 +605,14 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         value = lookup(name, p, expr, scope, context);
 
         if (!value)
+            throw TYPE_ERROR;
+    }
+    else if (expr->type == Expr::EVAL) {
+        value = make_eval_value(expr->text);
+        value->set_token(expr->token);
+        value->set_context_ts(context);
+        
+        if (!value->check(expr->args, expr->kwargs, scope))
             throw TYPE_ERROR;
     }
     else if (expr->type == Expr::INITIALIZER) {

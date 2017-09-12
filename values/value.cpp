@@ -229,6 +229,11 @@ Value *make_multi_value() {
 }
 
 
+Value *make_eval_value(std::string en) {
+    return new EvalValue(en);
+}
+
+
 Value *make_declaration_value(std::string name, TypeSpec *context) {
     return new DeclarationValue(name, context);
 }

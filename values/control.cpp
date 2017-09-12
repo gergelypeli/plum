@@ -1,12 +1,16 @@
 
+class YieldValue;
+
 class YieldableValue: public Value {
 public:
+    std::string eval_name;
     EvalScope *eval_scope;
     Variable *value_var;
     TypeSpec *context;
     
-    YieldableValue()
+    YieldableValue(std::string en)
         :Value(VOID_TS) {  // may be overridden
+        eval_name = en;
         eval_scope = NULL;
         value_var = NULL;
         context = NULL;
@@ -29,8 +33,11 @@ public:
             }
         }
             
-        eval_scope = new EvalScope(ts, "");
+        eval_scope = new EvalScope(ts, eval_name);
         scope->add(eval_scope);
+        
+        if (eval_name.size())
+            eval_scope->add(new TemplateIdentifier<YieldValue>(":" + eval_name, VOID_TS));
         
         if (ts != VOID_TS) {
             // Add the variable after the EvalScope, so it can survive the finalization
@@ -289,7 +296,7 @@ public:
     Variable *switch_var;
     
     SwitchValue(Value *v, TypeMatch &m)
-        :YieldableValue() {
+        :YieldableValue("") {
         switch_scope = NULL;
         switch_var = NULL;
     }
@@ -555,7 +562,7 @@ public:
     bool may_be_aborted;
     
     TryValue(Value *v, TypeMatch &m)
-        :YieldableValue() {
+        :YieldableValue("") {
         try_scope = NULL;
         switch_var = NULL;
         switch_scope = NULL;
@@ -679,7 +686,11 @@ public:
     std::unique_ptr<Value> body;
     
     EvalValue(Value *pivot, TypeMatch &match)
-        :YieldableValue() {
+        :YieldableValue("") {
+    }
+
+    EvalValue(std::string en)
+        :YieldableValue(en) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

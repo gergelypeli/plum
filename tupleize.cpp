@@ -8,7 +8,7 @@ typedef GenericKwargs<Expr> Kwargs;
 class Expr {
 public:
     enum ExprType {
-        TUPLE, NUMBER, STRING, INITIALIZER, IDENTIFIER, CONTROL, DECLARATION
+        TUPLE, NUMBER, STRING, INITIALIZER, IDENTIFIER, CONTROL, EVAL, DECLARATION
     } type;
     Token token;
     std::string text;
@@ -61,6 +61,7 @@ public:
             type == INITIALIZER ? "INITIALIZER" :
             type == IDENTIFIER ? "IDENTIFIER" :
             type == CONTROL ? "CONTROL" :
+            type == EVAL ? "EVAL" :
             type == DECLARATION ? "DECLARATION" :
             throw TUPLE_ERROR
         );
@@ -159,16 +160,19 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         if (node.left)
             throw TUPLE_ERROR;
             
-        if (node.right) {
+        if (node.right)
             tupleize_into(e, nodes, node.right);
+        
+        return e;
+    }
+    else if (node.type == Node::EVAL) {
+        Expr *e = new Expr(Expr::EVAL, node.token, node.text);
+        
+        if (node.left)
+            throw TUPLE_ERROR;
             
-            //if (e->args.size() > 1)
-            //    throw INTERNAL_ERROR;  // This should be impossible by the precedence rules
-            //else if (e->args.size() == 1) {
-            //    e->set_pivot(e->args.back().release());
-            //    e->args.pop_back();
-            //}
-        }
+        if (node.right)
+            tupleize_into(e, nodes, node.right);
         
         return e;
     }

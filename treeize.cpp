@@ -52,7 +52,7 @@ public:
     enum NodeType {
         NONE, OPEN, CLOSE,
         NUMBER, STRING, INITIALIZER,
-        IDENTIFIER, LABEL, CONTROL, DECLARATION,
+        IDENTIFIER, LABEL, CONTROL, EVAL, DECLARATION,
         SEPARATOR
     } type;
     std::string text;
@@ -85,6 +85,7 @@ public:
             type == IDENTIFIER ? "IDENTIFIER" :
             type == LABEL ? "LABEL" :
             type == CONTROL ? "CONTROL" :
+            type == EVAL ? "EVAL" :
             type == DECLARATION ? "DECLARATION" :
             type == SEPARATOR ? "SEPARATOR" :
             throw TREE_ERROR
@@ -198,10 +199,18 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             text = token.text;
         }
         else if (c == ':') {
-            type = Node::CONTROL;
-            back = LITERAL;
-            fore = SEPARATING;
-            text = token.text.substr(1);
+            if (token.text.back() == ':') {
+                type = Node::EVAL;
+                back = LITERAL;
+                fore = SEPARATING;
+                text = token.text.substr(1, token.text.size() - 2);
+            }
+            else {
+                type = Node::CONTROL;
+                back = LITERAL;
+                fore = SEPARATING;
+                text = token.text.substr(1);
+            }
         }
         else if (c == '`') {
             type = Node::INITIALIZER;

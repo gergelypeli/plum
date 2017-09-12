@@ -252,9 +252,9 @@ start? :Function as:
     :for Stringiterator `new "Abcdef" each: c? do:
         prints("Iterating: {c}" {})
 
-    x3 = :eval
+    x3 = :lol:
         prints("Now yielding.")
-        :yield 33
+        :lol 33
         prints("Don't print this!")
         44
         

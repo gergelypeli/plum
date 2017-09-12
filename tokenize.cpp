@@ -112,19 +112,42 @@ std::vector<Token> tokenize(std::string buffer) {
             } while (isalnum(c) || c == '_' || c == '.');
         }
         else if (isalpha(c) || c == '_' || c == ':' || c == '`') {
-            bool prefixed = (c == ':' || c == '`');
+            char prefix = (c == ':' || c == '`' ? c : '\0');
+
+            // Allow middle colon as a shortcut for two colons
+            if (!prefix && buffer[i - 1] == ':') {
+                start -= 1;
+                prefix = ':';
+            }
             
             do {
                 i++;
                 c = buffer[i];
             } while (isalnum(c) || c == '_' || c == '.');
-            
-            if (!prefixed && (c == ':' || c == '?')) {
-                if (c == ':' && tokens.back().text == " separate")
-                    tokens.pop_back();
 
-                i++;
-                c = buffer[i];
+            // Implicit line continuation
+            if (!prefix && c == ':' && tokens.back().text == " separate")
+                tokens.pop_back();
+
+            if (c == ':') {
+                if (!prefix || prefix == ':') {
+                    i++;
+                    c = buffer[i];
+                }
+                else {
+                    std::cerr << "Invalid initializer-label token!\n";
+                    throw TOKEN_ERROR;
+                }
+            }
+            else if (c == '?') {
+                if (!prefix) {
+                    i++;
+                    c = buffer[i];
+                }
+                else {
+                    std::cerr << "Invalid something-declaration token!\n";
+                    throw TOKEN_ERROR;
+                }
             }
         }
         else if (is_paren(c)) {
