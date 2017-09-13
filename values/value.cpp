@@ -197,6 +197,7 @@ public:
 #include "record.cpp"
 #include "multi.cpp"
 #include "control.cpp"
+#include "stream.cpp"
 
 
 TypeSpec get_typespec(Value *value) {

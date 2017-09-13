@@ -1,8 +1,6 @@
 
 const long NO_EXCEPTION = 0;
 const long RETURN_EXCEPTION = -1;
-const long BREAK_EXCEPTION = -2;
-const long CONTINUE_EXCEPTION = -3;
 
 // Stage 4
 
@@ -452,90 +450,6 @@ Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec
     
     std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
     return NULL;
-}
-
-
-Value *interpolate(std::string text, Expr *expr, Scope *scope) {
-    std::vector<std::string> fragments = brace_split(text);
-    
-    if (expr->args.size() > 0) {
-        std::cerr << "String interpolation must use keyword arguments only!\n";
-        throw TYPE_ERROR;
-    }
-
-    // We must scope ourselves
-    //CodeScope *s = new CodeScope;
-    //scope->add(s);
-    //scope = s;
-    
-    Marker marker = scope->mark();
-    CodeBlockValue *block = new CodeBlockValue(NULL);
-    block->set_marker(marker);
-    
-    DeclarationValue *dv = make_declaration_by_value("<interpolated>", new StringBufferValue(100), scope);
-    //DeclarationValue *dv = new DeclarationValue("<result>");
-    //Value *initial_value = new StringBufferValue(100);
-    //dv->use(initial_value, scope);
-    Variable *v = dv->get_var();
-    block->add_statement(dv);
-
-    for (auto &kv : expr->kwargs) {
-        std::string keyword = kv.first;
-        Expr *expr = kv.second.get();
-        Value *keyword_value = typize(expr, scope);
-        //DeclarationValue *decl_value = new DeclarationValue(keyword);
-        //decl_value->use(keyword_value, scope);
-        DeclarationValue *decl_value = make_declaration_by_value(keyword, keyword_value, scope);
-        block->add_statement(decl_value);
-    }
-
-    bool identifier = false;
-    Expr streamify_expr(Expr::IDENTIFIER, expr->token, "streamify");
-    streamify_expr.add_arg(new Expr(Expr::IDENTIFIER, expr->token, "<interpolated>"));
-    
-    for (auto &fragment : fragments) {
-        Value *pivot;
-        TypeMatch match;
-        
-        if (identifier) {
-            // For explicit keywords, we only look up in the innermost scope.
-            // For identifiers, we look up outer scopes, but we don't need to look
-            // in inner scopes, because that would need a pivot value, which we don't have.
-            
-            for (Scope *s = scope; s; s = s->outer_scope) {
-                pivot = s->lookup(fragment, NULL, match);
-        
-                if (pivot)
-                    break;
-                else if (expr->kwargs.size() > 0)
-                    break;  // Look up only pseudo variables in this scope
-            }
-            
-            if (!pivot) {
-                std::cerr << "Cannot interpolate undefined {" << fragment << "}!\n";
-                throw TYPE_ERROR;
-            }
-        }
-        else {
-            pivot = make_string_literal_value(fragment);
-        }
-
-        Value *streamify = lookup("streamify", pivot, &streamify_expr, scope);
-        if (!streamify) {
-            std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
-            throw TYPE_ERROR;
-        }
-
-        block->add_statement(streamify);
-        identifier = !identifier;
-    }
-
-    Value *ret = make_variable_value(v, NULL);
-    TypeMatch match;  // kinda unnecessary
-    ret = new ArrayReallocValue(TWEAK, ret, match);
-    block->add_statement(ret, true);
-    
-    return make_code_value(block);
 }
 
 

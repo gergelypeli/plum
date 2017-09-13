@@ -21,8 +21,10 @@ public:
         Value *v = typize(args[0].get(), scope, &ts);
         TypeMatch match;
         
-        if (!typematch(ts, v, match))
+        if (!typematch(ts, v, match)) {
+            std::cerr << "Explicit type conversion failed!\n";
             return false;
+        }
             
         value.reset(v);
         return true;

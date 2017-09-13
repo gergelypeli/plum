@@ -277,6 +277,8 @@ start? :Function as:
         prints("Exiting.")
         :return
     
+    :hihi:if `true then: 1 else:if `false then: 0
+    
     prints("Don't print this!")
     
     :return
