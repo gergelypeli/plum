@@ -4,8 +4,8 @@ SHELL      = /bin/zsh
 DECLS      = declaration identifier scope type typespec basic record reference
 VALUES     = value literal function boolean integer array reference type block record multi generic control stream
 ARCHS      = ork x64 storage
-MODULES    = tokenize treeize tupleize typize util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
-SOURCES    = $(MODULES:%=%.cpp) arch/ork.h arch/x64.h arch/heap.h
+MODULES    = tokenize treeize tupleize typize util plum builtin $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
+SOURCES    = $(MODULES:%=%.cpp) builtin.h arch/ork.h arch/x64.h arch/heap.h
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=always
 

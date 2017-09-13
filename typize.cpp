@@ -4,8 +4,6 @@ const long RETURN_EXCEPTION = -1;
 
 // Stage 4
 
-class Value;
-
 class Declaration;
 class Type;
 class HeapType;
@@ -18,35 +16,8 @@ class FunctionScope;
 class Variable;
 class Function;
 
-Variable *variable_cast(Declaration *decl);
-HeapType *heap_type_cast(Type *t);
-
-Type *any_type = NULL;
-Type *same_type = NULL;
-Type *type_type = NULL;
-Type *ovalue_type = NULL;
-Type *lvalue_type = NULL;
-Type *code_type = NULL;
-Type *metatype_type = NULL;
-Type *void_type = NULL;
-Type *multi_type = NULL;
-Type *boolean_type = NULL;
-Type *integer_type = NULL;
-Type *integer32_type = NULL;
-Type *integer16_type = NULL;
-Type *integer8_type = NULL;
-Type *unsigned_integer_type = NULL;
-Type *unsigned_integer32_type = NULL;
-Type *unsigned_integer16_type = NULL;
-Type *unsigned_integer8_type = NULL;
-Type *character_type = NULL;
-Type *reference_type = NULL;
-Type *array_type = NULL;
-Type *enumeration_metatype = NULL;
-Type *treenumeration_metatype = NULL;
-Type *integer_metatype = NULL;
-Type *record_metatype = NULL;
-
+class Value;
+class DeclarationValue;
 
 class TypeSpec: public std::vector<Type *> {
 public:
@@ -73,41 +44,13 @@ typedef TypeSpec::iterator TypeSpecIter;
 typedef std::vector<TypeSpec> TypeMatch;
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
-TypeSpec BOGUS_TS;
-TypeSpec VOID_TS;
-TypeSpec MULTI_TS;
-TypeSpec MULTI_LVALUE_TS;
-TypeSpec ANY_TS;
-TypeSpec ANY_TYPE_TS;
-TypeSpec ANY_OVALUE_TS;
-TypeSpec ANY_LVALUE_TS;
-TypeSpec METATYPE_TS;
-TypeSpec TREENUMMETA_TS;
-TypeSpec BOOLEAN_TS;
-TypeSpec INTEGER_TS;
-TypeSpec INTEGER_LVALUE_TS;
-TypeSpec INTEGER_OVALUE_TS;
-TypeSpec BOOLEAN_LVALUE_TS;
-TypeSpec UNSIGNED_INTEGER8_TS;
-TypeSpec UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS;
-TypeSpec CHARACTER_TS;
-TypeSpec CHARACTER_LVALUE_TS;
-TypeSpec CHARACTER_ARRAY_REFERENCE_TS;
-TypeSpec CHARACTER_ARRAY_REFERENCE_LVALUE_TS;
-TypeSpec ANY_REFERENCE_TS;
-TypeSpec ANY_REFERENCE_LVALUE_TS;
-TypeSpec ANY_ARRAY_REFERENCE_TS;
-TypeSpec VOID_CODE_TS;
-TypeSpec BOOLEAN_CODE_TS;
-
-
-class DeclarationValue;
-
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
 
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
+Variable *variable_cast(Declaration *decl);
+HeapType *heap_type_cast(Type *t);
 std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 Variable *declaration_get_var(DeclarationValue *dv);
@@ -142,254 +85,10 @@ DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *s
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
 
 
+#include "builtin.h"
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
-
-
-struct {
-    const char *name;
-    OperationType operation;
-} integer_rvalue_operations[] = {
-    { "unary_minus", NEGATE },
-    { "unary_tilde", COMPLEMENT },
-    { "binary_exponent", EXPONENT },
-    { "binary_shift_left", SHIFT_LEFT },
-    { "binary_shift_right", SHIFT_RIGHT },
-    { "binary_star", MULTIPLY },
-    { "binary_slash", DIVIDE },
-    { "binary_percent", MODULO },
-    { "binary_and", AND },
-    { "binary_plus", ADD },
-    { "binary_minus", SUBTRACT },
-    { "binary_or", OR },
-    { "binary_xor", XOR },
-    { "is_equal", EQUAL },
-    { "not_equal", NOT_EQUAL },
-    { "is_less", LESS },
-    { "is_greater", GREATER },
-    { "not_greater", LESS_EQUAL },
-    { "not_less", GREATER_EQUAL },
-    //{ "incomparable", INCOMPARABLE },
-    //{ "compare",  },
-}, integer_lvalue_operations[] = {
-    { "assign other", ASSIGN },
-    { "assign_plus", ASSIGN_ADD },
-    { "assign_minus", ASSIGN_SUBTRACT },
-    { "assign_star", ASSIGN_MULTIPLY },
-    { "assign_slash", ASSIGN_DIVIDE },
-    { "assign_percent", ASSIGN_MODULO },
-    { "assign_and", ASSIGN_AND },
-    { "assign_or", ASSIGN_OR },
-    { "assign_xor", ASSIGN_XOR },
-    { "assign_shift_left", ASSIGN_SHIFT_LEFT },
-    { "assign_shift_right", ASSIGN_SHIFT_RIGHT }
-};
-
-
-Scope *init_builtins() {
-    Scope *root_scope = new Scope();
-
-    any_type = new SpecialType("<Any>", 0);
-    root_scope->add(any_type);
-
-    same_type = new SpecialType("<Same>", 0);
-    root_scope->add(same_type);
-
-    integer_metatype = new IntegerMetaType(":Integer");
-    root_scope->add(integer_metatype);
-
-    enumeration_metatype = new EnumerationMetaType(":Enumeration");
-    root_scope->add(enumeration_metatype);
-
-    treenumeration_metatype = new TreenumerationMetaType(":Treenumeration");
-    root_scope->add(treenumeration_metatype);
-
-    record_metatype = new RecordMetaType(":Record");
-    root_scope->add(record_metatype);
-    
-    type_type = new SpecialType("<Type>", 1);
-    root_scope->add(type_type);
-
-    void_type = new SpecialType("<Void>", 0);
-    root_scope->add(void_type);
-
-    metatype_type = new SpecialType("<Metatype>", 0);
-    root_scope->add(metatype_type);
-
-    multi_type = new SpecialType("<Multi>", 0);
-    root_scope->add(multi_type);
-
-    lvalue_type = new AttributeType("<Lvalue>");
-    root_scope->add(lvalue_type);
-    
-    ovalue_type = new AttributeType("Ovalue");
-    root_scope->add(ovalue_type);
-
-    code_type = new AttributeType("<Code>");
-    root_scope->add(code_type);
-    
-    boolean_type = new BooleanType("Boolean", 1);
-    root_scope->add(boolean_type);
-
-    character_type = new CharacterType("Character", 2);
-    root_scope->add(character_type);
-
-    integer_type = new IntegerType("Integer", 8, false);
-    root_scope->add(integer_type);
-    
-    integer32_type = new IntegerType("Integer32", 4, false);
-    root_scope->add(integer32_type);
-    
-    integer16_type = new IntegerType("Integer16", 2, false);
-    root_scope->add(integer16_type);
-    
-    integer8_type = new IntegerType("Integer8", 1, false);
-    root_scope->add(integer8_type);
-
-    unsigned_integer_type = new IntegerType("Unteger", 8, true);
-    root_scope->add(unsigned_integer_type);
-    
-    unsigned_integer32_type = new IntegerType("Unteger32", 4, true);
-    root_scope->add(unsigned_integer32_type);
-    
-    unsigned_integer16_type = new IntegerType("Unteger16", 2, true);
-    root_scope->add(unsigned_integer16_type);
-    
-    unsigned_integer8_type = new IntegerType("Unteger8", 1, true);
-    root_scope->add(unsigned_integer8_type);
-
-    reference_type = new ReferenceType("Reference");
-    root_scope->add(reference_type);
-    
-    array_type = new HeapType("Array", 1);
-    root_scope->add(array_type);
-
-    // BOGUS_TS will contain no Type pointers
-    ANY_TS = { any_type };
-    ANY_TYPE_TS = { type_type, any_type };
-    ANY_LVALUE_TS = { lvalue_type, any_type };
-    ANY_OVALUE_TS = { ovalue_type, any_type };
-    METATYPE_TS = { metatype_type };
-    TREENUMMETA_TS = { treenumeration_metatype };
-    VOID_TS = { void_type };
-    MULTI_TS = { multi_type };
-    MULTI_LVALUE_TS = { lvalue_type, multi_type };
-    BOOLEAN_TS = { boolean_type };
-    INTEGER_TS = { integer_type };
-    INTEGER_LVALUE_TS = { lvalue_type, integer_type };
-    INTEGER_OVALUE_TS = { ovalue_type, integer_type };
-    BOOLEAN_LVALUE_TS = { lvalue_type, boolean_type };
-    UNSIGNED_INTEGER8_TS = { unsigned_integer8_type };
-    UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS = { reference_type, array_type, unsigned_integer8_type };
-    CHARACTER_TS = { character_type };
-    CHARACTER_LVALUE_TS = { lvalue_type, character_type };
-    CHARACTER_ARRAY_REFERENCE_TS = { reference_type, array_type, character_type };
-    CHARACTER_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, character_type };
-    ANY_REFERENCE_TS = { reference_type, any_type };
-    ANY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, any_type };
-    ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
-    VOID_CODE_TS = { code_type, void_type };
-    BOOLEAN_CODE_TS = { code_type, boolean_type };
-
-    typedef std::vector<TypeSpec> TSs;
-    TSs NO_TSS = { };
-    TSs INTEGER_TSS = { INTEGER_TS };
-    TSs BOOLEAN_TSS = { BOOLEAN_TS };
-    TSs UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
-    TSs UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS = { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS };
-    TSs CHARACTER_ARRAY_REFERENCE_TSS = { CHARACTER_ARRAY_REFERENCE_TS };
-
-    typedef std::vector<std::string> Ss;
-    Ss no_names = { };
-    Ss value_names = { "value" };
-
-    // Integer operations
-    Scope *integer_scope = integer_metatype->get_inner_scope();
-    
-    for (auto &item : integer_rvalue_operations)
-        integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_TS, item.operation));
-
-    for (auto &item : integer_lvalue_operations)
-        integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
-
-    integer_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
-    
-    // Character operations
-    Scope *char_scope = character_type->get_inner_scope();
-    char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
-    char_scope->add(new TemplateIdentifier<CharacterStreamificationValue>("streamify", CHARACTER_TS));
-    
-    // Boolean operations
-    Scope *bool_scope = boolean_type->get_inner_scope();
-    bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
-
-    // Logical operations, unscoped
-    root_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", ANY_TS));
-    root_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and", BOOLEAN_TS));
-    root_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", ANY_TS));
-
-    // Enum operations
-    Scope *enum_scope = enumeration_metatype->get_inner_scope();
-    enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
-    enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    enum_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
-    enum_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
-
-    // Treenum operations
-    Scope *treenum_scope = treenumeration_metatype->get_inner_scope();
-    treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
-    treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    treenum_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
-    treenum_scope->add(new TemplateOperation<TreenumCoveringValue>("cover", ANY_TS, TWEAK));
-
-    // Record operations
-    Scope *record_scope = record_metatype->get_inner_scope();
-    record_scope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
-
-    // Reference operations, unscoped
-    typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
-    root_scope->add(new ReferenceOperation("assign other", ANY_REFERENCE_LVALUE_TS, ASSIGN));
-    root_scope->add(new ReferenceOperation("is_equal", ANY_REFERENCE_TS, EQUAL));
-    root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
-
-    // Array operations
-    Scope *array_scope = array_type->get_inner_scope();
-    array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_REFERENCE_TS));
-    array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
-    array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    array_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS));
-    
-    // Unpacking
-    root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
-    
-    // Builtin controls, unscoped
-    root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
-    root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", VOID_TS));
-    root_scope->add(new TemplateIdentifier<ForEachValue>(":for", VOID_TS));
-    root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", VOID_TS));
-    root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
-    root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));
-    root_scope->add(new TemplateIdentifier<TryValue>(":try", VOID_TS));
-    //root_scope->add(new TemplateIdentifier<EvalValue>(":eval", VOID_TS));
-    //root_scope->add(new TemplateIdentifier<YieldValue>(":yield", VOID_TS));
-    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
-    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
-    
-    // Library functions, unscoped
-    root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }, NULL));
-    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS }, NULL));
-
-    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }, NULL));
-    root_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
-    //root_scope->add(new ImportedFunction("streamify_string", "streamify", CHARACTER_ARRAY_REFERENCE_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
-
-    return root_scope;
-}
+#include "builtin.cpp"
 
 
 Value *lookup_scope(Scope *s, std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
