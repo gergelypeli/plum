@@ -185,6 +185,54 @@ public:
 };
 
 
+class RoleValue: public Value {
+public:
+    Variable *variable;
+    std::unique_ptr<Value> pivot;
+    Register reg;
+    
+    RoleValue(Variable *v, Value *p)
+        :Value(v->var_ts.rvalue().unprefix(role_type).prefix(borrowed_type)) {
+        variable = v;
+        pivot.reset(p);
+        reg = NOREG;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot ? pivot->precompile(preferred) : Regs();
+            
+        if (!variable->xxx_is_allocated)
+            throw INTERNAL_ERROR;
+            
+        return clob;
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // Store a VT pointer and a data pointer onto the stack
+        Storage s;
+        
+        if (pivot) {
+            Label vtl = pivot->ts.get_virtual_table_label();
+            int vti = variable->virtual_index;
+            
+            x64->op(LEARIP, RBX, vtl);
+            x64->op(ADDQ, RBX, vti * 4);  // virtual table stores 32-bit relative offsets
+            x64->op(PUSHQ, RBX);
+            
+            s = pivot->compile(x64);
+        }
+        else
+            throw INTERNAL_ERROR;  // TODO: allow function Role-s?
+            //s = Storage(MEMORY, Address(RBP, 0));
+        
+        Storage t = variable->get_storage(s);
+        variable->var_ts.store(t, Storage(ALISTACK), x64);
+        
+        return Storage(STACK);
+    }
+};
+
+
 #include "generic.cpp"
 #include "literal.cpp"
 #include "block.cpp"
@@ -207,6 +255,11 @@ TypeSpec get_typespec(Value *value) {
 
 Value *make_variable_value(Variable *decl, Value *pivot) {
     return new VariableValue(decl, pivot);
+}
+
+
+Value *make_role_value(Variable *decl, Value *pivot) {
+    return new RoleValue(decl, pivot);
 }
 
 
@@ -327,6 +380,11 @@ Value *make_record_definition_value() {
 
 Value *make_record_initializer_value(Variable *var) {
     return new RecordInitializerValue(var);
+}
+
+
+Value *make_class_definition_value() {
+    return new ClassDefinitionValue();
 }
 
 

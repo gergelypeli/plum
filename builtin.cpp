@@ -59,6 +59,9 @@ Scope *init_builtins() {
 
     record_metatype = new RecordMetaType(":Record");
     root_scope->add(record_metatype);
+
+    class_metatype = new ClassMetaType(":Class");
+    root_scope->add(class_metatype);
     
     type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);
@@ -80,6 +83,9 @@ Scope *init_builtins() {
 
     code_type = new AttributeType("<Code>");
     root_scope->add(code_type);
+
+    role_type = new AttributeType("Role");
+    root_scope->add(role_type);
     
     boolean_type = new BooleanType("Boolean", 1);
     root_scope->add(boolean_type);
@@ -113,6 +119,9 @@ Scope *init_builtins() {
 
     reference_type = new ReferenceType("Reference");
     root_scope->add(reference_type);
+
+    borrowed_type = new BorrowedReferenceType("Borrowed");
+    root_scope->add(borrowed_type);
     
     array_type = new HeapType("Array", 1);
     root_scope->add(array_type);

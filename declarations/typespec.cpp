@@ -105,6 +105,18 @@ unsigned TypeSpec::measure(StorageWhere where) {
 }
 
 
+std::vector<Function *> TypeSpec::get_virtual_table() {
+    TypeSpecIter tsi(begin());
+    return (*tsi)->get_virtual_table(tsi);
+}
+
+
+Label TypeSpec::get_virtual_table_label() {
+    TypeSpecIter tsi(begin());
+    return (*tsi)->get_virtual_table_label(tsi);
+}
+
+
 void TypeSpec::store(Storage s, Storage t, X64 *x64) {
     TypeSpecIter tsi(begin());
     return (*tsi)->store(tsi, s, t, x64);

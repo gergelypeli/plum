@@ -2,13 +2,20 @@
 class RecordType: public Type {
 public:
     Scope *inner_scope;
+    Label virtual_table_label;
+    
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
 
-    RecordType(std::string n)
+    RecordType(std::string n, Label vtl)
         :Type(n, 0) {
+        virtual_table_label = vtl;
         inner_scope = NULL;
+    }
+
+    virtual Label get_virtual_table_label(TypeSpecIter tsi) {
+        return virtual_table_label;
     }
     
     virtual void set_inner_scope(Scope *is) {
@@ -142,3 +149,88 @@ public:
     }
 };
 
+
+class ClassType: public Type {
+public:
+    DataScope *inner_scope;
+    std::vector<Variable *> member_variables;
+    Label virtual_table_label;
+
+    ClassType(std::string name, Label vtl)
+        :Type(name, 0) {
+        virtual_table_label = vtl;
+        inner_scope = NULL;
+    }
+
+    virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
+        return inner_scope->get_virtual_table();
+    }
+
+    virtual void set_inner_scope(DataScope *is) {
+        inner_scope = is;
+        
+        for (auto &c : inner_scope->contents) {
+            Variable *v = dynamic_cast<Variable *>(c.get());
+            
+            if (v) {
+                member_variables.push_back(v);
+                //member_tss.push_back(v->var_ts.rvalue());
+                //member_names.push_back(v->name);
+            }
+        }
+        
+        std::cerr << "Class " << name << " has " << member_variables.size() << " member variables.\n";
+    }
+
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+        switch (where) {
+        case MEMORY:
+            return inner_scope->get_size();
+        default:
+            return Type::measure(tsi, where);
+        }
+    }
+
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        Type::store(tsi, s, t, x64);
+    }
+
+    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        // Assume the target MEMORY is uninitialized
+        
+        switch (s.where * t.where) {
+        case NOWHERE_MEMORY:
+            for (auto &var : member_variables)
+                var->var_ts.create(Storage(), Storage(MEMORY, t.address + var->offset), x64);
+            return;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual void destroy(TypeSpecIter , Storage s, X64 *x64) {
+        if (s.where == MEMORY) {
+            for (auto &var : member_variables)  // FIXME: reverse!
+                var->var_ts.destroy(Storage(MEMORY, s.address + var->offset), x64);
+        }
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual StorageWhere where(TypeSpecIter, bool is_arg, bool is_lvalue) {
+        return (is_arg ? throw INTERNAL_ERROR : (is_lvalue ? MEMORY : throw INTERNAL_ERROR));
+    }
+
+    virtual Storage boolval(TypeSpecIter , Storage s, X64 *x64, bool probe) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+        std::cerr << "No class initializer called " << name << "!\n";
+        return NULL;
+    }
+
+    virtual Scope *get_inner_scope() {
+        return inner_scope;
+    }
+};

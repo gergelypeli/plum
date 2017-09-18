@@ -30,12 +30,14 @@ class Variable: public Identifier {
 public:
     TypeSpec var_ts;
     int offset;
+    int virtual_index;
     bool xxx_is_allocated;
     StorageWhere where;
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts)
         :Identifier(name, pts) {
         offset = 0;
+        virtual_index = -1;
         var_ts = vts;
         
         if (var_ts == BOGUS_TS)
@@ -51,7 +53,10 @@ public:
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable
-        return make_variable_value(this, cpivot);
+        if (var_ts[0] == lvalue_type && var_ts[1] == role_type)
+            return make_role_value(this, cpivot);
+        else
+            return make_variable_value(this, cpivot);
     }
     
     virtual void allocate() {
@@ -59,6 +64,10 @@ public:
             throw INTERNAL_ERROR;
             
         offset = outer_scope->reserve(var_ts.measure(where));
+
+        if (var_ts[0] == lvalue_type && var_ts[1] == role_type) {
+            virtual_index = outer_scope->virtual_reserve(var_ts.get_virtual_table());
+        }
         
         xxx_is_allocated = true;
         //std::cerr << "Variable " << name << " offset is " << offset << "\n";
@@ -99,6 +108,7 @@ public:
     std::vector<std::string> arg_names;
     std::vector<TypeSpec> res_tss;
     Type *exception_type;
+    int virtual_index;
 
     Label x64_label;
     bool is_sysv;
@@ -109,6 +119,7 @@ public:
         arg_names = ans;
         res_tss = rts;
         exception_type = et;
+        virtual_index = -1;
         
         is_sysv = false;
     }
@@ -131,6 +142,14 @@ public:
     
     virtual std::vector<std::string> &get_argument_names() {
         return arg_names;
+    }
+
+    virtual void allocate() {
+        if (outer_scope->is_virtual_scope()) {
+            std::vector<Function *> vt;
+            vt.push_back(this);
+            virtual_index = outer_scope->virtual_reserve(vt);
+        }
     }
 };
 

@@ -26,6 +26,8 @@ public:
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
     
     unsigned measure(StorageWhere where);
+    std::vector<Function *> get_virtual_table();
+    Label get_virtual_table_label();
     StorageWhere where(bool is_arg);
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
@@ -58,6 +60,7 @@ bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 
 Value *make_variable_value(Variable *decl, Value *pivot);
+Value *make_role_value(Variable *decl, Value *pivot);
 Value *make_function_call_value(Function *decl, Value *pivot);
 Value *make_type_value(TypeSpec ts);
 Value *make_code_block_value(TypeSpec *context);
@@ -80,6 +83,7 @@ Value *make_enumeration_definition_value();
 Value *make_treenumeration_definition_value();
 Value *make_record_definition_value();
 Value *make_record_initializer_value(Variable *var);
+Value *make_class_definition_value();
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
@@ -130,7 +134,7 @@ Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec
     unsigned i = 0;
     if (pts[i] == lvalue_type || pts[i] == ovalue_type || pts[i] == code_type)
         i++;
-    if (pts[i] == reference_type)
+    if (pts[i] == reference_type || pts[i] == borrowed_type)
         i++;
         
     Scope *inner_scope = pts[i]->get_inner_scope();

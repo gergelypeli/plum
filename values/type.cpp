@@ -1,4 +1,21 @@
 
+void compile_virtual_table(X64 *x64, std::string name, Label label, Scope *inner_scope) {
+    std::vector<Function *> vt = inner_scope->get_virtual_table();
+    
+    if (vt.size() > 0) {
+        x64->data_align();
+        x64->data_label_export(label, "vmt_" + name, 0, false);
+    
+        for (auto f : vt) {
+            if (f)
+                x64->data_reference(f->x64_label);
+            else
+                x64->data_dword(0);  // data references are now 32-bit relative addresses
+        }
+    }
+}
+
+
 class TypeValue: public Value {
 public:
     std::unique_ptr<Value> value;
@@ -303,29 +320,10 @@ public:
     RecordType *record_type;
     std::unique_ptr<DataBlockValue> data_value;
     std::vector<Expr *> deferred_exprs;
+    Label virtual_table_label;
     
     RecordDefinitionValue()
         :Value(METATYPE_TS) {
-    }
-
-    Expr *make_equality(std::vector<std::string> member_names) {
-        Expr *expr = NULL;
-        
-        for (auto &member_name : member_names) {
-            Expr *c = mkexpr("is_equal", mkexpr(member_name, mkexpr("$")), mkexpr(member_name, mkexpr("other")));
-        
-            if (expr)
-                expr = mkexpr("logical and", expr, c);
-            else
-                expr = c;
-        }
-    
-        Expr *fn = mkctrl("Function", mkexpr("Boolean"),
-            "from", mkdecl("other", mkexpr("<datatype>")),
-            "as", mkctrl("return", expr)
-        );
-
-        return mkdecl("is_equal", fn);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -334,7 +332,7 @@ public:
             return false;
         }
 
-        record_type = new RecordType("<anonymous>");
+        record_type = new RecordType("<anonymous>", virtual_table_label);
 
         inner_scope = new DataScope;
         scope->add(inner_scope);
@@ -361,13 +359,11 @@ public:
         for (auto &item : inner_scope->contents) {
             Variable *var = dynamic_cast<Variable *>(item.get());
             
-            if (var)
+            if (var && (var->var_ts[0] != lvalue_type || var->var_ts[1] != role_type))
                 member_names.push_back(var->name);
         }
 
         // TODO: this should be a fallback if the user didn't define his own
-        //Value *eq = typize(make_equality(member_names), inner_scope);
-        //values.push_back(std::unique_ptr<Value>(eq));
         if (!data_value->check_statement(make_equality(member_names)))
             return false;
 
@@ -385,6 +381,8 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
+        compile_virtual_table(x64, record_type->name, virtual_table_label, inner_scope);
+
         return data_value->compile(x64);
     }
 
@@ -395,6 +393,90 @@ public:
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
         record_type->set_name(name);
         return record_type;
+    }
+};
+
+
+class ClassDefinitionValue: public Value {
+public:
+    DataScope *inner_scope;
+    ClassType *class_type;
+    std::unique_ptr<DataBlockValue> data_value;
+    std::vector<Expr *> deferred_exprs;
+    Label virtual_table_label;
+    
+    ClassDefinitionValue()
+        :Value(METATYPE_TS) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (kwargs.size() != 0) {
+            std::cerr << "Whacky role!\n";
+            return false;
+        }
+
+        class_type = new ClassType("<anonymous>", virtual_table_label);
+
+        inner_scope = new DataScope;
+        inner_scope->be_virtual_scope();
+        
+        scope->add(inner_scope);
+        inner_scope->set_pivot_type_hint(TypeSpec { borrowed_type, class_type });
+        inner_scope->set_meta_scope(record_metatype->get_inner_scope());
+
+        for (auto &a : args)
+            deferred_exprs.push_back(a.get());
+            
+        std::cerr << "Deferring class definition.\n";
+        return true;
+    }
+
+    virtual bool complete_definition() {
+        std::cerr << "Completing class definition.\n";
+        data_value.reset(new DataBlockValue(inner_scope));
+        
+        for (Expr *expr : deferred_exprs)
+            if (!data_value->check_statement(expr))
+                return false;
+        /*
+        std::vector<std::string> member_names;
+        
+        for (auto &item : inner_scope->contents) {
+            Variable *var = dynamic_cast<Variable *>(item.get());
+            
+            if (var)
+                member_names.push_back(var->name);
+        }
+
+        // TODO: this should be a fallback if the user didn't define his own
+        if (!data_value->check_statement(make_equality(member_names)))
+            return false;
+        */
+        if (!data_value->complete_definition())
+            return false;
+
+        class_type->set_inner_scope(inner_scope);
+
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return data_value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        compile_virtual_table(x64, class_type->name, virtual_table_label, inner_scope);
+
+        return data_value->compile(x64);
+    }
+
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
+        return NULL;
+    }
+
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
+        class_type->set_name(name);
+        return class_type;
     }
 };
 

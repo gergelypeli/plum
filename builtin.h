@@ -19,11 +19,14 @@ Type *unsigned_integer16_type = NULL;
 Type *unsigned_integer8_type = NULL;
 Type *character_type = NULL;
 Type *reference_type = NULL;
+Type *borrowed_type = NULL;
+Type *role_type = NULL;
 Type *array_type = NULL;
 Type *enumeration_metatype = NULL;
 Type *treenumeration_metatype = NULL;
 Type *integer_metatype = NULL;
 Type *record_metatype = NULL;
+Type *class_metatype = NULL;
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;

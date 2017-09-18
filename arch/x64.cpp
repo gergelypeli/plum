@@ -189,6 +189,11 @@ void X64::done(std::string filename) {
             case DEF_DATA_EXPORT:
                 *(int *)&data[r.location] += d.location - r.location;
                 break;
+            case DEF_CODE:
+            case DEF_CODE_EXPORT:
+                *(int *)&data[r.location] += d.location;
+                ork->data_relocation(code_symbol_index, r.location);
+                break;
             default:
                 std::cerr << "Can't relocate relative to this symbol!\n";
                 throw X64_ERROR;
@@ -221,6 +226,11 @@ void X64::add_def(Label label, const Def &def) {
     //    throw X64_ERROR;
 
     defs.insert(decltype(defs)::value_type(label.def_index, def));
+}
+
+
+void X64::data_align() {
+    data.resize((data.size() + 7) & ~7);  // 8-byte alignment
 }
 
 
@@ -986,10 +996,8 @@ void X64::op(JumpOp opcode, Label c) {
         code_op(0xE9);
         code_reference(c);
     }
-    else if (opcode == LOOP) {
-        code_op(0xE2);
-        code_reference(c);
-    }
+    else
+        throw X64_ERROR;
 }
 
 
@@ -997,8 +1005,23 @@ void X64::op(JumpOp opcode, Address x) {
     if (opcode == CALL) {
         code_op(0xFF, OPSIZE_DEFAULT, 2, x);
     }
+    else if (opcode == JMP) {
+        code_op(0xFF, OPSIZE_DEFAULT, 4, x);
+    }
     else
-        std::cerr << "Whacky jump!\n\a";
+        throw X64_ERROR;
+}
+
+
+void X64::op(JumpOp opcode, Register x) {
+    if (opcode == CALL) {
+        code_op(0xFF, OPSIZE_DEFAULT, 2, x);
+    }
+    else if (opcode == JMP) {
+        code_op(0xFF, OPSIZE_DEFAULT, 4, x);
+    }
+    else
+        throw X64_ERROR;
 }
 
 

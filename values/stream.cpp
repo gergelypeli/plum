@@ -145,7 +145,7 @@ public:
         x64->op(ANDQ, RDX, 0xFF);
         x64->op(SHLQ, RDX, 2);  // 32-bit relative offsets are stored in our table
         x64->op(ADDQ, RBX, RDX);  // entry start
-        x64->op(MOVSXQ, RDX, Address(RBX, 0));  // offset to string
+        x64->op(MOVSXDQ, RDX, Address(RBX, 0));  // offset to string
         x64->op(ADDQ, RDX, RBX);  // absolute address of string
             
         x64->op(MOVQ, RAX, Address(RDI, 0));

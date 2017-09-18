@@ -272,7 +272,8 @@ public:
             std::cerr << "Whacky declaration!\n";
             return false;
         }
-        
+
+        std::cerr << "Trying to declare " << name << "\n";
         Value *v;
         
         if (args.size() == 0) {

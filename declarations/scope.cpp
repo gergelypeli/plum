@@ -4,10 +4,13 @@ class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
     unsigned size;
+    std::vector<Function *> virtual_table;
+    bool virtual_scope;
     
     Scope()
         :Declaration() {
         size = 0;
+        virtual_scope = false;
     }
     
     virtual void add(Declaration *decl) {
@@ -84,7 +87,7 @@ public:
     virtual bool is_pure() {
         throw INTERNAL_ERROR;
     }
-    
+
     virtual TypeSpec variable_type_hint(TypeSpec t) {
         TypeSpec ts = t;
         TypeSpecIter tsi(ts.begin());
@@ -160,6 +163,24 @@ public:
             
             return true;
         }
+    }
+
+    virtual bool is_virtual_scope() {
+        return virtual_scope;
+    }
+    
+    virtual void be_virtual_scope() {
+        virtual_scope = true;
+    }
+
+    virtual int virtual_reserve(std::vector<Function *> vt) {
+        int virtual_index = virtual_table.size();
+        virtual_table.insert(virtual_table.end(), vt.begin(), vt.end());
+        return virtual_index;
+    }
+    
+    virtual std::vector<Function *> get_virtual_table() {
+        return virtual_table;
     }
 };
 

@@ -130,6 +130,14 @@ public:
     virtual Scope *get_inner_scope() {
         return NULL;
     }
+    
+    virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Label get_virtual_table_label(TypeSpecIter tsi) {
+        throw INTERNAL_ERROR;
+    }
 };
 
 
@@ -195,6 +203,16 @@ public:
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
         tsi++;
         return (*tsi)->lookup_initializer(tsi, n, scope);
+    }
+
+    virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
+        tsi++;
+        return (*tsi)->get_virtual_table(tsi);
+    }
+
+    virtual Label get_virtual_table_label(TypeSpecIter tsi) {
+        tsi++;
+        return (*tsi)->get_virtual_table_label(tsi);
     }
 };
 
@@ -291,6 +309,24 @@ public:
             return NULL;
             
         return make_record_definition_value();
+    }
+};
+
+
+class ClassMetaType: public MetaType {
+public:
+    ClassMetaType(std::string name)
+        :MetaType(name) {
+    }
+    
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+        if (name != this->name)
+            return NULL;
+            
+        if (!typematch(VOID_TS, pivot, match))
+            return NULL;
+            
+        return make_class_definition_value();
     }
 };
 

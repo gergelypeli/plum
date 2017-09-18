@@ -194,8 +194,10 @@ public:
             else
                 throw INTERNAL_ERROR;
         }
-            
-        function = new Function(name, scope->pivot_type_hint(), arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+        
+        TypeSpec pivot_ts = scope->pivot_type_hint();
+        std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
+        function = new Function(name, pivot_ts, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
         
         return function;
     }
@@ -392,20 +394,25 @@ public:
         
         switch (res_ts.where(true)) {
         case MEMORY:
+            s = Storage(STACK);
+            
             switch (res_ts.where(false)) {
             case REGISTER:
-                s = Storage(STACK);
                 t = Storage(REGISTER, reg);
+                break;
+            case STACK:
+                t = Storage(STACK);
                 break;
             default:
                 throw INTERNAL_ERROR;
             }
             break;
         case ALIAS:
+            s = Storage(ALISTACK);
+            
             switch (res_ts.where(false)) {
             case MEMORY:
                 // Pop the address into a MEMORY with a dynamic base register
-                s = Storage(ALISTACK);
                 t = Storage(MEMORY, Address(reg, 0));
                 break;
             default:
@@ -461,7 +468,22 @@ public:
         if (function->is_sysv && passed_size > 0)
             sysv_prologue(x64, passed_size);
         
-        x64->op(CALL, function->x64_label);
+        int vti = function->virtual_index;
+        if (vti >= 0) {
+            if (!pivot)
+                throw INTERNAL_ERROR;
+            
+            if (pivot->ts[0] != borrowed_type)
+                throw INTERNAL_ERROR;
+                
+            x64->op(MOVQ, RBX, Address(RSP, passed_size - 8));
+            x64->op(MOVSXDQ, RBX, Address(RBX, vti * 4));
+            x64->op(ADDQ, RBX, Address(RSP, passed_size - 8));
+            x64->op(CALL, RBX);
+            std::cerr << "Will invoke virtual method of " << pivot->ts << " #" << vti << ".\n";
+        }
+        else
+            x64->op(CALL, function->x64_label);
         
         if (function->is_sysv && !is_void)
             sysv_epilogue(x64, passed_size);

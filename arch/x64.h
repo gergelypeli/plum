@@ -255,7 +255,7 @@ enum MemoryOp {
 
 enum RegisterFirstOp {
     IMUL2W=1, IMUL2D, IMUL2Q,
-    MOVSXQ=7
+    MOVSXDQ=7
 };
 
 RegisterFirstOp operator%(RegisterFirstOp x, int y) { return (RegisterFirstOp)((x & ~3) | (y & 3)); }
@@ -285,7 +285,7 @@ enum BranchOp {
 
 
 enum JumpOp {
-    CALL, JMP, LOOP
+    CALL, JMP
 };
 
 
@@ -382,6 +382,7 @@ public:
     
     void add_def(Label label, const Def &def);
 
+    void data_align();
     void data_byte(char x);
     void data_word(short x);
     void data_dword(int x);
@@ -463,6 +464,7 @@ public:
     void op(BranchOp opcode, Label c);
     void op(JumpOp opcode, Label c);
     void op(JumpOp opcode, Address x);
+    void op(JumpOp opcode, Register x);
     void op(ConstantOp opcode, int x);
 
     void pusha(bool except_rax = false);

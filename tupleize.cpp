@@ -351,3 +351,37 @@ Expr *mkdecl(std::string name, Expr *arg) {
         
     return e;
 }
+
+
+Expr *mkinit(std::string name, Expr *arg = NULL) {
+    Expr *e = new Expr(Expr::INITIALIZER, Token(), name);
+    
+    if (arg)
+        e->add_arg(arg);
+        
+    return e;
+}
+
+
+Expr *make_equality(std::vector<std::string> member_names) {
+    Expr *expr = NULL;
+    
+    for (auto &member_name : member_names) {
+        Expr *c = mkexpr("is_equal", mkexpr(member_name, mkexpr("$")), mkexpr(member_name, mkexpr("other")));
+    
+        if (expr)
+            expr = mkexpr("logical and", expr, c);
+        else
+            expr = c;
+    }
+
+    if (!expr)
+        expr = mkinit("true");
+
+    Expr *fn = mkctrl("Function", mkexpr("Boolean"),
+        "from", mkdecl("other", mkexpr("<datatype>")),
+        "as", mkctrl("return", expr)
+    );
+
+    return mkdecl("is_equal", fn);
+}
