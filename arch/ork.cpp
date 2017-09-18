@@ -111,28 +111,28 @@ void Ork::done(std::string filename) {
     
     // code relocations
     shdr[4].sh_name = 26;
-    shdr[4].sh_type = SHT_REL;
+    shdr[4].sh_type = SHT_RELA;
     shdr[4].sh_flags = 0;
     shdr[4].sh_addr = 0;
     shdr[4].sh_offset = offset;
-    shdr[4].sh_size = code_relocations.size() * sizeof(Elf64_Rel);
+    shdr[4].sh_size = code_relocations.size() * sizeof(Elf64_Rela);
     shdr[4].sh_link = 3;    // Take symbols from here
     shdr[4].sh_info = 6;    // Put relocations here
     shdr[4].sh_addralign = 0;
-    shdr[4].sh_entsize = sizeof(Elf64_Rel);
+    shdr[4].sh_entsize = sizeof(Elf64_Rela);
     offset += shdr[4].sh_size;
     
     // data relocations
     shdr[5].sh_name = 35;
-    shdr[5].sh_type = SHT_REL;
+    shdr[5].sh_type = SHT_RELA;
     shdr[5].sh_flags = 0;
     shdr[5].sh_addr = 0;
     shdr[5].sh_offset = offset;
-    shdr[5].sh_size = data_relocations.size() * sizeof(Elf64_Rel);
+    shdr[5].sh_size = data_relocations.size() * sizeof(Elf64_Rela);
     shdr[5].sh_link = 3;    // Take symbols from here
     shdr[5].sh_info = 7;    // Put relocations here
     shdr[5].sh_addralign = 0;
-    shdr[5].sh_entsize = sizeof(Elf64_Rel);
+    shdr[5].sh_entsize = sizeof(Elf64_Rela);
     offset += shdr[5].sh_size;
     
     // code
@@ -169,8 +169,8 @@ void Ork::done(std::string filename) {
         fwrite(section_names, 1, section_names_length, out);
         fwrite(strings.data(), 1, strings.size(), out);
         fwrite(symbols.data(), sizeof(Elf64_Sym), symbols.size(), out);
-        fwrite(code_relocations.data(), sizeof(Elf64_Rel), code_relocations.size(), out);
-        fwrite(data_relocations.data(), sizeof(Elf64_Rel), data_relocations.size(), out);
+        fwrite(code_relocations.data(), sizeof(Elf64_Rela), code_relocations.size(), out);
+        fwrite(data_relocations.data(), sizeof(Elf64_Rela), data_relocations.size(), out);
         fwrite(code.data(), 1, code.size(), out);
         fwrite(data.data(), 1, data.size(), out);
     }
@@ -275,29 +275,31 @@ unsigned Ork::import(std::string name) {
 }
 
 
-void Ork::code_relocation(unsigned index, int location) {
+void Ork::code_relocation(unsigned index, int location, int addend) {
     if (!index) {
         std::cerr << "Invalid symbol index for code relocation!\n";
         throw X64_ERROR;
     }
         
-    code_relocations.push_back(Elf64_Rel());
-    Elf64_Rel &r = code_relocations.back();
+    code_relocations.push_back(Elf64_Rela());
+    Elf64_Rela &r = code_relocations.back();
 
     r.r_offset = location;    // 32-bit offsets only
     r.r_info = ELF64_R_INFO(index, R_X86_64_PC32);
+    r.r_addend = addend;
 }
 
 
-void Ork::data_relocation(unsigned index, int location) {
+void Ork::data_relocation(unsigned index, int location, int addend) {
     if (!index) {
         std::cerr << "Invalid symbol index for data relocation!\n";
         throw X64_ERROR;
     }
 
-    data_relocations.push_back(Elf64_Rel());
-    Elf64_Rel &r = data_relocations.back();
+    data_relocations.push_back(Elf64_Rela());
+    Elf64_Rela &r = data_relocations.back();
 
-    r.r_offset = location;    // 32-bit offsets only
-    r.r_info = ELF64_R_INFO(index, R_X86_64_PC32);
+    r.r_offset = location;
+    r.r_info = ELF64_R_INFO(index, R_X86_64_64);
+    r.r_addend = addend;
 }

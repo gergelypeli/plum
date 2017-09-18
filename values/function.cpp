@@ -477,9 +477,7 @@ public:
                 throw INTERNAL_ERROR;
                 
             x64->op(MOVQ, RBX, Address(RSP, passed_size - 8));
-            x64->op(MOVSXDQ, RBX, Address(RBX, vti * 4));
-            x64->op(ADDQ, RBX, Address(RSP, passed_size - 8));
-            x64->op(CALL, RBX);
+            x64->op(CALL, Address(RBX, vti * 8));
             std::cerr << "Will invoke virtual method of " << pivot->ts << " #" << vti << ".\n";
         }
         else

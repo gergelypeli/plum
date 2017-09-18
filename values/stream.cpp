@@ -143,10 +143,11 @@ public:
 
         // Find the string for this enum value
         x64->op(ANDQ, RDX, 0xFF);
-        x64->op(SHLQ, RDX, 2);  // 32-bit relative offsets are stored in our table
-        x64->op(ADDQ, RBX, RDX);  // entry start
-        x64->op(MOVSXDQ, RDX, Address(RBX, 0));  // offset to string
-        x64->op(ADDQ, RDX, RBX);  // absolute address of string
+        x64->op(MOVQ, RDX, Address(RBX, RDX, 8, 0));
+        //x64->op(SHLQ, RDX, 3);  // 64-bit absolute addresses are stored in our table
+        //x64->op(ADDQ, RBX, RDX);  // entry start
+        //x64->op(MOVSXDQ, RDX, Address(RBX, 0));  // offset to string
+        //x64->op(ADDQ, RDX, RBX);  // absolute address of string
             
         x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, x64->array_length_address(RDX));

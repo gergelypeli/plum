@@ -356,7 +356,7 @@ public:
     enum Ref_type {
         REF_CODE_SHORT,
         REF_CODE_RELATIVE,
-        REF_DATA_RELATIVE,
+        REF_DATA_ABSOLUTE,
     };
     
     struct Ref {

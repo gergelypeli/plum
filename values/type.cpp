@@ -10,7 +10,7 @@ void compile_virtual_table(X64 *x64, std::string name, Label label, Scope *inner
             if (f)
                 x64->data_reference(f->x64_label);
             else
-                x64->data_dword(0);  // data references are now 32-bit relative addresses
+                x64->data_qword(0);  // data references are now 64-bit absolute addresses
         }
     }
 }
@@ -151,6 +151,7 @@ class EnumerationDefinitionValue: public Value {
 public:
     std::vector<std::string> keywords;
     Label stringifications_label;
+    std::string declname;
 
     EnumerationDefinitionValue()
         :Value(METATYPE_TS) {
@@ -186,10 +187,10 @@ public:
         for (auto &keyword : keywords) 
             labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
             
-        x64->data_label_export(stringifications_label, "enum_stringifications", 0, false);
+        x64->data_label_export(stringifications_label, declname + "_sfy", 0, false);
         
         for (auto &label : labels)
-            x64->data_reference(label);  // 32-bit relative
+            x64->data_reference(label);  // 64-bit absolute
         
         return Storage();
     }
@@ -199,6 +200,7 @@ public:
     }
 
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
+        declname = name;
         return new EnumerationType(name, keywords, stringifications_label);
     }
 };
@@ -210,6 +212,7 @@ public:
     std::vector<unsigned> tails;
     Label stringifications_label;
     Label tails_label;
+    std::string declname;
 
     TreenumerationDefinitionValue()
         :Value(METATYPE_TS) {
@@ -291,12 +294,12 @@ public:
         for (auto &keyword : keywords) 
             labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
             
-        x64->data_label_export(stringifications_label, "treenum_stringifications", 0, false);
+        x64->data_label_export(stringifications_label, declname + "_sfy", 0, false);
         
         for (auto &label : labels)
-            x64->data_reference(label);  // 32-bit relative
+            x64->data_reference(label);  // 64-bit absolute
 
-        x64->data_label_export(tails_label, "treenum_tails", 0, false);
+        x64->data_label_export(tails_label, declname + "_tails", 0, false);
         
         for (unsigned tail : tails)
             x64->data_byte(tail);
@@ -309,6 +312,7 @@ public:
     }
 
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
+        declname = name;
         return new TreenumerationType(name, keywords, stringifications_label, tails_label);
     }
 };

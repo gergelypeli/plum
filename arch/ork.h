@@ -9,8 +9,8 @@ public:
     std::vector<char> data;
     std::vector<char> strings;
     std::vector<Elf64_Sym> symbols;
-    std::vector<Elf64_Rel> code_relocations;
-    std::vector<Elf64_Rel> data_relocations;
+    std::vector<Elf64_Rela> code_relocations;
+    std::vector<Elf64_Rela> data_relocations;
     
     Ork();
     ~Ork();
@@ -26,6 +26,6 @@ public:
     unsigned export_code(std::string name, int location, unsigned size, bool is_global);
     unsigned import(std::string name);
     
-    void code_relocation(unsigned index, int location);
-    void data_relocation(unsigned index, int location);
+    void code_relocation(unsigned index, int location, int addend);
+    void data_relocation(unsigned index, int location, int addend);
 };

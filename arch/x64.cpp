@@ -89,8 +89,8 @@ void X64::init(std::string module_name) {
     ork = new Ork;  // New Ork, New Ork...
 
     // symbol table indexes
-    code_symbol_index = ork->export_code(module_name + ".code", 0, 0, 1);
-    data_symbol_index = ork->export_data(module_name + ".data", 0, 0, 1);
+    code_symbol_index = ork->export_code(module_name + ".code", 0, 0, true);
+    data_symbol_index = ork->export_data(module_name + ".data", 0, 0, true);
 
     op(UD2);  // Have fun jumping to address 0
 }
@@ -119,13 +119,13 @@ void X64::done(std::string filename) {
             break;
         case DEF_CODE_EXPORT:
             //debug << "PROCIEX: " << d.szoveg << "\n";
-            ork->export_code(d.name, d.location, d.size, d.is_global);
+            d.symbol_index = ork->export_code(d.name, d.location, d.size, d.is_global);
             break;
         case DEF_DATA_EXPORT:
-            ork->export_data(d.name, d.location, d.size, d.is_global);
+            d.symbol_index = ork->export_data(d.name, d.location, d.size, d.is_global);
             break;
         case DEF_ABSOLUTE_EXPORT:
-            ork->export_absolute(d.name, d.location, d.size, d.is_global);
+            d.symbol_index = ork->export_absolute(d.name, d.location, d.size, d.is_global);
             break;
         default:
             std::cerr << "He?\n";
@@ -169,33 +169,34 @@ void X64::done(std::string filename) {
                 *(int *)&code[r.location] += d.location - r.location - 4;
                 break;
             case DEF_CODE_IMPORT:
-                *(int *)&code[r.location] += -4;
-                ork->code_relocation(d.symbol_index, r.location);
+                //*(int *)&code[r.location] += -4;
+                ork->code_relocation(d.symbol_index, r.location, -4);
                 break;
             case DEF_DATA:
             case DEF_DATA_EXPORT:
-                *(int *)&code[r.location] += d.location - 4;
-                ork->code_relocation(data_symbol_index, r.location);
+                //*(int *)&code[r.location] += d.location - 4;
+                ork->code_relocation(data_symbol_index, r.location, d.location - 4);
                 break;
             default:
-                std::cerr << "Can't relocate relative to this symbol!\n";
+                std::cerr << "Can't relocate code relative to this symbol!\n";
                 throw X64_ERROR;
             }
             break;
             
-        case REF_DATA_RELATIVE:
+        case REF_DATA_ABSOLUTE:
             switch (d.type) {
-            case DEF_DATA:
             case DEF_DATA_EXPORT:
-                *(int *)&data[r.location] += d.location - r.location;
+            case DEF_DATA:
+                //*(long *)&data[r.location] += d.location;
+                ork->data_relocation(data_symbol_index, r.location, d.location);
                 break;
             case DEF_CODE:
             case DEF_CODE_EXPORT:
-                *(int *)&data[r.location] += d.location;
-                ork->data_relocation(code_symbol_index, r.location);
+                //*(long *)&data[r.location] += d.location;
+                ork->data_relocation(code_symbol_index, r.location, d.location);
                 break;
             default:
-                std::cerr << "Can't relocate relative to this symbol!\n";
+                std::cerr << "Can't relocate data absolute to this symbol!\n";
                 throw X64_ERROR;
             }
             break;
@@ -283,17 +284,18 @@ void X64::data_reference(Label label) {
     Ref &r = refs.back();
     
     r.location = data.size();  // Store the beginning
-    r.type = REF_DATA_RELATIVE;
+    r.type = REF_DATA_ABSOLUTE;
     r.def_index = label.def_index;
     
-    data_dword(0);  // 32-bit relocations only
+    data_qword(0);  // 64-bit relocations only
 }
 
 
 void X64::data_heap_header() {
     if (HEAP_HEADER_SIZE != 16 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKCOUNT_OFFSET != -8)
         throw X64_ERROR;
-        
+    
+    data_align();
     data_qword(1);  // artificial reference to prevent freeing
     data_qword(0);
 }
