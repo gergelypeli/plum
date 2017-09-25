@@ -380,13 +380,13 @@ class EvalScope: public CodeScope {
 public:
     TypeSpec ts;
     std::string label;
-    Variable *value_var;
+    Variable *yield_var;
 
     EvalScope(TypeSpec t, std::string l)
         :CodeScope() {
         ts = t;
         label = l;
-        value_var = NULL;
+        yield_var = NULL;
     }
 
     EvalScope *get_eval_scope() {
@@ -404,15 +404,19 @@ public:
     }
     
     const char *get_variable_name() {
-        return "<evaluated>";
+        return "<yielded>";
     }
     
-    void set_value_var(Variable *v) {
-        value_var = v;
+    std::string get_label() {
+        return label;
     }
     
-    Variable *get_value_var() {
-        return value_var;
+    void set_yield_var(Variable *v) {
+        yield_var = v;
+    }
+    
+    Variable *get_yield_var() {
+        return yield_var;
     }
 };
 

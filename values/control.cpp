@@ -1,19 +1,13 @@
 
-Kwargs fake_kwargs;
 
-
-class YieldableValue: public Value {
+class ControlValue: public Value {
 public:
-    std::string eval_name;
-    EvalScope *eval_scope;
-    Variable *value_var;
+    std::string name;
     TypeSpec *context;
     
-    YieldableValue(std::string en)
-        :Value(VOID_TS) {  // may be overridden
-        eval_name = en;
-        eval_scope = NULL;
-        value_var = NULL;
+    ControlValue(std::string n)
+        :Value(VOID_TS) {
+        name = n;
         context = NULL;
     }
 
@@ -22,14 +16,49 @@ public:
         return this;
     }
 
-    virtual bool check_eval(Scope *scope) {
+    virtual Value *check_value(Args &args, Scope *scope, TypeSpec *value_context) {
+        Value *v = make_code_block_value(value_context);
+        Kwargs fake_kwargs;
+        
+        if (!v->check(args, fake_kwargs, scope))
+            return NULL;
+            
+        if (value_context) {
+            TypeMatch match;
+        
+            if (!typematch(*value_context, v, match)) {
+                std::cerr << "Wrong :" << name << " value type!\n";
+                return NULL;
+            }
+        }
+        
+        return v;
+    }
+    
+};
+
+
+class YieldableValue: public ControlValue {
+public:
+    std::string eval_name;
+    EvalScope *eval_scope;
+    Variable *yield_var;
+    
+    YieldableValue(std::string n, std::string en)
+        :ControlValue(n) {
+        eval_name = en;
+        eval_scope = NULL;
+        yield_var = NULL;
+    }
+
+    virtual bool setup_yieldable(Scope *scope) {
         if (context) {
             ts = *context;
             
             if (ts[0] == code_type)
                 ts = ts.unprefix(code_type);
             else if (ts[0] == lvalue_type) {
-                std::cerr << "Yieldable in lvalue context!\n";
+                std::cerr << name << " in lvalue context!\n";
                 return false;
             }
         }
@@ -43,18 +72,18 @@ public:
         if (ts != VOID_TS) {
             // Add the variable after the EvalScope, so it can survive the finalization
             // of the scope, and can be left uninitialized until the successful completion.
-            value_var = new Variable(eval_scope->get_variable_name(), VOID_TS, ts.lvalue());
-            scope->add(value_var);
-            eval_scope->set_value_var(value_var);
+            yield_var = new Variable(eval_scope->get_variable_name(), VOID_TS, ts.lvalue());
+            scope->add(yield_var);
+            eval_scope->set_yield_var(yield_var);
         }
         
         return true;
     }
     
-    virtual Storage get_yielded_storage() {
-        if (value_var) {
+    virtual Storage get_yield_storage() {
+        if (yield_var) {
             Storage fn_storage(MEMORY, Address(RBP, 0));
-            return value_var->get_storage(fn_storage);
+            return yield_var->get_storage(fn_storage);
         }
         else
             return Storage();
@@ -64,22 +93,19 @@ public:
 
 
 
-class RepeatValue: public Value {
+class RepeatValue: public ControlValue {
 public:
     std::unique_ptr<Value> setup, condition, step, body;
     Label start, end;
     
     RepeatValue(Value *pivot, TypeMatch &match)
-        :Value(VOID_TS) {
+        :ControlValue("repeat") {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Value *v = make_code_block_value(NULL);
-
-        if (!v->check(args, fake_kwargs, scope))
+        setup.reset(check_value(args, scope, NULL));
+        if (!setup)
             return false;
-        
-        setup.reset(v);
         
         for (auto &kv : kwargs) {
             if (kv.first == "do")
@@ -157,7 +183,7 @@ public:
 
 
 
-class ForEachValue: public Value {
+class ForEachValue: public ControlValue {
 public:
     std::unique_ptr<Value> iterator, each, body, next;
     Variable *iterator_var;
@@ -166,24 +192,21 @@ public:
     Label start, end;
     
     ForEachValue(Value *pivot, TypeMatch &match)
-        :Value(VOID_TS) {
+        :ControlValue("for") {
         iterator_var = NULL;
         next_try_scope = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Value *v = make_code_block_value(NULL);
-        
-        if (!v->check(args, fake_kwargs, scope))
+        iterator.reset(check_value(args, scope, NULL));
+        if (!iterator)
             return false;
-
-        if (v->ts == VOID_TS) {
+            
+        if (iterator->ts == VOID_TS) {
             std::cerr << "Missing iterator in :for!\n";
             return false;
         }
             
-        iterator.reset(v);
-        
         // TODO: this should be a "local variable", to be destroyed once we're done
         // instead of letting the enclosing scope destroy it.
         TypeSpec its = iterator->ts.lvalue();
@@ -295,26 +318,23 @@ public:
     Variable *switch_var;
     
     SwitchValue(Value *v, TypeMatch &m)
-        :YieldableValue("yield") {
+        :YieldableValue("switch", "yield") {
         switch_scope = NULL;
         switch_var = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Value *v = make_code_block_value(NULL);
-        
-        if (!v->check(args, fake_kwargs, scope))
+        value.reset(check_value(args, scope, NULL));
+        if (!value)
             return false;
             
-        if (v->ts == VOID_TS) {
+        if (value->ts == VOID_TS) {
             std::cerr << "Whacky :switch!\n";
             return false;
         }
         
-        value.reset(v);
-    
         // Insert variable before the body to keep the finalization order
-        if (!check_eval(scope))
+        if (!setup_yieldable(scope))
             return false;
             
         switch_scope = new SwitchScope;
@@ -373,7 +393,7 @@ public:
         x64->code_label(live);
         x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
 
-        return get_yielded_storage();
+        return get_yield_storage();
     }
     
     virtual Scope *unwind(X64 *x64) {
@@ -382,13 +402,13 @@ public:
 };
 
 
-class WhenValue: public Value {
+class WhenValue: public ControlValue {
 public:
     std::unique_ptr<Value> cover, body;
     Label end;
     
     WhenValue(Value *v, TypeMatch &m)
-        :Value(VOID_TS) {
+        :ControlValue("when") {
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -405,16 +425,11 @@ public:
             throw INTERNAL_ERROR;
             
         TypeSpec switch_ts = switch_var->var_ts.rvalue();
-    
-        Value *v = make_code_block_value(&switch_ts);
-        
-        if (!v->check(args, fake_kwargs, scope))
+
+        // Process the value
+        Value *v = check_value(args, scope, &switch_ts);
+        if (!v)
             return false;
-    
-        if (v->ts == VOID_TS) {
-            std::cerr << "Whacky :when!\n";
-            return false;
-        }
         
         Expr cover_expr(Expr::IDENTIFIER, Token(), "cover");
         cover_expr.add_arg(new Expr(Expr::IDENTIFIER, Token(), switch_scope->get_variable_name()));
@@ -486,14 +501,14 @@ public:
 };
 
 
-class RaiseValue: public Value {
+class RaiseValue: public ControlValue {
 public:
     Declaration *dummy;
     std::unique_ptr<Value> value;
     int exception_value;
     
     RaiseValue(Value *v, TypeMatch &m)
-        :Value(VOID_TS) {
+        :ControlValue("raise") {
         dummy = NULL;
         exception_value = 0;
     }
@@ -518,12 +533,9 @@ public:
         
         TypeSpec ets = { et };
         
-        Value *v = make_code_block_value(&ets);
-        
-        if (!v->check(args, fake_kwargs, scope))
+        value.reset(check_value(args, scope, &ets));
+        if (!value)
             return false;
-        
-        value.reset(v);
         
         dummy = new Declaration;
         scope->add(dummy);
@@ -566,7 +578,7 @@ public:
     bool handling;
     
     TryValue(Value *v, TypeMatch &m)
-        :YieldableValue("yield") {
+        :YieldableValue("try", "yield") {
         try_scope = NULL;
         switch_var = NULL;
         switch_scope = NULL;
@@ -578,14 +590,11 @@ public:
         try_scope = new TryScope;
         scope->add(try_scope);
         
-        Value *v = make_code_block_value(context);
-        
-        if (!v->check(args, fake_kwargs, try_scope))
+        body.reset(check_value(args, try_scope, context));
+        if (!body)
             return false;
-        
-        body.reset(v);
 
-        if (!check_eval(scope))
+        if (!setup_yieldable(scope))
             return false;
 
         switch_scope = new SwitchScope;
@@ -627,7 +636,7 @@ public:
         Storage s = body->compile(x64);
         x64->unwind->pop(this);
         
-        Storage var_storage = get_yielded_storage();
+        Storage var_storage = get_yield_storage();
 
         if (var_storage.where != NOWHERE)
             body->ts.create(s, var_storage, x64);
@@ -672,7 +681,7 @@ public:
     
         x64->code_label(live);
         
-        return get_yielded_storage();
+        return get_yield_storage();
     }
     
     virtual Scope *unwind(X64 *x64) {
@@ -685,12 +694,8 @@ class EvalValue: public YieldableValue {
 public:
     std::unique_ptr<Value> body;
     
-    //EvalValue(Value *pivot, TypeMatch &match)
-    //    :YieldableValue("") {
-    //}
-
     EvalValue(std::string en)
-        :YieldableValue(en) {
+        :YieldableValue(en, en) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -699,24 +704,12 @@ public:
             return false;
         }
 
-        if (!check_eval(scope))
+        if (!setup_yieldable(scope))
             return false;
         
-        Value *v = make_code_block_value(context);
-        
-        if (!v->check(args, fake_kwargs, eval_scope))
+        body.reset(check_value(args, eval_scope, context));
+        if (!body)
             return false;
-        
-        if (ts != VOID_TS) {
-            TypeMatch match;
-            
-            if (!typematch(ts, v, match)) {
-                std::cerr << "Wrong :eval result type!\n";
-                return false;
-            }
-        }
-        
-        body.reset(v);
         
         return true;
     }
@@ -730,10 +723,10 @@ public:
         Storage s = body->compile(x64);
         x64->unwind->pop(this);
         
-        Storage yielded_storage = get_yielded_storage();
+        Storage yield_storage = get_yield_storage();
         
-        if (yielded_storage.where != NOWHERE)
-            body->ts.create(s, yielded_storage, x64);
+        if (yield_storage.where != NOWHERE)
+            body->ts.create(s, yield_storage, x64);
         
         eval_scope->finalize_contents(x64);
 
@@ -752,7 +745,7 @@ public:
         
         x64->code_label(ok);
         
-        return yielded_storage;
+        return yield_storage;
     }
     
     virtual Scope *unwind(X64 *x64) {
@@ -761,21 +754,21 @@ public:
 };
 
 
-class YieldValue: public Value {
+class YieldValue: public ControlValue {
 public:
     Declaration *dummy;
     std::unique_ptr<Value> value;
     EvalScope *eval_scope;
 
     YieldValue(EvalScope *es)
-        :Value(VOID_TS) {
+        :ControlValue(es->get_label()) {
         dummy = NULL;
         eval_scope = es;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (kwargs.size() != 0) {
-            std::cerr << "Whacky :yield!\n";
+            std::cerr << "Whacky :" << name << "!\n";
             return false;
         }
         
@@ -783,29 +776,19 @@ public:
         
         if (arg_ts == VOID_TS) {
             if (args.size() != 0) {
-                std::cerr << ":yield with arguments!\n";
+                std::cerr << ":" << name << " with arguments!\n";
                 return false;
             }
         }
         else {
-            if (args.size() != 1) {
-                std::cerr << ":yield without arguments!\n";
+            if (args.size() == 0) {
+                std::cerr << ":" << name << " without arguments!\n";
                 return false;
             }
 
-            Value *v = make_code_block_value(&arg_ts);
-            
-            if (!v->check(args, fake_kwargs, scope))
+            value.reset(check_value(args, scope, &arg_ts));
+            if (!value)
                 return false;
-                
-            TypeMatch match;
-            
-            if (!typematch(arg_ts, v, match)) {
-                std::cerr << "Wrong :yield result type!\n";
-                return false;
-            }
-            
-            value.reset(v);
         }
 
         dummy = new Declaration;
@@ -826,7 +809,7 @@ public:
             Storage s = value->compile(x64);
 
             Storage fn_storage(MEMORY, Address(RBP, 0));
-            Storage var_storage = eval_scope->get_value_var()->get_storage(fn_storage);
+            Storage var_storage = eval_scope->get_yield_var()->get_storage(fn_storage);
             value->ts.create(s, var_storage, x64);
         }
         
