@@ -219,12 +219,24 @@ public:
 
 class MetaType: public Type {
 public:
+    typedef Value *(*TypeDefinitionFactory)();
+    TypeDefinitionFactory factory;
     std::unique_ptr<Scope> inner_scope;
-    
-    MetaType(std::string name)
-        :Type(name, 0) {
         
+    MetaType(std::string name, TypeDefinitionFactory f)
+        :Type(name, 0) {
+        factory = f;
         inner_scope.reset(new Scope);
+    }
+
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+        if (name != this->name)
+            return NULL;
+
+        if (!typematch(VOID_TS, pivot, match))
+            return NULL;
+
+        return factory();
     }
     
     virtual Scope *get_inner_scope() {
@@ -236,17 +248,7 @@ public:
 class IntegerMetaType: public MetaType {
 public:
     IntegerMetaType(std::string name)
-        :MetaType(name) {
-    }
-    
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
-        if (name != this->name)
-            return NULL;
-
-        if (!typematch(VOID_TS, pivot, match))
-            return NULL;
-
-        return make_integer_definition_value();
+        :MetaType(name, make_integer_definition_value) {
     }
 };
 
@@ -254,17 +256,7 @@ public:
 class EnumerationMetaType: public MetaType {
 public:
     EnumerationMetaType(std::string name)
-        :MetaType(name) {
-    }
-    
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
-        if (name != this->name)
-            return NULL;
-            
-        if (!typematch(VOID_TS, pivot, match))
-            return NULL;
-            
-        return make_enumeration_definition_value();
+        :MetaType(name, make_enumeration_definition_value) {
     }
 };
 
@@ -272,17 +264,7 @@ public:
 class TreenumerationMetaType: public MetaType {
 public:
     TreenumerationMetaType(std::string name)
-        :MetaType(name) {
-    }
-    
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
-        if (name != this->name)
-            return NULL;
-            
-        if (!typematch(VOID_TS, pivot, match))
-            return NULL;
-            
-        return make_treenumeration_definition_value();
+        :MetaType(name, make_treenumeration_definition_value) {
     }
 
     // NOTE: experimental thing for exception specifications
@@ -298,17 +280,7 @@ public:
 class RecordMetaType: public MetaType {
 public:
     RecordMetaType(std::string name)
-        :MetaType(name) {
-    }
-    
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
-        if (name != this->name)
-            return NULL;
-            
-        if (!typematch(VOID_TS, pivot, match))
-            return NULL;
-            
-        return make_record_definition_value();
+        :MetaType(name, make_record_definition_value) {
     }
 };
 
@@ -316,17 +288,23 @@ public:
 class ClassMetaType: public MetaType {
 public:
     ClassMetaType(std::string name)
-        :MetaType(name) {
+        :MetaType(name, make_class_definition_value) {
     }
-    
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
-        if (name != this->name)
-            return NULL;
-            
-        if (!typematch(VOID_TS, pivot, match))
-            return NULL;
-            
-        return make_class_definition_value();
+};
+
+
+class InterfaceMetaType: public MetaType {
+public:
+    InterfaceMetaType(std::string name)
+        :MetaType(name, make_interface_definition_value) {
+    }
+};
+
+
+class ImplementationMetaType: public MetaType {
+public:
+    ImplementationMetaType(std::string name)
+        :MetaType(name, make_implementation_definition_value) {
     }
 };
 
@@ -334,4 +312,4 @@ public:
 #include "basic.cpp"
 #include "reference.cpp"
 #include "record.cpp"
-
+#include "interface.cpp"

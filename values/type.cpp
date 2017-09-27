@@ -74,14 +74,36 @@ public:
 };
 
 
-class IntegerDefinitionValue: public Value {
+class TypeDefinitionValue: public Value {
+public:
+    std::vector<Expr *> deferred_exprs;
+
+    TypeDefinitionValue(TypeSpec t)
+        :Value(t) {
+    }
+
+    void defer_as(Kwargs &kwargs) {
+        Expr *as = kwargs["as"].get();
+        
+        if (as) {
+            if (as->type == Expr::TUPLE)
+                for (auto &e : as->args)
+                    deferred_exprs.push_back(e.get());
+            else
+                deferred_exprs.push_back(as);
+        }
+    }
+};
+
+
+class IntegerDefinitionValue: public TypeDefinitionValue {
 public:
     int size;
     bool is_not_signed;
     std::unique_ptr<Value> bs, iu;
 
     IntegerDefinitionValue()
-        :Value(METATYPE_TS) {
+        :TypeDefinitionValue(METATYPE_TS) {
         size = 0;
         is_not_signed = false;
     }
@@ -147,14 +169,14 @@ public:
 };
 
 
-class EnumerationDefinitionValue: public Value {
+class EnumerationDefinitionValue: public TypeDefinitionValue {
 public:
     std::vector<std::string> keywords;
     Label stringifications_label;
     std::string declname;
 
     EnumerationDefinitionValue()
-        :Value(METATYPE_TS) {
+        :TypeDefinitionValue(METATYPE_TS) {
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -206,7 +228,7 @@ public:
 };
 
 
-class TreenumerationDefinitionValue: public Value {
+class TreenumerationDefinitionValue: public TypeDefinitionValue {
 public:
     std::vector<std::string> keywords;
     std::vector<unsigned> tails;
@@ -215,7 +237,7 @@ public:
     std::string declname;
 
     TreenumerationDefinitionValue()
-        :Value(METATYPE_TS) {
+        :TypeDefinitionValue(METATYPE_TS) {
     }
 
     virtual unsigned add_keyword(std::string kw) {
@@ -318,7 +340,7 @@ public:
 };
 
 
-class RecordDefinitionValue: public Value {
+class RecordDefinitionValue: public TypeDefinitionValue {
 public:
     DataScope *inner_scope;
     RecordType *record_type;
@@ -327,7 +349,7 @@ public:
     Label virtual_table_label;
     
     RecordDefinitionValue()
-        :Value(METATYPE_TS) {
+        :TypeDefinitionValue(METATYPE_TS) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -401,7 +423,7 @@ public:
 };
 
 
-class ClassDefinitionValue: public Value {
+class ClassDefinitionValue: public TypeDefinitionValue {
 public:
     DataScope *inner_scope;
     ClassType *class_type;
@@ -410,12 +432,12 @@ public:
     Label virtual_table_label;
     
     ClassDefinitionValue()
-        :Value(METATYPE_TS) {
+        :TypeDefinitionValue(METATYPE_TS) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (kwargs.size() != 0) {
-            std::cerr << "Whacky role!\n";
+            std::cerr << "Whacky class!\n";
             return false;
         }
 
@@ -426,7 +448,7 @@ public:
         
         scope->add(inner_scope);
         inner_scope->set_pivot_type_hint(TypeSpec { borrowed_type, class_type });
-        inner_scope->set_meta_scope(record_metatype->get_inner_scope());
+        inner_scope->set_meta_scope(class_metatype->get_inner_scope());
 
         for (auto &a : args)
             deferred_exprs.push_back(a.get());
@@ -485,6 +507,203 @@ public:
 };
 
 
+class InterfaceDefinitionValue: public TypeDefinitionValue {
+public:
+    InterfaceType *interface_type;
+    DataScope *inner_scope;
+    std::unique_ptr<DataBlockValue> data_value;
+    std::vector<Expr *> deferred_exprs;
+    
+    InterfaceDefinitionValue()
+        :TypeDefinitionValue(METATYPE_TS) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 0 || kwargs.size() != 1) {
+            std::cerr << "Whacky interface!\n";
+            return false;
+        }
+
+        interface_type = new InterfaceType("<anonymous>");
+
+        inner_scope = new DataScope;
+        scope->add(inner_scope);
+        
+        //inner_scope->set_pivot_type_hint(implementor_ts);
+        //inner_scope->set_meta_scope(_metatype->get_inner_scope());
+
+        defer_as(kwargs);
+            
+        std::cerr << "Deferring interface definition.\n";
+        return true;
+    }
+
+    virtual bool complete_definition() {
+        std::cerr << "Completing interface definition.\n";
+        data_value.reset(new DataBlockValue(inner_scope));
+        
+        for (Expr *expr : deferred_exprs)
+            if (!data_value->check_statement(expr))
+                return false;
+
+        if (!data_value->complete_definition())
+            return false;
+
+        for (auto &c : inner_scope->contents) {
+            Function *f = dynamic_cast<Function *>(c.get());
+            
+            if (!f) {
+                std::cerr << "Not a function in an interface!\n";
+                return false;
+            }
+        }
+
+        interface_type->set_inner_scope(inner_scope);
+
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return data_value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return data_value->compile(x64);
+    }
+
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
+        return NULL;
+    }
+
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
+        interface_type->set_name(name);
+        return interface_type;
+    }
+};
+
+
+class ImplementationDefinitionValue: public TypeDefinitionValue {
+public:
+    DataScope *inner_scope;
+    InterfaceType *interface_type;
+    ImplementationType *implementation_type;
+    std::unique_ptr<DataBlockValue> data_value;
+    std::vector<Expr *> deferred_exprs;
+    
+    ImplementationDefinitionValue()
+        :TypeDefinitionValue(METATYPE_TS) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1 || kwargs.size() != 1) {
+            std::cerr << "Whacky implementation!\n";
+            return false;
+        }
+
+        Value *v = typize(args[0].get(), scope, NULL);
+        TypeMatch match;
+        
+        if (!typematch(ANY_TYPE_TS, v, match)) {
+            std::cerr << "Implementation needs an interface type name!\n";
+            return false;
+        }
+        
+        interface_type = dynamic_cast<InterfaceType *>(v->ts[1]);
+        
+        if (!interface_type) {
+            std::cerr << "Implementation needs an interface type name!\n";
+            return false;
+        }
+
+        TypeSpec implementor_ts = scope->pivot_type_hint();
+        
+        implementation_type = new ImplementationType("<anonymous>", interface_type, implementor_ts);
+
+        inner_scope = new DataScope;
+        scope->add(inner_scope);
+        
+        inner_scope->set_pivot_type_hint(implementor_ts);
+        //inner_scope->set_meta_scope(_metatype->get_inner_scope());
+
+        defer_as(kwargs);
+            
+        std::cerr << "Deferring implementation definition.\n";
+        return true;
+    }
+
+    virtual bool complete_definition() {
+        std::cerr << "Completing implementation definition.\n";
+        data_value.reset(new DataBlockValue(inner_scope));
+        
+        for (Expr *expr : deferred_exprs)
+            if (!data_value->check_statement(expr))
+                return false;
+
+        if (!data_value->complete_definition())
+            return false;
+
+        for (auto &c : inner_scope->contents) {
+            Function *f = dynamic_cast<Function *>(c.get());
+            
+            if (!f) {
+                std::cerr << "Not a function in an implementation!\n";
+                return false;
+            }
+            
+            bool found = false;
+            
+            for (Function *iff : interface_type->member_functions) {
+                if (iff->name != f->name)
+                    continue;
+            
+                if (iff->get_argument_tss() != f->get_argument_tss()) {
+                    std::cerr << "Mismatching implementation argument types!\n";
+                    return false;
+                }
+                
+                if (iff->get_argument_names() != f->get_argument_names()) {
+                    std::cerr << "Mismatching implementation argument names!\n";
+                    return false;
+                }
+
+                if (iff->get_result_tss() != f->get_result_tss()) {
+                    std::cerr << "Mismatching implementation result types!\n";
+                    return false;
+                }
+                
+                break;
+            }
+            
+            if (!found) {
+                std::cerr << "Invalid implementation function name!\n";
+                return false;
+            }
+        }
+
+        implementation_type->set_inner_scope(inner_scope);
+
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return data_value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return data_value->compile(x64);
+    }
+
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
+        return NULL;
+    }
+
+    virtual Declaration *declare_pure(std::string name, Scope *scope) {
+        implementation_type->set_name(name);
+        return implementation_type;
+    }
+};
+
+
 class VoidConversionValue: public Value {
 public:
     std::unique_ptr<Value> orig;
@@ -525,6 +744,28 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage s = orig->compile(x64);
         return orig->ts.boolval(s, x64, false);
+    }
+};
+
+
+class ImplementationConversionValue: public Value {
+public:
+    ImplementationType *implementation_type;
+    std::unique_ptr<Value> orig;
+    
+    ImplementationConversionValue(ImplementationType *imt, Value *o)
+        :Value(TypeSpec { imt->interface_type }) {
+        implementation_type = imt;
+        orig.reset(o);
+        marker = orig->marker;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return orig->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return orig->compile(x64);
     }
 };
 

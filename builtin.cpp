@@ -62,6 +62,12 @@ Scope *init_builtins() {
 
     class_metatype = new ClassMetaType(":Class");
     root_scope->add(class_metatype);
+
+    interface_metatype = new InterfaceMetaType(":Interface");
+    root_scope->add(interface_metatype);
+
+    implementation_metatype = new ImplementationMetaType(":Implementation");
+    root_scope->add(implementation_metatype);
     
     type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);

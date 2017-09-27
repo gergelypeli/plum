@@ -338,6 +338,11 @@ Value *make_boolean_conversion_value(Value *p) {
 }
 
 
+Value *make_implementation_conversion_value(ImplementationType *imt, Value *p) {
+    return new ImplementationConversionValue(imt, p);
+}
+
+
 Value *make_boolean_not_value(Value *p) {
     TypeMatch match;
     
@@ -385,6 +390,16 @@ Value *make_record_initializer_value(Variable *var) {
 
 Value *make_class_definition_value() {
     return new ClassDefinitionValue();
+}
+
+
+Value *make_interface_definition_value() {
+    return new InterfaceDefinitionValue();
+}
+
+
+Value *make_implementation_definition_value() {
+    return new ImplementationDefinitionValue();
 }
 
 

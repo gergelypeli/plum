@@ -1,7 +1,7 @@
 .PHONY: build clean
 SHELL      = /bin/zsh
 
-DECLS      = declaration identifier scope type typespec basic record reference
+DECLS      = declaration identifier scope type typespec basic record reference interface
 VALUES     = value literal function boolean integer array reference type block record multi generic control stream
 ARCHS      = ork x64 storage
 MODULES    = tokenize treeize tupleize typize util plum builtin $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)

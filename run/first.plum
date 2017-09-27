@@ -105,6 +105,16 @@ Dude? :Record
     g? Greetable Role
 
 
+Interator? :Interface as:
+    next? :Function Integer
+    
+    
+Counterator? :Record
+    imp? :Implementation Interator as:
+        next? :Function Integer as:
+            :return 77
+            
+
 start? :Function as:
     print(f(1, 2))
     
