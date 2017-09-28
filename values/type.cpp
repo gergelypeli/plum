@@ -362,8 +362,10 @@ public:
 
         inner_scope = new DataScope;
         scope->add(inner_scope);
-        inner_scope->set_pivot_type_hint(TypeSpec { record_type });
-        inner_scope->set_meta_scope(record_metatype->get_inner_scope());
+        
+        TypeSpec rts = { record_type };
+        inner_scope->set_pivot_type_hint(rts);
+        inner_scope->set_meta_scope(record_metatype->get_inner_scope(rts.begin()));
 
         for (auto &a : args)
             deferred_exprs.push_back(a.get());
@@ -445,10 +447,11 @@ public:
 
         inner_scope = new DataScope;
         inner_scope->be_virtual_scope();
-        
         scope->add(inner_scope);
-        inner_scope->set_pivot_type_hint(TypeSpec { borrowed_type, class_type });
-        inner_scope->set_meta_scope(class_metatype->get_inner_scope());
+
+        TypeSpec cts = { borrowed_type, class_type };
+        inner_scope->set_pivot_type_hint(cts);
+        inner_scope->set_meta_scope(class_metatype->get_inner_scope(cts.begin()));
 
         for (auto &a : args)
             deferred_exprs.push_back(a.get());
@@ -617,7 +620,7 @@ public:
 
         TypeSpec implementor_ts = scope->pivot_type_hint();
         
-        implementation_type = new ImplementationType("<anonymous>", interface_type, implementor_ts);
+        implementation_type = new ImplementationType("<anonymous>", interface_type);
 
         inner_scope = new DataScope;
         scope->add(inner_scope);
@@ -758,6 +761,9 @@ public:
         implementation_type = imt;
         orig.reset(o);
         marker = orig->marker;
+        
+        //if (o->ts.rvalue()[0] == reference_type)
+        //    ts = ts.prefix(reference_type);
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -766,6 +772,12 @@ public:
     
     virtual Storage compile(X64 *x64) {
         return orig->compile(x64);
+    }
+    
+    virtual Value *lookup_inner(std::string name, TypeMatch &match) {
+        ts = orig->ts;
+        Scope *inner_scope = implementation_type->get_inner_scope(ts.begin());
+        return inner_scope->lookup(name, this, match);
     }
 };
 

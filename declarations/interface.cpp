@@ -66,7 +66,7 @@ public:
         return NULL;
     }
 
-    virtual Scope *get_inner_scope() {
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         throw INTERNAL_ERROR;
     }
 };
@@ -78,12 +78,12 @@ public:
     DataScope *inner_scope;
     std::vector<Function *> member_functions;
     InterfaceType *interface_type;
-    TypeSpec implementor_ts;
+    //TypeSpec implementor_ts;
 
-    ImplementationType(std::string name, InterfaceType *ift, TypeSpec its)
+    ImplementationType(std::string name, InterfaceType *ift/*, TypeSpec its*/)
         :Type(name, 0) {
         interface_type = ift;
-        implementor_ts = its;
+        //implementor_ts = its;
         inner_scope = NULL;
     }
 
@@ -147,10 +147,10 @@ public:
         return NULL;
     }
 
-    virtual Scope *get_inner_scope() {
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope;
     }
-    
+    /*
     virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
         if (name != this->name)
             return NULL;
@@ -160,4 +160,30 @@ public:
                 
         return make_implementation_conversion_value(this, pivot);
     }
+    */
+    /*
+    virtual Value *autoconv(TypeSpecIter tsi, Type *t, Value *orig) {
+        // Convert back to the implementor type by removing the conversion to the implementation
+        std::cerr << "Autoconv from " << tsi << " to " << t->name << " by " << implementor_ts << ".\n";
+
+        if (implementor_ts[0] == t || (implementor_ts[0] == reference_type && implementor_ts[1] == t)) {
+            Value *v = undo_implementation_conversion_value(orig);
+            std::cerr << "Returning implementor " << get_typespec(v) << ".\n";
+            return v;
+        }
+
+        return NULL;
+    }
+    */
 };
+
+
+ImplementationType *implementation_cast(Declaration *d, Type *t) {
+    ImplementationType *imp = dynamic_cast<ImplementationType *>(d);
+    
+    if (imp && imp->interface_type == t)
+        return imp;
+    else
+        return NULL;
+}
+

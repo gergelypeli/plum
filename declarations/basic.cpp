@@ -192,8 +192,8 @@ public:
         return is_not_signed;
     }
 
-    virtual Scope *get_inner_scope() {
-        return integer_metatype->get_inner_scope();
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+        return integer_metatype->get_inner_scope(tsi);
     }
 };
 
@@ -218,7 +218,7 @@ public:
         }
     }
 
-    virtual Scope *get_inner_scope() {
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope.get();
     }
 };
@@ -244,7 +244,7 @@ public:
         }
     }
 
-    virtual Scope *get_inner_scope() {
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope.get();
     }
 };
@@ -269,8 +269,8 @@ public:
         return NULL;
     }
     
-    virtual Scope *get_inner_scope() {
-        return enumeration_metatype->get_inner_scope();
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+        return enumeration_metatype->get_inner_scope(tsi);
     }
 };
 
@@ -292,7 +292,7 @@ public:
         return NULL;
     }
     
-    virtual Scope *get_inner_scope() {
-        return treenumeration_metatype->get_inner_scope();
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+        return treenumeration_metatype->get_inner_scope(tsi);
     }
 };

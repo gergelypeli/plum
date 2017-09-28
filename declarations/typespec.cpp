@@ -141,14 +141,21 @@ Value *TypeSpec::lookup_initializer(std::string name, Scope *scope) {
 }
 
 
+Scope *TypeSpec::get_inner_scope() {
+    TypeSpecIter tsi(begin());
+    return (*tsi)->get_inner_scope(tsi);
+}
+
+
 // New-style type matching
 
-Value *rolematch(Value *v, TypeSpecIter s, Type *t) {
+Value *rolematch(Value *v, TypeSpecIter tsi, Type *t) {
     // Return a role of v with an unprefixed type of s, with the front type
     // being is equal to t, but with arbitrary type parameters, potentially
     // derived from the type parameters of s. Or NULL, if it can't be done.
     // May call itself recursively.
-    return NULL;
+    std::cerr << "Trying rolematch from " << tsi << " to " << t->name << ".\n";
+    return (*tsi)->autoconv(tsi, t, v);
 }
 
 // Tries to convert value to match tt. The value argument may be overwritten with the
@@ -178,7 +185,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         }
     }
 
-    //std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
+    std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
 
     // Checking NULL value
     if (!value) {
@@ -270,26 +277,42 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         s++;
     }
 
+    bool ok = false;
+
+    // Checking pre-reference interfaces
+    if (*t == any_type) {
+        ok = true;
+    }
+    else {
+        Value *role = rolematch(value, s, *t);
+        
+        if (role) {
+            value = role;
+            ss = get_typespec(value);
+            s = ss.begin();
+            ok = true;
+        }
+    }
+    
     // Checking references
-    if (*t == any_type)
+    if (ok)
         ;
     else if (*s == reference_type && *t == reference_type) {
         match[0].push_back(*t);
         s++;
         t++;
     }
-    else if (*s == reference_type || *t == reference_type) {
-        MATCHLOG std::cerr << "No match, reference mismatch!\n";
-        return false;
+    else if (*s == reference_type) {
+        s++;
+        //MATCHLOG std::cerr << "No match, reference mismatch!\n";
+        //return false;
     }
-
-    bool ok = false;
 
     // Checking main type
-    if (*t == any_type) {
+    if (!ok && *t == any_type) {
         ok = true;
     }
-    
+
     if (!ok && *s == *t) {
         ok = true;
     }
@@ -332,6 +355,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             value = role;
             ss = get_typespec(value);
             s = ss.begin();
+            ok = true;
         }
     }
     

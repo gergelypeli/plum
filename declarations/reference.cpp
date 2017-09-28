@@ -133,6 +133,11 @@ public:
             return NULL;
         }
     }
+
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+        tsi++;
+        return (*tsi)->get_inner_scope(tsi);
+    }
 };
 
 
@@ -230,6 +235,11 @@ public:
         std::cerr << "No borrowed reference initializer called " << name << "!\n";
         return NULL;
     }
+    
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+        tsi++;
+        return (*tsi)->get_inner_scope(tsi);
+    }
 };
 
 
@@ -242,8 +252,22 @@ public:
         inner_scope.reset(new Scope);
     }
     
-    virtual Scope *get_inner_scope() {
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope.get();
+    }
+    
+    virtual Value *autoconv(TypeSpecIter tsi, Type *t, Value *orig) {
+        // For the streamifiable interface
+        
+        for (auto &d : inner_scope->contents) {
+            ImplementationType *it = dynamic_cast<ImplementationType *>(d.get());
+            
+            if (it && it->interface_type == t) {
+                return make_implementation_conversion_value(it, orig);
+            }
+        }
+        
+        return NULL;
     }
 };
 

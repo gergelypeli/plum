@@ -127,7 +127,7 @@ struct Label {
         
         def_index = leave_uninitialized ? 0 : ++last_def_index;
         
-        //if (def_index == 167)
+        //if (def_index == 80)
         //    throw X64_ERROR;
     }
     

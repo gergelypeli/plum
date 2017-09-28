@@ -41,6 +41,7 @@ public:
     void create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);
     Value *lookup_initializer(std::string name, Scope *scope);
+    Scope *get_inner_scope();
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
@@ -54,6 +55,7 @@ TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 Variable *variable_cast(Declaration *decl);
 HeapType *heap_type_cast(Type *t);
+ImplementationType *implementation_cast(Declaration *d, Type *t);
 std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 Variable *declaration_get_var(DeclarationValue *dv);
@@ -77,6 +79,7 @@ Value *make_code_value(Value *value, Declaration *escape = NULL);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *orig);
+Value *undo_implementation_conversion_value(Value *converted);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
 Value *make_unicode_character_value();
@@ -99,13 +102,37 @@ Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
 #include "builtin.cpp"
 
 
-Value *lookup_scope(Scope *s, std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
-    //std::cerr << "Trying a scope...\n";
+Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
+    //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
+    Value *value = NULL;
     TypeMatch match;
-    Value *value = s->lookup(name, pivot, match);
     
-    if (!value)
+    for (Scope *s = scope; s; s = s->outer_scope) {
+        value = s->lookup(name, pivot, match);
+        
+        if (value)
+            break;
+    }
+
+    if (!value) {
+        if (pivot)
+            value = pivot->lookup_inner(name, match);
+    }
+
+    // TODO: put this on a higher level
+    if (!value) {
+        if (name == "not_equal") {
+            Value *fallback = lookup("is_equal", pivot, expr, scope, context);
+            
+            if (fallback)
+                return make_boolean_not_value(fallback);
+        }
+    }
+    
+    if (!value) {
+        std::cerr << "No match for " << get_typespec(pivot) << " " << name << " at " << expr->token << "!\n";
         return NULL;
+    }
     
     // TODO: we should print the definition pivot type, not the value type
     std::cerr << "Found       " << match[0] << " " << name << " returning " << value->ts << ".\n";
@@ -118,45 +145,8 @@ Value *lookup_scope(Scope *s, std::string name, Value *pivot, Expr *expr, Scope 
         std::cerr << "Argument problem for " << expr->token << "!\n";
         throw TYPE_ERROR;
     }
-
-    //std::cerr << "Accepted    " << match[0] << " " << name << " arguments.\n";
+    
     return value;
-}
-
-
-Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
-    TypeSpec pts = pivot ? pivot->ts : VOID_TS;
-    //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
-    
-    for (Scope *s = scope; s; s = s->outer_scope) {
-        Value *value = lookup_scope(s, name, pivot, expr, scope, context);
-        
-        if (value)
-            return value;
-    }
-
-    unsigned i = 0;
-    if (pts[i] == lvalue_type || pts[i] == ovalue_type || pts[i] == code_type)
-        i++;
-    if (pts[i] == reference_type || pts[i] == borrowed_type)
-        i++;
-        
-    Scope *inner_scope = pts[i]->get_inner_scope();
-    
-    if (inner_scope) {
-        Value *value = lookup_scope(inner_scope, name, pivot, expr, scope, context);
-        
-        if (value)
-            return value;
-    }
-    
-    if (name == "not_equal") {
-        Value *value = lookup("is_equal", pivot, expr, scope, context);
-        return value ? make_boolean_not_value(value) : NULL;
-    }
-    
-    std::cerr << "No match for " << pts << " " << name << " at " << expr->token << "!\n";
-    return NULL;
 }
 
 

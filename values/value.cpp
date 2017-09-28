@@ -11,6 +11,9 @@ public:
         :ts(t) {
     }
 
+    virtual ~Value() {
+    }
+
     virtual Value *set_token(Token t) {
         token = t;
         return this;
@@ -83,6 +86,15 @@ public:
     
     virtual bool complete_definition() {
         return true;
+    }
+    
+    virtual Value *lookup_inner(std::string name, TypeMatch &match) {
+        Scope *inner_scope = ts.get_inner_scope();
+    
+        if (inner_scope)
+            return inner_scope->lookup(name, this, match);
+            
+        return NULL;
     }
 };
 
@@ -340,6 +352,14 @@ Value *make_boolean_conversion_value(Value *p) {
 
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *p) {
     return new ImplementationConversionValue(imt, p);
+}
+
+
+Value *undo_implementation_conversion_value(Value *converted) {
+    ImplementationConversionValue *icv = dynamic_cast<ImplementationConversionValue *>(converted);
+    Value *orig = icv->orig.release();
+    delete converted;
+    return orig;
 }
 
 

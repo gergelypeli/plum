@@ -156,11 +156,19 @@ public:
 
 class ImportedFunction: public Function {
 public:
+    static std::vector<ImportedFunction *> to_be_imported;
+    
+    static void import_all(X64 *x64) {
+        for (auto i : to_be_imported)
+            i->import(x64);
+    }
+    
     std::string import_name;
     
     ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, Type *et)
         :Function(n, pts, ats, ans, rts, et) {
         import_name = in;
+        to_be_imported.push_back(this);
     }
 
     virtual void import(X64 *x64) {
@@ -168,6 +176,8 @@ public:
         x64->code_label_import(x64_label, import_name);
     }
 };
+
+std::vector<ImportedFunction *> ImportedFunction::to_be_imported;
 
 
 typedef Value *(*GenericValueFactory)(OperationType, Value *, TypeMatch &);

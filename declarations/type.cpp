@@ -127,7 +127,7 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual Scope *get_inner_scope() {
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return NULL;
     }
     
@@ -137,6 +137,22 @@ public:
 
     virtual Label get_virtual_table_label(TypeSpecIter tsi) {
         throw INTERNAL_ERROR;
+    }
+    
+    virtual Value *autoconv(TypeSpecIter tsi, Type *t, Value *orig) {
+        Scope *inner_scope = get_inner_scope(tsi);
+        
+        if (inner_scope) {
+            for (auto &d : inner_scope->contents) {
+                ImplementationType *it = implementation_cast(d.get(), t);
+            
+                if (it) {
+                    return make_implementation_conversion_value(it, orig);
+                }
+            }
+        }
+        
+        return NULL;
     }
 };
 
@@ -214,6 +230,11 @@ public:
         tsi++;
         return (*tsi)->get_virtual_table_label(tsi);
     }
+
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+        tsi++;
+        return (*tsi)->get_inner_scope(tsi);
+    }
 };
 
 
@@ -222,7 +243,7 @@ public:
     typedef Value *(*TypeDefinitionFactory)();
     TypeDefinitionFactory factory;
     std::unique_ptr<Scope> inner_scope;
-        
+    
     MetaType(std::string name, TypeDefinitionFactory f)
         :Type(name, 0) {
         factory = f;
@@ -238,8 +259,12 @@ public:
 
         return factory();
     }
+
+    virtual void allocate() {
+        inner_scope->allocate();
+    }
     
-    virtual Scope *get_inner_scope() {
+    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope.get();
     }
 };
@@ -309,7 +334,7 @@ public:
 };
 
 
+#include "interface.cpp"
 #include "basic.cpp"
 #include "reference.cpp"
 #include "record.cpp"
-#include "interface.cpp"

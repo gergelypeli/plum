@@ -207,6 +207,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         block->add_statement(decl_value);
     }
 
+    bool pseudo_only = (expr->kwargs.size() > 0);
     bool identifier = false;
     Expr streamify_expr(Expr::IDENTIFIER, expr->token, "streamify");
     streamify_expr.add_arg(new Expr(Expr::IDENTIFIER, expr->token, "<interpolated>"));
@@ -225,7 +226,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         
                 if (pivot)
                     break;
-                else if (expr->kwargs.size() > 0)
+                else if (pseudo_only)
                     break;  // Look up only pseudo variables in this scope
             }
             
@@ -238,9 +239,14 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             pivot = make_string_literal_value(fragment);
         }
 
+        if (!typematch(STREAMIFIABLE_TS, pivot, match)) {
+            std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
+            throw TYPE_ERROR;
+        }
+
         Value *streamify = lookup("streamify", pivot, &streamify_expr, scope);
         if (!streamify) {
-            std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
+            std::cerr << "Cannot interpolate badly streamifiable " << pivot->ts << "!\n";
             throw TYPE_ERROR;
         }
 
