@@ -79,7 +79,6 @@ Value *make_code_value(Value *value, Declaration *escape = NULL);
 Value *make_void_conversion_value(Value *orig);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *orig);
-Value *undo_implementation_conversion_value(Value *converted);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
 Value *make_unicode_character_value();

@@ -7,7 +7,6 @@ public:
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
-    std::vector<ImplementationType *> implementations;
 
     RecordType(std::string n, Label vtl)
         :Type(n, 0) {
@@ -29,12 +28,6 @@ public:
                 member_variables.push_back(v);
                 member_tss.push_back(v->var_ts.rvalue());
                 member_names.push_back(v->name);
-            }
-            
-            ImplementationType *i = dynamic_cast<ImplementationType *>(c.get());
-            
-            if (i) {
-                implementations.push_back(i);
             }
         }
         
@@ -154,17 +147,6 @@ public:
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope;
     }
-    /*
-    virtual Value *autoconv(TypeSpecIter tsi, Type *t, Value *orig) {
-        for (ImplementationType *i : implementations) {
-            if (i->interface_type == t) {
-                return make_implementation_conversion_value(i, orig);
-            }
-        }
-        
-        return NULL;
-    }
-    */
 };
 
 

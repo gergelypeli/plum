@@ -150,31 +150,6 @@ public:
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope;
     }
-    /*
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
-        if (name != this->name)
-            return NULL;
-            
-        if (!typematch(implementor_ts, pivot, match))
-            return NULL;
-                
-        return make_implementation_conversion_value(this, pivot);
-    }
-    */
-    /*
-    virtual Value *autoconv(TypeSpecIter tsi, Type *t, Value *orig) {
-        // Convert back to the implementor type by removing the conversion to the implementation
-        std::cerr << "Autoconv from " << tsi << " to " << t->name << " by " << implementor_ts << ".\n";
-
-        if (implementor_ts[0] == t || (implementor_ts[0] == reference_type && implementor_ts[1] == t)) {
-            Value *v = undo_implementation_conversion_value(orig);
-            std::cerr << "Returning implementor " << get_typespec(v) << ".\n";
-            return v;
-        }
-
-        return NULL;
-    }
-    */
 };
 
 

@@ -355,14 +355,6 @@ Value *make_implementation_conversion_value(ImplementationType *imt, Value *p) {
 }
 
 
-Value *undo_implementation_conversion_value(Value *converted) {
-    ImplementationConversionValue *icv = dynamic_cast<ImplementationConversionValue *>(converted);
-    Value *orig = icv->orig.release();
-    delete converted;
-    return orig;
-}
-
-
 Value *make_boolean_not_value(Value *p) {
     TypeMatch match;
     

@@ -279,19 +279,9 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
 
     bool ok = false;
 
-    // Checking pre-reference interfaces
+    // Allow any_type match references
     if (*t == any_type) {
         ok = true;
-    }
-    else {
-        Value *role = rolematch(value, s, *t);
-        
-        if (role) {
-            value = role;
-            ss = get_typespec(value);
-            s = ss.begin();
-            ok = true;
-        }
     }
     
     // Checking references
