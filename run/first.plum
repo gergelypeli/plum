@@ -68,14 +68,15 @@ Counter? :Record
         $ current = -1
         $ limit = n
         
-    ible? :Implementation Integer Iterator as:
-        next? :Function Integer may: { DONE } as:
-            $ current += 1
-        
-            :if $ current == $ limit then:
-                :raise `DONE
-            else:
-                :return $ current
+    ible? :Implementation Integer Iterator
+
+    ible.next? :Function Integer may: { DONE } as:
+        $ current += 1
+    
+        :if $ current == $ limit then:
+            :raise `DONE
+        else:
+            :return $ current
 
 
 Stringiterator? :Record
@@ -88,14 +89,15 @@ Stringiterator? :Record
         $ string = s
         $ index = -1
 
-    ible? :Implementation Character Iterator as:        
-        next? :Function Character may: { DONE } as:
-            $ index += 1
-        
-            :if $ index == $ string length then:
-                :raise `DONE
-            else:
-                :return $ string[$ index]
+    ible? :Implementation Character Iterator
+    
+    ible.next? :Function Character may: { DONE } as:
+        $ index += 1
+    
+        :if $ index == $ string length then:
+            :raise `DONE
+        else:
+            :return $ string[$ index]
 
 
 Greetable? :Class

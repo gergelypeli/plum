@@ -597,7 +597,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() != 1) {
+        if (args.size() != 1 || kwargs.size() > 1) {
             std::cerr << "Whacky implementation!\n";
             return false;
         }
@@ -619,6 +619,7 @@ public:
         
         inner_scope->set_pivot_type_hint(implementor_ts);
         //inner_scope->set_meta_scope(_metatype->get_inner_scope());
+        implementation_type->set_inner_scope(inner_scope);  // for preview only
 
         defer_as(kwargs);
             
@@ -628,7 +629,6 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing implementation definition.\n";
-        std::cerr << "XXX " << deferred_exprs.size() << "\n";
         data_value.reset(new DataBlockValue(inner_scope));
 
         InterfaceType *interface_type = dynamic_cast<InterfaceType *>(interface_ts[0]);

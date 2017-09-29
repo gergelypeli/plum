@@ -88,6 +88,8 @@ public:
     }
 
     virtual void set_inner_scope(DataScope *is) {
+        // NOTE: this is called twice to give a preview of the inner scope for
+        // external declarations.
         // FIXME: check order!
         inner_scope = is;
         

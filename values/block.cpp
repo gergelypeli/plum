@@ -274,6 +274,30 @@ public:
         }
 
         std::cerr << "Trying to declare " << name << "\n";
+        auto pos = name.find(".");
+        
+        if (pos != std::string::npos) {
+            std::string scope_name = name.substr(0, pos);
+            name = name.substr(pos + 1);
+            Scope *inner_scope = NULL;
+            
+            for (auto &d : scope->contents) {
+                ImplementationType *it = dynamic_cast<ImplementationType *>(d.get());
+                
+                if (it && it->name == scope_name) {
+                    inner_scope = it->inner_scope;
+                    break;
+                }
+            }
+            
+            if (!inner_scope) {
+                std::cerr << "Invalid scope name: " << scope_name << "!\n";
+                return false;
+            }
+            
+            scope = inner_scope;
+        }
+
         Value *v;
         
         if (args.size() == 0) {
