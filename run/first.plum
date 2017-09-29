@@ -68,13 +68,14 @@ Counter? :Record
         $ current = -1
         $ limit = n
         
-    next? :Function Integer may: { DONE } as:
-        $ current += 1
+    ible? :Implementation Integer Iterator as:
+        next? :Function Integer may: { DONE } as:
+            $ current += 1
         
-        :if $ current == $ limit then:
-            :raise `DONE
-        else:
-            :return $ current
+            :if $ current == $ limit then:
+                :raise `DONE
+            else:
+                :return $ current
 
 
 Stringiterator? :Record
@@ -86,14 +87,15 @@ Stringiterator? :Record
     as:
         $ string = s
         $ index = -1
+
+    ible? :Implementation Character Iterator as:        
+        next? :Function Character may: { DONE } as:
+            $ index += 1
         
-    next? :Function Character may: { DONE } as:
-        $ index += 1
-        
-        :if $ index == $ string length then:
-            :raise `DONE
-        else:
-            :return $ string[$ index]
+            :if $ index == $ string length then:
+                :raise `DONE
+            else:
+                :return $ string[$ index]
 
 
 Greetable? :Class
@@ -104,20 +106,6 @@ Greetable? :Class
 Dude? :Record
     g? Greetable Role
 
-
-Interator? :Interface as:
-    next? :Function Integer
-    
-    
-Counterator? :Record
-    imp? :Implementation Interator as:
-        next? :Function Integer as:
-            :return 77
-            
-    it? :Implementation Integer Iterator as:
-        next? :Function Integer as:
-            :return 77
-            
 
 start? :Function as:
     print(f(1, 2))
@@ -297,9 +285,6 @@ start? :Function as:
 
     dude? Dude
     dude g greet
-
-    ctrt? Counterator
-    prints("Counterator next said: {x}." { x: ctrt it next })
 
     :if `true then:
         last? 0

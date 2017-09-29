@@ -253,17 +253,24 @@ public:
         Expr it_expr(Expr::IDENTIFIER, Token(), "<iterator>");
         Value *it = lookup("<iterator>", NULL, &it_expr, next_try_scope);
         
+        TypeMatch match;
+        
+        if (!typematch(ANY_ITERATOR_TS, it, match)) {
+            std::cerr << "Not an Interator in :for control, but: " << it->ts << "!\n";
+            return false;
+        }
+
+        each_ts = match[1].lvalue();
+        
         Expr next_expr(Expr::IDENTIFIER, Token(), "next");
         Value *next = lookup("next", it, &next_expr, next_try_scope);
         
         if (!next) {
-            std::cerr << ":for argument has no next method!\n";
-            return false;
+            std::cerr << "Iterator didn't implement the next method!\n";
+            throw INTERNAL_ERROR;
         }
         
         this->next.reset(next);
-        
-        each_ts = next->ts.lvalue();
 
         std::vector<Kwinfo> infos = {
             { "each", scope, &each_ts, &each },
