@@ -14,6 +14,9 @@ public:
     }
     
     virtual void add(Declaration *decl) {
+        if (!decl)
+            throw INTERNAL_ERROR;
+            
         decl->added(mark());
         contents.push_back(std::unique_ptr<Declaration>(decl));
     }

@@ -345,7 +345,6 @@ public:
     DataScope *inner_scope;
     RecordType *record_type;
     std::unique_ptr<DataBlockValue> data_value;
-    std::vector<Expr *> deferred_exprs;
     Label virtual_table_label;
     
     RecordDefinitionValue()
@@ -430,7 +429,6 @@ public:
     DataScope *inner_scope;
     ClassType *class_type;
     std::unique_ptr<DataBlockValue> data_value;
-    std::vector<Expr *> deferred_exprs;
     Label virtual_table_label;
     
     ClassDefinitionValue()
@@ -515,7 +513,6 @@ public:
     InterfaceType *interface_type;
     DataScope *inner_scope;
     std::unique_ptr<DataBlockValue> data_value;
-    std::vector<Expr *> deferred_exprs;
     
     InterfaceDefinitionValue()
         :TypeDefinitionValue(METATYPE_TS) {
@@ -527,12 +524,12 @@ public:
             return false;
         }
 
-        interface_type = new InterfaceType("<anonymous>");
+        interface_type = new InterfaceType("<anonymous>", 0);
 
         inner_scope = new DataScope;
         scope->add(inner_scope);
         
-        //inner_scope->set_pivot_type_hint(implementor_ts);
+        inner_scope->set_pivot_type_hint(ANY_TS);
         //inner_scope->set_meta_scope(_metatype->get_inner_scope());
 
         defer_as(kwargs);
@@ -552,15 +549,18 @@ public:
         if (!data_value->complete_definition())
             return false;
 
+        /* FIXME: Temporary no-check until FunctionScope-s are not inserted here
         for (auto &c : inner_scope->contents) {
             Function *f = dynamic_cast<Function *>(c.get());
             
             if (!f) {
                 std::cerr << "Not a function in an interface!\n";
+                throw INTERNAL_ERROR;
                 return false;
             }
         }
-
+        */
+        
         interface_type->set_inner_scope(inner_scope);
 
         return true;
@@ -588,10 +588,9 @@ public:
 class ImplementationDefinitionValue: public TypeDefinitionValue {
 public:
     DataScope *inner_scope;
-    InterfaceType *interface_type;
+    TypeSpec interface_ts;
     ImplementationType *implementation_type;
     std::unique_ptr<DataBlockValue> data_value;
-    std::vector<Expr *> deferred_exprs;
     
     ImplementationDefinitionValue()
         :TypeDefinitionValue(METATYPE_TS) {
@@ -611,16 +610,9 @@ public:
             return false;
         }
         
-        interface_type = dynamic_cast<InterfaceType *>(v->ts[1]);
-        
-        if (!interface_type) {
-            std::cerr << "Implementation needs an interface type name!\n";
-            return false;
-        }
-
         TypeSpec implementor_ts = scope->pivot_type_hint();
-        
-        implementation_type = new ImplementationType("<anonymous>", interface_type);
+        interface_ts = match[1];
+        implementation_type = new ImplementationType("<anonymous>", implementor_ts, interface_ts);
 
         inner_scope = new DataScope;
         scope->add(inner_scope);
@@ -636,7 +628,15 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing implementation definition.\n";
+        std::cerr << "XXX " << deferred_exprs.size() << "\n";
         data_value.reset(new DataBlockValue(inner_scope));
+
+        InterfaceType *interface_type = dynamic_cast<InterfaceType *>(interface_ts[0]);
+        
+        if (!interface_type) {
+            std::cerr << "Implementation needs an interface type name!\n";
+            return false;
+        }
         
         for (Expr *expr : deferred_exprs)
             if (!data_value->check_statement(expr))
@@ -645,13 +645,28 @@ public:
         if (!data_value->complete_definition())
             return false;
 
+        TypeMatch empty_match;
+        TypeMatch fake_match;
+        fake_match.push_back(TypeSpec());
+        TypeSpecIter tsi(interface_ts.begin());
+        tsi++;
+        
+        for (unsigned i = 0; i < interface_ts[0]->parameter_count; i++) {
+            fake_match.push_back(TypeSpec(tsi));
+            tsi += fake_match.back().size();
+        }
+
         for (auto &c : inner_scope->contents) {
             Function *f = dynamic_cast<Function *>(c.get());
             
+            // FIXME: Temporary no-check until FunctionScope-s are not inserted here
             if (!f) {
-                std::cerr << "Not a function in an implementation!\n";
-                return false;
+                continue;
+                //std::cerr << "Not a function in an implementation!\n";
+                //return false;
             }
+            std::cerr << "Checking imp fun: " << f->name << "\n";
+            std::cerr << "XXX " << interface_type->member_functions.size() << "\n";
             
             bool found = false;
             
@@ -659,7 +674,7 @@ public:
                 if (iff->name != f->name)
                     continue;
             
-                if (iff->get_argument_tss() != f->get_argument_tss()) {
+                if (iff->get_argument_tss(fake_match) != f->get_argument_tss(empty_match)) {
                     std::cerr << "Mismatching implementation argument types!\n";
                     return false;
                 }
@@ -669,16 +684,17 @@ public:
                     return false;
                 }
 
-                if (iff->get_result_tss() != f->get_result_tss()) {
+                if (iff->get_result_tss(fake_match) != f->get_result_tss(empty_match)) {
                     std::cerr << "Mismatching implementation result types!\n";
                     return false;
                 }
                 
+                found = true;
                 break;
             }
             
             if (!found) {
-                std::cerr << "Invalid implementation function name!\n";
+                std::cerr << "Invalid implementation function name: " << f->name << "!\n";
                 return false;
             }
         }
@@ -757,7 +773,7 @@ public:
     std::unique_ptr<Value> orig;
     
     ImplementationConversionValue(ImplementationType *imt, Value *o)
-        :Value(TypeSpec { imt->interface_type }) {
+        :Value(imt->interface_ts) {
         implementation_type = imt;
         orig.reset(o);
         marker = orig->marker;
@@ -775,6 +791,7 @@ public:
     }
     
     virtual Value *lookup_inner(std::string name, TypeMatch &match) {
+        std::cerr << "Implementation lookup " << TypeSpec { implementation_type } << " " << name << ".\n";
         ts = orig->ts;
         Scope *inner_scope = implementation_type->get_inner_scope(ts.begin());
         return inner_scope->lookup(name, this, match);

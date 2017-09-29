@@ -242,12 +242,13 @@ class MetaType: public Type {
 public:
     typedef Value *(*TypeDefinitionFactory)();
     TypeDefinitionFactory factory;
-    std::unique_ptr<Scope> inner_scope;
+    std::unique_ptr<DataScope> inner_scope;
     
     MetaType(std::string name, TypeDefinitionFactory f)
         :Type(name, 0) {
         factory = f;
-        inner_scope.reset(new Scope);
+        inner_scope.reset(new DataScope);
+        inner_scope->set_pivot_type_hint(TypeSpec { any_type });
     }
 
     virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {

@@ -39,9 +39,10 @@ struct {
 };
 
 
-Scope *implement(Scope *scope, InterfaceType *interface_type, std::string implementation_name) {
+Scope *implement(Scope *scope, TypeSpec interface_ts, std::string implementation_name) {
     DataScope *inner_scope = new DataScope;
-    ImplementationType *implementation = new ImplementationType(implementation_name, interface_type);
+    TypeSpec implementor_ts = scope->pivot_type_hint();
+    ImplementationType *implementation = new ImplementationType(implementation_name, implementor_ts, interface_ts);
     implementation->set_inner_scope(inner_scope);
     scope->add(implementation);
     return inner_scope;
@@ -141,15 +142,20 @@ Scope *init_builtins() {
     array_type = new HeapType("Array", 1);
     root_scope->add(array_type);
 
-    InterfaceType *streamifiable_interface_type = new InterfaceType("Streamifiable");
+    InterfaceType *streamifiable_interface_type = new InterfaceType("Streamifiable", 0);
     streamifiable_type = streamifiable_interface_type;
     root_scope->add(streamifiable_type);
+
+    InterfaceType *iterator_interface_type = new InterfaceType("Iterator", 1);
+    iterator_type = iterator_interface_type;
+    root_scope->add(iterator_type);
 
     // BOGUS_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };
     ANY_LVALUE_TS = { lvalue_type, any_type };
     ANY_OVALUE_TS = { ovalue_type, any_type };
+    SAME_TS = { same_type };
     METATYPE_TS = { metatype_type };
     TREENUMMETA_TS = { treenumeration_metatype };
     VOID_TS = { void_type };
@@ -172,6 +178,7 @@ Scope *init_builtins() {
     VOID_CODE_TS = { code_type, void_type };
     BOOLEAN_CODE_TS = { code_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
+    ANY_ITERATOR_TS = { iterator_type, any_type };
 
     typedef std::vector<TypeSpec> TSs;
     TSs NO_TSS = { };
@@ -185,7 +192,7 @@ Scope *init_builtins() {
     Ss no_names = { };
     Ss value_names = { "value" };
 
-    // Streamifiable details
+    // Streamifiable interface
     DataScope *sis = new DataScope;
     Function *sf = new Function("streamify",
         STREAMIFIABLE_TS,
@@ -196,6 +203,18 @@ Scope *init_builtins() {
     );
     sis->add(sf);
     streamifiable_interface_type->set_inner_scope(sis);
+    
+    // Iterator interface
+    DataScope *iis = new DataScope;
+    Function *nf = new Function("next",
+        ANY_ITERATOR_TS,
+        NO_TSS,
+        no_names,
+        TSs { SAME_TS },
+        NULL
+    );
+    iis->add(nf);
+    iterator_interface_type->set_inner_scope(iis);
 
     // Integer operations
     Scope *integer_scope = integer_metatype->get_inner_scope(BOGUS_TS.begin());
@@ -207,13 +226,13 @@ Scope *init_builtins() {
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
 
     integer_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
-    Scope *isable_scope = implement(integer_scope, streamifiable_interface_type, "sable");
+    Scope *isable_scope = implement(integer_scope, STREAMIFIABLE_TS, "sable");
     isable_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
     
     // Character operations
     Scope *char_scope = character_type->get_inner_scope(BOGUS_TS.begin());
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
-    Scope *csable_scope = implement(char_scope, streamifiable_interface_type, "sable");
+    Scope *csable_scope = implement(char_scope, STREAMIFIABLE_TS, "sable");
     csable_scope->add(new TemplateIdentifier<CharacterStreamificationValue>("streamify", CHARACTER_TS));
     
     // Boolean operations
@@ -230,7 +249,7 @@ Scope *init_builtins() {
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
-    Scope *esable_scope = implement(enum_scope, streamifiable_interface_type, "sable");
+    Scope *esable_scope = implement(enum_scope, STREAMIFIABLE_TS, "sable");
     esable_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
 
     // Treenum operations
@@ -238,7 +257,7 @@ Scope *init_builtins() {
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     treenum_scope->add(new TemplateOperation<TreenumCoveringValue>("cover", ANY_TS, TWEAK));
-    Scope *tsable_scope = implement(treenum_scope, streamifiable_interface_type, "sable");
+    Scope *tsable_scope = implement(treenum_scope, STREAMIFIABLE_TS, "sable");
     tsable_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
 
     // Record operations
@@ -259,7 +278,7 @@ Scope *init_builtins() {
     array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     
     // String operations
-    Scope *sable_scope = implement(array_scope, streamifiable_interface_type, "sable");
+    Scope *sable_scope = implement(array_scope, STREAMIFIABLE_TS, "sable");
     sable_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS));
     
     // Unpacking

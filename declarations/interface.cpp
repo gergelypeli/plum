@@ -3,8 +3,8 @@ class InterfaceType: public Type {
 public:
     std::vector<Function *> member_functions;
 
-    InterfaceType(std::string name)
-        :Type(name, 0) {
+    InterfaceType(std::string name, int pc)
+        :Type(name, pc) {
     }
 
     virtual void set_inner_scope(DataScope *is) {
@@ -77,13 +77,13 @@ class ImplementationType: public Type {
 public:
     DataScope *inner_scope;
     std::vector<Function *> member_functions;
-    InterfaceType *interface_type;
-    //TypeSpec implementor_ts;
+    TypeSpec interface_ts;
+    TypeSpec implementor_ts;
 
-    ImplementationType(std::string name, InterfaceType *ift/*, TypeSpec its*/)
+    ImplementationType(std::string name, TypeSpec irts, TypeSpec ifts)
         :Type(name, 0) {
-        interface_type = ift;
-        //implementor_ts = its;
+        interface_ts = ifts;
+        implementor_ts = irts;
         inner_scope = NULL;
     }
 
@@ -101,6 +101,17 @@ public:
         
         std::cerr << "Implementation " << name << " has " << member_functions.size() << " member functions.\n";
     }
+
+    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+        if (name != this->name)
+            return NULL;
+            
+        if (!typematch(implementor_ts, pivot, match))
+            return NULL;
+
+        return make_implementation_conversion_value(this, pivot);
+    }
+
 
     virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
@@ -156,7 +167,7 @@ public:
 ImplementationType *implementation_cast(Declaration *d, Type *t) {
     ImplementationType *imp = dynamic_cast<ImplementationType *>(d);
     
-    if (imp && imp->interface_type == t)
+    if (imp && imp->interface_ts[0] == t)
         return imp;
     else
         return NULL;

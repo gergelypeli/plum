@@ -125,22 +125,28 @@ public:
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_function_call_value(this, cpivot);
+        return make_function_call_value(this, cpivot, match);
     }
 
-    virtual std::vector<TypeSpec> &get_result_tss() {
-        return res_tss;
+    virtual std::vector<TypeSpec> get_result_tss(TypeMatch &match) {
+        std::vector<TypeSpec> tss;
+        for (auto &ts : res_tss)
+            tss.push_back(typesubst(ts, match));
+        return tss;
     }
     
-    virtual TypeSpec get_pivot_typespec() {
-        return pivot_ts;
+    virtual TypeSpec get_pivot_typespec(TypeMatch &match) {
+        return typesubst(pivot_ts, match);
     }
     
-    virtual std::vector<TypeSpec> &get_argument_tss() {
-        return arg_tss;
+    virtual std::vector<TypeSpec> get_argument_tss(TypeMatch &match) {
+        std::vector<TypeSpec> tss;
+        for (auto &ts : arg_tss)
+            tss.push_back(typesubst(ts, match));
+        return tss;
     }
     
-    virtual std::vector<std::string> &get_argument_names() {
+    virtual std::vector<std::string> get_argument_names() {
         return arg_names;
     }
 

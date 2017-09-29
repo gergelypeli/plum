@@ -226,11 +226,12 @@ public:
 
 class CharacterType: public BasicType {
 public:
-    std::unique_ptr<Scope> inner_scope;
+    std::unique_ptr<DataScope> inner_scope;
     
     CharacterType(std::string n, unsigned s)
         :BasicType(n, s) {
-        inner_scope.reset(new Scope);
+        inner_scope.reset(new DataScope);
+        inner_scope->set_pivot_type_hint(TypeSpec { this });
     }
 
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {

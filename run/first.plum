@@ -114,6 +114,10 @@ Counterator? :Record
         next? :Function Integer as:
             :return 77
             
+    it? :Implementation Integer Iterator as:
+        next? :Function Integer as:
+            :return 77
+            
 
 start? :Function as:
     print(f(1, 2))
@@ -293,6 +297,9 @@ start? :Function as:
 
     dude? Dude
     dude g greet
+
+    ctrt? Counterator
+    prints("Counterator next said: {x}." { x: ctrt it next })
 
     :if `true then:
         last? 0

@@ -30,6 +30,7 @@ Type *class_metatype = NULL;
 Type *interface_metatype = NULL;
 Type *implementation_metatype = NULL;
 Type *streamifiable_type = NULL;
+Type *iterator_type = NULL;
 
 TypeSpec BOGUS_TS;
 TypeSpec VOID_TS;
@@ -39,6 +40,7 @@ TypeSpec ANY_TS;
 TypeSpec ANY_TYPE_TS;
 TypeSpec ANY_OVALUE_TS;
 TypeSpec ANY_LVALUE_TS;
+TypeSpec SAME_TS;
 TypeSpec METATYPE_TS;
 TypeSpec TREENUMMETA_TS;
 TypeSpec BOOLEAN_TS;
@@ -58,4 +60,5 @@ TypeSpec ANY_ARRAY_REFERENCE_TS;
 TypeSpec VOID_CODE_TS;
 TypeSpec BOOLEAN_CODE_TS;
 TypeSpec STREAMIFIABLE_TS;
+TypeSpec ANY_ITERATOR_TS;
 

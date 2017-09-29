@@ -47,7 +47,7 @@ public:
         if (scope->is_pure()) {
             TypeSpec pivot_ts = scope->pivot_type_hint();
             
-            if (pivot_ts != VOID_TS)
+            if (pivot_ts != VOID_TS && pivot_ts != ANY_TS)
                 ss->add(new Variable("$", VOID_TS, pivot_ts));
         }
 
@@ -99,11 +99,16 @@ public:
     }
 
     virtual Regs precompile(Regs) {
-        body->precompile();
+        if (body)
+            body->precompile();
+            
         return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
+        if (!body)
+            return Storage();
+            
         if (exception_type_value)
             exception_type_value->compile(x64);  // to compile treenum definitions
     
@@ -217,16 +222,23 @@ public:
     unsigned res_total;
     std::vector<Storage> arg_storages;
     
-    
-    FunctionCallValue(Function *f, Value *p)
+    TypeSpec pivot_ts;
+    std::vector<TypeSpec> arg_tss;
+    std::vector<TypeSpec> res_tss;
+    std::vector<std::string> arg_names;
+        
+    FunctionCallValue(Function *f, Value *p, TypeMatch &m)
         :Value(BOGUS_TS) {
         function = f;
         pivot.reset(p);
 
-        std::vector<TypeSpec> &res_tss = function->get_result_tss();
+        pivot_ts = function->get_pivot_typespec(m);
+        res_tss = function->get_result_tss(m);
+        arg_tss = function->get_argument_tss(m);
+        arg_names = function->get_argument_names();
         
         if (res_tss.size() == 0)
-            ts = f->get_pivot_typespec();
+            ts = pivot_ts;
         else if (res_tss.size() == 1)
             ts = res_tss[0];
         else if (res_tss.size() > 1)
@@ -236,8 +248,6 @@ public:
     }
 
     virtual bool unpack(std::vector<TypeSpec> &tss) {
-        std::vector<TypeSpec> &res_tss = function->get_result_tss();
-
         if (res_tss.size() > 1) {
             tss = res_tss;
             return true;
@@ -247,9 +257,6 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
-        std::vector<std::string> &arg_names = function->get_argument_names();
-        
         bool ok = check_arguments(args, kwargs, scope, arg_tss, arg_names, items);
         if (!ok)
             return false;
@@ -300,8 +307,6 @@ public:
 
         // These are only initialized if the function returns successfully, so must
         // declare them last, even if we use their address soon.
-        std::vector<TypeSpec> &res_tss = function->get_result_tss();
-        
         for (auto &res_ts : res_tss) {
             result_variables.push_back(NULL);
             
@@ -429,9 +434,6 @@ public:
     
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
-        std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
-        std::vector<TypeSpec> &res_tss = function->get_result_tss();
-
         bool is_void = res_tss.size() == 0;
         
         for (unsigned i = 0; i < res_tss.size(); i++) {
@@ -458,7 +460,7 @@ public:
         unsigned passed_size = 0;
         
         if (pivot) {
-            passed_size += push_arg(function->get_pivot_typespec(), pivot.get(), x64);
+            passed_size += push_arg(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
         
@@ -500,8 +502,6 @@ public:
             pop_arg(arg_tss[i], x64);
             
         if (pivot) {
-            TypeSpec pivot_ts = function->get_pivot_typespec();
-            
             if (is_void)
                 return ret_res(pivot_ts, x64);
             
@@ -518,9 +518,6 @@ public:
     }
 
     virtual Scope *unwind(X64 *x64) {
-        std::vector<TypeSpec> &arg_tss = function->get_argument_tss();
-        TypeSpec pivot_ts = function->get_pivot_typespec();
-
         for (int i = arg_storages.size() - 1; i >= 0; i--) {
             TypeSpec ts = (pivot ? (i > 0 ? arg_tss[i - 1] : pivot_ts) : arg_tss[i]);
             ts.store(arg_storages[i], Storage(), x64);
@@ -534,7 +531,7 @@ public:
     virtual Variable *declare_dirty(std::string name, Scope *scope) {
         DeclarationValue *pivot_dv = declaration_value_cast(pivot.get());
         
-        if (function->get_result_tss().size() == 0 && pivot_dv) {
+        if (res_tss.size() == 0 && pivot_dv) {
             Variable *var = declaration_get_var(pivot_dv);
             
             if (var->name == "<new>") {

@@ -60,11 +60,12 @@ std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 Variable *declaration_get_var(DeclarationValue *dv);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
+TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 
 Value *make_variable_value(Variable *decl, Value *pivot);
 Value *make_role_value(Variable *decl, Value *pivot);
-Value *make_function_call_value(Function *decl, Value *pivot);
+Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match);
 Value *make_type_value(TypeSpec ts);
 Value *make_code_block_value(TypeSpec *context);
 Value *make_multi_value();

@@ -275,8 +275,8 @@ Value *make_role_value(Variable *decl, Value *pivot) {
 }
 
 
-Value *make_function_call_value(Function *decl, Value *pivot) {
-    return new FunctionCallValue(decl, pivot);
+Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match) {
+    return new FunctionCallValue(decl, pivot, match);
 }
 
 

@@ -149,6 +149,22 @@ Scope *TypeSpec::get_inner_scope() {
 
 // New-style type matching
 
+TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
+    TypeSpec ts;
+    
+    for (TypeSpecIter tti = tt.begin(); tti != tt.end(); tti++) {
+        if (*tti == same_type) {
+            for (TypeSpecIter si = match.at(1).begin(); si != match.at(1).end(); si++)
+                ts.push_back(*si);
+        }
+        else
+            ts.push_back(*tti);
+    }
+    
+    return ts;
+}
+
+
 Value *rolematch(Value *v, TypeSpecIter tsi, Type *t) {
     // Return a role of v with an unprefixed type of s, with the front type
     // being is equal to t, but with arbitrary type parameters, potentially
@@ -157,6 +173,7 @@ Value *rolematch(Value *v, TypeSpecIter tsi, Type *t) {
     std::cerr << "Trying rolematch from " << tsi << " to " << t->name << ".\n";
     return (*tsi)->autoconv(tsi, t, v);
 }
+
 
 // Tries to convert value to match tt. The value argument may be overwritten with the
 // converted one. The match argument just returns some information gained during
@@ -178,12 +195,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     else
         match.push_back(TypeSpec());
 
-    for (TypeSpecIter tti = tt.begin(); tti != tt.end(); tti++) {
-        if (*tti == same_type) {
-            tt.erase(tti);
-            std::copy(match.at(1).begin(), match.at(1).end(), tti);
-        }
-    }
+    tt = typesubst(tt, match);
 
     std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
 
