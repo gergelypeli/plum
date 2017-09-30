@@ -139,7 +139,7 @@ Scope *init_builtins() {
     borrowed_type = new BorrowedReferenceType("Borrowed");
     root_scope->add(borrowed_type);
     
-    array_type = new HeapType("Array", 1);
+    array_type = new ArrayType("Array");
     root_scope->add(array_type);
 
     InterfaceType *streamifiable_interface_type = new InterfaceType("Streamifiable", 0);

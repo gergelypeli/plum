@@ -150,14 +150,14 @@ public:
 };
 
 
-class ClassType: public Type {
+class ClassType: public HeapType {
 public:
     DataScope *inner_scope;
     std::vector<Variable *> member_variables;
     Label virtual_table_label;
 
     ClassType(std::string name, Label vtl)
-        :Type(name, 0) {
+        :HeapType(name, 0) {
         virtual_table_label = vtl;
         inner_scope = NULL;
     }

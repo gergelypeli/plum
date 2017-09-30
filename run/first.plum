@@ -104,6 +104,8 @@ Greetable? :Class
     greet? :Function as:
         prints("Greetings!")
 
+    g? Greetable
+    
 
 Dude? :Record
     g? Greetable Role

@@ -245,21 +245,28 @@ public:
 
 class HeapType: public Type {
 public:
-    std::unique_ptr<DataScope> inner_scope;
-
     HeapType(std::string name, unsigned pc)
         :Type(name, pc) {
+    }
+};
+
+
+bool is_heap_type(Type *t) {
+    return dynamic_cast<HeapType *>(t);
+}
+
+
+class ArrayType: public HeapType {
+public:
+    std::unique_ptr<DataScope> inner_scope;
+
+    ArrayType(std::string name)
+        :HeapType(name, 1) {
         inner_scope.reset(new DataScope);
-        inner_scope->set_pivot_type_hint(TypeSpec { reference_type, any_type });
+        inner_scope->set_pivot_type_hint(TypeSpec { reference_type, this, any_type });
     }
     
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope.get();
     }
 };
-
-
-HeapType *heap_type_cast(Type *t) {
-    return dynamic_cast<HeapType *>(t);
-}
-

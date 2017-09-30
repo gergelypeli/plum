@@ -6,7 +6,7 @@ const long RETURN_EXCEPTION = -1;
 
 class Declaration;
 class Type;
-class HeapType;
+class ArrayType;
 class ImplementationType;
 class Scope;
 class CodeScope;
@@ -54,7 +54,7 @@ Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 Variable *variable_cast(Declaration *decl);
-HeapType *heap_type_cast(Type *t);
+bool is_heap_type(Type *t);
 ImplementationType *implementation_cast(Declaration *d, Type *t);
 std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
