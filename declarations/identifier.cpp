@@ -56,7 +56,7 @@ public:
         if (var_ts[0] == lvalue_type && var_ts[1] == role_type)
             return make_role_value(this, cpivot);
         else
-            return make_variable_value(this, cpivot);
+            return make_variable_value(this, cpivot, match);
     }
     
     virtual void allocate() {

@@ -2,22 +2,16 @@
 class RecordType: public Type {
 public:
     Scope *inner_scope;
-    Label virtual_table_label;
     
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
 
-    RecordType(std::string n, Label vtl)
-        :Type(n, 0) {
-        virtual_table_label = vtl;
+    RecordType(std::string n, int pc)
+        :Type(n, pc) {
         inner_scope = NULL;
     }
 
-    virtual Label get_virtual_table_label(TypeSpecIter tsi) {
-        return virtual_table_label;
-    }
-    
     virtual void set_inner_scope(Scope *is) {
         inner_scope = is;
         
@@ -146,6 +140,17 @@ public:
     
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope;
+    }
+    
+    virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
+        std::vector<TypeSpec> tss;
+        for (auto &ts : member_tss)
+            tss.push_back(typesubst(ts, match));
+        return tss;
+    }
+    
+    virtual std::vector<std::string> get_member_names() {
+        return member_names;
     }
 };
 

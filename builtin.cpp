@@ -292,8 +292,6 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));
     root_scope->add(new TemplateIdentifier<TryValue>(":try", VOID_TS));
-    //root_scope->add(new TemplateIdentifier<EvalValue>(":eval", VOID_TS));
-    //root_scope->add(new TemplateIdentifier<YieldValue>(":yield", VOID_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
     root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
     
@@ -306,8 +304,39 @@ Scope *init_builtins() {
     root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS }, NULL));
 
     root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }, NULL));
-    //root_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
-    //root_scope->add(new ImportedFunction("streamify_string", "streamify", CHARACTER_ARRAY_REFERENCE_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, VOID_TS));
+
+    // Iterator operations
+    RecordType *counter_type = new RecordType("Counter", 0);
+    TypeSpec COUNTER_TS = { counter_type };
+    TypeSpec INTEGER_ITERATOR_TS = { iterator_type, integer_type };
+    
+    DataScope *cis = new DataScope;
+    root_scope->add(cis);
+    cis->set_pivot_type_hint(COUNTER_TS);
+    
+    cis->add(new Variable("limit", COUNTER_TS, INTEGER_LVALUE_TS));  // Order matters!
+    cis->add(new Variable("value", COUNTER_TS, INTEGER_LVALUE_TS));
+    Scope *citer_scope = implement(cis, INTEGER_ITERATOR_TS, "iter");
+    citer_scope->add(new TemplateIdentifier<CounterNextValue>("next", COUNTER_TS));
+    counter_type->set_inner_scope(cis);
+    root_scope->add(counter_type);
+
+    // Array Iterator operations
+    RecordType *arrayiter_type = new RecordType("Array_iterator", 1);
+    TypeSpec ANY_ARRAYITER_TS = { arrayiter_type, any_type };
+    TypeSpec SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
+    TypeSpec SAME_ITERATOR_TS = { iterator_type, same_type };
+    
+    DataScope *aiis = new DataScope;
+    root_scope->add(aiis);
+    aiis->set_pivot_type_hint(ANY_ARRAYITER_TS);
+    
+    aiis->add(new Variable("array", ANY_ARRAYITER_TS, SAME_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
+    aiis->add(new Variable("value", ANY_ARRAYITER_TS, INTEGER_LVALUE_TS));
+    Scope *aiter_scope = implement(aiis, SAME_ITERATOR_TS, "iter");
+    aiter_scope->add(new TemplateIdentifier<ArrayIteratorNextValue>("next", ANY_ARRAYITER_TS));
+    arrayiter_type->set_inner_scope(aiis);
+    root_scope->add(arrayiter_type);
 
     return root_scope;
 }

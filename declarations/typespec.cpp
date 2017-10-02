@@ -149,11 +149,29 @@ Scope *TypeSpec::get_inner_scope() {
 
 // New-style type matching
 
+TypeMatch type_parameters_to_match(TypeSpec ts) {
+    TypeMatch fake_match;
+    fake_match.push_back(TypeSpec());
+    TypeSpecIter tsi(ts.begin());
+    tsi++;
+    
+    for (unsigned i = 0; i < ts[0]->parameter_count; i++) {
+        fake_match.push_back(TypeSpec(tsi));
+        tsi += fake_match.back().size();
+    }
+    
+    return fake_match;
+}
+
+
 TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     TypeSpec ts;
     
     for (TypeSpecIter tti = tt.begin(); tti != tt.end(); tti++) {
         if (*tti == same_type) {
+            if (match.size() < 2)
+                throw INTERNAL_ERROR;
+                
             for (TypeSpecIter si = match.at(1).begin(); si != match.at(1).end(); si++)
                 ts.push_back(*si);
         }

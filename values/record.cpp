@@ -11,23 +11,20 @@ public:
 class RecordInitializerValue: public Value {
 public:
     RecordType *record_type;
+    TypeMatch match;
     Variable *variable;
     std::vector<std::unique_ptr<Value>> values;
-    
     std::vector<Storage> var_storages;
-    
     
     RecordInitializerValue(Variable *var)
         :Value(var->var_ts) {
         record_type = dynamic_cast<RecordType *>(ts[0]);
+        match = type_parameters_to_match(ts);
         variable = var;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        //std::vector<TypeSpec> arg_tss = record_type->member_tss;
-        //std::vector<std::string> arg_names = record_type->member_names;
-        
-        return check_arguments(args, kwargs, scope, record_type->member_tss, record_type->member_names, values);
+        return check_arguments(args, kwargs, scope, record_type->get_member_tss(match), record_type->get_member_names(), values);
     }
 
     virtual Regs precompile(Regs preferred) {

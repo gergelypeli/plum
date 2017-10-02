@@ -151,8 +151,8 @@ public:
     std::unique_ptr<Value> pivot;
     Register reg;
     
-    VariableValue(Variable *v, Value *p)
-        :Value(v->var_ts) {
+    VariableValue(Variable *v, Value *p, TypeMatch &match)
+        :Value(typesubst(v->var_ts, match)) {
         variable = v;
         pivot.reset(p);
         reg = NOREG;
@@ -258,6 +258,7 @@ public:
 #include "multi.cpp"
 #include "control.cpp"
 #include "stream.cpp"
+#include "iterator.cpp"
 
 
 TypeSpec get_typespec(Value *value) {
@@ -265,8 +266,8 @@ TypeSpec get_typespec(Value *value) {
 }
 
 
-Value *make_variable_value(Variable *decl, Value *pivot) {
-    return new VariableValue(decl, pivot);
+Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match) {
+    return new VariableValue(decl, pivot, match);
 }
 
 
@@ -350,8 +351,8 @@ Value *make_boolean_conversion_value(Value *p) {
 }
 
 
-Value *make_implementation_conversion_value(ImplementationType *imt, Value *p) {
-    return new ImplementationConversionValue(imt, p);
+Value *make_implementation_conversion_value(ImplementationType *imt, Value *p, TypeMatch &match) {
+    return new ImplementationConversionValue(imt, p, match);
 }
 
 

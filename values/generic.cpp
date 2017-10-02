@@ -321,7 +321,7 @@ public:
 };
 
 
-bool check_argument(unsigned i, Expr *e, Scope *scope, std::vector<TypeSpec> &arg_tss, std::vector<std::unique_ptr<Value>> &values) {
+bool check_argument(unsigned i, Expr *e, Scope *scope, const std::vector<TypeSpec> &arg_tss, std::vector<std::unique_ptr<Value>> &values) {
     if (i >= values.size()) {
         std::cerr << "Too many arguments!\n";
         return false;
@@ -348,8 +348,8 @@ bool check_argument(unsigned i, Expr *e, Scope *scope, std::vector<TypeSpec> &ar
 
 bool check_arguments(
     Args &args, Kwargs &kwargs, Scope *scope,
-    std::vector<TypeSpec> &arg_tss,
-    std::vector<std::string> &arg_names,
+    const std::vector<TypeSpec> &arg_tss,
+    const std::vector<std::string> &arg_names,
     std::vector<std::unique_ptr<Value>> &values
 ) {
     for (unsigned i = 0; i< arg_tss.size(); i++)

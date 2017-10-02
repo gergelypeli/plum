@@ -111,7 +111,7 @@ public:
         if (!typematch(implementor_ts, pivot, match))
             return NULL;
 
-        return make_implementation_conversion_value(this, pivot);
+        return make_implementation_conversion_value(this, pivot, match);
     }
 
 
@@ -162,6 +162,10 @@ public:
 
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope;
+    }
+    
+    virtual TypeSpec get_interface_ts(TypeMatch &match) {
+        return typesubst(interface_ts, match);
     }
 };
 

@@ -58,7 +58,7 @@ nasty? :Function may: { BIG_ERROR, SMALL_ERROR } as:
     :raise `SMALL_ERROR
     
     
-Counter? :Record
+XCounter? :Record
     current? Integer
     limit? Integer
     
@@ -79,7 +79,7 @@ Counter? :Record
             :return $ current
 
 
-Stringiterator? :Record
+XStringiterator? :Record
     string? Character Array
     index? Integer
     
@@ -106,10 +106,6 @@ Greetable? :Class
 
     g? Greetable
     
-
-Dude? :Record
-    g? Greetable Role
-
 
 start? :Function as:
     print(f(1, 2))
@@ -261,10 +257,10 @@ start? :Function as:
             
         prints("Too bad!")
 
-    :for Counter `new 7 each: c? do:
+    :for Counter { 7 } each: c? do:
         prints("Counting: {c}" {})
 
-    :for Stringiterator `new "Abcdef" each: c? do:
+    :for Character Array_iterator { "Abcdef" } each: c? do:
         prints("Iterating: {c}" {})
 
     x3 = :lol:
@@ -286,9 +282,6 @@ start? :Function as:
     x4? Integer :try 66
 
     prints("Let's hope that {x4} == 66." {})
-
-    dude? Dude
-    dude g greet
 
     :if `true then:
         last? 0

@@ -345,7 +345,6 @@ public:
     DataScope *inner_scope;
     RecordType *record_type;
     std::unique_ptr<DataBlockValue> data_value;
-    Label virtual_table_label;
     
     RecordDefinitionValue()
         :TypeDefinitionValue(METATYPE_TS) {
@@ -357,7 +356,7 @@ public:
             return false;
         }
 
-        record_type = new RecordType("<anonymous>", virtual_table_label);
+        record_type = new RecordType("<anonymous>", 0);
 
         inner_scope = new DataScope;
         scope->add(inner_scope);
@@ -408,8 +407,6 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        compile_virtual_table(x64, record_type->name, virtual_table_label, inner_scope);
-
         return data_value->compile(x64);
     }
 
@@ -646,15 +643,7 @@ public:
             return false;
 
         TypeMatch empty_match;
-        TypeMatch fake_match;
-        fake_match.push_back(TypeSpec());
-        TypeSpecIter tsi(interface_ts.begin());
-        tsi++;
-        
-        for (unsigned i = 0; i < interface_ts[0]->parameter_count; i++) {
-            fake_match.push_back(TypeSpec(tsi));
-            tsi += fake_match.back().size();
-        }
+        TypeMatch fake_match = type_parameters_to_match(interface_ts);
 
         for (auto &c : inner_scope->contents) {
             Function *f = dynamic_cast<Function *>(c.get());
@@ -772,8 +761,8 @@ public:
     ImplementationType *implementation_type;
     std::unique_ptr<Value> orig;
     
-    ImplementationConversionValue(ImplementationType *imt, Value *o)
-        :Value(imt->interface_ts) {
+    ImplementationConversionValue(ImplementationType *imt, Value *o, TypeMatch &match)
+        :Value(imt->get_interface_ts(match)) {
         implementation_type = imt;
         orig.reset(o);
         marker = orig->marker;

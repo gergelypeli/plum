@@ -254,8 +254,8 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         identifier = !identifier;
     }
 
-    Value *ret = make_variable_value(v, NULL);
     TypeMatch match;  // kinda unnecessary
+    Value *ret = make_variable_value(v, NULL, match);
     ret = new ArrayReallocValue(TWEAK, ret, match);
     block->add_statement(ret, true);
     

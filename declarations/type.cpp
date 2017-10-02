@@ -147,7 +147,8 @@ public:
                 ImplementationType *it = implementation_cast(d.get(), t);
             
                 if (it) {
-                    return make_implementation_conversion_value(it, orig);
+                    TypeMatch match = type_parameters_to_match(get_typespec(orig).rvalue());
+                    return make_implementation_conversion_value(it, orig, match);
                 }
             }
         }
