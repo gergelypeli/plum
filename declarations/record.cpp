@@ -107,19 +107,27 @@ public:
     }
     
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+        TypeSpec ts(tsi);
+        TypeMatch match;
+
+        // NOTE: initializers must only appear in code scopes, and there all types
+        // must be concrete, not having free parameters. Also, the automatic variable is
+        // put in the local scope, so there will be no pivot for it to derive any
+        // type parameters from. 
+        
         if (n == "{}") {
             // Anonymous initializer
-            Variable *var = new Variable("<new>", VOID_TS, TypeSpec(tsi));
+            Variable *var = new Variable("<new>", VOID_TS, ts);
             scope->add(var);
             
-            return make_record_initializer_value(var);
+            match = type_parameters_to_match(ts);
+            
+            return make_record_initializer_value(var, match);
         }
         else {
             // Named initializer
-            TypeSpec ts(tsi);
             Value *dv = make_declaration_by_type("<new>", ts, scope);
 
-            TypeMatch match;
             Value *value = inner_scope->lookup(n, dv, match);
 
             if (value)

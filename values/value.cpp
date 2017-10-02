@@ -396,8 +396,8 @@ Value *make_record_definition_value() {
 }
 
 
-Value *make_record_initializer_value(Variable *var) {
-    return new RecordInitializerValue(var);
+Value *make_record_initializer_value(Variable *var, TypeMatch &match) {
+    return new RecordInitializerValue(var, match);
 }
 
 

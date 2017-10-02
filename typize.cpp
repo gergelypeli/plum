@@ -88,7 +88,7 @@ Value *make_integer_definition_value();
 Value *make_enumeration_definition_value();
 Value *make_treenumeration_definition_value();
 Value *make_record_definition_value();
-Value *make_record_initializer_value(Variable *var);
+Value *make_record_initializer_value(Variable *var, TypeMatch &match);
 Value *make_class_definition_value();
 Value *make_interface_definition_value();
 Value *make_implementation_definition_value();

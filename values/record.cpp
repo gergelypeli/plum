@@ -15,16 +15,19 @@ public:
     Variable *variable;
     std::vector<std::unique_ptr<Value>> values;
     std::vector<Storage> var_storages;
+    std::vector<TypeSpec> member_tss;
+    std::vector<std::string> member_names;
     
-    RecordInitializerValue(Variable *var)
+    RecordInitializerValue(Variable *var, TypeMatch &match)
         :Value(var->var_ts) {
-        record_type = dynamic_cast<RecordType *>(ts[0]);
-        match = type_parameters_to_match(ts);
         variable = var;
+        record_type = dynamic_cast<RecordType *>(ts[0]);
+        member_tss = record_type->get_member_tss(match);
+        member_names = record_type->get_member_names();
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        return check_arguments(args, kwargs, scope, record_type->get_member_tss(match), record_type->get_member_names(), values);
+        return check_arguments(args, kwargs, scope, member_tss, member_names, values);
     }
 
     virtual Regs precompile(Regs preferred) {

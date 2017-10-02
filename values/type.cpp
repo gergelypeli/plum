@@ -608,7 +608,7 @@ public:
         }
         
         TypeSpec implementor_ts = scope->pivot_type_hint();
-        interface_ts = match[1];
+        interface_ts = match[1];  // NOTE: May still contain Some types
         implementation_type = new ImplementationType("<anonymous>", implementor_ts, interface_ts);
 
         inner_scope = new DataScope;
@@ -642,8 +642,15 @@ public:
         if (!data_value->complete_definition())
             return false;
 
-        TypeMatch empty_match;
+        // NOTE: this is kinda weird, but correct.
+        // If a parametric type implements an interface with the same type parameter
+        // used, we can't concretize that here yet. So the fake_match, despite being
+        // a replacement, may still have Same types. When getting the argument types
+        // from the interface definition, the substitution will replace Same types
+        // with Same types. But the functions in the implementation will be similarly
+        // parametrized, so the comparison should compare Same to Same, and succeed.
         TypeMatch fake_match = type_parameters_to_match(interface_ts);
+        TypeMatch empty_match;
 
         for (auto &c : inner_scope->contents) {
             Function *f = dynamic_cast<Function *>(c.get());
@@ -766,9 +773,6 @@ public:
         implementation_type = imt;
         orig.reset(o);
         marker = orig->marker;
-        
-        //if (o->ts.rvalue()[0] == reference_type)
-        //    ts = ts.prefix(reference_type);
     }
     
     virtual Regs precompile(Regs preferred) {
