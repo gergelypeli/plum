@@ -232,14 +232,23 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        iterator.reset(check_value(args, scope, NULL));
-        if (!iterator)
-            return false;
-            
-        if (iterator->ts == VOID_TS) {
-            std::cerr << "Missing iterator in :for!\n";
+        Value *ib = check_value(args, scope, NULL);
+        TypeMatch imatch;
+        
+        if (!typematch(ANY_ITERABLE_TS, ib, imatch)) {
+            std::cerr << "Not an Iterable in :for control, but: " << ib->ts << "!\n";
             return false;
         }
+        
+        Expr ib_expr(Expr::IDENTIFIER, Token(), "iter");
+        Value *ib2 = lookup("iter", ib, &ib_expr, scope);
+        
+        if (!ib2) {
+            std::cerr << "Iterable didn't implement the iter method!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        iterator.reset(ib2);
             
         // TODO: this should be a "local variable", to be destroyed once we're done
         // instead of letting the enclosing scope destroy it.
@@ -252,11 +261,10 @@ public:
 
         Expr it_expr(Expr::IDENTIFIER, Token(), "<iterator>");
         Value *it = lookup("<iterator>", NULL, &it_expr, next_try_scope);
-        
         TypeMatch match;
         
         if (!typematch(ANY_ITERATOR_TS, it, match)) {
-            std::cerr << "Not an Interator in :for control, but: " << it->ts << "!\n";
+            std::cerr << "Not an Iterator in :for control, but: " << it->ts << "!\n";
             return false;
         }
 

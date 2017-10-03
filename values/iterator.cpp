@@ -106,3 +106,56 @@ public:
         }
     }
 };
+
+
+class ArrayIterableIterValue: public GenericValue {
+public:
+    Variable *variable;
+    
+    ArrayIterableIterValue(Value *l, TypeMatch &match)
+        :GenericValue(match[0], match[1].prefix(array_iterator_type), l) {
+        variable = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 0 || kwargs.size() != 0) {
+            std::cerr << "Whacky Iterable iter!\n";
+            return false;
+        }
+
+        variable = new Variable("<new>", VOID_TS, ts);
+        scope->add(variable);
+
+        return true;
+    }
+
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
+        Storage rec_storage = variable->get_storage(fn_storage);
+        
+        if (rec_storage.where != MEMORY)
+            throw INTERNAL_ERROR;
+
+        ls = left->compile(x64);
+        
+        switch (ls.where) {
+        case REGISTER:
+            x64->op(MOVQ, rec_storage.address, ls.reg);
+            x64->op(MOVQ, rec_storage.address + 8, 0);
+            return rec_storage;
+        case MEMORY:
+            x64->op(MOVQ, RBX, ls.address);
+            x64->incref(RBX);
+            x64->op(MOVQ, rec_storage.address, RBX);
+            x64->op(MOVQ, rec_storage.address + 8, 0);
+            return rec_storage;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
