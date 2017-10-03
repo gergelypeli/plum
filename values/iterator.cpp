@@ -129,7 +129,6 @@ public:
         return true;
     }
 
-
     virtual Regs precompile(Regs preferred) {
         return left->precompile(preferred);
     }
@@ -157,5 +156,30 @@ public:
         default:
             throw INTERNAL_ERROR;
         }
+    }
+};
+
+
+class IteratorIterableIterValue: public GenericValue {
+public:
+    IteratorIterableIterValue(Value *l, TypeMatch &match)
+        :GenericValue(match[0], match[0], l) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 0 || kwargs.size() != 0) {
+            std::cerr << "Whacky Iterable iter!\n";
+            return false;
+        }
+
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return left->compile(x64);
     }
 };

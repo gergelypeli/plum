@@ -144,12 +144,15 @@ public:
         
         if (inner_scope) {
             for (auto &d : inner_scope->contents) {
-                ImplementationType *it = implementation_cast(d.get(), t);
+                Value *v = implemented(d.get(), TypeSpec(tsi), t, orig);
+                if (v)
+                    return v;
+                //ImplementationType *it = implementation_cast(d.get(), t);
             
-                if (it) {
-                    TypeMatch match = type_parameters_to_match(get_typespec(orig).rvalue());
-                    return make_implementation_conversion_value(it, orig, match);
-                }
+                //if (it) {
+                //    TypeMatch match = type_parameters_to_match(get_typespec(orig).rvalue());
+                //    return make_implementation_conversion_value(it, orig, match);
+                //}
             }
         }
         

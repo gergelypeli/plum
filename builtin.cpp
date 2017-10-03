@@ -211,18 +211,6 @@ Scope *init_builtins() {
     sis->add(sf);
     streamifiable_interface_type->set_inner_scope(sis);
     
-    // Iterator interface
-    DataScope *iis = new DataScope;
-    Function *nf = new Function("next",
-        ANY_ITERATOR_TS,
-        NO_TSS,
-        no_names,
-        TSs { SAME_TS },
-        NULL
-    );
-    iis->add(nf);
-    iterator_interface_type->set_inner_scope(iis);
-
     // Iterable interface
     DataScope *jis = new DataScope;
     Function *xf = new Function("iter",
@@ -235,7 +223,24 @@ Scope *init_builtins() {
     jis->add(xf);
     iterable_interface_type->set_inner_scope(jis);
 
-    // Iterator operations
+    // Iterator interface
+    DataScope *iis = new DataScope;
+    Function *nf = new Function("next",
+        ANY_ITERATOR_TS,
+        NO_TSS,
+        no_names,
+        TSs { SAME_TS },
+        NULL
+    );
+    iis->add(nf);
+    iis->set_pivot_type_hint(ANY_ITERATOR_TS);
+    Scope *ii_scope = implement(iis, SAME_ITERABLE_TS, "ible");
+    // This must return the concrete type, so the pivot type must be Any so that no
+    // conversion to an interface happens, which would hide the concrete type.
+    ii_scope->add(new TemplateIdentifier<IteratorIterableIterValue>("iter", ANY_TS));
+    iterator_interface_type->set_inner_scope(iis);
+
+    // Counter operations
     RecordType *counter_type = new RecordType("Counter", 0);
     TypeSpec COUNTER_TS = { counter_type };
     TypeSpec INTEGER_ITERATOR_TS = { iterator_type, integer_type };
@@ -329,7 +334,7 @@ Scope *init_builtins() {
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     
-    // Array iterator operations
+    // Array iterable operations
     Scope *ible_scope = implement(array_scope, SAME_ITERABLE_TS, "ible");
     ible_scope->add(new TemplateIdentifier<ArrayIterableIterValue>("iter", ANY_ARRAY_REFERENCE_TS));
 

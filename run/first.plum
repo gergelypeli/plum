@@ -257,8 +257,8 @@ start? :Function as:
             
         prints("Too bad!")
 
-    #:for Counter { 7 } each: c? do:
-    #    prints("Counting: {c}" {})
+    :for Counter { 7 } each: c? do:
+        prints("Counting: {c}" {})
 
     #:for Character Array_iterator { "Abcdef" } each: c? do:
     #    prints("Iterating: {c}" {})

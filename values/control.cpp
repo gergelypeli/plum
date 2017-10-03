@@ -240,6 +240,8 @@ public:
             return false;
         }
         
+        std::cerr << "XXX iterable is " << ib->ts << "\n";
+        
         Expr ib_expr(Expr::IDENTIFIER, Token(), "iter");
         Value *ib2 = lookup("iter", ib, &ib_expr, scope);
         
@@ -247,6 +249,8 @@ public:
             std::cerr << "Iterable didn't implement the iter method!\n";
             throw INTERNAL_ERROR;
         }
+
+        std::cerr << "XXX iterator is " << ib2->ts << "\n";
 
         iterator.reset(ib2);
             

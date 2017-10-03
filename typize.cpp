@@ -55,7 +55,7 @@ TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 Variable *variable_cast(Declaration *decl);
 bool is_heap_type(Type *t);
-ImplementationType *implementation_cast(Declaration *d, Type *t);
+Value *implemented(Declaration *d, TypeSpec ts, Type *t, Value *orig);
 std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 Variable *declaration_get_var(DeclarationValue *dv);

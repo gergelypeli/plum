@@ -2,13 +2,15 @@
 class InterfaceType: public Type {
 public:
     std::vector<Function *> member_functions;
-
+    DataScope *inner_scope;
+    
     InterfaceType(std::string name, int pc)
         :Type(name, pc) {
+        inner_scope = NULL;
     }
 
     virtual void set_inner_scope(DataScope *is) {
-        DataScope *inner_scope = is;
+        inner_scope = is;
         
         for (auto &c : inner_scope->contents) {
             Function *f = dynamic_cast<Function *>(c.get());
@@ -67,7 +69,7 @@ public:
     }
 
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        throw INTERNAL_ERROR;
+        return inner_scope;
     }
 };
 
@@ -170,12 +172,30 @@ public:
 };
 
 
-ImplementationType *implementation_cast(Declaration *d, Type *t) {
+Value *implemented(Declaration *d, TypeSpec ts, Type *t, Value *orig) {
     ImplementationType *imp = dynamic_cast<ImplementationType *>(d);
-    
-    if (imp && imp->interface_ts[0] == t)
-        return imp;
-    else
-        return NULL;
+
+    if (imp) {
+        //TypeMatch match = type_parameters_to_match(get_typespec(orig).rvalue());
+        TypeMatch match = type_parameters_to_match(ts);
+        
+        if (imp->interface_ts[0] == t) {
+            // Direct implementation
+            return make_implementation_conversion_value(imp, orig, match);
+        }
+        else {
+            // Indirect implementation
+            TypeSpec ifts = imp->get_interface_ts(match);
+            Scope *inner_scope = ifts.get_inner_scope();
+        
+            for (auto &dd : inner_scope->contents) {
+                Value *v = implemented(dd.get(), ifts, t, orig);
+                if (v)
+                    return v;
+            }
+        }
+    }
+
+    return NULL;
 }
 
