@@ -7,6 +7,7 @@ const long RETURN_EXCEPTION = -1;
 class Declaration;
 class Type;
 class ArrayType;
+class InterfaceType;
 class ImplementationType;
 class Scope;
 class CodeScope;
@@ -45,7 +46,9 @@ public:
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
+typedef std::vector<TypeSpec> TSs;
 typedef std::vector<TypeSpec> TypeMatch;
+typedef std::vector<std::string> Ss;
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);

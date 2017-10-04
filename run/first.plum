@@ -257,11 +257,12 @@ start? :Function as:
             
         prints("Too bad!")
 
-    :for Counter { 7 } each: c? do:
-        prints("Counting: {c}" {})
+    :for 7 countup each: c? do:
+        prints("Counting up: {c}" {})
 
-    #:for Character Array_iterator { "Abcdef" } each: c? do:
-    #    prints("Iterating: {c}" {})
+    :for 7 countdown each: c? do:
+        prints("Counting down: {c}" {})
+
     :for "Abcdef" each: c? do:
         prints("Iterating: {c}" {})
 

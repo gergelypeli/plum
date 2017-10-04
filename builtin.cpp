@@ -49,6 +49,98 @@ Scope *implement(Scope *scope, TypeSpec interface_ts, std::string implementation
 }
 
 
+void init_interfaces(Scope *root_scope) {
+    // Streamifiable interface
+    DataScope *sis = new DataScope;
+    Function *sf = new Function("streamify",
+        STREAMIFIABLE_TS,
+        TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS },
+        Ss { "stream" },
+        TSs {},
+        NULL
+    );
+    sis->add(sf);
+    streamifiable_type->set_inner_scope(sis);
+    
+    // Iterable interface
+    DataScope *jis = new DataScope;
+    Function *xf = new Function("iter",
+        ANY_ITERABLE_TS,
+        TSs {},
+        Ss {},
+        TSs { SAME_ITERATOR_TS },
+        NULL
+    );
+    jis->add(xf);
+    iterable_type->set_inner_scope(jis);
+
+    // Iterator interface
+    DataScope *iis = new DataScope;
+    Function *nf = new Function("next",
+        ANY_ITERATOR_TS,
+        TSs {},
+        Ss {},
+        TSs { SAME_TS },
+        NULL
+    );
+    iis->add(nf);
+    iis->set_pivot_type_hint(ANY_ITERATOR_TS);
+    Scope *ii_scope = implement(iis, SAME_ITERABLE_TS, "ible");
+    // This must return the concrete type, so the pivot type must be Any so that no
+    // conversion to an interface happens, which would hide the concrete type.
+    ii_scope->add(new TemplateIdentifier<IteratorIterableIterValue>("iter", ANY_TS));
+    iterator_type->set_inner_scope(iis);
+}
+
+
+void init_iterators(Scope *root_scope) {
+    // Counter operations
+    for (auto is_down : { false, true }) {
+        RecordType *counter_type = new RecordType(is_down ? "Countdown" : "Countup", 0);
+        TypeSpec COUNTER_TS = { counter_type };
+        TypeSpec INTEGER_ITERATOR_TS = { iterator_type, integer_type };
+    
+        DataScope *cis = new DataScope;
+        root_scope->add(cis);
+        cis->set_pivot_type_hint(COUNTER_TS);
+    
+        cis->add(new Variable("limit", COUNTER_TS, INTEGER_LVALUE_TS));  // Order matters!
+        cis->add(new Variable("value", COUNTER_TS, INTEGER_LVALUE_TS));
+        Scope *citer_scope = implement(cis, INTEGER_ITERATOR_TS, "iter");
+        
+        if (!is_down) {
+            citer_scope->add(new TemplateIdentifier<CountupNextValue>("next", COUNTER_TS));
+            COUNTUP_TS = { counter_type };
+        }
+        else {
+            citer_scope->add(new TemplateIdentifier<CountdownNextValue>("next", COUNTER_TS));
+            COUNTDOWN_TS = { counter_type };
+        }
+        
+        counter_type->set_inner_scope(cis);
+        root_scope->add(counter_type);
+
+    }
+
+    // Array Iterator operations
+    RecordType *aiter_type = new RecordType("Array_iterator", 1);
+    array_iterator_type = aiter_type;
+    TypeSpec ANY_ARRAYITER_TS = { array_iterator_type, any_type };
+    TypeSpec SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
+    
+    DataScope *aiis = new DataScope;
+    root_scope->add(aiis);
+    aiis->set_pivot_type_hint(ANY_ARRAYITER_TS);
+    
+    aiis->add(new Variable("array", ANY_ARRAYITER_TS, SAME_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
+    aiis->add(new Variable("value", ANY_ARRAYITER_TS, INTEGER_LVALUE_TS));
+    Scope *aiter_scope = implement(aiis, SAME_ITERATOR_TS, "iter");
+    aiter_scope->add(new TemplateIdentifier<ArrayIteratorNextValue>("next", ANY_ARRAYITER_TS));
+    aiter_type->set_inner_scope(aiis);
+    root_scope->add(array_iterator_type);
+}
+
+
 Scope *init_builtins() {
     Scope *root_scope = new Scope();
 
@@ -142,16 +234,13 @@ Scope *init_builtins() {
     array_type = new ArrayType("Array");
     root_scope->add(array_type);
 
-    InterfaceType *streamifiable_interface_type = new InterfaceType("Streamifiable", 0);
-    streamifiable_type = streamifiable_interface_type;
+    streamifiable_type = new InterfaceType("Streamifiable", 0);
     root_scope->add(streamifiable_type);
 
-    InterfaceType *iterator_interface_type = new InterfaceType("Iterator", 1);
-    iterator_type = iterator_interface_type;
+    iterator_type = new InterfaceType("Iterator", 1);
     root_scope->add(iterator_type);
 
-    InterfaceType *iterable_interface_type = new InterfaceType("Iterable", 1);
-    iterable_type = iterable_interface_type;
+    iterable_type = new InterfaceType("Iterable", 1);
     root_scope->add(iterable_type);
 
     // BOGUS_TS will contain no Type pointers
@@ -187,7 +276,6 @@ Scope *init_builtins() {
     ANY_ITERABLE_TS = { iterable_type, any_type };
     SAME_ITERABLE_TS = { iterable_type, same_type };
 
-    typedef std::vector<TypeSpec> TSs;
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
     TSs BOOLEAN_TSS = { BOOLEAN_TS };
@@ -195,83 +283,12 @@ Scope *init_builtins() {
     TSs UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS = { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS };
     TSs CHARACTER_ARRAY_REFERENCE_TSS = { CHARACTER_ARRAY_REFERENCE_TS };
 
-    typedef std::vector<std::string> Ss;
     Ss no_names = { };
     Ss value_names = { "value" };
 
-    // Streamifiable interface
-    DataScope *sis = new DataScope;
-    Function *sf = new Function("streamify",
-        STREAMIFIABLE_TS,
-        TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS },
-        Ss { "stream" },
-        NO_TSS,
-        NULL
-    );
-    sis->add(sf);
-    streamifiable_interface_type->set_inner_scope(sis);
-    
-    // Iterable interface
-    DataScope *jis = new DataScope;
-    Function *xf = new Function("iter",
-        ANY_ITERABLE_TS,
-        NO_TSS,
-        no_names,
-        TSs { SAME_ITERATOR_TS },
-        NULL
-    );
-    jis->add(xf);
-    iterable_interface_type->set_inner_scope(jis);
+    init_interfaces(root_scope);
 
-    // Iterator interface
-    DataScope *iis = new DataScope;
-    Function *nf = new Function("next",
-        ANY_ITERATOR_TS,
-        NO_TSS,
-        no_names,
-        TSs { SAME_TS },
-        NULL
-    );
-    iis->add(nf);
-    iis->set_pivot_type_hint(ANY_ITERATOR_TS);
-    Scope *ii_scope = implement(iis, SAME_ITERABLE_TS, "ible");
-    // This must return the concrete type, so the pivot type must be Any so that no
-    // conversion to an interface happens, which would hide the concrete type.
-    ii_scope->add(new TemplateIdentifier<IteratorIterableIterValue>("iter", ANY_TS));
-    iterator_interface_type->set_inner_scope(iis);
-
-    // Counter operations
-    RecordType *counter_type = new RecordType("Counter", 0);
-    TypeSpec COUNTER_TS = { counter_type };
-    TypeSpec INTEGER_ITERATOR_TS = { iterator_type, integer_type };
-    
-    DataScope *cis = new DataScope;
-    root_scope->add(cis);
-    cis->set_pivot_type_hint(COUNTER_TS);
-    
-    cis->add(new Variable("limit", COUNTER_TS, INTEGER_LVALUE_TS));  // Order matters!
-    cis->add(new Variable("value", COUNTER_TS, INTEGER_LVALUE_TS));
-    Scope *citer_scope = implement(cis, INTEGER_ITERATOR_TS, "iter");
-    citer_scope->add(new TemplateIdentifier<CounterNextValue>("next", COUNTER_TS));
-    counter_type->set_inner_scope(cis);
-    root_scope->add(counter_type);
-
-    // Array Iterator operations
-    RecordType *aiter_type = new RecordType("Array_iterator", 1);
-    array_iterator_type = aiter_type;
-    TypeSpec ANY_ARRAYITER_TS = { array_iterator_type, any_type };
-    TypeSpec SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
-    
-    DataScope *aiis = new DataScope;
-    root_scope->add(aiis);
-    aiis->set_pivot_type_hint(ANY_ARRAYITER_TS);
-    
-    aiis->add(new Variable("array", ANY_ARRAYITER_TS, SAME_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
-    aiis->add(new Variable("value", ANY_ARRAYITER_TS, INTEGER_LVALUE_TS));
-    Scope *aiter_scope = implement(aiis, SAME_ITERATOR_TS, "iter");
-    aiter_scope->add(new TemplateIdentifier<ArrayIteratorNextValue>("next", ANY_ARRAYITER_TS));
-    aiter_type->set_inner_scope(aiis);
-    root_scope->add(array_iterator_type);
+    init_iterators(root_scope);
 
     // Integer operations
     Scope *integer_scope = integer_metatype->get_inner_scope(BOGUS_TS.begin());
@@ -286,6 +303,9 @@ Scope *init_builtins() {
     Scope *isable_scope = implement(integer_scope, STREAMIFIABLE_TS, "sable");
     isable_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
     
+    integer_scope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
+    integer_scope->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
+        
     // Character operations
     Scope *char_scope = character_type->get_inner_scope(BOGUS_TS.begin());
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
@@ -344,6 +364,7 @@ Scope *init_builtins() {
     
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
+
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
