@@ -171,18 +171,22 @@ public:
 };
 
 
-class ArrayIteratorNextValue: public GenericValue {
+class ArrayNextValue: public GenericValue {
 public:
     Declaration *dummy;
     Regs clob;
+    int elem_size;
+    bool is_down;
     
-    ArrayIteratorNextValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, match[1], l) {
+    ArrayNextValue(TypeSpec t, TypeSpec et, Value *l, bool d)
+        :GenericValue(VOID_TS, t, l) {
+        elem_size = item_size(et.measure(MEMORY));
+        is_down = d;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky Iterator next!\n";
+            std::cerr << "Whacky Array_iterator next!\n";
             return false;
         }
 
@@ -191,7 +195,6 @@ public:
         
         return true;
     }
-
 
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
@@ -202,9 +205,11 @@ public:
         return clob;
     }
 
-    virtual Storage compile(X64 *x64) {
-        int size = item_size(ts.measure(MEMORY));
+    virtual Storage next_compile(Storage ls, Register reg, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
 
+    virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);
         Register reg = (clob & ~ls.regs()).get_any();
         Label ok;
@@ -217,10 +222,8 @@ public:
             x64->op(JNE, ok);
             x64->unwind->initiate(dummy, x64);
             x64->code_label(ok);
-            x64->op(INCQ, ls.address + 8);
-            x64->op(IMUL3Q, RBX, RBX, size);
-            x64->op(ADDQ, reg, RBX);
-            return Storage(MEMORY, x64->array_items_address(reg));
+            x64->op(is_down ? DECQ : INCQ, ls.address + 8);
+            return next_compile(ls, reg, x64);
         default:
             throw INTERNAL_ERROR;
         }
@@ -228,10 +231,62 @@ public:
 };
 
 
-class ArrayIterableIterValue: public SimpleRecordValue {
+class ArrayNextElemValue: public ArrayNextValue {
 public:
-    ArrayIterableIterValue(Value *l, TypeMatch &match)
-        :SimpleRecordValue(match[1].prefix(array_iterator_type), l) {
+    ArrayNextElemValue(Value *l, TypeMatch &match)
+        :ArrayNextValue(match[1], match[1], l, false) {
+    }
+    
+    virtual Storage next_compile(Storage ls, Register reg, X64 *x64) {
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(ADDQ, reg, RBX);
+        return Storage(MEMORY, x64->array_items_address(reg));
+    }
+};
+
+
+class ArrayNextIndexValue: public ArrayNextValue {
+public:
+    ArrayNextIndexValue(Value *l, TypeMatch &match)
+        :ArrayNextValue(INTEGER_TS, match[1], l, false) {
+    }
+    
+    virtual Storage next_compile(Storage ls, Register reg, X64 *x64) {
+        x64->op(MOVQ, reg, RBX);
+        return Storage(REGISTER, reg);
+    }
+};
+
+
+class ArrayElemIterValue: public SimpleRecordValue {
+public:
+    ArrayElemIterValue(Value *l, TypeMatch &match)
+        :SimpleRecordValue(typesubst(SAME_ARRAYELEMITER_TS, match), l) {
+    }
+
+    virtual void simple_compile(Storage ls, Storage rec_storage, X64 *x64) {
+        switch (ls.where) {
+        case REGISTER:
+            x64->op(MOVQ, rec_storage.address, ls.reg);
+            x64->op(MOVQ, rec_storage.address + 8, 0);
+            break;
+        case MEMORY:
+            x64->op(MOVQ, RBX, ls.address);
+            x64->incref(RBX);
+            x64->op(MOVQ, rec_storage.address, RBX);
+            x64->op(MOVQ, rec_storage.address + 8, 0);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
+class ArrayIndexIterValue: public SimpleRecordValue {
+public:
+    ArrayIndexIterValue(Value *l, TypeMatch &match)
+        :SimpleRecordValue(typesubst(SAME_ARRAYINDEXITER_TS, match), l) {
     }
 
     virtual void simple_compile(Storage ls, Storage rec_storage, X64 *x64) {

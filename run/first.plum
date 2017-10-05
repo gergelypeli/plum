@@ -264,7 +264,10 @@ start? :Function as:
         prints("Counting down: {c}" {})
 
     :for "Abcdef" each: c? do:
-        prints("Iterating: {c}" {})
+        prints("Iterating elems: {c}" {})
+
+    :for "Abcdef" indexes each: i? do:
+        prints("Iterating indexes: {i}" {})
 
     x3 = :lol:
         prints("Now yielding.")

@@ -282,6 +282,11 @@ public:
             throw INTERNAL_ERROR;
         }
         
+        if (next->ts != match[1]) {
+            std::cerr << "Misimplemented " << match[1] << " iterator next returns " << next->ts << "!\n";
+            throw INTERNAL_ERROR;
+        }
+        
         this->next.reset(next);
 
         std::vector<Kwinfo> infos = {
