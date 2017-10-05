@@ -123,7 +123,9 @@ void init_iterators(Scope *root_scope) {
 
     // Item type for itemized iteration
     RecordType *item_type = new RecordType("Item", 1);
-    TypeSpec ANY_ITEM_TS = { item_type, any_type };
+    ANY_ITEM_TS = { item_type, any_type };
+    SAME_ITEM_TS = { item_type, same_type };
+    
     DataScope *itis = new DataScope;
     root_scope->add(itis);
     itis->set_pivot_type_hint(ANY_ITEM_TS);
@@ -178,7 +180,7 @@ Scope *init_builtins() {
     any_type = new SpecialType("<Any>", 0);
     root_scope->add(any_type);
 
-    same_type = new SpecialType("<Same>", 0);
+    same_type = new SameType("<Same>");
     root_scope->add(same_type);
 
     integer_metatype = new IntegerMetaType(":Integer");

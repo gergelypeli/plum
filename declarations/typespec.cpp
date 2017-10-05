@@ -215,7 +215,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
 
     tt = typesubst(tt, match);
 
-    std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
+    MATCHLOG std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
 
     // Checking NULL value
     if (!value) {

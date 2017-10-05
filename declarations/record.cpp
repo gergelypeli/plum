@@ -31,9 +31,9 @@ public:
     virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case MEMORY:
-            return inner_scope->get_size();
+            return inner_scope->get_size(tsi);
         case STACK:
-            return stack_size(inner_scope->get_size());
+            return stack_size(inner_scope->get_size(tsi));
         default:
             return Type::measure(tsi, where);
         }
@@ -45,7 +45,7 @@ public:
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
-                var->var_ts.store(Storage(MEMORY, s.address + var->offset), Storage(MEMORY, t.address + var->offset), x64);
+                var->store(tsi, Storage(MEMORY, s.address + var->offset), Storage(MEMORY, t.address + var->offset), x64);
             return;
         default:
             Type::store(tsi, s, t, x64);
@@ -56,11 +56,11 @@ public:
         switch (s.where * t.where) {
         case NOWHERE_MEMORY:
             for (auto &var : member_variables)
-                var->var_ts.create(Storage(), Storage(MEMORY, t.address + var->offset), x64);
+                var->create(tsi, Storage(), Storage(MEMORY, t.address + var->offset), x64);
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
-                var->var_ts.create(Storage(MEMORY, s.address + var->offset), Storage(MEMORY, t.address + var->offset), x64);
+                var->create(tsi, Storage(MEMORY, s.address + var->offset), Storage(MEMORY, t.address + var->offset), x64);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -70,7 +70,7 @@ public:
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         if (s.where == MEMORY)
             for (auto &var : member_variables)  // FIXME: reverse!
-                var->var_ts.destroy(Storage(MEMORY, s.address + var->offset), x64);
+                var->destroy(tsi, Storage(MEMORY, s.address + var->offset), x64);
         else
             throw INTERNAL_ERROR;
     }
@@ -198,7 +198,7 @@ public:
     virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case MEMORY:
-            return inner_scope->get_size();
+            return inner_scope->get_size(tsi);
         default:
             return Type::measure(tsi, where);
         }

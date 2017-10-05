@@ -268,7 +268,10 @@ start? :Function as:
 
     :for "Abcdef" indexes each: i? do:
         prints("Iterating indexes: {i}" {})
-
+        
+    :for "Abcdef" items each: it? do:
+        prints("Iterating items: {i} => {e}" {i: it index, e: it value})
+        
     x3 = :lol:
         prints("Now yielding.")
         :lol 33

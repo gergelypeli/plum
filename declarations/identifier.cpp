@@ -92,6 +92,27 @@ public:
         Storage fn_storage(MEMORY, Address(RBP, 0));
         var_ts.destroy(get_storage(fn_storage), x64);
     }
+    
+    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        // TODO: this is a bit complicated
+        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
+        TypeSpec ts = typesubst(var_ts, match);
+        ts.create(s, t, x64);
+    }
+
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        // TODO: this is a bit complicated
+        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
+        TypeSpec ts = typesubst(var_ts, match);
+        ts.store(s, t, x64);
+    }
+
+    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
+        // TODO: this is a bit complicated
+        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
+        TypeSpec ts = typesubst(var_ts, match);
+        ts.destroy(s, x64);
+    }
 };
 
 

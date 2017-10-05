@@ -1,4 +1,5 @@
 
+
 class Type: public Declaration {
 public:
     std::string name;
@@ -167,17 +168,38 @@ public:
         :Type(name, pc) {
     }
     
-    //virtual unsigned measure(TypeSpecIter, StorageWhere) {
-    //    return 0;
-    //}
-
-    //virtual StorageWhere where(TypeSpecIter tsi) {
-    //    return NOWHERE;
-    //}
-
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
             std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
+class SameType: public Type {
+public:
+    SameType(std::string name)
+        :Type(name, 0) {
+    }
+    
+    virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
+        if (!is_arg && is_lvalue)
+            return MEMORY;  // TODO: all types must be MEMORY for this combination!
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+        if (where == MEMORY)
+            return SAME_SIZE;
+        else
+            throw INTERNAL_ERROR;
+    }
+
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        if (s.where != NOWHERE || t.where != NOWHERE) {
+            std::cerr << "Invalid Same store from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
         }
     }

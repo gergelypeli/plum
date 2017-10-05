@@ -37,8 +37,15 @@ public:
         }
     }
     
-    unsigned get_size() {
-        return size;
+    unsigned get_size(TypeSpecIter tsi) {
+        unsigned concrete_size = size % SAME_SIZE;
+        
+        if (size >= SAME_SIZE) {
+            tsi++;
+            concrete_size += (size / SAME_SIZE) * item_size(TypeSpec(tsi).measure(MEMORY));
+        }
+        
+        return concrete_size;
     }
     
     virtual Marker mark() {
