@@ -205,7 +205,7 @@ public:
         return clob;
     }
 
-    virtual Storage next_compile(Storage ls, Register reg, X64 *x64) {
+    virtual Storage next_compile(Register reg, X64 *x64) {
         throw INTERNAL_ERROR;
     }
 
@@ -223,7 +223,7 @@ public:
             x64->unwind->initiate(dummy, x64);
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + 8);
-            return next_compile(ls, reg, x64);
+            return next_compile(reg, x64);
         default:
             throw INTERNAL_ERROR;
         }
@@ -237,7 +237,7 @@ public:
         :ArrayNextValue(match[1], match[1], l, false) {
     }
     
-    virtual Storage next_compile(Storage ls, Register reg, X64 *x64) {
+    virtual Storage next_compile(Register reg, X64 *x64) {
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
         return Storage(MEMORY, x64->array_items_address(reg));
@@ -251,17 +251,57 @@ public:
         :ArrayNextValue(INTEGER_TS, match[1], l, false) {
     }
     
-    virtual Storage next_compile(Storage ls, Register reg, X64 *x64) {
+    virtual Storage next_compile(Register reg, X64 *x64) {
         x64->op(MOVQ, reg, RBX);
         return Storage(REGISTER, reg);
     }
 };
 
 
-class ArrayElemIterValue: public SimpleRecordValue {
+class ArrayNextItemValue: public ArrayNextValue {
 public:
-    ArrayElemIterValue(Value *l, TypeMatch &match)
-        :SimpleRecordValue(typesubst(SAME_ARRAYELEMITER_TS, match), l) {
+    TypeSpec elem_ts;
+    Variable *result_var;
+    
+    ArrayNextItemValue(Value *l, TypeMatch &match)
+        :ArrayNextValue(typesubst(SAME_ITEM_TS, match), match[1], l, false) {
+        elem_ts = match[1];
+        result_var = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!ArrayNextValue::check(args, kwargs, scope))
+            return false;
+            
+        result_var = new Variable("<item>", VOID_TS, ts);
+        scope->add(result_var);
+        return true;
+    }
+    
+    virtual Storage next_compile(Register reg, X64 *x64) {
+        Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
+        Storage rec_storage = result_var->get_storage(fn_storage);
+        
+        if (rec_storage.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        x64->op(MOVQ, rec_storage.address, RBX);
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(ADDQ, reg, RBX);
+        
+        Storage s = Storage(MEMORY, x64->array_items_address(reg));
+        Storage t = Storage(MEMORY, rec_storage.address + 8);
+        elem_ts.store(s, t, x64);
+        
+        return rec_storage;
+    }
+};
+
+
+class ArrayIterValue: public SimpleRecordValue {
+public:
+    ArrayIterValue(TypeSpec t, Value *l)
+        :SimpleRecordValue(t, l) {
     }
 
     virtual void simple_compile(Storage ls, Storage rec_storage, X64 *x64) {
@@ -282,28 +322,26 @@ public:
     }
 };
 
+class ArrayElemIterValue: public ArrayIterValue {
+public:
+    ArrayElemIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(typesubst(SAME_ARRAYELEMITER_TS, match), l) {
+    }
+};
 
-class ArrayIndexIterValue: public SimpleRecordValue {
+
+class ArrayIndexIterValue: public ArrayIterValue {
 public:
     ArrayIndexIterValue(Value *l, TypeMatch &match)
-        :SimpleRecordValue(typesubst(SAME_ARRAYINDEXITER_TS, match), l) {
+        :ArrayIterValue(typesubst(SAME_ARRAYINDEXITER_TS, match), l) {
     }
+};
 
-    virtual void simple_compile(Storage ls, Storage rec_storage, X64 *x64) {
-        switch (ls.where) {
-        case REGISTER:
-            x64->op(MOVQ, rec_storage.address, ls.reg);
-            x64->op(MOVQ, rec_storage.address + 8, 0);
-            break;
-        case MEMORY:
-            x64->op(MOVQ, RBX, ls.address);
-            x64->incref(RBX);
-            x64->op(MOVQ, rec_storage.address, RBX);
-            x64->op(MOVQ, rec_storage.address + 8, 0);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
+
+class ArrayItemIterValue: public ArrayIterValue {
+public:
+    ArrayItemIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(typesubst(SAME_ARRAYITEMITER_TS, match), l) {
     }
 };
 

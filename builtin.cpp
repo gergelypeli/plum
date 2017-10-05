@@ -121,10 +121,25 @@ void init_iterators(Scope *root_scope) {
 
     }
 
+    // Item type for itemized iteration
+    RecordType *item_type = new RecordType("Item", 1);
+    TypeSpec ANY_ITEM_TS = { item_type, any_type };
+    DataScope *itis = new DataScope;
+    root_scope->add(itis);
+    itis->set_pivot_type_hint(ANY_ITEM_TS);
+
+    itis->add(new Variable("index", ANY_ITEM_TS, INTEGER_LVALUE_TS));  // Order matters!
+    itis->add(new Variable("value", ANY_ITEM_TS, SAME_LVALUE_TS));
+    
+    item_type->set_inner_scope(itis);
+    root_scope->add(item_type);
+    
+    TypeSpec SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, same_type };
+
     // Array Iterator operations
-    for (auto is_index : { false, true }) {
-        RecordType *aiter_type = new RecordType(is_index ? "Arrayindex_iter" : "Arrayelem_iter", 1);
-        //array_iterator_type = aiter_type;
+    enum AIT { ELEM, INDEX, ITEM };
+    for (auto type : { ELEM, INDEX, ITEM }) {
+        RecordType *aiter_type = new RecordType(type == INDEX ? "Arrayindex_iter" : type == ELEM ? "Arrayelem_iter" : "Arrayitem_iter", 1);
         TypeSpec ANY_ARRAYITER_TS = { aiter_type, any_type };
         TypeSpec SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
     
@@ -134,15 +149,21 @@ void init_iterators(Scope *root_scope) {
     
         aiis->add(new Variable("array", ANY_ARRAYITER_TS, SAME_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
         aiis->add(new Variable("value", ANY_ARRAYITER_TS, INTEGER_LVALUE_TS));
-        Scope *aiter_scope = implement(aiis, is_index ? INTEGER_ITERATOR_TS : SAME_ITERATOR_TS, "iter");
-        
-        if (!is_index) {
+
+        if (type == ELEM) {
+            Scope *aiter_scope = implement(aiis, SAME_ITERATOR_TS, "elemiter");
             aiter_scope->add(new TemplateIdentifier<ArrayNextElemValue>("next", ANY_ARRAYITER_TS));
             SAME_ARRAYELEMITER_TS = { aiter_type, same_type };
         }
-        else {
+        else if (type == INDEX) {
+            Scope *aiter_scope = implement(aiis, INTEGER_ITERATOR_TS, "indexiter");
             aiter_scope->add(new TemplateIdentifier<ArrayNextIndexValue>("next", ANY_ARRAYITER_TS));
             SAME_ARRAYINDEXITER_TS = { aiter_type, same_type };
+        }
+        else {
+            Scope *aiter_scope = implement(aiis, SAME_ITEM_ITERATOR_TS, "itemiter");
+            aiter_scope->add(new TemplateIdentifier<ArrayNextItemValue>("next", ANY_ARRAYITER_TS));
+            SAME_ARRAYITEMITER_TS = { aiter_type, same_type };
         }
         
         aiter_type->set_inner_scope(aiis);
@@ -259,6 +280,7 @@ Scope *init_builtins() {
     ANY_LVALUE_TS = { lvalue_type, any_type };
     ANY_OVALUE_TS = { ovalue_type, any_type };
     SAME_TS = { same_type };
+    SAME_LVALUE_TS = { lvalue_type, same_type };
     METATYPE_TS = { metatype_type };
     TREENUMMETA_TS = { treenumeration_metatype };
     VOID_TS = { void_type };
@@ -370,6 +392,7 @@ Scope *init_builtins() {
     ible_scope->add(new TemplateIdentifier<ArrayElemIterValue>("iter", ANY_ARRAY_REFERENCE_TS));
 
     array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REFERENCE_TS));
+    array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REFERENCE_TS));
 
     // String operations
     Scope *sable_scope = implement(array_scope, STREAMIFIABLE_TS, "sable");
@@ -377,7 +400,6 @@ Scope *init_builtins() {
     
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
-
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
