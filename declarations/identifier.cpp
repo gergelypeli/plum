@@ -97,21 +97,28 @@ public:
         // TODO: this is a bit complicated
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         TypeSpec ts = typesubst(var_ts, match);
-        ts.create(s, t, x64);
+        ts.create(s.where == NOWHERE ? s : s + offset, t + offset, x64);
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         // TODO: this is a bit complicated
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         TypeSpec ts = typesubst(var_ts, match);
-        ts.store(s, t, x64);
+        ts.store(s + offset, t + offset, x64);
     }
 
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         // TODO: this is a bit complicated
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         TypeSpec ts = typesubst(var_ts, match);
-        ts.destroy(s, x64);
+        ts.destroy(s + offset, x64);
+    }
+    
+    virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
+        // TODO: this is a bit complicated
+        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
+        TypeSpec ts = typesubst(var_ts, match);
+        return ts.boolval(s + offset, x64, probe);
     }
 };
 

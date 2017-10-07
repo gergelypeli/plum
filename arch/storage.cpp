@@ -154,6 +154,14 @@ struct Storage {
 };
 
 
+Storage operator+(Storage &s, int offset) {
+    if (s.where == MEMORY)
+        return Storage(MEMORY, s.address + offset);
+    else
+        throw INTERNAL_ERROR;
+}
+
+
 std::ostream &operator<<(std::ostream &os, Storage &s) {
     if (s.where == NOWHERE)
         os << "NOWHERE";

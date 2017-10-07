@@ -45,7 +45,7 @@ public:
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
-                var->store(tsi, Storage(MEMORY, s.address + var->offset), Storage(MEMORY, t.address + var->offset), x64);
+                var->store(tsi, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
             return;
         default:
             Type::store(tsi, s, t, x64);
@@ -56,11 +56,11 @@ public:
         switch (s.where * t.where) {
         case NOWHERE_MEMORY:
             for (auto &var : member_variables)
-                var->create(tsi, Storage(), Storage(MEMORY, t.address + var->offset), x64);
+                var->create(tsi, Storage(), Storage(MEMORY, t.address), x64);
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
-                var->create(tsi, Storage(MEMORY, s.address + var->offset), Storage(MEMORY, t.address + var->offset), x64);
+                var->create(tsi, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -70,7 +70,7 @@ public:
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         if (s.where == MEMORY)
             for (auto &var : member_variables)  // FIXME: reverse!
-                var->destroy(tsi, Storage(MEMORY, s.address + var->offset), x64);
+                var->destroy(tsi, Storage(MEMORY, s.address), x64);
         else
             throw INTERNAL_ERROR;
     }
@@ -93,7 +93,7 @@ public:
         Label done;
         
         for (auto &var : member_variables) {
-            Storage t = var->var_ts.boolval(Storage(MEMORY, address + var->offset), x64, true);
+            Storage t = var->boolval(tsi, Storage(MEMORY, address), x64, true);
             
             if (t.where == FLAGS && t.bitset == SETNE)
                 x64->op(JNE, done);
@@ -214,17 +214,17 @@ public:
         switch (s.where * t.where) {
         case NOWHERE_MEMORY:
             for (auto &var : member_variables)
-                var->var_ts.create(Storage(), Storage(MEMORY, t.address + var->offset), x64);
+                var->create(tsi, Storage(), t, x64);
             return;
         default:
             throw INTERNAL_ERROR;
         }
     }
 
-    virtual void destroy(TypeSpecIter , Storage s, X64 *x64) {
+    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
             for (auto &var : member_variables)  // FIXME: reverse!
-                var->var_ts.destroy(Storage(MEMORY, s.address + var->offset), x64);
+                var->destroy(tsi, s, x64);
         }
         else
             throw INTERNAL_ERROR;
