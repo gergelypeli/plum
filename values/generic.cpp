@@ -230,12 +230,14 @@ public:
         case REGISTER:
             break;
         case STACK: {
-            if (!rclob.has_any())
-                throw INTERNAL_ERROR;
-        
-            Storage s(REGISTER, rclob.get_any());
-            right->ts.store(rs, s, x64);
-            rs = s;
+            if (right->ts.where(false) == REGISTER) {
+                if (!rclob.has_any())
+                    throw INTERNAL_ERROR;
+                    
+                Storage s(REGISTER, rclob.get_any());
+                right->ts.store(rs, s, x64);
+                rs = s;
+            }
             }
             break;
         case MEMORY:

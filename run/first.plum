@@ -193,7 +193,8 @@ start? :Function as:
     print_pair(p)
     print(p meth)
 
-    print(make_pair second)
+    p = make_pair
+    print(p second)
     
     q? Pair
     q first = 123

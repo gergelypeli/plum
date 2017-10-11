@@ -41,7 +41,21 @@ public:
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case STACK_NOWHERE:
+            destroy(tsi, Storage(MEMORY, Address(RSP, 0)), x64);
+            x64->op(ADDQ, RSP, measure(tsi, STACK));
+            return;
+        case STACK_STACK:
+            return;
+        case STACK_MEMORY:
+            store(tsi, Storage(MEMORY, Address(RSP, 0)), t, x64);
+            store(tsi, s, Storage(), x64);
+            return;
         case MEMORY_NOWHERE:
+            return;
+        case MEMORY_STACK:
+            x64->op(SUBQ, RSP, measure(tsi, STACK));
+            create(tsi, s, Storage(MEMORY, Address(RSP, 0)), x64);
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
@@ -54,9 +68,17 @@ public:
 
     virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case NOWHERE_STACK:
+            x64->op(SUBQ, RSP, measure(tsi, STACK));
+            create(tsi, Storage(), Storage(MEMORY, Address(RSP, 0)), x64);
+            return;
         case NOWHERE_MEMORY:
             for (auto &var : member_variables)
                 var->create(tsi, Storage(), Storage(MEMORY, t.address), x64);
+            return;
+        case STACK_MEMORY:
+            create(tsi, Storage(MEMORY, Address(RSP, 0)), t, x64);
+            store(tsi, s, Storage(), x64);
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
@@ -76,13 +98,15 @@ public:
     }
 
     virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
-        return (is_arg ? ALIAS : MEMORY);
+        return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : STACK));
     }
     
     virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
         Address address;
         
         switch (s.where) {
+        case STACK:
+            address = Address(RSP, 0);
         case MEMORY:
             address = s.address;
             break;
@@ -103,6 +127,15 @@ public:
 
         x64->code_label(done);
         
+        if (!probe) {
+            x64->op(SETNE, BL);
+            x64->op(PUSHQ, RBX);
+            destroy(tsi, Storage(MEMORY, Address(RSP, 8)), x64);
+            x64->op(POPQ, RBX);
+            x64->op(ADDQ, RSP, measure(tsi, STACK));
+            x64->op(CMPB, BL, 0);
+        }
+        
         return Storage(FLAGS, SETNE);
     }
     
@@ -117,21 +150,18 @@ public:
         
         if (n == "{}") {
             // Anonymous initializer
-            Variable *var = new Variable("<new>", VOID_TS, ts);
-            scope->add(var);
-            
             match = type_parameters_to_match(ts);
-            
-            return make_record_initializer_value(var, match);
+            return make_record_initializer_value(match);
         }
         else {
             // Named initializer
-            Value *dv = make_declaration_by_type("<new>", ts, scope);
+            //Value *dv = make_declaration_by_type("<new>", ts, scope);
+            Value *pre = make_record_preinitializer_value(ts.lvalue());
 
-            Value *value = inner_scope->lookup(n, dv, match);
+            Value *value = inner_scope->lookup(n, pre, match);
 
             if (value)
-                return value;
+                return make_record_postinitializer_value(value);
             
             std::cerr << "Can't initialize record as " << n << "!\n";
         

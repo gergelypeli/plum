@@ -362,7 +362,7 @@ public:
         scope->add(inner_scope);
         
         TypeSpec rts = { record_type };
-        inner_scope->set_pivot_type_hint(rts);
+        inner_scope->set_pivot_type_hint(rts.lvalue());
         inner_scope->set_meta_scope(record_metatype->get_inner_scope(rts.begin()));
 
         for (auto &a : args)

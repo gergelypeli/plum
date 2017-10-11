@@ -152,7 +152,7 @@ public:
     Register reg;
     
     VariableValue(Variable *v, Value *p, TypeMatch &match)
-        :Value(typesubst(v->var_ts, match)) {
+        :Value(typesubst(v->var_ts, match).lvalue()) {
         variable = v;
         pivot.reset(p);
         reg = NOREG;
@@ -396,8 +396,18 @@ Value *make_record_definition_value() {
 }
 
 
-Value *make_record_initializer_value(Variable *var, TypeMatch &match) {
-    return new RecordInitializerValue(var, match);
+Value *make_record_initializer_value(TypeMatch &match) {
+    return new RecordInitializerValue(match);
+}
+
+
+Value *make_record_preinitializer_value(TypeSpec ts) {
+    return new RecordPreinitializerValue(ts);
+}
+
+
+Value *make_record_postinitializer_value(Value *v) {
+    return new RecordPostinitializerValue(v);
 }
 
 

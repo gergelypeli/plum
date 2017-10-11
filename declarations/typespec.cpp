@@ -151,7 +151,7 @@ Scope *TypeSpec::get_inner_scope() {
 
 TypeMatch type_parameters_to_match(TypeSpec ts) {
     TypeMatch fake_match;
-    fake_match.push_back(TypeSpec());
+    fake_match.push_back(ts);
     TypeSpecIter tsi(ts.begin());
     tsi++;
     

@@ -1,11 +1,8 @@
 
 class SimpleRecordValue: public GenericValue {
 public:
-    Variable *variable;
-    
     SimpleRecordValue(TypeSpec ret_ts, Value *pivot)
         :GenericValue(VOID_TS, ret_ts, pivot) {
-        variable = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -14,32 +11,11 @@ public:
             return false;
         }
 
-        variable = new Variable("<new>", VOID_TS, ts);
-        scope->add(variable);
-
         return true;
     }
 
     virtual Regs precompile(Regs preferred) {
         return left->precompile(preferred);
-    }
-
-    virtual void simple_compile(Storage ls, Storage rec_storage, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
-        Storage rec_storage = variable->get_storage(fn_storage);
-        
-        if (rec_storage.where != MEMORY)
-            throw INTERNAL_ERROR;
-
-        ls = left->compile(x64);
-        
-        simple_compile(ls, rec_storage, x64);
-        
-        return rec_storage;
     }
 };
 
@@ -119,24 +95,26 @@ public:
         :SimpleRecordValue(COUNTUP_TS, l) {
     }
 
-    virtual void simple_compile(Storage ls, Storage rec_storage, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
+        ls = left->compile(x64);  // integer limit
+        
+        x64->op(PUSHQ, 0);  // value
+        
         switch (ls.where) {
         case CONSTANT:
-            x64->op(MOVQ, rec_storage.address, ls.value);
-            x64->op(MOVQ, rec_storage.address + 8, 0);
+            x64->op(PUSHQ, ls.value);
             break;
         case REGISTER:
-            x64->op(MOVQ, rec_storage.address, ls.reg);
-            x64->op(MOVQ, rec_storage.address + 8, 0);
+            x64->op(PUSHQ, ls.reg);
             break;
         case MEMORY:
-            x64->op(MOVQ, RBX, ls.address);
-            x64->op(MOVQ, rec_storage.address, RBX);
-            x64->op(MOVQ, rec_storage.address + 8, 0);
+            x64->op(PUSHQ, ls.address);
             break;
         default:
             throw INTERNAL_ERROR;
         }
+        
+        return Storage(STACK);
     }
 };
 
@@ -147,26 +125,29 @@ public:
         :SimpleRecordValue(COUNTDOWN_TS, l) {
     }
 
-    virtual void simple_compile(Storage ls, Storage rec_storage, X64 *x64) {
-        switch (ls.where) {
+    virtual Storage compile(X64 *x64) {
+        ls = left->compile(x64);
+        
+        switch (ls.where) {  // value
         case CONSTANT:
-            x64->op(MOVQ, rec_storage.address, -1);
-            x64->op(MOVQ, rec_storage.address + 8, ls.value - 1);
+            x64->op(PUSHQ, ls.value - 1);
             break;
         case REGISTER:
-            x64->op(MOVQ, rec_storage.address, -1);
             x64->op(DECQ, ls.reg);
-            x64->op(MOVQ, rec_storage.address + 8, ls.reg);
+            x64->op(PUSHQ, ls.reg);
             break;
         case MEMORY:
             x64->op(MOVQ, RBX, ls.address);
             x64->op(DECQ, RBX);
-            x64->op(MOVQ, rec_storage.address, -1);
-            x64->op(MOVQ, rec_storage.address + 8, RBX);
+            x64->op(PUSHQ, RBX);
             break;
         default:
             throw INTERNAL_ERROR;
         }
+        
+        x64->op(PUSHQ, -1);
+        
+        return Storage(STACK);
     }
 };
 
@@ -210,7 +191,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        ls = left->compile(x64);
+        ls = left->compile(x64);  // iterator
         Register reg = (clob & ~ls.regs()).get_any();
         Label ok;
         
@@ -261,39 +242,23 @@ public:
 class ArrayNextItemValue: public ArrayNextValue {
 public:
     TypeSpec elem_ts;
-    Variable *result_var;
     
     ArrayNextItemValue(Value *l, TypeMatch &match)
         :ArrayNextValue(typesubst(SAME_ITEM_TS, match), match[1], l, false) {
         elem_ts = match[1];
-        result_var = NULL;
     }
 
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!ArrayNextValue::check(args, kwargs, scope))
-            return false;
-            
-        result_var = new Variable("<item>", VOID_TS, ts);
-        scope->add(result_var);
-        return true;
-    }
-    
     virtual Storage next_compile(Register reg, X64 *x64) {
-        Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
-        Storage rec_storage = result_var->get_storage(fn_storage);
-        
-        if (rec_storage.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
-        x64->op(MOVQ, rec_storage.address, RBX);
+        x64->op(SUBQ, RSP, ts.measure(STACK));
+        x64->op(MOVQ, Address(RSP, 0), RBX);
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
         
         Storage s = Storage(MEMORY, x64->array_items_address(reg));
-        Storage t = Storage(MEMORY, rec_storage.address + 8);
+        Storage t = Storage(MEMORY, Address(RSP, 8));
         elem_ts.store(s, t, x64);
         
-        return rec_storage;
+        return Storage(STACK);
     }
 };
 
@@ -304,21 +269,25 @@ public:
         :SimpleRecordValue(t, l) {
     }
 
-    virtual void simple_compile(Storage ls, Storage rec_storage, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
+        ls = left->compile(x64);
+        
+        x64->op(PUSHQ, 0);
+        
         switch (ls.where) {
         case REGISTER:
-            x64->op(MOVQ, rec_storage.address, ls.reg);
-            x64->op(MOVQ, rec_storage.address + 8, 0);
+            x64->op(PUSHQ, ls.reg);
             break;
         case MEMORY:
             x64->op(MOVQ, RBX, ls.address);
             x64->incref(RBX);
-            x64->op(MOVQ, rec_storage.address, RBX);
-            x64->op(MOVQ, rec_storage.address + 8, 0);
+            x64->op(PUSHQ, RBX);
             break;
         default:
             throw INTERNAL_ERROR;
         }
+        
+        return Storage(STACK);
     }
 };
 

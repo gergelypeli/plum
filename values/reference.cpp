@@ -18,6 +18,10 @@ public:
             x64->decref(ls.reg);
             x64->op(CMPQ, ls.reg, rs.address);
             return Storage(FLAGS, op);
+        case MEMORY_MEMORY:
+            x64->op(MOVQ, RBX, ls.address);
+            x64->op(CMPQ, RBX, rs.address);
+            return Storage(FLAGS, op);
         default:
             throw INTERNAL_ERROR;
         }
