@@ -54,7 +54,7 @@ void init_interfaces(Scope *root_scope) {
     DataScope *sis = new DataScope;
     Function *sf = new Function("streamify",
         STREAMIFIABLE_TS,
-        TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS },
+        TSs { STRING_LVALUE_TS },
         Ss { "stream" },
         TSs {},
         NULL
@@ -174,6 +174,43 @@ void init_iterators(Scope *root_scope) {
 }
 
 
+void init_string(Scope *root_scope) {
+    RecordType *record_type = new RecordType("String", 0);
+    string_type = record_type;
+
+    STRING_TS = { string_type };
+    STRING_LVALUE_TS = { lvalue_type, string_type };
+
+    DataScope *is = new DataScope;
+    root_scope->add(is);
+    is->set_pivot_type_hint(STRING_TS);
+
+    is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
+
+    is->add(new TemplateIdentifier<StringLengthValue>("length", STRING_TS));
+    is->add(new TemplateIdentifier<StringConcatenationValue>("binary_plus", STRING_TS));
+    is->add(new TemplateIdentifier<StringItemValue>("index", STRING_TS));
+
+    is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
+    is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
+
+    Scope *ible_scope = implement(is, TypeSpec { iterable_type, character_type }, "ible");
+    ible_scope->add(new TemplateIdentifier<StringElemIterValue>("iter", STRING_TS));
+
+    is->add(new TemplateIdentifier<StringIndexIterValue>("indexes", STRING_TS));
+    is->add(new TemplateIdentifier<StringItemIterValue>("items", STRING_TS));
+
+    is->add(new Identity("null", STRING_TS));  // a null initializer that does nothing
+
+    record_type->set_inner_scope(is);
+    root_scope->add(string_type);
+
+    // String operations
+    Scope *sable_scope = implement(is, STREAMIFIABLE_TS, "sable");
+    sable_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS));
+}
+
+
 Scope *init_builtins() {
     Scope *root_scope = new Scope();
 
@@ -276,6 +313,9 @@ Scope *init_builtins() {
     iterable_type = new InterfaceType("Iterable", 1);
     root_scope->add(iterable_type);
 
+    //string_type = new RecordType("String");
+    //root_scope->add(string_type);
+
     // BOGUS_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };
@@ -310,6 +350,8 @@ Scope *init_builtins() {
     INTEGER_ITERATOR_TS = { iterator_type, integer_type };
     ANY_ITERABLE_TS = { iterable_type, any_type };
     SAME_ITERABLE_TS = { iterable_type, same_type };
+    //STRING_TS = { string_type };
+    //STRING_LVALUE_TS = { lvalue_type, string_type };
 
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -320,6 +362,8 @@ Scope *init_builtins() {
 
     Ss no_names = { };
     Ss value_names = { "value" };
+
+    init_string(root_scope);
 
     init_interfaces(root_scope);
 
@@ -336,7 +380,7 @@ Scope *init_builtins() {
 
     integer_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
     Scope *isable_scope = implement(integer_scope, STREAMIFIABLE_TS, "sable");
-    isable_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { CHARACTER_ARRAY_REFERENCE_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
+    isable_scope->add(new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { STRING_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
     
     integer_scope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
     integer_scope->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
@@ -398,7 +442,7 @@ Scope *init_builtins() {
 
     // String operations
     Scope *sable_scope = implement(array_scope, STREAMIFIABLE_TS, "sable");
-    sable_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", CHARACTER_ARRAY_REFERENCE_TS));
+    sable_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS));
     
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
@@ -418,11 +462,11 @@ Scope *init_builtins() {
     root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, NO_TSS, NULL));
     root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
     root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, CHARACTER_ARRAY_REFERENCE_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }, NULL));
-    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", CHARACTER_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS }, NULL));
+    root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, TSs { STRING_TS }, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { STRING_TS }, NULL));
+    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", STRING_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS }, NULL));
 
-    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, TSs { CHARACTER_ARRAY_REFERENCE_TS }, NULL));
+    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, TSs { STRING_TS }, NULL));
 
     return root_scope;
 }

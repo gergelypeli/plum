@@ -2,7 +2,7 @@
 class StringStreamificationValue: public GenericValue {
 public:
     StringStreamificationValue(Value *p, TypeMatch &match)
-        :GenericValue(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
+        :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -58,7 +58,7 @@ class CharacterStreamificationValue: public GenericValue {
 public:
 
     CharacterStreamificationValue(Value *p, TypeMatch &match)
-        :GenericValue(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
+        :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -111,7 +111,7 @@ class EnumStreamificationValue: public GenericValue {
 public:
 
     EnumStreamificationValue(Value *p, TypeMatch &match)
-        :GenericValue(CHARACTER_ARRAY_REFERENCE_LVALUE_TS, VOID_TS, p) {
+        :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -256,7 +256,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
 
     TypeMatch match;  // kinda unnecessary
     Value *ret = make_variable_value(v, NULL, match);
-    ret = new ArrayReallocValue(TWEAK, ret, match);
+    ret = new StringReallocValue(ret, match);
     block->add_statement(ret, true);
     
     return make_code_value(block);

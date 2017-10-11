@@ -89,8 +89,9 @@ public:
     
     virtual Storage compile(X64 *x64) {
         ts.create(Storage(), Storage(STACK), x64);
-        x64->op(PUSHQ, RSP);
-        return Storage(ALISTACK);
+        return Storage(MEMORY, Address(RSP, 0));
+        //x64->op(PUSHQ, RSP);
+        //return Storage(ALISTACK);
     }
 };
 
@@ -113,7 +114,7 @@ public:
         
         if (s.where != MEMORY)  // ALIAS pivot is popped into a register based MEMORY
             throw INTERNAL_ERROR;
-            
+        
         return Storage(STACK);
     }
 };

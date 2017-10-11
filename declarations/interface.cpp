@@ -172,24 +172,25 @@ public:
 };
 
 
-Value *implemented(Declaration *d, TypeSpec ts, Type *t, Value *orig) {
+Value *implemented(Declaration *d, TypeSpec ts, TypeSpecIter target, Value *orig) {
     ImplementationType *imp = dynamic_cast<ImplementationType *>(d);
 
     if (imp) {
         //TypeMatch match = type_parameters_to_match(get_typespec(orig).rvalue());
         TypeMatch match = type_parameters_to_match(ts);
+        TypeSpec ifts = imp->get_interface_ts(match);
         
-        if (imp->interface_ts[0] == t) {
+        if (ifts[0] == *target) {
+            // FIXME: check for proper type match!
             // Direct implementation
             return make_implementation_conversion_value(imp, orig, match);
         }
         else {
             // Indirect implementation
-            TypeSpec ifts = imp->get_interface_ts(match);
             Scope *inner_scope = ifts.get_inner_scope();
         
             for (auto &dd : inner_scope->contents) {
-                Value *v = implemented(dd.get(), ifts, t, orig);
+                Value *v = implemented(dd.get(), ifts, target, orig);
                 if (v)
                     return v;
             }

@@ -41,6 +41,9 @@ public:
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case REGISTER_STACK:  // for the sake of String, FIXME: check size and stuff!
+            x64->op(PUSHQ, s.reg);
+            return;
         case STACK_NOWHERE:
             destroy(tsi, Storage(MEMORY, Address(RSP, 0)), x64);
             x64->op(ADDQ, RSP, measure(tsi, STACK));
@@ -76,6 +79,9 @@ public:
             for (auto &var : member_variables)
                 var->create(tsi, Storage(), Storage(MEMORY, t.address), x64);
             return;
+        case REGISTER_MEMORY:  // for the sake of String, FIXME: check sizes
+            x64->op(MOVQ, t.address, s.reg);
+            return;
         case STACK_MEMORY:
             create(tsi, Storage(MEMORY, Address(RSP, 0)), t, x64);
             store(tsi, s, Storage(), x64);
@@ -107,6 +113,7 @@ public:
         switch (s.where) {
         case STACK:
             address = Address(RSP, 0);
+            break;
         case MEMORY:
             address = s.address;
             break;
@@ -160,6 +167,7 @@ public:
 
             Value *value = inner_scope->lookup(n, pre, match);
 
+            // FIXME: check if the method is Void!
             if (value)
                 return make_record_postinitializer_value(value);
             

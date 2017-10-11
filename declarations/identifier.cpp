@@ -26,6 +26,18 @@ public:
 };
 
 
+class Identity: public Identifier {
+public:
+    Identity(std::string name, TypeSpec pts)
+        :Identifier(name, pts) {
+    }
+
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_identity_value(cpivot);
+    }
+};
+
+
 class Variable: public Identifier {
 public:
     TypeSpec var_ts;

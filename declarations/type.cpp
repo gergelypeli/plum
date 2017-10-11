@@ -140,12 +140,12 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual Value *autoconv(TypeSpecIter tsi, Type *t, Value *orig) {
+    virtual Value *autoconv(TypeSpecIter tsi, TypeSpecIter target, Value *orig) {
         Scope *inner_scope = get_inner_scope(tsi);
         
         if (inner_scope) {
             for (auto &d : inner_scope->contents) {
-                Value *v = implemented(d.get(), TypeSpec(tsi), t, orig);
+                Value *v = implemented(d.get(), TypeSpec(tsi), target, orig);
                 if (v)
                     return v;
                 //ImplementationType *it = implementation_cast(d.get(), t);

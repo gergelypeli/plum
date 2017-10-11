@@ -75,7 +75,7 @@ public:
     Register reg;
     
     StringLiteralValue(std::string t)
-        :Value(CHARACTER_ARRAY_REFERENCE_TS) {
+        :Value(STRING_TS) {
         text = t;
     }
 
@@ -125,7 +125,7 @@ public:
     Register reg;
     
     StringBufferValue(int l)
-        :Value(CHARACTER_ARRAY_REFERENCE_TS) {
+        :Value(STRING_TS) {
         length = l;
     }
 

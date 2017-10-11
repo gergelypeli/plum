@@ -390,6 +390,7 @@ public:
         }
 
         // TODO: this should be a fallback if the user didn't define his own
+        // TODO: should RecordOperation implement this natively?
         if (!data_value->check_statement(make_equality(member_names)))
             return false;
 

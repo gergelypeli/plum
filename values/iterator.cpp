@@ -329,3 +329,28 @@ public:
         return left->compile(x64);
     }
 };
+
+
+class StringElemIterValue: public ArrayIterValue {
+public:
+    StringElemIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(TypeSpec { SAME_ARRAYELEMITER_TS[0], character_type }, l) {
+        // This is kinda ugly
+    }
+};
+
+
+class StringIndexIterValue: public ArrayIterValue {
+public:
+    StringIndexIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(TypeSpec { SAME_ARRAYINDEXITER_TS[0], character_type }, l) {
+    }
+};
+
+
+class StringItemIterValue: public ArrayIterValue {
+public:
+    StringItemIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(TypeSpec { SAME_ARRAYITEMITER_TS[0], character_type }, l) {
+    }
+};

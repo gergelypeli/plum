@@ -62,7 +62,7 @@ TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
 Variable *variable_cast(Declaration *decl);
 bool is_heap_type(Type *t);
-Value *implemented(Declaration *d, TypeSpec ts, Type *t, Value *orig);
+Value *implemented(Declaration *d, TypeSpec ts, TypeSpecIter target, Value *orig);
 std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 Variable *declaration_get_var(DeclarationValue *dv);
@@ -101,6 +101,7 @@ Value *make_record_postinitializer_value(Value *v);
 Value *make_class_definition_value();
 Value *make_interface_definition_value();
 Value *make_implementation_definition_value();
+Value *make_identity_value(Value *v);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
