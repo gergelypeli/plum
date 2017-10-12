@@ -155,7 +155,11 @@ start? :Function as:
     z = s
     printb(z encode_utf8)
 
-    :if z == `null then: prints("z is still null")
+    :if z == `null then: prints("ERROR z is still null")
+
+    :if z == "Szia!" then: prints("ERROR z is Szia!")
+
+    :if z == "Sziɐ!" then: prints("z is Sziɐ!")
 
     #(1, 2) + (3, 4)
 
