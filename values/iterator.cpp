@@ -65,6 +65,7 @@ public:
             x64->op(MOVQ, reg, ls.address + 8);  // value
             x64->op(CMPQ, reg, ls.address); // limit
             x64->op(JNE, ok);
+            x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
             x64->unwind->initiate(dummy, x64);
             x64->code_label(ok);
             advance(ls.address + 8, x64);
@@ -201,6 +202,7 @@ public:
             x64->op(MOVQ, reg, ls.address); // array reference
             x64->op(CMPQ, RBX, x64->array_length_address(reg));
             x64->op(JNE, ok);
+            x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
             x64->unwind->initiate(dummy, x64);
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + 8);
@@ -270,13 +272,15 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        ls = left->compile(x64);
-        
         x64->op(PUSHQ, 0);
-        
+
+        left->compile_and_store(x64, Storage(STACK));
+        /*
         switch (ls.where) {
         case REGISTER:
             x64->op(PUSHQ, ls.reg);
+            break;
+        case STACK:  // this is the case for lazy String operations
             break;
         case MEMORY:
             x64->op(MOVQ, RBX, ls.address);
@@ -286,7 +290,7 @@ public:
         default:
             throw INTERNAL_ERROR;
         }
-        
+        */
         return Storage(STACK);
     }
 };

@@ -223,7 +223,6 @@ public:
     Variable *iterator_var;
     TryScope *next_try_scope;
     TypeSpec each_ts;
-    Label start, end;
     
     ForEachValue(Value *pivot, TypeMatch &match)
         :ControlValue("for") {
@@ -326,6 +325,7 @@ public:
         if (es.where != MEMORY || es.address.base != RBP)
             throw INTERNAL_ERROR;  // FIXME: lame temporary restriction only
         
+        Label start, end, ok;
         x64->code_label(start);
 
         x64->unwind->push(this);
@@ -335,7 +335,13 @@ public:
         next->ts.store(ns, es, x64);
         // Finalize after storing, so the return value won't be lost
         next_try_scope->finalize_contents(x64);
+        
+        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        x64->op(JE, ok);
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        x64->op(JMP, end);
 
+        x64->code_label(ok);
         body->compile_and_store(x64, Storage());
         
         x64->op(JMP, start);
@@ -348,8 +354,8 @@ public:
     
     virtual Scope *unwind(X64 *x64) {
         // May be called only while executing next
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JMP, end);
+        //x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        //x64->op(JMP, end);
         return next_try_scope;
     }
 };

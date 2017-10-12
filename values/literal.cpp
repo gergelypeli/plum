@@ -72,7 +72,6 @@ public:
 class StringLiteralValue: public Value {
 public:
     std::string text;
-    Register reg;
     
     StringLiteralValue(std::string t)
         :Value(STRING_TS) {
@@ -80,8 +79,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        reg = preferred.get_any();
-        return Regs().add(reg);
+        return Regs();
         //return Regs().add(RAX).add(RCX).add(RSI).add(RDI);
     }
 
@@ -89,10 +87,11 @@ public:
         std::vector<unsigned short> characters = decode_utf8(text);
         Label l = x64->data_heap_string(characters);
         
-        x64->op(LEARIP, reg, l);
-        x64->incref(reg);  // This way we can return the same static string many times
+        x64->op(LEARIP, RBX, l);
+        x64->incref(RBX);  // This way we can return the same static string many times
+        x64->op(PUSHQ, RBX);
         
-        return Storage(REGISTER, reg);
+        return Storage(STACK);
         
         /*
         // Code to allocate a new buffer and return that
@@ -122,7 +121,6 @@ public:
 class StringBufferValue: public Value {
 public:
     int length;
-    Register reg;
     
     StringBufferValue(int l)
         :Value(STRING_TS) {
@@ -137,8 +135,9 @@ public:
         x64->op(MOVQ, RAX, length);
         x64->op(MOVQ, RBX, 2);
         x64->alloc_array_RAX_RBX();
+        x64->op(PUSHQ, RAX);
         
-        return Storage(REGISTER, RAX);
+        return Storage(STACK);
     }
 };
 

@@ -170,6 +170,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         // TODO: this only works for arrays of basic types now, that can be just copied
+        // TODO: can't any type be moved?
         
         subcompile(x64);
         
@@ -267,7 +268,14 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        return wrap->compile(x64);
+        Storage s = wrap->compile(x64);
+        
+        if (s.where == REGISTER && ts == STRING_TS) {
+            x64->op(PUSHQ, s.reg);
+            s = Storage(STACK);
+        }
+        
+        return s;
     }
 };
 
