@@ -293,7 +293,7 @@ public:
 class StringItemValue: public StringWrapperValue {
 public:
     StringItemValue(Value *l, TypeMatch &match)
-        :StringWrapperValue(INTEGER_TS, CHARACTER_LVALUE_TS) {  // FIXME: should be rvalue!
+        :StringWrapperValue(INTEGER_TS, CHARACTER_TS) {  // NOTE: rvalue returned
         Value *k = new StringCharsValue(l);
         wrap.reset(new ArrayItemValue(TWEAK, k, charmatch));
     }

@@ -139,10 +139,10 @@ start? :Function as:
     
     prints(s + s)
 
-    s[3] = s[4]
+    s chars[3] = s[4]
     prints(s)
 
-    s[3] = `unicode 592
+    s chars[3] = `unicode 592
     prints(s)
 
     prints("s[3] is now '{c}'" { c: s[3] })
