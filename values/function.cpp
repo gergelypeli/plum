@@ -215,7 +215,6 @@ public:
     Function *function;
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> items;  // FIXME
-    std::vector<Variable *> result_variables;
     Register reg;
     Declaration *dummy;
     
@@ -305,18 +304,6 @@ public:
             scope->add(dummy);
         }
 
-        // These are only initialized if the function returns successfully, so must
-        // declare them last, even if we use their address soon.
-        for (auto &res_ts : res_tss) {
-            result_variables.push_back(NULL);
-            
-            if (res_ts.where(true) == ALIAS) {
-                Variable *result_variable = new Variable("<presult>", VOID_TS, res_ts);
-                scope->add(result_variable);
-                result_variables.back() = result_variable;
-            }
-        }
-        
         return true;
     }
 
@@ -440,13 +427,7 @@ public:
             TypeSpec res_ts = res_tss[i];
             StorageWhere res_where = res_ts.where(true);
         
-            if (res_where == ALIAS) {
-                // pass an alias to the allocated result variable
-                Storage s = result_variables[i]->get_storage(Storage(MEMORY, Address(RBP, 0)));
-                res_ts.store(s, Storage(ALISTACK), x64);
-                res_total += 8;
-            }
-            else if (res_where == MEMORY) {
+            if (res_where == MEMORY) {
                 // Must skip some place for uninitialized data
                 int size = res_ts.measure(STACK);
                 x64->op(SUBQ, RSP, size);
@@ -525,21 +506,6 @@ public:
         
         // This area is either uninitialized, or contains aliases to uninitialized variables
         x64->op(ADDQ, RSP, res_total);
-        return NULL;
-    }
-    
-    virtual Variable *declare_dirty(std::string name, Scope *scope) {
-        DeclarationValue *pivot_dv = declaration_value_cast(pivot.get());
-        
-        if (res_tss.size() == 0 && pivot_dv) {
-            Variable *var = declaration_get_var(pivot_dv);
-            
-            if (var->name == "<new>") {
-                var->name = name;
-                return var;
-            }
-        }
-            
         return NULL;
     }
 };
@@ -626,15 +592,6 @@ public:
             
             Storage s = values[i]->compile(x64);
             Storage t = var_storage;
-            
-            if (t.where == ALIAS) {
-                // Load the address, and store the result there
-                Register reg = (Regs::all() & ~s.regs()).get_any();
-                Storage m = Storage(MEMORY, Address(reg, 0));
-                var_ts.store(t, m, x64);
-                t = m;
-            }
-                
             var_ts.create(s, t, x64);
         }
 

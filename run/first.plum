@@ -225,7 +225,7 @@ start? :Function as:
     x3 = double
     prints("Scalarized to {x3}" {})
 
-    :repeat i? 0 on: i < 5 by: i += 1 do:
+    :repeat i? 0 on: i < 3 by: i += 1 do:
         prints("something")
 
     prints("Done.")
@@ -262,19 +262,19 @@ start? :Function as:
             
         prints("Too bad!")
 
-    :for 7 countup each: c? do:
+    :for 3 countup each: c? do:
         prints("Counting up: {c}" {})
 
-    :for 7 countdown each: c? do:
+    :for 3 countdown each: c? do:
         prints("Counting down: {c}" {})
 
-    :for "Abcdef" each: c? do:
+    :for "Abc" each: c? do:
         prints("Iterating elems: {c}" {})
 
-    :for "Abcdef" indexes each: i? do:
+    :for "Abc" indexes each: i? do:
         prints("Iterating indexes: {i}" {})
         
-    :for "Abcdef" items each: it? do:
+    :for "Abc" items each: it? do:
         prints("Iterating items: {i} => {e}" {i: it index, e: it value})
         
     x3 = :lol:

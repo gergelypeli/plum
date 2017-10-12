@@ -57,13 +57,7 @@ public:
     // In clode blocks first declare_impure is called, which may or may not return a Variable.
     // If not, then declare_pure is called, which must return any Declaration.
     // Data blocks invoke only declare_pure, and if that returns NULL, that's a semantic error.
-    // declare_dirty is to get the declared automatic variable from a constructor call,
-    // so we can save a copy to the final value.
 
-    virtual Variable *declare_dirty(std::string name, Scope *scope) {
-        return NULL;
-    }
-    
     virtual Variable *declare_impure(std::string name, Scope *scope) {
         if (ts == VOID_TS)
             return NULL;
