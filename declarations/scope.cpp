@@ -42,7 +42,7 @@ public:
         
         if (size >= SAME_SIZE) {
             tsi++;
-            concrete_size += (size / SAME_SIZE) * item_size(TypeSpec(tsi).measure(MEMORY));
+            concrete_size += (size / SAME_SIZE) * elem_size(TypeSpec(tsi).measure(MEMORY));
         }
         
         return concrete_size;

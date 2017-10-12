@@ -38,11 +38,11 @@ public:
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
-        x64->op(LEA, RDI, x64->array_items_address(RAX));
+        x64->op(LEA, RDI, x64->array_elems_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
 
-        x64->op(LEA, RSI, x64->array_items_address(RDX));
+        x64->op(LEA, RSI, x64->array_elems_address(RDX));
         x64->op(MOVQ, RCX, x64->array_length_address(RDX));
         x64->op(ADDQ, x64->array_length_address(RAX), RCX);
         x64->op(SHLQ, RCX, 1);
@@ -94,7 +94,7 @@ public:
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
-        x64->op(LEA, RDI, x64->array_items_address(RAX));
+        x64->op(LEA, RDI, x64->array_elems_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
 
@@ -157,11 +157,11 @@ public:
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
-        x64->op(LEA, RDI, x64->array_items_address(RAX));
+        x64->op(LEA, RDI, x64->array_elems_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));
         x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
 
-        x64->op(LEA, RSI, x64->array_items_address(RDX));
+        x64->op(LEA, RSI, x64->array_elems_address(RDX));
         x64->op(MOVQ, RCX, x64->array_length_address(RDX));
         x64->op(ADDQ, x64->array_length_address(RAX), RCX);
         x64->op(SHLQ, RCX, 1);

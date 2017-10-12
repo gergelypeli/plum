@@ -17,7 +17,7 @@ unsigned stack_size(unsigned size) {
 }
 
 
-unsigned item_size(unsigned size) {
+unsigned elem_size(unsigned size) {
     return size <= 2 ? size : size <= 4 ? 4 : size <= 8 ? 8 : stack_size(size);
 }
 

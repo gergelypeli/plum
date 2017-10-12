@@ -228,7 +228,7 @@ public:
                 throw INTERNAL_ERROR;
             }
             
-            std::cerr << "Unpacking item " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
+            std::cerr << "Unpacking multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
             right_tss[i].store(s, t, x64);
             
             offset += left_sizes[i];
@@ -289,13 +289,13 @@ public:
             Storage s(where);
             
             if (i > 0) {
-                std::cerr << "Discarding item " << i << " from " << s << ".\n";
+                std::cerr << "Discarding multi member " << i << " from " << s << ".\n";
                 ts.store(s, Storage(), x64);
             }
             else {
                 where = ts.where(false);
                 t = (where == REGISTER ? Storage(REGISTER, RAX) : where == MEMORY ? Storage(MEMORY, Address(RAX, 0)) : throw INTERNAL_ERROR);
-                std::cerr << "Scalarizing item " << i << " from " << s << " to " << t << ".\n";
+                std::cerr << "Scalarizing multi member " << i << " from " << s << " to " << t << ".\n";
                 ts.store(s, t, x64);
             }
         }

@@ -162,7 +162,7 @@ public:
     
     ArrayNextValue(TypeSpec t, TypeSpec et, Value *l, bool d)
         :GenericValue(VOID_TS, t, l) {
-        elem_size = item_size(et.measure(MEMORY));
+        elem_size = ::elem_size(et.measure(MEMORY));
         is_down = d;
     }
 
@@ -223,7 +223,7 @@ public:
     virtual Storage next_compile(Register reg, X64 *x64) {
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
-        return Storage(MEMORY, x64->array_items_address(reg));
+        return Storage(MEMORY, x64->array_elems_address(reg));
     }
 };
 
@@ -256,7 +256,7 @@ public:
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
         
-        Storage s = Storage(MEMORY, x64->array_items_address(reg));
+        Storage s = Storage(MEMORY, x64->array_elems_address(reg));
         Storage t = Storage(MEMORY, Address(RSP, 8));
         elem_ts.store(s, t, x64);
         

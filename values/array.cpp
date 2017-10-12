@@ -46,7 +46,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int size = item_size(ts.measure(MEMORY));
+        int size = elem_size(ts.measure(MEMORY));
         
         subcompile(x64);
     
@@ -60,25 +60,25 @@ public:
         switch (ls.where * rs.where) {
         case REGISTER_CONSTANT:
             x64->decref(ls.reg);
-            x64->op(LEA, ls.reg, x64->array_items_address(ls.reg) + rs.value * size);
+            x64->op(LEA, ls.reg, x64->array_elems_address(ls.reg) + rs.value * size);
             return Storage(MEMORY, Address(ls.reg, 0));
         case REGISTER_REGISTER:
             x64->decref(ls.reg);
             x64->op(IMUL3Q, rs.reg, rs.reg, size);
             x64->op(ADDQ, ls.reg, rs.reg);
-            return Storage(MEMORY, x64->array_items_address(ls.reg));
+            return Storage(MEMORY, x64->array_elems_address(ls.reg));
         case REGISTER_MEMORY:
             x64->decref(ls.reg);
             x64->op(IMUL3Q, RBX, rs.address, size);
             x64->op(ADDQ, ls.reg, RBX);
-            return Storage(MEMORY, x64->array_items_address(ls.reg));
+            return Storage(MEMORY, x64->array_elems_address(ls.reg));
         case MEMORY_CONSTANT:
             x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
-            return Storage(MEMORY, x64->array_items_address(reg) + rs.value * size);
+            return Storage(MEMORY, x64->array_elems_address(reg) + rs.value * size);
         case MEMORY_REGISTER:
             x64->op(IMUL3Q, rs.reg, rs.reg, size);
             x64->op(ADDQ, rs.reg, ls.address);
-            return Storage(MEMORY, x64->array_items_address(rs.reg));
+            return Storage(MEMORY, x64->array_elems_address(rs.reg));
         case MEMORY_MEMORY:
             if (reg != ls.address.base) {
                 x64->op(IMUL3Q, reg, rs.address, size);  // reg may be the base of rs.address
@@ -89,7 +89,7 @@ public:
                 x64->op(IMUL3Q, RBX, rs.address, size);
                 x64->op(ADDQ, reg, RBX);
             }
-            return Storage(MEMORY, x64->array_items_address(reg));
+            return Storage(MEMORY, x64->array_elems_address(reg));
         default:
             throw INTERNAL_ERROR;
         }
@@ -114,8 +114,8 @@ public:
 
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
-        int item_size = ::item_size(ts.unprefix(reference_type).unprefix(array_type).measure(MEMORY));
-        x64->op(PUSHQ, item_size);
+        int elem_size = ::elem_size(ts.unprefix(reference_type).unprefix(array_type).measure(MEMORY));
+        x64->op(PUSHQ, elem_size);
         
         x64->op(CALL, l);
         
@@ -127,7 +127,7 @@ public:
     }
     
     static void compile_array_concatenation(X64 *x64) {
-        // RAX - result, RBX - item size, RCX - first, RDX - second
+        // RAX - result, RBX - elem size, RCX - first, RDX - second
         x64->op(MOVQ, RCX, Address(RSP, 24));
         x64->op(MOVQ, RDX, Address(RSP, 16));
         x64->op(MOVQ, RBX, Address(RSP, 8));
@@ -136,18 +136,18 @@ public:
         x64->op(ADDQ, RAX, x64->array_length_address(RDX));  // total length in RAX
         x64->op(PUSHQ, RAX);
         
-        x64->alloc_array_RAX_RBX();  // array length, item size
+        x64->alloc_array_RAX_RBX();  // array length, elem size
         
         x64->op(POPQ, x64->array_length_address(RAX));
         
-        x64->op(LEA, RDI, x64->array_items_address(RAX));
+        x64->op(LEA, RDI, x64->array_elems_address(RAX));
         
-        x64->op(LEA, RSI, x64->array_items_address(RCX));
+        x64->op(LEA, RSI, x64->array_elems_address(RCX));
         x64->op(MOVQ, RCX, x64->array_length_address(RCX));  // first array not needed anymore
         x64->op(IMUL2Q, RCX, RBX);
         x64->op(REPMOVSB);
 
-        x64->op(LEA, RSI, x64->array_items_address(RDX));
+        x64->op(LEA, RSI, x64->array_elems_address(RDX));
         x64->op(MOVQ, RCX, x64->array_length_address(RDX));
         x64->op(IMUL2Q, RCX, RBX);
         x64->op(REPMOVSB);
@@ -201,8 +201,8 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        int item_size = ::item_size(ts.rvalue().unprefix(reference_type).unprefix(array_type).measure(MEMORY));
-        x64->op(MOVQ, RCX, item_size);
+        int elem_size = ::elem_size(ts.rvalue().unprefix(reference_type).unprefix(array_type).measure(MEMORY));
+        x64->op(MOVQ, RCX, elem_size);
         x64->realloc_array_RAX_RBX_RCX();
         
         if (ls.address.base == RAX) {
@@ -360,8 +360,8 @@ public:
         x64->op(CMPQ, RCX, x64->array_length_address(RBX));
         x64->op(JNE, sete);
         
-        x64->op(LEA, RSI, x64->array_items_address(RAX));
-        x64->op(LEA, RDI, x64->array_items_address(RBX));
+        x64->op(LEA, RSI, x64->array_elems_address(RAX));
+        x64->op(LEA, RDI, x64->array_elems_address(RBX));
         x64->op(REPECMPSW);
         x64->op(CMPQ, RCX, 0);
         

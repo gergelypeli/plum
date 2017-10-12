@@ -500,7 +500,7 @@ public:
     void preappend_array_RAX_RBX_RCX();
     Address array_reservation_address(Register reg);
     Address array_length_address(Register reg);
-    Address array_items_address(Register reg);
+    Address array_elems_address(Register reg);
     
     void die(const char *message);
 };

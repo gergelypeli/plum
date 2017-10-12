@@ -92,28 +92,6 @@ public:
         x64->op(PUSHQ, RBX);
         
         return Storage(STACK);
-        
-        /*
-        // Code to allocate a new buffer and return that
-        Label l;
-        x64->data_label(l);
-        for (unsigned short &c : characters)
-            x64->data_word(c);
-
-        x64->op(MOVQ, RAX, charlen * size + ARRAY_HEADER_SIZE);
-        
-        x64->alloc();
-
-        x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), charlen);
-        x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), charlen);
-        
-        x64->op(LEA, RDI, Address(RAX, ARRAY_ITEMS_OFFSET));
-        x64->op(LEARIP, RSI, l, 0);
-        x64->op(MOVQ, RCX, charlen * size);
-        x64->op(REPMOVSB);
-        
-        return Storage(REGISTER, RAX);
-        */
     }
 };
 

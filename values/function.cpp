@@ -214,7 +214,7 @@ class FunctionCallValue: public Value {
 public:
     Function *function;
     std::unique_ptr<Value> pivot;
-    std::vector<std::unique_ptr<Value>> items;  // FIXME
+    std::vector<std::unique_ptr<Value>> values;
     Register reg;
     Declaration *dummy;
     
@@ -256,12 +256,12 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        bool ok = check_arguments(args, kwargs, scope, arg_tss, arg_names, items);
+        bool ok = check_arguments(args, kwargs, scope, arg_tss, arg_names, values);
         if (!ok)
             return false;
         
-        for (unsigned i = 0; i < items.size(); i++) {
-            if (!items[i]) {
+        for (unsigned i = 0; i < values.size(); i++) {
+            if (!values[i]) {
                 TypeSpec arg_ts = arg_tss[i];
                 
                 if (arg_ts[0] != ovalue_type) {
@@ -271,18 +271,8 @@ public:
 
                 std::cerr << "Argument " << i << " is omitted.\n";
 
-                if (arg_ts.where(true) == ALIAS) {
-                    // We can't just initialize an optional ALIAS, because it needs an
-                    // allocated MEMORY storage first. So let's allocate it now.
-                    
-                    //DeclarationValue *dv = new DeclarationValue("<dummy>");
-                    //Value *right = new TypeValue(arg_ts.unprefix(ovalue_type).prefix(type_type));
-                    //dv->use(right, scope);
-                    Value *dv = make_declaration_by_type("<omitted>", arg_ts.unprefix(ovalue_type), scope);
-                    items[i].reset(dv);
-                    
-                    std::cerr << "Argument " << i << " is now a dummy.\n";
-                }
+                if (arg_ts.where(true) == ALIAS)
+                    throw INTERNAL_ERROR;
             }
         }
 
@@ -343,9 +333,9 @@ public:
         if (pivot)
             pivot->precompile();
         
-        for (auto &item : items)
-            if (item)
-                item->precompile();
+        for (auto &value : values)
+            if (value)
+                value->precompile();
         
         if (ts != VOID_TS)
             reg = preferred.get_any();
@@ -445,8 +435,8 @@ public:
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
         
-        for (unsigned i = 0; i < items.size(); i++)
-            passed_size += push_arg(arg_tss[i], items[i].get(), x64);
+        for (unsigned i = 0; i < values.size(); i++)
+            passed_size += push_arg(arg_tss[i], values[i].get(), x64);
             
         if (function->is_sysv && passed_size > 0)
             sysv_prologue(x64, passed_size);
@@ -479,7 +469,7 @@ public:
 
         x64->unwind->pop(this);
         
-        for (int i = items.size() - 1; i >= 0; i--)
+        for (int i = values.size() - 1; i >= 0; i--)
             pop_arg(arg_tss[i], x64);
             
         if (pivot) {

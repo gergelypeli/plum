@@ -1222,8 +1222,8 @@ Address X64::array_length_address(Register reg) {
     return Address(reg, ARRAY_LENGTH_OFFSET);
 }
 
-Address X64::array_items_address(Register reg) {
-    return Address(reg, ARRAY_ITEMS_OFFSET);
+Address X64::array_elems_address(Register reg) {
+    return Address(reg, ARRAY_ELEMS_OFFSET);
 }
 
 void X64::die(const char *message) {

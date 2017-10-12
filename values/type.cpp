@@ -382,8 +382,8 @@ public:
 
         std::vector<std::string> member_names;
         
-        for (auto &item : inner_scope->contents) {
-            Variable *var = dynamic_cast<Variable *>(item.get());
+        for (auto &d : inner_scope->contents) {
+            Variable *var = dynamic_cast<Variable *>(d.get());
             
             if (var && (var->var_ts[0] != lvalue_type || var->var_ts[1] != role_type))
                 member_names.push_back(var->name);
