@@ -9,6 +9,7 @@ const int OPSIZE_DEFAULT = 6;
 const int OPSIZE_WORD_PREFIX = 0x66;
 const int OPSIZE_REX_PREFIX = 0x40;
 
+const int REX_Q = 0x10;  // virtual flag, set if a register operand is SIL, DIL, SPL, BPL.
 const int REX_W = 0x08;
 const int REX_R = 0x04;
 const int REX_X = 0x02;
@@ -372,31 +373,31 @@ void X64::code_reference(Label label, int offset) {
     r.type = REF_CODE_RELATIVE;
     r.def_index = label.def_index;
 
-    //if (is_short)
-    //    code_byte(0);
-    //else
     code_dword(offset);  // 32-bit offset only
 }
 
 
-int X64::rxb(int regfield) {
+int X64::q(Register r) {
+    return (r == SIL || r == DIL || r == SPL || r == BPL ? REX_Q : 0);
+}
+
+
+int X64::r(Register regfield) {
     return
         (regfield >= 8 ? REX_R : 0x00);
 }
 
 
-int X64::rxb(int regfield, Register rm) {
+int X64::xb(Address rm) {
     return
-        (regfield >= 8 ? REX_R : 0x00) |
-        (rm >= 8 ? REX_B : 0x00);
+        (rm.index != NOREG && rm.index >= 8 ? REX_X : 0x00) |
+        (rm.base != NOREG && rm.base >= 8 ? REX_B : 0x00);
 }
 
 
-int X64::rxb(int regfield, Address rm) {
+int X64::xb(Register rm) {
     return
-        (regfield >= 8 ? REX_R : 0x00) |
-        (rm.index != NOREG && rm.index >= 8 ? REX_X : 0x00) |
-        (rm.base != NOREG && rm.base >= 8 ? REX_B : 0x00);
+        (rm >= 8 ? REX_B : 0x00);
 }
 
 
@@ -414,7 +415,7 @@ void X64::code_op(int code) {
 }
 
 
-void X64::code_op(int code, int size, int rxb) {
+void X64::code_op(int code, int size, int rxbq) {
     // size == 0 => byte  =>      _RXB op0
     // size == 1 => word  => 0x66 _RXB op1
     // size == 2 => dword =>      _RXB op1
@@ -424,11 +425,14 @@ void X64::code_op(int code, int size, int rxb) {
     // size == 6 => dword =>      _RXB opc
     // size == 7 => qword =>      WRXB opc
 
+    bool questionable = rxbq & REX_Q;
+    int rxb = rxbq & ~REX_Q;
+
     switch (size) {
     case 0:
         // We force a REX prefix for byte operations to allow access to SIL and DIL.
         // This is unnecessary for AL/BL/CL/DL, but we can live with that.
-        rex(rxb, true);
+        rex(rxb, questionable);
         code &= ~1;
         break;
     case 1:
@@ -504,7 +508,7 @@ void X64::effective_address(int regfield, Address x) {
     regfield &= 7;
     int base = x.base == NOREG ? NOREG : x.base & 7;  // RSP and R12 need a SIB
     int index = x.index == NOREG ? NOREG : x.index & 7;
-    int scale = (x.scale == 1 ? 0 : x.scale == 2 ? 1 : x.scale == 4 ? 2 : 3);
+    int scale = (x.scale == 1 ? 0 : x.scale == 2 ? 1 : x.scale == 4 ? 2 : x.scale == 8 ? 3 : x.index == NOREG ? 0 : throw X64_ERROR);
     int offset = x.offset;
     
     if (base == NOREG) {
@@ -575,19 +579,37 @@ void X64::effective_address(int regfield, Label l, int offset) {
 
 
 void X64::code_op(int opcode, int opsize, int regfield, Register rm) {
-    code_op(opcode, opsize, rxb(regfield, rm));
+    code_op(opcode, opsize, xb(rm) | q(rm));
+    effective_address(regfield, rm);
+}
+
+
+void X64::code_op(int opcode, int opsize, Register regfield, Register rm) {
+    code_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield) | q(rm));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, int opsize, int regfield, Address rm) {
-    code_op(opcode, opsize, rxb(regfield, rm));
+    code_op(opcode, opsize, xb(rm));
+    effective_address(regfield, rm);
+}
+
+
+void X64::code_op(int opcode, int opsize, Register regfield, Address rm) {
+    code_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, int opsize, int regfield, Label l, int offset) {
-    code_op(opcode, opsize, rxb(regfield));
+    code_op(opcode, opsize, 0);
+    effective_address(regfield, l, offset);
+}
+
+
+void X64::code_op(int opcode, int opsize, Register regfield, Label l, int offset) {
+    code_op(opcode, opsize, r(regfield) | q(regfield));
     effective_address(regfield, l, offset);
 }
 

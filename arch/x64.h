@@ -416,16 +416,21 @@ public:
     void code_label_export(Label c, std::string name, unsigned size, bool is_global);
     void code_reference(Label c, int offset = 0);
 
-    int rxb(int regfield);
-    int rxb(int regfield, Register rm);
-    int rxb(int regfield, Address rm);
+    int q(Register r);
+    int r(Register regfield);
+    int xb(Register regfield);
+    int xb(Address rm);
+    
     void rex(int wrxb, bool force = false);
 
     void code_op(int opcode);
     void code_op(int opcode, int opsize, int rxb = 0);
     void code_op(int opcode, int opsize, int regfield, Register rm);
+    void code_op(int opcode, int opsize, Register regfield, Register rm);
     void code_op(int opcode, int opsize, int regfield, Address rm);
+    void code_op(int opcode, int opsize, Register regfield, Address rm);
     void code_op(int opcode, int opsize, int regfield, Label l, int offset);
+    void code_op(int opcode, int opsize, Register regfield, Label l, int offset);
 
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);
