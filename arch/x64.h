@@ -27,6 +27,21 @@ enum Register {
 };
 
 
+enum Slash {
+    // To represent constant values that go into the reg field, without interpreting
+    // them as register numbers. This is to prevent accidental type conversions from
+    // Register to int.
+    SLASH_0,
+    SLASH_1,
+    SLASH_2,
+    SLASH_3,
+    SLASH_4,
+    SLASH_5,
+    SLASH_6,
+    SLASH_7,
+};
+
+
 struct Regs {
     static const int ALL_MASK = 0xFFC7;
     //static const int GPR_MASK = 0xFF07;  // general purpose registers
@@ -399,9 +414,9 @@ public:
     void code_word(short x);
     void code_dword(int x);
     void code_qword(long x);
-    void effective_address(int modrm, Register x);
-    void effective_address(int modrm, Address x);
-    void effective_address(int modrm, Label l, int offset);
+    void effective_address(int regfield, Register rm);
+    void effective_address(int regfield, Address rm);
+    void effective_address(int regfield, Label l, int offset);
     
     X64();
     ~X64();
@@ -425,11 +440,11 @@ public:
 
     void code_op(int opcode);
     void code_op(int opcode, int opsize, int rxb = 0);
-    void code_op(int opcode, int opsize, int regfield, Register rm);
+    void code_op(int opcode, int opsize, Slash regfield, Register rm);
     void code_op(int opcode, int opsize, Register regfield, Register rm);
-    void code_op(int opcode, int opsize, int regfield, Address rm);
+    void code_op(int opcode, int opsize, Slash regfield, Address rm);
     void code_op(int opcode, int opsize, Register regfield, Address rm);
-    void code_op(int opcode, int opsize, int regfield, Label l, int offset);
+    void code_op(int opcode, int opsize, Slash regfield, Label l, int offset);
     void code_op(int opcode, int opsize, Register regfield, Label l, int offset);
 
     void op(SimpleOp opcode);

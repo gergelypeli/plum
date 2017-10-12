@@ -578,7 +578,7 @@ void X64::effective_address(int regfield, Label l, int offset) {
 }
 
 
-void X64::code_op(int opcode, int opsize, int regfield, Register rm) {
+void X64::code_op(int opcode, int opsize, Slash regfield, Register rm) {
     code_op(opcode, opsize, xb(rm) | q(rm));
     effective_address(regfield, rm);
 }
@@ -590,7 +590,7 @@ void X64::code_op(int opcode, int opsize, Register regfield, Register rm) {
 }
 
 
-void X64::code_op(int opcode, int opsize, int regfield, Address rm) {
+void X64::code_op(int opcode, int opsize, Slash regfield, Address rm) {
     code_op(opcode, opsize, xb(rm));
     effective_address(regfield, rm);
 }
@@ -602,7 +602,7 @@ void X64::code_op(int opcode, int opsize, Register regfield, Address rm) {
 }
 
 
-void X64::code_op(int opcode, int opsize, int regfield, Label l, int offset) {
+void X64::code_op(int opcode, int opsize, Slash regfield, Label l, int offset) {
     code_op(opcode, opsize, 0);
     effective_address(regfield, l, offset);
 }
@@ -632,22 +632,22 @@ void X64::op(SimpleOp opcode) {
 
 struct {
     int op;
-    int regfield;
+    Slash regfield;
 } unary_info[] = {
-    {0xFE, 1},
-    {0xF6, 6},
-    {0xF6, 7},
-    {0xF6, 5},
-    {0xFE, 0},
-    {0x0F00, 2},
-    {0x0F00, 3},
-    {0xF6, 4},
-    {0xF6, 3},
-    {0xF6, 2},
-    {0x0F00, 0},
-    {0x0F00, 1},
-    {0x0F00, 4},
-    {0x0F00, 5}
+    {0xFE,   SLASH_1},
+    {0xF6,   SLASH_6},
+    {0xF6,   SLASH_7},
+    {0xF6,   SLASH_5},
+    {0xFE,   SLASH_0},
+    {0x0F00, SLASH_2},
+    {0x0F00, SLASH_3},
+    {0xF6,   SLASH_4},
+    {0xF6,   SLASH_3},
+    {0xF6,   SLASH_2},
+    {0x0F00, SLASH_0},
+    {0x0F00, SLASH_1},
+    {0x0F00, SLASH_4},
+    {0x0F00, SLASH_5}
 };
 
 
@@ -713,20 +713,20 @@ void X64::op(StringOp opcode) {
 
 struct {
     int op1;
-    int regfield1;
+    Slash regfield1;
     int op2;
     int op3;
 } binary_info[] = {
-    {0x80, 2, 0x10, 0x12},
-    {0x80, 0, 0x00, 0x02},
-    {0x80, 4, 0x20, 0x22},
-    {0x80, 7, 0x38, 0x3A},
-    {0xC6, 0, 0x88, 0x8A},
-    {0x80, 1, 0x08, 0x0A},
-    {0x80, 3, 0x18, 0x1A},
-    {0x80, 5, 0x28, 0x2A},
-    {0xF6, 0, 0x84, 0x84},  // Look, it's symmetric!
-    {0x80, 6, 0x30, 0x32}
+    {0x80, SLASH_2, 0x10, 0x12},
+    {0x80, SLASH_0, 0x00, 0x02},
+    {0x80, SLASH_4, 0x20, 0x22},
+    {0x80, SLASH_7, 0x38, 0x3A},
+    {0xC6, SLASH_0, 0x88, 0x8A},
+    {0x80, SLASH_1, 0x08, 0x0A},
+    {0x80, SLASH_3, 0x18, 0x1A},
+    {0x80, SLASH_5, 0x28, 0x2A},
+    {0xF6, SLASH_0, 0x84, 0x84},  // Look, it's symmetric!
+    {0x80, SLASH_6, 0x30, 0x32}
 };
 
 
@@ -800,8 +800,15 @@ void X64::op(BinaryOp opcode, Label x, int y) {
 
 
 
-int shift_info[] = {
-    2, 3, 0, 1, 4, 7, 4, 5
+Slash shift_info[] = {
+    SLASH_2,
+    SLASH_3,
+    SLASH_0,
+    SLASH_1,
+    SLASH_4,
+    SLASH_7,
+    SLASH_4,
+    SLASH_5
 };
 
 
@@ -885,10 +892,10 @@ void X64::op(StackOp opcode, Register x) {
 
 void X64::op(StackOp opcode, Address x) {
     if (opcode == PUSHQ) {
-        code_op(0xFF, OPSIZE_DEFAULT, 6, x);
+        code_op(0xFF, OPSIZE_DEFAULT, SLASH_6, x);
     }
     else {
-        code_op(0x8F, OPSIZE_DEFAULT, 0, x);
+        code_op(0x8F, OPSIZE_DEFAULT, SLASH_0, x);
     }
 }
 
@@ -897,16 +904,16 @@ void X64::op(StackOp opcode, Address x) {
 
 struct {
         int op;
-        int regfield;
+        Slash regfield;
 } memory_info[] = {
-        {0x0F01, 2},
-        {0x0F01, 3},
-        {0x0F01, 0},
-        {0x0F01, 1},
-        {0xDF,   5},
-        {0xDF,   7},
-        {0xD9,   7},
-        {0xD9,   5}
+        {0x0F01, SLASH_2},
+        {0x0F01, SLASH_3},
+        {0x0F01, SLASH_0},
+        {0x0F01, SLASH_1},
+        {0xDF,   SLASH_5},
+        {0xDF,   SLASH_7},
+        {0xD9,   SLASH_7},
+        {0xD9,   SLASH_5}
 };
 
 void X64::op(MemoryOp opcode, Address x) {
@@ -992,12 +999,12 @@ void X64::op(LeaRipOp, Register r, Label l) {
 
 
 void X64::op(BitSetOp opcode, Register x) {
-    code_op(0x0F90 | opcode, OPSIZE_DEFAULT, 0, x);
+    code_op(0x0F90 | opcode, OPSIZE_DEFAULT, SLASH_0, x);
 }
 
 
 void X64::op(BitSetOp opcode, Address x) {
-    code_op(0x0F90 | opcode, OPSIZE_DEFAULT, 0, x);
+    code_op(0x0F90 | opcode, OPSIZE_DEFAULT, SLASH_0, x);
 }
 
 
@@ -1027,10 +1034,10 @@ void X64::op(JumpOp opcode, Label c) {
 
 void X64::op(JumpOp opcode, Address x) {
     if (opcode == CALL) {
-        code_op(0xFF, OPSIZE_DEFAULT, 2, x);
+        code_op(0xFF, OPSIZE_DEFAULT, SLASH_2, x);
     }
     else if (opcode == JMP) {
-        code_op(0xFF, OPSIZE_DEFAULT, 4, x);
+        code_op(0xFF, OPSIZE_DEFAULT, SLASH_4, x);
     }
     else
         throw X64_ERROR;
@@ -1039,10 +1046,10 @@ void X64::op(JumpOp opcode, Address x) {
 
 void X64::op(JumpOp opcode, Register x) {
     if (opcode == CALL) {
-        code_op(0xFF, OPSIZE_DEFAULT, 2, x);
+        code_op(0xFF, OPSIZE_DEFAULT, SLASH_2, x);
     }
     else if (opcode == JMP) {
-        code_op(0xFF, OPSIZE_DEFAULT, 4, x);
+        code_op(0xFF, OPSIZE_DEFAULT, SLASH_4, x);
     }
     else
         throw X64_ERROR;
