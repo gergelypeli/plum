@@ -175,7 +175,7 @@ void init_iterators(Scope *root_scope) {
 
 
 void init_string(Scope *root_scope) {
-    RecordType *record_type = new RecordType("String", 0);
+    RecordType *record_type = new StringType("String");
     string_type = record_type;
 
     STRING_TS = { string_type };

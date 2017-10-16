@@ -220,6 +220,8 @@ start? :Function as:
     q dump
     prints("p and q compares as {c}" { c: p <=> q })
 
+    prints("A and B compares as {c}" { c: "aba" <=> "ab" })
+
     x1? Integer
     x2? Integer
     (x1, x2) = double

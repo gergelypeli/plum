@@ -286,8 +286,10 @@ public:
         case REGISTER:
             break;
         case STACK:
-            left->ts.store(ls, Storage(REGISTER, reg), x64);
-            ls = Storage(REGISTER, reg);
+            if (left->ts.where(false) == REGISTER) {
+                left->ts.store(ls, Storage(REGISTER, reg), x64);
+                ls = Storage(REGISTER, reg);
+            }
             break;
         case MEMORY:
             break;
