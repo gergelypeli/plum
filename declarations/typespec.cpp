@@ -135,6 +135,13 @@ void TypeSpec::destroy(Storage s, X64 *x64) {
 }
 
 
+bool TypeSpec::compare(Storage s, Storage t, X64 *x64) {
+    std::cerr << "XXX comparing " << *this << "\n";
+    TypeSpecIter tsi(begin());
+    return (*tsi)->compare(tsi, s, t, x64);
+}
+
+
 Value *TypeSpec::lookup_initializer(std::string name, Scope *scope) {
     TypeSpecIter tsi(begin());
     return (*tsi)->lookup_initializer(tsi, name, scope);

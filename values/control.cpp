@@ -239,7 +239,7 @@ public:
             return false;
         }
         
-        std::cerr << "XXX iterable is " << ib->ts << "\n";
+        //std::cerr << "XXX iterable is " << ib->ts << "\n";
         
         Expr ib_expr(Expr::IDENTIFIER, Token(), "iter");
         Value *ib2 = lookup("iter", ib, &ib_expr, scope);
@@ -249,7 +249,7 @@ public:
             throw INTERNAL_ERROR;
         }
 
-        std::cerr << "XXX iterator is " << ib2->ts << "\n";
+        //std::cerr << "XXX iterator is " << ib2->ts << "\n";
 
         iterator.reset(ib2);
             

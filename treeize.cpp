@@ -125,8 +125,7 @@ struct {
     { ">",   "is_greater", COMPARING },
     { "<=",  "not_greater", COMPARING },
     { ">=",  "not_less", COMPARING },
-    //{ "<>",  "not comparable", COMPARING },
-    //{ "<=>", "ordering", COMPARING },
+    { "<=>", "compare", COMPARING },
 
     { "!",   "logical not", LOGICAL_HIGH },  // TODO: or make it ~~, and != into ~=?
     

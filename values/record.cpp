@@ -3,9 +3,15 @@
 class RecordOperationValue: public GenericOperationValue {
 public:
     RecordOperationValue(OperationType o, Value *p, TypeMatch &match)
-        :GenericOperationValue(o, match[0].rvalue(), is_comparison(o) ? BOOLEAN_TS : match[0], p) {
+        :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p) {
+        std::cerr << "XXX Record " << match[0] << " operation " << o << ".\n";
     }
 };
+
+
+Declaration *make_record_compare() {
+    return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);
+}
 
 
 class RecordInitializerValue: public Value {

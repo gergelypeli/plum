@@ -146,6 +146,120 @@ public:
         return Storage(FLAGS, SETNE);
     }
     
+    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        // TODO: put this in a function, but for that once should store compilations
+        // with a bound argument!
+        Address saddress, taddress;
+        int stack_size = measure(tsi, STACK);
+
+        switch (s.where * t.where) {
+        case STACK_STACK:
+            x64->op(PUSHQ, RBP);
+            x64->op(MOVQ, RBP, RSP);
+            saddress = Address(RBP, 8 + stack_size);
+            taddress = Address(RBP, 8);
+            break;
+        case STACK_MEMORY:
+            x64->op(PUSHQ, RBP);
+            x64->op(MOVQ, RBP, RSP);
+            saddress = Address(RBP, 8);
+            taddress = t.address;
+            break;
+        case MEMORY_STACK:
+            x64->op(PUSHQ, RBP);
+            x64->op(MOVQ, RBP, RSP);
+            saddress = s.address;
+            taddress = Address(RBP, 8);
+            break;
+        case MEMORY_MEMORY:
+            saddress = s.address;
+            taddress = t.address;
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        Label greater, less, done;
+        
+        for (auto &var : member_variables) {
+            bool is_unsigned = var->compare(tsi, Storage(MEMORY, saddress), Storage(MEMORY, taddress), x64);
+            
+            if (is_unsigned) {
+                x64->op(JB, less);
+                x64->op(JA, greater);
+            }
+            else {
+                x64->op(JL, less);
+                x64->op(JG, greater);
+            }
+        }
+        
+        x64->op(MOVQ, RBX, 0);
+        x64->op(JMP, done);
+        
+        x64->code_label(greater);
+        x64->op(MOVQ, RBX, 1);
+        x64->op(JMP, done);
+        
+        x64->code_label(less);
+        x64->op(MOVQ, RBX, -1);
+        
+        x64->code_label(done);
+        
+        if (s.where * t.where != MEMORY_MEMORY) {
+            x64->op(PUSHQ, RBX);
+            
+            destroy(tsi, Storage(MEMORY, Address(RBP, 8)), x64);
+            
+            if (s.where * t.where == STACK_STACK)
+                destroy(tsi, Storage(MEMORY, Address(RBP, 8 + stack_size)), x64);
+            
+            x64->op(POPQ, RBX);
+
+            x64->op(POPQ, RBP);
+        }
+
+        if (s.where * t.where == STACK_STACK)
+            x64->op(ADDQ, RSP, 2 * stack_size);
+        else if (s.where * t.where != MEMORY_MEMORY)
+            x64->op(ADDQ, RSP, 1 * stack_size);
+        
+        x64->op(CMPQ, RBX, 0);
+        return false;  // result of signed comparison
+    }
+    /*
+    virtual bool compare_lite(TypeSpecIter tsi, Address saddress, Address taddress, X64 *x64) {
+        Label greater, less, done;
+        
+        for (auto &var : member_variables) {
+            bool is_unsigned = var->compare(tsi, saddress, taddress, x64);
+            
+            if (is_unsigned) {
+                x64->op(JB, less);
+                x64->op(JA, greater);
+            }
+            else {
+                x64->op(JL, less);
+                x64->op(JG, greater);
+            }
+        }
+        
+        x64->op(MOVQ, RBX, 0);
+        x64->op(JMP, done);
+        
+        x64->code_label(greater);
+        x64->op(MOVQ, RBX, 1);
+        x64->op(JMP, done);
+        
+        x64->code_label(less);
+        x64->op(MOVQ, RBX, -1);
+        
+        x64->code_label(done);
+        x64->op(CMPQ, RBX, 0);
+        
+        return false;  // result of signed comparison
+    }
+    */
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
         TypeSpec ts(tsi);
         TypeMatch match;
@@ -197,6 +311,119 @@ public:
     
     virtual std::vector<std::string> get_member_names() {
         return member_names;
+    }
+};
+
+
+class StringType: public RecordType {
+public:
+    StringType(std::string n)
+        :RecordType(n, 0) {
+    }
+    
+    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        Label strcmp_label = x64->once(compile_strcmp);
+
+        switch (s.where * t.where) {
+        case STACK_STACK:
+            x64->op(XCHGQ, RAX, Address(RSP, 8));
+            x64->op(XCHGQ, RDX, Address(RSP, 0));
+            break;
+        case STACK_MEMORY:
+            x64->op(PUSHQ, RDX);
+            x64->op(XCHGQ, RAX, Address(RSP, 8));
+            x64->op(MOVQ, RDX, t.address);
+            break;
+        case MEMORY_STACK:
+            x64->op(PUSHQ, RDX);
+            x64->op(XCHGQ, RAX, Address(RSP, 8));
+            x64->op(MOVQ, RDX, s.address);
+            x64->op(XCHGQ, RAX, RDX);
+            break;
+        case MEMORY_MEMORY:
+            x64->op(PUSHQ, RAX);
+            x64->op(PUSHQ, RDX);
+            if (t.address.base != RAX) {
+                x64->op(MOVQ, RAX, s.address);
+                x64->op(MOVQ, RDX, t.address);
+            }
+            else if (s.address.base != RDX) {
+                x64->op(MOVQ, RDX, t.address);
+                x64->op(MOVQ, RAX, s.address);
+            }
+            else {
+                x64->op(MOVQ, RAX, t.address);
+                x64->op(MOVQ, RDX, s.address);
+                x64->op(XCHGQ, RAX, RDX);
+            }
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        x64->op(PUSHQ, RCX);
+        x64->op(PUSHQ, RSI);
+        x64->op(PUSHQ, RDI);
+        x64->op(CALL, strcmp_label);  // result numerically in RBX, preserved by decref, below
+        x64->op(POPQ, RDI);
+        x64->op(POPQ, RSI);
+        x64->op(POPQ, RCX);
+        
+        if (t.where == STACK)
+            x64->decref(RDX);
+            
+        if (s.where == STACK)
+            x64->decref(RAX);
+            
+        x64->op(POPQ, RDX);
+        x64->op(POPQ, RAX);
+        
+        x64->op(CMPQ, RBX, 0);
+        return false;  // signed comparison
+    }
+
+    static void compile_strcmp(X64 *x64) {
+        // Expects RAX and RDX with the arguments, clobbers RCX, RSI, RDI, returns RBX.
+        Label equal, less, greater, s_longer, begin;
+        x64->op(MOVQ, RBX, 0);  // assume equality
+        
+        x64->op(CMPQ, RAX, RDX);
+        x64->op(JE, equal);
+        x64->op(CMPQ, RAX, 0);
+        x64->op(JE, less);
+        x64->op(CMPQ, RDX, 0);
+        x64->op(JE, greater);
+
+        x64->op(MOVQ, RCX, x64->array_length_address(RAX));
+        x64->op(CMPQ, RCX, x64->array_length_address(RDX));
+        x64->op(JE, begin);
+        x64->op(JA, s_longer);
+        
+        x64->op(MOVQ, RBX, -1);  // t is longer, on common equality t is greater
+        x64->op(JMP, begin);
+
+        x64->code_label(s_longer);
+        x64->op(MOVQ, RBX, 1);  // s is longer, on common equality s is greater
+        x64->op(MOVQ, RCX, x64->array_length_address(RDX));
+        
+        x64->code_label(begin);
+        x64->op(CMPQ, RCX, 0);
+        x64->op(JE, equal);
+        x64->op(LEA, RSI, x64->array_elems_address(RAX));
+        x64->op(LEA, RDI, x64->array_elems_address(RDX));
+        x64->op(REPECMPSW);
+        x64->op(JE, equal);
+        x64->op(JA, greater);
+        
+        x64->code_label(less);
+        x64->op(MOVQ, RBX, -1);
+        x64->op(JMP, equal);
+        
+        x64->code_label(greater);
+        x64->op(MOVQ, RBX, 1);
+                
+        x64->code_label(equal);  // common parts are equal, RBX determines the result
+        x64->op(RET);
     }
 };
 

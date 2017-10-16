@@ -72,6 +72,14 @@ public:
         reg = NOREG;
     }
     
+    static TypeSpec op_arg_ts(OperationType o, TypeMatch &match) {
+        return is_unary(o) ? VOID_TS : match[0].rvalue();
+    }
+
+    static TypeSpec op_ret_ts(OperationType o, TypeMatch &match) {
+        return o == COMPARE ? INTEGER_TS : is_comparison(o) ? BOOLEAN_TS : match[0];
+    }
+    
     virtual Register pick_early_register(Regs preferred) {
         if ((clob & ~rclob).has_any()) {
             // We have registers clobbered by the left side only, use one
@@ -307,10 +315,26 @@ public:
         return ls;
     }
 
+    virtual Storage compare(X64 *x64) {
+        subcompile(x64);
+
+        bool is_unsigned = left->ts.compare(ls, rs, x64);
+        
+        x64->op(MOVQ, reg, 0);
+        x64->op(MOVQ, RBX, 0);
+        x64->op(is_unsigned ? SETA : SETG, reg);
+        x64->op(is_unsigned ? SETB : SETL, BL);
+        x64->op(SUBQ, reg, RBX);
+        
+        return Storage(REGISTER, reg);
+    }
+
     virtual Storage compile(X64 *x64) {
         switch (operation) {
         case ASSIGN:
             return assign(x64);
+        case COMPARE:
+            return compare(x64);
         default:
             throw INTERNAL_ERROR;
         }

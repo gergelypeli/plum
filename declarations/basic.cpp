@@ -3,11 +3,13 @@ class BasicType: public Type {
 public:
     unsigned size;
     int os;
+    bool is_unsigned;
 
-    BasicType(std::string n, unsigned s)
+    BasicType(std::string n, unsigned s, bool iu)
         :Type(n, 0) {
         size = s;
         os = (s == 1 ? 0 : s == 2 ? 1 : s == 4 ? 2 : s == 8 ? 3 : throw INTERNAL_ERROR);        
+        is_unsigned = iu;
     }
     
     virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
@@ -154,6 +156,71 @@ public:
             throw INTERNAL_ERROR;
     }
 
+    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        // Only RBX is usable as scratch
+        BinaryOp MOV = MOVQ % os;
+        BinaryOp CMP = CMPQ % os;
+        
+        switch (s.where * t.where) {
+        case CONSTANT_CONSTANT:
+            x64->op(MOV, RBX, s.value);
+            x64->op(CMP, RBX, t.value);
+            return is_unsigned;
+        case CONSTANT_REGISTER:
+            x64->op(MOV, RBX, s.value);
+            x64->op(CMP, RBX, t.reg);
+            return is_unsigned;
+        case CONSTANT_STACK:
+            x64->op(MOV, RBX, s.value);
+            x64->op(CMP, RBX, Address(RSP, 0));
+            x64->op(POPQ, RBX);
+            return is_unsigned;
+        case CONSTANT_MEMORY:
+            x64->op(MOV, RBX, s.value);
+            x64->op(CMP, RBX, t.address);
+            return is_unsigned;
+            
+        case REGISTER_REGISTER:
+            x64->op(CMP, s.reg, t.reg);
+            return is_unsigned;
+        case REGISTER_STACK:
+            x64->op(POPQ, RBX);
+            x64->op(CMP, s.reg, RBX);
+            return is_unsigned;
+        case REGISTER_MEMORY:
+            x64->op(CMP, s.reg, t.address);
+            return is_unsigned;
+
+        case STACK_REGISTER:
+            x64->op(POPQ, RBX);
+            x64->op(CMP, RBX, t.reg);
+            return is_unsigned;
+        case STACK_STACK:
+            x64->op(POPQ, RBX);
+            x64->op(CMP, RBX, Address(RSP, 0));
+            x64->op(POPQ, RBX);
+            return is_unsigned;
+        case STACK_MEMORY:
+            x64->op(POPQ, RBX);
+            x64->op(CMP, RBX, t.address);
+            return is_unsigned;
+
+        case MEMORY_REGISTER:
+            x64->op(CMP, s.address, t.reg);
+            return is_unsigned;
+        case MEMORY_STACK:
+            x64->op(POPQ, RBX);
+            x64->op(CMP, s.address, RBX);
+            return is_unsigned;
+        case MEMORY_MEMORY:
+            x64->op(MOV, RBX, s.address);
+            x64->op(CMP, RBX, t.address);
+            return is_unsigned;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+    
     virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
         return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : REGISTER));
     }
@@ -176,22 +243,19 @@ public:
             throw INTERNAL_ERROR;
         }
     }
+    
+    virtual bool get_unsigned() {
+        return is_unsigned;
+    }
 };
 
 
 class IntegerType: public BasicType {
 public:
-    bool is_not_signed;
-    
     IntegerType(std::string n, unsigned s, bool iu)
-        :BasicType(n, s) {
-        is_not_signed = iu;
+        :BasicType(n, s, iu) {
     }
     
-    virtual bool is_unsigned() {
-        return is_not_signed;
-    }
-
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return integer_metatype->get_inner_scope(tsi);
     }
@@ -203,7 +267,7 @@ public:
     std::unique_ptr<Scope> inner_scope;
     
     BooleanType(std::string n, unsigned s)
-        :BasicType(n, s) {
+        :BasicType(n, s, true) {
         inner_scope.reset(new Scope);
     }
 
@@ -229,7 +293,7 @@ public:
     std::unique_ptr<DataScope> inner_scope;
     
     CharacterType(std::string n, unsigned s)
-        :BasicType(n, s) {
+        :BasicType(n, s, true) {
         inner_scope.reset(new DataScope);
         inner_scope->set_pivot_type_hint(TypeSpec { this });
     }
@@ -257,7 +321,7 @@ public:
     Label stringifications_label;
 
     EnumerationType(std::string n, std::vector<std::string> kw, Label sl)
-        :BasicType(n, 1) {  // TODO: different sizes based on the keyword count!
+        :BasicType(n, 1, true) {  // TODO: different sizes based on the keyword count!
         keywords = kw;
         stringifications_label = sl;
     }

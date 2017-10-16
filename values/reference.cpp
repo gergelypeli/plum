@@ -2,7 +2,7 @@
 class ReferenceOperationValue: public GenericOperationValue {
 public:
     ReferenceOperationValue(OperationType o, Value *l, TypeMatch &match)
-        :GenericOperationValue(o, match[0].rvalue(), is_comparison(o) ? BOOLEAN_TS : match[0], l) {
+        :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), l) {
     }
 
     virtual Storage equal(X64 *x64, BitSetOp op) {

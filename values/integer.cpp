@@ -7,7 +7,7 @@ public:
     bool is_unsigned;
     
     IntegerOperationValue(OperationType o, Value *pivot, TypeMatch &match)
-        :GenericOperationValue(o, is_unary(o) ? VOID_TS : match[0].rvalue(), is_comparison(o) ? BOOLEAN_TS : match[0], pivot) {
+        :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), pivot) {
         int size = match[0].measure(MEMORY);
         os = (
             size == 1 ? 0 :
@@ -18,7 +18,7 @@ public:
         );
 
         if (operation != ASSIGN && operation != EQUAL && operation != NOT_EQUAL)
-            dynamic_cast<IntegerType *>(match[0].rvalue()[0])->is_unsigned();
+            dynamic_cast<BasicType *>(match[0].rvalue()[0])->get_unsigned();
     }
     
     virtual void exponentiation_by_squaring(X64 *x64) {
@@ -621,8 +621,8 @@ public:
             return binary_compare(x64, is_unsigned ? SETBE : SETLE);
         case GREATER_EQUAL:
             return binary_compare(x64, is_unsigned ? SETAE : SETGE);
-        case INCOMPARABLE:
-            return Storage(CONSTANT, 0);
+        //case INCOMPARABLE:
+        //    return Storage(CONSTANT, 0);
         //case ASSIGN:
         //    return assign_binary(x64, MOVQ);
         case ASSIGN_ADD:

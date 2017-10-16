@@ -46,6 +46,7 @@ public:
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);
+    bool compare(Storage s, Storage t, X64 *x64);
     Value *lookup_initializer(std::string name, Scope *scope);
     Scope *get_inner_scope();
 };
@@ -67,6 +68,8 @@ Value *implemented(Declaration *d, TypeSpec ts, TypeSpecIter target, Value *orig
 std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 Variable *declaration_get_var(DeclarationValue *dv);
+Declaration *make_record_compare();
+
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 TypeMatch type_parameters_to_match(TypeSpec ts);

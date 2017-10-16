@@ -1114,6 +1114,7 @@ void X64::init_memory_management() {
     for (Register reg : { RAX, RBX, RCX, RDX, R8, R9, R10, R11, R12, R13, R14, R15 }) {
         Label il;
         
+        // NOTE: preserves all registers, including RBX
         code_label_export(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg], 0, false);
         op(CMPQ, reg, 0);
         op(JE, il);
@@ -1123,6 +1124,7 @@ void X64::init_memory_management() {
         
         Label dl;
         
+        // NOTE: preserves all registers, including RBX
         code_label_export(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg], 0, false);
         op(CMPQ, reg, 0);
         op(JE, dl);
@@ -1165,14 +1167,14 @@ void X64::init_memory_management() {
 }
 
 void X64::incref(Register reg) {
-    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI || reg == NOREG)
+    if (reg == RSP || reg == RBP || reg == NOREG)
         throw X64_ERROR;
         
     op(CALL, incref_labels[reg]);
 }
 
 void X64::decref(Register reg) {
-    if (reg == ESP || reg == EBP || reg == ESI || reg == EDI || reg == NOREG)
+    if (reg == RSP || reg == RBP || reg == NOREG)
         throw X64_ERROR;
 
     op(CALL, decref_labels[reg]);

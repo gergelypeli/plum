@@ -202,6 +202,8 @@ void init_string(Scope *root_scope) {
 
     is->add(new Identity("null", STRING_TS));  // a null initializer that does nothing
 
+    is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
+
     record_type->set_inner_scope(is);
     root_scope->add(string_type);
 

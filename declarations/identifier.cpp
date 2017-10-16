@@ -132,6 +132,13 @@ public:
         TypeSpec ts = typesubst(var_ts, match);
         return ts.boolval(s + offset, x64, probe);
     }
+
+    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        // TODO: this is a bit complicated
+        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
+        TypeSpec ts = typesubst(var_ts, match);
+        return ts.compare(s + offset, t + offset, x64);
+    }
 };
 
 

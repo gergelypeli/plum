@@ -215,6 +215,11 @@ start? :Function as:
     s? Pair { second: 222 }
     s dump
 
+    q first = 11
+    p dump
+    q dump
+    prints("p and q compares as {c}" { c: p <=> q })
+
     x1? Integer
     x2? Integer
     (x1, x2) = double

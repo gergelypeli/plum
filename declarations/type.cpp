@@ -123,6 +123,11 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        std::cerr << "Uncomparable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -240,6 +245,11 @@ public:
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         tsi++;
         (*tsi)->destroy(tsi, s, x64);
+    }
+
+    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        tsi++;
+        return (*tsi)->compare(tsi, s, t, x64);
     }
 
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {

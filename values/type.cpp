@@ -397,6 +397,8 @@ public:
         if (!data_value->complete_definition())
             return false;
 
+        inner_scope->add(make_record_compare());
+
         record_type->set_inner_scope(inner_scope);
 
         return true;
@@ -662,8 +664,8 @@ public:
                 //std::cerr << "Not a function in an implementation!\n";
                 //return false;
             }
-            std::cerr << "Checking imp fun: " << f->name << "\n";
-            std::cerr << "XXX " << interface_type->member_functions.size() << "\n";
+            //std::cerr << "Checking imp fun: " << f->name << "\n";
+            //std::cerr << "XXX " << interface_type->member_functions.size() << "\n";
             
             bool found = false;
             

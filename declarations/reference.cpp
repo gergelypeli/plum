@@ -102,6 +102,62 @@ public:
             throw INTERNAL_ERROR;
     }
 
+    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        switch (s.where * t.where) {
+        case REGISTER_REGISTER:
+            x64->decref(s.reg);
+            x64->decref(t.reg);
+            x64->op(CMPQ, s.reg, t.reg);
+            return true;
+        case REGISTER_STACK:
+            x64->op(POPQ, RBX);
+            x64->decref(s.reg);
+            x64->decref(RBX);
+            x64->op(CMPQ, s.reg, RBX);
+            return true;
+        case REGISTER_MEMORY:
+            x64->decref(s.reg);
+            x64->op(CMPQ, s.reg, t.address);
+            return true;
+
+        case STACK_REGISTER:
+            x64->op(POPQ, RBX);
+            x64->decref(RBX);
+            x64->decref(t.reg);
+            x64->op(CMPQ, RBX, t.reg);
+            return true;
+        case STACK_STACK:
+            x64->op(POPQ, RBX);
+            x64->decref(RBX);
+            x64->op(XCHGQ, RBX, Address(RSP, 0));
+            x64->decref(RBX);
+            x64->op(CMPQ, RBX, Address(RSP, 0));
+            x64->op(POPQ, RBX);
+            return true;
+        case STACK_MEMORY:
+            x64->op(POPQ, RBX);
+            x64->decref(RBX);
+            x64->op(CMPQ, RBX, t.address);
+            return true;
+
+        case MEMORY_REGISTER:
+            x64->decref(t.reg);
+            x64->op(CMPQ, s.address, t.reg);
+            return true;
+        case MEMORY_STACK:
+            x64->op(POPQ, RBX);
+            x64->decref(RBX);
+            x64->op(CMPQ, s.address, RBX);
+            return true;
+        case MEMORY_MEMORY:
+            x64->op(MOVQ, RBX, s.address);
+            x64->op(CMPQ, RBX, t.address);
+            return true;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
     virtual StorageWhere where(TypeSpecIter, bool is_arg, bool is_lvalue) {
         return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : REGISTER));
     }

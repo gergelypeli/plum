@@ -2,7 +2,7 @@
 class BooleanOperationValue: public GenericOperationValue {
 public:
     BooleanOperationValue(OperationType o, Value *p, TypeMatch &match)
-        :GenericOperationValue(o, match[0].rvalue(), match[0], p) {
+        :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p) {
     }
     
     virtual Storage compile(X64 *x64) {
@@ -169,7 +169,7 @@ public:
         :Value(VOID_TS) {  // Will be overridden
         left.reset(p);
     }
-    
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (args.size() != 1 || kwargs.size() != 0) {
             std::cerr << "Whacky boolean and operation!\n";
