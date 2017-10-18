@@ -158,6 +158,89 @@ public:
 };
 
 
+class EqualityValue: public Value {
+public:
+    bool no;
+    std::unique_ptr<Value> value;
+
+    EqualityValue(bool n, Value *v)
+        :Value(BOOLEAN_TS) {
+        no = n;
+        value.reset(v);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return value->check(args, kwargs, scope);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // Returns a boolean if the arguments were equal
+        Storage s = value->compile(x64);
+
+        if (!no)
+            return s;
+        
+        switch (s.where) {
+        case CONSTANT:
+            return Storage(CONSTANT, !s.value);
+        case FLAGS:
+            return Storage(FLAGS, negate(s.bitset));
+        case REGISTER:
+            x64->op(CMPB, s.reg, 0);
+            return Storage(FLAGS, SETE);
+        case MEMORY:
+            x64->op(CMPB, s.address, 0);
+            return Storage(FLAGS, SETE);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
+class ComparisonValue: public Value {
+public:
+    BitSetOp bitset;
+    std::unique_ptr<Value> value;
+
+    ComparisonValue(BitSetOp b, Value *v)
+        :Value(BOOLEAN_TS) {
+        bitset = b;
+        value.reset(v);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return value->check(args, kwargs, scope);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // Returns an integer representing the ordering of the arguments
+        Storage s = value->compile(x64);
+
+        switch (s.where) {
+        case REGISTER:
+            x64->op(CMPB, s.reg, 0);
+            break;
+        case MEMORY:
+            x64->op(CMPB, s.address, 0);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        return Storage(FLAGS, bitset);
+    }
+};
+
+
 class VariableValue: public Value {
 public:
     Variable *variable;
@@ -441,6 +524,16 @@ Value *make_implementation_definition_value() {
 
 Value *make_identity_value(Value *v) {
     return new IdentityValue(v);
+}
+
+
+Value *make_equality_value(bool no, Value *v) {
+    return new EqualityValue(no, v);
+}
+
+
+Value *make_comparison_value(BitSetOp bs, Value *v) {
+    return new ComparisonValue(bs, v);
 }
 
 

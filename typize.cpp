@@ -106,6 +106,8 @@ Value *make_class_definition_value();
 Value *make_interface_definition_value();
 Value *make_implementation_definition_value();
 Value *make_identity_value(Value *v);
+Value *make_equality_value(bool no, Value *v);
+Value *make_comparison_value(BitSetOp bs, Value *v);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
@@ -117,7 +119,7 @@ Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
 #include "builtin.cpp"
 
 
-Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
+Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
     Value *value = NULL;
     TypeMatch match;
@@ -134,23 +136,56 @@ Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec
             value = pivot->lookup_inner(name, match);
     }
 
-    // TODO: put this on a higher level
     if (!value) {
-        if (name == "not_equal") {
-            Value *fallback = lookup("is_equal", pivot, expr, scope, context);
+        if (name == "is_equal" || name == "not_equal") {
+            Value *fallback = lookup_unchecked("equal", pivot, scope);
             
-            if (fallback)
-                return make_boolean_not_value(fallback);
+            if (fallback) {
+                bool no = (name == "not_equal");
+                value = make_equality_value(no, fallback);
+            }
         }
     }
     
     if (!value) {
-        std::cerr << "No match for " << get_typespec(pivot) << " " << name << " at " << expr->token << "!\n";
-        return NULL;
+        if (name == "is_equal" || name == "not_equal" ||
+            name == "is_less" || name == "is_greater" ||
+            name == "not_less" || name == "not_greater"
+        ) {
+            Value *fallback = lookup_unchecked("compare", pivot, scope);
+            
+            if (fallback) {
+                BitSetOp bs = (
+                    name == "is_equal" ? SETE :
+                    name == "not_equal" ? SETNE :
+                    name == "is_less" ? SETL :
+                    name == "is_greater" ? SETG :
+                    name == "not_less" ? SETGE :
+                    name == "not_greater" ? SETLE :
+                    throw INTERNAL_ERROR
+                );
+                value = make_comparison_value(bs, fallback);
+            }
+        }
     }
     
     // TODO: we should print the definition pivot type, not the value type
-    std::cerr << "Found       " << match[0] << " " << name << " returning " << value->ts << ".\n";
+    if (value)
+        std::cerr << "Found       " << get_typespec(pivot) << " " << name << " returning " << value->ts << ".\n";
+        
+    return value;
+}
+
+
+Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
+    //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
+    Value *value = lookup_unchecked(name, pivot, scope);
+    
+    if (!value) {
+        std::cerr << "No match for " << get_typespec(pivot) << " " << name << " at " << expr->token << "!\n";
+        throw TYPE_ERROR;
+    }
+
     value->set_token(expr->token);
     value->set_context_ts(context);
     

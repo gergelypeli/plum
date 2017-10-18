@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "../utf8.c"
 #include "../arch/heap.h"
 
@@ -40,7 +41,7 @@ void die(const char *message) {
 
 #define ALEN(x) *(long *)((x) + ARRAY_LENGTH_OFFSET)
 #define ARES(x) *(long *)((x) + ARRAY_RESERVATION_OFFSET)
-#define AITE(x) ((x) + ARRAY_ITEMS_OFFSET)
+#define AELE(x) ((x) + ARRAY_ELEMS_OFFSET)
 #define HREF(x) *(long *)((x) + HEAP_REFCOUNT_OFFSET)
 
 
@@ -69,7 +70,7 @@ void *append_decode_utf8(void *character_array, char *bytes, long byte_length) {
     if (character_reserve - character_length < byte_length)
         character_array = reallocate_array(character_array, character_length + byte_length, 2);
         
-    unsigned short *characters = AITE(character_array);
+    unsigned short *characters = AELE(character_array);
     ALEN(character_array) += decode_utf8_buffer(bytes, byte_length, characters + character_length);
     
     return character_array;
@@ -92,7 +93,7 @@ void prints(void *s) {
     if (s) {
         long character_length = ALEN(s);
         char bytes[character_length * 3];
-        int byte_length = encode_utf8_buffer(AITE(s), character_length, bytes);
+        int byte_length = encode_utf8_buffer(AELE(s), character_length, bytes);
         printf("%.*s\n", byte_length, bytes);
     }
     else
@@ -103,7 +104,7 @@ void prints(void *s) {
 void printb(void *s) {
     if (s) {
         long byte_length = ALEN(s);
-        char *bytes = AITE(s);
+        char *bytes = AELE(s);
         printf("%.*s\n", (int)byte_length, bytes);
     }
     else
@@ -116,10 +117,10 @@ void *decode_utf8(void *byte_array) {
         return NULL;
 
     long byte_length = ALEN(byte_array);
-    char *bytes = AITE(byte_array);
+    char *bytes = AELE(byte_array);
 
     void *character_array = allocate_array(byte_length, 2);
-    unsigned short *characters = AITE(character_array);
+    unsigned short *characters = AELE(character_array);
     
     long character_length = decode_utf8_buffer(bytes, byte_length, characters);
     ALEN(character_array) = character_length;
@@ -133,10 +134,10 @@ void *encode_utf8(void *character_array) {
         return NULL;
 
     long character_length = ALEN(character_array);
-    unsigned short *characters = AITE(character_array);
+    unsigned short *characters = AELE(character_array);
     
     void *byte_array = allocate_array(character_length * 3, 1);
-    char *bytes = AITE(byte_array);
+    char *bytes = AELE(byte_array);
 
     long byte_length = encode_utf8_buffer(characters, character_length, bytes);
     ALEN(byte_array) = byte_length;
@@ -160,6 +161,16 @@ void *stringify_integer(long x) {
 void streamify_integer(long x, void **character_array_lvalue) {
     char byte_array[30];
     int byte_length = snprintf(byte_array, sizeof(byte_array), "%ld", x);
+    
+    void *character_array = *character_array_lvalue;
+    character_array = append_decode_utf8(character_array, byte_array, byte_length);
+    *character_array_lvalue = character_array;
+}
+
+
+void streamify_boolean(unsigned char x, void **character_array_lvalue) {
+    char *byte_array = (x ? "`true" : "`false");
+    int byte_length = strlen(byte_array);
     
     void *character_array = *character_array_lvalue;
     character_array = append_decode_utf8(character_array, byte_array, byte_length);

@@ -22,8 +22,7 @@ struct {
     { "is_greater", GREATER },
     { "not_greater", LESS_EQUAL },
     { "not_less", GREATER_EQUAL },
-    //{ "incomparable", INCOMPARABLE },
-    //{ "compare",  },
+    { "compare", COMPARE },
 }, integer_lvalue_operations[] = {
     { "assign other", ASSIGN },
     { "assign_plus", ASSIGN_ADD },
@@ -255,7 +254,7 @@ Scope *init_builtins() {
     multi_type = new SpecialType("<Multi>", 0);
     root_scope->add(multi_type);
 
-    lvalue_type = new AttributeType("<Lvalue>");
+    lvalue_type = new AttributeType("Lvalue");
     root_scope->add(lvalue_type);
     
     ovalue_type = new AttributeType("Ovalue");
@@ -396,6 +395,8 @@ Scope *init_builtins() {
     // Boolean operations
     Scope *bool_scope = boolean_type->get_inner_scope(BOGUS_TS.begin());
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
+    Scope *bsable_scope = implement(bool_scope, STREAMIFIABLE_TS, "sable");
+    bsable_scope->add(new ImportedFunction("streamify_boolean", "streamify", BOOLEAN_TS, TSs { STRING_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
 
     // Logical operations, unscoped
     root_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", ANY_TS));

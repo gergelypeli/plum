@@ -147,8 +147,6 @@ public:
     }
     
     virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        // TODO: put this in a function, but for that once should store compilations
-        // with a bound argument!
         Address saddress, taddress;
         int stack_size = measure(tsi, STACK);
 
@@ -227,39 +225,7 @@ public:
         x64->op(CMPQ, RBX, 0);
         return false;  // result of signed comparison
     }
-    /*
-    virtual bool compare_lite(TypeSpecIter tsi, Address saddress, Address taddress, X64 *x64) {
-        Label greater, less, done;
-        
-        for (auto &var : member_variables) {
-            bool is_unsigned = var->compare(tsi, saddress, taddress, x64);
-            
-            if (is_unsigned) {
-                x64->op(JB, less);
-                x64->op(JA, greater);
-            }
-            else {
-                x64->op(JL, less);
-                x64->op(JG, greater);
-            }
-        }
-        
-        x64->op(MOVQ, RBX, 0);
-        x64->op(JMP, done);
-        
-        x64->code_label(greater);
-        x64->op(MOVQ, RBX, 1);
-        x64->op(JMP, done);
-        
-        x64->code_label(less);
-        x64->op(MOVQ, RBX, -1);
-        
-        x64->code_label(done);
-        x64->op(CMPQ, RBX, 0);
-        
-        return false;  // result of signed comparison
-    }
-    */
+
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
         TypeSpec ts(tsi);
         TypeMatch match;
