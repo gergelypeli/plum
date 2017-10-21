@@ -59,6 +59,7 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
+Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, TypeSpec *context, Variable *arg_var = NULL);
 
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
@@ -197,6 +198,18 @@ Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec
     }
     
     return value;
+}
+
+
+Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, TypeSpec *context, Variable *arg_var) {
+    Expr fake_expr(Expr::IDENTIFIER, token, name);
+    
+    if (arg_var) {
+        Expr *fake_arg_expr = new Expr(Expr::IDENTIFIER, token, arg_var->name);
+        fake_expr.args.push_back(std::unique_ptr<Expr>(fake_arg_expr));
+    }
+    
+    return lookup(name, pivot, &fake_expr, scope, context);
 }
 
 

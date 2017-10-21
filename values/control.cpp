@@ -224,8 +224,7 @@ public:
     
         //std::cerr << "XXX iterable is " << ib->ts << "\n";
         
-        Expr ib_expr(Expr::IDENTIFIER, Token(), "iter");
-        Value *ib2 = lookup("iter", ib.get(), &ib_expr, scope);
+        Value *ib2 = lookup_fake("iter", ib.release(), token, scope, NULL);
         
         if (!ib2) {
             std::cerr << "Iterable didn't implement the iter method!\n";
@@ -234,7 +233,6 @@ public:
 
         //std::cerr << "XXX iterator is " << ib2->ts << "\n";
 
-        ib.release();
         iterator.reset(ib2);
             
         // TODO: this should be a "local variable", to be destroyed once we're done
@@ -246,27 +244,27 @@ public:
         next_try_scope = new TryScope;
         scope->add(next_try_scope);
 
-        Expr it_expr(Expr::IDENTIFIER, Token(), "<iterator>");
-        Value *it = lookup("<iterator>", NULL, &it_expr, next_try_scope);
-        TypeMatch match;
+        TypeMatch imatch;
+        Value *it = iterator_var->matched(NULL, imatch);
         
+        TypeMatch match;
         if (!typematch(ANY_ITERATOR_TS, it, match)) {
-            std::cerr << "Not an Iterator in :for control, but: " << it->ts << "!\n";
+            std::cerr << "Iterable iter didn't return an Iterator, but: " << it->ts << "!\n";
             return false;
         }
 
-        each_ts = match[1].lvalue();
+        TypeSpec elem_ts = match[1];
+        each_ts = elem_ts.lvalue();
         
-        Expr next_expr(Expr::IDENTIFIER, Token(), "next");
-        Value *next = lookup("next", it, &next_expr, next_try_scope);
+        Value *next = lookup_fake("next", it, token, next_try_scope, NULL);
         
         if (!next) {
             std::cerr << "Iterator didn't implement the next method!\n";
             throw INTERNAL_ERROR;
         }
         
-        if (next->ts != match[1]) {
-            std::cerr << "Misimplemented " << match[1] << " iterator next returns " << next->ts << "!\n";
+        if (next->ts != elem_ts) {
+            std::cerr << "Misimplemented " << elem_ts << " iterator next returns " << next->ts << "!\n";
             throw INTERNAL_ERROR;
         }
         
@@ -465,9 +463,7 @@ public:
         if (!check_args(args, { "value", &switch_ts, scope, &value}))
             return false;
             
-        Expr cover_expr(Expr::IDENTIFIER, Token(), "cover");
-        cover_expr.add_arg(new Expr(Expr::IDENTIFIER, Token(), switch_scope->get_variable_name()));
-        Value *cover = lookup("cover", value.get(), &cover_expr, scope);
+        Value *cover = lookup_fake("cover", value.release(), token, scope, NULL, switch_var);
         
         if (!cover) {
             std::cerr << "Cannot :switch with uncoverable " << value->ts << "!\n";
@@ -479,7 +475,6 @@ public:
             return false;
         }
         
-        value.release();
         this->cover.reset(cover);
     
         ArgInfos infos = {

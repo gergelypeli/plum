@@ -191,26 +191,19 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     block->set_marker(marker);
     
     DeclarationValue *dv = make_declaration_by_value("<interpolated>", new StringBufferValue(100), scope);
-    //DeclarationValue *dv = new DeclarationValue("<result>");
-    //Value *initial_value = new StringBufferValue(100);
-    //dv->use(initial_value, scope);
-    Variable *v = dv->get_var();
+    Variable *interpolated_var = dv->get_var();
     block->add_statement(dv);
 
     for (auto &kv : expr->kwargs) {
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
         Value *keyword_value = typize(expr, scope);
-        //DeclarationValue *decl_value = new DeclarationValue(keyword);
-        //decl_value->use(keyword_value, scope);
         DeclarationValue *decl_value = make_declaration_by_value(keyword, keyword_value, scope);
         block->add_statement(decl_value);
     }
 
     bool pseudo_only = (expr->kwargs.size() > 0);
     bool identifier = false;
-    Expr streamify_expr(Expr::IDENTIFIER, expr->token, "streamify");
-    streamify_expr.add_arg(new Expr(Expr::IDENTIFIER, expr->token, "<interpolated>"));
     
     for (auto &fragment : fragments) {
         Value *pivot;
@@ -244,7 +237,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             throw TYPE_ERROR;
         }
 
-        Value *streamify = lookup("streamify", pivot, &streamify_expr, scope);
+        Value *streamify = lookup_fake("streamify", pivot, expr->token, scope, NULL, interpolated_var);
         if (!streamify) {
             std::cerr << "Cannot interpolate badly streamifiable " << pivot->ts << "!\n";
             throw TYPE_ERROR;
@@ -255,7 +248,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     }
 
     TypeMatch match;  // kinda unnecessary
-    Value *ret = make_variable_value(v, NULL, match);
+    Value *ret = make_variable_value(interpolated_var, NULL, match);
     ret = new StringReallocValue(ret, match);
     block->add_statement(ret, true);
     
