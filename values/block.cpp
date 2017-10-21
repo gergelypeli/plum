@@ -79,30 +79,33 @@ public:
             std::cerr << "Labeled statements make no sense!\n";
             return false;
         }
+
+        if (args.size() > 0) {
+            Value *value;
+            
+            for (unsigned i = 0; i < args.size() - 1; i++) {
+                value = typize(args[i].get(), scope, &VOID_CODE_TS);
+            
+                DeclarationValue *dv = declaration_value_cast(value);
+                Declaration *escape = NULL;
+            
+                if (dv)
+                    escape = declaration_get_decl(dv);
+            
+                // This matters, because makes the expression Void before putting it
+                // in CodeValue, which would be sensitive about MEMORY return values,
+                // and push them unnecessarily.
+                // Using typematch would be nicer, but we can't pass the escape_last
+                // flag to CodeValue...
+            
+                value = make_void_conversion_value(value);
+                value = make_code_value(value, escape);
+                add_statement(value, false);
+            }
         
-        Value *value;
-        for (unsigned i = 0; i < args.size() - 1; i++) {
-            value = typize(args[i].get(), scope, &VOID_CODE_TS);
-            
-            DeclarationValue *dv = declaration_value_cast(value);
-            Declaration *escape = NULL;
-            
-            if (dv)
-                escape = declaration_get_decl(dv);
-            
-            // This matters, because makes the expression Void before putting it
-            // in CodeValue, which would be sensitive about MEMORY return values,
-            // and push them unnecessarily.
-            // Using typematch would be nicer, but we can't pass the escape_last
-            // flag to CodeValue...
-            
-            value = make_void_conversion_value(value);
-            value = make_code_value(value, escape);
-            add_statement(value, false);
+            value = typize(args.back().get(), scope, context);
+            add_statement(value, true);
         }
-        
-        value = typize(args.back().get(), scope, context);
-        add_statement(value, true);
 
         return true;
     }

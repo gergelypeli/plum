@@ -256,7 +256,16 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        bool ok = check_arguments(args, kwargs, scope, arg_tss, arg_names, values);
+        ArgInfos infos;
+
+        // Separate loop, so reallocations won't screw us
+        for (unsigned i = 0; i < arg_tss.size(); i++)
+            values.push_back(NULL);
+        
+        for (unsigned i = 0; i < arg_tss.size(); i++)
+            infos.push_back(ArgInfo { arg_names[i].c_str(), &arg_tss[i], scope, &values[i] });
+
+        bool ok = check_arguments(args, kwargs, infos);
         if (!ok)
             return false;
         
@@ -506,9 +515,7 @@ public:
     std::vector<Variable *> result_vars;
     std::vector<std::unique_ptr<Value>> values;
     Declaration *dummy;
-
     std::vector<Storage> var_storages;
-    
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(VOID_TS) {
@@ -530,26 +537,20 @@ public:
         
         result_vars = fn_scope->get_result_variables();
 
+        ArgInfos infos;
+
+        for (unsigned i = 0; i < result_vars.size(); i++)
+            values.push_back(NULL);
+        
+        for (unsigned i = 0; i < result_vars.size(); i++)
+            infos.push_back(ArgInfo { result_vars[i]->name.c_str(), &result_vars[i]->var_ts, scope, &values[i] });
+            
+        if (!check_arguments(args, kwargs, infos))
+            return false;
+
         if (result_vars.size() != args.size()) {
             std::cerr << "Wrong number of :return values!\n";
             return false;
-        }
-
-        for (unsigned i = 0; i < args.size(); i++) {
-            Variable *result_var = result_vars[i];
-            Expr *expr = args[i].get();
-            
-            TypeSpec result_ts = result_var->var_ts;
-            Value *r = typize(expr, scope, &result_ts);
-            TypeMatch match;
-        
-            if (!typematch(result_ts, r, match)) {
-                std::cerr << "A :return control with incompatible value!\n";
-                std::cerr << "Type " << get_typespec(r) << " is not " << result_ts << "!\n";
-                return false;
-            }
-
-            values.push_back(std::unique_ptr<Value>(r));
         }
 
         // We must insert this after all potential declarations inside the result expression,

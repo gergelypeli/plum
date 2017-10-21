@@ -109,13 +109,14 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() > 0) {
-            std::cerr << "Positional arguments in an integer definition!\n";
+        ArgInfos infos = {
+            { "bytes", &INTEGER_TS, scope, &bs },
+            { "is_unsigned", &BOOLEAN_TS, scope, &iu }
+        };
+        
+        if (!check_arguments(args, kwargs, infos))
             return false;
-        }
-
-        Expr *b = kwargs["bytes"].get();
-        bs.reset(typize(b, scope, &INTEGER_TS));
+            
         if (!bs) {
             std::cerr << "Missing bytes keyword argument in integer definition!\n";
             return false;
@@ -131,8 +132,6 @@ public:
             size = bv->number;
         }
         
-        Expr *u = kwargs["is_unsigned"].get();
-        iu.reset(typize(u, scope, &BOOLEAN_TS));
         if (!iu) {
             std::cerr << "Missing is_unsigned keyword argument in integer definition!\n";
             return false;

@@ -129,7 +129,7 @@ start? :Function as:
     :if a < b && a > b then: prints("Huh?") else: prints("Huh.")
     
     c? Integer
-    c = :if a == b then: 100 else: 200
+    c = Integer :if a == b then: 100 else: 200
     prints("This should be 200: {c}" {})
     
     d? 6u8

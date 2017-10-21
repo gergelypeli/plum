@@ -1,4 +1,15 @@
 
+struct ArgInfo {
+    const char *name;
+    TypeSpec *context;
+    Scope *scope;
+    std::unique_ptr<Value> *target;
+};
+    
+typedef std::vector<ArgInfo> ArgInfos;
+
+bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);
+
 // Values
 
 class Value {
@@ -6,7 +17,7 @@ public:
     TypeSpec ts;
     Token token;
     Marker marker;
-    
+        
     Value(TypeSpec t)
         :ts(t) {
     }
@@ -29,8 +40,13 @@ public:
         return this;
     }
     
+    bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
+        // FIXME: shouldn't this be a proper method?
+        return ::check_arguments(args, kwargs, arg_infos);
+    }
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        return (args.size() == 0 && kwargs.size() == 0);
+        return check_arguments(args, kwargs, ArgInfos());
     }
     
     virtual Regs precompile(Regs) {

@@ -5,9 +5,7 @@ public:
     std::vector<std::unique_ptr<Value>> values;
     std::vector<TypeSpec> tss;
     bool is_rvalue;
-    
     std::vector<Storage> storages;
-    
 
     MultiValue()
         :Value(BOGUS_TS) {

@@ -81,6 +81,7 @@ public:
         TypeMatch match;
     
         if (!typematch(ts, r, match)) {
+            // TODO: is this a good idea? Shouldn't it be just with the same type?
             ts = BOOLEAN_TS;
             
             Value *l = left.release();
@@ -171,20 +172,11 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() != 0) {
-            std::cerr << "Whacky boolean and operation!\n";
+        if (!check_arguments(args, kwargs, { { "arg", &ANY_TS, scope, &right } }))
             return false;
-        }
 
-        Value *r = typize(args[0].get(), scope);
-        TypeMatch match;
-        
-        if (!typematch(ANY_TS, r, match))
-            throw INTERNAL_ERROR;
+        ts = right->ts.rvalue();
             
-        ts = match[0];
-        right.reset(r);
-        
         return true;
     }
 
@@ -265,6 +257,7 @@ public:
 
 class BooleanIfValue: public Value {
 public:
+    TypeSpec *context;
     std::unique_ptr<Value> condition;
     std::unique_ptr<Value> then_branch;
     std::unique_ptr<Value> else_branch;
@@ -272,36 +265,31 @@ public:
     
     BooleanIfValue(OperationType o, Value *pivot, TypeMatch &match)
         :Value(VOID_TS) {  // Will be overridden later
-        //condition.reset(pivot);
+        context = NULL;
+    }
+
+    virtual Value *set_context_ts(TypeSpec *c) {
+        context = c;
+        return this;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1) {
-            std::cerr << "Not one positional argument to :if!\n";
+        if (context)
+            ts = (*context)[0] == code_type ? (*context).unprefix(code_type) : *context;
+            
+        TypeSpec arg_ts = ts.prefix(code_type);
+            
+        ArgInfos infos = {
+            { "condition", &BOOLEAN_TS, scope, &condition },
+            { "then", &arg_ts, scope, &then_branch },
+            { "else", &arg_ts, scope, &else_branch }
+        };
+        
+        if (!check_arguments(args, kwargs, infos))
             return false;
-        }
-        
-        Value *c = typize(args[0].get(), scope, &BOOLEAN_TS);
-        TypeMatch match;
-        
-        if (!typematch(BOOLEAN_TS, c, match)) {
-            std::cerr << "Not a Boolean condition to :if!\n";
-            return false;
-        }
-        
-        condition.reset(c);
-        
-        for (auto &kv : kwargs) {
-            if (kv.first == "then")
-                then_branch.reset(make_code_value(typize(kv.second.get(), scope, &VOID_CODE_TS)));
-            else if (kv.first == "else")
-                else_branch.reset(make_code_value(typize(kv.second.get(), scope, &VOID_CODE_TS)));
-            else {
-                std::cerr << "Invalid argument to Boolean if!\n";
-                return false;
-            }
-        }
 
+        /*
+        // TODO: use context_ts instead of this!
         if (then_branch && else_branch) {
             // Can't return an lvalue, because one Storage can only represent
             // a compile time fixed variable location.
@@ -313,6 +301,7 @@ public:
                 std::cerr << "Boolean if at " << token << " is " << ts << ".\n";
             }
         }
+        */
         
         return true;
     }

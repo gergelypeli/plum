@@ -30,7 +30,16 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        return check_arguments(args, kwargs, scope, member_tss, member_names, values);
+        ArgInfos infos;
+
+        // Separate loop, so reallocations won't screw us
+        for (unsigned i = 0; i < member_tss.size(); i++)
+            values.push_back(NULL);
+        
+        for (unsigned i = 0; i < member_tss.size(); i++)
+            infos.push_back(ArgInfo { member_names[i].c_str(), &member_tss[i], scope, &values[i] });
+        
+        return check_arguments(args, kwargs, infos);
     }
 
     virtual Regs precompile(Regs preferred) {

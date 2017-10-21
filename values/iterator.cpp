@@ -5,15 +5,6 @@ public:
         :GenericValue(VOID_TS, ret_ts, pivot) {
     }
 
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky simple record!\n";
-            return false;
-        }
-
-        return true;
-    }
-
     virtual Regs precompile(Regs preferred) {
         return left->precompile(preferred);
     }
@@ -30,17 +21,14 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky Counter next!\n";
+        if (!check_arguments(args, kwargs, {}))
             return false;
-        }
-
+            
         dummy = new Declaration;
         scope->add(dummy);
-        
+
         return true;
     }
-
 
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
@@ -167,10 +155,8 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky Array_iterator next!\n";
+        if (!check_arguments(args, kwargs, {}))
             return false;
-        }
 
         dummy = new Declaration;
         scope->add(dummy);

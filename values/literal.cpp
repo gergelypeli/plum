@@ -32,20 +32,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() == 1 && kwargs.size() == 0) {
-            Value *v = typize(args[0].get(), scope, &INTEGER_TS);
-            TypeMatch match;
-            
-            if (!typematch(INTEGER_TS, v, match)) {
-                std::cerr << "Integer unicode code point expected!\n";
-                return false;
-            }
-            
-            value.reset(v);
-            return true;
-        }
-        else
-            return false;
+        return check_arguments(args, kwargs, { { "code", &INTEGER_TS, scope, &value } });
     }
 
     virtual Regs precompile(Regs preferred) {

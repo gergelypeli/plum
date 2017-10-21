@@ -10,33 +10,14 @@ public:
         arg_ts = at;
         left.reset(l);
     }
-    
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (arg_ts == VOID_TS) {
-            if (args.size() != 0 || kwargs.size() != 0) {
-                std::cerr << "Operation needs no arguments!\n";
-                return false;
-            }
+        ArgInfos x;
+        
+        if (arg_ts != VOID_TS)
+            x.push_back({ "arg", &arg_ts, scope, &right });
             
-            return true;
-        }
-        else {
-            if (args.size() != 1 || kwargs.size() != 0) {
-                std::cerr << "Operation needs one positional argument!\n";
-                return false;
-            }
-        
-            Value *r = typize(args[0].get(), scope, &arg_ts);
-            TypeMatch match;
-        
-            if (!typematch(arg_ts, r, match)) {
-                std::cerr << "Argument is " << r->ts << ", not " << arg_ts << "!\n";
-                return false;
-            }
-        
-            right.reset(r);
-            return true;
-        }
+        return check_arguments(args, kwargs, x);
     }
     
     virtual void compile_and_store_both(X64 *x64, Storage l, Storage r) {
@@ -349,6 +330,8 @@ public:
 };
 
 
+// Old version
+/*
 bool check_argument(unsigned i, Expr *e, Scope *scope, const std::vector<TypeSpec> &arg_tss, std::vector<std::unique_ptr<Value>> &values) {
     if (i >= values.size()) {
         std::cerr << "Too many arguments!\n";
@@ -407,6 +390,65 @@ bool check_arguments(
         Expr *e = kv.second.get();
         
         if (!check_argument(i, e, scope, arg_tss, values))
+            return false;
+    }
+    
+    return true;
+}
+*/
+
+// New version
+
+bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) {
+    if (i >= arg_infos.size()) {
+        std::cerr << "Too many arguments!\n";
+        return false;
+    }
+
+    if (*arg_infos[i].target) {
+        std::cerr << "Argument " << i << " already supplied!\n";
+        return false;
+    }
+
+    Value *v = typize(e, arg_infos[i].scope, arg_infos[i].context);
+    TypeMatch match;
+    
+    if (!typematch(*arg_infos[i].context, v, match)) {
+        std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *arg_infos[i].context << "!\n";
+        return false;
+    }
+    
+    arg_infos[i].target->reset(v);
+    return true;
+}
+
+
+bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
+    for (unsigned i = 0; i < args.size(); i++) {
+        Expr *e = args[i].get();
+        
+        if (!check_argument(i, e, arg_infos))
+            return false;
+    }
+            
+    for (auto &kv : kwargs) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < arg_infos.size(); j++) {
+            if (arg_infos[j].name == kv.first) {
+                i = j;
+                break;
+            }
+        }
+            
+        if (i == (unsigned)-1) {
+            std::cerr << "No argument named " << kv.first << "!\n";
+            return false;
+        }
+        
+        Expr *e = kv.second.get();
+        
+        if (!check_argument(i, e, arg_infos))
             return false;
     }
     

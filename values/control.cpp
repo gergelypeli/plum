@@ -4,14 +4,14 @@ class ControlValue: public Value {
 public:
     std::string name;
     TypeSpec *context;
-    
+    /*
     struct Kwinfo {
         const char *label;
         Scope *scope;
         TypeSpec *context;
         std::unique_ptr<Value> *target;
     };
-    
+    */
     ControlValue(std::string n)
         :Value(VOID_TS) {
         name = n;
@@ -23,56 +23,46 @@ public:
         return this;
     }
 
-    virtual Value *check_value(Args &args, Scope *scope, TypeSpec *value_context) {
-        Value *v = make_code_block_value(value_context);
+    virtual bool check_args(Args &args, ArgInfo arg_info) {
+        if (args.size() == 0) {
+            if (*arg_info.context != VOID_TS) {
+                std::cerr << "Missing :" << name << " positional argument!\n";
+                return false;
+            }
+            
+            return true;
+        }
+    
+        Value *v = make_code_block_value(arg_info.context);
         Kwargs fake_kwargs;
         
-        if (!v->check(args, fake_kwargs, scope))
-            return NULL;
+        if (!v->check(args, fake_kwargs, arg_info.scope))
+            return false;
             
-        if (value_context) {
+        if (arg_info.context) {
             TypeMatch match;
         
-            if (!typematch(*value_context, v, match)) {
-                std::cerr << "Wrong :" << name << " value type!\n";
-                return NULL;
-            }
-        }
-        
-        return v;
-    }
-
-    virtual bool check_kwargs(Kwargs &kwargs, std::vector<Kwinfo> kwinfos) {
-        for (auto &kv : kwargs) {
-            bool found = false;
-            
-            for (auto &info : kwinfos) {
-                if (kv.first != info.label)
-                    continue;
-                    
-                Value *v = typize(kv.second.get(), info.scope, info.context);
-        
-                TypeMatch match;
-        
-                if (!typematch(*info.context, v, match)) {
-                    std::cerr << ":" << name << " keyword argument '" << info.label << "' is not " << *info.context << " but " << v->ts << "!\n";
-                    return false;
-                }
-        
-                info.target->reset(v);
-                
-                found = true;
-                break;
-            }
-            
-            if (!found) {
-                std::cerr << "Invalid :" << name << " keyword argument " << kv.first << "!\n";
+            if (!typematch(*arg_info.context, v, match)) {
+                std::cerr << "Wrong :" << name << " positional argument type!\n";
+                std::cerr << "  Expected " << *arg_info.context << " got " << v->ts << "!\n";
                 return false;
             }
         }
         
+        arg_info.target->reset(v);
+        
         return true;
     }
+
+    virtual bool check_kwargs(Kwargs &kwargs, ArgInfos arg_infos) {
+        Args fake_args;
+        
+        return check_arguments(fake_args, kwargs, arg_infos);
+    }
+    
+    //virtual bool check_control_arguments(Args &args, Kwargs &kwargs, ArgInfos infos) {
+    //    return check_value(args, arg_infos) && check_kwargs(kwargs, arg_infos);
+    //}
 };
 
 
@@ -141,20 +131,16 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        setup.reset(check_value(args, scope, NULL));
-        if (!setup)
+        if (!check_args(args, { "init", NULL, scope, &setup }))
             return false;
-    
-        std::vector<Kwinfo> infos = {
-            { "do", scope, &VOID_CODE_TS, &body },
-            { "on", scope, &BOOLEAN_CODE_TS, &condition },
-            { "by", scope, &VOID_CODE_TS, &step }
+
+        ArgInfos infos = {
+            { "do", &VOID_CODE_TS, scope, &body },
+            { "on", &BOOLEAN_CODE_TS, scope, &condition },
+            { "by", &VOID_CODE_TS, scope, &step }
         };
         
-        if (!check_kwargs(kwargs, infos))
-            return false;
-            
-        return true;
+        return check_kwargs(kwargs, infos);
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -231,18 +217,15 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Value *ib = check_value(args, scope, NULL);
-        TypeMatch imatch;
-        
-        if (!typematch(ANY_ITERABLE_TS, ib, imatch)) {
-            std::cerr << "Not an Iterable in :for control, but: " << ib->ts << "!\n";
+        std::unique_ptr<Value> ib;
+    
+        if (!check_args(args, { "", &ANY_ITERABLE_TS, scope, &ib}))
             return false;
-        }
-        
+    
         //std::cerr << "XXX iterable is " << ib->ts << "\n";
         
         Expr ib_expr(Expr::IDENTIFIER, Token(), "iter");
-        Value *ib2 = lookup("iter", ib, &ib_expr, scope);
+        Value *ib2 = lookup("iter", ib.get(), &ib_expr, scope);
         
         if (!ib2) {
             std::cerr << "Iterable didn't implement the iter method!\n";
@@ -251,6 +234,7 @@ public:
 
         //std::cerr << "XXX iterator is " << ib2->ts << "\n";
 
+        ib.release();
         iterator.reset(ib2);
             
         // TODO: this should be a "local variable", to be destroyed once we're done
@@ -288,9 +272,9 @@ public:
         
         this->next.reset(next);
 
-        std::vector<Kwinfo> infos = {
-            { "each", scope, &each_ts, &each },
-            { "do", scope, &VOID_CODE_TS, &body }
+        ArgInfos infos = {
+            { "each", &each_ts, scope, &each },
+            { "do", &VOID_CODE_TS, scope, &body }
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -376,11 +360,10 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        value.reset(check_value(args, scope, NULL));
-        if (!value)
+        if (!check_args(args, { "value", &ANY_TS, scope, &value }))
             return false;
             
-        if (value->ts == VOID_TS) {
+        if (value->ts == VOID_TS) {  // TODO: is this unnecessary fot ANY_TS?
             std::cerr << "Whacky :switch!\n";
             return false;
         }
@@ -395,8 +378,8 @@ public:
         switch_var = new Variable(switch_scope->get_variable_name(), VOID_TS, value->ts.lvalue());
         switch_scope->add(switch_var);
         
-        std::vector<Kwinfo> infos = {
-            { "do", switch_scope, &VOID_CODE_TS, &body }
+        ArgInfos infos = {
+            { "do", &VOID_CODE_TS, switch_scope, &body }
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -477,16 +460,17 @@ public:
         TypeSpec switch_ts = switch_var->var_ts.rvalue();
 
         // Process the value
-        Value *v = check_value(args, scope, &switch_ts);
-        if (!v)
-            return false;
+        std::unique_ptr<Value> value;
         
+        if (!check_args(args, { "value", &switch_ts, scope, &value}))
+            return false;
+            
         Expr cover_expr(Expr::IDENTIFIER, Token(), "cover");
         cover_expr.add_arg(new Expr(Expr::IDENTIFIER, Token(), switch_scope->get_variable_name()));
-        Value *cover = lookup("cover", v, &cover_expr, scope);
+        Value *cover = lookup("cover", value.get(), &cover_expr, scope);
         
         if (!cover) {
-            std::cerr << "Cannot :switch with uncoverable " << v->ts << "!\n";
+            std::cerr << "Cannot :switch with uncoverable " << value->ts << "!\n";
             return false;
         }
 
@@ -495,10 +479,11 @@ public:
             return false;
         }
         
+        value.release();
         this->cover.reset(cover);
     
-        std::vector<Kwinfo> infos = {
-            { "then", scope, &VOID_CODE_TS, &body },
+        ArgInfos infos = {
+            { "then", &VOID_CODE_TS, scope, &body },
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -576,14 +561,13 @@ public:
         
         TypeSpec ets = { et };
         
-        value.reset(check_value(args, scope, &ets));
-        if (!value)
+        if (!check_args(args, { "value", &ets, scope, &value }))
             return false;
-        
+            
         dummy = new Declaration;
         scope->add(dummy);
 
-        std::vector<Kwinfo> infos = {
+        ArgInfos infos = {
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -639,10 +623,9 @@ public:
         try_scope = new TryScope;
         scope->add(try_scope);
         
-        body.reset(check_value(args, try_scope, context));
-        if (!body)
+        if (!check_args(args, { "body", context, try_scope, &body }))
             return false;
-
+        
         if (!setup_yieldable(scope))
             return false;
 
@@ -657,8 +640,8 @@ public:
             switch_scope->add(switch_var);
         }
 
-        std::vector<Kwinfo> infos = {
-            { "or", switch_scope, &VOID_CODE_TS, &handler }
+        ArgInfos infos = {
+            { "or", &VOID_CODE_TS, switch_scope, &handler }
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -748,11 +731,10 @@ public:
         if (!setup_yieldable(scope))
             return false;
         
-        body.reset(check_value(args, eval_scope, context));
-        if (!body)
+        if (!check_args(args, { "body", context, eval_scope, &body }))
             return false;
         
-        std::vector<Kwinfo> infos = {
+        ArgInfos infos = {
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -816,27 +798,13 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         TypeSpec arg_ts = eval_scope->get_ts();
         
-        if (arg_ts == VOID_TS) {
-            if (args.size() != 0) {
-                std::cerr << ":" << name << " with arguments!\n";
-                return false;
-            }
-        }
-        else {
-            if (args.size() == 0) {
-                std::cerr << ":" << name << " without arguments!\n";
-                return false;
-            }
-
-            value.reset(check_value(args, scope, &arg_ts));
-            if (!value)
-                return false;
-        }
-
+        if (!check_args(args, { "value", &arg_ts, scope, &value }))
+            return false;
+            
         dummy = new Declaration;
         scope->add(dummy);
 
-        std::vector<Kwinfo> infos = {
+        ArgInfos infos = {
         };
         
         if (!check_kwargs(kwargs, infos))
