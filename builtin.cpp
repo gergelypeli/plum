@@ -451,7 +451,7 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
     
     // Builtin controls, unscoped
-    root_scope->add(new TemplateOperation<BooleanIfValue>(":if", NO_TS, TWEAK));
+    root_scope->add(new TemplateOperation<IfValue>(":if", NO_TS, TWEAK));
     root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", NO_TS));
     root_scope->add(new TemplateIdentifier<ForEachValue>(":for", NO_TS));
     root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", NO_TS));

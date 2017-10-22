@@ -3,23 +3,26 @@
 class ControlValue: public Value {
 public:
     std::string name;
-    TypeSpec *context;
-    /*
-    struct Kwinfo {
-        const char *label;
-        Scope *scope;
-        TypeSpec *context;
-        std::unique_ptr<Value> *target;
-    };
-    */
+    TypeSpec context_ts;
+
     ControlValue(std::string n)
         :Value(VOID_TS) {
         name = n;
-        context = NULL;
+        context_ts = VOID_TS;  // pivot controls will be Void
     }
 
     virtual Value *set_context_ts(TypeSpec *c) {
-        context = c;
+        context_ts = *c;
+        
+        if (context_ts[0] == code_type)
+            context_ts = context_ts.unprefix(code_type);
+        else if (context_ts[0] == ovalue_type)
+            context_ts = context_ts.unprefix(ovalue_type);
+        else if (context_ts[0] == lvalue_type) {
+            std::cerr << "Control :" << name << " in Lvalue context!\n";
+            throw TYPE_ERROR;
+        }
+        
         return this;
     }
 
@@ -57,10 +60,130 @@ public:
         
         return check_arguments(fake_args, kwargs, arg_infos);
     }
+};
+
+
+class IfValue: public ControlValue {
+public:
+    std::unique_ptr<Value> condition;
+    std::unique_ptr<Value> then_branch;
+    std::unique_ptr<Value> else_branch;
+    Register reg;
     
-    //virtual bool check_control_arguments(Args &args, Kwargs &kwargs, ArgInfos infos) {
-    //    return check_value(args, arg_infos) && check_kwargs(kwargs, arg_infos);
-    //}
+    IfValue(OperationType o, Value *pivot, TypeMatch &match)
+        :ControlValue("if") {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        ts = context_ts;
+            
+        TypeSpec arg_ts = ts.prefix(code_type);
+            
+        ArgInfos infos = {
+            { "condition", &BOOLEAN_TS, scope, &condition },
+            { "then", &arg_ts, scope, &then_branch },
+            { "else", &arg_ts, scope, &else_branch }
+        };
+        
+        if (!check_arguments(args, kwargs, infos))
+            return false;
+
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        Regs clobbered = Regs();
+        
+        clobbered = clobbered | condition->precompile();
+        
+        if (then_branch)
+            clobbered = clobbered | then_branch->precompile(preferred);
+                       
+        if (else_branch)
+            clobbered = clobbered | else_branch->precompile(preferred);
+        
+        // This won't be bothered by either branches
+        reg = preferred.get_any();
+        clobbered.add(reg);
+        
+        return clobbered;
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label then_end;
+        Label else_end;
+        
+        Storage cs = condition->compile(x64);
+        
+        switch (cs.where) {
+        case CONSTANT:
+            if (cs.value)
+                else_branch.reset(NULL);
+            else
+                then_branch.reset(NULL);
+                
+            break;
+        case FLAGS:
+            if (then_branch) {
+                BranchOp opcode = branchize(negate(cs.bitset));
+                x64->op(opcode, then_end);
+            }
+            else if (else_branch) {
+                BranchOp opcode = branchize(cs.bitset);
+                x64->op(opcode, else_end);
+            }
+            break;
+        case REGISTER:
+            x64->op(CMPB, cs.reg, 0);
+            
+            if (then_branch)
+                x64->op(JE, then_end);
+            else if (else_branch)
+                x64->op(JNE, else_end);
+                
+            break;
+        case STACK:
+            x64->op(POPQ, reg);
+            x64->op(CMPB, RAX, 0);
+            
+            if (then_branch)
+                x64->op(JE, then_end);
+            else if (else_branch)
+                x64->op(JNE, else_end);
+                
+            break;
+        case MEMORY:
+            x64->op(CMPB, cs.address, 0);
+
+            if (then_branch)
+                x64->op(JE, then_end);
+            else if (else_branch)
+                x64->op(JNE, else_end);
+            
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        // TODO: we need a function to get the recommended storage for this type!
+        Storage s = ts != VOID_TS ? Storage(REGISTER, reg) : Storage();
+
+        if (then_branch) {
+            then_branch->compile_and_store(x64, s);
+            
+            if (else_branch)
+                x64->op(JMP, else_end);
+
+            x64->code_label(then_end);
+        }
+        
+        if (else_branch) {
+            else_branch->compile_and_store(x64, s);
+            x64->code_label(else_end);
+        }
+    
+        return s;
+    }
 };
 
 
@@ -78,16 +201,7 @@ public:
     }
 
     virtual bool setup_yieldable(Scope *scope) {
-        if (context) {
-            ts = *context;
-            
-            if (ts[0] == code_type)
-                ts = ts.unprefix(code_type);
-            else if (ts[0] == lvalue_type) {
-                std::cerr << name << " in lvalue context!\n";
-                return false;
-            }
-        }
+        ts = context_ts;
             
         eval_scope = new EvalScope(ts, eval_name);
         scope->add(eval_scope);
@@ -616,7 +730,7 @@ public:
         try_scope = new TryScope;
         scope->add(try_scope);
         
-        if (!check_args(args, { "body", context, try_scope, &body }))
+        if (!check_args(args, { "body", &context_ts, try_scope, &body }))
             return false;
         
         if (!setup_yieldable(scope))
@@ -724,7 +838,7 @@ public:
         if (!setup_yieldable(scope))
             return false;
         
-        if (!check_args(args, { "body", context, eval_scope, &body }))
+        if (!check_args(args, { "body", &context_ts, eval_scope, &body }))
             return false;
         
         ArgInfos infos = {

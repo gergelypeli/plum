@@ -216,7 +216,7 @@ Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, Ty
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     Value *value = NULL;
     Marker marker = scope->mark();
-    
+
     if (!expr)
         throw INTERNAL_ERROR;
     else if (expr->type == Expr::TUPLE) {
