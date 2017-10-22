@@ -34,7 +34,13 @@ public:
             if (!typematch(ANY_TYPE_TS, pivot, match))
                 return NULL;
                 
-            TypeSpec ts = match[1].prefix(this).prefix(type_type);
+            TypeSpec param = match[1];
+            if (param[0] == lvalue_type || param[0] == ovalue_type || param[0] == code_type) {
+                std::cerr << "Invalid type parameter: " << param << "!\n";
+                throw TYPE_ERROR;
+            }
+
+            TypeSpec ts = param.prefix(this).prefix(type_type);
             // FIXME: do something with pivot!
             
             return make_type_value(ts);
