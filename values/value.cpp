@@ -78,7 +78,7 @@ public:
         if (ts == VOID_TS)
             return NULL;
             
-        return new Variable(name, VOID_TS, scope->variable_type_hint(ts.rvalue()));
+        return new Variable(name, NO_TS, scope->variable_type_hint(ts.rvalue()));
     }
     
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
@@ -374,7 +374,7 @@ public:
 
 
 TypeSpec get_typespec(Value *value) {
-    return value ? value->ts : VOID_TS;
+    return value ? value->ts : NO_TS;
 }
 
 

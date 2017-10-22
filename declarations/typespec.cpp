@@ -213,6 +213,12 @@ Value *rolematch(Value *v, TypeSpecIter tsi, TypeSpecIter target) {
 bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
 #define MATCHLOG if (false)
 
+    //if (tt == VOID_TS)
+    //    throw INTERNAL_ERROR;  // FIXME: to be removed after debugging, needed for :repeat
+        
+    if (tt == NO_TS)
+        throw INTERNAL_ERROR;  // Mustn't be called with NO_TS
+
     // This may overwrite an older match, but that's OK, we just need to
     // preserve the type parameters.
     if (match.size() > 0)
@@ -234,6 +240,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         else if (tt[0] == code_type && tt[1] == void_type) {
             MATCHLOG std::cerr << "Matched nothing for Void Code.\n";
             match[0] = tt;
+            value = make_code_value(NULL);
             return true;
         }
         else if (tt[0] == ovalue_type) {
@@ -247,16 +254,21 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         }
     }
     
-    if (tt[0] == void_type) {
-        MATCHLOG std::cerr << "No match, something for Void.\n";
-        return false;
-    }
+    //if (tt[0] == void_type) {
+    //    MATCHLOG std::cerr << "No match, something for Void.\n";
+    //    return false;
+    //}
     
     TypeSpec ss = get_typespec(value);
     
     // Checking Void value
     if (ss[0] == void_type) {
-        if (tt[0] == code_type && tt[1] == void_type) {
+        if (tt[0] == void_type) {
+            MATCHLOG std::cerr << "Matched Void for Void.\n";
+            match[0] = tt;
+            return true;
+        }
+        else if (tt[0] == code_type && tt[1] == void_type) {
             MATCHLOG std::cerr << "Matched Void for Void Code.\n";
             match[0] = tt;
             value = make_code_value(value);
@@ -266,6 +278,13 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             MATCHLOG std::cerr << "No match, Void for something.\n";
             return false;
         }
+    }
+
+    if (tt[0] == void_type) {
+        MATCHLOG std::cerr << "Matched something for Void.\n";
+        match[0] = tt;
+        value = make_void_conversion_value(value);
+        return true;
     }
 
     TypeSpecIter s(ss.begin());

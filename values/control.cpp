@@ -39,14 +39,12 @@ public:
         if (!v->check(args, fake_kwargs, arg_info.scope))
             return false;
             
-        if (arg_info.context) {
-            TypeMatch match;
+        TypeMatch match;
         
-            if (!typematch(*arg_info.context, v, match)) {
-                std::cerr << "Wrong :" << name << " positional argument type!\n";
-                std::cerr << "  Expected " << *arg_info.context << " got " << v->ts << "!\n";
-                return false;
-            }
+        if (!typematch(*arg_info.context, v, match)) {
+            std::cerr << "Wrong :" << name << " positional argument type!\n";
+            std::cerr << "  Expected " << *arg_info.context << " got " << v->ts << "!\n";
+            return false;
         }
         
         arg_info.target->reset(v);
@@ -100,7 +98,7 @@ public:
         if (ts != VOID_TS) {
             // Add the variable after the EvalScope, so it can survive the finalization
             // of the scope, and can be left uninitialized until the successful completion.
-            yield_var = new Variable(eval_scope->get_variable_name(), VOID_TS, ts.lvalue());
+            yield_var = new Variable(eval_scope->get_variable_name(), NO_TS, ts.lvalue());
             scope->add(yield_var);
             eval_scope->set_yield_var(yield_var);
         }
@@ -131,7 +129,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_args(args, { "init", NULL, scope, &setup }))
+        if (!check_args(args, { "init", &VOID_TS, scope, &setup }))
             return false;
 
         ArgInfos infos = {
@@ -238,7 +236,7 @@ public:
         // TODO: this should be a "local variable", to be destroyed once we're done
         // instead of letting the enclosing scope destroy it.
         TypeSpec its = iterator->ts.lvalue();
-        iterator_var = new Variable("<iterator>", VOID_TS, its);
+        iterator_var = new Variable("<iterator>", NO_TS, its);
         scope->add(iterator_var);
 
         next_try_scope = new TryScope;
@@ -373,7 +371,7 @@ public:
         switch_scope = new SwitchScope;
         eval_scope->add(switch_scope);
         
-        switch_var = new Variable(switch_scope->get_variable_name(), VOID_TS, value->ts.lvalue());
+        switch_var = new Variable(switch_scope->get_variable_name(), NO_TS, value->ts.lvalue());
         switch_scope->add(switch_var);
         
         ArgInfos infos = {
@@ -631,7 +629,7 @@ public:
         
         if (et) {
             TypeSpec ets = { lvalue_type, et };
-            switch_var = new Variable(switch_scope->get_variable_name(), VOID_TS, ets);
+            switch_var = new Variable(switch_scope->get_variable_name(), NO_TS, ets);
             switch_scope->add(switch_var);
         }
 

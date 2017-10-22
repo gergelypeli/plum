@@ -39,7 +39,7 @@ public:
 
             // Add internal result variable
             TypeSpec var_ts = r->ts.unprefix(type_type);
-            Variable *decl = new Variable("<result>", VOID_TS, var_ts);
+            Variable *decl = new Variable("<result>", NO_TS, var_ts);
             rs->add(decl);
         }
 
@@ -47,8 +47,8 @@ public:
         if (scope->is_pure()) {
             TypeSpec pivot_ts = scope->pivot_type_hint();
             
-            if (pivot_ts != VOID_TS && pivot_ts != ANY_TS)
-                ss->add(new Variable("$", VOID_TS, pivot_ts));
+            if (pivot_ts != NO_TS && pivot_ts != ANY_TS)
+                ss->add(new Variable("$", NO_TS, pivot_ts));
         }
 
         // TODO: why do we store this in the fn scope?
@@ -227,7 +227,7 @@ public:
     std::vector<std::string> arg_names;
         
     FunctionCallValue(Function *f, Value *p, TypeMatch &m)
-        :Value(BOGUS_TS) {
+        :Value(NO_TS) {
         function = f;
         pivot.reset(p);
 
@@ -237,7 +237,7 @@ public:
         arg_names = function->get_argument_names();
         
         if (res_tss.size() == 0)
-            ts = pivot_ts;
+            ts = pivot_ts != NO_TS ? pivot_ts : VOID_TS;
         else if (res_tss.size() == 1)
             ts = res_tss[0];
         else if (res_tss.size() > 1)

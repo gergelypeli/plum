@@ -8,7 +8,7 @@ public:
     std::vector<Storage> storages;
 
     MultiValue()
-        :Value(BOGUS_TS) {
+        :Value(NO_TS) {
         is_rvalue = false;
     }
 
@@ -260,7 +260,7 @@ public:
     std::vector<TypeSpec> tss;
     
     ScalarConversionValue(Value *p)
-        :Value(BOGUS_TS) {
+        :Value(NO_TS) {
         orig.reset(p);
         
         if (!p->unpack(tss))

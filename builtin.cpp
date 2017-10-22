@@ -317,7 +317,7 @@ Scope *init_builtins() {
     //string_type = new RecordType("String");
     //root_scope->add(string_type);
 
-    // BOGUS_TS will contain no Type pointers
+    // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };
     ANY_LVALUE_TS = { lvalue_type, any_type };
@@ -371,7 +371,7 @@ Scope *init_builtins() {
     init_iterators(root_scope);
 
     // Integer operations
-    Scope *integer_scope = integer_metatype->get_inner_scope(BOGUS_TS.begin());
+    Scope *integer_scope = integer_metatype->get_inner_scope(NO_TS.begin());
     
     for (auto &item : integer_rvalue_operations)
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_TS, item.operation));
@@ -387,13 +387,13 @@ Scope *init_builtins() {
     integer_scope->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
         
     // Character operations
-    Scope *char_scope = character_type->get_inner_scope(BOGUS_TS.begin());
+    Scope *char_scope = character_type->get_inner_scope(NO_TS.begin());
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
     Scope *csable_scope = implement(char_scope, STREAMIFIABLE_TS, "sable");
     csable_scope->add(new TemplateIdentifier<CharacterStreamificationValue>("streamify", CHARACTER_TS));
     
     // Boolean operations
-    Scope *bool_scope = boolean_type->get_inner_scope(BOGUS_TS.begin());
+    Scope *bool_scope = boolean_type->get_inner_scope(NO_TS.begin());
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
     Scope *bsable_scope = implement(bool_scope, STREAMIFIABLE_TS, "sable");
     bsable_scope->add(new ImportedFunction("streamify_boolean", "streamify", BOOLEAN_TS, TSs { STRING_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
@@ -404,7 +404,7 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", ANY_TS));
 
     // Enum operations
-    Scope *enum_scope = enumeration_metatype->get_inner_scope(BOGUS_TS.begin());
+    Scope *enum_scope = enumeration_metatype->get_inner_scope(NO_TS.begin());
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
@@ -412,7 +412,7 @@ Scope *init_builtins() {
     esable_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
 
     // Treenum operations
-    Scope *treenum_scope = treenumeration_metatype->get_inner_scope(BOGUS_TS.begin());
+    Scope *treenum_scope = treenumeration_metatype->get_inner_scope(NO_TS.begin());
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     treenum_scope->add(new TemplateOperation<TreenumCoveringValue>("cover", ANY_TS, TWEAK));
@@ -420,7 +420,7 @@ Scope *init_builtins() {
     tsable_scope->add(new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS));
 
     // Record operations
-    Scope *record_scope = record_metatype->get_inner_scope(BOGUS_TS.begin());
+    Scope *record_scope = record_metatype->get_inner_scope(NO_TS.begin());
     record_scope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
 
     // Reference operations, unscoped
@@ -430,7 +430,7 @@ Scope *init_builtins() {
     root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
 
     // Array operations
-    Scope *array_scope = array_type->get_inner_scope(BOGUS_TS.begin());
+    Scope *array_scope = array_type->get_inner_scope(NO_TS.begin());
     array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
@@ -451,21 +451,21 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
     
     // Builtin controls, unscoped
-    root_scope->add(new TemplateOperation<BooleanIfValue>(":if", VOID_TS, TWEAK));
-    root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", VOID_TS));
-    root_scope->add(new TemplateIdentifier<ForEachValue>(":for", VOID_TS));
-    root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", VOID_TS));
-    root_scope->add(new TemplateIdentifier<WhenValue>(":when", VOID_TS));
-    root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", VOID_TS));
-    root_scope->add(new TemplateIdentifier<TryValue>(":try", VOID_TS));
-    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", VOID_TS, TWEAK));
-    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", VOID_TS, TWEAK));
+    root_scope->add(new TemplateOperation<BooleanIfValue>(":if", NO_TS, TWEAK));
+    root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", NO_TS));
+    root_scope->add(new TemplateIdentifier<ForEachValue>(":for", NO_TS));
+    root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", NO_TS));
+    root_scope->add(new TemplateIdentifier<WhenValue>(":when", NO_TS));
+    root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", NO_TS));
+    root_scope->add(new TemplateIdentifier<TryValue>(":try", NO_TS));
+    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", NO_TS, TWEAK));
+    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", NO_TS, TWEAK));
     
     // Library functions, unscoped
-    root_scope->add(new ImportedFunction("print", "print", VOID_TS, INTEGER_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("printu8", "printu8", VOID_TS, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("printb", "printb", VOID_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("prints", "prints", VOID_TS, TSs { STRING_TS }, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("print", "print", NO_TS, INTEGER_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("printu8", "printu8", NO_TS, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("printb", "printb", NO_TS, UNSIGNED_INTEGER8_ARRAY_REFERENCE_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("prints", "prints", NO_TS, TSs { STRING_TS }, value_names, NO_TSS, NULL));
     root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", STRING_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REFERENCE_TS }, NULL));
 

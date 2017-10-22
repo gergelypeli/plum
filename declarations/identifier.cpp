@@ -7,6 +7,9 @@ public:
     Identifier(std::string n, TypeSpec pts) {
         name = n;
         pivot_ts = pts;
+        
+        if (pts == VOID_TS)
+            throw INTERNAL_ERROR;
     }
 
     virtual Value *matched(Value *, TypeMatch &match) {
@@ -18,10 +21,18 @@ public:
         if (n != name)
             return NULL;
             
-        if (typematch(pivot_ts, pivot, match))
-            return matched(pivot, match);
-        else
-            return NULL;
+        if (pivot_ts == NO_TS) {
+            if (!pivot)
+                return matched(NULL, match);
+            else
+                return NULL;
+        }
+        else {
+            if (typematch(pivot_ts, pivot, match))
+                return matched(pivot, match);
+            else
+                return NULL;
+        }
     }
 };
 
@@ -52,7 +63,7 @@ public:
         virtual_index = -1;
         var_ts = vts;
         
-        if (var_ts == BOGUS_TS)
+        if (var_ts == NO_TS)
             throw INTERNAL_ERROR;
             
         xxx_is_allocated = false;
@@ -286,7 +297,7 @@ public:
     EvalScope *eval_scope;
     
     Yield(std::string n, EvalScope *es)
-        :Identifier(n, VOID_TS) {
+        :Identifier(n, NO_TS) {
         eval_scope = es;
     }
     

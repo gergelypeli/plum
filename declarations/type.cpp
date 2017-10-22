@@ -23,7 +23,7 @@ public:
             return NULL;
             
         if (parameter_count == 0) {
-            if (!typematch(VOID_TS, pivot, match))
+            if (pivot)
                 return NULL;
                 
             TypeSpec ts = { type_type, this };
@@ -297,7 +297,7 @@ public:
         if (name != this->name)
             return NULL;
 
-        if (!typematch(VOID_TS, pivot, match))
+        if (pivot)
             return NULL;
 
         return factory();

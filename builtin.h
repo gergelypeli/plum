@@ -35,7 +35,7 @@ InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;
 InterfaceType *iterable_type = NULL;
 
-TypeSpec BOGUS_TS;
+TypeSpec NO_TS;
 TypeSpec VOID_TS;
 TypeSpec MULTI_TS;
 TypeSpec MULTI_LVALUE_TS;

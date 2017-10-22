@@ -207,7 +207,7 @@ public:
     
     DataScope()
         :Scope() {
-        pivot_ts = BOGUS_TS;
+        pivot_ts = NO_TS;
         meta_scope = NULL;
     }
     
@@ -220,11 +220,15 @@ public:
     }
     
     virtual void set_pivot_type_hint(TypeSpec t) {
+        if (t == VOID_TS || t == NO_TS)
+            throw INTERNAL_ERROR;
+            
         pivot_ts = t;
     }
 
     virtual Value *lookup(std::string name, Value *pivot, TypeMatch &match) {
         if (name == "<datatype>" && !pivot) {
+            throw INTERNAL_ERROR;  // FIXME: this should be obsolete
             match.push_back(VOID_TS);
             return make_type_value(pivot_type_hint().prefix(type_type));
         }
@@ -256,8 +260,8 @@ public:
     }
     
     virtual TypeSpec pivot_type_hint() {
-        if (pivot_ts == BOGUS_TS)
-            throw INTERNAL_ERROR;
+        //if (pivot_ts == NO_TS)
+        //    throw INTERNAL_ERROR;
             
         return pivot_ts;
     }
@@ -322,7 +326,7 @@ public:
     }
     
     virtual TypeSpec pivot_type_hint() {
-        return VOID_TS;
+        return NO_TS;
     }
 
     virtual void finalize_contents(X64 *x64) {
@@ -464,7 +468,7 @@ public:
     }
     
     virtual TypeSpec pivot_type_hint() {
-        return VOID_TS;
+        return NO_TS;
     }
 };
 
