@@ -17,7 +17,7 @@ public:
         if (!decl)
             throw INTERNAL_ERROR;
             
-        decl->added(mark());
+        decl->set_outer_scope(this);
         contents.push_back(std::unique_ptr<Declaration>(decl));
     }
     
@@ -26,10 +26,7 @@ public:
             contents.back().release();
             contents.pop_back();
             
-            Marker marker;
-            marker.scope = NULL;
-            marker.last = NULL;
-            decl->added(marker);
+            decl->set_outer_scope(NULL);
         }
         else {
             std::cerr << "Not the last declaration to remove!\n";
@@ -513,14 +510,6 @@ public:
     Scope *add_body_scope() {
         body_scope = new CodeScope;
         add(body_scope);
-        
-        // Let's pretend that body has nobody before it, so it won't accidentally
-        // finalize the arguments
-        Marker m;
-        m.scope = this;
-        m.last = NULL;
-        body_scope->added(m);
-        
         return body_scope;
     }
     

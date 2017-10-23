@@ -17,22 +17,19 @@ Declaration *declaration_cast(Scope *);
 class Declaration {
 public:
     Scope *outer_scope;
-    Declaration *previous_declaration;
     Label finalization_label;
     bool need_finalization_label;
 
     Declaration() {
         outer_scope = NULL;
-        previous_declaration = NULL;
         need_finalization_label = false;
     }
 
     virtual ~Declaration() {
     }
     
-    virtual void added(Marker marker) {
-        outer_scope = marker.scope;
-        previous_declaration = marker.last;
+    virtual void set_outer_scope(Scope *os) {
+        outer_scope = os;
     }
 
     virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
