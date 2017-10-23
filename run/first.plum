@@ -17,7 +17,7 @@ as:
     :return xxx + yyy
 
 
-Pair? :Record
+Pair? :Record as:
     first? Integer
     second? Integer
 
@@ -67,7 +67,7 @@ nasty? :Function may: { BIG_ERROR, SMALL_ERROR } as:
     :raise `SMALL_ERROR
     
     
-XCounter? :Record
+XCounter? :Record as:
     current? Integer
     limit? Integer
     
@@ -88,7 +88,7 @@ XCounter? :Record
             :return $ current
 
 
-XStringiterator? :Record
+XStringiterator? :Record as:
     string? String
     index? Integer
     

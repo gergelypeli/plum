@@ -77,9 +77,18 @@ public:
 class TypeDefinitionValue: public Value {
 public:
     std::vector<Expr *> deferred_exprs;
+    DataScope *inner_scope;
+    std::unique_ptr<DataBlockValue> data_value;
 
     TypeDefinitionValue(TypeSpec t)
         :Value(t) {
+        inner_scope = NULL;
+    }
+
+    void setup_inner(TypeSpec pts, Scope *scope) {
+        inner_scope = new DataScope;
+        scope->add(inner_scope);
+        inner_scope->set_pivot_type_hint(pts);
     }
 
     void defer_as(Kwargs &kwargs) {
@@ -92,6 +101,16 @@ public:
             else
                 deferred_exprs.push_back(as);
         }
+    }
+    
+    bool complete_as() {
+        data_value.reset(new DataBlockValue(inner_scope));
+
+        for (Expr *expr : deferred_exprs)
+            if (!data_value->check_statement(expr))
+                return false;
+
+        return data_value->complete_definition();
     }
 };
 
@@ -341,31 +360,27 @@ public:
 
 class RecordDefinitionValue: public TypeDefinitionValue {
 public:
-    DataScope *inner_scope;
     RecordType *record_type;
-    std::unique_ptr<DataBlockValue> data_value;
     
     RecordDefinitionValue()
         :TypeDefinitionValue(METATYPE_TS) {
+        record_type = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (kwargs.size() != 0) {
+        if (kwargs.size() != 1 || !kwargs["as"]) {
             std::cerr << "Whacky record!\n";
             return false;
         }
 
         record_type = new RecordType("<anonymous>", 0);
-
-        inner_scope = new DataScope;
-        scope->add(inner_scope);
-        
         TypeSpec rts = { record_type };
-        inner_scope->set_pivot_type_hint(rts.lvalue());
+
+        setup_inner(rts.lvalue(), scope);
+        
         inner_scope->set_meta_scope(record_metatype->get_inner_scope(rts.begin()));
 
-        for (auto &a : args)
-            deferred_exprs.push_back(a.get());
+        defer_as(kwargs);
             
         std::cerr << "Deferring record definition.\n";
         return true;
@@ -373,11 +388,8 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing record definition.\n";
-        data_value.reset(new DataBlockValue(inner_scope));
-        
-        for (Expr *expr : deferred_exprs)
-            if (!data_value->check_statement(expr))
-                return false;
+        if (!complete_as())
+            return false;
 
         std::vector<std::string> member_names;
         
@@ -387,14 +399,6 @@ public:
             if (var && (var->var_ts[0] != lvalue_type || var->var_ts[1] != role_type))
                 member_names.push_back(var->name);
         }
-
-        // TODO: this should be a fallback if the user didn't define his own
-        // TODO: should RecordOperation implement this natively?
-        //if (!data_value->check_statement(make_equality(member_names)))
-        //    return false;
-
-        if (!data_value->complete_definition())
-            return false;
 
         inner_scope->add(make_record_compare());
 
@@ -425,13 +429,12 @@ public:
 
 class ClassDefinitionValue: public TypeDefinitionValue {
 public:
-    DataScope *inner_scope;
     ClassType *class_type;
-    std::unique_ptr<DataBlockValue> data_value;
     Label virtual_table_label;
     
     ClassDefinitionValue()
         :TypeDefinitionValue(METATYPE_TS) {
+        class_type = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -441,17 +444,14 @@ public:
         }
 
         class_type = new ClassType("<anonymous>", virtual_table_label);
-
-        inner_scope = new DataScope;
-        inner_scope->be_virtual_scope();
-        scope->add(inner_scope);
-
         TypeSpec cts = { borrowed_type, class_type };
-        inner_scope->set_pivot_type_hint(cts);
+
+        setup_inner(cts, scope);
+
+        inner_scope->be_virtual_scope();
         inner_scope->set_meta_scope(class_metatype->get_inner_scope(cts.begin()));
 
-        for (auto &a : args)
-            deferred_exprs.push_back(a.get());
+        defer_as(kwargs);
             
         std::cerr << "Deferring class definition.\n";
         return true;
@@ -459,26 +459,7 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing class definition.\n";
-        data_value.reset(new DataBlockValue(inner_scope));
-        
-        for (Expr *expr : deferred_exprs)
-            if (!data_value->check_statement(expr))
-                return false;
-        /*
-        std::vector<std::string> member_names;
-        
-        for (auto &item : inner_scope->contents) {
-            Variable *var = dynamic_cast<Variable *>(item.get());
-            
-            if (var)
-                member_names.push_back(var->name);
-        }
-
-        // TODO: this should be a fallback if the user didn't define his own
-        if (!data_value->check_statement(make_equality(member_names)))
-            return false;
-        */
-        if (!data_value->complete_definition())
+        if (!complete_as())
             return false;
 
         class_type->set_inner_scope(inner_scope);
@@ -510,8 +491,6 @@ public:
 class InterfaceDefinitionValue: public TypeDefinitionValue {
 public:
     InterfaceType *interface_type;
-    DataScope *inner_scope;
-    std::unique_ptr<DataBlockValue> data_value;
     
     InterfaceDefinitionValue()
         :TypeDefinitionValue(METATYPE_TS) {
@@ -525,10 +504,7 @@ public:
 
         interface_type = new InterfaceType("<anonymous>", 0);
 
-        inner_scope = new DataScope;
-        scope->add(inner_scope);
-        
-        inner_scope->set_pivot_type_hint(ANY_TS);
+        setup_inner(ANY_TS, scope);
         //inner_scope->set_meta_scope(_metatype->get_inner_scope());
 
         defer_as(kwargs);
@@ -539,26 +515,18 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing interface definition.\n";
-        data_value.reset(new DataBlockValue(inner_scope));
-        
-        for (Expr *expr : deferred_exprs)
-            if (!data_value->check_statement(expr))
-                return false;
-
-        if (!data_value->complete_definition())
+        if (!complete_as())
             return false;
-
-        /* FIXME: Temporary no-check until FunctionScope-s are not inserted here
-        for (auto &c : inner_scope->contents) {
-            Function *f = dynamic_cast<Function *>(c.get());
             
-            if (!f) {
-                std::cerr << "Not a function in an interface!\n";
-                throw INTERNAL_ERROR;
-                return false;
-            }
+        for (auto &c : inner_scope->contents) {
+            if (dynamic_cast<FunctionScope *>(c.get()))
+                continue;
+            else if (dynamic_cast<Function *>(c.get()))
+                continue;
+            
+            std::cerr << "Not a function in an interface!\n";
+            return false;
         }
-        */
         
         interface_type->set_inner_scope(inner_scope);
 
@@ -586,10 +554,8 @@ public:
 
 class ImplementationDefinitionValue: public TypeDefinitionValue {
 public:
-    DataScope *inner_scope;
     TypeSpec interface_ts;
     ImplementationType *implementation_type;
-    std::unique_ptr<DataBlockValue> data_value;
     
     ImplementationDefinitionValue()
         :TypeDefinitionValue(METATYPE_TS) {
@@ -613,10 +579,8 @@ public:
         interface_ts = match[1];  // NOTE: May still contain Some types
         implementation_type = new ImplementationType("<anonymous>", implementor_ts, interface_ts);
 
-        inner_scope = new DataScope;
-        scope->add(inner_scope);
-        
-        inner_scope->set_pivot_type_hint(implementor_ts);
+        setup_inner(implementor_ts, scope);
+
         //inner_scope->set_meta_scope(_metatype->get_inner_scope());
         implementation_type->set_inner_scope(inner_scope);  // for preview only
 
@@ -628,8 +592,9 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing implementation definition.\n";
-        data_value.reset(new DataBlockValue(inner_scope));
-
+        if (!complete_as())
+            return false;
+            
         InterfaceType *interface_type = dynamic_cast<InterfaceType *>(interface_ts[0]);
         
         if (!interface_type) {
@@ -637,13 +602,6 @@ public:
             return false;
         }
         
-        for (Expr *expr : deferred_exprs)
-            if (!data_value->check_statement(expr))
-                return false;
-
-        if (!data_value->complete_definition())
-            return false;
-
         // NOTE: this is kinda weird, but correct.
         // If a parametric type implements an interface with the same type parameter
         // used, we can't concretize that here yet. So the fake_match, despite being
@@ -655,14 +613,16 @@ public:
         TypeMatch empty_match;
 
         for (auto &c : inner_scope->contents) {
+            if (dynamic_cast<FunctionScope *>(c.get()))
+                continue;
+        
             Function *f = dynamic_cast<Function *>(c.get());
             
-            // FIXME: Temporary no-check until FunctionScope-s are not inserted here
             if (!f) {
-                continue;
-                //std::cerr << "Not a function in an implementation!\n";
-                //return false;
+                std::cerr << "Not a function in an implementation!\n";
+                return false;
             }
+            
             //std::cerr << "Checking imp fun: " << f->name << "\n";
             //std::cerr << "XXX " << interface_type->member_functions.size() << "\n";
             
