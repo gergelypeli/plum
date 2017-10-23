@@ -182,23 +182,23 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     }
 
     // We must scope ourselves
-    //CodeScope *s = new CodeScope;
-    //scope->add(s);
+    CodeScope *code_scope = new CodeScope;
+    scope->add(code_scope);
     //scope = s;
     
-    Marker marker = scope->mark();
+    //Marker marker = scope->mark();
     CodeBlockValue *block = new CodeBlockValue(NULL);
-    block->set_marker(marker);
+    //block->set_marker(marker);
     
-    DeclarationValue *dv = make_declaration_by_value("<interpolated>", new StringBufferValue(100), scope);
+    DeclarationValue *dv = make_declaration_by_value("<interpolated>", new StringBufferValue(100), code_scope);
     Variable *interpolated_var = dv->get_var();
     block->add_statement(dv);
 
     for (auto &kv : expr->kwargs) {
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
-        Value *keyword_value = typize(expr, scope);
-        DeclarationValue *decl_value = make_declaration_by_value(keyword, keyword_value, scope);
+        Value *keyword_value = typize(expr, code_scope);
+        DeclarationValue *decl_value = make_declaration_by_value(keyword, keyword_value, code_scope);
         block->add_statement(decl_value);
     }
 
@@ -214,7 +214,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             // For identifiers, we look up outer scopes, but we don't need to look
             // in inner scopes, because that would need a pivot value, which we don't have.
             
-            for (Scope *s = scope; s; s = s->outer_scope) {
+            for (Scope *s = code_scope; s; s = s->outer_scope) {
                 pivot = s->lookup(fragment, NULL, match);
         
                 if (pivot)
@@ -237,7 +237,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             throw TYPE_ERROR;
         }
 
-        Value *streamify = lookup_fake("streamify", pivot, expr->token, scope, NULL, interpolated_var);
+        Value *streamify = lookup_fake("streamify", pivot, expr->token, code_scope, NULL, interpolated_var);
         if (!streamify) {
             std::cerr << "Cannot interpolate badly streamifiable " << pivot->ts << "!\n";
             throw TYPE_ERROR;
@@ -252,5 +252,5 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     ret = new StringReallocValue(ret, match);
     block->add_statement(ret, true);
     
-    return make_code_value(block);
+    return make_code_scope_value(block, code_scope);
 }

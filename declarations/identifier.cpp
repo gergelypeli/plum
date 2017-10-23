@@ -167,6 +167,7 @@ public:
     std::vector<TypeSpec> res_tss;
     Type *exception_type;
     int virtual_index;
+    bool is_interface_function;
 
     Label x64_label;
     bool is_sysv;
@@ -178,11 +179,23 @@ public:
         res_tss = rts;
         exception_type = et;
         virtual_index = -1;
+        is_interface_function = false;
         
         is_sysv = false;
     }
 
+    virtual void be_interface_function() {
+        is_interface_function = true;
+    }
+
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        // TODO: do this properly!
+        
+        if (is_interface_function) {
+            std::cerr << "Oops, interface function " << name << " was called instead of an implementation!\n";
+            throw INTERNAL_ERROR;
+        }
+        
         return make_function_call_value(this, cpivot, match);
     }
 

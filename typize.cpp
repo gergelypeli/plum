@@ -71,7 +71,7 @@ Declaration *declaration_get_decl(DeclarationValue *dv);
 Variable *declaration_get_var(DeclarationValue *dv);
 Declaration *make_record_compare();
 
-bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
+bool typematch(TypeSpec tt, Value *&v, TypeMatch &match, CodeScope *code_scope = NULL);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 TypeMatch type_parameters_to_match(TypeSpec ts);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
@@ -89,8 +89,9 @@ Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, V
 Value *make_declaration_value(std::string name, TypeSpec *context);
 Value *make_basic_value(TypeSpec ts, int number);
 Value *make_string_literal_value(std::string text);
-Value *make_code_value(Value *value, Declaration *escape = NULL);
+Value *make_code_scope_value(Value *value, CodeScope *code_scope);
 Value *make_void_conversion_value(Value *orig);
+Value *peek_void_conversion_value(Value *v);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *orig, TypeMatch &match);
 Value *make_boolean_not_value(Value *value);
@@ -215,7 +216,7 @@ Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, Ty
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     Value *value = NULL;
-    Marker marker = scope->mark();
+    //Marker marker = scope->mark();
 
     if (!expr)
         throw INTERNAL_ERROR;
@@ -263,8 +264,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        if (p)
-            p->set_marker(marker);
+        //if (p)
+        //    p->set_marker(marker);
         
         value = lookup(name, p, expr, scope);
         
@@ -274,8 +275,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::CONTROL) {
         std::string name = ":" + expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        if (p)
-            p->set_marker(marker);
+        //if (p)
+        //    p->set_marker(marker);
         
         value = lookup(name, p, expr, scope, context);
 
@@ -293,8 +294,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::INITIALIZER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        if (p)
-            p->set_marker(marker);  // just in case
+        //if (p)
+        //    p->set_marker(marker);  // just in case
         
         if (p) {
             StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
@@ -363,8 +364,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         throw INTERNAL_ERROR;
     }
     
-    if (context && (*context)[0] == code_type)
-        value->set_marker(marker);
+    //if (context && (*context)[0] == code_type)
+    //    value->set_marker(marker);
     
     return value;
 }

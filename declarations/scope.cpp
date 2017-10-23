@@ -269,14 +269,20 @@ class CodeScope: public Scope {
 public:
     int offset;
     bool contents_finalized;  // for sanity check
+    bool is_taken;  // too
     
     CodeScope()
         :Scope() {
         contents_finalized = false;
+        is_taken = false;
     }
 
     virtual bool is_transient() {
         return true;
+    }
+    
+    virtual void taken() {
+        is_taken = true;
     }
     
     virtual void allocate() {

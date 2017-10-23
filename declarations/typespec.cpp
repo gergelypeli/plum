@@ -210,7 +210,7 @@ Value *rolematch(Value *v, TypeSpecIter tsi, TypeSpecIter target) {
 //  * Void Code - accepts everything, even Void and NULL.
 // No other type accepts Void, not even Any.
 
-bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
+bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_scope) {
 #define MATCHLOG if (false)
 
     //if (tt == VOID_TS)
@@ -240,7 +240,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         else if (tt[0] == code_type && tt[1] == void_type) {
             MATCHLOG std::cerr << "Matched nothing for Void Code.\n";
             match[0] = tt;
-            value = make_code_value(NULL);
+            value = make_code_scope_value(NULL, code_scope);
             return true;
         }
         else if (tt[0] == ovalue_type) {
@@ -271,7 +271,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         else if (tt[0] == code_type && tt[1] == void_type) {
             MATCHLOG std::cerr << "Matched Void for Void Code.\n";
             match[0] = tt;
-            value = make_code_value(value);
+            value = make_code_scope_value(value, code_scope);
             return true;
         }
         else {
@@ -318,7 +318,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
             match[0].push_back(*t);
             MATCHLOG std::cerr << "Matched something for Void Code.\n";
             value = make_void_conversion_value(value);
-            value = make_code_value(value);
+            value = make_code_scope_value(value, code_scope);
             return true;
         }
         
@@ -387,7 +387,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         MATCHLOG std::cerr << "Matched as " << match[0] << ".\n";
         //value = make_boolean_conversion_value(value);
         //if (tt[0] == code_type)
-        //    value = make_code_value(value);
+        //    value = make_code_scope_value(value);
         //return true;
         s = BOOLEAN_TS.begin();
         ok = true;
@@ -444,7 +444,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
         value = make_boolean_conversion_value(value);
 
     if (need_code_conversion)
-        value = make_code_value(value);
+        value = make_code_scope_value(value, code_scope);
         
     return true;
 }

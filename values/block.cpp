@@ -1,4 +1,74 @@
 
+class CodeScopeValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+    CodeScope *code_scope;
+    Register reg;
+    bool may_be_aborted;
+
+    CodeScopeValue(Value *v, CodeScope *s)
+        :Value(v->ts.rvalue()) {
+        value.reset(v);
+        code_scope = s;
+        code_scope->taken();
+        may_be_aborted = false;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = value->precompile(preferred);
+        reg = preferred.get_any();
+        return clob.add(reg);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        x64->unwind->push(this);
+        Storage s = value->compile(x64);
+        x64->unwind->pop(this);
+        
+        // Can't let the result be passed as a MEMORY storage, because it may
+        // point to a local variable that we're about to destroy. So grab that
+        // value while we can. 
+        if (s.where == MEMORY) {
+            switch (value->ts.rvalue().where(false)) {
+            case REGISTER:
+                value->ts.store(s, Storage(REGISTER, reg), x64);
+                s = Storage(REGISTER, reg);
+                break;
+            case STACK:
+                value->ts.store(s, Storage(STACK), x64);
+                s = Storage(STACK);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
+        
+        code_scope->finalize_contents(x64);
+
+        if (may_be_aborted) {
+            Label ok;
+            x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+            x64->op(JE, ok);
+    
+            x64->unwind->initiate(code_scope, x64);
+
+            x64->code_label(ok);
+        }
+            
+        return s;
+    }
+    
+    virtual Scope *unwind(X64 *x64) {
+        may_be_aborted = true;
+        return code_scope;  // stop unwinding here, and start destroying scoped variables
+    }
+};
+
+
 class DataBlockValue: public Value {
 public:
     DataScope *scope;
@@ -81,16 +151,37 @@ public:
         }
 
         if (args.size() > 0) {
-            Value *value;
+            //Value *value;
             
             for (unsigned i = 0; i < args.size() - 1; i++) {
-                value = typize(args[i].get(), scope, &VOID_CODE_TS);
+                std::unique_ptr<Value> v;
+                
+                if (!check_argument(0, args[i].get(), { { "stmt", &VOID_CODE_TS, scope, &v } }))
+                    return false;
+                
+                //value = typize(args[i].get(), scope, &VOID_CODE_TS);
             
-                DeclarationValue *dv = declaration_value_cast(value);
-                Declaration *escape = NULL;
+                CodeScopeValue *csv = dynamic_cast<CodeScopeValue *>(v.get());
+                if (!csv)
+                    throw INTERNAL_ERROR;
+
+                Value *st = csv->value.get();
+                
+                st = peek_void_conversion_value(st);
+                
+                DeclarationValue *dv = declaration_value_cast(st);
             
-                if (dv)
-                    escape = declaration_get_decl(dv);
+                if (dv) {
+                    Declaration *decl = declaration_get_decl(dv);
+                    decl->outer_scope->remove(decl);
+                    scope->add(decl);
+                    
+                    Identifier *id = dynamic_cast<Identifier *>(decl);
+                    if (id)
+                        std::cerr << "XXX Escaped " << id->name << ".\n";
+                    else
+                        std::cerr << "XXX Escaped something.\n";
+                }
             
                 // This matters, because makes the expression Void before putting it
                 // in CodeValue, which would be sensitive about MEMORY return values,
@@ -98,13 +189,18 @@ public:
                 // Using typematch would be nicer, but we can't pass the escape_last
                 // flag to CodeValue...
             
-                value = make_void_conversion_value(value);
-                value = make_code_value(value, escape);
-                add_statement(value, false);
+                //value = make_void_conversion_value(value);
+                //value = make_code_scope_value(value, escape);
+                add_statement(v.release(), false);
             }
         
-            value = typize(args.back().get(), scope, context);
-            add_statement(value, true);
+            std::unique_ptr<Value> v;
+        
+            if (!check_argument(0, args.back().get(), { { "stmt", context, scope, &v } }))
+                return false;
+        
+            //value = typize(args.back().get(), scope, context);
+            add_statement(v.release(), true);
         }
 
         return true;
@@ -129,74 +225,13 @@ public:
         
         return statements.back()->compile(x64);
     }
-};
-
-
-class CodeValue: public Value {
-public:
-    std::unique_ptr<Value> value;
-    CodeScope *code_scope;
-    Register reg;
-    bool may_be_aborted;
-
-    CodeValue(Value *v, CodeScope *s)
-        :Value(v->ts.rvalue()) {
-        value.reset(v);
-        code_scope = s;
-        may_be_aborted = false;
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = value->precompile(preferred);
-        reg = preferred.get_any();
-        return clob.add(reg);
-    }
-
-    virtual Storage compile(X64 *x64) {
-        x64->unwind->push(this);
-        Storage s = value->compile(x64);
-        x64->unwind->pop(this);
-        
-        // Can't let the result be passed as a MEMORY storage, because it may
-        // point to a local variable that we're about to destroy. So grab that
-        // value while we can. 
-        if (s.where == MEMORY) {
-            switch (value->ts.rvalue().where(false)) {
-            case REGISTER:
-                value->ts.store(s, Storage(REGISTER, reg), x64);
-                s = Storage(REGISTER, reg);
-                break;
-            case STACK:
-                value->ts.store(s, Storage(STACK), x64);
-                s = Storage(STACK);
-                break;
-            default:
-                throw INTERNAL_ERROR;
-            }
-        }
-        
-        code_scope->finalize_contents(x64);
-
-        if (may_be_aborted) {
-            Label ok;
-            x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-            x64->op(JE, ok);
     
-            x64->unwind->initiate(code_scope, x64);
-
-            x64->code_label(ok);
-        }
-            
-        return s;
-    }
-    
-    virtual Scope *unwind(X64 *x64) {
-        may_be_aborted = true;
-        return code_scope;  // stop unwinding here, and start destroying scoped variables
+    virtual Value *lookup_inner(std::string name, TypeMatch &match) {
+        // TODO: this is not nice!
+        if (statements.size() > 0)
+            return statements.back()->lookup_inner(name, match);
+        else
+            return NULL;
     }
 };
 

@@ -341,14 +341,24 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
         return false;
     }
 
-    Value *v = typize(e, arg_infos[i].scope, arg_infos[i].context);
+    CodeScope *code_scope = NULL;
+    
+    if ((*arg_infos[i].context)[0] == code_type) {
+        code_scope = new CodeScope;
+        arg_infos[i].scope->add(code_scope);
+    }
+
+    Value *v = typize(e, code_scope ? code_scope : arg_infos[i].scope, arg_infos[i].context);
     TypeMatch match;
     
-    if (!typematch(*arg_infos[i].context, v, match)) {
+    if (!typematch(*arg_infos[i].context, v, match, code_scope)) {
         std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *arg_infos[i].context << "!\n";
         return false;
     }
-    
+
+    if (code_scope && !code_scope->is_taken)
+        throw INTERNAL_ERROR;
+
     arg_infos[i].target->reset(v);
     return true;
 }

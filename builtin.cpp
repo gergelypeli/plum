@@ -58,6 +58,7 @@ void init_interfaces(Scope *root_scope) {
         TSs {},
         NULL
     );
+    sf->be_interface_function();
     sis->add(sf);
     streamifiable_type->set_inner_scope(sis);
     
@@ -70,6 +71,7 @@ void init_interfaces(Scope *root_scope) {
         TSs { SAME_ITERATOR_TS },
         NULL
     );
+    xf->be_interface_function();
     jis->add(xf);
     iterable_type->set_inner_scope(jis);
 
@@ -82,6 +84,7 @@ void init_interfaces(Scope *root_scope) {
         TSs { SAME_TS },
         NULL
     );
+    nf->be_interface_function();
     iis->add(nf);
     iis->set_pivot_type_hint(ANY_ITERATOR_TS);
     Scope *ii_scope = implement(iis, SAME_ITERABLE_TS, "ible");

@@ -16,7 +16,7 @@ class Value {
 public:
     TypeSpec ts;
     Token token;
-    Marker marker;
+    //Marker marker;
         
     Value(TypeSpec t)
         :ts(t) {
@@ -30,10 +30,10 @@ public:
         return this;
     }
 
-    virtual Value *set_marker(Marker m) {
-        marker = m;
-        return this;
-    }
+    //virtual Value *set_marker(Marker m) {
+    //    marker = m;
+    //    return this;
+    //}
     
     virtual Value *set_context_ts(TypeSpec *c) {
         // Generally we don't need it, only in controls
@@ -358,8 +358,8 @@ public:
 
 
 #include "generic.cpp"
-#include "literal.cpp"
 #include "block.cpp"
+#include "literal.cpp"
 #include "type.cpp"
 #include "function.cpp"
 #include "integer.cpp"
@@ -433,18 +433,8 @@ Value *make_string_literal_value(std::string text) {
 }
 
 
-Value *make_code_value(Value *value, Declaration *escape) {
-    if (!value->marker.scope)
-        return value;
-        
-    CodeScope *intruder = new CodeScope;
-    
-    if (value->marker.scope->intrude(intruder, value->marker, escape))
-        return new CodeValue(value, intruder);
-    else {
-        delete intruder;
-        return value;
-    }
+Value *make_code_scope_value(Value *value, CodeScope *code_scope) {
+    return new CodeScopeValue(value, code_scope);
 }
 
 
@@ -455,6 +445,13 @@ Value *make_scalar_conversion_value(Value *p) {
 
 Value *make_void_conversion_value(Value *p) {
     return new VoidConversionValue(p);
+}
+
+
+Value *peek_void_conversion_value(Value *v) {
+    VoidConversionValue *vcv = dynamic_cast<VoidConversionValue *>(v);
+    
+    return vcv ? vcv->orig.get() : v;
 }
 
 

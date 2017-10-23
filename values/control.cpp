@@ -117,10 +117,20 @@ public:
         
         switch (cs.where) {
         case CONSTANT:
-            if (cs.value)
-                else_branch.reset(NULL);
-            else
-                then_branch.reset(NULL);
+            if (cs.value) {
+                if (then_branch) {
+                    ;
+                }
+                else if (else_branch)
+                    x64->op(JMP, else_end);
+            }
+            else {
+                if (then_branch)
+                    x64->op(JMP, then_end);
+                else if (else_branch) {
+                    ;
+                }
+            }
                 
             break;
         case FLAGS:
@@ -334,7 +344,7 @@ public:
         if (!check_args(args, { "", &ANY_ITERABLE_TS, scope, &ib}))
             return false;
     
-        //std::cerr << "XXX iterable is " << ib->ts << "\n";
+        std::cerr << "XXX iterable is " << ib->ts << "\n";
         
         Value *ib2 = lookup_fake("iter", ib.release(), token, scope, NULL);
         

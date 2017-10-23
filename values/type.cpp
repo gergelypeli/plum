@@ -688,7 +688,7 @@ public:
     VoidConversionValue(Value *o)
         :Value(VOID_TS) {
         orig.reset(o);
-        marker = orig->marker;
+        //marker = orig->marker;
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -711,7 +711,7 @@ public:
     BooleanConversionValue(Value *o)
         :Value(BOOLEAN_TS) {
         orig.reset(o);
-        marker = orig->marker;
+        //marker = orig->marker;
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -734,7 +734,8 @@ public:
         :Value(imt->get_interface_ts(match)) {
         implementation_type = imt;
         orig.reset(o);
-        marker = orig->marker;
+        //marker = orig->marker;
+        std::cerr << "XXX Created implementation conversion " << implementation_type->name << " as " << ts << ".\n";;
     }
     
     virtual Regs precompile(Regs preferred) {
