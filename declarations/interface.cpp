@@ -172,25 +172,37 @@ public:
 };
 
 
-Value *implemented(Declaration *d, TypeSpec ts, TypeSpecIter target, Value *orig) {
-    ImplementationType *imp = dynamic_cast<ImplementationType *>(d);
+bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target) {
+    ImplementationType *imp = dynamic_cast<ImplementationType *>(t);
 
     if (imp) {
-        //TypeMatch match = type_parameters_to_match(get_typespec(orig).rvalue());
-        TypeMatch match = type_parameters_to_match(ts);
         TypeSpec ifts = imp->get_interface_ts(match);
-        
-        if (ifts[0] == *target) {
+        if (ifts[0] == *target)
+            return true;
+    }
+
+    return false;
+}
+
+
+Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig) {
+    for (auto &d : inner_scope->contents) {
+        ImplementationType *imp = dynamic_cast<ImplementationType *>(d.get());
+
+        if (imp) {
+            TypeSpec ifts = imp->get_interface_ts(match);
+
             // FIXME: check for proper type match!
-            // Direct implementation
-            return make_implementation_conversion_value(imp, orig, match);
-        }
-        else {
-            // Indirect implementation
-            Scope *inner_scope = ifts.get_inner_scope();
-        
-            for (auto &dd : inner_scope->contents) {
-                Value *v = implemented(dd.get(), ifts, target, orig);
+            if (ifts[0] == *target) {
+                // Direct implementation
+                return make_implementation_conversion_value(imp, orig, match);
+            }
+            else {
+                // Maybe indirect implementation
+                Scope *ifscope = ifts.get_inner_scope();
+                TypeMatch ifmatch = type_parameters_to_match(ifts);
+                Value *v = find_implementation(ifscope, ifmatch, target, orig);
+
                 if (v)
                     return v;
             }
@@ -199,4 +211,3 @@ Value *implemented(Declaration *d, TypeSpec ts, TypeSpecIter target, Value *orig
 
     return NULL;
 }
-

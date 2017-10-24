@@ -152,23 +152,13 @@ public:
     }
     
     virtual Value *autoconv(TypeSpecIter tsi, TypeSpecIter target, Value *orig) {
-        Scope *inner_scope = get_inner_scope(tsi);
+        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         
-        if (inner_scope) {
-            for (auto &d : inner_scope->contents) {
-                Value *v = implemented(d.get(), TypeSpec(tsi), target, orig);
-                if (v)
-                    return v;
-                //ImplementationType *it = implementation_cast(d.get(), t);
+        if (is_implementation(*tsi, match, target))
+            return orig;
             
-                //if (it) {
-                //    TypeMatch match = type_parameters_to_match(get_typespec(orig).rvalue());
-                //    return make_implementation_conversion_value(it, orig, match);
-                //}
-            }
-        }
-        
-        return NULL;
+        Scope *inner_scope = get_inner_scope(tsi);
+        return find_implementation(inner_scope, match, target, orig);
     }
 };
 
