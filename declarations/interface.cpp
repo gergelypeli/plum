@@ -106,10 +106,12 @@ public:
         std::cerr << "Implementation " << name << " has " << member_functions.size() << " member functions.\n";
     }
 
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+    virtual Value *match(std::string name, Value *pivot) {
         if (name != this->name)
             return NULL;
             
+        TypeMatch match;
+        
         if (!typematch(implementor_ts, pivot, match))
             return NULL;
 
@@ -165,8 +167,7 @@ public:
     virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *pivot) {
         unprefix_value(pivot);
             
-        TypeMatch match;
-        return inner_scope->lookup(n, pivot, match);
+        return inner_scope->lookup(n, pivot);
     }
     
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {

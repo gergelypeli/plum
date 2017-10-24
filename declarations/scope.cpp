@@ -52,9 +52,9 @@ public:
         return marker;
     }
     
-    virtual Value *lookup(std::string name, Value *pivot, TypeMatch &match) {
+    virtual Value *lookup(std::string name, Value *pivot) {
         for (int i = contents.size() - 1; i >= 0; i--) {
-            Value *v = contents[i]->match(name, pivot, match);
+            Value *v = contents[i]->match(name, pivot);
             
             if (v) {
                 //std::cerr << "XXX: " << name << " " << get_typespec(pivot) << " => " << get_typespec(v) << "\n";
@@ -223,20 +223,13 @@ public:
         pivot_ts = t;
     }
 
-    virtual Value *lookup(std::string name, Value *pivot, TypeMatch &match) {
-        if (name == "<datatype>" && !pivot) {
-            throw INTERNAL_ERROR;  // FIXME: this should be obsolete
-            match.push_back(VOID_TS);
-            return make_type_value(pivot_type_hint().prefix(type_type));
-        }
-        else {
-            Value *value = Scope::lookup(name, pivot, match);
+    virtual Value *lookup(std::string name, Value *pivot) {
+        Value *value = Scope::lookup(name, pivot);
             
-            if (!value && meta_scope)
-                value = meta_scope->lookup(name, pivot, match);
+        if (!value && meta_scope)
+            value = meta_scope->lookup(name, pivot);
                 
-            return value;
-        }
+        return value;
     }
     
     virtual int reserve(unsigned s) {
@@ -527,21 +520,21 @@ public:
         return exception_type;
     }
     
-    virtual Value *lookup(std::string name, Value *pivot, TypeMatch &match) {
+    virtual Value *lookup(std::string name, Value *pivot) {
         if (body_scope) {
-            Value *v = head_scope->lookup(name, pivot, match);
+            Value *v = head_scope->lookup(name, pivot);
             if (v)
                 return v;
         }
         
         if (head_scope) {
-            Value *v = self_scope->lookup(name, pivot, match);
+            Value *v = self_scope->lookup(name, pivot);
             if (v)
                 return v;
         }
 
         if (self_scope) {
-            Value *v = result_scope->lookup(name, pivot, match);
+            Value *v = result_scope->lookup(name, pivot);
             if (v)
                 return v;
         }

@@ -129,10 +129,9 @@ Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
 Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
     Value *value = NULL;
-    TypeMatch match;
     
     for (Scope *s = scope; s; s = s->outer_scope) {
-        value = s->lookup(name, pivot, match);
+        value = s->lookup(name, pivot);
         
         if (value)
             break;

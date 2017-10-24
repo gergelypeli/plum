@@ -18,7 +18,7 @@ public:
         name = n;
     }
     
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+    virtual Value *match(std::string name, Value *pivot) {
         if (name != this->name)
             return NULL;
             
@@ -31,6 +31,8 @@ public:
             return make_type_value(ts);
         }
         else if (parameter_count == 1) {
+            TypeMatch match;
+            
             if (!typematch(ANY_TYPE_TS, pivot, match))
                 return NULL;
                 
@@ -142,10 +144,8 @@ public:
     virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {
         Scope *scope = get_inner_scope(tsi);
         
-        if (scope) {
-            TypeMatch match;
-            return scope->lookup(n, v, match);
-        }
+        if (scope)
+            return scope->lookup(n, v);
         
         return NULL;
     }
@@ -294,7 +294,7 @@ public:
         inner_scope->set_pivot_type_hint(TypeSpec { any_type });
     }
 
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+    virtual Value *match(std::string name, Value *pivot) {
         if (name != this->name)
             return NULL;
 

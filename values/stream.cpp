@@ -207,7 +207,6 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     
     for (auto &fragment : fragments) {
         Value *pivot;
-        TypeMatch match;
         
         if (identifier) {
             // For explicit keywords, we only look up in the innermost scope.
@@ -215,7 +214,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             // in inner scopes, because that would need a pivot value, which we don't have.
             
             for (Scope *s = code_scope; s; s = s->outer_scope) {
-                pivot = s->lookup(fragment, NULL, match);
+                pivot = s->lookup(fragment, NULL);
         
                 if (pivot)
                     break;
@@ -232,6 +231,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             pivot = make_string_literal_value(fragment);
         }
 
+        TypeMatch match;
         if (!typematch(STREAMIFIABLE_TS, pivot, match)) {
             std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
             throw TYPE_ERROR;

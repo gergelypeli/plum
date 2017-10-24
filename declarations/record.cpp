@@ -228,7 +228,6 @@ public:
 
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
         TypeSpec ts(tsi);
-        TypeMatch match;
 
         // NOTE: initializers must only appear in code scopes, and there all types
         // must be concrete, not having free parameters. Also, the automatic variable is
@@ -237,7 +236,7 @@ public:
         
         if (n == "{}") {
             // Anonymous initializer
-            match = type_parameters_to_match(ts);
+            TypeMatch match = type_parameters_to_match(ts);
             return make_record_initializer_value(match);
         }
         else {
@@ -245,7 +244,7 @@ public:
             //Value *dv = make_declaration_by_type("<new>", ts, scope);
             Value *pre = make_record_preinitializer_value(ts.lvalue());
 
-            Value *value = inner_scope->lookup(n, pre, match);
+            Value *value = inner_scope->lookup(n, pre);
 
             // FIXME: check if the method is Void!
             if (value)

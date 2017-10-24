@@ -32,7 +32,7 @@ public:
         outer_scope = os;
     }
 
-    virtual Value *match(std::string name, Value *pivot, TypeMatch &match) {
+    virtual Value *match(std::string name, Value *pivot) {
         return NULL;
     }
 

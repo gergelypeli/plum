@@ -151,16 +151,12 @@ public:
         }
 
         if (args.size() > 0) {
-            //Value *value;
-            
             for (unsigned i = 0; i < args.size() - 1; i++) {
                 std::unique_ptr<Value> v;
                 
                 if (!check_argument(0, args[i].get(), { { "stmt", &VOID_CODE_TS, scope, &v } }))
                     return false;
                 
-                //value = typize(args[i].get(), scope, &VOID_CODE_TS);
-            
                 CodeScopeValue *csv = dynamic_cast<CodeScopeValue *>(v.get());
                 if (!csv)
                     throw INTERNAL_ERROR;
@@ -176,21 +172,13 @@ public:
                     decl->outer_scope->remove(decl);
                     scope->add(decl);
                     
-                    Identifier *id = dynamic_cast<Identifier *>(decl);
-                    if (id)
-                        std::cerr << "XXX Escaped " << id->name << ".\n";
-                    else
-                        std::cerr << "XXX Escaped something.\n";
+                    //Identifier *id = dynamic_cast<Identifier *>(decl);
+                    //if (id)
+                    //    std::cerr << "XXX Escaped " << id->name << ".\n";
+                    //else
+                    //    std::cerr << "XXX Escaped something.\n";
                 }
             
-                // This matters, because makes the expression Void before putting it
-                // in CodeValue, which would be sensitive about MEMORY return values,
-                // and push them unnecessarily.
-                // Using typematch would be nicer, but we can't pass the escape_last
-                // flag to CodeValue...
-            
-                //value = make_void_conversion_value(value);
-                //value = make_code_scope_value(value, escape);
                 add_statement(v.release(), false);
             }
         
@@ -199,7 +187,6 @@ public:
             if (!check_argument(0, args.back().get(), { { "stmt", context, scope, &v } }))
                 return false;
         
-            //value = typize(args.back().get(), scope, context);
             add_statement(v.release(), true);
         }
 

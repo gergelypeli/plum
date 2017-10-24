@@ -136,7 +136,6 @@ void TypeSpec::destroy(Storage s, X64 *x64) {
 
 
 bool TypeSpec::compare(Storage s, Storage t, X64 *x64) {
-    std::cerr << "XXX comparing " << *this << "\n";
     TypeSpecIter tsi(begin());
     return (*tsi)->compare(tsi, s, t, x64);
 }

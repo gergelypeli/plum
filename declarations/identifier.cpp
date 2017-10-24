@@ -17,9 +17,11 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual Value *match(std::string n, Value *pivot, TypeMatch &match) {
+    virtual Value *match(std::string n, Value *pivot) {
         if (n != name)
             return NULL;
+            
+        TypeMatch match;
             
         if (pivot_ts == NO_TS) {
             if (!pivot)
