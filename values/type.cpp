@@ -731,10 +731,9 @@ public:
     std::unique_ptr<Value> orig;
     
     ImplementationConversionValue(ImplementationType *imt, Value *o, TypeMatch &match)
-        :Value(imt->get_interface_ts(match)) {
+        :Value(o->ts.prefix(imt)) {
         implementation_type = imt;
         orig.reset(o);
-        //marker = orig->marker;
         std::cerr << "XXX Created implementation conversion " << implementation_type->name << " as " << ts << ".\n";;
     }
     
@@ -744,13 +743,6 @@ public:
     
     virtual Storage compile(X64 *x64) {
         return orig->compile(x64);
-    }
-    
-    virtual Value *lookup_inner(std::string name, TypeMatch &match) {
-        std::cerr << "Implementation lookup " << TypeSpec { implementation_type } << " " << name << ".\n";
-        ts = orig->ts;
-        Scope *inner_scope = implementation_type->get_inner_scope(ts.begin());
-        return inner_scope->lookup(name, this, match);
     }
 };
 

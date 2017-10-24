@@ -83,7 +83,7 @@ public:
     TypeSpec implementor_ts;
 
     ImplementationType(std::string name, TypeSpec irts, TypeSpec ifts)
-        :Type(name, 0) {
+        :Type(name, 1) {
         interface_ts = ifts;
         implementor_ts = irts;
         inner_scope = NULL;
@@ -162,6 +162,13 @@ public:
         return NULL;
     }
 
+    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *pivot) {
+        unprefix_value(pivot);
+            
+        TypeMatch match;
+        return inner_scope->lookup(n, pivot, match);
+    }
+    
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope;
     }
@@ -172,11 +179,12 @@ public:
 };
 
 
-bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target) {
+bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts) {
     ImplementationType *imp = dynamic_cast<ImplementationType *>(t);
 
     if (imp) {
-        TypeSpec ifts = imp->get_interface_ts(match);
+        ifts = imp->get_interface_ts(match);
+        
         if (ifts[0] == *target)
             return true;
     }
@@ -185,12 +193,12 @@ bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target) {
 }
 
 
-Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig) {
+Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
     for (auto &d : inner_scope->contents) {
         ImplementationType *imp = dynamic_cast<ImplementationType *>(d.get());
 
         if (imp) {
-            TypeSpec ifts = imp->get_interface_ts(match);
+            ifts = imp->get_interface_ts(match);
 
             // FIXME: check for proper type match!
             if (ifts[0] == *target) {
@@ -201,7 +209,7 @@ Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter ta
                 // Maybe indirect implementation
                 Scope *ifscope = ifts.get_inner_scope();
                 TypeMatch ifmatch = type_parameters_to_match(ifts);
-                Value *v = find_implementation(ifscope, ifmatch, target, orig);
+                Value *v = find_implementation(ifscope, ifmatch, target, orig, ifts);
 
                 if (v)
                     return v;

@@ -225,14 +225,6 @@ public:
         
         return statements.back()->compile(x64);
     }
-    
-    virtual Value *lookup_inner(std::string name, TypeMatch &match) {
-        // TODO: this is not nice!
-        if (statements.size() > 0)
-            return statements.back()->lookup_inner(name, match);
-        else
-            return NULL;
-    }
 };
 
 

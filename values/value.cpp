@@ -97,15 +97,6 @@ public:
     virtual bool complete_definition() {
         return true;
     }
-    
-    virtual Value *lookup_inner(std::string name, TypeMatch &match) {
-        Scope *inner_scope = ts.get_inner_scope();
-    
-        if (inner_scope)
-            return inner_scope->lookup(name, this, match);
-            
-        return NULL;
-    }
 };
 
 
@@ -567,4 +558,9 @@ Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope) {
 
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
     return v->unpack(tss);
+}
+
+
+void unprefix_value(Value *v) {
+    v->ts = TypeSpec(v->ts.begin() + 1);
 }

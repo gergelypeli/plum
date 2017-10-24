@@ -138,6 +138,17 @@ public:
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
+
+    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {
+        Scope *scope = get_inner_scope(tsi);
+        
+        if (scope) {
+            TypeMatch match;
+            return scope->lookup(n, v, match);
+        }
+        
+        return NULL;
+    }
     
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return NULL;
@@ -151,14 +162,14 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual Value *autoconv(TypeSpecIter tsi, TypeSpecIter target, Value *orig) {
+    virtual Value *autoconv(TypeSpecIter tsi, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         
-        if (is_implementation(*tsi, match, target))
+        if (is_implementation(*tsi, match, target, ifts))
             return orig;
             
         Scope *inner_scope = get_inner_scope(tsi);
-        return find_implementation(inner_scope, match, target, orig);
+        return find_implementation(inner_scope, match, target, orig, ifts);
     }
 };
 

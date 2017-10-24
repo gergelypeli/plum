@@ -148,10 +148,18 @@ Value *TypeSpec::lookup_initializer(std::string name, Scope *scope) {
 }
 
 
+Value *TypeSpec::lookup_inner(std::string name, Value *pivot) {
+    TypeSpecIter tsi(begin());
+    return (*tsi)->lookup_inner(tsi, name, pivot);
+}
+
+
 Scope *TypeSpec::get_inner_scope() {
     TypeSpecIter tsi(begin());
     return (*tsi)->get_inner_scope(tsi);
 }
+
+
 
 
 // New-style type matching
@@ -190,13 +198,13 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
 }
 
 
-Value *rolematch(Value *v, TypeSpecIter tsi, TypeSpecIter target) {
+Value *rolematch(Value *v, TypeSpecIter tsi, TypeSpecIter target, TypeSpec &ifts) {
     // Return a role of v with an unprefixed type of s, with the front type
     // being is equal to t, but with arbitrary type parameters, potentially
     // derived from the type parameters of s. Or NULL, if it can't be done.
     // May call itself recursively.
     std::cerr << "Trying rolematch from " << tsi << " to " << target << ".\n";
-    return (*tsi)->autoconv(tsi, target, v);
+    return (*tsi)->autoconv(tsi, target, v, ifts);
 }
 
 
@@ -395,11 +403,12 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
     }
     
     if (!ok) {
-        Value *role = rolematch(value, s, t);
+        TypeSpec ifts;
+        Value *role = rolematch(value, s, t, ifts);
         
         if (role) {
             value = role;
-            ss = get_typespec(value);
+            ss = ifts;
             s = ss.begin();
             ok = true;
         }

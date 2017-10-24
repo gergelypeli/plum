@@ -48,6 +48,7 @@ public:
     void destroy(Storage s, X64 *x64);
     bool compare(Storage s, Storage t, X64 *x64);
     Value *lookup_initializer(std::string name, Scope *scope);
+    Value *lookup_inner(std::string name, Value *pivot);
     Scope *get_inner_scope();
 };
 
@@ -66,8 +67,8 @@ DeclarationValue *declaration_value_cast(Value *value);
 Variable *variable_cast(Declaration *decl);
 bool is_heap_type(Type *t);
 
-bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target);
-Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig);
+bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts);
+Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
 
 std::string declaration_get_name(DeclarationValue *dv);
 Declaration *declaration_get_decl(DeclarationValue *dv);
@@ -78,6 +79,7 @@ bool typematch(TypeSpec tt, Value *&v, TypeMatch &match, CodeScope *code_scope =
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 TypeMatch type_parameters_to_match(TypeSpec ts);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
+void unprefix_value(Value *v);
 
 Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match);
 Value *make_role_value(Variable *decl, Value *pivot);
@@ -138,7 +140,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
 
     if (!value) {
         if (pivot)
-            value = pivot->lookup_inner(name, match);
+            value = pivot->ts.lookup_inner(name, pivot);
     }
 
     if (!value) {
