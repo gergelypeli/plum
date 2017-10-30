@@ -392,17 +392,19 @@ Scope *init_builtins() {
     // Character operations
     Scope *char_scope = character_type->get_inner_scope(NO_TS.begin());
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
+    char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", CHARACTER_TS, COMPARE));
     Scope *csable_scope = implement(char_scope, STREAMIFIABLE_TS, "sable");
     csable_scope->add(new TemplateIdentifier<CharacterStreamificationValue>("streamify", CHARACTER_TS));
     
     // Boolean operations
     Scope *bool_scope = boolean_type->get_inner_scope(NO_TS.begin());
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
+    bool_scope->add(new TemplateOperation<BooleanOperationValue>("compare", BOOLEAN_TS, COMPARE));
     Scope *bsable_scope = implement(bool_scope, STREAMIFIABLE_TS, "sable");
     bsable_scope->add(new ImportedFunction("streamify_boolean", "streamify", BOOLEAN_TS, TSs { STRING_LVALUE_TS }, Ss { "stream" }, NO_TSS, NULL));
 
     // Logical operations, unscoped
-    root_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", ANY_TS));
+    root_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", BOOLEAN_TS));
     root_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and", BOOLEAN_TS));
     root_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", ANY_TS));
 

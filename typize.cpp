@@ -144,6 +144,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
 
     if (!value) {
         if (name == "is_equal" || name == "not_equal") {
+            std::cerr << "Trying equal fallback for missing " << name << ".\n";
             Value *fallback = lookup_unchecked("equal", pivot, scope);
             
             if (fallback) {
@@ -158,6 +159,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
             name == "is_less" || name == "is_greater" ||
             name == "not_less" || name == "not_greater"
         ) {
+            std::cerr << "Trying compare fallback for missing " << name << ".\n";
             Value *fallback = lookup_unchecked("compare", pivot, scope);
             
             if (fallback) {

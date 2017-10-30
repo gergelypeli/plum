@@ -312,6 +312,12 @@ start? :Function as:
 
     prints("Let's hope that {x4} == 66." {})
 
+    :if Boolean `false > `true then:
+        prints("Fake news!")
+
+    :if ! Boolean `true then:
+        prints("Faker news!")
+
     :if `true then:
         last? 0
         prints("Exiting.")

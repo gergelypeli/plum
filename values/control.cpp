@@ -13,12 +13,22 @@ public:
 
     virtual Value *set_context_ts(TypeSpec *c) {
         context_ts = *c;
+        Type *t = context_ts.rvalue()[0];
         
-        if (context_ts[0] == code_type)
+        if (dynamic_cast<InterfaceType *>(t)) {
+            // Can't allow Interface context types, because the concrete return types
+            // may become different at different exit points!
+            std::cerr << "Control :" << name << " in Interface context!\n";
+            throw TYPE_ERROR;
+        }
+        
+        Type *a = context_ts[0];
+        
+        if (a == code_type)
             context_ts = context_ts.unprefix(code_type);
-        else if (context_ts[0] == ovalue_type)
+        else if (a == ovalue_type)
             context_ts = context_ts.unprefix(ovalue_type);
-        else if (context_ts[0] == lvalue_type) {
+        else if (a == lvalue_type) {
             std::cerr << "Control :" << name << " in Lvalue context!\n";
             throw TYPE_ERROR;
         }

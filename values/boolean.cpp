@@ -26,13 +26,6 @@ public:
             return false;
         }
 
-        Value *v = value.release();
-        TypeMatch match;
-    
-        if (!typematch(BOOLEAN_TS, v, match))
-            throw INTERNAL_ERROR;
-            
-        value.reset(v);
         return true;
     }
 
@@ -81,20 +74,8 @@ public:
         TypeMatch match;
     
         if (!typematch(ts, r, match)) {
-            // TODO: is this a good idea? Shouldn't it be just with the same type?
-            ts = BOOLEAN_TS;
-            
-            Value *l = left.release();
-            
-            if (!typematch(ts, l, match)) {
-                std::cerr << "Logical or left is not boolean: " << get_typespec(l) << "\n";
-                throw INTERNAL_ERROR;
-            }
-                
-            left.reset(l);
-            
-            if (!typematch(ts, r, match))
-                throw INTERNAL_ERROR;
+            std::cerr << "Logical OR right argument with mismatching type: " << get_typespec(r) << "!\n";
+            return false;
         }
     
         right.reset(r);
