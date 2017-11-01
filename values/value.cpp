@@ -356,6 +356,7 @@ public:
 #include "integer.cpp"
 #include "boolean.cpp"
 #include "array.cpp"
+#include "string.cpp"
 #include "reference.cpp"
 #include "record.cpp"
 #include "multi.cpp"
