@@ -217,3 +217,59 @@ public:
     }
 };
 
+
+class ArraySortValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    ArraySortValue(Value *l, TypeMatch &match)
+        :GenericValue(VOID_TS, VOID_TS, l) {
+        elem_ts = match[1];
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Label done, compar;
+
+        left->compile_and_store(x64, Storage(STACK));
+        
+        // RDI = base, RSI = nmemb, RDX = size, RCX = compar
+        x64->op(MOVQ, RBX, Address(RSP, 0));
+        x64->op(LEA, RDI, x64->array_elems_address(RBX));
+        x64->op(MOVQ, RSI, x64->array_length_address(RBX));
+        x64->op(MOVQ, RDX, elem_size(elem_ts.measure(MEMORY)));
+        x64->op(LEARIP, RCX, compar);
+        
+        x64->op(CALL, x64->sort_label);
+        
+        left->ts.store(Storage(STACK), Storage(), x64);
+        
+        x64->op(JMP, done);
+        
+        // Generate a SysV function to wrap our compare function.
+        // RDI and RSI contains the pointers to the array elements.
+        // RBX must be preserved.
+        x64->code_label(compar);
+        x64->op(PUSHQ, RBX);
+        
+        Storage a(MEMORY, Address(RDI, 0));
+        Storage b(MEMORY, Address(RSI, 0));
+        bool is_unsigned = elem_ts.compare(a, b, x64);
+
+        x64->op(MOVQ, RAX, 0);
+        x64->op(MOVQ, RBX, 0);
+        x64->op(is_unsigned ? SETA : SETG, RAX);
+        x64->op(is_unsigned ? SETB : SETL, BL);
+        x64->op(SUBQ, RAX, RBX);
+        
+        x64->op(POPQ, RBX);
+        x64->op(RET);
+        
+        x64->code_label(done);
+        
+        return Storage();
+    }
+};

@@ -389,7 +389,7 @@ public:
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
     Label alloc_RAX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label, die_label;
+    Label memalloc_label, memfree_label, memrealloc_label, die_label, sort_label;
     std::vector<Label> incref_labels, decref_labels;
     std::map<FunctionCompiler, Label> function_compiler_labels;
     

@@ -440,6 +440,7 @@ Scope *init_builtins() {
     array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REFERENCE_TS));
     
     // Array iterable operations
     Scope *ible_scope = implement(array_scope, SAME_ITERABLE_TS, "ible");

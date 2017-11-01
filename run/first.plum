@@ -317,6 +317,11 @@ start? :Function as:
 
     :if ! Boolean `true then:
         prints("Faker news!")
+        
+    chars? "BFADCE"
+    prints("Unsorted: {chars}" {})
+    chars chars sort
+    prints("Sorted:   {chars}" {})
 
     :if `true then:
         last? 0

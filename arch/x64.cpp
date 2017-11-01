@@ -78,6 +78,12 @@ Address Address::operator + (int x) {
 
 
 X64::X64() {
+    code_label_import(memalloc_label, "memalloc");
+    code_label_import(memfree_label, "memfree");
+    code_label_import(memrealloc_label, "memrealloc");
+    code_label_import(die_label, "die");
+    code_label_import(sort_label, "sort");
+
     init_memory_management();
 }
 
@@ -1103,11 +1109,6 @@ void X64::popa(bool except_rax) {
 }
 
 void X64::init_memory_management() {
-    code_label_import(memalloc_label, "memalloc");
-    code_label_import(memfree_label, "memfree");
-    code_label_import(memrealloc_label, "memrealloc");
-    code_label_import(die_label, "die");
-
     incref_labels.resize(REGISTER_COUNT);
     decref_labels.resize(REGISTER_COUNT);
     

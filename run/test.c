@@ -178,6 +178,11 @@ void streamify_boolean(unsigned char x, void **character_array_lvalue) {
 }
 
 
+void sort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *)) {
+    qsort(base, nmemb, size, compar);
+}
+
+
 // Entry point
 
 extern void start();
