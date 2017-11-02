@@ -156,7 +156,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         // Only RBX is usable as scratch
         BinaryOp MOV = MOVQ % os;
         BinaryOp CMP = CMPQ % os;
@@ -165,59 +165,68 @@ public:
         case CONSTANT_CONSTANT:
             x64->op(MOV, RBX, s.value);
             x64->op(CMP, RBX, t.value);
-            return is_unsigned;
+            break;
         case CONSTANT_REGISTER:
             x64->op(MOV, RBX, s.value);
             x64->op(CMP, RBX, t.reg);
-            return is_unsigned;
+            break;
         case CONSTANT_STACK:
             x64->op(MOV, RBX, s.value);
             x64->op(CMP, RBX, Address(RSP, 0));
             x64->op(POPQ, RBX);
-            return is_unsigned;
+            break;
         case CONSTANT_MEMORY:
             x64->op(MOV, RBX, s.value);
             x64->op(CMP, RBX, t.address);
-            return is_unsigned;
+            break;
             
         case REGISTER_REGISTER:
             x64->op(CMP, s.reg, t.reg);
-            return is_unsigned;
+            break;
         case REGISTER_STACK:
             x64->op(POPQ, RBX);
             x64->op(CMP, s.reg, RBX);
-            return is_unsigned;
+            break;
         case REGISTER_MEMORY:
             x64->op(CMP, s.reg, t.address);
-            return is_unsigned;
+            break;
 
         case STACK_REGISTER:
             x64->op(POPQ, RBX);
             x64->op(CMP, RBX, t.reg);
-            return is_unsigned;
+            break;
         case STACK_STACK:
             x64->op(POPQ, RBX);
             x64->op(CMP, RBX, Address(RSP, 0));
             x64->op(POPQ, RBX);
-            return is_unsigned;
+            break;
         case STACK_MEMORY:
             x64->op(POPQ, RBX);
             x64->op(CMP, RBX, t.address);
-            return is_unsigned;
+            break;
 
         case MEMORY_REGISTER:
             x64->op(CMP, s.address, t.reg);
-            return is_unsigned;
+            break;
         case MEMORY_STACK:
             x64->op(POPQ, RBX);
             x64->op(CMP, s.address, RBX);
-            return is_unsigned;
+            break;
         case MEMORY_MEMORY:
             x64->op(MOV, RBX, s.address);
             x64->op(CMP, RBX, t.address);
-            return is_unsigned;
+            break;
         default:
             throw INTERNAL_ERROR;
+        }
+        
+        if (is_unsigned) {
+            x64->op(JB, less);
+            x64->op(JA, greater);
+        }
+        else {
+            x64->op(JL, less);
+            x64->op(JG, greater);
         }
     }
     

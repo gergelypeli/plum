@@ -301,13 +301,7 @@ public:
     virtual Storage compare(X64 *x64) {
         subcompile(x64);
 
-        bool is_unsigned = left->ts.compare(ls, rs, x64);
-        
-        x64->op(MOVQ, reg, 0);
-        x64->op(MOVQ, RBX, 0);
-        x64->op(is_unsigned ? SETA : SETG, reg);
-        x64->op(is_unsigned ? SETB : SETL, BL);
-        x64->op(SUBQ, reg, RBX);
+        left->ts.compare(ls, rs, x64, reg);
         
         return Storage(REGISTER, reg);
     }

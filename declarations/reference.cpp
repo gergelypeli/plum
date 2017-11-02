@@ -102,30 +102,30 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual bool compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         switch (s.where * t.where) {
         case REGISTER_REGISTER:
             x64->decref(s.reg);
             x64->decref(t.reg);
             x64->op(CMPQ, s.reg, t.reg);
-            return true;
+            break;
         case REGISTER_STACK:
             x64->op(POPQ, RBX);
             x64->decref(s.reg);
             x64->decref(RBX);
             x64->op(CMPQ, s.reg, RBX);
-            return true;
+            break;
         case REGISTER_MEMORY:
             x64->decref(s.reg);
             x64->op(CMPQ, s.reg, t.address);
-            return true;
+            break;
 
         case STACK_REGISTER:
             x64->op(POPQ, RBX);
             x64->decref(RBX);
             x64->decref(t.reg);
             x64->op(CMPQ, RBX, t.reg);
-            return true;
+            break;
         case STACK_STACK:
             x64->op(POPQ, RBX);
             x64->decref(RBX);
@@ -133,29 +133,32 @@ public:
             x64->decref(RBX);
             x64->op(CMPQ, RBX, Address(RSP, 0));
             x64->op(POPQ, RBX);
-            return true;
+            break;
         case STACK_MEMORY:
             x64->op(POPQ, RBX);
             x64->decref(RBX);
             x64->op(CMPQ, RBX, t.address);
-            return true;
+            break;
 
         case MEMORY_REGISTER:
             x64->decref(t.reg);
             x64->op(CMPQ, s.address, t.reg);
-            return true;
+            break;
         case MEMORY_STACK:
             x64->op(POPQ, RBX);
             x64->decref(RBX);
             x64->op(CMPQ, s.address, RBX);
-            return true;
+            break;
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
             x64->op(CMPQ, RBX, t.address);
-            return true;
+            break;
         default:
             throw INTERNAL_ERROR;
         }
+        
+        x64->op(JB, less);
+        x64->op(JA, greater);
     }
 
     virtual StorageWhere where(TypeSpecIter, bool is_arg, bool is_lvalue) {

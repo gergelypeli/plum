@@ -257,13 +257,7 @@ public:
         
         Storage a(MEMORY, Address(RDI, 0));
         Storage b(MEMORY, Address(RSI, 0));
-        bool is_unsigned = elem_ts.compare(a, b, x64);
-
-        x64->op(MOVQ, RAX, 0);
-        x64->op(MOVQ, RBX, 0);
-        x64->op(is_unsigned ? SETA : SETG, RAX);
-        x64->op(is_unsigned ? SETB : SETL, BL);
-        x64->op(SUBQ, RAX, RBX);
+        elem_ts.compare(a, b, x64, RAX);
         
         x64->op(POPQ, RBX);
         x64->op(RET);

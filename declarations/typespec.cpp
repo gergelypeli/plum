@@ -135,9 +135,27 @@ void TypeSpec::destroy(Storage s, X64 *x64) {
 }
 
 
-bool TypeSpec::compare(Storage s, Storage t, X64 *x64) {
+void TypeSpec::compare(Storage s, Storage t, X64 *x64, Label less, Label greater) {
     TypeSpecIter tsi(begin());
-    return (*tsi)->compare(tsi, s, t, x64);
+    (*tsi)->compare(tsi, s, t, x64, less, greater);
+}
+
+
+void TypeSpec::compare(Storage s, Storage t, X64 *x64, Register reg) {
+    Label less, greater, end;
+    compare(s, t, x64, less, greater);
+        
+    x64->op(MOVQ, reg, 0);
+    x64->op(JMP, end);
+        
+    x64->code_label(less);
+    x64->op(MOVQ, reg, -1);
+    x64->op(JMP, end);
+        
+    x64->code_label(greater);
+    x64->op(MOVQ, reg, 1);
+        
+    x64->code_label(end);
 }
 
 
