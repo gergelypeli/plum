@@ -102,6 +102,8 @@ Value *make_boolean_conversion_value(Value *orig);
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *orig, TypeMatch &match);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
+Value *make_array_empty_value(TypeSpec ts);
+Value *make_array_initializer_value(TypeSpec ts);
 Value *make_unicode_character_value();
 Value *make_integer_definition_value();
 Value *make_enumeration_definition_value();
@@ -266,7 +268,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw TYPE_ERROR;
         }
 
-        std::cerr << "Declared " << name << ".\n";
+        std::cerr << "Declared " << name << " as " << value->ts << ".\n";
     }
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
@@ -345,6 +347,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
             
             std::cerr << "Using initializer " << ts << " `" << name << ".\n";
+            std::cerr << "... with type " << value->ts << "\n";
         }
     }
     else if (expr->type == Expr::NUMBER) {

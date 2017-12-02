@@ -472,6 +472,16 @@ Value *make_null_reference_value(TypeSpec ts) {
 }
 
 
+Value *make_array_empty_value(TypeSpec ts) {
+    return new ArrayEmptyValue(ts);
+}
+
+
+Value *make_array_initializer_value(TypeSpec ts) {
+    return new ArrayInitializerValue(ts);
+}
+
+
 Value *make_unicode_character_value() {
     return new UnicodeCharacterValue();
 }

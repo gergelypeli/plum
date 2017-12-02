@@ -323,6 +323,12 @@ start? :Function as:
     chars chars sort
     prints("Sorted:   {chars}" {})
 
+    strings? String Array `empty
+    prints("Empty array length: {x}" { x: strings length })
+
+    ss? String Array { "foo", "bar" }
+    prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
+
     :if `true then:
         last? 0
         prints("Exiting.")

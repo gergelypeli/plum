@@ -267,3 +267,105 @@ public:
         return Storage();
     }
 };
+
+
+class ArrayEmptyValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    ArrayEmptyValue(TypeSpec ts)
+        :GenericValue(VOID_TS, ts, NULL) {
+        elem_ts = ts.unprefix(reference_type).unprefix(array_type);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob;
+        return clob.add(RAX).add(RBX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+    
+        x64->op(MOVQ, RAX, 0);
+        x64->op(MOVQ, RBX, elem_size);
+    
+        x64->alloc_array_RAX_RBX();  // array length, elem size
+        
+        return Storage(REGISTER, RAX);
+    }
+};
+
+
+class ArrayInitializerValue: public Value {
+public:
+    TypeSpec elem_ts;
+    std::vector<std::unique_ptr<Value>> elems;
+
+    ArrayInitializerValue(TypeSpec ts)
+        :Value(ts) {
+        elem_ts = ts.unprefix(reference_type).unprefix(array_type);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (kwargs.size() != 0) {
+            std::cerr << "Whacky array initializer keyword argument!\n";
+            return false;
+        }
+        
+        for (auto &arg : args) {
+            Value *v = typize(arg.get(), scope, &elem_ts);
+            if (!v)
+                return false;
+                
+            TypeMatch match;
+            
+            if (!typematch(elem_ts, v, match)) {
+                std::cerr << "Array element is not " << elem_ts << ", but " << get_typespec(v) << "!\n";
+                return false;
+            }
+            
+            elems.push_back(std::unique_ptr<Value>(v));
+        }
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob;
+        clob.add(RAX).add(RCX);
+        
+        for (auto &elem : elems)
+            clob = clob | elem->precompile(preferred);
+            
+        return clob;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+    
+        x64->op(MOVQ, RAX, elems.size());
+        x64->op(MOVQ, RBX, elem_size);
+    
+        x64->alloc_array_RAX_RBX();  // array length, elem size
+        x64->op(PUSHQ, RAX);
+        
+        unsigned offset = 0;
+        
+        for (auto &elem : elems) {
+            Storage s = elem->compile(x64);
+            Register reg = s.regs().has(RAX) ? RCX : RAX;
+            
+            int soffset = (s.where == STACK ? stack_size(elem_size) : 0);
+            x64->op(MOVQ, reg, Address(RSP, soffset));
+            Storage t(MEMORY, x64->array_elems_address(reg) + offset);
+            
+            elem_ts.create(s, t, x64);
+            offset += elem_size;
+        }
+        
+        x64->op(POPQ, RAX);
+        
+        return Storage(REGISTER, RAX);
+    }
+};
+

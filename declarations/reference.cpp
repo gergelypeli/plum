@@ -188,8 +188,10 @@ public:
             return make_null_reference_value(TypeSpec(tsi));
         }
         else {
-            std::cerr << "No reference initializer called " << name << "!\n";
-            return NULL;
+            tsi++;
+            return tsi[0]->lookup_initializer(tsi, name, scope);
+            //std::cerr << "No reference initializer called " << name << "!\n";
+            //return NULL;
         }
     }
 
@@ -327,5 +329,19 @@ public:
     
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope.get();
+    }
+
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+        
+        if (name == "empty")
+            return make_array_empty_value(rts);
+        else if (name == "null")
+            return make_null_reference_value(rts);
+        else if (name == "{}")
+            return make_array_initializer_value(rts);
+
+        std::cerr << "No array initializer called " << name << "!\n";
+        return NULL;
     }
 };
