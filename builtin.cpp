@@ -346,6 +346,7 @@ Scope *init_builtins() {
     ANY_REFERENCE_TS = { reference_type, any_type };
     ANY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, any_type };
     ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
+    ANY_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, any_type };
     VOID_CODE_TS = { code_type, void_type };
     BOOLEAN_CODE_TS = { code_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
@@ -441,6 +442,7 @@ Scope *init_builtins() {
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REFERENCE_TS));
+    array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", ANY_ARRAY_REFERENCE_LVALUE_TS));
     
     // Array iterable operations
     Scope *ible_scope = implement(array_scope, SAME_ITERABLE_TS, "ible");

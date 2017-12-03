@@ -329,6 +329,10 @@ start? :Function as:
     ss? String Array { "foo", "bar" }
     prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
+    ss push("baz")
+    prints("Pushed array length: {x}" { x: ss length })
+    prints("Pushed array has {x} and {y} and {z}" { x: ss[0], y: ss[1], z: ss[2] })
+    
     :if `true then:
         last? 0
         prints("Exiting.")

@@ -309,6 +309,11 @@ public:
     HeapType(std::string name, unsigned pc)
         :Type(name, pc) {
     }
+
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+        std::cerr << "This is probably an error, shouldn't measure a heap type!\n";
+        throw INTERNAL_ERROR;
+    }
 };
 
 
