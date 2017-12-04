@@ -299,16 +299,21 @@ void X64::data_reference(Label label) {
 
 
 void X64::data_heap_header() {
-    if (HEAP_HEADER_SIZE != 16 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKCOUNT_OFFSET != -8)
+    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -32 || HEAP_WEAKCOUNT_OFFSET != -24)
         throw X64_ERROR;
     
     data_align();
     data_qword(1);  // artificial reference to prevent freeing
     data_qword(0);
+    data_reference(empty_function_label);
+    data_qword(0);
 }
 
 
 Label X64::data_heap_string(std::vector<unsigned short> characters) {
+    if (ARRAY_HEADER_SIZE != 16 || ARRAY_RESERVATION_OFFSET != 0 || ARRAY_LENGTH_OFFSET != 8)
+        throw X64_ERROR;
+        
     Label l;
     
     data_heap_header();
@@ -1134,6 +1139,12 @@ void X64::init_memory_management() {
 
         // TODO
         pusha();
+        op(PUSHQ, RBX);  // TODO: according to the above we must protect RBX from the finalizer
+        op(PUSHQ, reg);
+        op(MOVQ, RAX, reg);
+        op(CALL, Address(reg, HEAP_FINALIZER_OFFSET));
+        op(POPQ, reg);
+        op(POPQ, RBX);
         op(LEA, RDI, Address(reg, HEAP_HEADER_OFFSET));
         op(CALL, memfree_label);
         popa();
@@ -1142,12 +1153,13 @@ void X64::init_memory_management() {
         op(RET);
     }
 
-    code_label_export(alloc_RAX_label, "alloc_RAX", 0, false);
+    code_label_export(alloc_RAX_RBX_label, "alloc_RAX_RBX", 0, false);
     pusha(true);
     op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
     op(CALL, memalloc_label);
     op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
     op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
+    op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);  // object finalizer
     popa(true);
     op(RET);
     
@@ -1165,6 +1177,9 @@ void X64::init_memory_management() {
     
     code_label(realloc_die);
     die("Realloc of shared array!");
+    
+    code_label_export(empty_function_label, "empty_function", 0, false);
+    op(RET);
 }
 
 void X64::incref(Register reg) {
@@ -1181,19 +1196,20 @@ void X64::decref(Register reg) {
     op(CALL, decref_labels[reg]);
 }
 
-void X64::alloc_RAX() {
-    op(CALL, alloc_RAX_label);
+void X64::alloc_RAX_RBX() {
+    op(CALL, alloc_RAX_RBX_label);
 }
 
 void X64::realloc_RAX_RBX() {
     op(CALL, realloc_RAX_RBX_label);
 }
 
-void X64::alloc_array_RAX_RBX() {
+void X64::alloc_array_RAX_RBX_RCX() {
     op(PUSHQ, RAX);
     op(IMUL2Q, RAX, RBX);
     op(ADDQ, RAX, ARRAY_HEADER_SIZE);
-    alloc_RAX();
+    op(MOVQ, RBX, RCX);
+    alloc_RAX_RBX();
     op(POPQ, Address(RAX, ARRAY_RESERVATION_OFFSET));
     op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
 }
@@ -1215,6 +1231,10 @@ void X64::preappend_array_RAX_RBX_RCX() {
     realloc_array_RAX_RBX_RCX();
     
     code_label(x);
+}
+
+Address X64::heap_finalizer_address(Register reg) {
+    return Address(reg, HEAP_FINALIZER_OFFSET);
 }
 
 Address X64::array_reservation_address(Register reg) {

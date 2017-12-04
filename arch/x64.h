@@ -388,8 +388,8 @@ public:
     std::vector<Ref> refs;
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
-    Label alloc_RAX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label, die_label, sort_label;
+    Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
+    Label memalloc_label, memfree_label, memrealloc_label, die_label, sort_label, empty_function_label;
     std::vector<Label> incref_labels, decref_labels;
     std::map<FunctionCompiler, Label> function_compiler_labels;
     
@@ -492,12 +492,13 @@ public:
     void incref(Register reg);
     void decref(Register reg);
     void init_memory_management();
-    void alloc_RAX();
+    void alloc_RAX_RBX();
     void realloc_RAX_RBX();
     
-    void alloc_array_RAX_RBX();
+    void alloc_array_RAX_RBX_RCX();
     void realloc_array_RAX_RBX_RCX();
     void preappend_array_RAX_RBX_RCX();
+    Address heap_finalizer_address(Register reg);
     Address array_reservation_address(Register reg);
     Address array_length_address(Register reg);
     Address array_elems_address(Register reg);

@@ -9,6 +9,37 @@ TypeSpec array_elem_ts(TypeSpec ts) {
 }
 
 
+// TODO
+Label compile_array_finalizer(TypeSpec ets, X64 *x64) {
+    int elem_size = ::elem_size(ets.measure(MEMORY));
+    Label start, end, loop, skip;
+    
+    x64->op(JMP, skip);
+    x64->code_label(start);
+    
+    // RAX - the heap object
+    x64->op(MOVQ, RCX, x64->array_length_address(RAX));
+    x64->op(CMPQ, RCX, 0);
+    x64->op(JE, end);
+    x64->op(IMUL3Q, RBX, RCX, elem_size);
+    x64->op(LEA, RDX, x64->array_elems_address(RAX));
+    x64->op(ADDQ, RDX, RBX);
+    
+    x64->code_label(loop);
+    x64->op(SUBQ, RDX, elem_size);
+    ets.destroy(Storage(MEMORY, Address(RDX, 0)), x64);
+    x64->op(DECQ, RCX);
+    x64->op(JNE, loop);
+    
+    x64->code_label(end);
+    x64->op(RET);
+    
+    x64->code_label(skip);
+    
+    return start;
+}
+
+
 class ArrayLengthValue: public GenericValue {
 public:
     Register reg;
@@ -145,9 +176,14 @@ public:
         x64->op(ADDQ, RAX, x64->array_length_address(RDX));  // total length in RAX
         x64->op(PUSHQ, RAX);
         
-        x64->alloc_array_RAX_RBX();  // array length, elem size
+        x64->op(MOVQ, RCX, x64->heap_finalizer_address(RCX));  // for a moment
+        
+        x64->alloc_array_RAX_RBX_RCX();  // array length, elem size, finalizer
         
         x64->op(POPQ, x64->array_length_address(RAX));
+
+        x64->op(MOVQ, RBX, Address(RSP, 8));  // restored
+        x64->op(MOVQ, RCX, Address(RSP, 24));  // restored
         
         x64->op(LEA, RDI, x64->array_elems_address(RAX));
         
@@ -289,16 +325,18 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob;
-        return clob.add(RAX).add(RBX);
+        return clob.add(RAX).add(RBX).add(RCX);
     }
 
     virtual Storage compile(X64 *x64) {
+        Label array_finalizer_label = compile_array_finalizer(elem_ts, x64);
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
     
         x64->op(MOVQ, RAX, 0);
         x64->op(MOVQ, RBX, elem_size);
+        x64->op(LEARIP, RCX, array_finalizer_label);
     
-        x64->alloc_array_RAX_RBX();  // array length, elem size
+        x64->alloc_array_RAX_RBX_RCX();  // array length, elem size, finalizer
         
         return Storage(REGISTER, RAX);
     }
@@ -341,7 +379,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob;
-        clob.add(RAX).add(RCX);
+        clob.add(RAX).add(RBX).add(RCX);
         
         for (auto &elem : elems)
             clob = clob | elem->precompile(preferred);
@@ -350,12 +388,14 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        Label array_finalizer_label = compile_array_finalizer(elem_ts, x64);
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
     
         x64->op(MOVQ, RAX, elems.size());
         x64->op(MOVQ, RBX, elem_size);
+        x64->op(LEARIP, RCX, array_finalizer_label);
     
-        x64->alloc_array_RAX_RBX();  // array length, elem size
+        x64->alloc_array_RAX_RBX_RCX();  // array length, elem size, finalizer
         x64->op(MOVQ, x64->array_length_address(RAX), elems.size());
         x64->op(PUSHQ, RAX);
         
