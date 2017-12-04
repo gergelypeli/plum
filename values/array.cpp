@@ -424,3 +424,41 @@ public:
         return Storage(ALISTACK);
     }
 };
+
+
+class ArrayPopValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    ArrayPopValue(Value *l, TypeMatch &match)
+        :GenericValue(VOID_TS, array_elem_ts(match[0]), l) {
+        elem_ts = array_elem_ts(match[0]);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = left->precompile(preferred);
+        return clob.add(RAX).add(RBX).add(RCX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        left->compile_and_store(x64, Storage(REGISTER, RAX));
+    
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        
+        x64->op(DECQ, x64->array_length_address(RAX));
+        x64->op(MOVQ, RBX, x64->array_length_address(RAX));
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+
+        x64->decref(RAX);  // FIXME: this is too early
+
+        Address addr = x64->array_elems_address(RAX);
+        addr.index = RBX;
+        addr.scale = 1;
+        x64->op(LEA, RAX, addr);
+        
+        elem_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
+        
+        return Storage(STACK);
+    }
+};

@@ -347,7 +347,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
             
             std::cerr << "Using initializer " << ts << " `" << name << ".\n";
-            std::cerr << "... with type " << value->ts << "\n";
+            //std::cerr << "... with type " << value->ts << "\n";
         }
     }
     else if (expr->type == Expr::NUMBER) {

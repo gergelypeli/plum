@@ -443,6 +443,7 @@ Scope *init_builtins() {
     array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", ANY_ARRAY_REFERENCE_LVALUE_TS));
+    array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", ANY_ARRAY_REFERENCE_TS));
     
     // Array iterable operations
     Scope *ible_scope = implement(array_scope, SAME_ITERABLE_TS, "ible");
