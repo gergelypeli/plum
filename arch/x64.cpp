@@ -1138,13 +1138,11 @@ void X64::init_memory_management() {
         op(JNE, dl);
 
         // TODO
-        pusha();
-        op(PUSHQ, RBX);  // TODO: according to the above we must protect RBX from the finalizer
         op(PUSHQ, reg);
-        op(MOVQ, RAX, reg);
-        op(CALL, Address(reg, HEAP_FINALIZER_OFFSET));
+        op(CALL, Address(reg, HEAP_FINALIZER_OFFSET));  // finalizer must protect RBX, too
         op(POPQ, reg);
-        op(POPQ, RBX);
+        
+        pusha();
         op(LEA, RDI, Address(reg, HEAP_HEADER_OFFSET));
         op(CALL, memfree_label);
         popa();

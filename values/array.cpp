@@ -9,34 +9,57 @@ TypeSpec array_elem_ts(TypeSpec ts) {
 }
 
 
+std::map<TypeSpec, Label> array_finalizer_labels;
+
+
 // TODO
-Label compile_array_finalizer(TypeSpec ets, X64 *x64) {
+void compile_array_finalizer(TypeSpec ets, X64 *x64) {
     int elem_size = ::elem_size(ets.measure(MEMORY));
-    Label start, end, loop, skip;
+    Label start, end, loop;
     
-    x64->op(JMP, skip);
-    x64->code_label(start);
+    x64->op(PUSHQ, RAX);
+    x64->op(PUSHQ, RBX);  // finalizers must protect RBX
+    x64->op(PUSHQ, RCX);
     
-    // RAX - the heap object
+    x64->op(MOVQ, RAX, Address(RSP, 32));
     x64->op(MOVQ, RCX, x64->array_length_address(RAX));
     x64->op(CMPQ, RCX, 0);
     x64->op(JE, end);
+    
     x64->op(IMUL3Q, RBX, RCX, elem_size);
-    x64->op(LEA, RDX, x64->array_elems_address(RAX));
-    x64->op(ADDQ, RDX, RBX);
+    x64->op(LEA, RAX, x64->array_elems_address(RAX));
+    x64->op(ADDQ, RAX, RBX);
     
     x64->code_label(loop);
-    x64->op(SUBQ, RDX, elem_size);
-    ets.destroy(Storage(MEMORY, Address(RDX, 0)), x64);
+    x64->op(SUBQ, RAX, elem_size);
+    ets.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
     x64->op(DECQ, RCX);
     x64->op(JNE, loop);
     
     x64->code_label(end);
+    x64->op(POPQ, RCX);
+    x64->op(POPQ, RBX);
+    x64->op(POPQ, RAX);
     x64->op(RET);
+}
+
+
+void compile_array_finalizers(X64 *x64) {
+    for (auto &kv : array_finalizer_labels) {
+        TypeSpec ets = kv.first;
+        Label label = kv.second;
+        std::cerr << "Compiling " << ets << " Array finalizer.\n";
+        
+        x64->code_label(label);
+        compile_array_finalizer(ets, x64);
+    }
+}
+
+
+Label array_finalizer(TypeSpec ets, X64 *x64) {
+    x64->once(compile_array_finalizers);
     
-    x64->code_label(skip);
-    
-    return start;
+    return array_finalizer_labels[ets];
 }
 
 
@@ -329,7 +352,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label array_finalizer_label = compile_array_finalizer(elem_ts, x64);
+        Label array_finalizer_label = array_finalizer(elem_ts, x64);
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
     
         x64->op(MOVQ, RAX, 0);
@@ -388,7 +411,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label array_finalizer_label = compile_array_finalizer(elem_ts, x64);
+        Label array_finalizer_label = array_finalizer(elem_ts, x64);
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
     
         x64->op(MOVQ, RAX, elems.size());
