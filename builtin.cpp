@@ -193,22 +193,22 @@ void implement_string(Scope *root_scope) {
     is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
 
     //is->add(new TemplateIdentifier<StringLengthValue>("length", STRING_TS));
-    is->add(new WrapperIdentifier("length", STRING_TS, "chars", VOID_TS, "", INTEGER_TS, "length"));
+    is->add(new WrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, INTEGER_TS, "length"));
     //is->add(new TemplateIdentifier<StringConcatenationValue>("binary_plus", STRING_TS));
-    is->add(new WrapperIdentifier("binary_plus", STRING_TS, "chars", STRING_TS, "chars", STRING_TS, "binary_plus"));
+    is->add(new WrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
     //is->add(new TemplateIdentifier<StringItemValue>("index", STRING_TS));
-    is->add(new WrapperIdentifier("index", STRING_TS, "chars", INTEGER_TS, "", CHARACTER_TS, "index"));
+    is->add(new WrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, INTEGER_TS, NO_TS, CHARACTER_TS, "index"));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
     is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
 
     Scope *ible_scope = implement(is, TypeSpec { iterable_type, character_type }, "ible");
     //ible_scope->add(new TemplateIdentifier<StringElemIterValue>("iter", STRING_TS));
-    ible_scope->add(new WrapperIdentifier("iter", STRING_TS, "chars", VOID_TS, "", TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    ible_scope->add(new WrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
 
-    is->add(new WrapperIdentifier("elements", STRING_TS, "chars", VOID_TS, "", TypeSpec { arrayelemiter_type, character_type }, "elements"));
-    is->add(new WrapperIdentifier("indexes", STRING_TS, "chars", VOID_TS, "", TypeSpec { arrayindexiter_type, character_type }, "indexes"));
-    is->add(new WrapperIdentifier("items", STRING_TS, "chars", VOID_TS, "", TypeSpec { arrayitemiter_type, character_type }, "items"));
+    is->add(new WrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    is->add(new WrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
+    is->add(new WrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
     //is->add(new TemplateIdentifier<StringElemIterValue>("elements", STRING_TS));
     //is->add(new TemplateIdentifier<StringIndexIterValue>("indexes", STRING_TS));
     //is->add(new TemplateIdentifier<StringItemIterValue>("items", STRING_TS));

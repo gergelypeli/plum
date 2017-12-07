@@ -102,8 +102,8 @@ public:
         if (!xxx_is_allocated)
             throw INTERNAL_ERROR;
 
-        if (s.where == STACK && offset == 0)  // FIXME: this is a hack for array wrapper records only!
-            return Storage(STACK);
+        //if (s.where == STACK && offset == 0)  // FIXME: this is a hack for array wrapper records only!
+        //    return Storage(STACK);
 
         if (s.where != MEMORY)
             throw INTERNAL_ERROR;  // all variable containers must use MEMORY
@@ -314,19 +314,19 @@ class WrapperIdentifier: public Identifier {
 public:
     TypeSpec arg_ts;
     TypeSpec result_ts;
-    std::string pivot_name;
+    TypeSpec pivot_cast_ts;
+    TypeSpec arg_cast_ts;
     std::string operation_name;
-    std::string arg_name;
     
     WrapperIdentifier(std::string n,
-        TypeSpec pivot_ts, std::string pn,
-        TypeSpec ats, std::string an,
+        TypeSpec pivot_ts, TypeSpec pcts,
+        TypeSpec ats, TypeSpec acts,
         TypeSpec rts, std::string on)
         :Identifier(n, pivot_ts) {
         arg_ts = ats;
         result_ts = rts;
-        pivot_name = pn;
-        arg_name = an;
+        pivot_cast_ts = pcts;
+        arg_cast_ts = acts;
         operation_name = on;
     }
     
@@ -334,17 +334,14 @@ public:
         if (!pivot)
             throw INTERNAL_ERROR;
             
-        if (pivot_name.size()) {
-            pivot = get_typespec(pivot).lookup_inner(pivot_name, pivot);
-            if (!pivot)
-                throw INTERNAL_ERROR;
-        }
+        if (pivot_cast_ts != NO_TS)
+            pivot = make_unwrap_value(pivot_cast_ts, pivot);
         
         Value *operation = get_typespec(pivot).lookup_inner(operation_name, pivot);
         if (!operation)
             throw INTERNAL_ERROR;
         
-        Value *wrapper = make_wrapper_value(arg_ts, result_ts, arg_name, operation);
+        Value *wrapper = make_wrapper_value(arg_ts, result_ts, arg_cast_ts, operation);
         
         return wrapper;
     }

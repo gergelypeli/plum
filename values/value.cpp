@@ -577,11 +577,11 @@ void unprefix_value(Value *v) {
 }
 
 
-Value *make_unwrap_value(Value *pivot, TypeSpec internal_ts) {
-    return new UnwrapValue(pivot, internal_ts);
+Value *make_unwrap_value(TypeSpec cast_ts, Value *v) {
+    return new UnwrapValue(cast_ts, v);
 }
 
 
-Value *make_wrapper_value(TypeSpec arg_ts, TypeSpec result_ts, std::string arg_name, Value *v) {
-    return new WrapperValue(arg_ts, result_ts, arg_name, v);
+Value *make_wrapper_value(TypeSpec arg_ts, TypeSpec result_ts, TypeSpec arg_cast_ts, Value *v) {
+    return new WrapperValue(arg_ts, result_ts, arg_cast_ts, v);
 }

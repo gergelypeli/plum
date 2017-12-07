@@ -335,8 +335,8 @@ class UnwrapValue: public Value {
 public:
     std::unique_ptr<Value> pivot;
 
-    UnwrapValue(Value *p, TypeSpec internal_ts)
-        :Value(internal_ts) {
+    UnwrapValue(TypeSpec cast_ts, Value *p)
+        :Value(cast_ts) {
         pivot.reset(p);
     }
 
@@ -352,12 +352,11 @@ public:
 
 class WrapperValue: public GenericValue {
 public:
-    TypeSpec internal_arg_ts;
-    std::string arg_name;
+    TypeSpec arg_cast_ts;
 
-    WrapperValue(TypeSpec ats, TypeSpec rts, std::string an, Value *pivot)
+    WrapperValue(TypeSpec ats, TypeSpec rts, TypeSpec acts, Value *pivot)
         :GenericValue(ats, rts, pivot) {
-        arg_name = an;
+        arg_cast_ts = acts;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -371,8 +370,8 @@ public:
             
             Value *k = right.release();
         
-            if (arg_name.size())
-                k = k->ts.lookup_inner(arg_name, k);
+            if (arg_cast_ts != NO_TS)
+                k = make_unwrap_value(arg_cast_ts, k);
                 
             generic_left->right.reset(k);
         }
@@ -387,7 +386,7 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage s = left->compile(x64);
         
-        if (s.where == REGISTER && ts == STRING_TS) {
+        if (s.where == REGISTER) {
             x64->op(PUSHQ, s.reg);
             s = Storage(STACK);
         }
