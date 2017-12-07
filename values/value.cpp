@@ -575,3 +575,13 @@ bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
 void unprefix_value(Value *v) {
     v->ts = TypeSpec(v->ts.begin() + 1);
 }
+
+
+Value *make_unwrap_value(Value *pivot, TypeSpec internal_ts) {
+    return new UnwrapValue(pivot, internal_ts);
+}
+
+
+Value *make_wrapper_value(TypeSpec arg_ts, TypeSpec result_ts, std::string arg_name, Value *v) {
+    return new WrapperValue(arg_ts, result_ts, arg_name, v);
+}

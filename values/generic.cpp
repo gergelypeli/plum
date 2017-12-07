@@ -49,7 +49,14 @@ public:
     GenericOperationValue(OperationType o, TypeSpec at, TypeSpec rt, Value *l)
         :GenericValue(at, rt, l) {
         operation = o;
-        is_left_lvalue = is_assignment(o);
+        is_left_lvalue = is_assignment(operation);
+        reg = NOREG;
+    }
+
+    GenericOperationValue(TypeSpec at, TypeSpec rt, Value *l)
+        :GenericValue(at, rt, l) {
+        operation = TWEAK;
+        is_left_lvalue = is_assignment(operation);
         reg = NOREG;
     }
     
@@ -320,6 +327,72 @@ public:
     virtual Scope *unwind(X64 *x64) {
         left->ts.store(ls, Storage(), x64);
         return NULL;
+    }
+};
+
+
+class UnwrapValue: public Value {
+public:
+    std::unique_ptr<Value> pivot;
+
+    UnwrapValue(Value *p, TypeSpec internal_ts)
+        :Value(internal_ts) {
+        pivot.reset(p);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return pivot->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return pivot->compile(x64);
+    }
+};
+
+
+class WrapperValue: public GenericValue {
+public:
+    TypeSpec internal_arg_ts;
+    std::string arg_name;
+
+    WrapperValue(TypeSpec ats, TypeSpec rts, std::string an, Value *pivot)
+        :GenericValue(ats, rts, pivot) {
+        arg_name = an;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!GenericValue::check(args, kwargs, scope))
+            return false;
+            
+        if (right) {
+            GenericValue *generic_left = dynamic_cast<GenericValue *>(left.get());
+            if (!generic_left)
+                throw INTERNAL_ERROR;
+            
+            Value *k = right.release();
+        
+            if (arg_name.size())
+                k = k->ts.lookup_inner(arg_name, k);
+                
+            generic_left->right.reset(k);
+        }
+        
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s = left->compile(x64);
+        
+        if (s.where == REGISTER && ts == STRING_TS) {
+            x64->op(PUSHQ, s.reg);
+            s = Storage(STACK);
+        }
+        
+        return s;
     }
 };
 

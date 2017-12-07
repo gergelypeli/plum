@@ -636,7 +636,7 @@ public:
                     continue;
             
                 if (iff->get_argument_tss(fake_match) != f->get_argument_tss(empty_match)) {
-                    std::cerr << "Mismatching implementation argument types!\n";
+                    std::cerr << "Mismatching " << f->name << " implementation argument types: " << f->get_argument_tss(empty_match)[0] << " should be " << iff->get_argument_tss(fake_match)[0] << "!\n";
                     return false;
                 }
                 

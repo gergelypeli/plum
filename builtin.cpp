@@ -48,7 +48,7 @@ Scope *implement(Scope *scope, TypeSpec interface_ts, std::string implementation
 }
 
 
-void init_interfaces(Scope *root_scope) {
+void implement_interfaces(Scope *root_scope) {
     // Streamifiable interface
     DataScope *sis = new DataScope;
     Function *sf = new Function("streamify",
@@ -95,10 +95,10 @@ void init_interfaces(Scope *root_scope) {
 }
 
 
-void init_iterators(Scope *root_scope) {
+void implement_iterators(Scope *root_scope) {
     // Counter operations
     for (auto is_down : { false, true }) {
-        RecordType *counter_type = new RecordType(is_down ? "Countdown" : "Countup", 0);
+        RecordType *counter_type = dynamic_cast<RecordType *>(is_down ? countdown_type : countup_type);
         TypeSpec COUNTER_TS = { counter_type };
     
         DataScope *cis = new DataScope;
@@ -111,22 +111,22 @@ void init_iterators(Scope *root_scope) {
         
         if (!is_down) {
             citer_scope->add(new TemplateIdentifier<CountupNextValue>("next", COUNTER_TS));
-            COUNTUP_TS = { counter_type };
+            //COUNTUP_TS = { counter_type };
         }
         else {
             citer_scope->add(new TemplateIdentifier<CountdownNextValue>("next", COUNTER_TS));
-            COUNTDOWN_TS = { counter_type };
+            //COUNTDOWN_TS = { counter_type };
         }
         
         counter_type->set_inner_scope(cis);
         root_scope->add(counter_type);
-
     }
 
     // Item type for itemized iteration
-    RecordType *item_type = new RecordType("Item", 1);
-    ANY_ITEM_TS = { item_type, any_type };
-    SAME_ITEM_TS = { item_type, same_type };
+    // TODO: this is limited to (Integer, T) items now!
+    RecordType *item_type = dynamic_cast<RecordType *>(::item_type);
+    //ANY_ITEM_TS = { item_type, any_type };
+    //SAME_ITEM_TS = { item_type, same_type };
     
     DataScope *itis = new DataScope;
     root_scope->add(itis);
@@ -143,7 +143,7 @@ void init_iterators(Scope *root_scope) {
     // Array Iterator operations
     enum AIT { ELEM, INDEX, ITEM };
     for (auto type : { ELEM, INDEX, ITEM }) {
-        RecordType *aiter_type = new RecordType(type == INDEX ? "Arrayindex_iter" : type == ELEM ? "Arrayelem_iter" : "Arrayitem_iter", 1);
+        RecordType *aiter_type = dynamic_cast<RecordType *>(type == INDEX ? arrayindexiter_type : type == ELEM ? arrayelemiter_type : arrayitemiter_type);
         TypeSpec ANY_ARRAYITER_TS = { aiter_type, any_type };
         TypeSpec SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
     
@@ -157,17 +157,20 @@ void init_iterators(Scope *root_scope) {
         if (type == ELEM) {
             Scope *aiter_scope = implement(aiis, SAME_ITERATOR_TS, "elemiter");
             aiter_scope->add(new TemplateIdentifier<ArrayNextElemValue>("next", ANY_ARRAYITER_TS));
-            SAME_ARRAYELEMITER_TS = { aiter_type, same_type };
+            //arrayelemiter_type = aiter_type;
+            //SAME_ARRAYELEMITER_TS = { aiter_type, same_type };
         }
         else if (type == INDEX) {
             Scope *aiter_scope = implement(aiis, INTEGER_ITERATOR_TS, "indexiter");
             aiter_scope->add(new TemplateIdentifier<ArrayNextIndexValue>("next", ANY_ARRAYITER_TS));
-            SAME_ARRAYINDEXITER_TS = { aiter_type, same_type };
+            //arrayindexiter_type = aiter_type;
+            //SAME_ARRAYINDEXITER_TS = { aiter_type, same_type };
         }
         else {
             Scope *aiter_scope = implement(aiis, SAME_ITEM_ITERATOR_TS, "itemiter");
             aiter_scope->add(new TemplateIdentifier<ArrayNextItemValue>("next", ANY_ARRAYITER_TS));
-            SAME_ARRAYITEMITER_TS = { aiter_type, same_type };
+            //arrayitemiter_type = aiter_type;
+            //SAME_ARRAYITEMITER_TS = { aiter_type, same_type };
         }
         
         aiter_type->set_inner_scope(aiis);
@@ -176,12 +179,12 @@ void init_iterators(Scope *root_scope) {
 }
 
 
-void init_string(Scope *root_scope) {
-    RecordType *record_type = new StringType("String");
-    string_type = record_type;
+void implement_string(Scope *root_scope) {
+    RecordType *record_type = dynamic_cast<RecordType *>(string_type);
+    //string_type = record_type;
 
-    STRING_TS = { string_type };
-    STRING_LVALUE_TS = { lvalue_type, string_type };
+    //STRING_TS = { string_type };
+    //STRING_LVALUE_TS = { lvalue_type, string_type };
 
     DataScope *is = new DataScope;
     root_scope->add(is);
@@ -189,29 +192,70 @@ void init_string(Scope *root_scope) {
 
     is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
 
-    is->add(new TemplateIdentifier<StringLengthValue>("length", STRING_TS));
-    is->add(new TemplateIdentifier<StringConcatenationValue>("binary_plus", STRING_TS));
-    is->add(new TemplateIdentifier<StringItemValue>("index", STRING_TS));
+    //is->add(new TemplateIdentifier<StringLengthValue>("length", STRING_TS));
+    is->add(new WrapperIdentifier("length", STRING_TS, "chars", VOID_TS, "", INTEGER_TS, "length"));
+    //is->add(new TemplateIdentifier<StringConcatenationValue>("binary_plus", STRING_TS));
+    is->add(new WrapperIdentifier("binary_plus", STRING_TS, "chars", STRING_TS, "chars", STRING_TS, "binary_plus"));
+    //is->add(new TemplateIdentifier<StringItemValue>("index", STRING_TS));
+    is->add(new WrapperIdentifier("index", STRING_TS, "chars", INTEGER_TS, "", CHARACTER_TS, "index"));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
     is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
 
     Scope *ible_scope = implement(is, TypeSpec { iterable_type, character_type }, "ible");
-    ible_scope->add(new TemplateIdentifier<StringElemIterValue>("iter", STRING_TS));
+    //ible_scope->add(new TemplateIdentifier<StringElemIterValue>("iter", STRING_TS));
+    ible_scope->add(new WrapperIdentifier("iter", STRING_TS, "chars", VOID_TS, "", TypeSpec { arrayelemiter_type, character_type }, "elements"));
 
-    is->add(new TemplateIdentifier<StringIndexIterValue>("indexes", STRING_TS));
-    is->add(new TemplateIdentifier<StringItemIterValue>("items", STRING_TS));
+    is->add(new WrapperIdentifier("elements", STRING_TS, "chars", VOID_TS, "", TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    is->add(new WrapperIdentifier("indexes", STRING_TS, "chars", VOID_TS, "", TypeSpec { arrayindexiter_type, character_type }, "indexes"));
+    is->add(new WrapperIdentifier("items", STRING_TS, "chars", VOID_TS, "", TypeSpec { arrayitemiter_type, character_type }, "items"));
+    //is->add(new TemplateIdentifier<StringElemIterValue>("elements", STRING_TS));
+    //is->add(new TemplateIdentifier<StringIndexIterValue>("indexes", STRING_TS));
+    //is->add(new TemplateIdentifier<StringItemIterValue>("items", STRING_TS));
 
     is->add(new Identity("null", STRING_TS));  // a null initializer that does nothing
 
     is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
 
     record_type->set_inner_scope(is);
-    root_scope->add(string_type);
+    //root_scope->add(string_type);
 
     // String operations
     Scope *sable_scope = implement(is, STREAMIFIABLE_TS, "sable");
     sable_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS));
+}
+
+
+void init_stack(Scope *root_scope) {
+    RecordType *record_type = new RecordType("Stack", 1);
+    stack_type = record_type;
+
+    ANY_STACK_TS = { any_type, stack_type };
+    ANY_STACK_LVALUE_TS = { lvalue_type, stack_type, any_type };
+
+    DataScope *is = new DataScope;
+    root_scope->add(is);
+    is->set_pivot_type_hint(ANY_STACK_LVALUE_TS);
+
+    TypeSpec SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
+    is->add(new Variable("array", ANY_STACK_TS, SAME_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
+
+    //is->add(new TemplateIdentifier<StackLengthValue>("length", ANY_STACK_TS));
+    //is->add(new TemplateIdentifier<StackItemValue>("index", ANY_STACK_TS));
+
+    is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
+    is->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_STACK_LVALUE_TS, ASSIGN));
+
+    //Scope *ible_scope = implement(is, TypeSpec { iterable_type, same_type }, "ible");
+    //ible_scope->add(new TemplateIdentifier<StackElemIterValue>("iter", ANY_STACK_TS));
+
+    //is->add(new TemplateIdentifier<StackIndexIterValue>("indexes", ANY_STACK_TS));
+    //is->add(new TemplateIdentifier<StackItemIterValue>("items", ANY_STACK_TS));
+
+    is->add(new Identity("null", ANY_STACK_TS));  // a null initializer that does nothing
+
+    record_type->set_inner_scope(is);
+    root_scope->add(stack_type);
 }
 
 
@@ -317,8 +361,26 @@ Scope *init_builtins() {
     iterable_type = new InterfaceType("Iterable", 1);
     root_scope->add(iterable_type);
 
-    //string_type = new RecordType("String");
-    //root_scope->add(string_type);
+    string_type = new StringType("String");
+    root_scope->add(string_type);
+
+    countup_type = new RecordType("Countup", 0);
+    root_scope->add(countup_type);
+
+    countdown_type = new RecordType("Countdown", 0);
+    root_scope->add(countdown_type);
+
+    item_type = new RecordType("Item", 1);
+    root_scope->add(item_type);
+
+    arrayelemiter_type = new RecordType("Arrayelem_iter", 1);
+    root_scope->add(arrayelemiter_type);
+    
+    arrayindexiter_type = new RecordType("Arrayindex_iter", 1);
+    root_scope->add(arrayindexiter_type);
+    
+    arrayitemiter_type = new RecordType("Arrayitem_iter", 1);
+    root_scope->add(arrayitemiter_type);
 
     // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
@@ -355,8 +417,15 @@ Scope *init_builtins() {
     INTEGER_ITERATOR_TS = { iterator_type, integer_type };
     ANY_ITERABLE_TS = { iterable_type, any_type };
     SAME_ITERABLE_TS = { iterable_type, same_type };
-    //STRING_TS = { string_type };
-    //STRING_LVALUE_TS = { lvalue_type, string_type };
+    STRING_TS = { string_type };
+    STRING_LVALUE_TS = { lvalue_type, string_type };
+    COUNTUP_TS = { countup_type };
+    COUNTDOWN_TS = { countdown_type };
+    ANY_ITEM_TS = { item_type, any_type };
+    SAME_ITEM_TS = { item_type, same_type };
+    SAME_ARRAYELEMITER_TS = { arrayelemiter_type, same_type };
+    SAME_ARRAYINDEXITER_TS = { arrayindexiter_type, same_type };
+    SAME_ARRAYITEMITER_TS = { arrayitemiter_type, same_type };
 
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -368,11 +437,11 @@ Scope *init_builtins() {
     Ss no_names = { };
     Ss value_names = { "value" };
 
-    init_string(root_scope);
+    implement_string(root_scope);
 
-    init_interfaces(root_scope);
+    implement_interfaces(root_scope);
 
-    init_iterators(root_scope);
+    implement_iterators(root_scope);
 
     // Integer operations
     Scope *integer_scope = integer_metatype->get_inner_scope(NO_TS.begin());
@@ -449,6 +518,7 @@ Scope *init_builtins() {
     Scope *ible_scope = implement(array_scope, SAME_ITERABLE_TS, "ible");
     ible_scope->add(new TemplateIdentifier<ArrayElemIterValue>("iter", ANY_ARRAY_REFERENCE_TS));
 
+    array_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REFERENCE_TS));
 

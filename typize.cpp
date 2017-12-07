@@ -25,6 +25,7 @@ class Function;
 
 class Value;
 class DeclarationValue;
+class GenericValue;
 
 class TypeSpec: public std::vector<Type *> {
 public:
@@ -118,6 +119,7 @@ Value *make_implementation_definition_value();
 Value *make_identity_value(Value *v);
 Value *make_equality_value(bool no, Value *v);
 Value *make_comparison_value(BitSetOp bs, Value *v);
+Value *make_wrapper_value(TypeSpec arg_ts, TypeSpec res_ts, std::string an, Value *p);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);

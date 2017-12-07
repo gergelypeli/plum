@@ -30,10 +30,17 @@ Type *class_metatype = NULL;
 Type *interface_metatype = NULL;
 Type *implementation_metatype = NULL;
 Type *string_type = NULL;
-//Type *array_iterator_type = NULL;
+Type *stack_type = NULL;
+Type *countup_type = NULL;
+Type *countdown_type = NULL;
+Type *item_type = NULL;
+Type *arrayelemiter_type = NULL;
+Type *arrayindexiter_type = NULL;
+Type *arrayitemiter_type = NULL;
 InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;
 InterfaceType *iterable_type = NULL;
+
 
 TypeSpec NO_TS;
 TypeSpec VOID_TS;
@@ -66,6 +73,8 @@ TypeSpec VOID_CODE_TS;
 TypeSpec BOOLEAN_CODE_TS;
 TypeSpec STRING_TS;
 TypeSpec STRING_LVALUE_TS;
+TypeSpec ANY_STACK_TS;
+TypeSpec ANY_STACK_LVALUE_TS;
 TypeSpec STREAMIFIABLE_TS;
 TypeSpec ANY_ITERATOR_TS;
 TypeSpec SAME_ITERATOR_TS;

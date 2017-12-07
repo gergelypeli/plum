@@ -99,11 +99,14 @@ public:
     }
     
     virtual Storage get_storage(Storage s) {
-        if (s.where != MEMORY)
-            throw INTERNAL_ERROR;  // all variable containers must use MEMORY
-            
         if (!xxx_is_allocated)
             throw INTERNAL_ERROR;
+
+        if (s.where == STACK && offset == 0)  // FIXME: this is a hack for array wrapper records only!
+            return Storage(STACK);
+
+        if (s.where != MEMORY)
+            throw INTERNAL_ERROR;  // all variable containers must use MEMORY
             
         //std::cerr << "Variable " << name << " offset is now " << offset << "\n";
         return Storage(where, s.address + offset);
@@ -303,6 +306,47 @@ public:
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return new T(cpivot, match);
+    }
+};
+
+
+class WrapperIdentifier: public Identifier {
+public:
+    TypeSpec arg_ts;
+    TypeSpec result_ts;
+    std::string pivot_name;
+    std::string operation_name;
+    std::string arg_name;
+    
+    WrapperIdentifier(std::string n,
+        TypeSpec pivot_ts, std::string pn,
+        TypeSpec ats, std::string an,
+        TypeSpec rts, std::string on)
+        :Identifier(n, pivot_ts) {
+        arg_ts = ats;
+        result_ts = rts;
+        pivot_name = pn;
+        arg_name = an;
+        operation_name = on;
+    }
+    
+    virtual Value *matched(Value *pivot, TypeMatch &match) {
+        if (!pivot)
+            throw INTERNAL_ERROR;
+            
+        if (pivot_name.size()) {
+            pivot = get_typespec(pivot).lookup_inner(pivot_name, pivot);
+            if (!pivot)
+                throw INTERNAL_ERROR;
+        }
+        
+        Value *operation = get_typespec(pivot).lookup_inner(operation_name, pivot);
+        if (!operation)
+            throw INTERNAL_ERROR;
+        
+        Value *wrapper = make_wrapper_value(arg_ts, result_ts, arg_name, operation);
+        
+        return wrapper;
     }
 };
 
