@@ -201,8 +201,10 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     
     for (TypeSpecIter tti = tt.begin(); tti != tt.end(); tti++) {
         if (*tti == same_type) {
-            if (match.size() < 2)
+            if (match.size() < 2) {
+                std::cerr << "No TypeMatch parameters while substituting Same!\n";
                 throw INTERNAL_ERROR;
+            }
                 
             for (TypeSpecIter si = match.at(1).begin(); si != match.at(1).end(); si++)
                 ts.push_back(*si);

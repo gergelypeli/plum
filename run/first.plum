@@ -329,13 +329,14 @@ start? :Function as:
     ss? String Array { "foo", "bar" }
     prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
-    ss push("baz")
-    prints("Pushed array length: {x}" { x: ss length })
-    prints("Pushed array has {x} and {y} and {z}" { x: ss[0], y: ss[1], z: ss[2] })
+    st? String Stack `empty
+    st push("baz")
+    prints("Pushed stack length: {x}" { x: st length })
+    prints("Pushed stack has {x}" { x: st[0] })
     
-    baz? ss pop
+    baz? st pop
     prints("Popped baz as {baz}" {})
-    prints("Popped array length: {x}" { x: ss length })
+    prints("Popped stack length: {x}" { x: st length })
     
     :if `true then:
         last? 0

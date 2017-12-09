@@ -390,6 +390,34 @@ public:
 };
 
 
+class StackType: public RecordType {
+public:
+    std::unique_ptr<DataScope> inner_scope;
+
+    StackType(std::string name)
+        :RecordType(name, 1) {
+        //inner_scope.reset(new DataScope);
+        //inner_scope->set_pivot_type_hint(TypeSpec { reference_type, this, any_type });
+    }
+    
+    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    //    return inner_scope.get();
+    //}
+
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+        TypeSpec ats = TypeSpec(tsi).unprefix(stack_type).prefix(array_type);
+        
+        Value *array_initializer = ats.lookup_initializer(name, scope);
+        
+        if (array_initializer)
+            return make_wrapper_value(VOID_TS, TypeSpec(tsi), NO_TS, array_initializer);
+
+        std::cerr << "No Stack initializer called " << name << "!\n";
+        return NULL;
+    }
+};
+
+
 class ClassType: public HeapType {
 public:
     DataScope *inner_scope;

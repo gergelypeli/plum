@@ -333,15 +333,20 @@ public:
     virtual Value *matched(Value *pivot, TypeMatch &match) {
         if (!pivot)
             throw INTERNAL_ERROR;
+        
+        TypeSpec ats = typesubst(arg_ts, match);
+        TypeSpec rts = typesubst(result_ts, match);
+        TypeSpec pcts = typesubst(pivot_cast_ts, match);
+        TypeSpec acts = typesubst(arg_cast_ts, match);
             
-        if (pivot_cast_ts != NO_TS)
-            pivot = make_unwrap_value(pivot_cast_ts, pivot);
+        if (pcts != NO_TS)
+            pivot = make_unwrap_value(pcts, pivot);
         
         Value *operation = get_typespec(pivot).lookup_inner(operation_name, pivot);
         if (!operation)
             throw INTERNAL_ERROR;
         
-        Value *wrapper = make_wrapper_value(arg_ts, result_ts, arg_cast_ts, operation);
+        Value *wrapper = make_wrapper_value(ats, rts, acts, operation);
         
         return wrapper;
     }

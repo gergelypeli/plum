@@ -363,6 +363,7 @@ public:
 #include "control.cpp"
 #include "stream.cpp"
 #include "iterator.cpp"
+#include "stack.cpp"
 
 
 TypeSpec get_typespec(Value *value) {
