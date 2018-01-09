@@ -199,9 +199,19 @@ public:
         tsi++;
         return (*tsi)->get_inner_scope(tsi);
     }
+
+    virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
+        tsi++;
+        return (*tsi)->get_virtual_table(tsi);
+    }
+
+    virtual Label get_virtual_table_label(TypeSpecIter tsi) {
+        tsi++;
+        return (*tsi)->get_virtual_table_label(tsi);
+    }
 };
 
-
+/*
 class BorrowedReferenceType: public Type {
 public:
     BorrowedReferenceType(std::string name)
@@ -302,7 +312,7 @@ public:
         return (*tsi)->get_inner_scope(tsi);
     }
 };
-
+*/
 
 class HeapType: public Type {
 public:

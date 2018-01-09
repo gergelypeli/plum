@@ -382,3 +382,4 @@ public:
 #include "basic.cpp"
 #include "reference.cpp"
 #include "record.cpp"
+#include "class.cpp"

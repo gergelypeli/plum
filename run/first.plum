@@ -109,12 +109,14 @@ XStringiterator? :Record as:
             :return $ string[$ index]
 
 
-Greetable? :Class
+Greetable? :Class as:
     greet? :Function as:
-        prints("Greetings!")
+        prints("Hello, I'm {me}!" { me: $ name })
 
+    number? Integer
+    name? String
     g? Greetable
-    
+
 
 start? :Function as:
     print(f(1, 2))
@@ -337,6 +339,11 @@ start? :Function as:
     baz? st pop
     prints("Popped baz as {baz}" {})
     prints("Popped stack length: {x}" { x: st length })
+
+    #gr? Greetable { }
+    gr? Greetable { 789, "not me, I'm you" }
+    #prints("Greetable is called: {x}" { x: gr name })
+    gr greet
     
     :if `true then:
         last? 0

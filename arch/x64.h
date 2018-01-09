@@ -494,6 +494,7 @@ public:
     void init_memory_management();
     void alloc_RAX_RBX();
     void realloc_RAX_RBX();
+    void memfree(Register reg);
     
     void alloc_array_RAX_RBX_RCX();
     void realloc_array_RAX_RBX_RCX();

@@ -454,13 +454,16 @@ public:
         if (vti >= 0) {
             if (!pivot)
                 throw INTERNAL_ERROR;
+
+            TypeSpec pts = pivot->ts.rvalue();
             
-            if (pivot->ts[0] != borrowed_type)
+            if (pts[0] != reference_type)  // Was: borrowed_type
                 throw INTERNAL_ERROR;
                 
-            x64->op(MOVQ, RBX, Address(RSP, passed_size - 8));
+            x64->op(MOVQ, RBX, Address(RSP, passed_size - 8));  // self pointer
+            x64->op(MOVQ, RBX, Address(RBX, 0));  // VMT pointer
             x64->op(CALL, Address(RBX, vti * 8));
-            std::cerr << "Will invoke virtual method of " << pivot->ts << " #" << vti << ".\n";
+            std::cerr << "Will invoke virtual method of " << pts << " #" << vti << ".\n";
         }
         else
             x64->op(CALL, function->x64_label);

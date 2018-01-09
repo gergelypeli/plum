@@ -135,11 +135,13 @@ public:
 
 void unwind_destroy_var(TypeSpec &ts, Storage s, X64 *x64) {
     if (s.where == ALIAS) {
+        std::cerr << "ALIAS vars are no longer used since records are returned by value!\n";
+        throw INTERNAL_ERROR;
         // Load the address, and destroy the result there
-        Register reg = RAX;  // FIXME: is this okay to clobber this register?
-        Storage t = Storage(MEMORY, Address(reg, 0));
-        ts.store(s, t, x64);
-        ts.destroy(t, x64);
+        //Register reg = RAX;  // FIXME: is this okay to clobber this register?
+        //Storage t = Storage(MEMORY, Address(reg, 0));
+        //ts.store(s, t, x64);
+        //ts.destroy(t, x64);
     }
     else
         ts.destroy(s, x64);
@@ -274,20 +276,35 @@ public:
                 
             reg = preferred.get_any();
             //std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
-            return clob.add(reg);
+            clob = clob.add(reg);
         }
-        else
-            return clob;
+        
+        if (pivot && pivot->ts.rvalue()[0] == reference_type) {
+            reg = preferred.get_any();
+            clob = clob.add(reg);
+        }
+        
+        return clob;
     }
     
     virtual Storage compile(X64 *x64) {
         Storage s;
         
-        if (pivot)
+        if (pivot) {
             s = pivot->compile(x64);
+            
+            if (pivot->ts.rvalue()[0] == reference_type) {
+                // FIXME: technically we must borrow a reference here, or the container
+                // may be destroyed before accessing this variable!
+                
+                pivot->ts.rvalue().store(s, Storage(REGISTER, reg), x64);
+                x64->decref(reg);
+                s = Storage(MEMORY, Address(reg, 0));
+            }
+        }
         else
             s = Storage(MEMORY, Address(RBP, 0));
-        
+
         Storage t = variable->get_storage(s);
         
         if (t.where == ALIAS) {
@@ -307,7 +324,7 @@ public:
     Register reg;
     
     RoleValue(Variable *v, Value *p)
-        :Value(v->var_ts.rvalue().unprefix(role_type).prefix(borrowed_type)) {
+        :Value(v->var_ts.rvalue().unprefix(role_type).prefix(reference_type)) {  // Was: borrowed_type
         variable = v;
         pivot.reset(p);
         reg = NOREG;
@@ -327,6 +344,8 @@ public:
         Storage s;
         
         if (pivot) {
+            // FIXME: this seems to be bogus, this is the static type of the pivot,
+            // not the dynamic type!
             Label vtl = pivot->ts.get_virtual_table_label();
             int vti = variable->virtual_index;
             
@@ -364,6 +383,7 @@ public:
 #include "stream.cpp"
 #include "iterator.cpp"
 #include "stack.cpp"
+#include "class.cpp"
 
 
 TypeSpec get_typespec(Value *value) {
@@ -525,6 +545,11 @@ Value *make_record_postinitializer_value(Value *v) {
 
 Value *make_class_definition_value() {
     return new ClassDefinitionValue();
+}
+
+
+Value *make_class_initializer_value(TypeMatch &match) {
+    return new ClassInitializerValue(match);
 }
 
 

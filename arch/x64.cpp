@@ -1142,10 +1142,7 @@ void X64::init_memory_management() {
         op(CALL, Address(reg, HEAP_FINALIZER_OFFSET));  // finalizer must protect RBX, too
         op(POPQ, reg);
         
-        pusha();
-        op(LEA, RDI, Address(reg, HEAP_HEADER_OFFSET));
-        op(CALL, memfree_label);
-        popa();
+        memfree(reg);
     
         code_label(dl);
         op(RET);
@@ -1192,6 +1189,13 @@ void X64::decref(Register reg) {
         throw X64_ERROR;
 
     op(CALL, decref_labels[reg]);
+}
+
+void X64::memfree(Register reg) {
+    pusha();
+    op(LEA, RDI, Address(reg, HEAP_HEADER_OFFSET));
+    op(CALL, memfree_label);
+    popa();
 }
 
 void X64::alloc_RAX_RBX() {

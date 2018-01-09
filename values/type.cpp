@@ -393,7 +393,7 @@ public:
         std::cerr << "Completing record definition.\n";
         if (!complete_as())
             return false;
-
+        /*
         std::vector<std::string> member_names;
         
         for (auto &d : inner_scope->contents) {
@@ -402,7 +402,7 @@ public:
             if (var && (var->var_ts[0] != lvalue_type || var->var_ts[1] != role_type))
                 member_names.push_back(var->name);
         }
-
+        */
         inner_scope->add(make_record_compare());
 
         record_type->set_inner_scope(inner_scope);
@@ -441,13 +441,13 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (kwargs.size() != 0) {
+        if (kwargs.size() != 1 || !kwargs["as"]) {
             std::cerr << "Whacky class!\n";
             return false;
         }
 
         class_type = new ClassType("<anonymous>", virtual_table_label);
-        TypeSpec cts = { borrowed_type, class_type };
+        TypeSpec cts = { reference_type, class_type };
 
         setup_inner(cts, scope);
 
@@ -461,9 +461,11 @@ public:
     }
 
     virtual bool complete_definition() {
-        std::cerr << "Completing class definition.\n";
+        std::cerr << "Completing class " << class_type->name << " definition.\n";
         if (!complete_as())
             return false;
+
+        inner_scope->reserve(8);  // VMT pointer
 
         class_type->set_inner_scope(inner_scope);
 

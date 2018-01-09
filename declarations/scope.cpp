@@ -4,12 +4,14 @@ class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
     unsigned size;
+    bool is_allocated;  // for sanity checks
     std::vector<Function *> virtual_table;
     bool virtual_scope;
     
     Scope()
         :Declaration() {
         size = 0;
+        is_allocated = false;
         virtual_scope = false;
     }
     
@@ -35,6 +37,9 @@ public:
     }
     
     unsigned get_size(TypeSpecIter tsi) {
+        if (!is_allocated)
+            throw INTERNAL_ERROR;
+            
         unsigned concrete_size = size % SAME_SIZE;
         
         if (size >= SAME_SIZE) {
@@ -85,6 +90,8 @@ public:
         // TODO: this may not be correct for all kind of scopes
         for (auto &content : contents)
             content->allocate();
+            
+        is_allocated = true;
     }
 
     virtual int reserve(unsigned size) {
@@ -301,6 +308,7 @@ public:
         
         //std::cerr << "CodeScope reserving " << min_size << "+" << (max_size - min_size) << " bytes.\n";
         outer_scope->reserve(max_size);
+        is_allocated = true;
     }
 
     virtual int reserve(unsigned s) {
@@ -443,6 +451,8 @@ public:
         // Backward, because the last arguments align to [RBP+16]
         for (int i = contents.size() - 1; i >= 0; i--)
             contents[i]->allocate();
+            
+        is_allocated = true;
     }
 
     virtual int reserve(unsigned s) {
@@ -561,6 +571,8 @@ public:
 
         body_scope->reserve(8);  // Reserve [RBP - 8] for local exceptions
         body_scope->allocate();
+        
+        is_allocated = true;
     }
     
     virtual unsigned get_frame_size() {

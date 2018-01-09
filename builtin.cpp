@@ -334,8 +334,8 @@ Scope *init_builtins() {
     reference_type = new ReferenceType("Reference");
     root_scope->add(reference_type);
 
-    borrowed_type = new BorrowedReferenceType("Borrowed");
-    root_scope->add(borrowed_type);
+    //borrowed_type = new BorrowedReferenceType("Borrowed");
+    //root_scope->add(borrowed_type);
     
     array_type = new ArrayType("Array");
     root_scope->add(array_type);

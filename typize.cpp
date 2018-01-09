@@ -114,6 +114,7 @@ Value *make_record_initializer_value(TypeMatch &match);
 Value *make_record_preinitializer_value(TypeSpec ts);
 Value *make_record_postinitializer_value(Value *v);
 Value *make_class_definition_value();
+Value *make_class_initializer_value(TypeMatch &match);
 Value *make_interface_definition_value();
 Value *make_implementation_definition_value();
 Value *make_identity_value(Value *v);
