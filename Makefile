@@ -20,6 +20,7 @@ TESTSOURCE = run/test.c
 TESTOBJECT = run/test.o
 TESTMODULE = run/mymodule.o
 TESTPLUM   = run/first.plum
+TESTLOG    = run/plum.log
 
 exe: uncore $(EXE)
 
@@ -39,7 +40,7 @@ $(TESTOBJECT): $(TESTSOURCE)
 	@gcc $(CFLAGS) -c -o $(TESTOBJECT) $(TESTSOURCE)
 
 $(TESTMODULE): $(TESTPLUM) $(EXE)
-	@$(EXE) $(TESTPLUM) $(TESTMODULE)
+	@$(EXE) $(TESTPLUM) $(TESTMODULE) # 2>&1 | tee $(TESTLOG)
 
 clean:
 	@rm -f $(EXE) $(TEST) $(TESTOBJECT) $(TESTMODULE)

@@ -163,6 +163,26 @@ Variable *variable_cast(Declaration *decl) {
 }
 
 
+class PartialVariable: public Variable {
+public:
+    std::set<std::string> initialized_member_names;
+    
+    PartialVariable(std::string name, TypeSpec pts, TypeSpec vts)
+        :Variable(name, pts, vts) {
+    }
+
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_partial_variable_value(this, cpivot, match);
+    }
+    
+    void be_initialized(std::string name) {
+        initialized_member_names.insert(name);
+    }
+    
+    bool is_initialized(std::string name) {
+        return initialized_member_names.count(name) == 1;
+    }
+};
 
 
 class Function: public Identifier {

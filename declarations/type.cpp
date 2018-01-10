@@ -274,6 +274,11 @@ public:
         return (*tsi)->get_virtual_table_label(tsi);
     }
 
+    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {
+        tsi++;
+        return (*tsi)->lookup_inner(tsi, n, v);
+    }
+    
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
         tsi++;
         return (*tsi)->get_inner_scope(tsi);

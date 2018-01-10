@@ -250,7 +250,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     TypeMatch match;  // kinda unnecessary
     Value *ret = make_variable_value(interpolated_var, NULL, match);
     //ret = new StringReallocValue(ret, match);
-    ret = ret->ts.lookup_inner("realloc", ret);  // FIXME: missing check, but at least no arguments
+    ret = ret->lookup_inner("realloc");  // FIXME: missing check, but at least no arguments
     block->add_statement(ret, true);
     
     return make_code_scope_value(block, code_scope);

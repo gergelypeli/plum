@@ -97,6 +97,10 @@ public:
     virtual bool complete_definition() {
         return true;
     }
+    
+    virtual Value *lookup_inner(std::string name) {
+        return ts.lookup_inner(name, this);
+    }
 };
 
 
@@ -317,6 +321,25 @@ public:
 };
 
 
+class PartialVariableValue: public VariableValue {
+public:
+    PartialVariable *partial_variable;
+    
+    PartialVariableValue(PartialVariable *pv, Value *p, TypeMatch &match)
+        :VariableValue(pv, p, match) {
+        partial_variable = pv;
+    }
+    
+    virtual void be_initialized(std::string name) {
+        partial_variable->be_initialized(name);
+    }
+    
+    virtual bool is_initialized(std::string name) {
+        return partial_variable->is_initialized(name);
+    }
+};
+
+
 class RoleValue: public Value {
 public:
     Variable *variable;
@@ -393,6 +416,20 @@ TypeSpec get_typespec(Value *value) {
 
 Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match) {
     return new VariableValue(decl, pivot, match);
+}
+
+
+Value *make_partial_variable_value(PartialVariable *decl, Value *pivot, TypeMatch &match) {
+    return new PartialVariableValue(decl, pivot, match);
+}
+
+
+bool partial_variable_is_initialized(std::string name, Value *pivot) {
+    PartialVariableValue *pv = dynamic_cast<PartialVariableValue *>(pivot);
+    if (!pv)
+        throw INTERNAL_ERROR;
+        
+    return pv->is_initialized(name);
 }
 
 

@@ -110,6 +110,10 @@ XStringiterator? :Record as:
 
 
 Greetable? :Class as:
+    __init__? :Function as:
+        prints("I'm here.")
+        $ number = 0
+        
     greet? :Function as:
         prints("Hello, I'm {me}!" { me: $ name })
 

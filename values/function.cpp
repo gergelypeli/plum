@@ -85,7 +85,7 @@ public:
     }
 
     virtual bool complete_definition() {
-        std::cerr << "Completing definition of function body.\n";
+        std::cerr << "Completing definition of function body " << function->name << ".\n";
         Scope *bs = fn_scope->add_body_scope();
         
         if (deferred_body_expr) {
@@ -179,6 +179,23 @@ public:
             }
         }
 
+        // FIXME: hack for now until :Initializer is added
+        if (name == "__init__") {
+            Scope *ss = fn_scope->self_scope;
+            
+            if (scope->is_pure()) {
+                TypeSpec pivot_ts = scope->pivot_type_hint();
+                std::cerr << "XXX class pivot type hint is " << pivot_ts << ".\n";
+                
+                if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
+                    pivot_ts = pivot_ts.unprefix(reference_type).prefix(partial_reference_type);
+                    ss->remove(ss->contents.back().get());
+                    ss->add(new PartialVariable("$", NO_TS, pivot_ts));
+                    std::cerr << "XXX Sneakily replaced $ with a partial " << pivot_ts << ".\n";
+                }
+            }
+        }
+        
         // Not returned, but must be processed
         for (auto &d : fn_scope->self_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too

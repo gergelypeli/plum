@@ -195,6 +195,9 @@ bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec 
 
 
 Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+    if (!inner_scope)
+        return NULL;
+
     for (auto &d : inner_scope->contents) {
         ImplementationType *imp = dynamic_cast<ImplementationType *>(d.get());
 

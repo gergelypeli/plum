@@ -21,6 +21,7 @@ class TryScope;
 class EvalScope;
 class FunctionScope;
 class Variable;
+class PartialVariable;
 class Function;
 
 class Value;
@@ -63,6 +64,7 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, TypeSpec *context, Variable *arg_var = NULL);
+bool partial_variable_is_initialized(std::string name, Value *pivot);
 
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
@@ -84,6 +86,7 @@ bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 void unprefix_value(Value *v);
 
 Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match);
+Value *make_partial_variable_value(PartialVariable *decl, Value *pivot, TypeMatch &match);
 Value *make_role_value(Variable *decl, Value *pivot);
 Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match);
 Value *make_type_value(TypeSpec ts);
@@ -146,7 +149,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
 
     if (!value) {
         if (pivot)
-            value = pivot->ts.lookup_inner(name, pivot);
+            value = pivot->lookup_inner(name);
     }
 
     if (!value) {
@@ -185,8 +188,10 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     }
     
     // TODO: we should print the definition pivot type, not the value type
-    if (value)
+    if (value) {
         std::cerr << "Found       " << get_typespec(pivot) << " " << name << " returning " << value->ts << ".\n";
+        //std::cerr << "... type " << typeid(*value).name() << ".\n";
+    }
         
     return value;
 }
