@@ -107,12 +107,21 @@ public:
     }
     
     bool complete_as() {
+        // Type bodies may refer to their own type name, so they must be deferred
         data_value.reset(new DataBlockValue(inner_scope));
 
         for (Expr *expr : deferred_exprs)
             if (!data_value->check_statement(expr))
                 return false;
 
+        return true;
+    }
+    
+    bool complete(Type *t = NULL) {
+        // Must complete records/classes before compiling method bodies
+        if (t)
+            t->complete_type();
+            
         return data_value->complete_definition();
     }
 };
@@ -396,10 +405,7 @@ public:
 
         inner_scope->add(make_record_compare());
 
-        record_type->complete_type();
-
-        return true;
-        
+        return complete(record_type);
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -457,9 +463,7 @@ public:
 
         inner_scope->reserve(8);  // VMT pointer
 
-        class_type->complete_type();
-
-        return true;
+        return complete(class_type);
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -523,9 +527,7 @@ public:
             return false;
         }
         
-        interface_type->complete_type();
-
-        return true;
+        return complete(interface_type);
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -651,9 +653,7 @@ public:
             }
         }
 
-        implementation_type->complete_type();
-
-        return true;
+        return complete(implementation_type);
     }
     
     virtual Regs precompile(Regs preferred) {

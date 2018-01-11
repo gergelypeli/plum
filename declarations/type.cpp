@@ -21,15 +21,26 @@ public:
     }
     
     virtual void set_outer_scope(Scope *os) {
+        // Make sure the inner scope is added first, because the removal only works
+        // on the type, when it is the last declaration is a scope.
+        // FIXME: this can't be true for the builtin types, where the Type is added
+        // first, and the inner scope much later...
+        
+        if (inner_scope && os)
+            os->add(inner_scope);
+            
         Declaration::set_outer_scope(os);
         
-        if (inner_scope)
-            os->add(inner_scope);  // We shouldn't remove Type-s from their scope, so os != NULL
+        if (inner_scope && !os)
+            inner_scope->outer_scope->remove(inner_scope);
     }
     
     virtual DataScope *make_inner_scope(TypeSpec pts) {
         if (inner_scope)
             throw INTERNAL_ERROR;
+            
+        //if (outer_scope)
+        //    throw INTERNAL_ERROR;  // Just to make sure we can keep the right order
             
         inner_scope = new DataScope;
         inner_scope->set_pivot_type_hint(pts);
@@ -195,6 +206,9 @@ public:
             
         Scope *inner_scope = get_inner_scope(tsi);
         return find_implementation(inner_scope, match, target, orig, ifts);
+    }
+    
+    virtual void complete_type() {
     }
 };
 

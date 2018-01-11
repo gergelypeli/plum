@@ -29,6 +29,10 @@ public:
     }
     
     virtual void set_outer_scope(Scope *os) {
+        // Must first remove then add
+        if (outer_scope && os)
+            throw INTERNAL_ERROR;
+            
         outer_scope = os;
     }
 

@@ -28,6 +28,7 @@ class Function;
 class Value;
 class DeclarationValue;
 class GenericValue;
+class PartialVariableValue;
 
 class TypeSpec: public std::vector<Type *> {
 public:
@@ -66,6 +67,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, TypeSpec *context, Variable *arg_var = NULL);
 bool partial_variable_is_initialized(std::string name, Value *pivot);
+Variable *partial_class_get_member_var(TypeSpec var_ts, std::string name);
 
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
@@ -98,6 +100,7 @@ Value *make_yield_value(EvalScope *es);
 Value *make_scalar_conversion_value(Value *p);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name, TypeSpec *context);
+Value *make_partial_declaration_value(std::string name, PartialVariableValue *pivot);
 Value *make_basic_value(TypeSpec ts, int number);
 Value *make_string_literal_value(std::string text);
 Value *make_code_scope_value(Value *value, CodeScope *code_scope);
@@ -268,17 +271,38 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     }
     else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         
-        value = make_declaration_value(name, context);
-        value->set_token(expr->token);
-        bool ok = value->check(expr->args, expr->kwargs, scope);
+        if (p) {
+            PartialVariableValue *pvv = dynamic_cast<PartialVariableValue *>(p);
+            if (!pvv) {
+                std::cerr << "Invalid declaration!\n";
+                throw TYPE_ERROR;
+            }
+            
+            value = make_partial_declaration_value(name, pvv);
+            value->set_token(expr->token);
+            bool ok = value->check(expr->args, expr->kwargs, scope);
         
-        if (!ok) {
-            std::cerr << "Couldn't declare " << name << "!\n";
-            throw TYPE_ERROR;
-        }
+            if (!ok) {
+                std::cerr << "Couldn't partial declare " << name << "!\n";
+                throw TYPE_ERROR;
+            }
 
-        std::cerr << "Declared " << name << " as " << value->ts << ".\n";
+            std::cerr << "Partial declared " << name << " as " << value->ts << ".\n";
+        }
+        else {
+            value = make_declaration_value(name, context);
+            value->set_token(expr->token);
+            bool ok = value->check(expr->args, expr->kwargs, scope);
+        
+            if (!ok) {
+                std::cerr << "Couldn't declare " << name << "!\n";
+                throw TYPE_ERROR;
+            }
+
+            std::cerr << "Declared " << name << " as " << value->ts << ".\n";
+        }
     }
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;

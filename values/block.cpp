@@ -368,3 +368,84 @@ Declaration *declaration_get_decl(DeclarationValue *dv) {
 Variable *declaration_get_var(DeclarationValue *dv) {
     return dv->get_var();
 }
+
+
+class PartialDeclarationValue: public Value {
+public:
+    std::string name;
+    Variable *member_var;
+    std::unique_ptr<PartialVariableValue> partial;
+    std::unique_ptr<Value> value;
+    
+    PartialDeclarationValue(std::string n, PartialVariableValue *p)
+        :Value(VOID_TS) {
+        name = n;
+        partial.reset(p);
+        member_var = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() > 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky partial declaration!\n";
+            return false;
+        }
+
+        if (partial->is_initialized(name)) {
+            std::cerr << "Member already partially initialized: " << name << "!\n";
+            return false;
+        }
+        
+        partial->be_initialized(name);
+        member_var = partial->var_initialized(name);
+        
+        if (!member_var) {
+            std::cerr << "No member to partially initialize: " << name << "!\n";
+            return false;
+        }
+
+        TypeSpec member_ts = member_var->var_ts.rvalue();
+        std::cerr << "Trying to partial declare " << name << "\n";
+        
+        if (args.size() == 0) {
+            std::cerr << "Partially declaring with default value.\n";
+        }
+        else {
+            Value *v = typize(args[0].get(), scope, &member_ts);
+            TypeMatch match;
+            
+            if (!typematch(member_ts, v, match)) {
+                std::cerr << "Partial initialization with wrong type: " << name << "!\n";
+                return false;
+            }
+
+            value.reset(v);
+        }
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        value->precompile(preferred);
+        return Regs::all();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s;
+        
+        if (value)
+            s = value->compile(x64);
+            
+        Storage t = partial->compile(x64);
+        if (t.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        Register reg = (Regs::all() & ~t.regs()).get_any();
+        
+        x64->op(MOVQ, reg, t.address);
+        t = member_var->get_storage(Storage(MEMORY, Address(reg, 0)));
+        
+        // Use the value to initialize the variable, then return the variable
+        member_var->var_ts.create(s, t, x64);
+        return Storage();
+    }
+};

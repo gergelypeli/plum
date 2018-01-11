@@ -182,6 +182,10 @@ public:
     bool is_initialized(std::string name) {
         return initialized_member_names.count(name) == 1;
     }
+    
+    Variable *var_initialized(std::string name) {
+        return partial_class_get_member_var(var_ts, name);
+    }
 };
 
 

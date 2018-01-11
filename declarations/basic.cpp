@@ -263,7 +263,10 @@ class IntegerType: public BasicType {
 public:
     IntegerType(std::string n, unsigned s, bool iu)
         :BasicType(n, s, iu) {
-        inner_scope = integer_metatype->get_inner_scope(NO_TS.begin());
+    }
+    
+    DataScope *get_inner_scope(TypeSpecIter tsi) {
+        return integer_metatype->get_inner_scope(tsi);
     }
 };
 
@@ -317,7 +320,6 @@ public:
         :BasicType(n, 1, true) {  // TODO: different sizes based on the keyword count!
         keywords = kw;
         stringifications_label = sl;
-        inner_scope = enumeration_metatype->get_inner_scope(NO_TS.begin());
     }
     
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
@@ -326,6 +328,10 @@ public:
                 return make_basic_value(TypeSpec(tsi), i);
         
         return NULL;
+    }
+    
+    DataScope *get_inner_scope(TypeSpecIter tsi) {
+        return enumeration_metatype->get_inner_scope(tsi);
     }
 };
 
@@ -337,7 +343,6 @@ public:
     TreenumerationType(std::string n, std::vector<std::string> kw, Label sl, Label tl)
         :EnumerationType(n, kw, sl) {
         tails_label = tl;
-        inner_scope = treenumeration_metatype->get_inner_scope(NO_TS.begin());
     }
     
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
@@ -346,5 +351,9 @@ public:
                 return make_basic_value(TypeSpec(tsi), i);
         
         return NULL;
+    }
+    
+    DataScope *get_inner_scope(TypeSpecIter tsi) {
+        return treenumeration_metatype->get_inner_scope(tsi);
     }
 };

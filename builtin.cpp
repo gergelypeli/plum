@@ -120,7 +120,7 @@ void define_iterators(Scope *root_scope) {
         implement(cis, INTEGER_ITERATOR_TS, "iter", { next_fn });
         
         counter_type->complete_type();
-        root_scope->add(counter_type);
+        //root_scope->add(counter_type);
     }
 
     // Item type for itemized iteration
@@ -132,7 +132,7 @@ void define_iterators(Scope *root_scope) {
     itis->add(new Variable("value", ANY_ITEM_TS, SAME_LVALUE_TS));
     
     item_type->complete_type();
-    root_scope->add(item_type);
+    //root_scope->add(item_type);
     
     TypeSpec SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, same_type };
 
@@ -164,7 +164,7 @@ void define_iterators(Scope *root_scope) {
         }
         
         aiter_type->complete_type();
-        root_scope->add(aiter_type);
+        //root_scope->add(aiter_type);
     }
 }
 

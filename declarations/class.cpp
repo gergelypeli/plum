@@ -98,6 +98,14 @@ public:
         return member_names;
     }
 
+    virtual Variable *get_member_var(std::string name) {
+        for (unsigned i = 0; i < member_names.size(); i++)
+            if (member_names[i] == name)
+                return member_variables[i];
+                
+        return NULL;
+    }
+
     virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
         return inner_scope->get_virtual_table();
     }
@@ -106,3 +114,14 @@ public:
         return virtual_table_label;
     }
 };
+
+
+Variable *partial_class_get_member_var(TypeSpec var_ts, std::string name) {
+    if (var_ts[0] != partial_reference_type) {
+        std::cerr << "Partial variable with " << var_ts << "!\n";
+        throw INTERNAL_ERROR;
+    }
+        
+    ClassType *class_type = dynamic_cast<ClassType *>(var_ts[1]);
+    return class_type->get_member_var(name);
+}

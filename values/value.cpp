@@ -337,6 +337,10 @@ public:
     virtual bool is_initialized(std::string name) {
         return partial_variable->is_initialized(name);
     }
+    
+    virtual Variable *var_initialized(std::string name) {
+        return partial_variable->var_initialized(name);
+    }
 };
 
 
@@ -470,6 +474,11 @@ Value *make_yield_value(EvalScope *es) {
 
 Value *make_declaration_value(std::string name, TypeSpec *context) {
     return new DeclarationValue(name, context);
+}
+
+
+Value *make_partial_declaration_value(std::string name, PartialVariableValue *pivot) {
+    return new PartialDeclarationValue(name, pivot);
 }
 
 

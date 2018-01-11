@@ -179,8 +179,15 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     else if (node.type == Node::DECLARATION) {
         Expr *e = new Expr(Expr::DECLARATION, node.token, node.text);
         
-        if (node.left)
-            throw TUPLE_ERROR;
+        if (node.left) {
+            Expr *l = tupleize(nodes, node.left);
+            if (!l) {
+                std::cerr << "Declaration without meaningful pivot: " << node.token << "!\n";
+                throw TUPLE_ERROR;
+            }
+        
+            e->set_pivot(l);
+        }
         
         if (node.right)
             tupleize_into(e, nodes, node.right);
