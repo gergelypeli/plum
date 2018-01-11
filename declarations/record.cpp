@@ -1,20 +1,17 @@
 
 class RecordType: public Type {
 public:
-    Scope *inner_scope;
-    
+    //Scope *inner_scope;
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
 
     RecordType(std::string n, int pc)
         :Type(n, pc) {
-        inner_scope = NULL;
+        //inner_scope = is;
     }
 
-    virtual void set_inner_scope(Scope *is) {
-        inner_scope = is;
-        
+    virtual void complete_type() {
         for (auto &c : inner_scope->contents) {
             Variable *v = dynamic_cast<Variable *>(c.get());
             
@@ -259,9 +256,9 @@ public:
         }
     }
     
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        return inner_scope;
-    }
+    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    //    return inner_scope;
+    //}
     
     virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
         std::vector<TypeSpec> tss;
@@ -392,7 +389,7 @@ public:
 
 class StackType: public RecordType {
 public:
-    std::unique_ptr<DataScope> inner_scope;
+    //std::unique_ptr<DataScope> inner_scope;
 
     StackType(std::string name)
         :RecordType(name, 1) {

@@ -2,16 +2,14 @@
 class InterfaceType: public Type {
 public:
     std::vector<Function *> member_functions;
-    DataScope *inner_scope;
+    //DataScope *inner_scope;
     
     InterfaceType(std::string name, int pc)
         :Type(name, pc) {
-        inner_scope = NULL;
+        //inner_scope = is;
     }
 
-    virtual void set_inner_scope(DataScope *is) {
-        inner_scope = is;
-        
+    virtual void complete_type() {
         for (auto &c : inner_scope->contents) {
             Function *f = dynamic_cast<Function *>(c.get());
             
@@ -68,32 +66,29 @@ public:
         return NULL;
     }
 
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        return inner_scope;
-    }
+    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    //    return inner_scope;
+    //}
 };
 
 
 
 class ImplementationType: public Type {
 public:
-    DataScope *inner_scope;
+    //DataScope *inner_scope;
     std::vector<Function *> member_functions;
     TypeSpec interface_ts;
     TypeSpec implementor_ts;
 
     ImplementationType(std::string name, TypeSpec irts, TypeSpec ifts)
         :Type(name, 1) {
+        //inner_scope = is;
         interface_ts = ifts;
         implementor_ts = irts;
-        inner_scope = NULL;
     }
 
-    virtual void set_inner_scope(DataScope *is) {
-        // NOTE: this is called twice to give a preview of the inner scope for
-        // external declarations.
+    virtual void complete_type() {
         // FIXME: check order!
-        inner_scope = is;
         
         for (auto &c : inner_scope->contents) {
             Function *f = dynamic_cast<Function *>(c.get());
@@ -170,9 +165,9 @@ public:
         return inner_scope->lookup(n, pivot);
     }
     
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        return inner_scope;
-    }
+    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    //    return inner_scope;
+    //}
     
     virtual TypeSpec get_interface_ts(TypeMatch &match) {
         return typesubst(interface_ts, match);

@@ -88,10 +88,10 @@ public:
         inner_scope = NULL;
     }
 
-    void setup_inner(TypeSpec pts, Scope *scope) {
-        inner_scope = new DataScope;
-        scope->add(inner_scope);
-        inner_scope->set_pivot_type_hint(pts);
+    void setup_inner(Type *t, TypeSpec pts) {
+        inner_scope = t->make_inner_scope(pts);
+        //scope->add(inner_scope);
+        //inner_scope->set_pivot_type_hint(pts);
     }
 
     void defer_as(Kwargs &kwargs) {
@@ -379,7 +379,7 @@ public:
         record_type = new RecordType("<anonymous>", 0);
         TypeSpec rts = { record_type };
 
-        setup_inner(rts.lvalue(), scope);
+        setup_inner(record_type, rts.lvalue());
         
         inner_scope->set_meta_scope(record_metatype->get_inner_scope(rts.begin()));
 
@@ -393,19 +393,10 @@ public:
         std::cerr << "Completing record definition.\n";
         if (!complete_as())
             return false;
-        /*
-        std::vector<std::string> member_names;
-        
-        for (auto &d : inner_scope->contents) {
-            Variable *var = dynamic_cast<Variable *>(d.get());
-            
-            if (var && (var->var_ts[0] != lvalue_type || var->var_ts[1] != role_type))
-                member_names.push_back(var->name);
-        }
-        */
+
         inner_scope->add(make_record_compare());
 
-        record_type->set_inner_scope(inner_scope);
+        record_type->complete_type();
 
         return true;
         
@@ -449,8 +440,7 @@ public:
         class_type = new ClassType("<anonymous>", virtual_table_label);
         TypeSpec cts = { reference_type, class_type };
 
-        setup_inner(cts, scope);
-
+        setup_inner(class_type, cts);
         inner_scope->be_virtual_scope();
         inner_scope->set_meta_scope(class_metatype->get_inner_scope(cts.begin()));
 
@@ -467,7 +457,7 @@ public:
 
         inner_scope->reserve(8);  // VMT pointer
 
-        class_type->set_inner_scope(inner_scope);
+        class_type->complete_type();
 
         return true;
     }
@@ -509,7 +499,7 @@ public:
 
         interface_type = new InterfaceType("<anonymous>", 0);
 
-        setup_inner(ANY_TS, scope);
+        setup_inner(interface_type, ANY_TS);
         //inner_scope->set_meta_scope(_metatype->get_inner_scope());
 
         defer_as(kwargs);
@@ -533,7 +523,7 @@ public:
             return false;
         }
         
-        interface_type->set_inner_scope(inner_scope);
+        interface_type->complete_type();
 
         return true;
     }
@@ -584,10 +574,9 @@ public:
         interface_ts = match[1];  // NOTE: May still contain Some types
         implementation_type = new ImplementationType("<anonymous>", implementor_ts, interface_ts);
 
-        setup_inner(implementor_ts, scope);
-
+        setup_inner(implementation_type, implementor_ts);
         //inner_scope->set_meta_scope(_metatype->get_inner_scope());
-        implementation_type->set_inner_scope(inner_scope);  // for preview only
+        //implementation_type->set_inner_scope(inner_scope);  // for preview only
 
         defer_as(kwargs);
             
@@ -662,7 +651,7 @@ public:
             }
         }
 
-        implementation_type->set_inner_scope(inner_scope);
+        implementation_type->complete_type();
 
         return true;
     }

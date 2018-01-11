@@ -1,7 +1,7 @@
 
 class ClassType: public HeapType {
 public:
-    DataScope *inner_scope;
+    //DataScope *inner_scope;
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
@@ -11,12 +11,10 @@ public:
     ClassType(std::string name, Label vtl)
         :HeapType(name, 0) {
         virtual_table_label = vtl;
-        inner_scope = NULL;
+        //inner_scope = NULL;
     }
 
-    virtual void set_inner_scope(DataScope *is) {
-        inner_scope = is;
-        
+    virtual void complete_type() {
         for (auto &c : inner_scope->contents) {
             Variable *v = dynamic_cast<Variable *>(c.get());
             
@@ -91,9 +89,9 @@ public:
         return NULL;
     }
 
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        return inner_scope;
-    }
+    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    //    return inner_scope;
+    //}
 
     virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
         std::vector<TypeSpec> tss;

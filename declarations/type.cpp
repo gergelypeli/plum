@@ -4,10 +4,12 @@ class Type: public Declaration {
 public:
     std::string name;
     unsigned parameter_count;
+    DataScope *inner_scope;  // Will be owned by the outer scope
     
     Type(std::string n, unsigned pc) {
         name = n;
         parameter_count = pc;
+        inner_scope = NULL;
     }
     
     virtual unsigned get_parameter_count() {
@@ -16,6 +18,29 @@ public:
     
     virtual void set_name(std::string n) {
         name = n;
+    }
+    
+    virtual void set_outer_scope(Scope *os) {
+        Declaration::set_outer_scope(os);
+        
+        if (inner_scope)
+            os->add(inner_scope);  // We shouldn't remove Type-s from their scope, so os != NULL
+    }
+    
+    virtual DataScope *make_inner_scope(TypeSpec pts) {
+        if (inner_scope)
+            throw INTERNAL_ERROR;
+            
+        inner_scope = new DataScope;
+        inner_scope->set_pivot_type_hint(pts);
+        
+        // TODO: awkward ordering may be an issue, the inner scope may be added much later
+        // as the Type to the outer scope. Probably Type itself should be a Scope.
+        // Maybe its own inner?
+        if (outer_scope)
+            outer_scope->add(inner_scope);
+            
+        return inner_scope;
     }
     
     virtual Value *match(std::string name, Value *pivot) {
@@ -151,7 +176,7 @@ public:
     }
     
     virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        return NULL;
+        return inner_scope;
     }
     
     virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
@@ -290,13 +315,14 @@ class MetaType: public Type {
 public:
     typedef Value *(*TypeDefinitionFactory)();
     TypeDefinitionFactory factory;
-    std::unique_ptr<DataScope> inner_scope;
+    //std::unique_ptr<DataScope> inner_scope;
     
     MetaType(std::string name, TypeDefinitionFactory f)
         :Type(name, 0) {
         factory = f;
-        inner_scope.reset(new DataScope);
-        inner_scope->set_pivot_type_hint(TypeSpec { any_type });
+        //inner_scope.reset(new DataScope);
+        //inner_scope->set_pivot_type_hint(TypeSpec { any_type });
+        make_inner_scope(TypeSpec { any_type });
     }
 
     virtual Value *match(std::string name, Value *pivot) {
@@ -313,9 +339,9 @@ public:
         inner_scope->allocate();
     }
     
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        return inner_scope.get();
-    }
+    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    //    return inner_scope.get();
+    //}
 };
 
 

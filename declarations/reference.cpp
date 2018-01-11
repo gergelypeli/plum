@@ -354,17 +354,18 @@ bool is_heap_type(Type *t) {
 
 class ArrayType: public HeapType {
 public:
-    std::unique_ptr<DataScope> inner_scope;
+    //std::unique_ptr<DataScope> inner_scope;
 
     ArrayType(std::string name)
         :HeapType(name, 1) {
-        inner_scope.reset(new DataScope);
-        inner_scope->set_pivot_type_hint(TypeSpec { reference_type, this, any_type });
+        //inner_scope.reset(new DataScope);
+        //inner_scope->set_pivot_type_hint(TypeSpec { reference_type, this, any_type });
+        make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
     
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        return inner_scope.get();
-    }
+    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    //    return inner_scope.get();
+    //}
 
     virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
         TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
