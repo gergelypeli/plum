@@ -123,61 +123,6 @@ public:
         std::cerr << "This scope has no content finalization!\n";
         throw INTERNAL_ERROR;
     }
-    
-    virtual bool intrude(Scope *intruder, Marker before, Declaration *escape) {
-        // Insert a Scope taking all remaining declarations, except the first or the last one
-
-        if (before.scope != this)
-            throw INTERNAL_ERROR;
-
-        std::vector<Declaration *> victims;
-
-        // If last is given, but not in contents, then we have a problem
-        while (before.last ? contents.back().get() != before.last : contents.size() > 0) {
-            Declaration *d = contents.back().release();
-            contents.pop_back();
-            victims.push_back(d);
-        }
-
-        if (victims.size() == 0) {
-            if (escape)
-                throw INTERNAL_ERROR;
-                
-            return false;
-        }
-        else if (victims.size() == 1 && escape) {
-            if (victims.back() != escape)
-                throw INTERNAL_ERROR;
-                
-            add(victims.back());
-            victims.pop_back();
-            return false;
-        }
-        else {
-            if (escape && escape != victims.front() && escape != victims.back())
-                throw INTERNAL_ERROR;
-
-            if (escape == victims.back()) {
-                add(escape);
-                victims.pop_back();
-            }
-
-            add(intruder);
-
-            while (victims.size() > 0 && victims.back() != escape) {
-                Declaration *d = victims.back();
-                victims.pop_back();
-                intruder->add(d);
-            }
-        
-            if (victims.size() > 0) {
-                add(escape);
-                victims.pop_back();
-            }
-            
-            return true;
-        }
-    }
 
     virtual bool is_virtual_scope() {
         return virtual_scope;

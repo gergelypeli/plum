@@ -175,7 +175,7 @@ public:
         return NULL;
     }
     
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    virtual DataScope *get_inner_scope(TypeSpecIter tsi) {
         return inner_scope;
     }
     
@@ -304,7 +304,7 @@ public:
         return (*tsi)->lookup_inner(tsi, n, v);
     }
     
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
+    virtual DataScope *get_inner_scope(TypeSpecIter tsi) {
         tsi++;
         return (*tsi)->get_inner_scope(tsi);
     }
@@ -315,13 +315,10 @@ class MetaType: public Type {
 public:
     typedef Value *(*TypeDefinitionFactory)();
     TypeDefinitionFactory factory;
-    //std::unique_ptr<DataScope> inner_scope;
     
     MetaType(std::string name, TypeDefinitionFactory f)
         :Type(name, 0) {
         factory = f;
-        //inner_scope.reset(new DataScope);
-        //inner_scope->set_pivot_type_hint(TypeSpec { any_type });
         make_inner_scope(TypeSpec { any_type });
     }
 
@@ -338,10 +335,6 @@ public:
     virtual void allocate() {
         inner_scope->allocate();
     }
-    
-    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-    //    return inner_scope.get();
-    //}
 };
 
 

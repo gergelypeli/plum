@@ -2,11 +2,9 @@
 class InterfaceType: public Type {
 public:
     std::vector<Function *> member_functions;
-    //DataScope *inner_scope;
     
     InterfaceType(std::string name, int pc)
         :Type(name, pc) {
-        //inner_scope = is;
     }
 
     virtual void complete_type() {
@@ -65,24 +63,18 @@ public:
         std::cerr << "No interface initializer called " << name << "!\n";
         return NULL;
     }
-
-    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-    //    return inner_scope;
-    //}
 };
 
 
 
 class ImplementationType: public Type {
 public:
-    //DataScope *inner_scope;
     std::vector<Function *> member_functions;
     TypeSpec interface_ts;
     TypeSpec implementor_ts;
 
     ImplementationType(std::string name, TypeSpec irts, TypeSpec ifts)
         :Type(name, 1) {
-        //inner_scope = is;
         interface_ts = ifts;
         implementor_ts = irts;
     }
@@ -164,10 +156,6 @@ public:
             
         return inner_scope->lookup(n, pivot);
     }
-    
-    //virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-    //    return inner_scope;
-    //}
     
     virtual TypeSpec get_interface_ts(TypeMatch &match) {
         return typesubst(interface_ts, match);

@@ -16,6 +16,7 @@ class InterfaceType;
 class ImplementationType;
 class Scope;
 class CodeScope;
+class DataScope;
 class SwitchScope;
 class TryScope;
 class EvalScope;
@@ -52,7 +53,7 @@ public:
     void compare(Storage s, Storage t, X64 *x64, Register reg);
     Value *lookup_initializer(std::string name, Scope *scope);
     Value *lookup_inner(std::string name, Value *pivot);
-    Scope *get_inner_scope();
+    DataScope *get_inner_scope();
 };
 
 typedef TypeSpec::iterator TypeSpecIter;

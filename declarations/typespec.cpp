@@ -171,7 +171,7 @@ Value *TypeSpec::lookup_inner(std::string name, Value *pivot) {
 }
 
 
-Scope *TypeSpec::get_inner_scope() {
+DataScope *TypeSpec::get_inner_scope() {
     TypeSpecIter tsi(begin());
     return (*tsi)->get_inner_scope(tsi);
 }
