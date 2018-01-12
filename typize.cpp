@@ -67,7 +67,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, TypeSpec *context, Variable *arg_var = NULL);
 bool partial_variable_is_initialized(std::string name, Value *pivot);
-Variable *partial_class_get_member_var(TypeSpec var_ts, std::string name);
+std::vector<Variable *> partial_class_get_member_variables(TypeSpec var_ts);
 
 TypeSpec get_typespec(Value *value);
 DeclarationValue *declaration_value_cast(Value *value);
@@ -122,6 +122,7 @@ Value *make_record_preinitializer_value(TypeSpec ts);
 Value *make_record_postinitializer_value(Value *v);
 Value *make_class_definition_value();
 Value *make_class_initializer_value(TypeMatch &match);
+Value *make_class_preinitializer_value(TypeSpec ts);
 Value *make_interface_definition_value();
 Value *make_implementation_definition_value();
 Value *make_identity_value(Value *v, TypeSpec ts);

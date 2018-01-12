@@ -114,6 +114,8 @@ Greetable? :Class as:
         prints("I'm here.")
         $ number? 1
         $ number
+        $ name? "XXX"
+        $ g? `null
         
     greet? :Function as:
         prints("Hello, I'm {me}!" { me: $ name })
@@ -345,9 +347,9 @@ start? :Function as:
     prints("Popped baz as {baz}" {})
     prints("Popped stack length: {x}" { x: st length })
 
-    #gr? Greetable { }
-    gr? Greetable { 789, "not me, I'm you" }
-    #prints("Greetable is called: {x}" { x: gr name })
+    #gr? Greetable { 789, "not me, I'm you" }
+    #gr greet
+    gr? Greetable `__init__
     gr greet
     
     :if `true then:

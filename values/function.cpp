@@ -9,6 +9,7 @@ public:
     FunctionScope *fn_scope;
     Expr *deferred_body_expr;
     bool may_be_aborted;
+    TypeSpec pivot_ts;
     
     Function *function;  // If declared with a name, which is always, for now
         
@@ -45,7 +46,7 @@ public:
 
         Scope *ss = fn_scope->add_self_scope();
         if (scope->is_pure()) {
-            TypeSpec pivot_ts = scope->pivot_type_hint();
+            pivot_ts = scope->pivot_type_hint();
             
             if (pivot_ts != NO_TS && pivot_ts != ANY_TS)
                 ss->add(new Variable("$", NO_TS, pivot_ts));
@@ -87,12 +88,32 @@ public:
     virtual bool complete_definition() {
         std::cerr << "Completing definition of function body " << function->name << ".\n";
         Scope *bs = fn_scope->add_body_scope();
+
+        PartialVariable *pv = NULL;
+        if (fn_scope->self_scope->contents.size() > 0)
+            pv = dynamic_cast<PartialVariable *>(fn_scope->self_scope->contents.back().get());
         
         if (deferred_body_expr) {
+            if (pv) {
+                // Must do this only after the class definition is completed
+                ClassType *ct = dynamic_cast<ClassType *>(pv->var_ts[1]);
+                if (!ct)
+                    throw INTERNAL_ERROR;
+                    
+                pv->set_member_variables(ct->get_member_variables());
+            }
+        
             // The body is in a separate CodeScope, but instead of a dedicated CodeValue,
             // we'll handle its compilation.
             Value *bv = typize(deferred_body_expr, bs, &VOID_CODE_TS);
             body.reset(bv);
+            
+            if (pv) {
+                if (!pv->is_complete()) {
+                    std::cerr << "Not all members initialized!\n";
+                    return false;
+                }
+            }
         }
 
         return true;
@@ -184,9 +205,6 @@ public:
             Scope *ss = fn_scope->self_scope;
             
             if (scope->is_pure()) {
-                TypeSpec pivot_ts = scope->pivot_type_hint();
-                std::cerr << "XXX class pivot type hint is " << pivot_ts << ".\n";
-                
                 if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
                     pivot_ts = pivot_ts.unprefix(reference_type).prefix(partial_reference_type);
                     ss->remove(ss->contents.back().get());
@@ -217,7 +235,6 @@ public:
                 throw INTERNAL_ERROR;
         }
         
-        TypeSpec pivot_ts = scope->pivot_type_hint();
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         function = new Function(name, pivot_ts, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
         

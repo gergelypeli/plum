@@ -390,6 +390,12 @@ public:
             return false;
         }
 
+        FunctionScope *fn_scope = scope->get_function_scope();
+        if (!fn_scope || fn_scope->body_scope != scope->outer_scope) {
+            std::cerr << "Partial declaration not in initializer body!\n";
+            return false;
+        }
+
         if (partial->is_initialized(name)) {
             std::cerr << "Member already partially initialized: " << name << "!\n";
             return false;

@@ -166,6 +166,7 @@ Variable *variable_cast(Declaration *decl) {
 class PartialVariable: public Variable {
 public:
     std::set<std::string> initialized_member_names;
+    std::vector<Variable *> member_variables;
     
     PartialVariable(std::string name, TypeSpec pts, TypeSpec vts)
         :Variable(name, pts, vts) {
@@ -174,17 +175,29 @@ public:
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make_partial_variable_value(this, cpivot, match);
     }
+
+    virtual void set_member_variables(std::vector<Variable *> mv) {
+        member_variables = mv;
+    }
     
-    void be_initialized(std::string name) {
+    virtual void be_initialized(std::string name) {
         initialized_member_names.insert(name);
     }
     
-    bool is_initialized(std::string name) {
+    virtual bool is_initialized(std::string name) {
         return initialized_member_names.count(name) == 1;
     }
     
-    Variable *var_initialized(std::string name) {
-        return partial_class_get_member_var(var_ts, name);
+    virtual Variable *var_initialized(std::string name) {
+        for (Variable *v : member_variables)
+            if (v->name == name)
+                return v;
+                
+        return NULL;
+    }
+    
+    virtual bool is_complete() {
+        return initialized_member_names.size() == member_variables.size();
     }
 };
 
@@ -251,7 +264,7 @@ public:
     }
 
     virtual void allocate() {
-        if (outer_scope->is_virtual_scope()) {
+        if (outer_scope->is_virtual_scope() && name != "__init__") {  // FIXME
             std::vector<Function *> vt;
             vt.push_back(this);
             virtual_index = outer_scope->virtual_reserve(vt);
