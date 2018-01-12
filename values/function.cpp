@@ -10,15 +10,16 @@ public:
     Expr *deferred_body_expr;
     bool may_be_aborted;
     TypeSpec pivot_ts;
+    bool is_initializer;
     
     Function *function;  // If declared with a name, which is always, for now
         
-    FunctionDefinitionValue(OperationType o, Value *r, TypeMatch &match)
+    FunctionDefinitionValue(Value *r, TypeMatch &match)
         :Value(METATYPE_TS) {
-        //result.reset(r);
         function = NULL;
         deferred_body_expr = NULL;
         may_be_aborted = false;
+        is_initializer = false;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -48,8 +49,18 @@ public:
         if (scope->is_pure()) {
             pivot_ts = scope->pivot_type_hint();
             
-            if (pivot_ts != NO_TS && pivot_ts != ANY_TS)
-                ss->add(new Variable("$", NO_TS, pivot_ts));
+            if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
+                Variable *self_var;
+                
+                if (is_initializer) {
+                    pivot_ts = pivot_ts.unprefix(reference_type).prefix(partial_reference_type);
+                    self_var = new PartialVariable("$", NO_TS, pivot_ts);
+                }
+                else
+                    self_var = new Variable("$", NO_TS, pivot_ts);
+                
+                ss->add(self_var);
+            }
         }
 
         // TODO: why do we store this in the fn scope?
@@ -200,20 +211,6 @@ public:
             }
         }
 
-        // FIXME: hack for now until :Initializer is added
-        if (name == "__init__") {
-            Scope *ss = fn_scope->self_scope;
-            
-            if (scope->is_pure()) {
-                if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
-                    pivot_ts = pivot_ts.unprefix(reference_type).prefix(partial_reference_type);
-                    ss->remove(ss->contents.back().get());
-                    ss->add(new PartialVariable("$", NO_TS, pivot_ts));
-                    std::cerr << "XXX Sneakily replaced $ with a partial " << pivot_ts << ".\n";
-                }
-            }
-        }
-        
         // Not returned, but must be processed
         for (auto &d : fn_scope->self_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
@@ -237,8 +234,20 @@ public:
         
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         function = new Function(name, pivot_ts, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+
+        if (is_initializer)
+            function->be_initializer_function();
         
         return function;
+    }
+};
+
+
+class InitializerDefinitionValue: public FunctionDefinitionValue {
+public:
+    InitializerDefinitionValue(Value *r, TypeMatch &match)
+        :FunctionDefinitionValue(r, match) {
+        is_initializer = true;
     }
 };
 

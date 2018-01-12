@@ -82,7 +82,7 @@ public:
             TypeMatch match = type_parameters_to_match(ts);
             return make_class_initializer_value(match);
         }
-        else if (name == "__init__") {
+        else {
             // Named initializer
             TypeSpec pts = TypeSpec(tsi).prefix(partial_reference_type);
             Value *pre = make_class_preinitializer_value(pts);

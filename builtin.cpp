@@ -542,7 +542,8 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", NO_TS));
     root_scope->add(new TemplateIdentifier<TryValue>(":try", NO_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", NO_TS, TWEAK));
-    root_scope->add(new TemplateOperation<FunctionDefinitionValue>(":Function", NO_TS, TWEAK));
+    root_scope->add(new TemplateIdentifier<FunctionDefinitionValue>(":Function", NO_TS));
+    root_scope->add(new TemplateIdentifier<InitializerDefinitionValue>(":Initializer", NO_TS));
     
     // Library functions, unscoped
     root_scope->add(new ImportedFunction("print", "print", NO_TS, INTEGER_TSS, value_names, NO_TSS, NULL));

@@ -110,12 +110,11 @@ XStringiterator? :Record as:
 
 
 Greetable? :Class as:
-    __init__? :Function as:
-        prints("I'm here.")
+    init? :Initializer as:
         $ number? 1
-        $ number
         $ name? "XXX"
         $ g? `null
+        prints("I'm here as {x}." { x: $ name })
         
     greet? :Function as:
         prints("Hello, I'm {me}!" { me: $ name })
@@ -349,7 +348,7 @@ start? :Function as:
 
     #gr? Greetable { 789, "not me, I'm you" }
     #gr greet
-    gr? Greetable `__init__
+    gr? Greetable `init
     gr greet
     
     :if `true then:

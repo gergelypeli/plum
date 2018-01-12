@@ -210,6 +210,7 @@ public:
     Type *exception_type;
     int virtual_index;
     bool is_interface_function;
+    bool is_initializer_function;
 
     Label x64_label;
     bool is_sysv;
@@ -222,12 +223,17 @@ public:
         exception_type = et;
         virtual_index = -1;
         is_interface_function = false;
+        is_initializer_function = false;
         
         is_sysv = false;
     }
 
     virtual void be_interface_function() {
         is_interface_function = true;
+    }
+
+    virtual void be_initializer_function() {
+        is_initializer_function = true;
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
@@ -264,7 +270,7 @@ public:
     }
 
     virtual void allocate() {
-        if (outer_scope->is_virtual_scope() && name != "__init__") {  // FIXME
+        if (outer_scope->is_virtual_scope() && !is_initializer_function) {  // FIXME
             std::vector<Function *> vt;
             vt.push_back(this);
             virtual_index = outer_scope->virtual_reserve(vt);
