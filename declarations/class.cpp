@@ -78,9 +78,8 @@ public:
         // type parameters from. 
         
         if (name == "{}") {
-            // Anonymous initializer
-            TypeMatch match = type_parameters_to_match(ts);
-            return make_class_initializer_value(match);
+            std::cerr << "Classes can't be initialized anonymously!\n";
+            return NULL;
         }
         else {
             // Named initializer

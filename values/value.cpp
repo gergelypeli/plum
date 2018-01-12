@@ -598,11 +598,6 @@ Value *make_class_definition_value() {
 }
 
 
-Value *make_class_initializer_value(TypeMatch &match) {
-    return new ClassInitializerValue(match);
-}
-
-
 Value *make_class_preinitializer_value(TypeSpec ts) {
     return new ClassPreinitializerValue(ts);
 }
