@@ -113,6 +113,7 @@ Greetable? :Class as:
     __init__? :Function as:
         prints("I'm here.")
         $ number? 1
+        $ number
         
     greet? :Function as:
         prints("Hello, I'm {me}!" { me: $ name })

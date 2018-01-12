@@ -46,7 +46,7 @@ public:
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_identity_value(cpivot);
+        return make_identity_value(cpivot, get_typespec(cpivot));
     }
 };
 

@@ -226,7 +226,10 @@ public:
             return NULL;
         }
         
-        return ReferenceType::lookup_inner(tsi, n, v);
+        TypeSpec ts = TypeSpec(tsi).unprefix(partial_reference_type).prefix(reference_type);
+        Value *allowed = make_identity_value(v, ts);
+        
+        return ReferenceType::lookup_inner(tsi, n, allowed);
     }
 };
 

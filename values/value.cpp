@@ -156,8 +156,8 @@ class IdentityValue: public Value {
 public:
     std::unique_ptr<Value> pivot;
 
-    IdentityValue(Value *p)
-        :Value(p->ts) {
+    IdentityValue(Value *p, TypeSpec ts)
+        :Value(ts) {
         pivot.reset(p);
     }
 
@@ -609,8 +609,8 @@ Value *make_implementation_definition_value() {
 }
 
 
-Value *make_identity_value(Value *v) {
-    return new IdentityValue(v);
+Value *make_identity_value(Value *v, TypeSpec ts) {
+    return new IdentityValue(v, ts);
 }
 
 

@@ -124,7 +124,7 @@ Value *make_class_definition_value();
 Value *make_class_initializer_value(TypeMatch &match);
 Value *make_interface_definition_value();
 Value *make_implementation_definition_value();
-Value *make_identity_value(Value *v);
+Value *make_identity_value(Value *v, TypeSpec ts);
 Value *make_equality_value(bool no, Value *v);
 Value *make_comparison_value(BitSetOp bs, Value *v);
 Value *make_unwrap_value(TypeSpec cast_ts, Value *v);
