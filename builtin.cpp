@@ -331,8 +331,8 @@ Scope *init_builtins() {
     reference_type = new ReferenceType("Reference");
     root_scope->add(reference_type);
 
-    partial_reference_type = new PartialReferenceType("<PartialReference>");
-    root_scope->add(partial_reference_type);
+    partial_type = new PartialType("<Partial>");
+    root_scope->add(partial_type);
 
     //borrowed_type = new BorrowedReferenceType("Borrowed");
     //root_scope->add(borrowed_type);

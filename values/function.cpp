@@ -53,7 +53,7 @@ public:
                 Variable *self_var;
                 
                 if (is_initializer) {
-                    pivot_ts = pivot_ts.unprefix(reference_type).prefix(partial_reference_type);
+                    pivot_ts = pivot_ts.prefix(partial_type);
                     self_var = new PartialVariable("$", NO_TS, pivot_ts);
                 }
                 else
@@ -107,11 +107,16 @@ public:
         if (deferred_body_expr) {
             if (pv) {
                 // Must do this only after the class definition is completed
-                ClassType *ct = dynamic_cast<ClassType *>(pv->var_ts[1]);
-                if (!ct)
-                    throw INTERNAL_ERROR;
+                if (pv->var_ts[1] == reference_type) {
+                    // TODO: this should also work for records
+                    ClassType *ct = dynamic_cast<ClassType *>(pv->var_ts[2]);
+                    if (!ct)
+                        throw INTERNAL_ERROR;
                     
-                pv->set_member_variables(ct->get_member_variables());
+                    pv->set_member_variables(ct->get_member_variables());
+                }
+                else
+                    throw INTERNAL_ERROR;
             }
         
             // The body is in a separate CodeScope, but instead of a dedicated CodeValue,

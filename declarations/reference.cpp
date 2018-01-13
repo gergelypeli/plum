@@ -212,28 +212,6 @@ public:
 };
 
 
-class PartialReferenceType: public ReferenceType {
-public:
-    PartialReferenceType(std::string name)
-        :ReferenceType(name) {
-    }
-
-    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {
-        std::cerr << "Partial Reference inner lookup " << n << ".\n";
-        
-        if (!partial_variable_is_initialized(n, v)) {
-            std::cerr << "Rejecting uninitialized member " << n << "!\n";
-            return NULL;
-        }
-        
-        TypeSpec ts = TypeSpec(tsi).unprefix(partial_reference_type).prefix(reference_type);
-        Value *allowed = make_identity_value(v, ts);
-        
-        return ReferenceType::lookup_inner(tsi, n, allowed);
-    }
-};
-
-
 /*
 class BorrowedReferenceType: public Type {
 public:

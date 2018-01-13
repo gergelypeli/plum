@@ -325,6 +325,43 @@ public:
 };
 
 
+class PartialType: public Type {
+public:
+    PartialType(std::string name)
+        :Type(name, 1) {
+    }
+
+    virtual StorageWhere where(TypeSpecIter this_tsi, bool is_arg, bool is_lvalue) {
+        this_tsi++;
+        return (*this_tsi)->where(this_tsi, is_arg, is_lvalue || this == lvalue_type);
+    }
+
+    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+        tsi++;
+        return (*tsi)->measure(tsi, where);
+    }
+
+    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        tsi++;
+        return (*tsi)->store(tsi, s, t, x64);
+    }
+
+    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {
+        std::cerr << "Partial inner lookup " << n << ".\n";
+        
+        if (!partial_variable_is_initialized(n, v)) {
+            std::cerr << "Rejecting access to uninitialized member " << n << "!\n";
+            return NULL;
+        }
+        
+        TypeSpec ts = TypeSpec(tsi).unprefix(partial_type);
+        Value *allowed = make_identity_value(v, ts);
+        
+        return ts.lookup_inner(n, allowed);
+    }
+};
+
+
 class MetaType: public Type {
 public:
     typedef Value *(*TypeDefinitionFactory)();

@@ -83,14 +83,14 @@ public:
         }
         else {
             // Named initializer
-            TypeSpec pts = TypeSpec(tsi).prefix(partial_reference_type);
-            Value *pre = make_class_preinitializer_value(pts);
+            TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+            Value *pre = make_class_preinitializer_value(rts);
 
             Value *value = inner_scope->lookup(name, pre);
 
             // FIXME: check if the method is Void!
             if (value)
-                return make_identity_value(value, TypeSpec(tsi).prefix(reference_type));
+                return make_identity_value(value, rts);
         }
         
         std::cerr << "Can't initialize class as " << name << "!\n";
@@ -120,15 +120,3 @@ public:
         return virtual_table_label;
     }
 };
-
-/*
-std::vector<Variable *> partial_class_get_member_variables(TypeSpec var_ts) {
-    if (var_ts[0] != partial_reference_type) {
-        std::cerr << "Partial variable with " << var_ts << "!\n";
-        throw INTERNAL_ERROR;
-    }
-        
-    ClassType *class_type = dynamic_cast<ClassType *>(var_ts[1]);
-    return class_type->get_member_variables();
-}
-*/
