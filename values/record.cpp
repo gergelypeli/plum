@@ -95,7 +95,7 @@ public:
 class RecordPreinitializerValue: public Value {
 public:
     RecordPreinitializerValue(TypeSpec ts)
-        :Value(ts) {
+        :Value(ts.prefix(lvalue_type).prefix(partial_type)) {  // TODO: eiiii...
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -116,7 +116,7 @@ public:
     std::unique_ptr<Value> value;
     
     RecordPostinitializerValue(Value *v)
-        :Value(v->ts.rvalue()) {
+        :Value(v->ts.unprefix(partial_type)) {
         value.reset(v);
     }
     
@@ -127,9 +127,28 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage s = value->compile(x64);
         
-        if (s.where != MEMORY)  // ALIAS pivot is popped into a register based MEMORY
+        // ALIAS pivot is popped into a register based MEMORY, we'll ignore that,
+        // and just return the record on the stack by value
+        if (s.where != MEMORY)
             throw INTERNAL_ERROR;
         
+        return Storage(STACK);
+    }
+};
+
+
+class NullStringValue: public Value {
+public:
+    NullStringValue()
+        :Value(STRING_TS) {
+    }
+    
+    Regs precompile(Regs preferred) {
+        return Regs();
+    }
+    
+    Storage compile(X64 *x64) {
+        x64->op(PUSHQ, 0);
         return Storage(STACK);
     }
 };

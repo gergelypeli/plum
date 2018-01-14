@@ -333,7 +333,7 @@ public:
 
     virtual StorageWhere where(TypeSpecIter this_tsi, bool is_arg, bool is_lvalue) {
         this_tsi++;
-        return (*this_tsi)->where(this_tsi, is_arg, is_lvalue || this == lvalue_type);
+        return (*this_tsi)->where(this_tsi, is_arg, is_lvalue);
     }
 
     virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
@@ -344,6 +344,11 @@ public:
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         tsi++;
         return (*tsi)->store(tsi, s, t, x64);
+    }
+
+    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        tsi++;
+        (*tsi)->create(tsi, s, t, x64);
     }
 
     virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {

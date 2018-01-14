@@ -21,9 +21,9 @@ Pair? :Record as:
     first? Integer
     second? Integer
 
-    new? :Function as:
-        $ first = 1
-        $ second = 2
+    new? :Initializer as:
+        $ first? 1
+        $ second? 2
 
     meth? :Function Integer as:
         prints("Meth!")

@@ -328,6 +328,9 @@ public:
     PartialVariableValue(PartialVariable *pv, Value *p, TypeMatch &match)
         :VariableValue(pv, p, match) {
         partial_variable = pv;
+        
+        // First, it's not assignable, second, it may already has an lvalue_type inside it
+        ts = ts.rvalue();
     }
     
     virtual void be_initialized(std::string name) {
@@ -540,6 +543,11 @@ Value *make_boolean_not_value(Value *p) {
 
 Value *make_null_reference_value(TypeSpec ts) {
     return new NullReferenceValue(ts);
+}
+
+
+Value *make_null_string_value() {
+    return new NullStringValue();
 }
 
 

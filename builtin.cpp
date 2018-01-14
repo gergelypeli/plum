@@ -191,8 +191,6 @@ void define_string(Scope *root_scope) {
     is->add(new WrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
     is->add(new WrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
-    is->add(new Identity("null", STRING_TS));  // a null initializer that does nothing
-
     is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
 
     // String operations

@@ -233,7 +233,7 @@ public:
         else {
             // Named initializer
             //Value *dv = make_declaration_by_type("<new>", ts, scope);
-            Value *pre = make_record_preinitializer_value(ts.lvalue());
+            Value *pre = make_record_preinitializer_value(ts);
 
             Value *value = inner_scope->lookup(n, pre);
 
@@ -263,6 +263,10 @@ public:
     
     virtual std::vector<std::string> get_member_names() {
         return member_names;
+    }
+
+    virtual std::vector<Variable *> get_member_variables() {
+        return member_variables;
     }
 };
 
@@ -377,6 +381,16 @@ public:
                 
         x64->code_label(equal);  // common parts are equal, RBX determines the result
         x64->op(RET);
+    }
+
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+        if (n == "null") {
+            return make_null_string_value();
+        }
+        else {
+            std::cerr << "No String initializer " << n << "!\n";
+            return NULL;
+        }
     }
 };
 

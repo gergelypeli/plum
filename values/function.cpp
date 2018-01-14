@@ -115,6 +115,13 @@ public:
                     
                     pv->set_member_variables(ct->get_member_variables());
                 }
+                else if (pv->var_ts[1] == lvalue_type) {
+                    RecordType *rt = dynamic_cast<RecordType *>(pv->var_ts[2]);
+                    if (!rt)
+                        throw INTERNAL_ERROR;
+                    
+                    pv->set_member_variables(rt->get_member_variables());
+                }
                 else
                     throw INTERNAL_ERROR;
             }

@@ -431,6 +431,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
+        partial->precompile(preferred);
         value->precompile(preferred);
         return Regs::all();
     }
@@ -444,11 +445,24 @@ public:
         Storage t = partial->compile(x64);
         if (t.where != MEMORY)
             throw INTERNAL_ERROR;
-            
-        Register reg = (Regs::all() & ~t.regs()).get_any();
+
+        //std::cerr << "Partial initialization of " << member_var->name << " of " << partial->ts << ".\n";
         
-        x64->op(MOVQ, reg, t.address);
-        t = member_var->get_storage(Storage(MEMORY, Address(reg, 0)));
+        if (partial->ts[0] != partial_type)
+            throw INTERNAL_ERROR;
+            
+        if (partial->ts[1] == reference_type) {
+            // Dereference this
+            Register reg = (Regs::all() & ~t.regs()).get_any();
+        
+            x64->op(MOVQ, reg, t.address);
+            t = member_var->get_storage(Storage(MEMORY, Address(reg, 0)));
+        }
+        else if (partial->ts[1] == lvalue_type) {
+            ;
+        }
+        else
+            throw INTERNAL_ERROR;
         
         // Use the value to initialize the variable, then return the variable
         member_var->var_ts.create(s, t, x64);
