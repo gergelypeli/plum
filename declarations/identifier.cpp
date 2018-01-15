@@ -353,7 +353,7 @@ public:
 };
 
 
-class WrapperIdentifier: public Identifier {
+class RecordWrapperIdentifier: public Identifier {
 public:
     TypeSpec arg_ts;
     TypeSpec result_ts;
@@ -361,7 +361,7 @@ public:
     TypeSpec arg_cast_ts;
     std::string operation_name;
     
-    WrapperIdentifier(std::string n,
+    RecordWrapperIdentifier(std::string n,
         TypeSpec pivot_ts, TypeSpec pcts,
         TypeSpec ats, TypeSpec acts,
         TypeSpec rts, std::string on)
@@ -382,14 +382,7 @@ public:
         TypeSpec pcts = typesubst(pivot_cast_ts, match);
         TypeSpec acts = typesubst(arg_cast_ts, match);
             
-        if (pcts != NO_TS)
-            pivot = make_unwrap_value(pcts, pivot);
-        
-        Value *operation = get_typespec(pivot).lookup_inner(operation_name, pivot);
-        if (!operation)
-            throw INTERNAL_ERROR;
-        
-        Value *wrapper = make_wrapper_value(ats, rts, acts, operation);
+        Value *wrapper = make_record_wrapper_value(pivot, pcts, ats, acts, rts, operation_name);
         
         return wrapper;
     }

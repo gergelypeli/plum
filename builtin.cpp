@@ -175,21 +175,21 @@ void define_string(Scope *root_scope) {
 
     is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
 
-    is->add(new WrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, INTEGER_TS, "length"));
-    is->add(new WrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
-    is->add(new WrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, INTEGER_TS, NO_TS, CHARACTER_TS, "index"));
-    is->add(new WrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, INTEGER_OVALUE_TS, NO_TS, STRING_LVALUE_TS, "realloc"));
+    is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, INTEGER_TS, "length"));
+    is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
+    is->add(new RecordWrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, INTEGER_TS, NO_TS, CHARACTER_TS, "index"));
+    is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, INTEGER_OVALUE_TS, NO_TS, STRING_LVALUE_TS, "realloc"));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
     is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
 
     implement(is, TypeSpec { iterable_type, character_type }, "ible", {
-        new WrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
+        new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
     });
 
-    is->add(new WrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
-    is->add(new WrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
-    is->add(new WrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
+    is->add(new RecordWrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
+    is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
     is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
 
@@ -211,21 +211,21 @@ void define_stack(Scope *root_scope) {
 
     is->add(new Variable("array", PIVOT, CAST));  // Order matters!
 
-    is->add(new WrapperIdentifier("length", PIVOT, CAST, VOID_TS, NO_TS, INTEGER_TS, "length"));
-    //is->add(new WrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
-    is->add(new WrapperIdentifier("index", PIVOT, CAST, INTEGER_TS, NO_TS, SAME_LVALUE_TS, "index"));
-    is->add(new WrapperIdentifier("realloc", PIVOT, CAST, INTEGER_OVALUE_TS, NO_TS, SAME_STACK_LVALUE_TS, "realloc"));
+    is->add(new RecordWrapperIdentifier("length", PIVOT, CAST, VOID_TS, NO_TS, INTEGER_TS, "length"));
+    //is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
+    is->add(new RecordWrapperIdentifier("index", PIVOT, CAST, INTEGER_TS, NO_TS, SAME_LVALUE_TS, "index"));
+    is->add(new RecordWrapperIdentifier("realloc", PIVOT, CAST, INTEGER_OVALUE_TS, NO_TS, SAME_STACK_LVALUE_TS, "realloc"));
 
     //is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
     //is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
 
     implement(is, TypeSpec { iterable_type, same_type }, "ible", {
-        new WrapperIdentifier("iter", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements")
+        new RecordWrapperIdentifier("iter", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements")
     });
 
-    is->add(new WrapperIdentifier("elements", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements"));
-    is->add(new WrapperIdentifier("indexes", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, same_type }, "indexes"));
-    is->add(new WrapperIdentifier("items", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, same_type }, "items"));
+    is->add(new RecordWrapperIdentifier("elements", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements"));
+    is->add(new RecordWrapperIdentifier("indexes", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, same_type }, "indexes"));
+    is->add(new RecordWrapperIdentifier("items", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, same_type }, "items"));
 
     //is->add(new Identity("null", STRING_TS));  // a null initializer that does nothing
 
@@ -241,6 +241,38 @@ void define_stack(Scope *root_scope) {
     //sable_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS));
 }
 
+/*
+void new_define_stack(Scope *root_scope) {
+    TypeSpec PIVOT = ANY_STACK_REFERENCE_TS;
+    //TypeSpec CAST = SAME_ARRAY_REFERENCE_LVALUE_TS;
+    
+    ClassType *class_type = dynamic_cast<ClassType *>(stack_type);
+    DataScope *is = record_type->make_inner_scope(PIVOT);
+
+    is->add(new Variable("array", PIVOT, SAME_ARRAY_REFERENCE_LVALUE_TS));
+
+    is->add(new TemplateIdentifier<StackLengthValue>("length", PIVOT));
+    is->add(new TemplateIdentifier<StackIndexValue>("index", PIVOT));
+    is->add(new TemplateIdentifier<StackReallocValue>("realloc", PIVOT));
+
+    //is->add(new RecordWrapperIdentifier("length", PIVOT, CAST, VOID_TS, NO_TS, INTEGER_TS, "length"));
+    //is->add(new RecordWrapperIdentifier("index", PIVOT, CAST, INTEGER_TS, NO_TS, SAME_LVALUE_TS, "index"));
+    //is->add(new RecordWrapperIdentifier("realloc", PIVOT, CAST, INTEGER_OVALUE_TS, NO_TS, SAME_STACK_LVALUE_TS, "realloc"));
+
+    implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+        new RecordWrapperIdentifier("iter", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements")
+    });
+
+    is->add(new RecordWrapperIdentifier("elements", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements"));
+    is->add(new RecordWrapperIdentifier("indexes", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, same_type }, "indexes"));
+    is->add(new RecordWrapperIdentifier("items", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, same_type }, "items"));
+
+    is->add(new TemplateIdentifier<StackPushValue>("push", ANY_STACK_LVALUE_TS));
+    is->add(new TemplateIdentifier<StackPopValue>("pop", ANY_STACK_LVALUE_TS));
+
+    class_type->complete_type();
+}
+*/
 
 Scope *init_builtins() {
     Scope *root_scope = new Scope();

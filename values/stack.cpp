@@ -9,6 +9,23 @@ TypeSpec stack_elem_ts(TypeSpec ts) {
 }
 
 
+class StackLengthValue: public GenericOperationValue {
+public:
+    StackLengthValue(Value *l, TypeMatch &match)
+        :GenericOperationValue(GENERIC_UNARY, NO_TS, INTEGER_TS, l) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        subcompile(x64);
+        
+        x64->decref(ls.reg);
+        x64->op(MOVQ, ls.reg, x64->array_length_address(ls.reg));
+        
+        return Storage(REGISTER, ls.reg);
+    }
+};
+
+
 class StackPushValue: public GenericValue {
 public:
     TypeSpec elem_ts;

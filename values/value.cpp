@@ -661,11 +661,11 @@ void unprefix_value(Value *v) {
 }
 
 
-Value *make_unwrap_value(TypeSpec cast_ts, Value *v) {
-    return new UnwrapValue(cast_ts, v);
+Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v) {
+    return new RecordUnwrapValue(cast_ts, v);
 }
 
 
-Value *make_wrapper_value(TypeSpec arg_ts, TypeSpec result_ts, TypeSpec arg_cast_ts, Value *v) {
-    return new WrapperValue(arg_ts, result_ts, arg_cast_ts, v);
+Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec arg_ts, TypeSpec arg_cast_ts, TypeSpec result_ts, std::string operation_name) {
+    return new RecordWrapperValue(pivot, pivot_cast_ts, arg_ts, arg_cast_ts, result_ts, operation_name);
 }

@@ -44,7 +44,7 @@ std::vector<std::string> brace_split(std::string s) {
 
 enum OperationType {
     TWEAK,
-    COMPLEMENT, NEGATE,
+    COMPLEMENT, NEGATE, GENERIC_UNARY,
     ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
     OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
     EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL, COMPARE,
@@ -53,7 +53,7 @@ enum OperationType {
 };
 
 bool is_unary(OperationType o) {
-    return o == COMPLEMENT || o == NEGATE;
+    return o == COMPLEMENT || o == NEGATE || o == GENERIC_UNARY;
 }
 
 bool is_comparison(OperationType o) {

@@ -128,8 +128,8 @@ Value *make_implementation_definition_value();
 Value *make_identity_value(Value *v, TypeSpec ts);
 Value *make_equality_value(bool no, Value *v);
 Value *make_comparison_value(BitSetOp bs, Value *v);
-Value *make_unwrap_value(TypeSpec cast_ts, Value *v);
-Value *make_wrapper_value(TypeSpec arg_ts, TypeSpec res_ts, TypeSpec arg_cast_ts, Value *p);
+Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v);
+Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec arg_ts, TypeSpec arg_cast_ts, TypeSpec res_ts, std::string operation_name);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);

@@ -331,11 +331,11 @@ public:
 };
 
 
-class UnwrapValue: public Value {
+class RecordUnwrapValue: public Value {
 public:
     std::unique_ptr<Value> pivot;
 
-    UnwrapValue(TypeSpec cast_ts, Value *p)
+    RecordUnwrapValue(TypeSpec cast_ts, Value *p)
         :Value(cast_ts) {
         pivot.reset(p);
     }
@@ -350,13 +350,24 @@ public:
 };
 
 
-class WrapperValue: public GenericValue {
+class RecordWrapperValue: public GenericValue {
 public:
     TypeSpec arg_cast_ts;
 
-    WrapperValue(TypeSpec ats, TypeSpec rts, TypeSpec acts, Value *pivot)
-        :GenericValue(ats, rts, pivot) {
+    RecordWrapperValue(Value *pivot, TypeSpec pcts, TypeSpec ats, TypeSpec acts, TypeSpec rts, std::string on)
+        :GenericValue(ats, rts, NULL) {
         arg_cast_ts = acts;
+
+        if (pcts != NO_TS)
+            pivot = make_record_unwrap_value(pcts, pivot);
+        
+        if (on != "") {
+            pivot = pivot->ts.lookup_inner(on, pivot);
+            if (!pivot)
+                throw INTERNAL_ERROR;
+        }
+        
+        left.reset(pivot);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -371,7 +382,7 @@ public:
             Value *k = right.release();
         
             if (arg_cast_ts != NO_TS)
-                k = make_unwrap_value(arg_cast_ts, k);
+                k = make_record_unwrap_value(arg_cast_ts, k);
                 
             generic_left->right.reset(k);
         }

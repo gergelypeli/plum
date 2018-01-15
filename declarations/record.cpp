@@ -407,10 +407,11 @@ public:
         Value *array_initializer = ats.lookup_initializer(name, scope);
         
         if (array_initializer)
-            return make_wrapper_value(VOID_TS, TypeSpec(tsi), NO_TS, array_initializer);
+            return make_record_wrapper_value(array_initializer, NO_TS, VOID_TS, NO_TS, TypeSpec(tsi), "");
 
         std::cerr << "No Stack initializer called " << name << "!\n";
         return NULL;
     }
 };
+
 
