@@ -389,6 +389,35 @@ public:
 };
 
 
+class ClassWrapperIdentifier: public Identifier {
+public:
+    TypeSpec pivot_cast_ts;
+    std::string operation_name;
+    
+    ClassWrapperIdentifier(std::string n, TypeSpec pivot_ts, TypeSpec pcts, std::string on)
+        :Identifier(n, pivot_ts) {
+        pivot_cast_ts = pcts;
+        operation_name = on;
+    }
+    
+    virtual Value *matched(Value *pivot, TypeMatch &match) {
+        if (!pivot)
+            throw INTERNAL_ERROR;
+        
+        TypeSpec pcts = typesubst(pivot_cast_ts, match);
+        Value *member = make_class_unwrap_value(pcts, pivot);
+        
+        Value *operation = get_typespec(member).lookup_inner(operation_name, member);
+        if (!operation) {
+            std::cerr << "No operation " << operation_name << " in " << get_typespec(member) << "!\n";
+            throw INTERNAL_ERROR;
+        }
+        
+        return operation;
+    }
+};
+
+
 class Yield: public Identifier {
 public:
     EvalScope *eval_scope;

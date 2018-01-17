@@ -145,13 +145,13 @@ class ArrayNextValue: public GenericValue {
 public:
     Declaration *dummy;
     Regs clob;
-    int elem_size;
     bool is_down;
+    TypeSpec elem_ts;
     
     ArrayNextValue(TypeSpec t, TypeSpec et, Value *l, bool d)
         :GenericValue(VOID_TS, t, l) {
-        elem_size = ::elem_size(et.measure(MEMORY));
         is_down = d;
+        elem_ts = et;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -173,13 +173,14 @@ public:
         return clob;
     }
 
-    virtual Storage next_compile(Register reg, X64 *x64) {
+    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
         throw INTERNAL_ERROR;
     }
 
     virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);  // iterator
         Register reg = (clob & ~ls.regs()).get_any();
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label ok;
         
         switch (ls.where) {
@@ -192,7 +193,7 @@ public:
             x64->unwind->initiate(dummy, x64);
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + 8);
-            return next_compile(reg, x64);
+            return next_compile(elem_size, reg, x64);
         default:
             throw INTERNAL_ERROR;
         }
@@ -206,7 +207,7 @@ public:
         :ArrayNextValue(match[1], match[1], l, false) {
     }
     
-    virtual Storage next_compile(Register reg, X64 *x64) {
+    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
         return Storage(MEMORY, x64->array_elems_address(reg));
@@ -220,7 +221,7 @@ public:
         :ArrayNextValue(INTEGER_TS, match[1], l, false) {
     }
     
-    virtual Storage next_compile(Register reg, X64 *x64) {
+    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
         x64->op(MOVQ, reg, RBX);
         return Storage(REGISTER, reg);
     }
@@ -236,7 +237,7 @@ public:
         elem_ts = match[1];
     }
 
-    virtual Storage next_compile(Register reg, X64 *x64) {
+    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
         x64->op(SUBQ, RSP, ts.measure(STACK));
         x64->op(MOVQ, Address(RSP, 0), RBX);
         x64->op(IMUL3Q, RBX, RBX, elem_size);

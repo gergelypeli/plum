@@ -388,9 +388,9 @@ public:
         return factory();
     }
 
-    virtual void allocate() {
-        inner_scope->allocate();
-    }
+    //virtual void allocate() {
+    //    inner_scope->allocate();
+    //}
 };
 
 

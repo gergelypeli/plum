@@ -201,67 +201,27 @@ void define_string(Scope *root_scope) {
     record_type->complete_type();
 }
 
-/*
-void define_stack(Scope *root_scope) {
-    TypeSpec PIVOT = ANY_STACK_LVALUE_TS;
-    TypeSpec CAST = SAME_ARRAY_REFERENCE_LVALUE_TS;
-    
-    RecordType *record_type = dynamic_cast<RecordType *>(stack_type);
-    DataScope *is = record_type->make_inner_scope(PIVOT);
-
-    is->add(new Variable("array", PIVOT, CAST));  // Order matters!
-
-    is->add(new RecordWrapperIdentifier("length", PIVOT, CAST, VOID_TS, NO_TS, INTEGER_TS, "length"));
-    //is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
-    is->add(new RecordWrapperIdentifier("index", PIVOT, CAST, INTEGER_TS, NO_TS, SAME_LVALUE_TS, "index"));
-    is->add(new RecordWrapperIdentifier("realloc", PIVOT, CAST, INTEGER_OVALUE_TS, NO_TS, SAME_STACK_LVALUE_TS, "realloc"));
-
-    //is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
-    //is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
-
-    implement(is, TypeSpec { iterable_type, same_type }, "ible", {
-        new RecordWrapperIdentifier("iter", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements")
-    });
-
-    is->add(new RecordWrapperIdentifier("elements", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements"));
-    is->add(new RecordWrapperIdentifier("indexes", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, same_type }, "indexes"));
-    is->add(new RecordWrapperIdentifier("items", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, same_type }, "items"));
-
-    //is->add(new Identity("null", STRING_TS));  // a null initializer that does nothing
-
-    //is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
-
-    is->add(new TemplateIdentifier<StackPushValue>("push", ANY_STACK_LVALUE_TS));
-    is->add(new TemplateIdentifier<StackPopValue>("pop", ANY_STACK_LVALUE_TS));
-
-    record_type->complete_type();
-
-    // String operations
-    //Scope *sable_scope = implement(is, STREAMIFIABLE_TS, "sable");
-    //sable_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS));
-}
-*/
 
 void define_stack(Scope *root_scope) {
     TypeSpec PIVOT = ANY_STACK_REFERENCE_TS;
-    //TypeSpec CAST = SAME_ARRAY_REFERENCE_LVALUE_TS;
+    TypeSpec CAST = SAME_ARRAY_REFERENCE_LVALUE_TS;
     
     ClassType *class_type = dynamic_cast<ClassType *>(stack_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
     is->add(new Variable("array", PIVOT, SAME_ARRAY_REFERENCE_LVALUE_TS));
 
-    is->add(new TemplateIdentifier<StackLengthValue>("length", PIVOT));
-    is->add(new TemplateIdentifier<StackIndexValue>("index", PIVOT));
-    is->add(new TemplateIdentifier<StackReallocValue>("realloc", PIVOT));
+    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
+    is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
+    is->add(new ClassWrapperIdentifier("realloc", PIVOT, CAST, "realloc"));
 
-    //implement(is, TypeSpec { iterable_type, same_type }, "ible", {
-    //    new RecordWrapperIdentifier("iter", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements")
-    //});
+    implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+        new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
+    });
 
-    //is->add(new RecordWrapperIdentifier("elements", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements"));
-    //is->add(new RecordWrapperIdentifier("indexes", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, same_type }, "indexes"));
-    //is->add(new RecordWrapperIdentifier("items", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, same_type }, "items"));
+    is->add(new ClassWrapperIdentifier("elements", PIVOT, CAST, "elements"));
+    is->add(new ClassWrapperIdentifier("indexes", PIVOT, CAST, "indexes"));
+    is->add(new ClassWrapperIdentifier("items", PIVOT, CAST, "items"));
 
     is->add(new TemplateIdentifier<StackPushValue>("push", PIVOT));
     is->add(new TemplateIdentifier<StackPopValue>("pop", PIVOT));

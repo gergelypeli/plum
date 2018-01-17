@@ -338,11 +338,18 @@ start? :Function as:
     prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
     st? String Stack `empty
+    st push("foo")
+    st push("bar")
     st push("baz")
     prints("Pushed stack length: {x}" { x: st length })
-    prints("Pushed stack has {x}" { x: st[0] })
+    prints("Pushed stack has 2. elem: {x}" { x: st[2] })
+    
+    :for st each: x? do:
+        prints("Stack has: {x}" {})
     
     baz? st pop
+    st pop
+    st pop
     prints("Popped baz as {baz}" {})
     prints("Popped stack length: {x}" { x: st length })
 
