@@ -17,11 +17,8 @@ void compile_array_finalizer(TypeSpec ets, X64 *x64) {
     int elem_size = ::elem_size(ets.measure(MEMORY));
     Label start, end, loop;
     
-    x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, RBX);  // finalizers must protect RBX
     x64->op(PUSHQ, RCX);
     
-    x64->op(MOVQ, RAX, Address(RSP, 32));
     x64->op(MOVQ, RCX, x64->array_length_address(RAX));
     x64->op(CMPQ, RCX, 0);
     x64->op(JE, end);
@@ -38,8 +35,6 @@ void compile_array_finalizer(TypeSpec ets, X64 *x64) {
     
     x64->code_label(end);
     x64->op(POPQ, RCX);
-    x64->op(POPQ, RBX);
-    x64->op(POPQ, RAX);
     x64->op(RET);
 }
 

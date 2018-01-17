@@ -1138,9 +1138,12 @@ void X64::init_memory_management() {
         op(JNE, dl);
 
         // TODO
-        op(PUSHQ, reg);
-        op(CALL, Address(reg, HEAP_FINALIZER_OFFSET));  // finalizer must protect RBX, too
-        op(POPQ, reg);
+        op(PUSHQ, RAX);
+        op(PUSHQ, RBX);  // protected
+        op(MOVQ, RAX, reg);
+        op(CALL, Address(reg, HEAP_FINALIZER_OFFSET));
+        op(POPQ, RBX);
+        op(POPQ, RAX);
         
         memfree(reg);
     

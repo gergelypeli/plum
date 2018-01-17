@@ -160,14 +160,8 @@ public:
 
         x64->code_label_export(label, "finalize_" + name, 0, false);  // FIXME: ambiguous name!
         
-        x64->op(PUSHQ, RAX);
-        x64->op(PUSHQ, RBX);  // finalizers must protect RBX!
-
-        x64->op(MOVQ, RAX, Address(RSP, 24));
         destroy(tsi, Storage(MEMORY, Address(RAX, 0)), x64);
 
-        x64->op(POPQ, RBX);
-        x64->op(POPQ, RAX);
         x64->op(RET);
     }
 };
