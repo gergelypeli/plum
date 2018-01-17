@@ -380,7 +380,7 @@ public:
         if (pivot) {
             // FIXME: this seems to be bogus, this is the static type of the pivot,
             // not the dynamic type!
-            Label vtl = pivot->ts.get_virtual_table_label();
+            Label vtl = pivot->ts.get_virtual_table_label(x64);
             int vti = variable->virtual_index;
             
             x64->op(LEARIP, RBX, vtl);
@@ -416,8 +416,8 @@ public:
 #include "control.cpp"
 #include "stream.cpp"
 #include "iterator.cpp"
-#include "stack.cpp"
 #include "class.cpp"
+#include "stack.cpp"
 
 
 TypeSpec get_typespec(Value *value) {
@@ -668,4 +668,14 @@ Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v) {
 
 Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec arg_ts, TypeSpec arg_cast_ts, TypeSpec result_ts, std::string operation_name) {
     return new RecordWrapperValue(pivot, pivot_cast_ts, arg_ts, arg_cast_ts, result_ts, operation_name);
+}
+
+
+Value *make_class_unwrap_value(TypeSpec cast_ts, Value *v) {
+    return new ClassUnwrapValue(cast_ts, v);
+}
+
+
+Value *make_stack_initializer_value(Value *stack, Value *array) {
+    return new StackInitializerValue(stack, array);
 }

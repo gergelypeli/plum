@@ -1,6 +1,6 @@
 
 TypeSpec stack_elem_ts(TypeSpec ts) {
-    TypeSpec ets = ts.rvalue().unprefix(stack_type);
+    TypeSpec ets = ts.rvalue().unprefix(reference_type).unprefix(stack_type);
     
     if (is_heap_type(ets[0]))
         ets = ets.prefix(reference_type);
@@ -9,19 +9,108 @@ TypeSpec stack_elem_ts(TypeSpec ts) {
 }
 
 
-class StackLengthValue: public GenericOperationValue {
+class StackInitializerValue: public Value {
 public:
-    StackLengthValue(Value *l, TypeMatch &match)
-        :GenericOperationValue(GENERIC_UNARY, NO_TS, INTEGER_TS, l) {
+    std::unique_ptr<Value> stack, array;
+    
+    StackInitializerValue(Value *s, Value *a)
+        :Value(s->ts.unprefix(partial_type)) {
+        stack.reset(s);
+        array.reset(a);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return array->check(args, kwargs, scope);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return stack->precompile(preferred) | array->precompile(preferred);
     }
 
     virtual Storage compile(X64 *x64) {
-        subcompile(x64);
+        stack->compile_and_store(x64, Storage(STACK));
+        array->compile_and_store(x64, Storage(STACK));
         
-        x64->decref(ls.reg);
-        x64->op(MOVQ, ls.reg, x64->array_length_address(ls.reg));
+        x64->op(MOVQ, RBX, Address(RSP, 8));
+        x64->op(POPQ, Address(RBX, CLASS_MEMBERS_OFFSET));
         
-        return Storage(REGISTER, ls.reg);
+        return Storage(STACK);
+    }
+};
+
+
+class StackLengthValue: public Value {
+public:
+    std::unique_ptr<Value> stack;
+    
+    StackLengthValue(Value *l, TypeMatch &match)
+        :Value(INTEGER_TS) {
+        stack.reset(l);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return stack->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        stack->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(POPQ, RBX);
+        x64->decref(RBX);
+        x64->op(MOVQ, RBX, Address(RBX, CLASS_MEMBERS_OFFSET));
+        x64->op(PUSHQ, x64->array_length_address(RBX));
+        
+        return Storage(STACK);
+    }
+};
+
+
+class StackIndexValue: public GenericValue {
+public:
+    StackIndexValue(Value *l, TypeMatch &match)
+        :GenericValue(INTEGER_TS, match[1].lvalue(), NULL)
+    {
+        TypeSpec T_ARRAY_REFERENCE_TS = match[1].prefix(array_type).prefix(reference_type);
+        Value *unwrapped = new ClassUnwrapValue(T_ARRAY_REFERENCE_TS, l);
+        Value *index = T_ARRAY_REFERENCE_TS.lookup_inner("index", unwrapped);
+        left.reset(index);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return left->check(args, kwargs, scope);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return left->compile(x64);
+    }
+};
+
+
+class StackReallocValue: public GenericValue {
+public:
+    StackReallocValue(Value *l, TypeMatch &match)
+        :GenericValue(INTEGER_OVALUE_TS, VOID_TS, NULL)  // FIXME: we should return self somehow
+    {
+        TypeSpec T_ARRAY_REFERENCE_TS = match[1].prefix(array_type).prefix(reference_type);
+        Value *unwrapped = new ClassUnwrapValue(T_ARRAY_REFERENCE_TS, l);
+        Value *index = T_ARRAY_REFERENCE_TS.lookup_inner("realloc", unwrapped);
+        left.reset(index);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return left->check(args, kwargs, scope);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return left->compile(x64);
     }
 };
 
@@ -41,20 +130,22 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        compile_and_store_both(x64, Storage(ALISTACK), Storage(STACK));
+        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         int stack_size = ::stack_size(elem_ts.measure(MEMORY));
         
         x64->op(MOVQ, RBX, Address(RSP, stack_size));
-        x64->op(MOVQ, RAX, Address(RBX, 0));
+        x64->op(MOVQ, RAX, Address(RBX, CLASS_MEMBERS_OFFSET));
         x64->op(MOVQ, RBX, 1);
         x64->op(MOVQ, RCX, elem_size);
         
         x64->preappend_array_RAX_RBX_RCX();
-        
+
+        // FIXME: this must also require a single reference, as it reallocates an array
+        // instead of just creating a reallocated copy!
         x64->op(MOVQ, RBX, Address(RSP, stack_size));
-        x64->op(MOVQ, Address(RBX, 0), RAX);
+        x64->op(MOVQ, Address(RBX, CLASS_MEMBERS_OFFSET), RAX);
         
         x64->op(MOVQ, RBX, x64->array_length_address(RAX));
         x64->op(IMUL3Q, RBX, RBX, elem_size);
@@ -67,7 +158,7 @@ public:
         
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, 0)), x64);
         
-        return Storage(ALISTACK);
+        return Storage(STACK);
     }
 };
 
@@ -89,14 +180,12 @@ public:
     virtual Storage compile(X64 *x64) {
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
 
-        left->compile_and_store(x64, Storage(STACK));
+        left->compile_and_store(x64, Storage(REGISTER, RCX));
         
-        x64->op(POPQ, RAX);
+        x64->op(MOVQ, RAX, Address(RCX, CLASS_MEMBERS_OFFSET));  // temporary use, don't incref unnecessarily
         x64->op(DECQ, x64->array_length_address(RAX));
         x64->op(MOVQ, RBX, x64->array_length_address(RAX));
         x64->op(IMUL3Q, RBX, RBX, elem_size);
-
-        x64->decref(RAX);  // FIXME: this is too early
 
         Address addr = x64->array_elems_address(RAX);
         addr.index = RBX;
@@ -105,6 +194,8 @@ public:
         
         elem_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
         elem_ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
+
+        x64->decref(RCX);
         
         return Storage(STACK);
     }

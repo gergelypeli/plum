@@ -394,24 +394,3 @@ public:
     }
 };
 
-
-class StackType: public RecordType {
-public:
-    StackType(std::string name)
-        :RecordType(name, 1) {
-    }
-    
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
-        TypeSpec ats = TypeSpec(tsi).unprefix(stack_type).prefix(array_type);
-        
-        Value *array_initializer = ats.lookup_initializer(name, scope);
-        
-        if (array_initializer)
-            return make_record_wrapper_value(array_initializer, NO_TS, VOID_TS, NO_TS, TypeSpec(tsi), "");
-
-        std::cerr << "No Stack initializer called " << name << "!\n";
-        return NULL;
-    }
-};
-
-

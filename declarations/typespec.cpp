@@ -111,9 +111,9 @@ std::vector<Function *> TypeSpec::get_virtual_table() {
 }
 
 
-Label TypeSpec::get_virtual_table_label() {
+Label TypeSpec::get_virtual_table_label(X64 *x64) {
     TypeSpecIter tsi(begin());
-    return (*tsi)->get_virtual_table_label(tsi);
+    return (*tsi)->get_virtual_table_label(tsi, x64);
 }
 
 

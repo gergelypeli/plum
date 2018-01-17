@@ -194,7 +194,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Label get_virtual_table_label(TypeSpecIter tsi) {
+    virtual Label get_virtual_table_label(TypeSpecIter tsi, X64 *x64) {
         throw INTERNAL_ERROR;
     }
     
@@ -308,9 +308,9 @@ public:
         return (*tsi)->get_virtual_table(tsi);
     }
 
-    virtual Label get_virtual_table_label(TypeSpecIter tsi) {
+    virtual Label get_virtual_table_label(TypeSpecIter tsi, X64 *x64) {
         tsi++;
-        return (*tsi)->get_virtual_table_label(tsi);
+        return (*tsi)->get_virtual_table_label(tsi, x64);
     }
 
     virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {

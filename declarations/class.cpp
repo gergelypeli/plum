@@ -1,15 +1,16 @@
 
+Label class_virtual_table_label(TypeSpec ts, X64 *x64);
+Label class_finalizer_label(TypeSpec ts, X64 *x64);
+
+
 class ClassType: public HeapType {
 public:
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
 
-    Label virtual_table_label;
-
-    ClassType(std::string name, Label vtl)
-        :HeapType(name, 0) {
-        virtual_table_label = vtl;
+    ClassType(std::string name, int pc)
+        :HeapType(name, pc) {
     }
 
     virtual void complete_type() {
@@ -97,6 +98,21 @@ public:
         return NULL;
     }
 
+    virtual DataScope *make_inner_scope(TypeSpec pts) {
+        DataScope *is = HeapType::make_inner_scope(pts);
+        
+        is->be_virtual_scope();
+        
+        TypeSpec cts = { reference_type, this };
+        is->set_meta_scope(class_metatype->get_inner_scope(cts.begin()));
+
+        int vt_offset = is->reserve(CLASS_HEADER_SIZE);  // VT pointer
+        if (vt_offset != CLASS_VT_OFFSET)  // sanity check
+            throw INTERNAL_ERROR;
+        
+        return is;
+    }
+
     virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
         std::vector<TypeSpec> tss;
         for (auto &ts : member_tss)
@@ -116,7 +132,109 @@ public:
         return inner_scope->get_virtual_table();
     }
 
-    virtual Label get_virtual_table_label(TypeSpecIter tsi) {
-        return virtual_table_label;
+    virtual Label get_virtual_table_label(TypeSpecIter tsi, X64 *x64) {
+        return class_virtual_table_label(TypeSpec(tsi), x64);
+    }
+
+    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
+        return class_finalizer_label(TypeSpec(tsi), x64);
+    }
+    
+    virtual void compile_virtual_table(TypeSpecIter tsi, Label label, X64 *x64) {
+        std::cerr << "Compiling virtual table for " << TypeSpec(tsi) << ".\n";
+        std::vector<Function *> vt = inner_scope->get_virtual_table();
+
+        x64->data_align();
+        x64->data_label_export(label, "vmt_" + name, 0, false);  // FIXME: ambiguous name!
+
+        for (auto f : vt) {
+            if (f)
+                x64->data_reference(f->x64_label);
+            else
+                x64->data_qword(0);  // data references are now 64-bit absolute addresses
+        }
+    }
+    
+    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
+        std::cerr << "Compiling finalizer for " << TypeSpec(tsi) << ".\n";
+
+        x64->code_label_export(label, "finalize_" + name, 0, false);  // FIXME: ambiguous name!
+        
+        x64->op(PUSHQ, RAX);
+        x64->op(PUSHQ, RBX);  // finalizers must protect RBX!
+
+        x64->op(MOVQ, RAX, Address(RSP, 24));
+        destroy(tsi, Storage(MEMORY, Address(RAX, 0)), x64);
+
+        x64->op(POPQ, RBX);
+        x64->op(POPQ, RAX);
+        x64->op(RET);
     }
 };
+
+
+// This is the same mechanism as with array finalizers
+// FIXME: store TypeSpec, because type parameters will matter!
+std::map<TypeSpec, Label> class_finalizer_labels;
+
+
+void compile_class_finalizers(X64 *x64) {
+    for (auto &kv : class_finalizer_labels) {
+        TypeSpec ts = kv.first;
+        Label l = kv.second;
+        
+        dynamic_cast<ClassType *>(ts[0])->compile_finalizer(ts.begin(), l, x64);
+    }
+}
+
+
+Label class_finalizer_label(TypeSpec ts, X64 *x64) {
+    x64->once(compile_class_finalizers);
+    
+    return class_finalizer_labels[ts];
+}
+
+
+std::map<TypeSpec, Label> class_virtual_table_labels;
+
+
+void compile_class_virtual_tables(X64 *x64) {
+    for (auto &kv : class_virtual_table_labels) {
+        TypeSpec ts = kv.first;
+        Label l = kv.second;
+        
+        dynamic_cast<ClassType *>(ts[0])->compile_virtual_table(ts.begin(), l, x64);
+    }
+}
+
+
+Label class_virtual_table_label(TypeSpec ts, X64 *x64) {
+    x64->once(compile_class_virtual_tables);
+    
+    return class_virtual_table_labels[ts];
+}
+
+
+class StackType: public ClassType {
+public:
+    StackType(std::string name)
+        :ClassType(name, 1) {
+    }
+    
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+        TypeSpec ats = TypeSpec(tsi).unprefix(stack_type).prefix(array_type);
+        Value *array_initializer = ats.lookup_initializer(name, scope);
+        
+        if (!array_initializer) {
+            std::cerr << "No Stack initializer called " << name << "!\n";
+            return NULL;
+        }
+
+        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+        Value *stack_preinitializer = make_class_preinitializer_value(rts);
+        
+        return make_stack_initializer_value(stack_preinitializer, array_initializer);
+    }
+};
+
+

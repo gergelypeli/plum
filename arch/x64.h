@@ -135,6 +135,10 @@ struct Regs {
 
 
 struct Label {
+private:
+    Label(int) {}  // Fuck
+    
+public:
     unsigned def_index;
     
     Label(bool leave_uninitialized = false) {
@@ -142,7 +146,7 @@ struct Label {
         
         def_index = leave_uninitialized ? 0 : ++last_def_index;
         
-        //if (def_index == 80)
+        //if (def_index == 1160)
         //    throw X64_ERROR;
     }
     

@@ -38,7 +38,7 @@ public:
     
     unsigned measure(StorageWhere where);
     std::vector<Function *> get_virtual_table();
-    Label get_virtual_table_label();
+    Label get_virtual_table_label(X64 *x64);
     StorageWhere where(bool is_arg);
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
@@ -130,6 +130,8 @@ Value *make_equality_value(bool no, Value *v);
 Value *make_comparison_value(BitSetOp bs, Value *v);
 Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v);
 Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec arg_ts, TypeSpec arg_cast_ts, TypeSpec res_ts, std::string operation_name);
+Value *make_class_unwrap_value(TypeSpec cast_ts, Value *v);
+Value *make_stack_initializer_value(Value *stack, Value *array);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);

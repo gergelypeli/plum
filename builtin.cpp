@@ -201,7 +201,7 @@ void define_string(Scope *root_scope) {
     record_type->complete_type();
 }
 
-
+/*
 void define_stack(Scope *root_scope) {
     TypeSpec PIVOT = ANY_STACK_LVALUE_TS;
     TypeSpec CAST = SAME_ARRAY_REFERENCE_LVALUE_TS;
@@ -240,14 +240,14 @@ void define_stack(Scope *root_scope) {
     //Scope *sable_scope = implement(is, STREAMIFIABLE_TS, "sable");
     //sable_scope->add(new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS));
 }
+*/
 
-/*
-void new_define_stack(Scope *root_scope) {
+void define_stack(Scope *root_scope) {
     TypeSpec PIVOT = ANY_STACK_REFERENCE_TS;
     //TypeSpec CAST = SAME_ARRAY_REFERENCE_LVALUE_TS;
     
     ClassType *class_type = dynamic_cast<ClassType *>(stack_type);
-    DataScope *is = record_type->make_inner_scope(PIVOT);
+    DataScope *is = class_type->make_inner_scope(PIVOT);
 
     is->add(new Variable("array", PIVOT, SAME_ARRAY_REFERENCE_LVALUE_TS));
 
@@ -255,24 +255,20 @@ void new_define_stack(Scope *root_scope) {
     is->add(new TemplateIdentifier<StackIndexValue>("index", PIVOT));
     is->add(new TemplateIdentifier<StackReallocValue>("realloc", PIVOT));
 
-    //is->add(new RecordWrapperIdentifier("length", PIVOT, CAST, VOID_TS, NO_TS, INTEGER_TS, "length"));
-    //is->add(new RecordWrapperIdentifier("index", PIVOT, CAST, INTEGER_TS, NO_TS, SAME_LVALUE_TS, "index"));
-    //is->add(new RecordWrapperIdentifier("realloc", PIVOT, CAST, INTEGER_OVALUE_TS, NO_TS, SAME_STACK_LVALUE_TS, "realloc"));
+    //implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+    //    new RecordWrapperIdentifier("iter", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements")
+    //});
 
-    implement(is, TypeSpec { iterable_type, same_type }, "ible", {
-        new RecordWrapperIdentifier("iter", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements")
-    });
+    //is->add(new RecordWrapperIdentifier("elements", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements"));
+    //is->add(new RecordWrapperIdentifier("indexes", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, same_type }, "indexes"));
+    //is->add(new RecordWrapperIdentifier("items", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, same_type }, "items"));
 
-    is->add(new RecordWrapperIdentifier("elements", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, same_type }, "elements"));
-    is->add(new RecordWrapperIdentifier("indexes", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, same_type }, "indexes"));
-    is->add(new RecordWrapperIdentifier("items", PIVOT, CAST, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, same_type }, "items"));
-
-    is->add(new TemplateIdentifier<StackPushValue>("push", ANY_STACK_LVALUE_TS));
-    is->add(new TemplateIdentifier<StackPopValue>("pop", ANY_STACK_LVALUE_TS));
+    is->add(new TemplateIdentifier<StackPushValue>("push", PIVOT));
+    is->add(new TemplateIdentifier<StackPopValue>("pop", PIVOT));
 
     class_type->complete_type();
 }
-*/
+
 
 Scope *init_builtins() {
     Scope *root_scope = new Scope();
@@ -441,9 +437,10 @@ Scope *init_builtins() {
     SAME_ITERABLE_TS = { iterable_type, same_type };
     STRING_TS = { string_type };
     STRING_LVALUE_TS = { lvalue_type, string_type };
-    ANY_STACK_TS = { stack_type, any_type };
-    ANY_STACK_LVALUE_TS = { lvalue_type, stack_type, any_type };
-    SAME_STACK_LVALUE_TS = { lvalue_type, stack_type, same_type };
+    //ANY_STACK_TS = { stack_type, any_type };
+    //ANY_STACK_LVALUE_TS = { lvalue_type, stack_type, any_type };
+    //SAME_STACK_LVALUE_TS = { lvalue_type, stack_type, same_type };
+    ANY_STACK_REFERENCE_TS = { reference_type, stack_type, any_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ITEM_TS = { item_type, any_type };

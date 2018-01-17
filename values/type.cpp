@@ -1,21 +1,4 @@
 
-void compile_virtual_table(X64 *x64, std::string name, Label label, Scope *inner_scope) {
-    std::vector<Function *> vt = inner_scope->get_virtual_table();
-    
-    if (vt.size() > 0) {
-        x64->data_align();
-        x64->data_label_export(label, "vmt_" + name, 0, false);
-    
-        for (auto f : vt) {
-            if (f)
-                x64->data_reference(f->x64_label);
-            else
-                x64->data_qword(0);  // data references are now 64-bit absolute addresses
-        }
-    }
-}
-
-
 class TypeValue: public Value {
 public:
     std::unique_ptr<Value> value;
@@ -430,7 +413,6 @@ public:
 class ClassDefinitionValue: public TypeDefinitionValue {
 public:
     ClassType *class_type;
-    Label virtual_table_label;
     
     ClassDefinitionValue()
         :TypeDefinitionValue(METATYPE_TS) {
@@ -443,12 +425,10 @@ public:
             return false;
         }
 
-        class_type = new ClassType("<anonymous>", virtual_table_label);
+        class_type = new ClassType("<anonymous>", 0);
         TypeSpec cts = { reference_type, class_type };
 
         setup_inner(class_type, cts);
-        inner_scope->be_virtual_scope();
-        inner_scope->set_meta_scope(class_metatype->get_inner_scope(cts.begin()));
 
         defer_as(kwargs);
             
@@ -461,8 +441,6 @@ public:
         if (!complete_as())
             return false;
 
-        inner_scope->reserve(8);  // VMT pointer
-
         return complete(class_type);
     }
     
@@ -471,8 +449,6 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        compile_virtual_table(x64, class_type->name, virtual_table_label, inner_scope);
-
         return data_value->compile(x64);
     }
 
