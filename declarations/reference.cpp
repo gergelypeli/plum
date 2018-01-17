@@ -325,11 +325,39 @@ public:
         std::cerr << "This is probably an error, shouldn't measure a heap type!\n";
         throw INTERNAL_ERROR;
     }
+    
+    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
 };
 
 
 bool is_heap_type(Type *t) {
     return dynamic_cast<HeapType *>(t);
+}
+
+
+std::map<TypeSpec, Label> finalizer_labels;
+
+
+void compile_finalizers(X64 *x64) {
+    for (auto &kv : finalizer_labels) {
+        TypeSpec ts = kv.first;
+        Label label = kv.second;
+        std::cerr << "Compiling " << ts << " finalizer.\n";
+        
+        dynamic_cast<HeapType *>(ts[0])->compile_finalizer(ts.begin(), label, x64);
+    }
+}
+
+
+Label finalizer_label(TypeSpec ts, X64 *x64) {
+    if (!is_heap_type(ts[0]))
+        throw INTERNAL_ERROR;
+        
+    x64->once(compile_finalizers);
+    
+    return finalizer_labels[ts];
 }
 
 
@@ -352,5 +380,32 @@ public:
 
         std::cerr << "No array initializer called " << name << "!\n";
         return NULL;
+    }
+
+    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
+        TypeSpec elem_ts = TypeSpec(tsi).unprefix(array_type);
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        Label start, end, loop;
+    
+        x64->code_label(label);
+        x64->op(PUSHQ, RCX);
+    
+        x64->op(MOVQ, RCX, x64->array_length_address(RAX));
+        x64->op(CMPQ, RCX, 0);
+        x64->op(JE, end);
+    
+        x64->op(IMUL3Q, RBX, RCX, elem_size);
+        x64->op(LEA, RAX, x64->array_elems_address(RAX));
+        x64->op(ADDQ, RAX, RBX);
+    
+        x64->code_label(loop);
+        x64->op(SUBQ, RAX, elem_size);
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
+        x64->op(DECQ, RCX);
+        x64->op(JNE, loop);
+    
+        x64->code_label(end);
+        x64->op(POPQ, RCX);
+        x64->op(RET);
     }
 };

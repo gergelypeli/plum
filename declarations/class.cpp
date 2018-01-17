@@ -1,6 +1,5 @@
 
 Label class_virtual_table_label(TypeSpec ts, X64 *x64);
-Label class_finalizer_label(TypeSpec ts, X64 *x64);
 
 
 class ClassType: public HeapType {
@@ -137,7 +136,7 @@ public:
     }
 
     virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
-        return class_finalizer_label(TypeSpec(tsi), x64);
+        return finalizer_label(TypeSpec(tsi), x64);
     }
     
     virtual void compile_virtual_table(TypeSpecIter tsi, Label label, X64 *x64) {
@@ -167,37 +166,18 @@ public:
 };
 
 
-// This is the same mechanism as with array finalizers
-// FIXME: store TypeSpec, because type parameters will matter!
-std::map<TypeSpec, Label> class_finalizer_labels;
-
-
-void compile_class_finalizers(X64 *x64) {
-    for (auto &kv : class_finalizer_labels) {
-        TypeSpec ts = kv.first;
-        Label l = kv.second;
-        
-        dynamic_cast<ClassType *>(ts[0])->compile_finalizer(ts.begin(), l, x64);
-    }
-}
-
-
-Label class_finalizer_label(TypeSpec ts, X64 *x64) {
-    x64->once(compile_class_finalizers);
-    
-    return class_finalizer_labels[ts];
-}
-
-
 std::map<TypeSpec, Label> class_virtual_table_labels;
 
 
 void compile_class_virtual_tables(X64 *x64) {
     for (auto &kv : class_virtual_table_labels) {
         TypeSpec ts = kv.first;
-        Label l = kv.second;
+        Label label = kv.second;
+
+        std::cerr << "Compiling virtual table for " << ts << ".\n";
+        ClassType *class_type = dynamic_cast<ClassType *>(ts[0]);
         
-        dynamic_cast<ClassType *>(ts[0])->compile_virtual_table(ts.begin(), l, x64);
+        class_type->compile_virtual_table(ts.begin(), label, x64);
     }
 }
 
