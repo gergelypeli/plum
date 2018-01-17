@@ -15,12 +15,13 @@ CORE       = core.plum.*(N) core.test.*(N)
 
 MAIN       = run/main
 
+RUNTIMESRC = run/runtime.c
+RUNTIMEOBJ = run/runtime.o
+
 TEST       = run/test
-TESTSOURCE = run/test.c
-TESTOBJECT = run/test.o
-TESTMODULE = run/mymodule.o
-TESTPLUM   = run/first.plum
-TESTLOG    = run/plum.log
+TESTOBJ    = run/test.o
+TESTSRC    = run/test.plum
+#TESTLOG    = run/plum.log
 
 exe: uncore $(EXE)
 
@@ -33,14 +34,14 @@ $(EXE): $(SOURCES)
 	@clear
 	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
 
-$(TEST): $(TESTOBJECT) $(TESTMODULE)
-	@gcc $(CFLAGS) -o $(TEST) $(TESTOBJECT) $(TESTMODULE)
+$(TEST): $(RUNTIMEOBJ) $(TESTOBJ)
+	@gcc $(CFLAGS) -o $(TEST) $(RUNTIMEOBJ) $(TESTOBJ)
 
-$(TESTOBJECT): $(TESTSOURCE)
-	@gcc $(CFLAGS) -c -o $(TESTOBJECT) $(TESTSOURCE)
+$(RUNTIMEOBJ): $(RUNTIMESRC)
+	@gcc $(CFLAGS) -c -o $(RUNTIMEOBJ) $(RUNTIMESRC)
 
-$(TESTMODULE): $(TESTPLUM) $(EXE)
-	@$(EXE) $(TESTPLUM) $(TESTMODULE) # 2>&1 | tee $(TESTLOG)
+$(TESTOBJ): $(TESTSRC) $(EXE)
+	@$(EXE) $(TESTSRC) $(TESTOBJ) # 2>&1 | tee $(TESTLOG)
 
 clean:
-	@rm -f $(EXE) $(TEST) $(TESTOBJECT) $(TESTMODULE)
+	@rm -f $(EXE) $(TEST) $(RUNTIMEOBJ) $(TESTOBJ)
