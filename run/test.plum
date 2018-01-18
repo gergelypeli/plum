@@ -337,6 +337,11 @@ start? :Function as:
     ss? String Array { "foo", "bar" }
     prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
+    ss_popped1? ss pop
+    prints("Array popped {ss_popped1}" {})
+    ss_popped2? ss pop
+    prints("Array popped {ss_popped2}" {})
+
     st? String Stack `empty
     st push("foo")
     st push("bar")

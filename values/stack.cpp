@@ -66,8 +66,6 @@ public:
         
         x64->preappend_array_RAX_RBX_RCX();
 
-        // FIXME: this must also require a single reference, as it reallocates an array
-        // instead of just creating a reallocated copy!
         x64->op(MOVQ, RBX, Address(RSP, stack_size));
         x64->op(MOVQ, Address(RBX, CLASS_MEMBERS_OFFSET), RAX);
         

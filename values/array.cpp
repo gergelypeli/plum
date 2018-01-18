@@ -390,3 +390,136 @@ public:
     }
 };
 
+
+class ArrayPushValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    ArrayPushValue(Value *l, TypeMatch &match)
+        :GenericValue(array_elem_ts(match[0]), match[0], l) {
+        elem_ts = array_elem_ts(match[0]);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = left->precompile(preferred) | right->precompile(preferred);
+        return clob.add(RAX).add(RBX).add(RCX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
+    
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int stack_size = ::stack_size(elem_ts.measure(MEMORY));
+        Label ok, end;
+        
+        x64->op(MOVQ, RAX, Address(RSP, stack_size));
+        x64->op(MOVQ, RBX, x64->array_length_address(RAX));
+        x64->op(CMPQ, RBX, x64->array_reservation_address(RAX));
+        x64->op(JNE, ok);
+        
+        //elem_ts.destroy(Storage(STACK), x64);  // FIXME: what to do here?
+        x64->die("Array full!");
+        x64->op(JMP, end);
+        
+        x64->code_label(ok);
+        
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(ADDQ, x64->array_length_address(RAX), 1);
+        x64->op(ADDQ, RAX, RBX);
+        
+        elem_ts.create(Storage(STACK), Storage(MEMORY, x64->array_elems_address(RAX)), x64);
+        
+        x64->code_label(end);
+        return Storage(STACK);
+    }
+};
+
+
+class ArrayPopValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    ArrayPopValue(Value *l, TypeMatch &match)
+        :GenericValue(VOID_TS, array_elem_ts(match[0]), l) {
+        elem_ts = array_elem_ts(match[0]);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = left->precompile(preferred);
+        return clob.add(RAX).add(RBX).add(RCX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        Label ok;
+        
+        left->compile_and_store(x64, Storage(REGISTER, RAX));
+        
+        x64->op(CMPQ, x64->array_length_address(RAX), 0);
+        x64->op(JNE, ok);
+        
+        x64->die("Array empty!");
+        
+        x64->code_label(ok);
+        x64->op(DECQ, x64->array_length_address(RAX));
+        x64->op(MOVQ, RBX, x64->array_length_address(RAX));
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->decref(RAX);
+
+        x64->op(ADDQ, RAX, RBX);
+        
+        elem_ts.store(Storage(MEMORY, x64->array_elems_address(RAX)), Storage(STACK), x64);
+        elem_ts.destroy(Storage(MEMORY, x64->array_elems_address(RAX)), x64);
+        
+        return Storage(STACK);
+    }
+};
+
+
+class CircularrayItemValue: public ArrayItemValue {
+public:
+    CircularrayItemValue(OperationType o, Value *pivot, TypeMatch &match)
+        :ArrayItemValue(o, pivot, match) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int size = elem_size(ts.measure(MEMORY));
+        
+        subcompile(x64);
+    
+        switch (rs.where) {
+        case CONSTANT:
+            x64->op(MOVQ, RBX, rs.value);
+            break;
+        case REGISTER:
+            x64->op(MOVQ, RBX, rs.reg);
+            break;
+        case MEMORY:
+            x64->op(MOVQ, RBX, rs.address);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        Label x;
+        x64->op(ADDQ, RBX, x64->array_front_address(ls.reg));
+        x64->op(CMPQ, RBX, x64->array_reservation_address(ls.reg));
+        x64->op(JBE, x);
+        x64->op(SUBQ, RBX, x64->array_reservation_address(ls.reg));
+        x64->code_label(x);
+        x64->op(IMUL3Q, RBX, RBX, size);
+        
+        switch (ls.where) {
+        case REGISTER:
+            x64->decref(ls.reg);
+            x64->op(ADDQ, ls.reg, RBX);
+            return Storage(MEMORY, x64->array_elems_address(ls.reg));
+        case MEMORY:
+            x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
+            x64->op(ADDQ, reg, RBX);
+            return Storage(MEMORY, x64->array_elems_address(reg));
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }    
+};

@@ -15,6 +15,7 @@ CORE       = core.plum.*(N) core.test.*(N)
 
 MAIN       = run/main
 
+HEAPH      = arch/heap.h
 RUNTIMESRC = run/runtime.c
 RUNTIMEOBJ = run/runtime.o
 
@@ -37,7 +38,7 @@ $(EXE): $(SOURCES)
 $(TEST): $(RUNTIMEOBJ) $(TESTOBJ)
 	@gcc $(CFLAGS) -o $(TEST) $(RUNTIMEOBJ) $(TESTOBJ)
 
-$(RUNTIMEOBJ): $(RUNTIMESRC)
+$(RUNTIMEOBJ): $(RUNTIMESRC) $(HEAPH)
 	@gcc $(CFLAGS) -c -o $(RUNTIMEOBJ) $(RUNTIMESRC)
 
 $(TESTOBJ): $(TESTSRC) $(EXE)
