@@ -224,7 +224,7 @@ void define_stack(Scope *root_scope) {
     is->add(new ClassWrapperIdentifier("items", PIVOT, CAST, "items"));
 
     is->add(new TemplateIdentifier<StackPushValue>("push", PIVOT));
-    is->add(new TemplateIdentifier<StackPopValue>("pop", PIVOT));
+    is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
 
     class_type->complete_type();
 }
@@ -326,6 +326,9 @@ Scope *init_builtins() {
     array_type = new ArrayType("Array");
     root_scope->add(array_type);
 
+    circularray_type = new CircularrayType("Circularray");
+    root_scope->add(circularray_type);
+
     streamifiable_type = new InterfaceType("Streamifiable", 0);
     root_scope->add(streamifiable_type);
 
@@ -387,6 +390,7 @@ Scope *init_builtins() {
     ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
     ANY_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, any_type };
     SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
+    ANY_CIRCULARRAY_REFERENCE_TS = { reference_type, circularray_type, any_type };
     VOID_CODE_TS = { code_type, void_type };
     BOOLEAN_CODE_TS = { code_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
@@ -511,6 +515,28 @@ Scope *init_builtins() {
     array_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REFERENCE_TS));
+
+
+    // Circularray operations
+    Scope *circularray_scope = circularray_type->get_inner_scope(NO_TS.begin());
+    circularray_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_CIRCULARRAY_REFERENCE_TS));
+    //circularray_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    //circularray_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateOperation<CircularrayItemValue>("index", ANY_CIRCULARRAY_REFERENCE_TS, TWEAK));
+    //circularray_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayPushValue>("push", ANY_CIRCULARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayPopValue>("pop", ANY_CIRCULARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayUnshiftValue>("unshift", ANY_CIRCULARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayShiftValue>("shift", ANY_CIRCULARRAY_REFERENCE_TS));
+    
+    // Array iterable operations
+    //implement(circularray_scope, SAME_ITERABLE_TS, "ible", {
+    //    new TemplateIdentifier<ArrayElemIterValue>("iter", ANY_ARRAY_REFERENCE_TS)
+    //});
+
+    //circularray_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements", ANY_ARRAY_REFERENCE_TS));
+    //circularray_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REFERENCE_TS));
+    //circularray_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REFERENCE_TS));
 
     // String operations
     implement(array_scope, STREAMIFIABLE_TS, "sable", {

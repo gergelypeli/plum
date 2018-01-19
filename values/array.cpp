@@ -1,11 +1,36 @@
 
 TypeSpec array_elem_ts(TypeSpec ts) {
-    TypeSpec ets = ts.rvalue().unprefix(reference_type).unprefix(array_type);
+    TypeSpec ets = ts.rvalue().unprefix(reference_type);
+    ets = ets.unprefix(ets[0]);  // TODO: just to make it work with multiple array-like types
     
     if (is_heap_type(ets[0]))
         ets = ets.prefix(reference_type);
         
     return ets;
+}
+
+
+void fix_index_overflow(Register r, X64 *x64) {
+    Label ok;
+    x64->op(ADDQ, RBX, x64->array_front_address(r));
+    x64->op(CMPQ, RBX, x64->array_reservation_address(r));
+    x64->op(JL, ok);
+        
+    x64->op(SUBQ, RBX, x64->array_reservation_address(r));
+        
+    x64->code_label(ok);
+}
+
+
+void fix_index_underflow(Register r, X64 *x64) {
+    Label ok;
+    x64->op(ADDQ, RBX, x64->array_front_address(r));
+    x64->op(CMPQ, RBX, 0);
+    x64->op(JGE, ok);
+        
+    x64->op(ADDQ, RBX, x64->array_reservation_address(r));
+        
+    x64->code_label(ok);
 }
 
 
@@ -54,50 +79,40 @@ public:
         :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
     }
 
+    virtual void fix_index(Register r, X64 *x64) {
+    }
+
     virtual Storage compile(X64 *x64) {
         int size = elem_size(ts.measure(MEMORY));
         
         subcompile(x64);
     
-        // TODO: probably this is the point where we need to borrow a reference to the
-        // array, and unborrow it sometimes later during the stack unwinding.
-    
-        // NOTE: the reg we selected is for the left value, and if that uses a register,
-        // then it is not available, unless we make sure to use its value before
-        // overwriting it. 
-    
-        switch (ls.where * rs.where) {
-        case REGISTER_CONSTANT:
+        switch (rs.where) {
+        case CONSTANT:
+            x64->op(MOVQ, RBX, rs.value);
+            break;
+        case REGISTER:
+            x64->op(MOVQ, RBX, rs.reg);
+            break;
+        case MEMORY:
+            x64->op(MOVQ, RBX, rs.address);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        switch (ls.where) {
+        case REGISTER:
             x64->decref(ls.reg);
-            x64->op(LEA, ls.reg, x64->array_elems_address(ls.reg) + rs.value * size);
-            return Storage(MEMORY, Address(ls.reg, 0));
-        case REGISTER_REGISTER:
-            x64->decref(ls.reg);
-            x64->op(IMUL3Q, rs.reg, rs.reg, size);
-            x64->op(ADDQ, ls.reg, rs.reg);
-            return Storage(MEMORY, x64->array_elems_address(ls.reg));
-        case REGISTER_MEMORY:
-            x64->decref(ls.reg);
-            x64->op(IMUL3Q, RBX, rs.address, size);
+            fix_index(ls.reg, x64);
+            x64->op(IMUL3Q, RBX, RBX, size);
             x64->op(ADDQ, ls.reg, RBX);
             return Storage(MEMORY, x64->array_elems_address(ls.reg));
-        case MEMORY_CONSTANT:
+        case MEMORY:
             x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
-            return Storage(MEMORY, x64->array_elems_address(reg) + rs.value * size);
-        case MEMORY_REGISTER:
-            x64->op(IMUL3Q, rs.reg, rs.reg, size);
-            x64->op(ADDQ, rs.reg, ls.address);
-            return Storage(MEMORY, x64->array_elems_address(rs.reg));
-        case MEMORY_MEMORY:
-            if (reg != ls.address.base) {
-                x64->op(IMUL3Q, reg, rs.address, size);  // reg may be the base of rs.address
-                x64->op(ADDQ, reg, ls.address);
-            }
-            else {
-                x64->op(MOVQ, reg, ls.address);  // reg is the base of ls.address
-                x64->op(IMUL3Q, RBX, rs.address, size);
-                x64->op(ADDQ, reg, RBX);
-            }
+            fix_index(reg, x64);
+            x64->op(IMUL3Q, RBX, RBX, size);
+            x64->op(ADDQ, reg, RBX);
             return Storage(MEMORY, x64->array_elems_address(reg));
         default:
             throw INTERNAL_ERROR;
@@ -405,6 +420,9 @@ public:
         return clob.add(RAX).add(RBX).add(RCX);
     }
 
+    virtual void fix_index(Register r, X64 *x64) {
+    }
+
     virtual Storage compile(X64 *x64) {
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
@@ -422,9 +440,12 @@ public:
         x64->op(JMP, end);
         
         x64->code_label(ok);
+        x64->op(INCQ, x64->array_length_address(RAX));
+
+        // RBX contains the index of the newly created element
+        fix_index(RAX, x64);
         
         x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(ADDQ, x64->array_length_address(RAX), 1);
         x64->op(ADDQ, RAX, RBX);
         
         elem_ts.create(Storage(STACK), Storage(MEMORY, x64->array_elems_address(RAX)), x64);
@@ -449,6 +470,9 @@ public:
         return clob.add(RAX).add(RBX).add(RCX);
     }
 
+    virtual void fix_index(Register r, X64 *x64) {
+    }
+
     virtual Storage compile(X64 *x64) {
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label ok;
@@ -463,6 +487,10 @@ public:
         x64->code_label(ok);
         x64->op(DECQ, x64->array_length_address(RAX));
         x64->op(MOVQ, RBX, x64->array_length_address(RAX));
+
+        // RBX contains the index of the newly removed element
+        fix_index(RAX, x64);
+
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->decref(RAX);
 
@@ -482,44 +510,61 @@ public:
         :ArrayItemValue(o, pivot, match) {
     }
 
-    virtual Storage compile(X64 *x64) {
-        int size = elem_size(ts.measure(MEMORY));
-        
-        subcompile(x64);
-    
-        switch (rs.where) {
-        case CONSTANT:
-            x64->op(MOVQ, RBX, rs.value);
-            break;
-        case REGISTER:
-            x64->op(MOVQ, RBX, rs.reg);
-            break;
-        case MEMORY:
-            x64->op(MOVQ, RBX, rs.address);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
+    virtual void fix_index(Register r, X64 *x64) {
+        fix_index_overflow(r, x64);
+    }
+};
 
-        Label x;
-        x64->op(ADDQ, RBX, x64->array_front_address(ls.reg));
-        x64->op(CMPQ, RBX, x64->array_reservation_address(ls.reg));
-        x64->op(JBE, x);
-        x64->op(SUBQ, RBX, x64->array_reservation_address(ls.reg));
-        x64->code_label(x);
-        x64->op(IMUL3Q, RBX, RBX, size);
-        
-        switch (ls.where) {
-        case REGISTER:
-            x64->decref(ls.reg);
-            x64->op(ADDQ, ls.reg, RBX);
-            return Storage(MEMORY, x64->array_elems_address(ls.reg));
-        case MEMORY:
-            x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
-            x64->op(ADDQ, reg, RBX);
-            return Storage(MEMORY, x64->array_elems_address(reg));
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }    
+
+class CircularrayPushValue: public ArrayPushValue {
+public:
+    CircularrayPushValue(Value *l, TypeMatch &match)
+        :ArrayPushValue(l, match) {
+    }
+
+    virtual void fix_index(Register r, X64 *x64) {
+        fix_index_overflow(r, x64);
+    }
+};
+
+
+class CircularrayPopValue: public ArrayPopValue {
+public:
+    CircularrayPopValue(Value *l, TypeMatch &match)
+        :ArrayPopValue(l, match) {
+    }
+
+    virtual void fix_index(Register r, X64 *x64) {
+        fix_index_overflow(r, x64);
+    }
+};
+
+
+class CircularrayUnshiftValue: public ArrayPushValue {
+public:
+    CircularrayUnshiftValue(Value *l, TypeMatch &match)
+        :ArrayPushValue(l, match) {
+    }
+
+    virtual void fix_index(Register r, X64 *x64) {
+        // Compute the new front, and use it for the element index
+        x64->op(MOVQ, RBX, -1);
+        fix_index_underflow(r, x64);
+        x64->op(MOVQ, x64->array_front_address(r), RBX);
+    }
+};
+
+
+class CircularrayShiftValue: public ArrayPopValue {
+public:
+    CircularrayShiftValue(Value *l, TypeMatch &match)
+        :ArrayPopValue(l, match) {
+    }
+
+    virtual void fix_index(Register r, X64 *x64) {
+        // Compute the new front, and use the old one for the element index
+        x64->op(MOVQ, RBX, 1);
+        fix_index_overflow(r, x64);
+        x64->op(XCHGQ, RBX, x64->array_front_address(r));
+    }
 };

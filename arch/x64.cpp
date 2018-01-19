@@ -62,7 +62,7 @@ Address::Address(Register b, Register i, int s, int o) {
         throw X64_ERROR;
     }
     
-    if (s != 1 && s != 2 && s != 4 && s != 8)
+    if (i != NOREG && s != 1 && s != 2 && s != 4 && s != 8)
         throw X64_ERROR;
     
     base = b;
@@ -73,7 +73,17 @@ Address::Address(Register b, Register i, int s, int o) {
 
 
 Address Address::operator + (int x) {
-    return Address(base, offset + x);
+    return Address(base, index, scale, offset + x);
+}
+
+
+Address Address::operator + (Register r) {
+    if (base == NOREG)
+        return Address(r, index, scale, offset);
+    else if (index == NOREG)
+        return Address(base, r, 1, offset);
+    else
+        throw X64_ERROR;
 }
 
 

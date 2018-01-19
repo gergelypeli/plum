@@ -140,7 +140,6 @@ public:
     }
     
     virtual void compile_virtual_table(TypeSpecIter tsi, Label label, X64 *x64) {
-        std::cerr << "Compiling virtual table for " << TypeSpec(tsi) << ".\n";
         std::vector<Function *> vt = inner_scope->get_virtual_table();
 
         x64->data_align();
@@ -155,8 +154,6 @@ public:
     }
     
     virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
-        std::cerr << "Compiling finalizer for " << TypeSpec(tsi) << ".\n";
-
         x64->code_label_export(label, "finalize_" + name, 0, false);  // FIXME: ambiguous name!
         
         destroy(tsi, Storage(MEMORY, Address(RAX, 0)), x64);

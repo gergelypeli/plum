@@ -167,6 +167,7 @@ struct Address {
     Address(Register b, Register i, int o);
     Address(Register b, Register i, int scale, int o);
     Address operator + (int o);
+    Address operator + (Register r);
 };
 
 #define EXCEPTION_ADDRESS Address(RBP, -8)
