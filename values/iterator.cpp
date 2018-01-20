@@ -183,6 +183,30 @@ public:
 };
 
 
+class CircularrayElemIterValue: public ArrayIterValue {
+public:
+    CircularrayElemIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(typesubst(SAME_CIRCULARRAYELEMITER_TS, match), l) {
+    }
+};
+
+
+class CircularrayIndexIterValue: public ArrayIterValue {
+public:
+    CircularrayIndexIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(typesubst(SAME_CIRCULARRAYINDEXITER_TS, match), l) {
+    }
+};
+
+
+class CircularrayItemIterValue: public ArrayIterValue {
+public:
+    CircularrayItemIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(typesubst(SAME_CIRCULARRAYITEMITER_TS, match), l) {
+    }
+};
+
+
 // Array iterator next methods
 
 class ArrayNextValue: public GenericValue {
@@ -230,6 +254,7 @@ public:
         
         switch (ls.where) {
         case MEMORY:
+            std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
             x64->op(MOVQ, RBX, ls.address + 8);  // value
             x64->op(MOVQ, reg, ls.address); // array reference without incref
             x64->op(CMPQ, RBX, x64->array_length_address(reg));
@@ -240,6 +265,7 @@ public:
             
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + 8);
+            //x64->err("NEXT COMPILE");
             return next_compile(elem_size, reg, x64);
         default:
             throw INTERNAL_ERROR;
@@ -253,8 +279,14 @@ public:
     ArrayNextElemValue(Value *l, TypeMatch &match)
         :ArrayNextValue(match[1], match[1], l, false) {
     }
+
+    virtual void fix_index(Register r, X64 *x64) {
+        // r contains the array reference, RBX the index
+    }
     
     virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
+        fix_index(reg, x64);
+        
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
         return Storage(MEMORY, x64->array_elems_address(reg));
@@ -277,24 +309,62 @@ public:
 
 class ArrayNextItemValue: public ArrayNextValue {
 public:
-    TypeSpec elem_ts;
+    //TypeSpec elem_ts;
     
     ArrayNextItemValue(Value *l, TypeMatch &match)
         :ArrayNextValue(typesubst(SAME_ITEM_TS, match), match[1], l, false) {
-        elem_ts = match[1];
+        //elem_ts = match[1];
+    }
+
+    virtual void fix_index(Register r, X64 *x64) {
+        // r contains the array reference, RBX the index
     }
 
     virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
         x64->op(SUBQ, RSP, ts.measure(STACK));
         x64->op(MOVQ, Address(RSP, 0), RBX);
+        
+        fix_index(reg, x64);
+        
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
         
         Storage s = Storage(MEMORY, x64->array_elems_address(reg));
         Storage t = Storage(MEMORY, Address(RSP, 8));
-        elem_ts.store(s, t, x64);
+        elem_ts.create(s, t, x64);
         
         return Storage(STACK);
     }
 };
 
+
+class CircularrayNextElemValue: public ArrayNextElemValue {
+public:
+    CircularrayNextElemValue(Value *l, TypeMatch &match)
+        :ArrayNextElemValue(l, match) {
+    }
+    
+    virtual void fix_index(Register r, X64 *x64) {
+        fix_index_overflow(r, x64);
+    }
+};
+
+
+class CircularrayNextIndexValue: public ArrayNextIndexValue {  // for completeness only
+public:
+    CircularrayNextIndexValue(Value *l, TypeMatch &match)
+        :ArrayNextIndexValue(l, match) {
+    }
+};
+
+
+class CircularrayNextItemValue: public ArrayNextItemValue {
+public:
+    CircularrayNextItemValue(Value *l, TypeMatch &match)
+        :ArrayNextItemValue(l, match) {
+    }
+    
+    virtual void fix_index(Register r, X64 *x64) {
+        fix_index_overflow(r, x64);
+    }
+};

@@ -372,8 +372,9 @@ start? :Function as:
     prints("Unshifted {x} and {y} to {z} and {w}" { x: ca[0], y: ca[1], z: ca[2], w: ca[3] })
     prints("Circularray length is {l}" { l: ca length })
 
-    #gr? Greetable { 789, "not me, I'm you" }
-    #gr greet
+    :for ca items each: it? do:
+        prints("Circularray items: {x} => {y}" {x: it index, y: it value})
+
     gr? Greetable `init
     gr greet
     

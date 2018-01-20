@@ -97,6 +97,23 @@ void define_interfaces(Scope *root_scope) {
     iterator_type->complete_type();
 }
 
+template <typename NextValue>
+void define_arrayiterator(Type *iter_type, Type *container_type, TypeSpec interface_ts) {
+    TypeSpec PIVOT_TS = { iter_type, any_type };
+    TypeSpec SAME_CONTAINER_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, container_type, same_type };
+    
+    DataScope *aiis = iter_type->make_inner_scope(PIVOT_TS);
+
+    aiis->add(new Variable("array", PIVOT_TS, SAME_CONTAINER_REFERENCE_LVALUE_TS));  // Order matters!
+    aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
+
+    implement(aiis, interface_ts, "iterator", {
+        new TemplateIdentifier<NextValue>("next", PIVOT_TS)
+    });
+    
+    iter_type->complete_type();
+}
+
 
 void define_iterators(Scope *root_scope) {
     // Counter operations
@@ -137,6 +154,15 @@ void define_iterators(Scope *root_scope) {
     TypeSpec SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, same_type };
 
     // Array Iterator operations
+    define_arrayiterator<ArrayNextElemValue>(arrayelemiter_type, array_type, SAME_ITERATOR_TS);
+    define_arrayiterator<ArrayNextIndexValue>(arrayindexiter_type, array_type, INTEGER_ITERATOR_TS);
+    define_arrayiterator<ArrayNextItemValue>(arrayitemiter_type, array_type, SAME_ITEM_ITERATOR_TS);
+
+    define_arrayiterator<CircularrayNextElemValue>(circularrayelemiter_type, circularray_type, SAME_ITERATOR_TS);
+    define_arrayiterator<CircularrayNextIndexValue>(circularrayindexiter_type, circularray_type, INTEGER_ITERATOR_TS);
+    define_arrayiterator<CircularrayNextItemValue>(circularrayitemiter_type, circularray_type, SAME_ITEM_ITERATOR_TS);
+
+    /*
     enum AIT { ELEM, INDEX, ITEM };
     for (auto type : { ELEM, INDEX, ITEM }) {
         RecordType *aiter_type = dynamic_cast<RecordType *>(type == INDEX ? arrayindexiter_type : type == ELEM ? arrayelemiter_type : arrayitemiter_type);
@@ -166,6 +192,7 @@ void define_iterators(Scope *root_scope) {
         aiter_type->complete_type();
         //root_scope->add(aiter_type);
     }
+    */
 }
 
 
@@ -362,6 +389,15 @@ Scope *init_builtins() {
     arrayitemiter_type = new RecordType("Arrayitem_iter", 1);
     root_scope->add(arrayitemiter_type);
 
+    circularrayelemiter_type = new RecordType("Circularrayelem_iter", 1);
+    root_scope->add(circularrayelemiter_type);
+    
+    circularrayindexiter_type = new RecordType("Circularrayindex_iter", 1);
+    root_scope->add(circularrayindexiter_type);
+    
+    circularrayitemiter_type = new RecordType("Circularrayitem_iter", 1);
+    root_scope->add(circularrayitemiter_type);
+
     // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };
@@ -412,6 +448,9 @@ Scope *init_builtins() {
     SAME_ARRAYELEMITER_TS = { arrayelemiter_type, same_type };
     SAME_ARRAYINDEXITER_TS = { arrayindexiter_type, same_type };
     SAME_ARRAYITEMITER_TS = { arrayitemiter_type, same_type };
+    SAME_CIRCULARRAYELEMITER_TS = { circularrayelemiter_type, same_type };
+    SAME_CIRCULARRAYINDEXITER_TS = { circularrayindexiter_type, same_type };
+    SAME_CIRCULARRAYITEMITER_TS = { circularrayitemiter_type, same_type };
 
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -516,7 +555,6 @@ Scope *init_builtins() {
     array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REFERENCE_TS));
 
-
     // Circularray operations
     Scope *circularray_scope = circularray_type->get_inner_scope(NO_TS.begin());
     circularray_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_CIRCULARRAY_REFERENCE_TS));
@@ -530,13 +568,13 @@ Scope *init_builtins() {
     circularray_scope->add(new TemplateIdentifier<CircularrayShiftValue>("shift", ANY_CIRCULARRAY_REFERENCE_TS));
     
     // Array iterable operations
-    //implement(circularray_scope, SAME_ITERABLE_TS, "ible", {
-    //    new TemplateIdentifier<ArrayElemIterValue>("iter", ANY_ARRAY_REFERENCE_TS)
-    //});
+    implement(circularray_scope, SAME_ITERABLE_TS, "ible", {
+        new TemplateIdentifier<CircularrayElemIterValue>("iter", ANY_CIRCULARRAY_REFERENCE_TS)
+    });
 
-    //circularray_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements", ANY_ARRAY_REFERENCE_TS));
-    //circularray_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REFERENCE_TS));
-    //circularray_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayElemIterValue>("elements", ANY_CIRCULARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayIndexIterValue>("indexes", ANY_CIRCULARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayItemIterValue>("items", ANY_CIRCULARRAY_REFERENCE_TS));
 
     // String operations
     implement(array_scope, STREAMIFIABLE_TS, "sable", {
