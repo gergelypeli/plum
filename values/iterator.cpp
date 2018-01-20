@@ -11,6 +11,8 @@ public:
 };
 
 
+// Counters
+
 class CountupNextValue: public GenericValue {
 public:
     Declaration *dummy;
@@ -141,6 +143,48 @@ public:
 };
 
 
+// Array iterator initializers
+
+class ArrayIterValue: public SimpleRecordValue {
+public:
+    ArrayIterValue(TypeSpec t, Value *l)
+        :SimpleRecordValue(t, l) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        x64->op(PUSHQ, 0);
+
+        left->compile_and_store(x64, Storage(STACK));
+        return Storage(STACK);
+    }
+};
+
+class ArrayElemIterValue: public ArrayIterValue {
+public:
+    ArrayElemIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(typesubst(SAME_ARRAYELEMITER_TS, match), l) {
+    }
+};
+
+
+class ArrayIndexIterValue: public ArrayIterValue {
+public:
+    ArrayIndexIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(typesubst(SAME_ARRAYINDEXITER_TS, match), l) {
+    }
+};
+
+
+class ArrayItemIterValue: public ArrayIterValue {
+public:
+    ArrayItemIterValue(Value *l, TypeMatch &match)
+        :ArrayIterValue(typesubst(SAME_ARRAYITEMITER_TS, match), l) {
+    }
+};
+
+
+// Array iterator next methods
+
 class ArrayNextValue: public GenericValue {
 public:
     Declaration *dummy;
@@ -174,6 +218,7 @@ public:
     }
 
     virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
+        // reg contains the (non-refcounted) array reference, RBX the index
         throw INTERNAL_ERROR;
     }
 
@@ -186,11 +231,13 @@ public:
         switch (ls.where) {
         case MEMORY:
             x64->op(MOVQ, RBX, ls.address + 8);  // value
-            x64->op(MOVQ, reg, ls.address); // array reference
+            x64->op(MOVQ, reg, ls.address); // array reference without incref
             x64->op(CMPQ, RBX, x64->array_length_address(reg));
             x64->op(JNE, ok);
+            
             x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
             x64->unwind->initiate(dummy, x64);
+            
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + 8);
             return next_compile(elem_size, reg, x64);
@@ -248,76 +295,6 @@ public:
         elem_ts.store(s, t, x64);
         
         return Storage(STACK);
-    }
-};
-
-
-class ArrayIterValue: public SimpleRecordValue {
-public:
-    ArrayIterValue(TypeSpec t, Value *l)
-        :SimpleRecordValue(t, l) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        x64->op(PUSHQ, 0);
-
-        left->compile_and_store(x64, Storage(STACK));
-        /*
-        switch (ls.where) {
-        case REGISTER:
-            x64->op(PUSHQ, ls.reg);
-            break;
-        case STACK:  // this is the case for lazy String operations
-            break;
-        case MEMORY:
-            x64->op(MOVQ, RBX, ls.address);
-            x64->incref(RBX);
-            x64->op(PUSHQ, RBX);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        */
-        return Storage(STACK);
-    }
-};
-
-class ArrayElemIterValue: public ArrayIterValue {
-public:
-    ArrayElemIterValue(Value *l, TypeMatch &match)
-        :ArrayIterValue(typesubst(SAME_ARRAYELEMITER_TS, match), l) {
-    }
-};
-
-
-class ArrayIndexIterValue: public ArrayIterValue {
-public:
-    ArrayIndexIterValue(Value *l, TypeMatch &match)
-        :ArrayIterValue(typesubst(SAME_ARRAYINDEXITER_TS, match), l) {
-    }
-};
-
-
-class ArrayItemIterValue: public ArrayIterValue {
-public:
-    ArrayItemIterValue(Value *l, TypeMatch &match)
-        :ArrayIterValue(typesubst(SAME_ARRAYITEMITER_TS, match), l) {
-    }
-};
-
-
-class IteratorIterableIterValue: public GenericValue {
-public:
-    IteratorIterableIterValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, match[0], l) {
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred);
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return left->compile(x64);
     }
 };
 

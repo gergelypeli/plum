@@ -360,7 +360,7 @@ public:
         }
         
         TypeSpec ts = TypeSpec(tsi).unprefix(partial_type);
-        Value *allowed = make_identity_value(v, ts);
+        Value *allowed = make_cast_value(v, ts);
         
         return ts.lookup_inner(n, allowed);
     }

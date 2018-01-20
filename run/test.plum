@@ -299,7 +299,11 @@ start? :Function as:
         
     :for "Abc" items each: it? do:
         prints("Iterating items: {i} => {e}" {i: it index, e: it value})
-        
+
+    ait? "Abc" elements
+    :for ait each: c? do:
+        prints("Iterating elems again: {c}" {})
+                
     x3 = :lol:
         prints("Now yielding.")
         :lol 33

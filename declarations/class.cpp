@@ -90,7 +90,7 @@ public:
 
             // FIXME: check if the method is Void!
             if (value)
-                return make_identity_value(value, rts);
+                return make_cast_value(value, rts);
         }
         
         std::cerr << "Can't initialize class as " << name << "!\n";

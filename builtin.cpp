@@ -92,7 +92,7 @@ void define_interfaces(Scope *root_scope) {
     implement(iis, SAME_ITERABLE_TS, "ible", {
         // This must return the concrete type, so the pivot type must be Any so that no
         // conversion to an interface happens, which would hide the concrete type.
-        new TemplateIdentifier<IteratorIterableIterValue>("iter", ANY_TS)
+        new Identity("iter", ANY_TS)
     });
     iterator_type->complete_type();
 }

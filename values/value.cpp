@@ -152,11 +152,11 @@ void unwind_destroy_var(TypeSpec &ts, Storage s, X64 *x64) {
 }
 
 
-class IdentityValue: public Value {
+class CastValue: public Value {
 public:
     std::unique_ptr<Value> pivot;
 
-    IdentityValue(Value *p, TypeSpec ts)
+    CastValue(Value *p, TypeSpec ts)
         :Value(ts) {
         pivot.reset(p);
     }
@@ -621,8 +621,8 @@ Value *make_implementation_definition_value() {
 }
 
 
-Value *make_identity_value(Value *v, TypeSpec ts) {
-    return new IdentityValue(v, ts);
+Value *make_cast_value(Value *v, TypeSpec ts) {
+    return new CastValue(v, ts);
 }
 
 
