@@ -143,7 +143,7 @@ public:
         
         x64->op(CALL, l);
         
-        x64->op(ADDQ, RSP, 8);
+        x64->op(ADDQ, RSP, INTEGER_SIZE);
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
         
@@ -152,9 +152,9 @@ public:
     
     static void compile_array_concatenation(X64 *x64) {
         // RAX - result, RBX - elem size, RCX - first, RDX - second
-        x64->op(MOVQ, RCX, Address(RSP, 24));
-        x64->op(MOVQ, RDX, Address(RSP, 16));
-        x64->op(MOVQ, RBX, Address(RSP, 8));
+        x64->op(MOVQ, RCX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE + REFERENCE_SIZE));
+        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));
+        x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));
         
         x64->op(MOVQ, RAX, x64->array_length_address(RCX));
         x64->op(ADDQ, RAX, x64->array_length_address(RDX));  // total length in RAX
@@ -166,8 +166,8 @@ public:
         
         x64->op(POPQ, x64->array_length_address(RAX));
 
-        x64->op(MOVQ, RBX, Address(RSP, 8));  // restored
-        x64->op(MOVQ, RCX, Address(RSP, 24));  // restored
+        x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));  // restored
+        x64->op(MOVQ, RCX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE + REFERENCE_SIZE));  // restored
         
         x64->op(LEA, RDI, x64->array_elems_address(RAX));
         

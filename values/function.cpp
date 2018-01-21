@@ -515,9 +515,9 @@ public:
             if (pts[0] != reference_type)  // Was: borrowed_type
                 throw INTERNAL_ERROR;
                 
-            x64->op(MOVQ, RBX, Address(RSP, passed_size - 8));  // self pointer
+            x64->op(MOVQ, RBX, Address(RSP, passed_size - REFERENCE_SIZE));  // self pointer
             x64->op(MOVQ, RBX, Address(RBX, 0));  // VMT pointer
-            x64->op(CALL, Address(RBX, vti * 8));
+            x64->op(CALL, Address(RBX, vti * ADDRESS_SIZE));
             std::cerr << "Will invoke virtual method of " << pts << " #" << vti << ".\n";
         }
         else

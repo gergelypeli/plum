@@ -52,13 +52,13 @@ public:
         
         switch (ls.where) {
         case MEMORY:
-            x64->op(MOVQ, reg, ls.address + 8);  // value
+            x64->op(MOVQ, reg, ls.address + INTEGER_SIZE);  // value
             x64->op(CMPQ, reg, ls.address); // limit
             x64->op(JNE, ok);
             x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
             x64->unwind->initiate(dummy, x64);
             x64->code_label(ok);
-            advance(ls.address + 8, x64);
+            advance(ls.address + INTEGER_SIZE, x64);
             return Storage(REGISTER, reg);
         default:
             throw INTERNAL_ERROR;
@@ -255,7 +255,7 @@ public:
         switch (ls.where) {
         case MEMORY:
             std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
-            x64->op(MOVQ, RBX, ls.address + 8);  // value
+            x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // value
             x64->op(MOVQ, reg, ls.address); // array reference without incref
             x64->op(CMPQ, RBX, x64->array_length_address(reg));
             x64->op(JNE, ok);
@@ -264,7 +264,7 @@ public:
             x64->unwind->initiate(dummy, x64);
             
             x64->code_label(ok);
-            x64->op(is_down ? DECQ : INCQ, ls.address + 8);
+            x64->op(is_down ? DECQ : INCQ, ls.address + REFERENCE_SIZE);
             //x64->err("NEXT COMPILE");
             return next_compile(elem_size, reg, x64);
         default:
@@ -330,7 +330,7 @@ public:
         x64->op(ADDQ, reg, RBX);
         
         Storage s = Storage(MEMORY, x64->array_elems_address(reg));
-        Storage t = Storage(MEMORY, Address(RSP, 8));
+        Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
         elem_ts.create(s, t, x64);
         
         return Storage(STACK);

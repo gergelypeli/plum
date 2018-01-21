@@ -79,7 +79,7 @@ public:
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            if (size == 8)
+            if (size == INTEGER_SIZE)
                 x64->op(POPQ, t.address);
             else {
                 x64->op(POPQ, RBX);
@@ -93,7 +93,7 @@ public:
             x64->op(mov, t.reg, s.address);
             return;
         case MEMORY_STACK:
-            if (size == 8)
+            if (size == INTEGER_SIZE)
                 x64->op(PUSHQ, s.address);
             else {
                 x64->op(mov, RBX, s.address);
@@ -133,7 +133,7 @@ public:
             x64->op(mov, t.address, s.reg);
             return;
         case STACK_MEMORY:
-            if (size == 8)
+            if (size == INTEGER_SIZE)
                 x64->op(POPQ, t.address);
             else {
                 x64->op(POPQ, RBX);

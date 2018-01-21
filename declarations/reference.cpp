@@ -8,9 +8,9 @@ public:
     virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case STACK:
-            return 8;
+            return REFERENCE_SIZE;
         case MEMORY:
-            return 8;
+            return REFERENCE_SIZE;
         default:
             return Type::measure(tsi, where);
         }
@@ -211,109 +211,6 @@ public:
     }
 };
 
-
-/*
-class BorrowedReferenceType: public Type {
-public:
-    BorrowedReferenceType(std::string name)
-        :Type(name, 1) {
-    }
-    
-    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
-        switch (where) {
-        case STACK:
-            return 16;
-        case MEMORY:
-            return 16;
-        default:
-            return Type::measure(tsi, where);
-        }
-    }
-
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        switch (s.where * t.where) {
-        case STACK_NOWHERE:
-            x64->op(ADDQ, RSP, 16);
-            return;
-        case STACK_STACK:
-            return;
-        case STACK_MEMORY:
-            x64->op(POPQ, t.address);
-            x64->op(POPQ, t.address + 8);
-            return;
-
-        case MEMORY_NOWHERE:
-            return;
-        case MEMORY_STACK:
-            x64->op(PUSHQ, s.address + 8);
-            x64->op(PUSHQ, s.address);
-            return;
-        case MEMORY_MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(MOVQ, t.address, RBX);
-            x64->op(MOVQ, RBX, s.address + 8);
-            x64->op(MOVQ, t.address + 8, RBX);
-            return;
-        default:
-            Type::store(tsi, s, t, x64);
-        }
-    }
-
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        // Assume the target MEMORY is uninitialized
-        
-        switch (s.where * t.where) {
-        case NOWHERE_MEMORY:
-            x64->op(MOVQ, t.address, 0);
-            x64->op(MOVQ, t.address + 8, 0);
-            return;
-        case STACK_MEMORY:
-            x64->op(POPQ, t.address);
-            x64->op(POPQ, t.address + 8);
-            return;
-        case MEMORY_MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(MOVQ, t.address, RBX);
-            x64->op(MOVQ, RBX, s.address + 8);
-            x64->op(MOVQ, t.address + 8, RBX);
-            return;
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-
-    virtual void destroy(TypeSpecIter , Storage s, X64 *x64) {
-        if (s.where == MEMORY) {
-        }
-        else
-            throw INTERNAL_ERROR;
-    }
-
-    virtual StorageWhere where(TypeSpecIter, bool is_arg, bool is_lvalue) {
-        return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : STACK));
-    }
-
-    virtual Storage boolval(TypeSpecIter , Storage s, X64 *x64, bool probe) {
-        switch (s.where) {
-        case MEMORY:
-            x64->op(CMPQ, s.address, 0);
-            return Storage(FLAGS, SETNE);
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
-        std::cerr << "No borrowed reference initializer called " << name << "!\n";
-        return NULL;
-    }
-    
-    virtual Scope *get_inner_scope(TypeSpecIter tsi) {
-        tsi++;
-        return (*tsi)->get_inner_scope(tsi);
-    }
-};
-*/
 
 class HeapType: public Type {
 public:

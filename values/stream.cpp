@@ -27,8 +27,8 @@ public:
     
     static void compile_string_streamification(X64 *x64) {
         // RAX - target array, RBX - tmp, RCX - size, RDX - source array, RDI - alias
-        x64->op(MOVQ, RDI, Address(RSP, 8));  // alias to the stream reference
-        x64->op(MOVQ, RDX, Address(RSP, 16));  // reference to the string
+        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
         
         x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, x64->array_length_address(RDX));
@@ -83,8 +83,8 @@ public:
     
     static void compile_character_streamification(X64 *x64) {
         // RAX - target array, RBX - tmp, RCX - size, RDX - source character, RDI - alias
-        x64->op(MOVQ, RDI, Address(RSP, 8));  // alias to the stream reference
-        x64->op(MOVQ, RDX, Address(RSP, 16));  // the character
+        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
 
         x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, 1);
@@ -138,20 +138,16 @@ public:
     
     static void compile_enum_streamification(X64 *x64) {
         // RAX - target array, RBX - table start, RCX - size, RDX - source enum, RDI - alias
-        x64->op(MOVQ, RDI, Address(RSP, 8));  // alias to the stream reference
-        x64->op(MOVQ, RDX, Address(RSP, 16));  // the enum
+        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the enum
 
         // Find the string for this enum value
         x64->op(ANDQ, RDX, 0xFF);
-        x64->op(MOVQ, RDX, Address(RBX, RDX, 8, 0));
-        //x64->op(SHLQ, RDX, 3);  // 64-bit absolute addresses are stored in our table
-        //x64->op(ADDQ, RBX, RDX);  // entry start
-        //x64->op(MOVSXDQ, RDX, Address(RBX, 0));  // offset to string
-        //x64->op(ADDQ, RDX, RBX);  // absolute address of string
+        x64->op(MOVQ, RDX, Address(RBX, RDX, ADDRESS_SIZE, 0));
             
         x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, x64->array_length_address(RDX));
-        x64->op(MOVQ, RCX, 2);
+        x64->op(MOVQ, RCX, CHARACTER_SIZE);
         
         x64->preappend_array_RAX_RBX_RCX();
         
@@ -164,7 +160,7 @@ public:
         x64->op(LEA, RSI, x64->array_elems_address(RDX));
         x64->op(MOVQ, RCX, x64->array_length_address(RDX));
         x64->op(ADDQ, x64->array_length_address(RAX), RCX);
-        x64->op(SHLQ, RCX, 1);
+        x64->op(IMUL3Q, RCX, RCX, CHARACTER_SIZE);
         
         x64->op(REPMOVSB);
         

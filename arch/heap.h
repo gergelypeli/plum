@@ -13,3 +13,9 @@ const int ARRAY_ELEMS_OFFSET = 32;
 const int CLASS_HEADER_SIZE = 8;
 const int CLASS_VT_OFFSET = 0;
 const int CLASS_MEMBERS_OFFSET = 8;
+
+const int ADDRESS_SIZE = 8;
+const int REFERENCE_SIZE = 8;
+const int ALIAS_SIZE = 8;
+const int INTEGER_SIZE = 8;
+const int CHARACTER_SIZE = 2;

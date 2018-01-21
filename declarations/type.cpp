@@ -100,9 +100,9 @@ public:
     virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case ALISTACK:
-            return 8;
+            return ALIAS_SIZE;
         case ALIAS:
-            return 8;
+            return ALIAS_SIZE;
         default:
             std::cerr << "Unmeasurable type: " << name << "!\n";
             throw INTERNAL_ERROR;
@@ -121,7 +121,7 @@ public:
             return;
             
         case ALISTACK_NOWHERE:
-            x64->op(ADDQ, RSP, 8);
+            x64->op(ADDQ, RSP, ALIAS_SIZE);
             return;
         case ALISTACK_MEMORY:
             if (t.address.base == NOREG || t.address.base == RBP || t.address.base == RSP || t.address.index != NOREG || t.address.offset != 0)

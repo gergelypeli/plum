@@ -503,7 +503,7 @@ public:
     }
     
     virtual void allocate() {
-        head_scope->reserve(8 + 8);
+        head_scope->reserve(ADDRESS_SIZE + ADDRESS_SIZE);
         head_scope->allocate();
 
         self_scope->reserve(head_scope->size);
@@ -514,7 +514,7 @@ public:
 
         //std::cerr << "Function head is " << head_scope->size - 16 << "bytes, self is " << self_scope->size - head_scope->size << " bytes, result is " << result_scope->size - self_scope->size << " bytes.\n";
 
-        body_scope->reserve(8);  // Reserve [RBP - 8] for local exceptions
+        body_scope->reserve(INTEGER_SIZE);  // Reserve [RBP - 8] for local exceptions
         body_scope->allocate();
         
         is_allocated = true;

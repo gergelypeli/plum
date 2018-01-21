@@ -31,7 +31,7 @@ public:
         stack->compile_and_store(x64, Storage(STACK));
         array->compile_and_store(x64, Storage(STACK));
         
-        x64->op(MOVQ, RBX, Address(RSP, 8));
+        x64->op(MOVQ, RBX, Address(RSP, REFERENCE_SIZE));
         x64->op(POPQ, Address(RBX, CLASS_MEMBERS_OFFSET));
         
         return Storage(STACK);

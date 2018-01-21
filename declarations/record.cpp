@@ -132,7 +132,7 @@ public:
         if (!probe) {
             x64->op(SETNE, BL);
             x64->op(PUSHQ, RBX);
-            destroy(tsi, Storage(MEMORY, Address(RSP, 8)), x64);
+            destroy(tsi, Storage(MEMORY, Address(RSP, INTEGER_SIZE)), x64);
             x64->op(POPQ, RBX);
             x64->op(ADDQ, RSP, measure(tsi, STACK));
             x64->op(CMPB, BL, 0);
@@ -150,18 +150,18 @@ public:
         case STACK_STACK:
             x64->op(PUSHQ, RBP);
             x64->op(MOVQ, RBP, RSP);
-            s = Storage(MEMORY, Address(RBP, 8 + stack_size));
-            t = Storage(MEMORY, Address(RBP, 8));
+            s = Storage(MEMORY, Address(RBP, ADDRESS_SIZE + stack_size));
+            t = Storage(MEMORY, Address(RBP, ADDRESS_SIZE));
             break;
         case STACK_MEMORY:
             x64->op(PUSHQ, RBP);
             x64->op(MOVQ, RBP, RSP);
-            s = Storage(MEMORY, Address(RBP, 8));
+            s = Storage(MEMORY, Address(RBP, ADDRESS_SIZE));
             break;
         case MEMORY_STACK:
             x64->op(PUSHQ, RBP);
             x64->op(MOVQ, RBP, RSP);
-            t = Storage(MEMORY, Address(RBP, 8));
+            t = Storage(MEMORY, Address(RBP, ADDRESS_SIZE));
             break;
         case MEMORY_MEMORY:
             for (auto &var : member_variables) 
@@ -191,20 +191,20 @@ public:
 
         switch (stw) {
         case STACK_STACK:
-            destroy(tsi, t + 8, x64);
-            destroy(tsi, s + 8, x64);
+            destroy(tsi, t + ADDRESS_SIZE, x64);
+            destroy(tsi, s + ADDRESS_SIZE, x64);
             x64->op(POPQ, RBX);
             x64->op(POPQ, RBP);
             x64->op(ADDQ, RSP, 2 * stack_size);
             break;
         case STACK_MEMORY:
-            destroy(tsi, s + 8, x64);
+            destroy(tsi, s + ADDRESS_SIZE, x64);
             x64->op(POPQ, RBX);
             x64->op(POPQ, RBP);
             x64->op(ADDQ, RSP, stack_size);
             break;
         case MEMORY_STACK:
-            destroy(tsi, t + 8, x64);
+            destroy(tsi, t + ADDRESS_SIZE, x64);
             x64->op(POPQ, RBX);
             x64->op(POPQ, RBP);
             x64->op(ADDQ, RSP, stack_size);
@@ -282,17 +282,17 @@ public:
 
         switch (s.where * t.where) {
         case STACK_STACK:
-            x64->op(XCHGQ, RAX, Address(RSP, 8));
+            x64->op(XCHGQ, RAX, Address(RSP, REFERENCE_SIZE));
             x64->op(XCHGQ, RDX, Address(RSP, 0));
             break;
         case STACK_MEMORY:
             x64->op(PUSHQ, RDX);
-            x64->op(XCHGQ, RAX, Address(RSP, 8));
+            x64->op(XCHGQ, RAX, Address(RSP, ADDRESS_SIZE));
             x64->op(MOVQ, RDX, t.address);
             break;
         case MEMORY_STACK:
             x64->op(PUSHQ, RDX);
-            x64->op(XCHGQ, RAX, Address(RSP, 8));
+            x64->op(XCHGQ, RAX, Address(RSP, ADDRESS_SIZE));
             x64->op(MOVQ, RDX, s.address);
             x64->op(XCHGQ, RAX, RDX);
             break;
