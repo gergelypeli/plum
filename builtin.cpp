@@ -236,7 +236,7 @@ void define_stack(Scope *root_scope) {
     ClassType *class_type = dynamic_cast<ClassType *>(stack_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
-    is->add(new Variable("array", PIVOT, SAME_ARRAY_REFERENCE_LVALUE_TS));
+    is->add(new Variable("array", PIVOT, CAST));
 
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
@@ -252,6 +252,36 @@ void define_stack(Scope *root_scope) {
 
     is->add(new TemplateIdentifier<StackPushValue>("push", PIVOT));
     is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
+
+    class_type->complete_type();
+}
+
+
+
+void define_queue(Scope *root_scope) {
+    TypeSpec PIVOT = ANY_QUEUE_REFERENCE_TS;
+    TypeSpec CAST = SAME_CIRCULARRAY_REFERENCE_LVALUE_TS;
+    
+    ClassType *class_type = dynamic_cast<ClassType *>(queue_type);
+    DataScope *is = class_type->make_inner_scope(PIVOT);
+
+    is->add(new Variable("carray", PIVOT, CAST));
+
+    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
+    is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
+    is->add(new ClassWrapperIdentifier("realloc", PIVOT, CAST, "realloc"));
+
+    implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+        new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
+    });
+
+    is->add(new ClassWrapperIdentifier("elements", PIVOT, CAST, "elements"));
+    is->add(new ClassWrapperIdentifier("indexes", PIVOT, CAST, "indexes"));
+    is->add(new ClassWrapperIdentifier("items", PIVOT, CAST, "items"));
+
+    is->add(new TemplateIdentifier<QueuePushValue>("push", PIVOT));
+    is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
+    is->add(new ClassWrapperIdentifier("shift", PIVOT, CAST, "shift"));
 
     class_type->complete_type();
 }
@@ -371,6 +401,9 @@ Scope *init_builtins() {
     stack_type = new StackType("Stack");
     root_scope->add(stack_type);
 
+    queue_type = new QueueType("Queue");
+    root_scope->add(queue_type);
+
     countup_type = new RecordType("Countup", 0);
     root_scope->add(countup_type);
 
@@ -427,6 +460,7 @@ Scope *init_builtins() {
     ANY_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, any_type };
     SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
     ANY_CIRCULARRAY_REFERENCE_TS = { reference_type, circularray_type, any_type };
+    SAME_CIRCULARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, circularray_type, same_type };
     VOID_CODE_TS = { code_type, void_type };
     BOOLEAN_CODE_TS = { code_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
@@ -437,10 +471,8 @@ Scope *init_builtins() {
     SAME_ITERABLE_TS = { iterable_type, same_type };
     STRING_TS = { string_type };
     STRING_LVALUE_TS = { lvalue_type, string_type };
-    //ANY_STACK_TS = { stack_type, any_type };
-    //ANY_STACK_LVALUE_TS = { lvalue_type, stack_type, any_type };
-    //SAME_STACK_LVALUE_TS = { lvalue_type, stack_type, same_type };
     ANY_STACK_REFERENCE_TS = { reference_type, stack_type, any_type };
+    ANY_QUEUE_REFERENCE_TS = { reference_type, queue_type, any_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ITEM_TS = { item_type, any_type };
@@ -469,6 +501,8 @@ Scope *init_builtins() {
     define_iterators(root_scope);
 
     define_stack(root_scope);
+
+    define_queue(root_scope);
 
     // Integer operations
     Scope *integer_scope = integer_metatype->get_inner_scope(NO_TS.begin());

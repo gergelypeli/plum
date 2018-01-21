@@ -375,6 +375,14 @@ start? :Function as:
     :for ca items each: it? do:
         prints("Circularray items: {x} => {y}" {x: it index, y: it value})
 
+    qu? String Queue { "A", "B", "C", "D", "E", "F", "G" }
+    qu shift
+    qu push "H"
+    qu push "I"
+    qu push "J"
+    :for qu items each: it? do:
+        prints("Queue items: {x} => {y}" { x: it index, y: it value })
+
     gr? Greetable `init
     gr greet
     

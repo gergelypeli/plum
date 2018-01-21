@@ -503,6 +503,7 @@ public:
     
     void alloc_array_RAX_RBX_RCX();
     void realloc_array_RAX_RBX_RCX();
+    void grow_array_RAX_RBX_RCX();
     void preappend_array_RAX_RBX_RCX();
     Address heap_finalizer_address(Register reg);
     Address array_reservation_address(Register reg);

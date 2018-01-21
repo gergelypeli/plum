@@ -1241,13 +1241,10 @@ void X64::realloc_array_RAX_RBX_RCX() {
     realloc_RAX_RBX();
 }
 
-void X64::preappend_array_RAX_RBX_RCX() {
-    op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
-    op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-    Label ok, more;
-    op(JBE, ok);
-    
+void X64::grow_array_RAX_RBX_RCX() {
     // Double the reservation until it's enough
+    Label more;
+    
     op(XCHGQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
     op(CMPQ, RBX, ARRAY_MINIMUM_RESERVATION);
     op(JAE, more);
@@ -1259,6 +1256,15 @@ void X64::preappend_array_RAX_RBX_RCX() {
     op(JBE, more);
     
     realloc_array_RAX_RBX_RCX();
+}
+
+void X64::preappend_array_RAX_RBX_RCX() {
+    op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
+    op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+    Label ok;
+    op(JBE, ok);
+
+    grow_array_RAX_RBX_RCX();
     
     code_label(ok);
 }

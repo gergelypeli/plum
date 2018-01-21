@@ -209,3 +209,26 @@ public:
 };
 
 
+class QueueType: public ClassType {
+public:
+    QueueType(std::string name)
+        :ClassType(name, 1) {
+    }
+    
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+        TypeSpec cts = TypeSpec(tsi).unprefix(queue_type).prefix(circularray_type);
+        Value *carray_initializer = cts.lookup_initializer(name, scope);
+        
+        if (!carray_initializer) {
+            std::cerr << "No Queue initializer called " << name << "!\n";
+            return NULL;
+        }
+
+        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+        Value *queue_preinitializer = make_class_preinitializer_value(rts);
+        
+        return make_queue_initializer_value(queue_preinitializer, carray_initializer);
+    }
+};
+
+
