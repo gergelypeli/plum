@@ -1244,12 +1244,23 @@ void X64::realloc_array_RAX_RBX_RCX() {
 void X64::preappend_array_RAX_RBX_RCX() {
     op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
     op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-    Label x;
-    op(JBE, x);
+    Label ok, more;
+    op(JBE, ok);
+    
+    // Double the reservation until it's enough
+    op(XCHGQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+    op(CMPQ, RBX, ARRAY_MINIMUM_RESERVATION);
+    op(JAE, more);
+    op(MOVQ, RBX, ARRAY_MINIMUM_RESERVATION);
+    
+    code_label(more);
+    op(SHLQ, RBX, 1);
+    op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+    op(JBE, more);
     
     realloc_array_RAX_RBX_RCX();
     
-    code_label(x);
+    code_label(ok);
 }
 
 Address X64::heap_finalizer_address(Register reg) {
