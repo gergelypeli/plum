@@ -15,7 +15,8 @@ void fix_index_overflow(Register r, X64 *x64) {
     x64->op(ADDQ, RBX, x64->array_front_address(r));
     x64->op(CMPQ, RBX, x64->array_reservation_address(r));
     x64->op(JL, ok);
-        
+
+    //x64->err("Fixing index overflow.");
     x64->op(SUBQ, RBX, x64->array_reservation_address(r));
         
     x64->code_label(ok);
@@ -28,6 +29,7 @@ void fix_index_underflow(Register r, X64 *x64) {
     x64->op(CMPQ, RBX, 0);
     x64->op(JGE, ok);
         
+    //x64->err("Fixing index underflow.");
     x64->op(ADDQ, RBX, x64->array_reservation_address(r));
         
     x64->code_label(ok);

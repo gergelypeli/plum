@@ -375,12 +375,18 @@ start? :Function as:
     :for ca items each: it? do:
         prints("Circularray items: {x} => {y}" {x: it index, y: it value})
 
-    qu? String Queue { "A", "B", "C", "D", "E", "F", "G" }
+    qu? String Queue { "A", "B", "C", "D", "E", "F", "G", "H" }
     qu shift
-    qu push "H"
-    qu push "I"
-    qu push "J"
+    qu push "I"  # folds
+    qu push "J"  # grows
     :for qu items each: it? do:
+        prints("Queue items: {x} => {y}" { x: it index, y: it value })
+
+    qv? String Queue { "A", "B", "C", "D", "E", "F", "G", "H" }
+    qv pop
+    qv unshift "@"  # folds
+    qv unshift "@@" # grows
+    :for qv items each: it? do:
         prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
     gr? Greetable `init

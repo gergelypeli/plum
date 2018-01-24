@@ -280,6 +280,7 @@ void define_queue(Scope *root_scope) {
     is->add(new ClassWrapperIdentifier("items", PIVOT, CAST, "items"));
 
     is->add(new TemplateIdentifier<QueuePushValue>("push", PIVOT));
+    is->add(new TemplateIdentifier<QueueUnshiftValue>("unshift", PIVOT));
     is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
     is->add(new ClassWrapperIdentifier("shift", PIVOT, CAST, "shift"));
 
