@@ -91,7 +91,7 @@ X64::X64() {
     code_label_import(memalloc_label, "memalloc");
     code_label_import(memfree_label, "memfree");
     code_label_import(memrealloc_label, "memrealloc");
-    code_label_import(err_label, "err");
+    code_label_import(log_label, "logfunc");  // bah...
     code_label_import(die_label, "die");
     code_label_import(sort_label, "sort");
 
@@ -1289,7 +1289,7 @@ Address X64::array_elems_address(Register reg) {
     return Address(reg, ARRAY_ELEMS_OFFSET);
 }
 
-void X64::err(const char *message) {
+void X64::log(const char *message) {
     Label message_label;
     data_label(message_label);
     
@@ -1300,7 +1300,7 @@ void X64::err(const char *message) {
 
     pusha();
     op(LEARIP, RDI, message_label);
-    op(CALL, err_label);
+    op(CALL, log_label);
     popa();
 }
 

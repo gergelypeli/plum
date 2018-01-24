@@ -394,7 +394,7 @@ public:
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label, err_label, die_label, sort_label, empty_function_label;
+    Label memalloc_label, memfree_label, memrealloc_label, log_label, die_label, sort_label, empty_function_label;
     std::vector<Label> incref_labels, decref_labels;
     std::map<FunctionCompiler, Label> function_compiler_labels;
     
@@ -511,6 +511,6 @@ public:
     Address array_front_address(Register reg);
     Address array_elems_address(Register reg);
     
-    void err(const char *message);
+    void log(const char *message);
     void die(const char *message);
 };

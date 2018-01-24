@@ -31,8 +31,8 @@ void *memrealloc(void *m, long size) {
 }
 
 
-void err(const char *message) {
-    fprintf(stderr, "ERR: %s\n", message);
+void logfunc(const char *message) {
+    fprintf(stderr, "LOG: %s\n", message);
 }
 
 

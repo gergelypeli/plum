@@ -132,7 +132,7 @@ public:
         // The front is low, so it's better to unfold the folded part. This requires that
         // the growth rate was at least 1.5 times.
         
-        x64->err("Unfolding queue circularray.");
+        x64->log("Unfolding queue circularray.");
         
         x64->op(LEA, RSI, x64->array_elems_address(RAX));
         
@@ -151,7 +151,7 @@ public:
         // The front is high, so it's better to move the unfolded part to the end of the
         // new reservation. This also requires 1.5 growth rate so we can copy forward.
 
-        x64->err("Stretching queue circularray.");
+        x64->log("Stretching queue circularray.");
         
         x64->op(MOVQ, RSI, x64->array_front_address(RAX));
         x64->op(IMUL3Q, RSI, RSI, elem_size);
