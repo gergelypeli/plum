@@ -287,13 +287,13 @@ public:
             break;
         case STACK_MEMORY:
             x64->op(PUSHQ, RDX);
-            x64->op(XCHGQ, RAX, Address(RSP, ADDRESS_SIZE));
             x64->op(MOVQ, RDX, t.address);
+            x64->op(XCHGQ, RAX, Address(RSP, ADDRESS_SIZE));
             break;
         case MEMORY_STACK:
             x64->op(PUSHQ, RDX);
-            x64->op(XCHGQ, RAX, Address(RSP, ADDRESS_SIZE));
             x64->op(MOVQ, RDX, s.address);
+            x64->op(XCHGQ, RAX, Address(RSP, ADDRESS_SIZE));
             x64->op(XCHGQ, RAX, RDX);
             break;
         case MEMORY_MEMORY:
