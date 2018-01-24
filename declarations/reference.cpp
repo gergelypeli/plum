@@ -280,7 +280,7 @@ public:
     }
 
     virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
-        TypeSpec elem_ts = TypeSpec(tsi).unprefix(array_type);
+        TypeSpec elem_ts = TypeSpec(tsi).unprefix(array_type).varvalue();
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label start, end, loop;
 
@@ -315,7 +315,7 @@ public:
     }
     
     virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
-        TypeSpec elem_ts = TypeSpec(tsi).unprefix(circularray_type);
+        TypeSpec elem_ts = TypeSpec(tsi).unprefix(circularray_type).varvalue();
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label start, end, loop, ok, ok1;
     
@@ -354,6 +354,53 @@ public:
     
         x64->code_label(end);
         x64->op(POPQ, RDX);
+        x64->op(POPQ, RCX);
+        x64->op(RET);
+    }
+};
+
+
+class AatreeType: public HeapType {
+public:
+    AatreeType(std::string name)
+        :HeapType(name, 1) {
+        make_inner_scope(TypeSpec { reference_type, this, any_type });
+    }
+    
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+        
+        if (name == "empty")
+            return make_aatree_empty_value(rts);
+        else if (name == "reserved")
+            return make_aatree_reserved_value(rts);
+        else if (name == "null")
+            return make_null_reference_value(rts);
+        //else if (name == "{}")
+        //    return make_array_initializer_value(rts);
+
+        std::cerr << "No " << this->name << " initializer called " << name << "!\n";
+        return NULL;
+    }
+
+    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
+        TypeSpec elem_ts = TypeSpec(tsi).unprefix(aatree_type).varvalue();
+        Label loop, cond;
+
+        x64->code_label(label);
+        x64->op(PUSHQ, RCX);
+
+        x64->op(MOVQ, RCX, Address(RAX, AATREE_LAST_OFFSET));
+        x64->op(JMP, cond);
+        
+        x64->code_label(loop);
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, RCX, AANODE_VALUE_OFFSET)), x64);
+        x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET));
+        
+        x64->code_label(cond);
+        x64->op(CMPQ, RCX, AANODE_NIL);
+        x64->op(JNE, loop);
+        
         x64->op(POPQ, RCX);
         x64->op(RET);
     }

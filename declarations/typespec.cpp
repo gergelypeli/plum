@@ -99,6 +99,11 @@ TypeSpec TypeSpec::nonrvalue() {
 }
 
 
+TypeSpec TypeSpec::varvalue() {
+    return is_heap_type(at(0)) ? prefix(reference_type) : *this;
+}
+
+
 unsigned TypeSpec::measure(StorageWhere where) {
     TypeSpecIter tsi(begin());
     return (*tsi)->measure(tsi, where);

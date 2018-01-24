@@ -387,6 +387,9 @@ Scope *init_builtins() {
     circularray_type = new CircularrayType("Circularray");
     root_scope->add(circularray_type);
 
+    aatree_type = new AatreeType("Aatree");
+    root_scope->add(aatree_type);
+
     streamifiable_type = new InterfaceType("Streamifiable", 0);
     root_scope->add(streamifiable_type);
 
@@ -462,6 +465,7 @@ Scope *init_builtins() {
     SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
     ANY_CIRCULARRAY_REFERENCE_TS = { reference_type, circularray_type, any_type };
     SAME_CIRCULARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, circularray_type, same_type };
+    ANY_AATREE_REFERENCE_TS = { reference_type, aatree_type, any_type };
     VOID_CODE_TS = { code_type, void_type };
     BOOLEAN_CODE_TS = { code_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
@@ -611,10 +615,17 @@ Scope *init_builtins() {
     circularray_scope->add(new TemplateIdentifier<CircularrayIndexIterValue>("indexes", ANY_CIRCULARRAY_REFERENCE_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayItemIterValue>("items", ANY_CIRCULARRAY_REFERENCE_TS));
 
-    // String operations
-    implement(array_scope, STREAMIFIABLE_TS, "sable", {
-        new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS)
-    });
+    // Aatree operations
+    Scope *aatree_scope = aatree_type->get_inner_scope(NO_TS.begin());
+    aatree_scope->add(new TemplateIdentifier<AatreeLengthValue>("length", ANY_AATREE_REFERENCE_TS));
+    //array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
+    aatree_scope->add(new TemplateIdentifier<AatreeHasValue>("has", ANY_AATREE_REFERENCE_TS));
+    aatree_scope->add(new TemplateIdentifier<AatreeAddValue>("add", ANY_AATREE_REFERENCE_TS));
+
+    // String operations in array scope
+    //implement(array_scope, STREAMIFIABLE_TS, "sable", {
+    //    new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS)
+    //});
     
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));

@@ -418,6 +418,7 @@ public:
 #include "iterator.cpp"
 #include "class.cpp"
 #include "stack.cpp"
+#include "aatree.cpp"
 
 
 TypeSpec get_typespec(Value *value) {
@@ -558,6 +559,16 @@ Value *make_array_empty_value(TypeSpec ts) {
 
 Value *make_array_initializer_value(TypeSpec ts) {
     return new ArrayInitializerValue(ts);
+}
+
+
+Value *make_aatree_empty_value(TypeSpec ts) {
+    return new AatreeEmptyValue(ts);
+}
+
+
+Value *make_aatree_reserved_value(TypeSpec ts) {
+    return new AatreeReservedValue(ts);
 }
 
 

@@ -511,6 +511,8 @@ public:
     Address array_front_address(Register reg);
     Address array_elems_address(Register reg);
     
+    void alloc_aatree_RAX_RBX_RCX();
+    
     void log(const char *message);
     void die(const char *message);
 };

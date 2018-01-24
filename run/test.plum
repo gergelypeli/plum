@@ -389,6 +389,15 @@ start? :Function as:
     :for qv items each: it? do:
         prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
+    aa? String Aatree `reserved 8
+    aa add "A"
+
+    :if aa has "A" then:
+        prints("Aa has A, good.")
+        
+    :if ! aa has "B" then:
+        prints("Aa has no B, good")
+
     gr? Greetable `init
     gr greet
     

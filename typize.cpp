@@ -47,6 +47,7 @@ public:
     TypeSpec lvalue();
     TypeSpec nonlvalue();
     TypeSpec nonrvalue();
+    TypeSpec varvalue();
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);
@@ -110,9 +111,11 @@ Value *make_boolean_conversion_value(Value *orig);
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *orig, TypeMatch &match);
 Value *make_boolean_not_value(Value *value);
 Value *make_null_reference_value(TypeSpec ts);
-Value *make_null_string_value();
+Value *make_null_string_value();  // TODO: rethink!
 Value *make_array_empty_value(TypeSpec ts);
 Value *make_array_initializer_value(TypeSpec ts);
+Value *make_aatree_empty_value(TypeSpec ts);
+Value *make_aatree_reserved_value(TypeSpec ts);
 Value *make_unicode_character_value();
 Value *make_integer_definition_value();
 Value *make_enumeration_definition_value();
