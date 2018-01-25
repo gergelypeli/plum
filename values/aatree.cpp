@@ -245,7 +245,7 @@ public:
         // Returns RBX - new index
         
         x64->code_label_export(fun, "fun", 0, false);
-        x64->log("Fun.");
+        x64->log("Add fun.");
         x64->op(CMPQ, RCX, AANODE_NIL);
         x64->op(JE, no);
         
@@ -280,6 +280,153 @@ public:
         elem_ts.create(ks, vs, x64);
         //std::cerr << "Creating a " << elem_ts << " aanode.\n";
         x64->op(MOVQ, RBX, RCX);
+        x64->op(RET);
+        
+        x64->code_label(end);
+        elem_ts.store(Storage(STACK), Storage(), x64);
+        x64->op(POPQ, RAX);
+        x64->decref(RAX);
+        
+        return Storage();
+    }
+};
+
+
+class AatreeRemoveValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    AatreeRemoveValue(Value *pivot, TypeMatch &match)
+        :GenericValue(match[1], VOID_TS, pivot) {
+        elem_ts = element_ts(match[0]);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = left->precompile(preferred) | right->precompile(preferred);
+        return clob.add(RAX).add(RBX).add(RCX).add(RDX);
+    }
+
+    virtual void deallocate_aanode(X64 *x64) {
+        // In: RAX - tree
+        // Out: RCX - node
+        // Clob: RBX, RDX
+        Label no_prev, prev_ok, no_next, next_ok;
+        
+        x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET));
+        x64->op(MOVQ, RDX, Address(RAX, RCX, AANODE_NEXT_OFFSET));
+
+        x64->op(CMPQ, RBX, AANODE_NIL);
+        x64->op(JE, no_prev);
+        
+        x64->op(MOVQ, Address(RAX, RBX, AANODE_NEXT_OFFSET), RDX);
+        x64->op(JMP, prev_ok);
+        
+        x64->code_label(no_prev);
+        x64->op(MOVQ, Address(RAX, AATREE_FIRST_OFFSET), RDX);
+        
+        x64->code_label(prev_ok);
+        x64->op(CMPQ, RDX, AANODE_NIL);
+        x64->op(JE, no_next);
+        
+        x64->op(MOVQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), RBX);
+        x64->op(JMP, next_ok);
+        
+        x64->code_label(no_next);
+        x64->op(MOVQ, Address(RAX, AATREE_LAST_OFFSET), RBX);
+        
+        x64->code_label(next_ok);
+        x64->op(MOVQ, RBX, Address(RAX, AATREE_VACANT_OFFSET));
+        x64->op(MOVQ, Address(RAX, RCX, AANODE_NEXT_OFFSET), RBX);
+        x64->op(MOVQ, Address(RAX, AATREE_VACANT_OFFSET), RCX);
+        
+        x64->op(DECQ, Address(RAX, AATREE_LENGTH_OFFSET));
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Label loop, no, remove_left, remove_right, end, fun;
+        int key_size = ::stack_size(elem_ts.measure(MEMORY));
+        
+        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
+
+        x64->op(MOVQ, RDX, RSP);  // save key address for stack usage
+        x64->op(MOVQ, RAX, Address(RSP, key_size));  // Aatree without incref
+        x64->op(MOVQ, RCX, Address(RAX, AATREE_ROOT_OFFSET));
+        x64->op(CALL, fun);
+        x64->op(MOVQ, Address(RAX, AATREE_ROOT_OFFSET), RBX);
+        x64->op(JMP, end);
+
+        // Expects RAX - tree, RCX - index, RDX - key (may be modified upon return)
+        // Returns RBX - new index
+        
+        x64->code_label_export(fun, "fun", 0, false);
+        x64->log("Remove fun.");
+        x64->op(CMPQ, RCX, AANODE_NIL);
+        x64->op(JE, no);
+        
+        Storage ks(MEMORY, Address(RDX, 0));  // can't use STACK, that would be popped!
+        Storage vs(MEMORY, Address(RAX, RCX, AANODE_VALUE_OFFSET));
+        elem_ts.compare(ks, vs, x64, remove_left, remove_right);
+        
+        // Found the value, remove it (RDX is no longer needed)
+        Label no_left, left_loop, no_right;
+        x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_LEFT_OFFSET));
+        x64->op(CMPQ, RBX, AANODE_NIL);
+        x64->op(JE, no_left);
+        
+        // Find the greatest smaller element as replacement
+        x64->code_label(left_loop);
+        x64->op(MOVQ, RDX, RBX);
+        x64->op(MOVQ, RBX, Address(RAX, RDX, AANODE_RIGHT_OFFSET));
+        x64->op(CMPQ, RBX, AANODE_NIL);
+        x64->op(JNE, left_loop);
+        
+        Storage rs(MEMORY, Address(RAX, RDX, AANODE_VALUE_OFFSET));
+        elem_ts.store(rs, vs, x64);
+        
+        x64->op(LEA, RDX, Address(RAX, RDX, AANODE_VALUE_OFFSET));
+        x64->op(JMP, remove_left);  // Yes, this is a goto :-)
+        
+        x64->code_label(no_left);
+        x64->op(MOVQ, RDX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
+        x64->op(CMPQ, RDX, AANODE_NIL);
+        x64->op(JE, no_right);
+        
+        // A single red right child can be the replacement FIXME: this needs balanced!
+        elem_ts.destroy(vs, x64);
+        deallocate_aanode(x64);  // At RCX
+        x64->op(MOVQ, RBX, RDX);  // return the right child FIXME: recolor!
+        x64->op(RET);
+        
+        // No children, just remove FIXME: black must be immaterialized!
+        x64->code_label(no_right);
+        elem_ts.destroy(vs, x64);
+        deallocate_aanode(x64);
+        x64->op(MOVQ, RBX, AANODE_NIL);
+        x64->op(RET);
+        
+        // Descend to the left
+        x64->code_label(remove_left);
+        x64->op(PUSHQ, RCX);
+        x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_LEFT_OFFSET));
+        x64->op(CALL, fun);
+        x64->op(POPQ, RCX);
+        x64->op(MOVQ, Address(RAX, RCX, AANODE_LEFT_OFFSET), RBX);
+        x64->op(MOVQ, RBX, RCX);  // FIXME: balance
+        x64->op(RET);
+        
+        // Descend to the right
+        x64->code_label(remove_right);
+        x64->op(PUSHQ, RCX);
+        x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
+        x64->op(CALL, fun);
+        x64->op(POPQ, RCX);
+        x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
+        x64->op(MOVQ, RBX, RCX);  // FIXME: balance
+        x64->op(RET);
+        
+        // Not found
+        x64->code_label(no);
+        x64->op(MOVQ, RBX, AANODE_NIL);
         x64->op(RET);
         
         x64->code_label(end);

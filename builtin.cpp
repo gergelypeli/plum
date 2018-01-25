@@ -98,13 +98,14 @@ void define_interfaces(Scope *root_scope) {
 }
 
 template <typename NextValue>
-void define_arrayiterator(Type *iter_type, Type *container_type, TypeSpec interface_ts) {
+void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec interface_ts) {
     TypeSpec PIVOT_TS = { iter_type, any_type };
     TypeSpec SAME_CONTAINER_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, container_type, same_type };
     
     DataScope *aiis = iter_type->make_inner_scope(PIVOT_TS);
 
-    aiis->add(new Variable("array", PIVOT_TS, SAME_CONTAINER_REFERENCE_LVALUE_TS));  // Order matters!
+    // Order matters!
+    aiis->add(new Variable("container", PIVOT_TS, SAME_CONTAINER_REFERENCE_LVALUE_TS));
     aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
 
     implement(aiis, interface_ts, "iterator", {
@@ -154,45 +155,17 @@ void define_iterators(Scope *root_scope) {
     TypeSpec SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, same_type };
 
     // Array Iterator operations
-    define_arrayiterator<ArrayNextElemValue>(arrayelemiter_type, array_type, SAME_ITERATOR_TS);
-    define_arrayiterator<ArrayNextIndexValue>(arrayindexiter_type, array_type, INTEGER_ITERATOR_TS);
-    define_arrayiterator<ArrayNextItemValue>(arrayitemiter_type, array_type, SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, array_type, SAME_ITERATOR_TS);
+    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, array_type, INTEGER_ITERATOR_TS);
+    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, array_type, SAME_ITEM_ITERATOR_TS);
 
-    define_arrayiterator<CircularrayNextElemValue>(circularrayelemiter_type, circularray_type, SAME_ITERATOR_TS);
-    define_arrayiterator<CircularrayNextIndexValue>(circularrayindexiter_type, circularray_type, INTEGER_ITERATOR_TS);
-    define_arrayiterator<CircularrayNextItemValue>(circularrayitemiter_type, circularray_type, SAME_ITEM_ITERATOR_TS);
+    // Circularray Iterator operations
+    define_container_iterator<CircularrayNextElemValue>(circularrayelemiter_type, circularray_type, SAME_ITERATOR_TS);
+    define_container_iterator<CircularrayNextIndexValue>(circularrayindexiter_type, circularray_type, INTEGER_ITERATOR_TS);
+    define_container_iterator<CircularrayNextItemValue>(circularrayitemiter_type, circularray_type, SAME_ITEM_ITERATOR_TS);
 
-    /*
-    enum AIT { ELEM, INDEX, ITEM };
-    for (auto type : { ELEM, INDEX, ITEM }) {
-        RecordType *aiter_type = dynamic_cast<RecordType *>(type == INDEX ? arrayindexiter_type : type == ELEM ? arrayelemiter_type : arrayitemiter_type);
-        TypeSpec ANY_ARRAYITER_TS = { aiter_type, any_type };
-        TypeSpec SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
-        DataScope *aiis = aiter_type->make_inner_scope(ANY_ARRAYITER_TS);
-    
-        aiis->add(new Variable("array", ANY_ARRAYITER_TS, SAME_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
-        aiis->add(new Variable("value", ANY_ARRAYITER_TS, INTEGER_LVALUE_TS));
-
-        if (type == ELEM) {
-            implement(aiis, SAME_ITERATOR_TS, "elemiter", {
-                new TemplateIdentifier<ArrayNextElemValue>("next", ANY_ARRAYITER_TS)
-            });
-        }
-        else if (type == INDEX) {
-            implement(aiis, INTEGER_ITERATOR_TS, "indexiter", {
-                new TemplateIdentifier<ArrayNextIndexValue>("next", ANY_ARRAYITER_TS)
-            });
-        }
-        else {
-            implement(aiis, SAME_ITEM_ITERATOR_TS, "itemiter", {
-                new TemplateIdentifier<ArrayNextItemValue>("next", ANY_ARRAYITER_TS)
-            });
-        }
-        
-        aiter_type->complete_type();
-        //root_scope->add(aiter_type);
-    }
-    */
+    // Aatree Iterator operations
+    define_container_iterator<AatreeNextElemValue>(aatreeelemiter_type, aatree_type, SAME_ITERATOR_TS);
 }
 
 
@@ -435,6 +408,9 @@ Scope *init_builtins() {
     circularrayitemiter_type = new RecordType("Circularrayitem_iter", 1);
     root_scope->add(circularrayitemiter_type);
 
+    aatreeelemiter_type = new RecordType("Aatreeelem_iter", 1);
+    root_scope->add(aatreeelemiter_type);
+
     // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };
@@ -488,6 +464,7 @@ Scope *init_builtins() {
     SAME_CIRCULARRAYELEMITER_TS = { circularrayelemiter_type, same_type };
     SAME_CIRCULARRAYINDEXITER_TS = { circularrayindexiter_type, same_type };
     SAME_CIRCULARRAYITEMITER_TS = { circularrayitemiter_type, same_type };
+    SAME_AATREEELEMITER_TS = { aatreeelemiter_type, same_type };
 
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -606,7 +583,7 @@ Scope *init_builtins() {
     circularray_scope->add(new TemplateIdentifier<CircularrayUnshiftValue>("unshift", ANY_CIRCULARRAY_REFERENCE_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayShiftValue>("shift", ANY_CIRCULARRAY_REFERENCE_TS));
     
-    // Array iterable operations
+    // Circularray iterable operations
     implement(circularray_scope, SAME_ITERABLE_TS, "ible", {
         new TemplateIdentifier<CircularrayElemIterValue>("iter", ANY_CIRCULARRAY_REFERENCE_TS)
     });
@@ -621,12 +598,11 @@ Scope *init_builtins() {
     //array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
     aatree_scope->add(new TemplateIdentifier<AatreeHasValue>("has", ANY_AATREE_REFERENCE_TS));
     aatree_scope->add(new TemplateIdentifier<AatreeAddValue>("add", ANY_AATREE_REFERENCE_TS));
+    aatree_scope->add(new TemplateIdentifier<AatreeRemoveValue>("remove", ANY_AATREE_REFERENCE_TS));
 
-    // String operations in array scope
-    //implement(array_scope, STREAMIFIABLE_TS, "sable", {
-    //    new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS)
-    //});
-    
+    // Aatree iterable operations
+    aatree_scope->add(new TemplateIdentifier<AatreeElemIterValue>("elements_by_time", ANY_AATREE_REFERENCE_TS));
+
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
     

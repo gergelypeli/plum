@@ -368,3 +368,84 @@ public:
         fix_index_overflow(r, x64);
     }
 };
+
+
+// Aatree iterator initializers
+
+class AatreeElemIterValue: public SimpleRecordValue {
+public:
+    AatreeElemIterValue(Value *l, TypeMatch &match)
+        :SimpleRecordValue(typesubst(SAME_AATREEELEMITER_TS, match), l) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        left->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(POPQ, RBX);
+        x64->op(PUSHQ, Address(RBX, AATREE_FIRST_OFFSET));
+        x64->op(PUSHQ, RBX);
+        
+        return Storage(STACK);
+    }
+};
+
+
+class AatreeNextElemValue: public GenericValue {
+public:
+    Declaration *dummy;
+    Regs clob;
+    bool is_down;
+    TypeSpec elem_ts;
+
+    AatreeNextElemValue(Value *l, TypeMatch &match)
+        :GenericValue(VOID_TS, match[1], l) {
+        is_down = false;  // TODO: get as argument for backward iteration!
+        elem_ts = match[1];
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_arguments(args, kwargs, {}))
+            return false;
+
+        dummy = new Declaration;
+        scope->add(dummy);
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        clob = left->precompile(preferred);
+        
+        if (!clob.has_any())
+            clob.add(RAX);
+        
+        return clob;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        ls = left->compile(x64);  // iterator
+        Register reg = (clob & ~ls.regs()).get_any();
+        //int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        Label ok;
+        
+        switch (ls.where) {
+        case MEMORY:
+            x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // offset
+            x64->op(MOVQ, reg, ls.address); // tree reference without incref
+            x64->op(CMPQ, RBX, AANODE_NIL);
+            x64->op(JNE, ok);
+            
+            x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
+            x64->unwind->initiate(dummy, x64);
+            
+            x64->code_label(ok);
+            x64->op(ADDQ, reg, RBX);
+            x64->op(MOVQ, RBX, Address(reg, is_down? AANODE_PREV_IS_RED_OFFSET : AANODE_NEXT_OFFSET));
+            x64->op(MOVQ, ls.address + REFERENCE_SIZE, RBX);
+            
+            return Storage(MEMORY, Address(reg, AANODE_VALUE_OFFSET));
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
