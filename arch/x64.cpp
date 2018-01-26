@@ -455,7 +455,6 @@ void X64::code_op(int code, int size, int rxbq) {
     switch (size) {
     case 0:
         // We force a REX prefix for byte operations to allow access to SIL and DIL.
-        // This is unnecessary for AL/BL/CL/DL, but we can live with that.
         rex(rxb, questionable);
         code &= ~1;
         break;
@@ -479,7 +478,9 @@ void X64::code_op(int code, int size, int rxbq) {
         rex(rxb);
         break;
     case 6:
-        rex(rxb);
+        // The default opsize may be byte for some operations (bitsets!), and using the
+        // questionable registers needs a forced REX prefix.
+        rex(rxb, questionable);
         break;
     case 7:
         rex(REX_W | rxb);
