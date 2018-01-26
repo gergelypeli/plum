@@ -9,7 +9,7 @@ void compile_skew(Label label, X64 *x64) {
     // RAX - tree, RCX - node
     // RBX - result
     // RDX - clob
-    Label no, end;
+    Label no;
 
     x64->op(CMPQ, RCX, AANODE_NIL);
     x64->op(JE, no);
@@ -32,12 +32,10 @@ void compile_skew(Label label, X64 *x64) {
     x64->op(RCRQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1); // left red X, curr red to CF
     x64->op(RCLQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1); // curr red to left
     x64->op(ROLQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1); // left red to curr
-    x64->op(JMP, end);
+    x64->op(RET);
 
     x64->code_label(no);
     x64->op(MOVQ, RBX, RCX);
-
-    x64->code_label(end);
     x64->op(RET);
 }
 
@@ -47,7 +45,7 @@ void compile_split(Label label, X64 *x64) {
     // RAX - tree, RCX - node
     // RBX - result
     // RDX - clob
-    Label no, end;
+    Label no;
 
     x64->op(CMPQ, RCX, AANODE_NIL);
     x64->op(JE, no);
@@ -74,12 +72,10 @@ void compile_split(Label label, X64 *x64) {
     x64->op(MOVQ, Address(RAX, RBX, AANODE_LEFT_OFFSET), RCX);
 
     x64->op(ANDQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), -2);  // clear redness
-    x64->op(JMP, end);
+    x64->op(RET);
 
     x64->code_label(no);
     x64->op(MOVQ, RBX, RCX);
-
-    x64->code_label(end);
     x64->op(RET);
 }
 
@@ -113,7 +109,7 @@ void compile_fix_child(Label label, X64 *x64) {
         x64->code_label_export(redden, "_redden", 0, false);
         // RAX - tree, RCX - node
         // RBX - clob
-        Label end, black;
+        Label black;
     
         x64->log("Aatree redden.");
         x64->op(TESTQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
@@ -124,12 +120,10 @@ void compile_fix_child(Label label, X64 *x64) {
         x64->op(ORQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1);
         x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
         x64->op(ORQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1);
-        x64->op(JMP, end);
+        x64->op(RET);
     
         x64->code_label(black);
         x64->op(ORQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
-    
-        x64->code_label(end);
         x64->op(RET);
     }
     
@@ -298,7 +292,7 @@ void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
     // RDX - key
     x64->code_label_export(label, "aatree_has", 0, false);
 
-    Label loop, no, end, less, greater;
+    Label loop, no, less, greater;
 
     x64->code_label(loop);
     //x64->log("Has loop.");
@@ -310,7 +304,7 @@ void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
     elem_ts.compare(ks, vs, x64, less, greater);
     
     x64->op(MOVQ, RCX, 1);
-    x64->op(JMP, end);
+    x64->op(RET);
     
     x64->code_label(less);
     x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_LEFT_OFFSET));
@@ -322,8 +316,6 @@ void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
     
     x64->code_label(no);
     x64->op(MOVQ, RCX, 0);
-    
-    x64->code_label(end);
     x64->op(RET);
 }
 
