@@ -385,7 +385,7 @@ public:
         unsigned def_index;
     };
 
-    typedef void (*FunctionCompiler)(X64 *);
+    typedef void (*FunctionCompiler)(Label, X64 *);
     
     std::vector<char> code;
     std::vector<char> data;

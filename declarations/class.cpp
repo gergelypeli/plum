@@ -166,7 +166,7 @@ public:
 std::map<TypeSpec, Label> class_virtual_table_labels;
 
 
-void compile_class_virtual_tables(X64 *x64) {
+void compile_class_virtual_tables(Label label, X64 *x64) {
     for (auto &kv : class_virtual_table_labels) {
         TypeSpec ts = kv.first;
         Label label = kv.second;

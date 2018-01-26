@@ -4,8 +4,8 @@
 // value may be 0, which is an invalid offset, since the tree itself has a nonempty header.
 
 
-void compile_skew(X64 *x64) {
-    //x64->code_label_export(skew, "_skew", 0, false);
+void compile_skew(Label label, X64 *x64) {
+    x64->code_label_export(label, "_skew", 0, false);
     // RAX - tree, RCX - node
     // RBX - result
     // RDX - clob
@@ -42,8 +42,8 @@ void compile_skew(X64 *x64) {
 }
 
 
-void compile_split(X64 *x64) {
-    //x64->code_label_export(split, "_split", 0, false);
+void compile_split(Label label, X64 *x64) {
+    x64->code_label_export(label, "_split", 0, false);
     // RAX - tree, RCX - node
     // RBX - result
     // RDX - clob
@@ -84,13 +84,13 @@ void compile_split(X64 *x64) {
 }
 
 
-void compile_fix_child(X64 *x64) {
+void compile_fix_child(Label label, X64 *x64) {
     Label redden, materialize, fix;
     Label skew = x64->once(compile_skew);
     Label split = x64->once(compile_split);
 
     {
-        //x64->code_label_export(fix_child, "_fix_child", 0, false);
+        x64->code_label_export(label, "_fix_child", 0, false);
         // RAX - tree, RBX - child, RCX - node, RSI - immaterial
         Label no_black;
         
@@ -194,8 +194,8 @@ void compile_fix_child(X64 *x64) {
 }
 
 
-void compile_allocate(X64 *x64) {
-    //x64->code_label_export(allocate, "_allocate", 0, false);
+void compile_allocate(Label label, X64 *x64) {
+    x64->code_label_export(label, "_allocate", 0, false);
     // In: RAX - tree, RBX - node size
     // Out: RCX - node
     // Clob: RBX
@@ -246,8 +246,8 @@ void compile_allocate(X64 *x64) {
 }
 
 
-void compile_deallocate(X64 *x64) {
-    //x64->code_label_export(deallocate, "_deallocate", 0, false);
+void compile_deallocate(Label label, X64 *x64) {
+    x64->code_label_export(label, "_deallocate", 0, false);
     // In: RAX - tree
     // Out: RCX - node
     // Clob: RBX, RDX

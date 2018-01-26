@@ -121,8 +121,9 @@ Label X64::once(FunctionCompiler fc) {
 
 void X64::done(std::string filename) {
     for (auto &kv : function_compiler_labels) {
-        code_label(kv.second);
-        (kv.first)(this);
+        FunctionCompiler fn = kv.first;
+        Label label = kv.second;
+        fn(label, this);
     }
 
     for (auto &kv : defs) {

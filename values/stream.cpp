@@ -25,8 +25,10 @@ public:
         return Storage();
     }
     
-    static void compile_string_streamification(X64 *x64) {
+    static void compile_string_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - tmp, RCX - size, RDX - source array, RDI - alias
+        x64->code_label_export(label, "string_streamification", 0, false);
+        
         x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
         
@@ -81,8 +83,10 @@ public:
         return Storage();
     }
     
-    static void compile_character_streamification(X64 *x64) {
+    static void compile_character_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - tmp, RCX - size, RDX - source character, RDI - alias
+        x64->code_label_export(label, "character_streamification", 0, false);
+
         x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
 
@@ -136,8 +140,10 @@ public:
         return Storage();
     }
     
-    static void compile_enum_streamification(X64 *x64) {
+    static void compile_enum_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - table start, RCX - size, RDX - source enum, RDI - alias
+        x64->code_label_export(label, "enum_streamification", 0, false);
+
         x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the enum
 

@@ -278,7 +278,7 @@ public:
     }
     
     virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        Label strcmp_label = x64->once(compile_strcmp);
+        Label strcmp_label = x64->once(compile_stringcmp);
 
         switch (s.where * t.where) {
         case STACK_STACK:
@@ -339,8 +339,10 @@ public:
         x64->op(JG, greater);
     }
 
-    static void compile_strcmp(X64 *x64) {
+    static void compile_stringcmp(Label label, X64 *x64) {
         // Expects RAX and RDX with the arguments, clobbers RCX, RSI, RDI, returns RBX.
+        x64->code_label_export(label, "stringcmp", 0, false);
+        
         Label equal, less, greater, s_longer, begin;
         x64->op(MOVQ, RBX, 0);  // assume equality
         

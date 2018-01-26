@@ -12,18 +12,19 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label strcmp_label = x64->once(compile_strcmp);
+        Label streq_label = x64->once(compile_streq);
 
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
         
         x64->op(POPQ, RBX);
         x64->op(POPQ, RAX);
-        x64->op(CALL, strcmp_label);
+        x64->op(CALL, streq_label);
         
         return Storage(REGISTER, CL);
     }
     
-    static void compile_strcmp(X64 *x64) {
+    static void compile_streq(Label label, X64 *x64) {
+        x64->code_label_export(label, "streq", 0, false);
         Label sete, done;
         
         x64->op(MOVB, CL, 0);

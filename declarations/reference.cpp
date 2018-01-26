@@ -237,7 +237,7 @@ bool is_heap_type(Type *t) {
 std::map<TypeSpec, Label> finalizer_labels;
 
 
-void compile_finalizers(X64 *x64) {
+void compile_finalizers(Label label, X64 *x64) {
     for (auto &kv : finalizer_labels) {
         TypeSpec ts = kv.first;
         Label label = kv.second;
