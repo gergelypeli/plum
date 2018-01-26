@@ -3,28 +3,30 @@
 // offsets, so if RAX points to the tree, then RAX + RCX points to the node. The NIL node
 // value may be 0, which is an invalid offset, since the tree itself has a nonempty header.
 
+
 void compile_skew(X64 *x64) {
+    //x64->code_label_export(skew, "_skew", 0, false);
     // RAX - tree, RCX - node
     // RBX - result
     // RDX - clob
     Label no, end;
-    
+
     x64->op(CMPQ, RCX, AANODE_NIL);
     x64->op(JE, no);
 
     x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_LEFT_OFFSET));
     x64->op(CMPQ, RBX, AANODE_NIL);
     x64->op(JE, no);
-    
+
     x64->op(TESTQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1);
     x64->op(JE, no);
-    
+
     x64->log("Aatree skew.");
     x64->op(MOVQ, RDX, Address(RAX, RBX, AANODE_RIGHT_OFFSET));
     x64->op(MOVQ, Address(RAX, RCX, AANODE_LEFT_OFFSET), RDX);
-    
+
     x64->op(MOVQ, Address(RAX, RBX, AANODE_RIGHT_OFFSET), RCX);
-    
+
     // color swap
     x64->op(SHRQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1); // left red to CF
     x64->op(RCRQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1); // left red X, curr red to CF
@@ -34,127 +36,258 @@ void compile_skew(X64 *x64) {
 
     x64->code_label(no);
     x64->op(MOVQ, RBX, RCX);
-    
+
     x64->code_label(end);
+    x64->op(RET);
 }
 
 
 void compile_split(X64 *x64) {
+    //x64->code_label_export(split, "_split", 0, false);
     // RAX - tree, RCX - node
     // RBX - result
     // RDX - clob
     Label no, end;
-    
+
     x64->op(CMPQ, RCX, AANODE_NIL);
     x64->op(JE, no);
 
     x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
     x64->op(CMPQ, RBX, AANODE_NIL);
     x64->op(JE, no);
-    
+
     x64->op(TESTQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1);
     x64->op(JE, no);
-    
+
     x64->op(MOVQ, RDX, Address(RAX, RBX, AANODE_RIGHT_OFFSET));
     x64->op(CMPQ, RDX, AANODE_NIL);
     x64->op(JE, no);
-    
+
     x64->op(TESTQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), 1);
     x64->op(JE, no);
-    
+
     // RCX - current, RBX - right, RDX - rightright
     x64->log("Aatree split.");
     x64->op(PUSHQ, Address(RAX, RBX, AANODE_LEFT_OFFSET));
     x64->op(POPQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
-    
+
     x64->op(MOVQ, Address(RAX, RBX, AANODE_LEFT_OFFSET), RCX);
-    
+
     x64->op(ANDQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), -2);  // clear redness
     x64->op(JMP, end);
-    
+
     x64->code_label(no);
     x64->op(MOVQ, RBX, RCX);
-    
+
     x64->code_label(end);
+    x64->op(RET);
 }
 
 
-void compile_redden(X64 *x64) {
-    // RAX - tree, RCX - node
-    // RBX - clob
-    Label end, black;
+void compile_fix_child(X64 *x64) {
+    Label redden, materialize, fix;
+    Label skew = x64->once(compile_skew);
+    Label split = x64->once(compile_split);
+
+    {
+        //x64->code_label_export(fix_child, "_fix_child", 0, false);
+        // RAX - tree, RBX - child, RCX - node, RSI - immaterial
+        Label no_black;
+        
+        x64->op(TESTQ, RSI, 1);
+        x64->op(JE, no_black);
+        
+        x64->op(PUSHQ, RCX);
+        x64->op(MOVQ, RCX, RBX);  // TODO: simplify!
+        x64->op(CALL, redden);
+        x64->op(POPQ, RCX);
+        x64->op(CALL, materialize);
+        x64->op(CALL, fix);
+        x64->op(CALL, materialize);
+        
+        x64->code_label(no_black);
+        x64->op(RET);
+    }
     
-    x64->log("Aatree redden.");
-    x64->op(TESTQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
-    x64->op(JE, black);
+    {
+        x64->code_label_export(redden, "_redden", 0, false);
+        // RAX - tree, RCX - node
+        // RBX - clob
+        Label end, black;
     
-    // Redden the children, there must be two, because black height is positive
-    x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_LEFT_OFFSET));
-    x64->op(ORQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1);
-    x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
-    x64->op(ORQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1);
-    x64->op(JMP, end);
+        x64->log("Aatree redden.");
+        x64->op(TESTQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
+        x64->op(JE, black);
     
-    x64->code_label(black);
-    x64->op(ORQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
+        // Redden the children, there must be two, because black height is positive
+        x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_LEFT_OFFSET));
+        x64->op(ORQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1);
+        x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
+        x64->op(ORQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), 1);
+        x64->op(JMP, end);
     
-    x64->code_label(end);
+        x64->code_label(black);
+        x64->op(ORQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
+    
+        x64->code_label(end);
+        x64->op(RET);
+    }
+    
+    {
+        x64->code_label_export(materialize, "_materialize", 0, false);
+        // RAX - tree, RCX - node, RSI - immaterial_black
+        Label end;
+    
+        x64->log("Aatree materialize.");
+        x64->op(TESTQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
+        x64->op(JE, end);
+    
+        x64->op(TESTQ, RSI, 1);
+        x64->op(JE, end);
+    
+        x64->op(ANDQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), -2);
+        x64->op(MOVQ, RSI, 0);
+    
+        x64->code_label(end);
+        x64->op(RET);
+    }
+    
+    {
+        x64->code_label_export(fix, "_fix", 0, false);
+        // RAX - tree, RCX - node
+        // RBX - clob
+        Label no;
+        x64->log("Aatree fix.");
+    
+        x64->op(CALL, skew);
+        x64->op(MOVQ, RCX, RBX);
+    
+        x64->op(PUSHQ, RCX);
+        x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
+        x64->op(CALL, skew);
+        x64->op(POPQ, RCX);
+        x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
+    
+        x64->op(CMPQ, RBX, AANODE_NIL);
+        x64->op(JE, no);
+    
+        x64->op(PUSHQ, RCX);
+        x64->op(MOVQ, RCX, Address(RAX, RBX, AANODE_RIGHT_OFFSET));
+        x64->op(PUSHQ, RBX);
+        x64->op(CALL, skew);
+        x64->op(POPQ, RCX);
+        x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
+        x64->op(POPQ, RCX);
+    
+        x64->code_label(no);
+        x64->op(CALL, split);
+        x64->op(MOVQ, RCX, RBX);
+    
+        x64->op(PUSHQ, RCX);
+        x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
+        x64->op(CALL, split);
+        x64->op(POPQ, RCX);
+        x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
+        
+        x64->op(RET);
+    }
 }
 
 
-void compile_materialize(X64 *x64) {
-    // RAX - tree, RCX - node, RSI - immaterial_black
-    Label end;
-    
-    x64->log("Aatree materialize.");
-    x64->op(TESTQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
-    x64->op(JE, end);
-    
-    x64->op(TESTQ, RSI, 1);
-    x64->op(JE, end);
-    
-    x64->op(ANDQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), -2);
-    x64->op(MOVQ, RSI, 0);
-    
-    x64->code_label(end);
-}
+void compile_allocate(X64 *x64) {
+    //x64->code_label_export(allocate, "_allocate", 0, false);
+    // In: RAX - tree, RBX - node size
+    // Out: RCX - node
+    // Clob: RBX
+    Label no_vacancy, no_reservation, init, no_last, end;
 
-
-void compile_fix(X64 *x64) {
-    // RAX - tree, RCX - node
-    // RBX - clob
-    Label no;
-    x64->log("Aatree fix.");
+    x64->log("Aatree allocate.");
+    x64->op(MOVQ, RCX, Address(RAX, AATREE_VACANT_OFFSET));
+    x64->op(CMPQ, RCX, AANODE_NIL);
+    x64->op(JE, no_vacancy);
     
-    compile_skew(x64);
-    x64->op(MOVQ, RCX, RBX);
+    x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_NEXT_OFFSET));
+    x64->op(MOVQ, Address(RAX, AATREE_VACANT_OFFSET), RBX);
+    x64->op(JMP, init);
     
-    x64->op(PUSHQ, RCX);
-    x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
-    compile_skew(x64);
-    x64->op(POPQ, RCX);
-    x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
+    x64->code_label(no_vacancy);
+    x64->op(MOVQ, RCX, Address(RAX, AATREE_LENGTH_OFFSET));
+    x64->op(CMPQ, RCX, Address(RAX, AATREE_RESERVATION_OFFSET));
+    x64->op(JE, no_reservation);
+    
+    x64->op(INCQ, Address(RAX, AATREE_LENGTH_OFFSET));
+    x64->op(IMUL2Q, RCX, RBX);
+    x64->op(ADDQ, RCX, AATREE_HEADER_SIZE);
+    x64->op(JMP, init);
+    
+    x64->code_label(no_reservation);
+    x64->die("Aatree full!");
+    
+    x64->code_label(init);
+    x64->op(MOVQ, Address(RAX, RCX, AANODE_LEFT_OFFSET), AANODE_NIL);
+    x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), AANODE_NIL);
+    x64->op(MOVQ, Address(RAX, RCX, AANODE_NEXT_OFFSET), AANODE_NIL);
+    x64->op(MOVQ, RBX, Address(RAX, AATREE_LAST_OFFSET));
+    x64->op(MOVQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), RBX);
+    x64->op(ORQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);  // red
     
     x64->op(CMPQ, RBX, AANODE_NIL);
-    x64->op(JE, no);
+    x64->op(JE, no_last);
     
-    x64->op(PUSHQ, RCX);
-    x64->op(MOVQ, RCX, Address(RAX, RBX, AANODE_RIGHT_OFFSET));
-    x64->op(PUSHQ, RBX);
-    compile_skew(x64);
-    x64->op(POPQ, RCX);
-    x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
-    x64->op(POPQ, RCX);
+    x64->op(MOVQ, Address(RAX, RBX, AANODE_NEXT_OFFSET), RCX);
+    x64->op(JMP, end);
     
-    x64->code_label(no);
-    compile_split(x64);
-    x64->op(MOVQ, RCX, RBX);
+    x64->code_label(no_last);
+    x64->op(MOVQ, Address(RAX, AATREE_FIRST_OFFSET), RCX);
     
-    x64->op(PUSHQ, RCX);
-    x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
-    compile_split(x64);
-    x64->op(POPQ, RCX);
-    x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
+    x64->code_label(end);
+    x64->op(MOVQ, Address(RAX, AATREE_LAST_OFFSET), RCX);
+    x64->op(RET);
+}
+
+
+void compile_deallocate(X64 *x64) {
+    //x64->code_label_export(deallocate, "_deallocate", 0, false);
+    // In: RAX - tree
+    // Out: RCX - node
+    // Clob: RBX, RDX
+    Label no_prev, prev_ok, no_next, next_ok;
+    x64->log("Aatree deallocate.");
+    
+    x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET));
+    x64->op(ANDQ, RBX, -2);
+    x64->op(MOVQ, RDX, Address(RAX, RCX, AANODE_NEXT_OFFSET));
+
+    x64->op(CMPQ, RBX, AANODE_NIL);
+    x64->op(JE, no_prev);
+    
+    x64->op(MOVQ, Address(RAX, RBX, AANODE_NEXT_OFFSET), RDX);
+    x64->op(JMP, prev_ok);
+    
+    x64->code_label(no_prev);
+    x64->op(MOVQ, Address(RAX, AATREE_FIRST_OFFSET), RDX);
+    
+    x64->code_label(prev_ok);
+    x64->op(CMPQ, RDX, AANODE_NIL);
+    x64->op(JE, no_next);
+    
+    // set prev while keeping the color
+    x64->op(SHRQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), 1);  // color to CF
+    x64->op(MOVQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), RBX);
+    x64->op(RCRQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), 1);  // color to MSB
+    x64->op(ROLQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), 1);  // color to LSB
+    x64->op(JMP, next_ok);
+    
+    x64->code_label(no_next);
+    x64->op(MOVQ, Address(RAX, AATREE_LAST_OFFSET), RBX);
+    
+    x64->code_label(next_ok);
+    x64->op(MOVQ, RBX, Address(RAX, AATREE_VACANT_OFFSET));
+    x64->op(MOVQ, Address(RAX, RCX, AANODE_NEXT_OFFSET), RBX);
+    x64->op(MOVQ, Address(RAX, AATREE_VACANT_OFFSET), RCX);
+    
+    x64->op(DECQ, Address(RAX, AATREE_LENGTH_OFFSET));
+    x64->op(RET);
 }
 
 
@@ -332,61 +465,13 @@ public:
         return clob.add(RAX).add(RBX).add(RCX).add(RDX);
     }
 
-    virtual void allocate_aanode(X64 *x64) {
-        // In: RAX - tree
-        // Out: RCX - node
-        // Clob: RBX
-        Label no_vacancy, no_reservation, init, no_last, end;
-        int key_size = ::stack_size(elem_ts.measure(MEMORY));
-        int node_size = key_size + AANODE_HEADER_SIZE;
-        //std::cerr << "Allocating anode of " << node_size << " bytes.\n";
-        
-        x64->log("Aatree allocate.");
-        x64->op(MOVQ, RCX, Address(RAX, AATREE_VACANT_OFFSET));
-        x64->op(CMPQ, RCX, AANODE_NIL);
-        x64->op(JE, no_vacancy);
-        
-        x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_NEXT_OFFSET));
-        x64->op(MOVQ, Address(RAX, AATREE_VACANT_OFFSET), RBX);
-        x64->op(JMP, init);
-        
-        x64->code_label(no_vacancy);
-        x64->op(MOVQ, RCX, Address(RAX, AATREE_LENGTH_OFFSET));
-        x64->op(CMPQ, RCX, Address(RAX, AATREE_RESERVATION_OFFSET));
-        x64->op(JE, no_reservation);
-        
-        x64->op(INCQ, Address(RAX, AATREE_LENGTH_OFFSET));
-        x64->op(IMUL3Q, RCX, RCX, node_size);
-        x64->op(ADDQ, RCX, AATREE_HEADER_SIZE);
-        x64->op(JMP, init);
-        
-        x64->code_label(no_reservation);
-        x64->die("Aatree full!");
-        
-        x64->code_label(init);
-        x64->op(MOVQ, Address(RAX, RCX, AANODE_LEFT_OFFSET), AANODE_NIL);
-        x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), AANODE_NIL);
-        x64->op(MOVQ, Address(RAX, RCX, AANODE_NEXT_OFFSET), AANODE_NIL);
-        x64->op(MOVQ, RBX, Address(RAX, AATREE_LAST_OFFSET));
-        x64->op(MOVQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), RBX);
-        x64->op(ORQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);  // red
-        
-        x64->op(CMPQ, RBX, AANODE_NIL);
-        x64->op(JE, no_last);
-        
-        x64->op(MOVQ, Address(RAX, RBX, AANODE_NEXT_OFFSET), RCX);
-        x64->op(JMP, end);
-        
-        x64->code_label(no_last);
-        x64->op(MOVQ, Address(RAX, AATREE_FIRST_OFFSET), RCX);
-        
-        x64->code_label(end);
-        x64->op(MOVQ, Address(RAX, AATREE_LAST_OFFSET), RCX);
-    }
-
     virtual Storage compile(X64 *x64) {
         Label loop, no, less, greater, end, fun;
+        Label skew = x64->once(compile_skew);
+        Label split = x64->once(compile_split);
+        Label allocate = x64->once(compile_allocate);
         int key_size = ::stack_size(elem_ts.measure(MEMORY));
+        int node_size = key_size + AANODE_HEADER_SIZE;
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
 
@@ -422,9 +507,9 @@ public:
         x64->op(CALL, fun);
         x64->op(POPQ, RCX);
         x64->op(MOVQ, Address(RAX, RCX, AANODE_LEFT_OFFSET), RBX);
-        compile_skew(x64);
+        x64->op(CALL, skew);
         x64->op(MOVQ, RCX, RBX);
-        compile_split(x64);
+        x64->op(CALL, split);
         x64->op(RET);
         
         x64->code_label(greater);
@@ -434,12 +519,13 @@ public:
         x64->op(CALL, fun);
         x64->op(POPQ, RCX);
         x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
-        compile_split(x64);
+        x64->op(CALL, split);
         x64->op(RET);
         
         x64->code_label(no);
         x64->log("Aatree add missing.");
-        allocate_aanode(x64);  // from RAX to RCX
+        x64->op(MOVQ, RBX, node_size);
+        x64->op(CALL, allocate);  // from RAX to RCX
         elem_ts.create(ks, vs, x64);
         //std::cerr << "Creating a " << elem_ts << " aanode.\n";
         x64->op(MOVQ, RBX, RCX);
@@ -469,51 +555,10 @@ public:
         return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI);
     }
 
-    virtual void deallocate_aanode(X64 *x64) {
-        // In: RAX - tree
-        // Out: RCX - node
-        // Clob: RBX, RDX
-        Label no_prev, prev_ok, no_next, next_ok;
-        
-        x64->log("Aatree deallocate.");
-        
-        x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET));
-        x64->op(ANDQ, RBX, -2);
-        x64->op(MOVQ, RDX, Address(RAX, RCX, AANODE_NEXT_OFFSET));
-
-        x64->op(CMPQ, RBX, AANODE_NIL);
-        x64->op(JE, no_prev);
-        
-        x64->op(MOVQ, Address(RAX, RBX, AANODE_NEXT_OFFSET), RDX);
-        x64->op(JMP, prev_ok);
-        
-        x64->code_label(no_prev);
-        x64->op(MOVQ, Address(RAX, AATREE_FIRST_OFFSET), RDX);
-        
-        x64->code_label(prev_ok);
-        x64->op(CMPQ, RDX, AANODE_NIL);
-        x64->op(JE, no_next);
-        
-        // set prev while keeping the color
-        x64->op(SHRQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), 1);  // color to CF
-        x64->op(MOVQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), RBX);
-        x64->op(RCRQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), 1);  // color to MSB
-        x64->op(ROLQ, Address(RAX, RDX, AANODE_PREV_IS_RED_OFFSET), 1);  // color to LSB
-        x64->op(JMP, next_ok);
-        
-        x64->code_label(no_next);
-        x64->op(MOVQ, Address(RAX, AATREE_LAST_OFFSET), RBX);
-        
-        x64->code_label(next_ok);
-        x64->op(MOVQ, RBX, Address(RAX, AATREE_VACANT_OFFSET));
-        x64->op(MOVQ, Address(RAX, RCX, AANODE_NEXT_OFFSET), RBX);
-        x64->op(MOVQ, Address(RAX, AATREE_VACANT_OFFSET), RCX);
-        
-        x64->op(DECQ, Address(RAX, AATREE_LENGTH_OFFSET));
-    }
-
     virtual Storage compile(X64 *x64) {
         Label loop, no, remove_left, remove_right, left_no_black, right_no_black, end, fun, was_red;
+        Label deallocate = x64->once(compile_deallocate);
+        Label fix_child = x64->once(compile_fix_child);
         int key_size = ::stack_size(elem_ts.measure(MEMORY));
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
@@ -527,8 +572,7 @@ public:
         x64->op(JMP, end);
 
         // Expects RAX - tree, RCX - index, RDX - key (may be modified upon return)
-        // Returns RBX - new index
-        // RSI - immaterial_black
+        // Returns RBX - new index, RSI - immaterial_black
         
         x64->code_label_export(fun, "aatree_remove", 0, false);
         x64->log("Aatree remove.");
@@ -569,7 +613,7 @@ public:
         x64->log("Aatree remove found easy.");
         elem_ts.destroy(vs, x64);
         x64->op(PUSHQ, RDX);
-        deallocate_aanode(x64);  // At RCX
+        x64->op(CALL, deallocate);  // At RCX
         x64->op(POPQ, RBX);  // return the right child
         x64->op(ANDQ, Address(RAX, RBX, AANODE_PREV_IS_RED_OFFSET), -2);  // blacken
         x64->op(RET);
@@ -578,7 +622,7 @@ public:
         x64->code_label(no_right);
         x64->log("Aatree remove found leaf.");
         elem_ts.destroy(vs, x64);
-        deallocate_aanode(x64);
+        x64->op(CALL, deallocate);
         x64->op(TESTQ, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET), 1);
         x64->op(JNE, was_red);
         
@@ -597,19 +641,9 @@ public:
         x64->op(CALL, fun);
         x64->op(POPQ, RCX);
         x64->op(MOVQ, Address(RAX, RCX, AANODE_LEFT_OFFSET), RBX);
-        
-        x64->op(TESTQ, RSI, 1);
-        x64->op(JE, left_no_black);
-        
-        x64->op(PUSHQ, RCX);
-        x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
-        compile_redden(x64);
-        x64->op(POPQ, RCX);
-        compile_materialize(x64);
-        compile_fix(x64);
-        compile_materialize(x64);
-        
-        x64->code_label(left_no_black);
+    
+        x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_RIGHT_OFFSET));
+        x64->op(CALL, fix_child);
         x64->op(MOVQ, RBX, RCX);
         x64->op(RET);
         
@@ -621,19 +655,9 @@ public:
         x64->op(CALL, fun);
         x64->op(POPQ, RCX);
         x64->op(MOVQ, Address(RAX, RCX, AANODE_RIGHT_OFFSET), RBX);
-        
-        x64->op(TESTQ, RSI, 1);
-        x64->op(JE, right_no_black);
-        
-        x64->op(PUSHQ, RCX);
-        x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_LEFT_OFFSET));
-        compile_redden(x64);
-        x64->op(POPQ, RCX);
-        compile_materialize(x64);
-        compile_fix(x64);
-        compile_materialize(x64);
-        
-        x64->code_label(right_no_black);
+
+        x64->op(MOVQ, RBX, Address(RAX, RCX, AANODE_LEFT_OFFSET));
+        x64->op(CALL, fix_child);
         x64->op(MOVQ, RBX, RCX);
         x64->op(RET);
         
