@@ -265,7 +265,8 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label done, compar;
+        Label compar = x64->once->compile(compile_compar, elem_ts);
+        Label done;
 
         left->compile_and_store(x64, Storage(STACK));
         
@@ -280,12 +281,14 @@ public:
         
         left->ts.store(Storage(STACK), Storage(), x64);
         
-        x64->op(JMP, done);
-        
+        return Storage();
+    }
+    
+    static void compile_compar(Label label, TypeSpec elem_ts, X64 *x64) {
         // Generate a SysV function to wrap our compare function.
         // RDI and RSI contains the pointers to the array elements.
         // RBX must be preserved.
-        x64->code_label(compar);
+        x64->code_label(label);
         x64->op(PUSHQ, RBX);
         
         Storage a(MEMORY, Address(RDI, 0));
@@ -294,10 +297,6 @@ public:
         
         x64->op(POPQ, RBX);
         x64->op(RET);
-        
-        x64->code_label(done);
-        
-        return Storage();
     }
 };
 

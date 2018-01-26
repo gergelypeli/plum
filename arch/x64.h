@@ -146,8 +146,8 @@ public:
         
         def_index = leave_uninitialized ? 0 : ++last_def_index;
         
-        //if (def_index == 1160)
-        //    throw X64_ERROR;
+        //if (def_index == 1593)
+        //    abort();
     }
     
     Label(const Label &c) {

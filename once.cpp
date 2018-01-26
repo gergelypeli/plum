@@ -8,28 +8,47 @@ public:
     std::map<std::pair<TypedFunctionCompiler, TypeSpec>, Label> typed_function_compiler_labels;
     
     Label compile(FunctionCompiler fc) {
-        return function_compiler_labels[fc];
+        Label label = function_compiler_labels[fc];
+        //std::cerr << "Will compile once " << (void *)fc << " as " << label.def_index << ".\n";
+        return label;
     }
 
     Label compile(TypedFunctionCompiler tfc, TypeSpec ts) {
-        return typed_function_compiler_labels[make_pair(tfc, ts)];
+        Label label = typed_function_compiler_labels[make_pair(tfc, ts)];
+        //std::cerr << "Will compile once " << (void *)tfc << " " << ts << " as " << label.def_index << ".\n";
+        return label;
     }
 
     void for_all(X64 *x64) {
-        for (auto &kv : function_compiler_labels) {
-            FunctionCompiler fn = kv.first;
-            Label label = kv.second;
+        // NOTE: once functions may ask to once compile other functions.
+        // But at least an untyped one can't compile a typed one.
         
-            fn(label, x64);
+        while (typed_function_compiler_labels.size()) {
+            auto tmp = typed_function_compiler_labels;
+            typed_function_compiler_labels.clear();
+            
+            for (auto &kv : tmp) {
+                auto &key = kv.first;
+                TypedFunctionCompiler tfc = key.first;
+                TypeSpec ts = key.second;
+                Label label = kv.second;
+        
+                //std::cerr << "Now compiling " << (void *)tfc << " " << ts << " as " << label.def_index << ".\n";
+                tfc(label, ts, x64);
+            }
         }
 
-        for (auto &kv : typed_function_compiler_labels) {
-            auto &key = kv.first;
-            TypedFunctionCompiler fn = key.first;
-            TypeSpec ts = key.second;
-            Label label = kv.second;
-        
-            fn(label, ts, x64);
+        while (function_compiler_labels.size()) {
+            auto tmp = function_compiler_labels;
+            function_compiler_labels.clear();
+            
+            for (auto &kv : tmp) {
+                FunctionCompiler fc = kv.first;
+                Label label = kv.second;
+
+                //std::cerr << "Now compiling " << (void *)fc << " as " << label.def_index << ".\n";
+                fc(label, x64);
+            }
         }
     }
 };
