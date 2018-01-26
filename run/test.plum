@@ -391,6 +391,10 @@ start? :Function as:
 
     aa? String Aatree `reserved 8
     aa add "A"
+    aa add "B"
+    aa add "C"
+    aa add "D"
+    aa add "E"
     prints("After adding A, length is {l}" { l: aa length })
     :for aa elements_by_time each: e? do:
         prints("Aatree element: {e}" {})
@@ -398,8 +402,8 @@ start? :Function as:
     :if aa has "A" then:
         prints("Aa has A, good.")
         
-    :if ! aa has "B" then:
-        prints("Aa has no B, good")
+    :if ! aa has "Z" then:
+        prints("Aa has no Z, good")
         
     aa remove "A"
     prints("After removing A, length is {l}" { l: aa length })
