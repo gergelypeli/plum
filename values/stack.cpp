@@ -1,14 +1,4 @@
 
-TypeSpec element_ts(TypeSpec ts) {
-    TypeSpec ets = ts.rvalue().unprefix(reference_type);
-    ets = ets.unprefix(ets[0]);
-    
-    if (is_heap_type(ets[0]))
-        ets = ets.prefix(reference_type);
-        
-    return ets;
-}
-
 
 class StackInitializerValue: public Value {
 public:
@@ -45,8 +35,8 @@ public:
     TypeSpec elem_ts;
     
     StackPushValue(Value *l, TypeMatch &match)
-        :GenericValue(element_ts(match[0]), match[0], l) {
-        elem_ts = element_ts(match[0]);
+        :GenericValue(match[1].varvalue(), match[0], l) {
+        elem_ts = match[1].varvalue();
     }
 
     virtual Regs precompile(Regs preferred) {

@@ -494,7 +494,7 @@ public:
     
     AatreeEmptyValue(TypeSpec ts)
         :GenericValue(VOID_TS, ts, NULL) {
-        elem_ts = element_ts(ts);
+        elem_ts = ts.unprefix(reference_type).unprefix(aatree_type).varvalue();
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -524,7 +524,7 @@ public:
     
     AatreeReservedValue(TypeSpec ts)
         :GenericValue(INTEGER_TS, ts, NULL) {
-        elem_ts = element_ts(ts);
+        elem_ts = ts.unprefix(reference_type).unprefix(aatree_type).varvalue();
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -594,8 +594,8 @@ public:
     TypeSpec elem_ts;
     
     AatreeHasValue(Value *pivot, TypeMatch &match)
-        :GenericValue(match[1], BOOLEAN_TS, pivot) {
-        elem_ts = element_ts(match[0]);
+        :GenericValue(match[1].varvalue(), BOOLEAN_TS, pivot) {
+        elem_ts = match[1].varvalue();
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -628,8 +628,8 @@ public:
     TypeSpec elem_ts;
     
     AatreeAddValue(Value *pivot, TypeMatch &match)
-        :GenericValue(match[1], VOID_TS, pivot) {
-        elem_ts = element_ts(match[0]);
+        :GenericValue(match[1].varvalue(), VOID_TS, pivot) {
+        elem_ts = match[1].varvalue();
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -666,7 +666,7 @@ public:
     
     AatreeRemoveValue(Value *pivot, TypeMatch &match)
         :GenericValue(match[1], VOID_TS, pivot) {
-        elem_ts = element_ts(match[0]);
+        elem_ts = match[1].varvalue();
     }
 
     virtual Regs precompile(Regs preferred) {
