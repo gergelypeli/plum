@@ -12,7 +12,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label streq_label = x64->once(compile_streq);
+        Label streq_label = x64->once->compile(compile_streq);
 
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
         

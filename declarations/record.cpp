@@ -278,7 +278,7 @@ public:
     }
     
     virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        Label strcmp_label = x64->once(compile_stringcmp);
+        Label strcmp_label = x64->once->compile(compile_stringcmp);
 
         switch (s.where * t.where) {
         case STACK_STACK:

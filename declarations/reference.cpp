@@ -252,7 +252,7 @@ Label finalizer_label(TypeSpec ts, X64 *x64) {
     if (!is_heap_type(ts[0]))
         throw INTERNAL_ERROR;
         
-    x64->once(compile_finalizers);
+    x64->once->compile(compile_finalizers);
     
     return finalizer_labels[ts];
 }

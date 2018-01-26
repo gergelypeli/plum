@@ -86,8 +86,8 @@ void compile_split(Label label, X64 *x64) {
 
 void compile_fix_child(Label label, X64 *x64) {
     Label redden, materialize, fix;
-    Label skew = x64->once(compile_skew);
-    Label split = x64->once(compile_split);
+    Label skew = x64->once->compile(compile_skew);
+    Label split = x64->once->compile(compile_split);
 
     {
         x64->code_label_export(label, "_fix_child", 0, false);
@@ -467,9 +467,9 @@ public:
 
     virtual Storage compile(X64 *x64) {
         Label loop, no, less, greater, end, fun;
-        Label skew = x64->once(compile_skew);
-        Label split = x64->once(compile_split);
-        Label allocate = x64->once(compile_allocate);
+        Label skew = x64->once->compile(compile_skew);
+        Label split = x64->once->compile(compile_split);
+        Label allocate = x64->once->compile(compile_allocate);
         int key_size = ::stack_size(elem_ts.measure(MEMORY));
         int node_size = key_size + AANODE_HEADER_SIZE;
         
@@ -557,8 +557,8 @@ public:
 
     virtual Storage compile(X64 *x64) {
         Label loop, no, remove_left, remove_right, left_no_black, right_no_black, end, fun, was_red;
-        Label deallocate = x64->once(compile_deallocate);
-        Label fix_child = x64->once(compile_fix_child);
+        Label deallocate = x64->once->compile(compile_deallocate);
+        Label fix_child = x64->once->compile(compile_fix_child);
         int key_size = ::stack_size(elem_ts.measure(MEMORY));
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));

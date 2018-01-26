@@ -338,7 +338,8 @@ enum ConstantOp {
 };
 
 
-class UnwindStack;  // TODO
+class Once;
+class Unwind;
 
 
 class X64 {
@@ -385,8 +386,6 @@ public:
         unsigned def_index;
     };
 
-    typedef void (*FunctionCompiler)(Label, X64 *);
-    
     std::vector<char> code;
     std::vector<char> data;
     std::map<unsigned, Def> defs;
@@ -396,9 +395,9 @@ public:
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label memalloc_label, memfree_label, memrealloc_label, log_label, die_label, sort_label, empty_function_label;
     std::vector<Label> incref_labels, decref_labels;
-    std::map<FunctionCompiler, Label> function_compiler_labels;
-    
-    UnwindStack *unwind;  // TODO: this has no reason to be in this class, except laziness
+
+    Once *once;
+    Unwind *unwind;
     
     void add_def(Label label, const Def &def);
 
@@ -428,8 +427,6 @@ public:
     
     void init(std::string module_name);
     void done(std::string name);
-    
-    Label once(FunctionCompiler fc);
     
     void code_label(Label c, unsigned size = 0);
     void code_label_import(Label c, std::string name);

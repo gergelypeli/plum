@@ -69,8 +69,8 @@ int main(int argc, char **argv) {
     X64 *x64 = new X64();
     x64->init("mymodule");
 
-    UnwindStack unwind_stack;
-    x64->unwind = &unwind_stack;
+    x64->unwind = new Unwind();
+    x64->once = new Once();
 
     // Must mark imported functions first as sysv
     ImportedFunction::import_all(x64);
@@ -82,7 +82,8 @@ int main(int argc, char **argv) {
     
     value_root->precompile(Regs::all());
     value_root->compile(x64);
-    
+    x64->once->for_all(x64);
+
     x64->done(argv[2]);
     
     return 0;

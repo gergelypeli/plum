@@ -13,7 +13,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label ss_label = x64->once(compile_string_streamification);
+        Label ss_label = x64->once->compile(compile_string_streamification);
 
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
         
@@ -71,7 +71,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label cs_label = x64->once(compile_character_streamification);
+        Label cs_label = x64->once->compile(compile_character_streamification);
 
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
         
@@ -126,7 +126,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label es_label = x64->once(compile_enum_streamification);
+        Label es_label = x64->once->compile(compile_enum_streamification);
 
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
         

@@ -114,18 +114,7 @@ void X64::init(std::string module_name) {
 }
 
 
-Label X64::once(FunctionCompiler fc) {
-    return function_compiler_labels[fc];
-}
-
-
 void X64::done(std::string filename) {
-    for (auto &kv : function_compiler_labels) {
-        FunctionCompiler fn = kv.first;
-        Label label = kv.second;
-        fn(label, this);
-    }
-
     for (auto &kv : defs) {
         Def &d(kv.second);
 

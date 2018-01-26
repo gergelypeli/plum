@@ -136,7 +136,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         // TODO: this only works for arrays of basic types now, that can be just copied
-        Label l = x64->once(compile_array_concatenation);
+        Label l = x64->once->compile(compile_array_concatenation);
 
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     

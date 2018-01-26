@@ -12,7 +12,7 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);
 
 // Values
 
-class Value {
+class Value: public Unwindable {
 public:
     TypeSpec ts;
     Token token;
@@ -100,39 +100,6 @@ public:
     
     virtual Value *lookup_inner(std::string name) {
         return ts.lookup_inner(name, this);
-    }
-};
-
-
-class UnwindStack {
-public:
-    std::vector<Value *> stack;
-    
-    virtual void push(Value *v) {
-        stack.push_back(v);
-    }
-    
-    virtual void pop(Value *v) {
-        if (v != stack.back())
-            throw INTERNAL_ERROR;
-            
-        stack.pop_back();
-    }
-    
-    virtual void initiate(Declaration *last, X64 *x64) {
-        for (int i = stack.size() - 1; i >= 0; i--) {
-            Scope *s = stack[i]->unwind(x64);
-            
-            if (s) {
-                if (s != last->outer_scope)
-                    throw INTERNAL_ERROR;
-                    
-                last->jump_to_finalization(x64);
-                return;
-            }
-        }
-        
-        throw INTERNAL_ERROR;
     }
 };
 

@@ -141,8 +141,10 @@ DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *s
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
 
 
+#include "once.cpp"
 #include "builtin.h"
 #include "declarations/declaration.cpp"
+#include "unwind.cpp"
 #include "values/value.cpp"
 #include "builtin.cpp"
 

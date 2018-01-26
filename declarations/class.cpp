@@ -180,7 +180,7 @@ void compile_class_virtual_tables(Label label, X64 *x64) {
 
 
 Label class_virtual_table_label(TypeSpec ts, X64 *x64) {
-    x64->once(compile_class_virtual_tables);
+    x64->once->compile(compile_class_virtual_tables);
     
     return class_virtual_table_labels[ts];
 }
