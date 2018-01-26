@@ -260,7 +260,7 @@ public:
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label start, end, loop;
 
-        x64->code_label_export(label, "x_array_finalizer", 0, false);
+        x64->code_label_local(label, "x_array_finalizer");
         x64->op(PUSHQ, RCX);
 
         x64->op(MOVQ, RCX, x64->array_length_address(RAX));
@@ -299,7 +299,7 @@ public:
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label start, end, loop, ok, ok1;
     
-        x64->code_label_export(label, "x_circularray_finalizer", 0, false);
+        x64->code_label_local(label, "x_circularray_finalizer");
         x64->op(PUSHQ, RCX);
         x64->op(PUSHQ, RDX);
     

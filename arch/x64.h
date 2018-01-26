@@ -407,7 +407,8 @@ public:
     void data_dword(int x);
     void data_qword(long x);
     void data_label(Label c, unsigned size = 0);
-    void data_label_export(Label c, std::string name, unsigned size, bool is_global);
+    void data_label_local(Label c, std::string name, unsigned size = 0);
+    void data_label_global(Label c, std::string name, unsigned size = 0);
     unsigned data_allocate(unsigned size);
     void data_reference(Label c);
     void data_heap_header();
@@ -430,7 +431,8 @@ public:
     
     void code_label(Label c, unsigned size = 0);
     void code_label_import(Label c, std::string name);
-    void code_label_export(Label c, std::string name, unsigned size, bool is_global);
+    void code_label_local(Label c, std::string name, unsigned size = 0);
+    void code_label_global(Label c, std::string name, unsigned size = 0);
     void code_reference(Label c, int offset = 0);
 
     int q(Register r);

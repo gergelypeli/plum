@@ -24,7 +24,7 @@ public:
     }
     
     static void compile_streq(Label label, X64 *x64) {
-        x64->code_label_export(label, "streq", 0, false);
+        x64->code_label_local(label, "streq");
         Label sete, done;
         
         x64->op(MOVB, CL, 0);

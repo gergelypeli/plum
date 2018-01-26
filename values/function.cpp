@@ -160,8 +160,10 @@ public:
         //Label epilogue_label = fn_scope->get_epilogue_label();
 
         if (function) {
-            bool is_global = (function->name == "start");
-            x64->code_label_export(function->x64_label, function->name, 0, is_global);
+            if (function->name == "start")
+                x64->code_label_global(function->x64_label, function->name);
+            else
+                x64->code_label_local(function->x64_label, function->name);
         }
         else {
             std::cerr << "Nameless function!\n";

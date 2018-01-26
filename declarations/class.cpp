@@ -141,7 +141,7 @@ public:
         std::vector<Function *> vt = ts.get_virtual_table();
 
         x64->data_align();
-        x64->data_label_export(label, "x_virtual_table", 0, false);  // FIXME: ambiguous name!
+        x64->data_label_local(label, "x_virtual_table");  // FIXME: ambiguous name!
 
         for (auto f : vt) {
             if (f)
@@ -152,7 +152,7 @@ public:
     }
     
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        x64->code_label_export(label, "x_finalizer", 0, false);  // FIXME: ambiguous name!
+        x64->code_label_local(label, "x_finalizer");  // FIXME: ambiguous name!
         
         ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
 

@@ -222,7 +222,7 @@ public:
         for (auto &keyword : keywords) 
             labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
             
-        x64->data_label_export(stringifications_label, declname + "_sfy", 0, false);
+        x64->data_label_local(stringifications_label, declname + "_sfy");
         
         for (auto &label : labels)
             x64->data_reference(label);  // 64-bit absolute
@@ -329,12 +329,12 @@ public:
         for (auto &keyword : keywords) 
             labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
             
-        x64->data_label_export(stringifications_label, declname + "_sfy", 0, false);
+        x64->data_label_local(stringifications_label, declname + "_sfy");
         
         for (auto &label : labels)
             x64->data_reference(label);  // 64-bit absolute
 
-        x64->data_label_export(tails_label, declname + "_tails", 0, false);
+        x64->data_label_local(tails_label, declname + "_tails");
         
         for (unsigned tail : tails)
             x64->data_byte(tail);

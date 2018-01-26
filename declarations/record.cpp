@@ -341,7 +341,7 @@ public:
 
     static void compile_stringcmp(Label label, X64 *x64) {
         // Expects RAX and RDX with the arguments, clobbers RCX, RSI, RDI, returns RBX.
-        x64->code_label_export(label, "stringcmp", 0, false);
+        x64->code_label_local(label, "stringcmp");
         
         Label equal, less, greater, s_longer, begin;
         x64->op(MOVQ, RBX, 0);  // assume equality

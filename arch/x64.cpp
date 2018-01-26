@@ -271,8 +271,13 @@ void X64::data_label(Label c, unsigned size) {
 }
 
 
-void X64::data_label_export(Label c, std::string name, unsigned size, bool is_global) {
-    add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, is_global));
+void X64::data_label_local(Label c, std::string name, unsigned size) {
+    add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, false));
+}
+
+
+void X64::data_label_global(Label c, std::string name, unsigned size) {
+    add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, true));
 }
 
 
@@ -369,8 +374,13 @@ void X64::code_label_import(Label c, std::string name) {
 }
 
 
-void X64::code_label_export(Label c, std::string name, unsigned size, bool is_global) {
-    add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, is_global));
+void X64::code_label_local(Label c, std::string name, unsigned size) {
+    add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, false));
+}
+
+
+void X64::code_label_global(Label c, std::string name, unsigned size) {
+    add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, true));
 }
 
 
@@ -1125,7 +1135,7 @@ void X64::init_memory_management() {
         Label il;
         
         // NOTE: preserves all registers, including RBX
-        code_label_export(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg], 0, false);
+        code_label_local(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg]);
         op(CMPQ, reg, 0);
         op(JE, il);
         op(INCQ, Address(reg, HEAP_REFCOUNT_OFFSET));
@@ -1135,7 +1145,7 @@ void X64::init_memory_management() {
         Label dl;
         
         // NOTE: preserves all registers, including RBX
-        code_label_export(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg], 0, false);
+        code_label_local(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg]);
         op(CMPQ, reg, 0);
         op(JE, dl);
         op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
@@ -1155,7 +1165,7 @@ void X64::init_memory_management() {
         op(RET);
     }
 
-    code_label_export(alloc_RAX_RBX_label, "alloc_RAX_RBX", 0, false);
+    code_label_local(alloc_RAX_RBX_label, "alloc_RAX_RBX");
     pusha(true);
     op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
     op(CALL, memalloc_label);
@@ -1165,7 +1175,7 @@ void X64::init_memory_management() {
     popa(true);
     op(RET);
     
-    code_label_export(realloc_RAX_RBX_label, "realloc_RAX_RBX", 0, false);
+    code_label_local(realloc_RAX_RBX_label, "realloc_RAX_RBX");
     Label realloc_die;
     op(CMPQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);
     op(JNE, realloc_die);
@@ -1180,7 +1190,7 @@ void X64::init_memory_management() {
     code_label(realloc_die);
     die("Realloc of shared array!");
     
-    code_label_export(empty_function_label, "empty_function", 0, false);
+    code_label_local(empty_function_label, "empty_function");
     op(RET);
 }
 

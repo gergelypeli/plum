@@ -5,7 +5,7 @@
 
 
 void compile_skew(Label label, X64 *x64) {
-    x64->code_label_export(label, "_skew", 0, false);
+    x64->code_label_local(label, "_skew");
     // RAX - tree, RCX - node
     // RBX - result
     // RDX - clob
@@ -41,7 +41,7 @@ void compile_skew(Label label, X64 *x64) {
 
 
 void compile_split(Label label, X64 *x64) {
-    x64->code_label_export(label, "_split", 0, false);
+    x64->code_label_local(label, "_split");
     // RAX - tree, RCX - node
     // RBX - result
     // RDX - clob
@@ -86,7 +86,7 @@ void compile_fix_child(Label label, X64 *x64) {
     Label split = x64->once->compile(compile_split);
 
     {
-        x64->code_label_export(label, "_fix_child", 0, false);
+        x64->code_label_local(label, "_fix_child");
         // RAX - tree, RBX - child, RCX - node, RSI - immaterial
         Label no_black;
         
@@ -106,7 +106,7 @@ void compile_fix_child(Label label, X64 *x64) {
     }
     
     {
-        x64->code_label_export(redden, "_redden", 0, false);
+        x64->code_label_local(redden, "_redden");
         // RAX - tree, RCX - node
         // RBX - clob
         Label black;
@@ -128,7 +128,7 @@ void compile_fix_child(Label label, X64 *x64) {
     }
     
     {
-        x64->code_label_export(materialize, "_materialize", 0, false);
+        x64->code_label_local(materialize, "_materialize");
         // RAX - tree, RCX - node, RSI - immaterial_black
         Label end;
     
@@ -147,7 +147,7 @@ void compile_fix_child(Label label, X64 *x64) {
     }
     
     {
-        x64->code_label_export(fix, "_fix", 0, false);
+        x64->code_label_local(fix, "_fix");
         // RAX - tree, RCX - node
         // RBX - clob
         Label no;
@@ -189,7 +189,7 @@ void compile_fix_child(Label label, X64 *x64) {
 
 
 void compile_allocate(Label label, X64 *x64) {
-    x64->code_label_export(label, "_allocate", 0, false);
+    x64->code_label_local(label, "_allocate");
     // In: RAX - tree, RBX - node size
     // Out: RCX - node
     // Clob: RBX
@@ -241,7 +241,7 @@ void compile_allocate(Label label, X64 *x64) {
 
 
 void compile_deallocate(Label label, X64 *x64) {
-    x64->code_label_export(label, "_deallocate", 0, false);
+    x64->code_label_local(label, "_deallocate");
     // In: RAX - tree
     // Out: RCX - node
     // Clob: RBX, RDX
@@ -290,7 +290,7 @@ void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
     // RBX - clob
     // RCX - index, return bool
     // RDX - key
-    x64->code_label_export(label, "aatree_has", 0, false);
+    x64->code_label_local(label, "aatree_has");
 
     Label loop, no, less, greater;
 
@@ -323,7 +323,7 @@ void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
 void compile_add(Label label, TypeSpec elem_ts, X64 *x64) {
     // Expects RAX - tree, RCX - index, RDX - key (clobbered)
     // Returns RBX - new index
-    x64->code_label_export(label, "aatree_add", 0, false);
+    x64->code_label_local(label, "aatree_add");
     
     Label less, greater, no;
     Label skew = x64->once->compile(compile_skew);
@@ -380,7 +380,7 @@ void compile_add(Label label, TypeSpec elem_ts, X64 *x64) {
 void compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     // Expects RAX - tree, RCX - index, RDX - key (may be modified upon return)
     // Returns RBX - new index, RSI - immaterial_black
-    x64->code_label_export(label, "aatree_remove", 0, false);
+    x64->code_label_local(label, "aatree_remove");
     
     Label no, remove_left, remove_right;
     Label deallocate = x64->once->compile(compile_deallocate);

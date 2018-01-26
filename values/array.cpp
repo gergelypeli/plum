@@ -154,7 +154,7 @@ public:
     
     static void compile_array_concatenation(Label label, X64 *x64) {
         // RAX - result, RBX - elem size, RCX - first, RDX - second
-        x64->code_label_export(label, "arraycat", 0, false);
+        x64->code_label_local(label, "arraycat");
         
         x64->op(MOVQ, RCX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE + REFERENCE_SIZE));
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));
