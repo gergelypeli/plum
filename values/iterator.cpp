@@ -254,7 +254,7 @@ public:
         
         switch (ls.where) {
         case MEMORY:
-            std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
+            //std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
             x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // value
             x64->op(MOVQ, reg, ls.address); // array reference without incref
             x64->op(CMPQ, RBX, x64->array_length_address(reg));

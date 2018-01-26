@@ -15,7 +15,7 @@ public:
         unsigned heap_size = class_ts.measure(MEMORY);
         
         x64->op(MOVQ, RAX, heap_size);
-        std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
+        //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
         x64->op(LEARIP, RBX, finalizer_label);
         x64->alloc_RAX_RBX();
 

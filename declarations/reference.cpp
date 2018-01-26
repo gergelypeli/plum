@@ -222,39 +222,11 @@ public:
         std::cerr << "This is probably an error, shouldn't measure a heap type!\n";
         throw INTERNAL_ERROR;
     }
-    
-    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
 };
 
 
 bool is_heap_type(Type *t) {
     return dynamic_cast<HeapType *>(t);
-}
-
-
-std::map<TypeSpec, Label> finalizer_labels;
-
-
-void compile_finalizers(Label label, X64 *x64) {
-    for (auto &kv : finalizer_labels) {
-        TypeSpec ts = kv.first;
-        Label label = kv.second;
-        std::cerr << "Compiling finalizer for " << ts << ".\n";
-        
-        dynamic_cast<HeapType *>(ts[0])->compile_finalizer(ts.begin(), label, x64);
-    }
-}
-
-
-Label finalizer_label(TypeSpec ts, X64 *x64) {
-    if (!is_heap_type(ts[0]))
-        throw INTERNAL_ERROR;
-        
-    x64->once->compile(compile_finalizers);
-    
-    return finalizer_labels[ts];
 }
 
 
@@ -279,12 +251,16 @@ public:
         return NULL;
     }
 
-    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
-        TypeSpec elem_ts = TypeSpec(tsi).unprefix(array_type).varvalue();
+    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
+        return x64->once->compile(compile_finalizer, TypeSpec(tsi));
+    }
+
+    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
+        TypeSpec elem_ts = ts.unprefix(array_type).varvalue();
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label start, end, loop;
 
-        x64->code_label(label);
+        x64->code_label_export(label, "x_array_finalizer", 0, false);
         x64->op(PUSHQ, RCX);
 
         x64->op(MOVQ, RCX, x64->array_length_address(RAX));
@@ -313,13 +289,17 @@ public:
     CircularrayType(std::string name)
         :ArrayType(name) {
     }
-    
-    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
-        TypeSpec elem_ts = TypeSpec(tsi).unprefix(circularray_type).varvalue();
+
+    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
+        return x64->once->compile(compile_finalizer, TypeSpec(tsi));
+    }
+
+    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
+        TypeSpec elem_ts = ts.unprefix(circularray_type).varvalue();
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label start, end, loop, ok, ok1;
     
-        x64->code_label(label);
+        x64->code_label_export(label, "x_circularray_finalizer", 0, false);
         x64->op(PUSHQ, RCX);
         x64->op(PUSHQ, RDX);
     
@@ -383,8 +363,12 @@ public:
         return NULL;
     }
 
-    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
-        TypeSpec elem_ts = TypeSpec(tsi).unprefix(aatree_type).varvalue();
+    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
+        return x64->once->compile(compile_finalizer, TypeSpec(tsi));
+    }
+
+    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
+        TypeSpec elem_ts = ts.unprefix(aatree_type).varvalue();
         Label loop, cond;
 
         x64->code_label(label);

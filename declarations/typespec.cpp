@@ -122,6 +122,12 @@ Label TypeSpec::get_virtual_table_label(X64 *x64) {
 }
 
 
+Label TypeSpec::get_finalizer_label(X64 *x64) {
+    TypeSpecIter tsi(begin());
+    return (*tsi)->get_finalizer_label(tsi, x64);
+}
+
+
 void TypeSpec::store(Storage s, Storage t, X64 *x64) {
     TypeSpecIter tsi(begin());
     return (*tsi)->store(tsi, s, t, x64);

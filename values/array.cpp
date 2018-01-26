@@ -318,7 +318,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         TypeSpec ats = ts.unprefix(reference_type);
-        Label array_finalizer_label = finalizer_label(ats, x64);
+        Label array_finalizer_label = ats.get_finalizer_label(x64);
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
     
         x64->op(MOVQ, RAX, 0);
@@ -378,7 +378,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         TypeSpec ats = ts.unprefix(reference_type);
-        Label array_finalizer_label = finalizer_label(ats, x64);
+        Label array_finalizer_label = ats.get_finalizer_label(x64);
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
     
         x64->op(MOVQ, RAX, elems.size());

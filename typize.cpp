@@ -39,6 +39,7 @@ public:
     unsigned measure(StorageWhere where);
     std::vector<Function *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
+    Label get_finalizer_label(X64 *x64);
     StorageWhere where(bool is_arg);
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);

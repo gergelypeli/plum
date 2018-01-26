@@ -1,6 +1,4 @@
 
-Label class_virtual_table_label(TypeSpec ts, X64 *x64);
-
 
 class ClassType: public HeapType {
 public:
@@ -132,18 +130,18 @@ public:
     }
 
     virtual Label get_virtual_table_label(TypeSpecIter tsi, X64 *x64) {
-        return class_virtual_table_label(TypeSpec(tsi), x64);
+        return x64->once->compile(compile_virtual_table, TypeSpec(tsi));
     }
 
     virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
-        return finalizer_label(TypeSpec(tsi), x64);
+        return x64->once->compile(compile_finalizer, TypeSpec(tsi));
     }
     
-    virtual void compile_virtual_table(TypeSpecIter tsi, Label label, X64 *x64) {
-        std::vector<Function *> vt = inner_scope->get_virtual_table();
+    static void compile_virtual_table(Label label, TypeSpec ts, X64 *x64) {
+        std::vector<Function *> vt = ts.get_virtual_table();
 
         x64->data_align();
-        x64->data_label_export(label, "vmt_" + name, 0, false);  // FIXME: ambiguous name!
+        x64->data_label_export(label, "x_virtual_table", 0, false);  // FIXME: ambiguous name!
 
         for (auto f : vt) {
             if (f)
@@ -153,37 +151,14 @@ public:
         }
     }
     
-    virtual void compile_finalizer(TypeSpecIter tsi, Label label, X64 *x64) {
-        x64->code_label_export(label, "finalize_" + name, 0, false);  // FIXME: ambiguous name!
+    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
+        x64->code_label_export(label, "x_finalizer", 0, false);  // FIXME: ambiguous name!
         
-        destroy(tsi, Storage(MEMORY, Address(RAX, 0)), x64);
+        ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
 
         x64->op(RET);
     }
 };
-
-
-std::map<TypeSpec, Label> class_virtual_table_labels;
-
-
-void compile_class_virtual_tables(Label label, X64 *x64) {
-    for (auto &kv : class_virtual_table_labels) {
-        TypeSpec ts = kv.first;
-        Label label = kv.second;
-
-        std::cerr << "Compiling virtual table for " << ts << ".\n";
-        ClassType *class_type = dynamic_cast<ClassType *>(ts[0]);
-        
-        class_type->compile_virtual_table(ts.begin(), label, x64);
-    }
-}
-
-
-Label class_virtual_table_label(TypeSpec ts, X64 *x64) {
-    x64->once->compile(compile_class_virtual_tables);
-    
-    return class_virtual_table_labels[ts];
-}
 
 
 class StackType: public ClassType {

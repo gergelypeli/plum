@@ -307,7 +307,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         TypeSpec ats = ts.unprefix(reference_type);
-        Label aatree_finalizer_label = finalizer_label(ats, x64);
+        Label aatree_finalizer_label = ats.get_finalizer_label(x64);
         int elem_size = ::stack_size(elem_ts.measure(MEMORY));  // round to 8 bytes!
     
         x64->op(MOVQ, RAX, 0);
@@ -337,7 +337,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         TypeSpec ats = ts.unprefix(reference_type);
-        Label aatree_finalizer_label = finalizer_label(ats, x64);
+        Label aatree_finalizer_label = ats.get_finalizer_label(x64);
         int elem_size = ::stack_size(elem_ts.measure(MEMORY));  // round to 8 bytes!
     
         right->compile_and_store(x64, Storage(STACK));

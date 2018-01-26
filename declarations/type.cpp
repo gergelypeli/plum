@@ -197,6 +197,10 @@ public:
     virtual Label get_virtual_table_label(TypeSpecIter tsi, X64 *x64) {
         throw INTERNAL_ERROR;
     }
+
+    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
     
     virtual Value *autoconv(TypeSpecIter tsi, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
