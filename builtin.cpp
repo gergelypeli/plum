@@ -164,8 +164,8 @@ void define_iterators(Scope *root_scope) {
     define_container_iterator<CircularrayNextIndexValue>(circularrayindexiter_type, circularray_type, INTEGER_ITERATOR_TS);
     define_container_iterator<CircularrayNextItemValue>(circularrayitemiter_type, circularray_type, SAME_ITEM_ITERATOR_TS);
 
-    // Aatree Iterator operations
-    define_container_iterator<AatreeNextElemValue>(aatreeelemiter_type, aatree_type, SAME_ITERATOR_TS);
+    // Rbtree Iterator operations
+    define_container_iterator<RbtreeNextElemValue>(rbtreeelemiter_type, rbtree_type, SAME_ITERATOR_TS);
 }
 
 
@@ -360,8 +360,8 @@ Scope *init_builtins() {
     circularray_type = new CircularrayType("Circularray");
     root_scope->add(circularray_type);
 
-    aatree_type = new AatreeType("Aatree");
-    root_scope->add(aatree_type);
+    rbtree_type = new RbtreeType("Rbtree");
+    root_scope->add(rbtree_type);
 
     streamifiable_type = new InterfaceType("Streamifiable", 0);
     root_scope->add(streamifiable_type);
@@ -408,8 +408,8 @@ Scope *init_builtins() {
     circularrayitemiter_type = new RecordType("Circularrayitem_iter", 1);
     root_scope->add(circularrayitemiter_type);
 
-    aatreeelemiter_type = new RecordType("Aatreeelem_iter", 1);
-    root_scope->add(aatreeelemiter_type);
+    rbtreeelemiter_type = new RecordType("Rbtreeelem_iter", 1);
+    root_scope->add(rbtreeelemiter_type);
 
     // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
@@ -441,7 +441,7 @@ Scope *init_builtins() {
     SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
     ANY_CIRCULARRAY_REFERENCE_TS = { reference_type, circularray_type, any_type };
     SAME_CIRCULARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, circularray_type, same_type };
-    ANY_AATREE_REFERENCE_TS = { reference_type, aatree_type, any_type };
+    ANY_RBTREE_REFERENCE_TS = { reference_type, rbtree_type, any_type };
     VOID_CODE_TS = { code_type, void_type };
     BOOLEAN_CODE_TS = { code_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
@@ -464,7 +464,7 @@ Scope *init_builtins() {
     SAME_CIRCULARRAYELEMITER_TS = { circularrayelemiter_type, same_type };
     SAME_CIRCULARRAYINDEXITER_TS = { circularrayindexiter_type, same_type };
     SAME_CIRCULARRAYITEMITER_TS = { circularrayitemiter_type, same_type };
-    SAME_AATREEELEMITER_TS = { aatreeelemiter_type, same_type };
+    SAME_RBTREEELEMITER_TS = { rbtreeelemiter_type, same_type };
 
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -592,16 +592,16 @@ Scope *init_builtins() {
     circularray_scope->add(new TemplateIdentifier<CircularrayIndexIterValue>("indexes", ANY_CIRCULARRAY_REFERENCE_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayItemIterValue>("items", ANY_CIRCULARRAY_REFERENCE_TS));
 
-    // Aatree operations
-    Scope *aatree_scope = aatree_type->get_inner_scope(NO_TS.begin());
-    aatree_scope->add(new TemplateIdentifier<AatreeLengthValue>("length", ANY_AATREE_REFERENCE_TS));
+    // Rbtree operations
+    Scope *rbtree_scope = rbtree_type->get_inner_scope(NO_TS.begin());
+    rbtree_scope->add(new TemplateIdentifier<RbtreeLengthValue>("length", ANY_RBTREE_REFERENCE_TS));
     //array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
-    aatree_scope->add(new TemplateIdentifier<AatreeHasValue>("has", ANY_AATREE_REFERENCE_TS));
-    aatree_scope->add(new TemplateIdentifier<AatreeAddValue>("add", ANY_AATREE_REFERENCE_TS));
-    aatree_scope->add(new TemplateIdentifier<AatreeRemoveValue>("remove", ANY_AATREE_REFERENCE_TS));
+    rbtree_scope->add(new TemplateIdentifier<RbtreeHasValue>("has", ANY_RBTREE_REFERENCE_TS));
+    rbtree_scope->add(new TemplateIdentifier<RbtreeAddValue>("add", ANY_RBTREE_REFERENCE_TS));
+    rbtree_scope->add(new TemplateIdentifier<RbtreeRemoveValue>("remove", ANY_RBTREE_REFERENCE_TS));
 
-    // Aatree iterable operations
-    aatree_scope->add(new TemplateIdentifier<AatreeElemIterValue>("elements_by_time", ANY_AATREE_REFERENCE_TS));
+    // Rbtree iterable operations
+    rbtree_scope->add(new TemplateIdentifier<RbtreeElemIterValue>("elements_by_time", ANY_RBTREE_REFERENCE_TS));
 
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));

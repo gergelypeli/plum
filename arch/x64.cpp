@@ -1290,21 +1290,21 @@ Address X64::array_elems_address(Register reg) {
     return Address(reg, ARRAY_ELEMS_OFFSET);
 }
 
-void X64::alloc_aatree_RAX_RBX_RCX() {  // reservation, elem size, finalizer
+void X64::alloc_rbtree_RAX_RBX_RCX() {  // reservation, elem size, finalizer
     op(PUSHQ, RAX);
-    op(ADDQ, RBX, AANODE_HEADER_SIZE);
+    op(ADDQ, RBX, RBNODE_HEADER_SIZE);
     op(IMUL2Q, RAX, RBX);
-    op(ADDQ, RAX, AATREE_HEADER_SIZE);
+    op(ADDQ, RAX, RBTREE_HEADER_SIZE);
     op(MOVQ, RBX, RCX);
     
     alloc_RAX_RBX();
     
-    op(POPQ, Address(RAX, AATREE_RESERVATION_OFFSET));
-    op(MOVQ, Address(RAX, AATREE_LENGTH_OFFSET), 0);
-    op(MOVQ, Address(RAX, AATREE_ROOT_OFFSET), AANODE_NIL);
-    op(MOVQ, Address(RAX, AATREE_VACANT_OFFSET), AANODE_NIL);
-    op(MOVQ, Address(RAX, AATREE_FIRST_OFFSET), AANODE_NIL);
-    op(MOVQ, Address(RAX, AATREE_LAST_OFFSET), AANODE_NIL);
+    op(POPQ, Address(RAX, RBTREE_RESERVATION_OFFSET));
+    op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), 0);
+    op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RBNODE_NIL);
+    op(MOVQ, Address(RAX, RBTREE_VACANT_OFFSET), RBNODE_NIL);
+    op(MOVQ, Address(RAX, RBTREE_FIRST_OFFSET), RBNODE_NIL);
+    op(MOVQ, Address(RAX, RBTREE_LAST_OFFSET), RBNODE_NIL);
 }
 
 void X64::log(const char *message) {

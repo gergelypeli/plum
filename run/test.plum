@@ -389,27 +389,27 @@ start? :Function as:
     :for qv items each: it? do:
         prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
-    aa? String Aatree `reserved 8
-    aa add "A"
-    aa add "B"
-    aa add "C"
-    aa add "D"
-    aa add "E"
-    prints("After adding A, length is {l}" { l: aa length })
-    :for aa elements_by_time each: e? do:
-        prints("Aatree element: {e}" {})
+    rb? String Rbtree `reserved 8
+    rb add "A"
+    rb add "C"
+    rb add "E"
+    rb add "D"
+    rb add "B"
+    prints("After adding A, length is {l}" { l: rb length })
+    :for rb elements_by_time each: e? do:
+        prints("Rbtree element: {e}" {})
 
-    :if aa has "A" then:
-        prints("Aa has A, good.")
+    :if rb has "A" then:
+        prints("Rb has A, good.")
         
-    :if ! aa has "Z" then:
-        prints("Aa has no Z, good")
+    :if ! rb has "Z" then:
+        prints("Rb has no Z, good")
         
-    aa remove "A"
-    prints("After removing A, length is {l}" { l: aa length })
+    rb remove "A"
+    prints("After removing A, length is {l}" { l: rb length })
     
-    :if ! aa has "A" then:
-        prints("Aa has no A, good")
+    :if ! rb has "A" then:
+        prints("Rb has no A, good")
 
     gr? Greetable `init
     gr greet

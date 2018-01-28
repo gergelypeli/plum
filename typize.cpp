@@ -115,8 +115,8 @@ Value *make_null_reference_value(TypeSpec ts);
 Value *make_null_string_value();  // TODO: rethink!
 Value *make_array_empty_value(TypeSpec ts);
 Value *make_array_initializer_value(TypeSpec ts);
-Value *make_aatree_empty_value(TypeSpec ts);
-Value *make_aatree_reserved_value(TypeSpec ts);
+Value *make_rbtree_empty_value(TypeSpec ts);
+Value *make_rbtree_reserved_value(TypeSpec ts);
 Value *make_unicode_character_value();
 Value *make_integer_definition_value();
 Value *make_enumeration_definition_value();

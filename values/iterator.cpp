@@ -370,19 +370,19 @@ public:
 };
 
 
-// Aatree iterator initializers
+// Rbtree iterator initializers
 
-class AatreeElemIterValue: public SimpleRecordValue {
+class RbtreeElemIterValue: public SimpleRecordValue {
 public:
-    AatreeElemIterValue(Value *l, TypeMatch &match)
-        :SimpleRecordValue(typesubst(SAME_AATREEELEMITER_TS, match), l) {
+    RbtreeElemIterValue(Value *l, TypeMatch &match)
+        :SimpleRecordValue(typesubst(SAME_RBTREEELEMITER_TS, match), l) {
     }
 
     virtual Storage compile(X64 *x64) {
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->op(PUSHQ, Address(RBX, AATREE_FIRST_OFFSET));
+        x64->op(PUSHQ, Address(RBX, RBTREE_FIRST_OFFSET));
         x64->op(PUSHQ, RBX);
         
         return Storage(STACK);
@@ -390,14 +390,14 @@ public:
 };
 
 
-class AatreeNextElemValue: public GenericValue {
+class RbtreeNextElemValue: public GenericValue {
 public:
     Declaration *dummy;
     Regs clob;
     bool is_down;
     TypeSpec elem_ts;
 
-    AatreeNextElemValue(Value *l, TypeMatch &match)
+    RbtreeNextElemValue(Value *l, TypeMatch &match)
         :GenericValue(VOID_TS, match[1], l) {
         is_down = false;  // TODO: get as argument for backward iteration!
         elem_ts = match[1];
@@ -432,7 +432,7 @@ public:
         case MEMORY:
             x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // offset
             x64->op(MOVQ, reg, ls.address); // tree reference without incref
-            x64->op(CMPQ, RBX, AANODE_NIL);
+            x64->op(CMPQ, RBX, RBNODE_NIL);
             x64->op(JNE, ok);
             
             x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
@@ -440,10 +440,10 @@ public:
             
             x64->code_label(ok);
             x64->op(ADDQ, reg, RBX);
-            x64->op(MOVQ, RBX, Address(reg, is_down? AANODE_PREV_IS_RED_OFFSET : AANODE_NEXT_OFFSET));
+            x64->op(MOVQ, RBX, Address(reg, is_down? RBNODE_PREV_IS_RED_OFFSET : RBNODE_NEXT_OFFSET));
             x64->op(MOVQ, ls.address + REFERENCE_SIZE, RBX);
             
-            return Storage(MEMORY, Address(reg, AANODE_VALUE_OFFSET));
+            return Storage(MEMORY, Address(reg, RBNODE_VALUE_OFFSET));
         default:
             throw INTERNAL_ERROR;
         }

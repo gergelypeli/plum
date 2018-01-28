@@ -340,9 +340,9 @@ public:
 };
 
 
-class AatreeType: public HeapType {
+class RbtreeType: public HeapType {
 public:
-    AatreeType(std::string name)
+    RbtreeType(std::string name)
         :HeapType(name, 1) {
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
@@ -351,9 +351,9 @@ public:
         TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
         
         if (name == "empty")
-            return make_aatree_empty_value(rts);
+            return make_rbtree_empty_value(rts);
         else if (name == "reserved")
-            return make_aatree_reserved_value(rts);
+            return make_rbtree_reserved_value(rts);
         else if (name == "null")
             return make_null_reference_value(rts);
         //else if (name == "{}")
@@ -368,22 +368,22 @@ public:
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        TypeSpec elem_ts = ts.unprefix(aatree_type).varvalue();
+        TypeSpec elem_ts = ts.unprefix(rbtree_type).varvalue();
         Label loop, cond;
 
         x64->code_label(label);
         x64->op(PUSHQ, RCX);
 
-        x64->op(MOVQ, RCX, Address(RAX, AATREE_LAST_OFFSET));
+        x64->op(MOVQ, RCX, Address(RAX, RBTREE_LAST_OFFSET));
         x64->op(JMP, cond);
         
         x64->code_label(loop);
-        elem_ts.destroy(Storage(MEMORY, Address(RAX, RCX, AANODE_VALUE_OFFSET)), x64);
-        x64->op(MOVQ, RCX, Address(RAX, RCX, AANODE_PREV_IS_RED_OFFSET));
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), x64);
+        x64->op(MOVQ, RCX, Address(RAX, RCX, RBNODE_PREV_IS_RED_OFFSET));
         x64->op(ANDQ, RCX, -2);
         
         x64->code_label(cond);
-        x64->op(CMPQ, RCX, AANODE_NIL);
+        x64->op(CMPQ, RCX, RBNODE_NIL);
         x64->op(JNE, loop);
         
         x64->op(POPQ, RCX);

@@ -15,22 +15,22 @@ const int CLASS_HEADER_SIZE = 8;
 const int CLASS_VT_OFFSET = 0;
 const int CLASS_MEMBERS_OFFSET = 8;
 
-const int AATREE_HEADER_SIZE = 48;
-const int AATREE_RESERVATION_OFFSET = 0;
-const int AATREE_LENGTH_OFFSET = 8;
-const int AATREE_ROOT_OFFSET = 16;
-const int AATREE_FIRST_OFFSET = 24;
-const int AATREE_LAST_OFFSET = 32;
-const int AATREE_VACANT_OFFSET = 40;
-const int AATREE_ELEMS_OFFSET = 48;
+const int RBTREE_HEADER_SIZE = 48;
+const int RBTREE_RESERVATION_OFFSET = 0;
+const int RBTREE_LENGTH_OFFSET = 8;
+const int RBTREE_ROOT_OFFSET = 16;
+const int RBTREE_FIRST_OFFSET = 24;
+const int RBTREE_LAST_OFFSET = 32;
+const int RBTREE_VACANT_OFFSET = 40;
+const int RBTREE_ELEMS_OFFSET = 48;
 
-const int AANODE_HEADER_SIZE = 32;
-const int AANODE_PREV_IS_RED_OFFSET = 0;
-const int AANODE_NEXT_OFFSET = 8;
-const int AANODE_LEFT_OFFSET = 16;
-const int AANODE_RIGHT_OFFSET = 24;
-const int AANODE_VALUE_OFFSET = 32;
-const int AANODE_NIL = 0;
+const int RBNODE_HEADER_SIZE = 32;
+const int RBNODE_PREV_IS_RED_OFFSET = 0;
+const int RBNODE_NEXT_OFFSET = 8;
+const int RBNODE_LEFT_OFFSET = 16;
+const int RBNODE_RIGHT_OFFSET = 24;
+const int RBNODE_VALUE_OFFSET = 32;
+const int RBNODE_NIL = 0;
 
 const int ADDRESS_SIZE = 8;
 const int REFERENCE_SIZE = 8;

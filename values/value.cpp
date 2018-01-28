@@ -385,7 +385,7 @@ public:
 #include "iterator.cpp"
 #include "class.cpp"
 #include "stack.cpp"
-#include "aatree.cpp"
+#include "rbtree.cpp"
 
 
 TypeSpec get_typespec(Value *value) {
@@ -529,13 +529,13 @@ Value *make_array_initializer_value(TypeSpec ts) {
 }
 
 
-Value *make_aatree_empty_value(TypeSpec ts) {
-    return new AatreeEmptyValue(ts);
+Value *make_rbtree_empty_value(TypeSpec ts) {
+    return new RbtreeEmptyValue(ts);
 }
 
 
-Value *make_aatree_reserved_value(TypeSpec ts) {
-    return new AatreeReservedValue(ts);
+Value *make_rbtree_reserved_value(TypeSpec ts) {
+    return new RbtreeReservedValue(ts);
 }
 
 
