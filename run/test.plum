@@ -406,7 +406,11 @@ start? :Function as:
         prints("Rb has no Z, good")
         
     rb remove "A"
-    prints("After removing A, length is {l}" { l: rb length })
+    rb remove "B"
+    rb remove "C"
+    rb remove "D"
+    rb remove "E"
+    prints("After removing all, length is {l}" { l: rb length })
     
     :if ! rb has "A" then:
         prints("Rb has no A, good")

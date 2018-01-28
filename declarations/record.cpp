@@ -299,11 +299,11 @@ public:
         case MEMORY_MEMORY:
             x64->op(PUSHQ, RAX);
             x64->op(PUSHQ, RDX);
-            if (t.address.base != RAX) {
+            if (t.address.base != RAX && t.address.index != RAX) {
                 x64->op(MOVQ, RAX, s.address);
                 x64->op(MOVQ, RDX, t.address);
             }
-            else if (s.address.base != RDX) {
+            else if (s.address.base != RDX && s.address.index != RDX) {
                 x64->op(MOVQ, RDX, t.address);
                 x64->op(MOVQ, RAX, s.address);
             }
