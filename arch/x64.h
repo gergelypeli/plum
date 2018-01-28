@@ -167,7 +167,6 @@ struct Address {
     Address(Register b, Register i, int o);
     Address(Register b, Register i, int scale, int o);
     Address operator + (int o);
-    Address operator + (Register r);
 };
 
 #define EXCEPTION_ADDRESS Address(RBP, -8)
@@ -505,10 +504,6 @@ public:
     void grow_array_RAX_RBX_RCX();
     void preappend_array_RAX_RBX_RCX();
     Address heap_finalizer_address(Register reg);
-    Address array_reservation_address(Register reg);
-    Address array_length_address(Register reg);
-    Address array_front_address(Register reg);
-    Address array_elems_address(Register reg);
     
     void alloc_rbtree_RAX_RBX_RCX();
     

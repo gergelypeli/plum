@@ -77,16 +77,6 @@ Address Address::operator + (int x) {
 }
 
 
-Address Address::operator + (Register r) {
-    if (base == NOREG)
-        return Address(r, index, scale, offset);
-    else if (index == NOREG)
-        return Address(base, r, 1, offset);
-    else
-        throw X64_ERROR;
-}
-
-
 X64::X64() {
     code_label_import(memalloc_label, "memalloc");
     code_label_import(memfree_label, "memfree");
@@ -1272,22 +1262,6 @@ void X64::preappend_array_RAX_RBX_RCX() {
 
 Address X64::heap_finalizer_address(Register reg) {
     return Address(reg, HEAP_FINALIZER_OFFSET);
-}
-
-Address X64::array_reservation_address(Register reg) {
-    return Address(reg, ARRAY_RESERVATION_OFFSET);
-}
-
-Address X64::array_length_address(Register reg) {
-    return Address(reg, ARRAY_LENGTH_OFFSET);
-}
-
-Address X64::array_front_address(Register reg) {
-    return Address(reg, ARRAY_FRONT_OFFSET);
-}
-
-Address X64::array_elems_address(Register reg) {
-    return Address(reg, ARRAY_ELEMS_OFFSET);
 }
 
 void X64::alloc_rbtree_RAX_RBX_RCX() {  // reservation, elem size, finalizer

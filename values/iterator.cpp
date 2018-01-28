@@ -257,7 +257,7 @@ public:
             //std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
             x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // value
             x64->op(MOVQ, reg, ls.address); // array reference without incref
-            x64->op(CMPQ, RBX, x64->array_length_address(reg));
+            x64->op(CMPQ, RBX, Address(reg, ARRAY_LENGTH_OFFSET));
             x64->op(JNE, ok);
             
             x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
@@ -289,7 +289,7 @@ public:
         
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
-        return Storage(MEMORY, x64->array_elems_address(reg));
+        return Storage(MEMORY, Address(reg, ARRAY_ELEMS_OFFSET));
     }
 };
 
@@ -329,7 +329,7 @@ public:
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, reg, RBX);
         
-        Storage s = Storage(MEMORY, x64->array_elems_address(reg));
+        Storage s = Storage(MEMORY, Address(reg, ARRAY_ELEMS_OFFSET));
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
         elem_ts.create(s, t, x64);
         

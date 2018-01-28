@@ -33,20 +33,20 @@ public:
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
         
         x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, RBX, x64->array_length_address(RDX));
+        x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
 
         x64->op(MOVQ, RCX, 2);
         x64->preappend_array_RAX_RBX_RCX();
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
-        x64->op(LEA, RDI, x64->array_elems_address(RAX));
-        x64->op(ADDQ, RDI, x64->array_length_address(RAX));
-        x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
 
-        x64->op(LEA, RSI, x64->array_elems_address(RDX));
-        x64->op(MOVQ, RCX, x64->array_length_address(RDX));
-        x64->op(ADDQ, x64->array_length_address(RAX), RCX);
+        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
         x64->op(SHLQ, RCX, 1);
         
         x64->op(REPMOVSB);
@@ -98,13 +98,13 @@ public:
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
-        x64->op(LEA, RDI, x64->array_elems_address(RAX));
-        x64->op(ADDQ, RDI, x64->array_length_address(RAX));
-        x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
 
         x64->op(MOVW, Address(RDI, 0), DX);
             
-        x64->op(ADDQ, x64->array_length_address(RAX), 1);
+        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), 1);
 
         x64->op(RET);
     }
@@ -152,20 +152,20 @@ public:
         x64->op(MOVQ, RDX, Address(RBX, RDX, ADDRESS_SIZE, 0));
             
         x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, RBX, x64->array_length_address(RDX));
+        x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
         x64->op(MOVQ, RCX, CHARACTER_SIZE);
         
         x64->preappend_array_RAX_RBX_RCX();
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
-        x64->op(LEA, RDI, x64->array_elems_address(RAX));
-        x64->op(ADDQ, RDI, x64->array_length_address(RAX));
-        x64->op(ADDQ, RDI, x64->array_length_address(RAX));  // Yes, added twice
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
 
-        x64->op(LEA, RSI, x64->array_elems_address(RDX));
-        x64->op(MOVQ, RCX, x64->array_length_address(RDX));
-        x64->op(ADDQ, x64->array_length_address(RAX), RCX);
+        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
         x64->op(IMUL3Q, RCX, RCX, CHARACTER_SIZE);
         
         x64->op(REPMOVSB);

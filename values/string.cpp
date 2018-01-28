@@ -36,12 +36,12 @@ public:
         x64->op(CMPQ, RBX, 0);
         x64->op(JE, done);
         
-        x64->op(MOVQ, RCX, x64->array_length_address(RAX));
-        x64->op(CMPQ, RCX, x64->array_length_address(RBX));
+        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RCX, Address(RBX, ARRAY_LENGTH_OFFSET));
         x64->op(JNE, sete);
         
-        x64->op(LEA, RSI, x64->array_elems_address(RAX));
-        x64->op(LEA, RDI, x64->array_elems_address(RBX));
+        x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RDI, Address(RBX, ARRAY_ELEMS_OFFSET));
         x64->op(REPECMPSW);
         x64->op(CMPQ, RCX, 0);
         

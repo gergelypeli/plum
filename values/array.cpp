@@ -12,12 +12,12 @@ TypeSpec array_elem_ts(TypeSpec ts) {
 
 void fix_index_overflow(Register r, X64 *x64) {
     Label ok;
-    x64->op(ADDQ, RBX, x64->array_front_address(r));
-    x64->op(CMPQ, RBX, x64->array_reservation_address(r));
+    x64->op(ADDQ, RBX, Address(r, ARRAY_FRONT_OFFSET));
+    x64->op(CMPQ, RBX, Address(r, ARRAY_RESERVATION_OFFSET));
     x64->op(JL, ok);
 
     //x64->err("Fixing index overflow.");
-    x64->op(SUBQ, RBX, x64->array_reservation_address(r));
+    x64->op(SUBQ, RBX, Address(r, ARRAY_RESERVATION_OFFSET));
         
     x64->code_label(ok);
 }
@@ -25,12 +25,12 @@ void fix_index_overflow(Register r, X64 *x64) {
 
 void fix_index_underflow(Register r, X64 *x64) {
     Label ok;
-    x64->op(ADDQ, RBX, x64->array_front_address(r));
+    x64->op(ADDQ, RBX, Address(r, ARRAY_FRONT_OFFSET));
     x64->op(CMPQ, RBX, 0);
     x64->op(JGE, ok);
         
     //x64->err("Fixing index underflow.");
-    x64->op(ADDQ, RBX, x64->array_reservation_address(r));
+    x64->op(ADDQ, RBX, Address(r, ARRAY_RESERVATION_OFFSET));
         
     x64->code_label(ok);
 }
@@ -62,11 +62,11 @@ public:
         switch (ls.where) {
         case REGISTER:
             x64->decref(ls.reg);
-            x64->op(MOVQ, ls.reg, x64->array_length_address(ls.reg));
+            x64->op(MOVQ, ls.reg, Address(ls.reg, ARRAY_LENGTH_OFFSET));
             return Storage(REGISTER, ls.reg);
         case MEMORY:
             x64->op(MOVQ, reg, ls.address);
-            x64->op(MOVQ, reg, x64->array_length_address(reg));
+            x64->op(MOVQ, reg, Address(reg, ARRAY_LENGTH_OFFSET));
             return Storage(REGISTER, reg);
         default:
             throw INTERNAL_ERROR;
@@ -109,13 +109,13 @@ public:
             fix_index(ls.reg, x64);
             x64->op(IMUL3Q, RBX, RBX, size);
             x64->op(ADDQ, ls.reg, RBX);
-            return Storage(MEMORY, x64->array_elems_address(ls.reg));
+            return Storage(MEMORY, Address(ls.reg, ARRAY_ELEMS_OFFSET));
         case MEMORY:
             x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
             fix_index(reg, x64);
             x64->op(IMUL3Q, RBX, RBX, size);
             x64->op(ADDQ, reg, RBX);
-            return Storage(MEMORY, x64->array_elems_address(reg));
+            return Storage(MEMORY, Address(reg, ARRAY_ELEMS_OFFSET));
         default:
             throw INTERNAL_ERROR;
         }
@@ -160,28 +160,28 @@ public:
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));
         x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));
         
-        x64->op(MOVQ, RAX, x64->array_length_address(RCX));
-        x64->op(ADDQ, RAX, x64->array_length_address(RDX));  // total length in RAX
+        x64->op(MOVQ, RAX, Address(RCX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RAX, Address(RDX, ARRAY_LENGTH_OFFSET));  // total length in RAX
         x64->op(PUSHQ, RAX);
         
         x64->op(MOVQ, RCX, x64->heap_finalizer_address(RCX));  // for a moment
         
         x64->alloc_array_RAX_RBX_RCX();  // array length, elem size, finalizer
         
-        x64->op(POPQ, x64->array_length_address(RAX));
+        x64->op(POPQ, Address(RAX, ARRAY_LENGTH_OFFSET));
 
         x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));  // restored
         x64->op(MOVQ, RCX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE + REFERENCE_SIZE));  // restored
         
-        x64->op(LEA, RDI, x64->array_elems_address(RAX));
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
         
-        x64->op(LEA, RSI, x64->array_elems_address(RCX));
-        x64->op(MOVQ, RCX, x64->array_length_address(RCX));  // first array not needed anymore
+        x64->op(LEA, RSI, Address(RCX, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(RCX, ARRAY_LENGTH_OFFSET));  // first array not needed anymore
         x64->op(IMUL2Q, RCX, RBX);
         x64->op(REPMOVSB);
 
-        x64->op(LEA, RSI, x64->array_elems_address(RDX));
-        x64->op(MOVQ, RCX, x64->array_length_address(RDX));
+        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
         x64->op(IMUL2Q, RCX, RBX);
         x64->op(REPMOVSB);
         
@@ -216,7 +216,7 @@ public:
         switch (rs.where) {
         case NOWHERE:
             x64->op(MOVQ, RAX, ls.address);
-            x64->op(MOVQ, RBX, x64->array_length_address(RAX));  // shrink to fit
+            x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));  // shrink to fit
             break;
         case CONSTANT:
             x64->op(MOVQ, RAX, ls.address);
@@ -272,8 +272,8 @@ public:
         
         // RDI = base, RSI = nmemb, RDX = size, RCX = compar
         x64->op(MOVQ, RBX, Address(RSP, 0));
-        x64->op(LEA, RDI, x64->array_elems_address(RBX));
-        x64->op(MOVQ, RSI, x64->array_length_address(RBX));
+        x64->op(LEA, RDI, Address(RBX, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RSI, Address(RBX, ARRAY_LENGTH_OFFSET));
         x64->op(MOVQ, RDX, elem_size(elem_ts.measure(MEMORY)));
         x64->op(LEARIP, RCX, compar);
         
@@ -385,7 +385,7 @@ public:
         x64->op(LEARIP, RCX, array_finalizer_label);
     
         x64->alloc_array_RAX_RBX_RCX();  // array length, elem size, finalizer
-        x64->op(MOVQ, x64->array_length_address(RAX), elems.size());
+        x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), elems.size());
         x64->op(PUSHQ, RAX);
         
         unsigned offset = 0;
@@ -396,7 +396,7 @@ public:
             
             int soffset = (s.where == STACK ? stack_size(elem_size) : 0);
             x64->op(MOVQ, reg, Address(RSP, soffset));
-            Storage t(MEMORY, x64->array_elems_address(reg) + offset);
+            Storage t(MEMORY, Address(reg, ARRAY_ELEMS_OFFSET + offset));
             
             elem_ts.create(s, t, x64);
             offset += elem_size;
@@ -434,8 +434,8 @@ public:
         Label ok, end;
         
         x64->op(MOVQ, RAX, Address(RSP, stack_size));
-        x64->op(MOVQ, RBX, x64->array_length_address(RAX));
-        x64->op(CMPQ, RBX, x64->array_reservation_address(RAX));
+        x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
         x64->op(JNE, ok);
         
         //elem_ts.destroy(Storage(STACK), x64);  // FIXME: what to do here?
@@ -443,7 +443,7 @@ public:
         x64->op(JMP, end);
         
         x64->code_label(ok);
-        x64->op(INCQ, x64->array_length_address(RAX));
+        x64->op(INCQ, Address(RAX, ARRAY_LENGTH_OFFSET));
 
         // RBX contains the index of the newly created element
         fix_index(RAX, x64);
@@ -451,7 +451,7 @@ public:
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, RAX, RBX);
         
-        elem_ts.create(Storage(STACK), Storage(MEMORY, x64->array_elems_address(RAX)), x64);
+        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, ARRAY_ELEMS_OFFSET)), x64);
         
         x64->code_label(end);
         return Storage(STACK);
@@ -482,14 +482,14 @@ public:
         
         left->compile_and_store(x64, Storage(REGISTER, RAX));
         
-        x64->op(CMPQ, x64->array_length_address(RAX), 0);
+        x64->op(CMPQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
         x64->op(JNE, ok);
         
         x64->die("Array empty!");
         
         x64->code_label(ok);
-        x64->op(DECQ, x64->array_length_address(RAX));
-        x64->op(MOVQ, RBX, x64->array_length_address(RAX));
+        x64->op(DECQ, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
 
         // RBX contains the index of the newly removed element
         fix_index(RAX, x64);
@@ -499,8 +499,8 @@ public:
 
         x64->op(ADDQ, RAX, RBX);
         
-        elem_ts.store(Storage(MEMORY, x64->array_elems_address(RAX)), Storage(STACK), x64);
-        elem_ts.destroy(Storage(MEMORY, x64->array_elems_address(RAX)), x64);
+        elem_ts.store(Storage(MEMORY, Address(RAX, ARRAY_ELEMS_OFFSET)), Storage(STACK), x64);
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, ARRAY_ELEMS_OFFSET)), x64);
         
         return Storage(STACK);
     }
@@ -553,7 +553,7 @@ public:
         // Compute the new front, and use it for the element index
         x64->op(MOVQ, RBX, -1);
         fix_index_underflow(r, x64);
-        x64->op(MOVQ, x64->array_front_address(r), RBX);
+        x64->op(MOVQ, Address(r, ARRAY_FRONT_OFFSET), RBX);
     }
 };
 
@@ -568,6 +568,6 @@ public:
         // Compute the new front, and use the old one for the element index
         x64->op(MOVQ, RBX, 1);
         fix_index_overflow(r, x64);
-        x64->op(XCHGQ, RBX, x64->array_front_address(r));
+        x64->op(XCHGQ, RBX, Address(r, ARRAY_FRONT_OFFSET));
     }
 };

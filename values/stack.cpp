@@ -59,14 +59,14 @@ public:
         
         x64->op(MOVQ, RBX, Address(RSP, stack_size));
         x64->op(MOVQ, RAX, Address(RBX, CLASS_MEMBERS_OFFSET));
-        x64->op(MOVQ, RBX, x64->array_length_address(RAX));
-        x64->op(CMPQ, RBX, x64->array_reservation_address(RAX));
+        x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
         x64->op(JB, ok);
         
         //x64->err("Will grow the stack/queue.");
         x64->op(INCQ, RBX);
         x64->op(MOVQ, RCX, elem_size);
-        x64->op(PUSHQ, x64->array_reservation_address(RAX));  // good to know it later
+        x64->op(PUSHQ, Address(RAX, ARRAY_RESERVATION_OFFSET));  // good to know it later
         
         x64->grow_array_RAX_RBX_RCX();
 
@@ -75,16 +75,16 @@ public:
         x64->op(MOVQ, Address(RCX, CLASS_MEMBERS_OFFSET), RAX);
 
         fix_growth(elem_size, x64);
-        x64->op(MOVQ, RBX, x64->array_length_address(RAX));
+        x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
         
         x64->code_label(ok);
         // length (the index of the new element) is in RBX
         fix_index(x64);
         
         x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(INCQ, x64->array_length_address(RAX));
+        x64->op(INCQ, Address(RAX, ARRAY_LENGTH_OFFSET));
 
-        x64->op(LEA, RAX, x64->array_elems_address(RAX) + RBX);
+        x64->op(LEA, RAX, Address(RAX, RBX, ARRAY_ELEMS_OFFSET));
         
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, 0)), x64);
         
@@ -116,7 +116,7 @@ public:
         Label high, end;
         x64->op(MOVQ, RCX, RBX);
         x64->op(SHRQ, RCX, 1);
-        x64->op(CMPQ, x64->array_front_address(RAX), RCX);
+        x64->op(CMPQ, Address(RAX, ARRAY_FRONT_OFFSET), RCX);
         x64->op(JAE, high);
 
         // The front is low, so it's better to unfold the folded part. This requires that
@@ -124,13 +124,13 @@ public:
         
         x64->log("Unfolding queue circularray.");
         
-        x64->op(LEA, RSI, x64->array_elems_address(RAX));
+        x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
         
         x64->op(MOVQ, RDI, RBX);
         x64->op(IMUL3Q, RDI, RDI, elem_size);
-        x64->op(LEA, RDI, x64->array_elems_address(RAX) + RDI);
+        x64->op(LEA, RDI, Address(RAX, RDI, ARRAY_ELEMS_OFFSET));
         
-        x64->op(MOVQ, RCX, x64->array_front_address(RAX));
+        x64->op(MOVQ, RCX, Address(RAX, ARRAY_FRONT_OFFSET));
         x64->op(IMUL3Q, RCX, RCX, elem_size);
         
         x64->op(REPMOVSB);
@@ -143,19 +143,19 @@ public:
 
         x64->log("Stretching queue circularray.");
         
-        x64->op(MOVQ, RSI, x64->array_front_address(RAX));
+        x64->op(MOVQ, RSI, Address(RAX, ARRAY_FRONT_OFFSET));
         x64->op(IMUL3Q, RSI, RSI, elem_size);
-        x64->op(LEA, RSI, x64->array_elems_address(RAX) + RSI);
+        x64->op(LEA, RSI, Address(RAX, RSI, ARRAY_ELEMS_OFFSET));
 
-        x64->op(MOVQ, RDI, x64->array_front_address(RAX));
+        x64->op(MOVQ, RDI, Address(RAX, ARRAY_FRONT_OFFSET));
         x64->op(SUBQ, RDI, RBX);
-        x64->op(ADDQ, RDI, x64->array_reservation_address(RAX));
-        x64->op(MOVQ, x64->array_front_address(RAX), RDI);  // must update front index
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_RESERVATION_OFFSET));
+        x64->op(MOVQ, Address(RAX, ARRAY_FRONT_OFFSET), RDI);  // must update front index
         x64->op(IMUL3Q, RDI, RDI, elem_size);
-        x64->op(LEA, RDI, x64->array_elems_address(RAX) + RDI);
+        x64->op(LEA, RDI, Address(RAX, RDI, ARRAY_ELEMS_OFFSET));
         
-        x64->op(MOVQ, RCX, x64->array_reservation_address(RAX));
-        x64->op(SUBQ, RCX, x64->array_front_address(RAX));
+        x64->op(MOVQ, RCX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+        x64->op(SUBQ, RCX, Address(RAX, ARRAY_FRONT_OFFSET));
         x64->op(IMUL3Q, RCX, RCX, elem_size);
         
         x64->op(REPMOVSB);
@@ -181,6 +181,6 @@ public:
         // Compute the new front, and use it for the element index
         x64->op(MOVQ, RBX, -1);
         fix_index_underflow(RAX, x64);
-        x64->op(MOVQ, x64->array_front_address(RAX), RBX);
+        x64->op(MOVQ, Address(RAX, ARRAY_FRONT_OFFSET), RBX);
     }
 };

@@ -263,12 +263,12 @@ public:
         x64->code_label_local(label, "x_array_finalizer");
         x64->op(PUSHQ, RCX);
 
-        x64->op(MOVQ, RCX, x64->array_length_address(RAX));
+        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, 0);
         x64->op(JE, end);
 
         x64->op(IMUL3Q, RBX, RCX, elem_size);
-        x64->op(LEA, RAX, x64->array_elems_address(RAX));
+        x64->op(LEA, RAX, Address(RAX, ARRAY_ELEMS_OFFSET));
         x64->op(ADDQ, RAX, RBX);
 
         x64->code_label(loop);
@@ -303,16 +303,16 @@ public:
         x64->op(PUSHQ, RCX);
         x64->op(PUSHQ, RDX);
     
-        x64->op(MOVQ, RCX, x64->array_length_address(RAX));
+        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, 0);
         x64->op(JE, end);
     
-        x64->op(MOVQ, RDX, x64->array_front_address(RAX));
+        x64->op(MOVQ, RDX, Address(RAX, ARRAY_FRONT_OFFSET));
         x64->op(ADDQ, RDX, RCX);
-        x64->op(CMPQ, RDX, x64->array_reservation_address(RAX));
+        x64->op(CMPQ, RDX, Address(RAX, ARRAY_RESERVATION_OFFSET));
         x64->op(JBE, ok1);
         
-        x64->op(SUBQ, RDX, x64->array_reservation_address(RAX));
+        x64->op(SUBQ, RDX, Address(RAX, ARRAY_RESERVATION_OFFSET));
         
         x64->code_label(ok1);
         x64->op(IMUL3Q, RDX, RDX, elem_size);
@@ -322,12 +322,12 @@ public:
         x64->op(CMPQ, RDX, 0);
         x64->op(JGE, ok);
         
-        x64->op(MOVQ, RDX, x64->array_reservation_address(RAX));
+        x64->op(MOVQ, RDX, Address(RAX, ARRAY_RESERVATION_OFFSET));
         x64->op(DECQ, RDX);
         x64->op(IMUL3Q, RDX, RDX, elem_size);
         
         x64->code_label(ok);
-        Address elem_addr = x64->array_elems_address(RAX) + RDX;
+        Address elem_addr = Address(RAX, RDX, ARRAY_ELEMS_OFFSET);
         elem_ts.destroy(Storage(MEMORY, elem_addr), x64);
         x64->op(DECQ, RCX);
         x64->op(JNE, loop);

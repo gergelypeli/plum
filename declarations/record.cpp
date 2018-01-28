@@ -353,8 +353,8 @@ public:
         x64->op(CMPQ, RDX, 0);
         x64->op(JE, greater);
 
-        x64->op(MOVQ, RCX, x64->array_length_address(RAX));
-        x64->op(CMPQ, RCX, x64->array_length_address(RDX));
+        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
         x64->op(JE, begin);
         x64->op(JA, s_longer);
         
@@ -363,13 +363,13 @@ public:
 
         x64->code_label(s_longer);
         x64->op(MOVQ, RBX, 1);  // s is longer, on common equality s is greater
-        x64->op(MOVQ, RCX, x64->array_length_address(RDX));
+        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
         
         x64->code_label(begin);
         x64->op(CMPQ, RCX, 0);
         x64->op(JE, equal);
-        x64->op(LEA, RSI, x64->array_elems_address(RAX));
-        x64->op(LEA, RDI, x64->array_elems_address(RDX));
+        x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RDI, Address(RDX, ARRAY_ELEMS_OFFSET));
         x64->op(REPECMPSW);
         x64->op(JE, equal);
         x64->op(JA, greater);
