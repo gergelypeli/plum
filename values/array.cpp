@@ -7,18 +7,12 @@ TypeSpec array_elem_ts(TypeSpec ts) {
 void compile_alloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - reservation
     int elem_size = ::elem_size(elem_ts.measure(MEMORY));
-    // FIXME: this step makes it unusable with circularray!!!
     Label finalizer_label = elem_ts.prefix(array_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_array_alloc");
-    x64->op(PUSHQ, RAX);
-    x64->op(IMUL3Q, RAX, RAX, elem_size);
-    x64->op(ADDQ, RAX, ARRAY_HEADER_SIZE);
-    x64->op(LEARIP, RBX, finalizer_label);
     
-    x64->alloc_RAX_RBX();
-    
-    x64->op(POPQ, Address(RAX, ARRAY_RESERVATION_OFFSET));
+    alloc_container(ARRAY_HEADER_SIZE, elem_size, ARRAY_RESERVATION_OFFSET, finalizer_label, x64);
+
     x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
     
     x64->op(RET);
@@ -30,13 +24,9 @@ void compile_realloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = ::elem_size(elem_ts.measure(MEMORY));
 
     x64->code_label_local(label, "x_array_realloc");
-    //x64->log("realloc_array");
-    x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), RBX);
-    x64->op(IMUL3Q, RBX, RBX, elem_size);
-    x64->op(ADDQ, RBX, ARRAY_HEADER_SIZE);
-    
-    x64->realloc_RAX_RBX();
-    
+
+    realloc_container(ARRAY_HEADER_SIZE, elem_size, ARRAY_RESERVATION_OFFSET, x64);
+
     x64->op(RET);
 }
 
@@ -44,25 +34,12 @@ void compile_realloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
 void compile_grow_array(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
-    Label realloc_array = x64->once->compile(compile_realloc_array, elem_ts);
+    Label realloc_label = x64->once->compile(compile_realloc_array, elem_ts);
 
     x64->code_label_local(label, "x_array_grow");
-    x64->log("grow_array");
-    Label more, check;
+    //x64->log("grow_array");
     
-    x64->op(XCHGQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));  // save desired value
-    x64->op(CMPQ, RBX, ARRAY_MINIMUM_RESERVATION);
-    x64->op(JAE, check);
-    x64->op(MOVQ, RBX, ARRAY_MINIMUM_RESERVATION);
-    x64->op(JMP, check);
-    
-    x64->code_label(more);
-    x64->op(SHLQ, RBX, 1);
-    x64->code_label(check);
-    x64->op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-    x64->op(JB, more);
-    
-    x64->op(CALL, realloc_array);
+    grow_container(ARRAY_RESERVATION_OFFSET, ARRAY_MINIMUM_RESERVATION, realloc_label, x64);
     
     x64->op(RET);
 }
@@ -70,101 +47,37 @@ void compile_grow_array(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_preappend_array(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new addition
-    Label grow_array = x64->once->compile(compile_grow_array, elem_ts);
+    Label grow_label = x64->once->compile(compile_grow_array, elem_ts);
 
     x64->code_label_local(label, "x_array_preappend");
     //x64->log("preappend_array");
-    x64->op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
-    x64->op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-    Label ok;
-    x64->op(JBE, ok);
-
-    x64->op(CALL, grow_array);
     
-    x64->code_label(ok);
+    preappend_container(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, grow_label, x64);
+
     x64->op(RET);
 }
 
 
-class ArrayLengthValue: public GenericValue {
+class ArrayLengthValue: public ContainerLengthValue {
 public:
-    Register reg;
-    
     ArrayLengthValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, INTEGER_TS, l) {
-        reg = NOREG;
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred);
-        
-        if (!clob.has_any())
-            clob.add(RAX);
-        
-        reg = clob.get_any();
-            
-        return clob;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        ls = left->compile(x64);
-
-        switch (ls.where) {
-        case REGISTER:
-            x64->decref(ls.reg);
-            x64->op(MOVQ, ls.reg, Address(ls.reg, ARRAY_LENGTH_OFFSET));
-            return Storage(REGISTER, ls.reg);
-        case MEMORY:
-            x64->op(MOVQ, reg, ls.address);
-            x64->op(MOVQ, reg, Address(reg, ARRAY_LENGTH_OFFSET));
-            return Storage(REGISTER, reg);
-        default:
-            throw INTERNAL_ERROR;
-        }
+        :ContainerLengthValue(VOID_TS, INTEGER_TS, l, ARRAY_LENGTH_OFFSET) {
     }
 };
 
 
-class ArrayItemValue: public GenericOperationValue {
+class ArrayIndexValue: public ContainerIndexValue {
 public:
+    TypeSpec elem_ts;
+    
     ArrayItemValue(OperationType o, Value *pivot, TypeMatch &match)
-        :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
+        :ContainerIndexValue(o, pivot, match, ARRAY_ELEMS_OFFSET) {
+        elem_ts = match[1].varvalue();
     }
 
-    virtual Storage compile(X64 *x64) {
-        int size = elem_size(ts.measure(MEMORY));
-        
-        subcompile(x64);
-    
-        switch (rs.where) {
-        case CONSTANT:
-            x64->op(MOVQ, RBX, rs.value);
-            break;
-        case REGISTER:
-            x64->op(MOVQ, RBX, rs.reg);
-            break;
-        case MEMORY:
-            x64->op(MOVQ, RBX, rs.address);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-
-        switch (ls.where) {
-        case REGISTER:
-            x64->decref(ls.reg);
-            x64->op(IMUL3Q, RBX, RBX, size);
-            x64->op(ADDQ, ls.reg, RBX);
-            return Storage(MEMORY, Address(ls.reg, ARRAY_ELEMS_OFFSET));
-        case MEMORY:
-            x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
-            x64->op(IMUL3Q, RBX, RBX, size);
-            x64->op(ADDQ, reg, RBX);
-            return Storage(MEMORY, Address(reg, ARRAY_ELEMS_OFFSET));
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }    
+    virtual int get_elem_size() {
+        elem_size(elem_ts.measure(MEMORY));
+    }
 };
 
 
@@ -349,147 +262,44 @@ public:
 };
 
 
-class ArrayEmptyValue: public GenericValue {
+class ArrayEmptyValue: public ContainerEmptyValue {
 public:
-    TypeSpec elem_ts;
-    
     ArrayEmptyValue(TypeSpec ts)
-        :GenericValue(VOID_TS, ts, NULL) {
+        :ContainerEmptyValue(ts) {
         elem_ts = array_elem_ts(ts);
     }
 
     virtual Regs precompile(Regs preferred) {
         Regs clob;
-        return clob.add(RAX).add(RBX).add(RCX);
+        return clob.add(RAX).add(RBX);
     }
 
-    virtual Storage compile(X64 *x64) {
-        //TypeSpec ats = ts.unprefix(reference_type);
-        //Label array_finalizer_label = ats.get_finalizer_label(x64);
-        //int elem_size = ::elem_size(elem_ts.measure(MEMORY));
-        Label alloc_array = x64->once->compile(compile_alloc_array, elem_ts);
-        
-        x64->op(MOVQ, RAX, 0);
-        x64->op(CALL, alloc_array);
-        
-        return Storage(REGISTER, RAX);
+    virtual Label get_alloc_label(X64 *x64) {
+        return x64->once->compile(compile_alloc_array, elem_ts);
     }
 };
 
 
-class ArrayInitializerValue: public Value {
+class ArrayInitializerValue: public ContainerInitializerValue {
 public:
-    TypeSpec elem_ts;
-    std::vector<std::unique_ptr<Value>> elems;
-
     ArrayInitializerValue(TypeSpec ts)
-        :Value(ts) {
-        elem_ts = array_elem_ts(ts);
+        :ContainerInitializerValue(ts, array_elem_ts(ts), ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET) {
     }
 
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (kwargs.size() != 0) {
-            std::cerr << "Whacky array initializer keyword argument!\n";
-            return false;
-        }
-        
-        for (auto &arg : args) {
-            Value *v = typize(arg.get(), scope, &elem_ts);
-            if (!v)
-                return false;
-                
-            TypeMatch match;
-            
-            if (!typematch(elem_ts, v, match)) {
-                std::cerr << "Array element is not " << elem_ts << ", but " << get_typespec(v) << "!\n";
-                return false;
-            }
-            
-            elems.push_back(std::unique_ptr<Value>(v));
-        }
-        
-        return true;
+    virtual int get_elem_size() {
+        return ::elem_size(elem_ts.measure(MEMORY));
     }
 
-    virtual Regs precompile(Regs preferred) {
-        Regs clob;
-        clob.add(RAX).add(RBX).add(RCX);
-        
-        for (auto &elem : elems)
-            clob = clob | elem->precompile(preferred);
-            
-        return clob;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        //TypeSpec ats = ts.unprefix(reference_type);
-        //Label array_finalizer_label = ats.get_finalizer_label(x64);
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
-        Label alloc_array = x64->once->compile(compile_alloc_array, elem_ts);
-    
-        x64->op(MOVQ, RAX, elems.size());
-        x64->op(CALL, alloc_array);
-        x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), elems.size());
-        x64->op(PUSHQ, RAX);
-        
-        unsigned offset = 0;
-        
-        for (auto &elem : elems) {
-            elem->compile_and_store(x64, Storage(STACK));
-            x64->op(MOVQ, RAX, Address(RSP, stack_size(elem_size)));
-            Storage t(MEMORY, Address(RAX, ARRAY_ELEMS_OFFSET + offset));
-            
-            elem_ts.create(Storage(STACK), t, x64);
-            offset += elem_size;
-        }
-        
-        return Storage(STACK);
+    virtual Label get_alloc_label(X64 *x64) {
+        return x64->once->compile(compile_alloc_array, elem_ts);
     }
 };
 
 
-class ArrayPushValue: public GenericValue {
+class ArrayPushValue: public ContainerPushValue {
 public:
-    TypeSpec elem_ts;
-    
     ArrayPushValue(Value *l, TypeMatch &match)
-        :GenericValue(array_elem_ts(match[0]), match[0], l) {
-        elem_ts = array_elem_ts(match[0]);
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX);
-    }
-
-    virtual Storage compile(X64 *x64) {
-        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
-    
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
-        int stack_size = ::stack_size(elem_ts.measure(MEMORY));
-        Label ok, end;
-        
-        x64->op(MOVQ, RAX, Address(RSP, stack_size));
-        x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-        x64->op(JNE, ok);
-        
-        //elem_ts.destroy(Storage(STACK), x64);  // FIXME: what to do here?
-        x64->die("Array full!");
-        x64->op(JMP, end);
-        
-        x64->code_label(ok);
-        x64->op(INCQ, Address(RAX, ARRAY_LENGTH_OFFSET));
-
-        // RBX contains the index of the newly created element
-        
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(ADDQ, RAX, RBX);
-        
-        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, ARRAY_ELEMS_OFFSET)), x64);
-        
-        x64->code_label(end);
-        return Storage(STACK);
+        :ContainerPushValue(l, match, ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET) {
     }
 };
 

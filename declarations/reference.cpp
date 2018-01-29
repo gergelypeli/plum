@@ -230,6 +230,51 @@ bool is_heap_type(Type *t) {
 }
 
 
+struct ContainerInfo {
+    int header_size;
+    int elem_size;
+    int reservation_offset;
+    int length_offset;
+    Label finalizer_label;
+};
+
+
+class ContainerType: public HeapType {
+public:
+    int header_size;
+    int elem_header_size;
+    int reservation_offset;
+    int length_offset;
+    
+    ContainerType(std::string name, unsigned pc, int hs, int ehs, int ro, int lo)
+        :HeapType(name, pc) {
+        header_size = hs;
+        elem_header_size = ehs;
+        reservation_offset = ro;
+        length_offset = lo;
+    }
+    
+    ContainerInfo get_container_info(TypeSpecIter tsi, X64 *x64) {
+        TypeSpec elem_ts = tsi + 1;
+        
+        return ContainerInfo {
+            header_size,
+            elem_header_size + ::elem_size(elem_ts.measure(MEMORY)),
+            reservation_offset,
+            length_offset,
+            get_finalizer_label(tsi, x64)
+        };
+    }
+};
+
+
+ContainerInfo get_container_info(TypeSpec ts, X64 *x64) {
+    ContainerType *ct = dynamic_cast<ContainerType *>(ts[0]);
+    
+    return ct->get_container_info(ts.begin(), x64);
+}
+
+
 class ArrayType: public HeapType {
 public:
     ArrayType(std::string name)
