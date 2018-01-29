@@ -370,9 +370,6 @@ public:
 
 #include "generic.cpp"
 #include "block.cpp"
-#include "literal.cpp"
-#include "type.cpp"
-#include "function.cpp"
 #include "integer.cpp"
 #include "boolean.cpp"
 #include "array.cpp"
@@ -386,6 +383,9 @@ public:
 #include "class.cpp"
 #include "stack.cpp"
 #include "rbtree.cpp"
+#include "literal.cpp"
+#include "type.cpp"
+#include "function.cpp"
 
 
 TypeSpec get_typespec(Value *value) {

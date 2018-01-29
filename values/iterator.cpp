@@ -400,7 +400,7 @@ public:
     RbtreeNextElemValue(Value *l, TypeMatch &match)
         :GenericValue(VOID_TS, match[1], l) {
         is_down = false;  // TODO: get as argument for backward iteration!
-        elem_ts = match[1];
+        elem_ts = match[1].varvalue();
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

@@ -60,13 +60,13 @@ TypeSpec TypeSpec::prefix(Type *t) {
 
 
 TypeSpec TypeSpec::unprefix(Type *t) {
-    if (at(0) != t) {
+    if (t && at(0) != t) {
         std::cerr << "TypeSpec doesn't start with " << t->name << ": " << *this << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    if (t->parameter_count != 1) {
-        std::cerr << "Can't unprefix Type with " << t->parameter_count << " parameters: " << *this << "!\n";
+    if (at(0)->parameter_count != 1) {
+        std::cerr << "Can't unprefix Type with " << at(0)->parameter_count << " parameters: " << *this << "!\n";
         throw INTERNAL_ERROR;
     }
         

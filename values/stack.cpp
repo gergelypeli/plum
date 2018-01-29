@@ -55,6 +55,7 @@ public:
     
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         int stack_size = ::stack_size(elem_ts.measure(MEMORY));
+        Label grow_array = x64->once->compile(compile_grow_array, elem_ts);
         Label ok;
         
         x64->op(MOVQ, RBX, Address(RSP, stack_size));
@@ -65,10 +66,9 @@ public:
         
         //x64->err("Will grow the stack/queue.");
         x64->op(INCQ, RBX);
-        x64->op(MOVQ, RCX, elem_size);
         x64->op(PUSHQ, Address(RAX, ARRAY_RESERVATION_OFFSET));  // good to know it later
         
-        x64->grow_array_RAX_RBX_RCX();
+        x64->op(CALL, grow_array);
 
         x64->op(POPQ, RBX);  // old reservation
         x64->op(MOVQ, RCX, Address(RSP, stack_size));

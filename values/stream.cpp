@@ -1,4 +1,29 @@
 
+class StringBufferValue: public Value {
+public:
+    int length;
+    
+    StringBufferValue(int l)
+        :Value(STRING_TS) {
+        length = l;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return Regs().add(RAX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Label alloc_array = x64->once->compile(compile_alloc_array, CHARACTER_TS);
+        
+        x64->op(MOVQ, RAX, length);
+        x64->op(CALL, alloc_array);
+        x64->op(PUSHQ, RAX);
+        
+        return Storage(STACK);
+    }
+};
+
+
 class StringStreamificationValue: public GenericValue {
 public:
     StringStreamificationValue(Value *p, TypeMatch &match)
@@ -27,6 +52,8 @@ public:
     
     static void compile_string_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - tmp, RCX - size, RDX - source array, RDI - alias
+        Label preappend_array = x64->once->compile(compile_preappend_array, CHARACTER_TS);
+        
         x64->code_label_local(label, "string_streamification");
         
         x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
@@ -35,8 +62,7 @@ public:
         x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
 
-        x64->op(MOVQ, RCX, 2);
-        x64->preappend_array_RAX_RBX_RCX();
+        x64->op(CALL, preappend_array);
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
@@ -85,6 +111,8 @@ public:
     
     static void compile_character_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - tmp, RCX - size, RDX - source character, RDI - alias
+        Label preappend_array = x64->once->compile(compile_preappend_array, CHARACTER_TS);
+
         x64->code_label_local(label, "character_streamification");
 
         x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
@@ -93,8 +121,7 @@ public:
         x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, 1);
         
-        x64->op(MOVQ, RCX, 2);
-        x64->preappend_array_RAX_RBX_RCX();
+        x64->op(CALL, preappend_array);
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 
@@ -142,6 +169,8 @@ public:
     
     static void compile_enum_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - table start, RCX - size, RDX - source enum, RDI - alias
+        Label preappend_array = x64->once->compile(compile_preappend_array, CHARACTER_TS);
+
         x64->code_label_local(label, "enum_streamification");
 
         x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
@@ -153,9 +182,8 @@ public:
             
         x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
-        x64->op(MOVQ, RCX, CHARACTER_SIZE);
-        
-        x64->preappend_array_RAX_RBX_RCX();
+
+        x64->op(CALL, preappend_array);
         
         x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
 

@@ -1213,53 +1213,6 @@ void X64::realloc_RAX_RBX() {
     op(CALL, realloc_RAX_RBX_label);
 }
 
-void X64::alloc_array_RAX_RBX_RCX() {
-    op(PUSHQ, RAX);
-    op(IMUL2Q, RAX, RBX);
-    op(ADDQ, RAX, ARRAY_HEADER_SIZE);
-    op(MOVQ, RBX, RCX);
-    alloc_RAX_RBX();
-    op(POPQ, Address(RAX, ARRAY_RESERVATION_OFFSET));
-    op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
-    op(MOVQ, Address(RAX, ARRAY_FRONT_OFFSET), 0);
-}
-
-void X64::realloc_array_RAX_RBX_RCX() {
-    op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), RBX);
-    op(IMUL2Q, RBX, RCX);
-    op(ADDQ, RBX, ARRAY_HEADER_SIZE);
-    
-    realloc_RAX_RBX();
-}
-
-void X64::grow_array_RAX_RBX_RCX() {
-    // Double the reservation until it's enough
-    Label more;
-    
-    op(XCHGQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-    op(CMPQ, RBX, ARRAY_MINIMUM_RESERVATION);
-    op(JAE, more);
-    op(MOVQ, RBX, ARRAY_MINIMUM_RESERVATION);
-    
-    code_label(more);
-    op(SHLQ, RBX, 1);
-    op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-    op(JBE, more);
-    
-    realloc_array_RAX_RBX_RCX();
-}
-
-void X64::preappend_array_RAX_RBX_RCX() {
-    op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
-    op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
-    Label ok;
-    op(JBE, ok);
-
-    grow_array_RAX_RBX_RCX();
-    
-    code_label(ok);
-}
-
 Address X64::heap_finalizer_address(Register reg) {
     return Address(reg, HEAP_FINALIZER_OFFSET);
 }

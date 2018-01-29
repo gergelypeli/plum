@@ -261,6 +261,7 @@ public:
         Label start, end, loop;
 
         x64->code_label_local(label, "x_array_finalizer");
+        x64->log("finalize array");
         x64->op(PUSHQ, RCX);
 
         x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
@@ -279,6 +280,7 @@ public:
 
         x64->code_label(end);
         x64->op(POPQ, RCX);
+        x64->log("finalized array");
         x64->op(RET);
     }
 };
@@ -300,6 +302,7 @@ public:
         Label start, end, loop, ok, ok1;
     
         x64->code_label_local(label, "x_circularray_finalizer");
+        x64->log("finalize circularray");
         x64->op(PUSHQ, RCX);
         x64->op(PUSHQ, RDX);
     
@@ -335,6 +338,7 @@ public:
         x64->code_label(end);
         x64->op(POPQ, RDX);
         x64->op(POPQ, RCX);
+        x64->log("finalized circularray");
         x64->op(RET);
     }
 };

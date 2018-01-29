@@ -83,33 +83,6 @@ public:
 };
 
 
-class StringBufferValue: public Value {
-public:
-    int length;
-    
-    StringBufferValue(int l)
-        :Value(STRING_TS) {
-        length = l;
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return Regs().add(RAX);
-    }
-
-    virtual Storage compile(X64 *x64) {
-        x64->op(MOVQ, RAX, length);
-        x64->op(MOVQ, RBX, 2);
-        x64->op(LEARIP, RCX, x64->empty_function_label);
-        
-        x64->alloc_array_RAX_RBX_RCX();
-        
-        x64->op(PUSHQ, RAX);
-        
-        return Storage(STACK);
-    }
-};
-
-
 class TreenumCoveringValue: public GenericOperationValue {
 public:
     TreenumCoveringValue(OperationType o, Value *p, TypeMatch &match)

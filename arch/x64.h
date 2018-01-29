@@ -146,7 +146,7 @@ public:
         
         def_index = leave_uninitialized ? 0 : ++last_def_index;
         
-        //if (def_index == 1593)
+        //if (def_index == 1675)
         //    abort();
     }
     
@@ -499,10 +499,6 @@ public:
     void realloc_RAX_RBX();
     void memfree(Register reg);
     
-    void alloc_array_RAX_RBX_RCX();
-    void realloc_array_RAX_RBX_RCX();
-    void grow_array_RAX_RBX_RCX();
-    void preappend_array_RAX_RBX_RCX();
     Address heap_finalizer_address(Register reg);
     
     void alloc_rbtree_RAX_RBX_RCX();
