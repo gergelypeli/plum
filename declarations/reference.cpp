@@ -247,7 +247,7 @@ public:
         else if (name == "{}")
             return make_array_initializer_value(rts);
 
-        std::cerr << "No " << this->name << " initializer called " << name << "!\n";
+        std::cerr << "No Array initializer called " << name << "!\n";
         return NULL;
     }
 
@@ -261,7 +261,7 @@ public:
         Label start, end, loop;
 
         x64->code_label_local(label, "x_array_finalizer");
-        x64->log("finalize array");
+        //x64->log("finalize array");
         x64->op(PUSHQ, RCX);
 
         x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
@@ -280,16 +280,31 @@ public:
 
         x64->code_label(end);
         x64->op(POPQ, RCX);
-        x64->log("finalized array");
+        //x64->log("finalized array");
         x64->op(RET);
     }
 };
 
 
-class CircularrayType: public ArrayType {
+class CircularrayType: public HeapType {
 public:
     CircularrayType(std::string name)
-        :ArrayType(name) {
+        :HeapType(name, 1) {
+        make_inner_scope(TypeSpec { reference_type, this, any_type });
+    }
+
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+        
+        if (name == "empty")
+            return make_circularray_empty_value(rts);
+        else if (name == "null")
+            return make_null_reference_value(rts);
+        else if (name == "{}")
+            return make_circularray_initializer_value(rts);
+
+        std::cerr << "No Circularray initializer called " << name << "!\n";
+        return NULL;
     }
 
     virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
@@ -302,20 +317,20 @@ public:
         Label start, end, loop, ok, ok1;
     
         x64->code_label_local(label, "x_circularray_finalizer");
-        x64->log("finalize circularray");
+        //x64->log("finalize circularray");
         x64->op(PUSHQ, RCX);
         x64->op(PUSHQ, RDX);
     
-        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, 0);
         x64->op(JE, end);
     
-        x64->op(MOVQ, RDX, Address(RAX, ARRAY_FRONT_OFFSET));
+        x64->op(MOVQ, RDX, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
         x64->op(ADDQ, RDX, RCX);
-        x64->op(CMPQ, RDX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+        x64->op(CMPQ, RDX, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
         x64->op(JBE, ok1);
         
-        x64->op(SUBQ, RDX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+        x64->op(SUBQ, RDX, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
         
         x64->code_label(ok1);
         x64->op(IMUL3Q, RDX, RDX, elem_size);
@@ -325,12 +340,12 @@ public:
         x64->op(CMPQ, RDX, 0);
         x64->op(JGE, ok);
         
-        x64->op(MOVQ, RDX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+        x64->op(MOVQ, RDX, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
         x64->op(DECQ, RDX);
         x64->op(IMUL3Q, RDX, RDX, elem_size);
         
         x64->code_label(ok);
-        Address elem_addr = Address(RAX, RDX, ARRAY_ELEMS_OFFSET);
+        Address elem_addr = Address(RAX, RDX, CIRCULARRAY_ELEMS_OFFSET);
         elem_ts.destroy(Storage(MEMORY, elem_addr), x64);
         x64->op(DECQ, RCX);
         x64->op(JNE, loop);
@@ -338,7 +353,7 @@ public:
         x64->code_label(end);
         x64->op(POPQ, RDX);
         x64->op(POPQ, RCX);
-        x64->log("finalized circularray");
+        //x64->log("finalized circularray");
         x64->op(RET);
     }
 };

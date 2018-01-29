@@ -209,14 +209,14 @@ public:
 
 // Array iterator next methods
 
-class ArrayNextValue: public GenericValue {
+class GenericNextValue: public GenericValue {
 public:
     Declaration *dummy;
     Regs clob;
     bool is_down;
     TypeSpec elem_ts;
     
-    ArrayNextValue(TypeSpec t, TypeSpec et, Value *l, bool d)
+    GenericNextValue(TypeSpec t, TypeSpec et, Value *l, bool d)
         :GenericValue(VOID_TS, t, l) {
         is_down = d;
         elem_ts = et;
@@ -246,6 +246,10 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual Address length_address(Register r) {
+        throw INTERNAL_ERROR;
+    }
+
     virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);  // iterator
         Register reg = (clob & ~ls.regs()).get_any();
@@ -257,7 +261,7 @@ public:
             //std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
             x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // value
             x64->op(MOVQ, reg, ls.address); // array reference without incref
-            x64->op(CMPQ, RBX, Address(reg, ARRAY_LENGTH_OFFSET));
+            x64->op(CMPQ, RBX, length_address(reg));
             x64->op(JNE, ok);
             
             x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
@@ -274,10 +278,14 @@ public:
 };
 
 
-class ArrayNextElemValue: public ArrayNextValue {
+class ArrayNextElemValue: public GenericNextValue {
 public:
     ArrayNextElemValue(Value *l, TypeMatch &match)
-        :ArrayNextValue(match[1], match[1], l, false) {
+        :GenericNextValue(match[1], match[1], l, false) {
+    }
+
+    virtual Address length_address(Register r) {
+        return Address(r, ARRAY_LENGTH_OFFSET);
     }
 
     virtual void fix_index(Register r, X64 *x64) {
@@ -294,12 +302,16 @@ public:
 };
 
 
-class ArrayNextIndexValue: public ArrayNextValue {
+class ArrayNextIndexValue: public GenericNextValue {
 public:
     ArrayNextIndexValue(Value *l, TypeMatch &match)
-        :ArrayNextValue(INTEGER_TS, match[1], l, false) {
+        :GenericNextValue(INTEGER_TS, match[1], l, false) {
     }
     
+    virtual Address length_address(Register r) {
+        return Address(r, ARRAY_LENGTH_OFFSET);
+    }
+
     virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
         x64->op(MOVQ, reg, RBX);
         return Storage(REGISTER, reg);
@@ -307,13 +319,17 @@ public:
 };
 
 
-class ArrayNextItemValue: public ArrayNextValue {
+class ArrayNextItemValue: public GenericNextValue {
 public:
     //TypeSpec elem_ts;
     
     ArrayNextItemValue(Value *l, TypeMatch &match)
-        :ArrayNextValue(typesubst(SAME_ITEM_TS, match), match[1], l, false) {
+        :GenericNextValue(typesubst(SAME_ITEM_TS, match), match[1], l, false) {
         //elem_ts = match[1];
+    }
+
+    virtual Address length_address(Register r) {
+        return Address(r, ARRAY_LENGTH_OFFSET);
     }
 
     virtual void fix_index(Register r, X64 *x64) {
@@ -338,34 +354,80 @@ public:
 };
 
 
-class CircularrayNextElemValue: public ArrayNextElemValue {
+class CircularrayNextElemValue: public GenericNextValue {
 public:
     CircularrayNextElemValue(Value *l, TypeMatch &match)
-        :ArrayNextElemValue(l, match) {
+        :GenericNextValue(match[1], match[1], l, false) {
+    }
+
+    virtual Address length_address(Register r) {
+        return Address(r, CIRCULARRAY_LENGTH_OFFSET);
+    }
+
+    virtual void fix_index(Register r, X64 *x64) {
+        // r contains the array reference, RBX the index
+        fix_index_overflow(r, x64);
     }
     
-    virtual void fix_index(Register r, X64 *x64) {
-        fix_index_overflow(r, x64);
+    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
+        fix_index(reg, x64);
+        
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(ADDQ, reg, RBX);
+        return Storage(MEMORY, Address(reg, CIRCULARRAY_ELEMS_OFFSET));
     }
 };
 
 
-class CircularrayNextIndexValue: public ArrayNextIndexValue {  // for completeness only
+class CircularrayNextIndexValue: public GenericNextValue {
 public:
     CircularrayNextIndexValue(Value *l, TypeMatch &match)
-        :ArrayNextIndexValue(l, match) {
+        :GenericNextValue(INTEGER_TS, match[1], l, false) {
+    }
+    
+    virtual Address length_address(Register r) {
+        return Address(r, CIRCULARRAY_LENGTH_OFFSET);
+    }
+
+    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
+        x64->op(MOVQ, reg, RBX);
+        return Storage(REGISTER, reg);
     }
 };
 
 
-class CircularrayNextItemValue: public ArrayNextItemValue {
+class CircularrayNextItemValue: public GenericNextValue {
 public:
-    CircularrayNextItemValue(Value *l, TypeMatch &match)
-        :ArrayNextItemValue(l, match) {
-    }
+    //TypeSpec elem_ts;
     
+    CircularrayNextItemValue(Value *l, TypeMatch &match)
+        :GenericNextValue(typesubst(SAME_ITEM_TS, match), match[1], l, false) {
+        //elem_ts = match[1];
+    }
+
+    virtual Address length_address(Register r) {
+        return Address(r, CIRCULARRAY_LENGTH_OFFSET);
+    }
+
     virtual void fix_index(Register r, X64 *x64) {
+        // r contains the array reference, RBX the index
         fix_index_overflow(r, x64);
+    }
+
+    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
+        x64->op(SUBQ, RSP, ts.measure(STACK));
+        x64->op(MOVQ, Address(RSP, 0), RBX);
+        
+        fix_index(reg, x64);
+        
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(ADDQ, reg, RBX);
+        
+        Storage s = Storage(MEMORY, Address(reg, CIRCULARRAY_ELEMS_OFFSET));
+        Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
+        elem_ts.create(s, t, x64);
+        
+        return Storage(STACK);
     }
 };
 
@@ -440,7 +502,15 @@ public:
             
             x64->code_label(ok);
             x64->op(ADDQ, reg, RBX);
-            x64->op(MOVQ, RBX, Address(reg, is_down? RBNODE_PREV_IS_RED_OFFSET : RBNODE_NEXT_OFFSET));
+            
+            if (is_down) {
+                x64->op(MOVQ, RBX, Address(reg, RBNODE_PREV_IS_RED_OFFSET));
+                x64->op(ANDQ, RBX, -2);  // remove color bit
+            }
+            else {
+                x64->op(MOVQ, RBX, Address(reg, RBNODE_NEXT_OFFSET));
+            }
+            
             x64->op(MOVQ, ls.address + REFERENCE_SIZE, RBX);
             
             return Storage(MEMORY, Address(reg, RBNODE_VALUE_OFFSET));

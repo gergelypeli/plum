@@ -307,7 +307,7 @@ void X64::data_heap_header() {
 
 
 Label X64::data_heap_string(std::vector<unsigned short> characters) {
-    if (ARRAY_HEADER_SIZE != 32 || ARRAY_RESERVATION_OFFSET != 0 || ARRAY_LENGTH_OFFSET != 8)
+    if (ARRAY_HEADER_SIZE != 16 || ARRAY_RESERVATION_OFFSET != 0 || ARRAY_LENGTH_OFFSET != 8)
         throw X64_ERROR;
         
     Label l;
@@ -316,8 +316,6 @@ Label X64::data_heap_string(std::vector<unsigned short> characters) {
     data_label(l);
     data_qword(characters.size());
     data_qword(characters.size());
-    data_qword(0);
-    data_qword(0);
 
     for (unsigned short &c : characters)
         data_word(c);

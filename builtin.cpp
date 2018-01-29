@@ -573,7 +573,7 @@ Scope *init_builtins() {
 
     // Circularray operations
     Scope *circularray_scope = circularray_type->get_inner_scope(NO_TS.begin());
-    circularray_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_CIRCULARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayLengthValue>("length", ANY_CIRCULARRAY_REFERENCE_TS));
     //circularray_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
     //circularray_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REFERENCE_TS));
     circularray_scope->add(new TemplateOperation<CircularrayItemValue>("index", ANY_CIRCULARRAY_REFERENCE_TS, TWEAK));

@@ -373,6 +373,7 @@ public:
 #include "integer.cpp"
 #include "boolean.cpp"
 #include "array.cpp"
+#include "circularray.cpp"
 #include "string.cpp"
 #include "reference.cpp"
 #include "record.cpp"
@@ -526,6 +527,16 @@ Value *make_array_empty_value(TypeSpec ts) {
 
 Value *make_array_initializer_value(TypeSpec ts) {
     return new ArrayInitializerValue(ts);
+}
+
+
+Value *make_circularray_empty_value(TypeSpec ts) {
+    return new CircularrayEmptyValue(ts);
+}
+
+
+Value *make_circularray_initializer_value(TypeSpec ts) {
+    return new CircularrayInitializerValue(ts);
 }
 
 

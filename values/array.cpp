@@ -1,33 +1,6 @@
 
 TypeSpec array_elem_ts(TypeSpec ts) {
-    // This works with Array and Circularray
-    return ts.rvalue().unprefix(reference_type).unprefix().varvalue();
-}
-
-
-void fix_index_overflow(Register r, X64 *x64) {
-    Label ok;
-    x64->op(ADDQ, RBX, Address(r, ARRAY_FRONT_OFFSET));
-    x64->op(CMPQ, RBX, Address(r, ARRAY_RESERVATION_OFFSET));
-    x64->op(JL, ok);
-
-    //x64->err("Fixing index overflow.");
-    x64->op(SUBQ, RBX, Address(r, ARRAY_RESERVATION_OFFSET));
-        
-    x64->code_label(ok);
-}
-
-
-void fix_index_underflow(Register r, X64 *x64) {
-    Label ok;
-    x64->op(ADDQ, RBX, Address(r, ARRAY_FRONT_OFFSET));
-    x64->op(CMPQ, RBX, 0);
-    x64->op(JGE, ok);
-        
-    //x64->err("Fixing index underflow.");
-    x64->op(ADDQ, RBX, Address(r, ARRAY_RESERVATION_OFFSET));
-        
-    x64->code_label(ok);
+    return ts.rvalue().unprefix(reference_type).unprefix(array_type).varvalue();
 }
 
 
@@ -35,7 +8,7 @@ void compile_alloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - reservation
     int elem_size = ::elem_size(elem_ts.measure(MEMORY));
     // FIXME: this step makes it unusable with circularray!!!
-    Label finalizer_label = elem_ts.unprefix(array_type).get_finalizer_label(x64);
+    Label finalizer_label = elem_ts.prefix(array_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_array_alloc");
     x64->op(PUSHQ, RAX);
@@ -47,7 +20,6 @@ void compile_alloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
     
     x64->op(POPQ, Address(RAX, ARRAY_RESERVATION_OFFSET));
     x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
-    x64->op(MOVQ, Address(RAX, ARRAY_FRONT_OFFSET), 0);
     
     x64->op(RET);
 }
@@ -159,9 +131,6 @@ public:
         :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
     }
 
-    virtual void fix_index(Register r, X64 *x64) {
-    }
-
     virtual Storage compile(X64 *x64) {
         int size = elem_size(ts.measure(MEMORY));
         
@@ -184,13 +153,11 @@ public:
         switch (ls.where) {
         case REGISTER:
             x64->decref(ls.reg);
-            fix_index(ls.reg, x64);
             x64->op(IMUL3Q, RBX, RBX, size);
             x64->op(ADDQ, ls.reg, RBX);
             return Storage(MEMORY, Address(ls.reg, ARRAY_ELEMS_OFFSET));
         case MEMORY:
             x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
-            fix_index(reg, x64);
             x64->op(IMUL3Q, RBX, RBX, size);
             x64->op(ADDQ, reg, RBX);
             return Storage(MEMORY, Address(reg, ARRAY_ELEMS_OFFSET));
@@ -495,9 +462,6 @@ public:
         return clob.add(RAX).add(RBX).add(RCX);
     }
 
-    virtual void fix_index(Register r, X64 *x64) {
-    }
-
     virtual Storage compile(X64 *x64) {
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
@@ -518,7 +482,6 @@ public:
         x64->op(INCQ, Address(RAX, ARRAY_LENGTH_OFFSET));
 
         // RBX contains the index of the newly created element
-        fix_index(RAX, x64);
         
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, RAX, RBX);
@@ -545,9 +508,6 @@ public:
         return clob.add(RAX).add(RBX).add(RCX);
     }
 
-    virtual void fix_index(Register r, X64 *x64) {
-    }
-
     virtual Storage compile(X64 *x64) {
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label ok;
@@ -564,7 +524,6 @@ public:
         x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
 
         // RBX contains the index of the newly removed element
-        fix_index(RAX, x64);
 
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->decref(RAX);
@@ -575,71 +534,5 @@ public:
         elem_ts.destroy(Storage(MEMORY, Address(RAX, ARRAY_ELEMS_OFFSET)), x64);
         
         return Storage(STACK);
-    }
-};
-
-
-class CircularrayItemValue: public ArrayItemValue {
-public:
-    CircularrayItemValue(OperationType o, Value *pivot, TypeMatch &match)
-        :ArrayItemValue(o, pivot, match) {
-    }
-
-    virtual void fix_index(Register r, X64 *x64) {
-        fix_index_overflow(r, x64);
-    }
-};
-
-
-class CircularrayPushValue: public ArrayPushValue {
-public:
-    CircularrayPushValue(Value *l, TypeMatch &match)
-        :ArrayPushValue(l, match) {
-    }
-
-    virtual void fix_index(Register r, X64 *x64) {
-        fix_index_overflow(r, x64);
-    }
-};
-
-
-class CircularrayPopValue: public ArrayPopValue {
-public:
-    CircularrayPopValue(Value *l, TypeMatch &match)
-        :ArrayPopValue(l, match) {
-    }
-
-    virtual void fix_index(Register r, X64 *x64) {
-        fix_index_overflow(r, x64);
-    }
-};
-
-
-class CircularrayUnshiftValue: public ArrayPushValue {
-public:
-    CircularrayUnshiftValue(Value *l, TypeMatch &match)
-        :ArrayPushValue(l, match) {
-    }
-
-    virtual void fix_index(Register r, X64 *x64) {
-        // Compute the new front, and use it for the element index
-        x64->op(MOVQ, RBX, -1);
-        fix_index_underflow(r, x64);
-        x64->op(MOVQ, Address(r, ARRAY_FRONT_OFFSET), RBX);
-    }
-};
-
-
-class CircularrayShiftValue: public ArrayPopValue {
-public:
-    CircularrayShiftValue(Value *l, TypeMatch &match)
-        :ArrayPopValue(l, match) {
-    }
-
-    virtual void fix_index(Register r, X64 *x64) {
-        // Compute the new front, and use the old one for the element index
-        x64->op(MOVQ, RBX, 1);
-        fix_index_overflow(r, x64);
-        x64->op(XCHGQ, RBX, Address(r, ARRAY_FRONT_OFFSET));
     }
 };
