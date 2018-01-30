@@ -2,6 +2,7 @@
 #include <time.h>
 #include <vector>
 #include <iostream>
+#include <bitset>
 
 template <typename T>
 class RbTree {
@@ -358,6 +359,68 @@ public:
     void print() {
         print(root, 0);
     }
+    
+    T iter(int &it) {
+        // it is a bitstring, which, from the least significant bit is interpreted as
+        // left (0) or right (1) traversals, with the final 1 meaning stop.
+    
+        //std::cerr << "Iter from " << std::bitset<64>(it) << ".\n";
+        
+        if (root == NIL)
+            throw false;
+        
+        int index = root;
+        int mask = 1;
+        
+        if (it != 0) {
+            //std::cerr << "Finding latest node.\n";
+            int last_left_index = NIL;
+            int last_left_mask = 0;
+            
+            while (it & ~(mask | (mask - 1))) {
+                // While there are bits above mask, follow the stream
+                
+                if (!(it & mask)) {
+                    //std::cerr << "Stepping to the left.\n";
+                    // Record the last left turn, as a potential followup parent
+                    last_left_index = index;
+                    last_left_mask = mask;
+                    
+                    index = nodes[index].left;
+                }
+                else {
+                    //std::cerr << "Stepping to the right.\n";
+                    index = nodes[index].right;
+                }
+                
+                mask <<= 1;
+            }
+            
+            if (nodes[index].right != NIL) {
+                // We're at the last node, can we make a right turn here?
+                index = nodes[index].right;
+                mask <<= 1;  
+                // Leave the terminating bit as a right turn, then go all left.
+            }
+            else if (last_left_index != NIL) {
+                // If not, can we backtrack to a followup parent?
+                it = (it & (last_left_mask - 1)) | last_left_mask;
+                return nodes[last_left_index].value;
+            }
+            else {
+                // No later child, no later parent, this was the last node, terminate.
+                throw false;
+            }
+        }
+        
+        while (nodes[index].left != NIL) {
+            index = nodes[index].left;
+            mask <<= 1;
+        }
+
+        it = it | mask;
+        return nodes[index].value;
+    }
 };
 
 
@@ -365,19 +428,44 @@ int main() {
     srandom(time(NULL));
     
     RbTree<int> rb;
+    /*
+    rb.add(3);
+    rb.add(7);
+    rb.add(4);
+    rb.add(1);
+    rb.add(2);
+    rb.add(6);
+    rb.add(5);
 
+    rb.print();
+    */
+    
     for (int i=0; i<100; i++) {
         rb.add(random() % 100);
-        rb.print();
+        //rb.print();
         rb.check_black_height();
         
         rb.add(random() % 100);
-        rb.print();
+        //rb.print();
         rb.check_black_height();
         
         rb.remove(random() % 100);
-        rb.print();
+        //rb.print();
         rb.check_black_height();
+    }
+
+    rb.print();
+    
+    int it = 0;
+    while (true) {
+        try {
+            int x = rb.iter(it);
+            std::cerr << "Iterated: " << x << ".\n";
+        }
+        catch (bool) {
+            std::cerr << "Over.\n";
+            break;
+        }
     }
     
     //rb.print();

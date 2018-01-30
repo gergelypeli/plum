@@ -396,8 +396,12 @@ start? :Function as:
     rb add "D"
     rb add "B"
     prints("After adding A, length is {l}" { l: rb length })
-    :for rb elements_by_time each: e? do:
-        prints("Rbtree element: {e}" {})
+    
+    :for rb elements_by_age each: e? do:
+        prints("Rbtree element by age: {e}" {})
+
+    :for rb elements_by_order each: e? do:
+        prints("Rbtree element by order: {e}" {})
 
     :if rb has "A" then:
         prints("Rb has A, good.")

@@ -165,7 +165,8 @@ void define_iterators(Scope *root_scope) {
     define_container_iterator<CircularrayNextItemValue>(circularrayitemiter_type, circularray_type, SAME_ITEM_ITERATOR_TS);
 
     // Rbtree Iterator operations
-    define_container_iterator<RbtreeNextElemValue>(rbtreeelemiter_type, rbtree_type, SAME_ITERATOR_TS);
+    define_container_iterator<RbtreeNextElemByAgeValue>(rbtreeelembyageiter_type, rbtree_type, SAME_ITERATOR_TS);
+    define_container_iterator<RbtreeNextElemByOrderValue>(rbtreeelembyorderiter_type, rbtree_type, SAME_ITERATOR_TS);
 }
 
 
@@ -408,8 +409,11 @@ Scope *init_builtins() {
     circularrayitemiter_type = new RecordType("Circularrayitem_iter", 1);
     root_scope->add(circularrayitemiter_type);
 
-    rbtreeelemiter_type = new RecordType("Rbtreeelem_iter", 1);
-    root_scope->add(rbtreeelemiter_type);
+    rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", 1);
+    root_scope->add(rbtreeelembyageiter_type);
+
+    rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", 1);
+    root_scope->add(rbtreeelembyorderiter_type);
 
     // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
@@ -464,7 +468,8 @@ Scope *init_builtins() {
     SAME_CIRCULARRAYELEMITER_TS = { circularrayelemiter_type, same_type };
     SAME_CIRCULARRAYINDEXITER_TS = { circularrayindexiter_type, same_type };
     SAME_CIRCULARRAYITEMITER_TS = { circularrayitemiter_type, same_type };
-    SAME_RBTREEELEMITER_TS = { rbtreeelemiter_type, same_type };
+    SAME_RBTREEELEMBYAGEITER_TS = { rbtreeelembyageiter_type, same_type };
+    SAME_RBTREEELEMBYORDERITER_TS = { rbtreeelembyorderiter_type, same_type };
 
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -601,7 +606,8 @@ Scope *init_builtins() {
     rbtree_scope->add(new TemplateIdentifier<RbtreeRemoveValue>("remove", ANY_RBTREE_REFERENCE_TS));
 
     // Rbtree iterable operations
-    rbtree_scope->add(new TemplateIdentifier<RbtreeElemIterValue>("elements_by_time", ANY_RBTREE_REFERENCE_TS));
+    rbtree_scope->add(new TemplateIdentifier<RbtreeElemByAgeIterValue>("elements_by_age", ANY_RBTREE_REFERENCE_TS));
+    rbtree_scope->add(new TemplateIdentifier<RbtreeElemByOrderIterValue>("elements_by_order", ANY_RBTREE_REFERENCE_TS));
 
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
