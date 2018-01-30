@@ -309,3 +309,91 @@ public:
         return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, x64);
     }
 };
+
+
+// Iteration
+
+class ArrayElemIterValue: public ContainerIterValue {
+public:
+    ArrayElemIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_ARRAYELEMITER_TS, match), l) {
+    }
+};
+
+
+class ArrayIndexIterValue: public ContainerIterValue {
+public:
+    ArrayIndexIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_ARRAYINDEXITER_TS, match), l) {
+    }
+};
+
+
+class ArrayItemIterValue: public ContainerIterValue {
+public:
+    ArrayItemIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_ARRAYITEMITER_TS, match), l) {
+    }
+};
+
+
+class ArrayNextElemValue: public ContainerNextValue {
+public:
+    ArrayNextElemValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(match[1].varvalue(), match[1].varvalue(), l, false) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        
+        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
+        
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        
+        return Storage(MEMORY, Address(r.reg, 0));
+    }
+};
+
+
+class ArrayNextIndexValue: public ContainerNextValue {
+public:
+    ArrayNextIndexValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(INTEGER_TS, match[1].varvalue(), l, false) {
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
+        
+        x64->op(MOVQ, r.reg, RBX);
+        
+        return Storage(REGISTER, r.reg);
+    }
+};
+
+
+class ArrayNextItemValue: public ContainerNextValue {
+public:
+    ArrayNextItemValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(typesubst(SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+
+        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
+
+        x64->op(SUBQ, RSP, ts.measure(STACK));
+        x64->op(MOVQ, Address(RSP, 0), RBX);
+        
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        
+        Storage s = Storage(MEMORY, Address(r.reg, 0));
+        Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
+        elem_ts.create(s, t, x64);
+        
+        return Storage(STACK);
+    }
+};
+

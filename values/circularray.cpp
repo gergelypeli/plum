@@ -186,3 +186,95 @@ public:
         x64->op(XCHGQ, RBX, Address(r, CIRCULARRAY_FRONT_OFFSET));
     }
 };
+
+
+// Iteration
+
+class CircularrayElemIterValue: public ContainerIterValue {
+public:
+    CircularrayElemIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_CIRCULARRAYELEMITER_TS, match), l) {
+    }
+};
+
+
+class CircularrayIndexIterValue: public ContainerIterValue {
+public:
+    CircularrayIndexIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_CIRCULARRAYINDEXITER_TS, match), l) {
+    }
+};
+
+
+class CircularrayItemIterValue: public ContainerIterValue {
+public:
+    CircularrayItemIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_CIRCULARRAYITEMITER_TS, match), l) {
+    }
+};
+
+
+class CircularrayNextElemValue: public ContainerNextValue {
+public:
+    CircularrayNextElemValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(match[1].varvalue(), match[1].varvalue(), l, false) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+
+        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+
+        fix_RBX_index_overflow(r.reg, x64);
+        
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, RBX, CIRCULARRAY_ELEMS_OFFSET));
+        
+        return Storage(MEMORY, Address(r.reg, 0));
+    }
+};
+
+
+class CircularrayNextIndexValue: public ContainerNextValue {
+public:
+    CircularrayNextIndexValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(INTEGER_TS, match[1].varvalue(), l, false) {
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+        
+        x64->op(MOVQ, r.reg, RBX);
+        
+        return Storage(REGISTER, r.reg);
+    }
+};
+
+
+class CircularrayNextItemValue: public ContainerNextValue {
+public:
+    CircularrayNextItemValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(typesubst(SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+
+        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+        
+        x64->op(SUBQ, RSP, ts.measure(STACK));
+        x64->op(MOVQ, Address(RSP, 0), RBX);
+
+        fix_RBX_index_overflow(r.reg, x64);
+
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, RBX, CIRCULARRAY_ELEMS_OFFSET));
+        
+        Storage s = Storage(MEMORY, Address(r.reg, 0));
+        Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
+        elem_ts.create(s, t, x64);
+        
+        return Storage(STACK);
+    }
+};
+

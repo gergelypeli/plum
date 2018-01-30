@@ -344,3 +344,82 @@ public:
     }
 };
 
+
+// Iteration
+
+class ContainerIterValue: public SimpleRecordValue {
+public:
+    ContainerIterValue(TypeSpec t, Value *l)
+        :SimpleRecordValue(t, l) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        x64->op(PUSHQ, 0);
+
+        left->compile_and_store(x64, Storage(STACK));
+        
+        return Storage(STACK);
+    }
+};
+
+
+// Array iterator next methods
+
+class ContainerNextValue: public GenericValue {
+public:
+    Declaration *dummy;
+    Regs clob;
+    bool is_down;
+    TypeSpec elem_ts;
+    
+    ContainerNextValue(TypeSpec ts, TypeSpec ets, Value *l, bool d)
+        :GenericValue(VOID_TS, ts, l) {
+        is_down = d;
+        elem_ts = ets;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_arguments(args, kwargs, {}))
+            return false;
+
+        dummy = new Declaration;
+        scope->add(dummy);
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        clob = left->precompile(preferred);
+        
+        if (!clob.has_any())
+            clob.add(RAX);
+        
+        return clob;
+    }
+
+    virtual Storage subcompile(int length_offset, X64 *x64) {
+        ls = left->compile(x64);  // iterator
+        Register reg = (clob & ~ls.regs()).get_any();
+        Label ok;
+        
+        switch (ls.where) {
+        case MEMORY:
+            //std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
+            x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // value
+            x64->op(MOVQ, reg, ls.address); // array reference without incref
+            x64->op(CMPQ, RBX, Address(reg, length_offset));
+            x64->op(JNE, ok);
+            
+            x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
+            x64->unwind->initiate(dummy, x64);
+            
+            x64->code_label(ok);
+            x64->op(is_down ? DECQ : INCQ, ls.address + REFERENCE_SIZE);
+            //x64->err("NEXT COMPILE");
+            return Storage(REGISTER, reg);  // non-refcounted reference, with RBX index
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
