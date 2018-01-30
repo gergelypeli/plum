@@ -61,22 +61,23 @@ void compile_preappend_array(Label label, TypeSpec elem_ts, X64 *x64) {
 class ArrayLengthValue: public ContainerLengthValue {
 public:
     ArrayLengthValue(Value *l, TypeMatch &match)
-        :ContainerLengthValue(VOID_TS, INTEGER_TS, l, ARRAY_LENGTH_OFFSET) {
+        :ContainerLengthValue(l, match) {
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return subcompile(ARRAY_LENGTH_OFFSET, x64);
     }
 };
 
 
 class ArrayIndexValue: public ContainerIndexValue {
 public:
-    TypeSpec elem_ts;
-    
-    ArrayItemValue(OperationType o, Value *pivot, TypeMatch &match)
-        :ContainerIndexValue(o, pivot, match, ARRAY_ELEMS_OFFSET) {
-        elem_ts = match[1].varvalue();
+    ArrayIndexValue(OperationType o, Value *pivot, TypeMatch &match)
+        :ContainerIndexValue(o, pivot, match) {
     }
 
-    virtual int get_elem_size() {
-        elem_size(elem_ts.measure(MEMORY));
+    virtual Storage compile(X64 *x64) {
+        return subcompile(ARRAY_ELEMS_OFFSET, x64);
     }
 };
 
@@ -266,16 +267,10 @@ class ArrayEmptyValue: public ContainerEmptyValue {
 public:
     ArrayEmptyValue(TypeSpec ts)
         :ContainerEmptyValue(ts) {
-        elem_ts = array_elem_ts(ts);
     }
 
-    virtual Regs precompile(Regs preferred) {
-        Regs clob;
-        return clob.add(RAX).add(RBX);
-    }
-
-    virtual Label get_alloc_label(X64 *x64) {
-        return x64->once->compile(compile_alloc_array, elem_ts);
+    virtual Storage compile(X64 *x64) {
+        return subcompile(compile_alloc_array, x64);
     }
 };
 
@@ -283,15 +278,11 @@ public:
 class ArrayInitializerValue: public ContainerInitializerValue {
 public:
     ArrayInitializerValue(TypeSpec ts)
-        :ContainerInitializerValue(ts, array_elem_ts(ts), ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET) {
+        :ContainerInitializerValue(ts) {
     }
 
-    virtual int get_elem_size() {
-        return ::elem_size(elem_ts.measure(MEMORY));
-    }
-
-    virtual Label get_alloc_label(X64 *x64) {
-        return x64->once->compile(compile_alloc_array, elem_ts);
+    virtual Storage compile(X64 *x64) {
+        return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, compile_alloc_array, x64);
     }
 };
 
@@ -299,50 +290,22 @@ public:
 class ArrayPushValue: public ContainerPushValue {
 public:
     ArrayPushValue(Value *l, TypeMatch &match)
-        :ContainerPushValue(l, match, ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET) {
+        :ContainerPushValue(l, match) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return subcompile(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, x64);
     }
 };
 
 
-class ArrayPopValue: public GenericValue {
+class ArrayPopValue: public ContainerPopValue {
 public:
-    TypeSpec elem_ts;
-    
     ArrayPopValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, array_elem_ts(match[0]), l) {
-        elem_ts = array_elem_ts(match[0]);
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX);
+        :ContainerPopValue(l, match) {
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
-        Label ok;
-        
-        left->compile_and_store(x64, Storage(REGISTER, RAX));
-        
-        x64->op(CMPQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
-        x64->op(JNE, ok);
-        
-        x64->die("Array empty!");
-        
-        x64->code_label(ok);
-        x64->op(DECQ, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
-
-        // RBX contains the index of the newly removed element
-
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->decref(RAX);
-
-        x64->op(ADDQ, RAX, RBX);
-        
-        elem_ts.store(Storage(MEMORY, Address(RAX, ARRAY_ELEMS_OFFSET)), Storage(STACK), x64);
-        elem_ts.destroy(Storage(MEMORY, Address(RAX, ARRAY_ELEMS_OFFSET)), x64);
-        
-        return Storage(STACK);
+        return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, x64);
     }
 };

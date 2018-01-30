@@ -1,6 +1,6 @@
 
-TypeSpec container_elem_ts(Type *container_type, TypeSpec ts) {
-    return ts.rvalue().unprefix(reference_type).unprefix(container_type).varvalue();
+TypeSpec container_elem_ts(TypeSpec ts) {
+    return ts.rvalue().unprefix(reference_type).unprefix().varvalue();
 }
 
 
@@ -64,12 +64,10 @@ void preappend_container(int reservation_offset, int length_offset, Label grow_l
 
 class ContainerLengthValue: public GenericValue {
 public:
-    int length_offset;
     Register reg;
     
-    ContainerLengthValue(Value *l, TypeMatch &match, int lo)
+    ContainerLengthValue(Value *l, TypeMatch &match)
         :GenericValue(VOID_TS, INTEGER_TS, l) {
-        length_offset = lo;
         reg = NOREG;
     }
 
@@ -84,7 +82,7 @@ public:
         return clob;
     }
 
-    virtual Storage compile(X64 *x64) {
+    virtual Storage subcompile(int length_offset, X64 *x64) {
         ls = left->compile(x64);
 
         switch (ls.where) {
@@ -105,24 +103,20 @@ public:
 
 class ContainerIndexValue: public GenericOperationValue {
 public:
-    int elems_offset;
+    TypeSpec elem_ts;
     
-    ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, int eo)
-        :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
-        elems_offset = eo;
+    ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match)
+        :GenericOperationValue(o, INTEGER_TS, match[1].varvalue().lvalue(), pivot) {
+        elem_ts = match[1].varvalue();
     }
 
-    virtual int get_elem_size() {
-        throw INTERNAL_ERROR;
+    virtual void fix_RBX_index(Register r, X64 *x64) {
     }
 
-    virtual void fix_index(Register r, X64 *x64) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        int elem_size = get_elem_size();
-        
-        subcompile(x64);
+    virtual Storage subcompile(int elems_offset, X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+    
+        GenericOperationValue::subcompile(x64);
     
         switch (rs.where) {
         case CONSTANT:
@@ -141,13 +135,13 @@ public:
         switch (ls.where) {
         case REGISTER:
             x64->decref(ls.reg);
-            fix_index(ls.reg, x64);
+            fix_RBX_index(ls.reg, x64);
             x64->op(IMUL3Q, RBX, RBX, elem_size);
             x64->op(LEA, ls.reg, Address(ls.reg, RBX, elems_offset));
             return Storage(MEMORY, Address(ls.reg, 0));
         case MEMORY:
             x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
-            fix_index(reg, x64);
+            fix_RBX_index(reg, x64);
             x64->op(IMUL3Q, RBX, RBX, elem_size);
             x64->op(LEA, reg, Address(reg, RBX, elems_offset));
             return Storage(MEMORY, Address(reg, 0));
@@ -160,8 +154,11 @@ public:
 
 class ContainerEmptyValue: public GenericValue {
 public:
+    TypeSpec elem_ts;
+    
     ContainerEmptyValue(TypeSpec ts)
         :GenericValue(VOID_TS, ts, NULL) {
+        elem_ts = container_elem_ts(ts);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -169,13 +166,11 @@ public:
         return clob.add(RAX).add(RBX);
     }
 
-    virtual Label get_alloc_label(X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
+    virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
+        Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
 
-    virtual Storage compile(X64 *x64) {
         x64->op(MOVQ, RAX, 0);
-        x64->op(CALL, get_alloc_label(x64));
+        x64->op(CALL, alloc_label);
         
         return Storage(REGISTER, RAX);
     }
@@ -184,18 +179,12 @@ public:
 
 class ContainerInitializerValue: public Value {
 public:
-    int length_offset;
-    int elems_offset;
-    int elem_size;
     TypeSpec elem_ts;
     std::vector<std::unique_ptr<Value>> elems;
 
-    ContainerInitializerValue(TypeSpec ts, TypeSpec elem_ts, int length_offset, int elems_offset, int elem_size)
+    ContainerInitializerValue(TypeSpec ts)
         :Value(ts) {
-        this->length_offset = length_offset;
-        this->elems_offset = elems_offset;
-        this->elem_size = elem_size;
-        this->elem_ts = elem_ts; //container_elem_ts(ts);
+        elem_ts = container_elem_ts(ts);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -232,17 +221,13 @@ public:
         return clob;
     }
 
-    virtual int get_elem_size() {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Label get_alloc_label(X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Storage compile(X64 *x64) {
+    virtual Storage subcompile(int length_offset, int elems_offset, Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
+        Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int stack_size = ::stack_size(elem_size);
+    
         x64->op(MOVQ, RAX, elems.size());
-        x64->op(CALL, get_alloc_label(x64));
+        x64->op(CALL, alloc_label);
         x64->op(MOVQ, Address(RAX, length_offset), elems.size());
         x64->op(PUSHQ, RAX);
         
@@ -250,7 +235,7 @@ public:
         
         for (auto &elem : elems) {
             elem->compile_and_store(x64, Storage(STACK));
-            x64->op(MOVQ, RAX, Address(RSP, stack_size(elem_size)));
+            x64->op(MOVQ, RAX, Address(RSP, stack_size));
             Storage t(MEMORY, Address(RAX, elems_offset + offset));
             
             elem_ts.create(Storage(STACK), t, x64);
@@ -265,16 +250,10 @@ public:
 class ContainerPushValue: public GenericValue {
 public:
     TypeSpec elem_ts;
-    int reservation_offset;
-    int length_offset;
-    int elems_offset;
     
-    ContainerPushValue(Value *l, TypeMatch &match, int ro, int lo, int eo)
+    ContainerPushValue(Value *l, TypeMatch &match)
         :GenericValue(match[1].varvalue(), match[0], l) {
         elem_ts = match[1].varvalue();
-        reservation_offset = ro;
-        length_offset = lo;
-        elems_offset = eo;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -282,15 +261,15 @@ public:
         return clob.add(RAX).add(RBX).add(RCX);
     }
 
-    virtual void fix_index(Register r, X64 *x64) {
-        throw INTERNAL_ERROR;
+    virtual void fix_RBX_index(Register r, X64 *x64) {
     }
 
-    virtual Storage compile(X64 *x64) {
+    virtual Storage subcompile(int reservation_offset, int length_offset, int elems_offset, X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int stack_size = ::stack_size(elem_size);
+    
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
-        int stack_size = ::stack_size(elem_ts.measure(MEMORY));
         Label ok, end;
         
         x64->op(MOVQ, RAX, Address(RSP, stack_size));
@@ -305,7 +284,7 @@ public:
         x64->op(INCQ, Address(RAX, length_offset));
 
         // RBX contains the index of the newly created element
-        fix_index(RAX, x64);
+        fix_RBX_index(RAX, x64);
         
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->op(ADDQ, RAX, RBX);
@@ -318,13 +297,13 @@ public:
 };
 
 
-class CircularrayPopValue: public GenericValue {
+class ContainerPopValue: public GenericValue {
 public:
     TypeSpec elem_ts;
     
-    CircularrayPopValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, circularray_elem_ts(match[0]), l) {
-        elem_ts = circularray_elem_ts(match[0]);
+    ContainerPopValue(Value *l, TypeMatch &match)
+        :GenericValue(VOID_TS, match[1].varvalue(), l) {
+        elem_ts = match[1].varvalue();
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -332,35 +311,34 @@ public:
         return clob.add(RAX).add(RBX).add(RCX);
     }
 
-    virtual void fix_index(Register r, X64 *x64) {
-        fix_index_overflow(r, x64);
+    virtual void fix_RBX_index(Register r, X64 *x64) {
     }
 
-    virtual Storage compile(X64 *x64) {
+    virtual Storage subcompile(int length_offset, int elems_offset, X64 *x64) {
         int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label ok;
         
         left->compile_and_store(x64, Storage(REGISTER, RAX));
         
-        x64->op(CMPQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET), 0);
+        x64->op(CMPQ, Address(RAX, length_offset), 0);
         x64->op(JNE, ok);
         
-        x64->die("Circularray empty!");
+        x64->die("Container empty!");
         
         x64->code_label(ok);
-        x64->op(DECQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET));
-        x64->op(MOVQ, RBX, Address(RAX, CIRCULARRAY_LENGTH_OFFSET));
+        x64->op(DECQ, Address(RAX, length_offset));
+        x64->op(MOVQ, RBX, Address(RAX, length_offset));
 
         // RBX contains the index of the newly removed element
-        fix_index(RAX, x64);
+        fix_RBX_index(RAX, x64);
 
         x64->op(IMUL3Q, RBX, RBX, elem_size);
         x64->decref(RAX);
 
         x64->op(ADDQ, RAX, RBX);
         
-        elem_ts.store(Storage(MEMORY, Address(RAX, CIRCULARRAY_ELEMS_OFFSET)), Storage(STACK), x64);
-        elem_ts.destroy(Storage(MEMORY, Address(RAX, CIRCULARRAY_ELEMS_OFFSET)), x64);
+        elem_ts.store(Storage(MEMORY, Address(RAX, elems_offset)), Storage(STACK), x64);
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, elems_offset)), x64);
         
         return Storage(STACK);
     }

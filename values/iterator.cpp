@@ -209,17 +209,17 @@ public:
 
 // Array iterator next methods
 
-class GenericNextValue: public GenericValue {
+class ContainerNextValue: public GenericValue {
 public:
     Declaration *dummy;
     Regs clob;
     bool is_down;
     TypeSpec elem_ts;
     
-    GenericNextValue(TypeSpec t, TypeSpec et, Value *l, bool d)
-        :GenericValue(VOID_TS, t, l) {
+    ContainerNextValue(TypeSpec ts, TypeSpec ets, Value *l, bool d)
+        :GenericValue(VOID_TS, ts, l) {
         is_down = d;
-        elem_ts = et;
+        elem_ts = ets;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -241,19 +241,9 @@ public:
         return clob;
     }
 
-    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
-        // reg contains the (non-refcounted) array reference, RBX the index
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Address length_address(Register r) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Storage compile(X64 *x64) {
+    virtual Storage subcompile(int length_offset, X64 *x64) {
         ls = left->compile(x64);  // iterator
         Register reg = (clob & ~ls.regs()).get_any();
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label ok;
         
         switch (ls.where) {
@@ -261,7 +251,7 @@ public:
             //std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
             x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // value
             x64->op(MOVQ, reg, ls.address); // array reference without incref
-            x64->op(CMPQ, RBX, length_address(reg));
+            x64->op(CMPQ, RBX, Address(reg, length_offset));
             x64->op(JNE, ok);
             
             x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
@@ -270,7 +260,7 @@ public:
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + REFERENCE_SIZE);
             //x64->err("NEXT COMPILE");
-            return next_compile(elem_size, reg, x64);
+            return Storage(REGISTER, reg);  // non-refcounted reference, with RBX index
         default:
             throw INTERNAL_ERROR;
         }
@@ -278,74 +268,59 @@ public:
 };
 
 
-class ArrayNextElemValue: public GenericNextValue {
+class ArrayNextElemValue: public ContainerNextValue {
 public:
     ArrayNextElemValue(Value *l, TypeMatch &match)
-        :GenericNextValue(match[1], match[1], l, false) {
+        :ContainerNextValue(match[1].varvalue(), match[1].varvalue(), l, false) {
     }
 
-    virtual Address length_address(Register r) {
-        return Address(r, ARRAY_LENGTH_OFFSET);
-    }
-
-    virtual void fix_index(Register r, X64 *x64) {
-        // r contains the array reference, RBX the index
-    }
-    
-    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
-        fix_index(reg, x64);
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        
+        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
         
         x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(ADDQ, reg, RBX);
-        return Storage(MEMORY, Address(reg, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        
+        return Storage(MEMORY, Address(r.reg, 0));
     }
 };
 
 
-class ArrayNextIndexValue: public GenericNextValue {
+class ArrayNextIndexValue: public ContainerNextValue {
 public:
     ArrayNextIndexValue(Value *l, TypeMatch &match)
-        :GenericNextValue(INTEGER_TS, match[1], l, false) {
+        :ContainerNextValue(INTEGER_TS, match[1].varvalue(), l, false) {
     }
     
-    virtual Address length_address(Register r) {
-        return Address(r, ARRAY_LENGTH_OFFSET);
-    }
-
-    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
-        x64->op(MOVQ, reg, RBX);
-        return Storage(REGISTER, reg);
+    virtual Storage compile(X64 *x64) {
+        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
+        
+        x64->op(MOVQ, r.reg, RBX);
+        
+        return Storage(REGISTER, r.reg);
     }
 };
 
 
-class ArrayNextItemValue: public GenericNextValue {
+class ArrayNextItemValue: public ContainerNextValue {
 public:
-    //TypeSpec elem_ts;
-    
     ArrayNextItemValue(Value *l, TypeMatch &match)
-        :GenericNextValue(typesubst(SAME_ITEM_TS, match), match[1], l, false) {
-        //elem_ts = match[1];
+        :ContainerNextValue(typesubst(SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
     }
 
-    virtual Address length_address(Register r) {
-        return Address(r, ARRAY_LENGTH_OFFSET);
-    }
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
 
-    virtual void fix_index(Register r, X64 *x64) {
-        // r contains the array reference, RBX the index
-    }
+        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
 
-    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
         x64->op(SUBQ, RSP, ts.measure(STACK));
         x64->op(MOVQ, Address(RSP, 0), RBX);
         
-        fix_index(reg, x64);
-        
         x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(ADDQ, reg, RBX);
+        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
         
-        Storage s = Storage(MEMORY, Address(reg, ARRAY_ELEMS_OFFSET));
+        Storage s = Storage(MEMORY, Address(r.reg, 0));
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
         elem_ts.create(s, t, x64);
         
@@ -354,76 +329,63 @@ public:
 };
 
 
-class CircularrayNextElemValue: public GenericNextValue {
+class CircularrayNextElemValue: public ContainerNextValue {
 public:
     CircularrayNextElemValue(Value *l, TypeMatch &match)
-        :GenericNextValue(match[1], match[1], l, false) {
+        :ContainerNextValue(match[1].varvalue(), match[1].varvalue(), l, false) {
     }
 
-    virtual Address length_address(Register r) {
-        return Address(r, CIRCULARRAY_LENGTH_OFFSET);
-    }
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
 
-    virtual void fix_index(Register r, X64 *x64) {
-        // r contains the array reference, RBX the index
-        fix_index_overflow(r, x64);
-    }
-    
-    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
-        fix_index(reg, x64);
+        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+
+        fix_RBX_index_overflow(r.reg, x64);
         
         x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(ADDQ, reg, RBX);
-        return Storage(MEMORY, Address(reg, CIRCULARRAY_ELEMS_OFFSET));
+        x64->op(LEA, r.reg, Address(r.reg, RBX, CIRCULARRAY_ELEMS_OFFSET));
+        
+        return Storage(MEMORY, Address(r.reg, 0));
     }
 };
 
 
-class CircularrayNextIndexValue: public GenericNextValue {
+class CircularrayNextIndexValue: public ContainerNextValue {
 public:
     CircularrayNextIndexValue(Value *l, TypeMatch &match)
-        :GenericNextValue(INTEGER_TS, match[1], l, false) {
+        :ContainerNextValue(INTEGER_TS, match[1].varvalue(), l, false) {
     }
     
-    virtual Address length_address(Register r) {
-        return Address(r, CIRCULARRAY_LENGTH_OFFSET);
-    }
-
-    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
-        x64->op(MOVQ, reg, RBX);
-        return Storage(REGISTER, reg);
+    virtual Storage compile(X64 *x64) {
+        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+        
+        x64->op(MOVQ, r.reg, RBX);
+        
+        return Storage(REGISTER, r.reg);
     }
 };
 
 
-class CircularrayNextItemValue: public GenericNextValue {
+class CircularrayNextItemValue: public ContainerNextValue {
 public:
-    //TypeSpec elem_ts;
-    
     CircularrayNextItemValue(Value *l, TypeMatch &match)
-        :GenericNextValue(typesubst(SAME_ITEM_TS, match), match[1], l, false) {
-        //elem_ts = match[1];
+        :ContainerNextValue(typesubst(SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
     }
 
-    virtual Address length_address(Register r) {
-        return Address(r, CIRCULARRAY_LENGTH_OFFSET);
-    }
+    virtual Storage compile(X64 *x64) {
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
 
-    virtual void fix_index(Register r, X64 *x64) {
-        // r contains the array reference, RBX the index
-        fix_index_overflow(r, x64);
-    }
-
-    virtual Storage next_compile(int elem_size, Register reg, X64 *x64) {
+        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+        
         x64->op(SUBQ, RSP, ts.measure(STACK));
         x64->op(MOVQ, Address(RSP, 0), RBX);
-        
-        fix_index(reg, x64);
-        
+
+        fix_RBX_index_overflow(r.reg, x64);
+
         x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(ADDQ, reg, RBX);
+        x64->op(LEA, r.reg, Address(r.reg, RBX, CIRCULARRAY_ELEMS_OFFSET));
         
-        Storage s = Storage(MEMORY, Address(reg, CIRCULARRAY_ELEMS_OFFSET));
+        Storage s = Storage(MEMORY, Address(r.reg, 0));
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
         elem_ts.create(s, t, x64);
         

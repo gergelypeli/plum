@@ -372,6 +372,7 @@ public:
 #include "block.cpp"
 #include "integer.cpp"
 #include "boolean.cpp"
+#include "container.cpp"
 #include "array.cpp"
 #include "circularray.cpp"
 #include "string.cpp"

@@ -174,7 +174,7 @@ public:
     }
     
     virtual void fix_index(X64 *x64) {
-        fix_index_overflow(RAX, x64);
+        fix_RBX_index_overflow(RAX, x64);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -229,7 +229,7 @@ public:
     virtual void fix_index(X64 *x64) {
         // Compute the new front, and use it for the element index
         x64->op(MOVQ, RBX, -1);
-        fix_index_underflow(RAX, x64);
+        fix_RBX_index_underflow(RAX, x64);
         x64->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RBX);
     }
 };
