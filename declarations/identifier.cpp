@@ -406,8 +406,15 @@ public:
         if (!pivot)
             throw INTERNAL_ERROR;
         
-        TypeSpec pcts = typesubst(pivot_cast_ts, match);
-        Value *member = make_class_unwrap_value(pcts, pivot);
+        Scope *is = pivot_ts.get_inner_scope();
+        if (is->contents.size() < 1)
+            throw INTERNAL_ERROR;
+            
+        Variable *v = dynamic_cast<Variable *>(is->contents[0].get());
+        if (!v)
+            throw INTERNAL_ERROR;
+        
+        Value *member = make_variable_value(v, pivot, match);
         
         if (autogrow) {
             member = get_typespec(member).lookup_inner("autogrow", member);

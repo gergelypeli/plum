@@ -660,11 +660,6 @@ Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec 
 }
 
 
-Value *make_class_unwrap_value(TypeSpec cast_ts, Value *v) {
-    return new ClassUnwrapValue(cast_ts, v);
-}
-
-
 Value *make_class_wrapper_initializer_value(Value *object, Value *value) {
     return new ClassWrapperInitializerValue(object, value);
 }
