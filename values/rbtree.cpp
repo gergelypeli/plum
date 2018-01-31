@@ -1,7 +1,56 @@
 
+int rbtree_elem_size(TypeSpec elem_ts) {
+    return ::stack_size(elem_ts.measure(MEMORY)) + RBNODE_HEADER_SIZE;
+}
+
+
 // NOTE: node indexes stored in root, vacant, *.{left,right,prev,next} are tree-relative
-// offsets, so if RAX points to the tree, then RAX + RCX points to the node. The NIL node
+// offsets, so if RSI points to the tree, then RSI + RAX points to the node. The NIL node
 // value may be 0, which is an invalid offset, since the tree itself has a nonempty header.
+
+void compile_alloc_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
+    // RAX - reservation
+    int elem_size = rbtree_elem_size(elem_ts);
+    Label finalizer_label = elem_ts.prefix(rbtree_type).get_finalizer_label(x64);
+    
+    x64->code_label_local(label, "x_rbtree_alloc");
+    
+    alloc_container(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, finalizer_label, x64);
+
+    x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), 0);
+    x64->op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RBNODE_NIL);
+    x64->op(MOVQ, Address(RAX, RBTREE_VACANT_OFFSET), RBNODE_NIL);
+    x64->op(MOVQ, Address(RAX, RBTREE_FIRST_OFFSET), RBNODE_NIL);
+    x64->op(MOVQ, Address(RAX, RBTREE_LAST_OFFSET), RBNODE_NIL);
+    
+    x64->op(RET);
+}
+
+
+void compile_realloc_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
+    // RAX - array, RBX - new reservation
+    int elem_size = rbtree_elem_size(elem_ts);
+
+    x64->code_label_local(label, "x_rbtree_realloc");
+
+    realloc_container(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, x64);
+
+    x64->op(RET);
+}
+
+
+void compile_grow_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
+    // RAX - array, RBX - new reservation
+    // Double the reservation until it's enough
+    Label realloc_label = x64->once->compile(compile_realloc_rbtree, elem_ts);
+
+    x64->code_label_local(label, "x_rbtree_grow");
+    
+    grow_container(RBTREE_RESERVATION_OFFSET, RBTREE_MINIMUM_RESERVATION, realloc_label, x64);
+    
+    x64->op(RET);
+}
+
 
 // Register usage:
 // RAX - index of current node
@@ -625,24 +674,19 @@ public:
     
     RbtreeEmptyValue(TypeSpec ts)
         :GenericValue(VOID_TS, ts, NULL) {
-        elem_ts = ts.unprefix(reference_type).unprefix(rbtree_type).varvalue();
+        elem_ts = container_elem_ts(ts);
     }
 
     virtual Regs precompile(Regs preferred) {
         Regs clob;
-        return clob.add(RAX).add(RBX).add(RCX);
+        return clob.add(RAX);
     }
 
     virtual Storage compile(X64 *x64) {
-        TypeSpec ats = ts.unprefix(reference_type);
-        Label rbtree_finalizer_label = ats.get_finalizer_label(x64);
-        int elem_size = ::stack_size(elem_ts.measure(MEMORY));  // round to 8 bytes!
-    
+        Label alloc_label = x64->once->compile(compile_alloc_rbtree, elem_ts);
+        
         x64->op(MOVQ, RAX, 0);
-        x64->op(MOVQ, RBX, elem_size);
-        x64->op(LEARIP, RCX, rbtree_finalizer_label);
-    
-        x64->alloc_rbtree_RAX_RBX_RCX();  // reservation, elem size, finalizer
+        x64->op(CALL, alloc_label);
         
         return Storage(REGISTER, RAX);
     }
@@ -655,26 +699,20 @@ public:
     
     RbtreeReservedValue(TypeSpec ts)
         :GenericValue(INTEGER_TS, ts, NULL) {
-        elem_ts = ts.unprefix(reference_type).unprefix(rbtree_type).varvalue();
+        elem_ts = container_elem_ts(ts);
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob;
-        return clob.add(RAX).add(RBX).add(RCX);
+        Regs clob = right->precompile(preferred);
+        return clob.add(RAX);
     }
 
     virtual Storage compile(X64 *x64) {
-        TypeSpec ats = ts.unprefix(reference_type);
-        Label rbtree_finalizer_label = ats.get_finalizer_label(x64);
-        int elem_size = ::stack_size(elem_ts.measure(MEMORY));  // round to 8 bytes!
-    
-        right->compile_and_store(x64, Storage(STACK));
-    
-        x64->op(POPQ, RAX);
-        x64->op(MOVQ, RBX, elem_size);
-        x64->op(LEARIP, RCX, rbtree_finalizer_label);
-    
-        x64->alloc_rbtree_RAX_RBX_RCX();  // reservation, elem size, finalizer
+        Label alloc_label = x64->once->compile(compile_alloc_rbtree, elem_ts);
+
+        right->compile_and_store(x64, Storage(REGISTER, RAX));
+
+        x64->op(CALL, alloc_label);
         
         return Storage(REGISTER, RAX);
     }
@@ -882,7 +920,6 @@ public:
     virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);  // iterator
         Register reg = (clob & ~ls.regs()).get_any();
-        //int elem_size = ::elem_size(elem_ts.measure(MEMORY));
         Label ok;
         
         switch (ls.where) {

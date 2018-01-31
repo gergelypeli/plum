@@ -1,6 +1,6 @@
 
-TypeSpec circularray_elem_ts(TypeSpec ts) {
-    return ts.rvalue().unprefix(reference_type).unprefix(circularray_type).varvalue();
+int circularray_elem_size(TypeSpec elem_ts) {
+    return ::elem_size(elem_ts.measure(MEMORY));
 }
 
 
@@ -32,7 +32,7 @@ void fix_RBX_index_underflow(Register r, X64 *x64) {
 
 void compile_alloc_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - reservation
-    int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+    int elem_size = circularray_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_circularray_alloc");
@@ -48,7 +48,7 @@ void compile_alloc_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_realloc_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
-    int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+    int elem_size = circularray_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_circularray_realloc");
     //x64->log("realloc_array");
@@ -221,7 +221,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int elem_size = circularray_elem_size(elem_ts);
 
         Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
 
@@ -258,11 +258,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int elem_size = circularray_elem_size(elem_ts);
+        int item_stack_size = ts.measure(STACK);
 
         Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
         
-        x64->op(SUBQ, RSP, ts.measure(STACK));
+        x64->op(SUBQ, RSP, item_stack_size);
         x64->op(MOVQ, Address(RSP, 0), RBX);
 
         fix_RBX_index_overflow(r.reg, x64);

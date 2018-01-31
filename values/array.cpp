@@ -1,12 +1,12 @@
 
-TypeSpec array_elem_ts(TypeSpec ts) {
-    return ts.rvalue().unprefix(reference_type).unprefix(array_type).varvalue();
+int array_elem_size(TypeSpec elem_ts) {
+    return ::elem_size(elem_ts.measure(MEMORY));
 }
 
 
 void compile_alloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - reservation
-    int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+    int elem_size = array_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(array_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_array_alloc");
@@ -21,7 +21,7 @@ void compile_alloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_realloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
-    int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+    int elem_size = array_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_array_realloc");
 
@@ -114,7 +114,7 @@ public:
         // RAX - result, RBX - first, RDX - second
         x64->code_label_local(label, "x_array_concatenation");
         Label alloc_array = x64->once->compile(compile_alloc_array, elem_ts);
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int elem_size = array_elem_size(elem_ts);
         
         x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE));
@@ -227,6 +227,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        int elem_size = array_elem_size(elem_ts);
         Label compar = x64->once->compile(compile_compar, elem_ts);
         Label done;
 
@@ -236,7 +237,7 @@ public:
         x64->op(MOVQ, RBX, Address(RSP, 0));
         x64->op(LEA, RDI, Address(RBX, ARRAY_ELEMS_OFFSET));
         x64->op(MOVQ, RSI, Address(RBX, ARRAY_LENGTH_OFFSET));
-        x64->op(MOVQ, RDX, elem_size(elem_ts.measure(MEMORY)));
+        x64->op(MOVQ, RDX, elem_size);
         x64->op(LEARIP, RCX, compar);
         
         x64->op(CALL, x64->sort_label);
@@ -344,7 +345,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int elem_size = array_elem_size(elem_ts);
         
         Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
         
@@ -379,11 +380,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int elem_size = array_elem_size(elem_ts);
+        int item_stack_size = ts.measure(STACK);
 
         Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
 
-        x64->op(SUBQ, RSP, ts.measure(STACK));
+        x64->op(SUBQ, RSP, item_stack_size);
         x64->op(MOVQ, Address(RSP, 0), RBX);
         
         x64->op(IMUL3Q, RBX, RBX, elem_size);
