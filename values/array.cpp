@@ -312,6 +312,18 @@ public:
 };
 
 
+class ArrayAutogrowValue: public ContainerAutogrowValue {
+public:
+    ArrayAutogrowValue(Value *l, TypeMatch &match)
+        :ContainerAutogrowValue(l, match) {
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return subcompile(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, compile_grow_array, x64);
+    }
+};
+
+
 // Iteration
 
 class ArrayElemIterValue: public ContainerIterValue {

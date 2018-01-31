@@ -61,15 +61,73 @@ void compile_realloc_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_grow_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
+    // RCX, RSI, RDI - clob
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
-    // TODO: move the unfolding/stretching code here!
     Label realloc_label = x64->once->compile(compile_realloc_circularray, elem_ts);
+    int elem_size = circularray_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_circularray_grow");
     x64->log("grow_circularray");
+    x64->op(PUSHQ, RCX);
+    x64->op(PUSHQ, RSI);
+    x64->op(PUSHQ, RDI);
+    x64->op(PUSHQ, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
     
     grow_container(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_MINIMUM_RESERVATION, realloc_label, x64);
+
+    x64->op(POPQ, RBX);  // old reservation
     
+    Label high, end;
+    x64->op(MOVQ, RCX, RBX);
+    x64->op(SHRQ, RCX, 1);
+    x64->op(CMPQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RCX);
+    x64->op(JAE, high);
+
+    // The front is low, so it's better to unfold the folded part. This requires that
+    // the growth rate was at least 1.5 times.
+    
+    x64->log("Unfolding queue circularray.");
+    
+    x64->op(LEA, RSI, Address(RAX, CIRCULARRAY_ELEMS_OFFSET));
+    
+    x64->op(MOVQ, RDI, RBX);
+    x64->op(IMUL3Q, RDI, RDI, elem_size);
+    x64->op(LEA, RDI, Address(RAX, RDI, CIRCULARRAY_ELEMS_OFFSET));
+    
+    x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
+    x64->op(IMUL3Q, RCX, RCX, elem_size);
+    
+    x64->op(REPMOVSB);
+    x64->op(JMP, end);
+    
+    x64->code_label(high);
+    
+    // The front is high, so it's better to move the unfolded part to the end of the
+    // new reservation. This also requires 1.5 growth rate so we can copy forward.
+
+    x64->log("Stretching queue circularray.");
+    
+    x64->op(MOVQ, RSI, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
+    x64->op(IMUL3Q, RSI, RSI, elem_size);
+    x64->op(LEA, RSI, Address(RAX, RSI, CIRCULARRAY_ELEMS_OFFSET));
+
+    x64->op(MOVQ, RDI, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
+    x64->op(SUBQ, RDI, RBX);
+    x64->op(ADDQ, RDI, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
+    x64->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RDI);  // must update front index
+    x64->op(IMUL3Q, RDI, RDI, elem_size);
+    x64->op(LEA, RDI, Address(RAX, RDI, CIRCULARRAY_ELEMS_OFFSET));
+    
+    x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
+    x64->op(SUBQ, RCX, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
+    x64->op(IMUL3Q, RCX, RCX, elem_size);
+    
+    x64->op(REPMOVSB);
+    
+    x64->code_label(end);
+    x64->op(POPQ, RDI);
+    x64->op(POPQ, RSI);
+    x64->op(POPQ, RCX);
     x64->op(RET);
 }
 
@@ -184,6 +242,18 @@ public:
         x64->op(MOVQ, RBX, 1);
         fix_RBX_index_overflow(r, x64);
         x64->op(XCHGQ, RBX, Address(r, CIRCULARRAY_FRONT_OFFSET));
+    }
+};
+
+
+class CircularrayAutogrowValue: public ContainerAutogrowValue {
+public:
+    CircularrayAutogrowValue(Value *l, TypeMatch &match)
+        :ContainerAutogrowValue(l, match) {
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return subcompile(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, compile_grow_circularray, x64);
     }
 };
 

@@ -137,8 +137,7 @@ Value *make_comparison_value(BitSetOp bs, Value *v);
 Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v);
 Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec arg_ts, TypeSpec arg_cast_ts, TypeSpec res_ts, std::string operation_name);
 Value *make_class_unwrap_value(TypeSpec cast_ts, Value *v);
-Value *make_stack_initializer_value(Value *stack, Value *array);
-Value *make_queue_initializer_value(Value *queue, Value *carray);
+Value *make_class_wrapper_initializer_value(Value *object, Value *value);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
 Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);

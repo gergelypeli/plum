@@ -351,6 +351,49 @@ public:
 };
 
 
+class ContainerAutogrowValue: public GenericValue {
+public:
+    ContainerAutogrowValue(Value *l, TypeMatch &match)
+        :GenericValue(VOID_TS, l->ts, l) {
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred).add(RAX).add(RCX);
+    }
+    
+    virtual Storage subcompile(int reservation_offset, int length_offset, Once::TypedFunctionCompiler compile_grow, X64 *x64) {
+        TypeSpec elem_ts = container_elem_ts(ts);
+        Label grow_label = x64->once->compile(compile_grow, elem_ts);
+        
+        Storage s = left->compile(x64);
+        
+        switch (s.where) {
+        case MEMORY: {
+            if (s.address.base == RAX || s.address.index == RAX) {
+                x64->op(LEA, RCX, s.address);
+                s.address = Address(RCX, 0);
+            }
+            
+            Label ok;
+            x64->op(MOVQ, RAX, s.address);
+            x64->op(MOVQ, RBX, Address(RAX, length_offset));
+            x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
+            x64->op(JB, ok);
+            
+            x64->op(INCQ, RBX);
+            x64->op(CALL, grow_label);
+            x64->op(MOVQ, s.address, RAX);
+            
+            x64->code_label(ok);
+            return s;
+        }
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
 // Iteration
 
 class ContainerIterValue: public SimpleRecordValue {

@@ -224,7 +224,7 @@ void define_stack(Scope *root_scope) {
     is->add(new ClassWrapperIdentifier("indexes", PIVOT, CAST, "indexes"));
     is->add(new ClassWrapperIdentifier("items", PIVOT, CAST, "items"));
 
-    is->add(new TemplateIdentifier<StackPushValue>("push", PIVOT));
+    is->add(new ClassWrapperIdentifier("push", PIVOT, CAST, "push", true));
     is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
 
     class_type->complete_type();
@@ -253,8 +253,8 @@ void define_queue(Scope *root_scope) {
     is->add(new ClassWrapperIdentifier("indexes", PIVOT, CAST, "indexes"));
     is->add(new ClassWrapperIdentifier("items", PIVOT, CAST, "items"));
 
-    is->add(new TemplateIdentifier<QueuePushValue>("push", PIVOT));
-    is->add(new TemplateIdentifier<QueueUnshiftValue>("unshift", PIVOT));
+    is->add(new ClassWrapperIdentifier("push", PIVOT, CAST, "push", true));
+    is->add(new ClassWrapperIdentifier("unshift", PIVOT, CAST, "unshift", true));
     is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
     is->add(new ClassWrapperIdentifier("shift", PIVOT, CAST, "shift"));
 
@@ -444,6 +444,7 @@ Scope *init_builtins() {
     ANY_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, any_type };
     SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
     ANY_CIRCULARRAY_REFERENCE_TS = { reference_type, circularray_type, any_type };
+    ANY_CIRCULARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, circularray_type, any_type };
     SAME_CIRCULARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, circularray_type, same_type };
     ANY_RBTREE_REFERENCE_TS = { reference_type, rbtree_type, any_type };
     VOID_CODE_TS = { code_type, void_type };
@@ -566,6 +567,7 @@ Scope *init_builtins() {
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", ANY_ARRAY_REFERENCE_TS));
+    array_scope->add(new TemplateIdentifier<ArrayAutogrowValue>("autogrow", ANY_ARRAY_REFERENCE_LVALUE_TS));
     
     // Array iterable operations
     implement(array_scope, SAME_ITERABLE_TS, "ible", {
@@ -587,6 +589,7 @@ Scope *init_builtins() {
     circularray_scope->add(new TemplateIdentifier<CircularrayPopValue>("pop", ANY_CIRCULARRAY_REFERENCE_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayUnshiftValue>("unshift", ANY_CIRCULARRAY_REFERENCE_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayShiftValue>("shift", ANY_CIRCULARRAY_REFERENCE_TS));
+    circularray_scope->add(new TemplateIdentifier<CircularrayAutogrowValue>("autogrow", ANY_CIRCULARRAY_REFERENCE_LVALUE_TS));
     
     // Circularray iterable operations
     implement(circularray_scope, SAME_ITERABLE_TS, "ible", {

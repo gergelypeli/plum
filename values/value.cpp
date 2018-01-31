@@ -383,7 +383,6 @@ public:
 #include "control.cpp"
 #include "stream.cpp"
 #include "class.cpp"
-#include "stack.cpp"
 #include "rbtree.cpp"
 #include "literal.cpp"
 #include "type.cpp"
@@ -666,11 +665,6 @@ Value *make_class_unwrap_value(TypeSpec cast_ts, Value *v) {
 }
 
 
-Value *make_stack_initializer_value(Value *stack, Value *array) {
-    return new StackInitializerValue(stack, array);
-}
-
-
-Value *make_queue_initializer_value(Value *queue, Value *carray) {
-    return new QueueInitializerValue(queue, carray);
+Value *make_class_wrapper_initializer_value(Value *object, Value *value) {
+    return new ClassWrapperInitializerValue(object, value);
 }

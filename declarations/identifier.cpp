@@ -393,11 +393,13 @@ class ClassWrapperIdentifier: public Identifier {
 public:
     TypeSpec pivot_cast_ts;
     std::string operation_name;
+    bool autogrow;
     
-    ClassWrapperIdentifier(std::string n, TypeSpec pivot_ts, TypeSpec pcts, std::string on)
+    ClassWrapperIdentifier(std::string n, TypeSpec pivot_ts, TypeSpec pcts, std::string on, bool ag = false)
         :Identifier(n, pivot_ts) {
         pivot_cast_ts = pcts;
         operation_name = on;
+        autogrow = ag;
     }
     
     virtual Value *matched(Value *pivot, TypeMatch &match) {
@@ -406,6 +408,14 @@ public:
         
         TypeSpec pcts = typesubst(pivot_cast_ts, match);
         Value *member = make_class_unwrap_value(pcts, pivot);
+        
+        if (autogrow) {
+            member = get_typespec(member).lookup_inner("autogrow", member);
+            if (!member) {
+                std::cerr << "No autogrow for " << get_typespec(member) << "!\n";
+                throw INTERNAL_ERROR;
+            }
+        }
         
         Value *operation = get_typespec(member).lookup_inner(operation_name, member);
         if (!operation) {

@@ -179,7 +179,7 @@ public:
         TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
         Value *stack_preinitializer = make_class_preinitializer_value(rts);
         
-        return make_stack_initializer_value(stack_preinitializer, array_initializer);
+        return make_class_wrapper_initializer_value(stack_preinitializer, array_initializer);
     }
 };
 
@@ -202,7 +202,7 @@ public:
         TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
         Value *queue_preinitializer = make_class_preinitializer_value(rts);
         
-        return make_queue_initializer_value(queue_preinitializer, carray_initializer);
+        return make_class_wrapper_initializer_value(queue_preinitializer, carray_initializer);
     }
 };
 

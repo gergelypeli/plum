@@ -27,6 +27,36 @@ public:
 };
 
 
+class ClassWrapperInitializerValue: public Value {
+public:
+    std::unique_ptr<Value> object, value;
+    
+    ClassWrapperInitializerValue(Value *o, Value *v)
+        :Value(o->ts.unprefix(partial_type)) {
+        object.reset(o);
+        value.reset(v);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return value->check(args, kwargs, scope);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return object->precompile(preferred) | value->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        object->compile_and_store(x64, Storage(STACK));
+        value->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(MOVQ, RBX, Address(RSP, REFERENCE_SIZE));
+        x64->op(POPQ, Address(RBX, CLASS_MEMBERS_OFFSET));  // creating ref from STACK to MEMORY
+        
+        return Storage(STACK);
+    }
+};
+
+
 class ClassUnwrapValue: public Value {
 public:
     std::unique_ptr<Value> pivot;
@@ -72,61 +102,3 @@ public:
     }
 };
 
-/*
-class ClassWrapperValue: public GenericValue {
-public:
-    TypeSpec arg_cast_ts;
-
-    ClassWrapperValue(Value *pivot, TypeSpec pcts, TypeSpec ats, TypeSpec acts, TypeSpec rts, std::string on)
-        :GenericValue(ats, rts, NULL) {
-        arg_cast_ts = acts;
-
-        if (pcts != NO_TS)
-            pivot = make_class_unwrap_value(pcts, pivot);
-        
-        if (on != "") {
-            pivot = pivot->ts.lookup_inner(on, pivot);
-            if (!pivot)
-                throw INTERNAL_ERROR;
-        }
-        
-        left.reset(pivot);
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!GenericValue::check(args, kwargs, scope))
-            return false;
-            
-        if (right) {
-            GenericValue *generic_left = dynamic_cast<GenericValue *>(left.get());
-            if (!generic_left)
-                throw INTERNAL_ERROR;
-            
-            Value *k = right.release();
-        
-            if (arg_cast_ts != NO_TS)
-                k = make_class_unwrap_value(arg_cast_ts, k);
-                
-            generic_left->right.reset(k);
-        }
-        
-        return true;
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Storage s = left->compile(x64);
-        
-        if (s.where == REGISTER) {
-            x64->op(PUSHQ, s.reg);
-            s = Storage(STACK);
-        }
-        
-        return s;
-    }
-};
-
-*/
