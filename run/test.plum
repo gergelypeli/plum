@@ -419,6 +419,13 @@ start? :Function as:
     :if ! rb has "A" then:
         prints("Rb has no A, good")
 
+    st? String Set `empty
+    st add "A"
+    st add "B"
+    
+    :for st elements_by_age each: e? do:
+        prints("Set element: {e}" {})
+    
     gr? Greetable `init
     gr greet
     

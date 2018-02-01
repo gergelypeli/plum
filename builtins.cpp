@@ -117,6 +117,9 @@ void builtin_types(Scope *root_scope) {
     queue_type = new QueueType("Queue");
     root_scope->add(queue_type);
 
+    set_type = new SetType("Set");
+    root_scope->add(set_type);
+
     countup_type = new RecordType("Countup", 0);
     root_scope->add(countup_type);
 
@@ -182,6 +185,8 @@ void builtin_types(Scope *root_scope) {
     ANY_CIRCULARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, circularray_type, any_type };
     SAME_CIRCULARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, circularray_type, same_type };
     ANY_RBTREE_REFERENCE_TS = { reference_type, rbtree_type, any_type };
+    ANY_RBTREE_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, rbtree_type, any_type };
+    SAME_RBTREE_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, rbtree_type, same_type };
     VOID_CODE_TS = { code_type, void_type };
     BOOLEAN_CODE_TS = { code_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
@@ -194,6 +199,7 @@ void builtin_types(Scope *root_scope) {
     STRING_LVALUE_TS = { lvalue_type, string_type };
     ANY_STACK_REFERENCE_TS = { reference_type, stack_type, any_type };
     ANY_QUEUE_REFERENCE_TS = { reference_type, queue_type, any_type };
+    ANY_SET_REFERENCE_TS = { reference_type, set_type, any_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ITEM_TS = { item_type, any_type };
@@ -396,6 +402,39 @@ void define_iterators() {
 }
 
 
+void define_string() {
+    RecordType *record_type = dynamic_cast<RecordType *>(string_type);
+    DataScope *is = record_type->make_inner_scope(STRING_TS);
+
+    is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
+
+    is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, INTEGER_TS, "length"));
+    is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
+    is->add(new RecordWrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, INTEGER_TS, NO_TS, CHARACTER_TS, "index"));
+    is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, INTEGER_OVALUE_TS, NO_TS, STRING_LVALUE_TS, "realloc"));
+
+    is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
+    is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
+
+    implement(is, TypeSpec { iterable_type, character_type }, "ible", {
+        new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
+    });
+
+    is->add(new RecordWrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
+    is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
+
+    is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
+
+    // String operations
+    implement(is, STREAMIFIABLE_TS, "sable", {
+        new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS)
+    });
+
+    record_type->complete_type();
+}
+
+
 void define_array() {
     Scope *array_scope = array_type->get_inner_scope(NO_TS.begin());
 
@@ -452,43 +491,11 @@ void define_rbtree() {
     rbtree_scope->add(new TemplateIdentifier<RbtreeHasValue>("has", ANY_RBTREE_REFERENCE_TS));
     rbtree_scope->add(new TemplateIdentifier<RbtreeAddValue>("add", ANY_RBTREE_REFERENCE_TS));
     rbtree_scope->add(new TemplateIdentifier<RbtreeRemoveValue>("remove", ANY_RBTREE_REFERENCE_TS));
+    rbtree_scope->add(new TemplateIdentifier<RbtreeAutogrowValue>("autogrow", ANY_RBTREE_REFERENCE_LVALUE_TS));
 
     // Rbtree iterable operations
     rbtree_scope->add(new TemplateIdentifier<RbtreeElemByAgeIterValue>("elements_by_age", ANY_RBTREE_REFERENCE_TS));
     rbtree_scope->add(new TemplateIdentifier<RbtreeElemByOrderIterValue>("elements_by_order", ANY_RBTREE_REFERENCE_TS));
-}
-
-
-void define_string() {
-    RecordType *record_type = dynamic_cast<RecordType *>(string_type);
-    DataScope *is = record_type->make_inner_scope(STRING_TS);
-
-    is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
-
-    is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, INTEGER_TS, "length"));
-    is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
-    is->add(new RecordWrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, INTEGER_TS, NO_TS, CHARACTER_TS, "index"));
-    is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, INTEGER_OVALUE_TS, NO_TS, STRING_LVALUE_TS, "realloc"));
-
-    is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
-    is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
-
-    implement(is, TypeSpec { iterable_type, character_type }, "ible", {
-        new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
-    });
-
-    is->add(new RecordWrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
-    is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
-    is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, VOID_TS, NO_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
-
-    is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
-
-    // String operations
-    implement(is, STREAMIFIABLE_TS, "sable", {
-        new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS)
-    });
-
-    record_type->complete_type();
 }
 
 
@@ -520,7 +527,6 @@ void define_stack() {
 }
 
 
-
 void define_queue() {
     TypeSpec PIVOT = ANY_QUEUE_REFERENCE_TS;
     TypeSpec CAST = SAME_CIRCULARRAY_REFERENCE_LVALUE_TS;
@@ -546,6 +552,31 @@ void define_queue() {
     is->add(new ClassWrapperIdentifier("unshift", PIVOT, CAST, "unshift", true));
     is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
     is->add(new ClassWrapperIdentifier("shift", PIVOT, CAST, "shift"));
+
+    class_type->complete_type();
+}
+
+
+void define_set() {
+    TypeSpec PIVOT = ANY_SET_REFERENCE_TS;
+    TypeSpec CAST = SAME_RBTREE_REFERENCE_LVALUE_TS;
+    
+    ClassType *class_type = dynamic_cast<ClassType *>(set_type);
+    DataScope *is = class_type->make_inner_scope(PIVOT);
+
+    is->add(new Variable("tree", PIVOT, CAST));
+
+    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
+    is->add(new ClassWrapperIdentifier("has", PIVOT, CAST, "has"));
+    is->add(new ClassWrapperIdentifier("add", PIVOT, CAST, "add", true));
+    is->add(new ClassWrapperIdentifier("remove", PIVOT, CAST, "remove"));
+
+    //implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+    //    new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
+    //});
+
+    is->add(new ClassWrapperIdentifier("elements_by_age", PIVOT, CAST, "elements_by_age"));
+    is->add(new ClassWrapperIdentifier("elements_by_order", PIVOT, CAST, "elements_by_order"));
 
     class_type->complete_type();
 }
@@ -583,7 +614,8 @@ Scope *init_builtins() {
     define_iterators();
     define_stack();
     define_queue();
-
+    define_set();
+    
     // Integer operations
     define_integers();
         

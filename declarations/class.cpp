@@ -207,3 +207,24 @@ public:
 };
 
 
+class SetType: public ClassType {
+public:
+    SetType(std::string name)
+        :ClassType(name, 1) {
+    }
+    
+    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+        TypeSpec tts = TypeSpec(tsi).unprefix(set_type).prefix(rbtree_type);
+        Value *tree_initializer = tts.lookup_initializer(name, scope);
+        
+        if (!tree_initializer) {
+            std::cerr << "No Set initializer called " << name << "!\n";
+            return NULL;
+        }
+
+        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+        Value *set_preinitializer = make_class_preinitializer_value(rts);
+        
+        return make_class_wrapper_initializer_value(set_preinitializer, tree_initializer);
+    }
+};

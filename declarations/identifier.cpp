@@ -412,9 +412,10 @@ public:
         Value *member = make_variable_value(v, pivot, match);
         
         if (autogrow) {
-            member = get_typespec(member).lookup_inner("autogrow", member);
+            TypeSpec mts = get_typespec(member);
+            member = mts.lookup_inner("autogrow", member);
             if (!member) {
-                std::cerr << "No autogrow for " << get_typespec(member) << "!\n";
+                std::cerr << "No autogrow for " << mts << "!\n";
                 throw INTERNAL_ERROR;
             }
         }

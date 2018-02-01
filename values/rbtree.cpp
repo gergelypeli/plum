@@ -45,7 +45,7 @@ void compile_grow_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
     Label realloc_label = x64->once->compile(compile_realloc_rbtree, elem_ts);
 
     x64->code_label_local(label, "x_rbtree_grow");
-    
+    //x64->log("x_rbtree_grow");
     grow_container(RBTREE_RESERVATION_OFFSET, RBTREE_MINIMUM_RESERVATION, realloc_label, x64);
     
     x64->op(RET);
@@ -861,6 +861,18 @@ public:
         left->ts.store(Storage(STACK), Storage(), x64);
         
         return Storage();
+    }
+};
+
+
+class RbtreeAutogrowValue: public ContainerAutogrowValue {
+public:
+    RbtreeAutogrowValue(Value *l, TypeMatch &match)
+        :ContainerAutogrowValue(l, match) {
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return subcompile(RBTREE_RESERVATION_OFFSET, RBTREE_LENGTH_OFFSET, compile_grow_rbtree, x64);
     }
 };
 
