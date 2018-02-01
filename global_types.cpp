@@ -250,12 +250,12 @@ void Once::for_all(X64 *x64) {
 
 // Unwind
 
-void Unwind::push(Unwindable *v) {
+void Unwind::push(Value *v) {
     stack.push_back(v);
 }
 
 
-void Unwind::pop(Unwindable *v) {
+void Unwind::pop(Value *v) {
     if (v != stack.back())
         throw INTERNAL_ERROR;
         

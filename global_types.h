@@ -35,6 +35,8 @@ typedef std::vector<std::string> Ss;
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
 
+
+
 class Once {
 public:
     typedef void (*FunctionCompiler)(Label, X64 *);
@@ -54,17 +56,24 @@ public:
 
 
 
-class Unwindable {
-public:
-    virtual Scope *unwind(X64 *x64) = 0;
-};
-
 
 class Unwind {
 public:
-    std::vector<Unwindable *> stack;
+    std::vector<Value *> stack;
     
-    void push(Unwindable *v);
-    void pop(Unwindable *v);
+    void push(Value *v);
+    void pop(Value *v);
     void initiate(Declaration *last, X64 *x64);
 };
+
+
+
+
+struct ArgInfo {
+    const char *name;
+    TypeSpec *context;
+    Scope *scope;
+    std::unique_ptr<Value> *target;  // Yes, a pointer to an unique_ptr
+};
+
+typedef std::vector<ArgInfo> ArgInfos;

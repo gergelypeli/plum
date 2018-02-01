@@ -40,6 +40,8 @@ class PartialVariableValue;
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, TypeSpec *context, Variable *arg_var = NULL);
+bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos);
+bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);
 
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
@@ -321,4 +323,71 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     //    value->set_marker(marker);
     
     return value;
+}
+
+
+bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) {
+    if (i >= arg_infos.size()) {
+        std::cerr << "Too many arguments!\n";
+        return false;
+    }
+
+    if (*arg_infos[i].target) {
+        std::cerr << "Argument " << i << " already supplied!\n";
+        return false;
+    }
+
+    CodeScope *code_scope = NULL;
+    
+    if ((*arg_infos[i].context)[0] == code_type) {
+        code_scope = new CodeScope;
+        arg_infos[i].scope->add(code_scope);
+    }
+
+    Value *v = typize(e, code_scope ? code_scope : arg_infos[i].scope, arg_infos[i].context);
+    TypeMatch match;
+    
+    if (!typematch(*arg_infos[i].context, v, match, code_scope)) {
+        std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *arg_infos[i].context << "!\n";
+        return false;
+    }
+
+    if (code_scope && !code_scope->is_taken)
+        throw INTERNAL_ERROR;
+
+    arg_infos[i].target->reset(v);
+    return true;
+}
+
+
+bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
+    for (unsigned i = 0; i < args.size(); i++) {
+        Expr *e = args[i].get();
+        
+        if (!check_argument(i, e, arg_infos))
+            return false;
+    }
+            
+    for (auto &kv : kwargs) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < arg_infos.size(); j++) {
+            if (arg_infos[j].name == kv.first) {
+                i = j;
+                break;
+            }
+        }
+            
+        if (i == (unsigned)-1) {
+            std::cerr << "No argument named " << kv.first << "!\n";
+            return false;
+        }
+        
+        Expr *e = kv.second.get();
+        
+        if (!check_argument(i, e, arg_infos))
+            return false;
+    }
+    
+    return true;
 }

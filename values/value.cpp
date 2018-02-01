@@ -1,18 +1,7 @@
 
-struct ArgInfo {
-    const char *name;
-    TypeSpec *context;
-    Scope *scope;
-    std::unique_ptr<Value> *target;
-};
-    
-typedef std::vector<ArgInfo> ArgInfos;
-
-bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);
-
 // Values
 
-class Value: public Unwindable {
+class Value {
 public:
     TypeSpec ts;
     Token token;
