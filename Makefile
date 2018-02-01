@@ -1,10 +1,10 @@
 .PHONY: build clean
 SHELL      = /bin/zsh
 
-DECLS      = declaration identifier scope type typespec basic record reference interface class
+DECLS      = declaration identifier scope type basic record reference interface class
 VALUES     = value literal function boolean integer array reference type block record multi generic control stream iterator class circularray rbtree container
 ARCHS      = ork x64 storage
-MODULES    = tokenize treeize tupleize typize util plum builtin once unwind $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
+MODULES    = tokenize treeize tupleize typize util plum builtin global_types global_functions $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
 SOURCES    = $(MODULES:%=%.cpp) builtin.h arch/ork.h arch/x64.h arch/heap.h
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=always

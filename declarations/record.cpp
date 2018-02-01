@@ -232,7 +232,6 @@ public:
         }
         else {
             // Named initializer
-            //Value *dv = make_declaration_by_type("<new>", ts, scope);
             Value *pre = make_record_preinitializer_value(ts);
 
             Value *value = inner_scope->lookup(n, pre);
@@ -242,14 +241,6 @@ public:
                 return make_record_postinitializer_value(value);
             
             std::cerr << "Can't initialize record as " << n << "!\n";
-        
-            // OK, we gonna leak dv here, because it's just not possible to delete it.
-            //   error: possible problem detected in invocation of delete operator
-            //   error: ‘dv’ has incomplete type
-            //   note: neither the destructor nor the class-specific operator delete
-            //     will be called, even if they are declared when the class is defined
-            // Thanks, C++!
-        
             return NULL;
         }
     }

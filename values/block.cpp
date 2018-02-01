@@ -350,26 +350,6 @@ public:
 };
 
 
-DeclarationValue *declaration_value_cast(Value *value) {
-    return dynamic_cast<DeclarationValue *>(value);
-}
-
-
-std::string declaration_get_name(DeclarationValue *dv) {
-    return dv->get_name();
-}
-
-
-Declaration *declaration_get_decl(DeclarationValue *dv) {
-    return dv->get_decl();
-}
-
-
-Variable *declaration_get_var(DeclarationValue *dv) {
-    return dv->get_var();
-}
-
-
 class PartialDeclarationValue: public Value {
 public:
     std::string name;

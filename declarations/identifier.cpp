@@ -158,11 +158,6 @@ public:
 };
 
 
-Variable *variable_cast(Declaration *decl) {
-    return dynamic_cast<Variable *>(decl);
-}
-
-
 class PartialVariable: public Variable {
 public:
     std::set<std::string> initialized_member_names;

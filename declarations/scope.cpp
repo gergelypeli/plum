@@ -109,7 +109,7 @@ public:
         if (*tsi == lvalue_type || *tsi == ovalue_type || *tsi == code_type)
             tsi++;
             
-        if (is_heap_type(*tsi))
+        if (heap_type_cast(*tsi))
             ts.insert(tsi, reference_type);
             
         return ts;

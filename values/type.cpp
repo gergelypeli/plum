@@ -18,7 +18,7 @@ public:
             
         ts = ts.unprefix(type_type);
         
-        if (is_heap_type(ts[0]))
+        if (heap_type_cast(ts[0]))
             ts = ts.prefix(reference_type);
         
         Value *v = typize(args[0].get(), scope, &ts);

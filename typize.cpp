@@ -1,4 +1,6 @@
 
+// Stage 4
+
 const long NO_EXCEPTION = 0;
 const long RETURN_EXCEPTION = -1;
 const long DONE_EXCEPTION = 1;
@@ -6,14 +8,17 @@ const long DONE_EXCEPTION = 1;
 // Used to simulate size polynoms
 const unsigned SAME_SIZE = 65536;
 
-
-// Stage 4
-
 class Declaration;
+class Variable;
+class PartialVariable;
+class Function;
+
 class Type;
 class ArrayType;
 class InterfaceType;
 class ImplementationType;
+class HeapType;
+
 class Scope;
 class CodeScope;
 class DataScope;
@@ -21,133 +26,27 @@ class SwitchScope;
 class TryScope;
 class EvalScope;
 class FunctionScope;
-class Variable;
-class PartialVariable;
-class Function;
 
 class Value;
 class DeclarationValue;
 class GenericValue;
 class PartialVariableValue;
 
-class TypeSpec: public std::vector<Type *> {
-public:
-    TypeSpec();
-    TypeSpec(iterator tsi);
-    TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
-    
-    unsigned measure(StorageWhere where);
-    std::vector<Function *> get_virtual_table();
-    Label get_virtual_table_label(X64 *x64);
-    Label get_finalizer_label(X64 *x64);
-    StorageWhere where(bool is_arg);
-    Storage boolval(Storage s, X64 *x64, bool probe);
-    TypeSpec prefix(Type *t);
-    TypeSpec unprefix(Type *t = NULL);
-    TypeSpec rvalue();
-    TypeSpec lvalue();
-    TypeSpec nonlvalue();
-    TypeSpec nonrvalue();
-    TypeSpec varvalue();
-    void store(Storage s, Storage t, X64 *x64);
-    void create(Storage s, Storage t, X64 *x64);
-    void destroy(Storage s, X64 *x64);
-    void compare(Storage s, Storage t, X64 *x64, Label less, Label greater);
-    void compare(Storage s, Storage t, X64 *x64, Register reg);
-    Value *lookup_initializer(std::string name, Scope *scope);
-    Value *lookup_inner(std::string name, Value *pivot);
-    DataScope *get_inner_scope();
-};
 
-typedef TypeSpec::iterator TypeSpecIter;
-typedef std::vector<TypeSpec> TSs;
-typedef std::vector<TypeSpec> TypeMatch;
-typedef std::vector<std::string> Ss;
-std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
+#include "global_types.h"
+#include "global_functions.h"
+#include "builtin.h"
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, TypeSpec *context, Variable *arg_var = NULL);
-bool partial_variable_is_initialized(std::string name, Value *pivot);
-std::vector<Variable *> partial_class_get_member_variables(TypeSpec var_ts);
 
-TypeSpec get_typespec(Value *value);
-DeclarationValue *declaration_value_cast(Value *value);
-Variable *variable_cast(Declaration *decl);
-bool is_heap_type(Type *t);
-
-bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts);
-Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
-
-std::string declaration_get_name(DeclarationValue *dv);
-Declaration *declaration_get_decl(DeclarationValue *dv);
-Variable *declaration_get_var(DeclarationValue *dv);
-Declaration *make_record_compare();
-
-bool typematch(TypeSpec tt, Value *&v, TypeMatch &match, CodeScope *code_scope = NULL);
-TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
-TypeMatch type_parameters_to_match(TypeSpec ts);
-bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
-void unprefix_value(Value *v);
-
-Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match);
-Value *make_partial_variable_value(PartialVariable *decl, Value *pivot, TypeMatch &match);
-Value *make_role_value(Variable *decl, Value *pivot);
-Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match);
-Value *make_type_value(TypeSpec ts);
-Value *make_code_block_value(TypeSpec *context);
-Value *make_multi_value();
-Value *make_eval_value(std::string en);
-Value *make_yield_value(EvalScope *es);
-Value *make_scalar_conversion_value(Value *p);
-Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
-Value *make_declaration_value(std::string name, TypeSpec *context);
-Value *make_partial_declaration_value(std::string name, PartialVariableValue *pivot);
-Value *make_basic_value(TypeSpec ts, int number);
-Value *make_string_literal_value(std::string text);
-Value *make_code_scope_value(Value *value, CodeScope *code_scope);
-Value *make_void_conversion_value(Value *orig);
-Value *peek_void_conversion_value(Value *v);
-Value *make_boolean_conversion_value(Value *orig);
-Value *make_implementation_conversion_value(ImplementationType *imt, Value *orig, TypeMatch &match);
-Value *make_boolean_not_value(Value *value);
-Value *make_null_reference_value(TypeSpec ts);
-Value *make_null_string_value();  // TODO: rethink!
-Value *make_array_empty_value(TypeSpec ts);
-Value *make_array_initializer_value(TypeSpec ts);
-Value *make_circularray_empty_value(TypeSpec ts);
-Value *make_circularray_initializer_value(TypeSpec ts);
-Value *make_rbtree_empty_value(TypeSpec ts);
-Value *make_rbtree_reserved_value(TypeSpec ts);
-Value *make_unicode_character_value();
-Value *make_integer_definition_value();
-Value *make_enumeration_definition_value();
-Value *make_treenumeration_definition_value();
-Value *make_record_definition_value();
-Value *make_record_initializer_value(TypeMatch &match);
-Value *make_record_preinitializer_value(TypeSpec ts);
-Value *make_record_postinitializer_value(Value *v);
-Value *make_class_definition_value();
-Value *make_class_preinitializer_value(TypeSpec ts);
-Value *make_interface_definition_value();
-Value *make_implementation_definition_value();
-Value *make_cast_value(Value *v, TypeSpec ts);
-Value *make_equality_value(bool no, Value *v);
-Value *make_comparison_value(BitSetOp bs, Value *v);
-Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v);
-Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec arg_ts, TypeSpec arg_cast_ts, TypeSpec res_ts, std::string operation_name);
-Value *make_class_wrapper_initializer_value(Value *object, Value *value);
-
-DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
-Value *make_declaration_by_type(std::string name, TypeSpec ts, Scope *scope);
-
-
-#include "once.cpp"
-#include "builtin.h"
 #include "declarations/declaration.cpp"
-#include "unwind.cpp"
 #include "values/value.cpp"
+
 #include "builtin.cpp"
+#include "global_functions.cpp"
+#include "global_types.cpp"
 
 
 Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {

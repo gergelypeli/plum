@@ -225,11 +225,6 @@ public:
 };
 
 
-bool is_heap_type(Type *t) {
-    return dynamic_cast<HeapType *>(t);
-}
-
-
 class ArrayType: public HeapType {
 public:
     ArrayType(std::string name)

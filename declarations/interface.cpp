@@ -152,7 +152,7 @@ public:
     }
 
     virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *pivot) {
-        unprefix_value(pivot);
+        pivot = make_cast_value(pivot, get_typespec(pivot).begin() + 1);
             
         return inner_scope->lookup(n, pivot);
     }
@@ -162,47 +162,3 @@ public:
     }
 };
 
-
-bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts) {
-    ImplementationType *imp = dynamic_cast<ImplementationType *>(t);
-
-    if (imp) {
-        ifts = imp->get_interface_ts(match);
-        
-        if (ifts[0] == *target)
-            return true;
-    }
-
-    return false;
-}
-
-
-Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
-    if (!inner_scope)
-        return NULL;
-
-    for (auto &d : inner_scope->contents) {
-        ImplementationType *imp = dynamic_cast<ImplementationType *>(d.get());
-
-        if (imp) {
-            ifts = imp->get_interface_ts(match);
-
-            // FIXME: check for proper type match!
-            if (ifts[0] == *target) {
-                // Direct implementation
-                return make_implementation_conversion_value(imp, orig, match);
-            }
-            else {
-                // Maybe indirect implementation
-                Scope *ifscope = ifts.get_inner_scope();
-                TypeMatch ifmatch = type_parameters_to_match(ifts);
-                Value *v = find_implementation(ifscope, ifmatch, target, orig, ifts);
-
-                if (v)
-                    return v;
-            }
-        }
-    }
-
-    return NULL;
-}
