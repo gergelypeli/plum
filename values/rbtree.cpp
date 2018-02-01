@@ -719,6 +719,43 @@ public:
 };
 
 
+class RbtreeInitializerValue: public ContainerInitializerValue {
+public:
+    RbtreeInitializerValue(TypeSpec ts)
+        :ContainerInitializerValue(ts) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        // This won't use the base class subcompile method, because that's inappropriate here.
+        Label alloc_label = x64->once->compile(compile_alloc_rbtree, elem_ts);
+        Label add_label = x64->once->compile(compile_add, elem_ts);
+        int stack_size = ::stack_size(elem_ts.measure(STACK));
+    
+        x64->op(MOVQ, RAX, elems.size());
+        x64->op(CALL, alloc_label);
+        //x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), elems.size());
+        x64->op(PUSHQ, RAX);
+        
+        for (auto &elem : elems) {
+            elem->compile_and_store(x64, Storage(STACK));
+
+            x64->op(MOVQ, RDI, RSP);  // save key address for stack usage
+            x64->op(MOVQ, RSI, Address(RSP, stack_size));  // Rbtree without incref
+            x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
+
+            x64->op(CALL, add_label);
+
+            x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
+            x64->op(ANDQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken root
+        
+            elem_ts.store(Storage(STACK), Storage(), x64);
+        }
+        
+        return Storage(STACK);
+    }
+};
+
+
 class RbtreeLengthValue: public GenericValue {
 public:
     Register reg;

@@ -55,6 +55,7 @@ Value *make_circularray_empty_value(TypeSpec ts);
 Value *make_circularray_initializer_value(TypeSpec ts);
 Value *make_rbtree_empty_value(TypeSpec ts);
 Value *make_rbtree_reserved_value(TypeSpec ts);
+Value *make_rbtree_initializer_value(TypeSpec ts);
 Value *make_unicode_character_value();
 Value *make_integer_definition_value();
 Value *make_enumeration_definition_value();

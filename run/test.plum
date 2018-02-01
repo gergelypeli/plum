@@ -419,9 +419,9 @@ start? :Function as:
     :if ! rb has "A" then:
         prints("Rb has no A, good")
 
-    st? String Set `empty
-    st add "A"
-    st add "B"
+    st? String Set { "A", "B" }
+    st add "C"
+    st add "D"
     
     :for st elements_by_age each: e? do:
         prints("Set element: {e}" {})

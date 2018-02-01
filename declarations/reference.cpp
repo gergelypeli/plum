@@ -370,8 +370,8 @@ public:
             return make_rbtree_reserved_value(rts);
         else if (name == "null")
             return make_null_reference_value(rts);
-        //else if (name == "{}")
-        //    return make_array_initializer_value(rts);
+        else if (name == "{}")
+            return make_rbtree_initializer_value(rts);
 
         std::cerr << "No " << this->name << " initializer called " << name << "!\n";
         return NULL;

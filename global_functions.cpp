@@ -162,6 +162,11 @@ Value *make_rbtree_reserved_value(TypeSpec ts) {
 }
 
 
+Value *make_rbtree_initializer_value(TypeSpec ts) {
+    return new RbtreeInitializerValue(ts);
+}
+
+
 Value *make_unicode_character_value() {
     return new UnicodeCharacterValue();
 }
