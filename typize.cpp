@@ -35,7 +35,7 @@ class PartialVariableValue;
 
 #include "global_types.h"
 #include "global_functions.h"
-#include "builtin.h"
+#include "builtins.h"
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
@@ -44,7 +44,7 @@ Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, Ty
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
 
-#include "builtin.cpp"
+#include "builtins.cpp"
 #include "global_functions.cpp"
 #include "global_types.cpp"
 
