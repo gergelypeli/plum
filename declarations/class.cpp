@@ -24,7 +24,7 @@ public:
         std::cerr << "Class " << name << " has " << member_variables.size() << " member variables.\n";
     }
 
-    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case MEMORY:
             return inner_scope->get_size(tsi);
@@ -103,8 +103,8 @@ public:
         TypeSpec cts = { reference_type, this };
         is->set_meta_scope(class_metatype->get_inner_scope(cts.begin()));
 
-        int vt_offset = is->reserve(CLASS_HEADER_SIZE);  // VT pointer
-        if (vt_offset != CLASS_VT_OFFSET)  // sanity check
+        Allocation vt_offset = is->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer
+        if (vt_offset.bytes != CLASS_VT_OFFSET)  // sanity check
             throw INTERNAL_ERROR;
         
         return is;

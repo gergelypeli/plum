@@ -6,7 +6,7 @@ TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
 
 int container_elem_size(TypeSpec elem_ts) {
     // Note: this is like array and circularray, but unlike rbtree!
-    return ::elem_size(elem_ts.measure(MEMORY));
+    return ::elem_size(elem_ts.measure(MEMORY).concretize());
 }
 
 

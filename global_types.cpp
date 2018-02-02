@@ -84,7 +84,7 @@ TypeSpec TypeSpec::varvalue() {
 }
 
 
-unsigned TypeSpec::measure(StorageWhere where) {
+Allocation TypeSpec::measure(StorageWhere where) {
     TypeSpecIter tsi(begin());
     return (*tsi)->measure(tsi, where);
 }
@@ -277,4 +277,54 @@ void Unwind::initiate(Declaration *last, X64 *x64) {
     }
     
     throw INTERNAL_ERROR;
+}
+
+
+// Allocation
+
+Allocation::Allocation(int b, int c1, int c2, int c3) {
+    bytes = b;
+    count1 = c1;
+    count2 = c2;
+    count3 = c3;
+}
+
+
+int Allocation::concretize() {
+    if (count1 || count2 || count3)
+        throw INTERNAL_ERROR;
+    else
+        return bytes;
+}
+
+
+int Allocation::concretize(TypeSpecIter tsi) {
+    int concrete_size = bytes;
+    TypeMatch match = type_parameters_to_match(tsi);
+    
+    if (count1)
+        concrete_size += count1 * stack_size(match[1].measure(MEMORY).concretize());
+        
+    if (count2)
+        concrete_size += count2 * stack_size(match[2].measure(MEMORY).concretize());
+        
+    if (count3)
+        concrete_size += count3 * stack_size(match[3].measure(MEMORY).concretize());
+    
+    return concrete_size;
+}
+
+
+Allocation stack_size(Allocation a) {
+    return Allocation(stack_size(a.bytes), a.count1, a.count2, a.count3);
+}
+
+
+std::ostream &operator<<(std::ostream &os, const Allocation &a) {
+    if (a.count1 || a.count2 || a.count3)
+        os << "A(" << a.bytes << "," << a.count1 << "," << a.count2 << "," << a.count3 << ")";
+    else
+        os << "A(" << a.bytes << ")";
+        
+    return os;
 }

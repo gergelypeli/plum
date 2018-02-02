@@ -12,12 +12,12 @@ public:
         is_unsigned = iu;
     }
     
-    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case STACK:
-            return stack_size(size);
+            return stack_size(Allocation(size));
         case MEMORY:
-            return size;
+            return Allocation(size);
         default:
             return Type::measure(tsi, where);
         }

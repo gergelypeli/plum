@@ -1,6 +1,6 @@
 
 int circularray_elem_size(TypeSpec elem_ts) {
-    return ::elem_size(elem_ts.measure(MEMORY));
+    return ::elem_size(elem_ts.measure(MEMORY).concretize());
 }
 
 
@@ -329,7 +329,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         int elem_size = circularray_elem_size(elem_ts);
-        int item_stack_size = ts.measure(STACK);
+        int item_stack_size = ts.measure(STACK).concretize();
 
         Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
         

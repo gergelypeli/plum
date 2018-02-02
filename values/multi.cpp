@@ -180,7 +180,7 @@ public:
         for (auto &right_ts : right_tss) {
             StorageWhere where = right_ts.where(true);
             right_wheres.push_back(where);
-            int size = right_ts.measure(where);
+            int size = right_ts.measure(where).concretize();
             right_sizes.push_back(size);
             right_total += size;
         }
@@ -192,7 +192,7 @@ public:
         for (auto &left_ts : left_tss) {
             StorageWhere where = left_ts.where(true);
             left_wheres.push_back(where);
-            int size = left_ts.measure(where);
+            int size = left_ts.measure(where).concretize();
             left_sizes.push_back(size);
             left_total += size;
         }

@@ -54,14 +54,14 @@ public:
 class Variable: public Identifier {
 public:
     TypeSpec var_ts;
-    int offset;
+    Allocation offset;
     int virtual_index;
     bool xxx_is_allocated;
     StorageWhere where;
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts)
         :Identifier(name, pts) {
-        offset = 0;
+        //offset = 0;
         virtual_index = -1;
         var_ts = vts;
         
@@ -89,6 +89,7 @@ public:
             throw INTERNAL_ERROR;
             
         offset = outer_scope->reserve(var_ts.measure(where));
+        std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
 
         if (var_ts[0] == lvalue_type && var_ts[1] == role_type) {
             virtual_index = outer_scope->virtual_reserve(var_ts.get_virtual_table());
@@ -98,7 +99,7 @@ public:
         //std::cerr << "Variable " << name << " offset is " << offset << "\n";
     }
     
-    virtual Storage get_storage(Storage s) {
+    virtual Storage get_storage(TypeSpecIter tsi, Storage s) {
         if (!xxx_is_allocated)
             throw INTERNAL_ERROR;
 
@@ -109,51 +110,57 @@ public:
             throw INTERNAL_ERROR;  // all variable containers must use MEMORY
             
         //std::cerr << "Variable " << name << " offset is now " << offset << "\n";
-        return Storage(where, s.address + offset);
+        return Storage(where, s.address + offset.concretize(tsi));
     }
     
     virtual void finalize(X64 *x64) {
+        // This method is only called on local variables, and it's an overload,
+        // so it can't get tsi, but must use a dummy
         Identifier::finalize(x64);  // Place label
         //std::cerr << "Finalizing variable " << name << ".\n";
         
-        // This method is only called on local variables
         Storage fn_storage(MEMORY, Address(RBP, 0));
-        var_ts.destroy(get_storage(fn_storage), x64);
+        var_ts.destroy(get_storage(VOID_TS.begin(), fn_storage), x64);
     }
     
     virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         // TODO: this is a bit complicated
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         TypeSpec ts = typesubst(var_ts, match);
-        ts.create(s.where == NOWHERE ? s : s + offset, t + offset, x64);
+        int o = offset.concretize(tsi);
+        ts.create(s.where == NOWHERE ? s : s + o, t + o, x64);
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
         // TODO: this is a bit complicated
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         TypeSpec ts = typesubst(var_ts, match);
-        ts.store(s + offset, t + offset, x64);
+        int o = offset.concretize(tsi);
+        ts.store(s + o, t + o, x64);
     }
 
     virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
         // TODO: this is a bit complicated
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         TypeSpec ts = typesubst(var_ts, match);
-        ts.destroy(s + offset, x64);
+        int o = offset.concretize(tsi);
+        ts.destroy(s + o, x64);
     }
     
     virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
         // TODO: this is a bit complicated
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         TypeSpec ts = typesubst(var_ts, match);
-        return ts.boolval(s + offset, x64, probe);
+        int o = offset.concretize(tsi);
+        return ts.boolval(s + o, x64, probe);
     }
 
     virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         // TODO: this is a bit complicated
         TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         TypeSpec ts = typesubst(var_ts, match);
-        ts.compare(s + offset, t + offset, x64, less, greater);
+        int o = offset.concretize(tsi);
+        ts.compare(s + o, t + o, x64, less, greater);
     }
 };
 

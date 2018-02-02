@@ -334,7 +334,8 @@ public:
         if (var) {
             Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
             Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
-            Storage t = var->get_storage(fn_storage);
+            TypeSpecIter tsi = VOID_TS.begin();  // TODO: not allowing template functions now
+            Storage t = var->get_storage(tsi, fn_storage);
 
             // Use the value to initialize the variable, then return the variable
             var->var_ts.create(s, t, x64);
@@ -436,7 +437,8 @@ public:
             Register reg = (Regs::all() & ~t.regs()).get_any();
         
             x64->op(MOVQ, reg, t.address);
-            t = member_var->get_storage(Storage(MEMORY, Address(reg, 0)));
+            TypeSpecIter tsi = VOID_TS.begin();  // No parametric type initializers now
+            t = member_var->get_storage(tsi, Storage(MEMORY, Address(reg, 0)));
         }
         else if (partial->ts[1] == lvalue_type) {
             ;

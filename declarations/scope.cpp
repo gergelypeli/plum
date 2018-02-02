@@ -3,14 +3,14 @@
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
-    unsigned size;
+    Allocation size;
     bool is_allocated;  // for sanity checks
     std::vector<Function *> virtual_table;
     bool virtual_scope;
     
     Scope()
         :Declaration() {
-        size = 0;
+        size = Allocation { 0, 0, 0, 0 };
         is_allocated = false;
         virtual_scope = false;
     }
@@ -40,21 +40,7 @@ public:
         if (!is_allocated)
             throw INTERNAL_ERROR;
             
-        unsigned concrete_size = size % SAME_SIZE;
-        
-        if (size >= SAME_SIZE) {
-            tsi++;
-            concrete_size += (size / SAME_SIZE) * elem_size(TypeSpec(tsi).measure(MEMORY));
-        }
-        
-        return concrete_size;
-    }
-    
-    virtual Marker mark() {
-        Marker marker;
-        marker.scope = this;
-        marker.last = contents.size() ? contents.back().get() : NULL;
-        return marker;
+        return size.concretize(tsi);
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
@@ -94,7 +80,7 @@ public:
         is_allocated = true;
     }
 
-    virtual int reserve(unsigned size) {
+    virtual Allocation reserve(Allocation size) {
         throw INTERNAL_ERROR;
     }
 
@@ -184,14 +170,17 @@ public:
         return value;
     }
     
-    virtual int reserve(unsigned s) {
+    virtual Allocation reserve(Allocation s) {
         // Variables allocate nonzero bytes
-        unsigned ss = stack_size(s);  // Simple strategy
-        size += ss;
-    
+        Allocation pos = size;
+        
+        size.bytes += stack_size(s.bytes);  // Simple strategy
+        size.count1 += s.count1;
+        size.count2 += s.count2;
+        size.count3 += s.count3;
         //std::cerr << "DataScope is now " << size << " bytes.\n";
     
-        return size - ss;
+        return pos;
     }
 
     virtual TypeSpec variable_type_hint(TypeSpec ts) {
@@ -212,7 +201,7 @@ public:
 
 class CodeScope: public Scope {
 public:
-    int offset;
+    Allocation offset;
     bool contents_finalized;  // for sanity check
     bool is_taken;  // too
     
@@ -231,23 +220,25 @@ public:
     }
     
     virtual void allocate() {
-        offset = outer_scope->reserve(0);
+        offset = outer_scope->reserve(Allocation { 0, 0, 0, 0 });
         
         for (auto &d : contents)
             if (!d->is_transient())
                 d->allocate();
                 
-        size = stack_size(size);
-        unsigned min_size = size;
-        unsigned max_size = size;
+        size.bytes = stack_size(size.bytes);
+        Allocation min_size = size;
+        Allocation max_size = size;
 
         for (auto &d : contents)
             if (d->is_transient()) {
                 d->allocate();
                 
-                if (size > max_size)
-                    max_size = size;
-                    
+                max_size.bytes = std::max(max_size.bytes, size.bytes);
+                max_size.count1 = std::max(max_size.count1, size.count1);
+                max_size.count2 = std::max(max_size.count2, size.count2);
+                max_size.count3 = std::max(max_size.count3, size.count3);
+                
                 size = min_size;
             }
         
@@ -256,11 +247,18 @@ public:
         is_allocated = true;
     }
 
-    virtual int reserve(unsigned s) {
-        unsigned ss = stack_size(s);  // Simple strategy
-        size += ss;
+    virtual Allocation reserve(Allocation s) {
+        size.bytes += stack_size(s.bytes);  // Simple strategy
+        size.count1 += s.count1;
+        size.count2 += s.count2;
+        size.count3 += s.count3;
         
-        return offset - size;
+        return Allocation {
+            offset.bytes - size.bytes,
+            offset.count1 - size.count1,
+            offset.count2 - size.count2,
+            offset.count3 - size.count3
+        };
     }
     
     virtual bool is_pure() {
@@ -400,12 +398,14 @@ public:
         is_allocated = true;
     }
 
-    virtual int reserve(unsigned s) {
-        // Each argument must be rounded up separately
-        unsigned ss = stack_size(s);
-        //std::cerr << "Reserving " << ss << " bytes for an argument.\n";
-        unsigned offset = size;
-        size += ss;
+    virtual Allocation reserve(Allocation s) {
+        // Upwards, because we allocate backwards
+        Allocation offset = size;
+        size.bytes += stack_size(s.bytes);  // Each argument must be rounded up separately
+        size.count1 += s.count1;
+        size.count2 += s.count2;
+        size.count3 += s.count3;
+        
         //std::cerr << "Now size is " << size << " bytes.\n";
         return offset;
     }
@@ -497,13 +497,17 @@ public:
         return NULL;
     }
     
-    virtual int reserve(unsigned s) {
-        size += s;
-        return -size;
+    virtual Allocation reserve(Allocation s) {
+        size.bytes += stack_size(s.bytes);
+        size.count1 += s.count1;
+        size.count2 += s.count2;
+        size.count3 += s.count3;
+        
+        return Allocation { -size.bytes, -size.count1, -size.count2, -size.count3 };
     }
     
     virtual void allocate() {
-        head_scope->reserve(ADDRESS_SIZE + ADDRESS_SIZE);
+        head_scope->reserve(Allocation { ADDRESS_SIZE + ADDRESS_SIZE, 0, 0, 0 });
         head_scope->allocate();
 
         self_scope->reserve(head_scope->size);
@@ -514,14 +518,18 @@ public:
 
         //std::cerr << "Function head is " << head_scope->size - 16 << "bytes, self is " << self_scope->size - head_scope->size << " bytes, result is " << result_scope->size - self_scope->size << " bytes.\n";
 
-        body_scope->reserve(INTEGER_SIZE);  // Reserve [RBP - 8] for local exceptions
+        // Reserve [RBP - 8] for local exceptions
+        body_scope->reserve(Allocation { INTEGER_SIZE, 0, 0, 0 });
         body_scope->allocate();
         
         is_allocated = true;
     }
     
     virtual unsigned get_frame_size() {
-        return size;
+        if (size.count1 || size.count2 || size.count3)
+            throw INTERNAL_ERROR;
+            
+        return size.bytes;
     }
     
     virtual FunctionScope *get_function_scope() {

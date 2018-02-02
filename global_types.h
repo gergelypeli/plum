@@ -1,11 +1,14 @@
 
+struct Allocation;
+
+
 class TypeSpec: public std::vector<Type *> {
 public:
     TypeSpec();
     TypeSpec(iterator tsi);
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
     
-    unsigned measure(StorageWhere where);
+    Allocation measure(StorageWhere where);
     std::vector<Function *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
@@ -77,3 +80,20 @@ struct ArgInfo {
 };
 
 typedef std::vector<ArgInfo> ArgInfos;
+
+
+
+struct Allocation {
+    int bytes;
+    int count1;
+    int count2;
+    int count3;
+    
+    Allocation(int b = 0, int c1 = 0, int c2 = 0, int c3 = 0);
+    int concretize(TypeSpecIter tsi);
+    int concretize();
+};
+
+Allocation stack_size(Allocation a);
+
+std::ostream &operator<<(std::ostream &os, const Allocation &a);

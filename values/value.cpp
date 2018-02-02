@@ -249,6 +249,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Storage s;
+        TypeSpecIter tsi;
         
         if (pivot) {
             s = pivot->compile(x64);
@@ -261,11 +262,15 @@ public:
                 x64->decref(reg);
                 s = Storage(MEMORY, Address(reg, 0));
             }
+            
+            tsi = pivot->ts.begin();
         }
-        else
+        else {
             s = Storage(MEMORY, Address(RBP, 0));
+            tsi = VOID_TS.begin();
+        }
 
-        Storage t = variable->get_storage(s);
+        Storage t = variable->get_storage(tsi, s);
         
         if (t.where == ALIAS) {
             x64->op(MOVQ, reg, t.address);
@@ -332,6 +337,7 @@ public:
     virtual Storage compile(X64 *x64) {
         // Store a VT pointer and a data pointer onto the stack
         Storage s;
+        TypeSpecIter tsi;
         
         if (pivot) {
             // FIXME: this seems to be bogus, this is the static type of the pivot,
@@ -344,12 +350,13 @@ public:
             x64->op(PUSHQ, RBX);
             
             s = pivot->compile(x64);
+            tsi = pivot->ts.begin();
         }
         else
             throw INTERNAL_ERROR;  // TODO: allow function Role-s?
             //s = Storage(MEMORY, Address(RBP, 0));
         
-        Storage t = variable->get_storage(s);
+        Storage t = variable->get_storage(tsi, s);
         variable->var_ts.store(t, Storage(ALISTACK), x64);
         
         return Storage(STACK);

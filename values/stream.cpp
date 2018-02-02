@@ -216,9 +216,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     scope->add(code_scope);
     //scope = s;
     
-    //Marker marker = scope->mark();
     CodeBlockValue *block = new CodeBlockValue(NULL);
-    //block->set_marker(marker);
     
     DeclarationValue *dv = make_declaration_by_value("<interpolated>", new StringBufferValue(100), code_scope);
     Variable *interpolated_var = dv->get_var();

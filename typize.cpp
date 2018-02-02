@@ -6,7 +6,7 @@ const long RETURN_EXCEPTION = -1;
 const long DONE_EXCEPTION = 1;
 
 // Used to simulate size polynoms
-const unsigned SAME_SIZE = 65536;
+//const unsigned SAME_SIZE = 65536;
 
 class Declaration;
 class Variable;
@@ -149,7 +149,6 @@ Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, Ty
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     Value *value = NULL;
-    //Marker marker = scope->mark();
 
     if (!expr)
         throw INTERNAL_ERROR;

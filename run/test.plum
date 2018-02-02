@@ -139,7 +139,7 @@ start? :Function as:
     c? Integer
     c = Integer :if a == b then: 100 else: 200
     prints("This should be 200: {c}" {})
-    
+
     d? 6u8
     d += 7u8
     d = d * d
@@ -150,7 +150,7 @@ start? :Function as:
 
     s? "Szia!"
     prints(s)
-    
+
     #c = 4
     #printu8(s[c])
     

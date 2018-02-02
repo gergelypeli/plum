@@ -19,10 +19,10 @@ public:
         std::cerr << "Interface " << name << " has " << member_functions.size() << " member functions.\n";
     }
 
-    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case MEMORY:
-            return 0;
+            return Allocation();
         default:
             return Type::measure(tsi, where);
         }
@@ -106,10 +106,10 @@ public:
     }
 
 
-    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case MEMORY:
-            return 0;
+            return Allocation();
         default:
             return Type::measure(tsi, where);
         }

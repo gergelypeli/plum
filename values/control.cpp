@@ -243,7 +243,7 @@ public:
     virtual Storage get_yield_storage() {
         if (yield_var) {
             Storage fn_storage(MEMORY, Address(RBP, 0));
-            return yield_var->get_storage(fn_storage);
+            return yield_var->get_storage(VOID_TS.begin(), fn_storage);
         }
         else
             return Storage();
@@ -432,7 +432,7 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage is = iterator->compile(x64);
         Storage fn_storage(MEMORY, Address(RBP, 0));
-        Storage var_storage = iterator_var->get_storage(fn_storage);
+        Storage var_storage = iterator_var->get_storage(VOID_TS.begin(), fn_storage);
         iterator->ts.create(is, var_storage, x64);
         
         Storage es = each->compile(x64);
@@ -531,7 +531,7 @@ public:
         Storage vs = value->compile(x64);
         
         Storage fn_storage(MEMORY, Address(RBP, 0));
-        Storage switch_storage = switch_var->get_storage(fn_storage);
+        Storage switch_storage = switch_var->get_storage(VOID_TS.begin(), fn_storage);
         value->ts.create(vs, switch_storage, x64);
         
         x64->unwind->push(this);
@@ -807,7 +807,7 @@ public:
         // User exception, prepare for handling
         if (switch_var) {
             Storage fn_storage(MEMORY, Address(RBP, 0));
-            Storage switch_storage = switch_var->get_storage(fn_storage);
+            Storage switch_storage = switch_var->get_storage(VOID_TS.begin(), fn_storage);
             x64->op(MOVB, BL, EXCEPTION_ADDRESS);
             x64->op(MOVB, switch_storage.address, BL);
         }
@@ -952,7 +952,7 @@ public:
             Storage s = value->compile(x64);
 
             Storage fn_storage(MEMORY, Address(RBP, 0));
-            Storage var_storage = eval_scope->get_yield_var()->get_storage(fn_storage);
+            Storage var_storage = eval_scope->get_yield_var()->get_storage(VOID_TS.begin(), fn_storage);
             value->ts.create(s, var_storage, x64);
         }
         

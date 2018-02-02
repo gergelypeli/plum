@@ -5,12 +5,12 @@ public:
         :Type(name, 1) {
     }
     
-    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case STACK:
-            return REFERENCE_SIZE;
+            return Allocation(REFERENCE_SIZE);
         case MEMORY:
-            return REFERENCE_SIZE;
+            return Allocation(REFERENCE_SIZE);
         default:
             return Type::measure(tsi, where);
         }
@@ -218,7 +218,7 @@ public:
         :Type(name, pc) {
     }
 
-    virtual unsigned measure(TypeSpecIter tsi, StorageWhere where) {
+    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
         std::cerr << "This is probably an error, shouldn't measure a heap type!\n";
         throw INTERNAL_ERROR;
     }
@@ -252,7 +252,7 @@ public:
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         TypeSpec elem_ts = ts.unprefix(array_type).varvalue();
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY).concretize());
         Label start, end, loop;
 
         x64->code_label_local(label, "x_array_finalizer");
@@ -308,7 +308,7 @@ public:
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         TypeSpec elem_ts = ts.unprefix(circularray_type).varvalue();
-        int elem_size = ::elem_size(elem_ts.measure(MEMORY));
+        int elem_size = ::elem_size(elem_ts.measure(MEMORY).concretize());
         Label start, end, loop, ok, ok1;
     
         x64->code_label_local(label, "x_circularray_finalizer");

@@ -424,7 +424,7 @@ public:
 
         arg_storages.push_back(t);  // For unwinding
         
-        return arg_ts.measure(where);
+        return arg_ts.measure(where).concretize();
     }
 
     virtual void pop_arg(TypeSpec arg_ts, X64 *x64) {
@@ -485,7 +485,7 @@ public:
         
             if (res_where == MEMORY) {
                 // Must skip some place for uninitialized data
-                int size = res_ts.measure(STACK);
+                int size = res_ts.measure(STACK).concretize();
                 x64->op(SUBQ, RSP, size);
                 res_total += size;
             }
@@ -637,7 +637,7 @@ public:
         x64->unwind->push(this);
         
         for (unsigned i = 0; i < values.size(); i++) {
-            Storage var_storage = result_vars[i]->get_storage(fn_storage);
+            Storage var_storage = result_vars[i]->get_storage(VOID_TS.begin(), fn_storage);
             var_storages.push_back(var_storage);
             TypeSpec var_ts = result_vars[i]->var_ts;
             
