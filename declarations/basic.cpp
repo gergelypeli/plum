@@ -15,7 +15,7 @@ public:
     virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
         switch (where) {
         case STACK:
-            return stack_size(Allocation(size));
+            return Allocation(stack_size(size));
         case MEMORY:
             return Allocation(size);
         default:

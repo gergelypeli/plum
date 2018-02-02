@@ -112,6 +112,11 @@ public:
         //std::cerr << "Variable " << name << " offset is now " << offset << "\n";
         return Storage(where, s.address + offset.concretize(tsi));
     }
+
+    virtual Storage get_local_storage() {
+        // Without pivot as a function local variable
+        return get_storage(VOID_TS.begin(), Storage(MEMORY, Address(RBP, 0)));
+    }
     
     virtual void finalize(X64 *x64) {
         // This method is only called on local variables, and it's an overload,
@@ -119,8 +124,7 @@ public:
         Identifier::finalize(x64);  // Place label
         //std::cerr << "Finalizing variable " << name << ".\n";
         
-        Storage fn_storage(MEMORY, Address(RBP, 0));
-        var_ts.destroy(get_storage(VOID_TS.begin(), fn_storage), x64);
+        var_ts.destroy(get_local_storage(), x64);
     }
     
     virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {

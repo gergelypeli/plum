@@ -629,15 +629,13 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Storage fn_storage(MEMORY, Address(RBP, 0));
-
         // Since we store each result in a variable, upon an exception we must
         // destroy the already set ones before unwinding!
         
         x64->unwind->push(this);
         
         for (unsigned i = 0; i < values.size(); i++) {
-            Storage var_storage = result_vars[i]->get_storage(VOID_TS.begin(), fn_storage);
+            Storage var_storage = result_vars[i]->get_local_storage();
             var_storages.push_back(var_storage);
             TypeSpec var_ts = result_vars[i]->var_ts;
             

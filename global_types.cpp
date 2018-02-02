@@ -303,21 +303,21 @@ int Allocation::concretize(TypeSpecIter tsi) {
     TypeMatch match = type_parameters_to_match(tsi);
     
     if (count1)
-        concrete_size += count1 * stack_size(match[1].measure(MEMORY).concretize());
+        concrete_size += count1 * match[1].measure(STACK).concretize();
         
     if (count2)
-        concrete_size += count2 * stack_size(match[2].measure(MEMORY).concretize());
+        concrete_size += count2 * match[2].measure(STACK).concretize();
         
     if (count3)
-        concrete_size += count3 * stack_size(match[3].measure(MEMORY).concretize());
+        concrete_size += count3 * match[3].measure(STACK).concretize();
     
     return concrete_size;
 }
 
 
-Allocation stack_size(Allocation a) {
-    return Allocation(stack_size(a.bytes), a.count1, a.count2, a.count3);
-}
+//Allocation stack_size(Allocation a) {
+//    return Allocation(stack_size(a.bytes), a.count1, a.count2, a.count3);
+//}
 
 
 std::ostream &operator<<(std::ostream &os, const Allocation &a) {

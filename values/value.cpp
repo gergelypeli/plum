@@ -248,11 +248,10 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Storage s;
-        TypeSpecIter tsi;
+        Storage t;
         
         if (pivot) {
-            s = pivot->compile(x64);
+            Storage s = pivot->compile(x64);
             
             if (pivot->ts.rvalue()[0] == reference_type) {
                 // FIXME: technically we must borrow a reference here, or the container
@@ -263,15 +262,12 @@ public:
                 s = Storage(MEMORY, Address(reg, 0));
             }
             
-            tsi = pivot->ts.begin();
+            t = variable->get_storage(pivot->ts.begin(), s);
         }
         else {
-            s = Storage(MEMORY, Address(RBP, 0));
-            tsi = VOID_TS.begin();
+            t = variable->get_local_storage();
         }
 
-        Storage t = variable->get_storage(tsi, s);
-        
         if (t.where == ALIAS) {
             x64->op(MOVQ, reg, t.address);
             t = Storage(MEMORY, Address(reg, 0));
@@ -336,8 +332,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         // Store a VT pointer and a data pointer onto the stack
-        Storage s;
-        TypeSpecIter tsi;
+        Storage t;
         
         if (pivot) {
             // FIXME: this seems to be bogus, this is the static type of the pivot,
@@ -349,14 +344,13 @@ public:
             x64->op(ADDQ, RBX, vti * 4);  // virtual table stores 32-bit relative offsets
             x64->op(PUSHQ, RBX);
             
-            s = pivot->compile(x64);
-            tsi = pivot->ts.begin();
+            Storage s = pivot->compile(x64);
+            t = variable->get_storage(pivot->ts.begin(), s);
         }
         else
             throw INTERNAL_ERROR;  // TODO: allow function Role-s?
             //s = Storage(MEMORY, Address(RBP, 0));
         
-        Storage t = variable->get_storage(tsi, s);
         variable->var_ts.store(t, Storage(ALISTACK), x64);
         
         return Storage(STACK);

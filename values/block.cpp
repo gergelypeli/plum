@@ -333,9 +333,7 @@ public:
     virtual Storage compile(X64 *x64) {
         if (var) {
             Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
-            Storage fn_storage(MEMORY, Address(RBP, 0));  // this must be a local variable
-            TypeSpecIter tsi = VOID_TS.begin();  // TODO: not allowing template functions now
-            Storage t = var->get_storage(tsi, fn_storage);
+            Storage t = var->get_local_storage();
 
             // Use the value to initialize the variable, then return the variable
             var->var_ts.create(s, t, x64);
