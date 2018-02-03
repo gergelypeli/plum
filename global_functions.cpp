@@ -446,6 +446,12 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 
 
 bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
+    if (*s == reference_type && *t == reference_type) {
+        match[0].push_back(*t);
+        s++;
+        t++;
+    }
+
     if (*s == *t) {
         return match_type_parameters(s, t, match);
     }
@@ -463,63 +469,59 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         value = make_void_conversion_value(value);
         return true;
     }
-
-    if (*s == multi_type) {
-        std::vector<TypeSpec> tss;
-        
-        if (!unpack_value(value, tss))
-            throw INTERNAL_ERROR;
-        
-        TypeSpec ss = tss[0];
-        s = ss.begin();
-        //need_scalar_conversion = true;
-        // Not yet ok, keep on matching
-        std::cerr << "Trying unpacking to " << ss << ".\n";
-        // FIXME: we must keep a pointer to the current value, and if the conversion
-        // succeeds, then poke it to scalarize, as we can't insert scalarization anymore!
-        // For now, just disallow further conversions.
-        
-        if (*s == *t) {
-            if (!match_type_parameters(s, t, match))
-                return false;
-                
-            value = make_scalar_conversion_value(value);
-            return true;
-        }
-        else {
-            MATCHLOG std::cerr << "No match, multi for not exact scalar!\n";
-            return false;
-        }
-    }
     
     return match_regular_type(s, t, match, value);
 }
 
 
-bool match_reference_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
+bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
     // Allow any_type match references
+    
     if (*t == any_type) {
         if (*s == void_type) {
             MATCHLOG std::cerr << "No match, Void for Any!\n";
             return false;
         }
+        else if (*s == multi_type) {
+            MATCHLOG std::cerr << "No match, Multi for Any!\n";
+            return false;
+        }
         
         return match_type_parameters(s, t, match);
     }
-    else if (*s == reference_type && *t == reference_type) {
-        match[0].push_back(*t);
-        s++;
-        t++;
-    }
-    else if (*s == reference_type) {
-        s++;
-        // FIXME: what is this for?
+    
+    if (*t == multi_type) {
+        if (*s != multi_type) {
+            MATCHLOG std::cerr << "No match, scalar for Multi!\n";
+            return false;
+        }
         
-        //MATCHLOG std::cerr << "No match, reference mismatch!\n";
-        //return false;
+        // Match Multi to Multi
+        return match_special_type(s, t, match, value, strict);
     }
+    else {
+        if (*s == multi_type) {
+            // A Multi is being converted to something non-Multi.
+            // Since a Multi can never be in a pivot position, this value must be a plain
+            // argument, so if converting it fails, then it will be a fatal error. So
+            // it's OK to wrap it in a scalarization, because this is our only conversion chance.
+            std::vector<TypeSpec> tss;
+        
+            if (!unpack_value(value, tss))
+                throw INTERNAL_ERROR;
+        
+            TypeSpec ss = tss[0];
+            s = ss.begin();
+            MATCHLOG std::cerr << "Unpacking Multi to " << ss << ".\n";
+            value = make_scalar_conversion_value(value);
 
-    return match_special_type(s, t, match, value, strict);
+            // ss is a local variable, so call this in the scope
+            return match_special_type(s, t, match, value, strict);
+        }
+
+        // Match scalar to scalar
+        return match_special_type(s, t, match, value, strict);
+    }
 }
 
 
@@ -543,7 +545,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         if (*s == void_type || *t == void_type)
             throw INTERNAL_ERROR;
         
-        return match_reference_type(s, t, match, value, true);
+        return match_anymulti_type(s, t, match, value, true);
     }
     else if (*t == code_type) {  // evalue
         match[0].push_back(*t);
@@ -568,7 +570,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        if (!match_reference_type(s, t, match, value, false))
+        if (!match_anymulti_type(s, t, match, value, false))
             return false;
 
         value = make_code_scope_value(value, code_scope);
@@ -586,7 +588,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_reference_type(s, t, match, value, false);
+        return match_anymulti_type(s, t, match, value, false);
     }
     else {
         if (!value) {
@@ -598,7 +600,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_reference_type(s, t, match, value, false);
+        return match_anymulti_type(s, t, match, value, false);
     }
 }
 
