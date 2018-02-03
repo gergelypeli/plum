@@ -73,7 +73,7 @@ public:
     Register reg;
     
     ContainerLengthValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, INTEGER_TS, l) {
+        :GenericValue(NO_TS, INTEGER_TS, l) {
         reg = NOREG;
     }
 
@@ -163,7 +163,7 @@ public:
     TypeSpec elem_ts;
     
     ContainerEmptyValue(TypeSpec ts)
-        :GenericValue(VOID_TS, ts, NULL) {
+        :GenericValue(NO_TS, ts, NULL) {
         elem_ts = container_elem_ts(ts);
     }
 
@@ -308,7 +308,7 @@ public:
     TypeSpec elem_ts;
     
     ContainerPopValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, match[1].varvalue(), l) {
+        :GenericValue(NO_TS, match[1].varvalue(), l) {
         elem_ts = match[1].varvalue();
     }
 
@@ -354,7 +354,7 @@ public:
 class ContainerAutogrowValue: public GenericValue {
 public:
     ContainerAutogrowValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, l->ts, l) {
+        :GenericValue(NO_TS, l->ts, l) {
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -422,7 +422,7 @@ public:
     TypeSpec elem_ts;
     
     ContainerNextValue(TypeSpec ts, TypeSpec ets, Value *l, bool d)
-        :GenericValue(VOID_TS, ts, l) {
+        :GenericValue(NO_TS, ts, l) {
         is_down = d;
         elem_ts = ets;
     }

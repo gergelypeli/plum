@@ -385,212 +385,11 @@ Value *rolematch(Value *v, TypeSpec s, TypeSpecIter target, TypeSpec &ifts) {
 }
 
 
-// Tries to convert value to match tt. The value argument may be overwritten with the
-// converted one. The match argument just returns some information gained during
-// the conversion.
-// There's a bit of a mess around the Void type that probably won't be cleaned up.
-// When used in a pattern, it is interpreted as follows:
-//  * Void - accepts only NULL value. Not even Void.
-//  * Void Lvalue - just plain illegal.
-//  * Void Code - accepts everything, even Void and NULL.
-// No other type accepts Void, not even Any.
+// *******
 
-bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_scope) {
 #define MATCHLOG if (false)
 
-    //if (tt == VOID_TS)
-    //    throw INTERNAL_ERROR;  // FIXME: to be removed after debugging, needed for :repeat
-        
-    if (tt == NO_TS)
-        throw INTERNAL_ERROR;  // Mustn't be called with NO_TS
-
-    // This may overwrite an older match, but that's OK, we just need to
-    // preserve the type parameters.
-    if (match.size() > 0)
-        match[0].clear();
-    else
-        match.push_back(TypeSpec());
-
-    tt = typesubst(tt, match);
-
-    MATCHLOG std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
-
-    // Checking NULL value
-    if (!value) {
-        if (tt[0] == void_type) {
-            MATCHLOG std::cerr << "Matched nothing for Void.\n";
-            match[0] = tt;
-            return true;
-        }
-        else if (tt[0] == code_type && tt[1] == void_type) {
-            MATCHLOG std::cerr << "Matched nothing for Void Code.\n";
-            match[0] = tt;
-            value = make_code_scope_value(NULL, code_scope);
-            return true;
-        }
-        else if (tt[0] == ovalue_type) {
-            MATCHLOG std::cerr << "Matched nothing for Ovalue.\n";
-            match[0] == VOID_TS;
-            return true;
-        }
-        else {
-            MATCHLOG std::cerr << "No match, nothing for something.\n";
-            return false;
-        }
-    }
-    
-    //if (tt[0] == void_type) {
-    //    MATCHLOG std::cerr << "No match, something for Void.\n";
-    //    return false;
-    //}
-    
-    TypeSpec ss = get_typespec(value);
-    
-    // Checking Void value
-    if (ss[0] == void_type) {
-        if (tt[0] == void_type) {
-            MATCHLOG std::cerr << "Matched Void for Void.\n";
-            match[0] = tt;
-            return true;
-        }
-        else if (tt[0] == code_type && tt[1] == void_type) {
-            MATCHLOG std::cerr << "Matched Void for Void Code.\n";
-            match[0] = tt;
-            value = make_code_scope_value(value, code_scope);
-            return true;
-        }
-        else {
-            MATCHLOG std::cerr << "No match, Void for something.\n";
-            return false;
-        }
-    }
-
-    if (tt[0] == void_type) {
-        MATCHLOG std::cerr << "Matched something for Void.\n";
-        match[0] = tt;
-        value = make_void_conversion_value(value);
-        return true;
-    }
-
-    TypeSpecIter s(ss.begin());
-    TypeSpecIter t(tt.begin());
-    
-    bool strict = false;
-    bool need_code_conversion = false;
-    bool need_scalar_conversion = false;
-    bool need_boolean_conversion = false;
-
-    // Checking attribute templates
-    if (*t == lvalue_type) {
-        if (*s != lvalue_type) {
-            MATCHLOG std::cerr << "No match, lvalue expected!\n";
-            return false;
-        }
-        
-        strict = true;
-        match[0].push_back(*t);
-        s++;
-        t++;
-
-        if (*s == void_type || *t == void_type)
-            throw INTERNAL_ERROR;
-    }
-    else if (*t == code_type) {  // evalue
-        match[0].push_back(*t);
-        t++;
-
-        if (*t == void_type) {
-            match[0].push_back(*t);
-            MATCHLOG std::cerr << "Matched something for Void Code.\n";
-            value = make_void_conversion_value(value);
-            value = make_code_scope_value(value, code_scope);
-            return true;
-        }
-        
-        need_code_conversion = true;
-    }
-    else if (*t == ovalue_type) {
-        t++;
-    }
-    
-    // Drop unnecessary attribute
-    if (*s == lvalue_type || *s == ovalue_type) {
-        s++;
-    }
-
-    bool ok = false;
-
-    // Allow any_type match references
-    if (*t == any_type) {
-        ok = true;
-    }
-    
-    // Checking references
-    if (ok)
-        ;
-    else if (*s == reference_type && *t == reference_type) {
-        match[0].push_back(*t);
-        s++;
-        t++;
-    }
-    else if (*s == reference_type) {
-        s++;
-        //MATCHLOG std::cerr << "No match, reference mismatch!\n";
-        //return false;
-    }
-
-    // Checking main type
-    if (!ok && *t == any_type) {
-        ok = true;
-    }
-
-    if (!ok && *s == *t) {
-        ok = true;
-    }
-    
-    if (!ok && strict) {
-        // For conversion to lvalue, only an exact match was acceptable
-        MATCHLOG std::cerr << "No match, lvalue types differ!\n";
-        return false;
-    }
-
-    if (!ok && *s == multi_type) {
-        std::vector<TypeSpec> tss;
-        
-        if (!unpack_value(value, tss))
-            throw INTERNAL_ERROR;
-        
-        ss = tss[0];
-        s = ss.begin();
-        need_scalar_conversion = true;
-        // Not yet ok, keep on matching
-        std::cerr << "Trying unpacking to " << ss << ".\n";
-    }
-    
-    if (!ok && *t == boolean_type) {
-        //match[0].push_back(*t);
-        MATCHLOG std::cerr << "Matched as " << match[0] << ".\n";
-        //value = make_boolean_conversion_value(value);
-        //if (tt[0] == code_type)
-        //    value = make_code_scope_value(value);
-        //return true;
-        s = BOOLEAN_TS.begin();
-        ok = true;
-        need_boolean_conversion = true;
-    }
-    
-    if (!ok) {
-        TypeSpec ifts;
-        Value *role = rolematch(value, TypeSpec(s), t, ifts);
-        
-        if (role) {
-            value = role;
-            ss = ifts;
-            s = ss.begin();
-            ok = true;
-        }
-    }
-    
+bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
     unsigned counter = 1;
     
     while (counter--) {
@@ -614,23 +413,226 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
             t++;
         }
         else {
-            MATCHLOG std::cerr << "No match, types differ!\n";
+            MATCHLOG std::cerr << "No match, type parameters differ!\n";
             return false;
         }
     }
     
+    return true;
+}
+
+
+bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value) {
+    if (*t == boolean_type) {
+        match[0].push_back(*t);
+        MATCHLOG std::cerr << "Matched as " << match[0] << ".\n";
+        value = make_boolean_conversion_value(value);
+        return true;
+    }
+    
+    TypeSpec ifts;
+    Value *role = rolematch(value, TypeSpec(s), t, ifts);
+        
+    if (role) {
+        value = role;
+        TypeSpec ss = ifts;
+        s = ss.begin();
+        return match_type_parameters(s, t, match);
+    }
+    
+    MATCHLOG std::cerr << "No match, unconvertible types!\n";
+    return false;
+}
+
+
+bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
+    if (*s == *t) {
+        return match_type_parameters(s, t, match);
+    }
+    
+    if (strict) {
+        // For conversion to lvalue, only an exact match was acceptable
+        MATCHLOG std::cerr << "No match, lvalue types differ!\n";
+        return false;
+    }
+
+    if (*t == void_type) {
+        if (*s == void_type)
+            return true;
+            
+        value = make_void_conversion_value(value);
+        return true;
+    }
+
+    if (*s == multi_type) {
+        std::vector<TypeSpec> tss;
+        
+        if (!unpack_value(value, tss))
+            throw INTERNAL_ERROR;
+        
+        TypeSpec ss = tss[0];
+        s = ss.begin();
+        //need_scalar_conversion = true;
+        // Not yet ok, keep on matching
+        std::cerr << "Trying unpacking to " << ss << ".\n";
+        // FIXME: we must keep a pointer to the current value, and if the conversion
+        // succeeds, then poke it to scalarize, as we can't insert scalarization anymore!
+        // For now, just disallow further conversions.
+        
+        if (*s == *t) {
+            if (!match_type_parameters(s, t, match))
+                return false;
+                
+            value = make_scalar_conversion_value(value);
+            return true;
+        }
+        else {
+            MATCHLOG std::cerr << "No match, multi for not exact scalar!\n";
+            return false;
+        }
+    }
+    
+    return match_regular_type(s, t, match, value);
+}
+
+
+bool match_reference_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
+    // Allow any_type match references
+    if (*t == any_type) {
+        if (*s == void_type) {
+            MATCHLOG std::cerr << "No match, Void for Any!\n";
+            return false;
+        }
+        
+        return match_type_parameters(s, t, match);
+    }
+    else if (*s == reference_type && *t == reference_type) {
+        match[0].push_back(*t);
+        s++;
+        t++;
+    }
+    else if (*s == reference_type) {
+        s++;
+        // FIXME: what is this for?
+        
+        //MATCHLOG std::cerr << "No match, reference mismatch!\n";
+        //return false;
+    }
+
+    return match_special_type(s, t, match, value, strict);
+}
+
+
+bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, CodeScope *code_scope) {
+    // Checking attribute templates
+    
+    if (*t == lvalue_type) {
+        if (!value) {
+            MATCHLOG std::cerr << "No match, nothing for Lvalue!\n";
+            return false;
+        }
+        else if (*s != lvalue_type) {
+            MATCHLOG std::cerr << "No match, rvalue for Lvalue!\n";
+            return false;
+        }
+        
+        match[0].push_back(*t);
+        s++;
+        t++;
+
+        if (*s == void_type || *t == void_type)
+            throw INTERNAL_ERROR;
+        
+        return match_reference_type(s, t, match, value, true);
+    }
+    else if (*t == code_type) {  // evalue
+        match[0].push_back(*t);
+        t++;
+
+        if (!value) {
+            if (*t == void_type) {
+                MATCHLOG std::cerr << "Matched nothing for Void Code.\n";
+                match[0].push_back(void_type);
+                return true;
+            }
+            else {
+                MATCHLOG std::cerr << "No match, nothing for nonvoid Code!\n";
+                return false;
+            }
+        }
+
+        // value is non-NULL from here
+
+        // Drop unnecessary attribute
+        if (*s == lvalue_type || *s == ovalue_type) {
+            s++;
+        }
+
+        if (!match_reference_type(s, t, match, value, false))
+            return false;
+
+        value = make_code_scope_value(value, code_scope);
+        return true;
+    }
+    else if (*t == ovalue_type) {
+        if (!value) {
+            MATCHLOG std::cerr << "Matched nothing for Ovalue.\n";
+            return true;
+        }
+        
+        t++;
+        
+        if (*s == lvalue_type || *s == ovalue_type) {
+            s++;
+        }
+
+        return match_reference_type(s, t, match, value, false);
+    }
+    else {
+        if (!value) {
+            MATCHLOG std::cerr << "No match, nothing for something!\n";
+            return false;
+        }
+        
+        if (*s == lvalue_type || *s == ovalue_type) {
+            s++;
+        }
+
+        return match_reference_type(s, t, match, value, false);
+    }
+}
+
+// Tries to convert value to match tt. The value argument may be overwritten with the
+// converted one. The match argument just returns some information gained during
+// the conversion.
+// There's a bit of a mess around the Void type that probably won't be cleaned up.
+// When used in a pattern, it is interpreted as follows:
+//  * Void - accepts only NULL value. Not even Void.
+//  * Void Lvalue - just plain illegal.
+//  * Void Code - accepts everything, even Void and NULL.
+// No other type accepts Void, not even Any.
+
+bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_scope) {
+    if (tt == NO_TS)
+        throw INTERNAL_ERROR;  // Mustn't be called with NO_TS
+
+    MATCHLOG std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
+
+    if (match.size() != 0)
+        throw INTERNAL_ERROR;
+
+    match.push_back(NO_TS);
+    
+    TypeSpec ss = get_typespec(value);
+    TypeSpecIter s(ss.begin());
+    TypeSpecIter t(tt.begin());
+    
+    if (!match_attribute_type(s, t, match, value, code_scope))
+        return false;
+        
     MATCHLOG std::cerr << "Matched as " << match[0];
     MATCHLOG if (match.size() > 1) { std::cerr << ", parameters"; for (unsigned i = 1; i < match.size(); i++) std::cerr << " " << match[i]; }
     MATCHLOG std::cerr << ".\n";
 
-    if (need_scalar_conversion)
-        value = make_scalar_conversion_value(value);
-        
-    if (need_boolean_conversion)
-        value = make_boolean_conversion_value(value);
-
-    if (need_code_conversion)
-        value = make_code_scope_value(value, code_scope);
-        
     return true;
 }

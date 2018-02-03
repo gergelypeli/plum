@@ -673,7 +673,7 @@ public:
     TypeSpec elem_ts;
     
     RbtreeEmptyValue(TypeSpec ts)
-        :GenericValue(VOID_TS, ts, NULL) {
+        :GenericValue(NO_TS, ts, NULL) {
         elem_ts = container_elem_ts(ts);
     }
 
@@ -761,7 +761,7 @@ public:
     Register reg;
     
     RbtreeLengthValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, INTEGER_TS, l) {
+        :GenericValue(NO_TS, INTEGER_TS, l) {
         reg = NOREG;
     }
 
@@ -942,7 +942,7 @@ public:
     TypeSpec elem_ts;
 
     RbtreeNextElemByAgeValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, match[1].varvalue(), l) {
+        :GenericValue(NO_TS, match[1].varvalue(), l) {
         is_down = false;  // TODO: get as argument for backward iteration!
         elem_ts = match[1].varvalue();
     }
@@ -1017,7 +1017,7 @@ public:
     TypeSpec elem_ts;
 
     RbtreeNextElemByOrderValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, match[1].varvalue(), l) {
+        :GenericValue(NO_TS, match[1].varvalue(), l) {
         elem_ts = match[1].varvalue();
     }
 

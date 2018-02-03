@@ -2,7 +2,7 @@
 class SimpleRecordValue: public GenericValue {
 public:
     SimpleRecordValue(TypeSpec ret_ts, Value *pivot)
-        :GenericValue(VOID_TS, ret_ts, pivot) {
+        :GenericValue(NO_TS, ret_ts, pivot) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -19,7 +19,7 @@ public:
     Regs clob;
     
     CountupNextValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, INTEGER_TS, l) {
+        :GenericValue(NO_TS, INTEGER_TS, l) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

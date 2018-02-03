@@ -218,7 +218,7 @@ public:
     TypeSpec elem_ts;
     
     ArraySortValue(Value *l, TypeMatch &match)
-        :GenericValue(VOID_TS, VOID_TS, l) {
+        :GenericValue(NO_TS, VOID_TS, l) {
         elem_ts = match[1].varvalue();
     }
 

@@ -14,7 +14,12 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         ArgInfos x;
         
-        if (arg_ts != VOID_TS)
+        if (arg_ts == VOID_TS) {
+            std::cerr << "Void used as generic argument type, probably should be NO_TS!\n";
+            throw INTERNAL_ERROR;
+        }
+        
+        if (arg_ts != NO_TS)
             x.push_back({ "arg", &arg_ts, scope, &right });
             
         return check_arguments(args, kwargs, x);
@@ -61,7 +66,7 @@ public:
     }
     
     static TypeSpec op_arg_ts(OperationType o, TypeMatch &match) {
-        return is_unary(o) ? VOID_TS : match[0].rvalue();
+        return is_unary(o) ? NO_TS : match[0].rvalue();
     }
 
     static TypeSpec op_ret_ts(OperationType o, TypeMatch &match) {
