@@ -12,11 +12,11 @@ public:
         is_unsigned = iu;
     }
     
-    virtual Allocation measure(TypeSpecIter tsi) {
+    virtual Allocation measure(TypeMatch tm) {
         return Allocation(size);
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Only RBX is usable as scratch
         BinaryOp mov = MOVQ % os;
         
@@ -99,11 +99,11 @@ public:
             return;
         
         default:
-            Type::store(tsi, s, t, x64);
+            Type::store(tm, s, t, x64);
         }
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         BinaryOp mov = MOVQ % os;
         
         switch (s.where * t.where) {
@@ -142,14 +142,14 @@ public:
         }
     }
 
-    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         if (s.where == MEMORY)
             ;
         else
             throw INTERNAL_ERROR;
     }
 
-    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         // Only RBX is usable as scratch
         BinaryOp MOV = MOVQ % os;
         BinaryOp CMP = CMPQ % os;
@@ -223,11 +223,11 @@ public:
         }
     }
     
-    virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
         return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : REGISTER));
     }
 
-    virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
         // None of these cases destroy the original value, so they all pass for probing
         
         switch (s.where) {
@@ -258,8 +258,8 @@ public:
         :BasicType(n, s, iu) {
     }
     
-    DataScope *get_inner_scope(TypeSpecIter tsi) {
-        return integer_metatype->get_inner_scope(tsi);
+    DataScope *get_inner_scope(TypeMatch tm) {
+        return integer_metatype->get_inner_scope(tm);
     }
 };
 
@@ -271,11 +271,11 @@ public:
         make_inner_scope(TypeSpec { this });
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         if (name == "false")
-            return make_basic_value(TypeSpec(tsi), 0);
+            return make_basic_value(tm[0], 0);
         else if (name == "true")
-            return make_basic_value(TypeSpec(tsi), 1);
+            return make_basic_value(tm[0], 1);
         else {
             std::cerr << "No Boolean initializer called " << name << "!\n";
             return NULL;
@@ -291,9 +291,9 @@ public:
         make_inner_scope(TypeSpec { this });
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         if (name == "zero")
-            return make_basic_value(TypeSpec(tsi), 0);
+            return make_basic_value(tm[0], 0);
         else if (name == "unicode")
             return make_unicode_character_value();
         else {
@@ -315,16 +315,16 @@ public:
         stringifications_label = sl;
     }
     
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
-                return make_basic_value(TypeSpec(tsi), i);
+                return make_basic_value(tm[0], i);
         
         return NULL;
     }
     
-    DataScope *get_inner_scope(TypeSpecIter tsi) {
-        return enumeration_metatype->get_inner_scope(tsi);
+    DataScope *get_inner_scope(TypeMatch tm) {
+        return enumeration_metatype->get_inner_scope(tm);
     }
 };
 
@@ -338,15 +338,15 @@ public:
         tails_label = tl;
     }
     
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
-                return make_basic_value(TypeSpec(tsi), i);
+                return make_basic_value(tm[0], i);
         
         return NULL;
     }
     
-    DataScope *get_inner_scope(TypeSpecIter tsi) {
-        return treenumeration_metatype->get_inner_scope(tsi);
+    DataScope *get_inner_scope(TypeMatch tm) {
+        return treenumeration_metatype->get_inner_scope(tm);
     }
 };

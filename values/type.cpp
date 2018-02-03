@@ -373,7 +373,7 @@ public:
 
         setup_inner(record_type, rts.lvalue());
         
-        inner_scope->set_meta_scope(record_metatype->get_inner_scope(rts.begin()));
+        inner_scope->set_meta_scope(record_metatype->get_inner_scope(rts.match()));
 
         defer_as(kwargs);
             

@@ -23,86 +23,86 @@ public:
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
     }
     
-    virtual Allocation measure(TypeSpecIter tsi) {
-        return inner_scope->get_size(tsi);
+    virtual Allocation measure(TypeMatch tm) {
+        return inner_scope->get_size(tm);
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        int stack_size = TypeSpec(tsi).measure_stack();
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        int stack_size = tm[0].measure_stack();
         
         switch (s.where * t.where) {
         //case REGISTER_STACK:  // for the sake of String, FIXME: check size and stuff!
         //    x64->op(PUSHQ, s.reg);
         //    return;
         case STACK_NOWHERE:
-            destroy(tsi, Storage(MEMORY, Address(RSP, 0)), x64);
+            destroy(tm, Storage(MEMORY, Address(RSP, 0)), x64);
             x64->op(ADDQ, RSP, stack_size);
             return;
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            store(tsi, Storage(MEMORY, Address(RSP, 0)), t, x64);
-            store(tsi, s, Storage(), x64);
+            store(tm, Storage(MEMORY, Address(RSP, 0)), t, x64);
+            store(tm, s, Storage(), x64);
             return;
         case MEMORY_NOWHERE:
             return;
         case MEMORY_STACK:
             x64->op(SUBQ, RSP, stack_size);
-            create(tsi, s, Storage(MEMORY, Address(RSP, 0)), x64);
+            create(tm, s, Storage(MEMORY, Address(RSP, 0)), x64);
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
-                var->store(tsi, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
+                var->store(tm, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
             return;
         default:
-            Type::store(tsi, s, t, x64);
+            Type::store(tm, s, t, x64);
         }
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        int stack_size = TypeSpec(tsi).measure_stack();
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        int stack_size = tm[0].measure_stack();
 
         switch (s.where * t.where) {
         case NOWHERE_STACK:
             x64->op(SUBQ, RSP, stack_size);
-            create(tsi, Storage(), Storage(MEMORY, Address(RSP, 0)), x64);
+            create(tm, Storage(), Storage(MEMORY, Address(RSP, 0)), x64);
             return;
         case NOWHERE_MEMORY:
             for (auto &var : member_variables)
-                var->create(tsi, Storage(), Storage(MEMORY, t.address), x64);
+                var->create(tm, Storage(), Storage(MEMORY, t.address), x64);
             return;
         //case REGISTER_MEMORY:  // for the sake of String, FIXME: check sizes
         //    x64->op(MOVQ, t.address, s.reg);
         //    return;
         case STACK_MEMORY:
-            create(tsi, Storage(MEMORY, Address(RSP, 0)), t, x64);
-            store(tsi, s, Storage(), x64);
+            create(tm, Storage(MEMORY, Address(RSP, 0)), t, x64);
+            store(tm, s, Storage(), x64);
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
-                var->create(tsi, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
+                var->create(tm, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
             return;
         default:
             throw INTERNAL_ERROR;
         }
     }
 
-    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
             for (auto &var : member_variables)  // FIXME: reverse!
-                var->destroy(tsi, Storage(MEMORY, s.address), x64);
+                var->destroy(tm, Storage(MEMORY, s.address), x64);
         }
         else
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
         return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : STACK));
     }
     
-    virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
         Address address;
-        int stack_size = TypeSpec(tsi).measure_stack();
+        int stack_size = tm[0].measure_stack();
         
         switch (s.where) {
         case STACK:
@@ -118,7 +118,7 @@ public:
         Label done;
         
         for (auto &var : member_variables) {
-            Storage t = var->boolval(tsi, Storage(MEMORY, address), x64, true);
+            Storage t = var->boolval(tm, Storage(MEMORY, address), x64, true);
             
             if (t.where == FLAGS && t.bitset == SETNE)
                 x64->op(JNE, done);
@@ -131,7 +131,7 @@ public:
         if (!probe) {
             x64->op(SETNE, BL);
             x64->op(PUSHQ, RBX);
-            destroy(tsi, Storage(MEMORY, Address(RSP, INTEGER_SIZE)), x64);
+            destroy(tm, Storage(MEMORY, Address(RSP, INTEGER_SIZE)), x64);
             x64->op(POPQ, RBX);
             x64->op(ADDQ, RSP, stack_size);
             x64->op(CMPB, BL, 0);
@@ -140,8 +140,8 @@ public:
         return Storage(FLAGS, SETNE);
     }
     
-    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        int stack_size = TypeSpec(tsi).measure_stack();
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+        int stack_size = tm[0].measure_stack();
 
         StorageWhereWhere stw = s.where * t.where;  // s and t may be overwritten
 
@@ -164,7 +164,7 @@ public:
             break;
         case MEMORY_MEMORY:
             for (auto &var : member_variables) 
-                var->compare(tsi, s, t, x64, less, greater);
+                var->compare(tm, s, t, x64, less, greater);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -173,7 +173,7 @@ public:
         Label xless, xgreater, xend, xclean;
 
         for (auto &var : member_variables) 
-            var->compare(tsi, s, t, x64, xless, xgreater);
+            var->compare(tm, s, t, x64, xless, xgreater);
             
         x64->op(LEARIP, RBX, xend);
         x64->op(JMP, xclean);
@@ -190,20 +190,20 @@ public:
 
         switch (stw) {
         case STACK_STACK:
-            destroy(tsi, t + ADDRESS_SIZE, x64);
-            destroy(tsi, s + ADDRESS_SIZE, x64);
+            destroy(tm, t + ADDRESS_SIZE, x64);
+            destroy(tm, s + ADDRESS_SIZE, x64);
             x64->op(POPQ, RBX);
             x64->op(POPQ, RBP);
             x64->op(ADDQ, RSP, 2 * stack_size);
             break;
         case STACK_MEMORY:
-            destroy(tsi, s + ADDRESS_SIZE, x64);
+            destroy(tm, s + ADDRESS_SIZE, x64);
             x64->op(POPQ, RBX);
             x64->op(POPQ, RBP);
             x64->op(ADDQ, RSP, stack_size);
             break;
         case MEMORY_STACK:
-            destroy(tsi, t + ADDRESS_SIZE, x64);
+            destroy(tm, t + ADDRESS_SIZE, x64);
             x64->op(POPQ, RBX);
             x64->op(POPQ, RBP);
             x64->op(ADDQ, RSP, stack_size);
@@ -216,8 +216,8 @@ public:
         x64->code_label(xend);
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
-        TypeSpec ts(tsi);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+        //TypeSpec ts(tsi);
 
         // NOTE: initializers must only appear in code scopes, and there all types
         // must be concrete, not having free parameters. Also, the automatic variable is
@@ -226,12 +226,12 @@ public:
         
         if (n == "{}") {
             // Anonymous initializer
-            TypeMatch match = type_parameters_to_match(ts);
-            return make_record_initializer_value(match);
+            //TypeMatch match = type_parameters_to_match(ts);
+            return make_record_initializer_value(tm);
         }
         else {
             // Named initializer
-            Value *pre = make_record_preinitializer_value(ts);
+            Value *pre = make_record_preinitializer_value(tm[0]);
 
             Value *value = inner_scope->lookup(n, pre);
 
@@ -267,7 +267,7 @@ public:
         :RecordType(n, 0) {
     }
     
-    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         Label strcmp_label = x64->once->compile(compile_stringcmp);
 
         switch (s.where * t.where) {
@@ -375,7 +375,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "null") {
             return make_null_string_value();
         }

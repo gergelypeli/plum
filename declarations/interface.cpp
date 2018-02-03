@@ -19,15 +19,15 @@ public:
         std::cerr << "Interface " << name << " has " << member_functions.size() << " member functions.\n";
     }
 
-    virtual Allocation measure(TypeSpecIter tsi) {
+    virtual Allocation measure(TypeMatch tm) {
         return Allocation();
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        Type::store(tsi, s, t, x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        Type::store(tm, s, t, x64);
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Assume the target MEMORY is uninitialized
         
         switch (s.where * t.where) {
@@ -38,7 +38,7 @@ public:
         }
     }
 
-    virtual void destroy(TypeSpecIter , Storage s, X64 *x64) {
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
             return;
         }
@@ -46,15 +46,15 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeSpecIter, bool is_arg, bool is_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
         return (is_arg ? throw INTERNAL_ERROR : (is_lvalue ? MEMORY : throw INTERNAL_ERROR));
     }
 
-    virtual Storage boolval(TypeSpecIter , Storage s, X64 *x64, bool probe) {
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         std::cerr << "No interface initializer called " << name << "!\n";
         return NULL;
     }
@@ -101,15 +101,15 @@ public:
     }
 
 
-    virtual Allocation measure(TypeSpecIter tsi) {
+    virtual Allocation measure(TypeMatch tm) {
         return Allocation();
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        Type::store(tsi, s, t, x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        Type::store(tm, s, t, x64);
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Assume the target MEMORY is uninitialized
         
         switch (s.where * t.where) {
@@ -120,7 +120,7 @@ public:
         }
     }
 
-    virtual void destroy(TypeSpecIter , Storage s, X64 *x64) {
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
             return;
         }
@@ -128,20 +128,20 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeSpecIter, bool is_arg, bool is_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
         return (is_arg ? throw INTERNAL_ERROR : (is_lvalue ? MEMORY : throw INTERNAL_ERROR));
     }
 
-    virtual Storage boolval(TypeSpecIter , Storage s, X64 *x64, bool probe) {
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         std::cerr << "No implementation initializer called " << name << "!\n";
         return NULL;
     }
 
-    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *pivot) {
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *pivot) {
         pivot = make_cast_value(pivot, get_typespec(pivot).begin() + 1);
             
         return inner_scope->lookup(n, pivot);

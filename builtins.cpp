@@ -267,7 +267,7 @@ void define_integers() {
         { "assign_shift_right", ASSIGN_SHIFT_RIGHT }
     };
 
-    Scope *integer_scope = integer_metatype->get_inner_scope(NO_TS.begin());
+    Scope *integer_scope = integer_metatype->get_inner_scope(TypeMatch());
     
     for (auto &item : integer_rvalue_operations)
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_TS, item.operation));
@@ -436,7 +436,7 @@ void define_string() {
 
 
 void define_array() {
-    Scope *array_scope = array_type->get_inner_scope(NO_TS.begin());
+    Scope *array_scope = array_type->get_inner_scope(TypeMatch());
 
     array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_REFERENCE_TS));
     array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
@@ -459,7 +459,7 @@ void define_array() {
 
 
 void define_circularray() {
-    Scope *circularray_scope = circularray_type->get_inner_scope(NO_TS.begin());
+    Scope *circularray_scope = circularray_type->get_inner_scope(TypeMatch());
 
     circularray_scope->add(new TemplateIdentifier<CircularrayLengthValue>("length", ANY_CIRCULARRAY_REFERENCE_TS));
     //circularray_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REFERENCE_TS, TWEAK));
@@ -484,7 +484,7 @@ void define_circularray() {
 
 
 void define_rbtree() {
-    Scope *rbtree_scope = rbtree_type->get_inner_scope(NO_TS.begin());
+    Scope *rbtree_scope = rbtree_type->get_inner_scope(TypeMatch());
 
     rbtree_scope->add(new TemplateIdentifier<RbtreeLengthValue>("length", ANY_RBTREE_REFERENCE_TS));
     //array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REFERENCE_TS, TWEAK));
@@ -620,7 +620,7 @@ Scope *init_builtins() {
     define_integers();
         
     // Character operations
-    Scope *char_scope = character_type->get_inner_scope(NO_TS.begin());
+    Scope *char_scope = character_type->get_inner_scope(TypeMatch());
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
     char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", CHARACTER_TS, COMPARE));
     implement(char_scope, STREAMIFIABLE_TS, "sable", {
@@ -628,7 +628,7 @@ Scope *init_builtins() {
     });
     
     // Boolean operations
-    Scope *bool_scope = boolean_type->get_inner_scope(NO_TS.begin());
+    Scope *bool_scope = boolean_type->get_inner_scope(TypeMatch());
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("compare", BOOLEAN_TS, COMPARE));
     implement(bool_scope, STREAMIFIABLE_TS, "sable", {
@@ -641,7 +641,7 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", ANY_TS));
 
     // Enum operations
-    Scope *enum_scope = enumeration_metatype->get_inner_scope(NO_TS.begin());
+    Scope *enum_scope = enumeration_metatype->get_inner_scope(TypeMatch());
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
@@ -650,7 +650,7 @@ Scope *init_builtins() {
     });
 
     // Treenum operations
-    Scope *treenum_scope = treenumeration_metatype->get_inner_scope(NO_TS.begin());
+    Scope *treenum_scope = treenumeration_metatype->get_inner_scope(TypeMatch());
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     treenum_scope->add(new TemplateOperation<TreenumCoveringValue>("cover", ANY_TS, TWEAK));
@@ -659,7 +659,7 @@ Scope *init_builtins() {
     });
 
     // Record operations
-    Scope *record_scope = record_metatype->get_inner_scope(NO_TS.begin());
+    Scope *record_scope = record_metatype->get_inner_scope(TypeMatch());
     record_scope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
 
     // Reference operations, unscoped

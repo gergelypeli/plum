@@ -14,20 +14,6 @@ TypeSpec::TypeSpec(TypeSpecIter tsi) {
 }
 
 
-StorageWhere TypeSpec::where(bool is_arg) {
-    TypeSpecIter this_tsi(begin());
-    
-    return (*this_tsi)->where(this_tsi, is_arg, false);  // initially assume not lvalue
-}
-
-
-Storage TypeSpec::boolval(Storage s, X64 *x64, bool probe) {
-    TypeSpecIter this_tsi(begin());
-    
-    return (*this_tsi)->boolval(this_tsi, s, x64, probe);
-}
-
-
 TypeSpec TypeSpec::prefix(Type *t) {
     TypeSpec ts;
     ts.push_back(t);
@@ -84,9 +70,23 @@ TypeSpec TypeSpec::varvalue() {
 }
 
 
+TypeMatch TypeSpec::match() {
+    return type_parameters_to_match(*this);
+}
+
+
+StorageWhere TypeSpec::where(bool is_arg, bool is_lvalue) {
+    return at(0)->where(match(), is_arg, is_lvalue);
+}
+
+
+Storage TypeSpec::boolval(Storage s, X64 *x64, bool probe) {
+    return at(0)->boolval(match(), s, x64, probe);
+}
+
+
 Allocation TypeSpec::measure() {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->measure(tsi);
+    return at(0)->measure(match());
 }
 
 
@@ -122,44 +122,37 @@ int TypeSpec::measure_where(StorageWhere where) {
 
 
 std::vector<Function *> TypeSpec::get_virtual_table() {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->get_virtual_table(tsi);
+    return at(0)->get_virtual_table(match());
 }
 
 
 Label TypeSpec::get_virtual_table_label(X64 *x64) {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->get_virtual_table_label(tsi, x64);
+    return at(0)->get_virtual_table_label(match(), x64);
 }
 
 
 Label TypeSpec::get_finalizer_label(X64 *x64) {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->get_finalizer_label(tsi, x64);
+    return at(0)->get_finalizer_label(match(), x64);
 }
 
 
 void TypeSpec::store(Storage s, Storage t, X64 *x64) {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->store(tsi, s, t, x64);
+    return at(0)->store(match(), s, t, x64);
 }
 
 
 void TypeSpec::create(Storage s, Storage t, X64 *x64) {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->create(tsi, s, t, x64);
+    return at(0)->create(match(), s, t, x64);
 }
 
 
 void TypeSpec::destroy(Storage s, X64 *x64) {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->destroy(tsi, s, x64);
+    return at(0)->destroy(match(), s, x64);
 }
 
 
 void TypeSpec::compare(Storage s, Storage t, X64 *x64, Label less, Label greater) {
-    TypeSpecIter tsi(begin());
-    (*tsi)->compare(tsi, s, t, x64, less, greater);
+    at(0)->compare(match(), s, t, x64, less, greater);
 }
 
 
@@ -182,20 +175,17 @@ void TypeSpec::compare(Storage s, Storage t, X64 *x64, Register reg) {
 
 
 Value *TypeSpec::lookup_initializer(std::string name, Scope *scope) {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->lookup_initializer(tsi, name, scope);
+    return at(0)->lookup_initializer(match(), name, scope);
 }
 
 
 Value *TypeSpec::lookup_inner(std::string name, Value *pivot) {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->lookup_inner(tsi, name, pivot);
+    return at(0)->lookup_inner(match(), name, pivot);
 }
 
 
 DataScope *TypeSpec::get_inner_scope() {
-    TypeSpecIter tsi(begin());
-    return (*tsi)->get_inner_scope(tsi);
+    return at(0)->get_inner_scope(match());
 }
 
 
@@ -329,26 +319,23 @@ int Allocation::concretize() {
 }
 
 
-int Allocation::concretize(TypeSpecIter tsi) {
+int Allocation::concretize(TypeMatch tm) {
     int concrete_size = bytes;
-    TypeMatch match = type_parameters_to_match(tsi);
     
     if (count1)
-        concrete_size += count1 * match[1].measure_stack();
+        concrete_size += count1 * tm[1].measure_stack();
         
     if (count2)
-        concrete_size += count2 * match[2].measure_stack();
+        concrete_size += count2 * tm[2].measure_stack();
         
     if (count3)
-        concrete_size += count3 * match[3].measure_stack();
+        concrete_size += count3 * tm[3].measure_stack();
+    
+    //if (count1 || count2 || count3)
+    //    std::cerr << "Hohoho, concretized " << *this << " with " << TypeSpec(tsi) << " to " << concrete_size << " bytes.\n";
     
     return concrete_size;
 }
-
-
-//Allocation stack_size(Allocation a) {
-//    return Allocation(stack_size(a.bytes), a.count1, a.count2, a.count3);
-//}
 
 
 std::ostream &operator<<(std::ostream &os, const Allocation &a) {

@@ -1,4 +1,6 @@
 
+class TypeSpec;
+typedef std::vector<TypeSpec> TypeMatch;
 struct Allocation;
 
 
@@ -7,7 +9,8 @@ public:
     TypeSpec();
     TypeSpec(iterator tsi);
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
-    
+
+    TypeMatch match();    
     Allocation measure();
     int measure_raw();
     int measure_elem();
@@ -16,7 +19,7 @@ public:
     std::vector<Function *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
-    StorageWhere where(bool is_arg);
+    StorageWhere where(bool is_arg, bool is_lvalue = false);
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t = NULL);
@@ -37,7 +40,7 @@ public:
 
 typedef TypeSpec::iterator TypeSpecIter;
 typedef std::vector<TypeSpec> TSs;
-typedef std::vector<TypeSpec> TypeMatch;
+//typedef std::vector<TypeSpec> TypeMatch;
 typedef std::vector<std::string> Ss;
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 
@@ -94,7 +97,7 @@ struct Allocation {
     int count3;
     
     Allocation(int b = 0, int c1 = 0, int c2 = 0, int c3 = 0);
-    int concretize(TypeSpecIter tsi);
+    int concretize(TypeMatch tm);
     int concretize();
 };
 

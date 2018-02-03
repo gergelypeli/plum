@@ -36,11 +36,11 @@ public:
         }
     }
     
-    unsigned get_size(TypeSpecIter tsi) {
+    unsigned get_size(TypeMatch tm) {
         if (!is_allocated)
             throw INTERNAL_ERROR;
             
-        return size.concretize(tsi);
+        return size.concretize(tm);
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
@@ -526,10 +526,7 @@ public:
     }
     
     virtual unsigned get_frame_size() {
-        if (size.count1 || size.count2 || size.count3)
-            throw INTERNAL_ERROR;
-            
-        return size.bytes;
+        return size.concretize();
     }
     
     virtual FunctionScope *get_function_scope() {

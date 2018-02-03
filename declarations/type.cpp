@@ -87,22 +87,22 @@ public:
             throw INTERNAL_ERROR;
     }
     
-    virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
         std::cerr << "Nowhere type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual Storage boolval(TypeSpecIter tsi, Storage, X64 *, bool probe) {
+    virtual Storage boolval(TypeMatch tm, Storage, X64 *, bool probe) {
         std::cerr << "Unboolable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual Allocation measure(TypeSpecIter tsi) {
+    virtual Allocation measure(TypeMatch tm) {
         std::cerr << "Unmeasurable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual void store(TypeSpecIter this_tsi, Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
         case MEMORY_ALISTACK:
             x64->op(LEA, RBX, s.address);
@@ -150,28 +150,28 @@ public:
         }
     }
     
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         std::cerr << "Uncreatable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         std::cerr << "Undestroyable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         std::cerr << "Uncomparable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {
-        Scope *scope = get_inner_scope(tsi);
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+        Scope *scope = get_inner_scope(tm);
         
         if (scope)
             return scope->lookup(n, v);
@@ -179,30 +179,30 @@ public:
         return NULL;
     }
     
-    virtual DataScope *get_inner_scope(TypeSpecIter tsi) {
+    virtual DataScope *get_inner_scope(TypeMatch tm) {
         return inner_scope;
     }
     
-    virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
+    virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
         throw INTERNAL_ERROR;
     }
 
-    virtual Label get_virtual_table_label(TypeSpecIter tsi, X64 *x64) {
+    virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
         throw INTERNAL_ERROR;
     }
 
-    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
+    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
         throw INTERNAL_ERROR;
     }
     
-    virtual Value *autoconv(TypeSpecIter tsi, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
-        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
+    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+        //TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
         
-        if (is_implementation(*tsi, match, target, ifts))
+        if (is_implementation(this, tm, target, ifts))
             return orig;
             
-        Scope *inner_scope = get_inner_scope(tsi);
-        return find_implementation(inner_scope, match, target, orig, ifts);
+        Scope *inner_scope = get_inner_scope(tm);
+        return find_implementation(inner_scope, tm, target, orig, ifts);
     }
     
     virtual void complete_type() {
@@ -216,7 +216,7 @@ public:
         :Type(name, pc) {
     }
     
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
             std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
@@ -231,18 +231,18 @@ public:
         :Type(name, 0) {
     }
     
-    virtual StorageWhere where(TypeSpecIter tsi, bool is_arg, bool is_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
         if (!is_arg && is_lvalue)
             return MEMORY;  // TODO: all types must be MEMORY for this combination!
         else
             throw INTERNAL_ERROR;
     }
 
-    virtual Allocation measure(TypeSpecIter tsi) {
+    virtual Allocation measure(TypeMatch tm) {
         return Allocation(0, 1, 0, 0);  // TODO: Same increases the count1
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
             std::cerr << "Invalid Same store from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
@@ -257,64 +257,52 @@ public:
         :Type(n, 1) {
     }
 
-    virtual StorageWhere where(TypeSpecIter this_tsi, bool is_arg, bool is_lvalue) {
-        this_tsi++;
-        return (*this_tsi)->where(this_tsi, is_arg, is_lvalue || this == lvalue_type);
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
+        return tm[1].where(is_arg, is_lvalue || this == lvalue_type);
     }
 
-    virtual Storage boolval(TypeSpecIter this_tsi, Storage s, X64 *x64, bool probe) {
-        this_tsi++;
-        return (*this_tsi)->boolval(this_tsi, s, x64, probe);
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
+        return tm[1].boolval(s, x64, probe);
     }
     
-    virtual Allocation measure(TypeSpecIter tsi) {
-        tsi++;
-        return (*tsi)->measure(tsi);
+    virtual Allocation measure(TypeMatch tm) {
+        return tm[1].measure();
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        tsi++;
-        return (*tsi)->store(tsi, s, t, x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        return tm[1].store(s, t, x64);
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        tsi++;
-        (*tsi)->create(tsi, s, t, x64);
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        tm[1].create(s, t, x64);
     }
 
-    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
-        tsi++;
-        (*tsi)->destroy(tsi, s, x64);
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        tm[1].destroy(s, x64);
     }
 
-    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        tsi++;
-        return (*tsi)->compare(tsi, s, t, x64, less, greater);
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+        tm[1].compare(s, t, x64, less, greater);
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
-        tsi++;
-        return (*tsi)->lookup_initializer(tsi, n, scope);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+        return tm[1].lookup_initializer(n, scope);
     }
 
-    virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
-        tsi++;
-        return (*tsi)->get_virtual_table(tsi);
+    virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
+        return tm[1].get_virtual_table();
     }
 
-    virtual Label get_virtual_table_label(TypeSpecIter tsi, X64 *x64) {
-        tsi++;
-        return (*tsi)->get_virtual_table_label(tsi, x64);
+    virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
+        return tm[1].get_virtual_table_label(x64);
     }
 
-    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {
-        tsi++;
-        return (*tsi)->lookup_inner(tsi, n, v);
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+        return tm[1].lookup_inner(n, v);
     }
     
-    virtual DataScope *get_inner_scope(TypeSpecIter tsi) {
-        tsi++;
-        return (*tsi)->get_inner_scope(tsi);
+    virtual DataScope *get_inner_scope(TypeMatch tm) {
+        return tm[1].get_inner_scope();
     }
 };
 
@@ -325,27 +313,23 @@ public:
         :Type(name, 1) {
     }
 
-    virtual StorageWhere where(TypeSpecIter this_tsi, bool is_arg, bool is_lvalue) {
-        this_tsi++;
-        return (*this_tsi)->where(this_tsi, is_arg, is_lvalue);
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
+        return tm[1].where(is_arg, is_lvalue);
     }
 
-    virtual Allocation measure(TypeSpecIter tsi) {
-        tsi++;
-        return (*tsi)->measure(tsi);
+    virtual Allocation measure(TypeMatch tm) {
+        return tm[1].measure();
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        tsi++;
-        return (*tsi)->store(tsi, s, t, x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        return tm[1].store(s, t, x64);
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        tsi++;
-        (*tsi)->create(tsi, s, t, x64);
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        tm[1].create(s, t, x64);
     }
 
-    virtual Value *lookup_inner(TypeSpecIter tsi, std::string n, Value *v) {
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Partial inner lookup " << n << ".\n";
         
         if (!partial_variable_is_initialized(n, v)) {
@@ -353,7 +337,7 @@ public:
             return NULL;
         }
         
-        TypeSpec ts = TypeSpec(tsi).unprefix(partial_type);
+        TypeSpec ts = tm[0].unprefix(partial_type);
         Value *allowed = make_cast_value(v, ts);
         
         return ts.lookup_inner(n, allowed);
@@ -411,7 +395,7 @@ public:
     }
 
     // NOTE: experimental thing for exception specifications
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "{}")
             return make_treenumeration_definition_value();
         

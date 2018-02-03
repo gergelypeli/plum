@@ -93,6 +93,10 @@ public:
             where == ALIAS ? Allocation(ALIAS_SIZE) :
             throw INTERNAL_ERROR
         );
+        
+        //if (a.count1 || a.count2 || a.count3)
+        //    std::cerr << "Hohoho, allocating variable " << name << " with size " << a << ".\n";
+        
         offset = outer_scope->reserve(a);
         //std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
 
@@ -104,7 +108,7 @@ public:
         //std::cerr << "Variable " << name << " offset is " << offset << "\n";
     }
     
-    virtual Storage get_storage(TypeSpecIter tsi, Storage s) {
+    virtual Storage get_storage(TypeMatch tm, Storage s) {
         if (!xxx_is_allocated)
             throw INTERNAL_ERROR;
 
@@ -115,12 +119,12 @@ public:
             throw INTERNAL_ERROR;  // all variable containers must use MEMORY
             
         //std::cerr << "Variable " << name << " offset is now " << offset << "\n";
-        return Storage(where, s.address + offset.concretize(tsi));
+        return Storage(where, s.address + offset.concretize(tm));
     }
 
     virtual Storage get_local_storage() {
         // Without pivot as a function local variable
-        return get_storage(VOID_TS.begin(), Storage(MEMORY, Address(RBP, 0)));
+        return get_storage(VOID_TS.match(), Storage(MEMORY, Address(RBP, 0)));
     }
     
     virtual void finalize(X64 *x64) {
@@ -132,43 +136,33 @@ public:
         var_ts.destroy(get_local_storage(), x64);
     }
     
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        // TODO: this is a bit complicated
-        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
-        TypeSpec ts = typesubst(var_ts, match);
-        int o = offset.concretize(tsi);
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        TypeSpec ts = typesubst(var_ts, tm);
+        int o = offset.concretize(tm);
         ts.create(s.where == NOWHERE ? s : s + o, t + o, x64);
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
-        // TODO: this is a bit complicated
-        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
-        TypeSpec ts = typesubst(var_ts, match);
-        int o = offset.concretize(tsi);
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        TypeSpec ts = typesubst(var_ts, tm);
+        int o = offset.concretize(tm);
         ts.store(s + o, t + o, x64);
     }
 
-    virtual void destroy(TypeSpecIter tsi, Storage s, X64 *x64) {
-        // TODO: this is a bit complicated
-        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
-        TypeSpec ts = typesubst(var_ts, match);
-        int o = offset.concretize(tsi);
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        TypeSpec ts = typesubst(var_ts, tm);
+        int o = offset.concretize(tm);
         ts.destroy(s + o, x64);
     }
     
-    virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
-        // TODO: this is a bit complicated
-        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
-        TypeSpec ts = typesubst(var_ts, match);
-        int o = offset.concretize(tsi);
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
+        TypeSpec ts = typesubst(var_ts, tm);
+        int o = offset.concretize(tm);
         return ts.boolval(s + o, x64, probe);
     }
 
-    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        // TODO: this is a bit complicated
-        TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
-        TypeSpec ts = typesubst(var_ts, match);
-        int o = offset.concretize(tsi);
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+        TypeSpec ts = typesubst(var_ts, tm);
+        int o = offset.concretize(tm);
         ts.compare(s + o, t + o, x64, less, greater);
     }
 };

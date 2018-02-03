@@ -11,7 +11,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         TypeSpec class_ts = ts.unprefix(partial_type).unprefix(reference_type);
-        Label finalizer_label = dynamic_cast<ClassType *>(class_ts[0])->get_finalizer_label(class_ts.begin(), x64);
+        Label finalizer_label = dynamic_cast<ClassType *>(class_ts[0])->get_finalizer_label(class_ts.match(), x64);
         unsigned heap_size = class_ts.measure_raw();
         
         x64->op(MOVQ, RAX, heap_size);

@@ -5,11 +5,11 @@ public:
         :Type(name, 1) {
     }
     
-    virtual Allocation measure(TypeSpecIter tsi) {
+    virtual Allocation measure(TypeMatch tm) {
         return Allocation(REFERENCE_SIZE);
     }
 
-    virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
         case REGISTER_NOWHERE:
             x64->decref(s.reg);
@@ -59,11 +59,11 @@ public:
             x64->decref(RBX);
             return;
         default:
-            Type::store(tsi, s, t, x64);
+            Type::store(tm, s, t, x64);
         }
     }
 
-    virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Assume the target MEMORY is uninitialized
         
         switch (s.where * t.where) {
@@ -86,7 +86,7 @@ public:
         }
     }
 
-    virtual void destroy(TypeSpecIter , Storage s, X64 *x64) {
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
             x64->op(MOVQ, RBX, s.address);
             x64->decref(RBX);
@@ -95,7 +95,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         switch (s.where * t.where) {
         case REGISTER_REGISTER:
             x64->decref(s.reg);
@@ -154,11 +154,11 @@ public:
         x64->op(JA, greater);
     }
 
-    virtual StorageWhere where(TypeSpecIter, bool is_arg, bool is_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
         return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : REGISTER));
     }
 
-    virtual Storage boolval(TypeSpecIter , Storage s, X64 *x64, bool probe) {
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
         switch (s.where) {
         case CONSTANT:
             return Storage(CONSTANT, s.value != 0);
@@ -176,31 +176,27 @@ public:
         }
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         if (name == "null") {
-            return make_null_reference_value(TypeSpec(tsi));
+            return make_null_reference_value(tm[0]);
         }
         else {
-            tsi++;
-            return tsi[0]->lookup_initializer(tsi, name, scope);
+            return tm[1].lookup_initializer(name, scope);
             //std::cerr << "No reference initializer called " << name << "!\n";
             //return NULL;
         }
     }
 
-    virtual DataScope *get_inner_scope(TypeSpecIter tsi) {
-        tsi++;
-        return (*tsi)->get_inner_scope(tsi);
+    virtual DataScope *get_inner_scope(TypeMatch tm) {
+        return tm[1].get_inner_scope();
     }
 
-    virtual std::vector<Function *> get_virtual_table(TypeSpecIter tsi) {
-        tsi++;
-        return (*tsi)->get_virtual_table(tsi);
+    virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
+        return tm[1].get_virtual_table();
     }
 
-    virtual Label get_virtual_table_label(TypeSpecIter tsi, X64 *x64) {
-        tsi++;
-        return (*tsi)->get_virtual_table_label(tsi, x64);
+    virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
+        return tm[1].get_virtual_table_label(x64);
     }
 };
 
@@ -211,7 +207,7 @@ public:
         :Type(name, pc) {
     }
 
-    virtual Allocation measure(TypeSpecIter tsi) {
+    virtual Allocation measure(TypeMatch tm) {
         std::cerr << "This is probably an error, shouldn't measure a heap type!\n";
         throw INTERNAL_ERROR;
     }
@@ -225,8 +221,8 @@ public:
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
     
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
-        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        TypeSpec rts = tm[0].prefix(reference_type);
         
         if (name == "empty")
             return make_array_empty_value(rts);
@@ -239,8 +235,8 @@ public:
         return NULL;
     }
 
-    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
-        return x64->once->compile(compile_finalizer, TypeSpec(tsi));
+    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
+        return x64->once->compile(compile_finalizer, tm[0]);
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
@@ -281,8 +277,8 @@ public:
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
 
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
-        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        TypeSpec rts = tm[0].prefix(reference_type);
         
         if (name == "empty")
             return make_circularray_empty_value(rts);
@@ -295,8 +291,8 @@ public:
         return NULL;
     }
 
-    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
-        return x64->once->compile(compile_finalizer, TypeSpec(tsi));
+    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
+        return x64->once->compile(compile_finalizer, tm[0]);
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
@@ -354,8 +350,8 @@ public:
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
     
-    virtual Value *lookup_initializer(TypeSpecIter tsi, std::string name, Scope *scope) {
-        TypeSpec rts = TypeSpec(tsi).prefix(reference_type);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        TypeSpec rts = tm[0].prefix(reference_type);
         
         if (name == "empty")
             return make_rbtree_empty_value(rts);
@@ -370,8 +366,8 @@ public:
         return NULL;
     }
 
-    virtual Label get_finalizer_label(TypeSpecIter tsi, X64 *x64) {
-        return x64->once->compile(compile_finalizer, TypeSpec(tsi));
+    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
+        return x64->once->compile(compile_finalizer, tm[0]);
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {

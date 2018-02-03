@@ -435,8 +435,8 @@ public:
             Register reg = (Regs::all() & ~t.regs()).get_any();
         
             x64->op(MOVQ, reg, t.address);
-            TypeSpecIter tsi = VOID_TS.begin();  // No parametric type initializers now
-            t = member_var->get_storage(tsi, Storage(MEMORY, Address(reg, 0)));
+            TypeMatch tm = partial->ts.unprefix(partial_type).unprefix(reference_type).match();
+            t = member_var->get_storage(tm, Storage(MEMORY, Address(reg, 0)));
         }
         else if (partial->ts[1] == lvalue_type) {
             ;

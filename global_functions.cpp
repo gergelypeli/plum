@@ -375,13 +375,13 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
 }
 
 
-Value *rolematch(Value *v, TypeSpecIter tsi, TypeSpecIter target, TypeSpec &ifts) {
+Value *rolematch(Value *v, TypeSpec s, TypeSpecIter target, TypeSpec &ifts) {
     // Return a role of v with an unprefixed type of s, with the front type
     // being is equal to t, but with arbitrary type parameters, potentially
     // derived from the type parameters of s. Or NULL, if it can't be done.
     // May call itself recursively.
-    std::cerr << "Trying rolematch from " << tsi << " to " << target << ".\n";
-    return (*tsi)->autoconv(tsi, target, v, ifts);
+    std::cerr << "Trying rolematch from " << s << " to " << target << ".\n";
+    return s[0]->autoconv(s.match(), target, v, ifts);
 }
 
 
@@ -581,7 +581,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
     
     if (!ok) {
         TypeSpec ifts;
-        Value *role = rolematch(value, s, t, ifts);
+        Value *role = rolematch(value, TypeSpec(s), t, ifts);
         
         if (role) {
             value = role;

@@ -262,7 +262,7 @@ public:
                 s = Storage(MEMORY, Address(reg, 0));
             }
             
-            t = variable->get_storage(pivot->ts.begin(), s);
+            t = variable->get_storage(pivot->ts.match(), s);
         }
         else {
             t = variable->get_local_storage();
@@ -345,7 +345,7 @@ public:
             x64->op(PUSHQ, RBX);
             
             Storage s = pivot->compile(x64);
-            t = variable->get_storage(pivot->ts.begin(), s);
+            t = variable->get_storage(pivot->ts.match(), s);
         }
         else
             throw INTERNAL_ERROR;  // TODO: allow function Role-s?

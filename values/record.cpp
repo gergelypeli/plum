@@ -69,8 +69,7 @@ public:
             if (s.where == STACK)
                 offset = var_ts.measure_stack();
 
-            TypeSpecIter tsi = ts.begin();
-            Storage t = var->get_storage(tsi, Storage(MEMORY, Address(RSP, offset)));
+            Storage t = var->get_storage(ts.match(), Storage(MEMORY, Address(RSP, offset)));
             
             var_ts.create(s, t, x64);
             
