@@ -97,16 +97,9 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
-        switch (where) {
-        case ALISTACK:
-            return Allocation(ALIAS_SIZE);
-        case ALIAS:
-            return Allocation(ALIAS_SIZE);
-        default:
-            std::cerr << "Unmeasurable type: " << name << "!\n";
-            throw INTERNAL_ERROR;
-        }
+    virtual Allocation measure(TypeSpecIter tsi) {
+        std::cerr << "Unmeasurable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
     }
 
     virtual void store(TypeSpecIter this_tsi, Storage s, Storage t, X64 *x64) {
@@ -245,11 +238,8 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
-        if (where == MEMORY)
-            return Allocation(0, 1, 0, 0);  // TODO: Same increases the count1
-        else
-            throw INTERNAL_ERROR;
+    virtual Allocation measure(TypeSpecIter tsi) {
+        return Allocation(0, 1, 0, 0);  // TODO: Same increases the count1
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
@@ -277,9 +267,9 @@ public:
         return (*this_tsi)->boolval(this_tsi, s, x64, probe);
     }
     
-    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
+    virtual Allocation measure(TypeSpecIter tsi) {
         tsi++;
-        return (*tsi)->measure(tsi, where);
+        return (*tsi)->measure(tsi);
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
@@ -340,9 +330,9 @@ public:
         return (*this_tsi)->where(this_tsi, is_arg, is_lvalue);
     }
 
-    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
+    virtual Allocation measure(TypeSpecIter tsi) {
         tsi++;
-        return (*tsi)->measure(tsi, where);
+        return (*tsi)->measure(tsi);
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {

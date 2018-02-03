@@ -6,7 +6,7 @@ TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
 
 int container_elem_size(TypeSpec elem_ts) {
     // Note: this is like array and circularray, but unlike rbtree!
-    return ::elem_size(elem_ts.measure(MEMORY).concretize());
+    return elem_ts.measure_elem();
 }
 
 
@@ -230,7 +230,7 @@ public:
     virtual Storage subcompile(int length_offset, int elems_offset, Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
         int elem_size = container_elem_size(elem_ts);
-        int stack_size = elem_ts.measure(STACK).concretize();
+        int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, RAX, elems.size());
         x64->op(CALL, alloc_label);
@@ -272,7 +272,7 @@ public:
 
     virtual Storage subcompile(int reservation_offset, int length_offset, int elems_offset, X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
-        int stack_size = elem_ts.measure(STACK).concretize();
+        int stack_size = elem_ts.measure_stack();
     
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     

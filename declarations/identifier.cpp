@@ -88,8 +88,13 @@ public:
         if (xxx_is_allocated)
             throw INTERNAL_ERROR;
             
-        offset = outer_scope->reserve(var_ts.measure(where));
-        std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
+        Allocation a = (
+            where == MEMORY ? var_ts.measure() :
+            where == ALIAS ? Allocation(ALIAS_SIZE) :
+            throw INTERNAL_ERROR
+        );
+        offset = outer_scope->reserve(a);
+        //std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
 
         if (var_ts[0] == lvalue_type && var_ts[1] == role_type) {
             virtual_index = outer_scope->virtual_reserve(var_ts.get_virtual_table());

@@ -1,6 +1,6 @@
 
 int rbtree_elem_size(TypeSpec elem_ts) {
-    return elem_ts.measure(STACK).concretize() + RBNODE_HEADER_SIZE;
+    return elem_ts.measure_stack() + RBNODE_HEADER_SIZE;
 }
 
 
@@ -422,7 +422,7 @@ void compile_add(Label label, TypeSpec elem_ts, X64 *x64) {
     Label left_fix = x64->once->compile(compile_left_fix);
     Label right_fix = x64->once->compile(compile_right_fix);
     Label allocate = x64->once->compile(compile_allocate);
-    int key_size = elem_ts.measure(STACK).concretize();
+    int key_size = elem_ts.measure_stack();
     int node_size = key_size + RBNODE_HEADER_SIZE;
     
     //x64->log("Rbtree add.");
@@ -729,7 +729,7 @@ public:
         // This won't use the base class subcompile method, because that's inappropriate here.
         Label alloc_label = x64->once->compile(compile_alloc_rbtree, elem_ts);
         Label add_label = x64->once->compile(compile_add, elem_ts);
-        int stack_size = elem_ts.measure(STACK).concretize();
+        int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, RAX, elems.size());
         x64->op(CALL, alloc_label);
@@ -810,7 +810,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int key_size = elem_ts.measure(STACK).concretize();
+        int key_size = elem_ts.measure_stack();
         Label has = x64->once->compile(compile_has, elem_ts);
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
@@ -844,7 +844,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int key_size = elem_ts.measure(STACK).concretize();
+        int key_size = elem_ts.measure_stack();
         Label add = x64->once->compile(compile_add, elem_ts);
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
@@ -881,7 +881,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int key_size = elem_ts.measure(STACK).concretize();
+        int key_size = elem_ts.measure_stack();
         Label remove = x64->once->compile(compile_remove, elem_ts);
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));

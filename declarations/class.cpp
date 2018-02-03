@@ -24,13 +24,8 @@ public:
         std::cerr << "Class " << name << " has " << member_variables.size() << " member variables.\n";
     }
 
-    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
-        switch (where) {
-        case MEMORY:
-            return inner_scope->get_size(tsi);
-        default:
-            return Type::measure(tsi, where);
-        }
+    virtual Allocation measure(TypeSpecIter tsi) {
+        return inner_scope->get_size(tsi);
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {

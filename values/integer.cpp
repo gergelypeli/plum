@@ -8,7 +8,7 @@ public:
     
     IntegerOperationValue(OperationType o, Value *pivot, TypeMatch &match)
         :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), pivot) {
-        int size = match[0].measure(MEMORY).concretize();
+        int size = match[0].measure_raw();
         os = (
             size == 1 ? 0 :
             size == 2 ? 1 :

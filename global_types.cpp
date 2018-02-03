@@ -84,9 +84,40 @@ TypeSpec TypeSpec::varvalue() {
 }
 
 
-Allocation TypeSpec::measure(StorageWhere where) {
+Allocation TypeSpec::measure() {
     TypeSpecIter tsi(begin());
-    return (*tsi)->measure(tsi, where);
+    return (*tsi)->measure(tsi);
+}
+
+
+int TypeSpec::measure_raw() {
+    return measure().concretize();
+}
+
+
+int TypeSpec::measure_elem() {
+    return elem_size(measure_raw());
+}
+
+
+int TypeSpec::measure_stack() {
+    return stack_size(measure_raw());
+}
+
+
+int TypeSpec::measure_where(StorageWhere where) {
+    switch (where) {
+    case MEMORY:
+        return measure_raw();
+    case STACK:
+        return measure_stack();
+    case ALIAS:
+        return ALIAS_SIZE;
+    case ALISTACK:
+        return ALIAS_SIZE;
+    default:
+        throw INTERNAL_ERROR;
+    }
 }
 
 
@@ -303,13 +334,13 @@ int Allocation::concretize(TypeSpecIter tsi) {
     TypeMatch match = type_parameters_to_match(tsi);
     
     if (count1)
-        concrete_size += count1 * match[1].measure(STACK).concretize();
+        concrete_size += count1 * match[1].measure_stack();
         
     if (count2)
-        concrete_size += count2 * match[2].measure(STACK).concretize();
+        concrete_size += count2 * match[2].measure_stack();
         
     if (count3)
-        concrete_size += count3 * match[3].measure(STACK).concretize();
+        concrete_size += count3 * match[3].measure_stack();
     
     return concrete_size;
 }

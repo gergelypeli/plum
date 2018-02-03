@@ -51,7 +51,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        x64->op(SUBQ, RSP, ts.measure(STACK).concretize());
+        x64->op(SUBQ, RSP, ts.measure_stack());
 
         x64->unwind->push(this);
         
@@ -67,7 +67,7 @@ public:
             int offset = 0;
             
             if (s.where == STACK)
-                offset = var_ts.measure(STACK).concretize();
+                offset = var_ts.measure_stack();
 
             TypeSpecIter tsi = ts.begin();
             Storage t = var->get_storage(tsi, Storage(MEMORY, Address(RSP, offset)));
@@ -86,7 +86,7 @@ public:
         for (int i = var_storages.size() - 1; i >= 0; i--)
             unwind_destroy_var(record_type->member_variables[i]->var_ts, var_storages[i], x64);
 
-        x64->op(ADDQ, RSP, ts.measure(STACK).concretize());
+        x64->op(ADDQ, RSP, ts.measure_stack());
             
         return NULL;
     }

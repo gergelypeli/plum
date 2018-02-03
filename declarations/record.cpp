@@ -23,25 +23,20 @@ public:
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
     }
     
-    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
-        switch (where) {
-        case MEMORY:
-            return inner_scope->get_size(tsi);
-        case STACK:
-            return stack_size(inner_scope->get_size(tsi));
-        default:
-            return Type::measure(tsi, where);
-        }
+    virtual Allocation measure(TypeSpecIter tsi) {
+        return inner_scope->get_size(tsi);
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        int stack_size = TypeSpec(tsi).measure_stack();
+        
         switch (s.where * t.where) {
         //case REGISTER_STACK:  // for the sake of String, FIXME: check size and stuff!
         //    x64->op(PUSHQ, s.reg);
         //    return;
         case STACK_NOWHERE:
             destroy(tsi, Storage(MEMORY, Address(RSP, 0)), x64);
-            x64->op(ADDQ, RSP, measure(tsi, STACK).concretize());
+            x64->op(ADDQ, RSP, stack_size);
             return;
         case STACK_STACK:
             return;
@@ -52,7 +47,7 @@ public:
         case MEMORY_NOWHERE:
             return;
         case MEMORY_STACK:
-            x64->op(SUBQ, RSP, measure(tsi, STACK).concretize());
+            x64->op(SUBQ, RSP, stack_size);
             create(tsi, s, Storage(MEMORY, Address(RSP, 0)), x64);
             return;
         case MEMORY_MEMORY:  // duplicates data
@@ -65,9 +60,11 @@ public:
     }
 
     virtual void create(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
+        int stack_size = TypeSpec(tsi).measure_stack();
+
         switch (s.where * t.where) {
         case NOWHERE_STACK:
-            x64->op(SUBQ, RSP, measure(tsi, STACK).concretize());
+            x64->op(SUBQ, RSP, stack_size);
             create(tsi, Storage(), Storage(MEMORY, Address(RSP, 0)), x64);
             return;
         case NOWHERE_MEMORY:
@@ -105,6 +102,7 @@ public:
     
     virtual Storage boolval(TypeSpecIter tsi, Storage s, X64 *x64, bool probe) {
         Address address;
+        int stack_size = TypeSpec(tsi).measure_stack();
         
         switch (s.where) {
         case STACK:
@@ -135,7 +133,7 @@ public:
             x64->op(PUSHQ, RBX);
             destroy(tsi, Storage(MEMORY, Address(RSP, INTEGER_SIZE)), x64);
             x64->op(POPQ, RBX);
-            x64->op(ADDQ, RSP, measure(tsi, STACK).concretize());
+            x64->op(ADDQ, RSP, stack_size);
             x64->op(CMPB, BL, 0);
         }
         
@@ -143,7 +141,7 @@ public:
     }
     
     virtual void compare(TypeSpecIter tsi, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        int stack_size = measure(tsi, STACK).concretize();
+        int stack_size = TypeSpec(tsi).measure_stack();
 
         StorageWhereWhere stw = s.where * t.where;  // s and t may be overwritten
 

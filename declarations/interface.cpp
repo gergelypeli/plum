@@ -19,13 +19,8 @@ public:
         std::cerr << "Interface " << name << " has " << member_functions.size() << " member functions.\n";
     }
 
-    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
-        switch (where) {
-        case MEMORY:
-            return Allocation();
-        default:
-            return Type::measure(tsi, where);
-        }
+    virtual Allocation measure(TypeSpecIter tsi) {
+        return Allocation();
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
@@ -106,13 +101,8 @@ public:
     }
 
 
-    virtual Allocation measure(TypeSpecIter tsi, StorageWhere where) {
-        switch (where) {
-        case MEMORY:
-            return Allocation();
-        default:
-            return Type::measure(tsi, where);
-        }
+    virtual Allocation measure(TypeSpecIter tsi) {
+        return Allocation();
     }
 
     virtual void store(TypeSpecIter tsi, Storage s, Storage t, X64 *x64) {
