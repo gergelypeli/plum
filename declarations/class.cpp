@@ -96,7 +96,7 @@ public:
         is->be_virtual_scope();
         
         TypeSpec cts = { reference_type, this };
-        is->set_meta_scope(class_metatype->get_inner_scope(cts.match()));
+        is->set_meta_scope(class_metatype->get_inner_scope(TypeMatch()));
 
         Allocation vt_offset = is->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer
         if (vt_offset.bytes != CLASS_VT_OFFSET)  // sanity check

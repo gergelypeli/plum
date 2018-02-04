@@ -3,8 +3,20 @@ void builtin_types(Scope *root_scope) {
     any_type = new SpecialType("<Any>", 0);
     root_scope->add(any_type);
 
+    any2_type = new SpecialType("<Any2>", 0);
+    root_scope->add(any2_type);
+
+    any3_type = new SpecialType("<Any3>", 0);
+    root_scope->add(any3_type);
+
     same_type = new SameType("<Same>");
     root_scope->add(same_type);
+
+    same2_type = new SameType("<Same2>");
+    root_scope->add(same2_type);
+
+    same3_type = new SameType("<Same3>");
+    root_scope->add(same3_type);
 
     integer_metatype = new IntegerMetaType(":Integer");
     root_scope->add(integer_metatype);
@@ -126,7 +138,7 @@ void builtin_types(Scope *root_scope) {
     countdown_type = new RecordType("Countdown", 0);
     root_scope->add(countdown_type);
 
-    item_type = new RecordType("Item", 1);
+    item_type = new RecordType("Item", 2);
     root_scope->add(item_type);
 
     arrayelemiter_type = new RecordType("Arrayelem_iter", 1);
@@ -160,6 +172,7 @@ void builtin_types(Scope *root_scope) {
     ANY_OVALUE_TS = { ovalue_type, any_type };
     SAME_TS = { same_type };
     SAME_LVALUE_TS = { lvalue_type, same_type };
+    SAME2_LVALUE_TS = { lvalue_type, same2_type };
     METATYPE_TS = { metatype_type };
     TREENUMMETA_TS = { treenumeration_metatype };
     VOID_TS = { void_type };
@@ -202,8 +215,9 @@ void builtin_types(Scope *root_scope) {
     ANY_SET_REFERENCE_TS = { reference_type, set_type, any_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
-    ANY_ITEM_TS = { item_type, any_type };
-    SAME_ITEM_TS = { item_type, same_type };
+    ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
+    SAME_SAME2_ITEM_TS = { item_type, same_type };
+    INTEGER_SAME_ITEM_TS = { item_type, integer_type, same_type };
     SAME_ARRAYELEMITER_TS = { arrayelemiter_type, same_type };
     SAME_ARRAYINDEXITER_TS = { arrayindexiter_type, same_type };
     SAME_ARRAYITEMITER_TS = { arrayitemiter_type, same_type };
@@ -377,24 +391,24 @@ void define_iterators() {
     // Item type for itemized iteration
     // TODO: this is limited to (Integer, T) items now!
     RecordType *item_type = dynamic_cast<RecordType *>(::item_type);
-    DataScope *itis = item_type->make_inner_scope(ANY_ITEM_TS);
+    DataScope *itis = item_type->make_inner_scope(ANY_ANY2_ITEM_TS);
 
-    itis->add(new Variable("index", ANY_ITEM_TS, INTEGER_LVALUE_TS));  // Order matters!
-    itis->add(new Variable("value", ANY_ITEM_TS, SAME_LVALUE_TS));
+    itis->add(new Variable("index", ANY_ANY2_ITEM_TS, SAME_LVALUE_TS));  // Order matters!
+    itis->add(new Variable("value", ANY_ANY2_ITEM_TS, SAME2_LVALUE_TS));
     
     item_type->complete_type();
     
-    TypeSpec SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, same_type };
+    TypeSpec INTEGER_SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, integer_type, same_type };
 
     // Array Iterator operations
     define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, array_type, SAME_ITERATOR_TS);
     define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, array_type, INTEGER_ITERATOR_TS);
-    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, array_type, SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, array_type, INTEGER_SAME_ITEM_ITERATOR_TS);
 
     // Circularray Iterator operations
     define_container_iterator<CircularrayNextElemValue>(circularrayelemiter_type, circularray_type, SAME_ITERATOR_TS);
     define_container_iterator<CircularrayNextIndexValue>(circularrayindexiter_type, circularray_type, INTEGER_ITERATOR_TS);
-    define_container_iterator<CircularrayNextItemValue>(circularrayitemiter_type, circularray_type, SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<CircularrayNextItemValue>(circularrayitemiter_type, circularray_type, INTEGER_SAME_ITEM_ITERATOR_TS);
 
     // Rbtree Iterator operations
     define_container_iterator<RbtreeNextElemByAgeValue>(rbtreeelembyageiter_type, rbtree_type, SAME_ITERATOR_TS);

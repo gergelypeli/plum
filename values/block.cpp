@@ -388,7 +388,7 @@ public:
             return false;
         }
 
-        TypeSpec member_ts = member_var->var_ts.rvalue();
+        TypeSpec member_ts = typesubst(member_var->var_ts, partial->match).rvalue();
         std::cerr << "Trying to partial declare " << name << "\n";
         
         if (args.size() == 0) {
@@ -435,8 +435,7 @@ public:
             Register reg = (Regs::all() & ~t.regs()).get_any();
         
             x64->op(MOVQ, reg, t.address);
-            TypeMatch tm = partial->ts.unprefix(partial_type).unprefix(reference_type).match();
-            t = member_var->get_storage(tm, Storage(MEMORY, Address(reg, 0)));
+            t = member_var->get_storage(partial->match, Storage(MEMORY, Address(reg, 0)));
         }
         else if (partial->ts[1] == lvalue_type) {
             ;

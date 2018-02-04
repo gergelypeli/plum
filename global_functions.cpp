@@ -25,8 +25,8 @@ bool partial_variable_is_initialized(std::string name, Value *pivot) {
 }
 
 
-Value *make_role_value(Variable *decl, Value *pivot) {
-    return new RoleValue(decl, pivot);
+Value *make_role_value(Variable *decl, Value *pivot, TypeMatch &tm) {
+    return new RoleValue(decl, pivot, tm);
 }
 
 
@@ -358,13 +358,15 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     TypeSpec ts;
     
     for (TypeSpecIter tti = tt.begin(); tti != tt.end(); tti++) {
-        if (*tti == same_type) {
-            if (match.size() < 2) {
-                std::cerr << "No TypeMatch parameters while substituting Same!\n";
+        if (*tti == same_type || *tti == same2_type || *tti == same3_type) {
+            int mi = (*tti == same_type ? 1 : *tti == same2_type ? 2 : 3);
+            
+            if (match[mi] == NO_TS) {
+                std::cerr << "No matched Any type while substituting Same!\n";
                 throw INTERNAL_ERROR;
             }
-                
-            for (TypeSpecIter si = match.at(1).begin(); si != match.at(1).end(); si++)
+            
+            for (TypeSpecIter si = match[mi].begin(); si != match[mi].end(); si++)
                 ts.push_back(*si);
         }
         else
@@ -381,7 +383,7 @@ Value *rolematch(Value *v, TypeSpec s, TypeSpecIter target, TypeSpec &ifts) {
     // derived from the type parameters of s. Or NULL, if it can't be done.
     // May call itself recursively.
     std::cerr << "Trying rolematch from " << s << " to " << target << ".\n";
-    return s[0]->autoconv(s.match(), target, v, ifts);
+    return s.autoconv(target, v, ifts);
 }
 
 
@@ -399,13 +401,13 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
             s++;
             t++;
         }
-        else if (*t == any_type) {
-            match.push_back(TypeSpec());
+        else if (*t == any_type || *t == any2_type || *t == any3_type) {
+            int mi = (*t == any_type ? 1 : *t == any2_type ? 2 : 3);
             unsigned c = 1;
     
             while (c--) {
                 c += (*s)->parameter_count;
-                match.back().push_back(*s);
+                match[mi].push_back(*s);
                 match[0].push_back(*s);
                 s++;
             }
@@ -623,6 +625,9 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
     if (match.size() != 0)
         throw INTERNAL_ERROR;
 
+    match.push_back(NO_TS);
+    match.push_back(NO_TS);
+    match.push_back(NO_TS);
     match.push_back(NO_TS);
     
     TypeSpec ss = get_typespec(value);

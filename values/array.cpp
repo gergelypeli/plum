@@ -388,7 +388,7 @@ public:
 class ArrayNextItemValue: public ContainerNextValue {
 public:
     ArrayNextItemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
+        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
     }
 
     virtual Storage compile(X64 *x64) {

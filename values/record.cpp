@@ -21,12 +21,14 @@ public:
     std::vector<TypeSpec> member_tss;
     std::vector<std::string> member_names;
     std::vector<Storage> var_storages;
+    TypeMatch match;
     
-    RecordInitializerValue(TypeMatch &match)
-        :Value(match[0]) {
+    RecordInitializerValue(TypeMatch &tm)
+        :Value(tm[0]) {
         record_type = dynamic_cast<RecordType *>(ts[0]);
         member_tss = record_type->get_member_tss(match);
         member_names = record_type->get_member_names();
+        match = tm;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -69,7 +71,7 @@ public:
             if (s.where == STACK)
                 offset = var_ts.measure_stack();
 
-            Storage t = var->get_storage(ts.match(), Storage(MEMORY, Address(RSP, offset)));
+            Storage t = var->get_storage(match, Storage(MEMORY, Address(RSP, offset)));
             
             var_ts.create(s, t, x64);
             

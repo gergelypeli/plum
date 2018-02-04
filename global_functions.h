@@ -28,7 +28,7 @@ TypeMatch type_parameters_to_match(TypeSpec ts);
 
 Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match);
 Value *make_partial_variable_value(PartialVariable *decl, Value *pivot, TypeMatch &match);
-Value *make_role_value(Variable *decl, Value *pivot);
+Value *make_role_value(Variable *decl, Value *pivot, TypeMatch &tm);
 Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match);
 Value *make_type_value(TypeSpec ts);
 Value *make_code_block_value(TypeSpec *context);

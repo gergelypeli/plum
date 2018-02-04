@@ -79,7 +79,7 @@ public:
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable
         if (var_ts[0] == lvalue_type && var_ts[1] == role_type)
-            return make_role_value(this, cpivot);
+            return make_role_value(this, cpivot, match);
         else
             return make_variable_value(this, cpivot, match);
     }
@@ -94,8 +94,8 @@ public:
             throw INTERNAL_ERROR
         );
         
-        //if (a.count1 || a.count2 || a.count3)
-        //    std::cerr << "Hohoho, allocating variable " << name << " with size " << a << ".\n";
+        if (a.count1 || a.count2 || a.count3)
+            std::cerr << "Hohoho, allocating variable " << name << " with size " << a << ".\n";
         
         offset = outer_scope->reserve(a);
         //std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
@@ -117,14 +117,16 @@ public:
 
         if (s.where != MEMORY)
             throw INTERNAL_ERROR;  // all variable containers must use MEMORY
-            
-        //std::cerr << "Variable " << name << " offset is now " << offset << "\n";
+        
+        if (name == "value")    
+            std::cerr << "Variable " << name << " offset " << offset << " with " << tm << " is now " << offset.concretize(tm) << "\n";
+        
         return Storage(where, s.address + offset.concretize(tm));
     }
 
     virtual Storage get_local_storage() {
         // Without pivot as a function local variable
-        return get_storage(VOID_TS.match(), Storage(MEMORY, Address(RBP, 0)));
+        return get_storage(TypeMatch(), Storage(MEMORY, Address(RBP, 0)));
     }
     
     virtual void finalize(X64 *x64) {

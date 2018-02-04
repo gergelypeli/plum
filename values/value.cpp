@@ -215,12 +215,14 @@ public:
     Variable *variable;
     std::unique_ptr<Value> pivot;
     Register reg;
+    TypeMatch match;
     
-    VariableValue(Variable *v, Value *p, TypeMatch &match)
-        :Value(typesubst(v->var_ts, match).lvalue()) {
+    VariableValue(Variable *v, Value *p, TypeMatch &tm)
+        :Value(typesubst(v->var_ts, tm).lvalue()) {
         variable = v;
         pivot.reset(p);
         reg = NOREG;
+        match = tm;
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -262,7 +264,7 @@ public:
                 s = Storage(MEMORY, Address(reg, 0));
             }
             
-            t = variable->get_storage(pivot->ts.match(), s);
+            t = variable->get_storage(match, s);
         }
         else {
             t = variable->get_local_storage();
@@ -313,12 +315,14 @@ public:
     Variable *variable;
     std::unique_ptr<Value> pivot;
     Register reg;
+    TypeMatch match;
     
-    RoleValue(Variable *v, Value *p)
+    RoleValue(Variable *v, Value *p, TypeMatch &tm)
         :Value(v->var_ts.rvalue().unprefix(role_type).prefix(reference_type)) {  // Was: borrowed_type
         variable = v;
         pivot.reset(p);
         reg = NOREG;
+        match = tm;
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -345,7 +349,7 @@ public:
             x64->op(PUSHQ, RBX);
             
             Storage s = pivot->compile(x64);
-            t = variable->get_storage(pivot->ts.match(), s);
+            t = variable->get_storage(match, s);
         }
         else
             throw INTERNAL_ERROR;  // TODO: allow function Role-s?

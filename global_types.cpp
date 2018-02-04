@@ -136,6 +136,11 @@ Label TypeSpec::get_finalizer_label(X64 *x64) {
 }
 
 
+Value *TypeSpec::autoconv(TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+    return at(0)->autoconv(match(), target, orig, ifts);
+}
+
+
 void TypeSpec::store(Storage s, Storage t, X64 *x64) {
     return at(0)->store(match(), s, t, x64);
 }
@@ -204,6 +209,26 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts) {
     }
     
     os << "]";
+    
+    return os;
+}
+
+
+std::ostream &operator<<(std::ostream &os, const TypeMatch &tm) {
+    os << "{";
+    
+    bool start = true;
+    
+    for (auto ts : tm) {
+        if (start)
+            start = false;
+        else
+            os << ",";
+            
+        os << ts;
+    }
+    
+    os << "}";
     
     return os;
 }
@@ -332,7 +357,7 @@ int Allocation::concretize(TypeMatch tm) {
         concrete_size += count3 * tm[3].measure_stack();
     
     //if (count1 || count2 || count3)
-    //    std::cerr << "Hohoho, concretized " << *this << " with " << TypeSpec(tsi) << " to " << concrete_size << " bytes.\n";
+    //    std::cerr << "Hohoho, concretized " << *this << " with " << tm << " to " << concrete_size << " bytes.\n";
     
     return concrete_size;
 }

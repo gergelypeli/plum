@@ -19,6 +19,7 @@ public:
     std::vector<Function *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
+    Value *autoconv(iterator target, Value *orig, TypeSpec &ifts);
     StorageWhere where(bool is_arg, bool is_lvalue = false);
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
@@ -43,6 +44,7 @@ typedef std::vector<TypeSpec> TSs;
 //typedef std::vector<TypeSpec> TypeMatch;
 typedef std::vector<std::string> Ss;
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
+std::ostream &operator<<(std::ostream &os, const TypeMatch &tm);
 
 
 

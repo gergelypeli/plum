@@ -1,6 +1,10 @@
 
 Type *any_type = NULL;
+Type *any2_type = NULL;
+Type *any3_type = NULL;
 Type *same_type = NULL;
+Type *same2_type = NULL;
+Type *same3_type = NULL;
 Type *type_type = NULL;
 Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;
@@ -61,6 +65,7 @@ TypeSpec ANY_OVALUE_TS;
 TypeSpec ANY_LVALUE_TS;
 TypeSpec SAME_TS;
 TypeSpec SAME_LVALUE_TS;
+TypeSpec SAME2_LVALUE_TS;
 TypeSpec METATYPE_TS;
 TypeSpec TREENUMMETA_TS;
 TypeSpec BOOLEAN_TS;
@@ -108,5 +113,6 @@ TypeSpec SAME_CIRCULARRAYINDEXITER_TS;
 TypeSpec SAME_CIRCULARRAYITEMITER_TS;
 TypeSpec SAME_RBTREEELEMBYAGEITER_TS;
 TypeSpec SAME_RBTREEELEMBYORDERITER_TS;
-TypeSpec ANY_ITEM_TS;
-TypeSpec SAME_ITEM_TS;
+TypeSpec ANY_ANY2_ITEM_TS;
+TypeSpec SAME_SAME2_ITEM_TS;
+TypeSpec INTEGER_SAME_ITEM_TS;

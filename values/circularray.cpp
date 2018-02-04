@@ -324,7 +324,7 @@ public:
 class CircularrayNextItemValue: public ContainerNextValue {
 public:
     CircularrayNextItemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
+        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
     }
 
     virtual Storage compile(X64 *x64) {

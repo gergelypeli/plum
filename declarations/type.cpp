@@ -239,7 +239,14 @@ public:
     }
 
     virtual Allocation measure(TypeMatch tm) {
-        return Allocation(0, 1, 0, 0);  // TODO: Same increases the count1
+        if (this == same_type)
+            return Allocation(0, 1, 0, 0);
+        else if (this == same2_type)
+            return Allocation(0, 0, 1, 0);
+        else if (this == same3_type)
+            return Allocation(0, 0, 0, 1);
+        else
+            throw INTERNAL_ERROR;
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
