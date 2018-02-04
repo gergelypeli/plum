@@ -223,3 +223,26 @@ public:
         return make_class_wrapper_initializer_value(set_preinitializer, tree_initializer);
     }
 };
+
+
+class MapType: public ClassType {
+public:
+    MapType(std::string name)
+        :ClassType(name, 2) {
+    }
+    
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        TypeSpec tts = tm[0].reprefix(map_type, item_type).prefix(rbtree_type);
+        Value *tree_initializer = tts.lookup_initializer(name, scope);
+        
+        if (!tree_initializer) {
+            std::cerr << "No Map initializer called " << name << "!\n";
+            return NULL;
+        }
+
+        TypeSpec rts = tm[0].prefix(reference_type);
+        Value *set_preinitializer = make_class_preinitializer_value(rts);
+        
+        return make_class_wrapper_initializer_value(set_preinitializer, tree_initializer);
+    }
+};

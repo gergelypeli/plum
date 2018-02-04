@@ -4,12 +4,10 @@ class MultiValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> values;
     std::vector<TypeSpec> tss;
-    bool is_rvalue;
     std::vector<Storage> storages;
 
     MultiValue()
         :Value(NO_TS) {
-        is_rvalue = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -17,21 +15,27 @@ public:
             std::cerr << "Can't handle labels in multi yet!\n";
             return false;
         }
+
+        bool is_lvalue = true;
+        bool is_type = true;
         
         for (auto &arg : args) {
             Value *value = typize(arg.get(), scope);
             TypeMatch match;
             
-            if (!typematch(ANY_LVALUE_TS, value, match))
-                is_rvalue = true;
-            
+            if (value->ts[0] != lvalue_type)
+                is_lvalue = false;
+                
+            if (value->ts[0] != type_type)
+                is_type = false;
+                
             values.push_back(std::unique_ptr<Value>(value));
         }
         
-        ts = is_rvalue ? MULTI_TS : MULTI_LVALUE_TS;
+        ts = is_lvalue ? MULTI_LVALUE_TS : is_type ? MULTI_TYPE_TS : MULTI_TS;
         
         for (auto &v : values)
-            tss.push_back(is_rvalue ? v->ts.rvalue() : v->ts);
+            tss.push_back(!is_lvalue && !is_type ? v->ts.rvalue() : v->ts);
         
         return true;
     }
@@ -74,29 +78,6 @@ public:
     }
 };
 
-/*
-class MultiUnwind: public Unwind {
-public:
-    Value *value;
-    
-    MultiUnwind(Value *v)
-        :Unwind() {
-        value = v;
-    }
-    
-    virtual void compile(X64 *x64) {
-        std::vector<TypeSpec> tss;
-        
-        if (!value->unpack(tss))
-            throw INTERNAL_ERROR;
-            
-        for (int i = tss.size() - 1; i >= 0; i--) {
-            ArgumentUnwind u(tss[i]);
-            u.compile(x64);
-        }
-    }
-};
-*/
 
 class UnpackingValue: public Value {
 public:

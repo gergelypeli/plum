@@ -26,9 +26,11 @@ public:
     RecordInitializerValue(TypeMatch &tm)
         :Value(tm[0]) {
         record_type = dynamic_cast<RecordType *>(ts[0]);
-        member_tss = record_type->get_member_tss(match);
+        member_tss = record_type->get_member_tss(tm);
         member_names = record_type->get_member_names();
         match = tm;
+        
+        std::cerr << "Record " << record_type->name << " initialization with members: " << member_tss << ".\n";
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -59,7 +61,7 @@ public:
         
         for (unsigned i = 0; i < values.size(); i++) {
             Variable *var = record_type->member_variables[i];
-            TypeSpec var_ts = var->var_ts;
+            TypeSpec var_ts = member_tss[i];
             Value *v = values[i].get();
             Storage s;
             

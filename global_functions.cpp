@@ -634,8 +634,10 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
     TypeSpecIter s(ss.begin());
     TypeSpecIter t(tt.begin());
     
-    if (!match_attribute_type(s, t, match, value, code_scope))
+    if (!match_attribute_type(s, t, match, value, code_scope)) {
+        //std::cerr << "Typematch failed with " << get_typespec(value) << " to " << tt << "!\n";
         return false;
+    }
         
     MATCHLOG std::cerr << "Matched as " << match[0];
     MATCHLOG if (match.size() > 1) { std::cerr << ", parameters"; for (unsigned i = 1; i < match.size(); i++) std::cerr << " " << match[i]; }

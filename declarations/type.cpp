@@ -5,6 +5,7 @@ public:
     std::string name;
     unsigned parameter_count;
     DataScope *inner_scope;  // Will be owned by the outer scope
+    std::unique_ptr<Value> pivot;  // Totally dummy
     
     Type(std::string n, unsigned pc) {
         name = n;
@@ -73,18 +74,50 @@ public:
                 return NULL;
                 
             TypeSpec param = match[1];
+            
+            if (param[0] == multi_type)
+                return NULL;
+            
             if (param[0] == lvalue_type || param[0] == ovalue_type || param[0] == code_type) {
                 std::cerr << "Invalid type parameter: " << param << "!\n";
                 throw TYPE_ERROR;
             }
 
             TypeSpec ts = param.prefix(this).prefix(type_type);
-            // FIXME: do something with pivot!
             
+            this->pivot.reset(pivot);
             return make_type_value(ts);
         }
-        else
-            throw INTERNAL_ERROR;
+        else {
+            TypeMatch match;
+            
+            if (!typematch(MULTI_TYPE_TS, pivot, match))
+                return NULL;
+                
+            std::vector<TypeSpec> tss;
+            if (!unpack_value(pivot, tss))
+                throw INTERNAL_ERROR;
+            
+            if (tss.size() != parameter_count)
+                return NULL;
+            
+            TypeSpec multi_ts = { type_type, this };
+            
+            for (auto ts : tss) {
+                if (ts[0] != type_type)
+                    throw INTERNAL_ERROR;
+                    
+                if (ts[1] == lvalue_type || ts[1] == ovalue_type || ts[1] == code_type || ts[1] == multi_type) {
+                    std::cerr << "Invalid type parameter: " << ts << "!\n";
+                    throw TYPE_ERROR;
+                }
+                
+                multi_ts.insert(multi_ts.end(), ts.begin() + 1, ts.end());
+            }
+
+            this->pivot.reset(pivot);
+            return make_type_value(multi_ts);
+        }
     }
     
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {

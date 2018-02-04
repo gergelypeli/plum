@@ -132,13 +132,16 @@ void builtin_types(Scope *root_scope) {
     set_type = new SetType("Set");
     root_scope->add(set_type);
 
+    map_type = new MapType("Map");
+    root_scope->add(map_type);
+
     countup_type = new RecordType("Countup", 0);
     root_scope->add(countup_type);
 
     countdown_type = new RecordType("Countdown", 0);
     root_scope->add(countdown_type);
 
-    item_type = new RecordType("Item", 2);
+    item_type = new ItemType("Item");
     root_scope->add(item_type);
 
     arrayelemiter_type = new RecordType("Arrayelem_iter", 1);
@@ -178,6 +181,7 @@ void builtin_types(Scope *root_scope) {
     VOID_TS = { void_type };
     MULTI_TS = { multi_type };
     MULTI_LVALUE_TS = { lvalue_type, multi_type };
+    MULTI_TYPE_TS = { type_type, multi_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };
@@ -200,6 +204,7 @@ void builtin_types(Scope *root_scope) {
     ANY_RBTREE_REFERENCE_TS = { reference_type, rbtree_type, any_type };
     ANY_RBTREE_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, rbtree_type, any_type };
     SAME_RBTREE_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, rbtree_type, same_type };
+    SAME_SAME2_ITEM_RBTREE_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, rbtree_type, item_type, same_type, same2_type };
     VOID_CODE_TS = { code_type, void_type };
     BOOLEAN_CODE_TS = { code_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
@@ -213,6 +218,7 @@ void builtin_types(Scope *root_scope) {
     ANY_STACK_REFERENCE_TS = { reference_type, stack_type, any_type };
     ANY_QUEUE_REFERENCE_TS = { reference_type, queue_type, any_type };
     ANY_SET_REFERENCE_TS = { reference_type, set_type, any_type };
+    ANY_ANY2_MAP_REFERENCE_TS = { reference_type, map_type, any_type, any2_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -389,7 +395,6 @@ void define_iterators() {
     }
 
     // Item type for itemized iteration
-    // TODO: this is limited to (Integer, T) items now!
     RecordType *item_type = dynamic_cast<RecordType *>(::item_type);
     DataScope *itis = item_type->make_inner_scope(ANY_ANY2_ITEM_TS);
 
@@ -596,6 +601,21 @@ void define_set() {
 }
 
 
+void define_map() {
+    TypeSpec PIVOT = ANY_ANY2_MAP_REFERENCE_TS;
+    TypeSpec CAST = SAME_SAME2_ITEM_RBTREE_REFERENCE_LVALUE_TS;
+    
+    ClassType *class_type = dynamic_cast<ClassType *>(map_type);
+    DataScope *is = class_type->make_inner_scope(PIVOT);
+
+    is->add(new Variable("tree", PIVOT, CAST));
+    
+    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
+    
+    class_type->complete_type();
+}
+
+
 void builtin_runtime(Scope *root_scope) {
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -629,6 +649,7 @@ Scope *init_builtins() {
     define_stack();
     define_queue();
     define_set();
+    define_map();
     
     // Integer operations
     define_integers();

@@ -24,6 +24,7 @@ public:
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t = NULL);
+    TypeSpec reprefix(Type *s, Type *t);
     TypeSpec rvalue();
     TypeSpec lvalue();
     TypeSpec nonlvalue();

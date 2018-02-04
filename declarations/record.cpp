@@ -140,6 +140,10 @@ public:
         return Storage(FLAGS, SETNE);
     }
     
+    virtual unsigned comparable_member_count() {
+        return member_variables.size();
+    }
+    
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         int stack_size = tm[0].measure_stack();
 
@@ -163,8 +167,8 @@ public:
             t = Storage(MEMORY, Address(RBP, ADDRESS_SIZE));
             break;
         case MEMORY_MEMORY:
-            for (auto &var : member_variables) 
-                var->compare(tm, s, t, x64, less, greater);
+            for (unsigned i = 0; i < comparable_member_count(); i++)
+                member_variables[i]->compare(tm, s, t, x64, less, greater);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -172,9 +176,9 @@ public:
 
         Label xless, xgreater, xend, xclean;
 
-        for (auto &var : member_variables) 
-            var->compare(tm, s, t, x64, xless, xgreater);
-            
+        for (unsigned i = 0; i < comparable_member_count(); i++)
+            member_variables[i]->compare(tm, s, t, x64, xless, xgreater);
+
         x64->op(LEARIP, RBX, xend);
         x64->op(JMP, xclean);
         
@@ -386,3 +390,14 @@ public:
     }
 };
 
+
+class ItemType: public RecordType {
+public:
+    ItemType(std::string n)
+        :RecordType(n, 2) {
+    }
+
+    virtual unsigned comparable_member_count() {
+        return 1;
+    }
+};

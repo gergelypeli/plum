@@ -45,6 +45,26 @@ TypeSpec TypeSpec::unprefix(Type *t) {
 }
 
 
+TypeSpec TypeSpec::reprefix(Type *s, Type *t) {
+    if (at(0) != s) {
+        std::cerr << "TypeSpec doesn't start with " << s->name << ": " << *this << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    if (s->parameter_count != t->parameter_count) {
+        std::cerr << "Can't reprefix Type with " << s->parameter_count << " parameters: " << *this << "!\n";
+        throw INTERNAL_ERROR;
+    }
+        
+    TypeSpec ts = { t };
+
+    for (unsigned i = 1; i < size(); i++)
+        ts.push_back(at(i));
+
+    return ts;
+}
+
+
 TypeSpec TypeSpec::rvalue() {
     return at(0) == lvalue_type ? unprefix(lvalue_type) : at(0) == ovalue_type ? unprefix(ovalue_type) : *this;
 }
