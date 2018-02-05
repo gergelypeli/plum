@@ -32,8 +32,8 @@ public:
         int key_stack_size = key_ts.measure_stack();
         int value_stack_size = value_ts.measure_stack();
         
-        Label grow_label = x64->once->compile(compile_grow_rbtree, item_ts);
-        Label add_label = x64->once->compile(compile_add, item_ts);
+        Label grow_label = x64->once->compile(compile_rbtree_grow, item_ts);
+        Label add_label = x64->once->compile(compile_rbtree_add, item_ts);
         Label ok;
 
         x64->op(MOVQ, RBX, Address(RSP, key_stack_size + value_stack_size));
@@ -100,7 +100,7 @@ public:
 
         int key_stack_size = key_ts.measure_stack();
         
-        Label remove_label = x64->once->compile(compile_remove, item_ts);
+        Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
 
         x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
         x64->op(MOVQ, RSI, Address(RBX, CLASS_MEMBERS_OFFSET));
@@ -148,7 +148,7 @@ public:
         pivot->compile_and_store(x64, Storage(STACK));
         key->compile_and_store(x64, Storage(STACK));
         
-        Label has_label = x64->once->compile(compile_has, item_ts);
+        Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
         Label ok;
 
         x64->op(MOVQ, RBX, Address(RSP, key_stack_size));

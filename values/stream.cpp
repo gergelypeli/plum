@@ -13,7 +13,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label alloc_array = x64->once->compile(compile_alloc_array, CHARACTER_TS);
+        Label alloc_array = x64->once->compile(compile_array_alloc, CHARACTER_TS);
         
         x64->op(MOVQ, RAX, length);
         x64->op(CALL, alloc_array);
@@ -52,7 +52,7 @@ public:
     
     static void compile_string_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - tmp, RCX - size, RDX - source array, RDI - alias
-        Label preappend_array = x64->once->compile(compile_preappend_array, CHARACTER_TS);
+        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
         
         x64->code_label_local(label, "string_streamification");
         
@@ -111,7 +111,7 @@ public:
     
     static void compile_character_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - tmp, RCX - size, RDX - source character, RDI - alias
-        Label preappend_array = x64->once->compile(compile_preappend_array, CHARACTER_TS);
+        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
 
         x64->code_label_local(label, "character_streamification");
 
@@ -169,7 +169,7 @@ public:
     
     static void compile_enum_streamification(Label label, X64 *x64) {
         // RAX - target array, RBX - table start, RCX - size, RDX - source enum, RDI - alias
-        Label preappend_array = x64->once->compile(compile_preappend_array, CHARACTER_TS);
+        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
 
         x64->code_label_local(label, "enum_streamification");
 

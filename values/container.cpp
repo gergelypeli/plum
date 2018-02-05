@@ -10,7 +10,7 @@ int container_elem_size(TypeSpec elem_ts) {
 }
 
 
-void alloc_container(int header_size, int elem_size, int reservation_offset, Label finalizer_label, X64 *x64) {
+void container_alloc(int header_size, int elem_size, int reservation_offset, Label finalizer_label, X64 *x64) {
     // RAX - reservation
     x64->op(PUSHQ, RAX);
     x64->op(IMUL3Q, RAX, RAX, elem_size);
@@ -23,7 +23,7 @@ void alloc_container(int header_size, int elem_size, int reservation_offset, Lab
 }
 
 
-void realloc_container(int header_size, int elem_size, int reservation_offset, X64 *x64) {
+void container_realloc(int header_size, int elem_size, int reservation_offset, X64 *x64) {
     // RAX - array, RBX - new reservation
     x64->op(MOVQ, Address(RAX, reservation_offset), RBX);
     x64->op(IMUL3Q, RBX, RBX, elem_size);
@@ -33,7 +33,7 @@ void realloc_container(int header_size, int elem_size, int reservation_offset, X
 }
 
 
-void grow_container(int reservation_offset, int min_reservation, Label realloc_label, X64 *x64) {
+void container_grow(int reservation_offset, int min_reservation, Label realloc_label, X64 *x64) {
     // RAX - array, RBX - new reservation
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
 
@@ -54,7 +54,7 @@ void grow_container(int reservation_offset, int min_reservation, Label realloc_l
 }
 
 
-void preappend_container(int reservation_offset, int length_offset, Label grow_label, X64 *x64) {
+void container_preappend(int reservation_offset, int length_offset, Label grow_label, X64 *x64) {
     // RAX - array, RBX - new addition
 
     Label ok;

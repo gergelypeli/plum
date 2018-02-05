@@ -4,14 +4,14 @@ int array_elem_size(TypeSpec elem_ts) {
 }
 
 
-void compile_alloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - reservation
     int elem_size = array_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(array_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_array_alloc");
     
-    alloc_container(ARRAY_HEADER_SIZE, elem_size, ARRAY_RESERVATION_OFFSET, finalizer_label, x64);
+    container_alloc(ARRAY_HEADER_SIZE, elem_size, ARRAY_RESERVATION_OFFSET, finalizer_label, x64);
 
     x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
     
@@ -19,40 +19,40 @@ void compile_alloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void compile_realloc_array(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
     int elem_size = array_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_array_realloc");
 
-    realloc_container(ARRAY_HEADER_SIZE, elem_size, ARRAY_RESERVATION_OFFSET, x64);
+    container_realloc(ARRAY_HEADER_SIZE, elem_size, ARRAY_RESERVATION_OFFSET, x64);
 
     x64->op(RET);
 }
 
 
-void compile_grow_array(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
-    Label realloc_label = x64->once->compile(compile_realloc_array, elem_ts);
+    Label realloc_label = x64->once->compile(compile_array_realloc, elem_ts);
 
     x64->code_label_local(label, "x_array_grow");
     //x64->log("grow_array");
     
-    grow_container(ARRAY_RESERVATION_OFFSET, ARRAY_MINIMUM_RESERVATION, realloc_label, x64);
+    container_grow(ARRAY_RESERVATION_OFFSET, ARRAY_MINIMUM_RESERVATION, realloc_label, x64);
     
     x64->op(RET);
 }
 
 
-void compile_preappend_array(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new addition
-    Label grow_label = x64->once->compile(compile_grow_array, elem_ts);
+    Label grow_label = x64->once->compile(compile_array_grow, elem_ts);
 
     x64->code_label_local(label, "x_array_preappend");
     //x64->log("preappend_array");
     
-    preappend_container(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, grow_label, x64);
+    container_preappend(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, grow_label, x64);
 
     x64->op(RET);
 }
@@ -113,7 +113,7 @@ public:
     static void compile_array_concatenation(Label label, TypeSpec elem_ts, X64 *x64) {
         // RAX - result, RBX - first, RDX - second
         x64->code_label_local(label, "x_array_concatenation");
-        Label alloc_array = x64->once->compile(compile_alloc_array, elem_ts);
+        Label alloc_array = x64->once->compile(compile_array_alloc, elem_ts);
         int elem_size = array_elem_size(elem_ts);
         
         x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
@@ -164,7 +164,7 @@ public:
         // TODO: this only works for arrays of basic types now, that can be just copied
         // TODO: can't any type be moved?
 
-        Label realloc_array = x64->once->compile(compile_realloc_array, elem_ts);
+        Label realloc_array = x64->once->compile(compile_array_realloc, elem_ts);
         
         subcompile(x64);
         
@@ -271,7 +271,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        return subcompile(compile_alloc_array, x64);
+        return subcompile(compile_array_alloc, x64);
     }
 };
 
@@ -283,7 +283,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, compile_alloc_array, x64);
+        return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, compile_array_alloc, x64);
     }
 };
 
@@ -319,7 +319,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, compile_grow_array, x64);
+        return subcompile(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, compile_array_grow, x64);
     }
 };
 

@@ -8,14 +8,14 @@ int rbtree_elem_size(TypeSpec elem_ts) {
 // offsets, so if RSI points to the tree, then RSI + RAX points to the node. The NIL node
 // value may be 0, which is an invalid offset, since the tree itself has a nonempty header.
 
-void compile_alloc_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - reservation
     int elem_size = rbtree_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(rbtree_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_rbtree_alloc");
     
-    alloc_container(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, finalizer_label, x64);
+    container_alloc(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, finalizer_label, x64);
 
     x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), 0);
     x64->op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RBNODE_NIL);
@@ -27,26 +27,26 @@ void compile_alloc_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void compile_realloc_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
     int elem_size = rbtree_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_rbtree_realloc");
 
-    realloc_container(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, x64);
+    container_realloc(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, x64);
 
     x64->op(RET);
 }
 
 
-void compile_grow_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
     // Double the reservation until it's enough
-    Label realloc_label = x64->once->compile(compile_realloc_rbtree, elem_ts);
+    Label realloc_label = x64->once->compile(compile_rbtree_realloc, elem_ts);
 
     x64->code_label_local(label, "x_rbtree_grow");
     //x64->log("x_rbtree_grow");
-    grow_container(RBTREE_RESERVATION_OFFSET, RBTREE_MINIMUM_RESERVATION, realloc_label, x64);
+    container_grow(RBTREE_RESERVATION_OFFSET, RBTREE_MINIMUM_RESERVATION, realloc_label, x64);
     
     x64->op(RET);
 }
@@ -59,7 +59,7 @@ void compile_grow_rbtree(Label label, TypeSpec elem_ts, X64 *x64) {
 // RSI - address of the tree
 // RDI - address of key (input), dark soul (output during removal)
 
-void compile_left_fix(Label label, X64 *x64) {
+void compile_rbtree_left_fix(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_left_fix");
     // RSI - tree, RAX - node
     // RBX - result
@@ -119,7 +119,7 @@ void compile_left_fix(Label label, X64 *x64) {
 }
 
 
-void compile_right_fix(Label label, X64 *x64) {
+void compile_rbtree_right_fix(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_right_fix");
     // RSI - tree, RAX - node
     // RBX - result
@@ -179,10 +179,10 @@ void compile_right_fix(Label label, X64 *x64) {
 }
 
 
-void compile_other_fix(Label label, X64 *x64) {
+void compile_rbtree_other_fix(Label label, X64 *x64) {
     Label redden_side, materialize;
-    Label left_fix = x64->once->compile(compile_left_fix);
-    Label right_fix = x64->once->compile(compile_right_fix);
+    Label left_fix = x64->once->compile(compile_rbtree_left_fix);
+    Label right_fix = x64->once->compile(compile_rbtree_right_fix);
 
     {
         x64->code_label_local(label, "rbtree_other_fix");
@@ -282,7 +282,7 @@ void compile_other_fix(Label label, X64 *x64) {
 }
 
 
-void compile_allocate(Label label, X64 *x64) {
+void compile_rbtree_allocate(Label label, X64 *x64) {
     x64->code_label_local(label, "_allocate");
     // In: RSI - tree, RBX - node size
     // Out: RAX - node
@@ -334,7 +334,7 @@ void compile_allocate(Label label, X64 *x64) {
 }
 
 
-void compile_deallocate(Label label, X64 *x64) {
+void compile_rbtree_deallocate(Label label, X64 *x64) {
     x64->code_label_local(label, "_deallocate");
     // In: RSI - tree, RAX - node
     // Clob: RBX, RCX
@@ -378,7 +378,7 @@ void compile_deallocate(Label label, X64 *x64) {
 }
 
 
-void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_has(Label label, TypeSpec elem_ts, X64 *x64) {
     // RSI - tree
     // RAX - node
     // RDI - key / found index or NIL
@@ -409,16 +409,16 @@ void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void compile_add(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     // Expects RSI - tree, RAX - index, RDI - key
     // Returns RBX - new subtree root, RDI - index with uninitialized value
     // Clobbers RCX, RDX
     x64->code_label_local(label, "rbtree_add");
     
     Label less, greater, no;
-    Label left_fix = x64->once->compile(compile_left_fix);
-    Label right_fix = x64->once->compile(compile_right_fix);
-    Label allocate = x64->once->compile(compile_allocate);
+    Label left_fix = x64->once->compile(compile_rbtree_left_fix);
+    Label right_fix = x64->once->compile(compile_rbtree_right_fix);
+    Label allocate = x64->once->compile(compile_rbtree_allocate);
     int key_size = elem_ts.measure_stack();
     int node_size = key_size + RBNODE_HEADER_SIZE;
     
@@ -467,15 +467,15 @@ void compile_add(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     // Expects RSI - tree, RAX - index, RDI - key / dark soul
     // Returns RBX - new index
     // Clobbers RCX, RDX
     x64->code_label_local(label, "rbtree_remove");
     
     Label no, remove_left, remove_right;
-    Label deallocate = x64->once->compile(compile_deallocate);
-    Label other_fix = x64->once->compile(compile_other_fix);
+    Label deallocate = x64->once->compile(compile_rbtree_deallocate);
+    Label other_fix = x64->once->compile(compile_rbtree_other_fix);
     
     //x64->log("Rbtree remove.");
     x64->op(CMPQ, RAX, RBNODE_NIL);
@@ -587,7 +587,7 @@ void compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void compile_next(Label label, X64 *x64) {
+void compile_rbtree_next(Label label, X64 *x64) {
     // Expects RSI - tree, RAX - it
     // Returns RAX - new it or 0, RBX new index
     // Clobbers RCX, RDX
@@ -682,7 +682,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label alloc_label = x64->once->compile(compile_alloc_rbtree, elem_ts);
+        Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
         
         x64->op(MOVQ, RAX, 0);
         x64->op(CALL, alloc_label);
@@ -707,7 +707,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label alloc_label = x64->once->compile(compile_alloc_rbtree, elem_ts);
+        Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
 
         right->compile_and_store(x64, Storage(REGISTER, RAX));
 
@@ -726,8 +726,8 @@ public:
 
     virtual Storage compile(X64 *x64) {
         // This won't use the base class subcompile method, because that's inappropriate here.
-        Label alloc_label = x64->once->compile(compile_alloc_rbtree, elem_ts);
-        Label add_label = x64->once->compile(compile_add, elem_ts);
+        Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
+        Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
         int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, RAX, elems.size());
@@ -810,7 +810,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         int key_size = elem_ts.measure_stack();
-        Label has = x64->once->compile(compile_has, elem_ts);
+        Label has = x64->once->compile(compile_rbtree_has, elem_ts);
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
@@ -846,7 +846,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         int key_size = elem_ts.measure_stack();
-        Label add = x64->once->compile(compile_add, elem_ts);
+        Label add = x64->once->compile(compile_rbtree_add, elem_ts);
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
 
@@ -883,7 +883,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         int key_size = elem_ts.measure_stack();
-        Label remove = x64->once->compile(compile_remove, elem_ts);
+        Label remove = x64->once->compile(compile_rbtree_remove, elem_ts);
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
 
@@ -910,7 +910,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        return subcompile(RBTREE_RESERVATION_OFFSET, RBTREE_LENGTH_OFFSET, compile_grow_rbtree, x64);
+        return subcompile(RBTREE_RESERVATION_OFFSET, RBTREE_LENGTH_OFFSET, compile_rbtree_grow, x64);
     }
 };
 
@@ -1041,7 +1041,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label next_label = x64->once->compile(compile_next);
+        Label next_label = x64->once->compile(compile_rbtree_next);
         Label ok;
 
         left->compile_and_store(x64, Storage(ALISTACK));  // iterator

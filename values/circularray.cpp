@@ -30,14 +30,14 @@ void fix_RBX_index_underflow(Register r, X64 *x64) {
 }
 
 
-void compile_alloc_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_circularray_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - reservation
     int elem_size = circularray_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_circularray_alloc");
     
-    alloc_container(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, finalizer_label, x64);
+    container_alloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, finalizer_label, x64);
 
     x64->op(MOVQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET), 0);
     x64->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), 0);
@@ -46,24 +46,24 @@ void compile_alloc_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void compile_realloc_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_circularray_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
     int elem_size = circularray_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_circularray_realloc");
     //x64->log("realloc_array");
     
-    realloc_container(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, x64);
+    container_realloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, x64);
     
     x64->op(RET);
 }
 
 
-void compile_grow_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_circularray_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, RBX - new reservation
     // RCX, RSI, RDI - clob
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
-    Label realloc_label = x64->once->compile(compile_realloc_circularray, elem_ts);
+    Label realloc_label = x64->once->compile(compile_circularray_realloc, elem_ts);
     int elem_size = circularray_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_circularray_grow");
@@ -73,7 +73,7 @@ void compile_grow_circularray(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(PUSHQ, RDI);
     x64->op(PUSHQ, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
     
-    grow_container(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_MINIMUM_RESERVATION, realloc_label, x64);
+    container_grow(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_MINIMUM_RESERVATION, realloc_label, x64);
 
     x64->op(POPQ, RBX);  // old reservation
     
@@ -167,7 +167,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        return subcompile(compile_alloc_circularray, x64);
+        return subcompile(compile_circularray_alloc, x64);
     }
 };
 
@@ -179,7 +179,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_alloc_circularray, x64);
+        return subcompile(CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_circularray_alloc, x64);
     }
 };
 
@@ -253,7 +253,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, compile_grow_circularray, x64);
+        return subcompile(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, compile_circularray_grow, x64);
     }
 };
 
