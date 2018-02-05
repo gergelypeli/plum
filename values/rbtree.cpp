@@ -380,22 +380,23 @@ void compile_deallocate(Label label, X64 *x64) {
 
 void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
     // RSI - tree
-    // RAX - node / return bool
-    // RDI - key
+    // RAX - node
+    // RDI - key / found index or NIL
     x64->code_label_local(label, "rbtree_has");
 
-    Label loop, no, less, greater;
+    Label loop, finish, less, greater;
 
     x64->code_label(loop);
     //x64->log("Has loop.");
     x64->op(CMPQ, RAX, RBNODE_NIL);
-    x64->op(JE, no);
+    x64->op(JE, finish);
 
     Storage ks(MEMORY, Address(RDI, 0));
     Storage vs(MEMORY, Address(RSI, RAX, RBNODE_VALUE_OFFSET));
     elem_ts.compare(ks, vs, x64, less, greater);
     
-    x64->op(MOVQ, RAX, 1);
+    x64->code_label(finish);
+    x64->op(MOVQ, RDI, RAX);  // Found index or NIL
     x64->op(RET);
     
     x64->code_label(less);
@@ -405,16 +406,12 @@ void compile_has(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->code_label(greater);
     x64->op(MOVQ, RAX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
     x64->op(JMP, loop);
-    
-    x64->code_label(no);
-    x64->op(MOVQ, RAX, 0);
-    x64->op(RET);
 }
 
 
 void compile_add(Label label, TypeSpec elem_ts, X64 *x64) {
     // Expects RSI - tree, RAX - index, RDI - key
-    // Returns RBX - new index
+    // Returns RBX - new subtree root, RDI - index with uninitialized value
     // Clobbers RCX, RDX
     x64->code_label_local(label, "rbtree_add");
     
@@ -433,9 +430,11 @@ void compile_add(Label label, TypeSpec elem_ts, X64 *x64) {
     Storage vs(MEMORY, Address(RSI, RAX, RBNODE_VALUE_OFFSET));
     elem_ts.compare(ks, vs, x64, less, greater);
     
-    // Found the value, nothing to do
+    // Found the value, destroy to make place for the new one
     //x64->log("Rbtree add found.");
+    elem_ts.destroy(vs, x64);
     x64->op(MOVQ, RBX, RAX);
+    x64->op(MOVQ, RDI, RAX);
     x64->op(RET);
     
     x64->code_label(less);
@@ -462,8 +461,8 @@ void compile_add(Label label, TypeSpec elem_ts, X64 *x64) {
     //x64->log("Rbtree add missing.");
     x64->op(MOVQ, RBX, node_size);
     x64->op(CALL, allocate);  // from RSI to RAX
-    elem_ts.create(ks, vs, x64);
     x64->op(MOVQ, RBX, RAX);
+    x64->op(MOVQ, RDI, RAX);
     x64->op(RET);
 }
 
@@ -748,7 +747,7 @@ public:
             x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
             x64->op(ANDQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken root
         
-            elem_ts.store(Storage(STACK), Storage(), x64);
+            elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
         }
         
         return Storage(STACK);
@@ -820,11 +819,13 @@ public:
         x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
         
         x64->op(CALL, has);
+        x64->op(CMPQ, RDI, RBNODE_NIL);
+        x64->op(SETNE, AL);
         
         elem_ts.store(Storage(STACK), Storage(), x64);
         left->ts.store(Storage(STACK), Storage(), x64);
         
-        return Storage(REGISTER, RAX);
+        return Storage(REGISTER, AL);
     }
 };
 
@@ -858,7 +859,7 @@ public:
         x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
         x64->op(ANDQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken root
         
-        elem_ts.store(Storage(STACK), Storage(), x64);
+        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
         left->ts.store(Storage(STACK), Storage(), x64);
         
         return Storage();

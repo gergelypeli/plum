@@ -611,6 +611,9 @@ void define_map() {
     is->add(new Variable("tree", PIVOT, CAST));
     
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
+    is->add(new TemplateIdentifier<MapAddValue>("add", PIVOT));
+    is->add(new TemplateIdentifier<MapRemoveValue>("remove", PIVOT));
+    is->add(new TemplateIdentifier<MapIndexValue>("index", PIVOT));
     
     class_type->complete_type();
 }

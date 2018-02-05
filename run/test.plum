@@ -427,10 +427,15 @@ start? :Function as:
         prints("Set element: {e}" {})
 
     mp? (String, String) Map {{ "A", "a" }, { "B", "b" }}
+    mp add("C", "c")
+    mp add("D", "d")
+    mp remove("C")
     prints("Map length is {x}" {x: mp length})
     
     :for mp tree elements_by_order each: iv? do:
         prints("Map element: {x} => {y}" {x: iv index, y: iv value})
+    
+    prints("Map element at A is: {x}" {x: mp["A"]})
     
     gr? Greetable `init
     gr greet
