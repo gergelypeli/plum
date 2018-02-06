@@ -427,21 +427,21 @@ void define_string() {
 
     is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS));  // Order matters!
 
-    is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, NO_TS, NO_TS, INTEGER_TS, "length"));
-    is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus"));
-    is->add(new RecordWrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, INTEGER_TS, NO_TS, CHARACTER_TS, "index"));
-    is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, INTEGER_OVALUE_TS, NO_TS, STRING_LVALUE_TS, "realloc"));
+    is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, INTEGER_TS, "length"));
+    is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, STRING_TS, "binary_plus", "chars"));
+    is->add(new RecordWrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, CHARACTER_TS, "index"));
+    is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REFERENCE_LVALUE_TS, STRING_LVALUE_TS, "realloc"));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
     is->add(new TemplateIdentifier<StringEqualityValue>("is_equal", STRING_TS));
 
     implement(is, TypeSpec { iterable_type, character_type }, "ible", {
-        new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, NO_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
+        new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
     });
 
-    is->add(new RecordWrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, NO_TS, NO_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
-    is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, NO_TS, NO_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
-    is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, NO_TS, NO_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
+    is->add(new RecordWrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
+    is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REFERENCE_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
     is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
 

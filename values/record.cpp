@@ -177,14 +177,15 @@ public:
 };
 
 
-class RecordWrapperValue: public GenericValue {
+class RecordWrapperValue: public Value {
 public:
-    TypeSpec arg_cast_ts;
+    std::unique_ptr<Value> operation;
+    std::string arg_operation_name;
 
-    RecordWrapperValue(Value *pivot, TypeSpec pcts, TypeSpec ats, TypeSpec acts, TypeSpec rts, std::string on)
-        :GenericValue(ats, rts, NULL) {
-        arg_cast_ts = acts;
-
+    RecordWrapperValue(Value *pivot, TypeSpec pcts, TypeSpec rts, std::string on, std::string aon)
+        :Value(rts) {
+        arg_operation_name = aon;
+        
         if (pcts != NO_TS)
             pivot = make_record_unwrap_value(pcts, pivot);
         
@@ -194,35 +195,27 @@ public:
                 throw INTERNAL_ERROR;
         }
         
-        left.reset(pivot);
+        operation.reset(pivot);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!GenericValue::check(args, kwargs, scope))
-            return false;
-            
-        if (right) {
-            GenericValue *generic_left = dynamic_cast<GenericValue *>(left.get());
-            if (!generic_left)
-                throw INTERNAL_ERROR;
-            
-            Value *k = right.release();
-        
-            if (arg_cast_ts != NO_TS)
-                k = make_record_unwrap_value(arg_cast_ts, k);
-                
-            generic_left->right.reset(k);
+        if (arg_operation_name.size()) {       
+            if (args.size() != 1 || kwargs.size() != 0)
+                return false;
+
+            Expr *expr = new Expr(Expr::IDENTIFIER, Token(), arg_operation_name);
+            args[0].reset(expr->set_pivot(args[0].release()));
         }
-        
-        return true;
+
+        return operation->check(args, kwargs, scope);
     }
     
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred);
+        return operation->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
-        Storage s = left->compile(x64);
+        Storage s = operation->compile(x64);
         
         if (s.where == REGISTER) {
             x64->op(PUSHQ, s.reg);

@@ -110,10 +110,18 @@ public:
 class ContainerIndexValue: public GenericOperationValue {
 public:
     TypeSpec elem_ts;
+    Borrow *borrow;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match)
         :GenericOperationValue(o, INTEGER_TS, match[1].varvalue().lvalue(), pivot) {
         elem_ts = match[1].varvalue();
+        borrow = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        borrow = new Borrow;
+        scope->add(borrow);
+        return GenericOperationValue::check(args, kwargs, scope);
     }
 
     virtual void fix_RBX_index(Register r, X64 *x64) {
@@ -123,7 +131,7 @@ public:
         int elem_size = container_elem_size(elem_ts);
     
         GenericOperationValue::subcompile(x64);
-    
+
         switch (rs.where) {
         case CONSTANT:
             x64->op(MOVQ, RBX, rs.value);
@@ -140,14 +148,22 @@ public:
 
         switch (ls.where) {
         case REGISTER:
-            x64->decref(ls.reg);
+            // Keep REGISTER reference, defer decref
+            x64->op(MOVQ, borrow->get_address(), ls.reg);
+            
             fix_RBX_index(ls.reg, x64);
+            
             x64->op(IMUL3Q, RBX, RBX, elem_size);
             x64->op(LEA, ls.reg, Address(ls.reg, RBX, elems_offset));
             return Storage(MEMORY, Address(ls.reg, 0));
         case MEMORY:
+            // Add reference, defer decref
             x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
+            x64->op(MOVQ, borrow->get_address(), reg);
+            x64->incref(reg);
+            
             fix_RBX_index(reg, x64);
+            
             x64->op(IMUL3Q, RBX, RBX, elem_size);
             x64->op(LEA, reg, Address(reg, RBX, elems_offset));
             return Storage(MEMORY, Address(reg, 0));

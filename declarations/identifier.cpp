@@ -362,34 +362,30 @@ public:
 
 class RecordWrapperIdentifier: public Identifier {
 public:
-    TypeSpec arg_ts;
     TypeSpec result_ts;
     TypeSpec pivot_cast_ts;
-    TypeSpec arg_cast_ts;
     std::string operation_name;
+    std::string arg_operation_name;
     
     RecordWrapperIdentifier(std::string n,
         TypeSpec pivot_ts, TypeSpec pcts,
-        TypeSpec ats, TypeSpec acts,
-        TypeSpec rts, std::string on)
+        TypeSpec rts, std::string on,
+        std::string aon = "")
         :Identifier(n, pivot_ts) {
-        arg_ts = ats;
         result_ts = rts;
         pivot_cast_ts = pcts;
-        arg_cast_ts = acts;
         operation_name = on;
+        arg_operation_name = aon;
     }
     
     virtual Value *matched(Value *pivot, TypeMatch &match) {
         if (!pivot)
             throw INTERNAL_ERROR;
         
-        TypeSpec ats = typesubst(arg_ts, match);
         TypeSpec rts = typesubst(result_ts, match);
         TypeSpec pcts = typesubst(pivot_cast_ts, match);
-        TypeSpec acts = typesubst(arg_cast_ts, match);
             
-        Value *wrapper = make_record_wrapper_value(pivot, pcts, ats, acts, rts, operation_name);
+        Value *wrapper = make_record_wrapper_value(pivot, pcts, rts, operation_name, arg_operation_name);
         
         return wrapper;
     }

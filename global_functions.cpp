@@ -270,8 +270,8 @@ Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v) {
 }
 
 
-Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec arg_ts, TypeSpec arg_cast_ts, TypeSpec result_ts, std::string operation_name) {
-    return new RecordWrapperValue(pivot, pivot_cast_ts, arg_ts, arg_cast_ts, result_ts, operation_name);
+Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec result_ts, std::string operation_name, std::string arg_operation_name) {
+    return new RecordWrapperValue(pivot, pivot_cast_ts, result_ts, operation_name, arg_operation_name);
 }
 
 
