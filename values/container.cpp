@@ -369,8 +369,19 @@ public:
 
 class ContainerAutogrowValue: public GenericValue {
 public:
+    Declaration *dummy;
+
     ContainerAutogrowValue(Value *l, TypeMatch &match)
         :GenericValue(NO_TS, l->ts, l) {
+        dummy = NULL;
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        dummy = make_exception_dummy(container_grow_exception_type, scope);
+        if (!dummy)
+            return false;
+
+        return GenericValue::check(args, kwargs, scope);
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -392,6 +403,13 @@ public:
             
             Label ok;
             x64->op(MOVQ, RAX, s.address);
+            
+            Label locked;
+            x64->lock(RAX, locked);
+            x64->op(MOVB, EXCEPTION_ADDRESS, LENT_EXCEPTION);
+            x64->unwind->initiate(dummy, x64);
+
+            x64->code_label(locked);
             x64->op(MOVQ, RBX, Address(RAX, length_offset));
             x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
             x64->op(JB, ok);

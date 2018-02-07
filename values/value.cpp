@@ -5,7 +5,6 @@ class Value {
 public:
     TypeSpec ts;
     Token token;
-    //Marker marker;
         
     Value(TypeSpec t)
         :ts(t) {
@@ -19,14 +18,29 @@ public:
         return this;
     }
 
-    //virtual Value *set_marker(Marker m) {
-    //    marker = m;
-    //    return this;
-    //}
-    
     virtual Value *set_context_ts(TypeSpec *c) {
         // Generally we don't need it, only in controls
         return this;
+    }
+    
+    virtual Declaration *make_exception_dummy(Type *exception_type, Scope *scope) {
+        TryScope *try_scope = scope->get_try_scope();
+        
+        if (!try_scope) {
+            std::cerr << "Exception " << exception_type->name << " not caught!\n";
+            return NULL;
+        }
+        
+        if (!try_scope->set_exception_type(exception_type)) {
+            std::cerr << "Exception " << exception_type->name << " is not the caught one!\n";
+            return NULL;
+        }
+        
+        // Insert declaration dummy here, destroy variables before it if we get an exception
+        Declaration *dummy = new Declaration;
+        scope->add(dummy);
+
+        return dummy;
     }
     
     bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {

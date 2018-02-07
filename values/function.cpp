@@ -343,21 +343,10 @@ public:
         }
 
         if (function->exception_type) {
-            TryScope *try_scope = scope->get_try_scope();
-            
-            if (!try_scope) {
-                std::cerr << "Function " << function->name << " raises exceptions!\n";
+            dummy = make_exception_dummy(function->exception_type, scope);
+
+            if (!dummy)
                 return false;
-            }
-            
-            if (!try_scope->set_exception_type(function->exception_type)) {
-                std::cerr << "Function " << function->name << " raises different exceptions!\n";
-                return false;
-            }
-            
-            // Insert declaration dummy here, destroy variables before it if we get an exception
-            dummy = new Declaration;
-            scope->add(dummy);
         }
 
         return true;

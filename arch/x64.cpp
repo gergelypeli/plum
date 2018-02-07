@@ -1164,9 +1164,11 @@ void X64::init_memory_management() {
     op(RET);
     
     code_label_local(realloc_RAX_RBX_label, "realloc_RAX_RBX");
-    Label realloc_die;
-    op(CMPQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);
-    op(JNE, realloc_die);
+    Label realloc_ok;
+    lock(RAX, realloc_ok);
+    die("Realloc of shared array!");
+    
+    code_label(realloc_ok);
     pusha(true);
     op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
     op(LEA, RSI, Address(RBX, HEAP_HEADER_SIZE));
@@ -1174,9 +1176,6 @@ void X64::init_memory_management() {
     op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
     popa(true);
     op(RET);
-    
-    code_label(realloc_die);
-    die("Realloc of shared array!");
     
     code_label_local(empty_function_label, "empty_function");
     op(RET);
@@ -1211,8 +1210,9 @@ void X64::realloc_RAX_RBX() {
     op(CALL, realloc_RAX_RBX_label);
 }
 
-Address X64::heap_finalizer_address(Register reg) {
-    return Address(reg, HEAP_FINALIZER_OFFSET);
+void X64::lock(Register r, Label ok) {
+    op(CMPQ, Address(r, HEAP_REFCOUNT_OFFSET), 1);
+    op(JE, ok);
 }
 
 void X64::log(const char *message) {

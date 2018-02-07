@@ -1,12 +1,10 @@
 
 // Stage 4
 
-const long NO_EXCEPTION = 0;
-const long RETURN_EXCEPTION = -1;
-const long DONE_EXCEPTION = 1;
-
-// Used to simulate size polynoms
-//const unsigned SAME_SIZE = 65536;
+const char NO_EXCEPTION = 0;
+const char RETURN_EXCEPTION = -1;
+const char DONE_EXCEPTION = 1;
+const char LENT_EXCEPTION = 2;
 
 class Declaration;
 class Variable;

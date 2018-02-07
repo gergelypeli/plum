@@ -498,9 +498,8 @@ public:
     void alloc_RAX_RBX();
     void realloc_RAX_RBX();
     void memfree(Register reg);
-    
-    Address heap_finalizer_address(Register reg);
-    
+
+    void lock(Register r, Label ok);
     void log(const char *message);
     void die(const char *message);
 };
