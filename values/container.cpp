@@ -269,104 +269,6 @@ public:
 };
 
 
-class ContainerPushValue: public GenericValue {
-public:
-    TypeSpec elem_ts;
-    
-    ContainerPushValue(Value *l, TypeMatch &match)
-        :GenericValue(match[1].varvalue(), match[0], l) {
-        elem_ts = match[1].varvalue();
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX);
-    }
-
-    virtual void fix_RBX_index(Register r, X64 *x64) {
-    }
-
-    virtual Storage subcompile(int reservation_offset, int length_offset, int elems_offset, X64 *x64) {
-        int elem_size = container_elem_size(elem_ts);
-        int stack_size = elem_ts.measure_stack();
-    
-        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
-    
-        Label ok, end;
-        
-        x64->op(MOVQ, RAX, Address(RSP, stack_size));
-        x64->op(MOVQ, RBX, Address(RAX, length_offset));
-        x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
-        x64->op(JNE, ok);
-        
-        x64->die("Container full!");
-        x64->op(JMP, end);
-        
-        x64->code_label(ok);
-        x64->op(INCQ, Address(RAX, length_offset));
-
-        // RBX contains the index of the newly created element
-        fix_RBX_index(RAX, x64);
-        
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(ADDQ, RAX, RBX);
-        
-        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, elems_offset)), x64);
-        
-        x64->code_label(end);
-        return Storage(STACK);
-    }
-};
-
-
-class ContainerPopValue: public GenericValue {
-public:
-    TypeSpec elem_ts;
-    
-    ContainerPopValue(Value *l, TypeMatch &match)
-        :GenericValue(NO_TS, match[1].varvalue(), l) {
-        elem_ts = match[1].varvalue();
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX);
-    }
-
-    virtual void fix_RBX_index(Register r, X64 *x64) {
-    }
-
-    virtual Storage subcompile(int length_offset, int elems_offset, X64 *x64) {
-        int elem_size = container_elem_size(elem_ts);
-        Label ok;
-        
-        left->compile_and_store(x64, Storage(REGISTER, RAX));
-        
-        x64->op(CMPQ, Address(RAX, length_offset), 0);
-        x64->op(JNE, ok);
-        
-        x64->die("Container empty!");
-        
-        x64->code_label(ok);
-        x64->op(DECQ, Address(RAX, length_offset));
-        x64->op(MOVQ, RBX, Address(RAX, length_offset));
-
-        // RBX contains the index of the newly removed element
-        fix_RBX_index(RAX, x64);
-
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->decref(RAX);
-
-        x64->op(ADDQ, RAX, RBX);
-        
-        elem_ts.store(Storage(MEMORY, Address(RAX, elems_offset)), Storage(STACK), x64);
-        elem_ts.destroy(Storage(MEMORY, Address(RAX, elems_offset)), x64);
-        
-        return Storage(STACK);
-    }
-};
-
-
 class ContainerAutogrowValue: public GenericValue {
 public:
     Declaration *dummy;
@@ -377,7 +279,7 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        dummy = make_exception_dummy(container_grow_exception_type, scope);
+        dummy = make_exception_dummy(container_lent_exception_type, scope);
         if (!dummy)
             return false;
 
@@ -406,7 +308,7 @@ public:
             
             Label locked;
             x64->lock(RAX, locked);
-            x64->op(MOVB, EXCEPTION_ADDRESS, LENT_EXCEPTION);
+            x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_LENT_EXCEPTION);
             x64->unwind->initiate(dummy, x64);
 
             x64->code_label(locked);
@@ -424,6 +326,152 @@ public:
         default:
             throw INTERNAL_ERROR;
         }
+    }
+};
+
+
+class ContainerGrowableValue: public GenericValue {
+public:
+    Declaration *dummy;
+    
+    ContainerGrowableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
+        :GenericValue(arg_ts, res_ts, pivot) {
+        dummy = NULL;
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (dynamic_cast<ContainerAutogrowValue *>(left.get())) {
+            Args fake_args;
+            Kwargs fake_kwargs;
+            if (!left->check(fake_args, fake_kwargs, scope))
+                return false;
+            // Allow autogrow raise its own exceptions
+        }
+        else {
+            dummy = make_exception_dummy(container_full_exception_type, scope);
+            if (!dummy)
+                return false;
+        }
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+};
+
+
+class ContainerShrinkableValue: public GenericValue {
+public:
+    Declaration *dummy;
+    
+    ContainerShrinkableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
+        :GenericValue(arg_ts, res_ts, pivot) {
+        dummy = NULL;
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        dummy = make_exception_dummy(container_empty_exception_type, scope);
+        if (!dummy)
+            return false;
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+};
+
+
+class ContainerPushValue: public ContainerGrowableValue {
+public:
+    TypeSpec elem_ts;
+    
+    ContainerPushValue(Value *l, TypeMatch &match)
+        :ContainerGrowableValue(match[1].varvalue(), match[0], l) {
+        elem_ts = match[1].varvalue();
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = left->precompile(preferred) | right->precompile(preferred);
+        return clob.add(RAX).add(RBX).add(RCX);
+    }
+
+    virtual void fix_RBX_index(Register r, X64 *x64) {
+    }
+
+    virtual Storage subcompile(int reservation_offset, int length_offset, int elems_offset, X64 *x64) {
+        int elem_size = container_elem_size(elem_ts);
+        int stack_size = elem_ts.measure_stack();
+    
+        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
+    
+        Label ok, end;
+        
+        x64->op(MOVQ, RAX, Address(RSP, stack_size));
+        x64->op(MOVQ, RBX, Address(RAX, length_offset));
+        x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
+        x64->op(JNE, ok);
+
+        x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_FULL_EXCEPTION);
+        x64->unwind->initiate(dummy, x64);
+        
+        x64->code_label(ok);
+        x64->op(INCQ, Address(RAX, length_offset));
+
+        // RBX contains the index of the newly created element
+        fix_RBX_index(RAX, x64);
+        
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(ADDQ, RAX, RBX);
+        
+        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, elems_offset)), x64);
+        
+        x64->code_label(end);
+        return Storage(STACK);
+    }
+};
+
+
+class ContainerPopValue: public ContainerShrinkableValue {
+public:
+    TypeSpec elem_ts;
+    
+    ContainerPopValue(Value *l, TypeMatch &match)
+        :ContainerShrinkableValue(NO_TS, match[1].varvalue(), l) {
+        elem_ts = match[1].varvalue();
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = left->precompile(preferred);
+        return clob.add(RAX).add(RBX).add(RCX);
+    }
+
+    virtual void fix_RBX_index(Register r, X64 *x64) {
+    }
+
+    virtual Storage subcompile(int length_offset, int elems_offset, X64 *x64) {
+        int elem_size = container_elem_size(elem_ts);
+        Label ok;
+        
+        left->compile_and_store(x64, Storage(REGISTER, RAX));
+        
+        x64->op(CMPQ, Address(RAX, length_offset), 0);
+        x64->op(JNE, ok);
+
+        x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_EMPTY_EXCEPTION);
+        x64->unwind->initiate(dummy, x64);
+        
+        x64->code_label(ok);
+        x64->op(DECQ, Address(RAX, length_offset));
+        x64->op(MOVQ, RBX, Address(RAX, length_offset));
+
+        // RBX contains the index of the newly removed element
+        fix_RBX_index(RAX, x64);
+
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->decref(RAX);
+
+        x64->op(ADDQ, RAX, RBX);
+        
+        elem_ts.store(Storage(MEMORY, Address(RAX, elems_offset)), Storage(STACK), x64);
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, elems_offset)), x64);
+        
+        return Storage(STACK);
     }
 };
 

@@ -285,7 +285,7 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
 void compile_rbtree_allocate(Label label, X64 *x64) {
     x64->code_label_local(label, "_allocate");
     // In: RSI - tree, RBX - node size
-    // Out: RAX - node
+    // Out: RAX - node or NIL
     // Clob: RBX
     Label no_vacancy, no_reservation, init, no_last, end;
 
@@ -309,7 +309,8 @@ void compile_rbtree_allocate(Label label, X64 *x64) {
     x64->op(JMP, init);
     
     x64->code_label(no_reservation);
-    x64->die("Rbtree full!");
+    x64->op(MOVQ, RAX, RBNODE_NIL);
+    x64->op(RET);
     
     x64->code_label(init);
     x64->op(MOVQ, Address(RSI, RAX, RBNODE_LEFT_OFFSET), RBNODE_NIL);
@@ -460,7 +461,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->code_label(no);
     //x64->log("Rbtree add missing.");
     x64->op(MOVQ, RBX, node_size);
-    x64->op(CALL, allocate);  // from RSI to RAX
+    x64->op(CALL, allocate);  // from RSI to RAX (may be NIL)
     x64->op(MOVQ, RBX, RAX);
     x64->op(MOVQ, RDI, RAX);
     x64->op(RET);
@@ -830,12 +831,12 @@ public:
 };
 
 
-class RbtreeAddValue: public GenericValue {
+class RbtreeAddValue: public ContainerGrowableValue {
 public:
     TypeSpec elem_ts;
     
     RbtreeAddValue(Value *pivot, TypeMatch &match)
-        :GenericValue(match[1].varvalue(), VOID_TS, pivot) {
+        :ContainerGrowableValue(match[1].varvalue(), VOID_TS, pivot) {
         elem_ts = match[1].varvalue();
     }
 
@@ -847,6 +848,7 @@ public:
     virtual Storage compile(X64 *x64) {
         int key_size = elem_ts.measure_stack();
         Label add = x64->once->compile(compile_rbtree_add, elem_ts);
+        Label ok;
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
 
@@ -859,6 +861,15 @@ public:
         x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
         x64->op(ANDQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken root
         
+        x64->op(CMPQ, RDI, RBNODE_NIL);
+        x64->op(JNE, ok);
+        
+        // Non-autogrowing Rbtree-s only raise a CONTAINER_FULL exception, if the operation
+        // actually tried to increase the size, not when an existing node is updated.
+        x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_FULL_EXCEPTION);
+        x64->unwind->initiate(dummy, x64);
+        
+        x64->code_label(ok);
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
         left->ts.store(Storage(STACK), Storage(), x64);
         
@@ -867,12 +878,12 @@ public:
 };
 
 
-class RbtreeRemoveValue: public GenericValue {
+class RbtreeRemoveValue: public ContainerShrinkableValue {
 public:
     TypeSpec elem_ts;
     
     RbtreeRemoveValue(Value *pivot, TypeMatch &match)
-        :GenericValue(match[1], VOID_TS, pivot) {
+        :ContainerShrinkableValue(match[1], VOID_TS, pivot) {
         elem_ts = match[1].varvalue();
     }
 
