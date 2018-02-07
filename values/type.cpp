@@ -213,30 +213,18 @@ public:
     virtual Regs precompile(Regs) {
         return Regs();
     }
-    
-    virtual Storage compile(X64 *x64) {
-        // This storage method is quite verbose (32 bytes overhead for each string!),
-        // but will be fine for a while.
-        std::vector<Label> labels;
-        
-        for (auto &keyword : keywords) 
-            labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
-            
-        x64->data_label_local(stringifications_label, declname + "_sfy");
-        
-        for (auto &label : labels)
-            x64->data_reference(label);  // 64-bit absolute
-        
+
+    virtual Storage compile(X64 *) {
         return Storage();
     }
-
+    
     virtual Variable *declare_impure(std::string name, Scope *scope) {
         return NULL;
     }
 
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
         declname = name;
-        return new EnumerationType(name, keywords, stringifications_label);
+        return new EnumerationType(name, keywords);
     }
 };
 
@@ -245,8 +233,6 @@ class TreenumerationDefinitionValue: public TypeDefinitionValue {
 public:
     std::vector<std::string> keywords;
     std::vector<unsigned> tails;
-    Label stringifications_label;
-    Label tails_label;
     std::string declname;
 
     TreenumerationDefinitionValue()
@@ -320,35 +306,18 @@ public:
     virtual Regs precompile(Regs) {
         return Regs();
     }
-    
-    virtual Storage compile(X64 *x64) {
-        // This storage method is quite verbose (32 bytes overhead for each string!),
-        // but will be fine for a while.
-        std::vector<Label> labels;
-        
-        for (auto &keyword : keywords) 
-            labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
-            
-        x64->data_label_local(stringifications_label, declname + "_sfy");
-        
-        for (auto &label : labels)
-            x64->data_reference(label);  // 64-bit absolute
 
-        x64->data_label_local(tails_label, declname + "_tails");
-        
-        for (unsigned tail : tails)
-            x64->data_byte(tail);
-        
+    virtual Storage compile(X64 *) {
         return Storage();
     }
-
+    
     virtual Variable *declare_impure(std::string name, Scope *scope) {
         return NULL;
     }
 
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
         declname = name;
-        return new TreenumerationType(name, keywords, stringifications_label, tails_label);
+        return new TreenumerationType(name, keywords, tails);
     }
 };
 

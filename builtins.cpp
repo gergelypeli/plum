@@ -168,6 +168,15 @@ void builtin_types(Scope *root_scope) {
     rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", 1);
     root_scope->add(rbtreeelembyorderiter_type);
 
+    container_full_exception_type = new TreenumerationType("<Container_full>", { "CONTAINER_FULL" }, { 0 });
+    root_scope->add(container_full_exception_type);
+
+    container_empty_exception_type = new TreenumerationType("<Container_empty>", { "CONTAINER_EMPTY" }, { 0 });
+    root_scope->add(container_empty_exception_type);
+
+    container_lent_exception_type = new TreenumerationType("<Container_lent>", { "CONTAINER_LENT" }, { 0 });
+    root_scope->add(container_lent_exception_type);
+
     // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };

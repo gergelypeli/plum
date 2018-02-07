@@ -93,7 +93,7 @@ public:
         subcompile(x64);
         
         TreenumerationType *t = dynamic_cast<TreenumerationType *>(left->ts.rvalue()[0]);
-        x64->op(LEARIP, RBX, t->tails_label);  // table start
+        x64->op(LEARIP, RBX, t->get_tails_label(x64));  // table start
         
         switch (ls.where) {
         case CONSTANT:

@@ -78,8 +78,10 @@ public:
     // Data blocks invoke only declare_pure, and if that returns NULL, that's a semantic error.
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
-        if (ts == VOID_TS)
+        if (ts == VOID_TS) {
+            std::cerr << "Can't declare " << name << " as Void!\n";
             return NULL;
+        }
             
         return new Variable(name, NO_TS, scope->variable_type_hint(ts.rvalue()));
     }

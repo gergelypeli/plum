@@ -341,34 +341,34 @@ start? :Function as:
     ss? String Array { "foo", "bar" }
     prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
-    ss_popped1? ss pop
+    ss_popped1? String :try ss pop
     prints("Array popped {ss_popped1}" {})
-    ss_popped2? ss pop
+    ss_popped2? String :try ss pop
     prints("Array popped {ss_popped2}" {})
 
     st? String Stack `empty
-    st push("foo")
-    st push("bar")
-    st push("baz")
+    :try st push("foo")
+    :try st push("bar")
+    :try st push("baz")
     prints("Pushed stack length: {x}" { x: st length })
     prints("Pushed stack has 2. elem: {x}" { x: st[2] })
     
     :for st each: x? do:
         prints("Stack has: {x}" {})
     
-    baz? st pop
-    st pop
-    st pop
+    baz? String :try st pop
+    :try st pop
+    :try st pop
     prints("Popped baz as {baz}" {})
     prints("Popped stack length: {x}" { x: st length })
 
     ca? String Circularray { "foo", "bar", "baz", "xxx" }
-    ca pop
+    :try ca pop
     prints("Have a Circularray of {x}" { x: ca length })
-    ca1? ca shift
+    ca1? String :try ca shift
     prints("Shifted {x}, remained {y} and {z}." { x: ca1, y: ca[0], z: ca[1] })
-    ca unshift "foo"
-    ca unshift "foofoo"
+    :try ca unshift "foo"
+    :try ca unshift "foofoo"
     prints("Unshifted {x} and {y} to {z} and {w}" { x: ca[0], y: ca[1], z: ca[2], w: ca[3] })
     prints("Circularray length is {l}" { l: ca length })
 
@@ -376,25 +376,28 @@ start? :Function as:
         prints("Circularray items: {x} => {y}" {x: it index, y: it value})
 
     qu? String Queue { "A", "B", "C", "D", "E", "F", "G", "H" }
-    qu shift
-    qu push "I"  # folds
-    qu push "J"  # grows
+    :try qu shift
+    :try qu push "I"  # folds
+    :try qu push "J"  # grows
     :for qu items each: it? do:
         prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
     qv? String Queue { "A", "B", "C", "D", "E", "F", "G", "H" }
-    qv pop
-    qv unshift "@"  # folds
-    qv unshift "@@" # grows
+    :try qv pop
+    :try qv unshift "@"  # folds
+    :try qv unshift "@@" # grows
     :for qv items each: it? do:
         prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
     rb? String Rbtree `reserved 8
-    rb add "A"
-    rb add "C"
-    rb add "E"
-    rb add "D"
-    rb add "B"
+    
+    :try
+        rb add "A"
+        rb add "C"
+        rb add "E"
+        rb add "D"
+        rb add "B"
+        
     prints("After adding A, length is {l}" { l: rb length })
     
     :for rb elements_by_age each: e? do:
@@ -408,28 +411,34 @@ start? :Function as:
         
     :if ! rb has "Z" then:
         prints("Rb has no Z, good")
+    
+    :try
+        rb remove "A"
+        rb remove "B"
+        rb remove "C"
+        rb remove "D"
+        rb remove "E"
         
-    rb remove "A"
-    rb remove "B"
-    rb remove "C"
-    rb remove "D"
-    rb remove "E"
     prints("After removing all, length is {l}" { l: rb length })
     
     :if ! rb has "A" then:
         prints("Rb has no A, good")
 
     st? String Set { "A", "B" }
-    st add "C"
-    st add "D"
+    
+    :try
+        st add "C"
+        st add "D"
     
     :for st elements_by_age each: e? do:
         prints("Set element: {e}" {})
 
     mp? (String, String) Map {{ "A", "a" }, { "B", "b" }}
-    mp add("C", "c")
-    mp add("D", "d")
-    mp remove("C")
+    :try
+        mp add("C", "c")
+        mp add("D", "d")
+    :try
+        mp remove("C")
     prints("Map length is {x}" {x: mp length})
     
     :for mp tree elements_by_order each: iv? do:

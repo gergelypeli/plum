@@ -158,7 +158,7 @@ public:
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
         
         EnumerationType *t = dynamic_cast<EnumerationType *>(left->ts.rvalue()[0]);
-        x64->op(LEARIP, RBX, t->stringifications_label);  // table start
+        x64->op(LEARIP, RBX, t->get_stringifications_label(x64));  // table start
         x64->op(CALL, es_label);
         
         right->ts.store(rs, Storage(), x64);

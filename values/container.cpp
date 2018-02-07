@@ -407,8 +407,12 @@ public:
         x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
         x64->op(JNE, ok);
 
-        x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_FULL_EXCEPTION);
-        x64->unwind->initiate(dummy, x64);
+        if (dummy) {
+            x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_FULL_EXCEPTION);
+            x64->unwind->initiate(dummy, x64);
+        }
+        else
+            x64->die("Container full even if autogrowing!");
         
         x64->code_label(ok);
         x64->op(INCQ, Address(RAX, length_offset));

@@ -307,12 +307,10 @@ public:
 class EnumerationType: public BasicType {
 public:
     std::vector<std::string> keywords;
-    Label stringifications_label;
 
-    EnumerationType(std::string n, std::vector<std::string> kw, Label sl)
+    EnumerationType(std::string n, std::vector<std::string> kw)
         :BasicType(n, 1, true) {  // TODO: different sizes based on the keyword count!
         keywords = kw;
-        stringifications_label = sl;
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
@@ -326,16 +324,33 @@ public:
     DataScope *get_inner_scope(TypeMatch tm) {
         return enumeration_metatype->get_inner_scope(tm);
     }
+
+    virtual Label get_stringifications_label(X64 *x64) {
+        return x64->once->compile(compile_stringifications, TypeSpec { this });
+    }
+    
+    static void compile_stringifications(Label label, TypeSpec ts, X64 *x64) {
+        EnumerationType *t = dynamic_cast<EnumerationType *>(ts[0]);
+        std::vector<Label> labels;
+        
+        for (auto &keyword : t->keywords) 
+            labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
+            
+        x64->data_label_local(label, t->name + "_stringifications");
+        
+        for (auto &l : labels)
+            x64->data_reference(l);  // 64-bit absolute
+    }
 };
 
 
 class TreenumerationType: public EnumerationType {
 public:
-    Label tails_label;
+    std::vector<unsigned> tails;
 
-    TreenumerationType(std::string n, std::vector<std::string> kw, Label sl, Label tl)
-        :EnumerationType(n, kw, sl) {
-        tails_label = tl;
+    TreenumerationType(std::string n, std::vector<std::string> kw, std::vector<unsigned> tl)
+        :EnumerationType(n, kw) {
+        tails = tl;
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
@@ -348,5 +363,17 @@ public:
     
     DataScope *get_inner_scope(TypeMatch tm) {
         return treenumeration_metatype->get_inner_scope(tm);
+    }
+
+    virtual Label get_tails_label(X64 *x64) {
+        return x64->once->compile(compile_tails, TypeSpec { this });
+    }
+    
+    static void compile_tails(Label label, TypeSpec ts, X64 *x64) {
+        TreenumerationType *t = dynamic_cast<TreenumerationType *>(ts[0]);
+        x64->data_label_local(label, t->name + "_tails");
+        
+        for (unsigned tail : t->tails)
+            x64->data_byte(tail);
     }
 };

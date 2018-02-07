@@ -866,8 +866,12 @@ public:
         
         // Non-autogrowing Rbtree-s only raise a CONTAINER_FULL exception, if the operation
         // actually tried to increase the size, not when an existing node is updated.
-        x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_FULL_EXCEPTION);
-        x64->unwind->initiate(dummy, x64);
+        if (dummy) {
+            x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_FULL_EXCEPTION);
+            x64->unwind->initiate(dummy, x64);
+        }
+        else
+            x64->die("Rbtree full even if autogrowing!");
         
         x64->code_label(ok);
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
