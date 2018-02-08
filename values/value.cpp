@@ -397,4 +397,5 @@ public:
 #include "map.cpp"
 #include "literal.cpp"
 #include "type.cpp"
+#include "typedefinition.cpp"
 #include "function.cpp"
