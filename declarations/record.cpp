@@ -379,9 +379,25 @@ public:
         x64->op(RET);
     }
 
-    virtual void streamify(TypeMatch tm, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+        // TODO: and escape everything if repr
+        
+        if (repr) {
+            x64->op(PUSHQ, 34);  // double quote
+            x64->op(PUSHQ, Address(RSP, 8));
+            x64->op(CALL, x64->once->compile(CharacterType::compile_streamification));
+            x64->op(ADDQ, RSP, 16);
+        }
+        
         Label ss_label = x64->once->compile(compile_streamification);
         x64->op(CALL, ss_label);
+
+        if (repr) {
+            x64->op(PUSHQ, 34);  // double quote
+            x64->op(PUSHQ, Address(RSP, 8));
+            x64->op(CALL, x64->once->compile(CharacterType::compile_streamification));
+            x64->op(ADDQ, RSP, 16);
+        }
     }
 
     static void compile_streamification(Label label, X64 *x64) {

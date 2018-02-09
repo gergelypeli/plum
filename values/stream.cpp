@@ -40,7 +40,7 @@ public:
     virtual Storage compile(X64 *x64) {
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
 
-        STRING_TS.streamify(x64);
+        STRING_TS.streamify(false, x64);
 
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
@@ -67,7 +67,7 @@ public:
     virtual Storage compile(X64 *x64) {
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
 
-        CHARACTER_TS.streamify(x64);
+        CHARACTER_TS.streamify(false, x64);
         
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
@@ -94,7 +94,7 @@ public:
     virtual Storage compile(X64 *x64) {
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
 
-        left->ts.streamify(x64);
+        left->ts.streamify(false, x64);
         
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
@@ -123,7 +123,7 @@ public:
     virtual Storage compile(X64 *x64) {
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
 
-        left->ts.streamify(x64);
+        left->ts.streamify(false, x64);
         
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);

@@ -35,7 +35,7 @@ public:
     void destroy(Storage s, X64 *x64);
     void compare(Storage s, Storage t, X64 *x64, Label less, Label greater);
     void compare(Storage s, Storage t, X64 *x64, Register reg);
-    void streamify(X64 *x64);
+    void streamify(bool repr, X64 *x64);
     Value *lookup_initializer(std::string name, Scope *scope);
     Value *lookup_inner(std::string name, Value *pivot);
     DataScope *get_inner_scope();

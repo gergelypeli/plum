@@ -258,7 +258,7 @@ public:
         :BasicType(n, s, iu) {
     }
     
-    virtual void streamify(TypeMatch tm, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         if (this == integer_type) {
             Label label;
             x64->code_label_import(label, "streamify_integer");
@@ -269,7 +269,7 @@ public:
             x64->op(CALL, label);
         }
         else
-            BasicType::streamify(tm, x64);
+            BasicType::streamify(tm, repr, x64);
     }
 
     DataScope *get_inner_scope(TypeMatch tm) {
@@ -305,10 +305,24 @@ public:
         make_inner_scope(TypeSpec { this });
     }
 
-    virtual void streamify(TypeMatch tm, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         Label cs_label = x64->once->compile(compile_streamification);
 
+        if (repr) {
+            x64->op(PUSHQ, 39);  // single quote
+            x64->op(PUSHQ, Address(RSP, 8));
+            x64->op(CALL, cs_label);
+            x64->op(ADDQ, RSP, 16);
+        }
+
         x64->op(CALL, cs_label);
+
+        if (repr) {
+            x64->op(PUSHQ, 39);  // single quote
+            x64->op(PUSHQ, Address(RSP, 8));
+            x64->op(CALL, cs_label);
+            x64->op(ADDQ, RSP, 16);
+        }
     }
     
     static void compile_streamification(Label label, X64 *x64) {

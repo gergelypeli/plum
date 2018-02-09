@@ -199,8 +199,8 @@ void TypeSpec::compare(Storage s, Storage t, X64 *x64, Register reg) {
 }
 
 
-void TypeSpec::streamify(X64 *x64) {
-    at(0)->streamify(match(), x64);
+void TypeSpec::streamify(bool repr, X64 *x64) {
+    at(0)->streamify(match(), repr, x64);
 }
 
 

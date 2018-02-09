@@ -185,7 +185,7 @@ public:
         x64->op(JG, greater);
     }
 
-    virtual void streamify(TypeMatch tm, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         Label os_label = x64->once->compile(compile_streamification, tm[1]);
         Label ok;
         
@@ -197,7 +197,7 @@ public:
         x64->op(POPQ, RBX);  // stream alias
         x64->op(ADDQ, RSP, 8);
         x64->op(PUSHQ, RBX);  // overwrite flag
-        tm[1].streamify(x64);
+        tm[1].streamify(true, x64);
         x64->op(POPQ, RBX);
         x64->op(PUSHQ, 1);
         x64->op(PUSHQ, RBX);
@@ -226,7 +226,7 @@ public:
         x64->code_label(ok);
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
-        STRING_TS.streamify(x64);
+        STRING_TS.streamify(false, x64);
         x64->op(ADDQ, RSP, 16);
         x64->op(RET);
     }

@@ -198,7 +198,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual void streamify(TypeMatch tm, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         // NOTE: streamify is allowed to clobber all registers, because it is mostly called
         // from interpolation, which is in Void context, so not much is lost. But
         // nested streamifications must take care!
@@ -207,7 +207,7 @@ public:
         x64->op(LEARIP, RBX, us_label);
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
-        STRING_TS.streamify(x64);
+        STRING_TS.streamify(false, x64);
         x64->op(ADDQ, RSP, 16);
     }
 
@@ -338,8 +338,8 @@ public:
         tm[1].compare(s, t, x64, less, greater);
     }
 
-    virtual void streamify(TypeMatch tm, X64 *x64) {
-        tm[1].streamify(x64);
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+        tm[1].streamify(repr, x64);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
