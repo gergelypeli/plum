@@ -199,6 +199,11 @@ void TypeSpec::compare(Storage s, Storage t, X64 *x64, Register reg) {
 }
 
 
+void TypeSpec::streamify(X64 *x64) {
+    at(0)->streamify(match(), x64);
+}
+
+
 Value *TypeSpec::lookup_initializer(std::string name, Scope *scope) {
     return at(0)->lookup_initializer(match(), name, scope);
 }

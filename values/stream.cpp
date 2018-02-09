@@ -38,46 +38,14 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label ss_label = x64->once->compile(compile_string_streamification);
-
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
-        
-        x64->op(CALL, ss_label);
-        
+
+        STRING_TS.streamify(x64);
+
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
         
         return Storage();
-    }
-    
-    static void compile_string_streamification(Label label, X64 *x64) {
-        // RAX - target array, RBX - tmp, RCX - size, RDX - source array, RDI - alias
-        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
-        
-        x64->code_label_local(label, "string_streamification");
-        
-        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
-        
-        x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
-
-        x64->op(CALL, preappend_array);
-        
-        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
-
-        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
-
-        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
-        x64->op(SHLQ, RCX, 1);
-        
-        x64->op(REPMOVSB);
-        
-        x64->op(RET);
     }
 };
 
@@ -97,43 +65,14 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label cs_label = x64->once->compile(compile_character_streamification);
-
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
-        
-        x64->op(CALL, cs_label);
+
+        CHARACTER_TS.streamify(x64);
         
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
         
         return Storage();
-    }
-    
-    static void compile_character_streamification(Label label, X64 *x64) {
-        // RAX - target array, RBX - tmp, RCX - size, RDX - source character, RDI - alias
-        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
-
-        x64->code_label_local(label, "character_streamification");
-
-        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
-
-        x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, RBX, 1);
-        
-        x64->op(CALL, preappend_array);
-        
-        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
-
-        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
-
-        x64->op(MOVW, Address(RDI, 0), DX);
-            
-        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), 1);
-
-        x64->op(RET);
     }
 };
 
@@ -153,52 +92,14 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label es_label = x64->once->compile(compile_enum_streamification);
-
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
-        
-        EnumerationType *t = dynamic_cast<EnumerationType *>(left->ts.rvalue()[0]);
-        x64->op(LEARIP, RBX, t->get_stringifications_label(x64));  // table start
-        x64->op(CALL, es_label);
+
+        left->ts.streamify(x64);
         
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
         
         return Storage();
-    }
-    
-    static void compile_enum_streamification(Label label, X64 *x64) {
-        // RAX - target array, RBX - table start, RCX - size, RDX - source enum, RDI - alias
-        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
-
-        x64->code_label_local(label, "enum_streamification");
-
-        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the enum
-
-        // Find the string for this enum value
-        x64->op(ANDQ, RDX, 0xFF);
-        x64->op(MOVQ, RDX, Address(RBX, RDX, ADDRESS_SIZE, 0));
-            
-        x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
-
-        x64->op(CALL, preappend_array);
-        
-        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
-
-        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
-
-        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
-        x64->op(IMUL3Q, RCX, RCX, CHARACTER_SIZE);
-        
-        x64->op(REPMOVSB);
-        
-        x64->op(RET);
     }
 };
 
@@ -220,47 +121,14 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label os_label = x64->once->compile(compile_option_streamification, some_ts);
-
         compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
-        
-        x64->op(CALL, os_label);
+
+        left->ts.streamify(x64);
         
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
         
         return Storage();
-    }
-    
-    static void compile_option_streamification(Label label, TypeSpec some_ts, X64 *x64) {
-        Label string_streamification_label = x64->once->compile(StringStreamificationValue::compile_string_streamification);
-        Label some;
-        
-        x64->code_label_local(label, "x_option_streamification");
-
-        x64->op(CMPQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE), 0);  // the flag
-        x64->op(JNE, some);
-        
-        // `none
-        Label none_label = x64->data_heap_string(decode_utf8("`none"));
-        x64->op(LEARIP, RBX, none_label);
-        x64->op(PUSHQ, RBX);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
-        x64->op(CALL, string_streamification_label);
-        x64->op(ADDQ, RSP, 16);
-        x64->op(RET);
-
-        // `some
-        x64->code_label(some);
-        Label some_label = x64->data_heap_string(decode_utf8("`some"));
-        x64->op(LEARIP, RBX, some_label);
-        x64->op(PUSHQ, RBX);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
-        x64->op(CALL, string_streamification_label);
-        x64->op(ADDQ, RSP, 16);
-        x64->op(RET);
-        
-        // FIXME: print the some value, too!
     }
 };
 

@@ -379,6 +379,41 @@ public:
         x64->op(RET);
     }
 
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        Label ss_label = x64->once->compile(compile_streamification);
+        x64->op(CALL, ss_label);
+    }
+
+    static void compile_streamification(Label label, X64 *x64) {
+        // RAX - target array, RBX - tmp, RCX - size, RDX - source array, RDI - alias
+        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
+        
+        x64->code_label_local(label, "string_streamification");
+        
+        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
+        
+        x64->op(MOVQ, RAX, Address(RDI, 0));
+        x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
+
+        x64->op(CALL, preappend_array);
+        
+        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
+
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
+
+        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(SHLQ, RCX, 1);
+        
+        x64->op(REPMOVSB);
+        
+        x64->op(RET);
+    }
+
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "null") {
             return make_null_string_value();

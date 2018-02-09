@@ -258,6 +258,20 @@ public:
         :BasicType(n, s, iu) {
     }
     
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        if (this == integer_type) {
+            Label label;
+            x64->code_label_import(label, "streamify_integer");
+            
+            // SysV
+            x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+            x64->op(MOVQ, RSI, Address(RSP, 0));
+            x64->op(CALL, label);
+        }
+        else
+            BasicType::streamify(tm, x64);
+    }
+
     DataScope *get_inner_scope(TypeMatch tm) {
         return integer_metatype->get_inner_scope(tm);
     }
@@ -291,6 +305,39 @@ public:
         make_inner_scope(TypeSpec { this });
     }
 
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        Label cs_label = x64->once->compile(compile_streamification);
+
+        x64->op(CALL, cs_label);
+    }
+    
+    static void compile_streamification(Label label, X64 *x64) {
+        // RAX - target array, RBX - tmp, RCX - size, RDX - source character, RDI - alias
+        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
+
+        x64->code_label_local(label, "character_streamification");
+
+        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
+
+        x64->op(MOVQ, RAX, Address(RDI, 0));
+        x64->op(MOVQ, RBX, 1);
+        
+        x64->op(CALL, preappend_array);
+        
+        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
+
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
+
+        x64->op(MOVW, Address(RDI, 0), DX);
+            
+        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), 1);
+
+        x64->op(RET);
+    }
+
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         if (name == "zero")
             return make_basic_value(tm[0], 0);
@@ -312,7 +359,48 @@ public:
         :BasicType(n, 1, true) {  // TODO: different sizes based on the keyword count!
         keywords = kw;
     }
+
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        Label es_label = x64->once->compile(compile_streamification);
+
+        x64->op(LEARIP, RBX, get_stringifications_label(x64));  // table start
+        x64->op(CALL, es_label);
+    }
     
+    static void compile_streamification(Label label, X64 *x64) {
+        // RAX - target array, RBX - table start, RCX - size, RDX - source enum, RDI - alias
+        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
+
+        x64->code_label_local(label, "enum_streamification");
+
+        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the enum
+
+        // Find the string for this enum value
+        x64->op(ANDQ, RDX, 0xFF);
+        x64->op(MOVQ, RDX, Address(RBX, RDX, ADDRESS_SIZE, 0));
+            
+        x64->op(MOVQ, RAX, Address(RDI, 0));
+        x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
+
+        x64->op(CALL, preappend_array);
+        
+        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
+
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
+
+        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(IMUL3Q, RCX, RCX, CHARACTER_SIZE);
+        
+        x64->op(REPMOVSB);
+        
+        x64->op(RET);
+    }
+
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)

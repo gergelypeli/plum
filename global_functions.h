@@ -24,6 +24,10 @@ TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 TypeMatch type_parameters_to_match(TypeSpec ts);
 
 
+// Streamification
+void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);
+
+
 // Value makers
 
 Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match);

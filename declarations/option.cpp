@@ -185,6 +185,52 @@ public:
         x64->op(JG, greater);
     }
 
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        Label os_label = x64->once->compile(compile_streamification, tm[1]);
+        Label ok;
+        
+        x64->op(CALL, os_label);
+        
+        x64->op(CMPB, Address(RSP, ALIAS_SIZE), 0);
+        x64->op(JE, ok);
+        
+        x64->op(POPQ, RBX);  // stream alias
+        x64->op(ADDQ, RSP, 8);
+        x64->op(PUSHQ, RBX);  // overwrite flag
+        tm[1].streamify(x64);
+        x64->op(POPQ, RBX);
+        x64->op(PUSHQ, 1);
+        x64->op(PUSHQ, RBX);
+                
+        x64->code_label(ok);
+    }
+    
+    static void compile_streamification(Label label, TypeSpec some_ts, X64 *x64) {
+        Label none_label = x64->data_heap_string(decode_utf8("`none"));
+        Label some_label = x64->data_heap_string(decode_utf8("`some "));
+        Label some, ok;
+        
+        x64->code_label_local(label, "option_streamification");
+
+        x64->op(CMPQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE), 0);  // the flag
+        x64->op(JNE, some);
+        
+        // `none
+        x64->op(LEARIP, RBX, none_label);
+        x64->op(JMP, ok);
+        
+        // `some
+        x64->code_label(some);
+        x64->op(LEARIP, RBX, some_label);
+        
+        x64->code_label(ok);
+        x64->op(PUSHQ, RBX);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
+        STRING_TS.streamify(x64);
+        x64->op(ADDQ, RSP, 16);
+        x64->op(RET);
+    }
+
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "{}") {
             // Anonymous initializers rejected
