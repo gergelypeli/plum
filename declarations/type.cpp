@@ -481,3 +481,4 @@ public:
 #include "reference.cpp"
 #include "record.cpp"
 #include "class.cpp"
+#include "option.cpp"

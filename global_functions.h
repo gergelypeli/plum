@@ -74,5 +74,7 @@ Value *make_comparison_value(BitSetOp bs, Value *v);
 Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v);
 Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec res_ts, std::string operation_name, std::string arg_operation_name);
 Value *make_class_wrapper_initializer_value(Value *object, Value *value);
+Value *make_option_none_value(TypeSpec ts);
+Value *make_option_some_value(TypeSpec ts);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);

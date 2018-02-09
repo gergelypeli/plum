@@ -280,6 +280,16 @@ Value *make_class_wrapper_initializer_value(Value *object, Value *value) {
 }
 
 
+Value *make_option_none_value(TypeSpec ts) {
+    return new OptionNoneValue(ts);
+}
+
+
+Value *make_option_some_value(TypeSpec ts) {
+    return new OptionSomeValue(ts);
+}
+
+
 // Declaration operations
 
 Variable *variable_cast(Declaration *decl) {

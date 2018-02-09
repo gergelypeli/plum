@@ -112,14 +112,8 @@ public:
         if (!xxx_is_allocated)
             throw INTERNAL_ERROR;
 
-        //if (s.where == STACK && offset == 0)  // FIXME: this is a hack for array wrapper records only!
-        //    return Storage(STACK);
-
         if (s.where != MEMORY)
             throw INTERNAL_ERROR;  // all variable containers must use MEMORY
-        
-        if (name == "value")    
-            std::cerr << "Variable " << name << " offset " << offset << " with " << tm << " is now " << offset.concretize(tm) << "\n";
         
         return Storage(where, s.address + offset.concretize(tm));
     }

@@ -123,6 +123,9 @@ void builtin_types(Scope *root_scope) {
     string_type = new StringType("String");
     root_scope->add(string_type);
 
+    option_type = new OptionType("Option");
+    root_scope->add(option_type);
+
     stack_type = new StackType("Stack");
     root_scope->add(stack_type);
 
@@ -224,6 +227,7 @@ void builtin_types(Scope *root_scope) {
     SAME_ITERABLE_TS = { iterable_type, same_type };
     STRING_TS = { string_type };
     STRING_LVALUE_TS = { lvalue_type, string_type };
+    ANY_OPTION_TS = { option_type, any_type };
     ANY_STACK_REFERENCE_TS = { reference_type, stack_type, any_type };
     ANY_QUEUE_REFERENCE_TS = { reference_type, queue_type, any_type };
     ANY_SET_REFERENCE_TS = { reference_type, set_type, any_type };
@@ -463,6 +467,18 @@ void define_string() {
 }
 
 
+void define_option() {
+    OptionType *option_type = dynamic_cast<OptionType *>(::option_type);
+    DataScope *is = option_type->make_inner_scope(ANY_OPTION_TS);
+
+    implement(is, STREAMIFIABLE_TS, "sable", {
+        new TemplateIdentifier<OptionStreamificationValue>("streamify", ANY_OPTION_TS)
+    });
+
+    option_type->complete_type();
+}
+
+
 void define_array() {
     Scope *array_scope = array_type->get_inner_scope(TypeMatch());
 
@@ -662,6 +678,7 @@ Scope *init_builtins() {
     define_queue();
     define_set();
     define_map();
+    define_option();
     
     // Integer operations
     define_integers();

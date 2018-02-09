@@ -446,6 +446,9 @@ start? :Function as:
     
     prints("Map element at A is: {x}" {x: mp["A"]})
     
+    op? Integer Option
+    prints("This option is: {op}" {})
+    
     gr? Greetable `init
     gr greet
     

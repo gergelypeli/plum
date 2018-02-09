@@ -128,7 +128,7 @@ public:
 
         x64->code_label(done);
         
-        if (!probe) {
+        if (s.where == STACK && !probe) {
             x64->op(SETNE, BL);
             x64->op(PUSHQ, RBX);
             destroy(tm, Storage(MEMORY, Address(RSP, INTEGER_SIZE)), x64);

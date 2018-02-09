@@ -203,6 +203,68 @@ public:
 };
 
 
+class OptionStreamificationValue: public GenericValue {
+public:
+    TypeSpec some_ts;
+
+    OptionStreamificationValue(Value *p, TypeMatch &match)
+        :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
+        some_ts = match[1];
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        left->precompile(preferred);
+        right->precompile(preferred);
+            
+        return Regs::all();  // We're Void
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label os_label = x64->once->compile(compile_option_streamification, some_ts);
+
+        compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
+        
+        x64->op(CALL, os_label);
+        
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
+        
+        return Storage();
+    }
+    
+    static void compile_option_streamification(Label label, TypeSpec some_ts, X64 *x64) {
+        Label string_streamification_label = x64->once->compile(StringStreamificationValue::compile_string_streamification);
+        Label some;
+        
+        x64->code_label_local(label, "x_option_streamification");
+
+        x64->op(CMPQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE), 0);  // the flag
+        x64->op(JNE, some);
+        
+        // `none
+        Label none_label = x64->data_heap_string(decode_utf8("`none"));
+        x64->op(LEARIP, RBX, none_label);
+        x64->op(PUSHQ, RBX);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
+        x64->op(CALL, string_streamification_label);
+        x64->op(ADDQ, RSP, 16);
+        x64->op(RET);
+
+        // `some
+        x64->code_label(some);
+        Label some_label = x64->data_heap_string(decode_utf8("`some"));
+        x64->op(LEARIP, RBX, some_label);
+        x64->op(PUSHQ, RBX);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
+        x64->op(CALL, string_streamification_label);
+        x64->op(ADDQ, RSP, 16);
+        x64->op(RET);
+        
+        // FIXME: print the some value, too!
+    }
+};
+
+
 Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     std::vector<std::string> fragments = brace_split(text);
     
