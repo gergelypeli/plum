@@ -9,11 +9,6 @@ public:
 };
 
 
-Declaration *make_record_compare() {
-    return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);
-}
-
-
 class RecordInitializerValue: public Value {
 public:
     RecordType *record_type;

@@ -302,6 +302,11 @@ HeapType *heap_type_cast(Type *t) {
 }
 
 
+Declaration *make_record_compare() {
+    return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);
+}
+
+
 // TypeSpec operations
 
 bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts) {

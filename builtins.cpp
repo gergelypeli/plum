@@ -228,6 +228,7 @@ void builtin_types(Scope *root_scope) {
     STRING_TS = { string_type };
     STRING_LVALUE_TS = { lvalue_type, string_type };
     ANY_OPTION_TS = { option_type, any_type };
+    ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
     ANY_STACK_REFERENCE_TS = { reference_type, stack_type, any_type };
     ANY_QUEUE_REFERENCE_TS = { reference_type, queue_type, any_type };
     ANY_SET_REFERENCE_TS = { reference_type, set_type, any_type };
@@ -470,6 +471,9 @@ void define_string() {
 void define_option() {
     OptionType *option_type = dynamic_cast<OptionType *>(::option_type);
     DataScope *is = option_type->make_inner_scope(ANY_OPTION_TS);
+
+    is->add(new TemplateOperation<OptionOperationValue>("assign other", ANY_OPTION_LVALUE_TS, ASSIGN));
+    is->add(new TemplateOperation<OptionOperationValue>("compare", ANY_OPTION_TS, COMPARE));
 
     implement(is, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<OptionStreamificationValue>("streamify", ANY_OPTION_TS)

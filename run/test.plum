@@ -446,9 +446,14 @@ start? :Function as:
     
     prints("Map element at A is: {x}" {x: mp["A"]})
     
-    op? String Option `some "XYZ"
-    prints("This option is: {op}" {})
-    
+    op1? String Option `some "XYZ"
+    prints("This option is: {op1}" {})
+    op2? String Option `none
+    prints("That option is: {op2}" {})
+    op2 = op1
+    prints("And became: {op2}" {})
+    prints("So they're now equal: {x}" {x: op1 == op2})
+        
     gr? Greetable `init
     gr greet
     
