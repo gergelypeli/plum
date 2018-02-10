@@ -269,18 +269,14 @@ public:
 };
 
 
-class ContainerAutogrowValue: public GenericValue {
+class ContainerAutogrowValue: public GenericValue, public Raiser {
 public:
-    Declaration *dummy;
-
     ContainerAutogrowValue(Value *l, TypeMatch &match)
         :GenericValue(NO_TS, l->ts, l) {
-        dummy = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        dummy = make_exception_dummy(container_lent_exception_type, scope);
-        if (!dummy)
+        if (!check_raise(container_lent_exception_type, scope))
             return false;
 
         return GenericValue::check(args, kwargs, scope);
@@ -308,8 +304,8 @@ public:
             
             Label locked;
             x64->lock(RAX, locked);
-            x64->op(MOVB, EXCEPTION_ADDRESS, container_lent_exception_type->get_keyword_index("CONTAINER_LENT"));
-            x64->unwind->initiate(dummy, x64);
+            
+            raise("CONTAINER_LENT", x64);
 
             x64->code_label(locked);
             x64->op(MOVQ, RBX, Address(RAX, length_offset));
@@ -330,13 +326,10 @@ public:
 };
 
 
-class ContainerGrowableValue: public GenericValue {
+class ContainerGrowableValue: public GenericValue, public Raiser {
 public:
-    Declaration *dummy;
-    
     ContainerGrowableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
         :GenericValue(arg_ts, res_ts, pivot) {
-        dummy = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -348,8 +341,7 @@ public:
             // Allow autogrow raise its own exceptions
         }
         else {
-            dummy = make_exception_dummy(container_full_exception_type, scope);
-            if (!dummy)
+            if (!check_raise(container_full_exception_type, scope))
                 return false;
         }
         
@@ -358,18 +350,14 @@ public:
 };
 
 
-class ContainerShrinkableValue: public GenericValue {
+class ContainerShrinkableValue: public GenericValue, public Raiser {
 public:
-    Declaration *dummy;
-    
     ContainerShrinkableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
         :GenericValue(arg_ts, res_ts, pivot) {
-        dummy = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        dummy = make_exception_dummy(container_empty_exception_type, scope);
-        if (!dummy)
+        if (!check_raise(container_empty_exception_type, scope))
             return false;
         
         return GenericValue::check(args, kwargs, scope);
@@ -407,9 +395,8 @@ public:
         x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
         x64->op(JNE, ok);
 
-        if (dummy) {
-            x64->op(MOVB, EXCEPTION_ADDRESS, container_full_exception_type->get_keyword_index("CONTAINER_FULL"));
-            x64->unwind->initiate(dummy, x64);
+        if (raising_dummy) {
+            raise("CONTAINER_FULL", x64);
         }
         else
             x64->die("Container full even if autogrowing!");
@@ -457,8 +444,7 @@ public:
         x64->op(CMPQ, Address(RAX, length_offset), 0);
         x64->op(JNE, ok);
 
-        x64->op(MOVB, EXCEPTION_ADDRESS, container_empty_exception_type->get_keyword_index("CONTAINER_EMPTY"));
-        x64->unwind->initiate(dummy, x64);
+        raise("CONTAINER_EMPTY", x64);
         
         x64->code_label(ok);
         x64->op(DECQ, Address(RAX, length_offset));
@@ -500,9 +486,8 @@ public:
 
 // Array iterator next methods
 
-class ContainerNextValue: public GenericValue {
+class ContainerNextValue: public GenericValue, public Raiser {
 public:
-    Declaration *dummy;
     Regs clob;
     bool is_down;
     TypeSpec elem_ts;
@@ -517,8 +502,7 @@ public:
         if (!check_arguments(args, kwargs, {}))
             return false;
 
-        dummy = make_exception_dummy(iterator_done_exception_type, scope);
-        if (!dummy)
+        if (!check_raise(iterator_done_exception_type, scope))
             return false;
         
         return true;
@@ -546,8 +530,7 @@ public:
             x64->op(CMPQ, RBX, Address(reg, length_offset));
             x64->op(JNE, ok);
             
-            x64->op(MOVB, EXCEPTION_ADDRESS, iterator_done_exception_type->get_keyword_index("ITERATOR_DONE"));
-            x64->unwind->initiate(dummy, x64);
+            raise("ITERATOR_DONE", x64);
             
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + REFERENCE_SIZE);

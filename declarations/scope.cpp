@@ -310,7 +310,7 @@ public:
 
 class TryScope: public CodeScope {
 public:
-    Type *exception_type;
+    TreenumerationType *exception_type;
 
     TryScope()
         :CodeScope() {
@@ -321,7 +321,7 @@ public:
         return this;
     }
     
-    bool set_exception_type(Type *et) {
+    bool set_exception_type(TreenumerationType *et) {
         if (exception_type && exception_type != et)
             return false;
             
@@ -329,7 +329,7 @@ public:
         return true;
     }
     
-    Type *get_exception_type() {
+    TreenumerationType *get_exception_type() {
         return exception_type;
     }
 };
@@ -432,7 +432,7 @@ public:
     ArgumentScope *self_scope;
     ArgumentScope *head_scope;
     CodeScope *body_scope;
-    Type *exception_type;
+    TreenumerationType *exception_type;
 
     FunctionScope()
         :Scope() {
@@ -467,11 +467,11 @@ public:
         return body_scope;
     }
     
-    void set_exception_type(Type *et) {
+    void set_exception_type(TreenumerationType *et) {
         exception_type = et;
     }
     
-    Type *get_exception_type() {
+    TreenumerationType *get_exception_type() {
         return exception_type;
     }
     

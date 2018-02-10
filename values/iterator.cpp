@@ -13,9 +13,8 @@ public:
 
 // Counters
 
-class CountupNextValue: public GenericValue {
+class CountupNextValue: public GenericValue, public Raiser {
 public:
-    Declaration *dummy;
     Regs clob;
     
     CountupNextValue(Value *l, TypeMatch &match)
@@ -26,8 +25,7 @@ public:
         if (!check_arguments(args, kwargs, {}))
             return false;
             
-        dummy = make_exception_dummy(iterator_done_exception_type, scope);
-        if (!dummy)
+        if (!check_raise(iterator_done_exception_type, scope))
             return false;
 
         return true;
@@ -57,8 +55,7 @@ public:
             x64->op(CMPQ, reg, ls.address); // limit
             x64->op(JNE, ok);
             
-            x64->op(MOVB, EXCEPTION_ADDRESS, iterator_done_exception_type->get_keyword_index("ITERATOR_DONE"));
-            x64->unwind->initiate(dummy, x64);
+            raise("ITERATOR_DONE", x64);
             
             x64->code_label(ok);
             advance(ls.address + INTEGER_SIZE, x64);

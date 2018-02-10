@@ -71,7 +71,7 @@ public:
             
             if (v) {
                 Declaration *ed = tdv->declare_pure("<may>", scope);
-                Type *t = dynamic_cast<Type *>(ed);
+                TreenumerationType *t = dynamic_cast<TreenumerationType *>(ed);
                 
                 if (t) {
                     fn_scope->add(t);
@@ -267,13 +267,12 @@ public:
 
 
 // The value of calling a function
-class FunctionCallValue: public Value {
+class FunctionCallValue: public Value, public Raiser {
 public:
     Function *function;
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> values;
     Register reg;
-    Declaration *dummy;
     
     unsigned res_total;
     std::vector<Storage> arg_storages;
@@ -343,9 +342,7 @@ public:
         }
 
         if (function->exception_type) {
-            dummy = make_exception_dummy(function->exception_type, scope);
-
-            if (!dummy)
+            if (!check_raise(function->exception_type, scope))
                 return false;
         }
 
@@ -521,7 +518,7 @@ public:
             Label noex;
             x64->op(JE, noex);  // Expect ZF if OK
             x64->op(MOVB, EXCEPTION_ADDRESS, BL);  // Expect BL if not OK
-            x64->unwind->initiate(dummy, x64);  // unwinds ourselves, too
+            x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
             x64->code_label(noex);
         }
 

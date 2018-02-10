@@ -923,7 +923,7 @@ public:
         
         if (!check_args(args, { "value", &arg_ts, scope, &value }))
             return false;
-            
+
         dummy = new Declaration;
         scope->add(dummy);
 

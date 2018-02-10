@@ -22,27 +22,7 @@ public:
         // Generally we don't need it, only in controls
         return this;
     }
-    
-    virtual Declaration *make_exception_dummy(Type *exception_type, Scope *scope) {
-        TryScope *try_scope = scope->get_try_scope();
-        
-        if (!try_scope) {
-            std::cerr << "Exception " << exception_type->name << " not caught!\n";
-            return NULL;
-        }
-        
-        if (!try_scope->set_exception_type(exception_type)) {
-            std::cerr << "Exception " << exception_type->name << " is not the caught one!\n";
-            return NULL;
-        }
-        
-        // Insert declaration dummy here, destroy variables before it if we get an exception
-        Declaration *dummy = new Declaration;
-        scope->add(dummy);
 
-        return dummy;
-    }
-    
     bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
         // FIXME: shouldn't this be a proper method?
         return ::check_arguments(args, kwargs, arg_infos);
@@ -105,6 +85,43 @@ public:
     
     virtual Value *lookup_inner(std::string name) {
         return ts.lookup_inner(name, this);
+    }
+};
+
+
+class Raiser {
+public:
+    Declaration *raising_dummy;
+    TreenumerationType *raised_type;
+    
+    Raiser() {
+        raising_dummy = NULL;
+        raised_type = NULL;
+    }
+    
+    virtual bool check_raise(TreenumerationType *exception_type, Scope *scope) {
+        TryScope *try_scope = scope->get_try_scope();
+        
+        if (!try_scope) {
+            std::cerr << "Exception " << exception_type->name << " not caught!\n";
+            return false;
+        }
+        
+        if (!try_scope->set_exception_type(exception_type)) {
+            std::cerr << "Exception " << exception_type->name << " is not the caught one!\n";
+            return false;
+        }
+        
+        raised_type = exception_type;
+        raising_dummy = new Declaration;
+        scope->add(raising_dummy);
+
+        return true;
+    }
+    
+    virtual void raise(std::string keyword, X64 *x64) {
+        x64->op(MOVB, EXCEPTION_ADDRESS, raised_type->get_keyword_index(keyword));
+        x64->unwind->initiate(raising_dummy, x64);
     }
 };
 

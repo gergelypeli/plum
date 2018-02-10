@@ -223,7 +223,7 @@ public:
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
     std::vector<TypeSpec> res_tss;
-    Type *exception_type;
+    TreenumerationType *exception_type;
     int virtual_index;
     bool is_interface_function;
     bool is_initializer_function;
@@ -231,7 +231,7 @@ public:
     Label x64_label;
     bool is_sysv;
     
-    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, Type *et)
+    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
         :Identifier(n, pts) {
         arg_tss = ats;
         arg_names = ans;
@@ -306,7 +306,7 @@ public:
     
     std::string import_name;
     
-    ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, Type *et)
+    ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
         :Function(n, pts, ats, ans, rts, et) {
         import_name = in;
         to_be_imported.push_back(this);
