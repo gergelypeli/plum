@@ -51,6 +51,21 @@ public:
 };
 
 
+class Cast: public Identifier {
+public:
+    TypeSpec cast_ts;
+    
+    Cast(std::string name, TypeSpec pts, TypeSpec cts)
+        :Identifier(name, pts) {
+        cast_ts = cts;
+    }
+
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_cast_value(cpivot, typesubst(cast_ts, match));
+    }
+};
+
+
 class Variable: public Identifier {
 public:
     TypeSpec var_ts;

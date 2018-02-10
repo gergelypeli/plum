@@ -249,3 +249,19 @@ public:
         }
     }
 };
+
+
+class OptionIsType: public Type {
+public:
+    OptionIsType(std::string n)
+        :Type(n, 1) {
+    }
+};
+
+
+class OptionAsType: public Type {
+public:
+    OptionAsType(std::string n)
+        :Type(n, 1) {
+    }
+};

@@ -49,31 +49,30 @@ public:
 };
 
 
-class OptionIsValue: public GenericValue {
+class OptionIsNoneValue: public GenericValue {
 public:
-    OptionIsValue(Value *p, TypeMatch &match)
-        :GenericValue(OPTIONSELECTOR_TS, BOOLEAN_TS, p) {
+    TypeSpec option_ts;
+    
+    OptionIsNoneValue(Value *p, TypeMatch &match)
+        :GenericValue(NO_TS, BOOLEAN_TS, p) {
+        option_ts = match[1].prefix(option_type);
     }
     
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | right->precompile(preferred);
+        return left->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
         Storage ls = left->compile(x64);
-        Storage rs = right->compile(x64);
-        
-        if (rs.where != CONSTANT)
-            throw INTERNAL_ERROR;
             
         switch (ls.where) {
         case STACK:
-            left->ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
-            x64->op(CMPB, Address(RSP, 0), rs.value);
-            x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));
+            option_ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
+            x64->op(CMPB, Address(RSP, 0), 0);
+            x64->op(LEA, RSP, Address(RSP, option_ts.measure_stack()));
             return Storage(FLAGS, SETE);
         case MEMORY:
-            x64->op(CMPB, ls.address, rs.value);
+            x64->op(CMPB, ls.address, 0);
             return Storage(FLAGS, SETE);
         default:
             throw INTERNAL_ERROR;
@@ -82,84 +81,110 @@ public:
 };
 
 
-class OptionAsValue: public GenericValue {
+class OptionIsSomeValue: public GenericValue {
 public:
-    TypeSpec same_ts;
+    TypeSpec option_ts;
     
-    OptionAsValue(Value *p, TypeMatch &match)
-        :GenericValue(OPTIONSELECTOR_TS, VOID_TS, p) {
-        same_ts = match[1];
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!GenericValue::check(args, kwargs, scope))
-            return false;
-            
-        BasicValue *v = dynamic_cast<BasicValue *>(right.get());
-        if (!v)
-            throw INTERNAL_ERROR;
-            
-        switch (v->number) {
-        case 0:
-            break;
-        case 1:
-            ts = same_ts;
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        return true;
+    OptionIsSomeValue(Value *p, TypeMatch &match)
+        :GenericValue(NO_TS, BOOLEAN_TS, p) {
+        option_ts = match[1].prefix(option_type);
     }
     
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | right->precompile(preferred);
+        return left->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
         Storage ls = left->compile(x64);
-        Storage rs = right->compile(x64);
-        
-        if (rs.where != CONSTANT)
-            throw INTERNAL_ERROR;
             
+        switch (ls.where) {
+        case STACK:
+            option_ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
+            x64->op(CMPB, Address(RSP, 0), 1);
+            x64->op(LEA, RSP, Address(RSP, option_ts.measure_stack()));
+            return Storage(FLAGS, SETE);
+        case MEMORY:
+            x64->op(CMPB, ls.address, 1);
+            return Storage(FLAGS, SETE);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
+class OptionAsNoneValue: public GenericValue {
+public:
+    OptionAsNoneValue(Value *p, TypeMatch &match)
+        :GenericValue(NO_TS, VOID_TS, p) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage ls = left->compile(x64);
         Label ok;
             
         switch (ls.where) {
         case STACK:
-            if (rs.value == 0) {
-                left->ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
-                x64->op(CMPB, Address(RSP, 0), 0);
-                x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));
-                x64->op(JE, ok);
-                
-                x64->die("Option is not None!");
-                
-                x64->code_label(ok);
-                return Storage();
-            }
-            else {
-                x64->op(CMPB, Address(RSP, 0), 1);
-                x64->op(JE, ok);
-
-                x64->die("Option is not Some!");
-
-                x64->code_label(ok);
-                x64->op(ADDQ, RSP, 8);
-                return Storage(STACK);
-            }
-        case MEMORY:
-            x64->op(CMPB, ls.address, rs.value);
+            left->ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
+            x64->op(CMPB, Address(RSP, 0), 0);
+            x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));
             x64->op(JE, ok);
             
-            x64->die("Option is not that!");
+            x64->die("Option is not `none!");
             
             x64->code_label(ok);
+            return Storage();
+        case MEMORY:
+            x64->op(CMPB, ls.address, 0);
+            x64->op(JE, ok);
             
-            if (rs.value == 0)
-                return Storage();
-            else
-                return Storage(MEMORY, ls.address + INTEGER_SIZE);
+            x64->die("Option is not `none!");
+            
+            x64->code_label(ok);
+            return Storage();
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
+class OptionAsSomeValue: public GenericValue {
+public:
+    OptionAsSomeValue(Value *p, TypeMatch &match)
+        :GenericValue(NO_TS, match[1].varvalue(), p) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage ls = left->compile(x64);
+        Label ok;
+            
+        switch (ls.where) {
+        case STACK:
+            x64->op(CMPB, Address(RSP, 0), 1);
+            x64->op(JE, ok);
+
+            x64->die("Option is not `some!");
+
+            x64->code_label(ok);
+            x64->op(ADDQ, RSP, INTEGER_SIZE);
+            return Storage(STACK);
+        case MEMORY:
+            x64->op(CMPB, ls.address, 1);
+            x64->op(JE, ok);
+            
+            x64->die("Option is not `some!");
+            
+            x64->code_label(ok);
+            return Storage(MEMORY, ls.address + INTEGER_SIZE);
         default:
             throw INTERNAL_ERROR;
         }

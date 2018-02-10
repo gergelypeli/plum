@@ -126,8 +126,11 @@ void builtin_types(Scope *root_scope) {
     option_type = new OptionType("Option");
     root_scope->add(option_type);
 
-    optionselector_type = new EnumerationType("<Optionselector>", { "none", "some" });
-    root_scope->add(optionselector_type);
+    optionis_type = new OptionIsType("<OptionIs>");
+    root_scope->add(optionis_type);
+
+    optionas_type = new OptionAsType("<OptionAs>");
+    root_scope->add(optionas_type);
 
     stack_type = new StackType("Stack");
     root_scope->add(stack_type);
@@ -232,7 +235,10 @@ void builtin_types(Scope *root_scope) {
     STRING_LVALUE_TS = { lvalue_type, string_type };
     ANY_OPTION_TS = { option_type, any_type };
     ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
-    OPTIONSELECTOR_TS = { optionselector_type };
+    ANY_OPTIONIS_TS = { optionis_type, any_type };
+    ANY_OPTIONAS_TS = { optionas_type, any_type };
+    SAME_OPTIONIS_TS = { optionis_type, same_type };
+    SAME_OPTIONAS_TS = { optionas_type, same_type };
     ANY_STACK_REFERENCE_TS = { reference_type, stack_type, any_type };
     ANY_QUEUE_REFERENCE_TS = { reference_type, queue_type, any_type };
     ANY_SET_REFERENCE_TS = { reference_type, set_type, any_type };
@@ -473,19 +479,33 @@ void define_string() {
 
 
 void define_option() {
-    OptionType *option_type = dynamic_cast<OptionType *>(::option_type);
+    //OptionType *option_type = dynamic_cast<OptionType *>(::option_type);
     DataScope *is = option_type->make_inner_scope(ANY_OPTION_TS);
 
     is->add(new TemplateOperation<OptionOperationValue>("assign other", ANY_OPTION_LVALUE_TS, ASSIGN));
     is->add(new TemplateOperation<OptionOperationValue>("compare", ANY_OPTION_TS, COMPARE));
-    is->add(new TemplateIdentifier<OptionIsValue>("is", ANY_OPTION_TS));
-    is->add(new TemplateIdentifier<OptionAsValue>("as", ANY_OPTION_TS));
+    is->add(new Cast("is", ANY_OPTION_TS, SAME_OPTIONIS_TS));
+    is->add(new Cast("as", ANY_OPTION_TS, SAME_OPTIONAS_TS));
 
     implement(is, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<OptionStreamificationValue>("streamify", ANY_OPTION_TS)
     });
 
     option_type->complete_type();
+    
+    DataScope *iis = optionis_type->make_inner_scope(ANY_OPTIONIS_TS);
+    
+    iis->add(new TemplateIdentifier<OptionIsNoneValue>("none", ANY_OPTIONIS_TS));
+    iis->add(new TemplateIdentifier<OptionIsSomeValue>("some", ANY_OPTIONIS_TS));
+    
+    optionis_type->complete_type();
+
+    DataScope *ais = optionas_type->make_inner_scope(ANY_OPTIONAS_TS);
+    
+    ais->add(new TemplateIdentifier<OptionAsNoneValue>("none", ANY_OPTIONAS_TS));
+    ais->add(new TemplateIdentifier<OptionAsSomeValue>("some", ANY_OPTIONAS_TS));
+    
+    optionas_type->complete_type();
 }
 
 
