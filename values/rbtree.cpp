@@ -867,7 +867,7 @@ public:
         // Non-autogrowing Rbtree-s only raise a CONTAINER_FULL exception, if the operation
         // actually tried to increase the size, not when an existing node is updated.
         if (dummy) {
-            x64->op(MOVB, EXCEPTION_ADDRESS, CONTAINER_FULL_EXCEPTION);
+            x64->op(MOVB, EXCEPTION_ADDRESS, container_full_exception_type->get_keyword_index("CONTAINER_FULL"));
             x64->unwind->initiate(dummy, x64);
         }
         else
@@ -967,8 +967,9 @@ public:
         if (!check_arguments(args, kwargs, {}))
             return false;
 
-        dummy = new Declaration;
-        scope->add(dummy);
+        dummy = make_exception_dummy(iterator_done_exception_type, scope);
+        if (!dummy)
+            return false;
         
         return true;
     }
@@ -994,7 +995,7 @@ public:
             x64->op(CMPQ, RBX, RBNODE_NIL);
             x64->op(JNE, ok);
             
-            x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
+            x64->op(MOVB, EXCEPTION_ADDRESS, iterator_done_exception_type->get_keyword_index("ITERATOR_DONE"));
             x64->unwind->initiate(dummy, x64);
             
             x64->code_label(ok);
@@ -1041,8 +1042,9 @@ public:
         if (!check_arguments(args, kwargs, {}))
             return false;
 
-        dummy = new Declaration;
-        scope->add(dummy);
+        dummy = make_exception_dummy(iterator_done_exception_type, scope);
+        if (!dummy)
+            return false;
         
         return true;
     }
@@ -1071,7 +1073,7 @@ public:
         x64->op(CMPQ, RAX, 0);
         x64->op(JNE, ok);
 
-        x64->op(MOVB, EXCEPTION_ADDRESS, DONE_EXCEPTION);
+        x64->op(MOVB, EXCEPTION_ADDRESS, iterator_done_exception_type->get_keyword_index("ITERATOR_DONE"));
         x64->unwind->initiate(dummy, x64);
         
         x64->code_label(ok);

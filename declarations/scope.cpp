@@ -357,7 +357,7 @@ public:
     int get_exception_value() {
         EvalScope *es = outer_scope->get_eval_scope();
         
-        return (es ? es->get_exception_value() : -1) - 1;
+        return (es ? es->get_exception_value() : RETURN_EXCEPTION) - 1;
     }
     
     TypeSpec get_ts() {

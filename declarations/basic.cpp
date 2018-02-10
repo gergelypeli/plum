@@ -443,6 +443,14 @@ public:
         for (auto &l : labels)
             x64->data_reference(l);  // 64-bit absolute
     }
+    
+    unsigned get_keyword_index(std::string kw) {
+        for (unsigned i = 0; i < keywords.size(); i++)
+            if (keywords[i] == kw)
+                return i;
+        
+        throw INTERNAL_ERROR;
+    }
 };
 
 
@@ -452,6 +460,10 @@ public:
 
     TreenumerationType(std::string n, std::vector<std::string> kw, std::vector<unsigned> tl)
         :EnumerationType(n, kw) {
+        // The numbering must start from 1, as 0 is reserved to be the root of all values,
+        // and also for NO_EXCEPTION for raise.
+        if (kw[0] != "")
+            throw INTERNAL_ERROR;
         tails = tl;
     }
     

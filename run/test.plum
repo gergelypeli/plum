@@ -63,7 +63,7 @@ restart? :Function as:
     start  # check predeclarations
 
 
-nasty? :Function may: { BIG_ERROR, SMALL_ERROR } as:
+nasty? :Function may: { SMALL_ERROR, BIG_ERROR } as:
     :raise `SMALL_ERROR
     
     

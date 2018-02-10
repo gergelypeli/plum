@@ -3,10 +3,6 @@
 
 const char NO_EXCEPTION = 0;
 const char RETURN_EXCEPTION = -1;
-const char DONE_EXCEPTION = 1;
-const char CONTAINER_FULL_EXCEPTION = 2;
-const char CONTAINER_EMPTY_EXCEPTION = 3;
-const char CONTAINER_LENT_EXCEPTION = 4;
 
 class Declaration;
 class Variable;
@@ -14,6 +10,7 @@ class PartialVariable;
 class Function;
 
 class Type;
+class TreenumerationType;
 class ArrayType;
 class InterfaceType;
 class ImplementationType;

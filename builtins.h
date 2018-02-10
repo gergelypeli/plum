@@ -54,9 +54,12 @@ Type *circularrayindexiter_type = NULL;
 Type *circularrayitemiter_type = NULL;
 Type *rbtreeelembyageiter_type = NULL;
 Type *rbtreeelembyorderiter_type = NULL;
-Type *container_full_exception_type = NULL;
-Type *container_empty_exception_type = NULL;
-Type *container_lent_exception_type = NULL;
+
+TreenumerationType *iterator_done_exception_type = NULL;
+TreenumerationType *container_full_exception_type = NULL;
+TreenumerationType *container_empty_exception_type = NULL;
+TreenumerationType *container_lent_exception_type = NULL;
+
 InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;
 InterfaceType *iterable_type = NULL;

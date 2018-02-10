@@ -177,13 +177,16 @@ void builtin_types(Scope *root_scope) {
     rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", 1);
     root_scope->add(rbtreeelembyorderiter_type);
 
-    container_full_exception_type = new TreenumerationType("<Container_full>", { "CONTAINER_FULL" }, { 0 });
+    iterator_done_exception_type = new TreenumerationType("<Iterator_done>", { "", "ITERATOR_DONE" }, { 1 });
+    root_scope->add(iterator_done_exception_type);
+
+    container_full_exception_type = new TreenumerationType("<Container_full>", { "", "CONTAINER_FULL" }, { 1 });
     root_scope->add(container_full_exception_type);
 
-    container_empty_exception_type = new TreenumerationType("<Container_empty>", { "CONTAINER_EMPTY" }, { 0 });
+    container_empty_exception_type = new TreenumerationType("<Container_empty>", { "", "CONTAINER_EMPTY" }, { 1 });
     root_scope->add(container_empty_exception_type);
 
-    container_lent_exception_type = new TreenumerationType("<Container_lent>", { "CONTAINER_LENT" }, { 0 });
+    container_lent_exception_type = new TreenumerationType("<Container_lent>", { "", "CONTAINER_LENT" }, { 1 });
     root_scope->add(container_lent_exception_type);
 
     // NO_TS will contain no Type pointers
