@@ -189,6 +189,9 @@ void builtin_types(Scope *root_scope) {
     container_lent_exception_type = new TreenumerationType("<Container_lent>", { "", "CONTAINER_LENT" }, { 1 });
     root_scope->add(container_lent_exception_type);
 
+    option_unmatched_exception_type = new TreenumerationType("<Option_unmatched>", { "", "UNMATCHED" }, { 1 });
+    root_scope->add(option_unmatched_exception_type);
+
     // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };

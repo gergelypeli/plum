@@ -120,8 +120,19 @@ public:
 
 class OptionAsNoneValue: public GenericValue {
 public:
+    Declaration *dummy;
+    
     OptionAsNoneValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, VOID_TS, p) {
+        dummy = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        dummy = make_exception_dummy(option_unmatched_exception_type, scope);
+        if (!dummy)
+            return false;
+        
+        return GenericValue::check(args, kwargs, scope);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -139,15 +150,17 @@ public:
             x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));
             x64->op(JE, ok);
             
-            x64->die("Option is not `none!");
-            
+            x64->op(MOVB, EXCEPTION_ADDRESS, option_unmatched_exception_type->get_keyword_index("UNMATCHED"));
+            x64->unwind->initiate(dummy, x64);
+
             x64->code_label(ok);
             return Storage();
         case MEMORY:
             x64->op(CMPQ, ls.address, 0);
             x64->op(JE, ok);
-            
-            x64->die("Option is not `none!");
+
+            x64->op(MOVB, EXCEPTION_ADDRESS, option_unmatched_exception_type->get_keyword_index("UNMATCHED"));
+            x64->unwind->initiate(dummy, x64);
             
             x64->code_label(ok);
             return Storage();
@@ -161,10 +174,20 @@ public:
 class OptionAsSomeValue: public GenericValue {
 public:
     int flag_size;
+    Declaration *dummy;
     
     OptionAsSomeValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, match[1].varvalue(), p) {
         flag_size = OptionType::get_flag_size(match[1]);
+        dummy = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        dummy = make_exception_dummy(option_unmatched_exception_type, scope);
+        if (!dummy)
+            return false;
+        
+        return GenericValue::check(args, kwargs, scope);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -180,7 +203,8 @@ public:
             x64->op(CMPQ, Address(RSP, 0), 0);
             x64->op(JNE, ok);
 
-            x64->die("Option is not `some!");
+            x64->op(MOVB, EXCEPTION_ADDRESS, option_unmatched_exception_type->get_keyword_index("UNMATCHED"));
+            x64->unwind->initiate(dummy, x64);
 
             x64->code_label(ok);
             if (flag_size)
@@ -191,7 +215,8 @@ public:
             x64->op(CMPQ, ls.address, 0);
             x64->op(JNE, ok);
             
-            x64->die("Option is not `some!");
+            x64->op(MOVB, EXCEPTION_ADDRESS, option_unmatched_exception_type->get_keyword_index("UNMATCHED"));
+            x64->unwind->initiate(dummy, x64);
             
             x64->code_label(ok);
             return Storage(MEMORY, ls.address + flag_size);

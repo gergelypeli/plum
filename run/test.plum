@@ -454,8 +454,9 @@ start? :Function as:
     prints("And became: {op2}" {})
     prints("So they're now equal: {x}" {x: op1 == op2})
     prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
-    op1s? op1 as some
-    prints("It contained: {op1s}" {})
+    :try
+        op1s? op1 as some
+        prints("It contained: {op1s}" {})
         
     gr? Greetable `init
     gr greet
