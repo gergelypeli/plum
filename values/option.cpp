@@ -19,9 +19,11 @@ public:
 class OptionSomeValue: public Value {
 public:
     std::unique_ptr<Value> some;
+    int flag_size;
     
     OptionSomeValue(TypeSpec ts)
         :Value(ts) {
+        flag_size = OptionType::get_flag_size(ts.unprefix(option_type));
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -35,7 +37,10 @@ public:
     
     virtual Storage compile(X64 *x64) {
         some->compile_and_store(x64, Storage(STACK));
-        x64->op(PUSHQ, 1);
+        
+        if (flag_size)
+            x64->op(PUSHQ, 1);
+            
         return Storage(STACK);
     }
 };
@@ -68,11 +73,11 @@ public:
         switch (ls.where) {
         case STACK:
             option_ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
-            x64->op(CMPB, Address(RSP, 0), 0);
+            x64->op(CMPQ, Address(RSP, 0), 0);
             x64->op(LEA, RSP, Address(RSP, option_ts.measure_stack()));
             return Storage(FLAGS, SETE);
         case MEMORY:
-            x64->op(CMPB, ls.address, 0);
+            x64->op(CMPQ, ls.address, 0);
             return Storage(FLAGS, SETE);
         default:
             throw INTERNAL_ERROR;
@@ -100,12 +105,12 @@ public:
         switch (ls.where) {
         case STACK:
             option_ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
-            x64->op(CMPB, Address(RSP, 0), 1);
+            x64->op(CMPQ, Address(RSP, 0), 0);
             x64->op(LEA, RSP, Address(RSP, option_ts.measure_stack()));
-            return Storage(FLAGS, SETE);
+            return Storage(FLAGS, SETNE);
         case MEMORY:
-            x64->op(CMPB, ls.address, 1);
-            return Storage(FLAGS, SETE);
+            x64->op(CMPQ, ls.address, 0);
+            return Storage(FLAGS, SETNE);
         default:
             throw INTERNAL_ERROR;
         }
@@ -130,7 +135,7 @@ public:
         switch (ls.where) {
         case STACK:
             left->ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
-            x64->op(CMPB, Address(RSP, 0), 0);
+            x64->op(CMPQ, Address(RSP, 0), 0);
             x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));
             x64->op(JE, ok);
             
@@ -139,7 +144,7 @@ public:
             x64->code_label(ok);
             return Storage();
         case MEMORY:
-            x64->op(CMPB, ls.address, 0);
+            x64->op(CMPQ, ls.address, 0);
             x64->op(JE, ok);
             
             x64->die("Option is not `none!");
@@ -155,8 +160,11 @@ public:
 
 class OptionAsSomeValue: public GenericValue {
 public:
+    int flag_size;
+    
     OptionAsSomeValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, match[1].varvalue(), p) {
+        flag_size = OptionType::get_flag_size(match[1]);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -169,22 +177,24 @@ public:
             
         switch (ls.where) {
         case STACK:
-            x64->op(CMPB, Address(RSP, 0), 1);
-            x64->op(JE, ok);
+            x64->op(CMPQ, Address(RSP, 0), 0);
+            x64->op(JNE, ok);
 
             x64->die("Option is not `some!");
 
             x64->code_label(ok);
-            x64->op(ADDQ, RSP, INTEGER_SIZE);
+            if (flag_size)
+                x64->op(ADDQ, RSP, INTEGER_SIZE);
+                
             return Storage(STACK);
         case MEMORY:
-            x64->op(CMPB, ls.address, 1);
-            x64->op(JE, ok);
+            x64->op(CMPQ, ls.address, 0);
+            x64->op(JNE, ok);
             
             x64->die("Option is not `some!");
             
             x64->code_label(ok);
-            return Storage(MEMORY, ls.address + INTEGER_SIZE);
+            return Storage(MEMORY, ls.address + flag_size);
         default:
             throw INTERNAL_ERROR;
         }

@@ -5,9 +5,17 @@ public:
         :Type(n, 1) {
     }
 
+    static int get_flag_size(TypeSpec some_ts) {
+        // NOTE: the option is `none only if the first 8-bytes integer is 0.
+        // This is because we may use an implicit flag if the first 8 bytes are known not be
+        // all zeroes, such as a reference.
+        Type *t = some_ts[0];
+        return t == reference_type || t == string_type || heap_type_cast(t) ? 0 : INTEGER_SIZE;
+    }
+
     virtual Allocation measure(TypeMatch tm) {
         Allocation a = tm[1].measure();
-        a.bytes += INTEGER_TS.measure_stack();
+        a.bytes += get_flag_size(tm[1]);
         return a;
     }
 
@@ -42,8 +50,8 @@ public:
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         int stack_size = tm[0].measure_stack();
-        int flag_size = INTEGER_TS.measure_stack();
-        Label none;
+        int flag_size = get_flag_size(tm[1]);
+        Label none, end;
 
         switch (s.where * t.where) {
         case NOWHERE_STACK:
@@ -59,12 +67,19 @@ public:
             x64->op(ADDQ, RSP, stack_size);
             return;
         case MEMORY_MEMORY:  // duplicates data
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(MOVQ, t.address, RBX);
-            x64->op(CMPQ, RBX, 0);
+            x64->op(CMPQ, s.address, 0);
             x64->op(JE, none);
+            
+            if (flag_size)
+                x64->op(MOVQ, t.address, 1);
+                
             tm[1].create(s + flag_size, t + flag_size, x64);
+            x64->op(JMP, end);
+
             x64->code_label(none);
+            x64->op(MOVQ, t.address, 0);
+            
+            x64->code_label(end);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -72,7 +87,7 @@ public:
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
-        int flag_size = INTEGER_TS.measure_stack();
+        int flag_size = get_flag_size(tm[1]);
         Label none;
         
         if (s.where == MEMORY) {
@@ -116,14 +131,14 @@ public:
     
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         int stack_size = tm[0].measure_stack();
-        int flag_size = INTEGER_TS.measure_stack();
+        int flag_size = get_flag_size(tm[1]);
 
         if (s.where == MEMORY && t.where == MEMORY) {
             Label eq;
             x64->op(MOVQ, RBX, s.address);
             x64->op(CMPQ, RBX, t.address);
-            x64->op(JL, less);
-            x64->op(JG, greater);
+            x64->op(JB, less);
+            x64->op(JA, greater);
             x64->op(CMPQ, RBX, 0);
             x64->op(JE, eq);
             tm[1].compare(Storage(MEMORY, s.address + flag_size), Storage(MEMORY, t.address + flag_size), x64, less, greater);
@@ -186,21 +201,28 @@ public:
     }
 
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+        int flag_size = get_flag_size(tm[1]);
         Label os_label = x64->once->compile(compile_streamification, tm[1]);
         Label ok;
         
         x64->op(CALL, os_label);
         
-        x64->op(CMPB, Address(RSP, ALIAS_SIZE), 0);
+        x64->op(CMPQ, Address(RSP, ALIAS_SIZE), 0);
         x64->op(JE, ok);
         
-        x64->op(POPQ, RBX);  // stream alias
-        x64->op(ADDQ, RSP, 8);
-        x64->op(PUSHQ, RBX);  // overwrite flag
+        if (flag_size) {
+            x64->op(POPQ, RBX);  // stream alias
+            x64->op(ADDQ, RSP, 8);
+            x64->op(PUSHQ, RBX);  // overwrite flag
+        }
+        
         tm[1].streamify(true, x64);
-        x64->op(POPQ, RBX);
-        x64->op(PUSHQ, 1);
-        x64->op(PUSHQ, RBX);
+        
+        if (flag_size) {
+            x64->op(POPQ, RBX);
+            x64->op(PUSHQ, 1);
+            x64->op(PUSHQ, RBX);
+        }
                 
         x64->code_label(ok);
     }
