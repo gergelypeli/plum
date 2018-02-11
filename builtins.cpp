@@ -57,6 +57,9 @@ void builtin_types(Scope *root_scope) {
     ovalue_type = new AttributeType("Ovalue");
     root_scope->add(ovalue_type);
 
+    dvalue_type = new AttributeType("Dvalue");
+    root_scope->add(dvalue_type);
+
     code_type = new AttributeType("<Code>");
     root_scope->add(code_type);
 

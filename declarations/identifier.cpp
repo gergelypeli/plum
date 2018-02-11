@@ -218,6 +218,18 @@ public:
 };
 
 
+class RetroVariable: public Variable {
+public:
+    RetroVariable(std::string name, TypeSpec pts, TypeSpec vts)
+        :Variable(name, pts, vts) {
+    }
+
+    virtual void finalize(X64 *x64) {
+        // These are not finalized
+    }
+};
+
+
 class Function: public Identifier {
 public:
     std::vector<TypeSpec> arg_tss;

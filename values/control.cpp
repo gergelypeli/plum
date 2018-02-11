@@ -353,7 +353,7 @@ public:
         if (!check_args(args, { "", &ANY_ITERABLE_TS, scope, &ib}))
             return false;
     
-        std::cerr << "XXX iterable is " << ib->ts << "\n";
+        //std::cerr << "XXX iterable is " << ib->ts << "\n";
         
         Value *ib2 = lookup_fake("iter", ib.release(), token, scope, NULL);
         
@@ -385,7 +385,7 @@ public:
         }
 
         TypeSpec elem_ts = match[1].varvalue();
-        each_ts = elem_ts.lvalue();
+        each_ts = elem_ts.prefix(dvalue_type);  //lvalue();
         
         Value *next = lookup_fake("next", it, token, next_try_scope, NULL);
         
@@ -444,8 +444,9 @@ public:
         Storage ns = next->compile(x64);
         x64->unwind->pop(this);
         
-        next->ts.store(ns, es, x64);
+        next->ts.create(ns, es, x64);  // create the each variable
         // Finalize after storing, so the return value won't be lost
+        // On exception we jump here, so the each variable won't be created
         next_try_scope->finalize_contents(x64);
         
         x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
@@ -455,6 +456,8 @@ public:
 
         x64->code_label(ok);
         body->compile_and_store(x64, Storage());
+        
+        next->ts.destroy(es, x64);  // destroy the each variable
         
         x64->op(JMP, start);
         

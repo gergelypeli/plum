@@ -311,7 +311,7 @@ public:
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
-        return tm[1].where(is_arg, is_lvalue || this == lvalue_type);
+        return tm[1].where(is_arg, is_lvalue || this == lvalue_type || this == dvalue_type);
     }
 
     virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {

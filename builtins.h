@@ -8,6 +8,7 @@ Type *same3_type = NULL;
 Type *type_type = NULL;
 Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;
+Type *dvalue_type = NULL;
 Type *code_type = NULL;
 Type *metatype_type = NULL;
 Type *void_type = NULL;

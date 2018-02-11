@@ -304,17 +304,19 @@ public:
         Value *v;
         
         if (args.size() == 0) {
-            if (!context) {
-                std::cerr << "Can't declare implicitly without type context!\n";
+            if (!context || (*context)[0] != dvalue_type) {
+                std::cerr << "Bare declaration is not allowed in this context!\n";
                 return false;
             }
+
+            TypeSpec var_ts = scope->variable_type_hint((*context).unprefix(dvalue_type));
+            var = new RetroVariable(name, NO_TS, var_ts);
             
-            if ((*context)[0] != lvalue_type) {
-                std::cerr << "Can't declare implicitly without lvalue type context!\n";
-                return false;
-            }
+            decl = var;
+            scope->add(decl);
+            ts = var->var_ts.reprefix(lvalue_type, dvalue_type);
             
-            v = make_type_value((*context).rvalue().prefix(type_type));
+            return true;
         }
         else
             v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
@@ -323,21 +325,30 @@ public:
     }
 
     virtual bool complete_definition() {
-        return value->complete_definition();
+        if (value)
+            return value->complete_definition();
+        else
+            return true;
     }
 
     virtual Regs precompile(Regs preferred) {
-        return value->precompile(preferred);
+        if (value)
+            return value->precompile(preferred);
+        else
+            return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
         if (var) {
-            Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
             Storage t = var->get_local_storage();
-
-            // Use the value to initialize the variable, then return the variable
-            var->var_ts.create(s, t, x64);
             
+            if (value) {
+                Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
+
+                // Use the value to initialize the variable, then return the variable
+                var->var_ts.create(s, t, x64);
+            }
+
             return t;
         }
         else {
