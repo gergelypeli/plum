@@ -136,23 +136,6 @@ public:
 };
 
 
-class NullStringValue: public Value {
-public:
-    NullStringValue()
-        :Value(STRING_TS) {
-    }
-    
-    Regs precompile(Regs preferred) {
-        return Regs();
-    }
-    
-    Storage compile(X64 *x64) {
-        x64->op(PUSHQ, 0);
-        return Storage(STACK);
-    }
-};
-
-
 class RecordUnwrapValue: public Value {
 public:
     std::unique_ptr<Value> pivot;

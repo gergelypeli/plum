@@ -38,23 +38,3 @@ public:
         }
     }
 };
-
-
-class NullReferenceValue: public Value {
-public:
-    Register reg;
-
-    NullReferenceValue(TypeSpec ts)
-        :Value(ts) {
-    }
-    
-    Regs precompile(Regs preferred) {
-        reg = preferred.get_any();
-        return Regs().add(reg);
-    }
-    
-    Storage compile(X64 *x64) {
-        x64->op(MOVQ, reg, 0);
-        return Storage(REGISTER, reg);
-    }
-};

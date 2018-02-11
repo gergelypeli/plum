@@ -113,7 +113,7 @@ Greetable? :Class as:
     init? :Initializer as:
         $ number? 1
         $ name? "XXX"
-        $ g? `null
+        #$ g? `null
         prints("I'm here as {x}." { x: $ name })
         
     greet? :Function as:
@@ -121,7 +121,7 @@ Greetable? :Class as:
 
     number? Integer
     name? String
-    g? Greetable
+    #g? Greetable
 
 
 start? :Function as:
@@ -164,15 +164,15 @@ start? :Function as:
 
     prints("s[3] is now '{c}'" { c: s[3] })
 
-    z? String
+    z? String ""
     prints(z || "Ez tök 대박")
     
-    :if z == String `null then: prints("z is null")
+    :if z == String `empty then: prints("z is empty")
     
     z = s
     printb(z encode_utf8)
 
-    :if z == `null then: prints("ERROR z is still null")
+    :if z == `empty then: prints("ERROR z is still empty")
 
     :if z == "Szia!" then: prints("ERROR z is Szia!")
 

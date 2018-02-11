@@ -51,8 +51,6 @@ Value *peek_void_conversion_value(Value *v);
 Value *make_boolean_conversion_value(Value *orig);
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *orig, TypeMatch &match);
 Value *make_boolean_not_value(Value *value);
-Value *make_null_reference_value(TypeSpec ts);
-Value *make_null_string_value();  // TODO: rethink!
 Value *make_array_empty_value(TypeSpec ts);
 Value *make_array_initializer_value(TypeSpec ts);
 Value *make_circularray_empty_value(TypeSpec ts);

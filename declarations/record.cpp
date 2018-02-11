@@ -431,13 +431,12 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
-        if (n == "null") {
-            return make_null_string_value();
+        if (n == "empty") {
+            return make_string_literal_value("");
         }
-        else {
-            std::cerr << "No String initializer " << n << "!\n";
-            return NULL;
-        }
+        
+        std::cerr << "No String initializer " << n << "!\n";
+        return NULL;
     }
 };
 

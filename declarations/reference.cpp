@@ -68,8 +68,8 @@ public:
         
         switch (s.where * t.where) {
         case NOWHERE_MEMORY:
-            x64->op(MOVQ, t.address, 0);
-            return;
+            std::cerr << "Reference must be initialized!\n";
+            throw TYPE_ERROR;
         case REGISTER_MEMORY:
             x64->op(MOVQ, t.address, s.reg);
             return;
@@ -177,14 +177,7 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        if (name == "null") {
-            return make_null_reference_value(tm[0]);
-        }
-        else {
-            return tm[1].lookup_initializer(name, scope);
-            //std::cerr << "No reference initializer called " << name << "!\n";
-            //return NULL;
-        }
+        return tm[1].lookup_initializer(name, scope);
     }
 
     virtual DataScope *get_inner_scope(TypeMatch tm) {
@@ -226,8 +219,6 @@ public:
         
         if (name == "empty")
             return make_array_empty_value(rts);
-        else if (name == "null")
-            return make_null_reference_value(rts);
         else if (name == "{}")
             return make_array_initializer_value(rts);
 
@@ -282,8 +273,6 @@ public:
         
         if (name == "empty")
             return make_circularray_empty_value(rts);
-        else if (name == "null")
-            return make_null_reference_value(rts);
         else if (name == "{}")
             return make_circularray_initializer_value(rts);
 
@@ -357,8 +346,6 @@ public:
             return make_rbtree_empty_value(rts);
         else if (name == "reserved")
             return make_rbtree_reserved_value(rts);
-        else if (name == "null")
-            return make_null_reference_value(rts);
         else if (name == "{}")
             return make_rbtree_initializer_value(rts);
 

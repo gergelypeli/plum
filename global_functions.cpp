@@ -122,16 +122,6 @@ Value *make_boolean_not_value(Value *p) {
 }
 
 
-Value *make_null_reference_value(TypeSpec ts) {
-    return new NullReferenceValue(ts);
-}
-
-
-Value *make_null_string_value() {
-    return new NullStringValue();
-}
-
-
 Value *make_array_empty_value(TypeSpec ts) {
     return new ArrayEmptyValue(ts);
 }
