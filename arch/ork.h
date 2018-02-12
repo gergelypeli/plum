@@ -20,7 +20,6 @@ public:
     void set_data(std::vector<char> &d);
     void done(std::string filename);
 
-    unsigned export_common(std::string name, int align, unsigned size, bool is_global);
     unsigned export_absolute(std::string name, int value, unsigned size, bool is_global);
     unsigned export_data(std::string name, int location, unsigned size, bool is_global);
     unsigned export_code(std::string name, int location, unsigned size, bool is_global);

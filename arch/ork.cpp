@@ -200,21 +200,6 @@ unsigned Ork::add_string(std::string s) {
 }
 
 
-unsigned Ork::export_common(std::string name, int align, unsigned size, bool is_global) {
-    symbols.push_back(Elf64_Sym());
-    Elf64_Sym &s = symbols.back();
-    
-    s.st_name = add_string(name);
-    s.st_value = align;
-    s.st_size = size;
-    s.st_info = ELF64_ST_INFO((is_global ? STB_WEAK : STB_LOCAL), STT_NOTYPE);
-    s.st_other = 0;
-    s.st_shndx = SHN_COMMON;
-
-    return symbols.size() - 1;
-}
-
-
 unsigned Ork::export_absolute(std::string name, int value, unsigned size, bool is_global) {
     symbols.push_back(Elf64_Sym());
     Elf64_Sym &s = symbols.back();
@@ -222,7 +207,7 @@ unsigned Ork::export_absolute(std::string name, int value, unsigned size, bool i
     s.st_name = add_string(name);
     s.st_value = value;
     s.st_size = size;
-    s.st_info = ELF64_ST_INFO((is_global ? STB_GLOBAL : STB_LOCAL), STT_NOTYPE);    // STB_WEAK
+    s.st_info = ELF64_ST_INFO((is_global ? STB_GLOBAL : STB_WEAK), STT_NOTYPE);
     s.st_other = 0;
     s.st_shndx = SHN_ABS;
 
@@ -237,7 +222,7 @@ unsigned Ork::export_data(std::string name, int location, unsigned size, bool is
     s.st_name = add_string(name);
     s.st_value = location;
     s.st_size = size;
-    s.st_info = ELF64_ST_INFO((is_global ? STB_GLOBAL : STB_LOCAL), STT_OBJECT);    // STB_WEAK
+    s.st_info = ELF64_ST_INFO((is_global ? STB_GLOBAL : STB_WEAK), STT_OBJECT);
     s.st_other = 0;
     s.st_shndx = 7;    // Refer to data section
 
@@ -252,7 +237,7 @@ unsigned Ork::export_code(std::string name, int location, unsigned size, bool is
     s.st_name = add_string(name);
     s.st_value = location;
     s.st_size = size;
-    s.st_info = ELF64_ST_INFO((is_global ? STB_GLOBAL : STB_LOCAL), STT_FUNC);    // STB_WEAK
+    s.st_info = ELF64_ST_INFO((is_global ? STB_GLOBAL : STB_WEAK), STT_FUNC);
     s.st_other = 0;
     s.st_shndx = 6;    // Refer to code section
 

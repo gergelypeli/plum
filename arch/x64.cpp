@@ -1124,19 +1124,14 @@ void X64::init_memory_management() {
         Label il;
         
         // NOTE: preserves all registers, including RBX
-        code_label_local(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg]);
-        op(CMPQ, reg, 0);
-        op(JE, il);
+        code_label_global(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg]);
         op(INCQ, Address(reg, HEAP_REFCOUNT_OFFSET));
-        code_label(il);
         op(RET);
         
         Label dl;
         
         // NOTE: preserves all registers, including RBX
-        code_label_local(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg]);
-        op(CMPQ, reg, 0);
-        op(JE, dl);
+        code_label_global(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg]);
         op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
         op(JNE, dl);
 
@@ -1154,7 +1149,7 @@ void X64::init_memory_management() {
         op(RET);
     }
 
-    code_label_local(alloc_RAX_RBX_label, "alloc_RAX_RBX");
+    code_label_global(alloc_RAX_RBX_label, "alloc_RAX_RBX");
     pusha(true);
     op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
     op(CALL, memalloc_label);
@@ -1164,7 +1159,7 @@ void X64::init_memory_management() {
     popa(true);
     op(RET);
     
-    code_label_local(realloc_RAX_RBX_label, "realloc_RAX_RBX");
+    code_label_global(realloc_RAX_RBX_label, "realloc_RAX_RBX");
     Label realloc_ok;
     lock(RAX, realloc_ok);
     die("Realloc of shared array!");
@@ -1178,7 +1173,7 @@ void X64::init_memory_management() {
     popa(true);
     op(RET);
     
-    code_label_local(empty_function_label, "empty_function");
+    code_label_global(empty_function_label, "empty_function");
     op(RET);
 }
 
