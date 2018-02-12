@@ -113,7 +113,7 @@ public:
         :Value(o->ts.prefix(imt)) {
         implementation_type = imt;
         orig.reset(o);
-        std::cerr << "XXX Created implementation conversion " << implementation_type->name << " as " << ts << ".\n";;
+        //std::cerr << "XXX Created implementation conversion " << implementation_type->name << " as " << ts << ".\n";;
     }
     
     virtual Regs precompile(Regs preferred) {

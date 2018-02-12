@@ -329,6 +329,37 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 }
 
 
+void check_retros(unsigned i, CodeScope *code_scope, const std::vector<ArgInfo> &arg_infos) {
+    // Grab all preceding Dvalue bar declarations, and put them in this scope.
+    // Retro variables must only be accessible from the following Code argument's
+    // scope, because their initialization is only guaranteed while that Code
+    // is being evaluated.
+    std::vector<Variable *> retros;
+    
+    for (unsigned j = i - 1; j < i; j--) {
+        DeclarationValue *dv = declaration_value_cast(arg_infos[j].target->get());
+        
+        if (dv) {
+            if (dv->ts[0] != dvalue_type)
+                break;
+                
+            Declaration *decl = declaration_get_decl(dv);
+            Variable *var = variable_cast(decl);
+            if (!var)
+                throw INTERNAL_ERROR;
+                
+            var->outer_scope->remove(var);
+            retros.push_back(var);
+        }
+    }
+
+    for (auto var : retros) {
+        std::cerr << "Moving retro variable " << var->name << " to code scope.\n";
+        code_scope->add(var);
+    }
+}
+
+
 bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) {
     if (i >= arg_infos.size()) {
         std::cerr << "Too many arguments!\n";
@@ -344,6 +375,9 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     
     if ((*arg_infos[i].context)[0] == code_type) {
         code_scope = new CodeScope;
+        
+        check_retros(i, code_scope, arg_infos);
+        
         arg_infos[i].scope->add(code_scope);
     }
 

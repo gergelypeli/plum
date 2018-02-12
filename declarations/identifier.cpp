@@ -109,8 +109,8 @@ public:
             throw INTERNAL_ERROR
         );
         
-        if (a.count1 || a.count2 || a.count3)
-            std::cerr << "Hohoho, allocating variable " << name << " with size " << a << ".\n";
+        //if (a.count1 || a.count2 || a.count3)
+        //    std::cerr << "Hohoho, allocating variable " << name << " with size " << a << ".\n";
         
         offset = outer_scope->reserve(a);
         //std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
