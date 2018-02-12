@@ -82,6 +82,7 @@ X64::X64() {
     code_label_import(memfree_label, "memfree");
     code_label_import(memrealloc_label, "memrealloc");
     code_label_import(log_label, "logfunc");  // bah...
+    code_label_import(dump_label, "dump");  // bah...
     code_label_import(die_label, "die");
     code_label_import(sort_label, "sort");
 
@@ -1229,6 +1230,27 @@ void X64::log(const char *message) {
     op(CALL, log_label);
     popa();
 }
+
+
+void X64::dump(const char *message) {
+    Label message_label;
+    data_label(message_label);
+    
+    for (const char *x = message; *x; x++)
+        data_byte(*x);
+        
+    data_byte(0);
+
+    for (Register r : { RAX, RBX, RCX, RDX, RSP, RBP, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 })
+        op(PUSHQ, r);
+        
+    op(LEARIP, RDI, message_label);
+    op(CALL, dump_label);
+
+    for (Register r : { R15, R14, R13, R12, R11, R10, R9, R8, RDI, RSI, RBP, RDX, RDX, RCX, RBX, RAX })
+        op(POPQ, r);
+}
+
 
 void X64::die(const char *message) {
     // TODO: this encodes the message several times unnecessarily!

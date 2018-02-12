@@ -392,7 +392,7 @@ public:
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label, log_label, die_label, sort_label, empty_function_label;
+    Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, sort_label, empty_function_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Once *once;
@@ -501,5 +501,6 @@ public:
 
     void lock(Register r, Label ok);
     void log(const char *message);
+    void dump(const char *message);
     void die(const char *message);
 };
