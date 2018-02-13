@@ -72,6 +72,7 @@ public:
     Allocation offset;
     int virtual_index;
     bool xxx_is_allocated;
+    bool is_argument;
     StorageWhere where;
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts)
@@ -84,11 +85,11 @@ public:
             throw INTERNAL_ERROR;
             
         xxx_is_allocated = false;
-        where = var_ts.where(false);
+        is_argument = false;
     }
     
     virtual void be_argument() {
-        where = var_ts.where(true);
+        is_argument = true;
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
@@ -102,6 +103,8 @@ public:
     virtual void allocate() {
         if (xxx_is_allocated)
             throw INTERNAL_ERROR;
+            
+        where = var_ts.where(is_argument);
             
         Allocation a = (
             where == MEMORY ? var_ts.measure() :
@@ -226,6 +229,51 @@ public:
 
     virtual void finalize(X64 *x64) {
         // These are not finalized
+    }
+};
+
+
+class Evaluable: public Variable {
+public:
+    Evaluable(std::string name, TypeSpec pts, TypeSpec vts)
+        :Variable(name, pts, vts) {
+    }
+    
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_evaluable_value(this, cpivot, match);
+    }
+    
+    virtual void allocate() {
+        if (xxx_is_allocated)
+            throw INTERNAL_ERROR;
+            
+        where = ALIAS;
+        offset = outer_scope->reserve(Allocation(ADDRESS_SIZE));
+        xxx_is_allocated = true;
+    }
+    
+    virtual void finalize(X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+        throw INTERNAL_ERROR;
     }
 };
 

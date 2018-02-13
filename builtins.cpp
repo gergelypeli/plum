@@ -42,7 +42,7 @@ void builtin_types(Scope *root_scope) {
     type_type = new SpecialType("<Type>", 1);
     root_scope->add(type_type);
 
-    void_type = new SpecialType("<Void>", 0);
+    void_type = new SpecialType("Void", 0);
     root_scope->add(void_type);
 
     metatype_type = new SpecialType("<Metatype>", 0);
@@ -60,7 +60,7 @@ void builtin_types(Scope *root_scope) {
     dvalue_type = new AttributeType("Dvalue");
     root_scope->add(dvalue_type);
 
-    code_type = new AttributeType("<Code>");
+    code_type = new AttributeType("Code");
     root_scope->add(code_type);
 
     role_type = new AttributeType("Role");

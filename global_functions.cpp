@@ -280,6 +280,11 @@ Value *make_option_some_value(TypeSpec ts) {
 }
 
 
+Value *make_evaluable_value(Evaluable *e, Value *cpivot, TypeMatch &match) {
+    return new EvaluableValue(e, cpivot, match);
+}
+
+
 // Declaration operations
 
 Variable *variable_cast(Declaration *decl) {

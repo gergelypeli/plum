@@ -78,5 +78,6 @@ Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec 
 Value *make_class_wrapper_initializer_value(Value *object, Value *value);
 Value *make_option_none_value(TypeSpec ts);
 Value *make_option_some_value(TypeSpec ts);
+Value *make_evaluable_value(Evaluable *e, Value *cpivot, TypeMatch &match);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);

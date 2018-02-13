@@ -343,6 +343,44 @@ public:
 };
 
 
+class EvaluableValue: public Value {
+public:
+    Evaluable *evaluable;
+    
+    EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
+        :Value(typesubst(e->var_ts, tm).unprefix(code_type)) {
+        evaluable = e;
+        
+        if (p)
+            throw INTERNAL_ERROR;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        if (!evaluable->xxx_is_allocated)
+            throw INTERNAL_ERROR;
+            
+        return Regs::all();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage es = evaluable->get_local_storage();
+        
+        if (ts != VOID_TS)
+            x64->op(SUBQ, RSP, ts.measure_stack());
+            
+        x64->op(MOVQ, RBX, es.address);  // Needs RBP
+        x64->op(PUSHQ, RBP);
+        x64->op(MOVQ, RBP, Address(RBP, 0));  // Restore caller RBP
+        
+        x64->op(CALL, RBX);
+        
+        x64->op(POPQ, RBP);
+        
+        return ts == VOID_TS ? Storage() : Storage(STACK);
+    }
+};
+
+
 class RoleValue: public Value {
 public:
     Variable *variable;

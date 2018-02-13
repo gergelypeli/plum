@@ -396,28 +396,72 @@ public:
     }
     
     virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
-        StorageWhere where = stacked(arg_ts.where(true));
-        Storage t(where);
-
-        if (arg_value) {
-            // Specified argument
-            arg_value->compile_and_store(x64, t);
+        if (arg_ts[0] == code_type) {
+            TypeSpec rts = arg_ts.unprefix(code_type);
+            Label begin, skip;
+            
+            x64->op(JMP, skip);
+            x64->code_label(begin);
+            
+            if (arg_value) {
+                Storage s = arg_value->compile(x64);
+                
+                switch (s.where) {
+                case NOWHERE:
+                    break;
+                case CONSTANT:
+                case FLAGS:
+                case REGISTER:
+                case MEMORY:
+                    rts.create(s, Storage(MEMORY, Address(RSP, 2 * ADDRESS_SIZE)), x64);
+                    break;
+                case STACK:
+                    rts.create(s, Storage(MEMORY, Address(RSP, 2 * ADDRESS_SIZE + rts.measure_stack())), x64);
+                    break;
+                default:
+                    throw INTERNAL_ERROR;
+                }
+            }
+                
+            x64->op(RET);
+            
+            x64->code_label(skip);
+            x64->op(LEARIP, RBX, begin);
+            x64->op(PUSHQ, RBX);
+            
+            arg_storages.push_back(Storage(STACK));
+            
+            return ADDRESS_SIZE;
         }
         else {
-            // Optional argument
-            arg_ts.create(Storage(), t, x64);
-        }
+            StorageWhere where = stacked(arg_ts.where(true));
+            Storage t(where);
 
-        arg_storages.push_back(t);  // For unwinding
+            if (arg_value) {
+                // Specified argument
+                arg_value->compile_and_store(x64, t);
+            }
+            else {
+                // Optional argument
+                arg_ts.create(Storage(), t, x64);
+            }
+
+            arg_storages.push_back(t);  // For unwinding
         
-        return arg_ts.measure_where(where);
+            return arg_ts.measure_where(where);
+        }
     }
 
     virtual void pop_arg(TypeSpec arg_ts, X64 *x64) {
-        StorageWhere where = arg_ts.where(true);
-        where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+        if (arg_ts[0] == code_type) {
+            x64->op(ADDQ, RSP, 8);
+        }
+        else {
+            StorageWhere where = arg_ts.where(true);
+            where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
         
-        arg_ts.store(Storage(where), Storage(), x64);
+            arg_ts.store(Storage(where), Storage(), x64);
+        }
         
         arg_storages.pop_back();
     }

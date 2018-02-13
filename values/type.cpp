@@ -49,9 +49,11 @@ public:
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
         TypeSpec t = value ? ts : ts.unprefix(type_type);
-        TypeSpec var_ts = scope->variable_type_hint(t);
-            
-        return new Variable(name, scope->pivot_type_hint(), var_ts);
+        
+        if (t[0] == code_type)
+            return new Evaluable(name, scope->pivot_type_hint(), t);
+        else
+            return new Variable(name, scope->pivot_type_hint(), scope->variable_type_hint(t));
     }
     
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
