@@ -124,8 +124,11 @@ Greetable? :Class as:
     #g? Greetable
 
 
-twice? :Function from: what? Integer Code as:
-    sum? what + what
+twice? :Function from:
+    how? Integer Dvalue
+    what? Integer Code
+as:
+    sum? what(1) + what(2)
     prints("That was {sum}." {})
 
 
@@ -463,7 +466,7 @@ start? :Function as:
         op1s? op1 as some
         prints("It contained: {op1s}" {})
         
-    twice(what: (prints("Say what?"), 100))
+    twice(how: h? what: (prints("You want {h}?" {}), h * 1000))
         
     gr? Greetable `init
     gr greet

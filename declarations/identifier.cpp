@@ -235,8 +235,30 @@ public:
 
 class Evaluable: public Variable {
 public:
+    std::vector<Variable *> arg_variables;
+    
     Evaluable(std::string name, TypeSpec pts, TypeSpec vts)
         :Variable(name, pts, vts) {
+    }
+
+    virtual void set_outer_scope(Scope *os) {
+        Variable::set_outer_scope(os);
+        
+        std::vector<Variable *> avs;
+        
+        for (unsigned i = os->contents.size() - 1; i != (unsigned)-1; i--) {
+            Variable *av = variable_cast(os->contents[i].get());
+            
+            if (av && av->var_ts[0] == dvalue_type)
+                avs.push_back(av);
+            else
+                break;
+        }
+        
+        while (avs.size()) {
+            arg_variables.push_back(avs.back());
+            avs.pop_back();
+        }
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {

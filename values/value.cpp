@@ -346,6 +346,7 @@ public:
 class EvaluableValue: public Value {
 public:
     Evaluable *evaluable;
+    std::vector<std::unique_ptr<Value>> arg_values;
     
     EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
         :Value(typesubst(e->var_ts, tm).unprefix(code_type)) {
@@ -354,15 +355,53 @@ public:
         if (p)
             throw INTERNAL_ERROR;
     }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        TSs arg_tss;
+        ArgInfos infos;
+        
+        for (auto v : evaluable->arg_variables) {
+            arg_values.push_back(NULL);
+            
+            // Must keep these, as we hold a pointer to each
+            arg_tss.push_back(v->var_ts.unprefix(dvalue_type));
+            
+            infos.push_back(ArgInfo {
+                v->name.c_str(),
+                &arg_tss.back(),
+                scope,
+                &arg_values.back()
+            });
+        }
+        
+        return check_arguments(args, kwargs, infos);
+    }
     
     virtual Regs precompile(Regs preferred) {
         if (!evaluable->xxx_is_allocated)
             throw INTERNAL_ERROR;
+    
+        for (auto &a : arg_values)
+            a->precompile(preferred);
             
         return Regs::all();
     }
     
     virtual Storage compile(X64 *x64) {
+        for (unsigned i = 0; i < arg_values.size(); i++) {
+            Storage s = arg_values[i]->compile(x64);
+            
+            Storage x = evaluable->arg_variables[i]->get_local_storage();
+            if (x.where != ALIAS)
+                throw INTERNAL_ERROR;
+                
+            Register reg = (Regs::all() & ~s.regs()).get_any();
+            x64->op(MOVQ, reg, x.address);
+            Storage t(MEMORY, Address(reg, 0));
+            
+            evaluable->arg_variables[i]->var_ts.create(s, t, x64);
+        }
+    
         Storage es = evaluable->get_local_storage();
         
         if (ts != VOID_TS)
@@ -375,6 +414,15 @@ public:
         x64->op(CALL, RBX);
         
         x64->op(POPQ, RBP);
+        
+        for (unsigned i = 0; i < arg_values.size(); i++) {
+            Storage x = evaluable->arg_variables[i]->get_local_storage();
+            Register reg = RAX;
+            x64->op(MOVQ, reg, x.address);
+            Storage t(MEMORY, Address(reg, 0));
+            
+            evaluable->arg_variables[i]->var_ts.destroy(t, x64);
+        }
         
         return ts == VOID_TS ? Storage() : Storage(STACK);
     }
