@@ -180,21 +180,24 @@ void builtin_types(Scope *root_scope) {
     rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", 1);
     root_scope->add(rbtreeelembyorderiter_type);
 
-    iterator_done_exception_type = new TreenumerationType("<Iterator_done>", { "", "ITERATOR_DONE" }, { 1 });
+    iterator_done_exception_type = new TreenumerationType("<Iterator_done>", { "", "ITERATOR_DONE" }, { 0, 1 });
     root_scope->add(iterator_done_exception_type);
 
-    container_full_exception_type = new TreenumerationType("<Container_full>", { "", "CONTAINER_FULL" }, { 1 });
+    container_full_exception_type = new TreenumerationType("<Container_full>", { "", "CONTAINER_FULL" }, { 0, 1 });
     root_scope->add(container_full_exception_type);
 
-    container_empty_exception_type = new TreenumerationType("<Container_empty>", { "", "CONTAINER_EMPTY" }, { 1 });
+    container_empty_exception_type = new TreenumerationType("<Container_empty>", { "", "CONTAINER_EMPTY" }, { 0, 1 });
     root_scope->add(container_empty_exception_type);
 
-    container_lent_exception_type = new TreenumerationType("<Container_lent>", { "", "CONTAINER_LENT" }, { 1 });
+    container_lent_exception_type = new TreenumerationType("<Container_lent>", { "", "CONTAINER_LENT" }, { 0, 1 });
     root_scope->add(container_lent_exception_type);
 
-    option_unmatched_exception_type = new TreenumerationType("<Option_unmatched>", { "", "UNMATCHED" }, { 1 });
+    option_unmatched_exception_type = new TreenumerationType("<Option_unmatched>", { "", "UNMATCHED" }, { 0, 1 });
     root_scope->add(option_unmatched_exception_type);
 
+    code_break_exception_type = new TreenumerationType("<Code_break>", { "", "CODE_BREAK" }, { 0, 1 });
+    root_scope->add(code_break_exception_type);
+    
     // NO_TS will contain no Type pointers
     ANY_TS = { any_type };
     ANY_TYPE_TS = { type_type, any_type };

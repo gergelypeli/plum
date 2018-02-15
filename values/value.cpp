@@ -99,6 +99,11 @@ public:
         raised_type = NULL;
     }
     
+    virtual void make_raising_dummy(Scope *scope) {
+        raising_dummy = new Declaration;
+        scope->add(raising_dummy);
+    }
+    
     virtual bool check_raise(TreenumerationType *exception_type, Scope *scope) {
         TryScope *try_scope = scope->get_try_scope();
         
@@ -113,8 +118,8 @@ public:
         }
         
         raised_type = exception_type;
-        raising_dummy = new Declaration;
-        scope->add(raising_dummy);
+        
+        make_raising_dummy(scope);
 
         return true;
     }
@@ -343,10 +348,11 @@ public:
 };
 
 
-class EvaluableValue: public Value {
+class EvaluableValue: public Value, public Raiser {
 public:
     Evaluable *evaluable;
     std::vector<std::unique_ptr<Value>> arg_values;
+    std::vector<Storage> arg_storages;
     
     EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
         :Value(typesubst(e->var_ts, tm).unprefix(code_type)) {
@@ -357,9 +363,12 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        TSs arg_tss;
         ArgInfos infos;
+        TSs arg_tss;
         
+        arg_tss.reserve(evaluable->arg_variables.size());  // prevent reallocations
+        arg_values.reserve(evaluable->arg_variables.size());  // prevent reallocations
+                
         for (auto v : evaluable->arg_variables) {
             arg_values.push_back(NULL);
             
@@ -373,8 +382,15 @@ public:
                 &arg_values.back()
             });
         }
-        
-        return check_arguments(args, kwargs, infos);
+
+        if (!check_arguments(args, kwargs, infos))
+            return false;
+            
+        // Must insert dummy after evaluating arguments
+        if (!check_raise(code_break_exception_type, scope))
+            return false;
+            
+        return true;
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -388,14 +404,17 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
+        x64->unwind->push(this);
+        
         for (unsigned i = 0; i < arg_values.size(); i++) {
             Storage s = arg_values[i]->compile(x64);
+            Register reg = (Regs::all() & ~s.regs()).get_any();
             
             Storage x = evaluable->arg_variables[i]->get_local_storage();
             if (x.where != ALIAS)
                 throw INTERNAL_ERROR;
                 
-            Register reg = (Regs::all() & ~s.regs()).get_any();
+            arg_storages.push_back(x);
             x64->op(MOVQ, reg, x.address);
             Storage t(MEMORY, Address(reg, 0));
             
@@ -414,9 +433,18 @@ public:
         x64->op(CALL, RBX);
         
         x64->op(POPQ, RBP);
-        
-        for (unsigned i = 0; i < arg_values.size(); i++) {
-            Storage x = evaluable->arg_variables[i]->get_local_storage();
+
+        // This is like with function calls
+        Label noex;
+        x64->op(JE, noex);  // Expect ZF if OK
+        x64->op(MOVB, EXCEPTION_ADDRESS, BL);  // Expect BL if not OK
+        x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
+        x64->code_label(noex);
+
+        x64->unwind->pop(this);
+
+        for (int i = arg_storages.size() - 1; i >= 0; i--) {
+            Storage x = arg_storages[i];
             Register reg = RAX;
             x64->op(MOVQ, reg, x.address);
             Storage t(MEMORY, Address(reg, 0));
@@ -425,6 +453,22 @@ public:
         }
         
         return ts == VOID_TS ? Storage() : Storage(STACK);
+    }
+
+    virtual Scope *unwind(X64 *x64) {
+        for (int i = arg_storages.size() - 1; i >= 0; i--) {
+            Storage x = arg_storages[i];
+            Register reg = RAX;
+            x64->op(MOVQ, reg, x.address);
+            Storage t(MEMORY, Address(reg, 0));
+            
+            evaluable->arg_variables[i]->var_ts.destroy(t, x64);
+        }
+        
+        if (ts != VOID_TS)
+            x64->op(ADDQ, RSP, ts.measure_stack());
+            
+        return NULL;
     }
 };
 

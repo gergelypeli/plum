@@ -281,6 +281,9 @@ public:
     std::vector<TypeSpec> arg_tss;
     std::vector<TypeSpec> res_tss;
     std::vector<std::string> arg_names;
+    
+    bool has_code_arg;
+    Label *current_except_label;
         
     FunctionCallValue(Function *f, Value *p, TypeMatch &m)
         :Value(NO_TS) {
@@ -300,6 +303,8 @@ public:
             ts = MULTI_TS;
             
         res_total = 0;
+        has_code_arg = false;
+        current_except_label = NULL;
     }
 
     virtual bool unpack(std::vector<TypeSpec> &tss) {
@@ -318,8 +323,12 @@ public:
         for (unsigned i = 0; i < arg_tss.size(); i++)
             values.push_back(NULL);
         
-        for (unsigned i = 0; i < arg_tss.size(); i++)
+        for (unsigned i = 0; i < arg_tss.size(); i++) {
+            if (arg_tss[i][0] == code_type)
+                has_code_arg = true;
+                
             infos.push_back(ArgInfo { arg_names[i].c_str(), &arg_tss[i], scope, &values[i] });
+        }
 
         bool ok = check_arguments(args, kwargs, infos);
         if (!ok)
@@ -344,6 +353,10 @@ public:
         if (function->exception_type) {
             if (!check_raise(function->exception_type, scope))
                 return false;
+        }
+        else if (has_code_arg) {
+            // We won't raise anything, just continue unwinding for something already raised
+            make_raising_dummy(scope);
         }
 
         return true;
@@ -398,10 +411,11 @@ public:
     virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         if (arg_ts[0] == code_type) {
             TypeSpec rts = arg_ts.unprefix(code_type);
-            Label begin, skip;
+            Label begin, skip, end, except;
             
             x64->op(JMP, skip);
             x64->code_label(begin);
+            current_except_label = &except;  // for unwinding
             
             if (arg_value) {
                 Storage s = arg_value->compile(x64);
@@ -422,13 +436,23 @@ public:
                     throw INTERNAL_ERROR;
                 }
             }
-                
+            
+            x64->op(MOVB, BL, 0);
+            
+            x64->code_label(end);
+            x64->op(CMPB, BL, 0);  // ZF => OK
             x64->op(RET);
+            
+            // Jump here if the code above raise an exception, and report CODE_BREAK
+            x64->code_label(except);
+            x64->op(MOVB, BL, code_break_exception_type->get_keyword_index("CODE_BREAK"));
+            x64->op(JMP, end);
             
             x64->code_label(skip);
             x64->op(LEARIP, RBX, begin);
             x64->op(PUSHQ, RBX);
             
+            current_except_label = NULL;
             arg_storages.push_back(Storage(STACK));
             
             return ADDRESS_SIZE;
@@ -558,12 +582,22 @@ public:
         if (function->is_sysv && !is_void)
             sysv_epilogue(x64, passed_size);
 
-        if (function->exception_type) {
-            Label noex;
+        if (function->exception_type || has_code_arg) {
+            Label ex, noex;
+            
             x64->op(JE, noex);  // Expect ZF if OK
             x64->op(MOVB, EXCEPTION_ADDRESS, BL);  // Expect BL if not OK
+            
+            x64->code_label(ex);
             x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
+            
             x64->code_label(noex);
+            
+            if (has_code_arg) {
+                // Must continue unwinding if a Code argument raised something
+                x64->op(CMPB, EXCEPTION_ADDRESS, 0);
+                x64->op(JNE, ex);
+            }
         }
 
         x64->unwind->pop(this);
@@ -588,6 +622,13 @@ public:
     }
 
     virtual Scope *unwind(X64 *x64) {
+        if (current_except_label) {
+            // We're compiling a Code argument, so for exceptions we don't roll back the
+            // previous arguments and leave, but just jump to the reporting of this one.
+            x64->op(JMP, *current_except_label);
+            return NULL;
+        }
+        
         for (int i = arg_storages.size() - 1; i >= 0; i--) {
             TypeSpec ts = (pivot ? (i > 0 ? arg_tss[i - 1] : pivot_ts) : arg_tss[i]);
             ts.store(arg_storages[i], Storage(), x64);

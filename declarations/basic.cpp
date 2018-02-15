@@ -460,10 +460,14 @@ public:
 
     TreenumerationType(std::string n, std::vector<std::string> kw, std::vector<unsigned> tl)
         :EnumerationType(n, kw) {
+        if (kw.size() != tl.size())
+            throw INTERNAL_ERROR;
+            
         // The numbering must start from 1, as 0 is reserved to be the root of all values,
         // and also for NO_EXCEPTION for raise.
         if (kw[0] != "")
             throw INTERNAL_ERROR;
+            
         tails = tl;
     }
     
