@@ -141,7 +141,7 @@ passthrough? :Function from: what? Integer Code as:
         :yield
 
 
-start? :Function as:
+test_integers? :Function as:
     print(f(1, 2))
     
     a? Integer
@@ -163,6 +163,12 @@ start? :Function as:
     
     :if d then: prints("Yes, d is nonzero.")
 
+    Myint? :Integer bytes: 8 is_unsigned: `false
+    myvar? Myint
+
+
+test_strings? :Function as:
+    a? 1
     prints("Hello!")
 
     s? "Szia!"
@@ -209,6 +215,16 @@ start? :Function as:
 
     prints("{six} and {seven}" { six: 6, seven: 7 })
 
+    prints("aba and ab compares as: {c}" { c: "aba" <=> "ab" })
+    prints("aba is less than ab: {c}" { c: "aba" < "ab" })
+
+    chars? "BFADCE"
+    prints("Unsorted: {chars}" {})
+    chars chars sort
+    prints("Sorted:   {chars}" {})
+
+
+test_enums? :Function as:
     Myenum? :Enumeration
         FOO, BAR, BAZ
 
@@ -217,13 +233,14 @@ start? :Function as:
 
     prints("fbb is actually {f}!" { f: fbb })
 
-    Myint? :Integer bytes: 8 is_unsigned: `false
-    myvar? Myint
 
+test_ovalues? :Function as:
     print(g(100, 100))
     print(g(100))
     print(g)
 
+
+test_records? :Function as:
     p? Pair
 
     p first = 123
@@ -252,9 +269,8 @@ start? :Function as:
     q first = 11
     prints("{p} and {q} compares as {c}" { p: p, q: q, c: p <=> q })
 
-    prints("aba and ab compares as: {c}" { c: "aba" <=> "ab" })
-    prints("aba is less than ab: {c}" { c: "aba" < "ab" })
 
+test_multis? :Function as:
     x1? Integer
     x2? Integer
     (x1, x2) = double
@@ -265,6 +281,8 @@ start? :Function as:
     x3 = double
     prints("Scalarized to {x3}" {})
 
+
+test_controls? :Function as:
     :repeat i? 0 on: i < 3 by: i += 1 do:
         prints("something")
 
@@ -320,7 +338,8 @@ start? :Function as:
     ait? "Abc" elements
     :for ait each: c? do:
         prints("Iterating elems again: {c}" {})
-                
+    
+    x3? Integer            
     x3 = :lol:
         prints("Now yielding.")
         :lol 33
@@ -346,12 +365,24 @@ start? :Function as:
 
     :if ! Boolean `true then:
         prints("Faker news!")
-        
-    chars? "BFADCE"
-    prints("Unsorted: {chars}" {})
-    chars chars sort
-    prints("Sorted:   {chars}" {})
 
+    twice(how: h? what: (prints("You want {h}?" {}), h * 1000))
+
+    :eval:
+        passthrough(what: (:eval, 0))
+        prints("This shouldn't be printed!")
+
+    :hihi:if `true then: 1 else:if `false then: 0
+
+    :if `true then:
+        last? 0
+        prints("Returning.")
+        :return
+    
+    prints("Don't print this!")
+
+
+test_arrays? :Function as:
     strings? String Array `empty
     prints("Empty array length: {x}" { x: strings length })
 
@@ -379,6 +410,8 @@ start? :Function as:
     prints("Popped baz as {baz}" {})
     prints("Popped stack length: {x}" { x: st length })
 
+
+test_circularrays? :Function as:
     ca? String Circularray { "foo", "bar", "baz", "xxx" }
     :try ca pop
     prints("Have a Circularray of {x}" { x: ca length })
@@ -406,6 +439,8 @@ start? :Function as:
     :for qv items each: it? do:
         prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
+
+test_rbtrees? :Function as:
     rb? String Rbtree `reserved 8
     
     :try
@@ -462,7 +497,9 @@ start? :Function as:
         prints("Map element: {x} => {y}" {x: iv index, y: iv value})
     
     prints("Map element at A is: {x}" {x: mp["A"]})
-    
+
+
+test_options? :Function as:
     op1? String Option `some "XYZ"
     prints("This option is: {op1}" {})
     op2? String Option `none
@@ -474,23 +511,22 @@ start? :Function as:
     :try
         op1s? op1 as some
         prints("It contained: {op1s}" {})
-        
-    twice(how: h? what: (prints("You want {h}?" {}), h * 1000))
 
-    :eval:
-        passthrough(what: (:eval, 0))
-        prints("This shouldn't be printed!")
-        
+
+test_classes? :Function as:
     gr? Greetable `init
     gr greet
-    
-    :if `true then:
-        last? 0
-        prints("Exiting.")
-        :return
-    
-    :hihi:if `true then: 1 else:if `false then: 0
-    
-    prints("Don't print this!")
-    
-    :return
+
+
+start? :Function as:
+    test_integers
+    test_strings
+    test_enums
+    test_ovalues
+    test_records
+    test_multis
+    test_controls
+    test_arrays
+    test_circularrays
+    test_rbtrees
+    test_options

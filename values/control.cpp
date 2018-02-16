@@ -686,6 +686,15 @@ public:
             return false;
         }
         
+        if (scope->get_try_scope()) {
+            // :raise gets it type from the enclosing function's exception type, and
+            // is supposed to terminate this function. But a :try could catch these
+            // exceptions, as outgoing and incoming exceptions use the same numeric range.
+            // So a :try surrounding a :raise is not allowed.
+            std::cerr << ":raise in a :try scope!\n";
+            return false;
+        }
+        
         TypeSpec ets = { et };
         
         if (!check_args(args, { "value", &ets, scope, &value }))
@@ -844,6 +853,9 @@ public:
     }
 };
 
+
+// The Eval-Yield pairs use a different numeric exception range from normal exceptions,
+// so their unwind paths are always distinct.
 
 class EvalValue: public YieldableValue {
 public:
