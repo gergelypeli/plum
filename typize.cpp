@@ -374,7 +374,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
 
     CodeScope *code_scope = NULL;
     
-    if ((*arg_infos[i].context)[0] == code_type) {
+    if (arg_infos[i].context && (*arg_infos[i].context)[0] == code_type) {
         code_scope = new CodeScope;
         
         check_retros(i, code_scope, arg_infos);
@@ -385,7 +385,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     Value *v = typize(e, code_scope ? code_scope : arg_infos[i].scope, arg_infos[i].context);
     TypeMatch match;
     
-    if (!typematch(*arg_infos[i].context, v, match, code_scope)) {
+    if (arg_infos[i].context && !typematch(*arg_infos[i].context, v, match, code_scope)) {
         std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *arg_infos[i].context << "!\n";
         return false;
     }

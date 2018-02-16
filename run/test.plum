@@ -389,7 +389,7 @@ test_arrays? :Function as:
     ss? String Array { "foo", "bar" }
     prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
-    ss_popped1? String :try ss pop
+    ss_popped1? :try ss pop
     prints("Array popped {ss_popped1}" {})
     ss_popped2? String :try ss pop
     prints("Array popped {ss_popped2}" {})
@@ -502,16 +502,30 @@ test_rbtrees? :Function as:
 test_options? :Function as:
     op1? String Option `some "XYZ"
     prints("This option is: {op1}" {})
+    
     op2? String Option `none
     prints("That option is: {op2}" {})
+    
     op2 = op1
     prints("And became: {op2}" {})
     prints("So they're now equal: {x}" {x: op1 == op2})
     prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
+    
     :try
         op1s? op1 as some
         prints("It contained: {op1s}" {})
+    or:yield
+    
+    #:try op1s? op1 as some to:
+    #    prints("It contained: {op1s}" {})
+        
+    #:block:
+    #    op1s? :try op1 as some or:block
+    #    prints("It contained: {op1s}" {})
 
+    #:match op1 in:case op1s? `some do:
+    #    prints("It contained: {op1s}" {})
+        
 
 test_classes? :Function as:
     gr? Greetable `init

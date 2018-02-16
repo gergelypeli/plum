@@ -54,7 +54,7 @@ public:
             
         TypeMatch match;
         
-        if (!typematch(*arg_info.context, v, match)) {
+        if (arg_info.context && !typematch(*arg_info.context, v, match)) {
             std::cerr << "Wrong :" << name << " positional argument type!\n";
             std::cerr << "  Expected " << *arg_info.context << " got " << v->ts << "!\n";
             return false;
@@ -758,9 +758,16 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         try_scope = new TryScope;
         scope->add(try_scope);
+
+        // Allow a :try without error handling to return the body type even without
+        // the context explicitly set, to make :try in a declaration simpler.
+        TypeSpec *ctx = (kwargs.size() == 0 ? NULL : &context_ts);
         
-        if (!check_args(args, { "body", &context_ts, try_scope, &body }))
+        if (!check_args(args, { "body", ctx, try_scope, &body }))
             return false;
+        
+        if (kwargs.size() == 0)
+            context_ts = body->ts.rvalue();
         
         if (!setup_yieldable(scope))
             return false;
