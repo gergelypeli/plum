@@ -299,6 +299,33 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             //std::cerr << "... with type " << value->ts << "\n";
         }
     }
+    else if (expr->type == Expr::MATCHER) {
+        std::string name = expr->text;
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        
+        if (p) {
+            value = p->ts.lookup_matcher(name, p);
+        
+            if (!value) {
+                std::cerr << "No matcher " << p->ts << " ~" << name << "!\n";
+                throw TYPE_ERROR;
+            }
+
+            value->set_token(expr->token);
+            bool ok = value->check(expr->args, expr->kwargs, scope);
+        
+            if (!ok) {
+                std::cerr << "Matcher argument problem for " << expr->token << "!\n";
+                throw TYPE_ERROR;
+            }
+            
+            std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
+        }
+        else {
+            std::cerr << "Matchers need a pivot for now!\n";
+            throw TYPE_ERROR;
+        }
+    }
     else if (expr->type == Expr::NUMBER) {
         TypeSpec ts = {
             ends_with(expr->text, "s32") ? integer32_type :

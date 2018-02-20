@@ -177,6 +177,11 @@ Value *make_treenumeration_definition_value() {
 }
 
 
+Value *make_treenumeration_matcher_value(TypeSpec ts, int i, Value *p) {
+    return new TreenumerationMatcherValue(i, p);
+}
+
+
 Value *make_record_definition_value() {
     return new RecordDefinitionValue();
 }
@@ -277,6 +282,16 @@ Value *make_option_none_value(TypeSpec ts) {
 
 Value *make_option_some_value(TypeSpec ts) {
     return new OptionSomeValue(ts);
+}
+
+
+Value *make_option_none_matcher_value(Value *p, TypeMatch &match) {
+    return new OptionNoneMatcherValue(p, match);
+}
+
+
+Value *make_option_some_matcher_value(Value *p, TypeMatch &match) {
+    return new OptionSomeMatcherValue(p, match);
 }
 
 

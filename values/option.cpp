@@ -214,3 +214,7 @@ public:
         }
     }
 };
+
+
+typedef OptionAsNoneValue OptionNoneMatcherValue;
+typedef OptionAsSomeValue OptionSomeMatcherValue;

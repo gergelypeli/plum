@@ -271,11 +271,11 @@ public:
         }
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         if (n == "none")
-            return make_option_none_matcher_value(tm[0]);
+            return make_option_none_matcher_value(pivot, tm);
         else if (n == "some")
-            return make_option_some_matcher_value(tm[0]);
+            return make_option_some_matcher_value(pivot, tm);
             
         std::cerr << "Can't match Option as " << n << "!\n";
         return NULL;

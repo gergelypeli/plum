@@ -216,7 +216,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         std::cerr << "Unmatchable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -351,8 +351,8 @@ public:
         return tm[1].lookup_initializer(n);
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n) {
-        return tm[1].lookup_matcher(n);
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+        return tm[1].lookup_matcher(n, pivot);
     }
 
     virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {

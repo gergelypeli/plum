@@ -111,8 +111,8 @@ std::vector<Token> tokenize(std::string buffer) {
                 c = buffer[i];
             } while (isalnum(c) || c == '_' || c == '.');
         }
-        else if (isalpha(c) || c == '_' || c == ':' || c == '`') {
-            char prefix = (c == ':' || c == '`' ? c : '\0');
+        else if (isalpha(c) || c == '_' || c == ':' || c == '`' || c == '~') {
+            char prefix = (c == ':' || c == '`' || c == '~' ? c : '\0');
 
             // Allow middle colon as a shortcut for two colons
             if (!prefix && buffer[i - 1] == ':') {
@@ -135,7 +135,7 @@ std::vector<Token> tokenize(std::string buffer) {
                     c = buffer[i];
                 }
                 else {
-                    std::cerr << "Invalid initializer-label token!\n";
+                    std::cerr << "Invalid something-label token!\n";
                     throw TOKEN_ERROR;
                 }
             }

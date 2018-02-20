@@ -51,7 +51,7 @@ class Node {
 public:
     enum NodeType {
         NONE, OPEN, CLOSE,
-        NUMBER, STRING, INITIALIZER,
+        NUMBER, STRING, INITIALIZER, MATCHER,
         IDENTIFIER, LABEL, CONTROL, EVAL, DECLARATION,
         SEPARATOR
     } type;
@@ -82,6 +82,7 @@ public:
             type == NUMBER ? "NUMBER" :
             type == STRING ? "STRING" :
             type == INITIALIZER ? "INITIALIZER" :
+            type == MATCHER ? "MATCHER" :
             type == IDENTIFIER ? "IDENTIFIER" :
             type == LABEL ? "LABEL" :
             type == CONTROL ? "CONTROL" :
@@ -105,7 +106,7 @@ struct {
     Precedence precedence;
 } operators[] = {
     { "**",  "_exponent", EXPONENTIAL },  // TODO: do we need this?
-    { "~",   "_tilde", EXPONENTIAL },
+    { "!",   "_not", EXPONENTIAL },
     { "<<",  "_shift_left", EXPONENTIAL },
     { ">>",  "_shift_right", EXPONENTIAL },
 
@@ -127,7 +128,7 @@ struct {
     { ">=",  "not_less", COMPARING },
     { "<=>", "compare", COMPARING },
 
-    { "!",   "logical not", LOGICAL_HIGH },  // TODO: or make it ~~, and != into ~=?
+    { "!!",   "logical not", LOGICAL_HIGH },  // TODO: or make it ~~, and != into ~=?
     
     { "&&",  "logical and", LOGICAL_MED },
     
@@ -214,6 +215,12 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         else if (c == '`') {
             type = Node::INITIALIZER;
             back = LITERAL;
+            fore = TEXTUAL;
+            text = token.text.substr(1);
+        }
+        else if (c == '~') {
+            type = Node::MATCHER;
+            back = TEXTUAL;
             fore = TEXTUAL;
             text = token.text.substr(1);
         }

@@ -248,7 +248,7 @@ public:
         }
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         std::cerr << "No Record matchers yet!\n";
         throw INTERNAL_ERROR;
     }

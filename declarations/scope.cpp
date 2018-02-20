@@ -337,6 +337,24 @@ public:
 
 
 
+class TransparentTryScope: public TryScope {
+public:
+    TransparentTryScope()
+        :TryScope() {
+    }
+
+    virtual bool is_transient() {
+        return false;
+    }
+    
+    virtual Value *match(std::string name, Value *pivot) {
+        return lookup(name, pivot);
+    }
+};
+
+
+
+
 class EvalScope: public CodeScope {
 public:
     TypeSpec ts;

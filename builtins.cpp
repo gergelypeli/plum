@@ -794,6 +794,7 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<WhenValue>(":when", NO_TS));
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", NO_TS));
     root_scope->add(new TemplateIdentifier<TryValue>(":try", NO_TS));
+    root_scope->add(new TemplateIdentifier<IsValue>(":is", NO_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", NO_TS, TWEAK));
     root_scope->add(new TemplateIdentifier<FunctionDefinitionValue>(":Function", NO_TS));
     root_scope->add(new TemplateIdentifier<InitializerDefinitionValue>(":Initializer", NO_TS));

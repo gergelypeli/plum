@@ -8,7 +8,7 @@ typedef GenericKwargs<Expr> Kwargs;
 class Expr {
 public:
     enum ExprType {
-        TUPLE, NUMBER, STRING, INITIALIZER, IDENTIFIER, CONTROL, EVAL, DECLARATION
+        TUPLE, NUMBER, STRING, INITIALIZER, MATCHER, IDENTIFIER, CONTROL, EVAL, DECLARATION
     } type;
     Token token;
     std::string text;
@@ -59,6 +59,7 @@ public:
             type == NUMBER ? "NUMBER" :
             type == STRING ? "STRING" :
             type == INITIALIZER ? "INITIALIZER" :
+            type == MATCHER ? "MATCHER" :
             type == IDENTIFIER ? "IDENTIFIER" :
             type == CONTROL ? "CONTROL" :
             type == EVAL ? "EVAL" :
@@ -236,6 +237,25 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
             
             if (!l) {
                 std::cerr << "Initializer without meaningful pivot: " << node.token << "!\n";
+                throw TUPLE_ERROR;
+            }
+            
+            e->set_pivot(l);
+        }
+    
+        if (node.right)
+            tupleize_into(e, nodes, node.right);
+
+        return e;
+    }
+    else if (node.type == Node::MATCHER) {
+        Expr *e = new Expr(Expr::MATCHER, node.token, node.text);
+    
+        if (node.left) {
+            Expr *l = tupleize(nodes, node.left);
+            
+            if (!l) {
+                std::cerr << "Matcher without meaningful pivot: " << node.token << "!\n";
                 throw TUPLE_ERROR;
             }
             

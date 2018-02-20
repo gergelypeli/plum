@@ -142,3 +142,63 @@ public:
         return Storage(FLAGS, SETNE);
     }
 };
+
+
+class TreenumerationMatcherValue: public GenericValue, public Raiser {
+public:
+    int index;
+    
+    TreenumerationMatcherValue(int i, Value *p)
+        :GenericValue(NO_TS, VOID_TS, p) {
+        index = i;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(option_unmatched_exception_type, scope))  // FIXME
+            return false;
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        TreenumerationType *t = dynamic_cast<TreenumerationType *>(left->ts.rvalue()[0]);
+        int tail = t->get_tail(index);
+        Label match, unmatch;
+        
+        ls = left->compile(x64);
+        
+        switch (ls.where) {
+        case CONSTANT:
+            if (ls.value >= index && ls.value <= tail)
+                return Storage();
+            else {
+                raise("UNMATCHED", x64);
+                return Storage();
+            }
+        case REGISTER:
+            x64->op(CMPB, ls.reg, index);
+            x64->op(JB, unmatch);
+            x64->op(CMPB, ls.reg, tail);
+            x64->op(JBE, match);
+            break;
+        case MEMORY:
+            x64->op(CMPB, ls.address, index);
+            x64->op(JB, unmatch);
+            x64->op(CMPB, ls.address, tail);
+            x64->op(JBE, match);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        x64->code_label(unmatch);
+        raise("UNMATCHED", x64);
+        x64->code_label(match);
+        
+        return Storage();
+    }
+};

@@ -180,8 +180,8 @@ public:
         return tm[1].lookup_initializer(name);
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string name) {
-        return tm[1].lookup_matcher(name);
+    virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
+        return tm[1].lookup_matcher(name, pivot);
     }
 
     virtual DataScope *get_inner_scope(TypeMatch tm) {
@@ -227,18 +227,6 @@ public:
             return make_array_initializer_value(rts);
 
         std::cerr << "No Array initializer called " << name << "!\n";
-        return NULL;
-    }
-
-    virtual Value *lookup_matcher(TypeMatch tm, std::string name) {
-        TypeSpec rts = tm[0].prefix(reference_type);
-        
-        if (name == "empty")
-            return make_array_empty_matcher_value(rts);
-        else if (name == "full")
-            return make_array_full_matcher_value(rts);
-
-        std::cerr << "No Array matcher called " << name << "!\n";
         return NULL;
     }
 

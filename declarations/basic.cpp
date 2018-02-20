@@ -479,16 +479,20 @@ public:
         return NULL;
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
-                return make_treenum_matcher_value(tm[0], i);
+                return make_treenumeration_matcher_value(tm[0], i, pivot);
         
         return NULL;
     }
     
     DataScope *get_inner_scope(TypeMatch tm) {
         return treenumeration_metatype->get_inner_scope(tm);
+    }
+
+    virtual unsigned get_tail(unsigned index) {
+        return tails[index];
     }
 
     virtual Label get_tails_label(X64 *x64) {

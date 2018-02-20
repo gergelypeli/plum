@@ -661,6 +661,133 @@ public:
 };
 
 
+class IsValue: public ControlValue {
+public:
+    std::unique_ptr<Value> match, then_branch, else_branch;
+    CodeScope *match_try_scope, *then_scope, *unwind_scope;
+    Label end;
+    
+    IsValue(Value *v, TypeMatch &m)
+        :ControlValue("is") {
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        //SwitchScope *switch_scope = scope->get_switch_scope();
+        
+        //if (!switch_scope) {
+        //    std::cerr << "Not in :switch!\n";
+        //    return false;
+        //}
+        
+        //Variable *switch_var = variable_cast(switch_scope->contents[0].get());
+        
+        //if (!switch_var)
+        //    throw INTERNAL_ERROR;
+            
+        //TypeSpec switch_ts = switch_var->var_ts.rvalue();
+
+        // Process the value
+        //std::unique_ptr<Value> value;
+        
+        match_try_scope = new TryScope;
+        scope->add(match_try_scope);
+
+        then_scope = new CodeScope;
+        scope->add(then_scope);
+
+        if (!check_args(args, { "match", &VOID_TS, match_try_scope, &match }))
+            return false;
+
+        // Flush contents of the try scope, so they remain accessible from the then branch
+        std::vector<Variable *> loot;
+        
+        while (match_try_scope->contents.size()) {
+            Declaration *d = match_try_scope->contents.back().get();
+            Variable *v = variable_cast(d);
+            
+            if (!v)
+                break;
+                
+            match_try_scope->remove(v);
+            loot.push_back(v);
+        }
+        
+        while (loot.size()) {
+            then_scope->add(loot.back());
+            loot.pop_back();
+        }
+        
+        ArgInfos infos = {
+            { "then", &VOID_CODE_TS, then_scope, &then_branch },
+            { "else", &VOID_CODE_TS, scope, &else_branch },
+        };
+        
+        if (!check_kwargs(kwargs, infos))
+            return false;
+
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        match->precompile(Regs::all());
+            
+        if (then_branch)
+            then_branch->precompile(Regs::all());
+
+        if (else_branch)
+            else_branch->precompile(Regs::all());
+            
+        return Regs::all();  // We're Void
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label else_label, end, xxx;
+        x64->code_label_local(xxx, "XXX");
+        
+        x64->unwind->push(this);
+        unwind_scope = match_try_scope;
+        
+        match->compile_and_store(x64, Storage());
+        
+        match_try_scope->finalize_contents(x64);
+        
+        //x64->op(MOVQ, RBX, EXCEPTION_ADDRESS);
+        //x64->dump("Post-match");
+        
+        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        x64->op(JNE, else_label);
+
+        unwind_scope = then_scope;
+        
+        if (then_branch) {
+            then_branch->compile_and_store(x64, Storage());
+        }
+        
+        unwind_scope = NULL;
+        x64->unwind->pop(this);
+        
+        then_scope->finalize_contents(x64);
+        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        x64->op(JE, end);
+        x64->unwind->initiate(then_scope, x64);
+        
+        x64->code_label(else_label);
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);  // UNMATCHED handled
+        
+        if (else_branch)
+            else_branch->compile_and_store(x64, Storage());
+            
+        x64->code_label(end);
+        
+        return Storage();
+    }
+    
+    virtual Scope *unwind(X64 *x64) {
+        return unwind_scope;
+    }
+};
+
+
 class RaiseValue: public ControlValue {
 public:
     Declaration *dummy;

@@ -363,7 +363,7 @@ test_controls? :Function as:
     :if Boolean `false > `true then:
         prints("Fake news!")
 
-    :if ! Boolean `true then:
+    :if !! Boolean `true then:
         prints("Faker news!")
 
     twice(how: h? what: (prints("You want {h}?" {}), h * 1000))
@@ -461,7 +461,7 @@ test_rbtrees? :Function as:
     :if rb has "A" then:
         prints("Rb has A, good.")
         
-    :if ! rb has "Z" then:
+    :if !! rb has "Z" then:
         prints("Rb has no Z, good")
     
     :try
@@ -473,7 +473,7 @@ test_rbtrees? :Function as:
         
     prints("After removing all, length is {l}" { l: rb length })
     
-    :if ! rb has "A" then:
+    :if !! rb has "A" then:
         prints("Rb has no A, good")
 
     st? String Set { "A", "B" }
@@ -511,11 +511,23 @@ test_options? :Function as:
     prints("So they're now equal: {x}" {x: op1 == op2})
     prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
     
-    :try
-        op1s? op1 as some
-        prints("It contained: {op1s}" {})
-    or:yield
+    #:try
+    #    op1s? op1 as some
+    #    prints("It contained: {op1s}" {})
+    #or:yield
     
+    #:try
+    #    op1s? op1 ~some
+    #    prints("It contained: {op1s}" {})
+    #or:
+    #    prints("IT DID NOT CONTAIN!")
+    #    :yield
+    
+    :is op1s? op1 ~some then:
+        prints("It contained: {op1s}" {})
+    else:
+        prints("IT DID NOT CONTAIN!")
+            
     #:try op1s? op1 as some to:
     #    prints("It contained: {op1s}" {})
         
@@ -544,3 +556,5 @@ start? :Function as:
     test_circularrays
     test_rbtrees
     test_options
+    
+    prints("Done.")
