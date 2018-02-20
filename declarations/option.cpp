@@ -270,6 +270,16 @@ public:
             return NULL;
         }
     }
+
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n) {
+        if (n == "none")
+            return make_option_none_matcher_value(tm[0]);
+        else if (n == "some")
+            return make_option_some_matcher_value(tm[0]);
+            
+        std::cerr << "Can't match Option as " << n << "!\n";
+        return NULL;
+    }
 };
 
 

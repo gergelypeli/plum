@@ -247,6 +247,11 @@ public:
             return NULL;
         }
     }
+
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n) {
+        std::cerr << "No Record matchers yet!\n";
+        throw INTERNAL_ERROR;
+    }
     
     virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
         std::vector<TypeSpec> tss;

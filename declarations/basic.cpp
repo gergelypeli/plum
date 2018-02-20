@@ -478,6 +478,14 @@ public:
         
         return NULL;
     }
+
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n) {
+        for (unsigned i = 0; i < keywords.size(); i++)
+            if (keywords[i] == n)
+                return make_treenum_matcher_value(tm[0], i);
+        
+        return NULL;
+    }
     
     DataScope *get_inner_scope(TypeMatch tm) {
         return treenumeration_metatype->get_inner_scope(tm);
