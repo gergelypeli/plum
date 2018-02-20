@@ -211,7 +211,7 @@ public:
         x64->op(ADDQ, RSP, 16);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -342,8 +342,8 @@ public:
         tm[1].streamify(repr, x64);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
-        return tm[1].lookup_initializer(n, scope);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        return tm[1].lookup_initializer(n);
     }
 
     virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
@@ -363,79 +363,6 @@ public:
     }
 };
 
-/*
-class CodeType: public AttributeType {
-public:
-    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
-        if (!is_arg || is_lvalue)
-            throw INTERNAL_ERROR;
-        else
-            return STACK;
-    }
-
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        throw INTERNAL_ERROR;
-    }
-    
-    virtual Allocation measure(TypeMatch tm) {
-        return Allocation(ADDRESS_SIZE);
-    }
-
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        if (s.where != STACK)
-            throw INTERNAL_ERROR;
-            
-        if (t.where == NOWHERE)
-            x64->op(ADDQ, RSP, 8);
-        else if (t.where != STACK)
-            throw INTERNAL_ERROR;
-    }
-
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        if (t.where != STACK)
-            throw INTERNAL_ERROR;
-            
-        if (s.where == NOWHERE) {
-            x64->op(LEARIP, RBX, x64->empty_function_label);
-            x64->op(PUSHQ, RBX);
-        }
-        else if (s.where != STACK)
-            throw INTERNAL_ERROR;
-    }
-
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
-        throw INTERNAL_ERROR;
-    }
-    
-    virtual DataScope *get_inner_scope(TypeMatch tm) {
-        throw INTERNAL_ERROR;
-    }
-};
-*/
 
 class PartialType: public Type {
 public:
@@ -525,7 +452,7 @@ public:
     }
 
     // NOTE: experimental thing for exception specifications
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         if (n == "{}")
             return make_treenumeration_definition_value();
         

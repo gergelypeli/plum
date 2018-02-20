@@ -62,7 +62,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         //TypeSpec ts(tsi);
 
         // NOTE: initializers must only appear in code scopes, and there all types
@@ -162,9 +162,9 @@ public:
         :ClassType(name, 1) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec ats = tm[0].unprefix(stack_type).prefix(array_type);
-        Value *array_initializer = ats.lookup_initializer(name, scope);
+        Value *array_initializer = ats.lookup_initializer(name);
         
         if (!array_initializer) {
             std::cerr << "No Stack initializer called " << name << "!\n";
@@ -185,9 +185,9 @@ public:
         :ClassType(name, 1) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec cts = tm[0].unprefix(queue_type).prefix(circularray_type);
-        Value *carray_initializer = cts.lookup_initializer(name, scope);
+        Value *carray_initializer = cts.lookup_initializer(name);
         
         if (!carray_initializer) {
             std::cerr << "No Queue initializer called " << name << "!\n";
@@ -208,9 +208,9 @@ public:
         :ClassType(name, 1) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec tts = tm[0].unprefix(set_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name, scope);
+        Value *tree_initializer = tts.lookup_initializer(name);
         
         if (!tree_initializer) {
             std::cerr << "No Set initializer called " << name << "!\n";
@@ -231,9 +231,9 @@ public:
         :ClassType(name, 2) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec tts = tm[0].reprefix(map_type, item_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name, scope);
+        Value *tree_initializer = tts.lookup_initializer(name);
         
         if (!tree_initializer) {
             std::cerr << "No Map initializer called " << name << "!\n";

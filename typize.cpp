@@ -280,7 +280,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 name = "{}";
             
             TypeSpec ts = *context;
-            value = ts.lookup_initializer(name, scope);
+            value = ts.lookup_initializer(name);
             
             if (!value) {
                 std::cerr << "No initializer " << ts << " `" << name << "!\n";

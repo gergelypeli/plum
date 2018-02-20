@@ -253,7 +253,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         if (n == "{}") {
             // Anonymous initializers rejected
             return NULL;

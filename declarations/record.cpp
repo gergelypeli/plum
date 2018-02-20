@@ -220,7 +220,7 @@ public:
         x64->code_label(xend);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         //TypeSpec ts(tsi);
 
         // NOTE: initializers must only appear in code scopes, and there all types
@@ -430,7 +430,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         if (n == "empty") {
             return make_string_literal_value("");
         }

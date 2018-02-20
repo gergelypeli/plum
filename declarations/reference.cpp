@@ -176,8 +176,8 @@ public:
         }
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return tm[1].lookup_initializer(name, scope);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+        return tm[1].lookup_initializer(name);
     }
 
     virtual DataScope *get_inner_scope(TypeMatch tm) {
@@ -214,7 +214,7 @@ public:
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec rts = tm[0].prefix(reference_type);
         
         if (name == "empty")
@@ -268,7 +268,7 @@ public:
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec rts = tm[0].prefix(reference_type);
         
         if (name == "empty")
@@ -339,7 +339,7 @@ public:
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec rts = tm[0].prefix(reference_type);
         
         if (name == "empty")

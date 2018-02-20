@@ -285,7 +285,7 @@ public:
         make_inner_scope(TypeSpec { this });
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         if (name == "false")
             return make_basic_value(tm[0], 0);
         else if (name == "true")
@@ -352,7 +352,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         if (name == "zero")
             return make_basic_value(tm[0], 0);
         else if (name == "unicode")
@@ -415,7 +415,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make_basic_value(tm[0], i);
@@ -471,7 +471,7 @@ public:
         tails = tl;
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make_basic_value(tm[0], i);

@@ -54,7 +54,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         std::cerr << "No interface initializer called " << name << "!\n";
         return NULL;
     }
@@ -136,7 +136,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         std::cerr << "No implementation initializer called " << name << "!\n";
         return NULL;
     }
