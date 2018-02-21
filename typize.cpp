@@ -304,10 +304,11 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
 
         if (!p) {
+            // TODO: put this into IsValue instead!
             SwitchScope *ss = scope->get_switch_scope();
             
             if (!ss) {
-                std::cerr << "Pivotless matcher outside of :switch!\n";
+                std::cerr << "Pivotless matcher outside of :switch at " << expr->token << "!\n";
                 throw TYPE_ERROR;
             }
             
@@ -317,8 +318,13 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             if (!p)
                 throw INTERNAL_ERROR;
         }
-        
-        value = p->ts.lookup_matcher(name, p);
+
+        if (name == "=") {
+            Value *equality = lookup_unchecked("is_equal", p, scope);
+            value = make_equality_matcher_value(equality);
+        }
+        else
+            value = p->ts.lookup_matcher(name, p);
     
         if (!value) {
             std::cerr << "No matcher " << p->ts << " ~" << name << "!\n";

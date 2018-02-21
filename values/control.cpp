@@ -674,23 +674,6 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        //SwitchScope *switch_scope = scope->get_switch_scope();
-        
-        //if (!switch_scope) {
-        //    std::cerr << "Not in :switch!\n";
-        //    return false;
-        //}
-        
-        //Variable *switch_var = variable_cast(switch_scope->contents[0].get());
-        
-        //if (!switch_var)
-        //    throw INTERNAL_ERROR;
-            
-        //TypeSpec switch_ts = switch_var->var_ts.rvalue();
-
-        // Process the value
-        //std::unique_ptr<Value> value;
-        
         then_scope = new CodeScope;
         scope->add(then_scope);
 
@@ -699,6 +682,21 @@ public:
 
         match_try_scope = new TransparentTryScope;
         then_scope->add(match_try_scope);
+
+        // TODO: this is not nice!
+        if (args.size() > 0 && args[0]->type != Expr::MATCHER && args[0]->type != Expr::DECLARATION) {
+            SwitchScope *ss = scope->get_switch_scope();
+            
+            if (!ss) {
+                std::cerr << "Values can only be used in :is inside :switch!\n";
+                return false;
+            }
+            
+            Expr *e = new Expr(Expr::MATCHER, Token(), "=");
+            //e->set_pivot(new Expr(Expr::IDENTIFIER, Token(), ss->get_variable_name()));
+            e->add_arg(args[0].release());
+            args[0].reset(e);
+        }
 
         if (!check_args(args, { "match", &VOID_TS, match_try_scope, &match }))
             return false;

@@ -301,6 +301,9 @@ test_controls? :Function as:
         :is ~TWO then:
             prints("Two-something.")
 
+        :is `TWENTY then:
+            prints("Exactly twenty.")
+
         :is ~TWENTY then:
             prints("Twenty.")
             :yield

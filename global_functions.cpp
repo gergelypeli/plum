@@ -300,6 +300,11 @@ Value *make_evaluable_value(Evaluable *e, Value *cpivot, TypeMatch &match) {
 }
 
 
+Value *make_equality_matcher_value(Value *p) {
+    return new EqualityMatcherValue(p);
+}
+
+
 // Declaration operations
 
 Variable *variable_cast(Declaration *decl) {

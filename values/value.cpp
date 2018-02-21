@@ -248,6 +248,58 @@ public:
 };
 
 
+class EqualityMatcherValue: public Value, public Raiser {
+public:
+    std::unique_ptr<Value> value;
+
+    EqualityMatcherValue(Value *v)
+        :Value(VOID_TS) {
+        value.reset(v);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(match_unmatched_exception_type, scope))
+            return false;
+            
+        return value->check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label equal;
+        Storage s = value->compile(x64);
+
+        switch (s.where) {
+        case CONSTANT:
+            if (s.value)
+                x64->op(JMP, equal);
+            break;
+        case FLAGS:
+            x64->op(branchize(s.bitset), equal);
+            break;
+        case REGISTER:
+            x64->op(CMPB, s.reg, 0);
+            x64->op(JNE, equal);
+            break;
+        case MEMORY:
+            x64->op(CMPB, s.address, 0);
+            x64->op(JNE, equal);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        raise("UNMATCHED", x64);
+        
+        x64->code_label(equal);
+        return Storage();
+    }
+};
+
+
 class VariableValue: public Value {
 public:
     Variable *variable;
