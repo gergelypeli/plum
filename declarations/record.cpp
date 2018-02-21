@@ -275,7 +275,29 @@ public:
     StringType(std::string n)
         :RecordType(n, 0) {
     }
-    
+
+    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
+        switch (s.where) {
+        case STACK:
+            if (probe) {
+                x64->op(MOVQ, RBX, Address(RSP, 0));
+            }
+            else {
+                x64->op(POPQ, RBX);
+                x64->decref(RBX);
+            }
+            
+            x64->op(CMPQ, Address(RBX, ARRAY_LENGTH_OFFSET), 0);
+            return Storage(FLAGS, SETNE);
+        case MEMORY:
+            x64->op(MOVQ, RBX, s.address);
+            x64->op(CMPQ, Address(RBX, ARRAY_LENGTH_OFFSET), 0);
+            return Storage(FLAGS, SETNE);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+        
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         Label strcmp_label = x64->once->compile(compile_stringcmp);
 

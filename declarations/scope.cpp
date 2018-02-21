@@ -298,6 +298,10 @@ public:
     const char *get_variable_name() {
         return "<switched>";
     }
+    
+    Variable *get_variable() {
+        return variable_cast(contents[0].get());
+    }
 };
 
 

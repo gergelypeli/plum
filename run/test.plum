@@ -298,10 +298,10 @@ test_controls? :Function as:
     prints("This tree is {my_tree}." {})
     
     :switch my_tree do:
-        :when `TWO then:
+        :is ~TWO then:
             prints("Two-something.")
 
-        :when `TWENTY then:
+        :is ~TWENTY then:
             prints("Twenty.")
             :yield
             
@@ -311,10 +311,10 @@ test_controls? :Function as:
     :try
         nasty
     or:
-        :when `BIG_ERROR then:
+        :is ~BIG_ERROR then:
             prints("This was a big error!")
             
-        :when `SMALL_ERROR then:
+        :is ~SMALL_ERROR then:
             prints("This was a small error!")
             :yield
             

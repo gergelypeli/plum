@@ -582,7 +582,7 @@ public:
             return false;
         }
         
-        Variable *switch_var = variable_cast(switch_scope->contents[0].get());
+        Variable *switch_var = switch_scope->get_variable();
         
         if (!switch_var)
             throw INTERNAL_ERROR;

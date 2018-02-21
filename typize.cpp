@@ -302,29 +302,38 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::MATCHER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        
-        if (p) {
-            value = p->ts.lookup_matcher(name, p);
-        
-            if (!value) {
-                std::cerr << "No matcher " << p->ts << " ~" << name << "!\n";
-                throw TYPE_ERROR;
-            }
 
-            value->set_token(expr->token);
-            bool ok = value->check(expr->args, expr->kwargs, scope);
-        
-            if (!ok) {
-                std::cerr << "Matcher argument problem for " << expr->token << "!\n";
+        if (!p) {
+            SwitchScope *ss = scope->get_switch_scope();
+            
+            if (!ss) {
+                std::cerr << "Pivotless matcher outside of :switch!\n";
                 throw TYPE_ERROR;
             }
             
-            std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
+            Variable *v = ss->get_variable();
+            p = v->match(v->name, NULL);
+            
+            if (!p)
+                throw INTERNAL_ERROR;
         }
-        else {
-            std::cerr << "Matchers need a pivot for now!\n";
+        
+        value = p->ts.lookup_matcher(name, p);
+    
+        if (!value) {
+            std::cerr << "No matcher " << p->ts << " ~" << name << "!\n";
             throw TYPE_ERROR;
         }
+
+        value->set_token(expr->token);
+        bool ok = value->check(expr->args, expr->kwargs, scope);
+    
+        if (!ok) {
+            std::cerr << "Matcher argument problem for " << expr->token << "!\n";
+            throw TYPE_ERROR;
+        }
+        
+        std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
     }
     else if (expr->type == Expr::NUMBER) {
         TypeSpec ts = {
