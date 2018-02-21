@@ -686,7 +686,7 @@ public:
 
         // We must insert this after all potential declarations inside the result expression,
         // because we must finalize those variables upon return.
-        dummy = new Declaration;
+        dummy = new RaisingDummy;
         scope->add(dummy);
         
         return true;

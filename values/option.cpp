@@ -125,7 +125,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(option_unmatched_exception_type, scope))
+        if (!check_raise(match_unmatched_exception_type, scope))
             return false;
         
         return GenericValue::check(args, kwargs, scope);
@@ -175,7 +175,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(option_unmatched_exception_type, scope))
+        if (!check_raise(match_unmatched_exception_type, scope))
             return false;
         
         return GenericValue::check(args, kwargs, scope);

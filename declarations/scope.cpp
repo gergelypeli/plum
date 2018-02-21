@@ -343,12 +343,11 @@ public:
         :TryScope() {
     }
 
-    virtual bool is_transient() {
-        return false;
-    }
-    
-    virtual Value *match(std::string name, Value *pivot) {
-        return lookup(name, pivot);
+    virtual void add(Declaration *d) {
+        if (d->is_transient())  // must keep dummies inside
+            TryScope::add(d);
+        else
+            outer_scope->add(d);
     }
 };
 

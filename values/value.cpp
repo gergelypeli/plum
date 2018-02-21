@@ -91,7 +91,7 @@ public:
 
 class Raiser {
 public:
-    Declaration *raising_dummy;
+    RaisingDummy *raising_dummy;
     TreenumerationType *raised_type;
     
     Raiser() {
@@ -100,7 +100,7 @@ public:
     }
     
     virtual void make_raising_dummy(Scope *scope) {
-        raising_dummy = new Declaration;
+        raising_dummy = new RaisingDummy;
         scope->add(raising_dummy);
     }
     

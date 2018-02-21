@@ -59,6 +59,18 @@ public:
 };
 
 
+class RaisingDummy: public Declaration {
+public:
+    RaisingDummy()
+        :Declaration() {
+    }
+
+    virtual bool is_transient() {
+        return true;  // So that transparent try scopes keep it inside
+    }
+};
+
+
 #include "scope.cpp"
 #include "identifier.cpp"
 #include "type.cpp"

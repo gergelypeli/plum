@@ -192,8 +192,8 @@ void builtin_types(Scope *root_scope) {
     container_lent_exception_type = new TreenumerationType("<Container_lent>", { "", "CONTAINER_LENT" }, { 0, 1 });
     root_scope->add(container_lent_exception_type);
 
-    option_unmatched_exception_type = new TreenumerationType("<Option_unmatched>", { "", "UNMATCHED" }, { 0, 1 });
-    root_scope->add(option_unmatched_exception_type);
+    match_unmatched_exception_type = new TreenumerationType("<Match_unmatched>", { "", "UNMATCHED" }, { 0, 1 });
+    root_scope->add(match_unmatched_exception_type);
 
     code_break_exception_type = new TreenumerationType("<Code_break>", { "", "CODE_BREAK" }, { 0, 1 });
     root_scope->add(code_break_exception_type);

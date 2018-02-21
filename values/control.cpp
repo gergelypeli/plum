@@ -664,7 +664,8 @@ public:
 class IsValue: public ControlValue {
 public:
     std::unique_ptr<Value> match, then_branch, else_branch;
-    CodeScope *match_try_scope, *then_scope, *unwind_scope;
+    CodeScope *then_scope, *unwind_scope;
+    TryScope *match_try_scope;
     Label end;
     
     IsValue(Value *v, TypeMatch &m)
@@ -689,34 +690,25 @@ public:
         // Process the value
         //std::unique_ptr<Value> value;
         
-        match_try_scope = new TryScope;
-        scope->add(match_try_scope);
-
         then_scope = new CodeScope;
         scope->add(then_scope);
+
+        match_try_scope = new TransparentTryScope;
+        then_scope->add(match_try_scope);
 
         if (!check_args(args, { "match", &VOID_TS, match_try_scope, &match }))
             return false;
 
-        // Flush contents of the try scope, so they remain accessible from the then branch
-        std::vector<Variable *> loot;
+        Type *et = match_try_scope->get_exception_type();
         
-        while (match_try_scope->contents.size()) {
-            Declaration *d = match_try_scope->contents.back().get();
-            Variable *v = variable_cast(d);
-            
-            if (!v)
-                break;
-                
-            match_try_scope->remove(v);
-            loot.push_back(v);
+        if (!et) {
+            std::cerr << "This :is match raises no exception!\n";
         }
-        
-        while (loot.size()) {
-            then_scope->add(loot.back());
-            loot.pop_back();
+        else if (et != match_unmatched_exception_type) {
+            std::cerr << "This :is match raises " << et->name << " exception!\n";
+            return false;
         }
-        
+
         ArgInfos infos = {
             { "then", &VOID_CODE_TS, then_scope, &then_branch },
             { "else", &VOID_CODE_TS, scope, &else_branch },
@@ -748,7 +740,8 @@ public:
         unwind_scope = match_try_scope;
         
         match->compile_and_store(x64, Storage());
-        
+
+        // Has no declarations, but unwinding jumps here
         match_try_scope->finalize_contents(x64);
         
         //x64->op(MOVQ, RBX, EXCEPTION_ADDRESS);
@@ -759,9 +752,8 @@ public:
 
         unwind_scope = then_scope;
         
-        if (then_branch) {
+        if (then_branch)
             then_branch->compile_and_store(x64, Storage());
-        }
         
         unwind_scope = NULL;
         x64->unwind->pop(this);
@@ -827,7 +819,7 @@ public:
         if (!check_args(args, { "value", &ets, scope, &value }))
             return false;
             
-        dummy = new Declaration;
+        dummy = new RaisingDummy;
         scope->add(dummy);
 
         ArgInfos infos = {
@@ -1073,7 +1065,7 @@ public:
         if (!check_args(args, { "value", &arg_ts, scope, &value }))
             return false;
 
-        dummy = new Declaration;
+        dummy = new RaisingDummy;
         scope->add(dummy);
 
         ArgInfos infos = {
