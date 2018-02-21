@@ -664,7 +664,8 @@ public:
 class IsValue: public ControlValue {
 public:
     std::unique_ptr<Value> match, then_branch, else_branch;
-    CodeScope *then_scope, *unwind_scope;
+    Variable *matched_var;
+    CodeScope *then_scope;
     TryScope *match_try_scope;
     Label end;
     
@@ -692,6 +693,9 @@ public:
         
         then_scope = new CodeScope;
         scope->add(then_scope);
+
+        matched_var = new Variable("<matched>", NO_TS, INTEGER_LVALUE_TS);
+        then_scope->add(matched_var);
 
         match_try_scope = new TransparentTryScope;
         then_scope->add(match_try_scope);
@@ -733,38 +737,35 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        Label else_label, end, xxx;
-        x64->code_label_local(xxx, "XXX");
-        
+        Label else_label, end;
+        Address matched_addr = matched_var->get_local_storage().address;
+
         x64->unwind->push(this);
-        unwind_scope = match_try_scope;
+        
+        x64->op(MOVQ, matched_addr, 0);
         
         match->compile_and_store(x64, Storage());
 
-        // Has no declarations, but unwinding jumps here
-        match_try_scope->finalize_contents(x64);
-        
-        //x64->op(MOVQ, RBX, EXCEPTION_ADDRESS);
-        //x64->dump("Post-match");
-        
-        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JNE, else_label);
+        x64->op(MOVQ, matched_addr, 1);
 
-        unwind_scope = then_scope;
-        
         if (then_branch)
             then_branch->compile_and_store(x64, Storage());
         
-        unwind_scope = NULL;
         x64->unwind->pop(this);
-        
         then_scope->finalize_contents(x64);
+        
+        // Take care of the unmatched case
+        x64->op(CMPQ, matched_addr, 0);
+        x64->op(JE, else_label);
+        
+        // Take care of the matched but raised case
         x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         x64->op(JE, end);
+        
         x64->unwind->initiate(then_scope, x64);
         
         x64->code_label(else_label);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);  // UNMATCHED handled
+        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);  // clear caught UNMATCHED
         
         if (else_branch)
             else_branch->compile_and_store(x64, Storage());
@@ -775,7 +776,7 @@ public:
     }
     
     virtual Scope *unwind(X64 *x64) {
-        return unwind_scope;
+        return then_scope;
     }
 };
 

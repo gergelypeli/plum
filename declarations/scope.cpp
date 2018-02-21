@@ -105,11 +105,6 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual void jump_to_content_finalization(Declaration *last, X64 *x64) {
-        std::cerr << "This scope has no content finalization!\n";
-        throw INTERNAL_ERROR;
-    }
-
     virtual bool is_virtual_scope() {
         return virtual_scope;
     }
@@ -341,13 +336,11 @@ class TransparentTryScope: public TryScope {
 public:
     TransparentTryScope()
         :TryScope() {
+        contents_finalized = true;
     }
 
     virtual void add(Declaration *d) {
-        if (d->is_transient())  // must keep dummies inside
-            TryScope::add(d);
-        else
-            outer_scope->add(d);
+        outer_scope->add(d);
     }
 };
 

@@ -511,33 +511,16 @@ test_options? :Function as:
     prints("So they're now equal: {x}" {x: op1 == op2})
     prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
     
-    #:try
-    #    op1s? op1 as some
-    #    prints("It contained: {op1s}" {})
-    #or:yield
-    
-    #:try
-    #    op1s? op1 ~some
-    #    prints("It contained: {op1s}" {})
-    #or:
-    #    prints("IT DID NOT CONTAIN!")
-    #    :yield
-    
     :is op1s? op1 ~some then:
-        prints("It contained: {op1s}" {})
+        prints("It contained some {op1s}." {})
     else:
-        prints("IT DID NOT CONTAIN!")
-            
-    #:try op1s? op1 as some to:
-    #    prints("It contained: {op1s}" {})
-        
-    #:block:
-    #    op1s? :try op1 as some or:block
-    #    prints("It contained: {op1s}" {})
+        prints("IT CONTAINED NONE!")
 
-    #:match op1 in:case op1s? `some do:
-    #    prints("It contained: {op1s}" {})
-        
+    :is op1 ~none then:
+        prints("IT CONTAINED NONE!")
+    else:
+        prints("It contained some.")
+            
 
 test_classes? :Function as:
     gr? Greetable `init
