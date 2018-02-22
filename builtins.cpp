@@ -331,7 +331,6 @@ void define_integers() {
     for (auto &item : integer_lvalue_operations)
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
 
-    integer_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
     implement(integer_scope, STREAMIFIABLE_TS, "sable", {
         new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
     });
@@ -750,7 +749,6 @@ Scope *init_builtins() {
     Scope *enum_scope = enumeration_metatype->get_inner_scope(TypeMatch());
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    enum_scope->add(new TemplateOperation<IntegerOperationValue>("cover", ANY_TS, EQUAL));
     implement(enum_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS)
     });
@@ -759,7 +757,6 @@ Scope *init_builtins() {
     Scope *treenum_scope = treenumeration_metatype->get_inner_scope(TypeMatch());
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    treenum_scope->add(new TemplateOperation<TreenumCoveringValue>("cover", ANY_TS, TWEAK));
     implement(treenum_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS)
     });
@@ -791,7 +788,6 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", NO_TS));
     root_scope->add(new TemplateIdentifier<ForEachValue>(":for", NO_TS));
     root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", NO_TS));
-    root_scope->add(new TemplateIdentifier<WhenValue>(":when", NO_TS));
     root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", NO_TS));
     root_scope->add(new TemplateIdentifier<TryValue>(":try", NO_TS));
     root_scope->add(new TemplateIdentifier<IsValue>(":is", NO_TS));
