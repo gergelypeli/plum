@@ -3,18 +3,19 @@
 class Type: public Declaration {
 public:
     std::string name;
-    unsigned parameter_count;
+    TSs param_tss;
     DataScope *inner_scope;  // Will be owned by the outer scope
-    std::unique_ptr<Value> pivot;  // Totally dummy
+    Type *my_type;
     
-    Type(std::string n, unsigned pc) {
+    Type(std::string n, std::vector<TypeSpec> ptss, Type *mt) {
         name = n;
-        parameter_count = pc;
+        param_tss = ptss;
+        my_type = mt;
         inner_scope = NULL;
     }
     
     virtual unsigned get_parameter_count() {
-        return parameter_count;
+        return param_tss.size();
     }
     
     virtual void set_name(std::string n) {
@@ -58,66 +59,62 @@ public:
     virtual Value *match(std::string name, Value *pivot) {
         if (name != this->name)
             return NULL;
+        
+        TSs tss;
+        unsigned pc = get_parameter_count();
+        std::cerr << "XXX " << name << " " << param_tss << " " << get_typespec(pivot) << "\n";
             
-        if (parameter_count == 0) {
+        if (pc == 0) {
             if (pivot)
                 return NULL;
-                
-            TypeSpec ts = { type_type, this };
-            
-            return make_type_value(ts);
         }
-        else if (parameter_count == 1) {
-            TypeMatch match;
-            
-            if (!typematch(ANY_TYPE_TS, pivot, match))
+        else if (pc == 1) {
+            if (!pivot)
                 return NULL;
                 
-            TypeSpec param = match[1];
-            
-            if (param[0] == multi_type)
-                return NULL;
-            
-            if (param[0] == lvalue_type || param[0] == ovalue_type || param[0] == code_type) {
-                std::cerr << "Invalid type parameter: " << param << "!\n";
-                throw TYPE_ERROR;
-            }
-
-            TypeSpec ts = param.prefix(this).prefix(type_type);
-            
-            this->pivot.reset(pivot);
-            return make_type_value(ts);
+            tss.push_back(get_typespec(pivot));
         }
         else {
             TypeMatch match;
             
-            if (!typematch(MULTI_TYPE_TS, pivot, match))
+            if (!typematch(MULTI_GENERICTYPE_TS, pivot, match))
                 return NULL;
                 
-            std::vector<TypeSpec> tss;
             if (!unpack_value(pivot, tss))
                 throw INTERNAL_ERROR;
-            
-            if (tss.size() != parameter_count)
-                return NULL;
-            
-            TypeSpec multi_ts = { type_type, this };
-            
-            for (auto ts : tss) {
-                if (ts[0] != type_type)
-                    throw INTERNAL_ERROR;
-                    
-                if (ts[1] == lvalue_type || ts[1] == ovalue_type || ts[1] == code_type || ts[1] == multi_type) {
-                    std::cerr << "Invalid type parameter: " << ts << "!\n";
-                    throw TYPE_ERROR;
-                }
-                
-                multi_ts.insert(multi_ts.end(), ts.begin() + 1, ts.end());
-            }
 
-            this->pivot.reset(pivot);
-            return make_type_value(multi_ts);
+            if (tss.size() != pc)
+                return NULL;
         }
+        
+        TypeSpec result_ts = { my_type, this };
+        
+        for (unsigned i = 0; i < pc; i++) {
+            TypeSpec &ts = tss[i];
+            TypeSpec &pts = param_tss[i];
+            
+            bool ok = (
+                pts[0] == generictype_type ? (ts[0] == generictype_type || ts[0] == valuetype_type || ts[0] == identitytype_type) :
+                pts[0] == valuetype_type ? ts[0] == valuetype_type :
+                pts[0] == identitytype_type ? ts[0] == identitytype_type :
+                false
+            );
+            
+            if (!ok)
+                return NULL;
+                
+            if (pts[1] != any_type)
+                throw INTERNAL_ERROR;
+                
+            if (ts[1] == lvalue_type || ts[1] == ovalue_type || ts[1] == code_type || ts[1] == multi_type) {
+                std::cerr << "Invalid type parameter: " << ts << "!\n";
+                return NULL;
+            }
+            
+            result_ts.insert(result_ts.end(), ts.begin() + 1, ts.end());
+        }
+
+        return make_type_value(result_ts);
     }
     
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
@@ -263,8 +260,8 @@ public:
 
 class SpecialType: public Type {
 public:
-    SpecialType(std::string name, unsigned pc)
-        :Type(name, pc) {
+    SpecialType(std::string name, TSs param_tss, Type *mt)
+        :Type(name, param_tss, mt) {
     }
     
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -279,7 +276,7 @@ public:
 class SameType: public Type {
 public:
     SameType(std::string name)
-        :Type(name, 0) {
+        :Type(name, {}, generictype_type) {
     }
     
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
@@ -312,7 +309,7 @@ public:
 class AttributeType: public Type {
 public:
     AttributeType(std::string n)
-        :Type(n, 1) {
+        :Type(n, TSs { ANY_GENERICTYPE_TS }, generictype_type) {
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
@@ -376,7 +373,7 @@ public:
 class PartialType: public Type {
 public:
     PartialType(std::string name)
-        :Type(name, 1) {
+        :Type(name, TSs { ANY_VALUETYPE_TS }, valuetype_type) {
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
@@ -417,7 +414,7 @@ public:
     TypeDefinitionFactory factory;
     
     MetaType(std::string name, TypeDefinitionFactory f)
-        :Type(name, 0) {
+        :Type(name, {}, generictype_type) {
         factory = f;
         make_inner_scope(TypeSpec { any_type });
     }

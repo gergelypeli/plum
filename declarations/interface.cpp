@@ -3,8 +3,8 @@ class InterfaceType: public Type {
 public:
     std::vector<Function *> member_functions;
     
-    InterfaceType(std::string name, int pc)
-        :Type(name, pc) {
+    InterfaceType(std::string name, TSs param_tss)
+        :Type(name, param_tss, generictype_type) {
     }
 
     virtual void complete_type() {
@@ -69,7 +69,7 @@ public:
     TypeSpec implementor_ts;
 
     ImplementationType(std::string name, TypeSpec irts, TypeSpec ifts)
-        :Type(name, 1) {
+        :Type(name, TSs { ANY_GENERICTYPE_TS }, generictype_type) {
         interface_ts = ifts;
         implementor_ts = irts;
     }

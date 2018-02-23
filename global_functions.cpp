@@ -375,7 +375,7 @@ TypeMatch type_parameters_to_match(TypeSpec ts) {
     TypeSpecIter tsi(ts.begin());
     tsi++;
     
-    for (unsigned i = 0; i < ts[0]->parameter_count; i++) {
+    for (unsigned i = 0; i < ts[0]->get_parameter_count(); i++) {
         fake_match.push_back(TypeSpec(tsi));
         tsi += fake_match.back().size();
     }
@@ -427,7 +427,7 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
     while (counter--) {
         if (*s == *t) {
             match[0].push_back(*t);
-            counter += (*s)->parameter_count;
+            counter += (*s)->get_parameter_count();
             s++;
             t++;
         }
@@ -436,7 +436,7 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
             unsigned c = 1;
     
             while (c--) {
-                c += (*s)->parameter_count;
+                c += (*s)->get_parameter_count();
                 match[mi].push_back(*s);
                 match[0].push_back(*s);
                 s++;

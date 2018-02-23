@@ -276,7 +276,7 @@ public:
             return false;
         }
 
-        record_type = new RecordType("<anonymous>", 0);
+        record_type = new RecordType("<anonymous>", TSs {});
         TypeSpec rts = { record_type };
 
         setup_inner(record_type, rts.lvalue());
@@ -333,7 +333,7 @@ public:
             return false;
         }
 
-        class_type = new ClassType("<anonymous>", 0);
+        class_type = new ClassType("<anonymous>", TSs {});
         TypeSpec cts = { reference_type, class_type };
 
         setup_inner(class_type, cts);
@@ -385,7 +385,7 @@ public:
             return false;
         }
 
-        interface_type = new InterfaceType("<anonymous>", 0);
+        interface_type = new InterfaceType("<anonymous>", TSs {});
 
         setup_inner(interface_type, ANY_TS);
         //inner_scope->set_meta_scope(_metatype->get_inner_scope());
@@ -451,7 +451,7 @@ public:
         Value *v = typize(args[0].get(), scope, NULL);
         TypeMatch match;
         
-        if (!typematch(ANY_TYPE_TS, v, match)) {
+        if (!typematch(ANY_GENERICTYPE_TS, v, match)) {
             std::cerr << "Implementation needs an interface type name!\n";
             return false;
         }

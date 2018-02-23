@@ -16,7 +16,7 @@ public:
         if (args.size() == 0)
             return true;
             
-        ts = ts.unprefix(type_type);
+        ts = ts.unprefix(ts[0]);
         
         if (heap_type_cast(ts[0]))
             ts = ts.prefix(reference_type);
@@ -48,7 +48,7 @@ public:
     }
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
-        TypeSpec t = value ? ts : ts.unprefix(type_type);
+        TypeSpec t = value ? ts : ts.unprefix(ts[0]);
         
         if (t[0] == code_type)
             return new Evaluable(name, scope->pivot_type_hint(), t);

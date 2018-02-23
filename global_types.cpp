@@ -8,7 +8,7 @@ TypeSpec::TypeSpec(TypeSpecIter tsi) {
     
     while (counter--) {
         push_back(*tsi);
-        counter += (*tsi)->parameter_count;
+        counter += (*tsi)->get_parameter_count();
         tsi++;
     }
 }
@@ -31,8 +31,8 @@ TypeSpec TypeSpec::unprefix(Type *t) {
         throw INTERNAL_ERROR;
     }
 
-    if (at(0)->parameter_count != 1) {
-        std::cerr << "Can't unprefix Type with " << at(0)->parameter_count << " parameters: " << *this << "!\n";
+    if (at(0)->get_parameter_count() != 1) {
+        std::cerr << "Can't unprefix Type with " << at(0)->get_parameter_count() << " parameters: " << *this << "!\n";
         throw INTERNAL_ERROR;
     }
         
@@ -51,8 +51,8 @@ TypeSpec TypeSpec::reprefix(Type *s, Type *t) {
         throw INTERNAL_ERROR;
     }
 
-    if (s->parameter_count != t->parameter_count) {
-        std::cerr << "Can't reprefix Type with " << s->parameter_count << " parameters: " << *this << "!\n";
+    if (s->get_parameter_count() != t->get_parameter_count()) {
+        std::cerr << "Can't reprefix Type with " << s->get_parameter_count() << " parameters: " << *this << "!\n";
         throw INTERNAL_ERROR;
     }
         

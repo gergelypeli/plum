@@ -2,7 +2,7 @@
 class OptionType: public Type {
 public:
     OptionType(std::string n)
-        :Type(n, 1) {
+        :Type(n, TSs { ANY_VALUETYPE_TS }, valuetype_type) {
     }
 
     static int get_flag_size(TypeSpec some_ts) {
@@ -279,21 +279,5 @@ public:
             
         std::cerr << "Can't match Option as " << n << "!\n";
         return NULL;
-    }
-};
-
-
-class OptionIsType: public Type {
-public:
-    OptionIsType(std::string n)
-        :Type(n, 1) {
-    }
-};
-
-
-class OptionAsType: public Type {
-public:
-    OptionAsType(std::string n)
-        :Type(n, 1) {
     }
 };

@@ -32,15 +32,15 @@ public:
             Value *r = typize(arg.get(), scope);
             TypeMatch match;
         
-            if (!typematch(ANY_TYPE_TS, r, match)) {
-                std::cerr << "Function result expression is not a type!\n";
+            if (!typematch(ANY_VALUETYPE_TS, r, match)) {
+                std::cerr << "Function result expression is not a value type!\n";
                 return false;
             }
             
             results.push_back(std::unique_ptr<Value>(r));
 
             // Add internal result variable
-            TypeSpec var_ts = r->ts.unprefix(type_type);
+            TypeSpec var_ts = r->ts.unprefix(valuetype_type);
             Variable *decl = new Variable("<result>", NO_TS, var_ts);
             rs->add(decl);
         }

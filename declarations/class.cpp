@@ -6,8 +6,8 @@ public:
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
 
-    ClassType(std::string name, int pc)
-        :HeapType(name, pc) {
+    ClassType(std::string name, TSs param_tss)
+        :HeapType(name, param_tss) {
     }
 
     virtual void complete_type() {
@@ -159,7 +159,7 @@ public:
 class StackType: public ClassType {
 public:
     StackType(std::string name)
-        :ClassType(name, 1) {
+        :ClassType(name, TSs { ANY_VALUETYPE_TS }) {
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
@@ -182,7 +182,7 @@ public:
 class QueueType: public ClassType {
 public:
     QueueType(std::string name)
-        :ClassType(name, 1) {
+        :ClassType(name, TSs { ANY_VALUETYPE_TS }) {
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
@@ -205,7 +205,7 @@ public:
 class SetType: public ClassType {
 public:
     SetType(std::string name)
-        :ClassType(name, 1) {
+        :ClassType(name, TSs { ANY_VALUETYPE_TS }) {
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
@@ -228,7 +228,7 @@ public:
 class MapType: public ClassType {
 public:
     MapType(std::string name)
-        :ClassType(name, 2) {
+        :ClassType(name, TSs { ANY_VALUETYPE_TS, ANY_VALUETYPE_TS }) {
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {

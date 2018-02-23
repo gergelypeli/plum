@@ -1,13 +1,27 @@
 
 void builtin_types(Scope *root_scope) {
-    any_type = new SpecialType("<Any>", 0);
+    generictype_type = new SpecialType("<Generic_type>", { NO_TS }, NULL);
+    root_scope->add(generictype_type);
+
+    valuetype_type = new SpecialType("<Value_type>", { NO_TS }, NULL);
+    root_scope->add(valuetype_type);
+
+    identitytype_type = new SpecialType("<Identity_type>", {NO_TS }, NULL);
+    root_scope->add(identitytype_type);
+
+    any_type = new SpecialType("<Any>", {}, NULL);
     root_scope->add(any_type);
 
-    any2_type = new SpecialType("<Any2>", 0);
+    any2_type = new SpecialType("<Any2>", {}, NULL);
     root_scope->add(any2_type);
 
-    any3_type = new SpecialType("<Any3>", 0);
+    any3_type = new SpecialType("<Any3>", {}, NULL);
     root_scope->add(any3_type);
+
+    ANY_TS = { any_type };
+    ANY_GENERICTYPE_TS = { generictype_type, any_type };
+    ANY_VALUETYPE_TS = { valuetype_type, any_type };
+    ANY_IDENTITYTYPE_TS = { identitytype_type, any_type };
 
     same_type = new SameType("<Same>");
     root_scope->add(same_type);
@@ -39,16 +53,13 @@ void builtin_types(Scope *root_scope) {
     implementation_metatype = new ImplementationMetaType(":Implementation");
     root_scope->add(implementation_metatype);
     
-    type_type = new SpecialType("<Type>", 1);
-    root_scope->add(type_type);
-
-    void_type = new SpecialType("Void", 0);
+    void_type = new SpecialType("Void", {}, valuetype_type);
     root_scope->add(void_type);
 
-    metatype_type = new SpecialType("<Metatype>", 0);
+    metatype_type = new SpecialType("<Metatype>", {}, NULL);
     root_scope->add(metatype_type);
 
-    multi_type = new SpecialType("<Multi>", 0);
+    multi_type = new SpecialType("<Multi>", {}, NULL);
     root_scope->add(multi_type);
 
     lvalue_type = new AttributeType("Lvalue");
@@ -114,13 +125,13 @@ void builtin_types(Scope *root_scope) {
     rbtree_type = new RbtreeType("Rbtree");
     root_scope->add(rbtree_type);
 
-    streamifiable_type = new InterfaceType("Streamifiable", 0);
+    streamifiable_type = new InterfaceType("Streamifiable", {});
     root_scope->add(streamifiable_type);
 
-    iterator_type = new InterfaceType("Iterator", 1);
+    iterator_type = new InterfaceType("Iterator", { ANY_VALUETYPE_TS });
     root_scope->add(iterator_type);
 
-    iterable_type = new InterfaceType("Iterable", 1);
+    iterable_type = new InterfaceType("Iterable", { ANY_VALUETYPE_TS });
     root_scope->add(iterable_type);
 
     string_type = new StringType("String");
@@ -128,12 +139,6 @@ void builtin_types(Scope *root_scope) {
 
     option_type = new OptionType("Option");
     root_scope->add(option_type);
-
-    optionis_type = new OptionIsType("<OptionIs>");
-    root_scope->add(optionis_type);
-
-    optionas_type = new OptionAsType("<OptionAs>");
-    root_scope->add(optionas_type);
 
     stack_type = new StackType("Stack");
     root_scope->add(stack_type);
@@ -147,37 +152,37 @@ void builtin_types(Scope *root_scope) {
     map_type = new MapType("Map");
     root_scope->add(map_type);
 
-    countup_type = new RecordType("Countup", 0);
+    countup_type = new RecordType("Countup", {});
     root_scope->add(countup_type);
 
-    countdown_type = new RecordType("Countdown", 0);
+    countdown_type = new RecordType("Countdown", {});
     root_scope->add(countdown_type);
 
     item_type = new ItemType("Item");
     root_scope->add(item_type);
 
-    arrayelemiter_type = new RecordType("Arrayelem_iter", 1);
+    arrayelemiter_type = new RecordType("Arrayelem_iter", { ANY_VALUETYPE_TS });
     root_scope->add(arrayelemiter_type);
     
-    arrayindexiter_type = new RecordType("Arrayindex_iter", 1);
+    arrayindexiter_type = new RecordType("Arrayindex_iter", { ANY_VALUETYPE_TS });
     root_scope->add(arrayindexiter_type);
     
-    arrayitemiter_type = new RecordType("Arrayitem_iter", 1);
+    arrayitemiter_type = new RecordType("Arrayitem_iter", { ANY_VALUETYPE_TS });
     root_scope->add(arrayitemiter_type);
 
-    circularrayelemiter_type = new RecordType("Circularrayelem_iter", 1);
+    circularrayelemiter_type = new RecordType("Circularrayelem_iter", { ANY_VALUETYPE_TS });
     root_scope->add(circularrayelemiter_type);
     
-    circularrayindexiter_type = new RecordType("Circularrayindex_iter", 1);
+    circularrayindexiter_type = new RecordType("Circularrayindex_iter", { ANY_VALUETYPE_TS });
     root_scope->add(circularrayindexiter_type);
     
-    circularrayitemiter_type = new RecordType("Circularrayitem_iter", 1);
+    circularrayitemiter_type = new RecordType("Circularrayitem_iter", { ANY_VALUETYPE_TS });
     root_scope->add(circularrayitemiter_type);
 
-    rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", 1);
+    rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", { ANY_VALUETYPE_TS });
     root_scope->add(rbtreeelembyageiter_type);
 
-    rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", 1);
+    rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { ANY_VALUETYPE_TS });
     root_scope->add(rbtreeelembyorderiter_type);
 
     iterator_done_exception_type = new TreenumerationType("<Iterator_done>", { "", "ITERATOR_DONE" }, { 0, 1 });
@@ -199,8 +204,6 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(code_break_exception_type);
     
     // NO_TS will contain no Type pointers
-    ANY_TS = { any_type };
-    ANY_TYPE_TS = { type_type, any_type };
     ANY_LVALUE_TS = { lvalue_type, any_type };
     ANY_OVALUE_TS = { ovalue_type, any_type };
     SAME_TS = { same_type };
@@ -211,7 +214,7 @@ void builtin_types(Scope *root_scope) {
     VOID_TS = { void_type };
     MULTI_TS = { multi_type };
     MULTI_LVALUE_TS = { lvalue_type, multi_type };
-    MULTI_TYPE_TS = { type_type, multi_type };
+    MULTI_GENERICTYPE_TS = { generictype_type, multi_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };
@@ -247,10 +250,6 @@ void builtin_types(Scope *root_scope) {
     STRING_LVALUE_TS = { lvalue_type, string_type };
     ANY_OPTION_TS = { option_type, any_type };
     ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
-    ANY_OPTIONIS_TS = { optionis_type, any_type };
-    ANY_OPTIONAS_TS = { optionas_type, any_type };
-    SAME_OPTIONIS_TS = { optionis_type, same_type };
-    SAME_OPTIONAS_TS = { optionas_type, same_type };
     ANY_STACK_REFERENCE_TS = { reference_type, stack_type, any_type };
     ANY_QUEUE_REFERENCE_TS = { reference_type, queue_type, any_type };
     ANY_SET_REFERENCE_TS = { reference_type, set_type, any_type };
@@ -495,28 +494,12 @@ void define_option() {
 
     is->add(new TemplateOperation<OptionOperationValue>("assign other", ANY_OPTION_LVALUE_TS, ASSIGN));
     is->add(new TemplateOperation<OptionOperationValue>("compare", ANY_OPTION_TS, COMPARE));
-    is->add(new Cast("is", ANY_OPTION_TS, SAME_OPTIONIS_TS));
-    is->add(new Cast("as", ANY_OPTION_TS, SAME_OPTIONAS_TS));
 
     implement(is, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<OptionStreamificationValue>("streamify", ANY_OPTION_TS)
     });
 
     option_type->complete_type();
-    
-    DataScope *iis = optionis_type->make_inner_scope(ANY_OPTIONIS_TS);
-    
-    iis->add(new TemplateIdentifier<OptionIsNoneValue>("none", ANY_OPTIONIS_TS));
-    iis->add(new TemplateIdentifier<OptionIsSomeValue>("some", ANY_OPTIONIS_TS));
-    
-    optionis_type->complete_type();
-
-    DataScope *ais = optionas_type->make_inner_scope(ANY_OPTIONAS_TS);
-    
-    ais->add(new TemplateIdentifier<OptionAsNoneValue>("none", ANY_OPTIONAS_TS));
-    ais->add(new TemplateIdentifier<OptionAsSomeValue>("some", ANY_OPTIONAS_TS));
-    
-    optionas_type->complete_type();
 }
 
 

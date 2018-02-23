@@ -25,14 +25,14 @@ public:
             
             if (value->ts[0] != lvalue_type)
                 is_lvalue = false;
-                
-            if (value->ts[0] != type_type)
+        
+            if (value->ts[0] != generictype_type && value->ts[0] != valuetype_type && value->ts[0] != identitytype_type)
                 is_type = false;
                 
             values.push_back(std::unique_ptr<Value>(value));
         }
         
-        ts = is_lvalue ? MULTI_LVALUE_TS : is_type ? MULTI_TYPE_TS : MULTI_TS;
+        ts = is_lvalue ? MULTI_LVALUE_TS : is_type ? MULTI_GENERICTYPE_TS : MULTI_TS;
         
         for (auto &v : values)
             tss.push_back(!is_lvalue && !is_type ? v->ts.rvalue() : v->ts);

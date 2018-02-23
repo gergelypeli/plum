@@ -512,7 +512,7 @@ test_options? :Function as:
     op2 = op1
     prints("And became: {op2}" {})
     prints("So they're now equal: {x}" {x: op1 == op2})
-    prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
+    #prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
     
     :is op1s? op1 ~some then:
         prints("It contained some {op1s}." {})

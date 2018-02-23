@@ -6,7 +6,7 @@ public:
     bool is_unsigned;
 
     BasicType(std::string n, unsigned s, bool iu)
-        :Type(n, 0) {
+        :Type(n, TSs {}, valuetype_type) {
         size = s;
         os = (s == 1 ? 0 : s == 2 ? 1 : s == 4 ? 2 : s == 8 ? 3 : throw INTERNAL_ERROR);        
         is_unsigned = iu;
