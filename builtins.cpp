@@ -107,7 +107,7 @@ void builtin_types(Scope *root_scope) {
     unsigned_integer8_type = new IntegerType("Unteger8", 1, true);
     root_scope->add(unsigned_integer8_type);
 
-    reference_type = new ReferenceType("Reference");
+    reference_type = new ReferenceType("Ref");
     root_scope->add(reference_type);
 
     partial_type = new PartialType("<Partial>");

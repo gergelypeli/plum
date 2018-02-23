@@ -88,6 +88,10 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual bool is_arg() {
+        throw INTERNAL_ERROR;
+    }
+
     virtual TypeSpec variable_type_hint(TypeSpec t) {
         TypeSpec ts = t;
         TypeSpecIter tsi(ts.begin());
@@ -143,6 +147,10 @@ public:
     
     virtual bool is_pure() {
         return true;
+    }
+
+    virtual bool is_arg() {
+        return false;
     }
     
     virtual void set_meta_scope(Scope *ms) {
@@ -257,6 +265,10 @@ public:
     }
     
     virtual bool is_pure() {
+        return false;
+    }
+    
+    virtual bool is_arg() {
         return false;
     }
     
@@ -404,6 +416,14 @@ public:
         :Scope() {
     }
 
+    virtual bool is_pure() {
+        return false;
+    }
+
+    virtual bool is_arg() {
+        return true;
+    }
+
     virtual void allocate() {
         // Backward, because the last arguments align to [RBP+16]
         for (int i = contents.size() - 1; i >= 0; i--)
@@ -422,10 +442,6 @@ public:
         
         //std::cerr << "Now size is " << size << " bytes.\n";
         return offset;
-    }
-
-    virtual bool is_pure() {
-        return true;
     }
 
     virtual TypeSpec variable_type_hint(TypeSpec ts) {

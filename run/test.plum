@@ -386,10 +386,10 @@ test_controls? :Function as:
 
 
 test_arrays? :Function as:
-    strings? String Array `empty
+    strings? String Array Ref `empty
     prints("Empty array length: {x}" { x: strings length })
 
-    ss? String Array { "foo", "bar" }
+    ss? String Array Ref { "foo", "bar" }
     prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
     ss_popped1? :try ss pop
@@ -397,7 +397,7 @@ test_arrays? :Function as:
     ss_popped2? String :try ss pop
     prints("Array popped {ss_popped2}" {})
 
-    st? String Stack `empty
+    st? String Stack Ref `empty
     :try st push("foo")
     :try st push("bar")
     :try st push("baz")
@@ -415,7 +415,7 @@ test_arrays? :Function as:
 
 
 test_circularrays? :Function as:
-    ca? String Circularray { "foo", "bar", "baz", "xxx" }
+    ca? String Circularray Ref { "foo", "bar", "baz", "xxx" }
     :try ca pop
     prints("Have a Circularray of {x}" { x: ca length })
     ca1? String :try ca shift
@@ -428,14 +428,14 @@ test_circularrays? :Function as:
     :for ca items each: it? do:
         prints("Circularray items: {x} => {y}" {x: it index, y: it value})
 
-    qu? String Queue { "A", "B", "C", "D", "E", "F", "G", "H" }
+    qu? String Queue Ref { "A", "B", "C", "D", "E", "F", "G", "H" }
     :try qu shift
     :try qu push "I"  # folds
     :try qu push "J"  # grows
     :for qu items each: it? do:
         prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
-    qv? String Queue { "A", "B", "C", "D", "E", "F", "G", "H" }
+    qv? String Queue Ref { "A", "B", "C", "D", "E", "F", "G", "H" }
     :try qv pop
     :try qv unshift "@"  # folds
     :try qv unshift "@@" # grows
@@ -444,7 +444,7 @@ test_circularrays? :Function as:
 
 
 test_rbtrees? :Function as:
-    rb? String Rbtree `reserved 8
+    rb? String Rbtree Ref `reserved 8
     
     :try
         rb add "A"
@@ -479,7 +479,7 @@ test_rbtrees? :Function as:
     :if !! rb has "A" then:
         prints("Rb has no A, good")
 
-    st? String Set { "A", "B" }
+    st? String Set Ref { "A", "B" }
     
     :try
         st add "C"
@@ -488,7 +488,7 @@ test_rbtrees? :Function as:
     :for st elements_by_age each: e? do:
         prints("Set element: {e}" {})
 
-    mp? (String, String) Map {{ "A", "a" }, { "B", "b" }}
+    mp? (String, String) Map Ref {{ "A", "a" }, { "B", "b" }}
     :try
         mp add("C", "c")
         mp add("D", "d")
@@ -526,7 +526,7 @@ test_options? :Function as:
             
 
 test_classes? :Function as:
-    gr? Greetable `init
+    gr? Greetable Ref `init
     gr greet
 
 

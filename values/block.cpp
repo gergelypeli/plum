@@ -246,6 +246,19 @@ public:
     virtual bool use(Value *v, Scope *scope) {
         value.reset(v);
 
+        if (scope->is_arg()) {
+            // Allow declaration by value types or special types
+            decl = value->declare_arg(name, scope);
+        
+            if (decl) {
+                scope->add(decl);
+                return true;
+            }
+            
+            std::cerr << "Declaration not allowed in arg scope: " << token << "!\n";
+            return false;
+        }
+
         if (!scope->is_pure()) {
             // Allow declaration by value or type
             var = value->declare_impure(name, scope);
@@ -266,7 +279,7 @@ public:
             return true;
         }
         
-        std::cerr << "Impure declaration not allowed in a pure context: " << token << "!\n";
+        std::cerr << "Impure declaration not allowed in pure scope: " << token << "!\n";
         return false;
     }
 

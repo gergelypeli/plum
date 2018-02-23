@@ -16,10 +16,14 @@ public:
         if (args.size() == 0)
             return true;
             
+        // Only allow explicit type context for value types
+        if (ts[0] != valuetype_type)
+            return false;
+            
         ts = ts.unprefix(ts[0]);
         
-        if (heap_type_cast(ts[0]))
-            ts = ts.prefix(reference_type);
+        //if (heap_type_cast(ts[0]))
+        //    ts = ts.prefix(reference_type);
         
         Value *v = typize(args[0].get(), scope, &ts);
         TypeMatch match;
@@ -47,13 +51,25 @@ public:
             return Storage();
     }
 
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
+    virtual Variable *declare_arg(std::string name, Scope *scope) {
+        if (!value && ts[0] != generictype_type && ts[0] != valuetype_type)
+            return NULL;
+            
         TypeSpec t = value ? ts : ts.unprefix(ts[0]);
         
         if (t[0] == code_type)
             return new Evaluable(name, scope->pivot_type_hint(), t);
         else
             return new Variable(name, scope->pivot_type_hint(), scope->variable_type_hint(t));
+    }
+
+    virtual Variable *declare_impure(std::string name, Scope *scope) {
+        if (!value && ts[0] != valuetype_type)
+            return NULL;
+
+        TypeSpec t = value ? ts : ts.unprefix(ts[0]);
+        
+        return new Variable(name, scope->pivot_type_hint(), scope->variable_type_hint(t));
     }
     
     virtual Declaration *declare_pure(std::string name, Scope *scope) {

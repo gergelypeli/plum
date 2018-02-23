@@ -309,7 +309,7 @@ public:
 class AttributeType: public Type {
 public:
     AttributeType(std::string n)
-        :Type(n, TSs { ANY_GENERICTYPE_TS }, generictype_type) {
+        :Type(n, TSs { ANY_VALUETYPE_TS }, generictype_type) {
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {

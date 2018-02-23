@@ -53,7 +53,7 @@ public:
     }
     
     // DeclarationValue invokes these methods if this expression appears in a declaration.
-    // In clode blocks first declare_impure is called, which may or may not return a Variable.
+    // In code blocks first declare_impure is called, which may or may not return a Variable.
     // If not, then declare_pure is called, which must return any Declaration.
     // Data blocks invoke only declare_pure, and if that returns NULL, that's a semantic error.
 
@@ -67,6 +67,10 @@ public:
     }
     
     virtual Declaration *declare_pure(std::string name, Scope *scope) {
+        return NULL;
+    }
+
+    virtual Declaration *declare_arg(std::string name, Scope *scope) {
         return NULL;
     }
     
