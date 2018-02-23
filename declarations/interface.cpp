@@ -66,12 +66,22 @@ class ImplementationType: public Type {
 public:
     std::vector<Function *> member_functions;
     TypeSpec interface_ts;
-    TypeSpec implementor_ts;
+    TypeSpec implementor_ts;  // aka pivot type
 
     ImplementationType(std::string name, TypeSpec irts, TypeSpec ifts)
-        :Type(name, TSs { ANY_GENERICTYPE_TS }, generictype_type) {
+        :Type(name, TSs { ANY_VALUETYPE_TS, ANY_GENERICTYPE_TS }, generictype_type) {
         interface_ts = ifts;
         implementor_ts = irts;
+    }
+
+    virtual TypeSpec get_interface_ts(TypeMatch &match) {
+        // NOTE: this match is the pivot match, not the TypeSpec match, which has two
+        // fixed parameters, the apparent interface TypeSpec, and the concrete TypeSpec!
+        
+        TypeSpec ts = typesubst(interface_ts, match);
+        //std::cerr << "Match: " << match << "\n";
+        //std::cerr << "Implementation " << name << " implements " << ts << ".\n";
+        return ts;
     }
 
     virtual void complete_type() {
@@ -142,13 +152,16 @@ public:
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *pivot) {
-        pivot = make_cast_value(pivot, get_typespec(pivot).begin() + 1);
+        // The second type parameter is the concrete type
+        pivot = make_cast_value(pivot, tm[2]);
             
         return inner_scope->lookup(n, pivot);
     }
     
-    virtual TypeSpec get_interface_ts(TypeMatch &match) {
-        return typesubst(interface_ts, match);
+    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+        // The first type parameter is the apparent type
+        return tm[1].autoconv(target, orig, ifts);
     }
 };
+
 

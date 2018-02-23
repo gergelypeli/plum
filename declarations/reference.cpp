@@ -195,6 +195,10 @@ public:
     virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
         return tm[1].get_virtual_table_label(x64);
     }
+
+    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+        return tm[1].autoconv(target, orig, ifts);
+    }
 };
 
 

@@ -353,7 +353,7 @@ public:
         if (!check_args(args, { "", &ANY_ITERABLE_TS, scope, &ib}))
             return false;
     
-        //std::cerr << "XXX iterable is " << ib->ts << "\n";
+        //std::cerr << "XXX :foreach iterable is " << ib->ts << "\n";
         
         Value *ib2 = lookup_fake("iter", ib.release(), token, scope, NULL);
         

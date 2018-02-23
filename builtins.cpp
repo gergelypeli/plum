@@ -9,27 +9,29 @@ void builtin_types(Scope *root_scope) {
     identitytype_type = new SpecialType("<Identity_type>", {NO_TS }, NULL);
     root_scope->add(identitytype_type);
 
-    any_type = new SpecialType("<Any>", {}, NULL);
+    any_type = new SpecialType("<Any>", {}, valuetype_type);
     root_scope->add(any_type);
 
-    any2_type = new SpecialType("<Any2>", {}, NULL);
+    any2_type = new SpecialType("<Any2>", {}, valuetype_type);
     root_scope->add(any2_type);
 
-    any3_type = new SpecialType("<Any3>", {}, NULL);
+    any3_type = new SpecialType("<Any3>", {}, valuetype_type);
     root_scope->add(any3_type);
 
+    // NOTE: although Any only matches value types normally, when checking type parameters
+    // this is not enforced, so everything matches them there.
     ANY_TS = { any_type };
     ANY_GENERICTYPE_TS = { generictype_type, any_type };
     ANY_VALUETYPE_TS = { valuetype_type, any_type };
     ANY_IDENTITYTYPE_TS = { identitytype_type, any_type };
 
-    same_type = new SameType("<Same>");
+    same_type = new SameType("<Same>", {}, valuetype_type);
     root_scope->add(same_type);
 
-    same2_type = new SameType("<Same2>");
+    same2_type = new SameType("<Same2>", {}, valuetype_type);
     root_scope->add(same2_type);
 
-    same3_type = new SameType("<Same3>");
+    same3_type = new SameType("<Same3>", {}, valuetype_type);
     root_scope->add(same3_type);
 
     integer_metatype = new IntegerMetaType(":Integer");
@@ -380,6 +382,7 @@ void define_interfaces() {
     implement(iis, SAME_ITERABLE_TS, "ible", {
         // This must return the concrete type, so the pivot type must be Any so that no
         // conversion to an interface happens, which would hide the concrete type.
+        // TODO: why would an ANY_ITERATOR_TS pivot break anything?
         new Identity("iter", ANY_TS)
     });
     iterator_type->complete_type();

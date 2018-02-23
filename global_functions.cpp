@@ -323,7 +323,7 @@ Declaration *make_record_compare() {
 
 
 // TypeSpec operations
-
+/*
 bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts) {
     ImplementationType *imp = dynamic_cast<ImplementationType *>(t);
 
@@ -336,9 +336,10 @@ bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec 
 
     return false;
 }
+*/
 
-
-Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+    Scope *inner_scope = match[0][0]->get_inner_scope(match);
     if (!inner_scope)
         return NULL;
 
@@ -346,19 +347,17 @@ Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter ta
         ImplementationType *imp = dynamic_cast<ImplementationType *>(d.get());
 
         if (imp) {
-            ifts = imp->get_interface_ts(match);
+            ifts = imp->get_interface_ts(match);   // pivot match
 
             // FIXME: check for proper type match!
             if (ifts[0] == *target) {
                 // Direct implementation
+                //std::cerr << "Found direct implementation.\n";
                 return make_implementation_conversion_value(imp, orig, match);
             }
             else {
-                // Maybe indirect implementation
-                Scope *ifscope = ifts.get_inner_scope();
-                TypeMatch ifmatch = type_parameters_to_match(ifts);
-                Value *v = find_implementation(ifscope, ifmatch, target, orig, ifts);
-
+                //std::cerr << "Trying indirect implementation with " << ifts << "\n";
+                Value *v = ifts.autoconv(target, orig, ifts);
                 if (v)
                     return v;
             }
@@ -432,6 +431,11 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
             t++;
         }
         else if (*t == any_type || *t == any2_type || *t == any3_type) {
+            if ((*s)->my_type != valuetype_type) {
+                MATCHLOG std::cerr << "No match, nonvalue type for any!\n";
+                return false;
+            }
+            
             int mi = (*t == any_type ? 1 : *t == any2_type ? 2 : 3);
             unsigned c = 1;
     

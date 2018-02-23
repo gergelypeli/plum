@@ -4,7 +4,7 @@ class RecordOperationValue: public GenericOperationValue {
 public:
     RecordOperationValue(OperationType o, Value *p, TypeMatch &match)
         :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p) {
-        std::cerr << "XXX Record " << match[0] << " operation " << o << ".\n";
+        //std::cerr << "XXX Record " << match[0] << " operation " << o << ".\n";
     }
 };
 

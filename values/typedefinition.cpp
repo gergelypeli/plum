@@ -451,13 +451,13 @@ public:
         Value *v = typize(args[0].get(), scope, NULL);
         TypeMatch match;
         
-        if (!typematch(ANY_GENERICTYPE_TS, v, match)) {
+        if (v->ts[0] != generictype_type) {
             std::cerr << "Implementation needs an interface type name!\n";
             return false;
         }
         
         TypeSpec implementor_ts = scope->pivot_type_hint();
-        interface_ts = match[1];  // NOTE: May still contain Some types
+        interface_ts = v->ts.unprefix(generictype_type);  // NOTE: May still contain Some types
         implementation_type = new ImplementationType("<anonymous>", implementor_ts, interface_ts);
 
         setup_inner(implementation_type, implementor_ts);

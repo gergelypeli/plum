@@ -124,12 +124,16 @@ public:
 
 class ImplementationConversionValue: public Value {
 public:
-    ImplementationType *implementation_type;
     std::unique_ptr<Value> orig;
     
-    ImplementationConversionValue(ImplementationType *imt, Value *o, TypeMatch &match)
-        :Value(o->ts.prefix(imt)) {
-        implementation_type = imt;
+    ImplementationConversionValue(ImplementationType *imt, Value *o, TypeMatch &tm)
+        :Value(TypeSpec { imt }) {
+        TypeSpec ifts = imt->get_interface_ts(tm);
+        TypeSpec ots = o->ts;  // FIXME: if that's an ICV, too, then parse the orig ts from it!
+        
+        ts.insert(ts.end(), ifts.begin(), ifts.end());
+        ts.insert(ts.end(), ots.begin(), ots.end());
+            
         orig.reset(o);
         //std::cerr << "XXX Created implementation conversion " << implementation_type->name << " as " << ts << ".\n";;
     }

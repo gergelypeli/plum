@@ -62,7 +62,6 @@ public:
         
         TSs tss;
         unsigned pc = get_parameter_count();
-        std::cerr << "XXX " << name << " " << param_tss << " " << get_typespec(pivot) << "\n";
             
         if (pc == 0) {
             if (pivot)
@@ -244,13 +243,12 @@ public:
     }
     
     virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
-        //TypeMatch match = type_parameters_to_match(TypeSpec(tsi));
-        
-        if (is_implementation(this, tm, target, ifts))
+        if (tm[0][0] == *target) {
+            ifts = tm[0];
             return orig;
-            
-        Scope *inner_scope = get_inner_scope(tm);
-        return find_implementation(inner_scope, tm, target, orig, ifts);
+        }
+
+        return find_implementation(tm, target, orig, ifts);
     }
     
     virtual void complete_type() {
@@ -275,8 +273,8 @@ public:
 
 class SameType: public Type {
 public:
-    SameType(std::string name)
-        :Type(name, {}, generictype_type) {
+    SameType(std::string name, TSs param_tss, Type *mt)
+        :Type(name, param_tss, mt) {
     }
     
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {

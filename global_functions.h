@@ -6,7 +6,6 @@ DeclarationValue *declaration_value_cast(Value *value);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 
-
 // Declaration wrappers
 
 Variable *variable_cast(Declaration *decl);
@@ -17,8 +16,8 @@ Declaration *make_record_compare();
 // TypeSpec operations
 
 TypeSpec get_typespec(Value *value);
-bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts);
-Value *find_implementation(Scope *inner_scope, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
+//bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts);
+Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match, CodeScope *code_scope = NULL);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 TypeMatch type_parameters_to_match(TypeSpec ts);
