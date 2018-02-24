@@ -45,7 +45,7 @@ public:
         }
 
         Scope *ss = fn_scope->add_self_scope();
-        if (scope->is_pure()) {
+        if (scope->type == DATA_SCOPE) {
             pivot_ts = scope->pivot_type_hint();
             
             if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
@@ -69,7 +69,7 @@ public:
             TreenumerationDefinitionValue *tdv = dynamic_cast<TreenumerationDefinitionValue *>(v);
             
             if (v) {
-                Declaration *ed = tdv->declare_pure("<may>", scope);
+                Declaration *ed = tdv->declare("<may>", scope->type);
                 TreenumerationType *t = dynamic_cast<TreenumerationType *>(ed);
                 
                 if (t) {
@@ -204,11 +204,12 @@ public:
         return fn_scope->body_scope;  // stop unwinding here, and start destroying scoped variables
     }
 
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        return NULL;
-    }
-    
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st != DATA_SCOPE) {
+            std::cerr << "Can't declare functions in this scope!\n";
+            return NULL;
+        }
+        
         std::vector<TypeSpec> arg_tss;
         std::vector<std::string> arg_names;
         std::vector<TypeSpec> result_tss;

@@ -78,7 +78,7 @@ public:
         :Value(VOID_TS) {
         scope = s;
         
-        if (!s->is_pure())
+        if (s->type != DATA_SCOPE)
             throw INTERNAL_ERROR;
     }
 
@@ -246,41 +246,23 @@ public:
     virtual bool use(Value *v, Scope *scope) {
         value.reset(v);
 
-        if (scope->is_arg()) {
-            // Allow declaration by value types or special types
-            decl = value->declare_arg(name, scope);
+        decl = value->declare(name, scope->type);
         
-            if (decl) {
-                scope->add(decl);
-                return true;
-            }
-            
-            std::cerr << "Declaration not allowed in arg scope: " << token << "!\n";
+        if (!decl) {
+            std::cerr << "Invalid declaration: " << token << "!\n";
             return false;
         }
 
-        if (!scope->is_pure()) {
-            // Allow declaration by value or type
-            var = value->declare_impure(name, scope);
+        scope->add(decl);
         
-            if (var) {
-                decl = var;
-                scope->add(decl);
+        if (scope->type == CODE_SCOPE) {
+            var = variable_cast(decl);
+            
+            if (var)
                 ts = var->var_ts;
-                return true;
-            }
         }
         
-        // Allow declaration by type or metatype
-        decl = value->declare_pure(name, scope);
-        
-        if (decl) {
-            scope->add(decl);
-            return true;
-        }
-        
-        std::cerr << "Impure declaration not allowed in pure scope: " << token << "!\n";
-        return false;
+        return true;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -290,6 +272,23 @@ public:
         }
 
         std::cerr << "Trying to declare " << name << "\n";
+
+        if (args.size() == 0) {
+            if (!context || (*context)[0] != dvalue_type) {
+                std::cerr << "Bare declaration is not allowed in this context!\n";
+                return false;
+            }
+
+            ts = *context;
+            TypeSpec var_ts = ts.reprefix(dvalue_type, lvalue_type);
+            var = new RetroVariable(name, NO_TS, var_ts);
+            
+            decl = var;
+            scope->add(decl);
+            
+            return true;
+        }
+
         auto pos = name.find(".");
         
         if (pos != std::string::npos) {
@@ -313,26 +312,8 @@ public:
             
             scope = inner_scope;
         }
-
-        Value *v;
         
-        if (args.size() == 0) {
-            if (!context || (*context)[0] != dvalue_type) {
-                std::cerr << "Bare declaration is not allowed in this context!\n";
-                return false;
-            }
-
-            ts = *context;
-            TypeSpec var_ts = ts.reprefix(dvalue_type, lvalue_type);
-            var = new RetroVariable(name, NO_TS, var_ts);
-            
-            decl = var;
-            scope->add(decl);
-            
-            return true;
-        }
-        else
-            v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
+        Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
         
         return use(v, scope);
     }

@@ -682,7 +682,7 @@ void builtin_runtime(Scope *root_scope) {
 
 
 Scope *init_builtins() {
-    Scope *root_scope = new Scope();
+    Scope *root_scope = new Scope(ROOT_SCOPE);
 
     builtin_types(root_scope);
 

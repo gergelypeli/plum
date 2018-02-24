@@ -111,12 +111,11 @@ public:
         return Storage();
     }
 
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        return NULL;
-    }
-
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        return new IntegerType(name, size, is_not_signed);
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE)
+            return new IntegerType(name, size, is_not_signed);
+        else
+            return NULL;
     }
 };
 
@@ -157,13 +156,13 @@ public:
         return Storage();
     }
     
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        return NULL;
-    }
-
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        declname = name;
-        return new EnumerationType(name, keywords);
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+            declname = name;
+            return new EnumerationType(name, keywords);
+        }
+        else
+            return NULL;
     }
 };
 
@@ -250,13 +249,13 @@ public:
         return Storage();
     }
     
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        return NULL;
-    }
-
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        declname = name;
-        return new TreenumerationType(name, keywords, tails);
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+            declname = name;
+            return new TreenumerationType(name, keywords, tails);
+        }
+        else
+            return NULL;
     }
 };
 
@@ -307,13 +306,13 @@ public:
         return data_value->compile(x64);
     }
 
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        return NULL;
-    }
-
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        record_type->set_name(name);
-        return record_type;
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+            record_type->set_name(name);
+            return record_type;
+        }
+        else
+            return NULL;
     }
 };
 
@@ -360,13 +359,13 @@ public:
         return data_value->compile(x64);
     }
 
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        return NULL;
-    }
-
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        class_type->set_name(name);
-        return class_type;
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+            class_type->set_name(name);
+            return class_type;
+        }
+        else
+            return NULL;
     }
 };
 
@@ -422,13 +421,13 @@ public:
         return data_value->compile(x64);
     }
 
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        return NULL;
-    }
-
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        interface_type->set_name(name);
-        return interface_type;
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+            interface_type->set_name(name);
+            return interface_type;
+        }
+        else
+            return NULL;
     }
 };
 
@@ -548,13 +547,13 @@ public:
         return data_value->compile(x64);
     }
 
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        return NULL;
-    }
-
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        implementation_type->set_name(name);
-        return implementation_type;
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+            implementation_type->set_name(name);
+            return implementation_type;
+        }
+        else
+            return NULL;
     }
 };
 

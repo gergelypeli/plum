@@ -1,4 +1,8 @@
 
+enum ScopeType {
+    ROOT_SCOPE, DATA_SCOPE, CODE_SCOPE, ARGUMENT_SCOPE, FUNCTION_SCOPE
+};
+
 
 class Scope: virtual public Declaration {
 public:
@@ -7,9 +11,11 @@ public:
     bool is_allocated;  // for sanity checks
     std::vector<Function *> virtual_table;
     bool virtual_scope;
+    ScopeType type;
     
-    Scope()
+    Scope(ScopeType st)
         :Declaration() {
+        type = st;
         size = Allocation { 0, 0, 0, 0 };
         is_allocated = false;
         virtual_scope = false;
@@ -84,14 +90,6 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual bool is_pure() {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual bool is_arg() {
-        throw INTERNAL_ERROR;
-    }
-
     virtual TypeSpec pivot_type_hint() {
         throw INTERNAL_ERROR;
     }
@@ -127,17 +125,9 @@ public:
     Scope *meta_scope;
     
     DataScope()
-        :Scope() {
+        :Scope(DATA_SCOPE) {
         pivot_ts = NO_TS;
         meta_scope = NULL;
-    }
-    
-    virtual bool is_pure() {
-        return true;
-    }
-
-    virtual bool is_arg() {
-        return false;
     }
     
     virtual void set_meta_scope(Scope *ms) {
@@ -189,7 +179,7 @@ public:
     bool is_taken;  // too
     
     CodeScope()
-        :Scope() {
+        :Scope(CODE_SCOPE) {
         contents_finalized = false;
         is_taken = false;
     }
@@ -242,14 +232,6 @@ public:
             offset.count2 - size.count2,
             offset.count3 - size.count3
         };
-    }
-    
-    virtual bool is_pure() {
-        return false;
-    }
-    
-    virtual bool is_arg() {
-        return false;
     }
     
     virtual TypeSpec pivot_type_hint() {
@@ -386,15 +368,7 @@ public:
 class ArgumentScope: public Scope {
 public:
     ArgumentScope()
-        :Scope() {
-    }
-
-    virtual bool is_pure() {
-        return false;
-    }
-
-    virtual bool is_arg() {
-        return true;
+        :Scope(ARGUMENT_SCOPE) {
     }
 
     virtual void allocate() {
@@ -434,7 +408,7 @@ public:
     TreenumerationType *exception_type;
 
     FunctionScope()
-        :Scope() {
+        :Scope(FUNCTION_SCOPE) {
         result_scope = NULL;
         self_scope = NULL;
         head_scope = NULL;

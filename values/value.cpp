@@ -51,29 +51,20 @@ public:
         //std::cerr << "Compiled and storing a " << ts << " from " << s << " to " << t << ".\n";
         ts.store(s, t, x64);
     }
-    
-    // DeclarationValue invokes these methods if this expression appears in a declaration.
-    // In code blocks first declare_impure is called, which may or may not return a Variable.
-    // If not, then declare_pure is called, which must return any Declaration.
-    // Data blocks invoke only declare_pure, and if that returns NULL, that's a semantic error.
 
-    virtual Variable *declare_impure(std::string name, Scope *scope) {
-        if (ts == VOID_TS) {
-            std::cerr << "Can't declare " << name << " as Void!\n";
-            return NULL;
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == CODE_SCOPE) {
+            if (ts == VOID_TS) {
+                std::cerr << "Can't declare " << name << " as Void!\n";
+                return NULL;
+            }
+        
+            TypeSpec var_ts = (ts[0]->type == ATTRIBUTE_TYPE ? ts.reprefix(ts[0], lvalue_type) : ts.lvalue());
+        
+            return new Variable(name, NO_TS, var_ts);
         }
-        
-        TypeSpec var_ts = (ts[0]->type == ATTRIBUTE_TYPE ? ts.reprefix(ts[0], lvalue_type) : ts.lvalue());
-        
-        return new Variable(name, NO_TS, var_ts);
-    }
-    
-    virtual Declaration *declare_pure(std::string name, Scope *scope) {
-        return NULL;
-    }
-
-    virtual Declaration *declare_arg(std::string name, Scope *scope) {
-        return NULL;
+        else
+            return NULL;
     }
     
     virtual bool unpack(std::vector<TypeSpec> &tss) {
