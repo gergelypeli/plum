@@ -52,7 +52,7 @@ public:
     }
 
     virtual Variable *declare_arg(std::string name, Scope *scope) {
-        if (!value && ts[1]->type != GENERIC_TYPE && ts[1]->type != VALUE_TYPE)
+        if (!value && ts[1]->type != ATTRIBUTE_TYPE && ts[1]->type != VALUE_TYPE)
             return NULL;
             
         TypeSpec t = value ? ts : ts.unprefix(ts[0]);
@@ -60,7 +60,7 @@ public:
         if (t[0] == code_type)
             return new Evaluable(name, scope->pivot_type_hint(), t);
         else
-            return new Variable(name, scope->pivot_type_hint(), scope->variable_type_hint(t));
+            return new Variable(name, scope->pivot_type_hint(), t);
     }
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
@@ -69,7 +69,7 @@ public:
 
         TypeSpec t = value ? ts : ts.unprefix(ts[0]);
         
-        return new Variable(name, scope->pivot_type_hint(), scope->variable_type_hint(t));
+        return new Variable(name, scope->pivot_type_hint(), t.lvalue());
     }
     
     virtual Declaration *declare_pure(std::string name, Scope *scope) {

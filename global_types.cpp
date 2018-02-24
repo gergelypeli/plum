@@ -75,16 +75,6 @@ TypeSpec TypeSpec::lvalue() {
 }
 
 
-TypeSpec TypeSpec::nonlvalue() {
-    return at(0) == lvalue_type ? unprefix(lvalue_type) : *this;
-}
-
-
-TypeSpec TypeSpec::nonrvalue() {
-    return at(0) != lvalue_type && at(0) != ovalue_type ? prefix(lvalue_type) : *this;
-}
-
-
 TypeSpec TypeSpec::varvalue() {
     return heap_type_cast(at(0)) ? prefix(reference_type) : *this;
 }

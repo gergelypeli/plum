@@ -322,12 +322,12 @@ public:
                 return false;
             }
 
-            TypeSpec var_ts = scope->variable_type_hint((*context).unprefix(dvalue_type));
+            ts = *context;
+            TypeSpec var_ts = ts.reprefix(dvalue_type, lvalue_type);
             var = new RetroVariable(name, NO_TS, var_ts);
             
             decl = var;
             scope->add(decl);
-            ts = var->var_ts.reprefix(lvalue_type, dvalue_type);
             
             return true;
         }

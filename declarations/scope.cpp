@@ -92,19 +92,6 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual TypeSpec variable_type_hint(TypeSpec t) {
-        TypeSpec ts = t;
-        TypeSpecIter tsi(ts.begin());
-        
-        if (*tsi == lvalue_type || *tsi == ovalue_type || *tsi == code_type)
-            tsi++;
-            
-        if (heap_type_cast(*tsi))
-            ts.insert(tsi, reference_type);
-            
-        return ts;
-    }
-    
     virtual TypeSpec pivot_type_hint() {
         throw INTERNAL_ERROR;
     }
@@ -186,13 +173,6 @@ public:
         return pos;
     }
 
-    virtual TypeSpec variable_type_hint(TypeSpec ts) {
-        if (ts[0] == lvalue_type || ts[0] == ovalue_type || ts[0] == code_type)
-            throw TYPE_ERROR;
-        
-        return Scope::variable_type_hint(ts).lvalue();
-    }
-    
     virtual TypeSpec pivot_type_hint() {
         //if (pivot_ts == NO_TS)
         //    throw INTERNAL_ERROR;
@@ -270,13 +250,6 @@ public:
     
     virtual bool is_arg() {
         return false;
-    }
-    
-    virtual TypeSpec variable_type_hint(TypeSpec ts) {
-        if (ts[0] == lvalue_type || ts[0] == ovalue_type || ts[0] == code_type)
-            throw TYPE_ERROR;
-        
-        return Scope::variable_type_hint(ts).lvalue();
     }
     
     virtual TypeSpec pivot_type_hint() {
@@ -444,10 +417,6 @@ public:
         return offset;
     }
 
-    virtual TypeSpec variable_type_hint(TypeSpec ts) {
-        return Scope::variable_type_hint(ts);
-    }
-    
     virtual TypeSpec pivot_type_hint() {
         return NO_TS;
     }

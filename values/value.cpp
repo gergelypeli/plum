@@ -62,8 +62,10 @@ public:
             std::cerr << "Can't declare " << name << " as Void!\n";
             return NULL;
         }
-            
-        return new Variable(name, NO_TS, scope->variable_type_hint(ts.rvalue()));
+        
+        TypeSpec var_ts = (ts[0]->type == ATTRIBUTE_TYPE ? ts.reprefix(ts[0], lvalue_type) : ts.lvalue());
+        
+        return new Variable(name, NO_TS, var_ts);
     }
     
     virtual Declaration *declare_pure(std::string name, Scope *scope) {

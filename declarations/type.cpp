@@ -1,6 +1,6 @@
 
 enum TypeType {
-    GENERIC_TYPE, VALUE_TYPE, IDENTITY_TYPE
+    GENERIC_TYPE, VALUE_TYPE, IDENTITY_TYPE, ATTRIBUTE_TYPE
 };
 
 
@@ -104,14 +104,7 @@ public:
             TypeType tt = ts[1]->type;
             TypeType &ptt = param_tts[i];
             
-            bool ok = (
-                ptt == GENERIC_TYPE ? (tt == GENERIC_TYPE || tt == VALUE_TYPE || tt == IDENTITY_TYPE) :
-                ptt == VALUE_TYPE ? tt == VALUE_TYPE :
-                ptt == IDENTITY_TYPE ? tt == IDENTITY_TYPE :
-                false
-            );
-            
-            if (!ok)
+            if (ptt != GENERIC_TYPE && ptt != tt)
                 return NULL;
                 
             // TODO: this is becoming obsolete...
@@ -317,7 +310,7 @@ public:
 class AttributeType: public Type {
 public:
     AttributeType(std::string n)
-        :Type(n, TTs { VALUE_TYPE }, GENERIC_TYPE) {
+        :Type(n, TTs { VALUE_TYPE }, ATTRIBUTE_TYPE) {
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
