@@ -2,7 +2,7 @@
 class OptionType: public Type {
 public:
     OptionType(std::string n)
-        :Type(n, TSs { ANY_VALUETYPE_TS }, valuetype_type) {
+        :Type(n, TTs { VALUE_TYPE }, VALUE_TYPE) {
     }
 
     static int get_flag_size(TypeSpec some_ts) {

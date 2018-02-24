@@ -2,7 +2,7 @@
 class ReferenceType: public Type {
 public:
     ReferenceType(std::string name)
-        :Type(name, TSs { ANY_IDENTITYTYPE_TS }, valuetype_type) {
+        :Type(name, TTs { IDENTITY_TYPE }, VALUE_TYPE) {
     }
     
     virtual Allocation measure(TypeMatch tm) {
@@ -204,8 +204,8 @@ public:
 
 class HeapType: public Type {
 public:
-    HeapType(std::string name, TSs param_tss)
-        :Type(name, param_tss, identitytype_type) {
+    HeapType(std::string name, TTs param_tts)
+        :Type(name, param_tts, IDENTITY_TYPE) {
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -218,7 +218,7 @@ public:
 class ArrayType: public HeapType {
 public:
     ArrayType(std::string name)
-        :HeapType(name, TSs { ANY_VALUETYPE_TS }) {
+        :HeapType(name, TTs { VALUE_TYPE }) {
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
     
@@ -272,7 +272,7 @@ public:
 class CircularrayType: public HeapType {
 public:
     CircularrayType(std::string name)
-        :HeapType(name, TSs { ANY_VALUETYPE_TS }) {
+        :HeapType(name, TTs { VALUE_TYPE }) {
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
 
@@ -343,7 +343,7 @@ public:
 class RbtreeType: public HeapType {
 public:
     RbtreeType(std::string name)
-        :HeapType(name, TSs { ANY_VALUETYPE_TS }) {
+        :HeapType(name, TTs { VALUE_TYPE }) {
         make_inner_scope(TypeSpec { reference_type, this, any_type });
     }
     

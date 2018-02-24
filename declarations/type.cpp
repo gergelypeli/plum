@@ -1,21 +1,28 @@
 
+enum TypeType {
+    GENERIC_TYPE, VALUE_TYPE, IDENTITY_TYPE
+};
+
+
+typedef std::vector<TypeType> TTs;
+
 
 class Type: public Declaration {
 public:
     std::string name;
-    TSs param_tss;
+    TTs param_tts;
     DataScope *inner_scope;  // Will be owned by the outer scope
-    Type *my_type;
+    TypeType type;
     
-    Type(std::string n, std::vector<TypeSpec> ptss, Type *mt) {
+    Type(std::string n, TTs ptts, TypeType tt) {
         name = n;
-        param_tss = ptss;
-        my_type = mt;
+        param_tts = ptts;
+        type = tt;
         inner_scope = NULL;
     }
     
     virtual unsigned get_parameter_count() {
-        return param_tss.size();
+        return param_tts.size();
     }
     
     virtual void set_name(std::string n) {
@@ -76,7 +83,7 @@ public:
         else {
             TypeMatch match;
             
-            if (!typematch(MULTI_GENERICTYPE_TS, pivot, match))
+            if (!typematch(MULTI_TYPE_TS, pivot, match))
                 return NULL;
                 
             if (!unpack_value(pivot, tss))
@@ -86,25 +93,28 @@ public:
                 return NULL;
         }
         
-        TypeSpec result_ts = { my_type, this };
+        TypeSpec result_ts = { type_type, this };
         
         for (unsigned i = 0; i < pc; i++) {
             TypeSpec &ts = tss[i];
-            TypeSpec &pts = param_tss[i];
+            
+            if (ts[0] != type_type)
+                return NULL;
+            
+            TypeType tt = ts[1]->type;
+            TypeType &ptt = param_tts[i];
             
             bool ok = (
-                pts[0] == generictype_type ? (ts[0] == generictype_type || ts[0] == valuetype_type || ts[0] == identitytype_type) :
-                pts[0] == valuetype_type ? ts[0] == valuetype_type :
-                pts[0] == identitytype_type ? ts[0] == identitytype_type :
+                ptt == GENERIC_TYPE ? (tt == GENERIC_TYPE || tt == VALUE_TYPE || tt == IDENTITY_TYPE) :
+                ptt == VALUE_TYPE ? tt == VALUE_TYPE :
+                ptt == IDENTITY_TYPE ? tt == IDENTITY_TYPE :
                 false
             );
             
             if (!ok)
                 return NULL;
                 
-            if (pts[1] != any_type)
-                throw INTERNAL_ERROR;
-                
+            // TODO: this is becoming obsolete...
             if (ts[1] == lvalue_type || ts[1] == ovalue_type || ts[1] == code_type || ts[1] == multi_type) {
                 std::cerr << "Invalid type parameter: " << ts << "!\n";
                 return NULL;
@@ -258,8 +268,8 @@ public:
 
 class SpecialType: public Type {
 public:
-    SpecialType(std::string name, TSs param_tss, Type *mt)
-        :Type(name, param_tss, mt) {
+    SpecialType(std::string name, TTs param_tts, TypeType tt)
+        :Type(name, param_tts, tt) {
     }
     
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -273,8 +283,8 @@ public:
 
 class SameType: public Type {
 public:
-    SameType(std::string name, TSs param_tss, Type *mt)
-        :Type(name, param_tss, mt) {
+    SameType(std::string name, TTs param_tts, TypeType tt)
+        :Type(name, param_tts, tt) {
     }
     
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
@@ -307,7 +317,7 @@ public:
 class AttributeType: public Type {
 public:
     AttributeType(std::string n)
-        :Type(n, TSs { ANY_VALUETYPE_TS }, generictype_type) {
+        :Type(n, TTs { VALUE_TYPE }, GENERIC_TYPE) {
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
@@ -371,7 +381,7 @@ public:
 class PartialType: public Type {
 public:
     PartialType(std::string name)
-        :Type(name, TSs { ANY_VALUETYPE_TS }, valuetype_type) {
+        :Type(name, TTs { VALUE_TYPE }, VALUE_TYPE) {
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
@@ -412,7 +422,7 @@ public:
     TypeDefinitionFactory factory;
     
     MetaType(std::string name, TypeDefinitionFactory f)
-        :Type(name, {}, generictype_type) {
+        :Type(name, TTs {}, GENERIC_TYPE) {
         factory = f;
         make_inner_scope(TypeSpec { any_type });
     }

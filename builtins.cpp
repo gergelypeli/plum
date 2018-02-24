@@ -1,37 +1,24 @@
 
 void builtin_types(Scope *root_scope) {
-    generictype_type = new SpecialType("<Generic_type>", { NO_TS }, NULL);
-    root_scope->add(generictype_type);
+    type_type = new SpecialType("<Type>", { GENERIC_TYPE }, GENERIC_TYPE);
+    root_scope->add(type_type);
 
-    valuetype_type = new SpecialType("<Value_type>", { NO_TS }, NULL);
-    root_scope->add(valuetype_type);
-
-    identitytype_type = new SpecialType("<Identity_type>", {NO_TS }, NULL);
-    root_scope->add(identitytype_type);
-
-    any_type = new SpecialType("<Any>", {}, valuetype_type);
+    any_type = new SpecialType("<Any>", {}, VALUE_TYPE);
     root_scope->add(any_type);
 
-    any2_type = new SpecialType("<Any2>", {}, valuetype_type);
+    any2_type = new SpecialType("<Any2>", {}, VALUE_TYPE);
     root_scope->add(any2_type);
 
-    any3_type = new SpecialType("<Any3>", {}, valuetype_type);
+    any3_type = new SpecialType("<Any3>", {}, VALUE_TYPE);
     root_scope->add(any3_type);
 
-    // NOTE: although Any only matches value types normally, when checking type parameters
-    // this is not enforced, so everything matches them there.
-    ANY_TS = { any_type };
-    ANY_GENERICTYPE_TS = { generictype_type, any_type };
-    ANY_VALUETYPE_TS = { valuetype_type, any_type };
-    ANY_IDENTITYTYPE_TS = { identitytype_type, any_type };
-
-    same_type = new SameType("<Same>", {}, valuetype_type);
+    same_type = new SameType("<Same>", {}, VALUE_TYPE);
     root_scope->add(same_type);
 
-    same2_type = new SameType("<Same2>", {}, valuetype_type);
+    same2_type = new SameType("<Same2>", {}, VALUE_TYPE);
     root_scope->add(same2_type);
 
-    same3_type = new SameType("<Same3>", {}, valuetype_type);
+    same3_type = new SameType("<Same3>", {}, VALUE_TYPE);
     root_scope->add(same3_type);
 
     integer_metatype = new IntegerMetaType(":Integer");
@@ -55,13 +42,13 @@ void builtin_types(Scope *root_scope) {
     implementation_metatype = new ImplementationMetaType(":Implementation");
     root_scope->add(implementation_metatype);
     
-    void_type = new SpecialType("Void", {}, valuetype_type);
+    void_type = new SpecialType("Void", {}, VALUE_TYPE);
     root_scope->add(void_type);
 
-    metatype_type = new SpecialType("<Metatype>", {}, NULL);
+    metatype_type = new SpecialType("<Metatype>", {}, GENERIC_TYPE);
     root_scope->add(metatype_type);
 
-    multi_type = new SpecialType("<Multi>", {}, NULL);
+    multi_type = new SpecialType("<Multi>", {}, GENERIC_TYPE);
     root_scope->add(multi_type);
 
     lvalue_type = new AttributeType("Lvalue");
@@ -130,10 +117,10 @@ void builtin_types(Scope *root_scope) {
     streamifiable_type = new InterfaceType("Streamifiable", {});
     root_scope->add(streamifiable_type);
 
-    iterator_type = new InterfaceType("Iterator", { ANY_VALUETYPE_TS });
+    iterator_type = new InterfaceType("Iterator", { VALUE_TYPE });
     root_scope->add(iterator_type);
 
-    iterable_type = new InterfaceType("Iterable", { ANY_VALUETYPE_TS });
+    iterable_type = new InterfaceType("Iterable", { VALUE_TYPE });
     root_scope->add(iterable_type);
 
     string_type = new StringType("String");
@@ -163,28 +150,28 @@ void builtin_types(Scope *root_scope) {
     item_type = new ItemType("Item");
     root_scope->add(item_type);
 
-    arrayelemiter_type = new RecordType("Arrayelem_iter", { ANY_VALUETYPE_TS });
+    arrayelemiter_type = new RecordType("Arrayelem_iter", { VALUE_TYPE });
     root_scope->add(arrayelemiter_type);
     
-    arrayindexiter_type = new RecordType("Arrayindex_iter", { ANY_VALUETYPE_TS });
+    arrayindexiter_type = new RecordType("Arrayindex_iter", { VALUE_TYPE });
     root_scope->add(arrayindexiter_type);
     
-    arrayitemiter_type = new RecordType("Arrayitem_iter", { ANY_VALUETYPE_TS });
+    arrayitemiter_type = new RecordType("Arrayitem_iter", { VALUE_TYPE });
     root_scope->add(arrayitemiter_type);
 
-    circularrayelemiter_type = new RecordType("Circularrayelem_iter", { ANY_VALUETYPE_TS });
+    circularrayelemiter_type = new RecordType("Circularrayelem_iter", { VALUE_TYPE });
     root_scope->add(circularrayelemiter_type);
     
-    circularrayindexiter_type = new RecordType("Circularrayindex_iter", { ANY_VALUETYPE_TS });
+    circularrayindexiter_type = new RecordType("Circularrayindex_iter", { VALUE_TYPE });
     root_scope->add(circularrayindexiter_type);
     
-    circularrayitemiter_type = new RecordType("Circularrayitem_iter", { ANY_VALUETYPE_TS });
+    circularrayitemiter_type = new RecordType("Circularrayitem_iter", { VALUE_TYPE });
     root_scope->add(circularrayitemiter_type);
 
-    rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", { ANY_VALUETYPE_TS });
+    rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", { VALUE_TYPE });
     root_scope->add(rbtreeelembyageiter_type);
 
-    rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { ANY_VALUETYPE_TS });
+    rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { VALUE_TYPE });
     root_scope->add(rbtreeelembyorderiter_type);
 
     iterator_done_exception_type = new TreenumerationType("<Iterator_done>", { "", "ITERATOR_DONE" }, { 0, 1 });
@@ -206,6 +193,7 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(code_break_exception_type);
     
     // NO_TS will contain no Type pointers
+    ANY_TS = { any_type };
     ANY_LVALUE_TS = { lvalue_type, any_type };
     ANY_OVALUE_TS = { ovalue_type, any_type };
     SAME_TS = { same_type };
@@ -216,7 +204,7 @@ void builtin_types(Scope *root_scope) {
     VOID_TS = { void_type };
     MULTI_TS = { multi_type };
     MULTI_LVALUE_TS = { lvalue_type, multi_type };
-    MULTI_GENERICTYPE_TS = { generictype_type, multi_type };
+    MULTI_TYPE_TS = { type_type, multi_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };

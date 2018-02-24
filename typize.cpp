@@ -278,7 +278,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             
             // We must have checked this.
             Type *t = (*context)[0];
-            if (t->my_type != valuetype_type && !dynamic_cast<MetaType *>(t))
+            if (t->type != VALUE_TYPE && !dynamic_cast<MetaType *>(t))
                 throw INTERNAL_ERROR;
             
             if (name.size() == 0)

@@ -17,7 +17,7 @@ public:
             return true;
             
         // Only allow explicit type context for value types
-        if (ts[0] != valuetype_type)
+        if (ts[1]->type != VALUE_TYPE)
             return false;
             
         ts = ts.unprefix(ts[0]);
@@ -52,7 +52,7 @@ public:
     }
 
     virtual Variable *declare_arg(std::string name, Scope *scope) {
-        if (!value && ts[0] != generictype_type && ts[0] != valuetype_type)
+        if (!value && ts[1]->type != GENERIC_TYPE && ts[1]->type != VALUE_TYPE)
             return NULL;
             
         TypeSpec t = value ? ts : ts.unprefix(ts[0]);
@@ -64,7 +64,7 @@ public:
     }
 
     virtual Variable *declare_impure(std::string name, Scope *scope) {
-        if (!value && ts[0] != valuetype_type)
+        if (!value && ts[1]->type != VALUE_TYPE)
             return NULL;
 
         TypeSpec t = value ? ts : ts.unprefix(ts[0]);

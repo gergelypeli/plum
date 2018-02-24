@@ -431,7 +431,7 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
             t++;
         }
         else if (*t == any_type || *t == any2_type || *t == any3_type) {
-            if ((*s)->my_type != valuetype_type) {
+            if ((*s)->type != VALUE_TYPE) {
                 MATCHLOG std::cerr << "No match, nonvalue type for any!\n";
                 return false;
             }

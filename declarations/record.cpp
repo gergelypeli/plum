@@ -5,8 +5,8 @@ public:
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
 
-    RecordType(std::string n, TSs param_tss)
-        :Type(n, param_tss, valuetype_type) {
+    RecordType(std::string n, TTs param_tts)
+        :Type(n, param_tts, VALUE_TYPE) {
     }
 
     virtual void complete_type() {
@@ -273,7 +273,7 @@ public:
 class StringType: public RecordType {
 public:
     StringType(std::string n)
-        :RecordType(n, TSs {}) {
+        :RecordType(n, TTs {}) {
     }
 
     virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
@@ -471,7 +471,7 @@ public:
 class ItemType: public RecordType {
 public:
     ItemType(std::string n)
-        :RecordType(n, TSs { ANY_VALUETYPE_TS, ANY_VALUETYPE_TS }) {
+        :RecordType(n, TTs { VALUE_TYPE, VALUE_TYPE }) {
     }
 
     virtual unsigned comparable_member_count() {
