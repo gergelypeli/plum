@@ -106,7 +106,7 @@ public:
     int flag_size;
     
     OptionAsSomeValue(Value *p, TypeMatch &match)
-        :GenericValue(NO_TS, match[1].varvalue(), p) {
+        :GenericValue(NO_TS, match[1], p) {
         flag_size = OptionType::get_flag_size(match[1]);
     }
 

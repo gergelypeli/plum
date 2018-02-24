@@ -1,6 +1,6 @@
 
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
-    return ts.rvalue().unprefix(reference_type).unprefix(container_type).varvalue();
+    return ts.rvalue().unprefix(reference_type).unprefix(container_type);
 }
 
 
@@ -113,8 +113,8 @@ public:
     Borrow *borrow;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-        :GenericOperationValue(o, INTEGER_TS, match[1].varvalue().lvalue(), pivot) {
-        elem_ts = match[1].varvalue();
+        :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
+        elem_ts = match[1];
         borrow = NULL;
     }
 
@@ -370,8 +370,8 @@ public:
     TypeSpec elem_ts;
     
     ContainerPushValue(Value *l, TypeMatch &match)
-        :ContainerGrowableValue(match[1].varvalue(), match[0], l) {
-        elem_ts = match[1].varvalue();
+        :ContainerGrowableValue(match[1], match[0], l) {
+        elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -423,8 +423,8 @@ public:
     TypeSpec elem_ts;
     
     ContainerPopValue(Value *l, TypeMatch &match)
-        :ContainerShrinkableValue(NO_TS, match[1].varvalue(), l) {
-        elem_ts = match[1].varvalue();
+        :ContainerShrinkableValue(NO_TS, match[1], l) {
+        elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {

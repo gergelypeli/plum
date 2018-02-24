@@ -239,7 +239,7 @@ public:
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        TypeSpec elem_ts = ts.unprefix(array_type).varvalue();
+        TypeSpec elem_ts = ts.unprefix(array_type);
         int elem_size = elem_ts.measure_elem();
         Label start, end, loop;
 
@@ -293,7 +293,7 @@ public:
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        TypeSpec elem_ts = ts.unprefix(circularray_type).varvalue();
+        TypeSpec elem_ts = ts.unprefix(circularray_type);
         int elem_size = elem_ts.measure_elem();
         Label start, end, loop, ok, ok1;
     
@@ -366,7 +366,7 @@ public:
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        TypeSpec elem_ts = ts.unprefix(rbtree_type).varvalue();
+        TypeSpec elem_ts = ts.unprefix(rbtree_type);
         Label loop, cond;
 
         x64->code_label(label);

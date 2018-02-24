@@ -88,7 +88,7 @@ public:
     
     ArrayConcatenationValue(Value *l, TypeMatch &match)
         :GenericValue(match[0], match[0], l) {
-        elem_ts = match[1].varvalue();
+        elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -152,7 +152,7 @@ public:
 
     ArrayReallocValue(OperationType o, Value *l, TypeMatch &match)
         :GenericOperationValue(o, INTEGER_OVALUE_TS, l->ts, l) {
-        elem_ts = match[1].varvalue();
+        elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -219,7 +219,7 @@ public:
     
     ArraySortValue(Value *l, TypeMatch &match)
         :GenericValue(NO_TS, VOID_TS, l) {
-        elem_ts = match[1].varvalue();
+        elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -353,7 +353,7 @@ public:
 class ArrayNextElemValue: public ContainerNextValue {
 public:
     ArrayNextElemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(match[1].varvalue(), match[1].varvalue(), l, false) {
+        :ContainerNextValue(match[1], match[1], l, false) {
     }
 
     virtual Storage compile(X64 *x64) {
@@ -372,7 +372,7 @@ public:
 class ArrayNextIndexValue: public ContainerNextValue {
 public:
     ArrayNextIndexValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(INTEGER_TS, match[1].varvalue(), l, false) {
+        :ContainerNextValue(INTEGER_TS, match[1], l, false) {
     }
     
     virtual Storage compile(X64 *x64) {
@@ -388,7 +388,7 @@ public:
 class ArrayNextItemValue: public ContainerNextValue {
 public:
     ArrayNextItemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
+        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, false) {
     }
 
     virtual Storage compile(X64 *x64) {

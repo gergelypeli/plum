@@ -287,7 +287,7 @@ public:
 class CircularrayNextElemValue: public ContainerNextValue {
 public:
     CircularrayNextElemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(match[1].varvalue(), match[1].varvalue(), l, false) {
+        :ContainerNextValue(match[1], match[1], l, false) {
     }
 
     virtual Storage compile(X64 *x64) {
@@ -308,7 +308,7 @@ public:
 class CircularrayNextIndexValue: public ContainerNextValue {
 public:
     CircularrayNextIndexValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(INTEGER_TS, match[1].varvalue(), l, false) {
+        :ContainerNextValue(INTEGER_TS, match[1], l, false) {
     }
     
     virtual Storage compile(X64 *x64) {
@@ -324,7 +324,7 @@ public:
 class CircularrayNextItemValue: public ContainerNextValue {
 public:
     CircularrayNextItemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1].varvalue(), l, false) {
+        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, false) {
     }
 
     virtual Storage compile(X64 *x64) {

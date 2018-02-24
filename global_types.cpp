@@ -75,11 +75,6 @@ TypeSpec TypeSpec::lvalue() {
 }
 
 
-TypeSpec TypeSpec::varvalue() {
-    return heap_type_cast(at(0)) ? prefix(reference_type) : *this;
-}
-
-
 TypeMatch TypeSpec::match() {
     return type_parameters_to_match(*this);
 }

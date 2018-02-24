@@ -7,8 +7,8 @@ public:
     MapAddValue(Value *l, TypeMatch &match)
         :Value(VOID_TS) {
         pivot.reset(l);
-        key_ts = match[1].varvalue();
-        value_ts = match[2].varvalue();
+        key_ts = match[1];
+        value_ts = match[2];
         item_ts = match[0].unprefix(reference_type).reprefix(map_type, item_type);
     }
 
@@ -79,7 +79,7 @@ public:
     MapRemoveValue(Value *l, TypeMatch &match)
         :Value(VOID_TS) {
         pivot.reset(l);
-        key_ts = match[1].varvalue();
+        key_ts = match[1];
         item_ts = match[0].unprefix(reference_type).reprefix(map_type, item_type);
     }
 
@@ -124,10 +124,9 @@ public:
     std::unique_ptr<Value> pivot, key, value;
 
     MapIndexValue(Value *l, TypeMatch &match)
-        :Value(match[2].varvalue()) {
+        :Value(match[2]) {
         pivot.reset(l);
-        key_ts = match[1].varvalue();
-        //value_ts = match[2].varvalue();
+        key_ts = match[1];
         item_ts = match[0].unprefix(reference_type).reprefix(map_type, item_type);
     }
 

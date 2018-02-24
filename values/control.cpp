@@ -384,7 +384,7 @@ public:
             return false;
         }
 
-        TypeSpec elem_ts = match[1].varvalue();
+        TypeSpec elem_ts = match[1];
         each_ts = elem_ts.prefix(dvalue_type);  //lvalue();
         
         Value *next = lookup_fake("next", it, token, next_try_scope, NULL);

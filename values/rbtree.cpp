@@ -800,8 +800,8 @@ public:
     TypeSpec elem_ts;
     
     RbtreeHasValue(Value *pivot, TypeMatch &match)
-        :GenericValue(match[1].varvalue(), BOOLEAN_TS, pivot) {
-        elem_ts = match[1].varvalue();
+        :GenericValue(match[1], BOOLEAN_TS, pivot) {
+        elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -836,8 +836,8 @@ public:
     TypeSpec elem_ts;
     
     RbtreeAddValue(Value *pivot, TypeMatch &match)
-        :ContainerGrowableValue(match[1].varvalue(), VOID_TS, pivot) {
-        elem_ts = match[1].varvalue();
+        :ContainerGrowableValue(match[1], VOID_TS, pivot) {
+        elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -887,7 +887,7 @@ public:
     
     RbtreeRemoveValue(Value *pivot, TypeMatch &match)
         :ContainerShrinkableValue(match[1], VOID_TS, pivot) {
-        elem_ts = match[1].varvalue();
+        elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -956,9 +956,9 @@ public:
     TypeSpec elem_ts;
 
     RbtreeNextElemByAgeValue(Value *l, TypeMatch &match)
-        :GenericValue(NO_TS, match[1].varvalue(), l) {
+        :GenericValue(NO_TS, match[1], l) {
         is_down = false;  // TODO: get as argument for backward iteration!
-        elem_ts = match[1].varvalue();
+        elem_ts = match[1];
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -1029,8 +1029,8 @@ public:
     TypeSpec elem_ts;
 
     RbtreeNextElemByOrderValue(Value *l, TypeMatch &match)
-        :GenericValue(NO_TS, match[1].varvalue(), l) {
-        elem_ts = match[1].varvalue();
+        :GenericValue(NO_TS, match[1], l) {
+        elem_ts = match[1];
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
