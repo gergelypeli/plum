@@ -60,11 +60,19 @@ void die(const char *message) {
 #define ARES(x) *(long *)((x) + ARRAY_RESERVATION_OFFSET)
 #define AELE(x) ((x) + ARRAY_ELEMS_OFFSET)
 #define HREF(x) *(long *)((x) + HEAP_REFCOUNT_OFFSET)
+#define HWEA(x) *(long *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
+#define HFIN(x) *(long *)((x) + HEAP_FINALIZER_OFFSET)
+
+
+void nothing() {
+}
 
 
 void *allocate_array(long length, long size) {
     void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     HREF(array) = 1;
+    HWEA(array) = 0;
+    HFIN(array) = (long)(void *)nothing;  // TODO: this only works for basic types!
     ARES(array) = length;
     return array;
 }

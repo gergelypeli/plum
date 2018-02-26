@@ -212,6 +212,12 @@ Value *make_class_preinitializer_value(TypeSpec ts) {
 }
 
 
+Value *make_reference_weaken_value(Value *v) {
+    TypeMatch tm;
+    return new ReferenceWeakenValue(v, tm);
+}
+
+
 Value *make_interface_definition_value() {
     return new InterfaceDefinitionValue();
 }
@@ -482,14 +488,33 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 
 
 bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
-    if (*s == reference_type && *t == reference_type) {
-        match[0].push_back(*t);
-        s++;
-        t++;
-    }
+    bool needs_weaken = false;
 
+    if (*s == reference_type || *s == weakreference_type || *t == reference_type || *t == weakreference_type) {
+        if (*s == *t) {
+            match[0].push_back(*t);
+            s++;
+            t++;
+        }
+        else if (*s == reference_type && *t == weakreference_type && !strict) {
+            match[0].push_back(*t);
+            s++;
+            t++;
+            needs_weaken = true;
+        }
+        else if (*s == weakreference_type && *t == reference_type) {
+            MATCHLOG std::cerr << "No match, weak reference for strong!\n";
+            return false;
+        }
+    }
+    
     if (*s == *t) {
-        return match_type_parameters(s, t, match);
+        bool ok = match_type_parameters(s, t, match);
+        
+        if (ok && needs_weaken)
+            value = make_reference_weaken_value(value);
+        
+        return ok;
     }
     
     if (strict) {
@@ -499,6 +524,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     }
 
     if (*t == void_type) {
+        // These can't interfere with references
         if (*s == void_type)
             return true;
             
@@ -506,7 +532,12 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         return true;
     }
     
-    return match_regular_type(s, t, match, value);
+    bool ok = match_regular_type(s, t, match, value);
+    
+    if (ok && needs_weaken)
+        value = make_reference_weaken_value(value);
+        
+    return ok;
 }
 
 

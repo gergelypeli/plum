@@ -1,7 +1,7 @@
 const int HEAP_HEADER_SIZE = 32;
 const int HEAP_HEADER_OFFSET = -32;
 const int HEAP_REFCOUNT_OFFSET = -32;
-const int HEAP_WEAKCOUNT_OFFSET = -24;
+const int HEAP_WEAKREFCOUNT_OFFSET = -24;
 const int HEAP_FINALIZER_OFFSET = -16;
 
 const int ARRAY_HEADER_SIZE = 16;

@@ -51,7 +51,7 @@ public:
         
         x64->op(MOVQ, RBX, Address(RSP, REFERENCE_SIZE));
         x64->op(POPQ, Address(RBX, CLASS_MEMBERS_OFFSET));  // creating ref from STACK to MEMORY
-        
+
         return Storage(STACK);
     }
 };

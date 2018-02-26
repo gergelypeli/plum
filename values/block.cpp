@@ -411,6 +411,7 @@ public:
             value.reset(v);
         }
         
+        ts = member_var->var_ts;
         return true;
     }
 
@@ -450,6 +451,6 @@ public:
         
         // Use the value to initialize the variable, then return the variable
         member_var->var_ts.create(s, t, x64);
-        return Storage();
+        return t;
     }
 };

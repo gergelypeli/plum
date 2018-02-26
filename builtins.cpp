@@ -99,6 +99,9 @@ void builtin_types(Scope *root_scope) {
     reference_type = new ReferenceType("Ref");
     root_scope->add(reference_type);
 
+    weakreference_type = new WeakReferenceType("Weakref");
+    root_scope->add(weakreference_type);
+
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
 
@@ -244,6 +247,10 @@ void builtin_types(Scope *root_scope) {
     ANY_QUEUE_REFERENCE_TS = { reference_type, queue_type, any_type };
     ANY_SET_REFERENCE_TS = { reference_type, set_type, any_type };
     ANY_ANY2_MAP_REFERENCE_TS = { reference_type, map_type, any_type, any2_type };
+    ANY_STACK_WEAKREFERENCE_TS = { weakreference_type, stack_type, any_type };
+    ANY_QUEUE_WEAKREFERENCE_TS = { weakreference_type, queue_type, any_type };
+    ANY_SET_WEAKREFERENCE_TS = { weakreference_type, set_type, any_type };
+    ANY_ANY2_MAP_WEAKREFERENCE_TS = { weakreference_type, map_type, any_type, any2_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -559,7 +566,7 @@ void define_rbtree() {
 
 
 void define_stack() {
-    TypeSpec PIVOT = ANY_STACK_REFERENCE_TS;
+    TypeSpec PIVOT = ANY_STACK_WEAKREFERENCE_TS;
     TypeSpec CAST = SAME_ARRAY_REFERENCE_LVALUE_TS;
     
     ClassType *class_type = dynamic_cast<ClassType *>(stack_type);
@@ -587,7 +594,7 @@ void define_stack() {
 
 
 void define_queue() {
-    TypeSpec PIVOT = ANY_QUEUE_REFERENCE_TS;
+    TypeSpec PIVOT = ANY_QUEUE_WEAKREFERENCE_TS;
     TypeSpec CAST = SAME_CIRCULARRAY_REFERENCE_LVALUE_TS;
     
     ClassType *class_type = dynamic_cast<ClassType *>(queue_type);
@@ -617,7 +624,7 @@ void define_queue() {
 
 
 void define_set() {
-    TypeSpec PIVOT = ANY_SET_REFERENCE_TS;
+    TypeSpec PIVOT = ANY_SET_WEAKREFERENCE_TS;
     TypeSpec CAST = SAME_RBTREE_REFERENCE_LVALUE_TS;
     
     ClassType *class_type = dynamic_cast<ClassType *>(set_type);
@@ -642,7 +649,7 @@ void define_set() {
 
 
 void define_map() {
-    TypeSpec PIVOT = ANY_ANY2_MAP_REFERENCE_TS;
+    TypeSpec PIVOT = ANY_ANY2_MAP_WEAKREFERENCE_TS;
     TypeSpec CAST = SAME_SAME2_ITEM_RBTREE_REFERENCE_LVALUE_TS;
     
     ClassType *class_type = dynamic_cast<ClassType *>(map_type);
@@ -766,6 +773,9 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<TryValue>(":try", NO_TS));
     root_scope->add(new TemplateIdentifier<IsValue>(":is", NO_TS));
     root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", NO_TS, TWEAK));
+
+    root_scope->add(new TemplateIdentifier<ReferenceWeakenValue>(":weak", NO_TS));
+
     root_scope->add(new TemplateIdentifier<FunctionDefinitionValue>(":Function", NO_TS));
     root_scope->add(new TemplateIdentifier<InitializerDefinitionValue>(":Initializer", NO_TS));
     

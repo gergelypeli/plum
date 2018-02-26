@@ -296,7 +296,7 @@ void X64::data_reference(Label label) {
 
 
 void X64::data_heap_header() {
-    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -32 || HEAP_WEAKCOUNT_OFFSET != -24)
+    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -32 || HEAP_WEAKREFCOUNT_OFFSET != -24 || HEAP_FINALIZER_OFFSET != -16)
         throw X64_ERROR;
     
     data_align();
@@ -1128,21 +1128,27 @@ void X64::init_memory_management() {
         op(INCQ, Address(reg, HEAP_REFCOUNT_OFFSET));
         op(RET);
         
-        Label dl;
+        Label dl, dl2;
         
         // NOTE: preserves all registers, including RBX
         code_label_global(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg]);
         op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
         op(JNE, dl);
 
-        // TODO
         op(PUSHQ, RAX);
         op(PUSHQ, RBX);  // protected
         op(MOVQ, RAX, reg);
         op(CALL, Address(reg, HEAP_FINALIZER_OFFSET));
         op(POPQ, RBX);
         op(POPQ, RAX);
+
+        op(CMPQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET), 0);
+        op(JE, dl2);
+        op(MOVQ, RBX, reg);
+        dump("RBX=weakrefcount");
+        die("Weakly referenced object finalized!");
         
+        code_label(dl2);
         memfree(reg);
     
         code_label(dl);
@@ -1155,6 +1161,7 @@ void X64::init_memory_management() {
     op(CALL, memalloc_label);
     op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
     op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
+    op(MOVQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);  // start from 0
     op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);  // object finalizer
     popa(true);
     op(RET);
@@ -1175,6 +1182,9 @@ void X64::init_memory_management() {
     
     code_label_global(empty_function_label, "empty_function");
     op(RET);
+    
+    code_label_global(weak_finalized_die_label, "weak_finalized_die");
+    die("Weakly referenced object finalized!");
 }
 
 void X64::incref(Register reg) {
@@ -1189,6 +1199,20 @@ void X64::decref(Register reg) {
         throw X64_ERROR;
 
     op(CALL, decref_labels[reg]);
+}
+
+void X64::incweakref(Register reg) {
+    if (reg == RSP || reg == RBP || reg == NOREG)
+        throw X64_ERROR;
+
+    op(INCQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET));
+}
+
+void X64::decweakref(Register reg) {
+    if (reg == RSP || reg == RBP || reg == NOREG)
+        throw X64_ERROR;
+
+    op(DECQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET));
 }
 
 void X64::memfree(Register reg) {

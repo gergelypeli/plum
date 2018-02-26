@@ -52,6 +52,9 @@ public:
                 Variable *self_var;
                 
                 if (is_initializer) {
+                    if (pivot_ts[0] == weakreference_type)
+                        pivot_ts = pivot_ts.reprefix(weakreference_type, reference_type);
+                        
                     pivot_ts = pivot_ts.prefix(partial_type);
                     self_var = new PartialVariable("$", NO_TS, pivot_ts);
                 }
@@ -568,7 +571,7 @@ public:
 
             TypeSpec pts = pivot->ts.rvalue();
             
-            if (pts[0] != reference_type)  // Was: borrowed_type
+            if (pts[0] != weakreference_type)  // Was: borrowed_type
                 throw INTERNAL_ERROR;
                 
             x64->op(MOVQ, RBX, Address(RSP, passed_size - REFERENCE_SIZE));  // self pointer

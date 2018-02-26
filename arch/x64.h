@@ -392,7 +392,7 @@ public:
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, sort_label, empty_function_label;
+    Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, sort_label, empty_function_label, weak_finalized_die_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Once *once;
@@ -494,6 +494,8 @@ public:
     void popa(bool except_rax = false);
     void incref(Register reg);
     void decref(Register reg);
+    void incweakref(Register reg);
+    void decweakref(Register reg);
     void init_memory_management();
     void alloc_RAX_RBX();
     void realloc_RAX_RBX();

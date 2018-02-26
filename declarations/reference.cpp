@@ -9,10 +9,18 @@ public:
         return Allocation(REFERENCE_SIZE);
     }
 
+    virtual void incref(Register r, X64 *x64) {
+        x64->incref(r);
+    }
+
+    virtual void decref(Register r, X64 *x64) {
+        x64->decref(r);
+    }
+
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
         case REGISTER_NOWHERE:
-            x64->decref(s.reg);
+            decref(s.reg, x64);
             return;
         case REGISTER_REGISTER:
             if (s.reg != t.reg)
@@ -23,12 +31,12 @@ public:
             return;
         case REGISTER_MEMORY:
             x64->op(XCHGQ, t.address, s.reg);
-            x64->decref(s.reg);
+            decref(s.reg, x64);
             return;
 
         case STACK_NOWHERE:
             x64->op(POPQ, RBX);
-            x64->decref(RBX);
+            decref(RBX, x64);
             return;
         case STACK_REGISTER:
             x64->op(POPQ, t.reg);
@@ -38,25 +46,25 @@ public:
         case STACK_MEMORY:
             x64->op(POPQ, RBX);
             x64->op(XCHGQ, RBX, t.address);
-            x64->decref(RBX);
+            decref(RBX, x64);
             return;
 
         case MEMORY_NOWHERE:
             return;
         case MEMORY_REGISTER:
             x64->op(MOVQ, t.reg, s.address);
-            x64->incref(t.reg);
+            incref(t.reg, x64);
             return;
         case MEMORY_STACK:
             x64->op(MOVQ, RBX, s.address);
-            x64->incref(RBX);
+            incref(RBX, x64);
             x64->op(PUSHQ, RBX);
             return;
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
-            x64->incref(RBX);
+            incref(RBX, x64);
             x64->op(XCHGQ, RBX, t.address);
-            x64->decref(RBX);
+            decref(RBX, x64);
             return;
         default:
             Type::store(tm, s, t, x64);
@@ -78,7 +86,7 @@ public:
             return;
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
-            x64->incref(RBX);
+            incref(RBX, x64);
             x64->op(MOVQ, t.address, RBX);
             return;
         default:
@@ -89,7 +97,7 @@ public:
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
             x64->op(MOVQ, RBX, s.address);
-            x64->decref(RBX);
+            decref(RBX, x64);
         }
         else
             throw INTERNAL_ERROR;
@@ -98,48 +106,48 @@ public:
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         switch (s.where * t.where) {
         case REGISTER_REGISTER:
-            x64->decref(s.reg);
-            x64->decref(t.reg);
+            decref(s.reg, x64);
+            decref(t.reg, x64);
             x64->op(CMPQ, s.reg, t.reg);
             break;
         case REGISTER_STACK:
             x64->op(POPQ, RBX);
-            x64->decref(s.reg);
-            x64->decref(RBX);
+            decref(s.reg, x64);
+            decref(RBX, x64);
             x64->op(CMPQ, s.reg, RBX);
             break;
         case REGISTER_MEMORY:
-            x64->decref(s.reg);
+            decref(s.reg, x64);
             x64->op(CMPQ, s.reg, t.address);
             break;
 
         case STACK_REGISTER:
             x64->op(POPQ, RBX);
-            x64->decref(RBX);
-            x64->decref(t.reg);
+            decref(RBX, x64);
+            decref(t.reg, x64);
             x64->op(CMPQ, RBX, t.reg);
             break;
         case STACK_STACK:
             x64->op(POPQ, RBX);
-            x64->decref(RBX);
+            decref(RBX, x64);
             x64->op(XCHGQ, RBX, Address(RSP, 0));
-            x64->decref(RBX);
+            decref(RBX, x64);
             x64->op(CMPQ, RBX, Address(RSP, 0));
             x64->op(POPQ, RBX);
             break;
         case STACK_MEMORY:
             x64->op(POPQ, RBX);
-            x64->decref(RBX);
+            decref(RBX, x64);
             x64->op(CMPQ, RBX, t.address);
             break;
 
         case MEMORY_REGISTER:
-            x64->decref(t.reg);
+            decref(t.reg, x64);
             x64->op(CMPQ, s.address, t.reg);
             break;
         case MEMORY_STACK:
             x64->op(POPQ, RBX);
-            x64->decref(RBX);
+            decref(RBX, x64);
             x64->op(CMPQ, s.address, RBX);
             break;
         case MEMORY_MEMORY:
@@ -164,7 +172,7 @@ public:
             return Storage(CONSTANT, s.value != 0);
         case REGISTER:
             if (!probe)
-                x64->decref(s.reg);
+                decref(s.reg, x64);
                 
             x64->op(CMPQ, s.reg, 0);
             return Storage(FLAGS, SETNE);
@@ -198,6 +206,22 @@ public:
 
     virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
         return tm[1].autoconv(target, orig, ifts);
+    }
+};
+
+
+class WeakReferenceType: public ReferenceType {
+public:
+    WeakReferenceType(std::string name)
+        :ReferenceType(name) {
+    }
+    
+    virtual void incref(Register r, X64 *x64) {
+        x64->incweakref(r);
+    }
+
+    virtual void decref(Register r, X64 *x64) {
+        x64->decweakref(r);
     }
 };
 

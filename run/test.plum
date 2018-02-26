@@ -112,7 +112,7 @@ XStringiterator? :Record as:
 Greetable? :Class as:
     init? :Initializer as:
         $ number? 1
-        $ name? "XXX"
+        $ name? "The Greetable"
         #$ g? `null
         prints("I'm here as {x}." { x: $ name })
         
@@ -528,6 +528,9 @@ test_options? :Function as:
 test_classes? :Function as:
     gr? Greetable Ref `init
     gr greet
+    
+    wgr? :weak gr
+    wgr greet
 
 
 start? :Function as:
@@ -542,5 +545,6 @@ start? :Function as:
     test_circularrays
     test_rbtrees
     test_options
+    test_classes
     
     prints("Done.")

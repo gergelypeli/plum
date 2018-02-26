@@ -38,3 +38,51 @@ public:
         }
     }
 };
+
+
+class ReferenceWeakenValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+    
+    ReferenceWeakenValue(Value *v, TypeMatch &tm)
+        :Value(NO_TS) {
+        if (v) {
+            // When used as an automatic conversion
+            value.reset(v);
+            ts = value->ts.rvalue().reprefix(reference_type, weakreference_type);
+        }
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        // When used as the :weak control
+        if (!check_arguments(args, kwargs, {{ "value", NULL, scope, &value }}))
+            return false;
+            
+        ts = value->ts.rvalue().reprefix(reference_type, weakreference_type);
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = value->compile(x64);
+        
+        switch (s.where) {
+        case REGISTER:
+            x64->incweakref(s.reg);
+            x64->decref(s.reg);
+            return s;
+        case STACK:
+            x64->op(MOVQ, RBX, Address(RSP, 0));
+            x64->incweakref(RBX);
+            x64->decref(RBX);
+            return s;
+        case MEMORY:
+            return s;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};

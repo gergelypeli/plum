@@ -329,6 +329,11 @@ public:
         }
         
         if (pivot && pivot->ts.rvalue()[0] == reference_type) {
+            std::cerr << "This is a bit suspicious, strong reference as variable pivot?\n";
+            throw INTERNAL_ERROR;
+        }
+        
+        if (pivot && pivot->ts.rvalue()[0] == weakreference_type) {
             reg = preferred.get_any();
             clob = clob.add(reg);
         }
@@ -342,12 +347,12 @@ public:
         if (pivot) {
             Storage s = pivot->compile(x64);
             
-            if (pivot->ts.rvalue()[0] == reference_type) {
+            if (pivot->ts.rvalue()[0] == weakreference_type) {
                 // FIXME: technically we must borrow a reference here, or the container
                 // may be destroyed before accessing this variable!
                 
                 pivot->ts.rvalue().store(s, Storage(REGISTER, reg), x64);
-                x64->decref(reg);
+                x64->decweakref(reg);
                 s = Storage(MEMORY, Address(reg, 0));
             }
             
