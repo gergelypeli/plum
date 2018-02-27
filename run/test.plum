@@ -142,7 +142,7 @@ passthrough? :Function from: what? Integer Code as:
 
 
 test_integers? :Function as:
-    print(f(1, 2))
+    printi(f(1, 2))
     
     a? Integer
     a = 2
@@ -235,9 +235,9 @@ test_enums? :Function as:
 
 
 test_ovalues? :Function as:
-    print(g(100, 100))
-    print(g(100))
-    print(g)
+    printi(g(100, 100))
+    printi(g(100))
+    printi(g)
 
 
 test_records? :Function as:
@@ -246,10 +246,10 @@ test_records? :Function as:
     p first = 123
     p second = 456
     print_pair(p)
-    print(p meth)
+    printi(p meth)
 
     p = make_pair
-    print(p second)
+    printi(p second)
     
     q? Pair
     q first = 123

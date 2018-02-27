@@ -84,6 +84,7 @@ X64::X64() {
     code_label_import(log_label, "logfunc");  // bah...
     code_label_import(dump_label, "dump");  // bah...
     code_label_import(die_label, "die");
+    code_label_import(dies_label, "dies");
     code_label_import(sort_label, "sort");
 
     init_memory_management();
@@ -254,6 +255,14 @@ void X64::data_dword(int x) {
 void X64::data_qword(long x) {
     data.resize(data.size() + 8);
     *(long *)(data.data() + data.size() - 8) = x;
+}
+
+
+void X64::data_zstring(const char *s) {
+    while (*s)
+        data.push_back(*s++);
+        
+    data.push_back(0);
 }
 
 
@@ -1238,11 +1247,7 @@ void X64::lock(Register r, Label ok) {
 void X64::log(const char *message) {
     Label message_label;
     data_label(message_label);
-    
-    for (const char *x = message; *x; x++)
-        data_byte(*x);
-        
-    data_byte(0);
+    data_zstring(message);
 
     pusha();
     op(LEARIP, RDI, message_label);
@@ -1254,11 +1259,7 @@ void X64::log(const char *message) {
 void X64::dump(const char *message) {
     Label message_label;
     data_label(message_label);
-    
-    for (const char *x = message; *x; x++)
-        data_byte(*x);
-        
-    data_byte(0);
+    data_zstring(message);
 
     for (Register r : { RAX, RBX, RCX, RDX, RSP, RBP, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 })
         op(PUSHQ, r);
@@ -1275,13 +1276,16 @@ void X64::die(const char *message) {
     // TODO: this encodes the message several times unnecessarily!
     Label message_label;
     data_label(message_label);
-    
-    for (const char *x = message; *x; x++)
-        data_byte(*x);
-        
-    data_byte(0);
+    data_zstring(message);
     
     op(LEARIP, RDI, message_label);
     op(CALL, die_label);
+    op(UD2);
+}
+
+
+void X64::dies(Register r) {
+    op(MOVQ, RDI, r);
+    op(CALL, dies_label);
     op(UD2);
 }

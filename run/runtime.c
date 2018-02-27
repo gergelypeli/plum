@@ -4,6 +4,13 @@
 #include "../utf8.c"
 #include "../arch/heap.h"
 
+#define ALEN(x) *(long *)((x) + ARRAY_LENGTH_OFFSET)
+#define ARES(x) *(long *)((x) + ARRAY_RESERVATION_OFFSET)
+#define AELE(x) ((x) + ARRAY_ELEMS_OFFSET)
+#define HREF(x) *(long *)((x) + HEAP_REFCOUNT_OFFSET)
+#define HWEA(x) *(long *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
+#define HFIN(x) *(long *)((x) + HEAP_FINALIZER_OFFSET)
+
 static int allocation_count = 0;
 
 
@@ -54,14 +61,17 @@ void die(const char *message) {
 }
 
 
+void dies(void *s) {
+    long character_length = ALEN(s);
+    char bytes[character_length * 3];
+    int byte_length = encode_utf8_buffer(AELE(s), character_length, bytes);
+    fprintf(stderr, "DIE: %.*s\n", byte_length, bytes);
+    abort();
+}
+
+
 // Internal helpers
 
-#define ALEN(x) *(long *)((x) + ARRAY_LENGTH_OFFSET)
-#define ARES(x) *(long *)((x) + ARRAY_RESERVATION_OFFSET)
-#define AELE(x) ((x) + ARRAY_ELEMS_OFFSET)
-#define HREF(x) *(long *)((x) + HEAP_REFCOUNT_OFFSET)
-#define HWEA(x) *(long *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
-#define HFIN(x) *(long *)((x) + HEAP_FINALIZER_OFFSET)
 
 
 void nothing() {
@@ -104,13 +114,18 @@ void *append_decode_utf8(void *character_array, char *bytes, long byte_length) {
 
 // Library functions
 
-void print(long a) {
+void printi(long a) {
     printf("%ld\n", a);
 }
 
 
-void printu8(char a) {
+void printc(short a) {
     printf("%c\n", a);
+}
+
+
+void printz(const char *s) {
+    printf("%s", s);
 }
 
 

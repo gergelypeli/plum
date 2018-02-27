@@ -392,7 +392,7 @@ public:
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, sort_label, empty_function_label, weak_finalized_die_label;
+    Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Once *once;
@@ -405,6 +405,7 @@ public:
     void data_word(short x);
     void data_dword(int x);
     void data_qword(long x);
+    void data_zstring(const char *s);
     void data_label(Label c, unsigned size = 0);
     void data_label_local(Label c, std::string name, unsigned size = 0);
     void data_label_global(Label c, std::string name, unsigned size = 0);
@@ -505,4 +506,5 @@ public:
     void log(const char *message);
     void dump(const char *message);
     void die(const char *message);
+    void dies(Register r);
 };

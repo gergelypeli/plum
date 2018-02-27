@@ -859,8 +859,15 @@ public:
             handler->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
 
-        x64->die("Try assertion failed!");
-
+        TreenumerationType *et = try_scope->get_exception_type();
+        if (et) {
+            x64->op(PUSHQ, switch_var->get_local_storage().address);
+            x64->op(LEARIP, RBX, et->get_stringifications_label(x64));
+            x64->op(PUSHQ, RBX);
+            x64->op(PUSHQ, token.row + 1);
+            x64->op(JMP, x64->once->compile(compile_die));
+        }
+            
         switch_scope->finalize_contents(x64);
         eval_scope->finalize_contents(x64);
         
@@ -881,6 +888,70 @@ public:
     
     virtual Scope *unwind(X64 *x64) {
         return handling ? (Scope *)switch_scope : (Scope *)try_scope;
+    }
+    
+    static void compile_die(Label label, X64 *x64) {
+        Label uncaught_message_label_1 = x64->data_heap_string(decode_utf8("Unhandled exception "));
+        Label uncaught_message_label_2 = x64->data_heap_string(decode_utf8(" on line "));
+        Label uncaught_message_label_3 = x64->data_heap_string(decode_utf8("!"));
+
+        // Pushed to the stack - exception, lineno, stringifications label
+        x64->code_label_local(label, "die_uncaught");
+        
+        // Allocate a stream for 100 characters
+        x64->op(MOVQ, RAX, 100 * CHARACTER_SIZE + ARRAY_HEADER_SIZE);
+        x64->op(LEARIP, RBX, x64->empty_function_label);
+        x64->alloc_RAX_RBX();
+        x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), 100);
+        x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
+        x64->op(PUSHQ, RAX);  // make it into a variable
+
+        // Streamifications will clobber all registers!
+        // Stack layout:
+        //  RSP =      stream
+        //  RSP + 8 =  lineno
+        //  RSP + 16 = stringifications
+        //  RSP + 24 = exception
+
+        x64->op(MOVQ, RAX, RSP);  // address of the stream variable
+        x64->op(LEARIP, RBX, uncaught_message_label_1);
+        x64->op(PUSHQ, RBX);
+        x64->op(PUSHQ, RAX);
+        STRING_TS.streamify(false, x64);
+        x64->op(ADDQ, RSP, 16);
+
+        x64->op(MOVQ, RAX, RSP);  // address of the stream variable
+        x64->op(MOVQ, RBX, Address(RSP, 16));  // stringifications
+        x64->op(MOVB, RCX, Address(RSP, 24));  // exception
+        x64->op(ANDQ, RCX, 255);
+        x64->op(PUSHQ, Address(RBX, RCX, ADDRESS_SIZE, 0));  // treenum name string on the stack
+        x64->op(PUSHQ, RAX);
+        STRING_TS.streamify(false, x64);
+        x64->op(ADDQ, RSP, 16);
+
+        x64->op(MOVQ, RAX, RSP);  // address of the stream variable
+        x64->op(LEARIP, RBX, uncaught_message_label_2);
+        x64->op(PUSHQ, RBX);
+        x64->op(PUSHQ, RAX);
+        STRING_TS.streamify(false, x64);
+        x64->op(ADDQ, RSP, 16);
+
+        x64->op(MOVQ, RAX, RSP);  // address of the stream variable
+        x64->op(PUSHQ, Address(RSP, 8));  // lineno
+        x64->op(PUSHQ, RAX);
+        INTEGER_TS.streamify(false, x64);
+        x64->op(ADDQ, RSP, 16);
+
+        x64->op(MOVQ, RAX, RSP);  // address of the stream variable
+        x64->op(LEARIP, RBX, uncaught_message_label_3);
+        x64->op(PUSHQ, RBX);
+        x64->op(PUSHQ, RAX);
+        STRING_TS.streamify(false, x64);
+        x64->op(ADDQ, RSP, 16);
+    
+        // result string already on the stack
+        x64->op(POPQ, RDI);
+        x64->dies(RDI);
     }
 };
 
