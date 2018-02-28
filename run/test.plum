@@ -534,6 +534,8 @@ test_classes? :Function as:
     
     wgr? :weak gr
     wgr greet
+    
+    wgr = gr
 
 
 start? :Function as:

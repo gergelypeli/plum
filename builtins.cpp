@@ -224,6 +224,8 @@ void builtin_types(Scope *root_scope) {
     CHARACTER_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, character_type };
     ANYID_REFERENCE_TS = { reference_type, anyid_type };
     ANYID_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, anyid_type };
+    ANYID_WEAKREFERENCE_TS = { weakreference_type, anyid_type };
+    ANYID_WEAKREFERENCE_LVALUE_TS = { lvalue_type, weakreference_type, anyid_type };
     ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
     ANY_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, any_type };
     SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
@@ -754,6 +756,11 @@ Scope *init_builtins() {
     root_scope->add(new ReferenceOperation("assign other", ANYID_REFERENCE_LVALUE_TS, ASSIGN));
     root_scope->add(new ReferenceOperation("is_equal", ANYID_REFERENCE_TS, EQUAL));
     root_scope->add(new ReferenceOperation("not_equal", ANYID_REFERENCE_TS, NOT_EQUAL));
+
+    typedef TemplateOperation<WeakreferenceOperationValue> WeakreferenceOperation;
+    root_scope->add(new WeakreferenceOperation("assign other", ANYID_WEAKREFERENCE_LVALUE_TS, ASSIGN));
+    root_scope->add(new WeakreferenceOperation("is_equal", ANYID_WEAKREFERENCE_TS, EQUAL));
+    root_scope->add(new WeakreferenceOperation("not_equal", ANYID_WEAKREFERENCE_TS, NOT_EQUAL));
 
     // Array operations
     define_array();
