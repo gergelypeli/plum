@@ -333,7 +333,7 @@ public:
         }
 
         class_type = new ClassType("<anonymous>", TTs {});
-        TypeSpec cts = { weakreference_type, class_type };
+        TypeSpec cts = { weakref_type, class_type };
 
         setup_inner(class_type, cts);
 

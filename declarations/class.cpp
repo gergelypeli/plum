@@ -76,7 +76,7 @@ public:
         }
         else {
             // Named initializer
-            TypeSpec rts = tm[0].prefix(reference_type);
+            TypeSpec rts = tm[0].prefix(ref_type);
             Value *pre = make_class_preinitializer_value(rts);
 
             Value *value = inner_scope->lookup(name, pre);
@@ -95,7 +95,7 @@ public:
         
         is->be_virtual_scope();
         
-        TypeSpec cts = { reference_type, this };
+        TypeSpec cts = { ref_type, this };
         is->set_meta_scope(class_metatype->get_inner_scope(TypeMatch()));
 
         Allocation vt_offset = is->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer
@@ -171,7 +171,7 @@ public:
             return NULL;
         }
 
-        TypeSpec rts = tm[0].prefix(reference_type);
+        TypeSpec rts = tm[0].prefix(ref_type);
         Value *stack_preinitializer = make_class_preinitializer_value(rts);
         
         return make_class_wrapper_initializer_value(stack_preinitializer, array_initializer);
@@ -194,7 +194,7 @@ public:
             return NULL;
         }
 
-        TypeSpec rts = tm[0].prefix(reference_type);
+        TypeSpec rts = tm[0].prefix(ref_type);
         Value *queue_preinitializer = make_class_preinitializer_value(rts);
         
         return make_class_wrapper_initializer_value(queue_preinitializer, carray_initializer);
@@ -217,7 +217,7 @@ public:
             return NULL;
         }
 
-        TypeSpec rts = tm[0].prefix(reference_type);
+        TypeSpec rts = tm[0].prefix(ref_type);
         Value *set_preinitializer = make_class_preinitializer_value(rts);
         
         return make_class_wrapper_initializer_value(set_preinitializer, tree_initializer);
@@ -240,7 +240,7 @@ public:
             return NULL;
         }
 
-        TypeSpec rts = tm[0].prefix(reference_type);
+        TypeSpec rts = tm[0].prefix(ref_type);
         Value *set_preinitializer = make_class_preinitializer_value(rts);
         
         return make_class_wrapper_initializer_value(set_preinitializer, tree_initializer);

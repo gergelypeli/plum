@@ -1,6 +1,7 @@
 
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
-    return ts.rvalue().unprefix(reference_type).unprefix(container_type);
+    // FIXME: this won't work for weakrefs
+    return ts.rvalue().unprefix(ref_type).unprefix(container_type);
 }
 
 

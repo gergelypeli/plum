@@ -328,12 +328,12 @@ public:
             clob = clob.add(reg);
         }
         
-        if (pivot && pivot->ts.rvalue()[0] == reference_type) {
+        if (pivot && pivot->ts.rvalue()[0] == ref_type) {
             std::cerr << "This is a bit suspicious, strong reference as variable pivot?\n";
             throw INTERNAL_ERROR;
         }
         
-        if (pivot && pivot->ts.rvalue()[0] == weakreference_type) {
+        if (pivot && pivot->ts.rvalue()[0] == weakref_type) {
             reg = preferred.get_any();
             clob = clob.add(reg);
         }
@@ -347,7 +347,7 @@ public:
         if (pivot) {
             Storage s = pivot->compile(x64);
             
-            if (pivot->ts.rvalue()[0] == weakreference_type) {
+            if (pivot->ts.rvalue()[0] == weakref_type) {
                 // FIXME: technically we must borrow a reference here, or the container
                 // may be destroyed before accessing this variable!
                 
@@ -535,7 +535,7 @@ public:
     TypeMatch match;
     
     RoleValue(Variable *v, Value *p, TypeMatch &tm)
-        :Value(v->var_ts.rvalue().unprefix(role_type).prefix(reference_type)) {  // Was: borrowed_type
+        :Value(v->var_ts.rvalue().unprefix(role_type).prefix(weakref_type)) {  // Was: borrowed_type
         variable = v;
         pivot.reset(p);
         reg = NOREG;

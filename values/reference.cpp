@@ -65,7 +65,7 @@ public:
         if (v) {
             // When used as an automatic conversion
             value.reset(v);
-            ts = value->ts.rvalue().reprefix(reference_type, weakreference_type);
+            ts = value->ts.rvalue().reprefix(ref_type, weakref_type);
         }
     }
     
@@ -74,7 +74,7 @@ public:
         if (!check_arguments(args, kwargs, {{ "value", NULL, scope, &value }}))
             return false;
             
-        ts = value->ts.rvalue().reprefix(reference_type, weakreference_type);
+        ts = value->ts.rvalue().reprefix(ref_type, weakref_type);
         return true;
     }
     

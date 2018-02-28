@@ -10,7 +10,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        TypeSpec class_ts = ts.unprefix(partial_type).unprefix(reference_type);
+        TypeSpec class_ts = ts.unprefix(partial_type).unprefix(ref_type);
         Label finalizer_label = class_ts.get_finalizer_label(x64);
         unsigned heap_size = class_ts.measure_raw();
         

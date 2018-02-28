@@ -243,11 +243,11 @@ class ArrayType: public HeapType {
 public:
     ArrayType(std::string name)
         :HeapType(name, TTs { VALUE_TYPE }) {
-        make_inner_scope(TypeSpec { reference_type, this, any_type });
+        make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        TypeSpec rts = tm[0].prefix(reference_type);
+        TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "empty")
             return make_array_empty_value(rts);
@@ -297,11 +297,11 @@ class CircularrayType: public HeapType {
 public:
     CircularrayType(std::string name)
         :HeapType(name, TTs { VALUE_TYPE }) {
-        make_inner_scope(TypeSpec { reference_type, this, any_type });
+        make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        TypeSpec rts = tm[0].prefix(reference_type);
+        TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "empty")
             return make_circularray_empty_value(rts);
@@ -368,11 +368,11 @@ class RbtreeType: public HeapType {
 public:
     RbtreeType(std::string name)
         :HeapType(name, TTs { VALUE_TYPE }) {
-        make_inner_scope(TypeSpec { reference_type, this, any_type });
+        make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        TypeSpec rts = tm[0].prefix(reference_type);
+        TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "empty")
             return make_rbtree_empty_value(rts);

@@ -9,7 +9,7 @@ public:
         pivot.reset(l);
         key_ts = match[1];
         value_ts = match[2];
-        item_ts = match[0].unprefix(weakreference_type).reprefix(map_type, item_type);
+        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -80,7 +80,7 @@ public:
         :Value(VOID_TS) {
         pivot.reset(l);
         key_ts = match[1];
-        item_ts = match[0].unprefix(weakreference_type).reprefix(map_type, item_type);
+        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -127,7 +127,7 @@ public:
         :Value(match[2]) {
         pivot.reset(l);
         key_ts = match[1];
-        item_ts = match[0].unprefix(weakreference_type).reprefix(map_type, item_type);
+        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

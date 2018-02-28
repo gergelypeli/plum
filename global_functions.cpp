@@ -514,19 +514,19 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
     bool needs_weaken = false;
 
-    if (*s == reference_type || *s == weakreference_type || *t == reference_type || *t == weakreference_type) {
+    if (*s == ref_type || *s == weakref_type || *t == ref_type || *t == weakref_type) {
         if (*s == *t) {
             match[0].push_back(*t);
             s++;
             t++;
         }
-        else if (*s == reference_type && *t == weakreference_type && !strict) {
+        else if (*s == ref_type && *t == weakref_type && !strict) {
             match[0].push_back(*t);
             s++;
             t++;
             needs_weaken = true;
         }
-        else if (*s == weakreference_type && *t == reference_type) {
+        else if (*s == weakref_type && *t == ref_type) {
             MATCHLOG std::cerr << "No match, weak reference for strong!\n";
             return false;
         }

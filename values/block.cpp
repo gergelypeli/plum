@@ -436,7 +436,7 @@ public:
         if (partial->ts[0] != partial_type)
             throw INTERNAL_ERROR;
             
-        if (partial->ts[1] == reference_type) {
+        if (partial->ts[1] == ref_type) {
             // Dereference this
             Register reg = (Regs::all() & ~t.regs()).get_any();
         
