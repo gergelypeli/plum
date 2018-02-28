@@ -12,6 +12,9 @@ void builtin_types(Scope *root_scope) {
     any3_type = new SpecialType("<Any3>", {}, VALUE_TYPE);
     root_scope->add(any3_type);
 
+    anyid_type = new SpecialType("<Anyid>", {}, IDENTITY_TYPE);
+    root_scope->add(anyid_type);
+
     same_type = new SameType("<Same>", {}, VALUE_TYPE);
     root_scope->add(same_type);
 
@@ -219,8 +222,8 @@ void builtin_types(Scope *root_scope) {
     CHARACTER_LVALUE_TS = { lvalue_type, character_type };
     CHARACTER_ARRAY_REFERENCE_TS = { reference_type, array_type, character_type };
     CHARACTER_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, character_type };
-    ANY_REFERENCE_TS = { reference_type, any_type };
-    ANY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, any_type };
+    ANYID_REFERENCE_TS = { reference_type, anyid_type };
+    ANYID_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, anyid_type };
     ANY_ARRAY_REFERENCE_TS = { reference_type, array_type, any_type };
     ANY_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, any_type };
     SAME_ARRAY_REFERENCE_LVALUE_TS = { lvalue_type, reference_type, array_type, same_type };
@@ -748,9 +751,9 @@ Scope *init_builtins() {
 
     // Reference operations, unscoped
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
-    root_scope->add(new ReferenceOperation("assign other", ANY_REFERENCE_LVALUE_TS, ASSIGN));
-    root_scope->add(new ReferenceOperation("is_equal", ANY_REFERENCE_TS, EQUAL));
-    root_scope->add(new ReferenceOperation("not_equal", ANY_REFERENCE_TS, NOT_EQUAL));
+    root_scope->add(new ReferenceOperation("assign other", ANYID_REFERENCE_LVALUE_TS, ASSIGN));
+    root_scope->add(new ReferenceOperation("is_equal", ANYID_REFERENCE_TS, EQUAL));
+    root_scope->add(new ReferenceOperation("not_equal", ANYID_REFERENCE_TS, NOT_EQUAL));
 
     // Array operations
     define_array();

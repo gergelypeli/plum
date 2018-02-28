@@ -529,6 +529,9 @@ test_classes? :Function as:
     gr? Greetable Ref `init
     gr greet
     
+    gr2? gr
+    gr2 = gr
+    
     wgr? :weak gr
     wgr greet
 

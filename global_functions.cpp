@@ -426,6 +426,32 @@ Value *rolematch(Value *v, TypeSpec s, TypeSpecIter target, TypeSpec &ifts) {
 
 #define MATCHLOG if (false)
 
+bool is_any(Type *t) {
+    return t == any_type || t == any2_type || t == any3_type || t == anyid_type;
+}
+
+
+bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, int mi, TypeType tt) {
+    if ((*s)->type != tt) {
+        const char *what = (tt == VALUE_TYPE ? "value" : tt == IDENTITY_TYPE ? "identity" : throw INTERNAL_ERROR);
+        MATCHLOG std::cerr << "No match, type parameter not a " << what << " type!\n";
+        return false;
+    }
+    
+    unsigned c = 1;
+
+    while (c--) {
+        c += (*s)->get_parameter_count();
+        match[mi].push_back(*s);
+        match[0].push_back(*s);
+        s++;
+    }
+
+    t++;
+    return true;
+}
+
+
 bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
     unsigned counter = 1;
     
@@ -436,23 +462,21 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
             s++;
             t++;
         }
-        else if (*t == any_type || *t == any2_type || *t == any3_type) {
-            if ((*s)->type != VALUE_TYPE) {
-                MATCHLOG std::cerr << "No match, nonvalue type for any!\n";
+        else if (*t == any_type) {
+            if (!match_type_parameter(s, t, match, 1, VALUE_TYPE))
                 return false;
-            }
-            
-            int mi = (*t == any_type ? 1 : *t == any2_type ? 2 : 3);
-            unsigned c = 1;
-    
-            while (c--) {
-                c += (*s)->get_parameter_count();
-                match[mi].push_back(*s);
-                match[0].push_back(*s);
-                s++;
-            }
-
-            t++;
+        }
+        else if (*t == any2_type) {
+            if (!match_type_parameter(s, t, match, 2, VALUE_TYPE))
+                return false;
+        }
+        else if (*t == any3_type) {
+            if (!match_type_parameter(s, t, match, 3, VALUE_TYPE))
+                return false;
+        }
+        else if (*t == anyid_type) {
+            if (!match_type_parameter(s, t, match, 1, IDENTITY_TYPE))
+                return false;
         }
         else {
             MATCHLOG std::cerr << "No match, type parameters differ!\n";
@@ -508,7 +532,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         }
     }
     
-    if (*s == *t) {
+    if (*s == *t || is_any(*t)) {
         bool ok = match_type_parameters(s, t, match);
         
         if (ok && needs_weaken)
@@ -544,7 +568,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
     // Allow any_type match references
     
-    if (*t == any_type) {
+    if (is_any(*t)) {
         if (*s == void_type) {
             MATCHLOG std::cerr << "No match, Void for Any!\n";
             return false;

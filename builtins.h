@@ -2,6 +2,7 @@
 Type *any_type = NULL;
 Type *any2_type = NULL;
 Type *any3_type = NULL;
+Type *anyid_type = NULL;
 Type *same_type = NULL;
 Type *same2_type = NULL;
 Type *same3_type = NULL;
@@ -93,8 +94,8 @@ TypeSpec CHARACTER_TS;
 TypeSpec CHARACTER_LVALUE_TS;
 TypeSpec CHARACTER_ARRAY_REFERENCE_TS;
 TypeSpec CHARACTER_ARRAY_REFERENCE_LVALUE_TS;
-TypeSpec ANY_REFERENCE_TS;
-TypeSpec ANY_REFERENCE_LVALUE_TS;
+TypeSpec ANYID_REFERENCE_TS;
+TypeSpec ANYID_REFERENCE_LVALUE_TS;
 TypeSpec ANY_ARRAY_REFERENCE_TS;
 TypeSpec ANY_ARRAY_REFERENCE_LVALUE_TS;
 TypeSpec SAME_ARRAY_REFERENCE_LVALUE_TS;
