@@ -79,11 +79,6 @@ Value *make_declaration_value(std::string name, TypeSpec *context) {
 }
 
 
-Value *make_partial_declaration_value(std::string name, PartialVariableValue *pivot) {
-    return new PartialDeclarationValue(name, pivot);
-}
-
-
 Value *make_basic_value(TypeSpec ts, int number) {
     return new BasicValue(ts, number);
 }

@@ -190,22 +190,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         
         if (p) {
-            PartialVariableValue *pvv = dynamic_cast<PartialVariableValue *>(p);
-            if (!pvv) {
-                std::cerr << "Invalid declaration!\n";
-                throw TYPE_ERROR;
-            }
-            
-            value = make_partial_declaration_value(name, pvv);
-            value->set_token(expr->token);
-            bool ok = value->check(expr->args, expr->kwargs, scope);
-        
-            if (!ok) {
-                std::cerr << "Couldn't partial declare " << name << "!\n";
-                throw TYPE_ERROR;
-            }
-
-            std::cerr << "Partial declared " << name << " as " << value->ts << ".\n";
+            std::cerr << "Invalid declaration!\n";
+            throw TYPE_ERROR;
         }
         else {
             value = make_declaration_value(name, context);
