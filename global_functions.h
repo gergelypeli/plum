@@ -2,9 +2,12 @@
 // Value wrappers
 
 bool partial_variable_is_initialized(std::string name, Value *pivot);
+void partial_variable_be_initialized(std::string name, Value *pivot);
 DeclarationValue *declaration_value_cast(Value *value);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
+bool is_initializer_function_call(Value *value);
+
 
 // Declaration wrappers
 
@@ -16,6 +19,7 @@ Declaration *make_record_compare();
 // TypeSpec operations
 
 TypeSpec get_typespec(Value *value);
+void set_typespec(Value *value, TypeSpec ts);
 //bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts);
 Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match, CodeScope *code_scope = NULL);
@@ -31,7 +35,7 @@ void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);
 
 Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match);
 Value *make_partial_variable_value(PartialVariable *decl, Value *pivot, TypeMatch &match);
-Value *make_role_value(Variable *decl, Value *pivot, TypeMatch &tm);
+Value *make_role_value(Role *role, Value *pivot, TypeMatch &tm);
 Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match);
 Value *make_type_value(TypeSpec ts);
 Value *make_code_block_value(TypeSpec *context);

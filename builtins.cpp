@@ -54,6 +54,9 @@ void builtin_types(Scope *root_scope) {
     multi_type = new SpecialType("<Multi>", {}, GENERIC_TYPE);
     root_scope->add(multi_type);
 
+    uninitialized_type = new SpecialType("<Uninitialized>", { GENERIC_TYPE }, GENERIC_TYPE);
+    root_scope->add(uninitialized_type);
+
     lvalue_type = new AttributeType("Lvalue");
     root_scope->add(lvalue_type);
     
@@ -226,6 +229,7 @@ void builtin_types(Scope *root_scope) {
     ANYID_REF_LVALUE_TS = { lvalue_type, ref_type, anyid_type };
     ANYID_WEAKREF_TS = { weakref_type, anyid_type };
     ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
+    ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
     ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
     SAME_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, same_type };
@@ -773,6 +777,9 @@ Scope *init_builtins() {
     
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
+    
+    // Initialization of value types
+    root_scope->add(new TemplateIdentifier<CreateValue>("create from", ANY_UNINITIALIZED_TS));
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<IfValue>(":if", NO_TS, TWEAK));

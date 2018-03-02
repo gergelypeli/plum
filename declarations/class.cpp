@@ -33,6 +33,8 @@ public:
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        throw INTERNAL_ERROR;  // Since initializers
+        
         // Assume the target MEMORY is uninitialized
         
         switch (s.where * t.where) {
@@ -81,9 +83,13 @@ public:
 
             Value *value = inner_scope->lookup(name, pre);
 
-            // FIXME: check if the method is Void!
-            if (value)
-                return make_cast_value(value, rts);
+            if (value) {
+                if (is_initializer_function_call(value))
+                    return make_cast_value(value, rts);
+                        
+                std::cerr << "Can't initialize class with non-initializer " << name << "!\n";
+                return NULL;
+            }
         }
         
         std::cerr << "Can't initialize class as " << name << "!\n";

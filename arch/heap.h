@@ -1,7 +1,7 @@
 const int HEAP_HEADER_SIZE = 32;
 const int HEAP_HEADER_OFFSET = -32;
 const int HEAP_REFCOUNT_OFFSET = -32;
-const int HEAP_WEAKREFCOUNT_OFFSET = -24;
+const int HEAP_WEAKREFCOUNT_OFFSET = -8;  // must be the same
 const int HEAP_FINALIZER_OFFSET = -16;
 
 const int ARRAY_HEADER_SIZE = 16;
@@ -20,6 +20,11 @@ const int CIRCULARRAY_MINIMUM_RESERVATION = 8;
 const int CLASS_HEADER_SIZE = 8;
 const int CLASS_VT_OFFSET = 0;
 const int CLASS_MEMBERS_OFFSET = 8;
+
+const int ROLE_HEADER_SIZE = 8;
+const int ROLE_HEADER_OFFSET = -8;
+const int ROLE_WEAKREFCOUNT_OFFSET = -8;  // must be the same
+const int ROLE_CLASS_OFFSET = 0;
 
 const int RBTREE_HEADER_SIZE = 48;
 const int RBTREE_RESERVATION_OFFSET = 0;

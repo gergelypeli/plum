@@ -146,6 +146,7 @@ struct {
     { "^=",  "assign_xor", ASSIGNING },
     { "<<=", "assign_shift_left", ASSIGNING },
     { ">>=", "assign_shift_right", ASSIGNING },
+    { "?=",  "create from", ASSIGNING },
     //{ "", "",  },
 };
 

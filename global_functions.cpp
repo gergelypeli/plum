@@ -6,6 +6,11 @@ TypeSpec get_typespec(Value *value) {
 }
 
 
+void set_typespec(Value *value, TypeSpec ts) {
+    value->ts = ts;
+}
+
+
 Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match) {
     return new VariableValue(decl, pivot, match);
 }
@@ -25,8 +30,17 @@ bool partial_variable_is_initialized(std::string name, Value *pivot) {
 }
 
 
-Value *make_role_value(Variable *decl, Value *pivot, TypeMatch &tm) {
-    return new RoleValue(decl, pivot, tm);
+void partial_variable_be_initialized(std::string name, Value *pivot) {
+    PartialVariableValue *pv = dynamic_cast<PartialVariableValue *>(pivot);
+    if (!pv)
+        throw INTERNAL_ERROR;
+        
+    pv->be_initialized(name);
+}
+
+
+Value *make_role_value(Role *role, Value *pivot, TypeMatch &tm) {
+    return new RoleValue(role, pivot, tm);
 }
 
 
@@ -258,6 +272,13 @@ DeclarationValue *declaration_value_cast(Value *value) {
 
 Declaration *declaration_get_decl(DeclarationValue *dv) {
     return dv->get_decl();
+}
+
+
+bool is_initializer_function_call(Value *value) {
+    FunctionCallValue *fcv = dynamic_cast<FunctionCallValue *>(value);
+                
+    return fcv && fcv->function->is_initializer_function;
 }
 
 

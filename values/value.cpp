@@ -355,6 +355,20 @@ public:
                 x64->decweakref(reg);
                 s = Storage(MEMORY, Address(reg, 0));
             }
+            else if (pivot->ts[0] == partial_type) {
+                // Initializing a member of a class or record
+                
+                if (pivot->ts[1] == ref_type) {
+                    // Dereference this
+                    x64->op(MOVQ, reg, t.address);
+                    s = Storage(MEMORY, Address(reg, 0));
+                }
+                else if (pivot->ts[1] == lvalue_type) {
+                    ;
+                }
+                else
+                    throw INTERNAL_ERROR;
+            }
             
             t = variable->get_storage(match, s);
         }
@@ -529,14 +543,14 @@ public:
 
 class RoleValue: public Value {
 public:
-    Variable *variable;
+    Role *role;
     std::unique_ptr<Value> pivot;
     Register reg;
     TypeMatch match;
     
-    RoleValue(Variable *v, Value *p, TypeMatch &tm)
-        :Value(v->var_ts.rvalue().unprefix(role_type).prefix(weakref_type)) {  // Was: borrowed_type
-        variable = v;
+    RoleValue(Role *r, Value *p, TypeMatch &tm)
+        :Value(r->role_ts.prefix(weakref_type)) {  // Was: borrowed_type
+        role = r;
         pivot.reset(p);
         reg = NOREG;
         match = tm;
@@ -545,13 +559,14 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot ? pivot->precompile(preferred) : Regs();
             
-        if (!variable->xxx_is_allocated)
+        if (!role->xxx_is_allocated)
             throw INTERNAL_ERROR;
             
         return clob;
     }
     
     virtual Storage compile(X64 *x64) {
+        /*
         // Store a VT pointer and a data pointer onto the stack
         Storage t;
         
@@ -573,7 +588,7 @@ public:
             //s = Storage(MEMORY, Address(RBP, 0));
         
         variable->var_ts.store(t, Storage(ALISTACK), x64);
-        
+        */
         return Storage(STACK);
     }
 };

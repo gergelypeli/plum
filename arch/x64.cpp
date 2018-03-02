@@ -305,14 +305,14 @@ void X64::data_reference(Label label) {
 
 
 void X64::data_heap_header() {
-    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -32 || HEAP_WEAKREFCOUNT_OFFSET != -24 || HEAP_FINALIZER_OFFSET != -16)
+    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -32 || HEAP_WEAKREFCOUNT_OFFSET != -8 || HEAP_FINALIZER_OFFSET != -16)
         throw X64_ERROR;
     
     data_align();
     data_qword(1);  // artificial reference to prevent freeing
     data_qword(0);
     data_reference(empty_function_label);
-    data_qword(0);
+    data_qword(0);  // weakrefcount
 }
 
 

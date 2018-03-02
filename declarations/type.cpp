@@ -396,15 +396,17 @@ public:
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Partial inner lookup " << n << ".\n";
         
-        if (!partial_variable_is_initialized(n, v)) {
-            std::cerr << "Rejecting access to uninitialized member " << n << "!\n";
+        Value *member = tm[1].lookup_inner(n, make_cast_value(v, tm[1]));
+        if (!member)
             return NULL;
+        
+        if (!partial_variable_is_initialized(n, v)) {
+            partial_variable_be_initialized(n, v);
+            std::cerr << "Member " << n << " is not yet initialized.\n";
+            set_typespec(member, get_typespec(member).reprefix(lvalue_type, uninitialized_type));
         }
         
-        TypeSpec ts = tm[0].unprefix(partial_type);
-        Value *allowed = make_cast_value(v, ts);
-        
-        return ts.lookup_inner(n, allowed);
+        return member;
     }
 };
 

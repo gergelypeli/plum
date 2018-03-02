@@ -94,4 +94,3 @@ public:
         x64->decref(RBX);
     }
 };
-

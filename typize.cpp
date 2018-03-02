@@ -6,6 +6,7 @@ const char RETURN_EXCEPTION = -1;
 
 class Declaration;
 class Variable;
+class Role;
 class PartialVariable;
 class Evaluable;
 class Function;

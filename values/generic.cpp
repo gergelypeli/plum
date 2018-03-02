@@ -335,3 +335,27 @@ public:
     }
 };
 
+
+class CreateValue: public GenericValue {
+public:
+    CreateValue(Value *l, TypeMatch &tm)
+        :GenericValue(tm[1], VOID_TS, l) {
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage ls = left->compile(x64);
+        
+        if (ls.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        Storage rs = right->compile(x64);
+        
+        arg_ts.create(rs, ls, x64);
+        
+        return Storage();
+    }
+};

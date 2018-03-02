@@ -94,10 +94,7 @@ public:
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable
-        if (var_ts[0] == lvalue_type && var_ts[1] == role_type)
-            return make_role_value(this, cpivot, match);
-        else
-            return make_variable_value(this, cpivot, match);
+        return make_variable_value(this, cpivot, match);
     }
     
     virtual void allocate() {
@@ -298,6 +295,68 @@ public:
         throw INTERNAL_ERROR;
     }
 };
+
+
+class Role: public Identifier {
+public:
+    TypeSpec role_ts;
+    Allocation offset;
+    int virtual_index;
+    bool xxx_is_allocated;
+    
+    Role(std::string name, TypeSpec pts, TypeSpec rts)
+        :Identifier(name, pts) {
+        virtual_index = -1;
+        role_ts = rts;
+        
+        xxx_is_allocated = false;
+    }
+    
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_role_value(this, cpivot, match);
+    }
+    
+    virtual void allocate() {
+        if (xxx_is_allocated)
+            throw INTERNAL_ERROR;
+            
+        Allocation a = role_ts.measure();
+        a.bytes += ROLE_HEADER_SIZE;
+        offset = outer_scope->reserve(a);
+        offset.bytes += ROLE_HEADER_SIZE;
+        //std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
+
+        virtual_index = outer_scope->virtual_reserve(role_ts.get_virtual_table());
+        
+        xxx_is_allocated = true;
+        //std::cerr << "Variable " << name << " offset is " << offset << "\n";
+    }
+    
+    virtual int get_offset(TypeMatch tm) {
+        if (!xxx_is_allocated)
+            throw INTERNAL_ERROR;
+
+        return offset.concretize(tm);
+    }
+    /*
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // Only NOWHERE_MEMORY
+        TypeSpec ts = typesubst(role_ts, tm);
+        int o = offset.concretize(tm);
+        
+        x64->op(MOVQ, t.address + o + ROLE_WEAKREF_OFFSET, 0);
+        
+        ts.create(s, t + o, x64);
+    }
+    */
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        TypeSpec ts = typesubst(role_ts, tm);
+        int o = offset.concretize(tm);
+        ts.destroy(s + o, x64);
+    }
+};
+
+
 
 
 class Function: public Identifier {
