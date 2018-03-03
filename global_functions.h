@@ -11,7 +11,9 @@ bool is_initializer_function_call(Value *value);
 
 // Declaration wrappers
 
+Allocable *allocable_cast(Declaration *decl);
 Variable *variable_cast(Declaration *decl);
+Role *role_cast(Declaration *decl);
 HeapType *heap_type_cast(Type *t);
 Declaration *make_record_compare();
 

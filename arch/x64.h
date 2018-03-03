@@ -482,7 +482,7 @@ public:
     void op(Imul3Op opcode, Register x, Register y, int z);
     void op(Imul3Op opcode, Register x, Address y, int z);
     void op(RegisterMemoryOp opcode, Register x, Address y);
-    void op(LeaRipOp opcode, Register r, Label l);
+    void op(LeaRipOp opcode, Register r, Label l, int offset = 0);
     void op(BitSetOp, Register x);
     void op(BitSetOp, Address x);
     void op(BranchOp opcode, Label c);

@@ -2,7 +2,7 @@
 
 class ClassType: public HeapType {
 public:
-    std::vector<Variable *> member_variables;
+    std::vector<Allocable *> member_variables;  // FIXME: not necessary Variables
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
 
@@ -12,11 +12,11 @@ public:
 
     virtual void complete_type() {
         for (auto &c : inner_scope->contents) {
-            Variable *v = dynamic_cast<Variable *>(c.get());
+            Allocable *v = allocable_cast(c.get());
             
             if (v) {
                 member_variables.push_back(v);
-                member_tss.push_back(v->var_ts.rvalue());
+                member_tss.push_back(v->alloc_ts.rvalue());
                 member_names.push_back(v->name);
             }
         }
@@ -33,20 +33,9 @@ public:
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        throw INTERNAL_ERROR;  // Since initializers
-        
-        // Assume the target MEMORY is uninitialized
-        
-        switch (s.where * t.where) {
-        case NOWHERE_MEMORY:
-            for (auto &var : member_variables)
-                var->create(tm, Storage(), t, x64);
-            return;
-        default:
-            throw INTERNAL_ERROR;
-        }
+        throw INTERNAL_ERROR;
     }
-
+    
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
             for (auto &var : member_variables)  // FIXME: reverse!
@@ -122,10 +111,6 @@ public:
         return member_names;
     }
 
-    virtual std::vector<Variable *> get_member_variables() {
-        return member_variables;
-    }
-
     virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
         return inner_scope->get_virtual_table();
     }
@@ -158,6 +143,19 @@ public:
         ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
 
         x64->op(RET);
+    }
+
+    virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
+        //Label vt_label = get_virtual_table_label(tm, x64)
+        x64->op(LEARIP, RBX, vt_label, virtual_offset * ADDRESS_SIZE);
+        x64->op(MOVQ, addr + data_offset + CLASS_VT_OFFSET, RBX);
+
+        for (auto &var : member_variables) {
+            Role *r = role_cast(var);
+            
+            if (r)
+                r->init_vt(tm, addr, data_offset, vt_label, virtual_offset, x64);
+        }
     }
 };
 

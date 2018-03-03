@@ -52,11 +52,9 @@ public:
                 Variable *self_var;
                 
                 if (is_initializer) {
-                    if (pivot_ts[0] == weakref_type)
-                        pivot_ts = pivot_ts.reprefix(weakref_type, ref_type);
-                        
-                    pivot_ts = pivot_ts.prefix(partial_type);
-                    self_var = new PartialVariable("$", NO_TS, pivot_ts);
+                    pivot_ts = pivot_ts.prefix(initializable_type);
+                    TypeSpec partial_ts = pivot_ts.reprefix(initializable_type, partial_type);
+                    self_var = new PartialVariable("$", NO_TS, partial_ts);
                 }
                 else
                     self_var = new Variable("$", NO_TS, pivot_ts);
@@ -109,20 +107,20 @@ public:
         if (deferred_body_expr) {
             if (pv) {
                 // Must do this only after the class definition is completed
-                if (pv->var_ts[1] == ref_type) {
+                if (pv->alloc_ts[1] == weakref_type) {
                     // TODO: this should also work for records
-                    ClassType *ct = dynamic_cast<ClassType *>(pv->var_ts[2]);
+                    ClassType *ct = dynamic_cast<ClassType *>(pv->alloc_ts[2]);
                     if (!ct)
                         throw INTERNAL_ERROR;
                     
-                    pv->set_member_variables(ct->get_member_variables());
+                    pv->set_member_names(ct->get_member_names());
                 }
-                else if (pv->var_ts[1] == lvalue_type) {
-                    RecordType *rt = dynamic_cast<RecordType *>(pv->var_ts[2]);
+                else if (pv->alloc_ts[1] == lvalue_type) {
+                    RecordType *rt = dynamic_cast<RecordType *>(pv->alloc_ts[2]);
                     if (!rt)
                         throw INTERNAL_ERROR;
                     
-                    pv->set_member_variables(rt->get_member_variables());
+                    pv->set_member_names(rt->get_member_names());
                 }
                 else
                     throw INTERNAL_ERROR;
@@ -219,31 +217,28 @@ public:
 
         for (auto &d : fn_scope->head_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
-            Variable *v = dynamic_cast<Variable *>(d.get());
+            Allocable *v = allocable_cast(d.get());
             
             if (v) {
-                arg_tss.push_back(v->var_ts);  // FIXME
+                arg_tss.push_back(v->alloc_ts);  // FIXME
                 arg_names.push_back(v->name);
-                v->be_argument();
             }
         }
 
         // Not returned, but must be processed
         for (auto &d : fn_scope->self_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
-            Variable *v = dynamic_cast<Variable *>(d.get());
+            Allocable *v = allocable_cast(d.get());
             
             if (v) {
-                v->be_argument();
             }
         }
         
         for (auto &d : fn_scope->result_scope->contents) {
-            Variable *v = dynamic_cast<Variable *>(d.get());
+            Allocable *v = allocable_cast(d.get());
             
             if (v) {
-                result_tss.push_back(v->var_ts);  // FIXME
-                v->be_argument();
+                result_tss.push_back(v->alloc_ts);  // FIXME
             }
             else
                 throw INTERNAL_ERROR;
@@ -677,7 +672,7 @@ public:
             values.push_back(NULL);
         
         for (unsigned i = 0; i < result_vars.size(); i++)
-            infos.push_back(ArgInfo { result_vars[i]->name.c_str(), &result_vars[i]->var_ts, scope, &values[i] });
+            infos.push_back(ArgInfo { result_vars[i]->name.c_str(), &result_vars[i]->alloc_ts, scope, &values[i] });
             
         if (!check_arguments(args, kwargs, infos))
             return false;
@@ -711,7 +706,7 @@ public:
         for (unsigned i = 0; i < values.size(); i++) {
             Storage var_storage = result_vars[i]->get_local_storage();
             var_storages.push_back(var_storage);
-            TypeSpec var_ts = result_vars[i]->var_ts;
+            TypeSpec var_ts = result_vars[i]->alloc_ts;
             
             Storage s = values[i]->compile(x64);
             Storage t = var_storage;
@@ -728,7 +723,7 @@ public:
     
     virtual Scope *unwind(X64 *x64) {
         for (int i = var_storages.size() - 1; i >= 0; i--)
-            unwind_destroy_var(result_vars[i]->var_ts, var_storages[i], x64);
+            unwind_destroy_var(result_vars[i]->alloc_ts, var_storages[i], x64);
             
         return NULL;
     }

@@ -209,6 +209,11 @@ DataScope *TypeSpec::get_inner_scope() {
 }
 
 
+void TypeSpec::init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
+    at(0)->init_vt(match(), addr, data_offset, vt_label, virtual_offset, x64);
+}
+
+
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts) {
     os << "[";
     

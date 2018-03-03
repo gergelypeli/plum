@@ -1014,8 +1014,8 @@ void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
 
 
 
-void X64::op(LeaRipOp, Register r, Label l) {
-    code_op(0x8D, 3 | OPSIZE_NONBYTE, r, l, 0);  // must use 64-bit opsize
+void X64::op(LeaRipOp, Register r, Label l, int offset) {
+    code_op(0x8D, 3 | OPSIZE_NONBYTE, r, l, offset);  // must use 64-bit opsize
 }
 
 

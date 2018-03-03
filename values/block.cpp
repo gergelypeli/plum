@@ -259,7 +259,7 @@ public:
             var = variable_cast(decl);
             
             if (var)
-                ts = var->var_ts;
+                ts = var->alloc_ts;
         }
         
         return true;
@@ -340,7 +340,7 @@ public:
                 Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
 
                 // Use the value to initialize the variable, then return the variable
-                var->var_ts.create(s, t, x64);
+                var->alloc_ts.create(s, t, x64);
             }
 
             return t;

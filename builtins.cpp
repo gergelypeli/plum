@@ -57,6 +57,9 @@ void builtin_types(Scope *root_scope) {
     uninitialized_type = new SpecialType("<Uninitialized>", { GENERIC_TYPE }, GENERIC_TYPE);
     root_scope->add(uninitialized_type);
 
+    initializable_type = new InitializableType("<Initializable>");
+    root_scope->add(initializable_type);
+
     lvalue_type = new AttributeType("Lvalue");
     root_scope->add(lvalue_type);
     
@@ -795,6 +798,7 @@ Scope *init_builtins() {
 
     root_scope->add(new TemplateIdentifier<FunctionDefinitionValue>(":Function", NO_TS));
     root_scope->add(new TemplateIdentifier<InitializerDefinitionValue>(":Initializer", NO_TS));
+    root_scope->add(new TemplateIdentifier<RoleDefinitionValue>(":Role", NO_TS));
     
     // Library functions, unscoped
     builtin_runtime(root_scope);

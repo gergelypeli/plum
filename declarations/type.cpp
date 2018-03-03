@@ -253,6 +253,11 @@ public:
 
         return find_implementation(tm, target, orig, ifts);
     }
+
+    virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
+        std::cerr << "Unvtinitable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
     
     virtual void complete_type() {
     }
@@ -374,14 +379,16 @@ public:
 class PartialType: public Type {
 public:
     PartialType(std::string name)
-        :Type(name, TTs { VALUE_TYPE }, VALUE_TYPE) {
+        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE) {
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
         return tm[1].where(is_arg, is_lvalue);
+        //return tm[1][0]->type == IDENTITY_TYPE ? 
     }
 
     virtual Allocation measure(TypeMatch tm) {
+        //return Allocation(ADDRESS_SIZE);
         return tm[1].measure();
     }
 
@@ -402,11 +409,52 @@ public:
         
         if (!partial_variable_is_initialized(n, v)) {
             partial_variable_be_initialized(n, v);
-            std::cerr << "Member " << n << " is not yet initialized.\n";
-            set_typespec(member, get_typespec(member).reprefix(lvalue_type, uninitialized_type));
+            
+            TypeSpec member_ts = get_typespec(member);
+            
+            if (member_ts[0] == lvalue_type) {
+                std::cerr << "Member variable " << n << " is not yet initialized.\n";
+                set_typespec(member, member_ts.reprefix(lvalue_type, uninitialized_type));
+            }
+            else if (member_ts[0] == weakref_type) {
+                std::cerr << "Member role " << n << " is not yet initialized.\n";
+                set_typespec(member, member_ts.prefix(initializable_type));
+            }
+            else
+                throw INTERNAL_ERROR;
         }
         
         return member;
+    }
+};
+
+
+class InitializableType: public Type {
+public:
+    InitializableType(std::string name)
+        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE) {
+    }
+
+    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
+        return tm[1].where(is_arg, is_lvalue);
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        return tm[1].measure();
+    }
+
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        return tm[1].store(s, t, x64);
+    }
+
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        tm[1].create(s, t, x64);
+    }
+
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+        std::cerr << "Initializable inner lookup " << n << ".\n";
+        
+        return tm[1].lookup_inner(n, v);
     }
 };
 

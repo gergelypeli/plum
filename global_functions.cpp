@@ -329,8 +329,18 @@ Value *make_equality_matcher_value(Value *p) {
 
 // Declaration operations
 
+Allocable *allocable_cast(Declaration *decl) {
+    return dynamic_cast<Allocable *>(decl);
+}
+
+
 Variable *variable_cast(Declaration *decl) {
     return dynamic_cast<Variable *>(decl);
+}
+
+
+Role *role_cast(Declaration *decl) {
+    return dynamic_cast<Role *>(decl);
 }
 
 

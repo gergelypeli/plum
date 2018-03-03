@@ -5,6 +5,7 @@ const char NO_EXCEPTION = 0;
 const char RETURN_EXCEPTION = -1;
 
 class Declaration;
+class Allocable;
 class Variable;
 class Role;
 class PartialVariable;

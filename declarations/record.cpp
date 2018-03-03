@@ -11,11 +11,11 @@ public:
 
     virtual void complete_type() {
         for (auto &c : inner_scope->contents) {
-            Variable *v = dynamic_cast<Variable *>(c.get());
+            Variable *v = variable_cast(c.get());
             
             if (v) {
                 member_variables.push_back(v);
-                member_tss.push_back(v->var_ts.rvalue());
+                member_tss.push_back(v->alloc_ts.rvalue());
                 member_names.push_back(v->name);
             }
         }
@@ -262,10 +262,6 @@ public:
     
     virtual std::vector<std::string> get_member_names() {
         return member_names;
-    }
-
-    virtual std::vector<Variable *> get_member_variables() {
-        return member_variables;
     }
 };
 

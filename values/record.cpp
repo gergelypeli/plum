@@ -82,7 +82,7 @@ public:
     
     virtual Scope *unwind(X64 *x64) {
         for (int i = var_storages.size() - 1; i >= 0; i--)
-            unwind_destroy_var(record_type->member_variables[i]->var_ts, var_storages[i], x64);
+            unwind_destroy_var(record_type->member_variables[i]->alloc_ts, var_storages[i], x64);
 
         x64->op(ADDQ, RSP, ts.measure_stack());
             
@@ -94,7 +94,7 @@ public:
 class RecordPreinitializerValue: public Value {
 public:
     RecordPreinitializerValue(TypeSpec ts)
-        :Value(ts.prefix(lvalue_type).prefix(partial_type)) {  // TODO: eiiii...
+        :Value(ts.prefix(lvalue_type).prefix(initializable_type)) {  // TODO: eiiii...
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -115,7 +115,7 @@ public:
     std::unique_ptr<Value> value;
     
     RecordPostinitializerValue(Value *v)
-        :Value(v->ts.unprefix(partial_type)) {
+        :Value(v->ts.unprefix(initializable_type)) {
         value.reset(v);
     }
     

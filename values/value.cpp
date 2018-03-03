@@ -305,7 +305,7 @@ public:
     TypeMatch match;
     
     VariableValue(Variable *v, Value *p, TypeMatch &tm)
-        :Value(typesubst(v->var_ts, tm).lvalue()) {
+        :Value(typesubst(v->alloc_ts, tm).lvalue()) {
         variable = v;
         pivot.reset(p);
         reg = NOREG;
@@ -358,7 +358,7 @@ public:
             else if (pivot->ts[0] == partial_type) {
                 // Initializing a member of a class or record
                 
-                if (pivot->ts[1] == ref_type) {
+                if (pivot->ts[1] == weakref_type) {
                     // Dereference this
                     x64->op(MOVQ, reg, t.address);
                     s = Storage(MEMORY, Address(reg, 0));
@@ -406,10 +406,6 @@ public:
         return partial_variable->is_initialized(name);
     }
     
-    virtual Variable *var_initialized(std::string name) {
-        return partial_variable->var_initialized(name);
-    }
-    
     virtual bool is_complete() {
         return partial_variable->is_complete();
     }
@@ -423,7 +419,7 @@ public:
     std::vector<Storage> arg_storages;
     
     EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
-        :Value(typesubst(e->var_ts, tm).unprefix(code_type)) {
+        :Value(typesubst(e->alloc_ts, tm).unprefix(code_type)) {
         evaluable = e;
         
         if (p)
@@ -441,7 +437,7 @@ public:
             arg_values.push_back(NULL);
             
             // Must keep these, as we hold a pointer to each
-            arg_tss.push_back(v->var_ts.unprefix(dvalue_type));
+            arg_tss.push_back(v->alloc_ts.unprefix(dvalue_type));
             
             infos.push_back(ArgInfo {
                 v->name.c_str(),
@@ -486,7 +482,7 @@ public:
             x64->op(MOVQ, reg, x.address);
             Storage t(MEMORY, Address(reg, 0));
             
-            evaluable->arg_variables[i]->var_ts.create(s, t, x64);
+            evaluable->arg_variables[i]->alloc_ts.create(s, t, x64);
         }
     
         Storage es = evaluable->get_local_storage();
@@ -517,7 +513,7 @@ public:
             x64->op(MOVQ, reg, x.address);
             Storage t(MEMORY, Address(reg, 0));
             
-            evaluable->arg_variables[i]->var_ts.destroy(t, x64);
+            evaluable->arg_variables[i]->alloc_ts.destroy(t, x64);
         }
         
         return ts == VOID_TS ? Storage() : Storage(STACK);
@@ -530,7 +526,7 @@ public:
             x64->op(MOVQ, reg, x.address);
             Storage t(MEMORY, Address(reg, 0));
             
-            evaluable->arg_variables[i]->var_ts.destroy(t, x64);
+            evaluable->arg_variables[i]->alloc_ts.destroy(t, x64);
         }
         
         if (ts != VOID_TS)
@@ -549,7 +545,7 @@ public:
     TypeMatch match;
     
     RoleValue(Role *r, Value *p, TypeMatch &tm)
-        :Value(r->role_ts.prefix(weakref_type)) {  // Was: borrowed_type
+        :Value(r->alloc_ts.prefix(weakref_type)) {  // Was: borrowed_type
         role = r;
         pivot.reset(p);
         reg = NOREG;
@@ -566,30 +562,31 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        /*
-        // Store a VT pointer and a data pointer onto the stack
-        Storage t;
+        Storage s = pivot->compile(x64);
+        int offset = role->get_offset(match);
         
-        if (pivot) {
-            // FIXME: this seems to be bogus, this is the static type of the pivot,
-            // not the dynamic type!
-            Label vtl = pivot->ts.get_virtual_table_label(x64);
-            int vti = variable->virtual_index;
-            
-            x64->op(LEARIP, RBX, vtl);
-            x64->op(ADDQ, RBX, vti * 4);  // virtual table stores 32-bit relative offsets
+        switch (s.where) {
+        case REGISTER:
+            x64->decweakref(s.reg);
+            x64->op(ADDQ, s.reg, offset);
+            x64->incweakref(s.reg);
+            return s;
+        case STACK:
+            x64->op(POPQ, RBX);
+            x64->decweakref(RBX);
+            x64->op(ADDQ, RBX, offset);
+            x64->incweakref(RBX);
             x64->op(PUSHQ, RBX);
-            
-            Storage s = pivot->compile(x64);
-            t = variable->get_storage(match, s);
+            return s;
+        case MEMORY:
+            x64->op(MOVQ, RBX, s.address);
+            x64->op(ADDQ, RBX, offset);
+            x64->incweakref(RBX);
+            x64->op(PUSHQ, RBX);
+            return Storage(STACK);
+        default:
+            throw INTERNAL_ERROR;
         }
-        else
-            throw INTERNAL_ERROR;  // TODO: allow function Role-s?
-            //s = Storage(MEMORY, Address(RBP, 0));
-        
-        variable->var_ts.store(t, Storage(ALISTACK), x64);
-        */
-        return Storage(STACK);
     }
 };
 

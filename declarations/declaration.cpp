@@ -73,6 +73,7 @@ public:
 
 #include "scope.cpp"
 #include "identifier.cpp"
+#include "allocable.cpp"
 #include "type.cpp"
 
 

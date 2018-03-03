@@ -109,8 +109,22 @@ XStringiterator? :Record as:
             :return $ string[$ index]
 
 
+Base? :Class as:
+    base_value? Integer
+    
+    base_init? :Initializer as:
+        $ base_value ?= 100
+    
+    base_method? :Function as:
+        prints("The base value is {x}" {x: $ base_value})
+        
+
 Greetable? :Class as:
+    base? :Role Base
+
     init? :Initializer as:
+        $ base base_init
+        
         $ number ?= 1
         $ name ?= "The Greetable"
         #$ g? `null
@@ -536,6 +550,8 @@ test_classes? :Function as:
     wgr greet
     
     wgr = gr
+    
+    gr base base_method
 
 
 start? :Function as:

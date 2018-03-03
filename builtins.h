@@ -28,6 +28,7 @@ Type *ref_type = NULL;
 Type *weakref_type = NULL;
 Type *partial_type = NULL;
 Type *uninitialized_type = NULL;
+Type *initializable_type = NULL;
 Type *role_type = NULL;
 Type *array_type = NULL;
 Type *circularray_type = NULL;
