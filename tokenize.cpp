@@ -143,6 +143,12 @@ std::vector<Token> tokenize(std::string buffer) {
                 if (!prefix) {
                     i++;
                     c = buffer[i];
+                    
+                    // The question mark now also appears in operators
+                    if (ispunct(c)) {
+                        std::cerr << "Ambiguous declaration token!\n";
+                        throw TOKEN_ERROR;
+                    }
                 }
                 else {
                     std::cerr << "Invalid something-declaration token!\n";

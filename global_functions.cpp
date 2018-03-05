@@ -273,7 +273,7 @@ Declaration *declaration_get_decl(DeclarationValue *dv) {
 bool is_initializer_function_call(Value *value) {
     FunctionCallValue *fcv = dynamic_cast<FunctionCallValue *>(value);
                 
-    return fcv && fcv->function->is_initializer_function;
+    return fcv && fcv->function->type == INITIALIZER_FUNCTION;
 }
 
 
@@ -329,6 +329,11 @@ Value *make_equality_matcher_value(Value *p) {
 
 // Declaration operations
 
+Function *function_cast(Declaration *decl) {
+    return dynamic_cast<Function *>(decl);
+}
+
+
 Allocable *allocable_cast(Declaration *decl) {
     return dynamic_cast<Allocable *>(decl);
 }
@@ -341,6 +346,11 @@ Variable *variable_cast(Declaration *decl) {
 
 Role *role_cast(Declaration *decl) {
     return dynamic_cast<Role *>(decl);
+}
+
+
+ClassType *class_type_cast(Declaration *decl) {
+    return dynamic_cast<ClassType *>(decl);
 }
 
 

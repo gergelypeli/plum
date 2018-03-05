@@ -66,8 +66,11 @@ public:
 };
 
 
+enum FunctionType {
+    GENERIC_FUNCTION, INTERFACE_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION
+};
 
-
+    
 class Function: public Identifier {
 public:
     std::vector<TypeSpec> arg_tss;
@@ -75,37 +78,27 @@ public:
     std::vector<TypeSpec> res_tss;
     TreenumerationType *exception_type;
     int virtual_index;
-    bool is_interface_function;
-    bool is_initializer_function;
+    FunctionType type;
 
     Label x64_label;
     bool is_sysv;
     
-    Function(std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
+    Function(std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
         :Identifier(n, pts) {
+        type = ft;
         arg_tss = ats;
         arg_names = ans;
         res_tss = rts;
         exception_type = et;
         virtual_index = -1;
-        is_interface_function = false;
-        is_initializer_function = false;
         
         is_sysv = false;
-    }
-
-    virtual void be_interface_function() {
-        is_interface_function = true;
-    }
-
-    virtual void be_initializer_function() {
-        is_initializer_function = true;
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         // TODO: do this properly!
         
-        if (is_interface_function) {
+        if (type == INTERFACE_FUNCTION) {
             std::cerr << "Oops, interface function " << name << " was called instead of an implementation!\n";
             throw INTERNAL_ERROR;
         }
@@ -136,7 +129,7 @@ public:
     }
 
     virtual void allocate() {
-        if (outer_scope->is_virtual_scope() && !is_initializer_function) {  // FIXME
+        if (outer_scope->is_virtual_scope() && type == GENERIC_FUNCTION) {  // FIXME
             std::vector<Function *> vt;
             vt.push_back(this);
             virtual_index = outer_scope->virtual_reserve(vt);
@@ -156,8 +149,8 @@ public:
     
     std::string import_name;
     
-    ImportedFunction(std::string in, std::string n, TypeSpec pts, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
-        :Function(n, pts, ats, ans, rts, et) {
+    ImportedFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
+        :Function(n, pts, ft, ats, ans, rts, et) {
         import_name = in;
         to_be_imported.push_back(this);
     }

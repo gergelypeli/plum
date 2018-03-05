@@ -10,16 +10,16 @@ public:
     Expr *deferred_body_expr;
     bool may_be_aborted;
     TypeSpec pivot_ts;
-    bool is_initializer;
-    
+
+    FunctionType type;
     Function *function;  // If declared with a name, which is always, for now
         
     FunctionDefinitionValue(Value *r, TypeMatch &match)
         :Value(METATYPE_TS) {
+        type = GENERIC_FUNCTION;
         function = NULL;
         deferred_body_expr = NULL;
         may_be_aborted = false;
-        is_initializer = false;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -51,7 +51,7 @@ public:
             if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
                 Variable *self_var;
                 
-                if (is_initializer) {
+                if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
                     TypeSpec partial_ts = pivot_ts.reprefix(initializable_type, partial_type);
                     self_var = new PartialVariable("$", NO_TS, partial_ts);
@@ -211,6 +211,11 @@ public:
             return NULL;
         }
         
+        if (type == FINALIZER_FUNCTION && name != "<anonymous>") {
+            std::cerr << "Finalizer must be anonymous!\n";
+            return NULL;
+        }
+        
         std::vector<TypeSpec> arg_tss;
         std::vector<std::string> arg_names;
         std::vector<TypeSpec> result_tss;
@@ -245,11 +250,8 @@ public:
         }
         
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
-        function = new Function(name, pivot_ts, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+        function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
 
-        if (is_initializer)
-            function->be_initializer_function();
-        
         return function;
     }
 };
@@ -259,7 +261,16 @@ class InitializerDefinitionValue: public FunctionDefinitionValue {
 public:
     InitializerDefinitionValue(Value *r, TypeMatch &match)
         :FunctionDefinitionValue(r, match) {
-        is_initializer = true;
+        type = INITIALIZER_FUNCTION;
+    }
+};
+
+
+class FinalizerDefinitionValue: public FunctionDefinitionValue {
+public:
+    FinalizerDefinitionValue(Value *r, TypeMatch &match)
+        :FunctionDefinitionValue(r, match) {
+        type = FINALIZER_FUNCTION;
     }
 };
 

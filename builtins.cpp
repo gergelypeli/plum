@@ -340,7 +340,7 @@ void define_integers() {
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
 
     implement(integer_scope, STREAMIFIABLE_TS, "sable", {
-        new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
+        new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, GENERIC_FUNCTION, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
     });
     
     integer_scope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
@@ -353,12 +353,12 @@ void define_interfaces() {
     DataScope *sis = streamifiable_type->make_inner_scope(STREAMIFIABLE_TS);
     Function *sf = new Function("streamify",
         STREAMIFIABLE_TS,
+        INTERFACE_FUNCTION,
         TSs { STRING_LVALUE_TS },
         Ss { "stream" },
         TSs {},
         NULL
     );
-    sf->be_interface_function();
     sis->add(sf);
     streamifiable_type->complete_type();
     
@@ -366,12 +366,12 @@ void define_interfaces() {
     DataScope *jis = iterable_type->make_inner_scope(ANY_ITERABLE_TS);
     Function *xf = new Function("iter",
         ANY_ITERABLE_TS,
+        INTERFACE_FUNCTION,
         TSs {},
         Ss {},
         TSs { SAME_ITERATOR_TS },
         NULL
     );
-    xf->be_interface_function();
     jis->add(xf);
     iterable_type->complete_type();
 
@@ -379,12 +379,12 @@ void define_interfaces() {
     DataScope *iis = iterator_type->make_inner_scope(ANY_ITERATOR_TS);
     Function *nf = new Function("next",
         ANY_ITERATOR_TS,
+        INTERFACE_FUNCTION,
         TSs {},
         Ss {},
         TSs { SAME_TS },
         NULL
     );
-    nf->be_interface_function();
     iis->add(nf);
     implement(iis, SAME_ITERABLE_TS, "ible", {
         // This must return the concrete type, so the pivot type must be Any so that no
@@ -689,14 +689,14 @@ void builtin_runtime(Scope *root_scope) {
     Ss no_names = { };
     Ss value_names = { "value" };
 
-    root_scope->add(new ImportedFunction("printi", "printi", NO_TS, INTEGER_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("printc", "printc", NO_TS, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("printb", "printb", NO_TS, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("prints", "prints", NO_TS, TSs { STRING_TS }, value_names, NO_TSS, NULL));
-    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, NO_TSS, no_names, TSs { STRING_TS }, NULL));
-    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", STRING_TS, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
+    root_scope->add(new ImportedFunction("printi", "printi", NO_TS, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("printc", "printc", NO_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("printb", "printb", NO_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("prints", "prints", NO_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
+    root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
 
-    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, NO_TSS, no_names, TSs { STRING_TS }, NULL));
+    root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
 }
 
 
@@ -730,7 +730,7 @@ Scope *init_builtins() {
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("compare", BOOLEAN_TS, COMPARE));
     implement(bool_scope, STREAMIFIABLE_TS, "sable", {
-        new ImportedFunction("streamify_boolean", "streamify", BOOLEAN_TS, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
+        new ImportedFunction("streamify_boolean", "streamify", BOOLEAN_TS, GENERIC_FUNCTION, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
     });
 
     // Logical operations, unscoped
@@ -798,6 +798,7 @@ Scope *init_builtins() {
 
     root_scope->add(new TemplateIdentifier<FunctionDefinitionValue>(":Function", NO_TS));
     root_scope->add(new TemplateIdentifier<InitializerDefinitionValue>(":Initializer", NO_TS));
+    root_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>(":Finalizer", NO_TS));
     root_scope->add(new TemplateIdentifier<RoleDefinitionValue>(":Role", NO_TS));
     
     // Library functions, unscoped

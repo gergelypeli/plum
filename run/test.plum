@@ -114,10 +114,14 @@ Base? :Class as:
     
     base_init? :Initializer as:
         $ base_value ?= 100
+        prints("The base is initialized.")
     
     base_method? :Function as:
-        prints("The base value is {x}" {x: $ base_value})
+        prints("The base value is {x}." {x: $ base_value})
         
+    ? :Finalizer as:
+        prints("The base is finalized.")
+
 
 Greetable? :Class as:
     base? :Role Base
@@ -132,6 +136,9 @@ Greetable? :Class as:
         
     greet? :Function as:
         prints("Hello, I'm {me}!" { me: $ name })
+
+    ? :Finalizer as:
+        prints("I'm outta here!")
 
     number? Integer
     name? String

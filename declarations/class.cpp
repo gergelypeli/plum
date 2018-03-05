@@ -2,12 +2,14 @@
 
 class ClassType: public HeapType {
 public:
-    std::vector<Allocable *> member_variables;  // FIXME: not necessary Variables
+    std::vector<Allocable *> member_allocables;  // FIXME: not necessary Variables
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
+    Function *finalizer_function;
 
     ClassType(std::string name, TTs param_tts)
         :HeapType(name, param_tts) {
+        finalizer_function = NULL;
     }
 
     virtual void complete_type() {
@@ -15,13 +17,22 @@ public:
             Allocable *v = allocable_cast(c.get());
             
             if (v) {
-                member_variables.push_back(v);
+                member_allocables.push_back(v);
                 member_tss.push_back(v->alloc_ts.rvalue());
                 member_names.push_back(v->name);
             }
+            
+            Function *f = function_cast(c.get());
+            
+            if (f && f->type == FINALIZER_FUNCTION) {
+                if (finalizer_function)
+                    throw INTERNAL_ERROR;
+                    
+                finalizer_function = f;
+            }
         }
         
-        std::cerr << "Class " << name << " has " << member_variables.size() << " member variables.\n";
+        std::cerr << "Class " << name << " has " << member_allocables.size() << " member variables.\n";
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -38,7 +49,22 @@ public:
     
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         if (s.where == MEMORY) {
-            for (auto &var : member_variables)  // FIXME: reverse!
+            if (finalizer_function) {
+                if (s.address.base != RAX || s.address.index != NOREG)
+                    throw INTERNAL_ERROR;  // Hoho
+                    
+                if (s.address.offset)
+                    x64->op(ADDQ, RAX, s.address.offset);
+                    
+                x64->op(PUSHQ, RAX);
+                x64->op(CALL, finalizer_function->x64_label);
+                x64->op(POPQ, RAX);
+
+                if (s.address.offset)
+                    x64->op(SUBQ, RAX, s.address.offset);
+            }
+        
+            for (auto &var : member_allocables)  // FIXME: reverse!
                 var->destroy(tm, s, x64);
         }
         else
@@ -139,7 +165,7 @@ public:
     
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         x64->code_label_local(label, "x_finalizer");  // FIXME: ambiguous name!
-        
+
         ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
 
         x64->op(RET);
@@ -150,7 +176,7 @@ public:
         x64->op(LEARIP, RBX, vt_label, virtual_offset * ADDRESS_SIZE);
         x64->op(MOVQ, addr + data_offset + CLASS_VT_OFFSET, RBX);
 
-        for (auto &var : member_variables) {
+        for (auto &var : member_allocables) {
             Role *r = role_cast(var);
             
             if (r)

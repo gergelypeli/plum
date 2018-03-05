@@ -11,6 +11,7 @@ class Role;
 class PartialVariable;
 class Evaluable;
 class Function;
+class ClassType;
 
 class Type;
 class TreenumerationType;
@@ -188,6 +189,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     }
     else if (expr->type == Expr::DECLARATION) {
         std::string name = expr->text;
+        if (name == "")
+            name = "<anonymous>";
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         
         if (p) {

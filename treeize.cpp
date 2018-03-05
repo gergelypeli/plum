@@ -225,6 +225,12 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             fore = TEXTUAL;
             text = token.text.substr(1);
         }
+        else if (token.text == "?") {
+            type = Node::DECLARATION;
+            back = DECLARING;
+            fore = DECLARING;
+            text = "";
+        }
         else if (isalpha(c) || c == '_' || c == '$') {
             if (token.text.back() == ':') {
                 type = Node::LABEL;
@@ -376,7 +382,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                             fore = UNARY;
                         }
                         else {
-                            std::cerr << "Operator " << op.text << " cannot be unary!\n";
+                            std::cerr << "Operator " << op.text << " cannot be unary: " << token << "\n";
                             throw TREE_ERROR;
                         }
                     }
