@@ -1,7 +1,6 @@
 
 class TypeValue: public Value {
 public:
-    std::unique_ptr<Value> value;
     TypeSpec pivot_ts;
     
     TypeValue(TypeSpec ts)
@@ -9,58 +8,29 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() > 1 || kwargs.size() != 0) {
+        if (args.size() != 0 || kwargs.size() != 0) {
             std::cerr << "Whacky type name!\n";
             return false;
         }
 
         pivot_ts = scope->pivot_type_hint();
-        
-        if (args.size() == 0)
-            return true;
-            
-        // Only allow explicit type context for value types
-        if (ts[1]->type != VALUE_TYPE)
-            return false;
-            
-        ts = ts.unprefix(ts[0]);
-        
-        //if (heap_type_cast(ts[0]))
-        //    ts = ts.prefix(reference_type);
-        
-        Value *v = typize(args[0].get(), scope, &ts);
-        TypeMatch match;
-        
-        if (!typematch(ts, v, match)) {
-            std::cerr << "Explicit type conversion failed!\n";
-            return false;
-        }
-        
-        value.reset(v);
-        
         return true;
     }
     
     virtual Regs precompile(Regs preferred) {
-        if (value)
-            return value->precompile(preferred);
-        else
-            return Regs();
+        return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
-        if (value)
-            return value->compile(x64);
-        else
-            return Storage();
+        return Storage();
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == ARGUMENT_SCOPE) {
-            if (!value && ts[1]->type != ATTRIBUTE_TYPE && ts[1]->type != VALUE_TYPE)
+            if (ts[1]->type != ATTRIBUTE_TYPE && ts[1]->type != VALUE_TYPE)
                 return NULL;
             
-            TypeSpec t = value ? ts : ts.unprefix(ts[0]);
+            TypeSpec t = ts.unprefix(ts[0]);
         
             if (t[0] == code_type)
                 return new Evaluable(name, pivot_ts, t);
@@ -68,10 +38,10 @@ public:
                 return new Variable(name, pivot_ts, t);
         }
         else {
-            if (!value && ts[1]->type != VALUE_TYPE)
+            if (ts[1]->type != VALUE_TYPE)
                 return NULL;
 
-            TypeSpec t = value ? ts : ts.unprefix(ts[0]);
+            TypeSpec t = ts.unprefix(ts[0]);
         
             return new Variable(name, pivot_ts, t.lvalue());
         }

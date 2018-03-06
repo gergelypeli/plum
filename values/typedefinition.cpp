@@ -192,31 +192,33 @@ public:
     virtual bool parse_level(Args &args) {
         for (unsigned i = 0; i < args.size(); i++) {
             Expr *e = args[i].get();
-            
+
             if (e->type == Expr::IDENTIFIER) {
-                if (e->args.size() > 1 || e->kwargs.size() != 0) {
+                if (e->args.size() != 0 || e->kwargs.size() != 0) {
                     std::cerr << "Whacky treenum symbol!\n";
                     return false;
                 }
 
                 unsigned x = add_keyword(e->text);
-                
+
                 if (!x)
                     return false;
-                    
-                if (e->args.size() == 1) {
-                    Expr *f = e->args[0].get();
-                    
-                    if (f->type != Expr::INITIALIZER || f->kwargs.size() != 0) {
-                        std::cerr << "Whacky treenum subtree!\n";
-                        return false;
-                    }
-                    
-                    if (!parse_level(f->args))
-                        return false;
-                        
-                    tails[x] = keywords.size() - 1;
+            }
+            else if (e->type == Expr::INITIALIZER) {
+                if (!e->pivot || e->pivot->type != Expr::IDENTIFIER || e->kwargs.size() != 0) {
+                    std::cerr << "Whacky treenum subtree!\n";
+                    return false;
                 }
+
+                unsigned x = add_keyword(e->pivot->text);
+
+                if (!x)
+                    return false;
+
+                if (!parse_level(e->args))
+                    return false;
+
+                tails[x] = keywords.size() - 1;
             }
             else {
                 std::cerr << "Whacky treenum syntax!\n";

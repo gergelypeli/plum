@@ -226,8 +226,21 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         //if (p)
         //    p->set_marker(marker);
+
+        TypeSpec ts;
         
-        value = lookup(name, p, expr, scope, context);
+        if (p) {
+            if (p->ts[0] == type_type)
+                ts = p->ts.unprefix(type_type);
+            else {
+                std::cerr << "Control with nontype context!\n";
+                throw TYPE_ERROR;
+            }
+        }
+        else if (context)
+            ts = *context;
+        
+        value = lookup(name, NULL, expr, scope, &ts);
 
         if (!value)
             throw TYPE_ERROR;
@@ -245,15 +258,10 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         //if (p)
         //    p->set_marker(marker);  // just in case
+
+        StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
         
-        if (p) {
-            StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
-        
-            if (!s) {
-                std::cerr << "Invalid literal initializer!\n";
-                throw TYPE_ERROR;
-            }
-            
+        if (s) {
             if (name.size()) {
                 std::cerr << "No named initializers for string literals!\n";
                 throw TYPE_ERROR;
@@ -262,20 +270,33 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             value = interpolate(s->text, expr, scope);
         }
         else {
-            if (!context) {
+            TypeSpec ts;
+            
+            if (p) {
+                if (p->ts[0] == type_type)
+                    ts = p->ts.unprefix(type_type);
+                else {
+                    std::cerr << "Initializer with nontype context!\n";
+                    throw TYPE_ERROR;
+                }
+            }
+            else if (context)
+                ts = *context;
+            else {
                 std::cerr << "Initializer without type context!\n";
                 throw TYPE_ERROR;
             }
             
             // We must have checked this.
-            Type *t = (*context)[0];
-            if (t->type != VALUE_TYPE && !dynamic_cast<MetaType *>(t))
-                throw INTERNAL_ERROR;
+            Type *t = ts[0];
+            if (t->type != VALUE_TYPE && !dynamic_cast<MetaType *>(t)) {
+                std::cerr << "Initializer with nonvalue type context!\n";
+                throw TYPE_ERROR;
+            }
             
             if (name.size() == 0)
                 name = "{}";
             
-            TypeSpec ts = *context;
             value = ts.lookup_initializer(name);
             
             if (!value) {

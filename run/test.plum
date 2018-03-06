@@ -211,7 +211,7 @@ test_strings? :Function as:
 
     prints("s[3] is now '{c}'" { c: s[3] })
 
-    z? String ""
+    z? ""
     prints(z || "Ez tök 대박")
     
     :if z == String `empty then: prints("z is empty")
