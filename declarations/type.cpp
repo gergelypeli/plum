@@ -402,14 +402,12 @@ public:
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Partial inner lookup " << n << ".\n";
+        PartialVariable *pv = partial_variable_get_pv(v);
         
-        Value *member = tm[1].lookup_inner(n, make_cast_value(v, tm[1]));
-        if (!member)
-            return NULL;
-        
-        if (!partial_variable_is_initialized(n, v)) {
-            partial_variable_be_initialized(n, v);
+        if (pv->is_uninitialized(n)) {
+            pv->be_initialized(n);
             
+            Value *member = tm[1].lookup_inner(n, make_cast_value(v, tm[1]));
             TypeSpec member_ts = get_typespec(member);
             
             if (member_ts[0] == lvalue_type) {
@@ -422,9 +420,27 @@ public:
             }
             else
                 throw INTERNAL_ERROR;
+                
+            return member;
         }
-        
-        return member;
+        else if (pv->is_initialized(n)) {
+            return tm[1].lookup_inner(n, make_cast_value(v, tm[1]));
+        }
+        else {
+            // The only thing that can be done here is delegating to another initializer
+            Value *member = tm[1].lookup_inner(n, make_cast_value(v, tm[1].prefix(initializable_type)));
+            if (!member)
+                return NULL;
+            
+            if (pv->is_dirty()) {
+                std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
+                return NULL;
+            }
+            
+            pv->be_complete();
+            
+            return member;
+        }
     }
 };
 

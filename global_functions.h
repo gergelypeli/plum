@@ -1,10 +1,9 @@
 
 // Value wrappers
 
-bool partial_variable_is_initialized(std::string name, Value *pivot);
-void partial_variable_be_initialized(std::string name, Value *pivot);
 DeclarationValue *declaration_value_cast(Value *value);
 Declaration *declaration_get_decl(DeclarationValue *dv);
+PartialVariable *partial_variable_get_pv(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
 

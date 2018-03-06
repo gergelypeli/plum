@@ -21,24 +21,6 @@ Value *make_partial_variable_value(PartialVariable *decl, Value *pivot, TypeMatc
 }
 
 
-bool partial_variable_is_initialized(std::string name, Value *pivot) {
-    PartialVariableValue *pv = dynamic_cast<PartialVariableValue *>(pivot);
-    if (!pv)
-        throw INTERNAL_ERROR;
-        
-    return pv->is_initialized(name);
-}
-
-
-void partial_variable_be_initialized(std::string name, Value *pivot) {
-    PartialVariableValue *pv = dynamic_cast<PartialVariableValue *>(pivot);
-    if (!pv)
-        throw INTERNAL_ERROR;
-        
-    pv->be_initialized(name);
-}
-
-
 Value *make_role_value(Role *role, Value *pivot, TypeMatch &tm) {
     return new RoleValue(role, pivot, tm);
 }
@@ -267,6 +249,11 @@ DeclarationValue *declaration_value_cast(Value *value) {
 
 Declaration *declaration_get_decl(DeclarationValue *dv) {
     return dv->get_decl();
+}
+
+
+PartialVariable *partial_variable_get_pv(Value *v) {
+    return dynamic_cast<PartialVariableValue *>(v)->partial_variable;
 }
 
 

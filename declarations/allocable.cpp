@@ -129,6 +129,7 @@ public:
 class PartialVariable: public Variable {
 public:
     std::set<std::string> uninitialized_member_names;
+    std::set<std::string> initialized_member_names;
     
     PartialVariable(std::string name, TypeSpec pts, TypeSpec vts)
         :Variable(name, pts, vts) {
@@ -143,15 +144,29 @@ public:
     }
     
     virtual void be_initialized(std::string name) {
+        initialized_member_names.insert(name);
         uninitialized_member_names.erase(name);
     }
     
     virtual bool is_initialized(std::string name) {
-        return uninitialized_member_names.count(name) == 0;
+        return initialized_member_names.count(name) == 1;
+    }
+
+    virtual bool is_uninitialized(std::string name) {
+        return uninitialized_member_names.count(name) == 1;
     }
     
     virtual bool is_complete() {
         return uninitialized_member_names.size() == 0;
+    }
+
+    virtual void be_complete() {
+        initialized_member_names.insert(uninitialized_member_names.begin(), uninitialized_member_names.end());
+        uninitialized_member_names.clear();
+    }
+
+    virtual bool is_dirty() {
+        return initialized_member_names.size() != 0;
     }
 };
 

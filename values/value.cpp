@@ -397,18 +397,6 @@ public:
         // First, it's not assignable, second, it may already has an lvalue_type inside it
         ts = ts.rvalue();
     }
-    
-    virtual void be_initialized(std::string name) {
-        partial_variable->be_initialized(name);
-    }
-    
-    virtual bool is_initialized(std::string name) {
-        return partial_variable->is_initialized(name);
-    }
-    
-    virtual bool is_complete() {
-        return partial_variable->is_complete();
-    }
 };
 
 

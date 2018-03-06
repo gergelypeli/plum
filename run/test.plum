@@ -134,6 +134,9 @@ Greetable? :Class as:
         #$ g? `null
         prints("I'm here as {x}." { x: $ name })
         
+    second_init? :Initializer as:
+        $ init
+        
     greet? :Function as:
         prints("Hello, I'm {me}!" { me: $ name })
 
@@ -547,7 +550,7 @@ test_options? :Function as:
             
 
 test_classes? :Function as:
-    gr? Greetable Ref `init
+    gr? Greetable Ref `second_init
     gr greet
     
     gr2? gr
