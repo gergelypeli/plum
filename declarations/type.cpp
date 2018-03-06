@@ -210,7 +210,7 @@ public:
         x64->op(ADDQ, RSP, 16);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -350,8 +350,8 @@ public:
         tm[1].streamify(repr, x64);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
-        return tm[1].lookup_initializer(n);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
+        return tm[1].lookup_initializer(n, pivot);
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
@@ -467,11 +467,11 @@ public:
         tm[1].create(s, t, x64);
     }
 
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
-        std::cerr << "Initializable inner lookup " << n << ".\n";
-        
-        return tm[1].lookup_inner(n, v);
-    }
+    //virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+    //    std::cerr << "Initializable inner lookup " << n << ".\n";
+    //    
+    //    return tm[1].lookup_inner(n, v);
+    //}
 };
 
 
@@ -525,8 +525,10 @@ public:
     }
 
     // NOTE: experimental thing for exception specifications
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
-        if (n == "{}")
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
+        if (pivot)
+            throw INTERNAL_ERROR;
+        else if (n == "{}")
             return make_treenumeration_definition_value();
         
         return NULL;

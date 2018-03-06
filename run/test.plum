@@ -127,7 +127,7 @@ Greetable? :Class as:
     base? :Role Base
 
     init? :Initializer as:
-        $ base base_init
+        $ base `base_init
         
         $ number ?= 1
         $ name ?= "The Greetable"

@@ -54,7 +54,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
         std::cerr << "No interface initializer called " << name << "!\n";
         return NULL;
     }
@@ -146,7 +146,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
         std::cerr << "No implementation initializer called " << name << "!\n";
         return NULL;
     }

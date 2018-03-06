@@ -271,10 +271,15 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
         else {
             TypeSpec ts;
+            Value *iv = NULL;
             
             if (p) {
                 if (p->ts[0] == type_type)
                     ts = p->ts.unprefix(type_type);
+                else if (p->ts[0] == initializable_type) {
+                    ts = p->ts.unprefix(initializable_type);
+                    iv = p;
+                }
                 else {
                     std::cerr << "Initializer with nontype context!\n";
                     throw TYPE_ERROR;
@@ -297,7 +302,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             if (name.size() == 0)
                 name = "{}";
             
-            value = ts.lookup_initializer(name);
+            value = ts.lookup_initializer(name, iv);
             
             if (!value) {
                 std::cerr << "No initializer " << ts << " `" << name << "!\n";

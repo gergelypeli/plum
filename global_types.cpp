@@ -189,8 +189,8 @@ void TypeSpec::streamify(bool repr, X64 *x64) {
 }
 
 
-Value *TypeSpec::lookup_initializer(std::string name) {
-    return at(0)->lookup_initializer(match(), name);
+Value *TypeSpec::lookup_initializer(std::string name, Value *pivot) {
+    return at(0)->lookup_initializer(match(), name, pivot);
 }
 
 

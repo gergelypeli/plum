@@ -285,8 +285,10 @@ public:
         make_inner_scope(TypeSpec { this });
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        if (name == "false")
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
+        if (pivot)
+            throw INTERNAL_ERROR;
+        else if (name == "false")
             return make_basic_value(tm[0], 0);
         else if (name == "true")
             return make_basic_value(tm[0], 1);
@@ -352,8 +354,10 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        if (name == "zero")
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
+        if (pivot)
+            throw INTERNAL_ERROR;
+        else if (name == "zero")
             return make_basic_value(tm[0], 0);
         else if (name == "unicode")
             return make_unicode_character_value();
@@ -415,7 +419,10 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
+        if (pivot)
+            throw INTERNAL_ERROR;
+            
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make_basic_value(tm[0], i);
@@ -471,7 +478,10 @@ public:
         tails = tl;
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
+        if (pivot)
+            throw INTERNAL_ERROR;
+
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make_basic_value(tm[0], i);

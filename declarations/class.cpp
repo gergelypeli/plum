@@ -79,7 +79,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
         //TypeSpec ts(tsi);
 
         // NOTE: initializers must only appear in code scopes, and there all types
@@ -94,9 +94,11 @@ public:
         else {
             // Named initializer
             TypeSpec rts = tm[0].prefix(ref_type);
-            Value *pre = make_class_preinitializer_value(rts);
+            
+            if (!pivot)
+                pivot = make_class_preinitializer_value(rts);
 
-            Value *value = inner_scope->lookup(name, pre);
+            Value *value = inner_scope->lookup(name, pivot);
 
             if (value) {
                 if (is_initializer_function_call(value))
@@ -192,9 +194,9 @@ public:
         :ClassType(name, TTs { VALUE_TYPE }) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
         TypeSpec ats = tm[0].unprefix(stack_type).prefix(array_type);
-        Value *array_initializer = ats.lookup_initializer(name);
+        Value *array_initializer = ats.lookup_initializer(name, NULL);
         
         if (!array_initializer) {
             std::cerr << "No Stack initializer called " << name << "!\n";
@@ -202,9 +204,11 @@ public:
         }
 
         TypeSpec rts = tm[0].prefix(ref_type);
-        Value *stack_preinitializer = make_class_preinitializer_value(rts);
         
-        return make_class_wrapper_initializer_value(stack_preinitializer, array_initializer);
+        if (!pivot)
+            pivot = make_class_preinitializer_value(rts);
+        
+        return make_class_wrapper_initializer_value(pivot, array_initializer);
     }
 };
 
@@ -215,9 +219,9 @@ public:
         :ClassType(name, TTs { VALUE_TYPE }) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
         TypeSpec cts = tm[0].unprefix(queue_type).prefix(circularray_type);
-        Value *carray_initializer = cts.lookup_initializer(name);
+        Value *carray_initializer = cts.lookup_initializer(name, NULL);
         
         if (!carray_initializer) {
             std::cerr << "No Queue initializer called " << name << "!\n";
@@ -225,9 +229,11 @@ public:
         }
 
         TypeSpec rts = tm[0].prefix(ref_type);
-        Value *queue_preinitializer = make_class_preinitializer_value(rts);
         
-        return make_class_wrapper_initializer_value(queue_preinitializer, carray_initializer);
+        if (!pivot)
+            pivot = make_class_preinitializer_value(rts);
+        
+        return make_class_wrapper_initializer_value(pivot, carray_initializer);
     }
 };
 
@@ -238,9 +244,9 @@ public:
         :ClassType(name, TTs { VALUE_TYPE }) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
         TypeSpec tts = tm[0].unprefix(set_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name);
+        Value *tree_initializer = tts.lookup_initializer(name, NULL);
         
         if (!tree_initializer) {
             std::cerr << "No Set initializer called " << name << "!\n";
@@ -248,9 +254,11 @@ public:
         }
 
         TypeSpec rts = tm[0].prefix(ref_type);
-        Value *set_preinitializer = make_class_preinitializer_value(rts);
         
-        return make_class_wrapper_initializer_value(set_preinitializer, tree_initializer);
+        if (!pivot)
+            pivot = make_class_preinitializer_value(rts);
+        
+        return make_class_wrapper_initializer_value(pivot, tree_initializer);
     }
 };
 
@@ -261,9 +269,9 @@ public:
         :ClassType(name, TTs { VALUE_TYPE, VALUE_TYPE }) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
         TypeSpec tts = tm[0].reprefix(map_type, item_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name);
+        Value *tree_initializer = tts.lookup_initializer(name, NULL);
         
         if (!tree_initializer) {
             std::cerr << "No Map initializer called " << name << "!\n";
@@ -271,8 +279,10 @@ public:
         }
 
         TypeSpec rts = tm[0].prefix(ref_type);
-        Value *set_preinitializer = make_class_preinitializer_value(rts);
         
-        return make_class_wrapper_initializer_value(set_preinitializer, tree_initializer);
+        if (!pivot)
+            pivot = make_class_preinitializer_value(rts);
+        
+        return make_class_wrapper_initializer_value(pivot, tree_initializer);
     }
 };
