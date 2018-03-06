@@ -111,6 +111,9 @@ std::vector<Token> tokenize(std::string buffer) {
                 c = buffer[i];
             } while (isalnum(c) || c == '_' || c == '.');
         }
+        else if (c == '`' && buffer[i + 1] == '=') {
+            i += 2;
+        }
         else if (isalpha(c) || c == '_' || c == ':' || c == '`' || c == '~') {
             char prefix = (c == ':' || c == '`' || c == '~' ? c : '\0');
 
@@ -143,12 +146,6 @@ std::vector<Token> tokenize(std::string buffer) {
                 if (!prefix) {
                     i++;
                     c = buffer[i];
-                    
-                    // The question mark now also appears in operators
-                    if (ispunct(c)) {
-                        std::cerr << "Ambiguous declaration token!\n";
-                        throw TOKEN_ERROR;
-                    }
                 }
                 else {
                     std::cerr << "Invalid something-declaration token!\n";

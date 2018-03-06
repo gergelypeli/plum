@@ -314,6 +314,11 @@ Value *make_equality_matcher_value(Value *p) {
 }
 
 
+Value *make_create_value(Value *p, TypeMatch &match) {
+    return new CreateValue(p, match);
+}
+
+
 // Declaration operations
 
 Function *function_cast(Declaration *decl) {

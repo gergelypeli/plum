@@ -445,6 +445,21 @@ public:
 };
 
 
+class UninitializedType: public Type {
+public:
+    UninitializedType(std::string name)
+        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE) {
+    }
+
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
+        if (n == "=")
+            return make_create_value(pivot, tm);
+        else
+            return NULL;
+    }
+};
+
+
 class InitializableType: public Type {
 public:
     InitializableType(std::string name)
@@ -467,11 +482,9 @@ public:
         tm[1].create(s, t, x64);
     }
 
-    //virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
-    //    std::cerr << "Initializable inner lookup " << n << ".\n";
-    //    
-    //    return tm[1].lookup_inner(n, v);
-    //}
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
+        return tm[1].lookup_initializer(n, pivot);
+    }
 };
 
 

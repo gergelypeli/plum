@@ -54,7 +54,7 @@ void builtin_types(Scope *root_scope) {
     multi_type = new SpecialType("<Multi>", {}, GENERIC_TYPE);
     root_scope->add(multi_type);
 
-    uninitialized_type = new SpecialType("<Uninitialized>", { GENERIC_TYPE }, GENERIC_TYPE);
+    uninitialized_type = new UninitializedType("<Uninitialized>");
     root_scope->add(uninitialized_type);
 
     initializable_type = new InitializableType("<Initializable>");
@@ -780,9 +780,6 @@ Scope *init_builtins() {
     
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
-    
-    // Initialization of value types
-    root_scope->add(new TemplateIdentifier<CreateValue>("create from", ANY_UNINITIALIZED_TS));
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<IfValue>(":if", NO_TS, TWEAK));

@@ -277,7 +277,11 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 if (p->ts[0] == type_type)
                     ts = p->ts.unprefix(type_type);
                 else if (p->ts[0] == initializable_type) {
-                    ts = p->ts.unprefix(initializable_type);
+                    ts = p->ts;
+                    iv = p;
+                }
+                else if (p->ts[0] == uninitialized_type) {
+                    ts = p->ts;
                     iv = p;
                 }
                 else {
@@ -294,8 +298,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             
             // We must have checked this.
             Type *t = ts[0];
-            if (t->type != VALUE_TYPE && !dynamic_cast<MetaType *>(t)) {
-                std::cerr << "Initializer with nonvalue type context!\n";
+            if (t->type != VALUE_TYPE && !dynamic_cast<MetaType *>(t) && t != uninitialized_type && t != initializable_type) {
+                std::cerr << "Initializer with nonvalue type context: " << ts << "!\n";
                 throw TYPE_ERROR;
             }
             
