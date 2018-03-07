@@ -72,31 +72,28 @@ public:
 
 Expr *tupleize(std::vector<Node> &nodes, int i);
 
-// If a pair of empty grouping operators are encountered, the left child of the
-// CLOSE node will be empty. Since we'll realize that a bit too late, we have to
-// return NULL in that case.
 
-void tupleize_into(Expr *e, std::vector<Node> &nodes, int i) {
+void tupleize_arguments(Expr *e, std::vector<Node> &nodes, int i) {
     Node &node = nodes[i];
 
     if (node.type == Node::OPEN) {
-        tupleize_into(e, nodes, node.right);
+        tupleize_arguments(e, nodes, node.right);
     }
     else if (node.type == Node::CLOSE) {
         if (node.left)
-            tupleize_into(e, nodes, node.left);
+            tupleize_arguments(e, nodes, node.left);
     }
     else if (node.type == Node::SEPARATOR) {
         // We allowed extra separators
         if (node.left)
-            tupleize_into(e, nodes, node.left);
+            tupleize_arguments(e, nodes, node.left);
             
         if (node.right)
-            tupleize_into(e, nodes, node.right);
+            tupleize_arguments(e, nodes, node.right);
     }
     else if (node.type == Node::LABEL) {
         if (node.left)
-            tupleize_into(e, nodes, node.left);  // May be needed in a block of labels
+            tupleize_arguments(e, nodes, node.left);  // May be needed in a block of labels
 
         if (!node.right) {
             std::cerr << "Keyword argument without value: " << node.token << "!\n";
@@ -104,28 +101,21 @@ void tupleize_into(Expr *e, std::vector<Node> &nodes, int i) {
         }
         
         Expr *f = tupleize(nodes, node.right);
-        if (!f) {
-            std::cerr << "Keyword argument without meaningful value: " << node.token << "!\n";
-            throw TUPLE_ERROR;
-        }
-
         e->add_kwarg(node.text, f);
     }
     else {
         Expr *f = tupleize(nodes, i);
-        if (!f) {
-            std::cerr << "Positional argument without meaningful value: " << node.token << "!\n";
-            throw TUPLE_ERROR;
-        }
-        
         e->add_arg(f);
     }
 }
 
 
-// This function can return NULL if the user tricked us with empty parentheses
-// and alike. But since empty indexing and empty initializers are valid constructs,
-// don't complain.
+void tupleize_pivot(Expr *e, std::vector<Node> &nodes, int i) {
+    Expr *p = tupleize(nodes, i);
+    e->set_pivot(p);
+}
+
+
 Expr *tupleize(std::vector<Node> &nodes, int i) {
     if (!i) {
         std::cerr << "Eiii!\n";
@@ -142,70 +132,51 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         // Grouping operators are ignored from now on
         if (node.left)
             return tupleize(nodes, node.left);
-        else
-            return NULL;  // This is where we realize that we're tricked...
+        else {
+            std::cerr << "Enclosing nothing is only forgiven in argument positions!\n";
+            throw TUPLE_ERROR;
+        }
     }
     else if (node.type == Node::LABEL) {
         Expr *e = new Expr(Expr::TUPLE, node.token);
-        tupleize_into(e, nodes, i);
+        tupleize_arguments(e, nodes, i);
         return e;
     }
     else if (node.type == Node::SEPARATOR) {
         Expr *e = new Expr(Expr::TUPLE, node.token);
-        tupleize_into(e, nodes, i);
+        tupleize_arguments(e, nodes, i);
         return e;
     }
     else if (node.type == Node::CONTROL) {
         Expr *e = new Expr(Expr::CONTROL, node.token, node.text);
         
-        if (node.left) {
-            Expr *l = tupleize(nodes, node.left);
-            if (!l) {
-                std::cerr << "Control without meaningful pivot: " << node.token << "!\n";
-                throw TUPLE_ERROR;
-            }
-
-            e->set_pivot(l);
-        }
+        if (node.left)
+            tupleize_pivot(e, nodes, node.left);
             
         if (node.right)
-            tupleize_into(e, nodes, node.right);
+            tupleize_arguments(e, nodes, node.right);
         
         return e;
     }
     else if (node.type == Node::EVAL) {
         Expr *e = new Expr(Expr::EVAL, node.token, node.text);
         
-        if (node.left) {
-            Expr *l = tupleize(nodes, node.left);
-            if (!l) {
-                std::cerr << "Eval without meaningful pivot: " << node.token << "!\n";
-                throw TUPLE_ERROR;
-            }
-            
-            e->set_pivot(l);
-        }
+        if (node.left)
+            tupleize_pivot(e, nodes, node.left);
             
         if (node.right)
-            tupleize_into(e, nodes, node.right);
+            tupleize_arguments(e, nodes, node.right);
         
         return e;
     }
     else if (node.type == Node::DECLARATION) {
         Expr *e = new Expr(Expr::DECLARATION, node.token, node.text);
         
-        if (node.left) {
-            Expr *l = tupleize(nodes, node.left);
-            if (!l) {
-                std::cerr << "Declaration without meaningful pivot: " << node.token << "!\n";
-                throw TUPLE_ERROR;
-            }
-        
-            e->set_pivot(l);
-        }
+        if (node.left)
+            tupleize_pivot(e, nodes, node.left);
         
         if (node.right)
-            tupleize_into(e, nodes, node.right);
+            tupleize_arguments(e, nodes, node.right);
             
         return e;
     }
@@ -218,27 +189,14 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
                 throw TUPLE_ERROR;
             }
             
-            Expr *r = tupleize(nodes, node.right);
-            if (!r) {
-                std::cerr << "Unary operator without meaningful argument: " << node.token << "!\n";
-                throw TUPLE_ERROR;
-            }
-            
-            e->set_pivot(r);
+            tupleize_pivot(e, nodes, node.right);
         }
         else {
-            if (node.left) {
-                Expr *l = tupleize(nodes, node.left);
-                if (!l) {
-                    std::cerr << "Identifier without meaningful pivot: " << node.token << "!\n";
-                    throw TUPLE_ERROR;
-                }
-            
-                e->set_pivot(l);
-            }
+            if (node.left)
+                tupleize_pivot(e, nodes, node.left);
         
             if (node.right)
-                tupleize_into(e, nodes, node.right);
+                tupleize_arguments(e, nodes, node.right);
         }
 
         return e;
@@ -246,38 +204,22 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     else if (node.type == Node::INITIALIZER) {
         Expr *e = new Expr(Expr::INITIALIZER, node.token, node.text);
     
-        if (node.left) {
-            Expr *l = tupleize(nodes, node.left);
-            
-            if (!l) {
-                std::cerr << "Initializer without meaningful pivot: " << node.token << "!\n";
-                throw TUPLE_ERROR;
-            }
-            
-            e->set_pivot(l);
-        }
+        if (node.left)
+            tupleize_pivot(e, nodes, node.left);
     
         if (node.right)
-            tupleize_into(e, nodes, node.right);
+            tupleize_arguments(e, nodes, node.right);
 
         return e;
     }
     else if (node.type == Node::MATCHER) {
         Expr *e = new Expr(Expr::MATCHER, node.token, node.text);
     
-        if (node.left) {
-            Expr *l = tupleize(nodes, node.left);
-            
-            if (!l) {
-                std::cerr << "Matcher without meaningful pivot: " << node.token << "!\n";
-                throw TUPLE_ERROR;
-            }
-            
-            e->set_pivot(l);
-        }
+        if (node.left)
+            tupleize_pivot(e, nodes, node.left);
     
         if (node.right)
-            tupleize_into(e, nodes, node.right);
+            tupleize_arguments(e, nodes, node.right);
 
         return e;
     }
@@ -297,7 +239,7 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
 Expr *tupleize(std::vector<Node> nodes) {
     Expr *root = new Expr(Expr::TUPLE, Token("", 0, 0));
     
-    tupleize_into(root, nodes, 0);
+    tupleize_arguments(root, nodes, 0);
     
     return root;
 }
