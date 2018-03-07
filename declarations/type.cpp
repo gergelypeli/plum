@@ -210,7 +210,11 @@ public:
         x64->op(ADDQ, RSP, 16);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        return lookup_partinitializer(tm, n, NULL);
+    }
+
+    virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
         std::cerr << "Uninitializable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -350,8 +354,8 @@ public:
         tm[1].streamify(repr, x64);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
-        return tm[1].lookup_initializer(n, pivot);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        return tm[1].lookup_initializer(n);
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
@@ -426,21 +430,26 @@ public:
         else if (pv->is_initialized(n)) {
             return tm[1].lookup_inner(n, make_cast_value(v, tm[1]));
         }
-        else {
-            // The only thing that can be done here is delegating to another initializer
-            Value *member = tm[1].lookup_inner(n, make_cast_value(v, tm[1].prefix(initializable_type)));
-            if (!member)
-                return NULL;
-            
-            if (pv->is_dirty()) {
-                std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
-                return NULL;
-            }
-            
-            pv->be_complete();
-            
-            return member;
+        else
+            return NULL;
+    }
+    
+    virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *v) {
+        std::cerr << "Partial partinitializer lookup " << n << ".\n";
+        PartialVariable *pv = partial_variable_get_pv(v);
+
+        if (pv->is_dirty()) {
+            std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
+            return NULL;
         }
+
+        Value *member = tm[1].lookup_inner(n, make_cast_value(v, tm[1].prefix(initializable_type)));
+        if (!member)
+            return NULL;
+        
+        pv->be_complete();
+        
+        return member;
     }
 };
 
@@ -451,8 +460,8 @@ public:
         :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE) {
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
-        if (n == "=")
+    virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
+        if (n == "create from")
             return make_create_value(pivot, tm);
         else
             return NULL;
@@ -482,8 +491,8 @@ public:
         tm[1].create(s, t, x64);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
-        return tm[1].lookup_initializer(n, pivot);
+    virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
+        return tm[1].lookup_partinitializer(n, pivot);
     }
 };
 
@@ -538,10 +547,8 @@ public:
     }
 
     // NOTE: experimental thing for exception specifications
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
-        if (pivot)
-            throw INTERNAL_ERROR;
-        else if (n == "{}")
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        if (n == "{}")
             return make_treenumeration_definition_value();
         
         return NULL;

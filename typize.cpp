@@ -271,19 +271,10 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
         else {
             TypeSpec ts;
-            Value *iv = NULL;
             
             if (p) {
                 if (p->ts[0] == type_type)
                     ts = p->ts.unprefix(type_type);
-                else if (p->ts[0] == initializable_type) {
-                    ts = p->ts;
-                    iv = p;
-                }
-                else if (p->ts[0] == uninitialized_type) {
-                    ts = p->ts;
-                    iv = p;
-                }
                 else {
                     std::cerr << "Initializer with nontype context!\n";
                     throw TYPE_ERROR;
@@ -298,7 +289,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             
             // We must have checked this.
             Type *t = ts[0];
-            if (t->type != VALUE_TYPE && !dynamic_cast<MetaType *>(t) && t != uninitialized_type && t != initializable_type) {
+            if (t->type != VALUE_TYPE && !dynamic_cast<MetaType *>(t)) {
                 std::cerr << "Initializer with nonvalue type context: " << ts << "!\n";
                 throw TYPE_ERROR;
             }
@@ -306,7 +297,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             if (name.size() == 0)
                 name = "{}";
             
-            value = ts.lookup_initializer(name, iv);
+            value = ts.lookup_initializer(name);
             
             if (!value) {
                 std::cerr << "No initializer " << ts << " `" << name << "!\n";
@@ -324,6 +315,33 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             std::cerr << "Using initializer " << ts << " `" << name << ".\n";
             //std::cerr << "... with type " << value->ts << "\n";
         }
+    }
+    else if (expr->type == Expr::PARTINITIALIZER) {
+        std::string name = expr->text;
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+
+        if (!p) {
+            std::cerr << "Partinitializer without pivot!\n";
+            throw TYPE_ERROR;
+        }
+
+        value = p->ts.lookup_partinitializer(name, p);
+            
+        if (!value) {
+            std::cerr << "No partinitializer " << p->ts << " `" << name << "!\n";
+            throw TYPE_ERROR;
+        }
+            
+        value->set_token(expr->token);
+        bool ok = value->check(expr->args, expr->kwargs, scope);
+        
+        if (!ok) {
+            std::cerr << "Partinitializer argument problem for " << expr->token << "!\n";
+            throw TYPE_ERROR;
+        }
+            
+        std::cerr << "Using partinitializer " << p->ts << " `" << name << ".\n";
+        //std::cerr << "... with type " << value->ts << "\n";
     }
     else if (expr->type == Expr::MATCHER) {
         std::string name = expr->text;

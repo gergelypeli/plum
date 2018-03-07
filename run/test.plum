@@ -22,8 +22,8 @@ Pair? :Record as:
     second? Integer
 
     new? :Initializer as:
-        $ first `= 1
-        $ second `= 2
+        $ first ?= 1
+        $ second ?= 2
 
     meth? :Function Integer as:
         prints("Meth!")
@@ -113,7 +113,7 @@ Base? :Class as:
     base_value? Integer
     
     base_init? :Initializer as:
-        $ base_value `= 100
+        $ base_value ?= 100
         prints("The base is initialized.")
     
     base_method? :Function as:
@@ -127,15 +127,15 @@ Greetable? :Class as:
     base? :Role Base
 
     init? :Initializer as:
-        $ base `base_init
+        $ base ?base_init
         
-        $ number `= 1
-        $ name `= "The Greetable"
+        $ number ?= 1
+        $ name ?= "The Greetable"
         #$ g? `null
         prints("I'm here as {x}." { x: $ name })
         
     second_init? :Initializer as:
-        $ init
+        $ ?init
         
     greet? :Function as:
         prints("Hello, I'm {me}!" { me: $ name })

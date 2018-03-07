@@ -184,8 +184,12 @@ public:
         }
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
-        return tm[1].lookup_initializer(name, pivot);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+        return tm[1].lookup_initializer(name);
+    }
+
+    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
+        return tm[1].lookup_partinitializer(name, pivot);
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
@@ -246,12 +250,10 @@ public:
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec rts = tm[0].prefix(ref_type);
         
-        if (pivot)
-            throw INTERNAL_ERROR;
-        else if (name == "empty")
+        if (name == "empty")
             return make_array_empty_value(rts);
         else if (name == "{}")
             return make_array_initializer_value(rts);
@@ -302,12 +304,10 @@ public:
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec rts = tm[0].prefix(ref_type);
 
-        if (pivot)
-            throw INTERNAL_ERROR;
-        else if (name == "empty")
+        if (name == "empty")
             return make_circularray_empty_value(rts);
         else if (name == "{}")
             return make_circularray_initializer_value(rts);
@@ -375,12 +375,10 @@ public:
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec rts = tm[0].prefix(ref_type);
         
-        if (pivot)
-            throw INTERNAL_ERROR;
-        else if (name == "empty")
+        if (name == "empty")
             return make_rbtree_empty_value(rts);
         else if (name == "reserved")
             return make_rbtree_reserved_value(rts);

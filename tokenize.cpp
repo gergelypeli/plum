@@ -41,6 +41,16 @@ bool is_quote(char c) {
 }
 
 
+bool is_identifier(char c) {
+    return isalnum(c) || c == '_' || c == '.';
+}
+
+
+bool is_prefix(char c) {
+    return c == ':' || c == '`' || c == '~' || c == '?';
+}
+
+
 std::vector<Token> tokenize(std::string buffer) {
     std::vector<Token> tokens;
     int row_count = 0;
@@ -111,11 +121,11 @@ std::vector<Token> tokenize(std::string buffer) {
                 c = buffer[i];
             } while (isalnum(c) || c == '_' || c == '.');
         }
-        else if (c == '`' && buffer[i + 1] == '=') {
+        else if (c == '?' && buffer[i + 1] == '=') {
             i += 2;
         }
-        else if (isalpha(c) || c == '_' || c == ':' || c == '`' || c == '~') {
-            char prefix = (c == ':' || c == '`' || c == '~' ? c : '\0');
+        else if (is_identifier(c) || is_prefix(c)) {  // except numeric and "?=", handled above
+            char prefix = (is_prefix(c) ? c : '\0');
 
             // Allow middle colon as a shortcut for two colons
             if (!prefix && buffer[i - 1] == ':') {
@@ -126,9 +136,9 @@ std::vector<Token> tokenize(std::string buffer) {
             do {
                 i++;
                 c = buffer[i];
-            } while (isalnum(c) || c == '_' || c == '.');
+            } while (is_identifier(c));
 
-            // Implicit line continuation
+            // Implicit line continuation on labels after logical line breaks
             if (!prefix && c == ':' && tokens.back().text == " separate")
                 tokens.pop_back();
 

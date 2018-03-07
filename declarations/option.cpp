@@ -253,10 +253,8 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
-        if (pivot)
-            throw INTERNAL_ERROR;
-        else if (n == "{}") {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        if (n == "{}") {
             // Anonymous initializers rejected
             return NULL;
         }

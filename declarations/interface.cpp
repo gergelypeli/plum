@@ -53,11 +53,6 @@ public:
     virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
         throw INTERNAL_ERROR;
     }
-
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
-        std::cerr << "No interface initializer called " << name << "!\n";
-        return NULL;
-    }
 };
 
 
@@ -144,11 +139,6 @@ public:
 
     virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
         throw INTERNAL_ERROR;
-    }
-
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Value *pivot) {
-        std::cerr << "No implementation initializer called " << name << "!\n";
-        return NULL;
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *pivot) {

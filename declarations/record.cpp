@@ -220,7 +220,7 @@ public:
         x64->code_label(xend);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         //TypeSpec ts(tsi);
 
         // NOTE: initializers must only appear in code scopes, and there all types
@@ -228,9 +228,7 @@ public:
         // put in the local scope, so there will be no pivot for it to derive any
         // type parameters from. 
 
-        if (pivot)
-            throw INTERNAL_ERROR;
-        else if (n == "{}") {
+        if (n == "{}") {
             // Anonymous initializer
             //TypeMatch match = type_parameters_to_match(ts);
             return make_record_initializer_value(tm);
@@ -455,10 +453,8 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Value *pivot) {
-        if (pivot)
-            throw INTERNAL_ERROR;
-        else if (n == "empty") {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        if (n == "empty") {
             return make_string_literal_value("");
         }
         

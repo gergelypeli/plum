@@ -8,7 +8,7 @@ typedef GenericKwargs<Expr> Kwargs;
 class Expr {
 public:
     enum ExprType {
-        TUPLE, NUMBER, STRING, INITIALIZER, MATCHER, IDENTIFIER, CONTROL, EVAL, DECLARATION
+        TUPLE, NUMBER, STRING, INITIALIZER, PARTINITIALIZER, MATCHER, IDENTIFIER, CONTROL, EVAL, DECLARATION
     } type;
     Token token;
     std::string text;
@@ -59,6 +59,7 @@ public:
             type == NUMBER ? "NUMBER" :
             type == STRING ? "STRING" :
             type == INITIALIZER ? "INITIALIZER" :
+            type == PARTINITIALIZER ? "PARTINITIALIZER" :
             type == MATCHER ? "MATCHER" :
             type == IDENTIFIER ? "IDENTIFIER" :
             type == CONTROL ? "CONTROL" :
@@ -147,39 +148,6 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         tupleize_arguments(e, nodes, i);
         return e;
     }
-    else if (node.type == Node::CONTROL) {
-        Expr *e = new Expr(Expr::CONTROL, node.token, node.text);
-        
-        if (node.left)
-            tupleize_pivot(e, nodes, node.left);
-            
-        if (node.right)
-            tupleize_arguments(e, nodes, node.right);
-        
-        return e;
-    }
-    else if (node.type == Node::EVAL) {
-        Expr *e = new Expr(Expr::EVAL, node.token, node.text);
-        
-        if (node.left)
-            tupleize_pivot(e, nodes, node.left);
-            
-        if (node.right)
-            tupleize_arguments(e, nodes, node.right);
-        
-        return e;
-    }
-    else if (node.type == Node::DECLARATION) {
-        Expr *e = new Expr(Expr::DECLARATION, node.token, node.text);
-        
-        if (node.left)
-            tupleize_pivot(e, nodes, node.left);
-        
-        if (node.right)
-            tupleize_arguments(e, nodes, node.right);
-            
-        return e;
-    }
     else if (node.type == Node::IDENTIFIER) {
         Expr *e = new Expr(Expr::IDENTIFIER, node.token, node.text);
     
@@ -201,28 +169,6 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
 
         return e;
     }
-    else if (node.type == Node::INITIALIZER) {
-        Expr *e = new Expr(Expr::INITIALIZER, node.token, node.text);
-    
-        if (node.left)
-            tupleize_pivot(e, nodes, node.left);
-    
-        if (node.right)
-            tupleize_arguments(e, nodes, node.right);
-
-        return e;
-    }
-    else if (node.type == Node::MATCHER) {
-        Expr *e = new Expr(Expr::MATCHER, node.token, node.text);
-    
-        if (node.left)
-            tupleize_pivot(e, nodes, node.left);
-    
-        if (node.right)
-            tupleize_arguments(e, nodes, node.right);
-
-        return e;
-    }
     else if (node.type == Node::NUMBER) {
         return new Expr(Expr::NUMBER, node.token, node.text);
     }
@@ -230,8 +176,25 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         return new Expr(Expr::STRING, node.token, node.text);
     }
     else {
-        std::cerr << "Can't tupleize this now " << node.token << "!\n";
-        throw INTERNAL_ERROR;
+        Expr::ExprType et = (
+            node.type == Node::CONTROL ? Expr::CONTROL :
+            node.type == Node::EVAL ? Expr::EVAL :
+            node.type == Node::DECLARATION ? Expr::DECLARATION :
+            node.type == Node::INITIALIZER ? Expr::INITIALIZER :
+            node.type == Node::PARTINITIALIZER ? Expr::PARTINITIALIZER :
+            node.type == Node::MATCHER ? Expr::MATCHER :
+            throw INTERNAL_ERROR
+        );
+
+        Expr *e = new Expr(et, node.token, node.text);
+    
+        if (node.left)
+            tupleize_pivot(e, nodes, node.left);
+    
+        if (node.right)
+            tupleize_arguments(e, nodes, node.right);
+
+        return e;
     }
 }
 
