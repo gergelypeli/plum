@@ -490,7 +490,7 @@ public:
         // from the interface definition, the substitution will replace Same types
         // with Same types. But the functions in the implementation will be similarly
         // parametrized, so the comparison should compare Same to Same, and succeed.
-        TypeMatch fake_match = type_parameters_to_match(interface_ts);
+        TypeMatch iftm = type_parameters_to_match(interface_ts);
         TypeMatch empty_match;
 
         for (auto &c : inner_scope->contents) {
@@ -510,30 +510,14 @@ public:
             bool found = false;
             
             for (Function *iff : interface_type->member_functions) {
-                if (iff->name != f->name)
-                    continue;
-            
-                if (iff->get_argument_tss(fake_match) != f->get_argument_tss(empty_match)) {
-                    std::cerr << "Mismatching " << f->name << " implementation argument types: " << f->get_argument_tss(empty_match)[0] << " should be " << iff->get_argument_tss(fake_match)[0] << "!\n";
-                    return false;
+                if (f->does_implement(empty_match, iff, iftm)) {
+                    found = true;
+                    break;
                 }
-                
-                if (iff->get_argument_names() != f->get_argument_names()) {
-                    std::cerr << "Mismatching implementation argument names!\n";
-                    return false;
-                }
-
-                if (iff->get_result_tss(fake_match) != f->get_result_tss(empty_match)) {
-                    std::cerr << "Mismatching implementation result types!\n";
-                    return false;
-                }
-                
-                found = true;
-                break;
             }
             
             if (!found) {
-                std::cerr << "Invalid implementation function name: " << f->name << "!\n";
+                std::cerr << "Invalid implementation of function: " << interface_type->name << "." << f->name << "!\n";
                 return false;
             }
         }

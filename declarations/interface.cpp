@@ -141,6 +141,13 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual DataScope *find_inner_scope(std::string n) {
+        if (name == n)
+            return inner_scope;
+        else
+            return NULL;
+    }
+    
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *pivot) {
         // The second type parameter is the concrete type
         pivot = make_cast_value(pivot, tm[2]);

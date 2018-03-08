@@ -78,6 +78,7 @@ public:
     std::vector<TypeSpec> res_tss;
     TreenumerationType *exception_type;
     int virtual_index;
+    Allocation self_adjustment;
     FunctionType type;
 
     Label x64_label;
@@ -128,12 +129,53 @@ public:
         return arg_names;
     }
 
+    virtual void set_virtual_index(int vi) {
+        virtual_index = vi;
+    }
+    
+    virtual void set_self_adjustment(Allocation alloc) {
+        self_adjustment = alloc;
+    }
+
     virtual void allocate() {
-        if (outer_scope->is_virtual_scope() && type == GENERIC_FUNCTION) {  // FIXME
+        DataScope *ds = data_scope_cast(outer_scope);
+        
+        if (ds && ds->is_virtual_scope() && virtual_index == -1 && type == GENERIC_FUNCTION) {  // FIXME
             std::vector<Function *> vt;
             vt.push_back(this);
-            virtual_index = outer_scope->virtual_reserve(vt);
+            virtual_index = ds->virtual_reserve(vt);
         }
+    }
+    
+    virtual bool does_implement(TypeMatch tm, Function *iff, TypeMatch iftm) {
+        if (name != iff->name)
+            return false;
+    
+        if (get_argument_tss(tm) != iff->get_argument_tss(iftm)) {
+            std::cerr << "Mismatching " << name << " implementation argument types: " <<
+                get_argument_tss(tm) << " should be " << iff->get_argument_tss(iftm) << "!\n";
+            return false;
+        }
+        
+        if (get_argument_names() != iff->get_argument_names()) {
+            std::cerr << "Mismatching implementation argument names!\n";
+            return false;
+        }
+
+        if (get_result_tss(tm) != iff->get_result_tss(iftm)) {
+            std::cerr << "Mismatching implementation result types!\n";
+            return false;
+        }
+        
+        // TODO: this should be referred somehow even if anonymous!
+        if (exception_type != iff->exception_type) {
+            std::cerr << "Mismatching exception types, " <<
+                print_exception_type(exception_type) << " is not " <<
+                print_exception_type(iff->exception_type) << "!\n";
+            return false;
+        }
+        
+        return true;
     }
 };
 

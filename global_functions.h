@@ -16,6 +16,7 @@ Variable *variable_cast(Declaration *decl);
 Role *role_cast(Declaration *decl);
 ClassType *class_type_cast(Declaration *decl);
 HeapType *heap_type_cast(Type *t);
+DataScope *data_scope_cast(Scope *s);
 Declaration *make_record_compare();
 
 
@@ -28,6 +29,7 @@ Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, T
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match, CodeScope *code_scope = NULL);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 TypeMatch type_parameters_to_match(TypeSpec ts);
+std::string print_exception_type(TreenumerationType *t);
 
 
 // Streamification

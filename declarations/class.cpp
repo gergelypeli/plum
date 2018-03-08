@@ -115,7 +115,7 @@ public:
 
     virtual DataScope *make_inner_scope(TypeSpec pts) {
         DataScope *is = HeapType::make_inner_scope(pts);
-        
+
         is->be_virtual_scope();
         
         TypeSpec cts = { ref_type, this };
@@ -174,7 +174,6 @@ public:
     }
 
     virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
-        //Label vt_label = get_virtual_table_label(tm, x64)
         x64->op(LEARIP, RBX, vt_label, virtual_offset * ADDRESS_SIZE);
         x64->op(MOVQ, addr + data_offset + CLASS_VT_OFFSET, RBX);
 

@@ -351,6 +351,11 @@ HeapType *heap_type_cast(Type *t) {
 }
 
 
+DataScope *data_scope_cast(Scope *s) {
+    return dynamic_cast<DataScope *>(s);
+}
+
+
 Declaration *make_record_compare() {
     return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);
 }
@@ -414,6 +419,11 @@ TypeMatch type_parameters_to_match(TypeSpec ts) {
     }
     
     return fake_match;
+}
+
+
+std::string print_exception_type(TreenumerationType *t) {
+    return t ? t->name : "-";
 }
 
 

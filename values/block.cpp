@@ -294,19 +294,17 @@ public:
         if (pos != std::string::npos) {
             std::string scope_name = name.substr(0, pos);
             name = name.substr(pos + 1);
-            Scope *inner_scope = NULL;
+            DataScope *inner_scope = NULL;
             
             for (auto &d : scope->contents) {
-                ImplementationType *it = dynamic_cast<ImplementationType *>(d.get());
+                inner_scope = d->find_inner_scope(scope_name);
                 
-                if (it && it->name == scope_name) {
-                    inner_scope = it->inner_scope;
+                if (inner_scope)
                     break;
-                }
             }
             
             if (!inner_scope) {
-                std::cerr << "Invalid scope name: " << scope_name << "!\n";
+                std::cerr << "Invalid explicit scope name: " << scope_name << "!\n";
                 return false;
             }
             

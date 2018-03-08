@@ -1,17 +1,4 @@
 
-struct Marker {
-    Scope *scope;
-    Declaration *last;
-    
-    Marker() {
-        scope = NULL;
-        last = NULL;
-    }
-};
-
-
-Declaration *declaration_cast(Scope *);
-
 // Declarations
 
 class Declaration {
@@ -55,6 +42,10 @@ public:
     virtual void jump_to_finalization(X64 *x64) {
         need_finalization_label = true;
         x64->op(JMP, finalization_label);
+    }
+
+    virtual DataScope *find_inner_scope(std::string name) {
+        return NULL;
     }
 };
 

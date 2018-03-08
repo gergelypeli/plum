@@ -227,16 +227,34 @@ public:
 class Role: public Allocable {
 public:
     int virtual_index;
+    DataScope *inner_scope;
     
     Role(std::string name, TypeSpec pts, TypeSpec rts)
         :Allocable(name, pts, rts) {
         virtual_index = -1;
+        inner_scope = new DataScope();  // we won't look up from the inside
+        inner_scope->set_pivot_type_hint(pts);
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make_role_value(this, cpivot, match);
     }
-    
+
+    virtual void set_outer_scope(Scope *os) {
+        Allocable::set_outer_scope(os);
+        
+        // This is a bastardized version, as the outer scope will not be aware that the
+        // inner scope is inside it. But it won't even be looked up directly, so that's OK.
+        inner_scope->set_outer_scope(os);
+    }
+
+    virtual DataScope *find_inner_scope(std::string n) {
+        if (name == n)
+            return inner_scope;
+        else
+            return NULL;
+    }
+
     virtual void allocate() {
         Allocable::allocate();
     
@@ -246,11 +264,37 @@ public:
         a.bytes += ROLE_HEADER_SIZE;
         offset = outer_scope->reserve(a);
         offset.bytes += ROLE_HEADER_SIZE;
-        //std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
-
-        virtual_index = outer_scope->virtual_reserve(alloc_ts.get_virtual_table());
         
-        //std::cerr << "Variable " << name << " offset is " << offset << "\n";
+        DataScope *ds = data_scope_cast(outer_scope);
+        virtual_index = ds->virtual_reserve(alloc_ts.get_virtual_table());
+        
+        TypeMatch iftm = type_parameters_to_match(alloc_ts);
+        TypeMatch empty_match;
+        
+        for (auto &d : inner_scope->contents) {
+            Function *f = function_cast(d.get());
+            
+            if (f) {
+                bool found = false;
+                
+                for (auto iff : alloc_ts.get_virtual_table()) {
+                    if (f->does_implement(empty_match, iff, iftm)) {
+                        found = true;
+                        f->set_virtual_index(iff->virtual_index);
+                        f->set_self_adjustment(offset);
+                        ds->set_virtual_entry(virtual_index + iff->virtual_index, f);
+                        break;
+                    }
+                }
+                
+                if (!found) {
+                    std::cerr << "Invalid function overload " << f->name << "!\n";
+                    throw TYPE_ERROR;  // FIXME
+                }
+            }
+        }
+        
+        inner_scope->allocate();
     }
     
     virtual int get_offset(TypeMatch tm) {

@@ -10,6 +10,7 @@ public:
     Expr *deferred_body_expr;
     bool may_be_aborted;
     TypeSpec pivot_ts;
+    Variable *self_var;
 
     FunctionType type;
     Function *function;  // If declared with a name, which is always, for now
@@ -20,6 +21,7 @@ public:
         function = NULL;
         deferred_body_expr = NULL;
         may_be_aborted = false;
+        self_var = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -49,8 +51,6 @@ public:
             pivot_ts = scope->pivot_type_hint();
             
             if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
-                Variable *self_var;
-                
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
                     TypeSpec partial_ts = pivot_ts.reprefix(initializable_type, partial_type);
@@ -67,14 +67,23 @@ public:
         Expr *e = kwargs["may"].get();
         if (e) {
             Value *v = typize(e, fn_scope, &TREENUMMETA_TS);
-            TreenumerationDefinitionValue *tdv = dynamic_cast<TreenumerationDefinitionValue *>(v);
             
             if (v) {
-                Declaration *ed = tdv->declare("<may>", scope->type);
-                TreenumerationType *t = dynamic_cast<TreenumerationType *>(ed);
+                TreenumerationType *t;
+                
+                TreenumerationDefinitionValue *tdv = dynamic_cast<TreenumerationDefinitionValue *>(v);
+                if (tdv) {
+                    Declaration *ed = tdv->declare("<may>", scope->type);
+                    t = dynamic_cast<TreenumerationType *>(ed);
+                    fn_scope->add(t);
+                }
+                
+                TypeValue *tpv = dynamic_cast<TypeValue *>(v);
+                if (tpv) {
+                    t = dynamic_cast<TreenumerationType *>(tpv->ts[1]);
+                }
                 
                 if (t) {
-                    fn_scope->add(t);
                     fn_scope->set_exception_type(t);
                 }
                 else
@@ -83,7 +92,7 @@ public:
             else
                 throw INTERNAL_ERROR;
                 
-            exception_type_value.reset(tdv);
+            exception_type_value.reset(v);
         }
                 
         Scope *hs = fn_scope->add_head_scope();
@@ -159,6 +168,9 @@ public:
         unsigned frame_size = fn_scope->get_frame_size();
         //Label epilogue_label = fn_scope->get_epilogue_label();
 
+        int self_adjustment = function->self_adjustment.concretize();
+        Storage self_storage = self_var ? self_var->get_local_storage() : Storage();
+
         if (function) {
             if (function->name == "start")
                 x64->code_label_global(function->x64_label, function->name);
@@ -175,6 +187,9 @@ public:
         x64->op(SUBQ, RSP, frame_size);
         x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         
+        if (self_adjustment)
+            x64->op(SUBQ, self_storage.address, self_adjustment);
+        
         x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
@@ -190,6 +205,9 @@ public:
             x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
             x64->code_label(ok);
         }
+
+        if (self_adjustment)
+            x64->op(ADDQ, self_storage.address, self_adjustment);
         
         x64->op(MOVB, BL, EXCEPTION_ADDRESS);
         x64->op(ADDQ, RSP, frame_size);

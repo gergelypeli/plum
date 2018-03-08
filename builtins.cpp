@@ -186,19 +186,19 @@ void builtin_types(Scope *root_scope) {
     rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { VALUE_TYPE });
     root_scope->add(rbtreeelembyorderiter_type);
 
-    iterator_done_exception_type = new TreenumerationType("<Iterator_done>", { "", "ITERATOR_DONE" }, { 0, 1 });
+    iterator_done_exception_type = new TreenumerationType("Iterator_done_exception", { "", "ITERATOR_DONE" }, { 0, 1 });
     root_scope->add(iterator_done_exception_type);
 
-    container_full_exception_type = new TreenumerationType("<Container_full>", { "", "CONTAINER_FULL" }, { 0, 1 });
+    container_full_exception_type = new TreenumerationType("Container_full_exception", { "", "CONTAINER_FULL" }, { 0, 1 });
     root_scope->add(container_full_exception_type);
 
-    container_empty_exception_type = new TreenumerationType("<Container_empty>", { "", "CONTAINER_EMPTY" }, { 0, 1 });
+    container_empty_exception_type = new TreenumerationType("Container_empty_exception", { "", "CONTAINER_EMPTY" }, { 0, 1 });
     root_scope->add(container_empty_exception_type);
 
-    container_lent_exception_type = new TreenumerationType("<Container_lent>", { "", "CONTAINER_LENT" }, { 0, 1 });
+    container_lent_exception_type = new TreenumerationType("Container_lent_exception", { "", "CONTAINER_LENT" }, { 0, 1 });
     root_scope->add(container_lent_exception_type);
 
-    match_unmatched_exception_type = new TreenumerationType("<Match_unmatched>", { "", "UNMATCHED" }, { 0, 1 });
+    match_unmatched_exception_type = new TreenumerationType("Match_unmatched_exception", { "", "UNMATCHED" }, { 0, 1 });
     root_scope->add(match_unmatched_exception_type);
 
     code_break_exception_type = new TreenumerationType("<Code_break>", { "", "CODE_BREAK" }, { 0, 1 });
@@ -383,7 +383,7 @@ void define_interfaces() {
         TSs {},
         Ss {},
         TSs { SAME_TS },
-        NULL
+        iterator_done_exception_type
     );
     iis->add(nf);
     implement(iis, SAME_ITERABLE_TS, "ible", {
@@ -701,7 +701,7 @@ void builtin_runtime(Scope *root_scope) {
 
 
 Scope *init_builtins() {
-    Scope *root_scope = new Scope(ROOT_SCOPE);
+    Scope *root_scope = new DataScope();
 
     builtin_types(root_scope);
 

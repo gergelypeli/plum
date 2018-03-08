@@ -79,11 +79,11 @@ XCounter? :Record as:
         
     ible? :Implementation Integer Iterator
 
-    ible.next? :Function Integer may: { DONE } as:
+    ible.next? :Function Integer may: Iterator_done_exception as:
         $ current += 1
     
         :if $ current == $ limit then:
-            :raise `DONE
+            :raise `ITERATOR_DONE
         else:
             :return $ current
 
@@ -100,11 +100,11 @@ XStringiterator? :Record as:
 
     ible? :Implementation Character Iterator
     
-    ible.next? :Function Character may: { DONE } as:
+    ible.next? :Function Character may: Iterator_done_exception as:
         $ index += 1
     
         :if $ index == $ string length then:
-            :raise `DONE
+            :raise `ITERATOR_DONE
         else:
             :return $ string[$ index]
 
@@ -142,6 +142,9 @@ Greetable? :Class as:
 
     ? :Finalizer as:
         prints("I'm outta here!")
+
+    base.base_method? :Function as:
+        prints("Although overridden, the base value is {x}." {x: $ base base_value})
 
     number? Integer
     name? String

@@ -9,8 +9,6 @@ public:
     std::vector<std::unique_ptr<Declaration>> contents;
     Allocation size;
     bool is_allocated;  // for sanity checks
-    std::vector<Function *> virtual_table;
-    bool virtual_scope;
     ScopeType type;
     
     Scope(ScopeType st)
@@ -18,7 +16,6 @@ public:
         type = st;
         size = Allocation { 0, 0, 0, 0 };
         is_allocated = false;
-        virtual_scope = false;
     }
     
     virtual void add(Declaration *decl) {
@@ -93,41 +90,29 @@ public:
     virtual TypeSpec pivot_type_hint() {
         throw INTERNAL_ERROR;
     }
-
-    virtual bool is_virtual_scope() {
-        return virtual_scope;
-    }
-    
-    virtual void be_virtual_scope() {
-        virtual_scope = true;
-    }
-
-    virtual int virtual_reserve(std::vector<Function *> vt) {
-        int virtual_index = virtual_table.size();
-        virtual_table.insert(virtual_table.end(), vt.begin(), vt.end());
-        return virtual_index;
-    }
-    
-    virtual std::vector<Function *> get_virtual_table() {
-        return virtual_table;
-    }
 };
-
-
-Declaration *declaration_cast(Scope *scope) {
-    return static_cast<Declaration *>(scope);
-}
 
 
 class DataScope: public Scope {
 public:
     TypeSpec pivot_ts;
     Scope *meta_scope;
+    std::vector<Function *> virtual_table;
+    bool am_virtual_scope;
     
     DataScope()
         :Scope(DATA_SCOPE) {
         pivot_ts = NO_TS;
         meta_scope = NULL;
+        am_virtual_scope = false;
+    }
+    
+    virtual void be_virtual_scope() {
+        am_virtual_scope = true;
+    }
+    
+    virtual bool is_virtual_scope() {
+        return am_virtual_scope;
     }
     
     virtual void set_meta_scope(Scope *ms) {
@@ -168,6 +153,20 @@ public:
         //    throw INTERNAL_ERROR;
             
         return pivot_ts;
+    }
+
+    virtual int virtual_reserve(std::vector<Function *> vt) {
+        int virtual_index = virtual_table.size();
+        virtual_table.insert(virtual_table.end(), vt.begin(), vt.end());
+        return virtual_index;
+    }
+    
+    virtual std::vector<Function *> get_virtual_table() {
+        return virtual_table;
+    }
+    
+    virtual void set_virtual_entry(int i, Function *f) {
+        virtual_table[i] = f;
     }
 };
 
@@ -446,6 +445,11 @@ public:
     
     TreenumerationType *get_exception_type() {
         return exception_type;
+    }
+
+    virtual TypeSpec pivot_type_hint() {
+        // This is used when looking up explicit exception type names
+        return NO_TS;
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
