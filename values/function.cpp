@@ -521,6 +521,7 @@ public:
         // Return a result from the stack in its native storage
         Storage s, t;
         
+        
         switch (res_ts.where(true)) {
         case MEMORY:
             s = Storage(STACK);

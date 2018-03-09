@@ -7,7 +7,7 @@ public:
         :Type(name, param_tts, GENERIC_TYPE) {
     }
 
-    virtual void complete_type() {
+    virtual bool complete_type() {
         for (auto &c : inner_scope->contents) {
             Function *f = dynamic_cast<Function *>(c.get());
             
@@ -17,6 +17,7 @@ public:
         }
         
         std::cerr << "Interface " << name << " has " << member_functions.size() << " member functions.\n";
+        return true;
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -79,7 +80,7 @@ public:
         return ts;
     }
 
-    virtual void complete_type() {
+    virtual bool complete_type() {
         // FIXME: check order!
         
         for (auto &c : inner_scope->contents) {
@@ -91,6 +92,7 @@ public:
         }
         
         std::cerr << "Implementation " << name << " has " << member_functions.size() << " member functions.\n";
+        return true;
     }
 
     virtual Value *match(std::string name, Value *pivot) {

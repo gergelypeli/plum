@@ -124,7 +124,7 @@ Base? :Class as:
 
 
 Greetable? :Class as:
-    base? :Role Base
+    base? :Base Base
 
     init? :Initializer as:
         $ base ?base_init

@@ -9,7 +9,7 @@ public:
         :Type(n, param_tts, VALUE_TYPE) {
     }
 
-    virtual void complete_type() {
+    virtual bool complete_type() {
         for (auto &c : inner_scope->contents) {
             Variable *v = variable_cast(c.get());
             
@@ -21,6 +21,7 @@ public:
         }
         
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
+        return true;
     }
     
     virtual Allocation measure(TypeMatch tm) {

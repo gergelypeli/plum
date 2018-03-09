@@ -6,13 +6,14 @@ public:
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
     Function *finalizer_function;
+    BaseRole *base_role;
 
     ClassType(std::string name, TTs param_tts)
         :HeapType(name, param_tts) {
         finalizer_function = NULL;
     }
 
-    virtual void complete_type() {
+    virtual bool complete_type() {
         for (auto &c : inner_scope->contents) {
             Allocable *v = allocable_cast(c.get());
             
@@ -25,14 +26,37 @@ public:
             Function *f = function_cast(c.get());
             
             if (f && f->type == FINALIZER_FUNCTION) {
-                if (finalizer_function)
-                    throw INTERNAL_ERROR;
+                if (finalizer_function) {
+                    std::cerr << "Multiple finalizers!\n";
+                    return false;
+                }
                     
                 finalizer_function = f;
+            }
+            
+            BaseRole *b = base_role_cast(c.get());
+            
+            if (b) {
+                if (base_role) {
+                    std::cerr << "Multiple base roles!\n";
+                    return false;
+                }
+                
+                base_role = b;
             }
         }
         
         std::cerr << "Class " << name << " has " << member_allocables.size() << " member variables.\n";
+        return true;
+    }
+
+    virtual void allocate() {
+        // Let the base be allocated first, then it will skip itself
+        
+        if (base_role)
+            base_role->allocate();
+            
+        HeapType::allocate();
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -95,14 +119,13 @@ public:
             // Named initializer
             TypeSpec rts = tm[0].prefix(ref_type);
             
-            if (!pivot)
-                pivot = make_class_preinitializer_value(rts);
+            Value *preinit = pivot ? pivot : make_class_preinitializer_value(rts);
 
-            Value *value = inner_scope->lookup(name, pivot);
+            Value *value = inner_scope->lookup(name, preinit);
 
             if (value) {
                 if (is_initializer_function_call(value))
-                    return make_cast_value(value, rts);
+                    return pivot ? value : make_cast_value(value, rts);
                         
                 std::cerr << "Can't initialize class with non-initializer " << name << "!\n";
                 return NULL;

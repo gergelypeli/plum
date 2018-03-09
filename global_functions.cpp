@@ -341,6 +341,11 @@ Role *role_cast(Declaration *decl) {
 }
 
 
+BaseRole *base_role_cast(Declaration *decl) {
+    return dynamic_cast<BaseRole *>(decl);
+}
+
+
 ClassType *class_type_cast(Declaration *decl) {
     return dynamic_cast<ClassType *>(decl);
 }
@@ -589,7 +594,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         // These can't interfere with references
         if (*s == void_type)
             return true;
-            
+
         value = make_void_conversion_value(value);
         return true;
     }

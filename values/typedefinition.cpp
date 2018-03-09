@@ -42,7 +42,8 @@ public:
     bool complete(Type *t = NULL) {
         // Must complete records/classes before compiling method bodies
         if (t)
-            t->complete_type();
+            if (!t->complete_type())
+                return false;
             
         return data_value->complete_definition();
     }
@@ -421,6 +422,19 @@ public:
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         role = new Role(name, pivot_ts, role_ts);
+        return role;
+    }
+};
+
+
+class BaseRoleDefinitionValue: public RoleDefinitionValue {
+public:
+    BaseRoleDefinitionValue(Value *pivot, TypeMatch &tm)
+        :RoleDefinitionValue(pivot, tm) {
+    }
+
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        role = new BaseRole(name, pivot_ts, role_ts);
         return role;
     }
 };

@@ -797,6 +797,7 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<InitializerDefinitionValue>(":Initializer", NO_TS));
     root_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>(":Finalizer", NO_TS));
     root_scope->add(new TemplateIdentifier<RoleDefinitionValue>(":Role", NO_TS));
+    root_scope->add(new TemplateIdentifier<BaseRoleDefinitionValue>(":Base", NO_TS));
     
     // Library functions, unscoped
     builtin_runtime(root_scope);

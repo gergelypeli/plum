@@ -30,35 +30,24 @@ public:
     }
     
     virtual void set_outer_scope(Scope *os) {
-        // Make sure the inner scope is added first, because the removal only works
-        // on the type, when it is the last declaration is a scope.
-        // FIXME: this can't be true for the builtin types, where the Type is added
-        // first, and the inner scope much later...
+        // This slightly abuses the Scope structure, as the inner scope references directly
+        // the outer scope, but that's fine here. But Type is not a proper Scope.
         
-        if (inner_scope && os)
-            os->add(inner_scope);
-            
         Declaration::set_outer_scope(os);
-        
-        if (inner_scope && !os)
-            inner_scope->outer_scope->remove(inner_scope);
+
+        if (inner_scope)
+            inner_scope->set_outer_scope(os);
     }
     
     virtual DataScope *make_inner_scope(TypeSpec pts) {
         if (inner_scope)
             throw INTERNAL_ERROR;
             
-        //if (outer_scope)
-        //    throw INTERNAL_ERROR;  // Just to make sure we can keep the right order
-            
         inner_scope = new DataScope;
         inner_scope->set_pivot_type_hint(pts);
         
-        // TODO: awkward ordering may be an issue, the inner scope may be added much later
-        // as the Type to the outer scope. Probably Type itself should be a Scope.
-        // Maybe its own inner?
         if (outer_scope)
-            outer_scope->add(inner_scope);
+            inner_scope->set_outer_scope(outer_scope);
             
         return inner_scope;
     }
@@ -117,6 +106,11 @@ public:
         }
 
         return make_type_value(result_ts);
+    }
+
+    virtual void allocate() {
+        if (inner_scope)
+            inner_scope->allocate();
     }
     
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
@@ -263,7 +257,8 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual void complete_type() {
+    virtual bool complete_type() {
+        return true;
     }
 };
 
@@ -484,7 +479,7 @@ public:
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        return tm[1].store(s, t, x64);
+        tm[1].store(s, t, x64);
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {

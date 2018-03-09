@@ -14,6 +14,7 @@ Function *function_cast(Declaration *decl);
 Allocable *allocable_cast(Declaration *decl);
 Variable *variable_cast(Declaration *decl);
 Role *role_cast(Declaration *decl);
+BaseRole *base_role_cast(Declaration *decl);
 ClassType *class_type_cast(Declaration *decl);
 HeapType *heap_type_cast(Type *t);
 DataScope *data_scope_cast(Scope *s);

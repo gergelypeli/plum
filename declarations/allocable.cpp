@@ -5,12 +5,11 @@ public:
     TypeSpec alloc_ts;
     Allocation offset;
     StorageWhere where;
-    bool xxx_is_allocated;
     
     Allocable(std::string name, TypeSpec pts, TypeSpec ats)
         :Identifier(name, pts) {
+        where = NOWHERE;
         alloc_ts = ats;
-        xxx_is_allocated = false;
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
@@ -18,14 +17,12 @@ public:
     }
     
     virtual void allocate() {
-        if (xxx_is_allocated)
+        if (where != NOWHERE)
             throw INTERNAL_ERROR;
-
-        xxx_is_allocated = true;
     }
 
     virtual Storage get_storage(TypeMatch tm, Storage s) {
-        if (!xxx_is_allocated)
+        if (where == NOWHERE)
             throw INTERNAL_ERROR;
 
         if (s.where != MEMORY)
@@ -313,7 +310,7 @@ public:
     }
     
     virtual int get_offset(TypeMatch tm) {
-        if (!xxx_is_allocated)
+        if (where == NOWHERE)
             throw INTERNAL_ERROR;
 
         return offset.concretize(tm);
@@ -344,3 +341,27 @@ public:
     }        
 };
 
+
+class BaseRole: public Role {
+public:
+    BaseRole(std::string name, TypeSpec pts, TypeSpec rts)
+        :Role(name, pts, rts) {
+    }
+    
+    virtual void allocate() {
+        // This will be called twice, must skip ourselves for the second time
+        if (where != NOWHERE)
+            return;
+        
+        // Overlay weakrefcount and VT headers
+        Allocation overlay = outer_scope->reserve(Allocation(-ADDRESS_SIZE * 2));
+        if (overlay.concretize() != ADDRESS_SIZE)  // original offset
+            throw INTERNAL_ERROR;
+        
+        Role::allocate();
+    }
+    
+    virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
+        // Don't overwrite the derived class' VT pointer!
+    }
+};

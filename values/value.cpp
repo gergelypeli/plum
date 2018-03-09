@@ -315,7 +315,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot ? pivot->precompile(preferred) : Regs();
             
-        if (!variable->xxx_is_allocated)
+        if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
             
         if (variable->where == ALIAS) {
@@ -446,7 +446,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        if (!evaluable->xxx_is_allocated)
+        if (evaluable->where == NOWHERE)
             throw INTERNAL_ERROR;
     
         for (auto &a : arg_values)
@@ -543,7 +543,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot ? pivot->precompile(preferred) : Regs();
             
-        if (!role->xxx_is_allocated)
+        if (role->where == NOWHERE)
             throw INTERNAL_ERROR;
             
         return clob;
