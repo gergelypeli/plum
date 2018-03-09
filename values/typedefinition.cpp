@@ -372,6 +372,60 @@ public:
 };
 
 
+class RoleDefinitionValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+    TypeSpec role_ts, pivot_ts;
+    Role *role;
+    
+    RoleDefinitionValue(Value *pivot, TypeMatch &tm)
+        :Value(VOID_TS) {
+        role = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() > 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky role definition!\n";
+            return false;
+        }
+
+        // TODO: check for Class definition scope!
+        Value *v = typize(args[0].get(), scope, NULL);
+    
+        if (v->ts[0] != type_type || !dynamic_cast<ClassType *>(v->ts[1])) {
+            std::cerr << "Class type name expected!\n";
+            return false;
+        }
+
+        role_ts = v->ts.unprefix(type_type);
+        pivot_ts = scope->pivot_type_hint();
+        value.reset(v);
+        
+        return true;
+    }
+
+    virtual bool complete_definition() {
+        std::cerr << "Completing role " << role->name << " definition.\n";
+        
+        // The role's inner scope is filled by declarations, but they should be checked
+        return role->complete_role();
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return Regs();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return Storage();
+    }
+
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        role = new Role(name, pivot_ts, role_ts);
+        return role;
+    }
+};
+
+
 class InterfaceDefinitionValue: public TypeDefinitionValue {
 public:
     InterfaceType *interface_type;

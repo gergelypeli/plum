@@ -79,6 +79,7 @@ public:
     TreenumerationType *exception_type;
     int virtual_index;
     Allocation self_adjustment;
+    Function *implemented_function;
     FunctionType type;
 
     Label x64_label;
@@ -92,6 +93,7 @@ public:
         res_tss = rts;
         exception_type = et;
         virtual_index = -1;
+        implemented_function = NULL;
         
         is_sysv = false;
     }
@@ -129,12 +131,10 @@ public:
         return arg_names;
     }
 
-    virtual void set_virtual_index(int vi) {
-        virtual_index = vi;
-    }
-    
-    virtual void set_self_adjustment(Allocation alloc) {
+    virtual int set_self_adjustment(Allocation alloc) {
         self_adjustment = alloc;
+        virtual_index = implemented_function->virtual_index;
+        return virtual_index;
     }
 
     virtual void allocate() {
@@ -175,6 +175,7 @@ public:
             return false;
         }
         
+        implemented_function = iff;
         return true;
     }
 };

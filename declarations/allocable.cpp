@@ -255,6 +255,38 @@ public:
             return NULL;
     }
 
+    virtual bool complete_role() {
+        TypeMatch iftm = type_parameters_to_match(alloc_ts);
+        TypeMatch empty_match;
+        Scope *base_inner_scope = alloc_ts.get_inner_scope();
+        
+        for (auto &d : inner_scope->contents) {
+            Function *f = function_cast(d.get());
+            
+            if (f) {
+                bool found = false;
+                
+                for (auto &e : base_inner_scope->contents) {
+                    Function *iff = function_cast(e.get());
+                    
+                    if (iff) {
+                        if (f->does_implement(empty_match, iff, iftm)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!found) {
+                    std::cerr << "Invalid function override " << f->name << "!\n";
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+
     virtual void allocate() {
         Allocable::allocate();
     
@@ -268,29 +300,12 @@ public:
         DataScope *ds = data_scope_cast(outer_scope);
         virtual_index = ds->virtual_reserve(alloc_ts.get_virtual_table());
         
-        TypeMatch iftm = type_parameters_to_match(alloc_ts);
-        TypeMatch empty_match;
-        
         for (auto &d : inner_scope->contents) {
             Function *f = function_cast(d.get());
             
             if (f) {
-                bool found = false;
-                
-                for (auto iff : alloc_ts.get_virtual_table()) {
-                    if (f->does_implement(empty_match, iff, iftm)) {
-                        found = true;
-                        f->set_virtual_index(iff->virtual_index);
-                        f->set_self_adjustment(offset);
-                        ds->set_virtual_entry(virtual_index + iff->virtual_index, f);
-                        break;
-                    }
-                }
-                
-                if (!found) {
-                    std::cerr << "Invalid function overload " << f->name << "!\n";
-                    throw TYPE_ERROR;  // FIXME
-                }
+                int vi = f->set_self_adjustment(offset);
+                ds->set_virtual_entry(virtual_index + vi, f);
             }
         }
         
