@@ -61,7 +61,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
         return NULL;
     }
     
-    //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
+    //std::cerr << "Looking up  " << get_typespec(pivot) << " " << name << " definition.\n";
     Value *value = NULL;
     
     for (Scope *s = scope; s; s = s->outer_scope) {
@@ -72,8 +72,10 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     }
 
     if (!value) {
-        if (pivot)
+        if (pivot) {
+            //std::cerr << "Looking up in inner scopes, too.\n";
             value = pivot->lookup_inner(name);
+        }
     }
 
     if (!value) {

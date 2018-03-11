@@ -184,6 +184,10 @@ public:
         }
     }
 
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+        return tm[1].lookup_inner(n, v);
+    }
+
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         return tm[1].lookup_initializer(name);
     }

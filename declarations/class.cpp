@@ -207,6 +207,51 @@ public:
                 r->init_vt(tm, addr, data_offset, vt_label, virtual_offset, x64);
         }
     }
+
+    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+        if (tm[0][0] == *target) {
+            ifts = tm[0];
+            
+            TypeSpec ts = get_typespec(orig).rvalue();
+            Type *t = ts[0];
+            
+            if (t == ref_type || t == weakref_type)
+                ts = ts.unprefix(t);
+            else
+                throw INTERNAL_ERROR;
+                
+            if (ts[0] == this)
+                return orig;
+            else {
+                ts = tm[0].prefix(t);
+                std::cerr << "Autoconverting a " << get_typespec(orig) << " to " << ts << ".\n";
+                return make_cast_value(orig, ts);
+            }
+        }
+        
+        if (base_role) {
+            TypeSpec ts = typesubst(base_role->alloc_ts, tm);
+            Value *v = ts.autoconv(target, orig, ifts);
+            
+            if (v)
+                return v;
+        }
+        
+        return HeapType::autoconv(tm, target, orig, ifts);
+    }
+
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+        std::cerr << "Class inner lookup " << n << ".\n";
+        
+        Value *value = HeapType::lookup_inner(tm, n, v);
+        
+        if (!value && base_role) {
+            TypeSpec ts = typesubst(base_role->alloc_ts, tm);
+            value = ts.lookup_inner(n, v);
+        }
+        
+        return value;
+    }
 };
 
 

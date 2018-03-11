@@ -144,7 +144,7 @@ Greetable? :Class as:
         prints("I'm outta here!")
 
     base.base_method? :Function as:
-        prints("Although overridden, the base value is {x}." {x: $ base base_value})
+        prints("Although overridden, the base value is {x}." {x: $ base_value})
 
     number? Integer
     name? String
