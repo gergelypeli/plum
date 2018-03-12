@@ -197,7 +197,9 @@ public:
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
-        return tm[1].lookup_matcher(name, pivot);
+        std::cerr << "Matchers must be looked up by weak reference!\n";
+        throw INTERNAL_ERROR;
+        //return tm[1].lookup_matcher(name, pivot);
     }
 
     virtual DataScope *get_inner_scope(TypeMatch tm) {
@@ -230,6 +232,10 @@ public:
 
     virtual void decref(Register r, X64 *x64) {
         x64->decweakref(r);
+    }
+
+    virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
+        return tm[1].lookup_matcher(name, pivot);
     }
 };
 
@@ -265,17 +271,35 @@ public:
         return NULL;
     }
 
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+        if (n == "dead")
+            return make_weaktrampoline_dead_matcher_value(pivot, tm);
+        else if (n == "live")
+            return make_weaktrampoline_live_matcher_value(pivot, tm);
+            
+        std::cerr << "Can't match Weaktrampoline as " << n << "!\n";
+        return NULL;
+    }
+
     virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
         return x64->once->compile(compile_finalizer, tm[0]);
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        Label start, end, loop;
+        Label skip;
 
         x64->code_label_local(label, "x_weaktrampoline_finalizer");
         x64->log("Weak trampoline finalized.");
-        x64->op(MOVQ, RAX, Address(RAX, 0));
+        
+        x64->op(MOVQ, RBX, Address(RAX, 0));
+        x64->op(CMPQ, RBX, 0);
+        x64->op(JE, skip);
+        
+        x64->decweakref(RBX);
+        x64->op(MOVQ, RAX, Address(RAX, 8));
         x64->op(CALL, x64->free_fcb_label);
+        
+        x64->code_label(skip);
         x64->op(RET);
     }
 };

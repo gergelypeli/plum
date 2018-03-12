@@ -568,6 +568,16 @@ test_classes? :Function Greetable Weaktrampoline Ref as:
     
     wt? Greetable Weaktrampoline Ref `to(gr)
     
+    :is wt ~live then:
+        prints("WT is live.")
+    else:
+        prints("WT IS DEAD!")
+        
+    :is wt ~dead then:
+        prints("WT IS DEAD!")
+    else:
+        prints("WT is live.")
+    
     :return wt
 
 

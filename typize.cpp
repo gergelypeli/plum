@@ -370,8 +370,12 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             Value *equality = lookup_unchecked("is_equal", p, scope);
             value = make_equality_matcher_value(equality);
         }
-        else
+        else {
+            if (p->ts.rvalue()[0] == ref_type)
+                p = make_reference_weaken_value(p);
+                
             value = p->ts.lookup_matcher(name, p);
+        }
     
         if (!value) {
             std::cerr << "No matcher " << p->ts << " ~" << name << "!\n";

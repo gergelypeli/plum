@@ -119,26 +119,28 @@ public:
         Label callback_label = x64->once->compile(compile_callback);
         Label finalizer_label = ts.unprefix(ref_type).get_finalizer_label(x64);
         
-        x64->op(MOVQ, RAX, ADDRESS_SIZE);
+        x64->op(MOVQ, RAX, ADDRESS_SIZE * 2);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
         x64->op(LEARIP, RBX, finalizer_label);
         x64->alloc_RAX_RBX();
 
         x64->op(PUSHQ, RAX);
         
-        right->compile_and_store(x64, Storage(REGISTER, RAX));
-        x64->decweakref(RAX);
+        right->compile_and_store(x64, Storage(STACK));
         
+        x64->op(MOVQ, RAX, Address(RSP, 0));  // the object address
         x64->op(LEARIP, RBX, callback_label);
-        x64->op(MOVQ, RCX, Address(RSP, 0));  // the trampoline address as the payload1
+        x64->op(MOVQ, RCX, Address(RSP, 8));  // the trampoline address as the payload1
         x64->op(MOVQ, RDX, 0);
         x64->op(CALL, x64->alloc_fcb_label);
         
-        x64->op(MOVQ, RBX, RAX);
-        x64->op(POPQ, RAX);
-        x64->op(MOVQ, Address(RAX, 0), RBX);
+        x64->op(POPQ, RCX);  // object address
+        x64->op(POPQ, RDX);  // trampoline address
         
-        return Storage(REGISTER, RAX);
+        x64->op(MOVQ, Address(RDX, 0), RCX);
+        x64->op(MOVQ, Address(RDX, 8), RAX);
+        
+        return Storage(REGISTER, RDX);
     }
     
     static void compile_callback(Label label, X64 *x64) {
@@ -146,13 +148,85 @@ public:
         
         x64->log("Weak trampoline called back.");
         
-        x64->op(MOVQ, Address(RCX, 0), 0);  // clear FCB address for the finalizer
+        x64->op(MOVQ, RBX, Address(RCX, 0));
+        x64->decweakref(RBX);
         
-        x64->op(PUSHQ, RAX);
-        x64->op(MOVQ, RAX, RBX);
+        x64->op(MOVQ, Address(RCX, 0), 0);
+        x64->op(MOVQ, Address(RCX, 8), 0);  // clear FCB address for the finalizer
+        
         x64->op(CALL, x64->free_fcb_label);
-        x64->op(POPQ, RAX);
-        
         x64->op(RET);
+    }
+};
+
+
+class WeaktrampolineDeadMatcherValue: public GenericValue, public Raiser {
+public:
+    WeaktrampolineDeadMatcherValue(Value *p, TypeMatch &match)
+        :GenericValue(NO_TS, VOID_TS, p) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(match_unmatched_exception_type, scope))
+            return false;
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label ok;
+        left->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(POPQ, RBX);
+        x64->decweakref(RBX);  // for the trampoline
+        x64->op(CMPQ, Address(RBX, 0), 0);
+        x64->op(JE, ok);
+        
+        raise("UNMATCHED", x64);
+                
+        x64->code_label(ok);
+        return Storage();
+    }
+};
+
+
+class WeaktrampolineLiveMatcherValue: public GenericValue, public Raiser {
+public:
+    WeaktrampolineLiveMatcherValue(Value *p, TypeMatch &match)
+        :GenericValue(NO_TS, match[1].prefix(weakref_type), p) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(match_unmatched_exception_type, scope))
+            return false;
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label ok;
+        left->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(POPQ, RBX);
+        x64->decweakref(RBX);  // for the trampoline
+        x64->op(CMPQ, Address(RBX, 0), 0);
+        x64->op(JNE, ok);
+        
+        raise("UNMATCHED", x64);
+                
+        x64->code_label(ok);
+        x64->op(MOVQ, RBX, Address(RBX, 0));
+        x64->incweakref(RBX);  // for the object
+        x64->op(PUSHQ, RBX);
+
+        return Storage(STACK);
     }
 };

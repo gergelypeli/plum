@@ -393,7 +393,7 @@ public:
     Ork *ork;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
-    Label alloc_fcb_label, free_fcb_label;
+    Label finalize_label, alloc_fcb_label, free_fcb_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Once *once;
@@ -492,7 +492,7 @@ public:
     void op(JumpOp opcode, Register x);
     void op(ConstantOp opcode, int x);
 
-    void pusha(bool except_rax = false);
+    int pusha(bool except_rax = false);
     void popa(bool except_rax = false);
     void incref(Register reg);
     void decref(Register reg);

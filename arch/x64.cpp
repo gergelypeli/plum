@@ -1095,11 +1095,15 @@ void X64::op(ConstantOp opcode, int x) {
 }
 
 
-void X64::pusha(bool except_rax) {
+int X64::pusha(bool except_rax) {
     // RBX and the last 4 are preserved by the System V ABI
+    // But we save RBX, because it's annoying to handle it separately
+    // 10 registers, including RAX
     
     if (!except_rax)
         op(PUSHQ, RAX);
+        
+    op(PUSHQ, RBX);
     op(PUSHQ, RCX);
     op(PUSHQ, RDX);
     op(PUSHQ, RSI);
@@ -1108,11 +1112,11 @@ void X64::pusha(bool except_rax) {
     op(PUSHQ, R9);
     op(PUSHQ, R10);
     op(PUSHQ, R11);
+    
+    return except_rax ? 72 : 80;
 }
 
 void X64::popa(bool except_rax) {
-    // RBX and the last 4 are preserved by the System V ABI
-
     op(POPQ, R11);
     op(POPQ, R10);
     op(POPQ, R9);
@@ -1121,6 +1125,8 @@ void X64::popa(bool except_rax) {
     op(POPQ, RSI);
     op(POPQ, RDX);
     op(POPQ, RCX);
+    op(POPQ, RBX);
+    
     if (!except_rax)
         op(POPQ, RAX);
 }
@@ -1144,47 +1150,52 @@ void X64::init_memory_management() {
         op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
         op(JNE, dl);
 
-        op(PUSHQ, RAX);
-        op(PUSHQ, RBX);  // protected
-        op(PUSHQ, RCX);
-        op(PUSHQ, RDX);
-        
-        op(MOVQ, RAX, reg);
+        op(PUSHQ, reg);
+        op(CALL, finalize_label);
+        op(ADDQ, RSP, 8);
 
-        Label fcb_loop, fcb_cond;
-        op(JMP, fcb_cond);
-
-        code_label(fcb_loop);
-        log("Triggering weak trampoline.");
-        op(MOVQ, RCX, Address(RBX, FCB_PAYLOAD1_OFFSET));
-        op(MOVQ, RDX, Address(RBX, FCB_PAYLOAD2_OFFSET));
-        op(CALL, Address(RBX, FCB_CALLBACK_OFFSET));  // RAX - object, RBX - fcb, RCX, RDX - payloads
-        // Must free this fcb, and potentially more
-
-        code_label(fcb_cond);
-        op(MOVQ, RBX, Address(RAX, HEAP_NEXT_OFFSET));
-        op(CMPQ, RBX, FCB_NIL);
-        op(JNE, fcb_loop);
-
-        op(CALL, Address(RAX, HEAP_FINALIZER_OFFSET));
-        
-        op(POPQ, RDX);
-        op(POPQ, RCX);
-        op(POPQ, RBX);
-        op(POPQ, RAX);
-
-        op(CMPQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET), 0);
-        op(JE, dl2);
-        op(MOVQ, RBX, reg);
-        dump("RBX=weakrefcount");
-        die("Weakly referenced object finalized!");
-        
-        code_label(dl2);
-        memfree(reg);
-    
         code_label(dl);
         op(RET);
     }
+
+    // Stack - reference to finalize
+    // Preserves all registers, including RBX
+    code_label_global(finalize_label, "finalize");
+    const int ARG_OFFSET = pusha() + 8;
+    
+    Label fcb_loop, fcb_cond, no_weakrefs;
+    op(JMP, fcb_cond);
+
+    code_label(fcb_loop);
+    log("Triggering weak trampoline.");
+    op(MOVQ, RCX, Address(RAX, FCB_PAYLOAD1_OFFSET));
+    op(MOVQ, RDX, Address(RAX, FCB_PAYLOAD2_OFFSET));
+    
+    // RAX - fcb, RCX, RDX - payloads, may clobber everything
+    // Must free this fcb, and potentially more
+    op(CALL, Address(RAX, FCB_CALLBACK_OFFSET));
+
+    code_label(fcb_cond);
+    op(MOVQ, RBX, Address(RSP, ARG_OFFSET));  // reference
+    op(MOVQ, RAX, Address(RBX, HEAP_NEXT_OFFSET));
+    op(CMPQ, RAX, FCB_NIL);
+    op(JNE, fcb_loop);
+
+    op(MOVQ, RAX, Address(RSP, ARG_OFFSET));
+    op(CALL, Address(RAX, HEAP_FINALIZER_OFFSET));  // may clobber everything
+
+    op(MOVQ, RAX, Address(RSP, ARG_OFFSET));
+    op(CMPQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);
+    op(JE, no_weakrefs);
+    dump("RAX=weakrefcount");
+    die("Weakly referenced object finalized!");
+    
+    code_label(no_weakrefs);
+    op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
+    op(CALL, memfree_label);  // will probably clobber everything
+
+    popa();
+    op(RET);
 
     code_label_global(alloc_RAX_RBX_label, "alloc_RAX_RBX");
     pusha(true);
@@ -1250,11 +1261,8 @@ void X64::init_memory_management() {
     op(RET);
     
     code_label_global(free_fcb_label, "free_fcb");
-    Label no_fcb;
-    op(CMPQ, RAX, FCB_NIL);
-    op(JE, no_fcb);
-    
     pusha();
+
     op(MOVQ, RBX, Address(RAX, FCB_PREV_OFFSET));  // always valid
     op(MOVQ, RCX, Address(RAX, FCB_NEXT_OFFSET));
     op(MOVQ, Address(RBX, FCB_NEXT_OFFSET), RCX);
@@ -1267,9 +1275,8 @@ void X64::init_memory_management() {
     
     op(MOVQ, RDI, RAX);
     op(CALL, memfree_label);
+
     popa();
-    
-    code_label(no_fcb);
     op(RET);
 }
 

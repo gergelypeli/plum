@@ -94,5 +94,7 @@ Value *make_evaluable_value(Evaluable *e, Value *cpivot, TypeMatch &match);
 Value *make_equality_matcher_value(Value *p);
 Value *make_create_value(Value *p, TypeMatch &match);
 Value *make_weaktrampoline_value(TypeSpec rts);
+Value *make_weaktrampoline_dead_matcher_value(Value *p, TypeMatch &match);
+Value *make_weaktrampoline_live_matcher_value(Value *p, TypeMatch &match);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);

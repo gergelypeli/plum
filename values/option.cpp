@@ -54,9 +54,9 @@ public:
 };
 
 
-class OptionAsNoneValue: public GenericValue, public Raiser {
+class OptionNoneMatcherValue: public GenericValue, public Raiser {
 public:
-    OptionAsNoneValue(Value *p, TypeMatch &match)
+    OptionNoneMatcherValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, VOID_TS, p) {
     }
 
@@ -101,11 +101,11 @@ public:
 };
 
 
-class OptionAsSomeValue: public GenericValue, public Raiser {
+class OptionSomeMatcherValue: public GenericValue, public Raiser {
 public:
     int flag_size;
     
-    OptionAsSomeValue(Value *p, TypeMatch &match)
+    OptionSomeMatcherValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, match[1], p) {
         flag_size = OptionType::get_flag_size(match[1]);
     }
@@ -150,7 +150,3 @@ public:
         }
     }
 };
-
-
-typedef OptionAsNoneValue OptionNoneMatcherValue;
-typedef OptionAsSomeValue OptionSomeMatcherValue;
