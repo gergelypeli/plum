@@ -475,3 +475,35 @@ public:
         return 1;
     }
 };
+
+
+class AutoweakrefType: public RecordType {
+public:
+    AutoweakrefType(std::string n)
+        :RecordType(n, TTs { IDENTITY_TYPE }) {
+    }
+
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        TypeSpec member_ts = tm[1].prefix(weaktrampoline_type).prefix(ref_type);
+        
+        Value *v = member_ts.lookup_initializer(n);
+        if (v) 
+            return make_record_wrapper_value(v, NO_TS, tm[0], "", "");
+        
+        std::cerr << "No Autoweakref initializer " << n << "!\n";
+        return NULL;
+    }
+    
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p) {
+        TypeSpec member_ts = tm[1].prefix(weaktrampoline_type).prefix(ref_type);
+        p = make_record_unwrap_value(member_ts, p);
+        p = make_reference_weaken_value(p);
+        
+        Value *v = member_ts.reprefix(ref_type, weakref_type).lookup_matcher(n, p);
+        if (v)
+            return v;
+        
+        std::cerr << "No Autoweakref matcher " << n << "!\n";
+        return NULL;
+    }
+};

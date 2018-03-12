@@ -24,6 +24,9 @@ void builtin_types(Scope *root_scope) {
     same3_type = new SameType("<Same3>", {}, VALUE_TYPE);
     root_scope->add(same3_type);
 
+    sameid_type = new SameType("<Sameid>", {}, IDENTITY_TYPE);
+    root_scope->add(sameid_type);
+
     integer_metatype = new IntegerMetaType(":Integer");
     root_scope->add(integer_metatype);
 
@@ -113,6 +116,9 @@ void builtin_types(Scope *root_scope) {
 
     weaktrampoline_type = new WeaktrampolineType("Weaktrampoline");
     root_scope->add(weaktrampoline_type);
+
+    autoweakref_type = new AutoweakrefType("Autoweakref");
+    root_scope->add(autoweakref_type);
 
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
@@ -235,6 +241,9 @@ void builtin_types(Scope *root_scope) {
     ANYID_REF_LVALUE_TS = { lvalue_type, ref_type, anyid_type };
     ANYID_WEAKREF_TS = { weakref_type, anyid_type };
     ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
+    ANYID_AUTOWEAKREF_TS = { autoweakref_type, anyid_type };
+    ANYID_AUTOWEAKREF_LVALUE_TS = { lvalue_type, autoweakref_type, anyid_type };
+    SAMEID_WEAKTRAMPOLINE_REF_LVALUE_TS = { lvalue_type, ref_type, weaktrampoline_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
     ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
@@ -472,7 +481,7 @@ void define_string() {
     RecordType *record_type = dynamic_cast<RecordType *>(string_type);
     DataScope *is = record_type->make_inner_scope(STRING_TS);
 
-    is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REF_LVALUE_TS));  // Order matters!
+    is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REF_LVALUE_TS));
 
     is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REF_TS, INTEGER_TS, "length"));
     is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REF_TS, STRING_TS, "binary_plus", "chars"));
@@ -496,6 +505,19 @@ void define_string() {
     implement(is, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS)
     });
+
+    record_type->complete_type();
+}
+
+
+void define_autoweakref() {
+    RecordType *record_type = dynamic_cast<RecordType *>(autoweakref_type);
+    DataScope *is = record_type->make_inner_scope(ANYID_AUTOWEAKREF_TS);
+
+    is->add(new Variable("trampoline", ANYID_AUTOWEAKREF_TS, SAMEID_WEAKTRAMPOLINE_REF_LVALUE_TS));
+
+    is->add(new TemplateOperation<RecordOperationValue>("assign other", ANYID_AUTOWEAKREF_LVALUE_TS, ASSIGN));
+    is->add(new TemplateOperation<RecordOperationValue>("compare", ANYID_AUTOWEAKREF_TS, COMPARE));
 
     record_type->complete_type();
 }
@@ -716,6 +738,7 @@ Scope *init_builtins() {
     define_set();
     define_map();
     define_option();
+    define_autoweakref();
     
     // Integer operations
     define_integers();

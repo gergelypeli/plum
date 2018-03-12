@@ -298,6 +298,10 @@ public:
             return Allocation(0, 0, 1, 0);
         else if (this == same3_type)
             return Allocation(0, 0, 0, 1);
+        else if (this == sameid_type) {
+            std::cerr << "Hmmm, maybe this shouldn't have been called!\n";
+            throw INTERNAL_ERROR;
+        }
         else
             throw INTERNAL_ERROR;
     }

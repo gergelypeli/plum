@@ -552,7 +552,7 @@ test_options? :Function as:
         prints("It contained some.")
             
 
-test_classes? :Function Greetable Weaktrampoline Ref as:
+test_classes? :Function Greetable Autoweakref as:
     gr? Greetable Ref `second_init
     gr greet
     
@@ -566,7 +566,7 @@ test_classes? :Function Greetable Weaktrampoline Ref as:
     
     gr base base_method
     
-    wt? Greetable Weaktrampoline Ref `to(gr)
+    wt? Greetable Autoweakref `to(gr)
     
     :is wt ~live then:
         prints("WT is live.")
