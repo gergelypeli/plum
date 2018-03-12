@@ -319,6 +319,11 @@ Value *make_create_value(Value *p, TypeMatch &match) {
 }
 
 
+Value *make_weaktrampoline_value(TypeSpec rts) {
+    return new WeaktrampolineValue(rts);
+}
+
+
 // Declaration operations
 
 Function *function_cast(Declaration *decl) {

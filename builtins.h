@@ -26,6 +26,7 @@ Type *unsigned_integer8_type = NULL;
 Type *character_type = NULL;
 Type *ref_type = NULL;
 Type *weakref_type = NULL;
+Type *weaktrampoline_type = NULL;
 Type *partial_type = NULL;
 Type *uninitialized_type = NULL;
 Type *initializable_type = NULL;

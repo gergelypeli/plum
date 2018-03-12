@@ -32,8 +32,10 @@ public:
         ArgInfos infos;
 
         // Separate loop, so reallocations won't screw us
-        for (unsigned i = 0; i < member_tss.size(); i++)
+        for (unsigned i = 0; i < member_tss.size(); i++) {
             values.push_back(NULL);
+            member_tss[i] = member_tss[i].prefix(ovalue_type);  // TODO
+        }
         
         for (unsigned i = 0; i < member_tss.size(); i++)
             infos.push_back(ArgInfo { member_names[i].c_str(), &member_tss[i], scope, &values[i] });

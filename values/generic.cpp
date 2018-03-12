@@ -12,6 +12,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        std::cerr << "Generic check.\n";
         ArgInfos x;
         
         if (arg_ts == VOID_TS) {
@@ -19,8 +20,10 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        if (arg_ts != NO_TS)
+        if (arg_ts != NO_TS) {
+            std::cerr << "Generic argument " << arg_ts << ".\n";
             x.push_back({ "arg", &arg_ts, scope, &right });
+        }
             
         return check_arguments(args, kwargs, x);
     }

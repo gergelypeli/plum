@@ -102,3 +102,57 @@ public:
         }
     }
 };
+
+
+class WeaktrampolineValue: public GenericValue {
+public:
+    WeaktrampolineValue(TypeSpec rts)
+        :GenericValue(rts.unprefix(ref_type).reprefix(weaktrampoline_type, weakref_type), rts, NULL) {
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = right->precompile(preferred);
+        return clob.add(RAX).add(RCX).add(RDX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Label callback_label = x64->once->compile(compile_callback);
+        Label finalizer_label = ts.unprefix(ref_type).get_finalizer_label(x64);
+        
+        x64->op(MOVQ, RAX, ADDRESS_SIZE);
+        //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
+        x64->op(LEARIP, RBX, finalizer_label);
+        x64->alloc_RAX_RBX();
+
+        x64->op(PUSHQ, RAX);
+        
+        right->compile_and_store(x64, Storage(REGISTER, RAX));
+        x64->decweakref(RAX);
+        
+        x64->op(LEARIP, RBX, callback_label);
+        x64->op(MOVQ, RCX, Address(RSP, 0));  // the trampoline address as the payload1
+        x64->op(MOVQ, RDX, 0);
+        x64->op(CALL, x64->alloc_fcb_label);
+        
+        x64->op(MOVQ, RBX, RAX);
+        x64->op(POPQ, RAX);
+        x64->op(MOVQ, Address(RAX, 0), RBX);
+        
+        return Storage(REGISTER, RAX);
+    }
+    
+    static void compile_callback(Label label, X64 *x64) {
+        x64->code_label_local(label, "weaktrampoline_callback");
+        
+        x64->log("Weak trampoline called back.");
+        
+        x64->op(MOVQ, Address(RCX, 0), 0);  // clear FCB address for the finalizer
+        
+        x64->op(PUSHQ, RAX);
+        x64->op(MOVQ, RAX, RBX);
+        x64->op(CALL, x64->free_fcb_label);
+        x64->op(POPQ, RAX);
+        
+        x64->op(RET);
+    }
+};

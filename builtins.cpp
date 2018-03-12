@@ -111,6 +111,9 @@ void builtin_types(Scope *root_scope) {
     weakref_type = new WeakReferenceType("Weakref");
     root_scope->add(weakref_type);
 
+    weaktrampoline_type = new WeaktrampolineType("Weaktrampoline");
+    root_scope->add(weaktrampoline_type);
+
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
 

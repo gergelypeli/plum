@@ -247,6 +247,40 @@ public:
 };
 
 
+
+class WeaktrampolineType: public HeapType {
+public:
+    WeaktrampolineType(std::string name)
+        :HeapType(name, TTs { IDENTITY_TYPE }) {
+        //make_inner_scope(TypeSpec { ref_type, this, any_type });
+    }
+    
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+        TypeSpec rts = tm[0].prefix(ref_type);
+        
+        if (name == "to")
+            return make_weaktrampoline_value(rts);
+
+        std::cerr << "No Weaktrampoline initializer called " << name << "!\n";
+        return NULL;
+    }
+
+    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
+        return x64->once->compile(compile_finalizer, tm[0]);
+    }
+
+    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
+        Label start, end, loop;
+
+        x64->code_label_local(label, "x_weaktrampoline_finalizer");
+        x64->log("Weak trampoline finalized.");
+        x64->op(MOVQ, RAX, Address(RAX, 0));
+        x64->op(CALL, x64->free_fcb_label);
+        x64->op(RET);
+    }
+};
+
+
 class ArrayType: public HeapType {
 public:
     ArrayType(std::string name)

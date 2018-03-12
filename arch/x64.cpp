@@ -305,13 +305,13 @@ void X64::data_reference(Label label) {
 
 
 void X64::data_heap_header() {
-    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -32 || HEAP_WEAKREFCOUNT_OFFSET != -8 || HEAP_FINALIZER_OFFSET != -16)
+    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKREFCOUNT_OFFSET != -8 || HEAP_FINALIZER_OFFSET != -24)
         throw X64_ERROR;
     
     data_align();
+    data_qword(0);  // next
+    data_reference(empty_function_label);  // finalizer
     data_qword(1);  // artificial reference to prevent freeing
-    data_qword(0);
-    data_reference(empty_function_label);
     data_qword(0);  // weakrefcount
 }
 
@@ -1129,7 +1129,7 @@ void X64::init_memory_management() {
     incref_labels.resize(REGISTER_COUNT);
     decref_labels.resize(REGISTER_COUNT);
     
-    for (Register reg : { RAX, RBX, RCX, RDX, R8, R9, R10, R11, R12, R13, R14, R15 }) {
+    for (Register reg : { RAX, RBX, RCX, RDX, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 }) {
         Label il;
         
         // NOTE: preserves all registers, including RBX
@@ -1146,8 +1146,30 @@ void X64::init_memory_management() {
 
         op(PUSHQ, RAX);
         op(PUSHQ, RBX);  // protected
+        op(PUSHQ, RCX);
+        op(PUSHQ, RDX);
+        
         op(MOVQ, RAX, reg);
-        op(CALL, Address(reg, HEAP_FINALIZER_OFFSET));
+
+        Label fcb_loop, fcb_cond;
+        op(JMP, fcb_cond);
+
+        code_label(fcb_loop);
+        log("Triggering weak trampoline.");
+        op(MOVQ, RCX, Address(RBX, FCB_PAYLOAD1_OFFSET));
+        op(MOVQ, RDX, Address(RBX, FCB_PAYLOAD2_OFFSET));
+        op(CALL, Address(RBX, FCB_CALLBACK_OFFSET));  // RAX - object, RBX - fcb, RCX, RDX - payloads
+        // Must free this fcb, and potentially more
+
+        code_label(fcb_cond);
+        op(MOVQ, RBX, Address(RAX, HEAP_NEXT_OFFSET));
+        op(CMPQ, RBX, FCB_NIL);
+        op(JNE, fcb_loop);
+
+        op(CALL, Address(RAX, HEAP_FINALIZER_OFFSET));
+        
+        op(POPQ, RDX);
+        op(POPQ, RCX);
         op(POPQ, RBX);
         op(POPQ, RAX);
 
@@ -1169,9 +1191,10 @@ void X64::init_memory_management() {
     op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
     op(CALL, memalloc_label);
     op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
+    op(MOVQ, Address(RAX, HEAP_NEXT_OFFSET), 0);
+    op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);  // object finalizer
     op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
     op(MOVQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);  // start from 0
-    op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);  // object finalizer
     popa(true);
     op(RET);
     
@@ -1194,6 +1217,60 @@ void X64::init_memory_management() {
     
     code_label_global(weak_finalized_die_label, "weak_finalized_die");
     die("Weakly referenced object finalized!");
+    
+    // Clobbers RAX, RX, RCX, RDX, returns FCB pointer in RAX
+    code_label_global(alloc_fcb_label, "alloc_fcb");
+
+    pusha();
+    //op(PUSHQ, RAX);  // heap
+    //op(PUSHQ, RBX);  // callback
+    //op(PUSHQ, RCX);  // payload1
+    //op(PUSHQ, RDX);  // payload2
+    op(MOVQ, RDI, FCB_SIZE);
+    op(CALL, memalloc_label);
+    popa(true);  // leave RAX on the stack
+    
+    op(MOVQ, Address(RAX, FCB_CALLBACK_OFFSET), RBX);
+    op(MOVQ, Address(RAX, FCB_PAYLOAD1_OFFSET), RCX);
+    op(MOVQ, Address(RAX, FCB_PAYLOAD2_OFFSET), RDX);
+    op(POPQ, RBX);  // object
+
+    op(MOVQ, RCX, Address(RBX, HEAP_NEXT_OFFSET));
+    op(MOVQ, Address(RAX, FCB_NEXT_OFFSET), RCX);
+    op(MOVQ, Address(RBX, HEAP_NEXT_OFFSET), RAX);
+    op(ADDQ, RBX, HEAP_HEADER_OFFSET);
+    op(MOVQ, Address(RAX, FCB_PREV_OFFSET), RBX);
+    
+    Label no_next;
+    op(CMPQ, RCX, FCB_NIL);
+    op(JE, no_next);
+    op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RAX);
+    code_label(no_next);
+    
+    op(RET);
+    
+    code_label_global(free_fcb_label, "free_fcb");
+    Label no_fcb;
+    op(CMPQ, RAX, FCB_NIL);
+    op(JE, no_fcb);
+    
+    pusha();
+    op(MOVQ, RBX, Address(RAX, FCB_PREV_OFFSET));  // always valid
+    op(MOVQ, RCX, Address(RAX, FCB_NEXT_OFFSET));
+    op(MOVQ, Address(RBX, FCB_NEXT_OFFSET), RCX);
+    
+    Label no_next2;
+    op(CMPQ, RCX, FCB_NIL);
+    op(JE, no_next2);
+    op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RBX);
+    code_label(no_next2);
+    
+    op(MOVQ, RDI, RAX);
+    op(CALL, memfree_label);
+    popa();
+    
+    code_label(no_fcb);
+    op(RET);
 }
 
 void X64::incref(Register reg) {

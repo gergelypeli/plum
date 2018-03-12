@@ -393,6 +393,7 @@ public:
     Ork *ork;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
+    Label alloc_fcb_label, free_fcb_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Once *once;

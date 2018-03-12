@@ -1,8 +1,17 @@
 const int HEAP_HEADER_SIZE = 32;
 const int HEAP_HEADER_OFFSET = -32;
-const int HEAP_REFCOUNT_OFFSET = -32;
 const int HEAP_WEAKREFCOUNT_OFFSET = -8;  // must be the same
-const int HEAP_FINALIZER_OFFSET = -16;
+const int HEAP_REFCOUNT_OFFSET = -16;
+const int HEAP_FINALIZER_OFFSET = -24;
+const int HEAP_NEXT_OFFSET = -32;  // must be the first one
+
+const int FCB_SIZE = 40;
+const int FCB_NEXT_OFFSET = 0;  // must be the first one
+const int FCB_PREV_OFFSET = 8;
+const int FCB_CALLBACK_OFFSET = 16;
+const int FCB_PAYLOAD1_OFFSET = 24;
+const int FCB_PAYLOAD2_OFFSET = 32;
+const int FCB_NIL = 0;
 
 const int ARRAY_HEADER_SIZE = 16;
 const int ARRAY_RESERVATION_OFFSET = 0;
