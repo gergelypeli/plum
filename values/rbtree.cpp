@@ -487,7 +487,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     elem_ts.compare(ks, vs, x64, remove_left, remove_right);
     
     // Found the value, remove it
-    Label no_left, no_right, no_children, internal_loop, was_red;
+    Label no_left, no_right, no_children, was_red;
     //x64->log("Rbtree remove found.");
     x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
     x64->op(CMPQ, RBX, RBNODE_NIL);
@@ -497,19 +497,66 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, no_right);
     
-    // Find the smallest greater element as replacement
+    // Has two children, find the smallest greater element to swap it with.
+    // This violates the ordering for a moment, but since we're about to remove one of
+    // them, it will be fine soon.
+    // Keep the values at the same index, this saves us a value swap, which is nice for
+    // keeping the age ordering, and even nicer for finalizer callbacks.
+    
+    // RBX already contains the right child, then traverse to the leftmost descendant
+    Label leftward_loop, leftward_cond, same_color, child_swap, swapped;
+    x64->op(MOVQ, RCX, RBNODE_NIL);  // replacement's parent
+    x64->op(JMP, leftward_cond);
+    
     //x64->log("Rbtree remove found internal.");
-    x64->code_label(internal_loop);
+    x64->code_label(leftward_loop);
     x64->op(MOVQ, RCX, RBX);
-    x64->op(MOVQ, RBX, Address(RSI, RCX, RBNODE_LEFT_OFFSET));
-    x64->op(CMPQ, RBX, RBNODE_NIL);
-    x64->op(JNE, internal_loop);
+    x64->op(MOVQ, RBX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
+    x64->code_label(leftward_cond);
+    x64->op(CMPQ, Address(RSI, RBX, RBNODE_LEFT_OFFSET), RBNODE_NIL);
+    x64->op(JNE, leftward_loop);
     
-    Storage rs(MEMORY, Address(RSI, RCX, RBNODE_VALUE_OFFSET));
-    elem_ts.store(rs, vs, x64);
+    // RBX - replacement node, RCX - replacement's parent or NIL
+    // Swap the current (RAX) and replacement (RBX) node tree links
     
-    x64->op(LEA, RDI, Address(RSI, RCX, RBNODE_VALUE_OFFSET));
-    x64->op(JMP, remove_left);  // Yes, this is a goto :-)
+    // Swap left child
+    x64->op(MOVQ, RDX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
+    x64->op(XCHGQ, RDX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, Address(RSI, RAX, RBNODE_LEFT_OFFSET), RDX);
+
+    // Swap right child
+    x64->op(MOVQ, RDX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
+    x64->op(XCHGQ, RDX, Address(RSI, RBX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, Address(RSI, RAX, RBNODE_RIGHT_OFFSET), RDX);
+    
+    // Swap color
+    x64->op(MOVQ, RDX, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET));
+    x64->op(XORQ, RDX, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET));
+    x64->op(TESTQ, RDX, 1);
+    x64->op(JE, same_color);  // xored == 0
+    
+    // The color bits differ, so complement both of them
+    x64->op(XORQ, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET), 1);
+    x64->op(XORQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), 1);
+    
+    x64->code_label(same_color);
+    // Make the replacement parent point to the current node
+    x64->op(CMPQ, RCX, RBNODE_NIL);
+    x64->op(JE, child_swap);
+    
+    // The replacement is not the child of current, so just adjust the parent's left link
+    x64->op(MOVQ, Address(RSI, RCX, RBNODE_LEFT_OFFSET), RAX);
+    x64->op(JMP, swapped);
+    
+    // The replacement is the child of current, so adjust the replacement's right link
+    x64->code_label(child_swap);
+    x64->op(MOVQ, Address(RSI, RBX, RBNODE_RIGHT_OFFSET), RAX);
+    
+    // The replacement took the place of the current node, so continue searching for
+    // the same value on the right, because that's where we swapped it to.
+    x64->code_label(swapped);
+    x64->op(MOVQ, RAX, RBX);
+    x64->op(JMP, remove_right);
     
     x64->code_label(no_right);
     // A single red left child can be the replacement
