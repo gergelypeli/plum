@@ -140,6 +140,31 @@ public:
             Value *bv = typize(deferred_body_expr, bs, &VOID_CODE_TS);
             body.reset(bv);
             
+            if (fn_scope->result_scope->contents.size()) {
+                // TODO: this is a very lame check for a mandatory :return, but we should
+                // probably have a NORETURN type for this.
+
+                FunctionReturnValue *rv = function_return_value_cast(bv);
+                
+                if (!rv) {
+                    CodeBlockValue *cbv = dynamic_cast<CodeBlockValue *>(bv);
+                    if (!cbv)
+                        throw INTERNAL_ERROR;
+                    
+                    Value *last_statement = cbv->statements.back().get();
+                    CodeScopeValue *csv = dynamic_cast<CodeScopeValue *>(last_statement);
+                    if (!csv)
+                        throw INTERNAL_ERROR;
+                    
+                    rv = function_return_value_cast(csv->value.get());
+                    
+                    if (!rv) {
+                        std::cerr << "Non-Void function " << function->name << " does not end with a :return control: " << token << "\n";
+                        return false;
+                    }
+                }
+            }
+            
             if (pv) {
                 if (!pv->is_complete()) {
                     std::cerr << "Not all members initialized!\n";

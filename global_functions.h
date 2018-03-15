@@ -6,6 +6,7 @@ Declaration *declaration_get_decl(DeclarationValue *dv);
 PartialVariable *partial_variable_get_pv(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
+FunctionReturnValue *function_return_value_cast(Value *v);
 
 
 // Declaration wrappers

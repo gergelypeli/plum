@@ -264,6 +264,11 @@ bool is_initializer_function_call(Value *value) {
 }
 
 
+FunctionReturnValue *function_return_value_cast(Value *v) {
+    return dynamic_cast<FunctionReturnValue *>(v);
+}
+
+
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
     return v->unpack(tss);
 }
@@ -485,7 +490,7 @@ Value *rolematch(Value *v, TypeSpec s, TypeSpecIter target, TypeSpec &ifts) {
 #define MATCHLOG if (false)
 
 bool is_any(Type *t) {
-    return t == any_type || t == any2_type || t == any3_type || t == anyid_type;
+    return t == any_type || t == any2_type || t == any3_type || t == anyid_type || t == anyid2_type || t == anyid3_type;
 }
 
 
@@ -494,6 +499,11 @@ bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, in
         const char *what = (tt == VALUE_TYPE ? "value" : tt == IDENTITY_TYPE ? "identity" : throw INTERNAL_ERROR);
         MATCHLOG std::cerr << "No match, type parameter not a " << what << " type!\n";
         return false;
+    }
+    
+    if (match[mi].size()) {
+        std::cerr << "Duplicate Any usage!\n";
+        throw INTERNAL_ERROR;
     }
     
     unsigned c = 1;
@@ -534,6 +544,14 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
         }
         else if (*t == anyid_type) {
             if (!match_type_parameter(s, t, match, 1, IDENTITY_TYPE))
+                return false;
+        }
+        else if (*t == anyid2_type) {
+            if (!match_type_parameter(s, t, match, 2, IDENTITY_TYPE))
+                return false;
+        }
+        else if (*t == anyid3_type) {
+            if (!match_type_parameter(s, t, match, 3, IDENTITY_TYPE))
                 return false;
         }
         else {

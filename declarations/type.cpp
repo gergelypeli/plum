@@ -3,6 +3,18 @@ enum TypeType {
     GENERIC_TYPE, VALUE_TYPE, IDENTITY_TYPE, ATTRIBUTE_TYPE
 };
 
+std::ostream &operator<<(std::ostream &os, const TypeType tt) {
+    os << (
+        tt == GENERIC_TYPE ? "GENERIC_TYPE" :
+        tt == VALUE_TYPE ? "VALUE_TYPE" :
+        tt == IDENTITY_TYPE ? "IDENTITY_TYPE" :
+        tt == ATTRIBUTE_TYPE ? "ATTRIBUTE_TYPE" :
+        throw INTERNAL_ERROR
+    );
+    
+    return os;
+}
+
 
 typedef std::vector<TypeType> TTs;
 
@@ -382,7 +394,7 @@ public:
 class PartialType: public Type {
 public:
     PartialType(std::string name)
-        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE) {
+        :Type(name, TTs { GENERIC_TYPE }, VALUE_TYPE) {
     }
 
     virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {

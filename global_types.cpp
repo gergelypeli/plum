@@ -15,9 +15,19 @@ TypeSpec::TypeSpec(TypeSpecIter tsi) {
 
 
 TypeSpec TypeSpec::prefix(Type *t) {
+    if (t->get_parameter_count() != 1) {
+        std::cerr << "Can't prefix Type " << t->name << " with " << t->get_parameter_count() << " parameters: " << *this << "!\n";
+        throw INTERNAL_ERROR;
+    }
+    
+    if (t->param_tts[0] != GENERIC_TYPE && t->param_tts[0] != at(0)->type) {
+        std::cerr << "Can't prefix Type " << t->name << " requiring a " << t->param_tts[0]  << " parameters: " << *this << "!\n";
+        throw INTERNAL_ERROR;
+    }
+    
     TypeSpec ts;
     ts.push_back(t);
-        
+    
     for (unsigned i = 0; i < size(); i++)
         ts.push_back(at(i));
         

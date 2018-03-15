@@ -1167,7 +1167,7 @@ void X64::init_memory_management() {
     op(JMP, fcb_cond);
 
     code_label(fcb_loop);
-    log("Triggering weak trampoline.");
+    log("Triggering prefinalizer callback.");
     op(MOVQ, RCX, Address(RAX, FCB_PAYLOAD1_OFFSET));
     op(MOVQ, RDX, Address(RAX, FCB_PAYLOAD2_OFFSET));
     
@@ -1251,6 +1251,7 @@ void X64::init_memory_management() {
     op(MOVQ, Address(RBX, HEAP_NEXT_OFFSET), RAX);
     op(ADDQ, RBX, HEAP_HEADER_OFFSET);
     op(MOVQ, Address(RAX, FCB_PREV_OFFSET), RBX);
+    //dump("alloc_fcb RAX=fcb, RBX=prev, RCX=next");
     
     Label no_next;
     op(CMPQ, RCX, FCB_NIL);
@@ -1260,12 +1261,14 @@ void X64::init_memory_management() {
     
     op(RET);
     
+    // RAX - fcb
     code_label_global(free_fcb_label, "free_fcb");
     pusha();
 
     op(MOVQ, RBX, Address(RAX, FCB_PREV_OFFSET));  // always valid
     op(MOVQ, RCX, Address(RAX, FCB_NEXT_OFFSET));
     op(MOVQ, Address(RBX, FCB_NEXT_OFFSET), RCX);
+    //dump("free_fcb RAX=fcb, RBX=prev, RCX=next");
     
     Label no_next2;
     op(CMPQ, RCX, FCB_NIL);

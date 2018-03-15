@@ -33,6 +33,7 @@ class Value;
 class DeclarationValue;
 class GenericValue;
 class PartialVariableValue;
+class FunctionReturnValue;
 
 
 #include "global_types.h"

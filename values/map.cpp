@@ -1,7 +1,7 @@
 
 class MapAddValue: public Value {
 public:
-    TypeSpec key_ts, value_ts, item_ts;
+    TypeSpec key_ts, value_ts, item_ts, key_arg_ts, value_arg_ts;
     std::unique_ptr<Value> pivot, key, value;
 
     MapAddValue(Value *l, TypeMatch &match)
@@ -10,18 +10,28 @@ public:
         key_ts = match[1];
         value_ts = match[2];
         item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        
+        // To help subclasses tweaking these
+        key_arg_ts = key_ts;
+        value_arg_ts = value_ts;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         return check_arguments(args, kwargs, {
-            { "key", &key_ts, scope, &key },
-            { "value", &value_ts, scope, &value }
+            { "key", &key_arg_ts, scope, &key },
+            { "value", &value_arg_ts, scope, &value }
         });
     }
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred) | key->precompile(preferred) | value->precompile(preferred);
+        
+        // We build on this in WeakValueMap::precreate
         return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
+    }
+
+    virtual void precreate(Address self_addr, X64 *x64) {
+        // To be overridden
     }
 
     virtual Storage compile(X64 *x64) {
@@ -29,8 +39,8 @@ public:
         key->compile_and_store(x64, Storage(STACK));
         value->compile_and_store(x64, Storage(STACK));
 
-        int key_stack_size = key_ts.measure_stack();
-        int value_stack_size = value_ts.measure_stack();
+        int key_stack_size = key_arg_ts.measure_stack();
+        int value_stack_size = value_arg_ts.measure_stack();
         
         Label grow_label = x64->once->compile(compile_rbtree_grow, item_ts);
         Label add_label = x64->once->compile(compile_rbtree_add, item_ts);
@@ -62,6 +72,7 @@ public:
 
         // NOTE: we abuse the fact that Item contains index first, and value second,
         // and since they're parametric types, their sizes will be rounded up.
+        precreate(Address(RSP, key_stack_size + value_stack_size), x64);
         value_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_stack_size)), x64);
         key_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
         pivot->ts.store(Storage(STACK), Storage(), x64);
@@ -170,3 +181,68 @@ public:
 };
 
 
+TypeMatch &wvmatch(TypeMatch &match) {
+    static TypeMatch tm;
+    tm.clear();
+    tm.push_back(typesubst(SAME_SAMEID2_WEAKVALUE_MAP_WEAKREF_TS, match));
+    tm.push_back(match[1]);
+    tm.push_back(match[2].prefix(weakvalue_type));
+    return tm;
+}
+
+
+class WeakValueMapAddValue: public MapAddValue {
+public:
+    WeakValueMapAddValue(Value *l, TypeMatch &match)
+        :MapAddValue(l, wvmatch(match)) {
+        value_arg_ts = value_ts.reprefix(weakvalue_type, weakref_type);
+    }
+
+    virtual void precreate(Address self_addr, X64 *x64) {
+        // Allocate and push a FCB pointer. We may clobber RAX, RBX, RCX, RDX.
+        Label callback_label = x64->once->compile(compile_callback, item_ts);
+        
+        x64->op(MOVQ, RAX, Address(RSP, 0));  // heap
+        x64->op(LEARIP, RBX, callback_label);  // callback
+        x64->op(MOVQ, RCX, self_addr);  // payload1
+        x64->op(MOVQ, RDX, RDI);  // payload2
+        x64->op(CALL, x64->alloc_fcb_label);
+        x64->op(PUSHQ, RAX);
+    }
+    
+    static void compile_callback(Label label, TypeSpec item_ts, X64 *x64) {
+        x64->code_label_local(label, "x_weakvaluemap_callback");
+        // RAX - fcb, RCX - payload1, RDX - payload2
+        // We may clobber all registers
+
+        x64->log("WeakValueMap callback.");
+        
+        Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
+
+        x64->op(MOVQ, RSI, Address(RCX, CLASS_MEMBERS_OFFSET));
+        x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, RDI, Address(RSI, RDX, RBNODE_VALUE_OFFSET));
+
+        x64->op(CALL, remove_label);
+        
+        x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
+        
+        x64->op(RET);
+    }
+};
+
+
+class WeakValueMapRemoveValue: public MapRemoveValue {
+public:
+    WeakValueMapRemoveValue(Value *l, TypeMatch &match)
+        :MapRemoveValue(l, wvmatch(match)) {
+    }
+};
+
+
+class WeakValueMapIndexValue: public MapIndexValue {
+public:
+    WeakValueMapIndexValue(Value *l, TypeMatch &match)
+        :MapIndexValue(l, wvmatch(match)) {
+    }
+};

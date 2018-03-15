@@ -240,6 +240,44 @@ public:
 };
 
 
+// This is a hack type to cooperate closely with WeakValueMap
+class WeakValueType: public WeakReferenceType {
+public:
+    WeakValueType(std::string name)
+        :WeakReferenceType(name) {
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        return Allocation(REFERENCE_SIZE * 2);
+    }
+    
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        throw INTERNAL_ERROR;  // for safety
+    }
+
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (s.where != STACK || t.where != MEMORY || t.address.base != RSI || t.address.index != RDI)
+            throw INTERNAL_ERROR;
+
+        x64->op(POPQ, t.address + ADDRESS_SIZE);  // The FCB pointer is on the stack top
+        
+        WeakReferenceType::create(tm, s, t, x64);
+    }
+
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        if (s.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        x64->op(PUSHQ, RAX);
+        x64->op(MOVQ, RAX, s.address + ADDRESS_SIZE);
+        x64->op(CALL, x64->free_fcb_label);
+        x64->op(POPQ, RAX);
+        
+        WeakReferenceType::destroy(tm, s, x64);
+    }
+};
+
+
 class HeapType: public Type {
 public:
     HeapType(std::string name, TTs param_tts)

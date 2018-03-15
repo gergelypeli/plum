@@ -84,8 +84,8 @@ XCounter? :Record as:
     
         :if $ current == $ limit then:
             :raise `ITERATOR_DONE
-        else:
-            :return $ current
+            
+        :return $ current
 
 
 XStringiterator? :Record as:
@@ -105,8 +105,8 @@ XStringiterator? :Record as:
     
         :if $ index == $ string length then:
             :raise `ITERATOR_DONE
-        else:
-            :return $ string[$ index]
+
+        :return $ string[$ index]
 
 
 Base? :Class as:
@@ -552,7 +552,7 @@ test_options? :Function as:
         prints("It contained some.")
             
 
-test_classes? :Function Greetable Autoweakref as:
+test_classes? :Function as:
     gr? Greetable Ref `second_init
     gr greet
     
@@ -577,8 +577,17 @@ test_classes? :Function Greetable Autoweakref as:
         prints("WT IS DEAD!")
     else:
         prints("WT is live.")
-    
-    :return wt
+
+    wvm? (String, Greetable) WeakValueMap Ref `empty
+    wvm add("x", gr)
+    prints("wvm length is {x}" {x: wvm length})
+
+    killer? Greetable Ref `init
+    wgr = killer
+    gr = killer
+    gr2 = killer
+
+    prints("wvm length became {x}" {x: wvm length})
 
 
 start? :Function as:

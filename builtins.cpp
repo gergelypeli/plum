@@ -15,6 +15,12 @@ void builtin_types(Scope *root_scope) {
     anyid_type = new SpecialType("<Anyid>", {}, IDENTITY_TYPE);
     root_scope->add(anyid_type);
 
+    anyid2_type = new SpecialType("<Anyid2>", {}, IDENTITY_TYPE);
+    root_scope->add(anyid2_type);
+
+    anyid3_type = new SpecialType("<Anyid3>", {}, IDENTITY_TYPE);
+    root_scope->add(anyid3_type);
+
     same_type = new SameType("<Same>", {}, VALUE_TYPE);
     root_scope->add(same_type);
 
@@ -26,6 +32,12 @@ void builtin_types(Scope *root_scope) {
 
     sameid_type = new SameType("<Sameid>", {}, IDENTITY_TYPE);
     root_scope->add(sameid_type);
+
+    sameid2_type = new SameType("<Sameid2>", {}, IDENTITY_TYPE);
+    root_scope->add(sameid2_type);
+
+    sameid3_type = new SameType("<Sameid3>", {}, IDENTITY_TYPE);
+    root_scope->add(sameid3_type);
 
     integer_metatype = new IntegerMetaType(":Integer");
     root_scope->add(integer_metatype);
@@ -120,6 +132,9 @@ void builtin_types(Scope *root_scope) {
     autoweakref_type = new AutoweakrefType("Autoweakref");
     root_scope->add(autoweakref_type);
 
+    weakvalue_type = new WeakValueType("<Weak_value>");
+    root_scope->add(weakvalue_type);
+
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
 
@@ -161,6 +176,9 @@ void builtin_types(Scope *root_scope) {
 
     map_type = new MapType("Map");
     root_scope->add(map_type);
+
+    weakvaluemap_type = new WeakValueMapType("WeakValueMap");
+    root_scope->add(weakvaluemap_type);
 
     countup_type = new RecordType("Countup", {});
     root_scope->add(countup_type);
@@ -275,6 +293,10 @@ void builtin_types(Scope *root_scope) {
     ANY_QUEUE_WEAKREF_TS = { weakref_type, queue_type, any_type };
     ANY_SET_WEAKREF_TS = { weakref_type, set_type, any_type };
     ANY_ANY2_MAP_WEAKREF_TS = { weakref_type, map_type, any_type, any2_type };
+    ANY_ANYID2_WEAKVALUEMAP_WEAKREF_TS = { weakref_type, weakvaluemap_type, any_type, anyid2_type };
+    SAME_SAMEID2_WEAKVALUE_MAP_TS = { map_type, same_type, weakvalue_type, sameid2_type };
+    SAME_SAMEID2_WEAKVALUE_MAP_WEAKREF_TS = { weakref_type, map_type, same_type, weakvalue_type, sameid2_type };
+    SAME_SAMEID2_WEAKVALUE_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, weakvalue_type, sameid2_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -703,6 +725,24 @@ void define_map() {
 }
 
 
+void define_weakvaluemap() {
+    TypeSpec PIVOT = ANY_ANYID2_WEAKVALUEMAP_WEAKREF_TS;
+    TypeSpec CAST = SAME_SAMEID2_WEAKVALUE_ITEM_RBTREE_REF_LVALUE_TS;
+    
+    ClassType *class_type = dynamic_cast<ClassType *>(weakvaluemap_type);
+    DataScope *is = class_type->make_inner_scope(PIVOT);
+
+    is->add(new Variable("tree", PIVOT, CAST));
+    
+    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
+    is->add(new TemplateIdentifier<WeakValueMapAddValue>("add", PIVOT));
+    is->add(new TemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT));
+    is->add(new TemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT));
+    
+    class_type->complete_type();
+}
+
+
 void builtin_runtime(Scope *root_scope) {
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -737,6 +777,7 @@ Scope *init_builtins() {
     define_queue();
     define_set();
     define_map();
+    define_weakvaluemap();
     define_option();
     define_autoweakref();
     
