@@ -183,10 +183,10 @@ public:
 
 TypeMatch &wvmatch(TypeMatch &match) {
     static TypeMatch tm;
-    tm.clear();
-    tm.push_back(typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_WEAKREF_TS, match));
-    tm.push_back(match[1]);
-    tm.push_back(match[2].prefix(weakanchor_type));
+    tm[0] = typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_WEAKREF_TS, match);
+    tm[1] = match[1];
+    tm[2] = match[2].prefix(weakanchor_type);
+    tm[3] = NO_TS;
     return tm;
 }
 

@@ -1,6 +1,6 @@
 
 class TypeSpec;
-typedef std::vector<TypeSpec> TypeMatch;
+typedef std::array<TypeSpec,4> TypeMatch;
 struct Allocation;
 
 
@@ -48,9 +48,9 @@ public:
 
 typedef TypeSpec::iterator TypeSpecIter;
 typedef std::vector<TypeSpec> TSs;
-//typedef std::vector<TypeSpec> TypeMatch;
 typedef std::vector<std::string> Ss;
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
+std::ostream &operator<<(std::ostream &os, const TSs &tss);
 std::ostream &operator<<(std::ostream &os, const TypeMatch &tm);
 
 

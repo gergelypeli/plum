@@ -248,6 +248,26 @@ std::ostream &operator<<(std::ostream &os, const TypeSpec &ts) {
 }
 
 
+std::ostream &operator<<(std::ostream &os, const TSs &tss) {
+    os << "{";
+    
+    bool start = true;
+    
+    for (auto ts : tss) {
+        if (start)
+            start = false;
+        else
+            os << ",";
+            
+        os << ts;
+    }
+    
+    os << "}";
+    
+    return os;
+}
+
+
 std::ostream &operator<<(std::ostream &os, const TypeMatch &tm) {
     os << "{";
     

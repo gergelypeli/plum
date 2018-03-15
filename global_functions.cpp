@@ -434,13 +434,13 @@ Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, T
 
 TypeMatch type_parameters_to_match(TypeSpec ts) {
     TypeMatch fake_match;
-    fake_match.push_back(ts);
+    fake_match[0] = ts;
     TypeSpecIter tsi(ts.begin());
     tsi++;
     
     for (unsigned i = 0; i < ts[0]->get_parameter_count(); i++) {
-        fake_match.push_back(TypeSpec(tsi));
-        tsi += fake_match.back().size();
+        fake_match[i + 1] = TypeSpec(tsi);
+        tsi += fake_match[i + 1].size();
     }
     
     return fake_match;
@@ -792,13 +792,10 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
 
     MATCHLOG std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
 
-    if (match.size() != 0)
-        throw INTERNAL_ERROR;
-
-    match.push_back(NO_TS);
-    match.push_back(NO_TS);
-    match.push_back(NO_TS);
-    match.push_back(NO_TS);
+    match[0] = NO_TS;
+    match[1] = NO_TS;
+    match[2] = NO_TS;
+    match[3] = NO_TS;
     
     TypeSpec ss = get_typespec(value);
     TypeSpecIter s(ss.begin());
