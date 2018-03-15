@@ -456,11 +456,16 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     TypeSpec ts;
     
     for (TypeSpecIter tti = tt.begin(); tti != tt.end(); tti++) {
-        if (*tti == same_type || *tti == same2_type || *tti == same3_type || *tti == sameid_type) {
-            int mi = (*tti == same_type || *tti == sameid_type ? 1 : *tti == same2_type ? 2 : *tti == same3_type ? 3 : throw INTERNAL_ERROR);
+        if (*tti == same_type || *tti == same2_type || *tti == same3_type || *tti == sameid_type || *tti == sameid2_type || *tti == sameid3_type) {
+            int mi = (*tti == same_type || *tti == sameid_type ? 1 : *tti == same2_type || *tti == sameid2_type ? 2 : *tti == same3_type || *tti == sameid3_type ? 3 : throw INTERNAL_ERROR);
             
             if (match[mi] == NO_TS) {
                 std::cerr << "No matched Any type while substituting Same!\n";
+                throw INTERNAL_ERROR;
+            }
+            
+            if ((*tti)->type != match[mi][0]->type) {
+                std::cerr << "Wrong matched Any type while substituting Same!\n";
                 throw INTERNAL_ERROR;
             }
             
