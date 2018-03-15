@@ -489,7 +489,7 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
-        TypeSpec member_ts = tm[1].prefix(weaktrampoline_type).prefix(ref_type);
+        TypeSpec member_ts = tm[1].prefix(weakanchorage_type).prefix(ref_type);
         
         Value *v = member_ts.lookup_initializer(n);
         if (v) 
@@ -500,7 +500,7 @@ public:
     }
     
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p) {
-        TypeSpec member_ts = tm[1].prefix(weaktrampoline_type).prefix(ref_type);
+        TypeSpec member_ts = tm[1].prefix(weakanchorage_type).prefix(ref_type);
         p = make_record_unwrap_value(member_ts, p);
         p = make_reference_weaken_value(p);
         

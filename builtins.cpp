@@ -126,14 +126,14 @@ void builtin_types(Scope *root_scope) {
     weakref_type = new WeakReferenceType("Weakref");
     root_scope->add(weakref_type);
 
-    weaktrampoline_type = new WeaktrampolineType("Weaktrampoline");
-    root_scope->add(weaktrampoline_type);
+    weakanchorage_type = new WeakAnchorageType("<Weakanchorage>");
+    root_scope->add(weakanchorage_type);
 
     autoweakref_type = new AutoweakrefType("Autoweakref");
     root_scope->add(autoweakref_type);
 
-    weakvalue_type = new WeakValueType("<Weak_value>");
-    root_scope->add(weakvalue_type);
+    weakanchor_type = new WeakAnchorType("<Weakanchor>");
+    root_scope->add(weakanchor_type);
 
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
@@ -261,7 +261,7 @@ void builtin_types(Scope *root_scope) {
     ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
     ANYID_AUTOWEAKREF_TS = { autoweakref_type, anyid_type };
     ANYID_AUTOWEAKREF_LVALUE_TS = { lvalue_type, autoweakref_type, anyid_type };
-    SAMEID_WEAKTRAMPOLINE_REF_LVALUE_TS = { lvalue_type, ref_type, weaktrampoline_type, sameid_type };
+    SAMEID_WEAKANCHORAGE_REF_LVALUE_TS = { lvalue_type, ref_type, weakanchorage_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
     ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
@@ -294,9 +294,9 @@ void builtin_types(Scope *root_scope) {
     ANY_SET_WEAKREF_TS = { weakref_type, set_type, any_type };
     ANY_ANY2_MAP_WEAKREF_TS = { weakref_type, map_type, any_type, any2_type };
     ANY_ANYID2_WEAKVALUEMAP_WEAKREF_TS = { weakref_type, weakvaluemap_type, any_type, anyid2_type };
-    SAME_SAMEID2_WEAKVALUE_MAP_TS = { map_type, same_type, weakvalue_type, sameid2_type };
-    SAME_SAMEID2_WEAKVALUE_MAP_WEAKREF_TS = { weakref_type, map_type, same_type, weakvalue_type, sameid2_type };
-    SAME_SAMEID2_WEAKVALUE_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, weakvalue_type, sameid2_type };
+    SAME_SAMEID2_WEAKANCHOR_MAP_TS = { map_type, same_type, weakanchor_type, sameid2_type };
+    SAME_SAMEID2_WEAKANCHOR_MAP_WEAKREF_TS = { weakref_type, map_type, same_type, weakanchor_type, sameid2_type };
+    SAME_SAMEID2_WEAKANCHOR_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, weakanchor_type, sameid2_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -536,7 +536,7 @@ void define_autoweakref() {
     RecordType *record_type = dynamic_cast<RecordType *>(autoweakref_type);
     DataScope *is = record_type->make_inner_scope(ANYID_AUTOWEAKREF_TS);
 
-    is->add(new Variable("trampoline", ANYID_AUTOWEAKREF_TS, SAMEID_WEAKTRAMPOLINE_REF_LVALUE_TS));
+    is->add(new Variable("anchorage", ANYID_AUTOWEAKREF_TS, SAMEID_WEAKANCHORAGE_REF_LVALUE_TS));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", ANYID_AUTOWEAKREF_LVALUE_TS, ASSIGN));
     is->add(new TemplateOperation<RecordOperationValue>("compare", ANYID_AUTOWEAKREF_TS, COMPARE));
@@ -727,7 +727,7 @@ void define_map() {
 
 void define_weakvaluemap() {
     TypeSpec PIVOT = ANY_ANYID2_WEAKVALUEMAP_WEAKREF_TS;
-    TypeSpec CAST = SAME_SAMEID2_WEAKVALUE_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec CAST = SAME_SAMEID2_WEAKANCHOR_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = dynamic_cast<ClassType *>(weakvaluemap_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);

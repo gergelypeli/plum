@@ -324,18 +324,18 @@ Value *make_create_value(Value *p, TypeMatch &match) {
 }
 
 
-Value *make_weaktrampoline_value(TypeSpec rts) {
-    return new WeaktrampolineValue(rts);
+Value *make_weakanchorage_value(TypeSpec rts) {
+    return new WeakAnchorageValue(rts);
 }
 
 
-Value *make_weaktrampoline_dead_matcher_value(Value *p, TypeMatch &match) {
-    return new WeaktrampolineDeadMatcherValue(p, match);
+Value *make_weakanchorage_dead_matcher_value(Value *p, TypeMatch &match) {
+    return new WeakAnchorageDeadMatcherValue(p, match);
 }
 
 
-Value *make_weaktrampoline_live_matcher_value(Value *p, TypeMatch &match) {
-    return new WeaktrampolineLiveMatcherValue(p, match);
+Value *make_weakanchorage_live_matcher_value(Value *p, TypeMatch &match) {
+    return new WeakAnchorageLiveMatcherValue(p, match);
 }
 
 

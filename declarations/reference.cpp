@@ -246,9 +246,9 @@ public:
 
 
 // This is a hack type to cooperate closely with WeakValueMap
-class WeakValueType: public WeakReferenceType {
+class WeakAnchorType: public WeakReferenceType {
 public:
-    WeakValueType(std::string name)
+    WeakAnchorType(std::string name)
         :WeakReferenceType(name) {
     }
 
@@ -297,9 +297,9 @@ public:
 
 
 
-class WeaktrampolineType: public HeapType {
+class WeakAnchorageType: public HeapType {
 public:
-    WeaktrampolineType(std::string name)
+    WeakAnchorageType(std::string name)
         :HeapType(name, TTs { IDENTITY_TYPE }) {
         //make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
@@ -308,19 +308,19 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "to")
-            return make_weaktrampoline_value(rts);
+            return make_weakanchorage_value(rts);
 
-        std::cerr << "No Weaktrampoline initializer called " << name << "!\n";
+        std::cerr << "No WeakAnchorage initializer called " << name << "!\n";
         return NULL;
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         if (n == "dead")
-            return make_weaktrampoline_dead_matcher_value(pivot, tm);
+            return make_weakanchorage_dead_matcher_value(pivot, tm);
         else if (n == "live")
-            return make_weaktrampoline_live_matcher_value(pivot, tm);
+            return make_weakanchorage_live_matcher_value(pivot, tm);
             
-        std::cerr << "Can't match Weaktrampoline as " << n << "!\n";
+        std::cerr << "Can't match WeakAnchorage as " << n << "!\n";
         return NULL;
     }
 
@@ -331,8 +331,8 @@ public:
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         Label skip;
 
-        x64->code_label_local(label, "x_weaktrampoline_finalizer");
-        x64->log("Weak trampoline finalized.");
+        x64->code_label_local(label, "x_weakanchorage_finalizer");
+        x64->log("Weak anchorage finalized.");
         
         x64->op(MOVQ, RBX, Address(RAX, 0));
         x64->op(CMPQ, RBX, 0);

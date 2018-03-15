@@ -363,7 +363,7 @@ public:
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        TypeSpec tm0 = typesubst(SAME_SAMEID2_WEAKVALUE_MAP_TS, tm);
+        TypeSpec tm0 = typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_TS, tm);
         TypeSpec tts = tm0.reprefix(map_type, item_type).prefix(rbtree_type);
         Value *tree_initializer = tts.lookup_initializer(name);
         

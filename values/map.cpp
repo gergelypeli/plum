@@ -184,9 +184,9 @@ public:
 TypeMatch &wvmatch(TypeMatch &match) {
     static TypeMatch tm;
     tm.clear();
-    tm.push_back(typesubst(SAME_SAMEID2_WEAKVALUE_MAP_WEAKREF_TS, match));
+    tm.push_back(typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_WEAKREF_TS, match));
     tm.push_back(match[1]);
-    tm.push_back(match[2].prefix(weakvalue_type));
+    tm.push_back(match[2].prefix(weakanchor_type));
     return tm;
 }
 
@@ -195,7 +195,7 @@ class WeakValueMapAddValue: public MapAddValue {
 public:
     WeakValueMapAddValue(Value *l, TypeMatch &match)
         :MapAddValue(l, wvmatch(match)) {
-        value_arg_ts = value_ts.reprefix(weakvalue_type, weakref_type);
+        value_arg_ts = value_ts.reprefix(weakanchor_type, weakref_type);
     }
 
     virtual void precreate(Address self_addr, X64 *x64) {
@@ -244,6 +244,6 @@ class WeakValueMapIndexValue: public MapIndexValue {
 public:
     WeakValueMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wvmatch(match)) {
-        ts = ts.reprefix(weakvalue_type, weakref_type);
+        ts = ts.reprefix(weakanchor_type, weakref_type);
     }
 };
