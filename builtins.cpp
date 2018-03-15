@@ -451,7 +451,7 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
 void define_iterators() {
     // Counter operations
     for (auto is_down : { false, true }) {
-        RecordType *counter_type = dynamic_cast<RecordType *>(is_down ? countdown_type : countup_type);
+        RecordType *counter_type = ptr_cast<RecordType>(is_down ? countdown_type : countup_type);
         TypeSpec COUNTER_TS = { counter_type };
     
         DataScope *cis = counter_type->make_inner_scope(COUNTER_TS);
@@ -473,7 +473,7 @@ void define_iterators() {
     }
 
     // Item type for itemized iteration
-    RecordType *item_type = dynamic_cast<RecordType *>(::item_type);
+    RecordType *item_type = ptr_cast<RecordType>(::item_type);
     DataScope *itis = item_type->make_inner_scope(ANY_ANY2_ITEM_TS);
 
     itis->add(new Variable("index", ANY_ANY2_ITEM_TS, SAME_LVALUE_TS));  // Order matters!
@@ -500,7 +500,7 @@ void define_iterators() {
 
 
 void define_string() {
-    RecordType *record_type = dynamic_cast<RecordType *>(string_type);
+    RecordType *record_type = ptr_cast<RecordType>(string_type);
     DataScope *is = record_type->make_inner_scope(STRING_TS);
 
     is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REF_LVALUE_TS));
@@ -533,7 +533,7 @@ void define_string() {
 
 
 void define_autoweakref() {
-    RecordType *record_type = dynamic_cast<RecordType *>(autoweakref_type);
+    RecordType *record_type = ptr_cast<RecordType>(autoweakref_type);
     DataScope *is = record_type->make_inner_scope(ANYID_AUTOWEAKREF_TS);
 
     is->add(new Variable("anchorage", ANYID_AUTOWEAKREF_TS, SAMEID_WEAKANCHORAGE_REF_LVALUE_TS));
@@ -546,7 +546,6 @@ void define_autoweakref() {
 
 
 void define_option() {
-    //OptionType *option_type = dynamic_cast<OptionType *>(::option_type);
     DataScope *is = option_type->make_inner_scope(ANY_OPTION_TS);
 
     is->add(new TemplateOperation<OptionOperationValue>("assign other", ANY_OPTION_LVALUE_TS, ASSIGN));
@@ -628,7 +627,7 @@ void define_stack() {
     TypeSpec PIVOT = ANY_STACK_WEAKREF_TS;
     TypeSpec CAST = SAME_ARRAY_REF_LVALUE_TS;
     
-    ClassType *class_type = dynamic_cast<ClassType *>(stack_type);
+    ClassType *class_type = ptr_cast<ClassType>(stack_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
     is->add(new Variable("array", PIVOT, CAST));
@@ -656,7 +655,7 @@ void define_queue() {
     TypeSpec PIVOT = ANY_QUEUE_WEAKREF_TS;
     TypeSpec CAST = SAME_CIRCULARRAY_REF_LVALUE_TS;
     
-    ClassType *class_type = dynamic_cast<ClassType *>(queue_type);
+    ClassType *class_type = ptr_cast<ClassType>(queue_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
     is->add(new Variable("carray", PIVOT, CAST));
@@ -686,7 +685,7 @@ void define_set() {
     TypeSpec PIVOT = ANY_SET_WEAKREF_TS;
     TypeSpec CAST = SAME_RBTREE_REF_LVALUE_TS;
     
-    ClassType *class_type = dynamic_cast<ClassType *>(set_type);
+    ClassType *class_type = ptr_cast<ClassType>(set_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
     is->add(new Variable("tree", PIVOT, CAST));
@@ -711,7 +710,7 @@ void define_map() {
     TypeSpec PIVOT = ANY_ANY2_MAP_WEAKREF_TS;
     TypeSpec CAST = SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
-    ClassType *class_type = dynamic_cast<ClassType *>(map_type);
+    ClassType *class_type = ptr_cast<ClassType>(map_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
     is->add(new Variable("tree", PIVOT, CAST));
@@ -729,7 +728,7 @@ void define_weakvaluemap() {
     TypeSpec PIVOT = ANY_ANYID2_WEAKVALUEMAP_WEAKREF_TS;
     TypeSpec CAST = SAME_SAMEID2_WEAKANCHOR_ITEM_RBTREE_REF_LVALUE_TS;
     
-    ClassType *class_type = dynamic_cast<ClassType *>(weakvaluemap_type);
+    ClassType *class_type = ptr_cast<ClassType>(weakvaluemap_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
     is->add(new Variable("tree", PIVOT, CAST));

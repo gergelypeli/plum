@@ -157,7 +157,7 @@ public:
                 if (!check_argument(0, args[i].get(), { { "stmt", &VOID_CODE_TS, scope, &v } }))
                     return false;
                 
-                CodeScopeValue *csv = dynamic_cast<CodeScopeValue *>(v.get());
+                CodeScopeValue *csv = ptr_cast<CodeScopeValue>(v.get());
                 if (!csv)
                     throw INTERNAL_ERROR;
 
@@ -165,18 +165,12 @@ public:
                 
                 st = peek_void_conversion_value(st);
                 
-                DeclarationValue *dv = declaration_value_cast(st);
+                DeclarationValue *dv = ptr_cast<DeclarationValue>(st);
             
                 if (dv) {
                     Declaration *decl = declaration_get_decl(dv);
                     decl->outer_scope->remove(decl);
                     scope->add(decl);
-                    
-                    //Identifier *id = dynamic_cast<Identifier *>(decl);
-                    //if (id)
-                    //    std::cerr << "XXX Escaped " << id->name << ".\n";
-                    //else
-                    //    std::cerr << "XXX Escaped something.\n";
                 }
             
                 add_statement(v.release(), false);
@@ -256,7 +250,7 @@ public:
         scope->add(decl);
         
         if (scope->type == CODE_SCOPE) {
-            var = variable_cast(decl);
+            var = ptr_cast<Variable>(decl);
             
             if (var)
                 ts = var->alloc_ts;

@@ -75,11 +75,6 @@ int main(int argc, char **argv) {
 
     // Must mark imported functions first as sysv
     ImportedFunction::import_all(x64);
-    //for (auto &decl : root_scope->contents) {
-    //    ImportedFunction *f = dynamic_cast<ImportedFunction *>(decl.get());
-    //    if (f)
-    //        f->import(x64);
-    //}
     
     value_root->precompile(Regs::all());
     value_root->compile(x64);

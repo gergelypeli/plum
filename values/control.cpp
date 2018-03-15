@@ -15,7 +15,7 @@ public:
         context_ts = *c;
         Type *t = context_ts.rvalue()[0];
         
-        if (dynamic_cast<InterfaceType *>(t)) {
+        if (ptr_cast<InterfaceType>(t)) {
             // Can't allow Interface context types, because the concrete return types
             // may become different at different exit points!
             std::cerr << "Control :" << name << " in Interface context!\n";

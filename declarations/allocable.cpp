@@ -194,7 +194,7 @@ public:
         std::vector<Variable *> avs;
         
         for (unsigned i = os->contents.size() - 1; i != (unsigned)-1; i--) {
-            Variable *av = variable_cast(os->contents[i].get());
+            Variable *av = ptr_cast<Variable>(os->contents[i].get());
             
             if (av && av->alloc_ts[0] == dvalue_type)
                 avs.push_back(av);
@@ -258,13 +258,13 @@ public:
         Scope *base_inner_scope = alloc_ts.get_inner_scope();
         
         for (auto &d : inner_scope->contents) {
-            Function *f = function_cast(d.get());
+            Function *f = ptr_cast<Function>(d.get());
             
             if (f) {
                 bool found = false;
                 
                 for (auto &e : base_inner_scope->contents) {
-                    Function *iff = function_cast(e.get());
+                    Function *iff = ptr_cast<Function>(e.get());
                     
                     if (iff) {
                         if (f->does_implement(empty_match, iff, iftm)) {
@@ -294,11 +294,11 @@ public:
         offset = outer_scope->reserve(a);
         offset.bytes += ROLE_HEADER_SIZE;
         
-        DataScope *ds = data_scope_cast(outer_scope);
+        DataScope *ds = ptr_cast<DataScope>(outer_scope);
         virtual_index = ds->virtual_reserve(alloc_ts.get_virtual_table());
         
         for (auto &d : inner_scope->contents) {
-            Function *f = function_cast(d.get());
+            Function *f = ptr_cast<Function>(d.get());
             
             if (f) {
                 int vi = f->set_self_adjustment(offset);

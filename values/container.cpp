@@ -334,7 +334,7 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (dynamic_cast<ContainerAutogrowValue *>(left.get())) {
+        if (ptr_cast<ContainerAutogrowValue>(left.get())) {
             Args fake_args;
             Kwargs fake_kwargs;
             if (!left->check(fake_args, fake_kwargs, scope))

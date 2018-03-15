@@ -71,16 +71,16 @@ public:
             if (v) {
                 TreenumerationType *t;
                 
-                TreenumerationDefinitionValue *tdv = dynamic_cast<TreenumerationDefinitionValue *>(v);
+                TreenumerationDefinitionValue *tdv = ptr_cast<TreenumerationDefinitionValue>(v);
                 if (tdv) {
                     Declaration *ed = tdv->declare("<may>", scope->type);
-                    t = dynamic_cast<TreenumerationType *>(ed);
+                    t = ptr_cast<TreenumerationType>(ed);
                     fn_scope->add(t);
                 }
                 
-                TypeValue *tpv = dynamic_cast<TypeValue *>(v);
+                TypeValue *tpv = ptr_cast<TypeValue>(v);
                 if (tpv) {
-                    t = dynamic_cast<TreenumerationType *>(tpv->ts[1]);
+                    t = ptr_cast<TreenumerationType>(tpv->ts[1]);
                 }
                 
                 if (t) {
@@ -111,21 +111,21 @@ public:
 
         PartialVariable *pv = NULL;
         if (fn_scope->self_scope->contents.size() > 0)
-            pv = dynamic_cast<PartialVariable *>(fn_scope->self_scope->contents.back().get());
+            pv = ptr_cast<PartialVariable>(fn_scope->self_scope->contents.back().get());
         
         if (deferred_body_expr) {
             if (pv) {
                 // Must do this only after the class definition is completed
                 if (pv->alloc_ts[1] == weakref_type) {
                     // TODO: this should also work for records
-                    ClassType *ct = dynamic_cast<ClassType *>(pv->alloc_ts[2]);
+                    ClassType *ct = ptr_cast<ClassType>(pv->alloc_ts[2]);
                     if (!ct)
                         throw INTERNAL_ERROR;
                     
                     pv->set_member_names(ct->get_member_names());
                 }
                 else if (pv->alloc_ts[1] == lvalue_type) {
-                    RecordType *rt = dynamic_cast<RecordType *>(pv->alloc_ts[2]);
+                    RecordType *rt = ptr_cast<RecordType>(pv->alloc_ts[2]);
                     if (!rt)
                         throw INTERNAL_ERROR;
                     
@@ -144,19 +144,19 @@ public:
                 // TODO: this is a very lame check for a mandatory :return, but we should
                 // probably have a NORETURN type for this.
 
-                FunctionReturnValue *rv = function_return_value_cast(bv);
+                FunctionReturnValue *rv = ptr_cast<FunctionReturnValue>(bv);
                 
                 if (!rv) {
-                    CodeBlockValue *cbv = dynamic_cast<CodeBlockValue *>(bv);
+                    CodeBlockValue *cbv = ptr_cast<CodeBlockValue>(bv);
                     if (!cbv)
                         throw INTERNAL_ERROR;
                     
                     Value *last_statement = cbv->statements.back().get();
-                    CodeScopeValue *csv = dynamic_cast<CodeScopeValue *>(last_statement);
+                    CodeScopeValue *csv = ptr_cast<CodeScopeValue>(last_statement);
                     if (!csv)
                         throw INTERNAL_ERROR;
                     
-                    rv = function_return_value_cast(csv->value.get());
+                    rv = ptr_cast<FunctionReturnValue>(csv->value.get());
                     
                     if (!rv) {
                         std::cerr << "Non-Void function " << function->name << " does not end with a :return control: " << token << "\n";
@@ -265,7 +265,7 @@ public:
 
         for (auto &d : fn_scope->head_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
-            Allocable *v = allocable_cast(d.get());
+            Allocable *v = ptr_cast<Allocable>(d.get());
             
             if (v) {
                 arg_tss.push_back(v->alloc_ts);  // FIXME
@@ -276,14 +276,14 @@ public:
         // Not returned, but must be processed
         for (auto &d : fn_scope->self_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
-            Allocable *v = allocable_cast(d.get());
+            Allocable *v = ptr_cast<Allocable>(d.get());
             
             if (v) {
             }
         }
         
         for (auto &d : fn_scope->result_scope->contents) {
-            Allocable *v = allocable_cast(d.get());
+            Allocable *v = ptr_cast<Allocable>(d.get());
             
             if (v) {
                 result_tss.push_back(v->alloc_ts);  // FIXME

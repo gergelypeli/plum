@@ -266,7 +266,7 @@ public:
     }
     
     Variable *get_variable() {
-        return variable_cast(contents[0].get());
+        return ptr_cast<Variable>(contents[0].get());
     }
 };
 
@@ -526,7 +526,7 @@ public:
         std::vector<Variable *> vars;
         
         for (auto &d : result_scope->contents)
-            vars.push_back(variable_cast(d.get()));
+            vars.push_back(ptr_cast<Variable>(d.get()));
             
         return vars;
     }

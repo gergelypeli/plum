@@ -9,7 +9,7 @@ public:
 
     virtual bool complete_type() {
         for (auto &c : inner_scope->contents) {
-            Function *f = dynamic_cast<Function *>(c.get());
+            Function *f = ptr_cast<Function>(c.get());
             
             if (f) {
                 member_functions.push_back(f);
@@ -87,7 +87,7 @@ public:
         // FIXME: check order!
         
         for (auto &c : inner_scope->contents) {
-            Function *f = dynamic_cast<Function *>(c.get());
+            Function *f = ptr_cast<Function>(c.get());
             
             if (f) {
                 member_functions.push_back(f);

@@ -76,7 +76,7 @@ public:
             return false;
         }
         else {
-            BasicValue *bv = dynamic_cast<BasicValue *>(bs.get());
+            BasicValue *bv = ptr_cast<BasicValue>(bs.get());
             
             if (!bv) {
                 std::cerr << "Nonconstant bytes keyword argument in integer definition!\n";
@@ -91,7 +91,7 @@ public:
             return false;
         }
         else {
-            BasicValue *bv = dynamic_cast<BasicValue *>(iu.get());
+            BasicValue *bv = ptr_cast<BasicValue>(iu.get());
             
             if (!bv) {
                 std::cerr << "Nonconstant is_unsigned keyword argument in integer definition!\n";
@@ -393,7 +393,7 @@ public:
         // TODO: check for Class definition scope!
         Value *v = typize(args[0].get(), scope, NULL);
     
-        if (v->ts[0] != type_type || !dynamic_cast<ClassType *>(v->ts[1])) {
+        if (v->ts[0] != type_type || !ptr_cast<ClassType>(v->ts[1])) {
             std::cerr << "Class type name expected!\n";
             return false;
         }
@@ -471,9 +471,9 @@ public:
             return false;
             
         for (auto &c : inner_scope->contents) {
-            if (dynamic_cast<FunctionScope *>(c.get()))
+            if (ptr_cast<FunctionScope>(c.get()))
                 continue;
-            else if (dynamic_cast<Function *>(c.get()))
+            else if (ptr_cast<Function>(c.get()))
                 continue;
             
             std::cerr << "Not a function in an interface!\n";
@@ -544,7 +544,7 @@ public:
         if (!complete_as())
             return false;
             
-        InterfaceType *interface_type = dynamic_cast<InterfaceType *>(interface_ts[0]);
+        InterfaceType *interface_type = ptr_cast<InterfaceType>(interface_ts[0]);
         
         if (!interface_type) {
             std::cerr << "Implementation needs an interface type name!\n";
@@ -562,10 +562,10 @@ public:
         TypeMatch empty_match;
 
         for (auto &c : inner_scope->contents) {
-            if (dynamic_cast<FunctionScope *>(c.get()))
+            if (ptr_cast<FunctionScope>(c.get()))
                 continue;
         
-            Function *f = dynamic_cast<Function *>(c.get());
+            Function *f = ptr_cast<Function>(c.get());
             
             if (!f) {
                 std::cerr << "Not a function in an implementation!\n";

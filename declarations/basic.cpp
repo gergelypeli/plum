@@ -437,7 +437,7 @@ public:
     }
     
     static void compile_stringifications(Label label, TypeSpec ts, X64 *x64) {
-        EnumerationType *t = dynamic_cast<EnumerationType *>(ts[0]);
+        EnumerationType *t = ptr_cast<EnumerationType>(ts[0]);
         std::vector<Label> labels;
         
         for (auto &keyword : t->keywords) 
@@ -505,7 +505,7 @@ public:
     }
     
     static void compile_tails(Label label, TypeSpec ts, X64 *x64) {
-        TreenumerationType *t = dynamic_cast<TreenumerationType *>(ts[0]);
+        TreenumerationType *t = ptr_cast<TreenumerationType>(ts[0]);
         x64->data_label_local(label, t->name + "_tails");
         
         for (unsigned tail : t->tails)

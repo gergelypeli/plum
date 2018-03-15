@@ -87,7 +87,7 @@ Value *make_void_conversion_value(Value *p) {
 
 
 Value *peek_void_conversion_value(Value *v) {
-    VoidConversionValue *vcv = dynamic_cast<VoidConversionValue *>(v);
+    VoidConversionValue *vcv = ptr_cast<VoidConversionValue>(v);
     
     return vcv ? vcv->orig.get() : v;
 }
@@ -242,10 +242,6 @@ DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *s
     return dv;
 }
 
-DeclarationValue *declaration_value_cast(Value *value) {
-    return dynamic_cast<DeclarationValue *>(value);
-}
-
 
 Declaration *declaration_get_decl(DeclarationValue *dv) {
     return dv->get_decl();
@@ -261,11 +257,6 @@ bool is_initializer_function_call(Value *value) {
     FunctionCallValue *fcv = dynamic_cast<FunctionCallValue *>(value);
                 
     return fcv && fcv->function->type == INITIALIZER_FUNCTION;
-}
-
-
-FunctionReturnValue *function_return_value_cast(Value *v) {
-    return dynamic_cast<FunctionReturnValue *>(v);
 }
 
 
@@ -340,46 +331,6 @@ Value *make_weakanchorage_live_matcher_value(Value *p, TypeMatch &match) {
 
 
 // Declaration operations
-
-Function *function_cast(Declaration *decl) {
-    return dynamic_cast<Function *>(decl);
-}
-
-
-Allocable *allocable_cast(Declaration *decl) {
-    return dynamic_cast<Allocable *>(decl);
-}
-
-
-Variable *variable_cast(Declaration *decl) {
-    return dynamic_cast<Variable *>(decl);
-}
-
-
-Role *role_cast(Declaration *decl) {
-    return dynamic_cast<Role *>(decl);
-}
-
-
-BaseRole *base_role_cast(Declaration *decl) {
-    return dynamic_cast<BaseRole *>(decl);
-}
-
-
-ClassType *class_type_cast(Declaration *decl) {
-    return dynamic_cast<ClassType *>(decl);
-}
-
-
-HeapType *heap_type_cast(Type *t) {
-    return dynamic_cast<HeapType *>(t);
-}
-
-
-DataScope *data_scope_cast(Scope *s) {
-    return dynamic_cast<DataScope *>(s);
-}
-
 
 Declaration *make_record_compare() {
     return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);

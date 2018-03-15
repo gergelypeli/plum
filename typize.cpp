@@ -263,7 +263,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         //if (p)
         //    p->set_marker(marker);  // just in case
 
-        StringLiteralValue *s = dynamic_cast<StringLiteralValue *>(p);
+        StringLiteralValue *s = ptr_cast<StringLiteralValue>(p);
         
         if (s) {
             if (name.size()) {
@@ -293,7 +293,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             
             // We must have checked this.
             Type *t = ts[0];
-            if (t->type != VALUE_TYPE && !dynamic_cast<MetaType *>(t)) {
+            if (t->type != VALUE_TYPE && !ptr_cast<MetaType>(t)) {
                 std::cerr << "Initializer with nonvalue type context: " << ts << "!\n";
                 throw TYPE_ERROR;
             }
@@ -432,14 +432,14 @@ void check_retros(unsigned i, CodeScope *code_scope, const std::vector<ArgInfo> 
     std::vector<Variable *> retros;
     
     for (unsigned j = i - 1; j < i; j--) {
-        DeclarationValue *dv = declaration_value_cast(arg_infos[j].target->get());
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(arg_infos[j].target->get());
         
         if (dv) {
             if (dv->ts[0] != dvalue_type)
                 break;
                 
             Declaration *decl = declaration_get_decl(dv);
-            Variable *var = variable_cast(decl);
+            Variable *var = ptr_cast<Variable>(decl);
             if (!var)
                 throw INTERNAL_ERROR;
                 

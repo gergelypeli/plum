@@ -1,24 +1,17 @@
 
+template <class T, class S> T *ptr_cast(S *s) {
+    return dynamic_cast<T *>(s);
+}
+
 // Value wrappers
 
-DeclarationValue *declaration_value_cast(Value *value);
 Declaration *declaration_get_decl(DeclarationValue *dv);
 PartialVariable *partial_variable_get_pv(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
-FunctionReturnValue *function_return_value_cast(Value *v);
 
 
 // Declaration wrappers
-
-Function *function_cast(Declaration *decl);
-Allocable *allocable_cast(Declaration *decl);
-Variable *variable_cast(Declaration *decl);
-Role *role_cast(Declaration *decl);
-BaseRole *base_role_cast(Declaration *decl);
-ClassType *class_type_cast(Declaration *decl);
-HeapType *heap_type_cast(Type *t);
-DataScope *data_scope_cast(Scope *s);
 Declaration *make_record_compare();
 
 

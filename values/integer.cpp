@@ -18,7 +18,7 @@ public:
         );
 
         if (operation != ASSIGN && operation != EQUAL && operation != NOT_EQUAL)
-            dynamic_cast<BasicType *>(match[0].rvalue()[0])->get_unsigned();
+            ptr_cast<BasicType>(match[0].rvalue()[0])->get_unsigned();
     }
     
     virtual void exponentiation_by_squaring(X64 *x64) {

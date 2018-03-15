@@ -106,7 +106,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        TreenumerationType *t = dynamic_cast<TreenumerationType *>(left->ts.rvalue()[0]);
+        TreenumerationType *t = ptr_cast<TreenumerationType>(left->ts.rvalue()[0]);
         int tail = t->get_tail(index);
         Label match, unmatch;
         

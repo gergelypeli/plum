@@ -138,7 +138,7 @@ public:
     }
 
     virtual void allocate() {
-        DataScope *ds = data_scope_cast(outer_scope);
+        DataScope *ds = ptr_cast<DataScope>(outer_scope);
         
         if (ds && ds->is_virtual_scope() && virtual_index == -1 && type == GENERIC_FUNCTION) {  // FIXME
             std::vector<Function *> vt;
@@ -308,7 +308,7 @@ public:
         if (is->contents.size() < 1)
             throw INTERNAL_ERROR;
             
-        Variable *v = variable_cast(is->contents[0].get());
+        Variable *v = ptr_cast<Variable>(is->contents[0].get());
         if (!v)
             throw INTERNAL_ERROR;
         

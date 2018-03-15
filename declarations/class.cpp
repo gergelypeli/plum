@@ -16,7 +16,7 @@ public:
 
     virtual bool complete_type() {
         for (auto &c : inner_scope->contents) {
-            Allocable *v = allocable_cast(c.get());
+            Allocable *v = ptr_cast<Allocable>(c.get());
             
             if (v) {
                 member_allocables.push_back(v);
@@ -24,7 +24,7 @@ public:
                 member_names.push_back(v->name);
             }
             
-            Function *f = function_cast(c.get());
+            Function *f = ptr_cast<Function>(c.get());
             
             if (f && f->type == FINALIZER_FUNCTION) {
                 if (finalizer_function) {
@@ -35,7 +35,7 @@ public:
                 finalizer_function = f;
             }
             
-            BaseRole *b = base_role_cast(c.get());
+            BaseRole *b = ptr_cast<BaseRole>(c.get());
             
             if (b) {
                 if (base_role) {
@@ -202,7 +202,7 @@ public:
         x64->op(MOVQ, addr + data_offset + CLASS_VT_OFFSET, RBX);
 
         for (auto &var : member_allocables) {
-            Role *r = role_cast(var);
+            Role *r = ptr_cast<Role>(var);
             
             if (r)
                 r->init_vt(tm, addr, data_offset, vt_label, virtual_offset, x64);

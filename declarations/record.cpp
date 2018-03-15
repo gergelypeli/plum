@@ -11,7 +11,7 @@ public:
 
     virtual bool complete_type() {
         for (auto &c : inner_scope->contents) {
-            Variable *v = variable_cast(c.get());
+            Variable *v = ptr_cast<Variable>(c.get());
             
             if (v) {
                 member_variables.push_back(v);
