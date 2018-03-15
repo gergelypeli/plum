@@ -96,7 +96,7 @@ public:
         // Evaluate pivot (left), and check its boolean value without converting.
         // If true, return it. If false, evaluate arg (right), and return that.
 
-        StorageWhere where = ts.where(false);
+        StorageWhere where = ts.where(AS_VALUE);
         Storage s = (
             where == REGISTER ? Storage(REGISTER, reg) :
             where == STACK ? Storage(STACK) :
@@ -175,7 +175,7 @@ public:
         // Evaluate arg (left), which is boolean. It true, evaluate pivot (right),
         // and return it. If false, return the clear value of the pivot type.
         
-        StorageWhere where = ts.where(false);
+        StorageWhere where = ts.where(AS_VALUE);
         Storage s = (
             where == REGISTER ? Storage(REGISTER, reg) :
             where == STACK ? Storage(STACK) :

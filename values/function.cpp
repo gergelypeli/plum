@@ -397,7 +397,7 @@ public:
 
                 std::cerr << "Argument " << i << " is omitted.\n";
 
-                if (arg_ts.where(true) == ALIAS)
+                if (arg_ts.where(AS_ARGUMENT) == ALIAS)
                     throw INTERNAL_ERROR;
             }
         }
@@ -510,7 +510,7 @@ public:
             return ADDRESS_SIZE;
         }
         else {
-            StorageWhere where = stacked(arg_ts.where(true));
+            StorageWhere where = stacked(arg_ts.where(AS_ARGUMENT));
             Storage t(where);
 
             if (arg_value) {
@@ -533,7 +533,7 @@ public:
             x64->op(ADDQ, RSP, 8);
         }
         else {
-            StorageWhere where = arg_ts.where(true);
+            StorageWhere where = arg_ts.where(AS_ARGUMENT);
             where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
         
             arg_ts.store(Storage(where), Storage(), x64);
@@ -546,12 +546,11 @@ public:
         // Return a result from the stack in its native storage
         Storage s, t;
         
-        
-        switch (res_ts.where(true)) {
+        switch (res_ts.where(AS_ARGUMENT)) {
         case MEMORY:
             s = Storage(STACK);
             
-            switch (res_ts.where(false)) {
+            switch (res_ts.where(AS_VALUE)) {
             case REGISTER:
                 t = Storage(REGISTER, reg);
                 break;
@@ -565,7 +564,7 @@ public:
         case ALIAS:
             s = Storage(ALISTACK);
             
-            switch (res_ts.where(false)) {
+            switch (res_ts.where(AS_VARIABLE)) {
             case MEMORY:
                 // Pop the address into a MEMORY with a dynamic base register
                 t = Storage(MEMORY, Address(reg, 0));
@@ -588,7 +587,7 @@ public:
         
         for (unsigned i = 0; i < res_tss.size(); i++) {
             TypeSpec res_ts = res_tss[i];
-            StorageWhere res_where = res_ts.where(true);
+            StorageWhere res_where = res_ts.where(AS_ARGUMENT);
         
             if (res_where == MEMORY) {
                 // Must skip some place for uninitialized data

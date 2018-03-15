@@ -234,7 +234,7 @@ public:
         case REGISTER:
             break;
         case STACK: {
-            if (right->ts.where(false) == REGISTER) {
+            if (right->ts.where(AS_VALUE) == REGISTER) {
                 if (!rclob.has_any())
                     throw INTERNAL_ERROR;
                     
@@ -282,7 +282,7 @@ public:
         case REGISTER:
             break;
         case STACK:
-            if (left->ts.where(false) == REGISTER) {
+            if (left->ts.where(AS_VALUE) == REGISTER) {
                 left->ts.store(ls, Storage(REGISTER, reg), x64);
                 ls = Storage(REGISTER, reg);
             }

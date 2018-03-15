@@ -97,8 +97,13 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
-        return (is_arg ? (is_lvalue ? ALIAS : MEMORY) : (is_lvalue ? MEMORY : STACK));
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+        return (
+            as_what == AS_VALUE ? STACK :
+            as_what == AS_VARIABLE ? MEMORY :
+            as_what == AS_ARGUMENT ? (as_lvalue ? ALIAS : MEMORY) :
+            throw INTERNAL_ERROR
+        );
     }
     
     virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {

@@ -58,7 +58,7 @@ public:
         x64->unwind->push(this);
 
         for (unsigned i = 0; i < values.size(); i++) {
-            StorageWhere where = stacked(tss[i].where(true));
+            StorageWhere where = stacked(tss[i].where(AS_ARGUMENT));
             Storage t(where);
             storages.push_back(t);
             
@@ -159,7 +159,7 @@ public:
         int right_total = 0;
         
         for (auto &right_ts : right_tss) {
-            StorageWhere where = right_ts.where(true);
+            StorageWhere where = right_ts.where(AS_ARGUMENT);
             right_wheres.push_back(where);
             int size = right_ts.measure_where(where);
             right_sizes.push_back(size);
@@ -171,7 +171,7 @@ public:
         int left_total = 0;
         
         for (auto &left_ts : left_tss) {
-            StorageWhere where = left_ts.where(true);
+            StorageWhere where = left_ts.where(AS_ARGUMENT);
             left_wheres.push_back(where);
             int size = left_ts.measure_where(where);
             left_sizes.push_back(size);
@@ -224,7 +224,7 @@ public:
 
     virtual Scope *unwind(X64 *x64) {
         for (int i = left_tss.size() - 1; i >= 0; i--) {
-            StorageWhere where = stacked(left_tss[i].where(true));
+            StorageWhere where = stacked(left_tss[i].where(AS_ARGUMENT));
             Storage s(where);
         
             left_tss[i].store(s, Storage(), x64);
@@ -263,7 +263,7 @@ public:
         
         for (int i = tss.size() - 1; i >= 0; i--) {
             TypeSpec ts = tss[i];
-            StorageWhere where = ts.where(true);
+            StorageWhere where = ts.where(AS_ARGUMENT);
             where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
             Storage s(where);
             
@@ -272,7 +272,8 @@ public:
                 ts.store(s, Storage(), x64);
             }
             else {
-                where = ts.where(false);
+                // TODO: shouldn't we handle STACK here instead of MEMORY?
+                where = ts.where(AS_VALUE);
                 t = (where == REGISTER ? Storage(REGISTER, RAX) : where == MEMORY ? Storage(MEMORY, Address(RAX, 0)) : throw INTERNAL_ERROR);
                 std::cerr << "Scalarizing multi member " << i << " from " << s << " to " << t << ".\n";
                 ts.store(s, t, x64);

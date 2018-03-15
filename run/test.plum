@@ -580,6 +580,9 @@ test_classes? :Function as:
 
     wvm? (String, Greetable) WeakValueMap Ref `empty
     wvm add("x", gr)
+    wvm add("y", gr)
+    wvm["y"] greet
+    wvm remove("y")
     prints("wvm length is {x}" {x: wvm length})
 
     killer? Greetable Ref `init

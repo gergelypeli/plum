@@ -244,5 +244,6 @@ class WeakValueMapIndexValue: public MapIndexValue {
 public:
     WeakValueMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wvmatch(match)) {
+        ts = ts.reprefix(weakvalue_type, weakref_type);
     }
 };

@@ -11,6 +11,7 @@ public:
     ClassType(std::string name, TTs param_tts)
         :HeapType(name, param_tts) {
         finalizer_function = NULL;
+        base_role = NULL;
     }
 
     virtual bool complete_type() {
@@ -95,8 +96,8 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
-        return (is_arg ? throw INTERNAL_ERROR : (is_lvalue ? MEMORY : throw INTERNAL_ERROR));
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+        return (as_what == AS_VARIABLE ? MEMORY : throw INTERNAL_ERROR);
     }
 
     virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {

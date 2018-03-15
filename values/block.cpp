@@ -33,7 +33,7 @@ public:
         // point to a local variable that we're about to destroy. So grab that
         // value while we can. 
         if (s.where == MEMORY) {
-            switch (value->ts.rvalue().where(false)) {
+            switch (value->ts.where(AS_VALUE)) {
             case REGISTER:
                 value->ts.store(s, Storage(REGISTER, reg), x64);
                 s = Storage(REGISTER, reg);

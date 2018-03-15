@@ -4,6 +4,11 @@ typedef std::vector<TypeSpec> TypeMatch;
 struct Allocation;
 
 
+enum AsWhat {
+    AS_VALUE, AS_VARIABLE, AS_ARGUMENT
+};
+
+
 class TypeSpec: public std::vector<Type *> {
 public:
     TypeSpec();
@@ -20,7 +25,7 @@ public:
     Label get_virtual_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
     Value *autoconv(iterator target, Value *orig, TypeSpec &ifts);
-    StorageWhere where(bool is_arg, bool is_lvalue = false);
+    StorageWhere where(AsWhat as_what, bool as_lvalue = false);
     Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t = NULL);

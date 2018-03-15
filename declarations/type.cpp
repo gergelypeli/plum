@@ -3,6 +3,8 @@ enum TypeType {
     GENERIC_TYPE, VALUE_TYPE, IDENTITY_TYPE, ATTRIBUTE_TYPE
 };
 
+typedef std::vector<TypeType> TTs;
+
 std::ostream &operator<<(std::ostream &os, const TypeType tt) {
     os << (
         tt == GENERIC_TYPE ? "GENERIC_TYPE" :
@@ -14,9 +16,6 @@ std::ostream &operator<<(std::ostream &os, const TypeType tt) {
     
     return os;
 }
-
-
-typedef std::vector<TypeType> TTs;
 
 
 class Type: public Declaration {
@@ -125,7 +124,7 @@ public:
             inner_scope->allocate();
     }
     
-    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
         std::cerr << "Nowhere type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -296,8 +295,8 @@ public:
         :Type(name, param_tts, tt) {
     }
     
-    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
-        if (!is_arg && is_lvalue)
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+        if (as_what == AS_VARIABLE)
             return MEMORY;  // TODO: all types must be MEMORY for this combination!
         else
             throw INTERNAL_ERROR;
@@ -333,8 +332,8 @@ public:
         :Type(n, TTs { VALUE_TYPE }, ATTRIBUTE_TYPE) {
     }
 
-    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
-        return tm[1].where(is_arg, is_lvalue || this == lvalue_type || this == dvalue_type);
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+        return tm[1].where(as_what, as_lvalue || this == lvalue_type || this == dvalue_type);
     }
 
     virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
@@ -397,8 +396,8 @@ public:
         :Type(name, TTs { GENERIC_TYPE }, VALUE_TYPE) {
     }
 
-    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
-        return tm[1].where(is_arg, is_lvalue);
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+        return tm[1].where(as_what, as_lvalue);
         //return tm[1][0]->type == IDENTITY_TYPE ? 
     }
 
@@ -486,8 +485,8 @@ public:
         :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE) {
     }
 
-    virtual StorageWhere where(TypeMatch tm, bool is_arg, bool is_lvalue) {
-        return tm[1].where(is_arg, is_lvalue);
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+        return tm[1].where(as_what, as_lvalue);
     }
 
     virtual Allocation measure(TypeMatch tm) {

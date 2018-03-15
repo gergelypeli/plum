@@ -68,7 +68,7 @@ public:
     virtual void allocate() {
         Allocable::allocate();
             
-        where = alloc_ts.where(is_argument);
+        where = alloc_ts.where(is_argument ? AS_ARGUMENT : AS_VARIABLE);
             
         Allocation a = (
             where == MEMORY ? alloc_ts.measure() :
