@@ -305,7 +305,7 @@ public:
     TypeMatch match;
     
     VariableValue(Variable *v, Value *p, TypeMatch &tm)
-        :Value(typesubst(v->alloc_ts, tm).lvalue()) {
+        :Value(v->get_typespec(tm)) {
         variable = v;
         pivot.reset(p);
         reg = NOREG;

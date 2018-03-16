@@ -232,7 +232,7 @@ public:
         if (ts != VOID_TS) {
             // Add the variable after the EvalScope, so it can survive the finalization
             // of the scope, and can be left uninitialized until the successful completion.
-            yield_var = new Variable(eval_scope->get_variable_name(), NO_TS, ts.lvalue());
+            yield_var = new Variable(eval_scope->get_variable_name(), NO_TS, ts);
             scope->add(yield_var);
             eval_scope->set_yield_var(yield_var);
         }
@@ -368,7 +368,7 @@ public:
             
         // TODO: this should be a "local variable", to be destroyed once we're done
         // instead of letting the enclosing scope destroy it.
-        TypeSpec its = iterator->ts.lvalue();
+        TypeSpec its = iterator->ts;
         iterator_var = new Variable("<iterator>", NO_TS, its);
         scope->add(iterator_var);
 
@@ -506,7 +506,7 @@ public:
         switch_scope = new SwitchScope;
         eval_scope->add(switch_scope);
         
-        switch_var = new Variable(switch_scope->get_variable_name(), NO_TS, value->ts.lvalue());
+        switch_var = new Variable(switch_scope->get_variable_name(), NO_TS, value->ts);
         switch_scope->add(switch_var);
         
         ArgInfos infos = {
@@ -583,7 +583,7 @@ public:
         then_scope = new CodeScope;
         scope->add(then_scope);
 
-        matched_var = new Variable("<matched>", NO_TS, INTEGER_LVALUE_TS);
+        matched_var = new Variable("<matched>", NO_TS, INTEGER_TS);
         then_scope->add(matched_var);
 
         match_try_scope = new TransparentTryScope;
@@ -802,7 +802,7 @@ public:
         Type *et = try_scope->get_exception_type();
         
         if (et) {
-            TypeSpec ets = { lvalue_type, et };
+            TypeSpec ets = { et };
             switch_var = new Variable(switch_scope->get_variable_name(), NO_TS, ets);
             switch_scope->add(switch_var);
         }
