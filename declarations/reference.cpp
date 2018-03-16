@@ -245,7 +245,7 @@ public:
 };
 
 
-// This is a hack type to cooperate closely with WeakValueMap
+// This is a hack type to cooperate closely with Weak*Map
 class WeakAnchorType: public WeakReferenceType {
 public:
     WeakAnchorType(std::string name)

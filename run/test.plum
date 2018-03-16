@@ -586,12 +586,20 @@ test_classes? :Function as:
     wvm remove("y")
     prints("wvm length is {x}" {x: wvm length})
 
+    wim? (Greetable, String) WeakIndexMap Ref `empty
+    :try
+        wim add(gr, "incorrect")
+        wim add(gr, "correct")
+    prints("wim stores for gr: {x}" {x: wim[gr]})
+    prints("wim length is {x}" {x: wim length})
+
     killer? Greetable Ref `init
     wgr = killer
     gr = killer
     gr2 = killer
 
     prints("wvm length became {x}" {x: wvm length})
+    prints("wim length became {x}" {x: wim length})
 
 
 start? :Function as:

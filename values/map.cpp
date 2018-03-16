@@ -36,7 +36,11 @@ public:
         return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
     }
 
-    virtual void precreate(Address alias_addr, X64 *x64) {
+    virtual void prekey(Address alias_addr, X64 *x64) {
+        // To be overridden
+    }
+
+    virtual void prevalue(Address alias_addr, X64 *x64) {
         // To be overridden
     }
 
@@ -45,6 +49,7 @@ public:
         key->compile_and_store(x64, Storage(STACK));
         value->compile_and_store(x64, Storage(STACK));
 
+        int key_size = key_ts.measure_stack();  // NOTE: as it's in an Item, it is rounded up
         int key_stack_size = key_arg_ts.measure_stack();
         int value_stack_size = value_arg_ts.measure_stack();
         
@@ -62,10 +67,12 @@ public:
 
         // NOTE: we abuse the fact that Item contains index first, and value second,
         // and since they're parametric types, their sizes will be rounded up.
-        precreate(Address(RSP, key_stack_size + value_stack_size), x64);
+        prevalue(Address(RSP, key_stack_size + value_stack_size), x64);
+        value_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_size)), x64);
         
-        value_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_stack_size)), x64);
+        prekey(Address(RSP, key_stack_size), x64);
         key_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
+
         pivot->ts.store(Storage(ALISTACK), Storage(), x64);
         
         return Storage();
@@ -75,7 +82,7 @@ public:
 
 class MapRemoveValue: public Value {
 public:
-    TypeSpec key_ts, item_ts;
+    TypeSpec key_ts, item_ts, key_arg_ts;
     std::unique_ptr<Value> pivot, key;
 
     MapRemoveValue(Value *l, TypeMatch &match)
@@ -83,11 +90,13 @@ public:
         pivot.reset(l);
         key_ts = match[1];
         item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        
+        key_arg_ts = key_ts;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         return check_arguments(args, kwargs, {
-            { "key", &key_ts, scope, &key }
+            { "key", &key_arg_ts, scope, &key }
         });
     }
 
@@ -100,7 +109,7 @@ public:
         pivot->compile_and_store(x64, Storage(STACK));
         key->compile_and_store(x64, Storage(STACK));
 
-        int key_stack_size = key_ts.measure_stack();
+        int key_stack_size = key_arg_ts.measure_stack();
         
         Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
 
@@ -112,7 +121,7 @@ public:
         x64->op(CALL, remove_label);
         x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
 
-        key_ts.store(Storage(STACK), Storage(), x64);
+        key_arg_ts.store(Storage(STACK), Storage(), x64);
         pivot->ts.store(Storage(STACK), Storage(), x64);
         
         return Storage();
@@ -122,7 +131,7 @@ public:
 
 class MapIndexValue: public Value {
 public:
-    TypeSpec key_ts, value_ts, item_ts;
+    TypeSpec key_ts, value_ts, item_ts, key_arg_ts;
     std::unique_ptr<Value> pivot, key, value;
 
     MapIndexValue(Value *l, TypeMatch &match)
@@ -130,11 +139,13 @@ public:
         pivot.reset(l);
         key_ts = match[1];
         item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        
+        key_arg_ts = key_ts;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         return check_arguments(args, kwargs, {
-            { "key", &key_ts, scope, &key }
+            { "key", &key_arg_ts, scope, &key }
         });
     }
 
@@ -144,7 +155,8 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int key_stack_size = key_ts.measure_stack();
+        int key_size = key_ts.measure_stack();  // in an Item it's rounded up
+        int key_stack_size = key_arg_ts.measure_stack();
         
         pivot->compile_and_store(x64, Storage(STACK));
         key->compile_and_store(x64, Storage(STACK));
@@ -164,13 +176,51 @@ public:
         x64->die("Map missing!");  // TODO
 
         x64->code_label(ok);
-        key_ts.store(Storage(STACK), Storage(), x64);
+        key_arg_ts.store(Storage(STACK), Storage(), x64);
         pivot->ts.store(Storage(STACK), Storage(), x64);
         
-        return Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_stack_size));
+        return Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_size));
     }
 };
 
+
+// Weak map helpers
+
+static void compile_process_fcb(Label label, TypeSpec item_ts, X64 *x64) {
+    x64->code_label_local(label, "xy_weakmap_callback");
+    // RAX - fcb, RCX - payload1, RDX - payload2
+    // We may clobber all registers
+
+    x64->log("WeakMap callback.");
+    
+    Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
+
+    x64->op(MOVQ, RSI, Address(RCX, 0));  // load current rbtree ref
+    x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
+    x64->op(LEA, RDI, Address(RSI, RDX, RBNODE_VALUE_OFFSET));
+
+    x64->op(CALL, remove_label);
+    
+    x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
+    
+    x64->op(RET);
+}
+
+
+static void alloc_fcb(TypeSpec item_ts, Address alias_addr, X64 *x64) {
+    // Allocate and push a FCB pointer. We may clobber RAX, RBX, RCX, RDX.
+    Label callback_label = x64->once->compile(compile_process_fcb, item_ts);
+    
+    x64->op(MOVQ, RAX, Address(RSP, 0));  // heap
+    x64->op(LEARIP, RBX, callback_label);  // callback
+    x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address
+    x64->op(MOVQ, RDX, RDI);  // payload2, the rbnode index
+    x64->op(CALL, x64->alloc_fcb_label);
+    x64->op(PUSHQ, RAX);
+}
+
+
+// WeakValueMap
 
 TypeMatch &wvmatch(TypeMatch &match) {
     static TypeMatch tm;
@@ -189,36 +239,8 @@ public:
         value_arg_ts = value_ts.reprefix(weakanchor_type, weakref_type);
     }
 
-    virtual void precreate(Address alias_addr, X64 *x64) {
-        // Allocate and push a FCB pointer. We may clobber RAX, RBX, RCX, RDX.
-        Label callback_label = x64->once->compile(compile_callback, item_ts);
-        
-        x64->op(MOVQ, RAX, Address(RSP, 0));  // heap
-        x64->op(LEARIP, RBX, callback_label);  // callback
-        x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address
-        x64->op(MOVQ, RDX, RDI);  // payload2, the rbnode index
-        x64->op(CALL, x64->alloc_fcb_label);
-        x64->op(PUSHQ, RAX);
-    }
-    
-    static void compile_callback(Label label, TypeSpec item_ts, X64 *x64) {
-        x64->code_label_local(label, "x_weakvaluemap_callback");
-        // RAX - fcb, RCX - payload1, RDX - payload2
-        // We may clobber all registers
-
-        x64->log("WeakValueMap callback.");
-        
-        Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
-
-        x64->op(MOVQ, RSI, Address(RCX, 0));  // load current rbtree ref
-        x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
-        x64->op(LEA, RDI, Address(RSI, RDX, RBNODE_VALUE_OFFSET));
-
-        x64->op(CALL, remove_label);
-        
-        x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
-        
-        x64->op(RET);
+    virtual void prevalue(Address alias_addr, X64 *x64) {
+        alloc_fcb(item_ts, alias_addr, x64);
     }
 };
 
@@ -236,5 +258,48 @@ public:
     WeakValueMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wvmatch(match)) {
         ts = ts.reprefix(weakanchor_type, weakref_type);
+    }
+};
+
+
+// WeakIndexMap
+
+TypeMatch &wimatch(TypeMatch &match) {
+    static TypeMatch tm;
+    tm[0] = typesubst(SAMEID_WEAKANCHOR_SAME2_MAP_WEAKREF_TS, match);
+    tm[1] = match[1].prefix(weakanchor_type);
+    tm[2] = match[2];
+    tm[3] = NO_TS;
+    return tm;
+}
+
+
+class WeakIndexMapAddValue: public MapAddValue {
+public:
+    WeakIndexMapAddValue(Value *l, TypeMatch &match)
+        :MapAddValue(l, wimatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+    }
+
+    virtual void prekey(Address alias_addr, X64 *x64) {
+        alloc_fcb(item_ts, alias_addr, x64);
+    }
+};
+
+
+class WeakIndexMapRemoveValue: public MapRemoveValue {
+public:
+    WeakIndexMapRemoveValue(Value *l, TypeMatch &match)
+        :MapRemoveValue(l, wimatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+    }
+};
+
+
+class WeakIndexMapIndexValue: public MapIndexValue {
+public:
+    WeakIndexMapIndexValue(Value *l, TypeMatch &match)
+        :MapIndexValue(l, wimatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
     }
 };

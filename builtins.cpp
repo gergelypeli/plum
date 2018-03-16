@@ -180,6 +180,9 @@ void builtin_types(Scope *root_scope) {
     weakvaluemap_type = new WeakValueMapType("WeakValueMap");
     root_scope->add(weakvaluemap_type);
 
+    weakindexmap_type = new WeakIndexMapType("WeakIndexMap");
+    root_scope->add(weakindexmap_type);
+
     countup_type = new RecordType("Countup", {});
     root_scope->add(countup_type);
 
@@ -297,6 +300,10 @@ void builtin_types(Scope *root_scope) {
     SAME_SAMEID2_WEAKANCHOR_MAP_TS = { map_type, same_type, weakanchor_type, sameid2_type };
     SAME_SAMEID2_WEAKANCHOR_MAP_WEAKREF_TS = { weakref_type, map_type, same_type, weakanchor_type, sameid2_type };
     SAME_SAMEID2_WEAKANCHOR_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, weakanchor_type, sameid2_type };
+    ANYID_ANY2_WEAKINDEXMAP_WEAKREF_TS = { weakref_type, weakindexmap_type, anyid_type, any2_type };
+    SAMEID_WEAKANCHOR_SAME2_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, same2_type };
+    SAMEID_WEAKANCHOR_SAME2_MAP_TS = { map_type, weakanchor_type, sameid_type, same2_type };
+    SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, same2_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -742,6 +749,24 @@ void define_weakvaluemap() {
 }
 
 
+void define_weakindexmap() {
+    TypeSpec PIVOT = ANYID_ANY2_WEAKINDEXMAP_WEAKREF_TS;
+    TypeSpec CAST = SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
+    
+    ClassType *class_type = ptr_cast<ClassType>(weakindexmap_type);
+    DataScope *is = class_type->make_inner_scope(PIVOT);
+
+    is->add(new Variable("wrapped", PIVOT, CAST));
+    
+    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
+    is->add(new TemplateIdentifier<WeakIndexMapAddValue>("add", PIVOT));
+    is->add(new TemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT));
+    is->add(new TemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT));
+    
+    class_type->complete_type();
+}
+
+
 void builtin_runtime(Scope *root_scope) {
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -777,6 +802,7 @@ Scope *init_builtins() {
     define_set();
     define_map();
     define_weakvaluemap();
+    define_weakindexmap();
     define_option();
     define_autoweakref();
     
