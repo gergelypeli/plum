@@ -122,6 +122,11 @@ public:
     }
     
     virtual void raise(std::string keyword, X64 *x64) {
+        if (!raising_dummy) {
+            std::cerr << "Oops, a Raiser::check_raise was not called somewhere!\n";
+            throw INTERNAL_ERROR;
+        }
+        
         x64->op(MOVB, EXCEPTION_ADDRESS, raised_type->get_keyword_index(keyword));
         x64->unwind->initiate(raising_dummy, x64);
     }

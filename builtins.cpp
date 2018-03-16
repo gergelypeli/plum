@@ -630,7 +630,7 @@ void define_stack() {
     ClassType *class_type = ptr_cast<ClassType>(stack_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
-    is->add(new Variable("array", PIVOT, CAST));
+    is->add(new Variable("wrapped", PIVOT, CAST));
 
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
@@ -658,7 +658,7 @@ void define_queue() {
     ClassType *class_type = ptr_cast<ClassType>(queue_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
-    is->add(new Variable("carray", PIVOT, CAST));
+    is->add(new Variable("wrapped", PIVOT, CAST));
 
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
@@ -688,7 +688,7 @@ void define_set() {
     ClassType *class_type = ptr_cast<ClassType>(set_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
-    is->add(new Variable("tree", PIVOT, CAST));
+    is->add(new Variable("wrapped", PIVOT, CAST));
 
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new ClassWrapperIdentifier("has", PIVOT, CAST, "has"));
@@ -713,7 +713,7 @@ void define_map() {
     ClassType *class_type = ptr_cast<ClassType>(map_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
-    is->add(new Variable("tree", PIVOT, CAST));
+    is->add(new Variable("wrapped", PIVOT, CAST));
     
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new TemplateIdentifier<MapAddValue>("add", PIVOT));
@@ -731,7 +731,7 @@ void define_weakvaluemap() {
     ClassType *class_type = ptr_cast<ClassType>(weakvaluemap_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
 
-    is->add(new Variable("tree", PIVOT, CAST));
+    is->add(new Variable("wrapped", PIVOT, CAST));
     
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new TemplateIdentifier<WeakValueMapAddValue>("add", PIVOT));

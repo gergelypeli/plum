@@ -301,18 +301,7 @@ public:
     }
     
     virtual Value *matched(Value *pivot, TypeMatch &match) {
-        if (!pivot)
-            throw INTERNAL_ERROR;
-        
-        Scope *is = pivot_ts.get_inner_scope();
-        if (is->contents.size() < 1)
-            throw INTERNAL_ERROR;
-            
-        Variable *v = ptr_cast<Variable>(is->contents[0].get());
-        if (!v)
-            throw INTERNAL_ERROR;
-        
-        Value *member = make_variable_value(v, pivot, match);
+        Value *member = get_typespec(pivot).lookup_inner("wrapped", pivot);
         
         if (autogrow) {
             TypeSpec mts = get_typespec(member);

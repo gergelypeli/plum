@@ -523,7 +523,7 @@ test_rbtrees? :Function as:
         mp remove("C")
     prints("Map length is {x}" {x: mp length})
     
-    :for mp tree elements_by_order each: iv? do:
+    :for mp wrapped elements_by_order each: iv? do:
         prints("Map element: {x} => {y}" {x: iv index, y: iv value})
     
     prints("Map element at A is: {x}" {x: mp["A"]})
@@ -579,8 +579,9 @@ test_classes? :Function as:
         prints("WT is live.")
 
     wvm? (String, Greetable) WeakValueMap Ref `empty
-    wvm add("x", gr)
-    wvm add("y", gr)
+    :try
+        wvm add("x", gr)
+        wvm add("y", gr)
     wvm["y"] greet
     wvm remove("y")
     prints("wvm length is {x}" {x: wvm length})
