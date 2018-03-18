@@ -592,6 +592,13 @@ test_classes? :Function as:
         wim add(gr, "correct")
     prints("wim stores for gr: {x}" {x: wim[gr]})
     prints("wim length is {x}" {x: wim length})
+    
+    ws? Greetable WeakSet Ref `empty
+    :try
+        ws add(gr)
+        ws add(gr)
+    prints("ws stores gr: {x}" {x: ws[gr]})
+    prints("ws length is {x}" {x: ws length})
 
     killer? Greetable Ref `init
     wgr = killer

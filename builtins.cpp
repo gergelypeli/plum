@@ -63,6 +63,9 @@ void builtin_types(Scope *root_scope) {
     void_type = new SpecialType("Void", {}, VALUE_TYPE);
     root_scope->add(void_type);
 
+    zero_type = new ZeroType("<Zero>");
+    root_scope->add(zero_type);
+
     metatype_type = new SpecialType("<Metatype>", {}, GENERIC_TYPE);
     root_scope->add(metatype_type);
 
@@ -182,6 +185,9 @@ void builtin_types(Scope *root_scope) {
 
     weakindexmap_type = new WeakIndexMapType("WeakIndexMap");
     root_scope->add(weakindexmap_type);
+    
+    weakset_type = new WeakSetType("WeakSet");
+    root_scope->add(weakset_type);
 
     countup_type = new RecordType("Countup", {});
     root_scope->add(countup_type);
@@ -244,6 +250,7 @@ void builtin_types(Scope *root_scope) {
     METATYPE_TS = { metatype_type };
     TREENUMMETA_TS = { treenumeration_metatype };
     VOID_TS = { void_type };
+    ZERO_TS = { zero_type };
     MULTI_TS = { multi_type };
     MULTI_LVALUE_TS = { lvalue_type, multi_type };
     MULTI_TYPE_TS = { type_type, multi_type };
@@ -304,6 +311,10 @@ void builtin_types(Scope *root_scope) {
     SAMEID_WEAKANCHOR_SAME2_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, same2_type };
     SAMEID_WEAKANCHOR_SAME2_MAP_TS = { map_type, weakanchor_type, sameid_type, same2_type };
     SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, same2_type };
+    ANYID_WEAKSET_WEAKREF_TS = { weakref_type, weakset_type, anyid_type };
+    SAMEID_WEAKANCHOR_ZERO_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, zero_type };
+    SAMEID_WEAKANCHOR_ZERO_MAP_TS = { map_type, weakanchor_type, sameid_type, zero_type };
+    SAMEID_WEAKANCHOR_ZERO_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, zero_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -767,6 +778,24 @@ void define_weakindexmap() {
 }
 
 
+void define_weakset() {
+    TypeSpec PIVOT = ANYID_WEAKSET_WEAKREF_TS;
+    TypeSpec CAST = SAMEID_WEAKANCHOR_ZERO_ITEM_RBTREE_REF_LVALUE_TS;
+    
+    ClassType *class_type = ptr_cast<ClassType>(weakset_type);
+    DataScope *is = class_type->make_inner_scope(PIVOT);
+
+    is->add(new Variable("wrapped", PIVOT, CAST));
+    
+    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
+    is->add(new TemplateIdentifier<WeakSetAddValue>("add", PIVOT));
+    is->add(new TemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT));
+    is->add(new TemplateIdentifier<WeakSetIndexValue>("index", PIVOT));
+    
+    class_type->complete_type();
+}
+
+
 void builtin_runtime(Scope *root_scope) {
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -803,6 +832,7 @@ Scope *init_builtins() {
     define_map();
     define_weakvaluemap();
     define_weakindexmap();
+    define_weakset();
     define_option();
     define_autoweakref();
     

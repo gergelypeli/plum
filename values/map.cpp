@@ -25,12 +25,15 @@ public:
 
         return check_arguments(args, kwargs, {
             { "key", &key_arg_ts, scope, &key },
-            { "value", &value_arg_ts, scope, &value }
+            { "value", &value_arg_ts, scope, &value }  // disabled if NO_TS
         });
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred) | value->precompile(preferred);
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        
+        if (value)
+            clob = clob | value->precompile(preferred);
         
         // We build on this in WeakValueMap::precreate
         return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
@@ -47,11 +50,13 @@ public:
     virtual Storage compile(X64 *x64) {
         pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
         key->compile_and_store(x64, Storage(STACK));
-        value->compile_and_store(x64, Storage(STACK));
+        
+        if (value)
+            value->compile_and_store(x64, Storage(STACK));
 
         int key_size = key_ts.measure_stack();  // NOTE: as it's in an Item, it is rounded up
         int key_stack_size = key_arg_ts.measure_stack();
-        int value_stack_size = value_arg_ts.measure_stack();
+        int value_stack_size = value_arg_ts != NO_TS ? value_arg_ts.measure_stack() : 0;
         
         Label add_label = x64->once->compile(compile_rbtree_add, item_ts);
 
@@ -67,8 +72,10 @@ public:
 
         // NOTE: we abuse the fact that Item contains index first, and value second,
         // and since they're parametric types, their sizes will be rounded up.
-        prevalue(Address(RSP, key_stack_size + value_stack_size), x64);
-        value_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_size)), x64);
+        if (value) {
+            prevalue(Address(RSP, key_stack_size + value_stack_size), x64);
+            value_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_size)), x64);
+        }
         
         prekey(Address(RSP, key_stack_size), x64);
         key_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
@@ -154,32 +161,39 @@ public:
         return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
     }
 
-    virtual Storage compile(X64 *x64) {
+    virtual Storage postresult(X64 *x64) {
         int key_size = key_ts.measure_stack();  // in an Item it's rounded up
-        int key_stack_size = key_arg_ts.measure_stack();
-        
-        pivot->compile_and_store(x64, Storage(STACK));
-        key->compile_and_store(x64, Storage(STACK));
-        
-        Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
+
         Label ok;
-
-        x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
-        x64->op(MOVQ, RSI, Address(RBX, CLASS_MEMBERS_OFFSET));
-        x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
-        x64->op(LEA, RDI, Address(RSP, 0));
-
-        x64->op(CALL, has_label);
         x64->op(CMPQ, RDI, RBNODE_NIL);
         x64->op(JNE, ok);
 
         x64->die("Map missing!");  // TODO
 
         x64->code_label(ok);
+        
+        return Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_size));
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int key_stack_size = key_arg_ts.measure_stack();
+        
+        pivot->compile_and_store(x64, Storage(STACK));
+        key->compile_and_store(x64, Storage(STACK));
+        
+        Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
+
+        x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
+        x64->op(MOVQ, RSI, Address(RBX, CLASS_MEMBERS_OFFSET));
+        x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, RDI, Address(RSP, 0));
+
+        x64->op(CALL, has_label);  // RDI is the index of the found item, or NIL
+        
         key_arg_ts.store(Storage(STACK), Storage(), x64);
         pivot->ts.store(Storage(STACK), Storage(), x64);
         
-        return Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET + key_size));
+        return postresult(x64);
     }
 };
 
@@ -301,5 +315,61 @@ public:
     WeakIndexMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wimatch(match)) {
         key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+    }
+};
+
+
+// WeakSet
+
+TypeMatch &wsmatch(TypeMatch &match) {
+    static TypeMatch tm;
+    tm[0] = typesubst(SAMEID_WEAKANCHOR_ZERO_MAP_WEAKREF_TS, match);
+    tm[1] = match[1].prefix(weakanchor_type);
+    tm[2] = ZERO_TS;
+    tm[3] = NO_TS;
+    return tm;
+}
+
+
+class WeakSetAddValue: public MapAddValue {
+public:
+    WeakSetAddValue(Value *l, TypeMatch &match)
+        :MapAddValue(l, wsmatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        value_ts = ZERO_TS;
+        value_arg_ts = NO_TS;
+        item_ts = key_ts;
+    }
+
+    virtual void prekey(Address alias_addr, X64 *x64) {
+        alloc_fcb(item_ts, alias_addr, x64);
+    }
+};
+
+
+class WeakSetRemoveValue: public MapRemoveValue {
+public:
+    WeakSetRemoveValue(Value *l, TypeMatch &match)
+        :MapRemoveValue(l, wsmatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        item_ts = key_ts;
+    }
+};
+
+
+class WeakSetIndexValue: public MapIndexValue {
+public:
+    WeakSetIndexValue(Value *l, TypeMatch &match)
+        :MapIndexValue(l, wsmatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        value_ts = ZERO_TS;
+        item_ts = key_ts;
+        ts = BOOLEAN_TS;
+    }
+
+    virtual Storage postresult(X64 *x64) {
+        x64->op(CMPQ, RDI, RBNODE_NIL);
+        
+        return Storage(FLAGS, SETNE);
     }
 };

@@ -525,7 +525,8 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
         if (!*arg_info.target && arg_info.context) {
             TypeSpec &ts = *arg_info.context;
             
-            if (ts[0] != ovalue_type && !(ts[0] == code_type && ts[1] == void_type)) {
+            // Allow NO_TS to drop an argument, used in WeakSet
+            if (ts != NO_TS && ts[0] != ovalue_type && !(ts[0] == code_type && ts[1] == void_type)) {
                 std::cerr << "Missing argument " << arg_info.name << "!\n";
                 return false;
             }

@@ -279,12 +279,28 @@ public:
     SpecialType(std::string name, TTs param_tts, TypeType tt)
         :Type(name, param_tts, tt) {
     }
+
     
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
             std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
         }
+    }
+};
+
+
+class ZeroType: public SpecialType {
+public:
+    ZeroType(std::string name)
+        :SpecialType(name, {}, VALUE_TYPE) {
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        return Allocation();
+    }
+
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
     }
 };
 

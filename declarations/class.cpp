@@ -406,3 +406,29 @@ public:
         return make_class_wrapper_initializer_value(pivot, tree_initializer);
     }
 };
+
+
+class WeakSetType: public ClassType {
+public:
+    WeakSetType(std::string name)
+        :ClassType(name, TTs { IDENTITY_TYPE }) {
+    }
+    
+    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
+        TypeSpec tm0 = typesubst(SAMEID_WEAKANCHOR_ZERO_MAP_TS, tm);
+        TypeSpec tts = tm0.reprefix(map_type, item_type).prefix(rbtree_type);
+        Value *tree_initializer = tts.lookup_initializer(name);
+        
+        if (!tree_initializer) {
+            std::cerr << "No WeakSet initializer called " << name << "!\n";
+            return NULL;
+        }
+
+        TypeSpec rts = tm[0].prefix(ref_type);
+        
+        if (!pivot)
+            pivot = make_class_preinitializer_value(rts);
+        
+        return make_class_wrapper_initializer_value(pivot, tree_initializer);
+    }
+};
