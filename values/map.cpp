@@ -205,7 +205,9 @@ static void compile_process_fcb(Label label, TypeSpec item_ts, X64 *x64) {
     // RAX - fcb, RCX - payload1, RDX - payload2
     // We may clobber all registers
 
-    x64->log("WeakMap callback.");
+    std::stringstream ss;
+    ss << item_ts << " callback";
+    x64->log(ss.str().c_str());  // "WeakMap callback.");
     
     Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
 
@@ -336,9 +338,7 @@ public:
     WeakSetAddValue(Value *l, TypeMatch &match)
         :MapAddValue(l, wsmatch(match)) {
         key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
-        value_ts = ZERO_TS;
         value_arg_ts = NO_TS;
-        item_ts = key_ts;
     }
 
     virtual void prekey(Address alias_addr, X64 *x64) {
@@ -352,7 +352,6 @@ public:
     WeakSetRemoveValue(Value *l, TypeMatch &match)
         :MapRemoveValue(l, wsmatch(match)) {
         key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
-        item_ts = key_ts;
     }
 };
 
@@ -362,8 +361,6 @@ public:
     WeakSetIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wsmatch(match)) {
         key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
-        value_ts = ZERO_TS;
-        item_ts = key_ts;
         ts = BOOLEAN_TS;
     }
 

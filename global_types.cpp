@@ -14,6 +14,18 @@ TypeSpec::TypeSpec(TypeSpecIter tsi) {
 }
 
 
+TypeSpec::TypeSpec(Type *t, TypeSpec &tm1, TypeSpec &tm2) {
+    if (t->get_parameter_count() != 2) {
+        std::cerr << "Not a 2-parameter type: " << t->name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+    
+    push_back(t);
+    insert(end(), tm1.begin(), tm1.end());
+    insert(end(), tm2.begin(), tm2.end());
+}
+
+
 TypeSpec TypeSpec::prefix(Type *t) {
     if (t->get_parameter_count() != 1) {
         std::cerr << "Can't prefix Type " << t->name << " with " << t->get_parameter_count() << " parameters: " << *this << "!\n";

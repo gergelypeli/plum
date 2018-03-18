@@ -177,16 +177,16 @@ void builtin_types(Scope *root_scope) {
     set_type = new SetType("Set");
     root_scope->add(set_type);
 
-    map_type = new MapType("Map");
+    map_type = new MapType("Map", { VALUE_TYPE, VALUE_TYPE });
     root_scope->add(map_type);
 
-    weakvaluemap_type = new WeakValueMapType("WeakValueMap");
+    weakvaluemap_type = new WeakValueMapType("WeakValueMap", { VALUE_TYPE, IDENTITY_TYPE });
     root_scope->add(weakvaluemap_type);
 
-    weakindexmap_type = new WeakIndexMapType("WeakIndexMap");
+    weakindexmap_type = new WeakIndexMapType("WeakIndexMap", { IDENTITY_TYPE, VALUE_TYPE });
     root_scope->add(weakindexmap_type);
     
-    weakset_type = new WeakSetType("WeakSet");
+    weakset_type = new WeakSetType("WeakSet", { IDENTITY_TYPE });
     root_scope->add(weakset_type);
 
     countup_type = new RecordType("Countup", {});

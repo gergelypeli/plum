@@ -14,6 +14,7 @@ public:
     TypeSpec();
     TypeSpec(iterator tsi);
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
+    TypeSpec(Type *t, TypeSpec &tm1, TypeSpec &tm2);
 
     TypeMatch match();    
     Allocation measure();

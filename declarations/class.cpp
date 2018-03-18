@@ -333,102 +333,68 @@ public:
 
 class MapType: public ClassType {
 public:
-    MapType(std::string name)
-        :ClassType(name, TTs { VALUE_TYPE, VALUE_TYPE }) {
+    MapType(std::string name, TTs tts)
+        :ClassType(name, tts) {  //TTs { VALUE_TYPE, VALUE_TYPE }) {
     }
     
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        TypeSpec tts = tm[0].reprefix(map_type, item_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name);
+    virtual Value *lookup_map_partinitializer(TypeSpec real_ts, TypeSpec key_ts, TypeSpec value_ts, std::string name, Value *pivot) {
+        TypeSpec tree_ts = TypeSpec(item_type, key_ts, value_ts).prefix(rbtree_type);
+        Value *tree_initializer = tree_ts.lookup_initializer(name);
         
         if (!tree_initializer) {
-            std::cerr << "No Map initializer called " << name << "!\n";
+            std::cerr << "No " << this->name << " initializer called " << name << "!\n";
             return NULL;
         }
 
-        TypeSpec rts = tm[0].prefix(ref_type);
+        // This may be something non-Map, if subclasses call this.
+        TypeSpec rts = real_ts.prefix(ref_type);
         
         if (!pivot)
             pivot = make_class_preinitializer_value(rts);
         
         return make_class_wrapper_initializer_value(pivot, tree_initializer);
+    }
+    
+    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
+        return lookup_map_partinitializer(tm[0], tm[1], tm[2], name, pivot);
     }
 };
 
 
-class WeakValueMapType: public ClassType {
+class WeakValueMapType: public MapType {
 public:
-    WeakValueMapType(std::string name)
-        :ClassType(name, TTs { VALUE_TYPE, IDENTITY_TYPE }) {
+    WeakValueMapType(std::string name, TTs tts)
+        :MapType(name, tts) {  //TTs { VALUE_TYPE, IDENTITY_TYPE }) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        TypeSpec tm0 = typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_TS, tm);
-        TypeSpec tts = tm0.reprefix(map_type, item_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name);
-        
-        if (!tree_initializer) {
-            std::cerr << "No WeakValueMap initializer called " << name << "!\n";
-            return NULL;
-        }
-
-        TypeSpec rts = tm[0].prefix(ref_type);
-        
-        if (!pivot)
-            pivot = make_class_preinitializer_value(rts);
-        
-        return make_class_wrapper_initializer_value(pivot, tree_initializer);
+        //tm[0] = typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_TS, tm);
+        return MapType::lookup_map_partinitializer(tm[0], tm[1], tm[2].prefix(weakanchor_type), name, pivot);
     }
 };
 
 
-class WeakIndexMapType: public ClassType {
+class WeakIndexMapType: public MapType {
 public:
-    WeakIndexMapType(std::string name)
-        :ClassType(name, TTs { IDENTITY_TYPE, VALUE_TYPE }) {
+    WeakIndexMapType(std::string name, TTs tts)
+        :MapType(name, tts) {  //TTs { IDENTITY_TYPE, VALUE_TYPE }) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        TypeSpec tm0 = typesubst(SAMEID_WEAKANCHOR_SAME2_MAP_TS, tm);
-        TypeSpec tts = tm0.reprefix(map_type, item_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name);
-        
-        if (!tree_initializer) {
-            std::cerr << "No WeakIndexMap initializer called " << name << "!\n";
-            return NULL;
-        }
-
-        TypeSpec rts = tm[0].prefix(ref_type);
-        
-        if (!pivot)
-            pivot = make_class_preinitializer_value(rts);
-        
-        return make_class_wrapper_initializer_value(pivot, tree_initializer);
+        //tm[0] = typesubst(SAMEID_WEAKANCHOR_SAME2_MAP_TS, tm);
+        return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), tm[2], name, pivot);
     }
 };
 
 
-class WeakSetType: public ClassType {
+class WeakSetType: public MapType {
 public:
-    WeakSetType(std::string name)
-        :ClassType(name, TTs { IDENTITY_TYPE }) {
+    WeakSetType(std::string name, TTs tts)
+        :MapType(name, tts) {  //TTs { IDENTITY_TYPE }) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        TypeSpec tm0 = typesubst(SAMEID_WEAKANCHOR_ZERO_MAP_TS, tm);
-        TypeSpec tts = tm0.reprefix(map_type, item_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name);
-        
-        if (!tree_initializer) {
-            std::cerr << "No WeakSet initializer called " << name << "!\n";
-            return NULL;
-        }
-
-        TypeSpec rts = tm[0].prefix(ref_type);
-        
-        if (!pivot)
-            pivot = make_class_preinitializer_value(rts);
-        
-        return make_class_wrapper_initializer_value(pivot, tree_initializer);
+        //tm[0] = typesubst(SAMEID_WEAKANCHOR_ZERO_MAP_TS, tm);
+        return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), ZERO_TS, name, pivot);
     }
 };
