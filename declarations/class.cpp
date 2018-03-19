@@ -91,6 +91,13 @@ public:
         
             for (auto &var : member_allocables)  // FIXME: reverse!
                 var->destroy(tm, s, x64);
+
+            // Allow the destroyed members release potential backreferences first
+            Label no_weakrefs;
+            x64->op(CMPQ, Address(RAX, ROLE_WEAKREFCOUNT_OFFSET), 0);
+            x64->op(JE, no_weakrefs);
+            x64->die("Weakly referenced role finalized!");
+            x64->code_label(no_weakrefs);
         }
         else
             throw INTERNAL_ERROR;
