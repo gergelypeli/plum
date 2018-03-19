@@ -249,6 +249,16 @@ test_strings? :Function as:
     prints("Unsorted: {chars}" {})
     chars chars sort
     prints("Sorted:   {chars}" {})
+    
+    :is m? "foo" ~re ".*" then:
+        prints("Regexp matched as: {x}" {x: m[0]})
+    else:
+        prints("REGEXP NOT MATCHED!")
+
+    :is m? "this and that" ~re "(th[a-z]*).*(th[a-z]+)" then:
+        prints("Regexp matched as {x} and {y}" {x: m[1], y: m[2]})
+    else:
+        prints("REGEXP NOT MATCHED!")
 
 
 test_enums? :Function as:

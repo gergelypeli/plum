@@ -293,6 +293,7 @@ void builtin_types(Scope *root_scope) {
     SAME_ITERABLE_TS = { iterable_type, same_type };
     STRING_TS = { string_type };
     STRING_LVALUE_TS = { lvalue_type, string_type };
+    STRING_ARRAY_REF_TS = { ref_type, array_type, string_type };
     ANY_OPTION_TS = { option_type, any_type };
     ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
     ANY_STACK_REF_TS = { ref_type, stack_type, any_type };

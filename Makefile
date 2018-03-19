@@ -24,6 +24,7 @@ TEST       = run/test
 TESTOBJ    = run/test.o
 TESTSRC    = run/test.plum
 #TESTLOG    = run/plum.log
+TESTLIBS   = -lpcre2-16
 
 exe: uncore $(EXE)
 
@@ -37,7 +38,7 @@ $(EXE): $(SOURCES)
 	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
 
 $(TEST): $(RUNTIMEOBJ) $(TESTOBJ)
-	@gcc $(CFLAGS) -o $(TEST) $(RUNTIMEOBJ) $(TESTOBJ)
+	@gcc $(CFLAGS) -o $(TEST) $(RUNTIMEOBJ) $(TESTOBJ) $(TESTLIBS)
 
 $(RUNTIMEOBJ): $(RUNTIMESRC) $(HEAPH)
 	@gcc $(CFLAGS) -c -o $(RUNTIMEOBJ) $(RUNTIMESRC)

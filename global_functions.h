@@ -90,5 +90,6 @@ Value *make_create_value(Value *p, TypeMatch &match);
 Value *make_weakanchorage_value(TypeSpec rts);
 Value *make_weakanchorage_dead_matcher_value(Value *p, TypeMatch &match);
 Value *make_weakanchorage_live_matcher_value(Value *p, TypeMatch &match);
+Value *make_string_regexp_matcher_value(Value *p, TypeMatch &match);
 
 DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);

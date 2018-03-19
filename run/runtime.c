@@ -1,15 +1,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define PCRE2_CODE_UNIT_WIDTH 16
+#include <pcre2.h>
+
 #include "../utf8.c"
 #include "../arch/heap.h"
 
 #define ALEN(x) *(long *)((x) + ARRAY_LENGTH_OFFSET)
 #define ARES(x) *(long *)((x) + ARRAY_RESERVATION_OFFSET)
 #define AELE(x) ((x) + ARRAY_ELEMS_OFFSET)
+
 #define HREF(x) *(long *)((x) + HEAP_REFCOUNT_OFFSET)
 #define HWEA(x) *(long *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
 #define HFIN(x) *(long *)((x) + HEAP_FINALIZER_OFFSET)
+#define HNEX(x) *(long *)((x) + HEAP_NEXT_OFFSET)
+
+
+extern void empty_function();
+extern void finalize_reference_array();
 
 static int allocation_count = 0;
 
@@ -74,16 +84,37 @@ void dies(void *s) {
 
 
 
-void nothing() {
+//void nothing() {
+//}
+
+
+void *allocate_basic_array(long length, long size) {
+    void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    
+    HNEX(array) = 0;
+    HREF(array) = 1;
+    HWEA(array) = 0;
+    HFIN(array) = (long)(void *)empty_function;  // TODO: this only works for basic types!
+    
+    ARES(array) = length;
+    ALEN(array) = 0;
+    
+    return array;
 }
 
 
-void *allocate_array(long length, long size) {
+void *allocate_string_array(long length) {
+    int size = ADDRESS_SIZE;
     void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    
+    HNEX(array) = 0;
     HREF(array) = 1;
     HWEA(array) = 0;
-    HFIN(array) = (long)(void *)nothing;  // TODO: this only works for basic types!
+    HFIN(array) = (long)(void *)finalize_reference_array;
+    
     ARES(array) = length;
+    ALEN(array) = 0;
+    
     return array;
 }
 
@@ -159,7 +190,7 @@ void *decode_utf8(void *byte_array) {
     long byte_length = ALEN(byte_array);
     char *bytes = AELE(byte_array);
 
-    void *character_array = allocate_array(byte_length, 2);
+    void *character_array = allocate_basic_array(byte_length, 2);
     unsigned short *characters = AELE(character_array);
     
     long character_length = decode_utf8_buffer(bytes, byte_length, characters);
@@ -176,7 +207,7 @@ void *encode_utf8(void *character_array) {
     long character_length = ALEN(character_array);
     unsigned short *characters = AELE(character_array);
     
-    void *byte_array = allocate_array(character_length * 3, 1);
+    void *byte_array = allocate_basic_array(character_length * 3, 1);
     char *bytes = AELE(byte_array);
 
     long byte_length = encode_utf8_buffer(characters, character_length, bytes);
@@ -220,6 +251,80 @@ void streamify_boolean(unsigned char x, void **character_array_lvalue) {
 
 void sort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *)) {
     qsort(base, nmemb, size, compar);
+}
+
+
+void *string_regexp_match(void *subject_array, void *pattern_array) {
+    //fprintf(stderr, "PCRE2 match begins.\n");
+    //prints(subject_array);
+    //prints(pattern_array);
+    
+    PCRE2_SPTR subject = AELE(subject_array);
+    PCRE2_SIZE subject_length = ALEN(subject_array);
+    
+    PCRE2_SPTR pattern = AELE(pattern_array);
+    PCRE2_SIZE pattern_length = ALEN(pattern_array);
+    
+    int errornumber;
+    PCRE2_SIZE erroroffset;
+    
+    pcre2_code *re = pcre2_compile(
+      pattern,
+      pattern_length,
+      0,                     /* default options */
+      &errornumber,          /* for error number */
+      &erroroffset,          /* for error offset */
+      NULL);                 /* use default compile context */
+      
+    if (re == NULL) {
+        fprintf(stderr, "PCRE2 error compiling pattern!\n");
+        return NULL;
+    }
+
+    //fprintf(stderr, "PCRE2 compiled.\n");
+    
+    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, NULL);
+    
+    int rc = pcre2_match(
+      re,                   /* the compiled pattern */
+      subject,              /* the subject string */
+      subject_length,       /* the length of the subject */
+      0,                    /* start at offset 0 in the subject */
+      0,                    /* default options */
+      match_data,           /* block for storing the result */
+      NULL);                /* use default match context */
+
+    void *result_array = NULL;
+    
+    if (rc > 0) {
+        //fprintf(stderr, "PCRE2 matched with rc=%d.\n", rc);
+        PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(match_data);
+        
+        result_array = allocate_string_array(rc);
+        void **result_refs = AELE(result_array);
+        ALEN(result_array) = rc;
+        short *subject_characters = AELE(subject_array);
+        
+        for (int i = 0; i < rc; i++) {
+            size_t start = ovector[2 * i];
+            size_t len = ovector[2 * i + 1] - ovector[2 * i];
+            //fprintf(stderr, "PCRE2 match %d start %ld length %ld.\n", i, start, len);
+            
+            void *target_array = allocate_basic_array(len, CHARACTER_SIZE);
+            ALEN(target_array) = len;
+            short *target_characters = AELE(target_array);
+            
+            for (unsigned j = 0; j < len; j++)
+                target_characters[j] = subject_characters[start + j];
+                
+            result_refs[i] = target_array;
+        }
+    }
+        
+    pcre2_match_data_free(match_data);
+    pcre2_code_free(re);
+    
+    return result_array;
 }
 
 

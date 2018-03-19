@@ -467,6 +467,14 @@ public:
         std::cerr << "No String initializer " << n << "!\n";
         return NULL;
     }
+
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+        if (n == "re")
+            return make_string_regexp_matcher_value(pivot, tm);
+            
+        std::cerr << "Can't match String as " << n << "!\n";
+        return NULL;
+    }
 };
 
 

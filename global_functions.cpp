@@ -330,6 +330,11 @@ Value *make_weakanchorage_live_matcher_value(Value *p, TypeMatch &match) {
 }
 
 
+Value *make_string_regexp_matcher_value(Value *p, TypeMatch &match) {
+    return new StringRegexpMatcherValue(p, match);
+}
+
+
 // Declaration operations
 
 Declaration *make_record_compare() {

@@ -86,6 +86,7 @@ X64::X64() {
     code_label_import(die_label, "die");
     code_label_import(dies_label, "dies");
     code_label_import(sort_label, "sort");
+    code_label_import(string_regexp_match_label, "string_regexp_match");
 
     init_memory_management();
 }
@@ -1095,6 +1096,21 @@ void X64::op(ConstantOp opcode, int x) {
 }
 
 
+void X64::call_sysv(Label l) {
+    // This is a lame solution to make sure the stack is 16-bytes aligned just before
+    // calling a SysV function. Of course, it only works if all arguments are passed
+    // and returned in registers. Not using this risks that the called SysV code uses
+    // an SSE instruction with alignment requirement on the stack, and crashes with GP.
+    
+    op(PUSHQ, RBP);
+    op(MOVQ, RBP, RSP);
+    op(ANDQ, RSP, -16);
+    op(CALL, l);
+    op(MOVQ, RSP, RBP);
+    op(POPQ, RBP);
+}
+
+
 int X64::pusha(bool except_rax) {
     // RBX and the last 4 are preserved by the System V ABI
     // But we save RBX, because it's annoying to handle it separately
@@ -1280,6 +1296,22 @@ void X64::init_memory_management() {
     op(CALL, memfree_label);
 
     popa();
+    op(RET);
+    
+    code_label_global(finalize_reference_array_label, "finalize_reference_array");
+    Label fra_cond, fra_loop;
+    op(MOVQ, RCX, 0);
+    op(JMP, fra_cond);
+    
+    code_label(fra_loop);
+    op(MOVQ, RBX, Address(RAX, RCX, 8, ARRAY_ELEMS_OFFSET));
+    decref(RBX);
+    op(INCQ, RCX);
+    
+    code_label(fra_cond);
+    op(CMPQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+    op(JB, fra_loop);
+    
     op(RET);
 }
 
