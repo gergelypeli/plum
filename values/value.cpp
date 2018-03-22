@@ -538,7 +538,7 @@ public:
     TypeMatch match;
     
     RoleValue(Role *r, Value *p, TypeMatch &tm)
-        :Value(r->alloc_ts.prefix(weakref_type)) {  // Was: borrowed_type
+        :Value(typesubst(r->alloc_ts, tm).prefix(weakref_type)) {  // Was: borrowed_type
         role = r;
         pivot.reset(p);
         reg = NOREG;
@@ -546,7 +546,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot ? pivot->precompile(preferred) : Regs();
+        Regs clob = pivot->precompile(preferred);
             
         if (role->where == NOWHERE)
             throw INTERNAL_ERROR;
@@ -583,6 +583,45 @@ public:
     }
 };
 
+/*
+// Special case for $ foo.bar.baz calling of inherited methods
+class RolesValue: public Value {
+public:
+    std::vector<Role *> roles;
+    std::unique_ptr<Value> pivot;
+    TypeMatch match;
+    
+    RolesValue(std::<Role *> rs, Value *p, TypeMatch &tm)
+        :Value(typesubst(rs.back()->alloc_ts, tm).prefix(weakref_type)) {
+        roles = rs;
+        pivot.reset(p);
+        match = tm;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return pivot->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s = pivot->compile(x64);
+        int offset = 0
+        
+        for (Role *role : roles)
+            offset += role->get_offset(match);  // FIXME: there should be a match for each role
+        
+        switch (s.where) {
+        case MEMORY:
+            x64->op(MOVQ, RBX, s.address);
+            x64->op(ADDQ, RBX, offset);
+            x64->incweakref(RBX);
+            x64->op(PUSHQ, RBX);
+            return Storage(STACK);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+*/
 
 #include "generic.cpp"
 #include "block.cpp"

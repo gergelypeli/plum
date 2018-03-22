@@ -405,12 +405,12 @@ public:
         return true;
     }
 
-    virtual bool complete_definition() {
-        std::cerr << "Completing role " << role->name << " definition.\n";
+    //virtual bool complete_definition() {
+    //    std::cerr << "Completing role " << role->name << " definition.\n";
         
         // The role's inner scope is filled by declarations, but they should be checked
-        return role->complete_role();
-    }
+    //    return role->complete_role();
+    //}
     
     virtual Regs precompile(Regs preferred) {
         return Regs();

@@ -260,6 +260,11 @@ bool is_initializer_function_call(Value *value) {
 }
 
 
+void function_call_force_static_roles(FunctionCallValue *fcv, std::vector<Role *> &roles) {
+    fcv->force_static_roles(roles);
+}
+
+
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
     return v->unpack(tss);
 }

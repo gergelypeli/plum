@@ -1,4 +1,11 @@
+/*
+struct InheritedMethod {
+    std::vector<Role *> roles;
+    Function *function;
+};
 
+typedef std::map<std::string, InheritedMethod> InheritedMethods;
+*/
 
 class ClassType: public HeapType {
 public:
@@ -7,6 +14,7 @@ public:
     std::vector<std::string> member_names;
     Function *finalizer_function;
     BaseRole *base_role;
+    //InheritedMethods inherited_methods;
 
     ClassType(std::string name, TTs param_tts)
         :HeapType(name, param_tts) {
@@ -251,6 +259,26 @@ public:
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Class inner lookup " << n << ".\n";
         
+        // Must allow calling base method foo.bar.baz!
+        auto pos = n.find(".");
+        
+        if (pos != std::string::npos) {
+            std::vector<Role *> roles;
+            Function *f = lookup_method(tm, n, roles);
+            
+            if (!f)
+                return NULL;
+
+            // TODO: it's a bit ugly that we can't find the inherited method here, and
+            // must defer this until the compile phase, because virtual indexes are
+            // only allocated then.
+            Value *fv = f->matched(v, tm);
+            FunctionCallValue *fcv = ptr_cast<FunctionCallValue>(fv);
+            function_call_force_static_roles(fcv, roles);
+            
+            return fv;
+        }
+        
         Value *value = HeapType::lookup_inner(tm, n, v);
         
         if (!value && base_role) {
@@ -260,6 +288,66 @@ public:
         
         return value;
     }
+    
+    Function *lookup_method(TypeMatch tm, std::string n, std::vector<Role *> &roles) {
+        auto pos = n.find(".");
+        
+        if (pos != std::string::npos) {
+            std::string scope_name = n.substr(0, pos);
+            n = n.substr(pos + 1);
+            
+            for (auto &d : inner_scope->contents) {
+                Role *role = ptr_cast<Role>(d.get());
+                
+                if (role && role->name == n)
+                    return role->lookup_role_method(tm, n, roles);
+            }
+            
+            return NULL;
+        }
+        
+        for (auto &d : inner_scope->contents) {
+            Function *f = ptr_cast<Function>(d.get());
+            
+            if (f && f->name == n && f->type == GENERIC_FUNCTION && !f->override_function)
+                return f;
+        }
+        
+        if (base_role)
+            return base_role->lookup_role_method(tm, n, roles);
+        
+        return NULL;
+    }
+    
+    /*
+    InheritedMethods inherit(Role *role) {
+        InheritedMethods ims;
+        int base_prefix_length = (base_role ? base_role->name.size() + 1 : 0);
+        
+        for (auto &kv : inherited_methods) {
+            std::string canonical_name = kv.first;
+            InheritedMethod im = kv.second;
+            
+            std::string new_name = (
+                im.roles.back() == base_role ?
+                role->name + "." + canonical_name.substr(base_prefix_length) :
+                role->name + "." + canonical_name
+            );
+                
+            im.roles.push_back(role);
+            ims[new_name] = im;
+        }
+        
+        for (auto &c : inner_scope->contents) {
+            Function *f = ptr_cast<Function>(c.get());
+            
+            // TODO: introduce OVERRIDE_FUNCTION?
+            if (f && f->type == GENERIC_FUNCTION && f->name.find(".") == std::string::npos) {
+            
+            }
+        }
+    }
+    */
 };
 
 

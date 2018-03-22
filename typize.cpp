@@ -34,6 +34,7 @@ class DeclarationValue;
 class GenericValue;
 class PartialVariableValue;
 class FunctionReturnValue;
+class FunctionCallValue;
 
 
 #include "global_types.h"

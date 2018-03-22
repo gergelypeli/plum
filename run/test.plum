@@ -145,6 +145,8 @@ Greetable? :Class as:
 
     base.base_method? :Function as:
         prints("Although overridden, the base value is {x}." {x: $ base_value})
+        prints("Okay, let's call the base method, too.")
+        $ base.base_method
 
     number? Integer
     name? String

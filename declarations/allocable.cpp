@@ -240,12 +240,12 @@ public:
 
 class Role: public Allocable {
 public:
-    int virtual_index;
+    int virtual_offset;
     DataScope *inner_scope;
     
     Role(std::string name, TypeSpec pts, TypeSpec rts)
         :Allocable(name, pts, rts) {
-        virtual_index = -1;
+        virtual_offset = -1;
         inner_scope = new DataScope();  // we won't look up from the inside
         inner_scope->set_pivot_type_hint(pts);
     }
@@ -268,7 +268,7 @@ public:
         else
             return NULL;
     }
-
+    /*
     virtual bool complete_role() {
         TypeMatch iftm = type_parameters_to_match(alloc_ts);
         TypeMatch empty_match;
@@ -300,7 +300,7 @@ public:
         
         return true;
     }
-
+    */
     virtual void allocate() {
         Allocable::allocate();
     
@@ -312,8 +312,8 @@ public:
         offset.bytes += ROLE_HEADER_SIZE;
         
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
-        virtual_index = ds->virtual_reserve(alloc_ts.get_virtual_table());
-        
+        virtual_offset = ds->virtual_reserve(alloc_ts.get_virtual_table());
+        /*
         for (auto &d : inner_scope->contents) {
             Function *f = ptr_cast<Function>(d.get());
             
@@ -324,6 +324,7 @@ public:
         }
         
         inner_scope->allocate();
+        */
     }
     
     virtual int get_offset(TypeMatch tm) {
@@ -351,11 +352,19 @@ public:
     
     virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
         int role_data_offset = data_offset + get_offset(tm);
-        int role_virtual_offset = virtual_offset + virtual_index;
+        int role_virtual_offset = virtual_offset + this->virtual_offset;
         TypeSpec role_ts = typesubst(alloc_ts, tm);
         
         role_ts.init_vt(addr, role_data_offset, vt_label, role_virtual_offset, x64);
-    }        
+    }
+    
+    Function *lookup_role_method(TypeMatch tm, std::string n, std::vector<Role *> &roles) {
+        roles.push_back(this);
+        
+        TypeSpec role_ts = typesubst(alloc_ts, tm);
+        
+        return role_ts.lookup_method(n, roles);
+    }
 };
 
 

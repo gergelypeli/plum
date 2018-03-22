@@ -193,7 +193,10 @@ public:
         unsigned frame_size = fn_scope->get_frame_size();
         //Label epilogue_label = fn_scope->get_epilogue_label();
 
-        int self_adjustment = function->self_adjustment.concretize();
+        int override_offset = function->get_override_offset().concretize();
+        if (override_offset)
+            std::cerr << "Function body of " << function->name << " uses override offset " << override_offset << ".\n";
+        
         Storage self_storage = self_var ? self_var->get_local_storage() : Storage();
 
         if (function) {
@@ -212,8 +215,8 @@ public:
         x64->op(SUBQ, RSP, frame_size);
         x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         
-        if (self_adjustment)
-            x64->op(SUBQ, self_storage.address, self_adjustment);
+        if (override_offset)
+            x64->op(SUBQ, self_storage.address, override_offset);
         
         x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
@@ -231,8 +234,8 @@ public:
             x64->code_label(ok);
         }
 
-        if (self_adjustment)
-            x64->op(ADDQ, self_storage.address, self_adjustment);
+        if (override_offset)
+            x64->op(ADDQ, self_storage.address, override_offset);
         
         x64->op(MOVB, BL, EXCEPTION_ADDRESS);
         x64->op(ADDQ, RSP, frame_size);
@@ -336,6 +339,7 @@ public:
     
     bool has_code_arg;
     Label *current_except_label;
+    std::vector<Role *> forced_static_roles;
         
     FunctionCallValue(Function *f, Value *p, TypeMatch &m)
         :Value(NO_TS) {
@@ -357,6 +361,11 @@ public:
         res_total = 0;
         has_code_arg = false;
         current_except_label = NULL;
+        //forced_static = false;
+    }
+
+    virtual void force_static_roles(std::vector<Role *> roles) {
+        forced_static_roles = roles;
     }
 
     virtual bool unpack(std::vector<TypeSpec> &tss) {
@@ -614,7 +623,26 @@ public:
             sysv_prologue(x64, passed_size);
         
         int vti = function->virtual_index;
-        if (vti >= 0) {
+        
+        if (forced_static_roles.size()) {
+            // Find the offset to the initial role
+            int initial_role_offset = 0;
+            
+            for (Role *role : forced_static_roles)
+                initial_role_offset += role->get_offset(TypeMatch());  // TODO
+        
+            // Find the inherited function
+            // Skip the outermost role, compute the vti inside it only
+            for (unsigned i = 1; i < forced_static_roles.size(); i++)
+                vti += forced_static_roles[i]->virtual_offset;
+                
+            Function *inherited_function = forced_static_roles[0]->alloc_ts.get_virtual_table()[vti];
+            
+            x64->op(ADDQ, Address(RSP, passed_size - REFERENCE_SIZE), initial_role_offset);
+            x64->op(CALL, inherited_function->x64_label);
+            x64->op(SUBQ, Address(RSP, passed_size - REFERENCE_SIZE), initial_role_offset);
+        }
+        else if (vti >= 0) {
             if (!pivot)
                 throw INTERNAL_ERROR;
 

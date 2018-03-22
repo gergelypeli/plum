@@ -65,6 +65,7 @@ public:
 #include "scope.cpp"
 #include "identifier.cpp"
 #include "allocable.cpp"
+#include "function.cpp"
 #include "type.cpp"
 
 

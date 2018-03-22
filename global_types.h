@@ -43,6 +43,7 @@ public:
     Value *lookup_partinitializer(std::string name, Value *pivot);
     Value *lookup_matcher(std::string name, Value *pivot);
     Value *lookup_inner(std::string name, Value *pivot);
+    Function *lookup_method(std::string name, std::vector<Role *> &roles);
     DataScope *get_inner_scope();
     void init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64);
 };

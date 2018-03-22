@@ -215,6 +215,7 @@ Value *TypeSpec::lookup_initializer(std::string name) {
     return at(0)->lookup_initializer(match(), name);
 }
 
+
 Value *TypeSpec::lookup_partinitializer(std::string name, Value *pivot) {
     return at(0)->lookup_partinitializer(match(), name, pivot);
 }
@@ -227,6 +228,11 @@ Value *TypeSpec::lookup_matcher(std::string name, Value *pivot) {
 
 Value *TypeSpec::lookup_inner(std::string name, Value *pivot) {
     return at(0)->lookup_inner(match(), name, pivot);
+}
+
+
+Function *TypeSpec::lookup_method(std::string name, std::vector<Role *> &roles) {
+    return at(0)->lookup_method(match(), name, roles);
 }
 
 

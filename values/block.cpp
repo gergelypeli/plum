@@ -283,31 +283,32 @@ public:
             return true;
         }
 
+        Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
+        
+        if (!use(v, scope))
+            return false;
+        
         auto pos = name.find(".");
         
         if (pos != std::string::npos) {
-            std::string scope_name = name.substr(0, pos);
-            name = name.substr(pos + 1);
-            DataScope *inner_scope = NULL;
+            std::vector<Role *> roles;
+            Function *function = scope->pivot_type_hint().lookup_method(name, roles);
             
-            for (auto &d : scope->contents) {
-                inner_scope = d->find_inner_scope(scope_name);
-                
-                if (inner_scope)
-                    break;
+            if (!function) {
+                std::cerr << "No such method to override: " << name << "!\n";
+                return false;
             }
-            
-            if (!inner_scope) {
-                std::cerr << "Invalid explicit scope name: " << scope_name << "!\n";
+
+            Function *f = ptr_cast<Function>(decl);
+            if (!f) {
+                std::cerr << "Override must declare a function!\n";
                 return false;
             }
             
-            scope = inner_scope;
+            f->set_override(function, roles);
         }
         
-        Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
-        
-        return use(v, scope);
+        return true;
     }
 
     virtual bool complete_definition() {
