@@ -238,16 +238,33 @@ public:
 };
 
 
+class Role;
+static Declaration *make_shadow_role(Role *orole, Role *prole);
+
 class Role: public Allocable {
 public:
     int virtual_offset;
     DataScope *inner_scope;
+    Scope *original_scope;
+    Role *parent_role;
     
-    Role(std::string name, TypeSpec pts, TypeSpec rts)
+    Role(std::string name, TypeSpec pts, TypeSpec rts, Scope *os)
         :Allocable(name, pts, rts) {
         virtual_offset = -1;
+        original_scope = os;
+        parent_role = NULL;
+        
         inner_scope = new DataScope();  // we won't look up from the inside
+        inner_scope->be_virtual_scope();
         inner_scope->set_pivot_type_hint(pts);
+        inner_scope->set_role(this);
+
+        for (auto &d : original_scope->contents) {
+            Role *r = ptr_cast<Role>(d.get());
+            
+            if (r)
+                inner_scope->add(make_shadow_role(r, this));
+        }
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
@@ -313,26 +330,55 @@ public:
         
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
         virtual_offset = ds->virtual_reserve(alloc_ts.get_virtual_table());
-        /*
-        for (auto &d : inner_scope->contents) {
-            Function *f = ptr_cast<Function>(d.get());
-            
-            if (f) {
-                int vi = f->set_self_adjustment(offset);
-                ds->set_virtual_entry(virtual_index + vi, f);
-            }
-        }
-        
+
         inner_scope->allocate();
-        */
     }
     
+    virtual void set_virtual_entry(int i, Function *f) {
+        DataScope *ds = ptr_cast<DataScope>(outer_scope);
+        ds->set_virtual_entry(i, f);
+    }
+
     virtual int get_offset(TypeMatch tm) {
         if (where == NOWHERE)
             throw INTERNAL_ERROR;
 
         return offset.concretize(tm);
     }
+    
+    virtual int compute_offset(TypeMatch &tm) {
+        // Outward just pass the initial tm for the class scope
+        int offset = (parent_role ? parent_role->compute_offset(tm) : 0);
+        
+        // Inward compute the offset, and update the match for the inner roles
+        offset += get_offset(tm);
+        TypeSpec ts = typesubst(alloc_ts, tm);
+        tm = type_parameters_to_match(ts);
+        
+        return offset;
+    }
+
+    virtual void compute_match(TypeMatch &tm) {
+        // Outward just pass the initial tm for the class scope
+        if (parent_role)
+            parent_role->compute_offset(tm);
+        
+        // Inward update the match for the inner roles
+        TypeSpec ts = typesubst(alloc_ts, tm);
+        tm = type_parameters_to_match(ts);
+    }
+    
+    virtual Identifier *get_original_identifier(std::string n) {
+        for (auto &d : original_scope->contents) {
+            Identifier *i = ptr_cast<Identifier>(d.get());
+            
+            if (i && i->name == n)
+                return i;
+        }
+        
+        return NULL;
+    }
+    
     /*
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Only NOWHERE_MEMORY
@@ -370,8 +416,8 @@ public:
 
 class BaseRole: public Role {
 public:
-    BaseRole(std::string name, TypeSpec pts, TypeSpec rts)
-        :Role(name, pts, rts) {
+    BaseRole(std::string name, TypeSpec pts, TypeSpec rts, Scope *os)
+        :Role(name, pts, rts, os) {
     }
     
     virtual void allocate() {
@@ -391,3 +437,43 @@ public:
         // Don't overwrite the derived class' VT pointer!
     }
 };
+
+
+class ShadowRole: public Role {
+public:
+    Role *original_role;
+    
+    ShadowRole(Role *orole, Role *prole)
+        :Role(orole->name, orole->pivot_ts, orole->alloc_ts, orole->inner_scope) {
+        original_role = orole;
+        parent_role = prole;
+    }
+
+    virtual void allocate() {
+        Role::allocate();
+        
+        where = original_role->where;
+        offset = original_role->offset;
+        virtual_offset = original_role->virtual_offset;
+        
+        if (where == NOWHERE)
+            throw INTERNAL_ERROR;
+    }
+
+    virtual void set_virtual_entry(int i, Function *f) {
+        parent_role->set_virtual_entry(i, f);
+    }
+    
+    virtual Identifier *get_original_identifier(std::string n) {
+        Identifier *i = Role::get_original_identifier(n);
+        
+        if (i)
+            return i;
+        else
+            return original_role->get_original_identifier(n);
+    }
+};
+
+Declaration *make_shadow_role(Role *orole, Role *prole) {
+    return new ShadowRole(orole, prole);
+}

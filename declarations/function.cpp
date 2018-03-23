@@ -11,11 +11,10 @@ public:
     std::vector<TypeSpec> res_tss;
     TreenumerationType *exception_type;
     int virtual_index;
-    //Allocation self_adjustment;
-    //Function *implemented_function;
-    Function *override_function;
-    std::vector<Role *> override_roles;
     FunctionType type;
+    
+    Role *containing_role;
+    Function *implemented_function;
 
     Label x64_label;
     bool is_sysv;
@@ -28,8 +27,9 @@ public:
         res_tss = rts;
         exception_type = et;
         virtual_index = -1;
-        //implemented_function = NULL;
-        override_function = NULL;
+
+        containing_role = NULL;
+        implemented_function = NULL;
         
         is_sysv = false;
     }
@@ -79,16 +79,15 @@ public:
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
         
         if (ds && ds->is_virtual_scope() && type == GENERIC_FUNCTION) {
-            if (!override_function) {
+            if (!containing_role) {
                 std::vector<Function *> vt;
                 vt.push_back(this);
                 virtual_index = ds->virtual_reserve(vt);
+                std::cerr << "Reserved new virtual index " << virtual_index << " for function " << name << ".\n";
             }
             else {
-                int vti = override_function->virtual_index;
-                for (Role *role : override_roles)
-                    vti += role->virtual_offset;
-                ds->set_virtual_entry(vti, this);
+                containing_role->set_virtual_entry(implemented_function->virtual_index, this);
+                std::cerr << "Set virtual index " << implemented_function->virtual_index << " for function " << name << ".\n";
             }
         }
     }
@@ -121,28 +120,29 @@ public:
             return false;
         }
         
-        //implemented_function = iff;
+        implemented_function = iff;
         return true;
     }
-    
-    virtual bool set_override(Function *f, std::vector<Role *> roles) {
-        override_function = f;
-        override_roles = roles;
+
+    virtual bool set_containing_role(Role *role) {
+        containing_role = role;
         
-        TypeMatch empty_match;
-        return does_implement(empty_match, f, empty_match);
-    }
-    
-    virtual Allocation get_override_offset() {
-        // FIXME: this should be a general Allocation, but we need to store the TypeMatch for
-        // each role, too, to make that work!
-        int offset = 0;
+        Identifier *original_identifier = containing_role->get_original_identifier(name);
+        Function *original_function = ptr_cast<Function>(original_identifier);
         
-        for (Role *role : override_roles) {
-            offset += role->offset.concretize();
+        if (!original_function) {
+            std::cerr << "No original function " << name << "!\n";
+            return false;
         }
         
-        return Allocation(offset);
+        TypeMatch role_tm;  // assume parameterless outermost class, derive role parameters
+        containing_role->compute_match(role_tm);
+
+        return does_implement(TypeMatch(), original_function, role_tm);
+    }
+
+    virtual int get_containing_role_offset(TypeMatch tm) {
+        return (containing_role ? containing_role->compute_offset(tm) : 0);
     }
 };
 

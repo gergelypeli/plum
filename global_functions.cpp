@@ -260,8 +260,8 @@ bool is_initializer_function_call(Value *value) {
 }
 
 
-void function_call_force_static_roles(FunctionCallValue *fcv, std::vector<Role *> &roles) {
-    fcv->force_static_roles(roles);
+void function_call_be_static(Value *v) {
+    ptr_cast<FunctionCallValue>(v)->be_static();
 }
 
 
@@ -344,6 +344,36 @@ Value *make_string_regexp_matcher_value(Value *p, TypeMatch &match) {
 
 Declaration *make_record_compare() {
     return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);
+}
+
+
+bool descend_into_explicit_scope(std::string &name, Scope *&scope) {
+    while (true) {
+        auto pos = name.find(".");
+        
+        if (pos == std::string::npos)
+            break;
+            
+        std::string scope_name = name.substr(0, pos);
+        name = name.substr(pos + 1);
+        DataScope *inner_scope = NULL;
+        
+        for (auto &d : scope->contents) {
+            inner_scope = d->find_inner_scope(scope_name);
+            
+            if (inner_scope)
+                break;
+        }
+        
+        if (!inner_scope) {
+            std::cerr << "Invalid explicit scope name " << scope_name << "!\n";
+            return false;
+        }
+        
+        scope = inner_scope;
+    }
+    
+    return true;
 }
 
 

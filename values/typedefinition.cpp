@@ -421,7 +421,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        role = new Role(name, pivot_ts, role_ts);
+        role = new Role(name, pivot_ts, role_ts, role_ts.get_inner_scope());
         return role;
     }
 };
@@ -434,7 +434,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        role = new BaseRole(name, pivot_ts, role_ts);
+        role = new BaseRole(name, pivot_ts, role_ts, role_ts.get_inner_scope());
         return role;
     }
 };

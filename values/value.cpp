@@ -556,7 +556,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Storage s = pivot->compile(x64);
-        int offset = role->get_offset(match);
+        int offset = role->compute_offset(match);  // May step multiple roles
         
         switch (s.where) {
         case REGISTER:

@@ -9,11 +9,13 @@ Declaration *declaration_get_decl(DeclarationValue *dv);
 PartialVariable *partial_variable_get_pv(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
-void function_call_force_static_roles(FunctionCallValue *fcv, std::vector<Role *> &roles);
+void function_call_be_static(Value *fcv);
 
 
 // Declaration wrappers
 Declaration *make_record_compare();
+
+bool descend_into_explicit_scope(std::string &name, Scope *&scope);
 
 
 // TypeSpec operations

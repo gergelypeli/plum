@@ -263,20 +263,24 @@ public:
         auto pos = n.find(".");
         
         if (pos != std::string::npos) {
-            std::vector<Role *> roles;
-            Function *f = lookup_method(tm, n, roles);
+            // Static call to inherited method
             
-            if (!f)
+            Scope *scope = inner_scope;
+            
+            if (!descend_into_explicit_scope(n, scope))  // Modifies both arguments
                 return NULL;
+                
+            DataScope *ds = ptr_cast<DataScope>(scope);
+            Role *containing_role = ds->get_role();
+            //int containing_role_offset = containing_role->compute_offset(tm);
+            Identifier *original_identifier = containing_role->get_original_identifier(n);
+            //Function *original_function = ptr_cast<Function>(original_identifier);
 
-            // TODO: it's a bit ugly that we can't find the inherited method here, and
-            // must defer this until the compile phase, because virtual indexes are
-            // only allocated then.
-            Value *fv = f->matched(v, tm);
-            FunctionCallValue *fcv = ptr_cast<FunctionCallValue>(fv);
-            function_call_force_static_roles(fcv, roles);
+            Value *role_value = make_role_value(containing_role, v, tm);
+            Value *fcv = original_identifier->matched(role_value, tm);
+            function_call_be_static(fcv);
             
-            return fv;
+            return fcv;
         }
         
         Value *value = HeapType::lookup_inner(tm, n, v);
@@ -288,7 +292,7 @@ public:
         
         return value;
     }
-    
+    /*
     Function *lookup_method(TypeMatch tm, std::string n, std::vector<Role *> &roles) {
         auto pos = n.find(".");
         
@@ -318,7 +322,17 @@ public:
         
         return NULL;
     }
-    
+    */
+    /*
+    virtual void pull_roles(Scope *target_scope) {
+        for (auto &d : inner_scope->contents) {
+            Role *r = ptr_cast<Role>(d.get());
+            
+            if (r)
+                target_scope->add(new ShadowRole(r))
+        }
+    }
+    */
     /*
     InheritedMethods inherit(Role *role) {
         InheritedMethods ims;

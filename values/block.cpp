@@ -255,6 +255,17 @@ public:
             if (var)
                 ts = var->alloc_ts;
         }
+
+        if (scope->type == DATA_SCOPE) {
+            Role *containing_role = ptr_cast<DataScope>(scope)->get_role();
+            
+            if (containing_role) {
+                Function *f = ptr_cast<Function>(decl);
+                
+                if (!f->set_containing_role(containing_role))
+                    return false;
+            }
+        }
         
         return true;
     }
@@ -283,32 +294,12 @@ public:
             return true;
         }
 
+        if (!descend_into_explicit_scope(name, scope))  // Modifies both arguments
+            return false;
+
         Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
         
-        if (!use(v, scope))
-            return false;
-        
-        auto pos = name.find(".");
-        
-        if (pos != std::string::npos) {
-            std::vector<Role *> roles;
-            Function *function = scope->pivot_type_hint().lookup_method(name, roles);
-            
-            if (!function) {
-                std::cerr << "No such method to override: " << name << "!\n";
-                return false;
-            }
-
-            Function *f = ptr_cast<Function>(decl);
-            if (!f) {
-                std::cerr << "Override must declare a function!\n";
-                return false;
-            }
-            
-            f->set_override(function, roles);
-        }
-        
-        return true;
+        return use(v, scope);
     }
 
     virtual bool complete_definition() {
