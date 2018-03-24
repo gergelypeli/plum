@@ -238,10 +238,6 @@ public:
         return NULL;
     }
 
-    virtual Function *lookup_method(TypeMatch tm, std::string name, std::vector<Role *> &roles) {
-        throw INTERNAL_ERROR;
-    }
-    
     virtual DataScope *get_inner_scope(TypeMatch tm) {
         return inner_scope;
     }

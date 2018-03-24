@@ -99,14 +99,12 @@ public:
     Scope *meta_scope;
     std::vector<Function *> virtual_table;
     bool am_virtual_scope;
-    Role *role;  // TODO: subclass instead!
     
     DataScope()
         :Scope(DATA_SCOPE) {
         pivot_ts = NO_TS;
         meta_scope = NULL;
         am_virtual_scope = false;
-        role = NULL;
     }
     
     virtual void be_virtual_scope() {
@@ -126,14 +124,6 @@ public:
             throw INTERNAL_ERROR;
             
         pivot_ts = t;
-    }
-
-    virtual void set_role(Role *r) {
-        role = r;
-    }
-    
-    virtual Role *get_role() {
-        return role;
     }
 
     virtual Value *lookup(std::string name, Value *pivot) {
@@ -166,9 +156,6 @@ public:
     }
 
     virtual int virtual_reserve(std::vector<Function *> vt) {
-        if (role)
-            throw INTERNAL_ERROR;
-            
         int virtual_index = virtual_table.size();
         virtual_table.insert(virtual_table.end(), vt.begin(), vt.end());
         return virtual_index;
@@ -181,6 +168,29 @@ public:
     virtual void set_virtual_entry(int i, Function *f) {
         std::cerr << "DataScope setting virtual entry " << i << ".\n";
         virtual_table[i] = f;
+    }
+};
+
+
+class RoleScope: public DataScope {
+public:
+    Role *role;  // TODO: subclass instead!
+
+    RoleScope(Role *r)
+        :DataScope() {
+        role = r;
+    }
+
+    virtual Role *get_role() {
+        return role;
+    }
+    
+    virtual int virtual_reserve(std::vector<Function *> vt) {
+        return ptr_cast<DataScope>(outer_scope)->virtual_reserve(vt);
+    }
+    
+    virtual void set_virtual_entry(int i, Function *f) {
+        ptr_cast<DataScope>(outer_scope)->set_virtual_entry(i, f);
     }
 };
 

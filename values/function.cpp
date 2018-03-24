@@ -12,6 +12,7 @@ public:
     TypeSpec pivot_ts;
     Variable *self_var;
     TypeMatch match;
+    Role *containing_role;
 
     FunctionType type;
     Function *function;  // If declared with a name, which is always, for now
@@ -24,9 +25,16 @@ public:
         deferred_body_expr = NULL;
         may_be_aborted = false;
         self_var = NULL;
+        containing_role = NULL;
+        fn_scope = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        RoleScope *role_scope = ptr_cast<RoleScope>(scope);
+        
+        if (role_scope)
+            containing_role = role_scope->get_role();
+        
         fn_scope = new FunctionScope();
         scope->add(fn_scope);
 
@@ -299,6 +307,11 @@ public:
         
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+
+        if (containing_role) {
+            if (!function->set_containing_role(containing_role))
+                return NULL;
+        }
 
         return function;
     }

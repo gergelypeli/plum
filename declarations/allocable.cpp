@@ -254,10 +254,9 @@ public:
         original_scope = os;
         parent_role = NULL;
         
-        inner_scope = new DataScope();  // we won't look up from the inside
+        inner_scope = new RoleScope(this);  // we won't look up from the inside
         inner_scope->be_virtual_scope();
         inner_scope->set_pivot_type_hint(pts);
-        inner_scope->set_role(this);
 
         for (auto &d : original_scope->contents) {
             Role *r = ptr_cast<Role>(d.get());
@@ -285,39 +284,7 @@ public:
         else
             return NULL;
     }
-    /*
-    virtual bool complete_role() {
-        TypeMatch iftm = type_parameters_to_match(alloc_ts);
-        TypeMatch empty_match;
-        Scope *base_inner_scope = alloc_ts.get_inner_scope();
-        
-        for (auto &d : inner_scope->contents) {
-            Function *f = ptr_cast<Function>(d.get());
-            
-            if (f) {
-                bool found = false;
-                
-                for (auto &e : base_inner_scope->contents) {
-                    Function *iff = ptr_cast<Function>(e.get());
-                    
-                    if (iff) {
-                        if (f->does_implement(empty_match, iff, iftm)) {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                
-                if (!found) {
-                    std::cerr << "Invalid function override " << f->name << "!\n";
-                    return false;
-                }
-            }
-        }
-        
-        return true;
-    }
-    */
+
     virtual void allocate() {
         Allocable::allocate();
     
@@ -334,11 +301,6 @@ public:
         inner_scope->allocate();
     }
     
-    virtual void set_virtual_entry(int i, Function *f) {
-        DataScope *ds = ptr_cast<DataScope>(outer_scope);
-        ds->set_virtual_entry(i, f);
-    }
-
     virtual int get_offset(TypeMatch tm) {
         if (where == NOWHERE)
             throw INTERNAL_ERROR;
@@ -379,17 +341,6 @@ public:
         return NULL;
     }
     
-    /*
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        // Only NOWHERE_MEMORY
-        TypeSpec ts = typesubst(role_ts, tm);
-        int o = offset.concretize(tm);
-        
-        x64->op(MOVQ, t.address + o + ROLE_WEAKREF_OFFSET, 0);
-        
-        ts.create(s, t + o, x64);
-    }
-    */
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         TypeSpec ts = typesubst(alloc_ts, tm);
         int o = offset.concretize(tm);
@@ -402,14 +353,6 @@ public:
         TypeSpec role_ts = typesubst(alloc_ts, tm);
         
         role_ts.init_vt(addr, role_data_offset, vt_label, role_virtual_offset, x64);
-    }
-    
-    Function *lookup_role_method(TypeMatch tm, std::string n, std::vector<Role *> &roles) {
-        roles.push_back(this);
-        
-        TypeSpec role_ts = typesubst(alloc_ts, tm);
-        
-        return role_ts.lookup_method(n, roles);
     }
 };
 
@@ -464,10 +407,6 @@ public:
         inner_scope->allocate();
     }
 
-    virtual void set_virtual_entry(int i, Function *f) {
-        parent_role->set_virtual_entry(i, f);
-    }
-    
     virtual Identifier *get_original_identifier(std::string n) {
         Identifier *i = Role::get_original_identifier(n);
         
@@ -477,6 +416,7 @@ public:
             return original_role->get_original_identifier(n);
     }
 };
+
 
 Declaration *make_shadow_role(Role *orole, Role *prole) {
     return new ShadowRole(orole, prole);

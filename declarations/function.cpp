@@ -67,14 +67,6 @@ public:
         return arg_names;
     }
 
-    /*
-    virtual int set_self_adjustment(Allocation alloc) {
-        self_adjustment = alloc;
-        virtual_index = implemented_function->virtual_index;
-        return virtual_index;
-    }
-    */
-    
     virtual void allocate() {
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
         
@@ -88,7 +80,7 @@ public:
             else {
                 // Copying it is necessary, as overriding functions can only get it from each other
                 virtual_index = implemented_function->virtual_index;
-                containing_role->set_virtual_entry(virtual_index, this);
+                ds->set_virtual_entry(virtual_index, this);
                 std::cerr << "Set virtual index " << virtual_index << " for function " << name << ".\n";
             }
         }

@@ -270,11 +270,9 @@ public:
             if (!descend_into_explicit_scope(n, scope))  // Modifies both arguments
                 return NULL;
                 
-            DataScope *ds = ptr_cast<DataScope>(scope);
-            Role *containing_role = ds->get_role();
-            //int containing_role_offset = containing_role->compute_offset(tm);
+            RoleScope *rs = ptr_cast<RoleScope>(scope);
+            Role *containing_role = rs->get_role();
             Identifier *original_identifier = containing_role->get_original_identifier(n);
-            //Function *original_function = ptr_cast<Function>(original_identifier);
 
             Value *role_value = make_role_value(containing_role, v, tm);
             Value *fcv = original_identifier->matched(role_value, tm);
@@ -292,76 +290,6 @@ public:
         
         return value;
     }
-    /*
-    Function *lookup_method(TypeMatch tm, std::string n, std::vector<Role *> &roles) {
-        auto pos = n.find(".");
-        
-        if (pos != std::string::npos) {
-            std::string scope_name = n.substr(0, pos);
-            n = n.substr(pos + 1);
-            
-            for (auto &d : inner_scope->contents) {
-                Role *role = ptr_cast<Role>(d.get());
-                
-                if (role && role->name == n)
-                    return role->lookup_role_method(tm, n, roles);
-            }
-            
-            return NULL;
-        }
-        
-        for (auto &d : inner_scope->contents) {
-            Function *f = ptr_cast<Function>(d.get());
-            
-            if (f && f->name == n && f->type == GENERIC_FUNCTION && !f->override_function)
-                return f;
-        }
-        
-        if (base_role)
-            return base_role->lookup_role_method(tm, n, roles);
-        
-        return NULL;
-    }
-    */
-    /*
-    virtual void pull_roles(Scope *target_scope) {
-        for (auto &d : inner_scope->contents) {
-            Role *r = ptr_cast<Role>(d.get());
-            
-            if (r)
-                target_scope->add(new ShadowRole(r))
-        }
-    }
-    */
-    /*
-    InheritedMethods inherit(Role *role) {
-        InheritedMethods ims;
-        int base_prefix_length = (base_role ? base_role->name.size() + 1 : 0);
-        
-        for (auto &kv : inherited_methods) {
-            std::string canonical_name = kv.first;
-            InheritedMethod im = kv.second;
-            
-            std::string new_name = (
-                im.roles.back() == base_role ?
-                role->name + "." + canonical_name.substr(base_prefix_length) :
-                role->name + "." + canonical_name
-            );
-                
-            im.roles.push_back(role);
-            ims[new_name] = im;
-        }
-        
-        for (auto &c : inner_scope->contents) {
-            Function *f = ptr_cast<Function>(c.get());
-            
-            // TODO: introduce OVERRIDE_FUNCTION?
-            if (f && f->type == GENERIC_FUNCTION && f->name.find(".") == std::string::npos) {
-            
-            }
-        }
-    }
-    */
 };
 
 

@@ -256,17 +256,6 @@ public:
                 ts = var->alloc_ts;
         }
 
-        if (scope->type == DATA_SCOPE) {
-            Role *containing_role = ptr_cast<DataScope>(scope)->get_role();
-            
-            if (containing_role) {
-                Function *f = ptr_cast<Function>(decl);
-                
-                if (!f->set_containing_role(containing_role))
-                    return false;
-            }
-        }
-        
         return true;
     }
 

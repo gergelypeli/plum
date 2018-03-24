@@ -231,11 +231,6 @@ Value *TypeSpec::lookup_inner(std::string name, Value *pivot) {
 }
 
 
-Function *TypeSpec::lookup_method(std::string name, std::vector<Role *> &roles) {
-    return at(0)->lookup_method(match(), name, roles);
-}
-
-
 DataScope *TypeSpec::get_inner_scope() {
     return at(0)->get_inner_scope(match());
 }
