@@ -86,8 +86,10 @@ public:
                 std::cerr << "Reserved new virtual index " << virtual_index << " for function " << name << ".\n";
             }
             else {
-                containing_role->set_virtual_entry(implemented_function->virtual_index, this);
-                std::cerr << "Set virtual index " << implemented_function->virtual_index << " for function " << name << ".\n";
+                // Copying it is necessary, as overriding functions can only get it from each other
+                virtual_index = implemented_function->virtual_index;
+                containing_role->set_virtual_entry(virtual_index, this);
+                std::cerr << "Set virtual index " << virtual_index << " for function " << name << ".\n";
             }
         }
     }

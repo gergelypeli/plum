@@ -123,15 +123,31 @@ Base? :Class as:
         prints("The base is finalized.")
 
 
+Derived? :Class as:
+    base? :Role Base
+    derived_value? Integer
+    
+    derived_init? :Initializer as:
+        $ base ?base_init
+        $ derived_value ?= 1000
+        prints("The derived is initialized.")
+        
+    base.base_method? :Function as:
+        prints("Derived base_method, the base value is {x}." {x: $ base base_value})
+        $ base.base_method
+        
+    ? :Finalizer as:
+        prints("The derived is finalized.")
+        
+
 Greetable? :Class as:
-    base? :Base Base
+    derived? :Role Derived
 
     init? :Initializer as:
-        $ base ?base_init
+        $ derived ?derived_init
         
         $ number ?= 1
         $ name ?= "The Greetable"
-        #$ g? `null
         prints("I'm here as {x}." { x: $ name })
         
     second_init? :Initializer as:
@@ -143,14 +159,12 @@ Greetable? :Class as:
     ? :Finalizer as:
         prints("I'm outta here!")
 
-    base.base_method? :Function as:
-        prints("Although overridden, the base value is {x}." {x: $ base_value})
-        prints("Okay, let's call the base method, too.")
-        $ base.base_method
+    derived.base.base_method? :Function as:
+        prints("Greetable base_method, the base value is {x}." {x: $ derived base base_value})
+        $ derived.base.base_method
 
     number? Integer
     name? String
-    #g? Greetable
 
 
 twice? :Function from:
@@ -576,7 +590,7 @@ test_classes? :Function as:
     
     wgr = gr
     
-    gr base base_method
+    gr derived base base_method
     
     wt? Greetable Autoweakref `to(gr)
     

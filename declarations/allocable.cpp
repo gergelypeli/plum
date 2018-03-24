@@ -361,7 +361,7 @@ public:
     virtual void compute_match(TypeMatch &tm) {
         // Outward just pass the initial tm for the class scope
         if (parent_role)
-            parent_role->compute_offset(tm);
+            parent_role->compute_match(tm);
         
         // Inward update the match for the inner roles
         TypeSpec ts = typesubst(alloc_ts, tm);
@@ -444,13 +444,15 @@ public:
     Role *original_role;
     
     ShadowRole(Role *orole, Role *prole)
-        :Role(orole->name, orole->pivot_ts, orole->alloc_ts, orole->inner_scope) {
+        :Role(orole->name, prole->pivot_ts, orole->alloc_ts, orole->inner_scope) {
+        // NOTE: the pivot is from the parent role, not the original one, as all overriding
+        // methods have our implementing type for pivot
         original_role = orole;
         parent_role = prole;
     }
 
     virtual void allocate() {
-        Role::allocate();
+        Allocable::allocate();
         
         where = original_role->where;
         offset = original_role->offset;
@@ -458,6 +460,8 @@ public:
         
         if (where == NOWHERE)
             throw INTERNAL_ERROR;
+            
+        inner_scope->allocate();
     }
 
     virtual void set_virtual_entry(int i, Function *f) {
