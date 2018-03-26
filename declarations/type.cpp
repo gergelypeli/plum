@@ -242,7 +242,7 @@ public:
         return inner_scope;
     }
     
-    virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
+    virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         throw INTERNAL_ERROR;
     }
 
@@ -388,7 +388,7 @@ public:
         return tm[1].lookup_matcher(n, pivot);
     }
 
-    virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
+    virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return tm[1].get_virtual_table();
     }
 

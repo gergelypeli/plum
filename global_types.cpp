@@ -148,7 +148,7 @@ int TypeSpec::measure_where(StorageWhere where) {
 }
 
 
-std::vector<Function *> TypeSpec::get_virtual_table() {
+std::vector<VirtualEntry *> TypeSpec::get_virtual_table() {
     return at(0)->get_virtual_table(match());
 }
 

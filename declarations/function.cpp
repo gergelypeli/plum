@@ -4,7 +4,7 @@ enum FunctionType {
 };
 
     
-class Function: public Identifier {
+class Function: public Identifier, public VirtualEntry {
 public:
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
@@ -72,7 +72,7 @@ public:
         
         if (ds && ds->is_virtual_scope() && type == GENERIC_FUNCTION) {
             if (!containing_role) {
-                std::vector<Function *> vt;
+                std::vector<VirtualEntry *> vt;
                 vt.push_back(this);
                 virtual_index = ds->virtual_reserve(vt);
                 std::cerr << "Reserved new virtual index " << virtual_index << " for function " << name << ".\n";
@@ -84,6 +84,15 @@ public:
                 std::cerr << "Set virtual index " << virtual_index << " for function " << name << ".\n";
             }
         }
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        // We're not yet ready to compile templated functions
+        if (tm[1] != NO_TS)
+            throw INTERNAL_ERROR;
+            
+        //std::cerr << "Function entry " << name << ".\n";
+        return x64_label;
     }
     
     virtual bool does_implement(TypeMatch tm, Function *iff, TypeMatch iftm) {

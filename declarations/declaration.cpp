@@ -62,6 +62,14 @@ public:
 };
 
 
+class VirtualEntry {
+public:
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+};
+
+
 #include "scope.cpp"
 #include "identifier.cpp"
 #include "allocable.cpp"

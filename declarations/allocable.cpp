@@ -243,7 +243,7 @@ static Declaration *make_shadow_role(Role *orole, Role *prole);
 
 class Role: public Allocable {
 public:
-    int virtual_offset;
+    int virtual_offset;  // FIXME: not nice, also kept in the RoleScope!
     DataScope *inner_scope;
     Scope *original_scope;
     Role *parent_role;
@@ -295,8 +295,7 @@ public:
         offset = outer_scope->reserve(a);
         offset.bytes += ROLE_HEADER_SIZE;
         
-        DataScope *ds = ptr_cast<DataScope>(outer_scope);
-        virtual_offset = ds->virtual_reserve(alloc_ts.get_virtual_table());
+        virtual_offset = inner_scope->virtual_reserve(alloc_ts.get_virtual_table());
 
         inner_scope->allocate();
     }
@@ -400,6 +399,7 @@ public:
         where = original_role->where;
         offset = original_role->offset;
         virtual_offset = original_role->virtual_offset;
+        ptr_cast<RoleScope>(inner_scope)->virtual_offset = virtual_offset;
         
         if (where == NOWHERE)
             throw INTERNAL_ERROR;

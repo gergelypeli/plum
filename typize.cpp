@@ -4,6 +4,8 @@
 const char NO_EXCEPTION = 0;
 const char RETURN_EXCEPTION = -1;
 
+class VirtualEntry;
+
 class Declaration;
 class Allocable;
 class Variable;
@@ -373,8 +375,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             value = make_equality_matcher_value(equality);
         }
         else {
-            if (p->ts.rvalue()[0] == ref_type)
-                p = make_reference_weaken_value(p);
+            // Allow only class cast matchers, not methods
+            //if (p->ts.rvalue()[0] == ref_type)
+            //    p = make_reference_weaken_value(p);
                 
             value = p->ts.lookup_matcher(name, p);
         }

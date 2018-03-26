@@ -97,7 +97,7 @@ class DataScope: public Scope {
 public:
     TypeSpec pivot_ts;
     Scope *meta_scope;
-    std::vector<Function *> virtual_table;
+    std::vector<VirtualEntry *> virtual_table;
     bool am_virtual_scope;
     
     DataScope()
@@ -155,42 +155,52 @@ public:
         return pivot_ts;
     }
 
-    virtual int virtual_reserve(std::vector<Function *> vt) {
+    virtual int virtual_reserve(std::vector<VirtualEntry *> vt) {
         int virtual_index = virtual_table.size();
         virtual_table.insert(virtual_table.end(), vt.begin(), vt.end());
         return virtual_index;
     }
     
-    virtual std::vector<Function *> get_virtual_table() {
+    virtual std::vector<VirtualEntry *> get_virtual_table() {
         return virtual_table;
     }
     
-    virtual void set_virtual_entry(int i, Function *f) {
-        std::cerr << "DataScope setting virtual entry " << i << ".\n";
-        virtual_table[i] = f;
+    virtual void set_virtual_entry(int i, VirtualEntry *entry) {
+        //std::cerr << "DataScope setting virtual entry " << i << ".\n";
+        virtual_table[i] = entry;
     }
 };
 
 
 class RoleScope: public DataScope {
 public:
-    Role *role;  // TODO: subclass instead!
+    Role *role;
+    int virtual_offset;
 
     RoleScope(Role *r)
         :DataScope() {
         role = r;
+        virtual_offset = -1;
     }
 
     virtual Role *get_role() {
         return role;
     }
     
-    virtual int virtual_reserve(std::vector<Function *> vt) {
-        return ptr_cast<DataScope>(outer_scope)->virtual_reserve(vt);
+    virtual int virtual_reserve(std::vector<VirtualEntry *> vt) {
+        if (virtual_offset != -1)
+            throw INTERNAL_ERROR;
+            
+        virtual_offset = ptr_cast<DataScope>(outer_scope)->virtual_reserve(vt);
+        
+        return virtual_offset;
     }
     
-    virtual void set_virtual_entry(int i, Function *f) {
-        ptr_cast<DataScope>(outer_scope)->set_virtual_entry(i, f);
+    virtual void set_virtual_entry(int i, VirtualEntry *entry) {
+        if (virtual_offset == -1)
+            throw INTERNAL_ERROR;
+            
+        ptr_cast<DataScope>(outer_scope)->set_virtual_entry(virtual_offset + i, entry);
     }
 };
 

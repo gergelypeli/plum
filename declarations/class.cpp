@@ -1,20 +1,11 @@
-/*
-struct InheritedMethod {
-    std::vector<Role *> roles;
-    Function *function;
-};
 
-typedef std::map<std::string, InheritedMethod> InheritedMethods;
-*/
-
-class ClassType: public HeapType {
+class ClassType: public HeapType, public VirtualEntry {
 public:
     std::vector<Allocable *> member_allocables;  // FIXME: not necessary Variables
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
     Function *finalizer_function;
     BaseRole *base_role;
-    //InheritedMethods inherited_methods;
 
     ClassType(std::string name, TTs param_tts)
         :HeapType(name, param_tts) {
@@ -62,10 +53,27 @@ public:
     virtual void allocate() {
         // Let the base be allocated first, then it will skip itself
         
-        if (base_role)
+        if (base_role) {
             base_role->allocate();
+            inner_scope->set_virtual_entry(0, this);
+        }
+        else {
+            std::vector<VirtualEntry *> vt = { this };
+            inner_scope->virtual_reserve(vt);
+        }
             
         HeapType::allocate();
+    }
+
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        // This must point to our base type's virtual table, or NULL
+        
+        if (base_role)
+            return typesubst(base_role->alloc_ts, tm).get_virtual_table_label(x64);
+        else {
+            //std::cerr << "Class " << tm << " has no base.\n";
+            return x64->zero_label;
+        }
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -178,7 +186,7 @@ public:
         return member_names;
     }
 
-    virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
+    virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return inner_scope->get_virtual_table();
     }
 
@@ -191,16 +199,19 @@ public:
     }
     
     static void compile_virtual_table(Label label, TypeSpec ts, X64 *x64) {
-        std::vector<Function *> vt = ts.get_virtual_table();
+        std::vector<VirtualEntry *> vt = ts.get_virtual_table();
+        TypeMatch tm = type_parameters_to_match(ts);
 
         x64->data_align();
-        x64->data_label_local(label, "x_virtual_table");  // FIXME: ambiguous name!
+        
+        std::stringstream ss;
+        ss << ts[0]->name << "_virtual_table";
+        x64->data_label_local(label, ss.str());
 
-        for (auto f : vt) {
-            if (f)
-                x64->data_reference(f->x64_label);
-            else
-                x64->data_qword(0);  // data references are now 64-bit absolute addresses
+        for (auto entry : vt) {
+            Label l = entry->get_virtual_entry_label(tm, x64);
+            //std::cerr << "Virtual entry of " << ts[0]->name << " is " << l.def_index << ".\n";
+            x64->data_reference(l);
         }
     }
     
@@ -289,6 +300,10 @@ public:
         }
         
         return value;
+    }
+
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v) {
+        return make_class_matcher_value(n, v);
     }
 };
 

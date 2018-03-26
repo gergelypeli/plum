@@ -78,6 +78,8 @@ Address Address::operator + (int x) {
 
 
 X64::X64() {
+    add_def(zero_label, Def(DEF_ABSOLUTE_EXPORT, 0, 0, "ABSOLUTE_ZERO", false));
+
     code_label_import(memalloc_label, "memalloc");
     code_label_import(memfree_label, "memfree");
     code_label_import(memrealloc_label, "memrealloc");
@@ -175,7 +177,6 @@ void X64::done(std::string filename) {
                 break;
             case DEF_DATA:
             case DEF_DATA_EXPORT:
-                //*(int *)&code[r.location] += d.location - 4;
                 ork->code_relocation(data_symbol_index, r.location, d.location - 4);
                 break;
             default:
@@ -186,14 +187,16 @@ void X64::done(std::string filename) {
             
         case REF_DATA_ABSOLUTE:
             switch (d.type) {
+            case DEF_ABSOLUTE:
+            case DEF_ABSOLUTE_EXPORT:
+                *(long *)&data[r.location] = d.location;
+                break;
             case DEF_DATA_EXPORT:
             case DEF_DATA:
-                //*(long *)&data[r.location] += d.location;
                 ork->data_relocation(data_symbol_index, r.location, d.location);
                 break;
             case DEF_CODE:
             case DEF_CODE_EXPORT:
-                //*(long *)&data[r.location] += d.location;
                 ork->data_relocation(code_symbol_index, r.location, d.location);
                 break;
             default:

@@ -340,6 +340,11 @@ Value *make_string_regexp_matcher_value(Value *p, TypeMatch &match) {
 }
 
 
+Value *make_class_matcher_value(std::string name, Value *pivot) {
+    return new ClassMatcherValue(name, pivot);
+}
+
+
 // Declaration operations
 
 Declaration *make_record_compare() {

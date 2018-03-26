@@ -136,15 +136,16 @@ struct Regs {
 
 struct Label {
 private:
-    Label(int) {}  // Fuck
+    Label(int x) { def_index = x; }  // Fuck
+    Label(void *) {}  // Fuuuck
     
 public:
     unsigned def_index;
     
-    Label(bool leave_uninitialized = false) {
+    Label() {
         static unsigned last_def_index = 0;
         
-        def_index = leave_uninitialized ? 0 : ++last_def_index;
+        def_index = ++last_def_index;
         
         //if (def_index == 1675)
         //    abort();
@@ -391,6 +392,7 @@ public:
     std::vector<Ref> refs;
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
+    Label zero_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
     Label finalize_label, alloc_fcb_label, free_fcb_label, finalize_reference_array_label, string_regexp_match_label;

@@ -202,16 +202,17 @@ public:
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
-        std::cerr << "Matchers must be looked up by weak reference!\n";
-        throw INTERNAL_ERROR;
-        //return tm[1].lookup_matcher(name, pivot);
+        return tm[1].lookup_matcher(name, pivot);
+        //return make_reference_conversion_value(name, pivot);
+        //std::cerr << "Matchers must be looked up by weak reference!\n";
+        //throw INTERNAL_ERROR;
     }
 
     virtual DataScope *get_inner_scope(TypeMatch tm) {
         return tm[1].get_inner_scope();
     }
 
-    virtual std::vector<Function *> get_virtual_table(TypeMatch tm) {
+    virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return tm[1].get_virtual_table();
     }
 
@@ -239,9 +240,9 @@ public:
         x64->decweakref(r);
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
-        return tm[1].lookup_matcher(name, pivot);
-    }
+    //virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
+    //    return tm[1].lookup_matcher(name, pivot);
+    //}
 };
 
 

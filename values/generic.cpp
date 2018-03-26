@@ -235,33 +235,30 @@ public:
             break;
         case STACK: {
             if (right->ts.where(AS_VALUE) == REGISTER) {
-                if (!rclob.has_any())
-                    throw INTERNAL_ERROR;
-                    
-                Storage s(REGISTER, rclob.get_any());
-                right->ts.store(rs, s, x64);
-                rs = s;
+                if (rclob.has_any()) {
+                    Storage s(REGISTER, rclob.get_any());
+                    right->ts.store(rs, s, x64);
+                    rs = s;
+                }
             }
             }
             break;
         case MEMORY:
             break;
         case ALISTACK: {
-            if (!rclob.has_any())
-                throw INTERNAL_ERROR;
-
-            Storage s(MEMORY, Address(rclob.get_any(), 0));
-            right->ts.store(rs, s, x64);
-            rs = s;
+            if (rclob.has_any()) {
+                Storage s(MEMORY, Address(rclob.get_any(), 0));
+                right->ts.store(rs, s, x64);
+                rs = s;
+            }
             }
             break;
         case ALIAS: {
-            if (!rclob.has_any())
-                throw INTERNAL_ERROR;
-                
-            Storage s(MEMORY, Address(rclob.get_any(), 0));
-            right->ts.store(rs, s, x64);
-            rs = s;
+            if (rclob.has_any()) {
+                Storage s(MEMORY, Address(rclob.get_any(), 0));
+                right->ts.store(rs, s, x64);
+                rs = s;
+            }
             }
             break;
         default:

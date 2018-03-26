@@ -578,7 +578,7 @@ test_options? :Function as:
         prints("It contained some.")
             
 
-test_classes? :Function as:
+test_classes? :Function Greetable Ref as:
     gr? Greetable Ref `second_init
     gr greet
     
@@ -591,6 +591,17 @@ test_classes? :Function as:
     wgr = gr
     
     gr derived base base_method
+    
+    bs? gr derived base
+    
+    :is gr ~Greetable then:
+        prints("Huh, greetable is Greetable.")
+
+    :is gr ~Base then:
+        prints("WAT, greetable is Base.")
+
+    :is bs ~Greetable then:
+        prints("WAT, base is Greetable.")
     
     wt? Greetable Autoweakref `to(gr)
     
@@ -628,11 +639,16 @@ test_classes? :Function as:
 
     killer? Greetable Ref `init
     wgr = killer
+    bs = killer derived base
     gr = killer
     gr2 = killer
 
     prints("wvm length became {x}" {x: wvm length})
     prints("wim length became {x}" {x: wim length})
+
+    # Must return this so that all local references can be destroyed before the
+    # killer is finalized    
+    :return killer
 
 
 start? :Function as:
