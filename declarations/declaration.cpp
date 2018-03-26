@@ -23,6 +23,10 @@ public:
         outer_scope = os;
     }
 
+    virtual bool is_called(std::string name) {
+        return false;
+    }
+
     virtual Value *match(std::string name, Value *pivot) {
         return NULL;
     }

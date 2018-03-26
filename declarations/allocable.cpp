@@ -243,18 +243,14 @@ static Declaration *make_shadow_role(Role *orole, Role *prole);
 
 class Role: public Allocable {
 public:
-    int virtual_offset;  // FIXME: not nice, also kept in the RoleScope!
     DataScope *inner_scope;
-    Scope *original_scope;
     Role *parent_role;
     
-    Role(std::string name, TypeSpec pts, TypeSpec rts, Scope *os)
+    Role(std::string name, TypeSpec pts, TypeSpec rts, DataScope *original_scope)
         :Allocable(name, pts, rts) {
-        virtual_offset = -1;
-        original_scope = os;
         parent_role = NULL;
         
-        inner_scope = new RoleScope(this);  // we won't look up from the inside
+        inner_scope = new RoleScope(this, original_scope);  // we won't look up from the inside
         inner_scope->be_virtual_scope();
         inner_scope->set_pivot_type_hint(pts);
 
@@ -295,7 +291,7 @@ public:
         offset = outer_scope->reserve(a);
         offset.bytes += ROLE_HEADER_SIZE;
         
-        virtual_offset = inner_scope->virtual_reserve(alloc_ts.get_virtual_table());
+        inner_scope->virtual_reserve(alloc_ts.get_virtual_table());
 
         inner_scope->allocate();
     }
@@ -329,17 +325,6 @@ public:
         tm = type_parameters_to_match(ts);
     }
     
-    virtual Identifier *get_original_identifier(std::string n) {
-        for (auto &d : original_scope->contents) {
-            Identifier *i = ptr_cast<Identifier>(d.get());
-            
-            if (i && i->name == n)
-                return i;
-        }
-        
-        return NULL;
-    }
-    
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         TypeSpec ts = typesubst(alloc_ts, tm);
         int o = offset.concretize(tm);
@@ -348,7 +333,7 @@ public:
     
     virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
         int role_data_offset = data_offset + get_offset(tm);
-        int role_virtual_offset = virtual_offset + this->virtual_offset;
+        int role_virtual_offset = virtual_offset + ptr_cast<RoleScope>(inner_scope)->virtual_offset;
         TypeSpec role_ts = typesubst(alloc_ts, tm);
         
         role_ts.init_vt(addr, role_data_offset, vt_label, role_virtual_offset, x64);
@@ -358,7 +343,7 @@ public:
 
 class BaseRole: public Role {
 public:
-    BaseRole(std::string name, TypeSpec pts, TypeSpec rts, Scope *os)
+    BaseRole(std::string name, TypeSpec pts, TypeSpec rts, DataScope *os)
         :Role(name, pts, rts, os) {
     }
     
@@ -398,22 +383,12 @@ public:
         
         where = original_role->where;
         offset = original_role->offset;
-        virtual_offset = original_role->virtual_offset;
-        ptr_cast<RoleScope>(inner_scope)->virtual_offset = virtual_offset;
+        ptr_cast<RoleScope>(inner_scope)->virtual_offset = ptr_cast<RoleScope>(original_role->inner_scope)->virtual_offset;
         
         if (where == NOWHERE)
             throw INTERNAL_ERROR;
             
         inner_scope->allocate();
-    }
-
-    virtual Identifier *get_original_identifier(std::string n) {
-        Identifier *i = Role::get_original_identifier(n);
-        
-        if (i)
-            return i;
-        else
-            return original_role->get_original_identifier(n);
     }
 };
 

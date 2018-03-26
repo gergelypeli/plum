@@ -12,7 +12,7 @@ public:
     TypeSpec pivot_ts;
     Variable *self_var;
     TypeMatch match;
-    Role *containing_role;
+    RoleScope *role_scope;
 
     FunctionType type;
     Function *function;  // If declared with a name, which is always, for now
@@ -25,15 +25,13 @@ public:
         deferred_body_expr = NULL;
         may_be_aborted = false;
         self_var = NULL;
-        containing_role = NULL;
+        role_scope = NULL;
         fn_scope = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        RoleScope *role_scope = ptr_cast<RoleScope>(scope);
-        
-        if (role_scope)
-            containing_role = role_scope->get_role();
+        // For later
+        role_scope = ptr_cast<RoleScope>(scope);
         
         fn_scope = new FunctionScope();
         scope->add(fn_scope);
@@ -70,6 +68,13 @@ public:
                     self_var = new Variable("$", NO_TS, pivot_ts);
                 
                 ss->add(self_var);
+                
+                if (role_scope) {
+                    // Function overrides must pretend they take the role pivot type
+                    TypeMatch tm = type_parameters_to_match(pivot_ts);
+                    role_scope->get_role()->compute_match(tm);
+                    pivot_ts = tm[0].prefix(weakref_type);
+                }
             }
         }
 
@@ -203,7 +208,7 @@ public:
         unsigned frame_size = fn_scope->get_frame_size();
         //Label epilogue_label = fn_scope->get_epilogue_label();
 
-        int containing_role_offset = function->get_containing_role_offset(match);
+        int containing_role_offset = (role_scope ? role_scope->get_role()->compute_offset(match) : 0);
         if (containing_role_offset)
             std::cerr << "Function body of " << function->name << " has containing role offset " << containing_role_offset << ".\n";
         
@@ -308,8 +313,8 @@ public:
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
 
-        if (containing_role) {
-            if (!function->set_containing_role(containing_role))
+        if (role_scope) {
+            if (!function->set_role_scope(role_scope))
                 return NULL;
         }
 

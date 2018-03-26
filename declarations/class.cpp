@@ -283,10 +283,16 @@ public:
                 
             RoleScope *rs = ptr_cast<RoleScope>(scope);
             Role *containing_role = rs->get_role();
-            Identifier *original_identifier = containing_role->get_original_identifier(n);
+            Declaration *original_declaration = rs->get_original_declaration(n);
 
             Value *role_value = make_role_value(containing_role, v, tm);
-            Value *fcv = original_identifier->matched(role_value, tm);
+            Value *fcv = original_declaration->match(n, role_value);
+            
+            if (!fcv) {
+                std::cerr << "Excplicit lookup of " << n << " failed the match!\n";
+                throw INTERNAL_ERROR;
+            }
+            
             function_call_be_static(fcv);
             
             return fcv;

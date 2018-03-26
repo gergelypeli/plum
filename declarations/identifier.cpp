@@ -12,7 +12,11 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual Value *matched(Value *, TypeMatch &match) {
+    virtual bool is_called(std::string n) {
+        return n == name;
+    }
+
+    virtual Value *matched(Value *pivot, TypeMatch &match) {
         std::cerr << "Unmatchable identifier!\n";
         throw INTERNAL_ERROR;
     }
@@ -32,8 +36,10 @@ public:
         else {
             if (typematch(pivot_ts, pivot, match))
                 return matched(pivot, match);
-            else
+            else {
+                std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";
                 return NULL;
+            }
         }
     }
 };

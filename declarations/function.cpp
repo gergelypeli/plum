@@ -127,11 +127,11 @@ public:
         return true;
     }
 
-    virtual bool set_containing_role(Role *role) {
-        containing_role = role;
+    virtual bool set_role_scope(RoleScope *rs) {
+        containing_role = rs->get_role();
         
-        Identifier *original_identifier = containing_role->get_original_identifier(name);
-        Function *original_function = ptr_cast<Function>(original_identifier);
+        Declaration *original_declaration = rs->get_original_declaration(name);
+        Function *original_function = ptr_cast<Function>(original_declaration);
         
         if (!original_function) {
             std::cerr << "No original function " << name << "!\n";
@@ -144,9 +144,9 @@ public:
         return does_implement(TypeMatch(), original_function, role_tm);
     }
 
-    virtual int get_containing_role_offset(TypeMatch tm) {
-        return (containing_role ? containing_role->compute_offset(tm) : 0);
-    }
+    //virtual int get_containing_role_offset(TypeMatch tm) {
+    //    return (containing_role ? containing_role->compute_offset(tm) : 0);
+    //}
 };
 
 

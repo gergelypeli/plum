@@ -175,11 +175,13 @@ public:
 class RoleScope: public DataScope {
 public:
     Role *role;
+    DataScope *original_scope;
     int virtual_offset;
 
-    RoleScope(Role *r)
+    RoleScope(Role *r, DataScope *os)
         :DataScope() {
         role = r;
+        original_scope = os;
         virtual_offset = -1;
     }
 
@@ -201,6 +203,20 @@ public:
             throw INTERNAL_ERROR;
             
         ptr_cast<DataScope>(outer_scope)->set_virtual_entry(virtual_offset + i, entry);
+    }
+    
+    virtual Declaration *get_original_declaration(std::string n) {
+        for (auto &d : original_scope->contents) {
+            if (d->is_called(n))
+                return d.get();
+        }
+        
+        RoleScope *rs = ptr_cast<RoleScope>(original_scope);
+        
+        if (rs)
+            return rs->get_original_declaration(n);
+            
+        return NULL;
     }
 };
 
