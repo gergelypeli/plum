@@ -144,19 +144,18 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     // We must scope ourselves
     CodeScope *code_scope = new CodeScope;
     scope->add(code_scope);
-    //scope = s;
     
     CodeBlockValue *block = new CodeBlockValue(NULL);
     
-    DeclarationValue *dv = make_declaration_by_value("<interpolated>", new StringBufferValue(100), code_scope);
-    Variable *interpolated_var = dv->get_var();
-    block->add_statement(dv);
+    CreateValue *cv = make_initialization_by_value("<interpolated>", new StringBufferValue(100), code_scope);
+    Variable *interpolated_var = ptr_cast<Variable>(cv->get_decl());
+    block->add_statement(cv);
 
     for (auto &kv : expr->kwargs) {
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
         Value *keyword_value = typize(expr, code_scope);
-        DeclarationValue *decl_value = make_declaration_by_value(keyword, keyword_value, code_scope);
+        CreateValue *decl_value = make_initialization_by_value(keyword, keyword_value, code_scope);
         block->add_statement(decl_value);
     }
 
@@ -207,7 +206,6 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
 
     TypeMatch match;  // kinda unnecessary
     Value *ret = make_variable_value(interpolated_var, NULL, match);
-    //ret = new StringReallocValue(ret, match);
     ret = ret->lookup_inner("realloc");  // FIXME: missing check, but at least no arguments
     block->add_statement(ret, true);
     

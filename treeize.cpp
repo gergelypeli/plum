@@ -379,7 +379,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                     type = Node::IDENTIFIER;
                     bool dual = (op.precedence == ADDITIVE || op.precedence == MULTIPLICATIVE || op.precedence == EXPONENTIAL);
                     
-                    if (nodes.back().fore < UNARY) {
+                    if (nodes.back().fore < UNARY && !(nodes.back().fore == DECLARING && op.precedence == ASSIGNING)) {
                         // This operator either follows another, or the first one
                         // in an expression. We will treat it as a unary prefix operator,
                         // instead of nagging the user for using unreasonable parentheses.

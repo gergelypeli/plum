@@ -234,17 +234,29 @@ Value *make_comparison_value(BitSetOp bs, Value *v) {
 }
 
 
-DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope) {
+CreateValue *make_initialization_by_value(std::string name, Value *v, Scope *scope) {
+    Args fake_args;
+    Kwargs fake_kwargs;
+    
     DeclarationValue *dv = new DeclarationValue(name);
-    bool ok = dv->use(v, scope);
-    if (!ok)
+    dv->check(fake_args, fake_kwargs, scope);
+    
+    TypeMatch tm = { VOID_UNINITIALIZED_TS, VOID_TS };
+    CreateValue *cv = new CreateValue(dv, tm);
+    if (!cv->use(v, scope))
         throw INTERNAL_ERROR;
-    return dv;
+    
+    return cv;
 }
 
 
 Declaration *declaration_get_decl(DeclarationValue *dv) {
     return dv->get_decl();
+}
+
+
+bool declaration_use(DeclarationValue *dv, Value *v, Scope *s) {
+    return dv->use(v, s);
 }
 
 
@@ -628,6 +640,12 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         // These can't interfere with references
         if (*s == void_type)
             return true;
+
+        if (*s == uninitialized_type) {
+            MATCHLOG std::cerr << "No match, Uninitialized for Void!\n";
+            std::cerr << "Uninitialized value dropped on the floor!\n";
+            return false;
+        }
 
         value = make_void_conversion_value(value);
         return true;

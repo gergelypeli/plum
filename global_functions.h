@@ -6,6 +6,7 @@ template <class T, class S> T *ptr_cast(S *s) {
 // Value wrappers
 
 Declaration *declaration_get_decl(DeclarationValue *dv);
+bool declaration_use(DeclarationValue *dv, Value *v, Scope *s);
 PartialVariable *partial_variable_get_pv(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
@@ -96,4 +97,4 @@ Value *make_weakanchorage_live_matcher_value(Value *p, TypeMatch &match);
 Value *make_string_regexp_matcher_value(Value *p, TypeMatch &match);
 Value *make_class_matcher_value(std::string name, Value *pivot);
 
-DeclarationValue *make_declaration_by_value(std::string name, Value *v, Scope *scope);
+CreateValue *make_initialization_by_value(std::string name, Value *v, Scope *scope);

@@ -33,6 +33,7 @@ class FunctionScope;
 
 class Value;
 class DeclarationValue;
+class CreateValue;
 class GenericValue;
 class PartialVariableValue;
 class FunctionReturnValue;
@@ -237,17 +238,17 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         TypeSpec ts;
         
         if (p) {
-            if (p->ts[0] == type_type)
+            if (p->ts[0] == type_type) {
                 ts = p->ts.unprefix(type_type);
+                context = &ts;
+            }
             else {
                 std::cerr << "Control with nontype context!\n";
                 throw TYPE_ERROR;
             }
         }
-        else if (context)
-            ts = *context;
         
-        value = lookup(name, NULL, expr, scope, &ts);
+        value = lookup(name, NULL, expr, scope, context);
 
         if (!value)
             throw TYPE_ERROR;
@@ -398,7 +399,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
     }
     else if (expr->type == Expr::NUMBER) {
-        TypeSpec ts = {
+        Type *t = (
             ends_with(expr->text, "s32") ? integer32_type :
             ends_with(expr->text, "s16") ? integer16_type :
             ends_with(expr->text, "s8") ? integer8_type :
@@ -407,9 +408,19 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             ends_with(expr->text, "u8") ? unsigned_integer8_type :
             ends_with(expr->text, "u") ? unsigned_integer_type :
             integer_type
-        };
+        );
+        
+        if (context && t == integer_type) {
+            t = (*context)[0];
+            t = (t == code_type || t == ovalue_type ? (*context)[1] : t);
+        
+            if (!ptr_cast<IntegerType>(t)) {
+                std::cerr << "Literal number in a noninteger " << *context << " context: " << expr->token << "\n";
+                throw TYPE_ERROR;
+            }
+        }
 
-        value = make_basic_value(ts, std::stoi(expr->text));
+        value = make_basic_value(TypeSpec { t }, std::stoi(expr->text));
         value->set_token(expr->token);
     }
     else if (expr->type == Expr::STRING) {
@@ -465,33 +476,41 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
         return false;
     }
 
-    if (*arg_infos[i].target) {
+    std::unique_ptr<Value> *target = arg_infos[i].target;
+    TypeSpec *context = arg_infos[i].context;
+    Scope *scope = arg_infos[i].scope;
+
+    if (*target) {
         std::cerr << "Argument " << i << " already supplied!\n";
         return false;
     }
 
+    // Allow callers turn off contexts this way
+    if (context && (*context)[0] == any_type)
+        context = NULL;
+
     CodeScope *code_scope = NULL;
     
-    if (arg_infos[i].context && (*arg_infos[i].context)[0] == code_type) {
+    if (context && (*context)[0] == code_type) {
         code_scope = new CodeScope;
         
         check_retros(i, code_scope, arg_infos);
         
-        arg_infos[i].scope->add(code_scope);
+        scope->add(code_scope);
     }
 
-    Value *v = typize(e, code_scope ? code_scope : arg_infos[i].scope, arg_infos[i].context);
+    Value *v = typize(e, code_scope ? code_scope : scope, context);
     TypeMatch match;
     
-    if (arg_infos[i].context && !typematch(*arg_infos[i].context, v, match, code_scope)) {
-        std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *arg_infos[i].context << "!\n";
+    if (context && !typematch(*context, v, match, code_scope)) {
+        std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *context << "!\n";
         return false;
     }
 
     if (code_scope && !code_scope->is_taken)
         throw INTERNAL_ERROR;
 
-    arg_infos[i].target->reset(v);
+    target->reset(v);
     return true;
 }
 

@@ -18,9 +18,8 @@ public:
         return this;
     }
 
-    virtual Value *set_context_ts(TypeSpec *c) {
+    virtual void set_context_ts(TypeSpec *c) {
         // Generally we don't need it, only in controls
-        return this;
     }
 
     bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {

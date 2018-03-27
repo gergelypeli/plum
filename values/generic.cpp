@@ -339,16 +339,76 @@ public:
 class CreateValue: public GenericValue {
 public:
     CreateValue(Value *l, TypeMatch &tm)
-        :GenericValue(tm[1], VOID_TS, l) {
+        :GenericValue(tm[1], tm[1].prefix(lvalue_type), l) {
+    }
+
+    virtual bool fix_bare(Scope *scope) {
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
+
+        TypeSpec implicit_ts = right->ts.rvalue().prefix(type_type);
+        std::cerr << "Fixing bare declaration with " << implicit_ts << ".\n";
+        Value *tv = make_type_value(implicit_ts);
+        
+        if (!declaration_use(dv, tv, scope))
+            return false;
+            
+        arg_ts = left->ts.unprefix(uninitialized_type);
+        ts = left->ts.reprefix(uninitialized_type, lvalue_type);
+        
+        return true;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        // Since the declared variable will be initialized in the final step, we
+        // should make it the last declaration in this scope, so it can be taken
+        // to its parent scope if necessary.
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
+        Declaration *d = NULL;
+        
+        if (dv) {
+            d = declaration_get_decl(dv);
+            
+            if (d)
+                scope->remove(d);
+            else
+                arg_ts = ANY_TS;
+        }
+        
+        if (!GenericValue::check(args, kwargs, scope))
+            return false;
+            
+        if (dv) {
+            if (d)
+                scope->add(d);
+            else {
+                if (!fix_bare(scope))
+                    return false;
+            }
+        }
+        
+        return true;
+    }
+
+    virtual bool use(Value *r, Scope *scope) {
+        right.reset(r);
+
+        return fix_bare(scope);
+    }
+    
+    virtual Declaration *get_decl() {
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
+
+        return (dv ? declaration_get_decl(dv) : NULL);
     }
     
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred);
+        return left->precompile(preferred) | right->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
         Storage ls = left->compile(x64);
         
+        // TODO: check that it can't be clobbered!
         if (ls.where != MEMORY)
             throw INTERNAL_ERROR;
             
@@ -356,6 +416,6 @@ public:
         
         arg_ts.create(rs, ls, x64);
         
-        return Storage();
+        return ls;
     }
 };

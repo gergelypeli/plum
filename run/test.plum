@@ -43,7 +43,7 @@ Pair? :Record as:
         
         
 make_pair? :Function Pair as:
-    p? Pair
+    p? Pair = {}
     p first = 11
     p second = 22
     :return p
@@ -172,7 +172,7 @@ twice? :Function from:
     what? Integer Code
 as:
     :try
-        sum? what(1) + what(2)
+        sum? = what(1) + what(2)
         prints("That was {sum}." {})
     or:
         prints("What failed!")
@@ -187,34 +187,34 @@ passthrough? :Function from: what? Integer Code as:
 test_integers? :Function as:
     printi(f(1, 2))
     
-    a? Integer
+    a? Integer = 0
     a = 2
-    b? Integer
+    b? Integer = 0
     b = 3
     
     :if a == b then: prints("a == b") else: prints("a != b")
     
     :if a < b && a > b then: prints("Huh?") else: prints("Huh.")
     
-    c? Integer
+    c? Integer = 0
     c = Integer :if a == b then: 100 else: 200
     prints("This should be 200: {c}" {})
 
-    d? 6u8
+    d? = 6u8
     d += 7u8
     d = d * d
     
     :if d then: prints("Yes, d is nonzero.")
 
     Myint? :Integer bytes: 8 is_unsigned: `false
-    myvar? Myint
+    myvar? Myint = 0
 
 
 test_strings? :Function as:
-    a? 1
+    a? = 1
     prints("Hello!")
 
-    s? "Szia!"
+    s? = "Szia!"
     prints(s)
 
     #c = 4
@@ -230,7 +230,7 @@ test_strings? :Function as:
 
     prints("s[3] is now '{c}'" { c: s[3] })
 
-    z? ""
+    z? = ""
     prints(z || "Ez tök 대박")
     
     :if z == String `empty then: prints("z is empty")
@@ -247,10 +247,10 @@ test_strings? :Function as:
     #(1, 2) + (3, 4)
 
     :if a == a then:
-        zz? "ZZ"
+        zz? = "ZZ"
         prints(zz)
     
-    prints((xx? "hi") + xx)
+    prints((xx? = "hi") + xx)
     
     prints(333 stringify)
 
@@ -261,17 +261,17 @@ test_strings? :Function as:
     prints("aba and ab compares as: {c}" { c: "aba" <=> "ab" })
     prints("aba is less than ab: {c}" { c: "aba" < "ab" })
 
-    chars? "BFADCE"
+    chars? = "BFADCE"
     prints("Unsorted: {chars}" {})
     chars chars sort
     prints("Sorted:   {chars}" {})
     
-    :is m? "foo" ~re ".*" then:
+    :is m? = "foo" ~re ".*" then:
         prints("Regexp matched as: {x}" {x: m[0]})
     else:
         prints("REGEXP NOT MATCHED!")
 
-    :is m? "this and that" ~re "(th[a-z]*).*(th[a-z]+)" then:
+    :is m? = "this and that" ~re "(th[a-z]*).*(th[a-z]+)" then:
         prints("Regexp matched as {x} and {y}" {x: m[1], y: m[2]})
     else:
         prints("REGEXP NOT MATCHED!")
@@ -281,7 +281,7 @@ test_enums? :Function as:
     Myenum? :Enumeration
         FOO, BAR, BAZ
 
-    fbb? Myenum `BAR
+    fbb? Myenum = `BAR
     :if fbb == `FOO then: prints("fbb is FOO") else: prints("fbb is not FOO")
 
     prints("fbb is actually {f}!" { f: fbb })
@@ -294,7 +294,7 @@ test_ovalues? :Function as:
 
 
 test_records? :Function as:
-    p? Pair
+    p? Pair = `new
 
     p first = 123
     p second = 456
@@ -304,7 +304,7 @@ test_records? :Function as:
     p = make_pair
     printi(p second)
     
-    q? Pair
+    q? Pair = `new
     q first = 123
     q second = 456
     :if p == q then: prints("Equal tuples.") else: prints("Inequal tuples.")
@@ -313,10 +313,10 @@ test_records? :Function as:
     
     p dump dump
     
-    r? Pair `new
+    r? Pair = `new
     r dump
     
-    s? Pair { second: 222 }
+    s? Pair = { second: 222 }
     s dump
 
     q first = 11
@@ -324,19 +324,19 @@ test_records? :Function as:
 
 
 test_multis? :Function as:
-    x1? Integer
-    x2? Integer
+    x1? Integer = 0
+    x2? Integer = 0
     (x1, x2) = double
     prints("Double returned {x1} and {x2}." {})
     (x1, x2) = (100, 101)
     prints("Double assigned {x1} and {x2}." {})
-    x3? Integer
+    x3? Integer = 0
     x3 = double
     prints("Scalarized to {x3}" {})
 
 
 test_controls? :Function as:
-    :repeat i? 0 on: i < 3 by: i += 1 do:
+    :repeat i? = 0 on: i < 3 by: i += 1 do:
         prints("something")
 
     prints("Done.")
@@ -347,7 +347,7 @@ test_controls? :Function as:
         THREE,
         FOUR
 
-    my_tree? MyTree `TWENTY
+    my_tree? MyTree = `TWENTY
     prints("This tree is {my_tree}." {})
     
     :switch my_tree do:
@@ -391,11 +391,11 @@ test_controls? :Function as:
     :for "Abc" items each: it? do:
         prints("Iterating items: {i} => {e}" {i: it index, e: it value})
 
-    ait? "Abc" elements
+    ait? = "Abc" elements
     :for ait each: c? do:
         prints("Iterating elems again: {c}" {})
     
-    x3? Integer            
+    x3? Integer = 0
     x3 = :lol:
         prints("Now yielding.")
         :lol 33
@@ -412,7 +412,7 @@ test_controls? :Function as:
 
     prints("Let's hope that {x3} == 55." {})
     
-    x4? Integer :try 66
+    x4? Integer = :try 66
 
     prints("Let's hope that {x4} == 66." {})
 
@@ -428,10 +428,10 @@ test_controls? :Function as:
         passthrough(what: (:eval, 0))
         prints("This shouldn't be printed!")
 
-    :hihi:if `true then: 1 else:if `false then: 0
+    :hihi:if `true then: x3 else:if `false then: x4
 
     :if `true then:
-        last? 0
+        last? = 0
         prints("Returning.")
         :return
     
@@ -439,18 +439,18 @@ test_controls? :Function as:
 
 
 test_arrays? :Function as:
-    strings? String Array Ref `empty
+    strings? String Array Ref = `empty
     prints("Empty array length: {x}" { x: strings length })
 
-    ss? String Array Ref { "foo", "bar" }
+    ss? String Array Ref = { "foo", "bar" }
     prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
-    ss_popped1? :try ss pop
+    ss_popped1? = :try ss pop
     prints("Array popped {ss_popped1}" {})
-    ss_popped2? String :try ss pop
+    ss_popped2? String = :try ss pop
     prints("Array popped {ss_popped2}" {})
 
-    st? String Stack Ref `empty
+    st? String Stack Ref = `empty
     :try st push("foo")
     :try st push("bar")
     :try st push("baz")
@@ -460,7 +460,7 @@ test_arrays? :Function as:
     :for st each: x? do:
         prints("Stack has: {x}" {})
     
-    baz? String :try st pop
+    baz? String = :try st pop
     :try st pop
     :try st pop
     prints("Popped baz as {baz}" {})
@@ -468,10 +468,10 @@ test_arrays? :Function as:
 
 
 test_circularrays? :Function as:
-    ca? String Circularray Ref { "foo", "bar", "baz", "xxx" }
+    ca? String Circularray Ref = { "foo", "bar", "baz", "xxx" }
     :try ca pop
     prints("Have a Circularray of {x}" { x: ca length })
-    ca1? String :try ca shift
+    ca1? String = :try ca shift
     prints("Shifted {x}, remained {y} and {z}." { x: ca1, y: ca[0], z: ca[1] })
     :try ca unshift "foo"
     :try ca unshift "foofoo"
@@ -481,14 +481,14 @@ test_circularrays? :Function as:
     :for ca items each: it? do:
         prints("Circularray items: {x} => {y}" {x: it index, y: it value})
 
-    qu? String Queue Ref { "A", "B", "C", "D", "E", "F", "G", "H" }
+    qu? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
     :try qu shift
     :try qu push "I"  # folds
     :try qu push "J"  # grows
     :for qu items each: it? do:
         prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
-    qv? String Queue Ref { "A", "B", "C", "D", "E", "F", "G", "H" }
+    qv? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
     :try qv pop
     :try qv unshift "@"  # folds
     :try qv unshift "@@" # grows
@@ -497,7 +497,7 @@ test_circularrays? :Function as:
 
 
 test_rbtrees? :Function as:
-    rb? String Rbtree Ref `reserved 8
+    rb? String Rbtree Ref = `reserved 8
     
     :try
         rb add "A"
@@ -532,7 +532,7 @@ test_rbtrees? :Function as:
     :if !! rb has "A" then:
         prints("Rb has no A, good")
 
-    st? String Set Ref { "A", "B" }
+    st? String Set Ref = { "A", "B" }
     
     :try
         st add "C"
@@ -541,7 +541,7 @@ test_rbtrees? :Function as:
     :for st elements_by_age each: e? do:
         prints("Set element: {e}" {})
 
-    mp? (String, String) Map Ref {{ "A", "a" }, { "B", "b" }}
+    mp? (String, String) Map Ref = {{ "A", "a" }, { "B", "b" }}
     :try
         mp add("C", "c")
         mp add("D", "d")
@@ -556,10 +556,10 @@ test_rbtrees? :Function as:
 
 
 test_options? :Function as:
-    op1? String Option `some "XYZ"
+    op1? String Option = `some "XYZ"
     prints("This option is: {op1}" {})
     
-    op2? String Option `none
+    op2? String Option = `none
     prints("That option is: {op2}" {})
     
     op2 = op1
@@ -567,7 +567,7 @@ test_options? :Function as:
     prints("So they're now equal: {x}" {x: op1 == op2})
     #prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
     
-    :is op1s? op1 ~some then:
+    :is op1s? = op1 ~some then:
         prints("It contained some {op1s}." {})
     else:
         prints("IT CONTAINED NONE!")
@@ -579,20 +579,20 @@ test_options? :Function as:
             
 
 test_classes? :Function Greetable Ref as:
-    gr? Greetable Ref `second_init
+    gr? Greetable Ref = `second_init
     gr greet
     
-    gr2? gr
+    gr2? = gr
     gr2 = gr
     
-    wgr? :weak gr
+    wgr? = :weak gr
     wgr greet
     
     wgr = gr
     
     gr derived base base_method
     
-    bs? gr derived base
+    bs? = gr derived base
     
     :is gr ~Greetable then:
         prints("Huh, greetable is Greetable.")
@@ -603,7 +603,7 @@ test_classes? :Function Greetable Ref as:
     :is bs ~Greetable then:
         prints("WAT, base is Greetable.")
     
-    wt? Greetable Autoweakref `to(gr)
+    wt? Greetable Autoweakref = `to(gr)
     
     :is wt ~live then:
         prints("WT is live.")
@@ -615,7 +615,7 @@ test_classes? :Function Greetable Ref as:
     else:
         prints("WT is live.")
 
-    wvm? (String, Greetable) WeakValueMap Ref `empty
+    wvm? (String, Greetable) WeakValueMap Ref = `empty
     :try
         wvm add("x", gr)
         wvm add("y", gr)
@@ -623,21 +623,21 @@ test_classes? :Function Greetable Ref as:
     wvm remove("y")
     prints("wvm length is {x}" {x: wvm length})
 
-    wim? (Greetable, String) WeakIndexMap Ref `empty
+    wim? (Greetable, String) WeakIndexMap Ref = `empty
     :try
         wim add(gr, "incorrect")
         wim add(gr, "correct")
     prints("wim stores for gr: {x}" {x: wim[gr]})
     prints("wim length is {x}" {x: wim length})
     
-    ws? Greetable WeakSet Ref `empty
+    ws? Greetable WeakSet Ref = `empty
     :try
         ws add(gr)
         ws add(gr)
     prints("ws stores gr: {x}" {x: ws[gr]})
     prints("ws length is {x}" {x: ws length})
 
-    killer? Greetable Ref `init
+    killer? Greetable Ref = `init
     wgr = killer
     bs = killer derived base
     gr = killer

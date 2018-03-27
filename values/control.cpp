@@ -11,7 +11,10 @@ public:
         context_ts = VOID_TS;  // pivot controls will be Void
     }
 
-    virtual Value *set_context_ts(TypeSpec *c) {
+    virtual void set_context_ts(TypeSpec *c) {
+        if (!c)
+            return;
+            
         context_ts = *c;
         Type *t = context_ts.rvalue()[0];
         
@@ -32,8 +35,6 @@ public:
             std::cerr << "Control :" << name << " in Lvalue context!\n";
             throw TYPE_ERROR;
         }
-        
-        return this;
     }
 
     virtual bool check_args(Args &args, ArgInfo arg_info) {
@@ -590,7 +591,7 @@ public:
         then_scope->add(match_try_scope);
 
         // TODO: this is not nice!
-        if (args.size() > 0 && args[0]->type != Expr::MATCHER && args[0]->type != Expr::DECLARATION) {
+        if (args.size() > 0 && args[0]->type != Expr::MATCHER && args[0]->type != Expr::DECLARATION && args[0]->text != "assign other") {
             SwitchScope *ss = scope->get_switch_scope();
             
             if (!ss) {

@@ -273,6 +273,7 @@ void builtin_types(Scope *root_scope) {
     ANYID_AUTOWEAKREF_LVALUE_TS = { lvalue_type, autoweakref_type, anyid_type };
     SAMEID_WEAKANCHORAGE_REF_LVALUE_TS = { lvalue_type, ref_type, weakanchorage_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
+    VOID_UNINITIALIZED_TS = { uninitialized_type, void_type };
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
     ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
     SAME_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, same_type };
@@ -903,6 +904,9 @@ Scope *init_builtins() {
     
     // Unpacking
     root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
+
+    // Initializing
+    root_scope->add(new TemplateIdentifier<CreateValue>("assign other", ANY_UNINITIALIZED_TS));
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<IfValue>(":if", NO_TS, TWEAK));

@@ -154,8 +154,10 @@ public:
             for (unsigned i = 0; i < args.size() - 1; i++) {
                 std::unique_ptr<Value> v;
                 
-                if (!check_argument(0, args[i].get(), { { "stmt", &VOID_CODE_TS, scope, &v } }))
+                if (!check_argument(0, args[i].get(), { { "stmt", &VOID_CODE_TS, scope, &v } })) {
+                    std::cerr << "Statement error: " << args[i]->token << "\n";
                     return false;
+                }
                 
                 CodeScopeValue *csv = ptr_cast<CodeScopeValue>(v.get());
                 if (!csv)
@@ -165,14 +167,16 @@ public:
                 
                 st = peek_void_conversion_value(st);
                 
-                DeclarationValue *dv = ptr_cast<DeclarationValue>(st);
-            
+                CreateValue *cv = ptr_cast<CreateValue>(st);
+                
+                DeclarationValue *dv = ptr_cast<DeclarationValue>(cv ? cv->left.get() : st);
+                
                 if (dv) {
                     Declaration *decl = declaration_get_decl(dv);
                     decl->outer_scope->remove(decl);
                     scope->add(decl);
                 }
-            
+                
                 add_statement(v.release(), false);
             }
         
@@ -232,7 +236,7 @@ public:
     virtual Declaration *get_decl() {
         return decl;
     }
-    
+
     virtual Variable *get_var() {
         return var;
     }
@@ -253,7 +257,7 @@ public:
             var = ptr_cast<Variable>(decl);
             
             if (var)
-                ts = var->alloc_ts;
+                ts = var->alloc_ts.reprefix(lvalue_type, uninitialized_type);
         }
 
         return true;
@@ -269,8 +273,12 @@ public:
 
         if (args.size() == 0) {
             if (!context || (*context)[0] != dvalue_type) {
-                std::cerr << "Bare declaration is not allowed in this context!\n";
-                return false;
+                //std::cerr << "Bare declaration is not allowed in this context!\n";
+                //return false;
+
+                // Must call use later to add the real declaration                
+                ts = VOID_UNINITIALIZED_TS;
+                return true;
             }
 
             ts = *context;
@@ -310,10 +318,10 @@ public:
             Storage t = var->get_local_storage();
             
             if (value) {
-                Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
+                //Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
 
                 // Use the value to initialize the variable, then return the variable
-                var->alloc_ts.create(s, t, x64);
+                //var->alloc_ts.create(s, t, x64);
             }
 
             return t;
