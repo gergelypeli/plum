@@ -523,6 +523,34 @@ public:
 };
 
 
+class EqualitymatcherType: public Type {
+public:
+    // To be used only as type context in the :is control
+    
+    EqualitymatcherType(std::string name)
+        :Type(name, TTs { VALUE_TYPE }, VALUE_TYPE) {
+    }
+    
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        // We've found an initializer where a match was expected
+        
+        if (n == "{}") {
+            std::cerr << "Sorry, no set matching yet!\n";
+            return NULL;
+        }
+        else {
+            Value *v = tm[1].lookup_initializer(n);
+            
+            if (!v)
+                return NULL;
+        
+            // Any arguments for us are actually arguments for the initializer
+            return make_initializer_equality_matcher_value(v);
+        }
+    }
+};
+
+
 class MetaType: public Type {
 public:
     typedef Value *(*TypeDefinitionFactory)();

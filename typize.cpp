@@ -47,6 +47,7 @@ class FunctionCallValue;
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context = NULL);
 Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, TypeSpec *context, Variable *arg_var = NULL);
+Value *lookup_switch(Scope *scope, Token token);
 bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos);
 bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);
 
@@ -160,6 +161,24 @@ Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, Ty
     }
     
     return lookup(name, pivot, &fake_expr, scope, context);
+}
+
+
+Value *lookup_switch(Scope *scope, Token token) {
+    SwitchScope *ss = scope->get_switch_scope();
+    
+    if (!ss) {
+        std::cerr << "Pivotless matcher outside of :switch at " << token << "!\n";
+        throw TYPE_ERROR;
+    }
+    
+    Variable *v = ss->get_variable();
+    Value *p = v->match(v->name, NULL);
+    
+    if (!p)
+        throw INTERNAL_ERROR;
+        
+    return p;
 }
 
 
@@ -355,21 +374,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
 
-        if (!p) {
-            // TODO: put this into IsValue instead!
-            SwitchScope *ss = scope->get_switch_scope();
-            
-            if (!ss) {
-                std::cerr << "Pivotless matcher outside of :switch at " << expr->token << "!\n";
-                throw TYPE_ERROR;
-            }
-            
-            Variable *v = ss->get_variable();
-            p = v->match(v->name, NULL);
-            
-            if (!p)
-                throw INTERNAL_ERROR;
-        }
+        if (!p)
+            p = lookup_switch(scope, expr->token);
 
         if (name == "match other") {
             value = make_equality_matcher_value(p);
@@ -499,6 +505,11 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     }
 
     Value *v = typize(e, code_scope ? code_scope : scope, context);
+    
+    // Hack for omitting strict checking in :is controls
+    if (context && (*context)[0] == equalitymatcher_type)
+        context = NULL;
+
     TypeMatch match;
     
     if (context && !typematch(*context, v, match, code_scope)) {

@@ -90,6 +90,8 @@ Value *make_option_none_matcher_value(Value *p, TypeMatch &match);
 Value *make_option_some_matcher_value(Value *p, TypeMatch &match);
 Value *make_evaluable_value(Evaluable *e, Value *cpivot, TypeMatch &match);
 Value *make_equality_matcher_value(Value *p);
+Value *make_implicit_equality_matcher_value(Value *p);
+Value *make_initializer_equality_matcher_value(Value *p);
 Value *make_create_value(Value *p, TypeMatch &match);
 Value *make_weakanchorage_value(TypeSpec rts);
 Value *make_weakanchorage_dead_matcher_value(Value *p, TypeMatch &match);

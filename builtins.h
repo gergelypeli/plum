@@ -71,6 +71,7 @@ Type *circularrayindexiter_type = NULL;
 Type *circularrayitemiter_type = NULL;
 Type *rbtreeelembyageiter_type = NULL;
 Type *rbtreeelembyorderiter_type = NULL;
+Type *equalitymatcher_type = NULL;
 
 TreenumerationType *iterator_done_exception_type = NULL;
 TreenumerationType *container_full_exception_type = NULL;

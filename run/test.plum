@@ -354,8 +354,17 @@ test_controls? :Function as:
         :is ~TWO then:
             prints("Two-something.")
 
+        :is `TWENTY then:
+            prints("Implicitly twenty.")
+
         :is ~= `TWENTY then:
-            prints("Exactly twenty.")
+            prints("Explicitly twenty.")
+
+        :is my_tree then:
+            prints("Implicitly itself.")
+
+        :is ~= my_tree then:
+            prints("Explicitly itself.")
 
         :is ~TWENTY then:
             prints("Twenty.")

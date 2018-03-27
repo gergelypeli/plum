@@ -222,6 +222,9 @@ void builtin_types(Scope *root_scope) {
     rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { VALUE_TYPE });
     root_scope->add(rbtreeelembyorderiter_type);
 
+    equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
+    root_scope->add(equalitymatcher_type);
+
     iterator_done_exception_type = new TreenumerationType("Iterator_done_exception", { "", "ITERATOR_DONE" }, { 0, 1 });
     root_scope->add(iterator_done_exception_type);
 

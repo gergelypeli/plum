@@ -48,21 +48,24 @@ public:
         }
     
         TypeSpec *context = arg_info.context;
-        if (context && (*context)[0] == any_type)
-            context = NULL;
+        //if (context && (*context)[0] == any_type)
+        //    context = NULL;
     
         Value *v = make_code_block_value(context);
         Kwargs fake_kwargs;
-        
+
         if (!v->check(args, fake_kwargs, arg_info.scope))
             return false;
-            
-        TypeMatch match;
         
-        if (context && !typematch(*context, v, match)) {
-            std::cerr << "Wrong :" << name << " positional argument type!\n";
-            std::cerr << "  Expected " << *context << " got " << v->ts << "!\n";
-            return false;
+        // TODO: isn't the code_block_value's job to check this type already?
+        if (context && (*context)[0] != equalitymatcher_type) {
+            TypeMatch match;
+            
+            if (!typematch(*context, v, match)) {
+                std::cerr << "Wrong :" << name << " positional argument type!\n";
+                std::cerr << "  Expected " << *context << " got " << v->ts << "!\n";
+                return false;
+            }
         }
         
         arg_info.target->reset(v);
@@ -594,52 +597,35 @@ public:
         match_try_scope = new TransparentTryScope;
         then_scope->add(match_try_scope);
 
-        // TODO: this is not nice!
-        /*
-        if (args.size() > 0 && args[0]->type != Expr::MATCHER && args[0]->type != Expr::DECLARATION && args[0]->text != "assign other") {
-            SwitchScope *ss = scope->get_switch_scope();
-            
-            if (!ss) {
-                std::cerr << "Values can only be used in :is inside :switch!\n";
-                return false;
-            }
-            
-            Expr *e = new Expr(Expr::MATCHER, Token(), "=");
-            //e->set_pivot(new Expr(Expr::IDENTIFIER, Token(), ss->get_variable_name()));
-            e->add_arg(args[0].release());
-            args[0].reset(e);
+        TypeSpec match_ts = VOID_TS;
+        SwitchScope *switch_scope = scope->get_switch_scope();
+    
+        if (switch_scope) {
+            Variable *switch_var = switch_scope->get_variable();
+            match_ts = switch_var->alloc_ts.rvalue().prefix(equalitymatcher_type);
         }
-        */
         
-        if (!check_args(args, { "match", &ANY_TS, match_try_scope, &match }))
+        if (!check_args(args, { "match", &match_ts, match_try_scope, &match }))
             return false;
 
         Type *et = match_try_scope->get_exception_type();
         
         if (!et) {
-            std::cerr << "This :is match raises no exception!\n";
-            return false;
-            /*
-            SwitchScope *ss = scope->get_switch_scope();
-            
-            if (!ss) {
+            if (!switch_scope) {
                 std::cerr << "Values can only be used in :is inside :switch!\n";
                 return false;
             }
             
             // Well, we'll supply the arguments in reverse order, because of reasons
-            match.reset(new EqualityMatcherValue(match.release()));
+            match.reset(make_implicit_equality_matcher_value(match.release()));
             
-            Expr *e = new Expr(Expr::IDENTIFIER, Token(), ss->get_variable_name());
             Args fake_args;
-            fake_args.push_back(std::unique_ptr<Expr>(e));
             Kwargs fake_kwargs;
             
             if (!match->check(fake_args, fake_kwargs, match_try_scope))
                 return false;
                 
             et = match_try_scope->get_exception_type();
-            */
         }
         
         if (et != match_unmatched_exception_type) {

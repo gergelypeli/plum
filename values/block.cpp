@@ -182,8 +182,10 @@ public:
         
             std::unique_ptr<Value> v;
         
-            if (!check_argument(0, args.back().get(), { { "stmt", context, scope, &v } }))
+            if (!check_argument(0, args.back().get(), { { "stmt", context, scope, &v } })) {
+                std::cerr << "Statement error: " << args.back()->token << "\n";
                 return false;
+            }
         
             add_statement(v.release(), true);
         }

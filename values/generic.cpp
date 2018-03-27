@@ -541,3 +541,94 @@ public:
     }
 };
 
+
+class ImplicitEqualityMatcherValue: public Value, public Raiser {
+public:
+    std::unique_ptr<Value> switch_var_value, value;
+    
+    ImplicitEqualityMatcherValue(Value *v)
+        :Value(VOID_TS) {
+        value.reset(v);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(match_unmatched_exception_type, scope))
+            return false;
+
+        switch_var_value.reset(lookup_switch(scope, token));
+            
+        if (args.size() != 0 || kwargs.size() != 0)
+            return false;
+
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return switch_var_value->precompile(preferred) | value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label less, greater, equal;
+        
+        switch_var_value->compile_and_store(x64, Storage(STACK));
+        value->compile_and_store(x64, Storage(STACK));
+        
+        switch_var_value->ts.compare(Storage(STACK), Storage(STACK), x64, less, greater);
+        
+        x64->op(JMP, equal);
+        
+        x64->code_label(less);
+        x64->code_label(greater);
+        
+        raise("UNMATCHED", x64);
+        
+        x64->code_label(equal);
+        return Storage();
+    }
+};
+
+
+class InitializerEqualityMatcherValue: public Value, public Raiser {
+public:
+    std::unique_ptr<Value> switch_var_value, initializer_value;
+    
+    InitializerEqualityMatcherValue(Value *iv)
+        :Value(VOID_TS) {
+        initializer_value.reset(iv);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(match_unmatched_exception_type, scope))
+            return false;
+            
+        switch_var_value.reset(lookup_switch(scope, token));
+            
+        return initializer_value->check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return switch_var_value->precompile(preferred) | initializer_value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label less, greater, equal;
+        
+        Storage ss = switch_var_value->compile(x64);
+        if (ss.where != MEMORY)
+            throw INTERNAL_ERROR;
+        
+        Storage is = initializer_value->compile(x64);
+            
+        switch_var_value->ts.compare(ss, is, x64, less, greater);
+        
+        x64->op(JMP, equal);
+        
+        x64->code_label(less);
+        x64->code_label(greater);
+        
+        raise("UNMATCHED", x64);
+        
+        x64->code_label(equal);
+        return Storage();
+    }
+};

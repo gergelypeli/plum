@@ -172,7 +172,10 @@ public:
             x64->op(MOV, RBX, s.value);
             x64->op(CMP, RBX, t.address);
             break;
-            
+
+        case REGISTER_CONSTANT:
+            x64->op(CMP, s.reg, t.value);
+            break;
         case REGISTER_REGISTER:
             x64->op(CMP, s.reg, t.reg);
             break;
@@ -184,6 +187,10 @@ public:
             x64->op(CMP, s.reg, t.address);
             break;
 
+        case STACK_CONSTANT:
+            x64->op(POPQ, RBX);
+            x64->op(CMP, RBX, t.value);
+            break;
         case STACK_REGISTER:
             x64->op(POPQ, RBX);
             x64->op(CMP, RBX, t.reg);
@@ -198,6 +205,9 @@ public:
             x64->op(CMP, RBX, t.address);
             break;
 
+        case MEMORY_CONSTANT:
+            x64->op(CMP, s.address, t.value);
+            break;
         case MEMORY_REGISTER:
             x64->op(CMP, s.address, t.reg);
             break;
@@ -209,6 +219,7 @@ public:
             x64->op(MOV, RBX, s.address);
             x64->op(CMP, RBX, t.address);
             break;
+            
         default:
             throw INTERNAL_ERROR;
         }

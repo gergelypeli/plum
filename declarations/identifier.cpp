@@ -37,7 +37,7 @@ public:
             if (typematch(pivot_ts, pivot, match))
                 return matched(pivot, match);
             else {
-                std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";
+                //std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";
                 return NULL;
             }
         }

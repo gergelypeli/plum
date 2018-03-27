@@ -327,6 +327,16 @@ Value *make_equality_matcher_value(Value *p) {
 }
 
 
+Value *make_implicit_equality_matcher_value(Value *p) {
+    return new ImplicitEqualityMatcherValue(p);
+}
+
+
+Value *make_initializer_equality_matcher_value(Value *p) {
+    return new InitializerEqualityMatcherValue(p);
+}
+
+
 Value *make_create_value(Value *p, TypeMatch &match) {
     return new CreateValue(p, match);
 }
