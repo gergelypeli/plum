@@ -367,14 +367,8 @@ test_controls? :Function as:
         :is `TWENTY then:
             prints("Implicitly twenty.")
 
-        :is ~= `TWENTY then:
-            prints("Explicitly twenty.")
-
         :is my_tree then:
             prints("Implicitly itself.")
-
-        :is ~= my_tree then:
-            prints("Explicitly itself.")
 
         :is {} then:
             prints("IN THE EMPTY SET!")

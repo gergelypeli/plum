@@ -82,44 +82,6 @@ public:
 };
 
 
-class EqualityMatcherValue: public GenericValue, public Raiser {
-public:
-    EqualityMatcherValue(Value *v)
-        :GenericValue(v->ts.rvalue(), VOID_TS, v) {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(match_unmatched_exception_type, scope))
-            return false;
-            
-        return GenericValue::check(args, kwargs, scope);
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | right->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Label less, greater, equal;
-        
-        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
-        
-        // Since the switch variable is on the right, use its type just in case
-        right->ts.compare(Storage(STACK), Storage(STACK), x64, less, greater);
-        
-        x64->op(JMP, equal);
-        
-        x64->code_label(less);
-        x64->code_label(greater);
-        
-        raise("UNMATCHED", x64);
-        
-        x64->code_label(equal);
-        return Storage();
-    }
-};
-
-
 class ImplicitEqualityMatcherValue: public Value, public Raiser {
 public:
     std::unique_ptr<Value> switch_var_value, value;

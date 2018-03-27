@@ -377,16 +377,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         if (!p)
             p = lookup_switch(scope, expr->token);
 
-        if (name == "match other") {
-            value = make_equality_matcher_value(p);
-        }
-        else {
-            // Allow only class cast matchers, not methods
-            //if (p->ts.rvalue()[0] == ref_type)
-            //    p = make_reference_weaken_value(p);
-                
-            value = p->ts.lookup_matcher(name, p);
-        }
+        value = p->ts.lookup_matcher(name, p);
     
         if (!value) {
             std::cerr << "No matcher " << p->ts << " ~" << name << "!\n";
