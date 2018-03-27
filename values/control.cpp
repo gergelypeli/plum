@@ -611,12 +611,13 @@ public:
         Type *et = match_try_scope->get_exception_type();
         
         if (!et) {
+            // Treat match as a value, and do an implicit equality matching
+            
             if (!switch_scope) {
-                std::cerr << "Values can only be used in :is inside :switch!\n";
+                std::cerr << "Implicit equality matching can only be used in :is inside :switch!\n";
                 return false;
             }
             
-            // Well, we'll supply the arguments in reverse order, because of reasons
             match.reset(make_implicit_equality_matcher_value(match.release()));
             
             Args fake_args;
@@ -632,6 +633,10 @@ public:
             std::cerr << "This :is match raises " << et->name << " exception!\n";
             return false;
         }
+
+        // Now that we handled the implicit equality matching case, voidize the match value
+        if (match->ts != VOID_TS)
+            match.reset(make_void_conversion_value(match.release()));
 
         ArgInfos infos = {
             { "then", &VOID_CODE_TS, then_scope, &then_branch },

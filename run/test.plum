@@ -265,6 +265,11 @@ test_strings? :Function as:
     prints("Unsorted: {chars}" {})
     chars chars sort
     prints("Sorted:   {chars}" {})
+
+    :is "foo" ~re ".*" then:
+        prints("Regexp matched.")
+    else:
+        prints("REGEXP NOT MATCHED!")
     
     :is m? = "foo" ~re ".*" then:
         prints("Regexp matched as: {x}" {x: m[0]})
@@ -275,6 +280,11 @@ test_strings? :Function as:
         prints("Regexp matched as {x} and {y}" {x: m[1], y: m[2]})
     else:
         prints("REGEXP NOT MATCHED!")
+        
+    :switch "foo" do:
+        :is ~re ".*" then:
+            prints("Regexp matched in switch.")
+            :yield
 
 
 test_enums? :Function as:
