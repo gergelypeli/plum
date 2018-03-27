@@ -488,6 +488,7 @@ public:
 */
 
 #include "generic.cpp"
+#include "equality.cpp"
 #include "block.cpp"
 #include "integer.cpp"
 #include "boolean.cpp"

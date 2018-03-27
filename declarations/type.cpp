@@ -535,8 +535,7 @@ public:
         // We've found an initializer where a match was expected
         
         if (n == "{}") {
-            std::cerr << "Sorry, no set matching yet!\n";
-            return NULL;
+            return make_bulk_equality_matcher_value();
         }
         else {
             Value *v = tm[1].lookup_initializer(n);

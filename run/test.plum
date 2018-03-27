@@ -376,6 +376,21 @@ test_controls? :Function as:
         :is ~= my_tree then:
             prints("Explicitly itself.")
 
+        :is {} then:
+            prints("IN THE EMPTY SET!")
+            
+        :is { `TWENTY } then:
+            prints("Single twenty.")
+            
+        :is { my_tree } then:
+            prints("Single itself.")
+            
+        :is { `TWO, `TWENTY, `FOUR } then:
+            prints("Multi twenty.")
+            
+        :is { `TWO, my_tree, `FOUR } then:
+            prints("Multi itself.")
+
         :is ~TWENTY then:
             prints("Twenty.")
             :yield
