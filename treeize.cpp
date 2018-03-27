@@ -220,10 +220,18 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             text = token.text.substr(1);
         }
         else if (c == '~') {
-            type = Node::MATCHER;
-            back = TEXTUAL;
-            fore = TEXTUAL;
-            text = token.text.substr(1);
+            if (token.text == "~=") {
+                type = Node::MATCHER;
+                back = ASSIGNING;
+                fore = ASSIGNING;
+                text = "match other";
+            }
+            else {
+                type = Node::MATCHER;
+                back = TEXTUAL;
+                fore = TEXTUAL;
+                text = token.text.substr(1);
+            }
         }
         else if (c == '?') {
             if (token.text == "?") {
@@ -231,12 +239,6 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 back = DECLARING;
                 fore = DECLARING;
                 text = "";
-            }
-            else if (token.text == "?=") {
-                type = Node::PARTINITIALIZER;
-                back = ASSIGNING;
-                fore = ASSIGNING;
-                text = "create from";
             }
             else {
                 type = Node::PARTINITIALIZER;

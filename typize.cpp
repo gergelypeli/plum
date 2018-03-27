@@ -291,7 +291,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             else if (context)
                 ts = *context;
             else {
-                std::cerr << "Initializer without type context!\n";
+                std::cerr << "Initializer without type context: " << expr->token << "\n";
                 throw TYPE_ERROR;
             }
             
@@ -371,9 +371,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw INTERNAL_ERROR;
         }
 
-        if (name == "=") {
-            Value *equality = lookup_unchecked("is_equal", p, scope);
-            value = make_equality_matcher_value(equality);
+        if (name == "match other") {
+            value = make_equality_matcher_value(p);
         }
         else {
             // Allow only class cast matchers, not methods

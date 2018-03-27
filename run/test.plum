@@ -22,8 +22,8 @@ Pair? :Record as:
     second? Integer
 
     new? :Initializer as:
-        $ first ?= 1
-        $ second ?= 2
+        $ first = 1
+        $ second = 2
 
     meth? :Function Integer as:
         prints("Meth!")
@@ -113,7 +113,7 @@ Base? :Class as:
     base_value? Integer
     
     base_init? :Initializer as:
-        $ base_value ?= 100
+        $ base_value = 100
         prints("The base is initialized.")
     
     base_method? :Function as:
@@ -129,7 +129,7 @@ Derived? :Class as:
     
     derived_init? :Initializer as:
         $ base ?base_init
-        $ derived_value ?= 1000
+        $ derived_value = 1000
         prints("The derived is initialized.")
         
     base.base_method? :Function as:
@@ -146,8 +146,8 @@ Greetable? :Class as:
     init? :Initializer as:
         $ derived ?derived_init
         
-        $ number ?= 1
-        $ name ?= "The Greetable"
+        $ number = 1
+        $ name = "The Greetable"
         prints("I'm here as {x}." { x: $ name })
         
     second_init? :Initializer as:
@@ -354,7 +354,7 @@ test_controls? :Function as:
         :is ~TWO then:
             prints("Two-something.")
 
-        :is `TWENTY then:
+        :is ~= `TWENTY then:
             prints("Exactly twenty.")
 
         :is ~TWENTY then:
