@@ -697,6 +697,13 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
     }
     else {
         if (*s == multi_type) {
+            if (*t == void_type) {
+                // This is not allowed because a Multi may contain uninitialized values
+                MATCHLOG std::cerr << "No match, Multi for Void!\n";
+                std::cerr << "Multi value dropped on the floor!\n";
+                return false;
+            }
+        
             // A Multi is being converted to something non-Multi.
             // Since a Multi can never be in a pivot position, this value must be a plain
             // argument, so if converting it fails, then it will be a fatal error. So

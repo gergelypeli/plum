@@ -49,8 +49,8 @@ make_pair? :Function Pair as:
     :return p
 
 
-double? :Function (Integer, Integer) as:
-    :return (98, 99)
+triple? :Function (Integer, Integer, Integer) as:
+    :return (97, 98, 99)
 
     
 print_pair? :Function from:
@@ -336,19 +336,27 @@ test_records? :Function as:
 test_multis? :Function as:
     x1? Integer = 0
     x2? Integer = 0
-    (x1, x2) = double
-    prints("Double returned {x1} and {x2}." {})
-    #(x1, x2) = (100, 101)
-    #prints("Double assigned {x1} and {x2}." {})
     x3? Integer = 0
-    x3 = double
-    prints("Scalarized to {x3}" {})
+    (x1, x2, x3) = triple
+    prints("Triple returned {x1}, {x2}, {x3}." {})
     
-    (y1? Integer, y2? Integer) = double
-    prints("Double initialized {y1} and {y2}." {})
+    (x2, x3) = triple
+    prints("Triple short returned {x2}, {x3}." {})
+
+    x3 = triple
+    prints("Triple scalarized to {x3}" {})
     
-    (z1?, z2?) = double
-    prints("Double bare initialized {z1} and {z2}." {})
+    (y1? Integer, y2? Integer, y3? Integer) = triple
+    prints("Triple initialized {y1}, {y2}, {y3}." {})
+    
+    (y4? Integer, y5? Integer) = triple
+    prints("Triple short initialized {y4}, {y5}." {})
+        
+    (z1?, z2?, z3?) = triple
+    prints("Triple bare initialized {z1}, {z2}, {z3}." {})
+
+    (z4?, z5?) = triple
+    prints("Triple bare short initialized {z4}, {z5}." {})
 
 
 test_controls? :Function as:

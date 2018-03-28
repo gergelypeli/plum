@@ -241,6 +241,7 @@ public:
         }
 
         int offset = right_total;
+        int left_count = left_tss.size();
 
         for (int i = right_tss.size() - 1; i >= 0; i--) {
             Storage s, t;
@@ -248,7 +249,10 @@ public:
             // Order of these two matters, because we must first load an RSP relative address,
             // then the right may pop an ALISTACK, which moves RSP.
             
-            switch (left_storages[i].where) {
+            switch (i < left_count ? left_storages[i].where : NOWHERE) {
+            case NOWHERE:
+                t = Storage();
+                break;
             case MEMORY:
                 t = left_storages[i];
                 break;
@@ -264,7 +268,7 @@ public:
             case STACK:
                 s = right_storages[i];
                 break;
-            case ALISTACK:
+            case ALISTACK:  // TODO: is this still possible?
                 x64->op(POPQ, RCX);
                 s = Storage(MEMORY, Address(RCX, 0));
                 break;
@@ -272,7 +276,11 @@ public:
                 throw INTERNAL_ERROR;
             }
             
-            if (right_tss[i][0] == uninitialized_type) {
+            if (i >= left_count) {
+                std::cerr << "Dropping multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
+                right_tss[i].store(s, t, x64);
+            }
+            else if (left_tss[i][0] == uninitialized_type) {
                 std::cerr << "Initializing multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
                 right_tss[i].create(s, t, x64);
             }
@@ -281,7 +289,7 @@ public:
                 right_tss[i].store(s, t, x64);
             }
             
-            offset += left_sizes[i];
+            offset += (i < left_count ? left_sizes[i] : 0);
             offset -= right_sizes[i];
         }
         
