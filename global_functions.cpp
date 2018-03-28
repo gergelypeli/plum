@@ -61,7 +61,7 @@ Value *make_declaration_value(std::string name, TypeSpec *context) {
 }
 
 
-Value *make_basic_value(TypeSpec ts, int number) {
+Value *make_basic_value(TypeSpec ts, long number) {
     return new BasicValue(ts, number);
 }
 

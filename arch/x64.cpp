@@ -827,6 +827,14 @@ void X64::op(BinaryOp opcode, Label x, int y) {
 
 
 
+void X64::op(MovabsOp opcode, Register x, long y) {
+    code_op(0xB8 + (x & 7), 3 | OPSIZE_NONBYTE, xb(x));
+    code_qword(y);
+}
+
+
+
+
 Slash shift_info[] = {
     SLASH_2,
     SLASH_3,

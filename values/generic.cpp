@@ -414,6 +414,9 @@ public:
             
         Storage rs = right->compile(x64);
         
+        //Identifier *i = ptr_cast<Identifier>(get_decl());
+        //std::cerr << "XXX CreateValue " << (i ? i->name : "?") << " from " << rs << "\n";
+        
         arg_ts.create(rs, ls, x64);
         
         return ls;

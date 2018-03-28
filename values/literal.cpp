@@ -6,19 +6,33 @@
 
 class BasicValue: public Value {
 public:
-    int number;
+    Register reg;
+    long number;
     
-    BasicValue(TypeSpec ts, int n)
+    BasicValue(TypeSpec ts, long n)
         :Value(ts) {
+        reg = NOREG;
         number = n;
     }
 
-    virtual Regs precompile(Regs) {
-        return Regs();
+    virtual Regs precompile(Regs preferred) {
+        if (number < -2147483648 || number > 2147483647) {
+            reg = preferred.get_any();
+            return Regs().add(reg);
+        }
+        else
+            return Regs();
     }
 
-    virtual Storage compile(X64 *) {
-        return Storage(CONSTANT, number);
+    virtual Storage compile(X64 *x64) {
+        if (number < -2147483648 || number > 2147483647) {
+            x64->op(MOVABS, reg, number);
+            return Storage(REGISTER, reg);
+        }
+        else {
+            // 32-bit signed integers fit in immediate operands
+            return Storage(CONSTANT, (int)number);  
+        }
     }
 };
 

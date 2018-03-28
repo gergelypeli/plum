@@ -49,7 +49,7 @@ Value *make_yield_value(EvalScope *es);
 Value *make_scalar_conversion_value(Value *p);
 Value *make_function_definition_value(TypeSpec fn_ts, Value *ret, Value *head, Value *body, FunctionScope *fn_scope);
 Value *make_declaration_value(std::string name, TypeSpec *context);
-Value *make_basic_value(TypeSpec ts, int number);
+Value *make_basic_value(TypeSpec ts, long number);
 Value *make_string_literal_value(std::string text);
 Value *make_code_scope_value(Value *value, CodeScope *code_scope);
 Value *make_void_conversion_value(Value *orig);

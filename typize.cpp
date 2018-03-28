@@ -396,7 +396,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
     }
     else if (expr->type == Expr::NUMBER) {
-        Type *t = (
+        IntegerType *t = ptr_cast<IntegerType>(
             ends_with(expr->text, "s32") ? integer32_type :
             ends_with(expr->text, "s16") ? integer16_type :
             ends_with(expr->text, "s8") ? integer8_type :
@@ -408,16 +408,63 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         );
         
         if (context && t == integer_type) {
-            t = (*context)[0];
-            t = (t == code_type || t == ovalue_type ? (*context)[1] : t);
+            Type *x = (*context)[0];
+            x = (x == code_type || x == ovalue_type ? (*context)[1] : x);
+            t = ptr_cast<IntegerType>(x);
         
-            if (!ptr_cast<IntegerType>(t)) {
+            if (!t) {
                 std::cerr << "Literal number in a noninteger " << *context << " context: " << expr->token << "\n";
                 throw TYPE_ERROR;
             }
         }
 
-        value = make_basic_value(TypeSpec { t }, std::stoi(expr->text));
+        int j = 0;
+        
+        for (unsigned i = 0; i < expr->text.size(); i++)
+            if (expr->text[i] != '_')
+                expr->text[j++] = expr->text[i];
+                
+        expr->text.resize(j);
+        
+        int size = t->size;
+        long x;
+
+        try {
+            if (t->is_unsigned) {
+                x = std::stoul(expr->text);  // x > 2**63 are represented as negative integers
+            
+                if (
+                    (size == 1 && x > 255) ||
+                    (size == 2 && x > 65535) ||
+                    (size == 4 && x > 4294967295)
+                ) {
+                    std::cerr << "Unsigned integer literal out of range: " << expr->token << "\n";
+                    throw TYPE_ERROR;
+                }
+            }
+            else {
+                x = std::stol(expr->text);
+            
+                if (
+                    (size == 1 && (x < -128 || x > 127)) ||
+                    (size == 2 && (x < -32768 || x > 32767)) ||
+                    (size == 4 && (x < -2147483648 || x > 2147483647))
+                ) {
+                    std::cerr << "Signed integer literal out of range: " << expr->token << "\n";
+                    throw TYPE_ERROR;
+                }
+            }
+        }
+        catch (std::invalid_argument &e) {
+            std::cerr << "Invalid integer literal: " << expr->token << "\n";
+            throw TYPE_ERROR;
+        }
+        catch (std::out_of_range &e) {
+            std::cerr << "Integer literal out of range: " << expr->token << "\n";
+            throw TYPE_ERROR;
+        }
+
+        value = make_basic_value(TypeSpec { t }, x);
         value->set_token(expr->token);
     }
     else if (expr->type == Expr::STRING) {

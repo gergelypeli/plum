@@ -208,6 +208,9 @@ test_integers? :Function as:
 
     Myint? :Integer bytes: 8 is_unsigned: `false
     myvar? Myint = 0
+    
+    e? = 5_000_000_000
+    prints("Five billion is {e}" {})
 
 
 test_strings? :Function as:
