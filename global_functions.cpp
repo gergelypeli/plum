@@ -786,6 +786,27 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
 
         return match_anymulti_type(s, t, match, value, false);
     }
+    else if (*t == uninitialized_type) {
+        // This is a special case, Uninitialized only occurs with Any.
+        // Maybe this should be checked in an identifier directly.
+        if (!value) {
+            MATCHLOG std::cerr << "No match, nothing for Uninitialized!\n";
+            return false;
+        }
+        else if (*s != uninitialized_type) {
+            MATCHLOG std::cerr << "No match, rvalue for Uninitialized!\n";
+            return false;
+        }
+        
+        match[0].push_back(*t);
+        s++;
+        t++;
+
+        if (*t != any_type)
+            throw INTERNAL_ERROR;
+        
+        return match_type_parameters(s, t, match);
+    }
     else {
         if (!value) {
             MATCHLOG std::cerr << "No match, nothing for something!\n";

@@ -16,7 +16,7 @@ public:
             }
         }
         
-        std::cerr << "Interface " << name << " has " << member_functions.size() << " member functions.\n";
+        //std::cerr << "Interface " << name << " has " << member_functions.size() << " member functions.\n";
         return true;
     }
 
@@ -94,7 +94,7 @@ public:
             }
         }
         
-        std::cerr << "Implementation " << name << " has " << member_functions.size() << " member functions.\n";
+        //std::cerr << "Implementation " << name << " has " << member_functions.size() << " member functions.\n";
         return true;
     }
 

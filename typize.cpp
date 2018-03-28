@@ -64,6 +64,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
         // Conversions from Multi to a scalar can only be attempted once (see typematch),
         // but it's not a problem, since we don't want Multi pivots anyway. But for correct
         // operation we should catch this case here.
+        // Note that Multi Lvalue and Multi Type passes this test.
         return NULL;
     }
     
@@ -209,7 +210,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         
             bool ok = value->check(expr->args, expr->kwargs, scope);
             if (!ok) {
-                std::cerr << "Multi value error!\n";
+                std::cerr << "Multi value error: " << expr->token << "\n";
                 throw TYPE_ERROR;
             }
         }

@@ -3,7 +3,7 @@
 class FunctionDefinitionValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> results;
-    std::unique_ptr<Value> head;
+    std::unique_ptr<DataBlockValue> head;
     std::unique_ptr<Value> body;
     std::unique_ptr<Value> exception_type_value;
     FunctionScope *fn_scope;
@@ -112,7 +112,19 @@ public:
                 
         Scope *hs = fn_scope->add_head_scope();
         Expr *h = kwargs["from"].get();
-        head.reset(h ? typize(h, hs) : NULL);
+        head.reset(new DataBlockValue(hs));
+
+        if (h) {
+            if (h->type == Expr::TUPLE) {
+                for (auto &expr : h->args)
+                    if (!head->check_statement(expr.get()))
+                        return false;
+            }
+            else {
+                if (!head->check_statement(h))
+                    return false;
+            }
+        }
         
         deferred_body_expr = kwargs["as"].get();
         std::cerr << "Deferring definition of function body.\n";

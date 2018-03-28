@@ -16,33 +16,60 @@ public:
             return false;
         }
 
-        bool is_lvalue = true;
+        bool is_lvalue = true;  // or uninitialized, both are handled similarly
         bool is_type = true;
         
         for (auto &arg : args) {
             Value *value = typize(arg.get(), scope);
             TypeMatch match;
             
-            if (value->ts[0] != lvalue_type)
+            if (value->ts[0] != lvalue_type && value->ts[0] != uninitialized_type)
                 is_lvalue = false;
         
             if (value->ts[0] != type_type)
                 is_type = false;
                 
             values.push_back(std::unique_ptr<Value>(value));
+            std::cerr << "Multi item ts: " << value->ts << "\n";
+        }
+
+        if (is_lvalue)
+            ts = MULTI_LVALUE_TS;
+        else if (is_type)
+            ts = MULTI_TYPE_TS;
+        else {
+            std::cerr << "Multis must be all lvalues or all types!\n";
+            return false;
         }
         
-        ts = is_lvalue ? MULTI_LVALUE_TS : is_type ? MULTI_TYPE_TS : MULTI_TS;
-        
         for (auto &v : values)
-            tss.push_back(!is_lvalue && !is_type ? v->ts.rvalue() : v->ts);
+            tss.push_back(v->ts);
         
         return true;
     }
 
-    bool unpack(std::vector<TypeSpec> &t) {
+    virtual bool unpack(std::vector<TypeSpec> &t) {
         t = tss;
         return true;
+    }
+    
+    virtual std::vector<Storage> get_storages() {
+        return storages;
+    }
+    
+    virtual TypeSpec fix_bare(int i, TypeSpec implicit_ts, Scope *scope) {
+        // Used if a member is a bare declaration, and its type must be derived from the
+        // right hand side of an unpacking
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(values[i].get());
+
+        std::cerr << "Fixing bare declaration " << i << " with " << implicit_ts << ".\n";
+        Value *tv = make_type_value(implicit_ts);
+        
+        if (!declaration_use(dv, tv, scope))
+            throw INTERNAL_ERROR;
+            
+        tss[i] = dv->ts.unprefix(uninitialized_type);
+        return dv->ts;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -58,11 +85,18 @@ public:
         x64->unwind->push(this);
 
         for (unsigned i = 0; i < values.size(); i++) {
-            StorageWhere where = stacked(tss[i].where(AS_ARGUMENT));
-            Storage t(where);
-            storages.push_back(t);
-            
-            values[i]->compile_and_store(x64, t);
+            // Since lvalues, these will be MEMORY
+            Storage s = values[i]->compile(x64);
+
+            if (s.is_clobbered(Regs::all())) {
+                StorageWhere where = stacked(tss[i].where(AS_ARGUMENT));
+                Storage t(where);
+                values[i]->ts.store(s, t, x64);
+                storages.push_back(t);
+            }
+            else {
+                storages.push_back(s);
+            }
         }
         
         x64->unwind->pop(this);
@@ -72,7 +106,7 @@ public:
 
     virtual Scope *unwind(X64 *x64) {
         for (int i = storages.size() - 1; i >= 0; i--)
-            tss[i].store(storages[i], Storage(), x64);
+            tss[i].store(storages[i], Storage(), x64);  // dropping a MEMORY is a no-op
             
         return NULL;
     }
@@ -81,30 +115,28 @@ public:
 
 class UnpackingValue: public Value {
 public:
-    std::unique_ptr<Value> left, right;
+    std::unique_ptr<MultiValue> left;
+    std::unique_ptr<Value> right;
     std::vector<TypeSpec> left_tss, right_tss;
+    int left_total;
     
     UnpackingValue(Value *l, TypeMatch &match)
         :Value(VOID_TS) {
-        left.reset(l);
+        left.reset(ptr_cast<MultiValue>(l));
+        
+        if (!left)
+            throw INTERNAL_ERROR;
+            
+        left_total = 0;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() == 0 || kwargs.size() != 0) {
+        if (args.size() != 1 || kwargs.size() != 0) {
             std::cerr << "Whacky unpacking!\n";
             return false;
         }
         
-        Value *value;
-        
-        if (args.size() > 1) {
-            value = new MultiValue();
-            if (!value->check(args, kwargs, scope))
-                return false;
-        }
-        else
-            value = typize(args[0].get(), scope);
-
+        Value *value = typize(args[0].get(), scope);
         TypeMatch match;
         
         if (!typematch(MULTI_TS, value, match)) {
@@ -121,15 +153,24 @@ public:
         for (unsigned i = 0; i < left_tss.size(); i++) {
             TypeSpec left_ts = left_tss[i];
             
-            if (i >= right_tss.size())
-                break;
+            if (i >= right_tss.size()) {
+                std::cerr << "Too few values to unpack!\n";
+                return false;
+            }
             
             TypeSpec &right_ts = right_tss[i];
             
             // TODO: this may be too strict, but we can't call typespec, because we don't
             // have a value for the right side, and we can't convert the type either.
-            if (right_ts != left_ts && right_ts != left_ts.rvalue()) {
-                std::cerr << "Mismatching types in unpacking!\n";
+            if (left_ts[0] == uninitialized_type) {
+                if (left_ts[1] == void_type)
+                    left_ts = left->fix_bare(i, right_ts.prefix(type_type), scope);
+
+                left_ts = left_ts.reprefix(uninitialized_type, lvalue_type);
+            }
+            
+            if (right_ts != left_ts.rvalue()) {
+                std::cerr << "Mismatching types in unpacking: " << left_ts << " = " << right_ts << "\n";
                 return false;
             }
         }
@@ -147,36 +188,33 @@ public:
     
     virtual Storage compile(X64 *x64) {
         left->compile(x64);
+
+        std::vector<Storage> left_storages = left->get_storages();
+        std::vector<unsigned> left_sizes;
+        
+        for (auto &left_storage : left_storages) {
+            StorageWhere where = left_storage.where;
+            int size = (where == MEMORY ? 0 : where == ALIAS ? ALIAS_SIZE : throw INTERNAL_ERROR);
+            left_sizes.push_back(size);
+            left_total += size;
+        }
         
         x64->unwind->push(this);
-        
         right->compile(x64);
-        
         x64->unwind->pop(this);
 
-        std::vector<StorageWhere> right_wheres;
+        std::vector<Storage> right_storages;
         std::vector<unsigned> right_sizes;
         int right_total = 0;
         
         for (auto &right_ts : right_tss) {
-            StorageWhere where = right_ts.where(AS_ARGUMENT);
-            right_wheres.push_back(where);
+            StorageWhere where = stacked(right_ts.where(AS_ARGUMENT));  // always STACK?
+            right_storages.push_back(Storage(where));
             int size = right_ts.measure_where(where);
             right_sizes.push_back(size);
             right_total += size;
         }
 
-        std::vector<StorageWhere> left_wheres;
-        std::vector<unsigned> left_sizes;
-        int left_total = 0;
-        
-        for (auto &left_ts : left_tss) {
-            StorageWhere where = left_ts.where(AS_ARGUMENT);
-            left_wheres.push_back(where);
-            int size = left_ts.measure_where(where);
-            left_sizes.push_back(size);
-            left_total += size;
-        }
             
         int offset = right_total;
 
@@ -186,29 +224,38 @@ public:
             // Order of these two matters, because we must first load an RSP relative address,
             // then the right may pop an ALISTACK, which moves RSP.
             
-            switch (left_wheres[i]) {
-            case ALIAS:  // TODO: it would be nice not to have to ALISTACK all these
+            switch (left_storages[i].where) {
+            case MEMORY:
+                t = left_storages[i];
+                break;
+            case ALIAS:
+                x64->op(MOVQ, RAX, Address(RSP, offset));
                 t = Storage(MEMORY, Address(RAX, 0));
-                left_tss[i].store(Storage(ALIAS, Address(RSP, offset)), t, x64);
                 break;
             default:
                 throw INTERNAL_ERROR;
             }
 
-            switch (right_wheres[i]) {
-            case MEMORY:
-                s = Storage(STACK);
+            switch (right_storages[i].where) {
+            case STACK:
+                s = right_storages[i];
                 break;
-            case ALIAS:
+            case ALISTACK:
+                x64->op(POPQ, RCX);
                 s = Storage(MEMORY, Address(RCX, 0));
-                right_tss[i].store(Storage(ALISTACK), s, x64);
                 break;
             default:
                 throw INTERNAL_ERROR;
             }
             
-            std::cerr << "Unpacking multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
-            right_tss[i].store(s, t, x64);
+            if (right_tss[i][0] == uninitialized_type) {
+                std::cerr << "Initializing multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
+                right_tss[i].create(s, t, x64);
+            }
+            else {
+                std::cerr << "Assigning multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
+                right_tss[i].store(s, t, x64);
+            }
             
             offset += left_sizes[i];
             offset -= right_sizes[i];
@@ -217,18 +264,15 @@ public:
         if (offset != left_total)
             throw INTERNAL_ERROR;
             
+        // Drop potential ALISTACK-s
         x64->op(ADDQ, RSP, left_total);
             
         return Storage();
     }
 
     virtual Scope *unwind(X64 *x64) {
-        for (int i = left_tss.size() - 1; i >= 0; i--) {
-            StorageWhere where = stacked(left_tss[i].where(AS_ARGUMENT));
-            Storage s(where);
-        
-            left_tss[i].store(s, Storage(), x64);
-        }
+        if (left_total)
+            x64->op(ADDQ, RSP, left_total);
             
         return NULL;
     }

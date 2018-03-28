@@ -71,14 +71,14 @@ public:
 
 class DataBlockValue: public Value {
 public:
-    DataScope *scope;
+    Scope *scope;  // Must work with both DataScope and ArgumentScope
     std::vector<std::unique_ptr<Value>> statements;
 
-    DataBlockValue(DataScope *s)
+    DataBlockValue(Scope *s)
         :Value(VOID_TS) {
         scope = s;
         
-        if (s->type != DATA_SCOPE)
+        if (s->type != DATA_SCOPE && s->type != ARGUMENT_SCOPE)
             throw INTERNAL_ERROR;
     }
 
