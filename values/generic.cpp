@@ -418,5 +418,12 @@ public:
         
         return ls;
     }
+    
+    virtual void escape_statement_variables() {
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
+        
+        if (dv)
+            left->escape_statement_variables();
+    }
 };
 

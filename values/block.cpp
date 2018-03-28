@@ -66,6 +66,10 @@ public:
         may_be_aborted = true;
         return code_scope;  // stop unwinding here, and start destroying scoped variables
     }
+    
+    virtual void escape_statement_variables() {
+        value->escape_statement_variables();
+    }
 };
 
 
@@ -159,6 +163,7 @@ public:
                     return false;
                 }
                 
+                /*
                 CodeScopeValue *csv = ptr_cast<CodeScopeValue>(v.get());
                 if (!csv)
                     throw INTERNAL_ERROR;
@@ -176,6 +181,9 @@ public:
                     decl->outer_scope->remove(decl);
                     scope->add(decl);
                 }
+                */
+                
+                v->escape_statement_variables();
                 
                 add_statement(v.release(), false);
             }
@@ -334,4 +342,9 @@ public:
         }
     }
     
+    virtual void escape_statement_variables() {
+        Scope *s = decl->outer_scope;
+        s->remove(decl);
+        s->outer_scope->add(decl);
+    }
 };

@@ -69,6 +69,10 @@ public:
     virtual bool unpack(std::vector<TypeSpec> &tss) {
         return false;
     }
+
+    virtual void escape_statement_variables() {
+        // Not needed in most Value classes
+    }
     
     virtual Scope *unwind(X64 *x64) {
         std::cerr << "This Value can't be unwound!\n";

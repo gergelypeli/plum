@@ -69,6 +69,10 @@ public:
         orig->ts.store(s, t, x64);
         return t;
     }
+    
+    virtual void escape_statement_variables() {
+        orig->escape_statement_variables();
+    }
 };
 
 

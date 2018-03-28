@@ -57,6 +57,12 @@ public:
         return storages;
     }
     
+    virtual Declaration *get_declaration(int i) {
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(values[i].get());
+        
+        return (dv ? declaration_get_decl(dv) : NULL);
+    }
+    
     virtual TypeSpec fix_bare(int i, TypeSpec implicit_ts, Scope *scope) {
         // Used if a member is a bare declaration, and its type must be derived from the
         // right hand side of an unpacking
@@ -119,6 +125,8 @@ public:
     std::unique_ptr<Value> right;
     std::vector<TypeSpec> left_tss, right_tss;
     int left_total;
+    std::vector<Declaration *> declarations;
+    Scope *scope;
     
     UnpackingValue(Value *l, TypeMatch &match)
         :Value(VOID_TS) {
@@ -128,6 +136,7 @@ public:
             throw INTERNAL_ERROR;
             
         left_total = 0;
+        scope = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -135,6 +144,14 @@ public:
             std::cerr << "Whacky unpacking!\n";
             return false;
         }
+        
+        // Must put potential declarations on the left after all others, like CreateValue
+        for (unsigned i = 0; i < left->values.size(); i++)
+            declarations.push_back(left->get_declaration(i));
+        
+        for (int i = declarations.size() - 1; i >= 0; i--)
+            if (declarations[i])
+                scope->remove(declarations[i]);
         
         Value *value = typize(args[0].get(), scope);
         TypeMatch match;
@@ -163,8 +180,15 @@ public:
             // TODO: this may be too strict, but we can't call typespec, because we don't
             // have a value for the right side, and we can't convert the type either.
             if (left_ts[0] == uninitialized_type) {
-                if (left_ts[1] == void_type)
+                if (left_ts[1] == void_type) {
+                    // Fix bare declaration, and place it in its scope
                     left_ts = left->fix_bare(i, right_ts.prefix(type_type), scope);
+                    declarations[i] = left->get_declaration(i);
+                }
+                else {
+                    // Put typed declaration back to its scope
+                    scope->add(declarations[i]);
+                }
 
                 left_ts = left_ts.reprefix(uninitialized_type, lvalue_type);
             }
@@ -176,6 +200,7 @@ public:
         }
         
         right.reset(value);
+        this->scope = scope;
         return true;
     }
     
@@ -215,7 +240,6 @@ public:
             right_total += size;
         }
 
-            
         int offset = right_total;
 
         for (int i = right_tss.size() - 1; i >= 0; i--) {
@@ -275,6 +299,16 @@ public:
             x64->op(ADDQ, RSP, left_total);
             
         return NULL;
+    }
+    
+    virtual void escape_statement_variables() {
+        for (int i = declarations.size() - 1; i >= 0 ; i--)
+            if (declarations[i])
+                scope->remove(declarations[i]);
+                
+        for (unsigned i = 0; i < declarations.size() ; i++)
+            if (declarations[i])
+                scope->outer_scope->add(declarations[i]);
     }
 };
 

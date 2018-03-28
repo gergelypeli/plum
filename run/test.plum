@@ -345,10 +345,10 @@ test_multis? :Function as:
     prints("Scalarized to {x3}" {})
     
     (y1? Integer, y2? Integer) = double
-    #prints("Double initialized {y1} and {y2}." {})
+    prints("Double initialized {y1} and {y2}." {})
     
     (z1?, z2?) = double
-    #prints("Double bare initialized {z1} and {z2}." {})
+    prints("Double bare initialized {z1} and {z2}." {})
 
 
 test_controls? :Function as:
