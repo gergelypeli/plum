@@ -7,10 +7,7 @@
 //   REX A1   => MOV RAX, moffset64
 //   REX A3   => MOV moffset64, RAX
 //   REX B8+r => MOV reg64, imm64
-// We now don't support either forms, so for us these constants are never 64 bit!
-
-// We force a REX prefix for all byte operations, so we gain access to SIL/DIL/BPL/SPL
-// instead of AH/BH/CH/DH.
+// Other than these, immediate constants are always 32 bits!
 
 static const int REGISTER_COUNT = 16;
 const char *REGISTER_NAMES[] = {

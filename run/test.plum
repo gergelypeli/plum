@@ -211,6 +211,10 @@ test_integers? :Function as:
     
     e? = 5_000_000_000
     prints("Five billion is {e}" {})
+    
+    Mybyte? :Integer bytes: 1 is_unsigned: `false
+    mybyte? Mybyte = -128
+    prints("Mybyte is {mybyte}" {})
 
 
 test_strings? :Function as:

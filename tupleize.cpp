@@ -149,6 +149,15 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         return e;
     }
     else if (node.type == Node::IDENTIFIER) {
+        // Special handling for negating numeric literals, so they can be type correct
+        if (node.text == "unary_minus" && node.right && nodes[node.right].type == Node::NUMBER) {
+            std::string text = "-" + nodes[node.right].text;
+            Token token = nodes[node.right].token;
+            token.text = "-" + token.text;
+            
+            return new Expr(Expr::NUMBER, token, text);
+        }
+        
         Expr *e = new Expr(Expr::IDENTIFIER, node.token, node.text);
     
         if (node.fore == UNARY || node.fore == LOGICAL_HIGH) {

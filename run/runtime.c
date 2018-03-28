@@ -239,6 +239,16 @@ void streamify_integer(long x, void **character_array_lvalue) {
 }
 
 
+void streamify_unteger(unsigned long x, void **character_array_lvalue) {
+    char byte_array[30];
+    int byte_length = snprintf(byte_array, sizeof(byte_array), "%lu", x);
+    
+    void *character_array = *character_array_lvalue;
+    character_array = append_decode_utf8(character_array, byte_array, byte_length);
+    *character_array_lvalue = character_array;
+}
+
+
 void streamify_boolean(unsigned char x, void **character_array_lvalue) {
     char *byte_array = (x ? "`true" : "`false");
     int byte_length = strlen(byte_array);

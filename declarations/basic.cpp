@@ -275,17 +275,28 @@ public:
     }
     
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
-        if (this == integer_type) {
-            Label label;
+        // SysV
+        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+        x64->op(MOVQ, RSI, Address(RSP, 0));
+        
+        Label label;
+        
+        if (is_unsigned) {
+            x64->code_label_import(label, "streamify_unteger");
+            
+            // Zero extend RDI
+            x64->op(SHLQ, RDI, 8 * (8 - size));
+            x64->op(SHRQ, RDI, 8 * (8 - size));
+        }
+        else {
             x64->code_label_import(label, "streamify_integer");
             
-            // SysV
-            x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-            x64->op(MOVQ, RSI, Address(RSP, 0));
-            x64->op(CALL, label);
+            // Sign extend RDI
+            x64->op(SHLQ, RDI, 8 * (8 - size));
+            x64->op(SARQ, RDI, 8 * (8 - size));
         }
-        else
-            BasicType::streamify(tm, repr, x64);
+        
+        x64->call_sysv(label);
     }
 
     DataScope *get_inner_scope(TypeMatch tm) {

@@ -106,6 +106,9 @@ public:
         TypeSpec ifts = imt->get_interface_ts(tm);
         TypeSpec ots = o->ts;  // FIXME: if that's an ICV, too, then parse the orig ts from it!
         
+        // NOTE: ots may be Lvalue, but this is necessary for records, where the pivot type
+        // must be Lvalue in order to match any implemented method!
+        
         ts.insert(ts.end(), ifts.begin(), ifts.end());
         ts.insert(ts.end(), ots.begin(), ots.end());
             

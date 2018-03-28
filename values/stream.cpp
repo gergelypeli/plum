@@ -24,93 +24,11 @@ public:
 };
 
 
-class StringStreamificationValue: public GenericValue {
-public:
-    StringStreamificationValue(Value *p, TypeMatch &match)
-        :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        left->precompile(preferred);
-        right->precompile(preferred);
-            
-        return Regs::all();  // We're Void
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
-
-        STRING_TS.streamify(false, x64);
-
-        right->ts.store(rs, Storage(), x64);
-        left->ts.store(ls, Storage(), x64);
-        
-        return Storage();
-    }
-};
-
-
-class CharacterStreamificationValue: public GenericValue {
+class GenericStreamificationValue: public GenericValue {
 public:
 
-    CharacterStreamificationValue(Value *p, TypeMatch &match)
+    GenericStreamificationValue(Value *p, TypeMatch &match)
         :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        left->precompile(preferred);
-        right->precompile(preferred);
-            
-        return Regs::all();  // We're Void
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
-
-        CHARACTER_TS.streamify(false, x64);
-        
-        right->ts.store(rs, Storage(), x64);
-        left->ts.store(ls, Storage(), x64);
-        
-        return Storage();
-    }
-};
-
-
-class EnumStreamificationValue: public GenericValue {
-public:
-
-    EnumStreamificationValue(Value *p, TypeMatch &match)
-        :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        left->precompile(preferred);
-        right->precompile(preferred);
-            
-        return Regs::all();  // We're Void
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
-
-        left->ts.streamify(false, x64);
-        
-        right->ts.store(rs, Storage(), x64);
-        left->ts.store(ls, Storage(), x64);
-        
-        return Storage();
-    }
-};
-
-
-class OptionStreamificationValue: public GenericValue {
-public:
-    TypeSpec some_ts;
-
-    OptionStreamificationValue(Value *p, TypeMatch &match)
-        :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
-        some_ts = match[1];
     }
     
     virtual Regs precompile(Regs preferred) {

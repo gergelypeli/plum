@@ -264,6 +264,7 @@ void builtin_types(Scope *root_scope) {
     BOOLEAN_LVALUE_TS = { lvalue_type, boolean_type };
     UNSIGNED_INTEGER8_TS = { unsigned_integer8_type };
     UNSIGNED_INTEGER8_ARRAY_REF_TS = { ref_type, array_type, unsigned_integer8_type };
+    UNTEGER_TS = { unsigned_integer_type };
     CHARACTER_TS = { character_type };
     CHARACTER_LVALUE_TS = { lvalue_type, character_type };
     CHARACTER_ARRAY_REF_TS = { ref_type, array_type, character_type };
@@ -397,7 +398,8 @@ void define_integers() {
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
 
     implement(integer_scope, STREAMIFIABLE_TS, "sable", {
-        new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, GENERIC_FUNCTION, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
+        //new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, GENERIC_FUNCTION, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
     });
     
     integer_scope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
@@ -548,7 +550,7 @@ void define_string() {
 
     // String operations
     implement(is, STREAMIFIABLE_TS, "sable", {
-        new TemplateIdentifier<StringStreamificationValue>("streamify", STRING_TS)
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", STRING_TS)
     });
 
     record_type->complete_type();
@@ -575,7 +577,7 @@ void define_option() {
     is->add(new TemplateOperation<OptionOperationValue>("compare", ANY_OPTION_TS, COMPARE));
 
     implement(is, STREAMIFIABLE_TS, "sable", {
-        new TemplateIdentifier<OptionStreamificationValue>("streamify", ANY_OPTION_TS)
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_OPTION_TS)
     });
 
     option_type->complete_type();
@@ -849,7 +851,7 @@ Scope *init_builtins() {
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
     char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", CHARACTER_TS, COMPARE));
     implement(char_scope, STREAMIFIABLE_TS, "sable", {
-        new TemplateIdentifier<CharacterStreamificationValue>("streamify", CHARACTER_TS)
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", CHARACTER_TS)
     });
     
     // Boolean operations
@@ -870,7 +872,7 @@ Scope *init_builtins() {
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     implement(enum_scope, STREAMIFIABLE_TS, "sable", {
-        new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS)
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
     });
 
     // Treenum operations
@@ -878,7 +880,7 @@ Scope *init_builtins() {
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     implement(treenum_scope, STREAMIFIABLE_TS, "sable", {
-        new TemplateIdentifier<EnumStreamificationValue>("streamify", ANY_TS)
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
     });
 
     // Record operations
