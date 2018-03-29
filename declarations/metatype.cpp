@@ -20,11 +20,6 @@ public:
     MetaType(std::string n, TypeDefinitionFactory f)
         :Type(n, TTs { }, META_TYPE, NULL) {
         factory = f;
-        
-        // Allow the first metatype not to have an inner scope
-        // FIXME: using any_type only allows metascopes for value types now!
-        if (factory)
-            make_inner_scope(TypeSpec { any_type });
     }
 
     virtual Value *match(std::string name, Value *pivot) {

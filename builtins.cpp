@@ -393,7 +393,7 @@ void define_integers() {
         { "assign_shift_right", ASSIGN_SHIFT_RIGHT }
     };
 
-    Scope *integer_scope = integer_metatype->get_inner_scope(TypeMatch());
+    Scope *integer_scope = integer_metatype->make_inner_scope(ANY_TS);
     
     for (auto &item : integer_rvalue_operations)
         integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_TS, item.operation));
@@ -872,7 +872,7 @@ Scope *init_builtins() {
     root_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", ANY_TS));
 
     // Enum operations
-    Scope *enum_scope = enumeration_metatype->get_inner_scope(TypeMatch());
+    Scope *enum_scope = enumeration_metatype->make_inner_scope(ANY_TS);
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     implement(enum_scope, STREAMIFIABLE_TS, "sable", {
@@ -880,7 +880,7 @@ Scope *init_builtins() {
     });
 
     // Treenum operations
-    Scope *treenum_scope = treenumeration_metatype->get_inner_scope(TypeMatch());
+    Scope *treenum_scope = treenumeration_metatype->make_inner_scope(ANY_TS);
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     implement(treenum_scope, STREAMIFIABLE_TS, "sable", {
@@ -888,7 +888,7 @@ Scope *init_builtins() {
     });
 
     // Record operations
-    Scope *record_scope = record_metatype->get_inner_scope(TypeMatch());
+    Scope *record_scope = record_metatype->make_inner_scope(ANY_LVALUE_TS);
     record_scope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
 
     // Reference operations, unscoped
