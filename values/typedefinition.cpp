@@ -278,7 +278,7 @@ public:
             return false;
         }
 
-        record_type = new RecordType("<anonymous>", TTs {});
+        record_type = new RecordType("<anonymous>", Metatypes {});
         TypeSpec rts = { record_type };
 
         setup_inner(record_type, rts.lvalue());
@@ -335,7 +335,7 @@ public:
             return false;
         }
 
-        class_type = new ClassType("<anonymous>", TTs {});
+        class_type = new ClassType("<anonymous>", Metatypes {});
         TypeSpec cts = { weakref_type, class_type };
 
         setup_inner(class_type, cts);
@@ -393,7 +393,7 @@ public:
         // TODO: check for Class definition scope!
         Value *v = typize(args[0].get(), scope, NULL);
     
-        if (v->ts[0]->type != META_TYPE) {
+        if (v->ts[0]->level != META_TYPE) {
             std::cerr << "Class type name expected!\n";
             return false;
         }
@@ -460,7 +460,7 @@ public:
             return false;
         }
 
-        interface_type = new InterfaceType("<anonymous>", TTs {});
+        interface_type = new InterfaceType("<anonymous>", Metatypes {});
 
         setup_inner(interface_type, ANY_TS);
         //inner_scope->set_meta_scope(_metatype->get_inner_scope());
@@ -526,7 +526,7 @@ public:
         Value *v = typize(args[0].get(), scope, NULL);
         TypeMatch match;
         
-        if (v->ts[0]->type != META_TYPE) {
+        if (v->ts[0]->level != META_TYPE) {
             std::cerr << "Implementation needs an interface type name!\n";
             return false;
         }

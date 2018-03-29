@@ -2,7 +2,11 @@
 class HyperType: public Type {
 public:
     HyperType()
-        :Type("", TTs { META_TYPE }, HYPER_TYPE, NULL) {
+        :Type("", Metatypes { }, NULL) {
+    }
+    
+    virtual Value *match(std::string name, Value *pivot) {
+        return NULL;
     }
 };
 
@@ -19,7 +23,7 @@ public:
     TypeDefinitionFactory factory;
     
     MetaType(std::string n, Type *st, TypeDefinitionFactory f)
-        :Type(n, TTs { }, META_TYPE, NULL) {
+        :Type(n, Metatypes { }, metatype_hypertype) {
         super_type = st;
         factory = f;
     }

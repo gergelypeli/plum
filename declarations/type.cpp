@@ -1,18 +1,15 @@
 
-enum TypeType {
-    GENERIC_TYPE, VALUE_TYPE, IDENTITY_TYPE, ATTRIBUTE_TYPE, META_TYPE, HYPER_TYPE
+enum TypeLevel {
+    DATA_TYPE, META_TYPE, HYPER_TYPE
 };
 
-typedef std::vector<TypeType> TTs;
+typedef std::vector<Type *> Metatypes;
 
-std::ostream &operator<<(std::ostream &os, const TypeType tt) {
+std::ostream &operator<<(std::ostream &os, const TypeLevel tl) {
     os << (
-        tt == GENERIC_TYPE ? "GENERIC_TYPE" :
-        tt == VALUE_TYPE ? "VALUE_TYPE" :
-        tt == IDENTITY_TYPE ? "IDENTITY_TYPE" :
-        tt == ATTRIBUTE_TYPE ? "ATTRIBUTE_TYPE" :
-        tt == META_TYPE ? "META_TYPE" :
-        tt == HYPER_TYPE ? "HYPER_TYPE" :
+        tl == DATA_TYPE ? "DATA_TYPE" :
+        tl == META_TYPE ? "META_TYPE" :
+        tl == HYPER_TYPE ? "HYPER_TYPE" :
         throw INTERNAL_ERROR
     );
     
@@ -23,25 +20,27 @@ std::ostream &operator<<(std::ostream &os, const TypeType tt) {
 class Type: public Declaration {
 public:
     std::string name;
-    TTs param_tts;
+    Metatypes param_metatypes;
     DataScope *inner_scope;  // Will be owned by the outer scope
-    TypeType type;
+    TypeLevel level;
     Type *upper_type;
-    // type and upper_type are somewhat overlapping in functionality for now
     
-    Type(std::string n, TTs ptts, TypeType tt, Type *ut) {
+    Type(std::string n, Metatypes pmts, Type *ut) {
         name = n;
-        param_tts = ptts;
-        type = tt;
+        param_metatypes = pmts;
         upper_type = ut;
-        inner_scope = NULL;
         
-        if (ut && ut->type != META_TYPE && ut->type != HYPER_TYPE)
-            throw INTERNAL_ERROR;
+        level = (
+            !ut ? HYPER_TYPE :
+            ut->level == HYPER_TYPE ? META_TYPE :
+            ut->level == META_TYPE ? DATA_TYPE :
+            throw INTERNAL_ERROR
+        );
+        inner_scope = NULL;
     }
     
     virtual unsigned get_parameter_count() {
-        return param_tts.size();
+        return param_metatypes.size();
     }
     
     virtual void set_name(std::string n) {
@@ -72,6 +71,10 @@ public:
     }
     
     virtual Value *match(std::string name, Value *pivot) {
+        // Metatypes must override this method
+        if (level != DATA_TYPE)
+            throw INTERNAL_ERROR;
+            
         if (name != this->name)
             return NULL;
 
@@ -88,7 +91,7 @@ public:
             
             TypeSpec t = get_typespec(pivot);
             
-            if (t[0]->type != META_TYPE) {
+            if (t[0]->level != META_TYPE) {
                 std::cerr << "Invalid type parameter type: " << t << "\n";
                 return NULL;
             }
@@ -112,26 +115,18 @@ public:
             }
         }
 
-        // Metatypes must override this method
-        if (!upper_type || upper_type->type != META_TYPE)
-            throw INTERNAL_ERROR;
-        
         TypeSpec result_ts = { this };
         
         for (unsigned i = 0; i < pc; i++) {
             TypeSpec &ts = tss[i];
             
-            TypeType tt = ts[0]->type;
-            TypeType &ptt = param_tts[i];
-            
-            if (ptt != GENERIC_TYPE && ptt != tt) {
-                std::cerr << "Type " << name << " parameter " << i + 1 << " is not a " << ptt << " but a " << tt << "!\n";
+            if (ts[0]->level != DATA_TYPE) {
+                std::cerr << "Data type parameters must be data types!\n";
                 return NULL;
             }
-                
-            // TODO: this is becoming obsolete...
-            if (ts[0] == lvalue_type || ts[0] == ovalue_type || ts[0] == code_type || ts[0] == multi_type) {
-                std::cerr << "Invalid type parameter: " << ts << "!\n";
+
+            if (!ts.is_meta(param_metatypes[i])) {
+                std::cerr << "Type " << name << " parameter " << i + 1 << " is not a " << param_metatypes[i]->name << " but " << ts << "!\n";
                 return NULL;
             }
             
@@ -298,16 +293,16 @@ public:
 
 class AnyType: public Type {
 public:
-    AnyType(std::string name, TTs param_tts, TypeType tt)
-        :Type(name, param_tts, tt, type_metatype) {
+    AnyType(std::string name, Metatypes param_metatypes, Type *mt)
+        :Type(name, param_metatypes, mt) {
     }
 };
 
 
 class SameType: public Type {
 public:
-    SameType(std::string name, TTs param_tts, TypeType tt)
-        :Type(name, param_tts, tt, type_metatype) {
+    SameType(std::string name, Metatypes param_metatypes, Type *mt)
+        :Type(name, param_metatypes, mt) {
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
@@ -344,7 +339,7 @@ public:
 class AttributeType: public Type {
 public:
     AttributeType(std::string n)
-        :Type(n, TTs { VALUE_TYPE }, ATTRIBUTE_TYPE, type_metatype) {
+        :Type(n, Metatypes { value_metatype }, attribute_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
@@ -408,16 +403,14 @@ public:
 class PartialType: public Type {
 public:
     PartialType(std::string name)
-        :Type(name, TTs { GENERIC_TYPE }, VALUE_TYPE, type_metatype) {
+        :Type(name, Metatypes { type_metatype }, value_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
         return tm[1].where(as_what, as_lvalue);
-        //return tm[1][0]->type == IDENTITY_TYPE ? 
     }
 
     virtual Allocation measure(TypeMatch tm) {
-        //return Allocation(ADDRESS_SIZE);
         return tm[1].measure();
     }
 
@@ -482,7 +475,7 @@ public:
 class UninitializedType: public Type {
 public:
     UninitializedType(std::string name)
-        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE, type_metatype) {
+        :Type(name, Metatypes { type_metatype }, type_metatype) {
     }
 
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
@@ -497,7 +490,7 @@ public:
 class InitializableType: public Type {
 public:
     InitializableType(std::string name)
-        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE, type_metatype) {
+        :Type(name, Metatypes { type_metatype }, type_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
@@ -527,7 +520,7 @@ public:
     // To be used only as type context in the :is control
     
     EqualitymatcherType(std::string name)
-        :Type(name, TTs { VALUE_TYPE }, VALUE_TYPE, type_metatype) {
+        :Type(name, Metatypes { value_metatype }, value_metatype) {
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
@@ -552,7 +545,7 @@ public:
 class MultiType: public Type {
 public:
     MultiType(std::string name)
-        :Type(name, {}, GENERIC_TYPE, type_metatype) {
+        :Type(name, {}, type_metatype) {
     }
 };
 
@@ -560,7 +553,7 @@ public:
 class VoidType: public Type {
 public:
     VoidType(std::string name)
-        :Type(name, {}, VALUE_TYPE, type_metatype) {
+        :Type(name, {}, value_metatype) {
     }
 
     virtual Allocation measure(TypeMatch tm) {

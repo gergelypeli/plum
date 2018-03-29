@@ -8,13 +8,13 @@ void builtin_types(Scope *root_scope) {
     type_metatype = new TypeMetaType(":Type", NULL);
     root_scope->add(type_metatype);
 
-    value_metatype = new ValueMetatype(":Value", type_metatype);
+    value_metatype = new ValueMetaType(":Value", type_metatype);
     root_scope->add(value_metatype);
 
-    identity_metatype = new IdentityMetatype(":Identity", type_metatype);
+    identity_metatype = new IdentityMetaType(":Identity", type_metatype);
     root_scope->add(identity_metatype);
     
-    attribute_metatype = new AttributeMetatype(":Attribute", type_metatype);
+    attribute_metatype = new AttributeMetaType(":Attribute", type_metatype);
     root_scope->add(attribute_metatype);
     
     integer_metatype = new IntegerMetaType(":Integer", value_metatype);
@@ -39,40 +39,40 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(implementation_metatype);
 
     // Phase 3: declare wildcard types, so subsequent types can have an inner scope
-    any_type = new AnyType("<Any>", {}, VALUE_TYPE);
+    any_type = new AnyType("<Any>", {}, value_metatype);
     root_scope->add(any_type);
 
-    any2_type = new AnyType("<Any2>", {}, VALUE_TYPE);
+    any2_type = new AnyType("<Any2>", {}, value_metatype);
     root_scope->add(any2_type);
 
-    any3_type = new AnyType("<Any3>", {}, VALUE_TYPE);
+    any3_type = new AnyType("<Any3>", {}, value_metatype);
     root_scope->add(any3_type);
 
-    anyid_type = new AnyType("<Anyid>", {}, IDENTITY_TYPE);
+    anyid_type = new AnyType("<Anyid>", {}, identity_metatype);
     root_scope->add(anyid_type);
 
-    anyid2_type = new AnyType("<Anyid2>", {}, IDENTITY_TYPE);
+    anyid2_type = new AnyType("<Anyid2>", {}, identity_metatype);
     root_scope->add(anyid2_type);
 
-    anyid3_type = new AnyType("<Anyid3>", {}, IDENTITY_TYPE);
+    anyid3_type = new AnyType("<Anyid3>", {}, identity_metatype);
     root_scope->add(anyid3_type);
 
-    same_type = new SameType("<Same>", {}, VALUE_TYPE);
+    same_type = new SameType("<Same>", {}, value_metatype);
     root_scope->add(same_type);
 
-    same2_type = new SameType("<Same2>", {}, VALUE_TYPE);
+    same2_type = new SameType("<Same2>", {}, value_metatype);
     root_scope->add(same2_type);
 
-    same3_type = new SameType("<Same3>", {}, VALUE_TYPE);
+    same3_type = new SameType("<Same3>", {}, value_metatype);
     root_scope->add(same3_type);
 
-    sameid_type = new SameType("<Sameid>", {}, IDENTITY_TYPE);
+    sameid_type = new SameType("<Sameid>", {}, identity_metatype);
     root_scope->add(sameid_type);
 
-    sameid2_type = new SameType("<Sameid2>", {}, IDENTITY_TYPE);
+    sameid2_type = new SameType("<Sameid2>", {}, identity_metatype);
     root_scope->add(sameid2_type);
 
-    sameid3_type = new SameType("<Sameid3>", {}, IDENTITY_TYPE);
+    sameid3_type = new SameType("<Sameid3>", {}, identity_metatype);
     root_scope->add(sameid3_type);
 
     // Phase 4: declare special types
@@ -170,10 +170,10 @@ void builtin_types(Scope *root_scope) {
     streamifiable_type = new InterfaceType("Streamifiable", {});
     root_scope->add(streamifiable_type);
 
-    iterator_type = new InterfaceType("Iterator", { VALUE_TYPE });
+    iterator_type = new InterfaceType("Iterator", { value_metatype });
     root_scope->add(iterator_type);
 
-    iterable_type = new InterfaceType("Iterable", { VALUE_TYPE });
+    iterable_type = new InterfaceType("Iterable", { value_metatype });
     root_scope->add(iterable_type);
 
     string_type = new StringType("String");
@@ -191,16 +191,16 @@ void builtin_types(Scope *root_scope) {
     set_type = new SetType("Set");
     root_scope->add(set_type);
 
-    map_type = new MapType("Map", { VALUE_TYPE, VALUE_TYPE });
+    map_type = new MapType("Map", { value_metatype, value_metatype });
     root_scope->add(map_type);
 
-    weakvaluemap_type = new WeakValueMapType("WeakValueMap", { VALUE_TYPE, IDENTITY_TYPE });
+    weakvaluemap_type = new WeakValueMapType("WeakValueMap", { value_metatype, identity_metatype });
     root_scope->add(weakvaluemap_type);
 
-    weakindexmap_type = new WeakIndexMapType("WeakIndexMap", { IDENTITY_TYPE, VALUE_TYPE });
+    weakindexmap_type = new WeakIndexMapType("WeakIndexMap", { identity_metatype, value_metatype });
     root_scope->add(weakindexmap_type);
     
-    weakset_type = new WeakSetType("WeakSet", { IDENTITY_TYPE });
+    weakset_type = new WeakSetType("WeakSet", { identity_metatype });
     root_scope->add(weakset_type);
 
     countup_type = new RecordType("Countup", {});
@@ -212,28 +212,28 @@ void builtin_types(Scope *root_scope) {
     item_type = new ItemType("Item");
     root_scope->add(item_type);
 
-    arrayelemiter_type = new RecordType("Arrayelem_iter", { VALUE_TYPE });
+    arrayelemiter_type = new RecordType("Arrayelem_iter", { value_metatype });
     root_scope->add(arrayelemiter_type);
     
-    arrayindexiter_type = new RecordType("Arrayindex_iter", { VALUE_TYPE });
+    arrayindexiter_type = new RecordType("Arrayindex_iter", { value_metatype });
     root_scope->add(arrayindexiter_type);
     
-    arrayitemiter_type = new RecordType("Arrayitem_iter", { VALUE_TYPE });
+    arrayitemiter_type = new RecordType("Arrayitem_iter", { value_metatype });
     root_scope->add(arrayitemiter_type);
 
-    circularrayelemiter_type = new RecordType("Circularrayelem_iter", { VALUE_TYPE });
+    circularrayelemiter_type = new RecordType("Circularrayelem_iter", { value_metatype });
     root_scope->add(circularrayelemiter_type);
     
-    circularrayindexiter_type = new RecordType("Circularrayindex_iter", { VALUE_TYPE });
+    circularrayindexiter_type = new RecordType("Circularrayindex_iter", { value_metatype });
     root_scope->add(circularrayindexiter_type);
     
-    circularrayitemiter_type = new RecordType("Circularrayitem_iter", { VALUE_TYPE });
+    circularrayitemiter_type = new RecordType("Circularrayitem_iter", { value_metatype });
     root_scope->add(circularrayitemiter_type);
 
-    rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", { VALUE_TYPE });
+    rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", { value_metatype });
     root_scope->add(rbtreeelembyageiter_type);
 
-    rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { VALUE_TYPE });
+    rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { value_metatype });
     root_scope->add(rbtreeelembyorderiter_type);
 
     equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");

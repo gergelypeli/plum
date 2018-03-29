@@ -33,6 +33,7 @@ public:
     TypeSpec reprefix(Type *s, Type *t);
     TypeSpec rvalue();
     TypeSpec lvalue();
+    bool is_meta(Type *mt);
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);

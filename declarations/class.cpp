@@ -7,8 +7,8 @@ public:
     Function *finalizer_function;
     BaseRole *base_role;
 
-    ClassType(std::string name, TTs param_tts)
-        :HeapType(name, param_tts, class_metatype) {
+    ClassType(std::string name, Metatypes param_metatypes)
+        :HeapType(name, param_metatypes, class_metatype) {
         finalizer_function = NULL;
         base_role = NULL;
     }
@@ -317,7 +317,7 @@ public:
 class StackType: public ClassType {
 public:
     StackType(std::string name)
-        :ClassType(name, TTs { VALUE_TYPE }) {
+        :ClassType(name, Metatypes { value_metatype }) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
@@ -342,7 +342,7 @@ public:
 class QueueType: public ClassType {
 public:
     QueueType(std::string name)
-        :ClassType(name, TTs { VALUE_TYPE }) {
+        :ClassType(name, Metatypes { value_metatype }) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
@@ -367,7 +367,7 @@ public:
 class SetType: public ClassType {
 public:
     SetType(std::string name)
-        :ClassType(name, TTs { VALUE_TYPE }) {
+        :ClassType(name, Metatypes { value_metatype }) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
@@ -391,8 +391,8 @@ public:
 
 class MapType: public ClassType {
 public:
-    MapType(std::string name, TTs tts)
-        :ClassType(name, tts) {  //TTs { VALUE_TYPE, VALUE_TYPE }) {
+    MapType(std::string name, Metatypes param_metatypes)
+        :ClassType(name, param_metatypes) {
     }
     
     virtual Value *lookup_map_partinitializer(TypeSpec real_ts, TypeSpec key_ts, TypeSpec value_ts, std::string name, Value *pivot) {
@@ -421,8 +421,8 @@ public:
 
 class WeakValueMapType: public MapType {
 public:
-    WeakValueMapType(std::string name, TTs tts)
-        :MapType(name, tts) {
+    WeakValueMapType(std::string name, Metatypes param_metatypes)
+        :MapType(name, param_metatypes) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
@@ -433,8 +433,8 @@ public:
 
 class WeakIndexMapType: public MapType {
 public:
-    WeakIndexMapType(std::string name, TTs tts)
-        :MapType(name, tts) {
+    WeakIndexMapType(std::string name, Metatypes param_metatypes)
+        :MapType(name, param_metatypes) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
@@ -445,8 +445,8 @@ public:
 
 class WeakSetType: public MapType {
 public:
-    WeakSetType(std::string name, TTs tts)
-        :MapType(name, tts) {  //TTs { IDENTITY_TYPE }) {
+    WeakSetType(std::string name, Metatypes param_metatypes)
+        :MapType(name, param_metatypes) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {

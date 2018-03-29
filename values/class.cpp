@@ -80,7 +80,7 @@ public:
         if (!tv)
             return false;
             
-        if (tv->ts[0]->type != META_TYPE) {
+        if (tv->ts[0]->level != META_TYPE) {
             std::cerr << "Class matcher is not a type name!\n";
             return false;
         }

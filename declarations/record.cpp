@@ -5,8 +5,8 @@ public:
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
 
-    RecordType(std::string n, TTs param_tts)
-        :Type(n, param_tts, VALUE_TYPE, record_metatype) {
+    RecordType(std::string n, Metatypes param_metatypes)
+        :Type(n, param_metatypes, record_metatype) {
     }
 
     virtual bool complete_type() {
@@ -275,7 +275,7 @@ public:
 class StringType: public RecordType {
 public:
     StringType(std::string n)
-        :RecordType(n, TTs {}) {
+        :RecordType(n, Metatypes {}) {
     }
 
     virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
@@ -481,7 +481,7 @@ public:
 class ItemType: public RecordType {
 public:
     ItemType(std::string n)
-        :RecordType(n, TTs { VALUE_TYPE, VALUE_TYPE }) {
+        :RecordType(n, Metatypes { value_metatype, value_metatype }) {
     }
 
     virtual unsigned comparable_member_count() {
@@ -493,7 +493,7 @@ public:
 class AutoweakrefType: public RecordType {
 public:
     AutoweakrefType(std::string n)
-        :RecordType(n, TTs { IDENTITY_TYPE }) {
+        :RecordType(n, Metatypes { identity_metatype }) {
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {

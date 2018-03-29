@@ -32,8 +32,8 @@ TypeSpec TypeSpec::prefix(Type *t) {
         throw INTERNAL_ERROR;
     }
     
-    if (t->param_tts[0] != GENERIC_TYPE && t->param_tts[0] != at(0)->type) {
-        std::cerr << "Can't prefix Type " << t->name << " requiring a " << t->param_tts[0]  << " parameters: " << *this << "!\n";
+    if (!is_meta(t->param_metatypes[0])) {
+        std::cerr << "Can't prefix Type " << t->name << " requiring a " << t->param_metatypes[0]->name  << " parameters: " << *this << "!\n";
         throw INTERNAL_ERROR;
     }
     
@@ -94,6 +94,18 @@ TypeSpec TypeSpec::rvalue() {
 
 TypeSpec TypeSpec::lvalue() {
     return at(0) == lvalue_type ? *this : at(0) == ovalue_type ? unprefix(ovalue_type).prefix(lvalue_type) : prefix(lvalue_type);
+}
+
+
+bool TypeSpec::is_meta(Type *mt) {
+    Type *ms = at(0)->upper_type;
+    
+    while (ms && ms != mt) {
+        MetaType *meta = ptr_cast<MetaType>(ms);
+        ms = (meta ? meta->super_type : NULL);
+    }
+        
+    return ms == mt;
 }
 
 

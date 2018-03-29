@@ -58,7 +58,10 @@ public:
                 return NULL;
             }
         
-            TypeSpec var_ts = (ts[0]->type == ATTRIBUTE_TYPE ? ts.reprefix(ts[0], lvalue_type) : ts.lvalue());
+            TypeSpec var_ts = (
+                ts[0]->upper_type == attribute_metatype ? ts.reprefix(ts[0], lvalue_type) :
+                ts.lvalue()
+            );
         
             return new Variable(name, NO_TS, var_ts);
         }

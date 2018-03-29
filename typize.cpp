@@ -258,7 +258,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         TypeSpec ts;
         
         if (p) {
-            if (p->ts[0]->type == META_TYPE) {
+            if (p->ts[0]->level == META_TYPE) {
                 ts = ptr_cast<TypeValue>(p)->represented_ts;
                 context = &ts;
             }
@@ -301,7 +301,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             TypeSpec ts;
             
             if (p) {
-                if (p->ts[0]->type == META_TYPE)
+                if (p->ts[0]->level == META_TYPE)
                     ts = ptr_cast<TypeValue>(p)->represented_ts;
                 else {
                     std::cerr << "Initializer with nontype context!\n";
@@ -316,8 +316,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
             
             // We must have checked this.
-            Type *t = ts[0];
-            if (t->type != VALUE_TYPE && !ptr_cast<MetaType>(t)) {
+            if (!ts.is_meta(value_metatype) && !ts.is_meta(metatype_hypertype)) {
                 std::cerr << "Initializer with nonvalue type context: " << ts << "!\n";
                 throw TYPE_ERROR;
             }

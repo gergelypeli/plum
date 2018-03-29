@@ -2,7 +2,7 @@
 class ReferenceType: public Type {
 public:
     ReferenceType(std::string name)
-        :Type(name, TTs { IDENTITY_TYPE }, VALUE_TYPE, type_metatype) {
+        :Type(name, Metatypes { identity_metatype }, value_metatype) {
     }
     
     virtual Allocation measure(TypeMatch tm) {
@@ -286,8 +286,8 @@ public:
 
 class HeapType: public Type {
 public:
-    HeapType(std::string name, TTs param_tts, Type *mt = NULL)
-        :Type(name, param_tts, IDENTITY_TYPE, mt ? mt : type_metatype) {
+    HeapType(std::string name, Metatypes param_metatypes, Type *mt = NULL)
+        :Type(name, param_metatypes, mt ? mt : identity_metatype) {
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -301,8 +301,7 @@ public:
 class WeakAnchorageType: public HeapType {
 public:
     WeakAnchorageType(std::string name)
-        :HeapType(name, TTs { IDENTITY_TYPE }) {
-        //make_inner_scope(TypeSpec { ref_type, this, any_type });
+        :HeapType(name, Metatypes { identity_metatype }) {
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
@@ -352,7 +351,7 @@ public:
 class ArrayType: public HeapType {
 public:
     ArrayType(std::string name)
-        :HeapType(name, TTs { VALUE_TYPE }) {
+        :HeapType(name, Metatypes { value_metatype }) {
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
@@ -406,7 +405,7 @@ public:
 class CircularrayType: public HeapType {
 public:
     CircularrayType(std::string name)
-        :HeapType(name, TTs { VALUE_TYPE }) {
+        :HeapType(name, Metatypes { value_metatype }) {
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
 
@@ -477,7 +476,7 @@ public:
 class RbtreeType: public HeapType {
 public:
     RbtreeType(std::string name)
-        :HeapType(name, TTs { VALUE_TYPE }) {
+        :HeapType(name, Metatypes { value_metatype }) {
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     

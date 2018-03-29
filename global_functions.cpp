@@ -487,7 +487,7 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
                 throw INTERNAL_ERROR;
             }
             
-            if ((*tti)->type != match[mi][0]->type) {
+            if (!match[mi].is_meta((*tti)->upper_type)) {
                 std::cerr << "Wrong matched Any type while substituting Same!\n";
                 throw INTERNAL_ERROR;
             }
@@ -522,10 +522,9 @@ bool is_any(Type *t) {
 }
 
 
-bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, int mi, TypeType tt) {
-    if ((*s)->type != tt) {
-        const char *what = (tt == VALUE_TYPE ? "value" : tt == IDENTITY_TYPE ? "identity" : throw INTERNAL_ERROR);
-        MATCHLOG std::cerr << "No match, type parameter not a " << what << " type!\n";
+bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, int mi, Type *metatype) {
+    if (!TypeSpec(s).is_meta(metatype)) {
+        MATCHLOG std::cerr << "No match, type parameter not a " << metatype->name << "!\n";
         return false;
     }
     
@@ -559,27 +558,27 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
             t++;
         }
         else if (*t == any_type) {
-            if (!match_type_parameter(s, t, match, 1, VALUE_TYPE))
+            if (!match_type_parameter(s, t, match, 1, value_metatype))
                 return false;
         }
         else if (*t == any2_type) {
-            if (!match_type_parameter(s, t, match, 2, VALUE_TYPE))
+            if (!match_type_parameter(s, t, match, 2, value_metatype))
                 return false;
         }
         else if (*t == any3_type) {
-            if (!match_type_parameter(s, t, match, 3, VALUE_TYPE))
+            if (!match_type_parameter(s, t, match, 3, value_metatype))
                 return false;
         }
         else if (*t == anyid_type) {
-            if (!match_type_parameter(s, t, match, 1, IDENTITY_TYPE))
+            if (!match_type_parameter(s, t, match, 1, identity_metatype))
                 return false;
         }
         else if (*t == anyid2_type) {
-            if (!match_type_parameter(s, t, match, 2, IDENTITY_TYPE))
+            if (!match_type_parameter(s, t, match, 2, identity_metatype))
                 return false;
         }
         else if (*t == anyid3_type) {
-            if (!match_type_parameter(s, t, match, 3, IDENTITY_TYPE))
+            if (!match_type_parameter(s, t, match, 3, identity_metatype))
                 return false;
         }
         else {

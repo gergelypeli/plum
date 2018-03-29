@@ -28,7 +28,7 @@ public:
             else
                 tss.push_back(value->ts);
         
-            if (value->ts[0]->type != META_TYPE)
+            if (value->ts[0]->level != META_TYPE)
                 is_type = false;
             else
                 tss.push_back(ptr_cast<TypeValue>(value)->represented_ts);
