@@ -422,11 +422,10 @@ public:
 class WeakValueMapType: public MapType {
 public:
     WeakValueMapType(std::string name, TTs tts)
-        :MapType(name, tts) {  //TTs { VALUE_TYPE, IDENTITY_TYPE }) {
+        :MapType(name, tts) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        //tm[0] = typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_TS, tm);
         return MapType::lookup_map_partinitializer(tm[0], tm[1], tm[2].prefix(weakanchor_type), name, pivot);
     }
 };
@@ -435,11 +434,10 @@ public:
 class WeakIndexMapType: public MapType {
 public:
     WeakIndexMapType(std::string name, TTs tts)
-        :MapType(name, tts) {  //TTs { IDENTITY_TYPE, VALUE_TYPE }) {
+        :MapType(name, tts) {
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        //tm[0] = typesubst(SAMEID_WEAKANCHOR_SAME2_MAP_TS, tm);
         return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), tm[2], name, pivot);
     }
 };
@@ -453,6 +451,6 @@ public:
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
         //tm[0] = typesubst(SAMEID_WEAKANCHOR_ZERO_MAP_TS, tm);
-        return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), ZERO_TS, name, pivot);
+        return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), VOID_TS, name, pivot);
     }
 };

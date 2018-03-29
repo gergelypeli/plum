@@ -325,9 +325,9 @@ public:
 
 TypeMatch &wsmatch(TypeMatch &match) {
     static TypeMatch tm;
-    tm[0] = typesubst(SAMEID_WEAKANCHOR_ZERO_MAP_WEAKREF_TS, match);
+    tm[0] = typesubst(SAMEID_WEAKANCHOR_VOID_MAP_WEAKREF_TS, match);
     tm[1] = match[1].prefix(weakanchor_type);
-    tm[2] = ZERO_TS;
+    tm[2] = VOID_TS;
     tm[3] = NO_TS;
     return tm;
 }

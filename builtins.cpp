@@ -9,22 +9,22 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(type_metatype);
 
     // Phase 2: declare wildcard types, so subsequent types can have an inner scope
-    any_type = new SpecialType("<Any>", {}, VALUE_TYPE);
+    any_type = new AnyType("<Any>", {}, VALUE_TYPE);
     root_scope->add(any_type);
 
-    any2_type = new SpecialType("<Any2>", {}, VALUE_TYPE);
+    any2_type = new AnyType("<Any2>", {}, VALUE_TYPE);
     root_scope->add(any2_type);
 
-    any3_type = new SpecialType("<Any3>", {}, VALUE_TYPE);
+    any3_type = new AnyType("<Any3>", {}, VALUE_TYPE);
     root_scope->add(any3_type);
 
-    anyid_type = new SpecialType("<Anyid>", {}, IDENTITY_TYPE);
+    anyid_type = new AnyType("<Anyid>", {}, IDENTITY_TYPE);
     root_scope->add(anyid_type);
 
-    anyid2_type = new SpecialType("<Anyid2>", {}, IDENTITY_TYPE);
+    anyid2_type = new AnyType("<Anyid2>", {}, IDENTITY_TYPE);
     root_scope->add(anyid2_type);
 
-    anyid3_type = new SpecialType("<Anyid3>", {}, IDENTITY_TYPE);
+    anyid3_type = new AnyType("<Anyid3>", {}, IDENTITY_TYPE);
     root_scope->add(anyid3_type);
 
     same_type = new SameType("<Same>", {}, VALUE_TYPE);
@@ -68,13 +68,10 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(implementation_metatype);
 
     // Phase 4: declare special types
-    void_type = new SpecialType("Void", {}, VALUE_TYPE);
+    void_type = new VoidType("Void");
     root_scope->add(void_type);
 
-    zero_type = new ZeroType("<Zero>");
-    root_scope->add(zero_type);
-
-    multi_type = new SpecialType("<Multi>", {}, GENERIC_TYPE);
+    multi_type = new MultiType("<Multi>");
     root_scope->add(multi_type);
 
     uninitialized_type = new UninitializedType("<Uninitialized>");
@@ -254,7 +251,6 @@ void builtin_types(Scope *root_scope) {
     SAME_LVALUE_TS = { lvalue_type, same_type };
     SAME2_LVALUE_TS = { lvalue_type, same2_type };
     VOID_TS = { void_type };
-    ZERO_TS = { zero_type };
     MULTI_TS = { multi_type };
     MULTI_LVALUE_TS = { lvalue_type, multi_type };
     MULTI_TYPE_TS = { type_metatype, multi_type };
@@ -319,9 +315,9 @@ void builtin_types(Scope *root_scope) {
     SAMEID_WEAKANCHOR_SAME2_MAP_TS = { map_type, weakanchor_type, sameid_type, same2_type };
     SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, same2_type };
     ANYID_WEAKSET_WEAKREF_TS = { weakref_type, weakset_type, anyid_type };
-    SAMEID_WEAKANCHOR_ZERO_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, zero_type };
-    SAMEID_WEAKANCHOR_ZERO_MAP_TS = { map_type, weakanchor_type, sameid_type, zero_type };
-    SAMEID_WEAKANCHOR_ZERO_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, zero_type };
+    SAMEID_WEAKANCHOR_VOID_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, void_type };
+    SAMEID_WEAKANCHOR_VOID_MAP_TS = { map_type, weakanchor_type, sameid_type, void_type };
+    SAMEID_WEAKANCHOR_VOID_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, void_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -788,7 +784,7 @@ void define_weakindexmap() {
 
 void define_weakset() {
     TypeSpec PIVOT = ANYID_WEAKSET_WEAKREF_TS;
-    TypeSpec CAST = SAMEID_WEAKANCHOR_ZERO_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec CAST = SAMEID_WEAKANCHOR_VOID_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(weakset_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);

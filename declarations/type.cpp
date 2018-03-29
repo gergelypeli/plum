@@ -539,29 +539,37 @@ public:
 };
 
 
-class SpecialType: public Type {
+class MultiType: public Type {
 public:
-    SpecialType(std::string name, TTs param_tts, TypeType tt)
-        :Type(name, param_tts, tt, type_metatype) {
+    MultiType(std::string name)
+        :Type(name, {}, GENERIC_TYPE, type_metatype) {
     }
-    
+    /*
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
-            std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
+            std::cerr << "Invalid Multi store from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
         }
     }
+    */
 };
 
 
-class ZeroType: public SpecialType {
+class VoidType: public Type {
 public:
-    ZeroType(std::string name)
-        :SpecialType(name, {}, VALUE_TYPE) {
+    VoidType(std::string name)
+        :Type(name, {}, VALUE_TYPE, type_metatype) {
     }
 
     virtual Allocation measure(TypeMatch tm) {
         return Allocation();
+    }
+
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (s.where != NOWHERE || t.where != NOWHERE) {
+            std::cerr << "Invalid Void store from " << s << " to " << t << "!\n";
+            throw INTERNAL_ERROR;
+        }
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
