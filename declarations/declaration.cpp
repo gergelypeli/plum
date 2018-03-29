@@ -79,6 +79,7 @@ public:
 #include "allocable.cpp"
 #include "function.cpp"
 #include "type.cpp"
+#include "metatype.cpp"
 
 
 class Borrow: public Declaration {

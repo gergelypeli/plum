@@ -252,6 +252,11 @@ public:
     }
 
     virtual bool use(Value *v, Scope *scope) {
+        if (v->ts[0]->type != META_TYPE && v->ts[0]->type != HYPER_TYPE) {
+            std::cerr << "Can't declare as " << v->ts << "!\n";
+            return false;
+        }
+        
         value.reset(v);
 
         decl = value->declare(name, scope->type);
@@ -324,22 +329,15 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        if (var) {
-            Storage t = var->get_local_storage();
+        // value may be unset for retro variables
+        Storage s = (value ? value->compile(x64) : Storage());
+        
+        // just to be sure we don't have something nasty here
+        if (s.where != NOWHERE)
+            throw INTERNAL_ERROR;
             
-            if (value) {
-                //Storage s = value->compile(x64);  // may be NOWHERE, then we'll clear initialize
-
-                // Use the value to initialize the variable, then return the variable
-                //var->alloc_ts.create(s, t, x64);
-            }
-
-            return t;
-        }
-        else {
-            value->compile_and_store(x64, Storage());
-            return Storage();
-        }
+        // var is unset for anything nonvariable
+        return var ? var->get_local_storage() : Storage();
     }
     
     virtual void escape_statement_variables() {

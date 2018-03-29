@@ -4,7 +4,7 @@ public:
     std::vector<Function *> member_functions;
     
     InterfaceType(std::string name, TTs param_tts)
-        :Type(name, param_tts, GENERIC_TYPE) {
+        :Type(name, param_tts, GENERIC_TYPE, interface_metatype) {
     }
 
     virtual bool complete_type() {
@@ -68,7 +68,7 @@ public:
     TypeSpec implementor_ts;  // aka pivot type
 
     ImplementationType(std::string name, TypeSpec irts, TypeSpec ifts)
-        :Type(name, TTs { VALUE_TYPE, GENERIC_TYPE }, GENERIC_TYPE) {
+        :Type(name, TTs { VALUE_TYPE, GENERIC_TYPE }, GENERIC_TYPE, implementation_metatype) {
         interface_ts = ifts;
         implementor_ts = irts;
     }

@@ -345,7 +345,7 @@ public:
     virtual bool fix_bare(Scope *scope) {
         DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
 
-        TypeSpec implicit_ts = right->ts.rvalue().prefix(type_type);
+        TypeSpec implicit_ts = right->ts.rvalue().prefix(type_metatype);
         std::cerr << "Fixing bare declaration with " << implicit_ts << ".\n";
         Value *tv = make_type_value(implicit_ts);
         

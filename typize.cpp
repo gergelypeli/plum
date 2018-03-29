@@ -258,8 +258,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         TypeSpec ts;
         
         if (p) {
-            if (p->ts[0] == type_type) {
-                ts = p->ts.unprefix(type_type);
+            if (p->ts[0]->type == META_TYPE) {
+                ts = p->ts.unprefix();
                 context = &ts;
             }
             else {
@@ -301,8 +301,8 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             TypeSpec ts;
             
             if (p) {
-                if (p->ts[0] == type_type)
-                    ts = p->ts.unprefix(type_type);
+                if (p->ts[0]->type == META_TYPE)
+                    ts = p->ts.unprefix();
                 else {
                     std::cerr << "Initializer with nontype context!\n";
                     throw TYPE_ERROR;

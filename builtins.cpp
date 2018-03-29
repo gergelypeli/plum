@@ -1,8 +1,14 @@
 
 void builtin_types(Scope *root_scope) {
-    type_type = new SpecialType("<Type>", { GENERIC_TYPE }, GENERIC_TYPE);
-    root_scope->add(type_type);
+    // Phase 0: declare the hypertype
+    metatype_hypertype = new HyperType;
+    root_scope->add(metatype_hypertype);
 
+    // Phase 1: declare the type metatype
+    type_metatype = new MetaType(":Type", GENERIC_TYPE, NULL);
+    root_scope->add(type_metatype);
+
+    // Phase 2: declare wildcard types, so subsequent types can have an inner scope
     any_type = new SpecialType("<Any>", {}, VALUE_TYPE);
     root_scope->add(any_type);
 
@@ -39,6 +45,7 @@ void builtin_types(Scope *root_scope) {
     sameid3_type = new SameType("<Sameid3>", {}, IDENTITY_TYPE);
     root_scope->add(sameid3_type);
 
+    // Phase 3: declare regular metatypes
     integer_metatype = new IntegerMetaType(":Integer");
     root_scope->add(integer_metatype);
 
@@ -59,15 +66,13 @@ void builtin_types(Scope *root_scope) {
 
     implementation_metatype = new ImplementationMetaType(":Implementation");
     root_scope->add(implementation_metatype);
-    
+
+    // Phase 4: declare special types
     void_type = new SpecialType("Void", {}, VALUE_TYPE);
     root_scope->add(void_type);
 
     zero_type = new ZeroType("<Zero>");
     root_scope->add(zero_type);
-
-    metatype_type = new SpecialType("<Metatype>", {}, GENERIC_TYPE);
-    root_scope->add(metatype_type);
 
     multi_type = new SpecialType("<Multi>", {}, GENERIC_TYPE);
     root_scope->add(multi_type);
@@ -92,7 +97,8 @@ void builtin_types(Scope *root_scope) {
 
     role_type = new AttributeType("Role");
     root_scope->add(role_type);
-    
+
+    // Phase 5: declare regular types
     boolean_type = new BooleanType("Boolean", 1);
     root_scope->add(boolean_type);
 
@@ -141,9 +147,6 @@ void builtin_types(Scope *root_scope) {
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
 
-    //borrowed_type = new BorrowedReferenceType("Borrowed");
-    //root_scope->add(borrowed_type);
-    
     array_type = new ArrayType("Array");
     root_scope->add(array_type);
 
@@ -250,13 +253,11 @@ void builtin_types(Scope *root_scope) {
     SAME_TS = { same_type };
     SAME_LVALUE_TS = { lvalue_type, same_type };
     SAME2_LVALUE_TS = { lvalue_type, same2_type };
-    METATYPE_TS = { metatype_type };
-    TREENUMMETA_TS = { treenumeration_metatype };
     VOID_TS = { void_type };
     ZERO_TS = { zero_type };
     MULTI_TS = { multi_type };
     MULTI_LVALUE_TS = { lvalue_type, multi_type };
-    MULTI_TYPE_TS = { type_type, multi_type };
+    MULTI_TYPE_TS = { type_metatype, multi_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };

@@ -1,4 +1,9 @@
 
+// Vizipok-csodapok!
+Type *metatype_hypertype = NULL;
+
+Type *type_metatype = NULL;
+
 Type *any_type = NULL;
 Type *any2_type = NULL;
 Type *any3_type = NULL;
@@ -11,14 +16,25 @@ Type *same3_type = NULL;
 Type *sameid_type = NULL;
 Type *sameid2_type = NULL;
 Type *sameid3_type = NULL;
-Type *type_type = NULL;
+
+Type *enumeration_metatype = NULL;
+Type *treenumeration_metatype = NULL;
+Type *integer_metatype = NULL;
+Type *record_metatype = NULL;
+Type *class_metatype = NULL;
+Type *interface_metatype = NULL;
+Type *implementation_metatype = NULL;
+
 Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;
 Type *dvalue_type = NULL;
 Type *code_type = NULL;
-Type *metatype_type = NULL;
 Type *void_type = NULL;
 Type *zero_type = NULL;
+Type *partial_type = NULL;
+Type *uninitialized_type = NULL;
+Type *initializable_type = NULL;
+
 Type *multi_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
@@ -35,20 +51,10 @@ Type *weakref_type = NULL;
 Type *weakanchorage_type = NULL;
 Type *autoweakref_type = NULL;
 Type *weakanchor_type = NULL;
-Type *partial_type = NULL;
-Type *uninitialized_type = NULL;
-Type *initializable_type = NULL;
 Type *role_type = NULL;
 Type *array_type = NULL;
 Type *circularray_type = NULL;
 Type *rbtree_type = NULL;
-Type *enumeration_metatype = NULL;
-Type *treenumeration_metatype = NULL;
-Type *integer_metatype = NULL;
-Type *record_metatype = NULL;
-Type *class_metatype = NULL;
-Type *interface_metatype = NULL;
-Type *implementation_metatype = NULL;
 Type *string_type = NULL;
 Type *option_type = NULL;
 Type *optionis_type = NULL;
@@ -97,8 +103,6 @@ TypeSpec ANY_LVALUE_TS;
 TypeSpec SAME_TS;
 TypeSpec SAME_LVALUE_TS;
 TypeSpec SAME2_LVALUE_TS;
-TypeSpec METATYPE_TS;
-TypeSpec TREENUMMETA_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;

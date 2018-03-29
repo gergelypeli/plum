@@ -1,6 +1,6 @@
 
 enum TypeType {
-    GENERIC_TYPE, VALUE_TYPE, IDENTITY_TYPE, ATTRIBUTE_TYPE
+    GENERIC_TYPE, VALUE_TYPE, IDENTITY_TYPE, ATTRIBUTE_TYPE, META_TYPE, HYPER_TYPE
 };
 
 typedef std::vector<TypeType> TTs;
@@ -11,6 +11,8 @@ std::ostream &operator<<(std::ostream &os, const TypeType tt) {
         tt == VALUE_TYPE ? "VALUE_TYPE" :
         tt == IDENTITY_TYPE ? "IDENTITY_TYPE" :
         tt == ATTRIBUTE_TYPE ? "ATTRIBUTE_TYPE" :
+        tt == META_TYPE ? "META_TYPE" :
+        tt == HYPER_TYPE ? "HYPER_TYPE" :
         throw INTERNAL_ERROR
     );
     
@@ -24,12 +26,18 @@ public:
     TTs param_tts;
     DataScope *inner_scope;  // Will be owned by the outer scope
     TypeType type;
+    Type *upper_type;
+    // type and upper_type are somewhat overlapping in functionality for now
     
-    Type(std::string n, TTs ptts, TypeType tt) {
+    Type(std::string n, TTs ptts, TypeType tt, Type *ut) {
         name = n;
         param_tts = ptts;
         type = tt;
+        upper_type = ut;
         inner_scope = NULL;
+        
+        if (ut && ut->type != META_TYPE && ut->type != HYPER_TYPE)
+            throw INTERNAL_ERROR;
     }
     
     virtual unsigned get_parameter_count() {
@@ -66,7 +74,7 @@ public:
     virtual Value *match(std::string name, Value *pivot) {
         if (name != this->name)
             return NULL;
-        
+
         TSs tss;
         unsigned pc = get_parameter_count();
             
@@ -92,13 +100,17 @@ public:
             if (tss.size() != pc)
                 return NULL;
         }
+
+        // Metatypes must override this method
+        if (!upper_type || upper_type->type != META_TYPE)
+            throw INTERNAL_ERROR;
         
-        TypeSpec result_ts = { type_type, this };
+        TypeSpec result_ts = { upper_type, this };
         
         for (unsigned i = 0; i < pc; i++) {
             TypeSpec &ts = tss[i];
             
-            if (ts[0] != type_type)
+            if (ts[0]->type != META_TYPE)
                 return NULL;
             
             TypeType tt = ts[1]->type;
@@ -274,33 +286,10 @@ public:
 };
 
 
-class SpecialType: public Type {
+class AnyType: public Type {
 public:
-    SpecialType(std::string name, TTs param_tts, TypeType tt)
-        :Type(name, param_tts, tt) {
-    }
-
-    
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        if (s.where != NOWHERE || t.where != NOWHERE) {
-            std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
-            throw INTERNAL_ERROR;
-        }
-    }
-};
-
-
-class ZeroType: public SpecialType {
-public:
-    ZeroType(std::string name)
-        :SpecialType(name, {}, VALUE_TYPE) {
-    }
-
-    virtual Allocation measure(TypeMatch tm) {
-        return Allocation();
-    }
-
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+    AnyType(std::string name, TTs param_tts, TypeType tt)
+        :Type(name, param_tts, tt, type_metatype) {
     }
 };
 
@@ -308,7 +297,7 @@ public:
 class SameType: public Type {
 public:
     SameType(std::string name, TTs param_tts, TypeType tt)
-        :Type(name, param_tts, tt) {
+        :Type(name, param_tts, tt, type_metatype) {
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
@@ -345,7 +334,7 @@ public:
 class AttributeType: public Type {
 public:
     AttributeType(std::string n)
-        :Type(n, TTs { VALUE_TYPE }, ATTRIBUTE_TYPE) {
+        :Type(n, TTs { VALUE_TYPE }, ATTRIBUTE_TYPE, type_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
@@ -409,7 +398,7 @@ public:
 class PartialType: public Type {
 public:
     PartialType(std::string name)
-        :Type(name, TTs { GENERIC_TYPE }, VALUE_TYPE) {
+        :Type(name, TTs { GENERIC_TYPE }, VALUE_TYPE, type_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
@@ -483,7 +472,7 @@ public:
 class UninitializedType: public Type {
 public:
     UninitializedType(std::string name)
-        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE) {
+        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE, type_metatype) {
     }
 
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
@@ -498,7 +487,7 @@ public:
 class InitializableType: public Type {
 public:
     InitializableType(std::string name)
-        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE) {
+        :Type(name, TTs { GENERIC_TYPE }, GENERIC_TYPE, type_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
@@ -528,7 +517,7 @@ public:
     // To be used only as type context in the :is control
     
     EqualitymatcherType(std::string name)
-        :Type(name, TTs { VALUE_TYPE }, VALUE_TYPE) {
+        :Type(name, TTs { VALUE_TYPE }, VALUE_TYPE, type_metatype) {
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
@@ -550,93 +539,32 @@ public:
 };
 
 
-class MetaType: public Type {
+class SpecialType: public Type {
 public:
-    typedef Value *(*TypeDefinitionFactory)();
-    TypeDefinitionFactory factory;
+    SpecialType(std::string name, TTs param_tts, TypeType tt)
+        :Type(name, param_tts, tt, type_metatype) {
+    }
     
-    MetaType(std::string name, TypeDefinitionFactory f)
-        :Type(name, TTs {}, GENERIC_TYPE) {
-        factory = f;
-        make_inner_scope(TypeSpec { any_type });
-    }
-
-    virtual Value *match(std::string name, Value *pivot) {
-        if (name != this->name)
-            return NULL;
-
-        if (pivot)
-            return NULL;
-
-        return factory();
-    }
-
-    //virtual void allocate() {
-    //    inner_scope->allocate();
-    //}
-};
-
-
-class IntegerMetaType: public MetaType {
-public:
-    IntegerMetaType(std::string name)
-        :MetaType(name, make_integer_definition_value) {
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (s.where != NOWHERE || t.where != NOWHERE) {
+            std::cerr << "Invalid special store from " << s << " to " << t << "!\n";
+            throw INTERNAL_ERROR;
+        }
     }
 };
 
 
-class EnumerationMetaType: public MetaType {
+class ZeroType: public SpecialType {
 public:
-    EnumerationMetaType(std::string name)
-        :MetaType(name, make_enumeration_definition_value) {
-    }
-};
-
-
-class TreenumerationMetaType: public MetaType {
-public:
-    TreenumerationMetaType(std::string name)
-        :MetaType(name, make_treenumeration_definition_value) {
+    ZeroType(std::string name)
+        :SpecialType(name, {}, VALUE_TYPE) {
     }
 
-    // NOTE: experimental thing for exception specifications
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
-        if (n == "{}")
-            return make_treenumeration_definition_value();
-        
-        return NULL;
+    virtual Allocation measure(TypeMatch tm) {
+        return Allocation();
     }
-};
 
-
-class RecordMetaType: public MetaType {
-public:
-    RecordMetaType(std::string name)
-        :MetaType(name, make_record_definition_value) {
-    }
-};
-
-
-class ClassMetaType: public MetaType {
-public:
-    ClassMetaType(std::string name)
-        :MetaType(name, make_class_definition_value) {
-    }
-};
-
-
-class InterfaceMetaType: public MetaType {
-public:
-    InterfaceMetaType(std::string name)
-        :MetaType(name, make_interface_definition_value) {
-    }
-};
-
-
-class ImplementationMetaType: public MetaType {
-public:
-    ImplementationMetaType(std::string name)
-        :MetaType(name, make_implementation_definition_value) {
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
     }
 };
 

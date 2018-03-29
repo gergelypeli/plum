@@ -26,7 +26,7 @@ public:
             if (value->ts[0] != lvalue_type && value->ts[0] != uninitialized_type)
                 is_lvalue = false;
         
-            if (value->ts[0] != type_type)
+            if (value->ts[0]->type != META_TYPE)
                 is_type = false;
                 
             values.push_back(std::unique_ptr<Value>(value));
@@ -182,7 +182,7 @@ public:
             if (left_ts[0] == uninitialized_type) {
                 if (left_ts[1] == void_type) {
                     // Fix bare declaration, and place it in its scope
-                    left_ts = left->fix_bare(i, right_ts.prefix(type_type), scope);
+                    left_ts = left->fix_bare(i, right_ts.prefix(type_metatype), scope);
                     declarations[i] = left->get_declaration(i);
                 }
                 else {

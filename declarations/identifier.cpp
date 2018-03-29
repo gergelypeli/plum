@@ -9,7 +9,7 @@ public:
         pivot_ts = pts;
         
         if (pts == VOID_TS)
-            throw INTERNAL_ERROR;
+            throw INTERNAL_ERROR;  // should have used NO_TS probably
     }
 
     virtual bool is_called(std::string n) {

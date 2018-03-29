@@ -8,7 +8,7 @@ public:
     BaseRole *base_role;
 
     ClassType(std::string name, TTs param_tts)
-        :HeapType(name, param_tts) {
+        :HeapType(name, param_tts, class_metatype) {
         finalizer_function = NULL;
         base_role = NULL;
     }

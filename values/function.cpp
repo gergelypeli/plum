@@ -18,7 +18,7 @@ public:
     Function *function;  // If declared with a name, which is always, for now
         
     FunctionDefinitionValue(Value *r, TypeMatch &tm)
-        :Value(METATYPE_TS) {
+        :Value(TypeSpec { metatype_hypertype, type_metatype }) {
         match = tm;
         type = GENERIC_FUNCTION;
         function = NULL;
@@ -41,7 +41,7 @@ public:
         for (auto &arg : args) {
             Value *r = typize(arg.get(), scope);
         
-            if (r->ts[0] != type_type || r->ts[1]->type != VALUE_TYPE) {
+            if (r->ts[0]->type != META_TYPE || r->ts[1]->type != VALUE_TYPE) {
                 std::cerr << "Function result expression is not a value type!\n";
                 return false;
             }
@@ -49,7 +49,7 @@ public:
             results.push_back(std::unique_ptr<Value>(r));
 
             // Add internal result variable
-            TypeSpec var_ts = r->ts.unprefix(type_type);
+            TypeSpec var_ts = r->ts.unprefix();
             Variable *decl = new Variable("<result>", NO_TS, var_ts);
             rs->add(decl);
         }
@@ -81,6 +81,7 @@ public:
         // TODO: why do we store this in the fn scope?
         Expr *e = kwargs["may"].get();
         if (e) {
+            TypeSpec TREENUMMETA_TS = { treenumeration_metatype, any_type };
             Value *v = typize(e, fn_scope, &TREENUMMETA_TS);
             
             if (v) {

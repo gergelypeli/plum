@@ -80,12 +80,12 @@ public:
         if (!tv)
             return false;
             
-        if (tv->ts[0] != type_type) {
+        if (tv->ts[0]->type != META_TYPE) {
             std::cerr << "Class matcher is not a type name!\n";
             return false;
         }
         
-        TypeSpec tts = tv->ts.unprefix(type_type);
+        TypeSpec tts = tv->ts.unprefix();
         ClassType *ct = ptr_cast<ClassType>(tts[0]);
         
         if (!ct) {

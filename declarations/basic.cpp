@@ -5,8 +5,8 @@ public:
     int os;
     bool is_unsigned;
 
-    BasicType(std::string n, unsigned s, bool iu)
-        :Type(n, TTs {}, VALUE_TYPE) {
+    BasicType(std::string n, unsigned s, bool iu, Type *mt = NULL)
+        :Type(n, TTs {}, VALUE_TYPE, mt ? mt : type_metatype) {
         size = s;
         os = (s == 1 ? 0 : s == 2 ? 1 : s == 4 ? 2 : s == 8 ? 3 : throw INTERNAL_ERROR);        
         is_unsigned = iu;
@@ -271,7 +271,7 @@ public:
 class IntegerType: public BasicType {
 public:
     IntegerType(std::string n, unsigned s, bool iu)
-        :BasicType(n, s, iu) {
+        :BasicType(n, s, iu, integer_metatype) {
     }
     
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
@@ -396,8 +396,8 @@ class EnumerationType: public BasicType {
 public:
     std::vector<std::string> keywords;
 
-    EnumerationType(std::string n, std::vector<std::string> kw)
-        :BasicType(n, 1, true) {  // TODO: different sizes based on the keyword count!
+    EnumerationType(std::string n, std::vector<std::string> kw, Type *mt = NULL)
+        :BasicType(n, 1, true, mt ? mt : enumeration_metatype) {  // TODO: different sizes based on the keyword count!
         keywords = kw;
     }
 
@@ -486,7 +486,7 @@ public:
     std::vector<unsigned> tails;
 
     TreenumerationType(std::string n, std::vector<std::string> kw, std::vector<unsigned> tl)
-        :EnumerationType(n, kw) {
+        :EnumerationType(n, kw, treenumeration_metatype) {
         if (kw.size() != tl.size())
             throw INTERNAL_ERROR;
             

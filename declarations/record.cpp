@@ -6,7 +6,7 @@ public:
     std::vector<std::string> member_names;
 
     RecordType(std::string n, TTs param_tts)
-        :Type(n, param_tts, VALUE_TYPE) {
+        :Type(n, param_tts, VALUE_TYPE, record_metatype) {
     }
 
     virtual bool complete_type() {

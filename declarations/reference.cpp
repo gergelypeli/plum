@@ -2,7 +2,7 @@
 class ReferenceType: public Type {
 public:
     ReferenceType(std::string name)
-        :Type(name, TTs { IDENTITY_TYPE }, VALUE_TYPE) {
+        :Type(name, TTs { IDENTITY_TYPE }, VALUE_TYPE, type_metatype) {
     }
     
     virtual Allocation measure(TypeMatch tm) {
@@ -286,8 +286,8 @@ public:
 
 class HeapType: public Type {
 public:
-    HeapType(std::string name, TTs param_tts)
-        :Type(name, param_tts, IDENTITY_TYPE) {
+    HeapType(std::string name, TTs param_tts, Type *mt = NULL)
+        :Type(name, param_tts, IDENTITY_TYPE, mt ? mt : type_metatype) {
     }
 
     virtual Allocation measure(TypeMatch tm) {
