@@ -18,7 +18,7 @@ public:
     Function *function;  // If declared with a name, which is always, for now
         
     FunctionDefinitionValue(Value *r, TypeMatch &tm)
-        :Value(TypeSpec { metatype_hypertype, type_metatype }) {
+        :Value(HYPERTYPE_TS) {
         match = tm;
         type = GENERIC_FUNCTION;
         function = NULL;
@@ -41,7 +41,14 @@ public:
         for (auto &arg : args) {
             Value *r = typize(arg.get(), scope);
         
-            if (r->ts[0]->type != META_TYPE || r->ts[1]->type != VALUE_TYPE) {
+            if (r->ts[0]->type != META_TYPE) {
+                std::cerr << "Function result expression is not a type!\n";
+                return false;
+            }
+
+            TypeSpec var_ts = ptr_cast<TypeValue>(r)->represented_ts;
+
+            if (var_ts[0]->type != VALUE_TYPE) {
                 std::cerr << "Function result expression is not a value type!\n";
                 return false;
             }
@@ -49,7 +56,6 @@ public:
             results.push_back(std::unique_ptr<Value>(r));
 
             // Add internal result variable
-            TypeSpec var_ts = r->ts.unprefix();
             Variable *decl = new Variable("<result>", NO_TS, var_ts);
             rs->add(decl);
         }
@@ -81,13 +87,13 @@ public:
         // TODO: why do we store this in the fn scope?
         Expr *e = kwargs["may"].get();
         if (e) {
-            TypeSpec TREENUMMETA_TS = { treenumeration_metatype, any_type };
+            TypeSpec TREENUMMETA_TS = { treenumeration_metatype };
             Value *v = typize(e, fn_scope, &TREENUMMETA_TS);
             
             if (v) {
-                TreenumerationType *t;
-                
+                TreenumerationType *t = NULL;
                 TreenumerationDefinitionValue *tdv = ptr_cast<TreenumerationDefinitionValue>(v);
+                
                 if (tdv) {
                     Declaration *ed = tdv->declare("<may>", scope->type);
                     t = ptr_cast<TreenumerationType>(ed);
@@ -96,7 +102,7 @@ public:
                 
                 TypeValue *tpv = ptr_cast<TypeValue>(v);
                 if (tpv) {
-                    t = ptr_cast<TreenumerationType>(tpv->ts[1]);
+                    t = ptr_cast<TreenumerationType>(tpv->represented_ts[0]);
                 }
                 
                 if (t) {

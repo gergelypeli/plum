@@ -5,11 +5,8 @@ public:
     DataScope *inner_scope;
     std::unique_ptr<DataBlockValue> data_value;
 
-    TypeDefinitionValue(Type *mt)
-        :Value(TypeSpec { metatype_hypertype, mt }) {
-        if (mt->type != META_TYPE)
-            throw INTERNAL_ERROR;
-            
+    TypeDefinitionValue()
+        :Value(HYPERTYPE_TS) {
         inner_scope = NULL;
     }
 
@@ -60,7 +57,7 @@ public:
     std::unique_ptr<Value> bs, iu;
 
     IntegerDefinitionValue()
-        :TypeDefinitionValue(integer_metatype) {
+        :TypeDefinitionValue() {
         size = 0;
         is_not_signed = false;
     }
@@ -131,7 +128,7 @@ public:
     std::string declname;
 
     EnumerationDefinitionValue()
-        :TypeDefinitionValue(enumeration_metatype) {
+        :TypeDefinitionValue() {
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -178,7 +175,7 @@ public:
     std::string declname;
 
     TreenumerationDefinitionValue()
-        :TypeDefinitionValue(treenumeration_metatype) {
+        :TypeDefinitionValue() {
     }
 
     virtual unsigned add_keyword(std::string kw) {
@@ -271,7 +268,7 @@ public:
     RecordType *record_type;
     
     RecordDefinitionValue()
-        :TypeDefinitionValue(record_metatype) {
+        :TypeDefinitionValue() {
         record_type = NULL;
     }
 
@@ -328,7 +325,7 @@ public:
     ClassType *class_type;
     
     ClassDefinitionValue()
-        :TypeDefinitionValue(class_metatype) {
+        :TypeDefinitionValue() {
         class_type = NULL;
     }
 
@@ -383,7 +380,7 @@ public:
     Role *role;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm)
-        :Value(TypeSpec { metatype_hypertype, type_metatype }) {
+        :Value(HYPERTYPE_TS) {
         role = NULL;
     }
 
@@ -396,12 +393,18 @@ public:
         // TODO: check for Class definition scope!
         Value *v = typize(args[0].get(), scope, NULL);
     
-        if (v->ts[0]->type != META_TYPE || !ptr_cast<ClassType>(v->ts[1])) {
+        if (v->ts[0]->type != META_TYPE) {
             std::cerr << "Class type name expected!\n";
             return false;
         }
 
-        role_ts = v->ts.unprefix();
+        role_ts = ptr_cast<TypeValue>(v)->represented_ts;
+        
+        if (!ptr_cast<ClassType>(role_ts[0])) {
+            std::cerr << "Class type name expected!\n";
+            return false;
+        }
+
         pivot_ts = scope->pivot_type_hint();
         value.reset(v);
         
@@ -448,7 +451,7 @@ public:
     InterfaceType *interface_type;
     
     InterfaceDefinitionValue()
-        :TypeDefinitionValue(interface_metatype) {
+        :TypeDefinitionValue() {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -511,7 +514,7 @@ public:
     ImplementationType *implementation_type;
     
     ImplementationDefinitionValue()
-        :TypeDefinitionValue(implementation_metatype) {
+        :TypeDefinitionValue() {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -529,7 +532,7 @@ public:
         }
         
         TypeSpec implementor_ts = scope->pivot_type_hint();
-        interface_ts = v->ts.unprefix();  // NOTE: May still contain Some types
+        interface_ts = ptr_cast<TypeValue>(v)->represented_ts;  // NOTE: May still contain Some types
         implementation_type = new ImplementationType("<anonymous>", implementor_ts, interface_ts);
 
         setup_inner(implementation_type, implementor_ts);

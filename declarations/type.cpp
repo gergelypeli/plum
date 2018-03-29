@@ -85,50 +85,60 @@ public:
         else if (pc == 1) {
             if (!pivot)
                 return NULL;
-                
-            tss.push_back(get_typespec(pivot));
+            
+            TypeSpec t = get_typespec(pivot);
+            
+            if (t[0]->type != META_TYPE) {
+                std::cerr << "Invalid type parameter type: " << t << "\n";
+                return NULL;
+            }
+            
+            tss.push_back(type_value_represented_ts(pivot));
         }
         else {
             TypeMatch match;
             
-            if (!typematch(MULTI_TYPE_TS, pivot, match))
+            if (!typematch(MULTITYPE_TS, pivot, match)) {
+                std::cerr << "Type " << name << " needs type parameters!\n";
                 return NULL;
+            }
                 
             if (!unpack_value(pivot, tss))
                 throw INTERNAL_ERROR;
 
-            if (tss.size() != pc)
+            if (tss.size() != pc) {
+                std::cerr << "Type " << name << " needs " << pc << " parameters!\n";
                 return NULL;
+            }
         }
 
         // Metatypes must override this method
         if (!upper_type || upper_type->type != META_TYPE)
             throw INTERNAL_ERROR;
         
-        TypeSpec result_ts = { upper_type, this };
+        TypeSpec result_ts = { this };
         
         for (unsigned i = 0; i < pc; i++) {
             TypeSpec &ts = tss[i];
             
-            if (ts[0]->type != META_TYPE)
-                return NULL;
-            
-            TypeType tt = ts[1]->type;
+            TypeType tt = ts[0]->type;
             TypeType &ptt = param_tts[i];
             
-            if (ptt != GENERIC_TYPE && ptt != tt)
+            if (ptt != GENERIC_TYPE && ptt != tt) {
+                std::cerr << "Type " << name << " parameter " << i + 1 << " is not a " << ptt << " but a " << tt << "!\n";
                 return NULL;
+            }
                 
             // TODO: this is becoming obsolete...
-            if (ts[1] == lvalue_type || ts[1] == ovalue_type || ts[1] == code_type || ts[1] == multi_type) {
+            if (ts[0] == lvalue_type || ts[0] == ovalue_type || ts[0] == code_type || ts[0] == multi_type) {
                 std::cerr << "Invalid type parameter: " << ts << "!\n";
                 return NULL;
             }
             
-            result_ts.insert(result_ts.end(), ts.begin() + 1, ts.end());
+            result_ts.insert(result_ts.end(), ts.begin(), ts.end());
         }
 
-        return make_type_value(result_ts);
+        return make_type_value(upper_type, result_ts);
     }
 
     virtual void allocate() {
@@ -544,14 +554,6 @@ public:
     MultiType(std::string name)
         :Type(name, {}, GENERIC_TYPE, type_metatype) {
     }
-    /*
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        if (s.where != NOWHERE || t.where != NOWHERE) {
-            std::cerr << "Invalid Multi store from " << s << " to " << t << "!\n";
-            throw INTERNAL_ERROR;
-        }
-    }
-    */
 };
 
 

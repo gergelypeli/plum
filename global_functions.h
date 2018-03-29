@@ -11,6 +11,7 @@ PartialVariable *partial_variable_get_pv(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
 void function_call_be_static(Value *fcv);
+TypeSpec type_value_represented_ts(Value *v);
 
 
 // Declaration wrappers
@@ -41,7 +42,7 @@ Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match);
 Value *make_partial_variable_value(PartialVariable *decl, Value *pivot, TypeMatch &match);
 Value *make_role_value(Role *role, Value *pivot, TypeMatch &tm);
 Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match);
-Value *make_type_value(TypeSpec ts);
+Value *make_type_value(Type *mt, TypeSpec ts);
 Value *make_code_block_value(TypeSpec *context);
 Value *make_multi_value();
 Value *make_eval_value(std::string en);

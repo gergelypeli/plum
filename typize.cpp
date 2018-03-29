@@ -64,7 +64,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
         // Conversions from Multi to a scalar can only be attempted once (see typematch),
         // but it's not a problem, since we don't want Multi pivots anyway. But for correct
         // operation we should catch this case here.
-        // Note that Multi Lvalue and Multi Type passes this test.
+        // Note that Multilvalue and Multitype passes this test.
         return NULL;
     }
     
@@ -259,7 +259,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         
         if (p) {
             if (p->ts[0]->type == META_TYPE) {
-                ts = p->ts.unprefix();
+                ts = ptr_cast<TypeValue>(p)->represented_ts;
                 context = &ts;
             }
             else {
@@ -302,7 +302,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             
             if (p) {
                 if (p->ts[0]->type == META_TYPE)
-                    ts = p->ts.unprefix();
+                    ts = ptr_cast<TypeValue>(p)->represented_ts;
                 else {
                     std::cerr << "Initializer with nontype context!\n";
                     throw TYPE_ERROR;

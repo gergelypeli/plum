@@ -5,7 +5,7 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(metatype_hypertype);
 
     // Phase 1: declare the type metatype
-    type_metatype = new MetaType(":Type", GENERIC_TYPE, NULL);
+    type_metatype = new TypeMetaType(":Type");
     root_scope->add(type_metatype);
 
     // Phase 2: declare wildcard types, so subsequent types can have an inner scope
@@ -73,6 +73,12 @@ void builtin_types(Scope *root_scope) {
 
     multi_type = new MultiType("<Multi>");
     root_scope->add(multi_type);
+
+    multilvalue_type = new MultiType("<Multilvalue>");
+    root_scope->add(multilvalue_type);
+
+    multitype_type = new MultiType("<Multitype>");
+    root_scope->add(multitype_type);
 
     uninitialized_type = new UninitializedType("<Uninitialized>");
     root_scope->add(uninitialized_type);
@@ -244,6 +250,7 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(code_break_exception_type);
     
     // NO_TS will contain no Type pointers
+    HYPERTYPE_TS = { metatype_hypertype };
     ANY_TS = { any_type };
     ANY_LVALUE_TS = { lvalue_type, any_type };
     ANY_OVALUE_TS = { ovalue_type, any_type };
@@ -252,8 +259,8 @@ void builtin_types(Scope *root_scope) {
     SAME2_LVALUE_TS = { lvalue_type, same2_type };
     VOID_TS = { void_type };
     MULTI_TS = { multi_type };
-    MULTI_LVALUE_TS = { lvalue_type, multi_type };
-    MULTI_TYPE_TS = { type_metatype, multi_type };
+    MULTILVALUE_TS = { multilvalue_type };
+    MULTITYPE_TS = { multitype_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };
@@ -905,7 +912,7 @@ Scope *init_builtins() {
     define_rbtree();
     
     // Unpacking
-    root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTI_LVALUE_TS));
+    root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTILVALUE_TS));
 
     // Initializing
     root_scope->add(new TemplateIdentifier<CreateValue>("assign other", ANY_UNINITIALIZED_TS));

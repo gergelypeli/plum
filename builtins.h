@@ -35,6 +35,8 @@ Type *uninitialized_type = NULL;
 Type *initializable_type = NULL;
 
 Type *multi_type = NULL;
+Type *multilvalue_type = NULL;
+Type *multitype_type = NULL;
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
 Type *integer32_type = NULL;
@@ -90,11 +92,12 @@ InterfaceType *iterator_type = NULL;
 InterfaceType *iterable_type = NULL;
 
 
+TypeSpec HYPERTYPE_TS;
 TypeSpec NO_TS;
 TypeSpec VOID_TS;
 TypeSpec MULTI_TS;
-TypeSpec MULTI_LVALUE_TS;
-TypeSpec MULTI_TYPE_TS;
+TypeSpec MULTILVALUE_TS;
+TypeSpec MULTITYPE_TS;
 TypeSpec ANY_TS;
 TypeSpec ANY_OVALUE_TS;
 TypeSpec ANY_LVALUE_TS;

@@ -491,6 +491,7 @@ public:
 };
 */
 
+#include "type.cpp"
 #include "generic.cpp"
 #include "equality.cpp"
 #include "block.cpp"
@@ -510,7 +511,6 @@ public:
 #include "class.cpp"
 #include "map.cpp"
 #include "literal.cpp"
-#include "type.cpp"
 #include "typedefinition.cpp"
 #include "function.cpp"
 #include "option.cpp"

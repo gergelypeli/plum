@@ -85,7 +85,7 @@ public:
             return false;
         }
         
-        TypeSpec tts = tv->ts.unprefix();
+        TypeSpec tts = ptr_cast<TypeValue>(tv)->represented_ts;
         ClassType *ct = ptr_cast<ClassType>(tts[0]);
         
         if (!ct) {

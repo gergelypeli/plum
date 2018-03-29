@@ -17,11 +17,11 @@ public:
     typedef Value *(*TypeDefinitionFactory)();
     TypeDefinitionFactory factory;
     
-    MetaType(std::string n, TypeType tt, TypeDefinitionFactory f)
-        :Type(n, TTs { tt }, META_TYPE, NULL) {
+    MetaType(std::string n, TypeDefinitionFactory f)
+        :Type(n, TTs { }, META_TYPE, NULL) {
         factory = f;
         
-        // Allow the alpha metatype not to have an inner scope
+        // Allow the first metatype not to have an inner scope
         // FIXME: using any_type only allows metascopes for value types now!
         if (factory)
             make_inner_scope(TypeSpec { any_type });
@@ -45,7 +45,7 @@ public:
 class TypeMetaType: public MetaType {
 public:
     TypeMetaType(std::string name)
-        :MetaType(name, GENERIC_TYPE, NULL) {
+        :MetaType(name, NULL) {
     }
 };
 
@@ -53,7 +53,7 @@ public:
 class IntegerMetaType: public MetaType {
 public:
     IntegerMetaType(std::string name)
-        :MetaType(name, VALUE_TYPE, make_integer_definition_value) {
+        :MetaType(name, make_integer_definition_value) {
     }
 };
 
@@ -61,7 +61,7 @@ public:
 class EnumerationMetaType: public MetaType {
 public:
     EnumerationMetaType(std::string name)
-        :MetaType(name, VALUE_TYPE, make_enumeration_definition_value) {
+        :MetaType(name, make_enumeration_definition_value) {
     }
 };
 
@@ -69,7 +69,7 @@ public:
 class TreenumerationMetaType: public MetaType {
 public:
     TreenumerationMetaType(std::string name)
-        :MetaType(name, VALUE_TYPE, make_treenumeration_definition_value) {
+        :MetaType(name, make_treenumeration_definition_value) {
     }
 
     // NOTE: experimental thing for exception specifications
@@ -85,7 +85,7 @@ public:
 class RecordMetaType: public MetaType {
 public:
     RecordMetaType(std::string name)
-        :MetaType(name, VALUE_TYPE, make_record_definition_value) {
+        :MetaType(name, make_record_definition_value) {
     }
 };
 
@@ -93,7 +93,7 @@ public:
 class ClassMetaType: public MetaType {
 public:
     ClassMetaType(std::string name)
-        :MetaType(name, IDENTITY_TYPE, make_class_definition_value) {
+        :MetaType(name, make_class_definition_value) {
     }
 };
 
@@ -101,7 +101,7 @@ public:
 class InterfaceMetaType: public MetaType {
 public:
     InterfaceMetaType(std::string name)
-        :MetaType(name, GENERIC_TYPE, make_interface_definition_value) {
+        :MetaType(name, make_interface_definition_value) {
     }
 };
 
@@ -109,6 +109,6 @@ public:
 class ImplementationMetaType: public MetaType {
 public:
     ImplementationMetaType(std::string name)
-        :MetaType(name, GENERIC_TYPE, make_implementation_definition_value) {
+        :MetaType(name, make_implementation_definition_value) {
     }
 };

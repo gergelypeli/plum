@@ -2,9 +2,11 @@
 class TypeValue: public Value {
 public:
     TypeSpec pivot_ts;
+    TypeSpec represented_ts;
     
-    TypeValue(TypeSpec ts)
-        :Value(ts) {
+    TypeValue(Type *mt, TypeSpec ts)
+        :Value(TypeSpec { mt }) {
+        represented_ts = ts;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -27,23 +29,19 @@ public:
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == ARGUMENT_SCOPE) {
-            if (ts[1]->type != ATTRIBUTE_TYPE && ts[1]->type != VALUE_TYPE)
+            if (represented_ts[0]->type != ATTRIBUTE_TYPE && represented_ts[0]->type != VALUE_TYPE)
                 return NULL;
             
-            TypeSpec t = ts.unprefix(ts[0]);
-        
-            if (t[0] == code_type)
-                return new Evaluable(name, pivot_ts, t);
+            if (represented_ts[0] == code_type)
+                return new Evaluable(name, pivot_ts, represented_ts);
             else
-                return new Variable(name, pivot_ts, t);
+                return new Variable(name, pivot_ts, represented_ts);
         }
         else {
-            if (ts[1]->type != VALUE_TYPE)
+            if (represented_ts[0]->type != VALUE_TYPE)
                 return NULL;
 
-            TypeSpec t = ts.unprefix(ts[0]);
-        
-            return new Variable(name, pivot_ts, t.lvalue());
+            return new Variable(name, pivot_ts, represented_ts.lvalue());
         }
     }
 };

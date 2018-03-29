@@ -25,25 +25,29 @@ public:
             
             if (value->ts[0] != lvalue_type && value->ts[0] != uninitialized_type)
                 is_lvalue = false;
+            else
+                tss.push_back(value->ts);
         
             if (value->ts[0]->type != META_TYPE)
                 is_type = false;
+            else
+                tss.push_back(ptr_cast<TypeValue>(value)->represented_ts);
                 
             values.push_back(std::unique_ptr<Value>(value));
-            std::cerr << "Multi item ts: " << value->ts << "\n";
+            //std::cerr << "Multi item ts: " << value->ts << "\n";
         }
 
         if (is_lvalue)
-            ts = MULTI_LVALUE_TS;
+            ts = MULTILVALUE_TS;
         else if (is_type)
-            ts = MULTI_TYPE_TS;
+            ts = MULTITYPE_TS;
         else {
             std::cerr << "Multis must be all lvalues or all types!\n";
             return false;
         }
         
-        for (auto &v : values)
-            tss.push_back(v->ts);
+        //for (auto &v : values)
+        //    tss.push_back(v->ts);
         
         return true;
     }
@@ -69,7 +73,7 @@ public:
         DeclarationValue *dv = ptr_cast<DeclarationValue>(values[i].get());
 
         std::cerr << "Fixing bare declaration " << i << " with " << implicit_ts << ".\n";
-        Value *tv = make_type_value(implicit_ts);
+        Value *tv = make_type_value(type_metatype, implicit_ts);
         
         if (!declaration_use(dv, tv, scope))
             throw INTERNAL_ERROR;
@@ -182,7 +186,7 @@ public:
             if (left_ts[0] == uninitialized_type) {
                 if (left_ts[1] == void_type) {
                     // Fix bare declaration, and place it in its scope
-                    left_ts = left->fix_bare(i, right_ts.prefix(type_metatype), scope);
+                    left_ts = left->fix_bare(i, right_ts, scope);
                     declarations[i] = left->get_declaration(i);
                 }
                 else {

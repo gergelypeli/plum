@@ -31,8 +31,8 @@ Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match) 
 }
 
 
-Value *make_type_value(TypeSpec ts) {
-    return new TypeValue(ts);
+Value *make_type_value(Type *mt, TypeSpec ts) {
+    return new TypeValue(mt, ts);
 }
 
 
@@ -274,6 +274,11 @@ bool is_initializer_function_call(Value *value) {
 
 void function_call_be_static(Value *v) {
     ptr_cast<FunctionCallValue>(v)->be_static();
+}
+
+
+TypeSpec type_value_represented_ts(Value *v) {
+    return ptr_cast<TypeValue>(v)->represented_ts;
 }
 
 
@@ -678,7 +683,7 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
             MATCHLOG std::cerr << "No match, Void for Any!\n";
             return false;
         }
-        else if (*s == multi_type) {
+        else if (*s == multi_type || *s == multilvalue_type || *s == multitype_type) {
             MATCHLOG std::cerr << "No match, Multi for Any!\n";
             return false;
         }
@@ -686,8 +691,8 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         return match_type_parameters(s, t, match);
     }
     
-    if (*t == multi_type) {
-        if (*s != multi_type) {
+    if (*t == multi_type || *t == multilvalue_type || *t == multitype_type) {
+        if (*s != *t) {
             MATCHLOG std::cerr << "No match, scalar for Multi!\n";
             return false;
         }
@@ -696,14 +701,19 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         return match_special_type(s, t, match, value, strict);
     }
     else {
-        if (*s == multi_type) {
+        if (*s == multilvalue_type || *s == multitype_type) {
             if (*t == void_type) {
                 // This is not allowed because a Multi may contain uninitialized values
                 MATCHLOG std::cerr << "No match, Multi for Void!\n";
                 std::cerr << "Multi value dropped on the floor!\n";
                 return false;
             }
-        
+            else {
+                MATCHLOG std::cerr << "No match, Multi* for scalar!\n";
+                return false;
+            }
+        }
+        else if (*s == multi_type) {
             // A Multi is being converted to something non-Multi.
             // Since a Multi can never be in a pivot position, this value must be a plain
             // argument, so if converting it fails, then it will be a fatal error. So
