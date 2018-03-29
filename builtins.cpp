@@ -1,14 +1,44 @@
 
 void builtin_types(Scope *root_scope) {
-    // Phase 0: declare the hypertype
+    // Phase 1: declare the hypertype
     metatype_hypertype = new HyperType;
     root_scope->add(metatype_hypertype);
 
-    // Phase 1: declare the type metatype
-    type_metatype = new TypeMetaType(":Type");
+    // Phase 2: declare the metatypes
+    type_metatype = new TypeMetaType(":Type", NULL);
     root_scope->add(type_metatype);
 
-    // Phase 2: declare wildcard types, so subsequent types can have an inner scope
+    value_metatype = new ValueMetatype(":Value", type_metatype);
+    root_scope->add(value_metatype);
+
+    identity_metatype = new IdentityMetatype(":Identity", type_metatype);
+    root_scope->add(identity_metatype);
+    
+    attribute_metatype = new AttributeMetatype(":Attribute", type_metatype);
+    root_scope->add(attribute_metatype);
+    
+    integer_metatype = new IntegerMetaType(":Integer", value_metatype);
+    root_scope->add(integer_metatype);
+
+    enumeration_metatype = new EnumerationMetaType(":Enumeration", value_metatype);
+    root_scope->add(enumeration_metatype);
+
+    treenumeration_metatype = new TreenumerationMetaType(":Treenumeration", value_metatype);
+    root_scope->add(treenumeration_metatype);
+
+    record_metatype = new RecordMetaType(":Record", value_metatype);
+    root_scope->add(record_metatype);
+
+    class_metatype = new ClassMetaType(":Class", identity_metatype);
+    root_scope->add(class_metatype);
+
+    interface_metatype = new InterfaceMetaType(":Interface", type_metatype);
+    root_scope->add(interface_metatype);
+
+    implementation_metatype = new ImplementationMetaType(":Implementation", type_metatype);
+    root_scope->add(implementation_metatype);
+
+    // Phase 3: declare wildcard types, so subsequent types can have an inner scope
     any_type = new AnyType("<Any>", {}, VALUE_TYPE);
     root_scope->add(any_type);
 
@@ -44,28 +74,6 @@ void builtin_types(Scope *root_scope) {
 
     sameid3_type = new SameType("<Sameid3>", {}, IDENTITY_TYPE);
     root_scope->add(sameid3_type);
-
-    // Phase 3: declare regular metatypes
-    integer_metatype = new IntegerMetaType(":Integer");
-    root_scope->add(integer_metatype);
-
-    enumeration_metatype = new EnumerationMetaType(":Enumeration");
-    root_scope->add(enumeration_metatype);
-
-    treenumeration_metatype = new TreenumerationMetaType(":Treenumeration");
-    root_scope->add(treenumeration_metatype);
-
-    record_metatype = new RecordMetaType(":Record");
-    root_scope->add(record_metatype);
-
-    class_metatype = new ClassMetaType(":Class");
-    root_scope->add(class_metatype);
-
-    interface_metatype = new InterfaceMetaType(":Interface");
-    root_scope->add(interface_metatype);
-
-    implementation_metatype = new ImplementationMetaType(":Implementation");
-    root_scope->add(implementation_metatype);
 
     // Phase 4: declare special types
     void_type = new VoidType("Void");
