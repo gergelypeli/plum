@@ -239,22 +239,22 @@ void builtin_types(Scope *root_scope) {
     equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
     root_scope->add(equalitymatcher_type);
 
-    iterator_done_exception_type = new TreenumerationType("Iterator_done_exception", { "", "ITERATOR_DONE" }, { 0, 1 });
+    iterator_done_exception_type = make_treenum("Iterator_done_exception", "ITERATOR_DONE");
     root_scope->add(iterator_done_exception_type);
 
-    container_full_exception_type = new TreenumerationType("Container_full_exception", { "", "CONTAINER_FULL" }, { 0, 1 });
+    container_full_exception_type = make_treenum("Container_full_exception", "CONTAINER_FULL");
     root_scope->add(container_full_exception_type);
 
-    container_empty_exception_type = new TreenumerationType("Container_empty_exception", { "", "CONTAINER_EMPTY" }, { 0, 1 });
+    container_empty_exception_type = make_treenum("Container_empty_exception", "CONTAINER_EMPTY");
     root_scope->add(container_empty_exception_type);
 
-    container_lent_exception_type = new TreenumerationType("Container_lent_exception", { "", "CONTAINER_LENT" }, { 0, 1 });
+    container_lent_exception_type = make_treenum("Container_lent_exception", "CONTAINER_LENT");
     root_scope->add(container_lent_exception_type);
 
-    match_unmatched_exception_type = new TreenumerationType("Match_unmatched_exception", { "", "UNMATCHED" }, { 0, 1 });
+    match_unmatched_exception_type = make_treenum("Match_unmatched_exception", "UNMATCHED");
     root_scope->add(match_unmatched_exception_type);
 
-    code_break_exception_type = new TreenumerationType("<Code_break>", { "", "CODE_BREAK" }, { 0, 1 });
+    code_break_exception_type = make_treenum("<Code_break>", "CODE_BREAK");
     root_scope->add(code_break_exception_type);
     
     // NO_TS will contain no Type pointers

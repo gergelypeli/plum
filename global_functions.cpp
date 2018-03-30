@@ -475,6 +475,11 @@ std::string print_exception_type(TreenumerationType *t) {
 }
 
 
+TreenumerationType *make_treenum(const char *name, const char *kw1) {
+    return new TreenumerationType(name, { "", kw1 }, { 0, 0 });
+}
+
+
 TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     TypeSpec ts;
     

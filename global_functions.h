@@ -30,7 +30,7 @@ bool typematch(TypeSpec tt, Value *&v, TypeMatch &match, CodeScope *code_scope =
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 TypeMatch type_parameters_to_match(TypeSpec ts);
 std::string print_exception_type(TreenumerationType *t);
-
+TreenumerationType *make_treenum(const char *name, const char *kw1);
 
 // Streamification
 void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);

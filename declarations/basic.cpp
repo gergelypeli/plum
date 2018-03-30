@@ -495,6 +495,10 @@ public:
         if (kw[0] != "" || ps[0] != 0)
             throw INTERNAL_ERROR;
             
+        for (unsigned i = 1; i < ps.size(); i++)
+            if (ps[i] >= i)
+                throw INTERNAL_ERROR;
+            
         parents = ps;
     }
     
