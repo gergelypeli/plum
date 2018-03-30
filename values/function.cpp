@@ -41,14 +41,14 @@ public:
         for (auto &arg : args) {
             Value *r = typize(arg.get(), scope);
         
-            if (r->ts[0]->level != META_TYPE) {
+            if (!r->ts.is_meta()) {
                 std::cerr << "Function result expression is not a type!\n";
                 return false;
             }
 
             TypeSpec var_ts = ptr_cast<TypeValue>(r)->represented_ts;
 
-            if (!var_ts.is_meta(value_metatype)) {
+            if (!var_ts.has_meta(value_metatype)) {
                 std::cerr << "Function result expression is not a value type!\n";
                 return false;
             }

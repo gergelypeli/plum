@@ -5,37 +5,17 @@ enum TypeLevel {
 
 typedef std::vector<Type *> Metatypes;
 
-std::ostream &operator<<(std::ostream &os, const TypeLevel tl) {
-    os << (
-        tl == DATA_TYPE ? "DATA_TYPE" :
-        tl == META_TYPE ? "META_TYPE" :
-        tl == HYPER_TYPE ? "HYPER_TYPE" :
-        throw INTERNAL_ERROR
-    );
-    
-    return os;
-}
-
-
 class Type: public Declaration {
 public:
     std::string name;
     Metatypes param_metatypes;
     DataScope *inner_scope;  // Will be owned by the outer scope
-    TypeLevel level;
     Type *upper_type;
     
     Type(std::string n, Metatypes pmts, Type *ut) {
         name = n;
         param_metatypes = pmts;
         upper_type = ut;
-        
-        level = (
-            !ut ? HYPER_TYPE :
-            ut->level == HYPER_TYPE ? META_TYPE :
-            ut->level == META_TYPE ? DATA_TYPE :
-            throw INTERNAL_ERROR
-        );
         inner_scope = NULL;
     }
     
@@ -71,10 +51,6 @@ public:
     }
     
     virtual Value *match(std::string name, Value *pivot) {
-        // Metatypes must override this method
-        if (level != DATA_TYPE)
-            throw INTERNAL_ERROR;
-            
         if (name != this->name)
             return NULL;
 
@@ -91,7 +67,7 @@ public:
             
             TypeSpec t = get_typespec(pivot);
             
-            if (t[0]->level != META_TYPE) {
+            if (!t.is_meta()) {
                 std::cerr << "Invalid type parameter type: " << t << "\n";
                 return NULL;
             }
@@ -120,12 +96,12 @@ public:
         for (unsigned i = 0; i < pc; i++) {
             TypeSpec &ts = tss[i];
             
-            if (ts[0]->level != DATA_TYPE) {
+            if (ts.is_meta()) {
                 std::cerr << "Data type parameters must be data types!\n";
                 return NULL;
             }
 
-            if (!ts.is_meta(param_metatypes[i])) {
+            if (!ts.has_meta(param_metatypes[i])) {
                 std::cerr << "Type " << name << " parameter " << i + 1 << " is not a " << param_metatypes[i]->name << " but " << ts << "!\n";
                 return NULL;
             }

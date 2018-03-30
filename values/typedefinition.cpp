@@ -393,7 +393,7 @@ public:
         // TODO: check for Class definition scope!
         Value *v = typize(args[0].get(), scope, NULL);
     
-        if (v->ts[0]->level != META_TYPE) {
+        if (!v->ts.is_meta()) {
             std::cerr << "Class type name expected!\n";
             return false;
         }
@@ -526,7 +526,7 @@ public:
         Value *v = typize(args[0].get(), scope, NULL);
         TypeMatch match;
         
-        if (v->ts[0]->level != META_TYPE) {
+        if (!v->ts.is_meta()) {
             std::cerr << "Implementation needs an interface type name!\n";
             return false;
         }

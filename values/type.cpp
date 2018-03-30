@@ -29,7 +29,7 @@ public:
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == ARGUMENT_SCOPE) {
-            if (!represented_ts.is_meta(attribute_metatype) && !represented_ts.is_meta(value_metatype))
+            if (!represented_ts.has_meta(attribute_metatype) && !represented_ts.has_meta(value_metatype))
                 return NULL;
             
             if (represented_ts[0] == code_type)
@@ -38,7 +38,7 @@ public:
                 return new Variable(name, pivot_ts, represented_ts);
         }
         else {
-            if (!represented_ts.is_meta(value_metatype))
+            if (!represented_ts.has_meta(value_metatype))
                 return NULL;
 
             return new Variable(name, pivot_ts, represented_ts.lvalue());

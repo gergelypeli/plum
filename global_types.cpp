@@ -32,7 +32,7 @@ TypeSpec TypeSpec::prefix(Type *t) {
         throw INTERNAL_ERROR;
     }
     
-    if (!is_meta(t->param_metatypes[0])) {
+    if (!has_meta(t->param_metatypes[0])) {
         std::cerr << "Can't prefix Type " << t->name << " requiring a " << t->param_metatypes[0]->name  << " parameters: " << *this << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -97,7 +97,7 @@ TypeSpec TypeSpec::lvalue() {
 }
 
 
-bool TypeSpec::is_meta(Type *mt) {
+bool TypeSpec::has_meta(Type *mt) {
     Type *ms = at(0)->upper_type;
     
     while (ms && ms != mt) {
@@ -106,6 +106,16 @@ bool TypeSpec::is_meta(Type *mt) {
     }
         
     return ms == mt;
+}
+
+
+bool TypeSpec::is_meta() {
+    return at(0)->upper_type && !at(0)->upper_type->upper_type;
+}
+
+
+bool TypeSpec::is_hyper() {
+    return !at(0)->upper_type;
 }
 
 
