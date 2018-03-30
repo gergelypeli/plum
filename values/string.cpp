@@ -7,51 +7,15 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RCX | RSI | RDI;
+        return clob;
     }
 
     virtual Storage compile(X64 *x64) {
-        Label streq_label = x64->once->compile(compile_streq);
-
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
         
-        x64->op(POPQ, RBX);
-        x64->op(POPQ, RAX);
-        x64->op(CALL, streq_label);
+        left->ts.equal(Storage(STACK), Storage(STACK), x64);
         
-        return Storage(REGISTER, CL);
-    }
-    
-    static void compile_streq(Label label, X64 *x64) {
-        x64->code_label_local(label, "streq");
-        Label sete, done;
-        
-        x64->op(MOVB, CL, 0);
-        x64->op(CMPQ, RAX, RBX);
-        x64->op(JE, sete);
-        
-        x64->op(CMPQ, RAX, 0);
-        x64->op(JE, done);
-        x64->op(CMPQ, RBX, 0);
-        x64->op(JE, done);
-        
-        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(CMPQ, RCX, Address(RBX, ARRAY_LENGTH_OFFSET));
-        x64->op(JNE, sete);
-        
-        x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(LEA, RDI, Address(RBX, ARRAY_ELEMS_OFFSET));
-        x64->op(REPECMPSW);
-        x64->op(CMPQ, RCX, 0);
-        
-        x64->code_label(sete);
-        x64->op(SETE, CL);
-        
-        x64->code_label(done);
-        x64->decref(RBX);
-        x64->decref(RAX);
-        
-        x64->op(RET);
+        return Storage(FLAGS, SETE);
     }
 };
 

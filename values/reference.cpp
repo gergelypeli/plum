@@ -5,30 +5,12 @@ public:
         :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), l) {
     }
 
-    virtual void decref(Register r, X64 *x64) {
-        x64->decref(r);
-    }
-
     virtual Storage equal(X64 *x64, BitSetOp op) {
         subcompile(x64);
+
+        left->ts.equal(ls, rs, x64);
         
-        switch (ls.where * rs.where) {
-        case REGISTER_REGISTER:
-            decref(ls.reg, x64);
-            decref(rs.reg, x64);
-            x64->op(CMPQ, ls.reg, rs.reg);
-            return Storage(FLAGS, op);
-        case REGISTER_MEMORY:
-            decref(ls.reg, x64);
-            x64->op(CMPQ, ls.reg, rs.address);
-            return Storage(FLAGS, op);
-        case MEMORY_MEMORY:
-            x64->op(MOVQ, RBX, ls.address);
-            x64->op(CMPQ, RBX, rs.address);
-            return Storage(FLAGS, op);
-        default:
-            throw INTERNAL_ERROR;
-        }
+        return Storage(FLAGS, op);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -48,10 +30,6 @@ class WeakreferenceOperationValue: public ReferenceOperationValue {
 public:
     WeakreferenceOperationValue(OperationType o, Value *l, TypeMatch &match)
         :ReferenceOperationValue(o, l, match) {
-    }
-    
-    virtual void decref(Register r, X64 *x64) {
-        x64->decweakref(r);
     }
 };
 
