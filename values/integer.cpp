@@ -561,18 +561,15 @@ public:
         case ASSIGN_MODULO:
         case EXPONENT:
         case ASSIGN_EXPONENT:
-            clob.add(RAX);
-            clob.add(RDX);
-            clob.add(RCX);
+            clob = clob | RAX | RDX | RCX;
             break;
         case SHIFT_LEFT:
         case SHIFT_RIGHT:
-            clob.add(RAX);
-            clob.add(RCX);
+            clob = clob | RAX | RCX;
             break;
         case ASSIGN_SHIFT_LEFT:
         case ASSIGN_SHIFT_RIGHT:
-            clob.add(RCX);
+            clob = clob | RCX;
             break;
         default:
             break;

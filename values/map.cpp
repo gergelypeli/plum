@@ -36,7 +36,7 @@ public:
             clob = clob | value->precompile(preferred);
         
         // We build on this in WeakValueMap::precreate
-        return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
+        return clob | RAX | RCX | RDX | RSI | RDI;
     }
 
     virtual void prekey(Address alias_addr, X64 *x64) {
@@ -109,7 +109,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
+        return clob | RAX | RCX | RDX | RSI | RDI;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -158,7 +158,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
+        return clob | RAX | RCX | RDX | RSI | RDI;
     }
 
     virtual Storage postresult(X64 *x64) {

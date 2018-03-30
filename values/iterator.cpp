@@ -35,7 +35,7 @@ public:
         clob = left->precompile(preferred);
         
         if (!clob.has_any())
-            clob.add(RAX);
+            clob = clob | RAX;
         
         return clob;
     }

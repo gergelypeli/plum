@@ -210,9 +210,8 @@ public:
     
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        clob.add(RAX);
         
-        return clob;
+        return clob | RAX;
     }
     
     virtual Storage compile(X64 *x64) {
@@ -342,8 +341,7 @@ public:
     
     virtual Regs precompile(Regs preferred) {
         Regs clob = orig->precompile(preferred);
-        clob.add(RAX);
-        return clob;
+        return clob | RAX;
     }
     
     virtual Storage compile(X64 *x64) {

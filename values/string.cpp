@@ -7,8 +7,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        clob.add(RAX).add(RBX).add(RCX).add(RSI).add(RDI);
-        return clob;
+        return clob | RAX | RCX | RSI | RDI;
     }
 
     virtual Storage compile(X64 *x64) {

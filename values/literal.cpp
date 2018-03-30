@@ -18,7 +18,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         if (number < -2147483648 || number > 2147483647) {
             reg = preferred.get_any();
-            return Regs().add(reg);
+            return Regs(reg);
         }
         else
             return Regs();
@@ -119,7 +119,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred);
         reg = clob.has_any() ? clob.get_any() : AL;
-        return clob.add(reg);
+        return clob | reg;
     }
     
     virtual Storage compile(X64 *x64) {

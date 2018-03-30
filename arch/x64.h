@@ -40,38 +40,32 @@ enum Slash {
 
 
 struct Regs {
-    static const int ALL_MASK = 0xFFC7;
-    //static const int GPR_MASK = 0xFF07;  // general purpose registers
-    //static const int PTR_MASK = 0x00C0;  // registers for borrowed references, RSI and RDI
-    static const int SCR_MASK = 0x0008;  // scratch registers, RBX only
-    static const int RES_MASK = 0x0030;  // reserved registers, RSP and RBP
-    
+private:
+    // 16 registers, except RBX (3, 0x08), RSP (4, 0x10), RBP (5, 0x20)
+    static const int AVAILABLE_MASK = 0xFFC7;
     int available;
     
-    Regs(int a = 0) {
+    Regs(int a) {
         available = a;
+    }
+
+    void validate(Register r) {
+        if (r == NOREG || !(AVAILABLE_MASK & (1 << (int)r)))
+            throw X64_ERROR;
+    }
+
+public:
+    Regs() {
+        available = 0;
     }
     
     static Regs all() {
-        return Regs(ALL_MASK);
+        return Regs(AVAILABLE_MASK);
     }
-
-    //static Regs all_gprs() {
-    //    return Regs(GPR_MASK);
-    //}
-
-    //static Regs all_ptrs() {
-    //    return Regs(PTR_MASK);
-    //}
     
-    Regs add(Register r) {
-        available |= 1 << (int)r;
-        return *this;
-    }
-
-    Regs remove(Register r) {
-        available &= ~(1 << (int)r);
-        return *this;
+    Regs(Register r) {
+        validate(r);
+        available = (1 << (int)r);
     }
 
     Regs operator |(Regs other) {
@@ -87,18 +81,19 @@ struct Regs {
     }
     
     bool has(Register r) {
+        validate(r);
         return available & (1 << (int)r);
     }
 
     bool has_any() {
-        return (available & ALL_MASK) != 0;
+        return (available & AVAILABLE_MASK) != 0;
     }
 
     int count() {
         int n = 0;
         
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & ALL_MASK & (1 << i)) {
+            if (available & AVAILABLE_MASK & (1 << i)) {
                 n++;
             }
     
@@ -107,7 +102,7 @@ struct Regs {
 
     Register get_any() {
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & ALL_MASK & (1 << i)) {
+            if (available & AVAILABLE_MASK & (1 << i)) {
                 return (Register)i;
             }
     

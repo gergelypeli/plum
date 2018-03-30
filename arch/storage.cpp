@@ -110,17 +110,20 @@ struct Storage {
         case FLAGS:
             return regs;
         case REGISTER:
-            return regs.add(reg);
+            return regs | reg;
         case STACK:
         case ALISTACK:
             return regs;
         case MEMORY:
         case ALIAS:
-            if (address.base != NOREG)
-                regs.add(address.base);
+            // Although RBX and RSP based addresses can be used locally, they shouldn't be
+            // passed between Value-s, so no one should be interested in their clobbed registers.
+            // In those cases just crash, as RBX and RSP are also illegal in a Regs.
+            if (address.base != NOREG && address.base != RBP)
+                regs = regs | address.base;
 
             if (address.index != NOREG)
-                regs.add(address.index);
+                regs = regs | address.index;
                 
             return regs;
         default:

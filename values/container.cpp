@@ -82,7 +82,7 @@ public:
         Regs clob = left->precompile(preferred);
         
         if (!clob.has_any())
-            clob.add(RAX);
+            clob = clob | RAX;
         
         reg = clob.get_any();
             
@@ -185,8 +185,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob;
-        return clob.add(RAX).add(RBX);
+        return Regs(RAX);
     }
 
     virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
@@ -236,12 +235,11 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob;
-        clob.add(RAX).add(RBX).add(RCX);
         
         for (auto &elem : elems)
             clob = clob | elem->precompile(preferred);
             
-        return clob;
+        return clob | RAX | RCX;
     }
 
     virtual Storage subcompile(int length_offset, int elems_offset, Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
@@ -284,7 +282,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred).add(RAX).add(RCX);
+        return left->precompile(preferred) | RAX | RCX;
     }
     
     virtual Storage subcompile(int reservation_offset, int length_offset, Once::TypedFunctionCompiler compile_grow, X64 *x64) {
@@ -377,7 +375,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX);
+        return clob | RAX | RCX;
     }
 
     virtual void fix_RBX_index(Register r, X64 *x64) {
@@ -430,7 +428,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX);
+        return clob | RAX | RCX;
     }
 
     virtual void fix_RBX_index(Register r, X64 *x64) {
@@ -513,7 +511,7 @@ public:
         clob = left->precompile(preferred);
         
         if (!clob.has_any())
-            clob.add(RAX);
+            clob = clob | RAX;
         
         return clob;
     }

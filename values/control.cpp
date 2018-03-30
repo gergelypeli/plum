@@ -122,9 +122,8 @@ public:
         
         // This won't be bothered by either branches
         reg = preferred.get_any();
-        clobbered.add(reg);
         
-        return clobbered;
+        return clobbered | reg;
     }
     
     virtual Storage compile(X64 *x64) {

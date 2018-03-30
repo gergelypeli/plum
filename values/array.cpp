@@ -93,7 +93,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
+        return clob | RAX | RCX | RDX | RSI | RDI;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -157,7 +157,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = GenericOperationValue::precompile(preferred);
-        return clob.add(RAX).add(RCX);
+        return clob | RAX | RCX;
     }
 
     virtual Storage compile(X64 *x64) {

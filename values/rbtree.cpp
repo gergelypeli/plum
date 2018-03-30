@@ -725,8 +725,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob;
-        return clob.add(RAX);
+        return Regs(RAX);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -751,7 +750,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = right->precompile(preferred);
-        return clob.add(RAX);
+        return clob | RAX;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -816,7 +815,7 @@ public:
         Regs clob = left->precompile(preferred);
         
         if (!clob.has_any())
-            clob.add(RAX);
+            clob = clob | RAX;
         
         reg = clob.get_any();
             
@@ -853,7 +852,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RSI).add(RDI);
+        return clob | RAX | RSI | RDI;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -889,7 +888,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
+        return clob | RAX | RCX | RDX | RSI | RDI;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -939,7 +938,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob.add(RAX).add(RBX).add(RCX).add(RDX).add(RSI).add(RDI);
+        return clob | RAX | RCX | RDX | RSI | RDI;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -1022,7 +1021,7 @@ public:
         clob = left->precompile(preferred);
         
         if (!clob.has_any())
-            clob.add(RAX);
+            clob = clob | RAX;
         
         return clob;
     }
@@ -1093,9 +1092,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
         
-        clob.add(RAX).add(RCX).add(RDX).add(RSI);
-        
-        return clob;
+        return clob | RAX | RCX | RDX | RSI;
     }
 
     virtual Storage compile(X64 *x64) {

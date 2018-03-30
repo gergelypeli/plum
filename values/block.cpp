@@ -21,7 +21,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = value->precompile(preferred);
         reg = preferred.get_any();
-        return clob.add(reg);
+        return clob | reg;
     }
 
     virtual Storage compile(X64 *x64) {

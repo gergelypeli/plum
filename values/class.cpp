@@ -6,7 +6,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return Regs().add(RAX);
+        return Regs(RAX);
     }
     
     virtual Storage compile(X64 *x64) {

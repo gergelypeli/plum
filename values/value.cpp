@@ -201,7 +201,7 @@ public:
                 
             reg = preferred.get_any();
             //std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
-            clob = clob.add(reg);
+            clob = clob | reg;
         }
         
         if (pivot && pivot->ts.rvalue()[0] == ref_type) {
@@ -211,7 +211,7 @@ public:
         
         if (pivot && pivot->ts.rvalue()[0] == weakref_type) {
             reg = preferred.get_any();
-            clob = clob.add(reg);
+            clob = clob | reg;
         }
         
         return clob;

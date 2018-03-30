@@ -111,7 +111,7 @@ public:
         // register may contain the address of the returned lvalue.
         reg = pick_early_register(preferred);
         if (reg != NOREG)
-            clob.add(reg);
+            clob = clob | reg;
         
         return clob;
     }
