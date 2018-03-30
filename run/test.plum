@@ -400,10 +400,10 @@ test_controls? :Function as:
         :is { my_tree } then:
             prints("Single itself.")
             
-        :is { `TWO, `TWENTY, `FOUR } then:
+        :is { `ONE, `TWENTY, `FOUR } then:
             prints("Multi twenty.")
             
-        :is { `TWO, my_tree, `FOUR } then:
+        :is { `ONE, my_tree, `FOUR } then:
             prints("Multi itself.")
 
         :is ~TWENTY then:

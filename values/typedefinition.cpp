@@ -171,26 +171,26 @@ public:
 class TreenumerationDefinitionValue: public TypeDefinitionValue {
 public:
     std::vector<std::string> keywords;
-    std::vector<unsigned> tails;
+    std::vector<unsigned> parents;
     std::string declname;
 
     TreenumerationDefinitionValue()
         :TypeDefinitionValue() {
     }
 
-    virtual unsigned add_keyword(std::string kw) {
+    virtual unsigned add_keyword(std::string kw, unsigned parent) {
         for (auto &k : keywords)
             if (k == kw)
                 return 0;
                 
         unsigned x = keywords.size();
         keywords.push_back(kw);
-        tails.push_back(x);
+        parents.push_back(parent);
         
         return x;
     }
     
-    virtual bool parse_level(Args &args) {
+    virtual bool parse_level(Args &args, unsigned parent) {
         for (unsigned i = 0; i < args.size(); i++) {
             Expr *e = args[i].get();
 
@@ -200,7 +200,7 @@ public:
                     return false;
                 }
 
-                unsigned x = add_keyword(e->text);
+                unsigned x = add_keyword(e->text, parent);
 
                 if (!x)
                     return false;
@@ -211,15 +211,13 @@ public:
                     return false;
                 }
 
-                unsigned x = add_keyword(e->pivot->text);
+                unsigned x = add_keyword(e->pivot->text, parent);
 
                 if (!x)
                     return false;
 
-                if (!parse_level(e->args))
+                if (!parse_level(e->args, x))
                     return false;
-
-                tails[x] = keywords.size() - 1;
             }
             else {
                 std::cerr << "Whacky treenum syntax!\n";
@@ -236,9 +234,9 @@ public:
             return false;
         }
 
-        add_keyword("");
+        add_keyword("", 0);
         
-        if (!parse_level(args))
+        if (!parse_level(args, 0))
             return false;
         
         return true;
@@ -255,7 +253,7 @@ public:
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == DATA_SCOPE || st == CODE_SCOPE) {
             declname = name;
-            return new TreenumerationType(name, keywords, tails);
+            return new TreenumerationType(name, keywords, parents);
         }
         else
             return NULL;

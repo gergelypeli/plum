@@ -94,10 +94,6 @@ struct Regs {
         return (available & ALL_MASK) != 0;
     }
 
-    //bool has_ptr() {
-    //    return (available & PTR_MASK) != 0;
-    //}
-
     int count() {
         int n = 0;
         
@@ -118,16 +114,6 @@ struct Regs {
         std::cerr << "No available register!\n";
         throw X64_ERROR;
     }
-
-    //Register get_ptr() {
-    //    for (int i=0; i<REGISTER_COUNT; i++)
-    //        if (available & PTR_MASK & (1 << i)) {
-    //            return (Register)i;
-    //        }
-    //
-    //    std::cerr << "No PTR in register set!\n";
-    //    throw X64_ERROR;
-    //}
 };
 
 

@@ -483,19 +483,19 @@ public:
 
 class TreenumerationType: public EnumerationType {
 public:
-    std::vector<unsigned> tails;
+    std::vector<unsigned> parents;
 
-    TreenumerationType(std::string n, std::vector<std::string> kw, std::vector<unsigned> tl)
+    TreenumerationType(std::string n, std::vector<std::string> kw, std::vector<unsigned> ps)
         :EnumerationType(n, kw, treenumeration_metatype) {
-        if (kw.size() != tl.size())
+        if (kw.size() != ps.size())
             throw INTERNAL_ERROR;
             
         // The numbering must start from 1, as 0 is reserved to be the root of all values,
         // and also for NO_EXCEPTION for raise.
-        if (kw[0] != "")
+        if (kw[0] != "" || ps[0] != 0)
             throw INTERNAL_ERROR;
             
-        tails = tl;
+        parents = ps;
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
@@ -518,19 +518,15 @@ public:
         return treenumeration_metatype->get_inner_scope(tm);
     }
 
-    virtual unsigned get_tail(unsigned index) {
-        return tails[index];
-    }
-
-    virtual Label get_tails_label(X64 *x64) {
-        return x64->once->compile(compile_tails, TypeSpec { this });
+    virtual Label get_parents_label(X64 *x64) {
+        return x64->once->compile(compile_parents, TypeSpec { this });
     }
     
-    static void compile_tails(Label label, TypeSpec ts, X64 *x64) {
+    static void compile_parents(Label label, TypeSpec ts, X64 *x64) {
         TreenumerationType *t = ptr_cast<TreenumerationType>(ts[0]);
-        x64->data_label_local(label, t->name + "_tails");
+        x64->data_label_local(label, t->name + "_parents");
         
-        for (unsigned tail : t->tails)
-            x64->data_byte(tail);
+        for (unsigned p : t->parents)
+            x64->data_byte(p);
     }
 };

@@ -102,6 +102,7 @@ public:
 class TreenumerationMatcherValue: public GenericValue, public Raiser {
 public:
     int index;
+    Register reg;
     
     TreenumerationMatcherValue(int i, Value *p)
         :GenericValue(NO_TS, VOID_TS, p) {
@@ -116,42 +117,46 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred);
+        Regs clob = left->precompile(preferred);
+        reg = clob.has_any() ? clob.get_any() : AL;
+        return clob.add(reg);
     }
     
     virtual Storage compile(X64 *x64) {
         TreenumerationType *t = ptr_cast<TreenumerationType>(left->ts.rvalue()[0]);
-        int tail = t->get_tail(index);
-        Label match, unmatch;
+        Label parents_label = t->get_parents_label(x64);
+        Label loop, cond, match;
         
         ls = left->compile(x64);
         
         switch (ls.where) {
         case CONSTANT:
-            if (ls.value >= index && ls.value <= tail)
-                return Storage();
-            else {
-                raise("UNMATCHED", x64);
-                return Storage();
-            }
+            x64->op(MOVB, reg, ls.value);
+            break;
         case REGISTER:
-            x64->op(CMPB, ls.reg, index);
-            x64->op(JB, unmatch);
-            x64->op(CMPB, ls.reg, tail);
-            x64->op(JBE, match);
+            reg = ls.reg;
             break;
         case MEMORY:
-            x64->op(CMPB, ls.address, index);
-            x64->op(JB, unmatch);
-            x64->op(CMPB, ls.address, tail);
-            x64->op(JBE, match);
+            x64->op(MOVB, reg, ls.address);
             break;
         default:
             throw INTERNAL_ERROR;
         }
         
-        x64->code_label(unmatch);
+        x64->op(LEARIP, RBX, parents_label);
+        
+        x64->code_label(loop);
+        x64->op(CMPB, reg, index);
+        x64->op(JE, match);
+        
+        x64->op(ANDQ, reg, 255);
+        x64->op(MOVB, reg, Address(RBX, reg, 0));
+        
+        x64->op(CMPB, reg, 0);
+        x64->op(JNE, loop);
+        
         raise("UNMATCHED", x64);
+        
         x64->code_label(match);
         
         return Storage();
