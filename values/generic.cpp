@@ -313,7 +313,20 @@ public:
     virtual Storage compare(X64 *x64) {
         subcompile(x64);
 
-        left->ts.compare(ls, rs, x64, reg);
+        Label less, greater, end;
+        left->ts.compare(ls, rs, x64, less, greater);
+        
+        x64->op(MOVQ, reg, 0);
+        x64->op(JMP, end);
+        
+        x64->code_label(less);
+        x64->op(MOVQ, reg, -1);
+        x64->op(JMP, end);
+        
+        x64->code_label(greater);
+        x64->op(MOVQ, reg, 1);
+        
+        x64->code_label(end);
         
         return Storage(REGISTER, reg);
     }

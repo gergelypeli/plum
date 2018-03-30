@@ -133,6 +133,53 @@ public:
         
         return Storage(FLAGS, SETNE);
     }
+
+    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        int stack_size = tm[0].measure_stack();
+        int flag_size = get_flag_size(tm[1]);
+
+        if (s.where == MEMORY && t.where == MEMORY) {
+            Label end;
+            x64->op(MOVQ, RBX, s.address);
+            x64->op(CMPQ, RBX, t.address);
+            x64->op(JNE, end);
+            x64->op(CMPQ, RBX, 0);
+            x64->op(JE, end);
+            tm[1].equal(Storage(MEMORY, s.address + flag_size), Storage(MEMORY, t.address + flag_size), x64);
+            x64->code_label(end);
+            return;
+        }
+
+        StorageWhereWhere stw = s.where * t.where;  // s and t may be overwritten
+        Label xless, xgreater, cleanup;
+
+        // Assume destroy leaves the data intact (TODO: rewrite compare similarly)
+
+        switch (stw) {
+        case STACK_STACK:
+            s = Storage(MEMORY, Address(RSP, stack_size));
+            t = Storage(MEMORY, Address(RSP, 0));
+            destroy(tm, t, x64);
+            destroy(tm, s, x64);
+            equal(tm, s, t, x64);
+            x64->op(LEA, RSP, Address(RSP, 2 * stack_size));
+            break;
+        case STACK_MEMORY:
+            s = Storage(MEMORY, Address(RSP, 0));
+            destroy(tm, s, x64);
+            equal(tm, s, t, x64);
+            x64->op(LEA, RSP, Address(RSP, stack_size));
+            break;
+        case MEMORY_STACK:
+            t = Storage(MEMORY, Address(RSP, 0));
+            destroy(tm, t, x64);
+            equal(tm, s, t, x64);
+            x64->op(LEA, RSP, Address(RSP, stack_size));
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
     
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         int stack_size = tm[0].measure_stack();

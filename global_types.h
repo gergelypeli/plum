@@ -39,8 +39,9 @@ public:
     void store(Storage s, Storage t, X64 *x64);
     void create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);
+    void equal(Storage s, Storage t, X64 *x64);
     void compare(Storage s, Storage t, X64 *x64, Label less, Label greater);
-    void compare(Storage s, Storage t, X64 *x64, Register reg);
+    //void compare(Storage s, Storage t, X64 *x64, Register reg);
     void streamify(bool repr, X64 *x64);
     Value *lookup_initializer(std::string name);
     Value *lookup_partinitializer(std::string name, Value *pivot);

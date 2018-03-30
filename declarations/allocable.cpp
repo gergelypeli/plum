@@ -132,6 +132,12 @@ public:
         return ts.boolval(s + o, x64, probe);
     }
 
+    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        TypeSpec ts = typesubst(alloc_ts, tm);
+        int o = offset.concretize(tm);
+        ts.equal(s + o, t + o, x64);
+    }
+
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         TypeSpec ts = typesubst(alloc_ts, tm);
         int o = offset.concretize(tm);

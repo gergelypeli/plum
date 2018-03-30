@@ -149,7 +149,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Only RBX is usable as scratch
         BinaryOp MOV = MOVQ % os;
         BinaryOp CMP = CMPQ % os;
@@ -223,7 +223,11 @@ public:
         default:
             throw INTERNAL_ERROR;
         }
-        
+    }
+
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+        equal(tm, s, t, x64);
+
         if (is_unsigned) {
             x64->op(JB, less);
             x64->op(JA, greater);

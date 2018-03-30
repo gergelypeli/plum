@@ -190,6 +190,12 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // Always returns the result in FLAGS (ZF if equal)
+        std::cerr << "Uncomparable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         std::cerr << "Uncomparable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -340,6 +346,10 @@ public:
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         tm[1].destroy(s, x64);
+    }
+
+    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        tm[1].equal(s, t, x64);
     }
 
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {

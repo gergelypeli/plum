@@ -256,7 +256,21 @@ public:
         
         Storage a(MEMORY, Address(RDI, 0));
         Storage b(MEMORY, Address(RSI, 0));
-        elem_ts.compare(a, b, x64, RAX);
+
+        Label less, greater, end;
+        elem_ts.compare(a, b, x64, less, greater);
+        
+        x64->op(MOVQ, RAX, 0);
+        x64->op(JMP, end);
+        
+        x64->code_label(less);
+        x64->op(MOVQ, RAX, -1);
+        x64->op(JMP, end);
+        
+        x64->code_label(greater);
+        x64->op(MOVQ, RAX, 1);
+        
+        x64->code_label(end);
         
         x64->op(POPQ, RBX);
         x64->op(RET);
