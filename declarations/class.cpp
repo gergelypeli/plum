@@ -72,7 +72,7 @@ public:
             return typesubst(base_role->alloc_ts, tm).get_virtual_table_label(x64);
         else {
             //std::cerr << "Class " << tm << " has no base.\n";
-            return x64->zero_label;
+            return x64->runtime->zero_label;
         }
     }
 
@@ -112,7 +112,7 @@ public:
             Label no_weakrefs;
             x64->op(CMPQ, Address(RAX, ROLE_WEAKREFCOUNT_OFFSET), 0);
             x64->op(JE, no_weakrefs);
-            x64->die("Weakly referenced role finalized!");
+            x64->runtime->die("Weakly referenced role finalized!");
             x64->code_label(no_weakrefs);
         }
         else

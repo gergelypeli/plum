@@ -201,7 +201,7 @@ public:
         // from interpolation, which is in Void context, so not much is lost. But
         // nested streamifications must take care!
         
-        Label us_label = x64->data_heap_string(decode_utf8("<unstreamifiable>"));
+        Label us_label = x64->runtime->data_heap_string(decode_utf8("<unstreamifiable>"));
         x64->op(LEARIP, RBX, us_label);
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));

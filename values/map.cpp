@@ -168,7 +168,7 @@ public:
         x64->op(CMPQ, RDI, RBNODE_NIL);
         x64->op(JNE, ok);
 
-        x64->die("Map missing!");  // TODO
+        x64->runtime->die("Map missing!");  // TODO
 
         x64->code_label(ok);
         
@@ -207,7 +207,7 @@ static void compile_process_fcb(Label label, TypeSpec item_ts, X64 *x64) {
 
     std::stringstream ss;
     ss << item_ts << " callback";
-    x64->log(ss.str().c_str());  // "WeakMap callback.");
+    x64->runtime->log(ss.str().c_str());  // "WeakMap callback.");
     
     Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
 
@@ -231,7 +231,7 @@ static void alloc_fcb(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     x64->op(LEARIP, RBX, callback_label);  // callback
     x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address
     x64->op(MOVQ, RDX, RDI);  // payload2, the rbnode index
-    x64->op(CALL, x64->alloc_fcb_label);
+    x64->op(CALL, x64->runtime->alloc_fcb_label);
     x64->op(PUSHQ, RAX);
 }
 

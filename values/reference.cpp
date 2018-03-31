@@ -65,13 +65,13 @@ public:
         
         switch (s.where) {
         case REGISTER:
-            x64->incweakref(s.reg);
-            x64->decref(s.reg);
+            x64->runtime->incweakref(s.reg);
+            x64->runtime->decref(s.reg);
             return s;
         case STACK:
             x64->op(MOVQ, RBX, Address(RSP, 0));
-            x64->incweakref(RBX);
-            x64->decref(RBX);
+            x64->runtime->incweakref(RBX);
+            x64->runtime->decref(RBX);
             return s;
         case MEMORY:
             return s;
@@ -100,7 +100,7 @@ public:
         x64->op(MOVQ, RAX, ADDRESS_SIZE * 2);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
         x64->op(LEARIP, RBX, finalizer_label);
-        x64->alloc_RAX_RBX();
+        x64->runtime->alloc_RAX_RBX();
 
         x64->op(PUSHQ, RAX);
         
@@ -110,7 +110,7 @@ public:
         x64->op(LEARIP, RBX, callback_label);
         x64->op(MOVQ, RCX, Address(RSP, 8));  // the anchorage address as the payload1
         x64->op(MOVQ, RDX, 0);
-        x64->op(CALL, x64->alloc_fcb_label);
+        x64->op(CALL, x64->runtime->alloc_fcb_label);
         
         x64->op(POPQ, RCX);  // object address
         x64->op(POPQ, RDX);  // anchorage address
@@ -124,15 +124,15 @@ public:
     static void compile_callback(Label label, X64 *x64) {
         x64->code_label_local(label, "weakanchorage_callback");
         
-        x64->log("WeakAnchorage callback.");
+        x64->runtime->log("WeakAnchorage callback.");
         
         x64->op(MOVQ, RBX, Address(RCX, 0));
-        x64->decweakref(RBX);
+        x64->runtime->decweakref(RBX);
         
         x64->op(MOVQ, Address(RCX, 0), 0);
         x64->op(MOVQ, Address(RCX, 8), 0);  // clear FCB address for the finalizer
         
-        x64->op(CALL, x64->free_fcb_label);
+        x64->op(CALL, x64->runtime->free_fcb_label);
         x64->op(RET);
     }
 };
@@ -160,7 +160,7 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->decweakref(RBX);  // for the anchorage
+        x64->runtime->decweakref(RBX);  // for the anchorage
         x64->op(CMPQ, Address(RBX, 0), 0);
         x64->op(JE, ok);
         
@@ -194,7 +194,7 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->decweakref(RBX);  // for the anchorage
+        x64->runtime->decweakref(RBX);  // for the anchorage
         x64->op(CMPQ, Address(RBX, 0), 0);
         x64->op(JNE, ok);
         
@@ -202,7 +202,7 @@ public:
                 
         x64->code_label(ok);
         x64->op(MOVQ, RBX, Address(RBX, 0));
-        x64->incweakref(RBX);  // for the object
+        x64->runtime->incweakref(RBX);  // for the object
         x64->op(PUSHQ, RBX);
 
         return Storage(STACK);

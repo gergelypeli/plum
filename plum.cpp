@@ -15,6 +15,7 @@
 #include "util.cpp"
 #include "arch/ork.cpp"
 #include "arch/x64.cpp"
+#include "arch/runtime.cpp"
 #include "arch/storage.cpp"
 #include "tokenize.cpp"
 #include "treeize.cpp"
@@ -72,6 +73,7 @@ int main(int argc, char **argv) {
 
     x64->unwind = new Unwind();
     x64->once = new Once();
+    x64->runtime = new Runtime(x64);
 
     // Must mark imported functions first as sysv
     ImportedFunction::import_all(x64);

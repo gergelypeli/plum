@@ -255,8 +255,8 @@ public:
     }
     
     static void compile_streamification(Label label, TypeSpec some_ts, X64 *x64) {
-        Label none_label = x64->data_heap_string(decode_utf8("`none"));
-        Label some_label = x64->data_heap_string(decode_utf8("`some "));
+        Label none_label = x64->runtime->data_heap_string(decode_utf8("`none"));
+        Label some_label = x64->runtime->data_heap_string(decode_utf8("`some "));
         Label some, ok;
         
         x64->code_label_local(label, "option_streamification");

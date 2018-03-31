@@ -548,7 +548,7 @@ public:
         
         x64->unwind->pop(this);
 
-        x64->die("Switch assertion failed!");
+        x64->runtime->die("Switch assertion failed!");
 
         switch_scope->finalize_contents(x64);
         eval_scope->finalize_contents(x64);
@@ -911,17 +911,17 @@ public:
     }
     
     static void compile_die(Label label, X64 *x64) {
-        Label uncaught_message_label_1 = x64->data_heap_string(decode_utf8("Unhandled exception "));
-        Label uncaught_message_label_2 = x64->data_heap_string(decode_utf8(" on line "));
-        Label uncaught_message_label_3 = x64->data_heap_string(decode_utf8("!"));
+        Label uncaught_message_label_1 = x64->runtime->data_heap_string(decode_utf8("Unhandled exception "));
+        Label uncaught_message_label_2 = x64->runtime->data_heap_string(decode_utf8(" on line "));
+        Label uncaught_message_label_3 = x64->runtime->data_heap_string(decode_utf8("!"));
 
         // Pushed to the stack - exception, lineno, stringifications label
         x64->code_label_local(label, "die_uncaught");
         
         // Allocate a stream for 100 characters
         x64->op(MOVQ, RAX, 100 * CHARACTER_SIZE + ARRAY_HEADER_SIZE);
-        x64->op(LEARIP, RBX, x64->empty_function_label);
-        x64->alloc_RAX_RBX();
+        x64->op(LEARIP, RBX, x64->runtime->empty_function_label);
+        x64->runtime->alloc_RAX_RBX();
         x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), 100);
         x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
         x64->op(PUSHQ, RAX);  // make it into a variable
@@ -971,7 +971,7 @@ public:
     
         // result string already on the stack
         x64->op(POPQ, RDI);
-        x64->dies(RDI);
+        x64->runtime->dies(RDI);
     }
 };
 

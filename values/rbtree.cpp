@@ -827,7 +827,7 @@ public:
 
         switch (ls.where) {
         case REGISTER:
-            x64->decref(ls.reg);
+            x64->runtime->decref(ls.reg);
             x64->op(MOVQ, ls.reg, Address(ls.reg, RBTREE_LENGTH_OFFSET));
             return Storage(REGISTER, ls.reg);
         case MEMORY:
@@ -916,7 +916,7 @@ public:
             raise("CONTAINER_FULL", x64);
         }
         else
-            x64->die("Rbtree full even if autogrowing!");
+            x64->runtime->die("Rbtree full even if autogrowing!");
         
         x64->code_label(ok);
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);

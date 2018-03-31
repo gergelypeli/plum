@@ -18,7 +18,7 @@ void container_alloc(int header_size, int elem_size, int reservation_offset, Lab
     x64->op(ADDQ, RAX, header_size);
     x64->op(LEARIP, RBX, finalizer_label);
     
-    x64->alloc_RAX_RBX();
+    x64->runtime->alloc_RAX_RBX();
     
     x64->op(POPQ, Address(RAX, reservation_offset));
 }
@@ -30,7 +30,7 @@ void container_realloc(int header_size, int elem_size, int reservation_offset, X
     x64->op(IMUL3Q, RBX, RBX, elem_size);
     x64->op(ADDQ, RBX, header_size);
     
-    x64->realloc_RAX_RBX();
+    x64->runtime->realloc_RAX_RBX();
 }
 
 
@@ -94,7 +94,7 @@ public:
 
         switch (ls.where) {
         case REGISTER:
-            x64->decref(ls.reg);
+            x64->runtime->decref(ls.reg);
             x64->op(MOVQ, ls.reg, Address(ls.reg, length_offset));
             return Storage(REGISTER, ls.reg);
         case MEMORY:
@@ -161,7 +161,7 @@ public:
             // Add reference, defer decref
             x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
             x64->op(MOVQ, borrow->get_address(), reg);
-            x64->incref(reg);
+            x64->runtime->incref(reg);
             
             fix_RBX_index(reg, x64);
             
@@ -302,7 +302,7 @@ public:
             x64->op(MOVQ, RAX, s.address);
             
             Label locked;
-            x64->lock(RAX, locked);
+            x64->runtime->lock(RAX, locked);
             
             raise("CONTAINER_LENT", x64);
 
@@ -398,7 +398,7 @@ public:
             raise("CONTAINER_FULL", x64);
         }
         else
-            x64->die("Container full even if autogrowing!");
+            x64->runtime->die("Container full even if autogrowing!");
         
         x64->code_label(ok);
         x64->op(INCQ, Address(RAX, length_offset));
@@ -453,7 +453,7 @@ public:
         fix_RBX_index(RAX, x64);
 
         x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->decref(RAX);
+        x64->runtime->decref(RAX);
 
         x64->op(ADDQ, RAX, RBX);
         

@@ -323,7 +323,7 @@ enum ConstantOp {
 
 class Once;
 class Unwind;
-
+class Runtime;
 
 class X64 {
 public:
@@ -375,14 +375,10 @@ public:
     std::vector<Ref> refs;
     unsigned code_symbol_index, data_symbol_index;
     Ork *ork;
-    Label zero_label;
-    Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
-    Label finalize_label, alloc_fcb_label, free_fcb_label, finalize_reference_array_label, string_regexp_match_label;
-    std::vector<Label> incref_labels, decref_labels;
 
     Once *once;
     Unwind *unwind;
+    Runtime *runtime;
     
     void add_def(Label label, const Def &def);
 
@@ -395,10 +391,7 @@ public:
     void data_label(Label c, unsigned size = 0);
     void data_label_local(Label c, std::string name, unsigned size = 0);
     void data_label_global(Label c, std::string name, unsigned size = 0);
-    unsigned data_allocate(unsigned size);
     void data_reference(Label c);
-    void data_heap_header();
-    Label data_heap_string(std::vector<unsigned short> characters);
 
     void code_align();
     void code_byte(char x);
@@ -477,22 +470,4 @@ public:
     void op(JumpOp opcode, Address x);
     void op(JumpOp opcode, Register x);
     void op(ConstantOp opcode, int x);
-
-    void call_sysv(Label l);
-    int pusha(bool except_rax = false);
-    void popa(bool except_rax = false);
-    void incref(Register reg);
-    void decref(Register reg);
-    void incweakref(Register reg);
-    void decweakref(Register reg);
-    void init_memory_management();
-    void alloc_RAX_RBX();
-    void realloc_RAX_RBX();
-    void memfree(Register reg);
-
-    void lock(Register r, Label ok);
-    void log(const char *message);
-    void dump(const char *message);
-    void die(const char *message);
-    void dies(Register r);
 };

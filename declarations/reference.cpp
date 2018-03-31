@@ -10,11 +10,11 @@ public:
     }
 
     virtual void incref(Register r, X64 *x64) {
-        x64->incref(r);
+        x64->runtime->incref(r);
     }
 
     virtual void decref(Register r, X64 *x64) {
-        x64->decref(r);
+        x64->runtime->decref(r);
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -220,11 +220,11 @@ public:
     }
     
     virtual void incref(Register r, X64 *x64) {
-        x64->incweakref(r);
+        x64->runtime->incweakref(r);
     }
 
     virtual void decref(Register r, X64 *x64) {
-        x64->decweakref(r);
+        x64->runtime->decweakref(r);
     }
 
     //virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
@@ -263,7 +263,7 @@ public:
             
         x64->op(PUSHQ, RAX);
         x64->op(MOVQ, RAX, s.address + ADDRESS_SIZE);
-        x64->op(CALL, x64->free_fcb_label);
+        x64->op(CALL, x64->runtime->free_fcb_label);
         x64->op(POPQ, RAX);
         
         WeakReferenceType::destroy(tm, s, x64);
@@ -319,15 +319,15 @@ public:
         Label skip;
 
         x64->code_label_local(label, "x_weakanchorage_finalizer");
-        x64->log("Weak anchorage finalized.");
+        x64->runtime->log("Weak anchorage finalized.");
         
         x64->op(MOVQ, RBX, Address(RAX, 0));
         x64->op(CMPQ, RBX, 0);
         x64->op(JE, skip);
         
-        x64->decweakref(RBX);
+        x64->runtime->decweakref(RBX);
         x64->op(MOVQ, RAX, Address(RAX, 8));
-        x64->op(CALL, x64->free_fcb_label);
+        x64->op(CALL, x64->runtime->free_fcb_label);
         
         x64->code_label(skip);
         x64->op(RET);

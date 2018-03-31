@@ -67,7 +67,7 @@ void compile_circularray_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = circularray_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_circularray_grow");
-    x64->log("grow_circularray");
+    x64->runtime->log("grow_circularray");
     x64->op(PUSHQ, RCX);
     x64->op(PUSHQ, RSI);
     x64->op(PUSHQ, RDI);
@@ -86,7 +86,7 @@ void compile_circularray_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // The front is low, so it's better to unfold the folded part. This requires that
     // the growth rate was at least 1.5 times.
     
-    x64->log("Unfolding queue circularray.");
+    x64->runtime->log("Unfolding queue circularray.");
     
     x64->op(LEA, RSI, Address(RAX, CIRCULARRAY_ELEMS_OFFSET));
     
@@ -105,7 +105,7 @@ void compile_circularray_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // The front is high, so it's better to move the unfolded part to the end of the
     // new reservation. This also requires 1.5 growth rate so we can copy forward.
 
-    x64->log("Stretching queue circularray.");
+    x64->runtime->log("Stretching queue circularray.");
     
     x64->op(MOVQ, RSI, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
     x64->op(IMUL3Q, RSI, RSI, elem_size);

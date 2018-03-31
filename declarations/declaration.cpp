@@ -97,6 +97,6 @@ public:
     virtual void finalize(X64 *x64) {
         //x64->log("Unborrowing.");
         x64->op(MOVQ, RBX, get_address());
-        x64->decref(RBX);
+        x64->runtime->decref(RBX);
     }
 };

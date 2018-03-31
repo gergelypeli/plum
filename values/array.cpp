@@ -240,7 +240,7 @@ public:
         x64->op(MOVQ, RDX, elem_size);
         x64->op(LEARIP, RCX, compar);
         
-        x64->op(CALL, x64->sort_label);
+        x64->op(CALL, x64->runtime->sort_label);
         
         left->ts.store(Storage(STACK), Storage(), x64);
         

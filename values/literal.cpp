@@ -86,10 +86,10 @@ public:
 
     virtual Storage compile(X64 *x64) {
         std::vector<unsigned short> characters = decode_utf8(text);
-        Label l = x64->data_heap_string(characters);
+        Label l = x64->runtime->data_heap_string(characters);
         
         x64->op(LEARIP, RBX, l);
-        x64->incref(RBX);  // This way we can return the same static string many times
+        x64->runtime->incref(RBX);  // This way we can return the same static string many times
         x64->op(PUSHQ, RBX);
         
         return Storage(STACK);

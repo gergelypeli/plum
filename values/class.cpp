@@ -17,7 +17,7 @@ public:
         x64->op(MOVQ, RAX, heap_size);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
         x64->op(LEARIP, RBX, finalizer_label);
-        x64->alloc_RAX_RBX();
+        x64->runtime->alloc_RAX_RBX();
 
         Label vt_label = class_ts.get_virtual_table_label(x64);
         int virtual_offset = 0;

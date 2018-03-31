@@ -47,12 +47,12 @@ public:
         x64->op(MOVQ, RSI, Address(RSP, 0));
         
         // This uses SSE instructions, so SysV stack alignment must be ensured
-        x64->call_sysv(x64->string_regexp_match_label);
+        x64->runtime->call_sysv(x64->runtime->string_regexp_match_label);
         
         x64->op(POPQ, RBX);
-        x64->decref(RBX);
+        x64->runtime->decref(RBX);
         x64->op(POPQ, RBX);
-        x64->decref(RBX);
+        x64->runtime->decref(RBX);
         
         x64->op(CMPQ, RAX, 0);
         x64->op(JNE, ok);

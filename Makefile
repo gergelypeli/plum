@@ -3,7 +3,7 @@ SHELL      = /bin/zsh
 
 DECLS      = declaration identifier scope type basic record reference interface class option allocable function metatype
 VALUES     = value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class circularray rbtree container map option equality
-ARCHS      = ork x64 storage
+ARCHS      = ork x64 storage runtime
 MODULES    = tokenize treeize tupleize typize util plum builtins global_types global_functions $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
 HEADERS    = builtins global_types global_functions arch/ork arch/x64 arch/heap
 SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h)

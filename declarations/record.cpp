@@ -284,21 +284,21 @@ public:
             break;
         case STACK_MEMORY:
             x64->op(MOVQ, RBX, t.address);
-            x64->incref(RBX);
+            x64->runtime->incref(RBX);
             x64->op(PUSHQ, RBX);
             break;
         case MEMORY_STACK:  // Reverse order!
             x64->op(MOVQ, RBX, s.address);
-            x64->incref(RBX);
+            x64->runtime->incref(RBX);
             x64->op(PUSHQ, RBX);
             break;
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
-            x64->incref(RBX);
+            x64->runtime->incref(RBX);
             x64->op(PUSHQ, RBX);
 
             x64->op(MOVQ, RBX, t.address);
-            x64->incref(RBX);
+            x64->runtime->incref(RBX);
             x64->op(PUSHQ, RBX);
             break;
         default:
@@ -354,8 +354,8 @@ public:
         x64->op(SETE, CL);
         
         x64->code_label(done);  // the result in CL, will be preserved
-        x64->decref(RBX);
-        x64->decref(RAX);
+        x64->runtime->decref(RBX);
+        x64->runtime->decref(RAX);
 
         x64->op(CMPB, CL, 1);  // set flags
 

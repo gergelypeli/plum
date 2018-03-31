@@ -281,7 +281,7 @@ public:
             x64->op(SARQ, RDI, 8 * (8 - size));
         }
         
-        x64->call_sysv(label);
+        x64->runtime->call_sysv(label);
     }
 
     DataScope *get_inner_scope(TypeMatch tm) {
@@ -448,7 +448,7 @@ public:
         std::vector<Label> labels;
         
         for (auto &keyword : t->keywords) 
-            labels.push_back(x64->data_heap_string(decode_utf8(keyword)));
+            labels.push_back(x64->runtime->data_heap_string(decode_utf8(keyword)));
             
         x64->data_label_local(label, t->name + "_stringifications");
         

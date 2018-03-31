@@ -228,7 +228,7 @@ public:
                 // may be destroyed before accessing this variable!
                 
                 pivot->ts.rvalue().store(s, Storage(REGISTER, reg), x64);
-                x64->decweakref(reg);
+                x64->runtime->decweakref(reg);
                 s = Storage(MEMORY, Address(reg, 0));
             }
             else if (pivot->ts[0] == partial_type) {
@@ -431,21 +431,21 @@ public:
         
         switch (s.where) {
         case REGISTER:
-            x64->decweakref(s.reg);
+            x64->runtime->decweakref(s.reg);
             x64->op(ADDQ, s.reg, offset);
-            x64->incweakref(s.reg);
+            x64->runtime->incweakref(s.reg);
             return s;
         case STACK:
             x64->op(POPQ, RBX);
-            x64->decweakref(RBX);
+            x64->runtime->decweakref(RBX);
             x64->op(ADDQ, RBX, offset);
-            x64->incweakref(RBX);
+            x64->runtime->incweakref(RBX);
             x64->op(PUSHQ, RBX);
             return s;
         case MEMORY:
             x64->op(MOVQ, RBX, s.address);
             x64->op(ADDQ, RBX, offset);
-            x64->incweakref(RBX);
+            x64->runtime->incweakref(RBX);
             x64->op(PUSHQ, RBX);
             return Storage(STACK);
         default:
