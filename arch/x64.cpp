@@ -3,8 +3,26 @@
 #include "x64.h"
 #include "heap.h"
 
-const int OPSIZE_NONBYTE = 4;
-const int OPSIZE_DEFAULT = 6;
+
+Opsize OPSIZE_LEGACY(int opcode) {
+    return (
+        (opcode & 3) == 0 ? OPSIZE_LEGACY_BYTE :
+        (opcode & 3) == 1 ? OPSIZE_LEGACY_WORD :
+        (opcode & 3) == 2 ? OPSIZE_LEGACY_DWORD :
+        (opcode & 3) == 3 ? OPSIZE_LEGACY_QWORD :
+        throw X64_ERROR
+    );
+}
+
+Opsize OPSIZE_NONBYTE(int opcode) {
+    return (
+        (opcode & 3) == 0 ? throw X64_ERROR :
+        (opcode & 3) == 1 ? OPSIZE_WORD :
+        (opcode & 3) == 2 ? OPSIZE_DWORD :
+        (opcode & 3) == 3 ? OPSIZE_QWORD :
+        throw X64_ERROR
+    );
+}
 
 const int OPSIZE_WORD_PREFIX = 0x66;
 const int OPSIZE_REX_PREFIX = 0x40;
@@ -368,6 +386,12 @@ int X64::r(Register regfield) {
 }
 
 
+int X64::r(SseRegister regfield) {
+    return
+        (regfield >= 8 ? REX_R : 0x00);
+}
+
+
 int X64::xb(Address rm) {
     return
         (rm.index != NOREG && rm.index >= 8 ? REX_X : 0x00) |
@@ -381,6 +405,12 @@ int X64::xb(Register rm) {
 }
 
 
+int X64::xb(SseRegister rm) {
+    return
+        (rm >= 8 ? REX_B : 0x00);
+}
+
+
 void X64::rex(int wrxb, bool force) {
     if (wrxb || force)
         code_byte(OPSIZE_REX_PREFIX | wrxb);
@@ -388,14 +418,19 @@ void X64::rex(int wrxb, bool force) {
 
 
 void X64::code_op(int code) {
-    if (code & 0xFF00)  // Two-byte opcodes must be emitted MSB first
+    // Multi-byte opcodes must be emitted MSB first
+    
+    if (code & 0xFF0000)
+        code_byte((code >> 16) & 0xFF);
+    
+    if (code & 0xFFFF00)
         code_byte((code >> 8) & 0xFF);
 
     code_byte(code & 0xFF);
 }
 
 
-void X64::code_op(int code, int size, int rxbq) {
+void X64::code_op(int code, Opsize opsize, int rxbq) {
     // size == 0 => byte  =>      _RXB op0
     // size == 1 => word  => 0x66 _RXB op1
     // size == 2 => dword =>      _RXB op1
@@ -408,37 +443,35 @@ void X64::code_op(int code, int size, int rxbq) {
     bool questionable = rxbq & REX_Q;
     int rxb = rxbq & ~REX_Q;
 
-    switch (size) {
-    case 0:
+    switch (opsize) {
+    case OPSIZE_LEGACY_BYTE:
         // We force a REX prefix for byte operations to allow access to SIL and DIL.
         rex(rxb, questionable);
         code &= ~1;
         break;
-    case 1:
+    case OPSIZE_LEGACY_WORD:
         code_byte(OPSIZE_WORD_PREFIX);
         rex(rxb);
         code |= 1;
         break;
-    case 2:
+    case OPSIZE_LEGACY_DWORD:
         rex(rxb);
         code |= 1;
         break;
-    case 3:
+    case OPSIZE_LEGACY_QWORD:
         rex(REX_W | rxb);
         code |= 1;
         break;
-    case 4:
-        throw X64_ERROR;
-    case 5:
+    case OPSIZE_WORD:
         code_byte(OPSIZE_WORD_PREFIX);
         rex(rxb);
         break;
-    case 6:
+    case OPSIZE_DWORD:
         // The default opsize may be byte for some operations (bitsets!), and using the
         // questionable registers needs a forced REX prefix.
         rex(rxb, questionable);
         break;
-    case 7:
+    case OPSIZE_QWORD:
         rex(REX_W | rxb);
         break;
     default:
@@ -449,12 +482,15 @@ void X64::code_op(int code, int size, int rxbq) {
 }
 
 
-void X64::effective_address(int regfield, Register x) {
+void X64::effective_address(int regfield, Register rm) {
     // The cut off bits belong to the REX prefix
-    regfield &= 7;
-    int rm = x & 7;
-    
-    code_byte(0xC0 | (regfield << 3) | rm);
+    code_byte(0xC0 | ((regfield & 7) << 3) | (rm & 7));
+}
+
+
+void X64::effective_address(int regfield, SseRegister rm) {
+    // The cut off bits belong to the REX prefix
+    code_byte(0xC0 | ((regfield & 7) << 3) | (rm & 7));
 }
 
 
@@ -559,39 +595,51 @@ void X64::effective_address(int regfield, Label l, int offset) {
 }
 
 
-void X64::code_op(int opcode, int opsize, Slash regfield, Register rm) {
+void X64::code_op(int opcode, Opsize opsize, Slash regfield, Register rm) {
     code_op(opcode, opsize, xb(rm) | q(rm));
     effective_address(regfield, rm);
 }
 
 
-void X64::code_op(int opcode, int opsize, Register regfield, Register rm) {
+void X64::code_op(int opcode, Opsize opsize, Register regfield, Register rm) {
     code_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield) | q(rm));
     effective_address(regfield, rm);
 }
 
 
-void X64::code_op(int opcode, int opsize, Slash regfield, Address rm) {
+void X64::code_op(int opcode, Opsize opsize, Slash regfield, Address rm) {
     code_op(opcode, opsize, xb(rm));
     effective_address(regfield, rm);
 }
 
 
-void X64::code_op(int opcode, int opsize, Register regfield, Address rm) {
+void X64::code_op(int opcode, Opsize opsize, Register regfield, Address rm) {
     code_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
     effective_address(regfield, rm);
 }
 
 
-void X64::code_op(int opcode, int opsize, Slash regfield, Label l, int offset) {
+void X64::code_op(int opcode, Opsize opsize, Slash regfield, Label l, int offset) {
     code_op(opcode, opsize, 0);
     effective_address(regfield, l, offset);
 }
 
 
-void X64::code_op(int opcode, int opsize, Register regfield, Label l, int offset) {
+void X64::code_op(int opcode, Opsize opsize, Register regfield, Label l, int offset) {
     code_op(opcode, opsize, r(regfield) | q(regfield));
     effective_address(regfield, l, offset);
+}
+
+
+void X64::code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm) {
+    code_op(opcode, opsize, r(regfield) | xb(rm));
+    effective_address(regfield, rm);
+}
+
+
+void X64::code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm) {
+    code_op(opcode, opsize, r(regfield) | xb(rm));
+    effective_address(regfield, rm);
 }
 
 
@@ -634,13 +682,13 @@ struct {
 
 void X64::op(UnaryOp opcode, Register x) {
     auto &info = unary_info[opcode >> 2];
-    code_op(info.op, opcode & 3, info.regfield, x);
+    code_op(info.op, OPSIZE_LEGACY(opcode), info.regfield, x);
     //effective_address(info.regfield, x);
 }
 
 void X64::op(UnaryOp opcode, Address x) {
     auto &info = unary_info[opcode >> 2];
-    code_op(info.op, opcode & 3, info.regfield, x);
+    code_op(info.op, OPSIZE_LEGACY(opcode), info.regfield, x);
     //effective_address(info.regfield, x);
 }
 
@@ -649,17 +697,17 @@ void X64::op(UnaryOp opcode, Address x) {
 
 void X64::op(PortOp opcode) {
     if ((opcode | 3) == INQ)
-        code_op(0xEC, opcode & 3);
+        code_op(0xEC, OPSIZE_LEGACY(opcode));
     else
-        code_op(0xEE, opcode & 3);
+        code_op(0xEE, OPSIZE_LEGACY(opcode));
 }
 
 
 void X64::op(PortOp opcode, int x) {
     if ((opcode | 3) == INQ)
-        code_op(0xE4, opcode & 3);
+        code_op(0xE4, OPSIZE_LEGACY(opcode));
     else
-        code_op(0xE6, opcode & 3);
+        code_op(0xE6, OPSIZE_LEGACY(opcode));
      
     code_byte(x);
 }
@@ -686,7 +734,7 @@ void X64::op(StringOp opcode) {
     if (info & 0xFF00)
         code_byte(info >> 8);
         
-    code_op(info & 0xFF, opcode & 3);
+    code_op(info & 0xFF, OPSIZE_LEGACY(opcode));
 }
 
 
@@ -713,7 +761,7 @@ struct {
 
 void X64::op(BinaryOp opcode, Register x, int y) {
     auto &info = binary_info[opcode >> 2];
-    code_op(info.op1, opcode & 3, info.regfield1, x);
+    code_op(info.op1, OPSIZE_LEGACY(opcode), info.regfield1, x);
     
     switch (opcode & 3) {
     case 0: code_byte(y); break;
@@ -725,7 +773,7 @@ void X64::op(BinaryOp opcode, Register x, int y) {
 
 void X64::op(BinaryOp opcode, Address x, int y) {
     auto &info = binary_info[opcode >> 2];
-    code_op(info.op1, opcode & 3, info.regfield1, x);
+    code_op(info.op1, OPSIZE_LEGACY(opcode), info.regfield1, x);
     
     switch (opcode & 3) {
     case 0: code_byte(y); break;
@@ -740,27 +788,27 @@ void X64::op(BinaryOp opcode, Register x, Register y) {
         return;  // Don't embarrass ourselves
 
     auto &info = binary_info[opcode >> 2];
-    code_op(info.op2, opcode & 3, y, x);
+    code_op(info.op2, OPSIZE_LEGACY(opcode), y, x);
 }
 
 void X64::op(BinaryOp opcode, Address x, Register y) {
     auto &info = binary_info[opcode >> 2];
-    code_op(info.op2, opcode & 3, y, x);
+    code_op(info.op2, OPSIZE_LEGACY(opcode), y, x);
 }
 
 void X64::op(BinaryOp opcode, Register x, Address y) {
     auto &info = binary_info[opcode >> 2];
-    code_op(info.op3, opcode & 3, x, y);
+    code_op(info.op3, OPSIZE_LEGACY(opcode), x, y);
 }
 
 void X64::op(BinaryOp opcode, Register x, Label y) {
     auto &info = binary_info[opcode >> 2];
-    code_op(info.op3, opcode & 3, x, y, 0);
+    code_op(info.op3, OPSIZE_LEGACY(opcode), x, y, 0);
 }
 
 void X64::op(BinaryOp opcode, Label x, Register y) {
     auto &info = binary_info[opcode >> 2];
-    code_op(info.op2, opcode & 3, y, x, 0);
+    code_op(info.op2, OPSIZE_LEGACY(opcode), y, x, 0);
 }
 
 void X64::op(BinaryOp opcode, Label x, int y) {
@@ -768,7 +816,7 @@ void X64::op(BinaryOp opcode, Label x, int y) {
     int os = (opcode & 3);
     int offset = (os == 0 ? -1 : os == 1 ? -2 : -4);
     
-    code_op(info.op1, os, info.regfield1, x, offset);
+    code_op(info.op1, OPSIZE_LEGACY(os), info.regfield1, x, offset);
     
     switch (opcode & 3) {
     case 0: code_byte(y); break;
@@ -782,7 +830,7 @@ void X64::op(BinaryOp opcode, Label x, int y) {
 
 
 void X64::op(MovabsOp opcode, Register x, long y) {
-    code_op(0xB8 + (x & 7), 3 | OPSIZE_NONBYTE, xb(x));
+    code_op(0xB8 + (x & 7), OPSIZE_QWORD, xb(x));
     code_qword(y);
 }
 
@@ -810,7 +858,7 @@ void X64::op(ShiftOp opcode, Register x, Register cl) {
         throw X64_ERROR;
         
     auto &info = shift_info[opcode >> 2];
-    code_op(0xD2, opcode & 3, info, x);
+    code_op(0xD2, OPSIZE_LEGACY(opcode), info, x);
 }
 
 void X64::op(ShiftOp opcode, Address x, Register cl) {
@@ -818,17 +866,17 @@ void X64::op(ShiftOp opcode, Address x, Register cl) {
         throw X64_ERROR;
 
     auto &info = shift_info[opcode >> 2];
-    code_op(0xD2, opcode & 3, info, x);
+    code_op(0xD2, OPSIZE_LEGACY(opcode), info, x);
 }
 
 void X64::op(ShiftOp opcode, Register x, char y) {
     auto &info = shift_info[opcode >> 2];
 
     if (y == 1) {
-        code_op(0xD0, opcode & 3, info, x);
+        code_op(0xD0, OPSIZE_LEGACY(opcode), info, x);
     }
     else {
-        code_op(0xC0, opcode & 3, info, x);
+        code_op(0xC0, OPSIZE_LEGACY(opcode), info, x);
         code_byte(y);
     }
 }
@@ -837,10 +885,10 @@ void X64::op(ShiftOp opcode, Address x, char y) {
     auto &info = shift_info[opcode >> 2];
 
     if (y == 1) {
-        code_op(0xD0, opcode & 3, info, x);
+        code_op(0xD0, OPSIZE_LEGACY(opcode), info, x);
     }
     else {
-        code_op(0xC0, opcode & 3, info, x);
+        code_op(0xC0, OPSIZE_LEGACY(opcode), info, x);
         code_byte(y);
     }
 }
@@ -849,15 +897,15 @@ void X64::op(ShiftOp opcode, Address x, char y) {
 
 
 void X64::op(ExchangeOp opcode, Register x, Register y) {
-    code_op(0x86, opcode & 3, x, y);
+    code_op(0x86, OPSIZE_LEGACY(opcode), x, y);
 }
 
 void X64::op(ExchangeOp opcode, Address x, Register y) {
-    code_op(0x86, opcode & 3, y, x);
+    code_op(0x86, OPSIZE_LEGACY(opcode), y, x);
 }
 
 void X64::op(ExchangeOp opcode, Register x, Address y) {
-    code_op(0x86, opcode & 3, x, y);
+    code_op(0x86, OPSIZE_LEGACY(opcode), x, y);
 }
 
 
@@ -919,12 +967,12 @@ int registerfirst_info[] = {
 
 void X64::op(RegisterFirstOp opcode, Register x, Register y) {
     auto &info = registerfirst_info[opcode >> 2];
-    code_op(info, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+    code_op(info, OPSIZE_NONBYTE(opcode), x, y);
 }
 
 void X64::op(RegisterFirstOp opcode, Register x, Address y) {
     auto &info = registerfirst_info[opcode >> 2];
-    code_op(info, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+    code_op(info, OPSIZE_NONBYTE(opcode), x, y);
 }
 
 
@@ -932,11 +980,11 @@ void X64::op(RegisterFirstOp opcode, Register x, Address y) {
 
 void X64::op(Imul3Op opcode, Register x, Register y, int z) {
     if (z >= -128 && z <= 127) {
-        code_op(0x6B, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+        code_op(0x6B, OPSIZE_NONBYTE(opcode), x, y);
         code_byte(z);
     }
     else {
-        code_op(0x69, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+        code_op(0x69, OPSIZE_NONBYTE(opcode), x, y);
 
         switch (opcode & 3) {
         case 0: throw X64_ERROR;
@@ -949,11 +997,11 @@ void X64::op(Imul3Op opcode, Register x, Register y, int z) {
 
 void X64::op(Imul3Op opcode, Register x, Address y, int z) {
     if (z >= -128 && z <= 127) {
-        code_op(0x6B, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+        code_op(0x6B, OPSIZE_NONBYTE(opcode), x, y);
         code_byte(z);
     }
     else {
-        code_op(0x69, (opcode & 3) | OPSIZE_NONBYTE, x, y);
+        code_op(0x69, OPSIZE_NONBYTE(opcode), x, y);
 
         switch (opcode & 3) {
         case 0: throw X64_ERROR;
@@ -974,14 +1022,14 @@ int registermemory_info[] = {
 
 void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
     auto &info = registermemory_info[opcode];
-    code_op(info, 3 | OPSIZE_NONBYTE, x, y);
+    code_op(info, OPSIZE_QWORD, x, y);
 }
 
 
 
 
 void X64::op(LeaRipOp, Register r, Label l, int offset) {
-    code_op(0x8D, 3 | OPSIZE_NONBYTE, r, l, offset);  // must use 64-bit opsize
+    code_op(0x8D, OPSIZE_QWORD, r, l, offset);  // must use 64-bit opsize
 }
 
 
@@ -1061,3 +1109,16 @@ void X64::op(ConstantOp opcode, int x) {
 }
 
 
+void X64::op(SseMov opcode, SseRegister x, SseRegister y) {
+    code_op(0xF30F7E, OPSIZE_DEFAULT, x, y);
+}
+
+
+void X64::op(SseMov opcode, SseRegister x, Address y) {
+    code_op(0xF30F7E, OPSIZE_DEFAULT, x, y);
+}
+
+
+void X64::op(SseMov opcode, Address x, SseRegister y) {
+    code_op(0x660FD6, OPSIZE_DEFAULT, y, x);
+}

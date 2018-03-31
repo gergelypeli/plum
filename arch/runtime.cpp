@@ -1,3 +1,7 @@
+
+#define EXCEPTION_ADDRESS Address(RBP, -8)
+
+
 class Runtime {
 public:
     X64 *x64;

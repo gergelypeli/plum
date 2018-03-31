@@ -24,6 +24,11 @@ enum Register {
 };
 
 
+enum SseRegister {
+    XMM0=0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7, XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15
+};
+
+
 enum Slash {
     // To represent constant values that go into the reg field, without interpreting
     // them as register numbers. This is to prevent accidental type conversions from
@@ -148,7 +153,13 @@ struct Address {
     Address operator + (int o);
 };
 
-#define EXCEPTION_ADDRESS Address(RBP, -8)
+
+enum Opsize {
+    OPSIZE_LEGACY_BYTE, OPSIZE_LEGACY_WORD, OPSIZE_LEGACY_DWORD, OPSIZE_LEGACY_QWORD,
+    OPSIZE_WORD, OPSIZE_DWORD, OPSIZE_QWORD,
+    OPSIZE_DEFAULT=OPSIZE_DWORD
+};
+
 
 
 enum SimpleOp {
@@ -321,6 +332,11 @@ enum ConstantOp {
 };
 
 
+enum SseMov {
+    SSEMOVQ
+};
+
+
 class Once;
 class Unwind;
 class Runtime;
@@ -399,6 +415,7 @@ public:
     void code_dword(int x);
     void code_qword(long x);
     void effective_address(int regfield, Register rm);
+    void effective_address(int regfield, SseRegister rm);
     void effective_address(int regfield, Address rm);
     void effective_address(int regfield, Label l, int offset);
     
@@ -416,19 +433,24 @@ public:
 
     int q(Register r);
     int r(Register regfield);
+    int r(SseRegister regfield);
     int xb(Register regfield);
+    int xb(SseRegister regfield);
     int xb(Address rm);
     
     void rex(int wrxb, bool force = false);
 
     void code_op(int opcode);
-    void code_op(int opcode, int opsize, int rxb = 0);
-    void code_op(int opcode, int opsize, Slash regfield, Register rm);
-    void code_op(int opcode, int opsize, Register regfield, Register rm);
-    void code_op(int opcode, int opsize, Slash regfield, Address rm);
-    void code_op(int opcode, int opsize, Register regfield, Address rm);
-    void code_op(int opcode, int opsize, Slash regfield, Label l, int offset);
-    void code_op(int opcode, int opsize, Register regfield, Label l, int offset);
+    void code_op(int opcode, Opsize opsize, int rxb = 0);
+    void code_op(int opcode, Opsize opsize, Slash regfield, Register rm);
+    void code_op(int opcode, Opsize opsize, Register regfield, Register rm);
+    void code_op(int opcode, Opsize opsize, Slash regfield, Address rm);
+    void code_op(int opcode, Opsize opsize, Register regfield, Address rm);
+    void code_op(int opcode, Opsize opsize, Slash regfield, Label l, int offset);
+    void code_op(int opcode, Opsize opsize, Register regfield, Label l, int offset);
+    void code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm);
+    void code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm);
+
 
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);
@@ -470,4 +492,8 @@ public:
     void op(JumpOp opcode, Address x);
     void op(JumpOp opcode, Register x);
     void op(ConstantOp opcode, int x);
+    
+    void op(SseMov opcode, SseRegister x, SseRegister y);
+    void op(SseMov opcode, SseRegister x, Address y);
+    void op(SseMov opcode, Address x, SseRegister y);
 };
