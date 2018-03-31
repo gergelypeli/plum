@@ -27,7 +27,6 @@ public:
     Label get_finalizer_label(X64 *x64);
     Value *autoconv(iterator target, Value *orig, TypeSpec &ifts);
     StorageWhere where(AsWhat as_what, bool as_lvalue = false);
-    Storage boolval(Storage s, X64 *x64, bool probe);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t = NULL);
     TypeSpec reprefix(Type *s, Type *t);

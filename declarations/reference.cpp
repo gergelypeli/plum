@@ -176,24 +176,6 @@ public:
         );
     }
 
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        switch (s.where) {
-        case CONSTANT:
-            return Storage(CONSTANT, s.value != 0);
-        case REGISTER:
-            if (!probe)
-                decref(s.reg, x64);
-                
-            x64->op(CMPQ, s.reg, 0);
-            return Storage(FLAGS, SETNE);
-        case MEMORY:
-            x64->op(CMPQ, s.address, 0);
-            return Storage(FLAGS, SETNE);
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         return tm[1].lookup_inner(n, v);
     }

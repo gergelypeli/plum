@@ -129,11 +129,6 @@ StorageWhere TypeSpec::where(AsWhat as_what, bool as_lvalue) {
 }
 
 
-Storage TypeSpec::boolval(Storage s, X64 *x64, bool probe) {
-    return at(0)->boolval(match(), s, x64, probe);
-}
-
-
 Allocation TypeSpec::measure() {
     return at(0)->measure(match());
 }

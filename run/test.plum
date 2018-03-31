@@ -204,7 +204,7 @@ test_integers? :Function as:
     d += 7u8
     d = d * d
     
-    :if d then: prints("Yes, d is nonzero.")
+    :if d != 0 then: prints("Yes, d is nonzero.")
 
     Myint? :Integer bytes: 8 is_unsigned: `false
     myvar? Myint = 0
@@ -215,6 +215,12 @@ test_integers? :Function as:
     Mybyte? :Integer bytes: 1 is_unsigned: `false
     mybyte? Mybyte = -128
     prints("Mybyte is {mybyte}" {})
+    
+    false? Boolean = `false
+    true? Boolean = `true
+    
+    prints("Or truth table: {a} {b} {c} {d}" { a: false || false, b: false || true, c: true || false, d: true || true })
+    prints("And truth table: {a} {b} {c} {d}" { a: false && false, b: false && true, c: true && false, d: true && true })
 
 
 test_strings? :Function as:
@@ -238,7 +244,7 @@ test_strings? :Function as:
     prints("s[3] is now '{c}'" { c: s[3] })
 
     z? = ""
-    prints(z || "Ez tök 대박")
+    prints("Ez tök 대박")
     
     :if z == String `empty then: prints("z is empty")
     

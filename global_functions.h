@@ -55,7 +55,6 @@ Value *make_string_literal_value(std::string text);
 Value *make_code_scope_value(Value *value, CodeScope *code_scope);
 Value *make_void_conversion_value(Value *orig);
 Value *peek_void_conversion_value(Value *v);
-Value *make_boolean_conversion_value(Value *orig);
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *orig, TypeMatch &match);
 Value *make_boolean_not_value(Value *value);
 Value *make_array_empty_value(TypeSpec ts);

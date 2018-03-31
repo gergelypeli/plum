@@ -74,27 +74,6 @@ public:
 };
 
 
-class BooleanConversionValue: public Value {
-public:
-    std::unique_ptr<Value> orig;
-    
-    BooleanConversionValue(Value *o)
-        :Value(BOOLEAN_TS) {
-        orig.reset(o);
-        //marker = orig->marker;
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        return orig->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Storage s = orig->compile(x64);
-        return orig->ts.boolval(s, x64, false);
-    }
-};
-
-
 class ImplementationConversionValue: public Value {
 public:
     std::unique_ptr<Value> orig;

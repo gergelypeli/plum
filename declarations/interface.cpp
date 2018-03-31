@@ -54,9 +54,6 @@ public:
         );
     }
 
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        throw INTERNAL_ERROR;
-    }
 };
 
 
@@ -143,10 +140,6 @@ public:
             as_what == AS_VARIABLE ? MEMORY :
             throw INTERNAL_ERROR
         );
-    }
-
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        throw INTERNAL_ERROR;
     }
 
     virtual DataScope *find_inner_scope(std::string n) {

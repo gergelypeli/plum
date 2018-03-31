@@ -247,25 +247,6 @@ public:
         );
     }
 
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        // None of these cases destroy the original value, so they all pass for probing
-        
-        switch (s.where) {
-        case CONSTANT:
-            return Storage(CONSTANT, s.value != 0);
-        case FLAGS:
-            return Storage(FLAGS, s.bitset);
-        case REGISTER:
-            x64->op(CMPQ % os, s.reg, 0);
-            return Storage(FLAGS, SETNE);
-        case MEMORY:
-            x64->op(CMPQ % os, s.address, 0);
-            return Storage(FLAGS, SETNE);
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-    
     virtual bool get_unsigned() {
         return is_unsigned;
     }

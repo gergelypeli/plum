@@ -109,31 +109,6 @@ public:
         );
     }
     
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        Address address;
-        int stack_size = tm[0].measure_stack();
-        
-        switch (s.where) {
-        case STACK:
-            if (!probe) {
-                destroy(tm, Storage(MEMORY, Address(RSP, 0)), x64);
-                x64->op(CMPQ, Address(RSP, 0), 0);
-                x64->op(LEA, RSP, Address(RSP, stack_size));
-            }
-            else {
-                x64->op(CMPQ, Address(RSP, 0), 0);
-            }
-            break;
-        case MEMORY:
-            x64->op(CMPQ, s.address, 0);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        return Storage(FLAGS, SETNE);
-    }
-
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         int stack_size = tm[0].measure_stack();
         int flag_size = get_flag_size(tm[1]);

@@ -105,47 +105,7 @@ public:
             throw INTERNAL_ERROR
         );
     }
-    
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        Address address;
-        int stack_size = tm[0].measure_stack();
         
-        switch (s.where) {
-        case STACK:
-            address = Address(RSP, 0);
-            break;
-        case MEMORY:
-            address = s.address;
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        Label done;
-        
-        for (auto &var : member_variables) {
-            Storage t = var->boolval(tm, Storage(MEMORY, address), x64, true);
-            
-            if (t.where == FLAGS && t.bitset == SETNE)
-                x64->op(JNE, done);
-            else
-                throw INTERNAL_ERROR;
-        }
-
-        x64->code_label(done);
-        
-        if (s.where == STACK && !probe) {
-            x64->op(SETNE, BL);
-            x64->op(PUSHQ, RBX);
-            destroy(tm, Storage(MEMORY, Address(RSP, INTEGER_SIZE)), x64);
-            x64->op(POPQ, RBX);
-            x64->op(ADDQ, RSP, stack_size);
-            x64->op(CMPB, BL, 0);
-        }
-        
-        return Storage(FLAGS, SETNE);
-    }
-    
     virtual unsigned comparable_member_count() {
         return member_variables.size();
     }
@@ -316,28 +276,6 @@ class StringType: public RecordType {
 public:
     StringType(std::string n)
         :RecordType(n, Metatypes {}) {
-    }
-
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        switch (s.where) {
-        case STACK:
-            if (probe) {
-                x64->op(MOVQ, RBX, Address(RSP, 0));
-            }
-            else {
-                x64->op(POPQ, RBX);
-                x64->decref(RBX);
-            }
-            
-            x64->op(CMPQ, Address(RBX, ARRAY_LENGTH_OFFSET), 0);
-            return Storage(FLAGS, SETNE);
-        case MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(CMPQ, Address(RBX, ARRAY_LENGTH_OFFSET), 0);
-            return Storage(FLAGS, SETNE);
-        default:
-            throw INTERNAL_ERROR;
-        }
     }
 
     virtual bool stack_both(Label fn, Storage s, Storage t, X64 *x64) {

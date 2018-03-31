@@ -122,11 +122,6 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Storage boolval(TypeMatch tm, Storage, X64 *, bool probe) {
-        std::cerr << "Unboolable type: " << name << "!\n";
-        throw INTERNAL_ERROR;
-    }
-
     virtual Allocation measure(TypeMatch tm) {
         std::cerr << "Unmeasurable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -328,10 +323,6 @@ public:
         return tm[1].where(as_what, as_lvalue || this == lvalue_type || this == dvalue_type);
     }
 
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        return tm[1].boolval(s, x64, probe);
-    }
-    
     virtual Allocation measure(TypeMatch tm) {
         return tm[1].measure();
     }

@@ -93,11 +93,6 @@ Value *peek_void_conversion_value(Value *v) {
 }
 
 
-Value *make_boolean_conversion_value(Value *p) {
-    return new BooleanConversionValue(p);
-}
-
-
 Value *make_implementation_conversion_value(ImplementationType *imt, Value *p, TypeMatch &match) {
     return new ImplementationConversionValue(imt, p, match);
 }
@@ -597,13 +592,6 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
 
 
 bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value) {
-    if (*t == boolean_type) {
-        match[0].push_back(*t);
-        MATCHLOG std::cerr << "Matched as " << match[0] << ".\n";
-        value = make_boolean_conversion_value(value);
-        return true;
-    }
-    
     TypeSpec ifts;
     Value *role = rolematch(value, TypeSpec(s), t, ifts);
         

@@ -126,12 +126,6 @@ public:
         ts.destroy(s + o, x64);
     }
     
-    virtual Storage boolval(TypeMatch tm, Storage s, X64 *x64, bool probe) {
-        TypeSpec ts = typesubst(alloc_ts, tm);
-        int o = offset.concretize(tm);
-        return ts.boolval(s + o, x64, probe);
-    }
-
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         TypeSpec ts = typesubst(alloc_ts, tm);
         int o = offset.concretize(tm);
