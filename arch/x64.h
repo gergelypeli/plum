@@ -198,7 +198,7 @@ enum PortOp {
 enum StringOp {
     INSB=0, INSW, INSD, INSQ,
     LODSB=4, LODSW, LODSD, LODSQ,
-    MOVSB=8, MOVSW, MOVSD, MOVSQ,
+    MOVSB=8, MOVSW, MOVSD_SORRY, MOVSQ,
     OUTSB=12, OUTSW, OUTSD, OUTSQ,
     STOSB=16, STOSW, STOSD, STOSQ,
     REPINSB=20, REPINSW, REPINSD, REPINSQ,
@@ -332,8 +332,23 @@ enum ConstantOp {
 };
 
 
-enum SseMov {
-    SSEMOVQ
+enum SsememSsememOp {
+    MOVQW, MOVSD, MOVSS
+};
+
+
+enum SseSsememOp {
+    ADDSD, SUBSD, MULSD, DIVSD, COMISD, UCOMISD, CVTSS2SD, CVTSD2SS, MAXSD, MINSD, SQRTSD
+};
+
+
+enum SseGprmemOp {
+    CVTSI2SD
+};
+
+
+enum GprSsememOp {
+    CVTSD2SI, CVTTSD2SI
 };
 
 
@@ -450,7 +465,8 @@ public:
     void code_op(int opcode, Opsize opsize, Register regfield, Label l, int offset);
     void code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm);
     void code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm);
-
+    void code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm);
+    void code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm);
 
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);
@@ -493,7 +509,16 @@ public:
     void op(JumpOp opcode, Register x);
     void op(ConstantOp opcode, int x);
     
-    void op(SseMov opcode, SseRegister x, SseRegister y);
-    void op(SseMov opcode, SseRegister x, Address y);
-    void op(SseMov opcode, Address x, SseRegister y);
+    void op(SsememSsememOp opcode, SseRegister x, SseRegister y);
+    void op(SsememSsememOp opcode, SseRegister x, Address y);
+    void op(SsememSsememOp opcode, Address x, SseRegister y);
+    
+    void op(SseSsememOp opcode, SseRegister x, SseRegister y);
+    void op(SseSsememOp opcode, SseRegister x, Address y);
+
+    void op(SseGprmemOp opcode, SseRegister x, Register y);
+    void op(SseGprmemOp opcode, SseRegister x, Address y);
+
+    void op(GprSsememOp opcode, Register x, SseRegister y);
+    void op(GprSsememOp opcode, Register x, Address y);
 };

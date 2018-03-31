@@ -11,28 +11,7 @@ public:
     Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
     Label finalize_label, alloc_fcb_label, free_fcb_label, finalize_reference_array_label, string_regexp_match_label;
     std::vector<Label> incref_labels, decref_labels;
-    /*
-    void data_heap_header();
-    Label data_heap_string(std::vector<unsigned short> characters);
 
-    void call_sysv(Label l);
-    int pusha(bool except_rax = false);
-    void popa(bool except_rax = false);
-    void incref(Register reg);
-    void decref(Register reg);
-    void incweakref(Register reg);
-    void decweakref(Register reg);
-    void init_memory_management();
-    void alloc_RAX_RBX();
-    void realloc_RAX_RBX();
-    void memfree(Register reg);
-
-    void lock(Register r, Label ok);
-    void log(const char *message);
-    void dump(const char *message);
-    void die(const char *message);
-    void dies(Register r);
-    */
     Runtime(X64 *x) {
         x64 = x;
         

@@ -114,6 +114,10 @@ void X64::init(std::string module_name) {
     data_symbol_index = ork->export_data(module_name + ".data", 0, 0, true);
 
     op(UD2);  // Have fun jumping to address 0
+    
+    op(MOVQW, XMM8, XMM9);
+    op(MOVQW, XMM10, Address(RAX, RBX, 0));
+    op(MOVQW, Address(RCX, RDX, 0), XMM11);
 }
 
 
@@ -420,10 +424,7 @@ void X64::rex(int wrxb, bool force) {
 void X64::code_op(int code) {
     // Multi-byte opcodes must be emitted MSB first
     
-    if (code & 0xFF0000)
-        code_byte((code >> 16) & 0xFF);
-    
-    if (code & 0xFFFF00)
+    if (code & 0xFF00)
         code_byte((code >> 8) & 0xFF);
 
     code_byte(code & 0xFF);
@@ -439,6 +440,14 @@ void X64::code_op(int code, Opsize opsize, int rxbq) {
     // size == 5 => word  => 0x66 _RXB opc
     // size == 6 => dword =>      _RXB opc
     // size == 7 => qword =>      WRXB opc
+
+    // SSE instructions may have fake operand size (0x66) and repeat (0xF2, 0xF3) prefixes
+    // that are actually part of the opcode, but must be emitted before the REX prefix.
+    // Those opcodes are effectively 3 bytes long.
+    if (code & 0xFF0000) {
+        code_byte((code >> 16) & 0xFF);
+        code &= 0xFFFF;
+    }
 
     bool questionable = rxbq & REX_Q;
     int rxb = rxbq & ~REX_Q;
@@ -639,6 +648,18 @@ void X64::code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister r
 
 void X64::code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm) {
     code_op(opcode, opsize, r(regfield) | xb(rm));
+    effective_address(regfield, rm);
+}
+
+
+void X64::code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm) {
+    code_op(opcode, opsize, r(regfield) | xb(rm) | q(rm));
+    effective_address(regfield, rm);
+}
+
+
+void X64::code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm) {
+    code_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
     effective_address(regfield, rm);
 }
 
@@ -1109,16 +1130,75 @@ void X64::op(ConstantOp opcode, int x) {
 }
 
 
-void X64::op(SseMov opcode, SseRegister x, SseRegister y) {
-    code_op(0xF30F7E, OPSIZE_DEFAULT, x, y);
+struct {
+    int op1;
+    int op2;
+} ssemem_ssemem_info[] = {   // xmm1, xmm2/mem64    xmm1/mem64, xmm2
+    { 0xF30F7E, 0x660FD6 },  // MOVQ
+    { 0xF20F10, 0xF20F11 },  // MOVSD
+    { 0xF30F10, 0xF30F11 },  // MOVSS
+};
+
+void X64::op(SsememSsememOp opcode, SseRegister x, SseRegister y) {
+    code_op(ssemem_ssemem_info[opcode].op1, OPSIZE_DEFAULT, x, y);
 }
 
 
-void X64::op(SseMov opcode, SseRegister x, Address y) {
-    code_op(0xF30F7E, OPSIZE_DEFAULT, x, y);
+void X64::op(SsememSsememOp opcode, SseRegister x, Address y) {
+    code_op(ssemem_ssemem_info[opcode].op1, OPSIZE_DEFAULT, x, y);
 }
 
 
-void X64::op(SseMov opcode, Address x, SseRegister y) {
-    code_op(0x660FD6, OPSIZE_DEFAULT, y, x);
+void X64::op(SsememSsememOp opcode, Address x, SseRegister y) {
+    code_op(ssemem_ssemem_info[opcode].op2, OPSIZE_DEFAULT, y, x);
+}
+
+
+int sse_ssemem_info[] = {  // xmm1, xmm2/mem64  Test REX placement!
+    0xF20F58,  // ADDSD
+    0xF20F5C,  // SUBSD
+    0xF20F59,  // MULSD
+    0xF20F5E,  // DIVSD
+    0x660F2F,  // COMISD
+    0x660F2E,  // UCOMISD
+    0xF30F5A,  // CVTSS2SD
+    0xF20F5A,  // CVTSD2SS
+    0xF20F5F,  // MAXSD
+    0xF20F5D,  // MINSD
+    0xF20F51,  // SQRTSD
+};
+
+void X64::op(SseSsememOp opcode, SseRegister x, SseRegister y) {
+    code_op(sse_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
+}
+
+void X64::op(SseSsememOp opcode, SseRegister x, Address y) {
+    code_op(sse_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
+}
+
+
+int sse_gprmem_info[] = {  // xmm1, reg64/mem64
+    0xF20F2A,  // CVTSI2SD
+};
+
+void X64::op(SseGprmemOp opcode, SseRegister x, Register y) {
+    code_op(sse_gprmem_info[opcode], OPSIZE_DEFAULT, x, y);
+}
+
+void X64::op(SseGprmemOp opcode, SseRegister x, Address y) {
+    code_op(sse_gprmem_info[opcode], OPSIZE_DEFAULT, x, y);
+}
+
+
+int gpr_ssemem_info[] = {  // reg64, xmm1/mem64
+    0xF20F2D,  // CVTSD2SI
+    0xF20F2C,  // CVTTSD2SI
+};
+
+void X64::op(GprSsememOp opcode, Register x, SseRegister y) {
+    code_op(gpr_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
+}
+
+void X64::op(GprSsememOp opcode, Register x, Address y) {
+    code_op(gpr_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
