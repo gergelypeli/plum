@@ -51,7 +51,7 @@ class Node {
 public:
     enum NodeType {
         NONE, OPEN, CLOSE,
-        NUMBER, STRING, INITIALIZER, PARTINITIALIZER, MATCHER,
+        UNSIGNED_INTEGER, STRING, INITIALIZER, PARTINITIALIZER, MATCHER,
         IDENTIFIER, LABEL, CONTROL, EVAL, DECLARATION,
         SEPARATOR
     } type;
@@ -79,7 +79,7 @@ public:
         return (
             type == OPEN ? "OPEN" :
             type == CLOSE ? "CLOSE" :
-            type == NUMBER ? "NUMBER" :
+            type == UNSIGNED_INTEGER ? "UNSIGNED_INTEGER" :
             type == STRING ? "STRING" :
             type == INITIALIZER ? "INITIALIZER" :
             type == PARTINITIALIZER ? "PARTINITIALIZER" :
@@ -194,7 +194,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         char c = token.text[0];
         
         if (isdigit(c) || c == '.') {
-            type = Node::NUMBER;
+            type = Node::UNSIGNED_INTEGER;
             back = LITERAL;
             fore = LITERAL;
             text = token.text;

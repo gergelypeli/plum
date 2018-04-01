@@ -8,7 +8,10 @@ typedef GenericKwargs<Expr> Kwargs;
 class Expr {
 public:
     enum ExprType {
-        TUPLE, NUMBER, STRING, INITIALIZER, PARTINITIALIZER, MATCHER, IDENTIFIER, CONTROL, EVAL, DECLARATION
+        TUPLE,
+        UNSIGNED_INTEGER, NEGATIVE_INTEGER, STRING,
+        INITIALIZER, PARTINITIALIZER, MATCHER, IDENTIFIER,
+        CONTROL, EVAL, DECLARATION
     } type;
     Token token;
     std::string text;
@@ -56,7 +59,8 @@ public:
     const char *print_type() {
         return (
             type == TUPLE ? "TUPLE" :
-            type == NUMBER ? "NUMBER" :
+            type == UNSIGNED_INTEGER ? "UNSIGNED_INTEGER" :
+            type == NEGATIVE_INTEGER ? "NEGATIVE_INTEGER" :
             type == STRING ? "STRING" :
             type == INITIALIZER ? "INITIALIZER" :
             type == PARTINITIALIZER ? "PARTINITIALIZER" :
@@ -149,13 +153,10 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         return e;
     }
     else if (node.type == Node::IDENTIFIER) {
-        // Special handling for negating numeric literals, so they can be type correct
-        if (node.text == "unary_minus" && node.right && nodes[node.right].type == Node::NUMBER) {
-            std::string text = "-" + nodes[node.right].text;
-            Token token = nodes[node.right].token;
-            token.text = "-" + token.text;
-            
-            return new Expr(Expr::NUMBER, token, text);
+        // Special handling for negating numeric literals, so they can be type correct.
+        // Applying a second negation is not handled specially.
+        if (node.text == "unary_minus" && node.right && nodes[node.right].type == Node::UNSIGNED_INTEGER) {
+            return new Expr(Expr::NEGATIVE_INTEGER, nodes[node.right].token, nodes[node.right].text);
         }
         
         Expr *e = new Expr(Expr::IDENTIFIER, node.token, node.text);
@@ -178,8 +179,8 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
 
         return e;
     }
-    else if (node.type == Node::NUMBER) {
-        return new Expr(Expr::NUMBER, node.token, node.text);
+    else if (node.type == Node::UNSIGNED_INTEGER) {
+        return new Expr(Expr::UNSIGNED_INTEGER, node.token, node.text);
     }
     else if (node.type == Node::STRING) {
         return new Expr(Expr::STRING, node.token, node.text);

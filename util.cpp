@@ -97,3 +97,25 @@ std::vector<unsigned short> decode_utf8(std::string text) {
     return characters;
 }
 
+
+unsigned long parse_unsigned_integer(std::string text) {
+    unsigned long value = 0;
+    unsigned n = text.size();
+    const unsigned long limit_value = 1844674407370955161UL;
+    const unsigned long limit_digit = 5;
+    
+    for (unsigned i = 0; i < n; i++) {
+        if (isdigit(text[i])) {
+            unsigned long digit = text[i] - '0';
+            
+            if (value > limit_value || (value == limit_value && digit > limit_digit)) {
+                std::cerr << "Integer literal overflow: " << text << "!\n";
+                throw TYPE_ERROR;
+            }
+            
+            value = value * 10 + digit;
+        }
+    }
+    
+    return value;
+}
