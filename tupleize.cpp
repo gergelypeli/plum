@@ -153,11 +153,14 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         return e;
     }
     else if (node.type == Node::IDENTIFIER) {
-        // Special handling for negating numeric literals, so they can be type correct.
-        // Applying a second negation is not handled specially.
-        if (node.text == "unary_minus" && node.right && nodes[node.right].type == Node::UNSIGNED_INTEGER) {
+        // Special handling for negating numeric literals, so they can be evaluated in
+        // a type context with proper bounds checking. Further negations a processed normally.
+        if (node.text == "unary_minus" && node.right && nodes[node.right].type == Node::UNSIGNED_INTEGER)
             return new Expr(Expr::NEGATIVE_INTEGER, nodes[node.right].token, nodes[node.right].text);
-        }
+
+        // And allow the same for the unary plus sign.
+        if (node.text == "unary_plus" && node.right && nodes[node.right].type == Node::UNSIGNED_INTEGER)
+            return new Expr(Expr::UNSIGNED_INTEGER, nodes[node.right].token, nodes[node.right].text);
         
         Expr *e = new Expr(Expr::IDENTIFIER, node.token, node.text);
     
