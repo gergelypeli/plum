@@ -5,10 +5,16 @@ enum Error {
 };
 
 // From https://stackoverflow.com/questions/874134/find-if-string-ends-with-another-string-in-c
-inline bool ends_with(std::string const & value, std::string const & ending)
+inline bool desuffix(std::string &value, std::string const &ending)
 {
-    if (ending.size() > value.size()) return false;
-    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+    if (ending.size() > value.size())
+        return false;
+        
+    if (!std::equal(ending.rbegin(), ending.rend(), value.rbegin()))
+        return false;
+        
+    value = value.substr(0, value.size() - ending.size());
+    return true;
 }
 
 
@@ -99,22 +105,65 @@ std::vector<unsigned short> decode_utf8(std::string text) {
 
 
 unsigned long parse_unsigned_integer(std::string text) {
-    unsigned long value = 0;
+    unsigned base = 10;
     unsigned n = text.size();
-    const unsigned long limit_value = 1844674407370955161UL;
-    const unsigned long limit_digit = 5;
+    unsigned start = 0;
     
-    for (unsigned i = 0; i < n; i++) {
-        if (isdigit(text[i])) {
-            unsigned long digit = text[i] - '0';
-            
-            if (value > limit_value || (value == limit_value && digit > limit_digit)) {
-                std::cerr << "Integer literal overflow: " << text << "!\n";
-                throw TYPE_ERROR;
-            }
-            
-            value = value * 10 + digit;
+    if (text[0] == '0' && n > 1) {
+        if (n < 2) {
+            std::cerr << "Integer literal with invalid prefix: " << text << "!\n";
+            throw TYPE_ERROR;
         }
+        
+        switch (text[1]) {
+        case 'x':
+        case 'X':
+            base = 16;
+            break;
+        case 'o':
+        case 'O':
+            base = 8;
+            break;
+        case 'b':
+        case 'B':
+            base = 2;
+            break;
+        default:
+            std::cerr << "Integer literal with invalid base: " << text << "!\n";
+            throw TYPE_ERROR;
+        }
+        
+        start = 2;
+    }
+    
+    const unsigned long limit_value = (0UL - 1) / base;
+    const unsigned long limit_digit = (0UL - 1) % base;
+    unsigned long value = 0;
+    
+    for (unsigned i = start; i < n; i++) {
+        char c = text[i];
+        
+        if (c == '_')
+            continue;
+
+        unsigned long digit = (
+            c >= '0' && c <= '9' ? c - '0' :
+            c >= 'a' && c <= 'f' ? c - 'a' + 10 :
+            c >= 'A' && c <= 'F' ? c - 'A' + 10 :
+            16
+        );
+        
+        if (digit >= base) {
+            std::cerr << "Integer literal with invalid digit: " << text << "!\n";
+            throw TYPE_ERROR;
+        }
+        
+        if (value > limit_value || (value == limit_value && digit > limit_digit)) {
+            std::cerr << "Integer literal overflow: " << text << "!\n";
+            throw TYPE_ERROR;
+        }
+            
+        value = value * base + digit;
     }
     
     return value;

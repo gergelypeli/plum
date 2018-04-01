@@ -395,14 +395,16 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
     }
     else if (expr->type == Expr::UNSIGNED_INTEGER || expr->type == Expr::NEGATIVE_INTEGER) {
+        std::string text = expr->text;
+        
         IntegerType *t = ptr_cast<IntegerType>(
-            ends_with(expr->text, "s32") ? integer32_type :
-            ends_with(expr->text, "s16") ? integer16_type :
-            ends_with(expr->text, "s8") ? integer8_type :
-            ends_with(expr->text, "u32") ? unsigned_integer32_type :
-            ends_with(expr->text, "u16") ? unsigned_integer16_type :
-            ends_with(expr->text, "u8") ? unsigned_integer8_type :
-            ends_with(expr->text, "u") ? unsigned_integer_type :
+            desuffix(text, "s32") ? integer32_type :
+            desuffix(text, "s16") ? integer16_type :
+            desuffix(text, "s8") ? integer8_type :
+            desuffix(text, "u32") ? unsigned_integer32_type :
+            desuffix(text, "u16") ? unsigned_integer16_type :
+            desuffix(text, "u8") ? unsigned_integer8_type :
+            desuffix(text, "u") ? unsigned_integer_type :
             integer_type
         );
         
@@ -420,7 +422,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         bool is_negative = (expr->type == Expr::NEGATIVE_INTEGER);
         
         // parse the part without sign into a 64-bit unsigned
-        unsigned long x = parse_unsigned_integer(expr->text);
+        unsigned long x = parse_unsigned_integer(text);
 
         if (t->is_unsigned) {
             if (

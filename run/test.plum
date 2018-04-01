@@ -212,6 +212,18 @@ test_integers? :Function as:
     e? = 5_000_000_000
     prints("Five billion is {e}" {})
     
+    f? = 0x_1234_5678_9abc_def0
+    prints("A big hex number is {f}" {})
+    
+    g? = 1_311_768_467_463_790_320
+    prints("The same in English {g}" {})
+
+    h? = 0o110_642_547_423_257_157_360
+    prints("Again in octal base {h}" {})
+    
+    i? = 0b_0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100_1101_1110_1111_0000
+    prints("Aaaaaaaaand finally {i}" {})
+    
     Mybyte? :Integer bytes: 1 is_unsigned: `false
     mybyte? Mybyte = -128
     prints("Mybyte is {mybyte}" {})
