@@ -137,6 +137,14 @@ public:
     Label(const Label &c) {
         def_index = c.def_index;
     }
+    
+    int freeze() {
+        return def_index;
+    }
+    
+    static Label thaw(int x) {
+        return Label(x);
+    }
 };
 
 
@@ -419,6 +427,7 @@ public:
     void data_dword(int x);
     void data_qword(long x);
     void data_zstring(const char *s);
+    void data_double(double x);
     void data_label(Label c, unsigned size = 0);
     void data_label_local(Label c, std::string name, unsigned size = 0);
     void data_label_global(Label c, std::string name, unsigned size = 0);

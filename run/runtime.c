@@ -155,8 +155,13 @@ void printc(short a) {
 }
 
 
+void printd(double a) {
+    printf("%g\n", a);
+}
+
+
 void printz(const char *s) {
-    printf("%s", s);
+    printf("%s\n", s);
 }
 
 

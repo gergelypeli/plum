@@ -39,12 +39,10 @@ public:
 
 class FloatValue: public Value {
 public:
-    Register reg;
     double number;
     
     FloatValue(TypeSpec ts, double n)
         :Value(ts) {
-        reg = NOREG;
         number = n;
     }
 
@@ -53,7 +51,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        return Storage();
+        Label label;
+        
+        x64->data_label(label);
+        x64->data_double(number);
+        
+        return Storage(CONSTANT, label.freeze());
     }
 };
 

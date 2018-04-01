@@ -467,7 +467,10 @@ public:
         case 0:
             break;
         case 8:
-            x64->op(MOVQ, RDI, Address(RSP, 0));
+            if (arg_tss.size() >= 1 && arg_tss[0] == FLOAT_TS)
+                x64->op(MOVSD, XMM0, Address(RSP, 0));  // TODO, really
+            else
+                x64->op(MOVQ, RDI, Address(RSP, 0));
             break;
         case 16:
             x64->op(MOVQ, RDI, Address(RSP, 8));

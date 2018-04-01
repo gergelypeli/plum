@@ -822,6 +822,7 @@ void define_weakset() {
 void builtin_runtime(Scope *root_scope) {
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
+    TSs FLOAT_TSS = { FLOAT_TS };
     TSs BOOLEAN_TSS = { BOOLEAN_TS };
     TSs UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
     TSs UNSIGNED_INTEGER8_ARRAY_REF_TSS = { UNSIGNED_INTEGER8_ARRAY_REF_TS };
@@ -832,6 +833,7 @@ void builtin_runtime(Scope *root_scope) {
 
     root_scope->add(new ImportedFunction("printi", "printi", NO_TS, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL));
     root_scope->add(new ImportedFunction("printc", "printc", NO_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
+    root_scope->add(new ImportedFunction("printd", "printd", NO_TS, GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL));
     root_scope->add(new ImportedFunction("printb", "printb", NO_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL));
     root_scope->add(new ImportedFunction("prints", "prints", NO_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL));
     root_scope->add(new ImportedFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));

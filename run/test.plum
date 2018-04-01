@@ -224,7 +224,8 @@ test_integers? :Function as:
     i? = 0b_0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100_1101_1110_1111_0000
     prints("Aaaaaaaaand finally {i}" {})
     
-    j? = 0.1
+    j? = 3.14
+    printd(j)
     
     Mybyte? :Integer bytes: 1 is_unsigned: `false
     mybyte? Mybyte = -128

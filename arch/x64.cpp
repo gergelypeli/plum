@@ -114,10 +114,6 @@ void X64::init(std::string module_name) {
     data_symbol_index = ork->export_data(module_name + ".data", 0, 0, true);
 
     op(UD2);  // Have fun jumping to address 0
-    
-    op(MOVQW, XMM8, XMM9);
-    op(MOVQW, XMM10, Address(RAX, RBX, 0));
-    op(MOVQW, Address(RCX, RDX, 0), XMM11);
 }
 
 
@@ -279,6 +275,12 @@ void X64::data_zstring(const char *s) {
         data.push_back(*s++);
         
     data.push_back(0);
+}
+
+
+void X64::data_double(double x) {
+    data.resize(data.size() + 8);
+    *(double *)(data.data() + data.size() - 8) = x;
 }
 
 
