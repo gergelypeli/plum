@@ -58,3 +58,4 @@ const int REFERENCE_SIZE = 8;
 const int ALIAS_SIZE = 8;
 const int INTEGER_SIZE = 8;
 const int CHARACTER_SIZE = 2;
+const int FLOAT_SIZE = 8;

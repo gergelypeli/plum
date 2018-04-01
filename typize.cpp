@@ -394,60 +394,77 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         
         std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
     }
-    else if (expr->type == Expr::UNSIGNED_INTEGER || expr->type == Expr::NEGATIVE_INTEGER) {
+    else if (expr->type == Expr::UNSIGNED_NUMBER || expr->type == Expr::NEGATIVE_NUMBER) {
+        bool is_negative = (expr->type == Expr::NEGATIVE_NUMBER);
         std::string text = expr->text;
+        bool is_float = false;
         
-        IntegerType *t = ptr_cast<IntegerType>(
-            desuffix(text, "s32") ? integer32_type :
-            desuffix(text, "s16") ? integer16_type :
-            desuffix(text, "s8") ? integer8_type :
-            desuffix(text, "u32") ? unsigned_integer32_type :
-            desuffix(text, "u16") ? unsigned_integer16_type :
-            desuffix(text, "u8") ? unsigned_integer8_type :
-            desuffix(text, "u") ? unsigned_integer_type :
-            integer_type
-        );
-        
-        if (context && t == integer_type) {
-            Type *x = (*context)[0];
-            x = (x == code_type || x == ovalue_type ? (*context)[1] : x);
-            t = ptr_cast<IntegerType>(x);
-        
-            if (!t) {
-                std::cerr << "Literal number in a noninteger " << *context << " context: " << expr->token << "\n";
-                throw TYPE_ERROR;
+        for (unsigned i = 0; i < text.size(); i++) {
+            char c = text[i];
+            
+            if (c == '.' || c == '+' || c == '-') {
+                is_float = true;
+                break;
             }
         }
-
-        bool is_negative = (expr->type == Expr::NEGATIVE_INTEGER);
         
-        // parse the part without sign into a 64-bit unsigned
-        unsigned long x = parse_unsigned_integer(text);
-
-        if (t->is_unsigned) {
-            if (
-                is_negative ||
-                (t->size == 1 && x > 255) ||
-                (t->size == 2 && x > 65535) ||
-                (t->size == 4 && x > 4294967295)
-            ) {
-                std::cerr << "Unsigned integer literal out of range: " << expr->token << "\n";
-                throw TYPE_ERROR;
-            }
+        if (is_float) {
+            double x = parse_float(text);
+            value = make_float_value(FLOAT_TS, is_negative ? -x : x);
         }
         else {
-            if (
-                (t->size == 1 && x > (is_negative ? 128 : 127)) ||
-                (t->size == 2 && x > (is_negative ? 32768 : 32767)) ||
-                (t->size == 4 && x > (is_negative ? 2147483648 : 2147483647)) ||
-                (t->size == 8 && x > (is_negative ? 9223372036854775808U : 9223372036854775807U))
-            ) {
-                std::cerr << "Signed integer literal out of range: " << expr->token << "\n";
-                throw TYPE_ERROR;
+            IntegerType *t = ptr_cast<IntegerType>(
+                desuffix(text, "s32") ? integer32_type :
+                desuffix(text, "s16") ? integer16_type :
+                desuffix(text, "s8") ? integer8_type :
+                desuffix(text, "u32") ? unsigned_integer32_type :
+                desuffix(text, "u16") ? unsigned_integer16_type :
+                desuffix(text, "u8") ? unsigned_integer8_type :
+                desuffix(text, "u") ? unsigned_integer_type :
+                integer_type
+            );
+        
+            if (context && t == integer_type) {
+                Type *x = (*context)[0];
+                x = (x == code_type || x == ovalue_type ? (*context)[1] : x);
+                t = ptr_cast<IntegerType>(x);
+        
+                if (!t) {
+                    std::cerr << "Literal number in a noninteger " << *context << " context: " << expr->token << "\n";
+                    throw TYPE_ERROR;
+                }
             }
-        }
 
-        value = make_basic_value(TypeSpec { t }, is_negative ? -x : x);
+        
+            // parse the part without sign into a 64-bit unsigned
+            unsigned long x = parse_unsigned_integer(text);
+
+            if (t->is_unsigned) {
+                if (
+                    is_negative ||
+                    (t->size == 1 && x > 255) ||
+                    (t->size == 2 && x > 65535) ||
+                    (t->size == 4 && x > 4294967295)
+                ) {
+                    std::cerr << "Unsigned integer literal out of range: " << expr->token << "\n";
+                    throw TYPE_ERROR;
+                }
+            }
+            else {
+                if (
+                    (t->size == 1 && x > (is_negative ? 128 : 127)) ||
+                    (t->size == 2 && x > (is_negative ? 32768 : 32767)) ||
+                    (t->size == 4 && x > (is_negative ? 2147483648 : 2147483647)) ||
+                    (t->size == 8 && x > (is_negative ? 9223372036854775808U : 9223372036854775807U))
+                ) {
+                    std::cerr << "Signed integer literal out of range: " << expr->token << "\n";
+                    throw TYPE_ERROR;
+                }
+            }
+
+            value = make_basic_value(TypeSpec { t }, is_negative ? -x : x);
+        }
+        
         value->set_token(expr->token);
     }
     else if (expr->type == Expr::STRING) {

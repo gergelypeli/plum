@@ -116,10 +116,20 @@ std::vector<Token> tokenize(std::string buffer) {
             continue;
         }
         else if (isdigit(c) || c == '.') {
+            // For the sake of floating point numbers, include a plus or minus sign following
+            // a letter E if that was the first letter in the token.
+            int letter_count = 0;
+            
             do {
+                if (isalpha(c))
+                    letter_count += 1;
+                
                 i++;
                 c = buffer[i];
-            } while (isalnum(c) || c == '_' || c == '.');
+            } while (
+                isalnum(c) || c == '_' || c == '.' ||
+                ((c == '+' || c == '-') && (buffer[i - 1] = 'e' || buffer[i - 1] == 'E') && letter_count == 1)
+            );
         }
         else if (is_identifier(c) || is_prefix(c)) {  // except numeric and "?=", handled above
             char prefix = (is_prefix(c) ? c : '\0');

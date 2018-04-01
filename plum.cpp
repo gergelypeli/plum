@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include <stdarg.h>
+#include <math.h>
 
 #include "utf8.c"
 #include "util.cpp"

@@ -168,3 +168,92 @@ unsigned long parse_unsigned_integer(std::string text) {
     
     return value;
 }
+
+
+double parse_float(std::string text) {
+    double value = 0;
+    int exponent = 0;
+    bool seen_dot = false;
+    unsigned n = text.size();
+    
+    for (unsigned i = 0; i < n; i++) {
+        char c = text[i];
+        
+        if (c == '_')
+            continue;
+        else if (c == '.') {
+            if (seen_dot) {
+                std::cerr << "Float literal with multiple dots: " << text << "!\n";
+                throw TYPE_ERROR;
+            }
+            
+            seen_dot = true;
+            continue;
+        }
+        else if (c >= '0' && c <= '9') {
+            value = 10 * value + (c - '0');
+            
+            if (seen_dot)
+                exponent -= 1;
+                
+            continue;
+        }
+        else if (c == 'e' || c == 'E') {
+            i += 1;
+            
+            if (i == n) {
+                std::cerr << "Float literal with missing exponent: " << text << "!\n";
+                throw TYPE_ERROR;
+            }
+            
+            bool is_negative;
+            
+            if (text[i] == '-')
+                is_negative = true;
+            else if (text[i] == '+')
+                is_negative = false;
+            else {
+                std::cerr << "Float literal with unsigned exponent: " << text << "!\n";
+                throw TYPE_ERROR;
+            }
+            
+            i += 1;
+            
+            if (i == n) {
+                std::cerr << "Float literal with truncated exponent: " << text << "!\n";
+                throw TYPE_ERROR;
+            }
+            
+            unsigned e = 0;
+            
+            while (i < n) {
+                c = text[i];
+                
+                if (c >= '0' && c <= '9')
+                    e = e * 10 + c - '0';
+                else {
+                    std::cerr << "Float literal with invalid exponent: " << text << "!\n";
+                    throw TYPE_ERROR;
+                }
+                
+                if (e > 308) {
+                    std::cerr << "Float literal with overflowing exponent: " << text << "!\n";
+                    throw TYPE_ERROR;
+                }
+                
+                i += 1;
+            }
+            
+            if (is_negative)
+                exponent -= e;
+            else
+                exponent += e;
+        }
+        else {
+            std::cerr << "Float literal with invalid digit: " << text << "!\n";
+            throw TYPE_ERROR;
+        }
+    }
+    
+    return value * pow(10.0, exponent);
+}

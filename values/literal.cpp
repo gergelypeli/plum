@@ -37,6 +37,27 @@ public:
 };
 
 
+class FloatValue: public Value {
+public:
+    Register reg;
+    double number;
+    
+    FloatValue(TypeSpec ts, double n)
+        :Value(ts) {
+        reg = NOREG;
+        number = n;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return Regs();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return Storage();
+    }
+};
+
+
 class UnicodeCharacterValue: public Value {
 public:
     std::unique_ptr<Value> value;

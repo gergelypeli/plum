@@ -551,6 +551,7 @@ public:
 
 #include "interface.cpp"
 #include "basic.cpp"
+#include "float.cpp"
 #include "reference.cpp"
 #include "record.cpp"
 #include "class.cpp"

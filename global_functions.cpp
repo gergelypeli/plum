@@ -66,6 +66,11 @@ Value *make_basic_value(TypeSpec ts, long number) {
 }
 
 
+Value *make_float_value(TypeSpec ts, double number) {
+    return new FloatValue(ts, number);
+}
+
+
 Value *make_string_literal_value(std::string text) {
     return new StringLiteralValue(text);
 }

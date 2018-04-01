@@ -140,6 +140,9 @@ void builtin_types(Scope *root_scope) {
     unsigned_integer8_type = new IntegerType("Unteger8", 1, true);
     root_scope->add(unsigned_integer8_type);
 
+    float_type = new FloatType("Float");
+    root_scope->add(float_type);
+
     ref_type = new ReferenceType("Ref");
     root_scope->add(ref_type);
 
@@ -281,6 +284,7 @@ void builtin_types(Scope *root_scope) {
     CHARACTER_LVALUE_TS = { lvalue_type, character_type };
     CHARACTER_ARRAY_REF_TS = { ref_type, array_type, character_type };
     CHARACTER_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, character_type };
+    FLOAT_TS = { float_type };
     ANYID_REF_TS = { ref_type, anyid_type };
     ANYID_REF_LVALUE_TS = { lvalue_type, ref_type, anyid_type };
     ANYID_WEAKREF_TS = { weakref_type, anyid_type };
