@@ -829,26 +829,6 @@ void X64::op(BinaryOp opcode, Register x, Label y) {
     code_op(info.op3, OPSIZE_LEGACY(opcode), x, y, 0);
 }
 
-void X64::op(BinaryOp opcode, Label x, Register y) {
-    auto &info = binary_info[opcode >> 2];
-    code_op(info.op2, OPSIZE_LEGACY(opcode), y, x, 0);
-}
-
-void X64::op(BinaryOp opcode, Label x, int y) {
-    auto &info = binary_info[opcode >> 2];
-    int os = (opcode & 3);
-    int offset = (os == 0 ? -1 : os == 1 ? -2 : -4);
-    
-    code_op(info.op1, OPSIZE_LEGACY(os), info.regfield1, x, offset);
-    
-    switch (opcode & 3) {
-    case 0: code_byte(y); break;
-    case 1: code_word(y); break;
-    case 2: code_dword(y); break;
-    case 3: code_dword(y); break;  // 32-bit immediate only
-    }
-}
-
 
 
 

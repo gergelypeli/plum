@@ -489,8 +489,6 @@ public:
     void op(BinaryOp opcode, Address x, Register y);
     void op(BinaryOp opcode, Register x, Address y);
     void op(BinaryOp opcode, Register x, Label y);
-    void op(BinaryOp opcode, Label x, Register y);
-    void op(BinaryOp opcode, Label x, int y);
     void op(MovabsOp opcode, Register x, long y);  // 64-bit immediate capable
     void op(ShiftOp opcode, Register x, Register cl);
     void op(ShiftOp opcode, Address x, Register cl);

@@ -128,7 +128,7 @@ std::vector<Token> tokenize(std::string buffer) {
                 c = buffer[i];
             } while (
                 isalnum(c) || c == '_' || c == '.' ||
-                ((c == '+' || c == '-') && (buffer[i - 1] = 'e' || buffer[i - 1] == 'E') && letter_count == 1)
+                ((c == '+' || c == '-') && (buffer[i - 1] == 'e' || buffer[i - 1] == 'E') && letter_count == 1)
             );
         }
         else if (is_identifier(c) || is_prefix(c)) {  // except numeric and "?=", handled above
