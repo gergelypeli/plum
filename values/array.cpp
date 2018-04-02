@@ -223,7 +223,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return Regs::all();
+        return Regs(RAX, RCX, RDX, RSI, RDI) | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {

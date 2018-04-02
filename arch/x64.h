@@ -73,6 +73,36 @@ public:
         available = (1 << (int)r);
     }
 
+    Regs(Register r1, Register r2) {
+        validate(r1);
+        validate(r2);
+        available = (1 << (int)r1) | (1 << (int)r2);
+    }
+
+    Regs(Register r1, Register r2, Register r3) {
+        validate(r1);
+        validate(r2);
+        validate(r3);
+        available = (1 << (int)r1) | (1 << (int)r2) | (1 << (int)r3);
+    }
+
+    Regs(Register r1, Register r2, Register r3, Register r4) {
+        validate(r1);
+        validate(r2);
+        validate(r3);
+        validate(r4);
+        available = (1 << (int)r1) | (1 << (int)r2) | (1 << (int)r3) | (1 << (int)r4);
+    }
+
+    Regs(Register r1, Register r2, Register r3, Register r4, Register r5) {
+        validate(r1);
+        validate(r2);
+        validate(r3);
+        validate(r4);
+        validate(r5);
+        available = (1 << (int)r1) | (1 << (int)r2) | (1 << (int)r3) | (1 << (int)r4) | (1 << (int)r5);
+    }
+
     Regs operator |(Regs other) {
         return Regs(available | other.available);
     }
@@ -82,7 +112,7 @@ public:
     }
 
     Regs operator~() {
-        return Regs(~available);
+        return Regs(~available & AVAILABLE_MASK);
     }
     
     bool has(Register r) {
@@ -91,6 +121,10 @@ public:
     }
 
     bool has_any() {
+        return (available & AVAILABLE_MASK) != 0;
+    }
+
+    explicit operator bool() {
         return (available & AVAILABLE_MASK) != 0;
     }
 

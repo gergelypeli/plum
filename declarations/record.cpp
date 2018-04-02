@@ -136,6 +136,8 @@ public:
             return;
         case MEMORY_MEMORY: {
             Label end;
+            if ((s.regs() | t.regs()) & EQUAL_CLOB)
+                throw INTERNAL_ERROR;
             
             for (unsigned i = 0; i < comparable_member_count(); i++) {
                 member_variables[i]->equal(tm, s, t, x64);
@@ -173,6 +175,9 @@ public:
             t = Storage(MEMORY, Address(RBP, ADDRESS_SIZE));
             break;
         case MEMORY_MEMORY:
+            if ((s.regs() | t.regs()) & COMPARE_CLOB)
+                throw INTERNAL_ERROR;
+                
             for (unsigned i = 0; i < comparable_member_count(); i++)
                 member_variables[i]->compare(tm, s, t, x64, less, greater);
             return;
@@ -181,6 +186,8 @@ public:
         }
 
         Label xless, xgreater, xend, xclean;
+        if ((s.regs() | t.regs()) & COMPARE_CLOB)
+            throw INTERNAL_ERROR;
 
         for (unsigned i = 0; i < comparable_member_count(); i++)
             member_variables[i]->compare(tm, s, t, x64, xless, xgreater);
@@ -293,6 +300,7 @@ public:
             x64->op(PUSHQ, RBX);
             break;
         case MEMORY_MEMORY:
+            // FIXME: this won't work with RSP based addresses!
             x64->op(MOVQ, RBX, s.address);
             x64->runtime->incref(RBX);
             x64->op(PUSHQ, RBX);
@@ -433,6 +441,8 @@ public:
         x64->op(MOVQ, RBX, 1);
                 
         x64->code_label(equal);  // common parts are equal, RBX determines the result
+        x64->runtime->decref(RDX);
+        x64->runtime->decref(RAX);
         
         x64->op(CMPQ, RBX, 0);  // set flags
         

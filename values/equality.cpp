@@ -104,21 +104,18 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return switch_var_value->precompile(preferred) | value->precompile(preferred);
+        return switch_var_value->precompile(preferred) | value->precompile(preferred) | EQUAL_CLOB;
     }
     
     virtual Storage compile(X64 *x64) {
-        Label less, greater, equal;
+        Label equal;
         
         switch_var_value->compile_and_store(x64, Storage(STACK));
         value->compile_and_store(x64, Storage(STACK));
         
-        switch_var_value->ts.compare(Storage(STACK), Storage(STACK), x64, less, greater);
+        switch_var_value->ts.equal(Storage(STACK), Storage(STACK), x64);
         
-        x64->op(JMP, equal);
-        
-        x64->code_label(less);
-        x64->code_label(greater);
+        x64->op(JE, equal);
         
         raise("UNMATCHED", x64);
         
@@ -147,11 +144,11 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return switch_var_value->precompile(preferred) | initializer_value->precompile(preferred);
+        return switch_var_value->precompile(preferred) | initializer_value->precompile(preferred) | EQUAL_CLOB;
     }
     
     virtual Storage compile(X64 *x64) {
-        Label less, greater, equal;
+        Label equal;
         
         Storage ss = switch_var_value->compile(x64);
         if (ss.where != MEMORY)
@@ -159,12 +156,9 @@ public:
         
         Storage is = initializer_value->compile(x64);
             
-        switch_var_value->ts.compare(ss, is, x64, less, greater);
+        switch_var_value->ts.equal(ss, is, x64);
         
-        x64->op(JMP, equal);
-        
-        x64->code_label(less);
-        x64->code_label(greater);
+        x64->op(JE, equal);
         
         raise("UNMATCHED", x64);
         
@@ -209,7 +203,7 @@ public:
         for (auto &v : values)
             clob = clob | v->precompile(preferred);
             
-        return clob;
+        return clob | EQUAL_CLOB;
     }
     
     virtual Storage compile(X64 *x64) {
@@ -220,15 +214,11 @@ public:
             throw INTERNAL_ERROR;
             
         for (auto &v : values) {
-            Label less, greater;
             Storage t = v->compile(x64);
             
-            switch_var_value->ts.compare(s, t, x64, less, greater);
+            switch_var_value->ts.equal(s, t, x64);
             
-            x64->op(JMP, equal);
-            
-            x64->code_label(less);
-            x64->code_label(greater);
+            x64->op(JE, equal);
         }
         
         raise("UNMATCHED", x64);

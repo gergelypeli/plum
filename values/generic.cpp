@@ -113,6 +113,11 @@ public:
         if (reg != NOREG)
             clob = clob | reg;
         
+        if (operation == EQUAL || operation == NOT_EQUAL)
+            clob = clob | EQUAL_CLOB;
+        else if (operation == COMPARE)
+            clob = clob | COMPARE_CLOB;
+        
         return clob;
     }
 
@@ -331,12 +336,24 @@ public:
         return Storage(REGISTER, reg);
     }
 
+    virtual Storage equal(X64 *x64, bool negate) {
+        subcompile(x64);
+
+        left->ts.equal(ls, rs, x64);
+        
+        return Storage(FLAGS, negate ? SETNE : SETE);
+    }
+
     virtual Storage compile(X64 *x64) {
         switch (operation) {
         case ASSIGN:
             return assign(x64);
         case COMPARE:
             return compare(x64);
+        case EQUAL:
+            return equal(x64, false);
+        case NOT_EQUAL:
+            return equal(x64, true);
         default:
             throw INTERNAL_ERROR;
         }

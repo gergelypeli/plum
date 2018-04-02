@@ -209,24 +209,6 @@ void TypeSpec::compare(Storage s, Storage t, X64 *x64, Label less, Label greater
     at(0)->compare(match(), s, t, x64, less, greater);
 }
 
-/*
-void TypeSpec::compare(Storage s, Storage t, X64 *x64, Register reg) {
-    Label less, greater, end;
-    compare(s, t, x64, less, greater);
-        
-    x64->op(MOVQ, reg, 0);
-    x64->op(JMP, end);
-        
-    x64->code_label(less);
-    x64->op(MOVQ, reg, -1);
-    x64->op(JMP, end);
-        
-    x64->code_label(greater);
-    x64->op(MOVQ, reg, 1);
-        
-    x64->code_label(end);
-}
-*/
 
 void TypeSpec::streamify(bool repr, X64 *x64) {
     at(0)->streamify(match(), repr, x64);

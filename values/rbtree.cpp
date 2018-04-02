@@ -394,6 +394,9 @@ void compile_rbtree_has(Label label, TypeSpec elem_ts, X64 *x64) {
 
     Storage ks(MEMORY, Address(RDI, 0));
     Storage vs(MEMORY, Address(RSI, RAX, RBNODE_VALUE_OFFSET));
+    if (COMPARE_CLOB & Regs(RAX, RSI, RDI))
+        throw INTERNAL_ERROR;
+        
     elem_ts.compare(ks, vs, x64, less, greater);
     
     x64->code_label(finish);
@@ -429,6 +432,9 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     
     Storage ks(MEMORY, Address(RDI, 0));
     Storage vs(MEMORY, Address(RSI, RAX, RBNODE_VALUE_OFFSET));
+    if (COMPARE_CLOB & Regs(RAX, RSI, RDI))
+        throw INTERNAL_ERROR;
+
     elem_ts.compare(ks, vs, x64, less, greater);
     
     // Found the value, destroy to make place for the new one
@@ -484,6 +490,9 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     
     Storage ks(MEMORY, Address(RDI, 0));  // can't use STACK, that would be popped!
     Storage vs(MEMORY, Address(RSI, RAX, RBNODE_VALUE_OFFSET));
+    if (COMPARE_CLOB & Regs(RAX, RSI, RDI))
+        throw INTERNAL_ERROR;
+
     elem_ts.compare(ks, vs, x64, remove_left, remove_right);
     
     // Found the value, remove it
@@ -771,6 +780,11 @@ public:
         :ContainerInitializerValue(ts) {
     }
 
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = ContainerInitializerValue::precompile(preferred);
+        return clob | RAX | RSI | RDI | COMPARE_CLOB;
+    }
+
     virtual Storage compile(X64 *x64) {
         // This won't use the base class subcompile method, because that's inappropriate here.
         Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
@@ -852,7 +866,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RSI | RDI;
+        return clob | RAX | RSI | RDI | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -888,7 +902,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RCX | RDX | RSI | RDI;
+        return clob | RAX | RCX | RDX | RSI | RDI | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -938,7 +952,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RCX | RDX | RSI | RDI;
+        return clob | RAX | RCX | RDX | RSI | RDI | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {

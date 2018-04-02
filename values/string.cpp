@@ -1,24 +1,4 @@
 
-class StringEqualityValue: public GenericValue {
-public:
-    StringEqualityValue(Value *l, TypeMatch &match)
-        :GenericValue(STRING_TS, BOOLEAN_TS, l) {
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
-        
-        left->ts.equal(Storage(STACK), Storage(STACK), x64);
-        
-        return Storage(FLAGS, SETE);
-    }
-};
-
 
 class StringRegexpMatcherValue: public GenericValue, public Raiser {
 public:

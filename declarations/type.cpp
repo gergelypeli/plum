@@ -1,7 +1,7 @@
 
-enum TypeLevel {
-    DATA_TYPE, META_TYPE, HYPER_TYPE
-};
+#define EQUAL_CLOB Regs()
+#define COMPARE_CLOB Regs()
+#define STREAMIFY_CLOB Regs::all()
 
 typedef std::vector<Type *> Metatypes;
 
@@ -185,22 +185,23 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    // Allowed to clobber EQUAL_CLOB
+    // Always returns the result in FLAGS (ZF if equal)
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        // Always returns the result in FLAGS (ZF if equal)
         std::cerr << "Uncomparable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
+    // Allowed to clobber COMPARE_CLOB
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         std::cerr << "Uncomparable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
+    // NOTE: allowed to clobber STREAMIFY_CLOB, because it is mostly called
+    // from interpolation, which is in Void context, so not much is lost. But
+    // nested streamifications must take care!
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
-        // NOTE: streamify is allowed to clobber all registers, because it is mostly called
-        // from interpolation, which is in Void context, so not much is lost. But
-        // nested streamifications must take care!
-        
         Label us_label = x64->runtime->data_heap_string(decode_utf8("<unstreamifiable>"));
         x64->op(LEARIP, RBX, us_label);
         x64->op(PUSHQ, RBX);

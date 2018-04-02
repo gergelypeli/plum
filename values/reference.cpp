@@ -4,25 +4,6 @@ public:
     ReferenceOperationValue(OperationType o, Value *l, TypeMatch &match)
         :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), l) {
     }
-
-    virtual Storage equal(X64 *x64, BitSetOp op) {
-        subcompile(x64);
-
-        left->ts.equal(ls, rs, x64);
-        
-        return Storage(FLAGS, op);
-    }
-
-    virtual Storage compile(X64 *x64) {
-        switch (operation) {
-        case EQUAL:
-            return equal(x64, SETE);
-        case NOT_EQUAL:
-            return equal(x64, SETNE);
-        default:
-            return GenericOperationValue::compile(x64);
-        }
-    }
 };
 
 
