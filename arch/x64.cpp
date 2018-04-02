@@ -50,7 +50,7 @@ Address::Address() {
 
 Address::Address(Register b, int o) {
     if (b == NOREG) {
-        std::cerr << "Address without register!\n";
+        std::cerr << "Address without base register!\n";
         throw X64_ERROR;
     }
           
@@ -63,7 +63,7 @@ Address::Address(Register b, int o) {
 
 Address::Address(Register b, Register i, int o) {
     if (b == NOREG) {
-        std::cerr << "Address without register!\n";
+        std::cerr << "Address without base register!\n";
         throw X64_ERROR;
     }
           
@@ -76,7 +76,7 @@ Address::Address(Register b, Register i, int o) {
 
 Address::Address(Register b, Register i, int s, int o) {
     if (b == NOREG) {
-        std::cerr << "Address without register!\n";
+        std::cerr << "Address without base register!\n";
         throw X64_ERROR;
     }
     
@@ -507,9 +507,9 @@ void X64::effective_address(int regfield, SseRegister rm) {
 
 void X64::effective_address(int regfield, Address x) {
     // Quirks:
-    // Offsetless RBP in r/m is interpreted as [RIP + disp32]
+    // Offsetless RBP/R13 in r/m is interpreted as [RIP + disp32]
     // Offsetless RBP in SIB base is interpreted as [disp32]
-    // RSP in r/m is interpreted as SIB byte following
+    // RSP/R12 in r/m is interpreted as SIB byte following
     // RSP in SIB index means no index
     
     const int DISP0 = 0;
@@ -526,12 +526,6 @@ void X64::effective_address(int regfield, Address x) {
         throw X64_ERROR;
     }
 
-    if (x.base == NOREG) {
-        // We no longer use absolute addresses, so it's better to throw something instead.
-        std::cerr << "Address without base register used for addressing!\n";
-        throw X64_ERROR;
-    }
-    
     // The cut off bits belong to the REX prefix
     regfield &= 7;
     int base = x.base == NOREG ? NOREG : x.base & 7;  // RSP and R12 need a SIB
@@ -540,42 +534,46 @@ void X64::effective_address(int regfield, Address x) {
     int offset = x.offset;
     
     if (base == NOREG) {
+        // No base can only be encoded with a SIB, RBP/R13 in r/m means [RIP]
+        // Must use the encoding with no offset and RBP/R13 base to get disp32 with no base
+
         if (index != NOREG) {
-            std::cerr << "Not funny.\n";
-            throw X64_ERROR;
+            code_byte((DISP0 << 6) | (regfield << 3) | USE_SIB);
+            code_byte((scale << 6) | (index << 3)    | RBP);  // R12 can be index
+        }
+        else {
+            code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
+            code_byte((SCALE1 << 6) | (NO_INDEX << 3) | RBP);  // disp32 only
         }
         
-        // Must encode as offsetless RBP base with SIB
-        code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
-        code_byte((SCALE1 << 6) | (NO_INDEX << 3) | RBP);
         code_dword(offset);
     }
-    else if (offset == 0 && base != RBP) {  // Can't encode [RBP] and [R13] without offset
+    else if (offset == 0 && base != RBP) {  // [RBP] and [R13] must use explicit offset
         // Omit offset
         
-        if (index != NOREG) {
+        if (index != NOREG) {  // need a SIB for index
             code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
             code_byte((scale << 6)  | (index << 3)    | base);  // R12 can be index
         }
-        else if (base == USE_SIB) {
+        else if (base == USE_SIB) {  // need a SIB for RSP and R12 base
             code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
             code_byte((SCALE1 << 6) | (NO_INDEX << 3) | base);
         }
-        else 
+        else  // base only can be encoded in r/m if not RBP/R13/RSP/R12
             code_byte((DISP0 << 6)  | (regfield << 3) | base);
     }
     else if (offset <= 127 && offset >= -128) {
         // Byte offset
         
-        if (index != NOREG) {
+        if (index != NOREG) {  // need a SIB for index
             code_byte((DISP8 << 6)  | (regfield << 3) | USE_SIB);
             code_byte((scale << 6)  | (index << 3)    | base);  // R12 can be index
         }
-        else if (base == USE_SIB) {
+        else if (base == USE_SIB) {  // need a SIB for RSP and R12 base
             code_byte((DISP8 << 6)  | (regfield << 3) | USE_SIB);
             code_byte((SCALE1 << 6) | (NO_INDEX << 3) | base);
         }
-        else
+        else  // base with disp8 can be encoded in r/m if not RSP/R12
             code_byte((DISP8 << 6)  | (regfield << 3) | base);
             
         code_byte((char)offset);
@@ -583,15 +581,15 @@ void X64::effective_address(int regfield, Address x) {
     else {
         // Dword offset
         
-        if (index != NOREG) {
+        if (index != NOREG) {  // need a SIB for index
             code_byte((DISP32 << 6) | (regfield << 3) | USE_SIB);
             code_byte((scale << 6)  | (index << 3)    | base);  // R12 can be index
         }
-        else if (base == USE_SIB) {
+        else if (base == USE_SIB) {  // need a SIB for RSP and R12 base
             code_byte((DISP32 << 6) | (regfield << 3) | USE_SIB);
             code_byte((SCALE1 << 6) | (NO_INDEX << 3) | base);
         }
-        else
+        else  // base with disp32 can be encoded in r/m if not RSP/R12
             code_byte((DISP32 << 6) | (regfield << 3) | base);
             
         code_dword(offset);  // 32-bit offsets only
