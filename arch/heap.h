@@ -46,12 +46,14 @@ const int RBTREE_ELEMS_OFFSET = 48;
 const int RBTREE_MINIMUM_RESERVATION = 8;
 
 const int RBNODE_HEADER_SIZE = 32;
-const int RBNODE_PREV_IS_RED_OFFSET = 0;
+const int RBNODE_PRED_OFFSET = 0;  // PREV + RED = PRED
 const int RBNODE_NEXT_OFFSET = 8;
 const int RBNODE_LEFT_OFFSET = 16;
 const int RBNODE_RIGHT_OFFSET = 24;
 const int RBNODE_VALUE_OFFSET = 32;
 const int RBNODE_NIL = 0;
+const int RBNODE_RED_BIT = 1;
+const int RBNODE_BLACKEN_MASK = -2;
 
 const int ADDRESS_SIZE = 8;
 const int REFERENCE_SIZE = 8;

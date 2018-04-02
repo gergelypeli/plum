@@ -53,128 +53,134 @@ void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
 
 
 // Register usage:
-// RAX - index of current node
+// ROOTX - index of current node
 // RBX - return of operation
-// RCX, RDX - child indexes
-// RSI - address of the tree
-// RDI - address of key (input), dark soul (output during removal)
+// THISX, THATX - child indexes
+// SELFX - address of the tree
+// KEYX - address of key (input), dark soul (output during removal)
+
+#define SELFX RSI
+#define KEYX  RDI
+#define ROOTX RAX
+#define THISX RCX
+#define THATX RDX
 
 void compile_rbtree_left_fix(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_left_fix");
-    // RSI - tree, RAX - node
+    // SELFX - tree, ROOTX - node
     // RBX - result
-    // RCX, RDX - clob
+    // THISX, THATX - clob
     Label ok, outer_nonred, outer_red;
 
     //x64->log("Rbtree left fix.");
-    x64->op(CMPQ, RAX, RBNODE_NIL);
+    x64->op(CMPQ, ROOTX, RBNODE_NIL);
     x64->op(JE, ok);
 
-    x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, ok);
 
-    x64->op(TESTQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), 1);
+    x64->op(TESTQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
     x64->op(JE, ok);  // RBX - red left child
 
-    x64->op(MOVQ, RCX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
-    x64->op(CMPQ, RCX, RBNODE_NIL);
+    x64->op(MOVQ, THISX, Address(SELFX, RBX, RBNODE_LEFT_OFFSET));
+    x64->op(CMPQ, THISX, RBNODE_NIL);
     x64->op(JE, outer_nonred);
     
-    x64->op(TESTQ, Address(RSI, RCX, RBNODE_PREV_IS_RED_OFFSET), 1);
-    x64->op(JE, outer_nonred);  // RCX - outer red
+    x64->op(TESTQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
+    x64->op(JE, outer_nonred);  // THISX - outer red
     
     x64->code_label(outer_red);  // Red-promoting right rotate
     //x64->log("Rbtree red-promoting right rotate.");
-    x64->op(MOVQ, RDX, Address(RSI, RBX, RBNODE_RIGHT_OFFSET));
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_LEFT_OFFSET), RDX);
+    x64->op(MOVQ, THATX, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET), THATX);
     
-    x64->op(MOVQ, Address(RSI, RBX, RBNODE_RIGHT_OFFSET), RAX);
+    x64->op(MOVQ, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET), ROOTX);
     
-    x64->op(ANDQ, Address(RSI, RCX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken outer
+    x64->op(ANDQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken outer
     x64->op(RET);  // the red left child is the new root
     
     x64->code_label(outer_nonred);
-    x64->op(MOVQ, RDX, Address(RSI, RBX, RBNODE_RIGHT_OFFSET));
-    x64->op(CMPQ, RDX, RBNODE_NIL);
+    x64->op(MOVQ, THATX, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET));
+    x64->op(CMPQ, THATX, RBNODE_NIL);
     x64->op(JE, ok);
     
-    x64->op(TESTQ, Address(RSI, RDX, RBNODE_PREV_IS_RED_OFFSET), 1);
+    x64->op(TESTQ, Address(SELFX, THATX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
     x64->op(JE, ok);
     
     //x64->log("Rbtree red-swapping left rotate.");
-    x64->op(MOVQ, RCX, Address(RSI, RDX, RBNODE_LEFT_OFFSET));  // TODO
-    x64->op(MOVQ, Address(RSI, RBX, RBNODE_RIGHT_OFFSET), RCX);
+    x64->op(MOVQ, THISX, Address(SELFX, THATX, RBNODE_LEFT_OFFSET));  // TODO
+    x64->op(MOVQ, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET), THISX);
     
-    x64->op(MOVQ, Address(RSI, RDX, RBNODE_LEFT_OFFSET), RBX);
+    x64->op(MOVQ, Address(SELFX, THATX, RBNODE_LEFT_OFFSET), RBX);
     
-    x64->op(MOVQ, RCX, RBX);
-    x64->op(MOVQ, RBX, RDX);
+    x64->op(MOVQ, THISX, RBX);
+    x64->op(MOVQ, RBX, THATX);
     x64->op(JMP, outer_red);  // the red inner grandchild is the new red left child
     
     x64->code_label(ok);
     //x64->log("Rbtree left fix ok.");
-    x64->op(MOVQ, RBX, RAX);
+    x64->op(MOVQ, RBX, ROOTX);
     x64->op(RET);
 }
 
 
 void compile_rbtree_right_fix(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_right_fix");
-    // RSI - tree, RAX - node
+    // SELFX - tree, ROOTX - node
     // RBX - result
-    // RCX, RDX - clob
+    // THISX, THATX - clob
     Label ok, outer_nonred, outer_red;
 
     //x64->log("Rbtree right fix.");
-    x64->op(CMPQ, RAX, RBNODE_NIL);
+    x64->op(CMPQ, ROOTX, RBNODE_NIL);
     x64->op(JE, ok);
 
-    x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, ok);
 
-    x64->op(TESTQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), 1);
+    x64->op(TESTQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
     x64->op(JE, ok);  // RBX - red right child
 
-    x64->op(MOVQ, RCX, Address(RSI, RBX, RBNODE_RIGHT_OFFSET));
-    x64->op(CMPQ, RCX, RBNODE_NIL);
+    x64->op(MOVQ, THISX, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET));
+    x64->op(CMPQ, THISX, RBNODE_NIL);
     x64->op(JE, outer_nonred);
     
-    x64->op(TESTQ, Address(RSI, RCX, RBNODE_PREV_IS_RED_OFFSET), 1);
-    x64->op(JE, outer_nonred);  // RCX - outer red
+    x64->op(TESTQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
+    x64->op(JE, outer_nonred);  // THISX - outer red
     
     x64->code_label(outer_red);  // Red-promoting left rotate
     //x64->log("Rbtree red-promoting left rotate.");
-    x64->op(MOVQ, RDX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_RIGHT_OFFSET), RDX);
+    x64->op(MOVQ, THATX, Address(SELFX, RBX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET), THATX);
     
-    x64->op(MOVQ, Address(RSI, RBX, RBNODE_LEFT_OFFSET), RAX);
+    x64->op(MOVQ, Address(SELFX, RBX, RBNODE_LEFT_OFFSET), ROOTX);
     
-    x64->op(ANDQ, Address(RSI, RCX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken outer
+    x64->op(ANDQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken outer
     x64->op(RET);  // the red right child is the new root
     
     x64->code_label(outer_nonred);
-    x64->op(MOVQ, RDX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
-    x64->op(CMPQ, RDX, RBNODE_NIL);
+    x64->op(MOVQ, THATX, Address(SELFX, RBX, RBNODE_LEFT_OFFSET));
+    x64->op(CMPQ, THATX, RBNODE_NIL);
     x64->op(JE, ok);
     
-    x64->op(TESTQ, Address(RSI, RDX, RBNODE_PREV_IS_RED_OFFSET), 1);
+    x64->op(TESTQ, Address(SELFX, THATX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
     x64->op(JE, ok);
     
     //x64->log("Rbtree red-swapping right rotate.");
-    x64->op(MOVQ, RCX, Address(RSI, RDX, RBNODE_RIGHT_OFFSET));  // TODO
-    x64->op(MOVQ, Address(RSI, RBX, RBNODE_LEFT_OFFSET), RCX);
+    x64->op(MOVQ, THISX, Address(SELFX, THATX, RBNODE_RIGHT_OFFSET));  // TODO
+    x64->op(MOVQ, Address(SELFX, RBX, RBNODE_LEFT_OFFSET), THISX);
     
-    x64->op(MOVQ, Address(RSI, RDX, RBNODE_RIGHT_OFFSET), RBX);
+    x64->op(MOVQ, Address(SELFX, THATX, RBNODE_RIGHT_OFFSET), RBX);
     
-    x64->op(MOVQ, RCX, RBX);
-    x64->op(MOVQ, RBX, RDX);
+    x64->op(MOVQ, THISX, RBX);
+    x64->op(MOVQ, RBX, THATX);
     x64->op(JMP, outer_red);  // the red inner grandchild is the new red right child
     
     x64->code_label(ok);
     //x64->log("Rbtree right fix ok.");
-    x64->op(MOVQ, RBX, RAX);
+    x64->op(MOVQ, RBX, ROOTX);
     x64->op(RET);
 }
 
@@ -186,95 +192,95 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
 
     {
         x64->code_label_local(label, "rbtree_other_fix");
-        // RSI - tree, RAX - node, RBX - child, RDI - dark soul
-        // RBX - result, RDI - dark soul
-        // RCX, RDX - clob
+        // SELFX - tree, ROOTX - node, RBX - child, KEYX - dark soul
+        // RBX - result, KEYX - dark soul
+        // THISX, THATX - clob
         Label no_dark_soul, right, fixed;
         
-        x64->op(TESTQ, RDI, 1);
+        x64->op(CMPQ, KEYX, 0);
         x64->op(JE, no_dark_soul);
         
         x64->op(CALL, redden_side);
         
         x64->op(CALL, materialize);
         
-        x64->op(CMPQ, RBX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
+        x64->op(CMPQ, RBX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
         x64->op(JNE, right);
         
         // Left fix
         x64->op(CALL, left_fix);
-        x64->op(CMPQ, RBX, RAX);
+        x64->op(CMPQ, RBX, ROOTX);
         x64->op(JE, fixed);
         
         // Got rotated right
         x64->op(PUSHQ, RBX);  // the new root
         x64->op(CALL, left_fix);  // run again on the new right (old root)
         x64->op(XCHGQ, RBX, Address(RSP, 0));
-        x64->op(POPQ, Address(RSI, RBX, RBNODE_RIGHT_OFFSET)); // put on the right of the new root
+        x64->op(POPQ, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET)); // put on the right of the new root
         x64->op(JMP, fixed);
 
         x64->code_label(right);
         
         // Right fix
         x64->op(CALL, right_fix);
-        x64->op(CMPQ, RBX, RAX);
+        x64->op(CMPQ, RBX, ROOTX);
         x64->op(JE, fixed);
         
         // Got rotated left
         x64->op(PUSHQ, RBX);  // the new root
         x64->op(CALL, right_fix);  // run again on the new left (old root)
         x64->op(XCHGQ, RBX, Address(RSP, 0));
-        x64->op(POPQ, Address(RSI, RBX, RBNODE_LEFT_OFFSET)); // put on the left of the new root
+        x64->op(POPQ, Address(SELFX, RBX, RBNODE_LEFT_OFFSET)); // put on the left of the new root
 
         x64->code_label(fixed);
 
-        x64->op(XCHGQ, RBX, RAX);
+        x64->op(XCHGQ, RBX, ROOTX);
         x64->op(CALL, materialize);  // on the new root
-        x64->op(XCHGQ, RBX, RAX);
+        x64->op(XCHGQ, RBX, ROOTX);
         x64->op(RET);
         
         x64->code_label(no_dark_soul);
-        x64->op(MOVQ, RBX, RAX);
+        x64->op(MOVQ, RBX, ROOTX);
         x64->op(RET);
     }
     
     {
         x64->code_label_local(redden_side, "rbtree_redden_side");
-        // RSI - tree, RBX - child
-        // RCX - clob
+        // SELFX - tree, RBX - child
+        // THISX - clob
         Label black;
     
         //x64->log("Rbtree redden side.");
-        x64->op(TESTQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), 1);
+        x64->op(TESTQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
         x64->op(JE, black);
     
         // Redden the children, there must be two, because black height is positive
-        x64->op(MOVQ, RCX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
-        x64->op(ORQ, Address(RSI, RCX, RBNODE_PREV_IS_RED_OFFSET), 1);
-        x64->op(MOVQ, RCX, Address(RSI, RBX, RBNODE_RIGHT_OFFSET));
-        x64->op(ORQ, Address(RSI, RCX, RBNODE_PREV_IS_RED_OFFSET), 1);
+        x64->op(MOVQ, THISX, Address(SELFX, RBX, RBNODE_LEFT_OFFSET));
+        x64->op(ORQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
+        x64->op(MOVQ, THISX, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET));
+        x64->op(ORQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
         x64->op(RET);
     
         x64->code_label(black);
-        x64->op(ORQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), 1);
+        x64->op(ORQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
         x64->op(RET);
     }
     
     {
         x64->code_label_local(materialize, "_materialize");
-        // RSI - tree, RAX - node, RDI - dark soul
-        // RDI - dark soul
+        // SELFX - tree, ROOTX - node, KEYX - dark soul
+        // KEYX - dark soul
         Label end;
     
         //x64->log("Rbtree materialize.");
-        x64->op(TESTQ, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET), 1);
+        x64->op(TESTQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
         x64->op(JE, end);
     
-        x64->op(TESTQ, RDI, 1);
+        x64->op(CMPQ, KEYX, 0);
         x64->op(JE, end);
     
-        x64->op(ANDQ, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET), -2);
-        x64->op(MOVQ, RDI, 0);
+        x64->op(ANDQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);
+        x64->op(MOVQ, KEYX, 0);
     
         x64->code_label(end);
         x64->op(RET);
@@ -284,139 +290,139 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
 
 void compile_rbtree_allocate(Label label, X64 *x64) {
     x64->code_label_local(label, "_allocate");
-    // In: RSI - tree, RBX - node size
-    // Out: RAX - node or NIL
+    // In: SELFX - tree, RBX - node size
+    // Out: ROOTX - node or NIL
     // Clob: RBX
     Label no_vacancy, no_reservation, init, no_last, end;
 
     //x64->log("Rbtree allocate.");
-    x64->op(MOVQ, RAX, Address(RSI, RBTREE_VACANT_OFFSET));
-    x64->op(CMPQ, RAX, RBNODE_NIL);
+    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_VACANT_OFFSET));
+    x64->op(CMPQ, ROOTX, RBNODE_NIL);
     x64->op(JE, no_vacancy);
     
-    x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_NEXT_OFFSET));
-    x64->op(MOVQ, Address(RSI, RBTREE_VACANT_OFFSET), RBX);
+    x64->op(MOVQ, RBX, Address(SELFX, ROOTX, RBNODE_NEXT_OFFSET));
+    x64->op(MOVQ, Address(SELFX, RBTREE_VACANT_OFFSET), RBX);
     x64->op(JMP, init);
     
     x64->code_label(no_vacancy);
-    x64->op(MOVQ, RAX, Address(RSI, RBTREE_LENGTH_OFFSET));
-    x64->op(CMPQ, RAX, Address(RSI, RBTREE_RESERVATION_OFFSET));
+    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_LENGTH_OFFSET));
+    x64->op(CMPQ, ROOTX, Address(SELFX, RBTREE_RESERVATION_OFFSET));
     x64->op(JE, no_reservation);
     
-    x64->op(INCQ, Address(RSI, RBTREE_LENGTH_OFFSET));
-    x64->op(IMUL2Q, RAX, RBX);
-    x64->op(ADDQ, RAX, RBTREE_HEADER_SIZE);
+    x64->op(INCQ, Address(SELFX, RBTREE_LENGTH_OFFSET));
+    x64->op(IMUL2Q, ROOTX, RBX);
+    x64->op(ADDQ, ROOTX, RBTREE_HEADER_SIZE);
     x64->op(JMP, init);
     
     x64->code_label(no_reservation);
-    x64->op(MOVQ, RAX, RBNODE_NIL);
+    x64->op(MOVQ, ROOTX, RBNODE_NIL);
     x64->op(RET);
     
     x64->code_label(init);
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_LEFT_OFFSET), RBNODE_NIL);
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_RIGHT_OFFSET), RBNODE_NIL);
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_NEXT_OFFSET), RBNODE_NIL);
-    x64->op(MOVQ, RBX, Address(RSI, RBTREE_LAST_OFFSET));
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET), RBX);
-    x64->op(ORQ, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET), 1);  // red
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET), RBNODE_NIL);
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET), RBNODE_NIL);
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_NEXT_OFFSET), RBNODE_NIL);
+    x64->op(MOVQ, RBX, Address(SELFX, RBTREE_LAST_OFFSET));
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), RBX);
+    x64->op(ORQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);  // red
     
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, no_last);
     
-    x64->op(MOVQ, Address(RSI, RBX, RBNODE_NEXT_OFFSET), RAX);
+    x64->op(MOVQ, Address(SELFX, RBX, RBNODE_NEXT_OFFSET), ROOTX);
     x64->op(JMP, end);
     
     x64->code_label(no_last);
-    x64->op(MOVQ, Address(RSI, RBTREE_FIRST_OFFSET), RAX);
+    x64->op(MOVQ, Address(SELFX, RBTREE_FIRST_OFFSET), ROOTX);
     
     x64->code_label(end);
-    x64->op(MOVQ, Address(RSI, RBTREE_LAST_OFFSET), RAX);
+    x64->op(MOVQ, Address(SELFX, RBTREE_LAST_OFFSET), ROOTX);
     x64->op(RET);
 }
 
 
 void compile_rbtree_deallocate(Label label, X64 *x64) {
     x64->code_label_local(label, "_deallocate");
-    // In: RSI - tree, RAX - node
-    // Clob: RBX, RCX
+    // In: SELFX - tree, ROOTX - node
+    // Clob: RBX, THISX
     Label no_prev, prev_ok, no_next, next_ok;
     //x64->log("Rbtree deallocate.");
     
-    x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET));
-    x64->op(ANDQ, RBX, -2);
-    x64->op(MOVQ, RCX, Address(RSI, RAX, RBNODE_NEXT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET));
+    x64->op(ANDQ, RBX, ~RBNODE_RED_BIT);
+    x64->op(MOVQ, THISX, Address(SELFX, ROOTX, RBNODE_NEXT_OFFSET));
 
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, no_prev);
     
-    x64->op(MOVQ, Address(RSI, RBX, RBNODE_NEXT_OFFSET), RCX);
+    x64->op(MOVQ, Address(SELFX, RBX, RBNODE_NEXT_OFFSET), THISX);
     x64->op(JMP, prev_ok);
     
     x64->code_label(no_prev);
-    x64->op(MOVQ, Address(RSI, RBTREE_FIRST_OFFSET), RCX);
+    x64->op(MOVQ, Address(SELFX, RBTREE_FIRST_OFFSET), THISX);
     
     x64->code_label(prev_ok);
-    x64->op(CMPQ, RCX, RBNODE_NIL);
+    x64->op(CMPQ, THISX, RBNODE_NIL);
     x64->op(JE, no_next);
     
     // set prev while keeping the color
     x64->op(SHRQ, RBX, 1);
-    x64->op(SHRQ, Address(RSI, RCX, RBNODE_PREV_IS_RED_OFFSET), 1);  // color to CF
+    x64->op(SHRQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), 1);  // color to CF
     x64->op(RCLQ, RBX, 1);
-    x64->op(MOVQ, Address(RSI, RCX, RBNODE_PREV_IS_RED_OFFSET), RBX);
+    x64->op(MOVQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), RBX);
     x64->op(JMP, next_ok);
     
     x64->code_label(no_next);
-    x64->op(MOVQ, Address(RSI, RBTREE_LAST_OFFSET), RBX);
+    x64->op(MOVQ, Address(SELFX, RBTREE_LAST_OFFSET), RBX);
     
     x64->code_label(next_ok);
-    x64->op(MOVQ, RBX, Address(RSI, RBTREE_VACANT_OFFSET));
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_NEXT_OFFSET), RBX);
-    x64->op(MOVQ, Address(RSI, RBTREE_VACANT_OFFSET), RAX);
+    x64->op(MOVQ, RBX, Address(SELFX, RBTREE_VACANT_OFFSET));
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_NEXT_OFFSET), RBX);
+    x64->op(MOVQ, Address(SELFX, RBTREE_VACANT_OFFSET), ROOTX);
     
-    x64->op(DECQ, Address(RSI, RBTREE_LENGTH_OFFSET));
+    x64->op(DECQ, Address(SELFX, RBTREE_LENGTH_OFFSET));
     x64->op(RET);
 }
 
 
 void compile_rbtree_has(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RSI - tree
-    // RAX - node
-    // RDI - key / found index or NIL
+    // SELFX - tree
+    // ROOTX - node
+    // KEYX - key / found index or NIL
     x64->code_label_local(label, "rbtree_has");
 
     Label loop, finish, less, greater;
 
     x64->code_label(loop);
     //x64->log("Has loop.");
-    x64->op(CMPQ, RAX, RBNODE_NIL);
+    x64->op(CMPQ, ROOTX, RBNODE_NIL);
     x64->op(JE, finish);
 
-    Storage ks(MEMORY, Address(RDI, 0));
-    Storage vs(MEMORY, Address(RSI, RAX, RBNODE_VALUE_OFFSET));
-    if (COMPARE_CLOB & Regs(RAX, RSI, RDI))
+    Storage ks(MEMORY, Address(KEYX, 0));
+    Storage vs(MEMORY, Address(SELFX, ROOTX, RBNODE_VALUE_OFFSET));
+    if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
         
     elem_ts.compare(ks, vs, x64, less, greater);
     
     x64->code_label(finish);
-    x64->op(MOVQ, RDI, RAX);  // Found index or NIL
+    x64->op(MOVQ, KEYX, ROOTX);  // Found index or NIL
     x64->op(RET);
     
     x64->code_label(less);
-    x64->op(MOVQ, RAX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(JMP, loop);
     
     x64->code_label(greater);
-    x64->op(MOVQ, RAX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(JMP, loop);
 }
 
 
 void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
-    // Expects RSI - tree, RAX - index, RDI - key
-    // Returns RBX - new subtree root, RDI - index with uninitialized value
-    // Clobbers RCX, RDX
+    // Expects SELFX - tree, ROOTX - index, KEYX - key
+    // Returns RBX - new subtree root, KEYX - index with uninitialized value
+    // Clobbers THISX, THATX
     x64->code_label_local(label, "rbtree_add");
     
     Label less, greater, no;
@@ -427,12 +433,12 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     int node_size = key_size + RBNODE_HEADER_SIZE;
     
     //x64->log("Rbtree add.");
-    x64->op(CMPQ, RAX, RBNODE_NIL);
+    x64->op(CMPQ, ROOTX, RBNODE_NIL);
     x64->op(JE, no);
     
-    Storage ks(MEMORY, Address(RDI, 0));
-    Storage vs(MEMORY, Address(RSI, RAX, RBNODE_VALUE_OFFSET));
-    if (COMPARE_CLOB & Regs(RAX, RSI, RDI))
+    Storage ks(MEMORY, Address(KEYX, 0));
+    Storage vs(MEMORY, Address(SELFX, ROOTX, RBNODE_VALUE_OFFSET));
+    if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
 
     elem_ts.compare(ks, vs, x64, less, greater);
@@ -440,44 +446,44 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     // Found the value, destroy to make place for the new one
     //x64->log("Rbtree add found.");
     elem_ts.destroy(vs, x64);
-    x64->op(MOVQ, RBX, RAX);
-    x64->op(MOVQ, RDI, RAX);
+    x64->op(MOVQ, RBX, ROOTX);
+    x64->op(MOVQ, KEYX, ROOTX);
     x64->op(RET);
     
     x64->code_label(less);
     //x64->log("Rbtree add left.");
-    x64->op(PUSHQ, RAX);
-    x64->op(MOVQ, RAX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
+    x64->op(PUSHQ, ROOTX);
+    x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(CALL, label);
-    x64->op(POPQ, RAX);
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_LEFT_OFFSET), RBX);
+    x64->op(POPQ, ROOTX);
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET), RBX);
     x64->op(CALL, left_fix);
     x64->op(RET);
     
     x64->code_label(greater);
     //x64->log("Rbtree add right.");
-    x64->op(PUSHQ, RAX);
-    x64->op(MOVQ, RAX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
+    x64->op(PUSHQ, ROOTX);
+    x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(CALL, label);
-    x64->op(POPQ, RAX);
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_RIGHT_OFFSET), RBX);
+    x64->op(POPQ, ROOTX);
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET), RBX);
     x64->op(CALL, right_fix);
     x64->op(RET);
     
     x64->code_label(no);
     //x64->log("Rbtree add missing.");
     x64->op(MOVQ, RBX, node_size);
-    x64->op(CALL, allocate);  // from RSI to RAX (may be NIL)
-    x64->op(MOVQ, RBX, RAX);
-    x64->op(MOVQ, RDI, RAX);
+    x64->op(CALL, allocate);  // from SELFX to ROOTX (may be NIL)
+    x64->op(MOVQ, RBX, ROOTX);
+    x64->op(MOVQ, KEYX, ROOTX);
     x64->op(RET);
 }
 
 
 void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
-    // Expects RSI - tree, RAX - index, RDI - key / dark soul
+    // Expects SELFX - tree, ROOTX - index, KEYX - key / dark soul
     // Returns RBX - new index
-    // Clobbers RCX, RDX
+    // Clobbers THISX, THATX
     x64->code_label_local(label, "rbtree_remove");
     
     Label no, remove_left, remove_right;
@@ -485,12 +491,12 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     Label other_fix = x64->once->compile(compile_rbtree_other_fix);
     
     //x64->log("Rbtree remove.");
-    x64->op(CMPQ, RAX, RBNODE_NIL);
+    x64->op(CMPQ, ROOTX, RBNODE_NIL);
     x64->op(JE, no);
     
-    Storage ks(MEMORY, Address(RDI, 0));  // can't use STACK, that would be popped!
-    Storage vs(MEMORY, Address(RSI, RAX, RBNODE_VALUE_OFFSET));
-    if (COMPARE_CLOB & Regs(RAX, RSI, RDI))
+    Storage ks(MEMORY, Address(KEYX, 0));  // can't use STACK, that would be popped!
+    Storage vs(MEMORY, Address(SELFX, ROOTX, RBNODE_VALUE_OFFSET));
+    if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
 
     elem_ts.compare(ks, vs, x64, remove_left, remove_right);
@@ -498,11 +504,11 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     // Found the value, remove it
     Label no_left, no_right, no_children, was_red;
     //x64->log("Rbtree remove found.");
-    x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, no_left);
     
-    x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, no_right);
     
@@ -514,83 +520,83 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     
     // RBX already contains the right child, then traverse to the leftmost descendant
     Label leftward_loop, leftward_cond, same_color, child_swap, swapped;
-    x64->op(MOVQ, RCX, RBNODE_NIL);  // replacement's parent
+    x64->op(MOVQ, THISX, RBNODE_NIL);  // replacement's parent
     x64->op(JMP, leftward_cond);
     
     //x64->log("Rbtree remove found internal.");
     x64->code_label(leftward_loop);
-    x64->op(MOVQ, RCX, RBX);
-    x64->op(MOVQ, RBX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, THISX, RBX);
+    x64->op(MOVQ, RBX, Address(SELFX, RBX, RBNODE_LEFT_OFFSET));
     x64->code_label(leftward_cond);
-    x64->op(CMPQ, Address(RSI, RBX, RBNODE_LEFT_OFFSET), RBNODE_NIL);
+    x64->op(CMPQ, Address(SELFX, RBX, RBNODE_LEFT_OFFSET), RBNODE_NIL);
     x64->op(JNE, leftward_loop);
     
-    // RBX - replacement node, RCX - replacement's parent or NIL
-    // Swap the current (RAX) and replacement (RBX) node tree links
+    // RBX - replacement node, THISX - replacement's parent or NIL
+    // Swap the current (ROOTX) and replacement (RBX) node tree links
     
     // Swap left child
-    x64->op(MOVQ, RDX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
-    x64->op(XCHGQ, RDX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_LEFT_OFFSET), RDX);
+    x64->op(MOVQ, THATX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
+    x64->op(XCHGQ, THATX, Address(SELFX, RBX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET), THATX);
 
     // Swap right child
-    x64->op(MOVQ, RDX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
-    x64->op(XCHGQ, RDX, Address(RSI, RBX, RBNODE_RIGHT_OFFSET));
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_RIGHT_OFFSET), RDX);
+    x64->op(MOVQ, THATX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
+    x64->op(XCHGQ, THATX, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET), THATX);
     
     // Swap color
-    x64->op(MOVQ, RDX, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET));
-    x64->op(XORQ, RDX, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET));
-    x64->op(TESTQ, RDX, 1);
+    x64->op(MOVQ, THATX, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET));
+    x64->op(XORQ, THATX, Address(SELFX, RBX, RBNODE_PRED_OFFSET));
+    x64->op(TESTQ, THATX, RBNODE_RED_BIT);
     x64->op(JE, same_color);  // xored == 0
     
     // The color bits differ, so complement both of them
-    x64->op(XORQ, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET), 1);
-    x64->op(XORQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), 1);
+    x64->op(XORQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
+    x64->op(XORQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
     
     x64->code_label(same_color);
     // Make the replacement parent point to the current node
-    x64->op(CMPQ, RCX, RBNODE_NIL);
+    x64->op(CMPQ, THISX, RBNODE_NIL);
     x64->op(JE, child_swap);
     
     // The replacement is not the child of current, so just adjust the parent's left link
-    x64->op(MOVQ, Address(RSI, RCX, RBNODE_LEFT_OFFSET), RAX);
+    x64->op(MOVQ, Address(SELFX, THISX, RBNODE_LEFT_OFFSET), ROOTX);
     x64->op(JMP, swapped);
     
     // The replacement is the child of current, so adjust the replacement's right link
     x64->code_label(child_swap);
-    x64->op(MOVQ, Address(RSI, RBX, RBNODE_RIGHT_OFFSET), RAX);
+    x64->op(MOVQ, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET), ROOTX);
     
     // The replacement took the place of the current node, so continue searching for
     // the same value on the right, because that's where we swapped it to.
     x64->code_label(swapped);
-    x64->op(MOVQ, RAX, RBX);
+    x64->op(MOVQ, ROOTX, RBX);
     x64->op(JMP, remove_right);
     
     x64->code_label(no_right);
     // A single red left child can be the replacement
     //x64->log("Rbtree remove found left only.");
     elem_ts.destroy(vs, x64);
-    x64->op(PUSHQ, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
-    x64->op(CALL, deallocate);  // At RAX
+    x64->op(PUSHQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
+    x64->op(CALL, deallocate);  // At ROOTX
     x64->op(POPQ, RBX);  // return the left child
-    x64->op(ANDQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken
-    x64->op(MOVQ, RDI, 0);  // no dark soul
+    x64->op(ANDQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken
+    x64->op(MOVQ, KEYX, 0);  // no dark soul
     x64->op(RET);
         
     x64->code_label(no_left);
-    x64->op(MOVQ, RDX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
-    x64->op(CMPQ, RDX, RBNODE_NIL);
+    x64->op(MOVQ, THATX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
+    x64->op(CMPQ, THATX, RBNODE_NIL);
     x64->op(JE, no_children);
     
     // A single red right child can be the replacement
     //x64->log("Rbtree remove found right only.");
     elem_ts.destroy(vs, x64);
-    x64->op(PUSHQ, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
-    x64->op(CALL, deallocate);  // At RAX
+    x64->op(PUSHQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
+    x64->op(CALL, deallocate);  // At ROOTX
     x64->op(POPQ, RBX);  // return the right child
-    x64->op(ANDQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken
-    x64->op(MOVQ, RDI, 0);  // no dark soul
+    x64->op(ANDQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken
+    x64->op(MOVQ, KEYX, 0);  // no dark soul
     x64->op(RET);
     
     // No children, just remove
@@ -598,12 +604,12 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     //x64->log("Rbtree remove found leaf.");
     elem_ts.destroy(vs, x64);
     x64->op(CALL, deallocate);
-    x64->op(MOVQ, RDI, 0);  // assume no dark soul
-    x64->op(TESTQ, Address(RSI, RAX, RBNODE_PREV_IS_RED_OFFSET), 1);
+    x64->op(MOVQ, KEYX, 0);  // assume no dark soul
+    x64->op(TESTQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
     x64->op(JNE, was_red);
     
     //x64->log("Rbtree remove found leaf releasing dark soul.");
-    x64->op(MOVQ, RDI, 1);  // well
+    x64->op(MOVQ, KEYX, 1);  // well
     
     x64->code_label(was_red);
     x64->op(MOVQ, RBX, RBNODE_NIL);
@@ -612,26 +618,26 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     // Descend to the left
     x64->code_label(remove_left);
     //x64->log("Rbtree remove left.");
-    x64->op(PUSHQ, RAX);
-    x64->op(MOVQ, RAX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
+    x64->op(PUSHQ, ROOTX);
+    x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(CALL, label);
-    x64->op(POPQ, RAX);
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_LEFT_OFFSET), RBX);
+    x64->op(POPQ, ROOTX);
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET), RBX);
 
-    x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(CALL, other_fix);
     x64->op(RET);
     
     // Descend to the right
     x64->code_label(remove_right);
     //x64->log("Rbtree remove right.");
-    x64->op(PUSHQ, RAX);
-    x64->op(MOVQ, RAX, Address(RSI, RAX, RBNODE_RIGHT_OFFSET));
+    x64->op(PUSHQ, ROOTX);
+    x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(CALL, label);
-    x64->op(POPQ, RAX);
-    x64->op(MOVQ, Address(RSI, RAX, RBNODE_RIGHT_OFFSET), RBX);
+    x64->op(POPQ, ROOTX);
+    x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET), RBX);
 
-    x64->op(MOVQ, RBX, Address(RSI, RAX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(CALL, other_fix);
     x64->op(RET);
     
@@ -639,19 +645,19 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->code_label(no);
     //x64->log("Rbtree remove missing.");
     x64->op(MOVQ, RBX, RBNODE_NIL);
-    x64->op(MOVQ, RDI, 0);  // no dark soul
+    x64->op(MOVQ, KEYX, 0);  // no dark soul
     x64->op(RET);
 }
 
 
 void compile_rbtree_next(Label label, X64 *x64) {
-    // Expects RSI - tree, RAX - it
+    // Expects SELFX - tree, RAX - it
     // Returns RAX - new it or 0, RBX new index
     // Clobbers RCX, RDX
     x64->code_label_local(label, "rbtree_next");
     Label terminate, find_leftmost, loop_leftmost, loop_check, loop, right_step, stepped, no_right;
     
-    x64->op(MOVQ, RBX, Address(RSI, RBTREE_ROOT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, RBTREE_ROOT_OFFSET));
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, terminate);
     
@@ -670,11 +676,11 @@ void compile_rbtree_next(Label label, X64 *x64) {
     
     x64->op(MOVQ, Address(RSP, 8), RBX);
     x64->op(MOVQ, Address(RSP, 0), RCX);
-    x64->op(MOVQ, RBX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, RBX, RBNODE_LEFT_OFFSET));
     x64->op(JMP, stepped);
     
     x64->code_label(right_step);
-    x64->op(MOVQ, RBX, Address(RSI, RBX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET));
     
     x64->code_label(stepped);
     x64->op(SHLQ, RCX, 1);
@@ -685,7 +691,7 @@ void compile_rbtree_next(Label label, X64 *x64) {
     x64->op(JNE, loop);
     
     // Found the previous node
-    x64->op(MOVQ, RBX, Address(RSI, RBX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, RBX, Address(SELFX, RBX, RBNODE_RIGHT_OFFSET));
     x64->op(CMPQ, RBX, RBNODE_NIL);
     x64->op(JE, no_right);
     
@@ -711,7 +717,7 @@ void compile_rbtree_next(Label label, X64 *x64) {
     x64->op(SHLQ, RCX, 1);
     
     x64->code_label(find_leftmost);
-    x64->op(MOVQ, RDX, Address(RSI, RBX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, RDX, Address(SELFX, RBX, RBNODE_LEFT_OFFSET));
     x64->op(CMPQ, RDX, RBNODE_NIL);
     x64->op(JNE, loop_leftmost);
     
@@ -782,7 +788,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = ContainerInitializerValue::precompile(preferred);
-        return clob | RAX | RSI | RDI | COMPARE_CLOB;
+        return clob | SELFX | ROOTX | KEYX | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -799,16 +805,16 @@ public:
         for (auto &elem : elems) {
             elem->compile_and_store(x64, Storage(STACK));
 
-            x64->op(MOVQ, RDI, RSP);  // save key address for stack usage
-            x64->op(MOVQ, RSI, Address(RSP, stack_size));  // Rbtree without incref
-            x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
+            x64->op(MOVQ, KEYX, RSP);  // save key address for stack usage
+            x64->op(MOVQ, SELFX, Address(RSP, stack_size));  // Rbtree without incref
+            x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
 
             x64->op(CALL, add_label);
 
-            x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
-            x64->op(ANDQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken root
+            x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+            x64->op(ANDQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
         
-            elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
+            elem_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), x64);
         }
         
         return Storage(STACK);
@@ -866,7 +872,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RSI | RDI | COMPARE_CLOB;
+        return clob | SELFX | ROOTX | KEYX | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -875,12 +881,12 @@ public:
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
-        x64->op(MOVQ, RDI, RSP);  // save key address for stack usage
-        x64->op(MOVQ, RSI, Address(RSP, key_size));  // Rbtree without incref
-        x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
+        x64->op(MOVQ, KEYX, RSP);  // save key address for stack usage
+        x64->op(MOVQ, SELFX, Address(RSP, key_size));  // Rbtree without incref
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
         
         x64->op(CALL, has);
-        x64->op(CMPQ, RDI, RBNODE_NIL);
+        x64->op(CMPQ, KEYX, RBNODE_NIL);
         x64->op(SETNE, AL);
         
         elem_ts.store(Storage(STACK), Storage(), x64);
@@ -902,7 +908,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RCX | RDX | RSI | RDI | COMPARE_CLOB;
+        return clob | SELFX | ROOTX | KEYX | THISX | THATX | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -912,16 +918,16 @@ public:
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
 
-        x64->op(MOVQ, RDI, RSP);  // save key address for stack usage
-        x64->op(MOVQ, RSI, Address(RSP, key_size));  // Rbtree without incref
-        x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
+        x64->op(MOVQ, KEYX, RSP);  // save key address for stack usage
+        x64->op(MOVQ, SELFX, Address(RSP, key_size));  // Rbtree without incref
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
 
         x64->op(CALL, add);
 
-        x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
-        x64->op(ANDQ, Address(RSI, RBX, RBNODE_PREV_IS_RED_OFFSET), -2);  // blacken root
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+        x64->op(ANDQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
         
-        x64->op(CMPQ, RDI, RBNODE_NIL);
+        x64->op(CMPQ, KEYX, RBNODE_NIL);
         x64->op(JNE, ok);
         
         // Non-autogrowing Rbtree-s only raise a CONTAINER_FULL exception, if the operation
@@ -933,7 +939,7 @@ public:
             x64->runtime->die("Rbtree full even if autogrowing!");
         
         x64->code_label(ok);
-        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RSI, RDI, RBNODE_VALUE_OFFSET)), x64);
+        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), x64);
         left->ts.store(Storage(STACK), Storage(), x64);
         
         return Storage();
@@ -952,7 +958,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RCX | RDX | RSI | RDI | COMPARE_CLOB;
+        return clob | SELFX | ROOTX | KEYX | THISX | THATX | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -961,13 +967,13 @@ public:
         
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
 
-        x64->op(MOVQ, RDI, RSP);  // save key address for stack usage
-        x64->op(MOVQ, RSI, Address(RSP, key_size));  // Rbtree without incref
-        x64->op(MOVQ, RAX, Address(RSI, RBTREE_ROOT_OFFSET));
+        x64->op(MOVQ, KEYX, RSP);  // save key address for stack usage
+        x64->op(MOVQ, SELFX, Address(RSP, key_size));  // Rbtree without incref
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
 
         x64->op(CALL, remove);
 
-        x64->op(MOVQ, Address(RSI, RBTREE_ROOT_OFFSET), RBX);
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
         
         elem_ts.store(Storage(STACK), Storage(), x64);
         left->ts.store(Storage(STACK), Storage(), x64);
@@ -1058,8 +1064,8 @@ public:
             x64->op(ADDQ, reg, RBX);
             
             if (is_down) {
-                x64->op(MOVQ, RBX, Address(reg, RBNODE_PREV_IS_RED_OFFSET));
-                x64->op(ANDQ, RBX, -2);  // remove color bit
+                x64->op(MOVQ, RBX, Address(reg, RBNODE_PRED_OFFSET));
+                x64->op(ANDQ, RBX, ~RBNODE_RED_BIT);  // remove color bit
             }
             else {
                 x64->op(MOVQ, RBX, Address(reg, RBNODE_NEXT_OFFSET));
@@ -1106,7 +1112,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
         
-        return clob | RAX | RCX | RDX | RSI;
+        return clob | RAX | RCX | RDX | SELFX;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -1117,7 +1123,7 @@ public:
 
         x64->op(MOVQ, RCX, Address(RSP, 0));
         x64->op(MOVQ, RAX, Address(RCX, REFERENCE_SIZE));  // it
-        x64->op(MOVQ, RSI, Address(RCX, 0)); // tree reference without incref
+        x64->op(MOVQ, SELFX, Address(RCX, 0)); // tree reference without incref
 
         x64->op(CALL, next_label);
         
@@ -1129,8 +1135,392 @@ public:
         
         x64->code_label(ok);
         x64->op(MOVQ, Address(RCX, REFERENCE_SIZE), RAX);  // save it
-        x64->op(LEA, RAX, Address(RSI, RBX, RBNODE_VALUE_OFFSET));
+        x64->op(LEA, RAX, Address(SELFX, RBX, RBNODE_VALUE_OFFSET));
 
         return Storage(MEMORY, Address(RAX, 0));
     }
 };
+
+
+// Map and friends
+
+class MapAddValue: public Value {
+public:
+    TypeSpec key_ts, value_ts, item_ts, key_arg_ts, value_arg_ts;
+    std::unique_ptr<Value> pivot, key, value;
+
+    MapAddValue(Value *l, TypeMatch &match)
+        :Value(VOID_TS) {
+        pivot.reset(l->lookup_inner("wrapped")->lookup_inner("autogrow"));
+        key_ts = match[1];
+        value_ts = match[2];
+        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        
+        // To help subclasses tweaking these
+        key_arg_ts = key_ts;
+        value_arg_ts = value_ts;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        // Autogrow stuff
+        Args fake_args;
+        Kwargs fake_kwargs;
+        if (!pivot->check(fake_args, fake_kwargs, scope))
+            return false;
+
+        return check_arguments(args, kwargs, {
+            { "key", &key_arg_ts, scope, &key },
+            { "value", &value_arg_ts, scope, &value }  // disabled if NO_TS
+        });
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        
+        if (value)
+            clob = clob | value->precompile(preferred);
+        
+        // We build on this in WeakValueMap::precreate
+        return clob | SELFX | ROOTX | KEYX | THISX | THATX | COMPARE_CLOB;
+    }
+
+    virtual void prekey(Address alias_addr, X64 *x64) {
+        // To be overridden
+    }
+
+    virtual void prevalue(Address alias_addr, X64 *x64) {
+        // To be overridden
+    }
+
+    virtual Storage compile(X64 *x64) {
+        pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
+        key->compile_and_store(x64, Storage(STACK));
+        
+        if (value)
+            value->compile_and_store(x64, Storage(STACK));
+
+        int key_size = key_ts.measure_stack();  // NOTE: as it's in an Item, it is rounded up
+        int key_stack_size = key_arg_ts.measure_stack();
+        int value_stack_size = value_arg_ts != NO_TS ? value_arg_ts.measure_stack() : 0;
+        
+        Label add_label = x64->once->compile(compile_rbtree_add, item_ts);
+
+        x64->op(MOVQ, RBX, Address(RSP, key_stack_size + value_stack_size));
+        x64->op(MOVQ, SELFX, Address(RBX, 0));
+
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, KEYX, Address(RSP, value_stack_size));
+
+        x64->op(CALL, add_label);
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+        x64->op(ANDQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
+
+        // NOTE: we abuse the fact that Item contains index first, and value second,
+        // and since they're parametric types, their sizes will be rounded up.
+        if (value) {
+            prevalue(Address(RSP, key_stack_size + value_stack_size), x64);
+            value_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size)), x64);
+        }
+        
+        prekey(Address(RSP, key_stack_size), x64);
+        key_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), x64);
+
+        pivot->ts.store(Storage(ALISTACK), Storage(), x64);
+        
+        return Storage();
+    }
+};
+
+
+class MapRemoveValue: public Value {
+public:
+    TypeSpec key_ts, item_ts, key_arg_ts;
+    std::unique_ptr<Value> pivot, key;
+
+    MapRemoveValue(Value *l, TypeMatch &match)
+        :Value(VOID_TS) {
+        pivot.reset(l);
+        key_ts = match[1];
+        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        
+        key_arg_ts = key_ts;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return check_arguments(args, kwargs, {
+            { "key", &key_arg_ts, scope, &key }
+        });
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        return clob | SELFX | KEYX | ROOTX | THISX | THATX | COMPARE_CLOB;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        pivot->compile_and_store(x64, Storage(STACK));
+        key->compile_and_store(x64, Storage(STACK));
+
+        int key_stack_size = key_arg_ts.measure_stack();
+        
+        Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
+
+        x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
+        x64->op(MOVQ, SELFX, Address(RBX, CLASS_MEMBERS_OFFSET));
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, KEYX, Address(RSP, 0));  // NOTE: only the index part is present of the Item
+
+        x64->op(CALL, remove_label);
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+
+        key_arg_ts.store(Storage(STACK), Storage(), x64);
+        pivot->ts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage();
+    }
+};
+
+
+class MapIndexValue: public Value {
+public:
+    TypeSpec key_ts, value_ts, item_ts, key_arg_ts;
+    std::unique_ptr<Value> pivot, key, value;
+
+    MapIndexValue(Value *l, TypeMatch &match)
+        :Value(match[2]) {
+        pivot.reset(l);
+        key_ts = match[1];
+        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        
+        key_arg_ts = key_ts;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return check_arguments(args, kwargs, {
+            { "key", &key_arg_ts, scope, &key }
+        });
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        return clob | SELFX | KEYX | ROOTX | THISX | THATX | COMPARE_CLOB;
+    }
+
+    virtual Storage postresult(X64 *x64) {
+        int key_size = key_ts.measure_stack();  // in an Item it's rounded up
+
+        Label ok;
+        x64->op(CMPQ, KEYX, RBNODE_NIL);
+        x64->op(JNE, ok);
+
+        x64->runtime->die("Map missing!");  // TODO
+
+        x64->code_label(ok);
+        
+        return Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size));
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int key_stack_size = key_arg_ts.measure_stack();
+        
+        pivot->compile_and_store(x64, Storage(STACK));
+        key->compile_and_store(x64, Storage(STACK));
+        
+        Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
+
+        x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
+        x64->op(MOVQ, SELFX, Address(RBX, CLASS_MEMBERS_OFFSET));
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, KEYX, Address(RSP, 0));
+
+        x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
+        
+        key_arg_ts.store(Storage(STACK), Storage(), x64);
+        pivot->ts.store(Storage(STACK), Storage(), x64);
+        
+        return postresult(x64);
+    }
+};
+
+
+// Weak map helpers
+
+static void compile_process_fcb(Label label, TypeSpec item_ts, X64 *x64) {
+    x64->code_label_local(label, "xy_weakmap_callback");
+    // RAX - fcb, RCX - payload1, RDX - payload2
+    // We may clobber all registers
+    // FIXME: make sure these registers can be safely moved to the RB-pseudoregisters!
+
+    std::stringstream ss;
+    ss << item_ts << " callback";
+    x64->runtime->log(ss.str().c_str());  // "WeakMap callback.");
+    
+    Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
+
+    x64->op(MOVQ, SELFX, Address(RCX, 0));  // load current rbtree ref
+    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+    x64->op(LEA, KEYX, Address(SELFX, RDX, RBNODE_VALUE_OFFSET));
+
+    x64->op(CALL, remove_label);
+    
+    x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+    
+    x64->op(RET);
+}
+
+
+static void alloc_fcb(TypeSpec item_ts, Address alias_addr, X64 *x64) {
+    // Allocate and push a FCB pointer. We may clobber RAX, RBX, RCX, RDX.
+    Label callback_label = x64->once->compile(compile_process_fcb, item_ts);
+    
+    x64->op(MOVQ, RAX, Address(RSP, 0));  // referred heap object
+    x64->op(LEARIP, RBX, callback_label);  // callback
+    x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
+    x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
+    
+    x64->op(CALL, x64->runtime->alloc_fcb_label);
+    
+    x64->op(PUSHQ, RAX);  // last minute weakanchor
+}
+
+
+// WeakValueMap
+
+TypeMatch &wvmatch(TypeMatch &match) {
+    static TypeMatch tm;
+    tm[0] = typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_WEAKREF_TS, match);
+    tm[1] = match[1];
+    tm[2] = match[2].prefix(weakanchor_type);
+    tm[3] = NO_TS;
+    return tm;
+}
+
+
+class WeakValueMapAddValue: public MapAddValue {
+public:
+    WeakValueMapAddValue(Value *l, TypeMatch &match)
+        :MapAddValue(l, wvmatch(match)) {
+        value_arg_ts = value_ts.reprefix(weakanchor_type, weakref_type);
+    }
+
+    virtual void prevalue(Address alias_addr, X64 *x64) {
+        alloc_fcb(item_ts, alias_addr, x64);
+    }
+};
+
+
+class WeakValueMapRemoveValue: public MapRemoveValue {
+public:
+    WeakValueMapRemoveValue(Value *l, TypeMatch &match)
+        :MapRemoveValue(l, wvmatch(match)) {
+    }
+};
+
+
+class WeakValueMapIndexValue: public MapIndexValue {
+public:
+    WeakValueMapIndexValue(Value *l, TypeMatch &match)
+        :MapIndexValue(l, wvmatch(match)) {
+        ts = ts.reprefix(weakanchor_type, weakref_type);
+    }
+};
+
+
+// WeakIndexMap
+
+TypeMatch &wimatch(TypeMatch &match) {
+    static TypeMatch tm;
+    tm[0] = typesubst(SAMEID_WEAKANCHOR_SAME2_MAP_WEAKREF_TS, match);
+    tm[1] = match[1].prefix(weakanchor_type);
+    tm[2] = match[2];
+    tm[3] = NO_TS;
+    return tm;
+}
+
+
+class WeakIndexMapAddValue: public MapAddValue {
+public:
+    WeakIndexMapAddValue(Value *l, TypeMatch &match)
+        :MapAddValue(l, wimatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+    }
+
+    virtual void prekey(Address alias_addr, X64 *x64) {
+        alloc_fcb(item_ts, alias_addr, x64);
+    }
+};
+
+
+class WeakIndexMapRemoveValue: public MapRemoveValue {
+public:
+    WeakIndexMapRemoveValue(Value *l, TypeMatch &match)
+        :MapRemoveValue(l, wimatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+    }
+};
+
+
+class WeakIndexMapIndexValue: public MapIndexValue {
+public:
+    WeakIndexMapIndexValue(Value *l, TypeMatch &match)
+        :MapIndexValue(l, wimatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+    }
+};
+
+
+// WeakSet
+
+TypeMatch &wsmatch(TypeMatch &match) {
+    static TypeMatch tm;
+    tm[0] = typesubst(SAMEID_WEAKANCHOR_VOID_MAP_WEAKREF_TS, match);
+    tm[1] = match[1].prefix(weakanchor_type);
+    tm[2] = VOID_TS;
+    tm[3] = NO_TS;
+    return tm;
+}
+
+
+class WeakSetAddValue: public MapAddValue {
+public:
+    WeakSetAddValue(Value *l, TypeMatch &match)
+        :MapAddValue(l, wsmatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        value_arg_ts = NO_TS;
+    }
+
+    virtual void prekey(Address alias_addr, X64 *x64) {
+        alloc_fcb(item_ts, alias_addr, x64);
+    }
+};
+
+
+class WeakSetRemoveValue: public MapRemoveValue {
+public:
+    WeakSetRemoveValue(Value *l, TypeMatch &match)
+        :MapRemoveValue(l, wsmatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+    }
+};
+
+
+class WeakSetIndexValue: public MapIndexValue {
+public:
+    WeakSetIndexValue(Value *l, TypeMatch &match)
+        :MapIndexValue(l, wsmatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        ts = BOOLEAN_TS;
+    }
+
+    virtual Storage postresult(X64 *x64) {
+        x64->op(CMPQ, KEYX, RBNODE_NIL);
+        
+        return Storage(FLAGS, SETNE);
+    }
+};
+
+#undef SELFX
+#undef KEYX
+#undef ROOTX
+#undef THISX
+#undef THATX

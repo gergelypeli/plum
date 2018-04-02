@@ -497,8 +497,8 @@ public:
         
         x64->code_label(loop);
         elem_ts.destroy(Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), x64);
-        x64->op(MOVQ, RCX, Address(RAX, RCX, RBNODE_PREV_IS_RED_OFFSET));
-        x64->op(ANDQ, RCX, -2);
+        x64->op(MOVQ, RCX, Address(RAX, RCX, RBNODE_PRED_OFFSET));
+        x64->op(ANDQ, RCX, ~RBNODE_RED_BIT);
         
         x64->code_label(cond);
         x64->op(CMPQ, RCX, RBNODE_NIL);

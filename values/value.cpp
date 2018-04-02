@@ -473,7 +473,6 @@ public:
 #include "control.cpp"
 #include "stream.cpp"
 #include "class.cpp"
-#include "map.cpp"
 #include "literal.cpp"
 #include "typedefinition.cpp"
 #include "function.cpp"
