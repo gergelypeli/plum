@@ -229,8 +229,8 @@ Value *make_equality_value(bool no, Value *v) {
 }
 
 
-Value *make_comparison_value(BitSetOp bs, Value *v) {
-    return new ComparisonValue(bs, v);
+Value *make_comparison_value(ConditionCode cc, Value *v) {
+    return new ComparisonValue(cc, v);
 }
 
 

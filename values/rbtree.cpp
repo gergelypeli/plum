@@ -853,7 +853,7 @@ public:
     virtual Storage postresult(X64 *x64) {
         x64->op(CMPQ, KEYX, RBNODE_NIL);
         
-        return Storage(FLAGS, SETNE);
+        return Storage(FLAGS, CC_NOT_EQUAL);
     }
 };
 

@@ -40,13 +40,13 @@ public:
         case CONSTANT:
             return Storage(CONSTANT, !s.value);
         case FLAGS:
-            return Storage(FLAGS, negate(s.bitset));
+            return Storage(FLAGS, negated(s.cc));
         case REGISTER:
             x64->op(CMPB, s.reg, 0);
-            return Storage(FLAGS, SETE);
+            return Storage(FLAGS, CC_EQUAL);
         case MEMORY:
             x64->op(CMPB, s.address, 0);
-            return Storage(FLAGS, SETE);
+            return Storage(FLAGS, CC_EQUAL);
         default:
             throw INTERNAL_ERROR;
         }
@@ -94,7 +94,7 @@ public:
             else
                 return right->compile(x64);
         case FLAGS:
-            x64->op(branchize(need_true ? ls.bitset : negate(ls.bitset)), right_end);
+            x64->op(branch(need_true ? ls.cc : negated(ls.cc)), right_end);
             break;
         case REGISTER:
             x64->op(CMPB, ls.reg, need_true ? 1 : 0);
@@ -118,7 +118,7 @@ public:
         rs = right->compile(x64);
         
         if (
-            (ls.where == FLAGS && rs.where == FLAGS && ls.bitset == rs.bitset) ||
+            (ls.where == FLAGS && rs.where == FLAGS && ls.cc == rs.cc) ||
             (ls.where == REGISTER && rs.where == REGISTER && ls.reg == rs.reg) ||
             (ls.where == STACK && rs.where == STACK)
         ) {
@@ -130,7 +130,7 @@ public:
             // Use the left storage, move only the right side result
             switch (rs.where) {
             case FLAGS:
-                x64->op(rs.bitset, ls.reg);
+                x64->op(bitset(rs.cc), ls.reg);
                 break;
             case REGISTER:
                 x64->op(MOVB, ls.reg, rs.reg);
@@ -152,7 +152,7 @@ public:
             // Find a register, and use it to store the result from both sides
             switch (rs.where) {
             case FLAGS:
-                x64->op(rs.bitset, reg);
+                x64->op(bitset(rs.cc), reg);
                 break;
             case REGISTER:
                 reg = rs.reg;

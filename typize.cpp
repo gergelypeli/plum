@@ -106,16 +106,18 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
             Value *fallback = lookup_unchecked("compare", pivot, scope);
             
             if (fallback) {
-                BitSetOp bs = (
-                    name == "is_equal" ? SETE :
-                    name == "not_equal" ? SETNE :
-                    name == "is_less" ? SETL :
-                    name == "is_greater" ? SETG :
-                    name == "not_less" ? SETGE :
-                    name == "not_greater" ? SETLE :
+                // Comparison results are signed integers
+                ConditionCode cc = (
+                    name == "is_equal" ? CC_EQUAL :
+                    name == "not_equal" ? CC_NOT_EQUAL :
+                    name == "is_less" ? CC_LESS :
+                    name == "is_greater" ? CC_GREATER :
+                    name == "not_less" ? CC_GREATER_EQUAL :
+                    name == "not_greater" ? CC_LESS_EQUAL :
                     throw INTERNAL_ERROR
                 );
-                value = make_comparison_value(bs, fallback);
+                
+                value = make_comparison_value(cc, fallback);
             }
         }
     }

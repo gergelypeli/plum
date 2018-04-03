@@ -40,14 +40,14 @@ public:
         case FLAGS_FLAGS:
             return;
         case FLAGS_REGISTER:
-            x64->op(s.bitset, t.reg);
+            x64->op(bitset(s.cc), t.reg);
             return;
         case FLAGS_STACK:
-            x64->op(s.bitset, BL);
+            x64->op(bitset(s.cc), BL);
             x64->op(PUSHQ, RBX);
             return;
         case FLAGS_MEMORY:
-            x64->op(s.bitset, t.address);
+            x64->op(bitset(s.cc), t.address);
             return;
 
         case REGISTER_NOWHERE:
@@ -120,7 +120,7 @@ public:
             x64->op(mov, t.address, s.value);
             return;
         case FLAGS_MEMORY:
-            x64->op(s.bitset, t.address);
+            x64->op(bitset(s.cc), t.address);
             return;
         case REGISTER_MEMORY:
             x64->op(mov, t.address, s.reg);

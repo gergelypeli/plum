@@ -152,11 +152,11 @@ public:
             break;
         case FLAGS:
             if (then_branch) {
-                BranchOp opcode = branchize(negate(cs.bitset));
+                BranchOp opcode = branch(negated(cs.cc));
                 x64->op(opcode, then_end);
             }
             else if (else_branch) {
-                BranchOp opcode = branchize(cs.bitset);
+                BranchOp opcode = branch(cs.cc);
                 x64->op(opcode, else_end);
             }
             break;
@@ -312,7 +312,7 @@ public:
                     x64->op(JMP, end);
                 break;
             case FLAGS:
-                x64->op(branchize(negate(cs.bitset)), end);
+                x64->op(branch(negated(cs.cc)), end);
                 break;
             case REGISTER:
                 x64->op(CMPB, cs.reg, 0);

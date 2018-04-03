@@ -40,6 +40,18 @@ std::ostream &operator << (std::ostream &os, const Register r) {
 }
 
 
+std::ostream &operator << (std::ostream &os, const SseRegister r) {
+    os << (r == NOXMM ? "---" : SSE_REGISTER_NAMES[r]);
+    return os;
+}
+
+
+std::ostream &operator << (std::ostream &os, const ConditionCode cc) {
+    os << (cc == CC_NONE ? "---" : CONDITION_NAMES[cc]);
+    return os;
+}
+
+
 Address::Address() {
     base = NOREG;
     index = NOREG;

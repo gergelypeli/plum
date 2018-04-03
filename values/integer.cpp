@@ -388,18 +388,18 @@ public:
         return Storage(REGISTER, RDX);
     }
 
-    virtual Storage binary_compare(X64 *x64, BitSetOp opcode) {
+    virtual Storage binary_compare(X64 *x64, ConditionCode cc) {
         subcompile(x64);
 
         switch (ls.where * rs.where) {
         case CONSTANT_CONSTANT: {
             bool holds = (
-                opcode == SETE ? ls.value == rs.value :
-                opcode == SETNE ? ls.value != rs.value :
-                opcode == SETL || opcode == SETB ? ls.value < rs.value :
-                opcode == SETLE || opcode == SETBE ? ls.value <= rs.value :
-                opcode == SETG || opcode == SETA ? ls.value > rs.value :
-                opcode == SETGE || opcode == SETAE ? ls.value >= rs.value :
+                cc == CC_EQUAL ? ls.value == rs.value :
+                cc == CC_NOT_EQUAL ? ls.value != rs.value :
+                cc == CC_LESS || cc == CC_BELOW ? ls.value < rs.value :
+                cc == CC_LESS_EQUAL || cc == CC_BELOW_EQUAL ? ls.value <= rs.value :
+                cc == CC_GREATER || cc == CC_ABOVE ? ls.value > rs.value :
+                cc == CC_GREATER_EQUAL || cc == CC_ABOVE_EQUAL ? ls.value >= rs.value :
                 throw INTERNAL_ERROR
             );
 
@@ -407,29 +407,29 @@ public:
             }
         case CONSTANT_REGISTER:
             x64->op(CMPQ % os, rs.reg, ls.value);
-            return Storage(FLAGS, negate_ordering(opcode));
+            return Storage(FLAGS, swapped(cc));
         case CONSTANT_MEMORY:
             x64->op(CMPQ % os, rs.address, ls.value);
-            return Storage(FLAGS, negate_ordering(opcode));
+            return Storage(FLAGS, swapped(cc));
         case REGISTER_CONSTANT:
             x64->op(CMPQ % os, ls.reg, rs.value);
-            return Storage(FLAGS, opcode);
+            return Storage(FLAGS, cc);
         case REGISTER_REGISTER:
             x64->op(CMPQ % os, ls.reg, rs.reg);
-            return Storage(FLAGS, opcode);
+            return Storage(FLAGS, cc);
         case REGISTER_MEMORY:
             x64->op(CMPQ % os, ls.reg, rs.address);
-            return Storage(FLAGS, opcode);
+            return Storage(FLAGS, cc);
         case MEMORY_CONSTANT:
             x64->op(CMPQ % os, ls.address, rs.value);
-            return Storage(FLAGS, opcode);
+            return Storage(FLAGS, cc);
         case MEMORY_REGISTER:
             x64->op(CMPQ % os, ls.address, rs.reg);
-            return Storage(FLAGS, opcode);
+            return Storage(FLAGS, cc);
         case MEMORY_MEMORY:
             x64->op(MOVQ % os, reg, ls.address);
             x64->op(CMPQ % os, reg, rs.address);
-            return Storage(FLAGS, opcode);
+            return Storage(FLAGS, cc);
         default:
             throw INTERNAL_ERROR;
         }
@@ -607,21 +607,17 @@ public:
         case EXPONENT:
             return binary_exponent(x64, false);
         case EQUAL:
-            return binary_compare(x64, SETE);
+            return binary_compare(x64, CC_EQUAL);
         case NOT_EQUAL:
-            return binary_compare(x64, SETNE);
+            return binary_compare(x64, CC_NOT_EQUAL);
         case LESS:
-            return binary_compare(x64, is_unsigned ? SETB : SETL);
+            return binary_compare(x64, is_unsigned ? CC_BELOW : CC_LESS);
         case GREATER:
-            return binary_compare(x64, is_unsigned ? SETA : SETG);
+            return binary_compare(x64, is_unsigned ? CC_ABOVE : CC_GREATER);
         case LESS_EQUAL:
-            return binary_compare(x64, is_unsigned ? SETBE : SETLE);
+            return binary_compare(x64, is_unsigned ? CC_BELOW_EQUAL : CC_LESS_EQUAL);
         case GREATER_EQUAL:
-            return binary_compare(x64, is_unsigned ? SETAE : SETGE);
-        //case INCOMPARABLE:
-        //    return Storage(CONSTANT, 0);
-        //case ASSIGN:
-        //    return assign_binary(x64, MOVQ);
+            return binary_compare(x64, is_unsigned ? CC_ABOVE_EQUAL : CC_GREATER_EQUAL);
         case ASSIGN_ADD:
             return assign_binary(x64, ADDQ);
         case ASSIGN_SUBTRACT:

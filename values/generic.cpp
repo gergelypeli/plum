@@ -407,7 +407,7 @@ public:
         if (pop)
             x64->op(LEA, RSP, Address(RSP, pop));  // leave flags
         
-        return Storage(FLAGS, negate ? SETNE : SETE);
+        return Storage(FLAGS, negate ? CC_NOT_EQUAL : CC_EQUAL);
     }
 
     virtual Storage compile(X64 *x64) {

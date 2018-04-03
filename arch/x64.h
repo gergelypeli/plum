@@ -24,9 +24,63 @@ enum Register {
 };
 
 
-enum SseRegister {
-    XMM0=0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7, XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15
+const char *SSE_REGISTER_NAMES[] = {
+    "XMM0", "XMM1", "XMM2", "XMM3", "XMM4", "XMM5", "XMM6", "XMM7",
+    "XMM8", "XMM9", "XMM10", "XMM11", "XMM12", "XMM13", "XMM14", "XMM15",
 };
+
+enum SseRegister {
+    XMM0=0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
+    XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15,
+    NOXMM=-1
+};
+
+
+const char *CONDITION_NAMES[] = {
+    "OVERFLOW", "NOT_OVERFLOW",
+    "BELOW", "ABOVE_EQUAL",
+    "EQUAL", "NOT_EQUAL",
+    "BELOW_EQUAL", "ABOVE",
+    "SIGN", "NOT_SIGN",
+    "PARITY", "NOT_PARITY",
+    "LESS", "GREATER_EQUAL",
+    "LESS_EQUAL", "GREATER"
+};
+
+enum ConditionCode {
+    CC_OVERFLOW=0, CC_NOT_OVERFLOW,
+    CC_BELOW, CC_ABOVE_EQUAL,
+    CC_EQUAL, CC_NOT_EQUAL,
+    CC_BELOW_EQUAL, CC_ABOVE,
+    CC_SIGN, CC_NOT_SIGN,
+    CC_PARITY, CC_NOT_PARITY,
+    CC_LESS, CC_GREATER_EQUAL,
+    CC_LESS_EQUAL, CC_GREATER,
+    CC_NONE
+};
+
+
+ConditionCode negated(ConditionCode cc) {
+    // The lowest bit negates the condition meaning
+    return cc != CC_NONE ? (ConditionCode)(cc ^ 1) : throw X64_ERROR;
+}
+
+
+ConditionCode swapped(ConditionCode cc) {
+    return (
+        cc == CC_EQUAL ? CC_EQUAL :
+        cc == CC_NOT_EQUAL ? CC_NOT_EQUAL :
+        cc == CC_BELOW ? CC_ABOVE :
+        cc == CC_ABOVE ? CC_BELOW :
+        cc == CC_BELOW_EQUAL ? CC_ABOVE_EQUAL :
+        cc == CC_ABOVE_EQUAL ? CC_BELOW_EQUAL :
+        cc == CC_LESS ? CC_GREATER :
+        cc == CC_GREATER ? CC_LESS :
+        cc == CC_LESS_EQUAL ? CC_GREATER_EQUAL :
+        cc == CC_GREATER_EQUAL ? CC_LESS_EQUAL :
+        throw X64_ERROR
+    );
+}
 
 
 enum Slash {
@@ -340,6 +394,12 @@ enum BranchOp {
 };
 
 
+BranchOp branch(ConditionCode cc) {
+    // Both enums are just condition bits, so converting between them is straightforward
+    return cc != CC_NONE ? (BranchOp)cc : throw X64_ERROR;
+}
+
+
 enum JumpOp {
     CALL, JMP
 };
@@ -347,25 +407,13 @@ enum JumpOp {
 
 enum BitSetOp {
     SETO, SETNO, SETB, SETAE, SETE, SETNE, SETBE, SETA,
-    SETS, SETNS, SETP, SETNP, SETL, SETGE, SETLE, SETG,
-    NOSET=-1
+    SETS, SETNS, SETP, SETNP, SETL, SETGE, SETLE, SETG
 };
 
 
-BitSetOp negate(BitSetOp opcode) {
-    // The lowest bit negates the condition meaning
-    return (BitSetOp)(opcode ^ 1);
-}
-
-
-BitSetOp negate_ordering(BitSetOp opcode) {
-    return opcode == SETE || opcode == SETNE ? opcode : opcode != NOSET ? negate(opcode) : throw X64_ERROR;
-}
-
-
-BranchOp branchize(BitSetOp opcode) {
+BitSetOp bitset(ConditionCode cc) {
     // Both enums are just condition bits, so converting between them is straightforward
-    return opcode != NOSET ? (BranchOp)opcode : throw X64_ERROR;
+    return cc != CC_NONE ? (BitSetOp)cc : throw X64_ERROR;
 }
 
 

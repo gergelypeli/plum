@@ -81,7 +81,7 @@ Value *make_interface_definition_value();
 Value *make_implementation_definition_value();
 Value *make_cast_value(Value *v, TypeSpec ts);
 Value *make_equality_value(bool no, Value *v);
-Value *make_comparison_value(BitSetOp bs, Value *v);
+Value *make_comparison_value(ConditionCode cc, Value *v);
 Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v);
 Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec res_ts, std::string operation_name, std::string arg_operation_name);
 Value *make_class_wrapper_initializer_value(Value *object, Value *value);

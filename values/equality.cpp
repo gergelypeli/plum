@@ -29,7 +29,7 @@ public:
         case CONSTANT:
             return Storage(CONSTANT, !s.value);
         case FLAGS:
-            return Storage(FLAGS, negate(s.bitset));
+            return Storage(FLAGS, negated(s.cc));
         case REGISTER:
             x64->op(CMPB, s.reg, 0);
             return Storage(FLAGS, SETE);
@@ -45,12 +45,12 @@ public:
 
 class ComparisonValue: public Value {
 public:
-    BitSetOp bitset;
+    ConditionCode cc;
     std::unique_ptr<Value> value;
 
-    ComparisonValue(BitSetOp b, Value *v)
+    ComparisonValue(ConditionCode c, Value *v)
         :Value(BOOLEAN_TS) {
-        bitset = b;
+        cc = c;
         value.reset(v);
     }
 
@@ -63,7 +63,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        // Returns an integer representing the ordering of the arguments
+        // Value returns an integer representing the ordering of the arguments
         Storage s = value->compile(x64);
 
         switch (s.where) {
@@ -77,7 +77,7 @@ public:
             throw INTERNAL_ERROR;
         }
 
-        return Storage(FLAGS, bitset);
+        return Storage(FLAGS, cc);
     }
 };
 

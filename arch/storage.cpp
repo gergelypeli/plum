@@ -27,14 +27,14 @@ StorageWhere stacked(StorageWhere w) {
 struct Storage {
     StorageWhere where;
     int value;  // Must be 32-bit only, greater values must be loaded to registers.
-    BitSetOp bitset;
+    ConditionCode cc;
     Register reg;
     Address address;
     
     Storage() {
         where = NOWHERE;
         value = 0;
-        bitset = NOSET;
+        cc = CC_NONE;
         reg = NOREG;
     }
 
@@ -46,7 +46,7 @@ struct Storage {
         
         where = w;
         value = 0;
-        bitset = NOSET;
+        cc = CC_NONE;
         reg = NOREG;
     }
 
@@ -58,11 +58,11 @@ struct Storage {
 
         where = w;
         value = v;
-        bitset = NOSET;
+        cc = CC_NONE;
         reg = NOREG;
     }
 
-    Storage(StorageWhere w, BitSetOp b) {
+    Storage(StorageWhere w, ConditionCode c) {
         if (w != FLAGS) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -70,7 +70,7 @@ struct Storage {
 
         where = w;
         value = 0;
-        bitset = b;
+        cc = c;
         reg = NOREG;
     }
 
@@ -82,7 +82,7 @@ struct Storage {
 
         where = w;
         value = 0;
-        bitset = NOSET;
+        cc = CC_NONE;
         reg = r;
     }
     
@@ -94,7 +94,7 @@ struct Storage {
 
         where = w;
         value = 0;
-        bitset = NOSET;
+        cc = CC_NONE;
         reg = NOREG;
         address = a;
     }
@@ -171,7 +171,7 @@ std::ostream &operator<<(std::ostream &os, Storage &s) {
     else if (s.where == CONSTANT)
         os << "CONSTANT(" << s.value << ")";
     else if (s.where == FLAGS)
-        os << "FLAGS(" << s.bitset << ")";
+        os << "FLAGS(" << s.cc << ")";
     else if (s.where == REGISTER)
         os << "REGISTER(" << s.reg << ")";
     else if (s.where == STACK)
