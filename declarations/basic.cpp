@@ -267,6 +267,16 @@ public:
         make_inner_scope(TypeSpec { this });
     }
 
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+        // SysV
+        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+        x64->op(MOVQ, RSI, Address(RSP, 0));
+        
+        Label label;
+        x64->code_label_import(label, "streamify_boolean");
+        x64->runtime->call_sysv(label);
+    }
+
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         if (name == "false")
             return make_basic_value(tm[0], 0);

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
 
 #define PCRE2_CODE_UNIT_WIDTH 16
 #include <pcre2.h>
@@ -22,6 +23,7 @@ extern void empty_function();
 extern void finalize_reference_array();
 
 static int allocation_count = 0;
+static locale_t unfucked_locale;
 
 
 // Exported helpers
@@ -143,6 +145,13 @@ void *append_decode_utf8(void *character_array, char *bytes, long byte_length) {
 }
 
 
+void lvalue_append_decode_utf8(void **character_array_lvalue, char *byte_array, long byte_length) {
+    void *character_array = *character_array_lvalue;
+    character_array = append_decode_utf8(character_array, byte_array, byte_length);
+    *character_array_lvalue = character_array;
+}
+
+
 // Library functions
 
 void printi(long a) {
@@ -236,31 +245,31 @@ void *stringify_integer(long x) {
 
 void streamify_integer(long x, void **character_array_lvalue) {
     char byte_array[30];
-    int byte_length = snprintf(byte_array, sizeof(byte_array), "%ld", x);
-    
-    void *character_array = *character_array_lvalue;
-    character_array = append_decode_utf8(character_array, byte_array, byte_length);
-    *character_array_lvalue = character_array;
+    long byte_length = snprintf(byte_array, sizeof(byte_array), "%ld", x);
+    lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
 void streamify_unteger(unsigned long x, void **character_array_lvalue) {
     char byte_array[30];
-    int byte_length = snprintf(byte_array, sizeof(byte_array), "%lu", x);
-    
-    void *character_array = *character_array_lvalue;
-    character_array = append_decode_utf8(character_array, byte_array, byte_length);
-    *character_array_lvalue = character_array;
+    long byte_length = snprintf(byte_array, sizeof(byte_array), "%lu", x);
+    lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
 void streamify_boolean(unsigned char x, void **character_array_lvalue) {
     char *byte_array = (x ? "`true" : "`false");
-    int byte_length = strlen(byte_array);
-    
-    void *character_array = *character_array_lvalue;
-    character_array = append_decode_utf8(character_array, byte_array, byte_length);
-    *character_array_lvalue = character_array;
+    long byte_length = strlen(byte_array);
+    lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
+}
+
+
+void streamify_float(double x, void **character_array_lvalue) {
+    char byte_array[30];
+    locale_t xxx = uselocale(unfucked_locale);
+    long byte_length = snprintf(byte_array, sizeof(byte_array), "%g", x);
+    uselocale(xxx);
+    lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
@@ -348,7 +357,11 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
 extern void start();
 
 int main() {
+    unfucked_locale = newlocale(LC_NUMERIC_MASK, "C", NULL);
+    
     start();
+
+    freelocale(unfucked_locale);
 
     if (allocation_count)
         printf("Oops, the allocation count is %d!\n", allocation_count);

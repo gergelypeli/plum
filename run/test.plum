@@ -226,6 +226,7 @@ test_integers? :Function as:
     
     j? = -31.4e-01
     printd(j)
+    prints("Streamified as {j}" {})
     
     Mybyte? :Integer bytes: 1 is_unsigned: `false
     mybyte? Mybyte = -128

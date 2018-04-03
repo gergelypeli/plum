@@ -285,6 +285,7 @@ void builtin_types(Scope *root_scope) {
     CHARACTER_ARRAY_REF_TS = { ref_type, array_type, character_type };
     CHARACTER_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, character_type };
     FLOAT_TS = { float_type };
+    FLOAT_LVALUE_TS = { lvalue_type, float_type };
     ANYID_REF_TS = { ref_type, anyid_type };
     ANYID_REF_LVALUE_TS = { lvalue_type, ref_type, anyid_type };
     ANYID_WEAKREF_TS = { weakref_type, anyid_type };
@@ -417,7 +418,6 @@ void define_integers() {
 
     implement(integer_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
-        //new ImportedFunction("streamify_integer", "streamify", INTEGER_TS, GENERIC_FUNCTION, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
     });
     
     integer_scope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
@@ -880,7 +880,8 @@ Scope *init_builtins() {
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("compare", BOOLEAN_TS, COMPARE));
     implement(bool_scope, STREAMIFIABLE_TS, "sable", {
-        new ImportedFunction("streamify_boolean", "streamify", BOOLEAN_TS, GENERIC_FUNCTION, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", BOOLEAN_TS)
+        //new ImportedFunction("streamify_boolean", "streamify", BOOLEAN_TS, GENERIC_FUNCTION, TSs { STRING_LVALUE_TS }, Ss { "stream" }, TSs {}, NULL)
     });
 
     // Logical operations, unscoped
@@ -902,6 +903,14 @@ Scope *init_builtins() {
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     implement(treenum_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
+    });
+
+    // Float operations
+    Scope *float_scope = float_type->get_inner_scope(TypeMatch());
+    float_scope->add(new TemplateOperation<FloatOperationValue>("assign other", FLOAT_LVALUE_TS, ASSIGN));
+    float_scope->add(new TemplateOperation<FloatOperationValue>("compare", FLOAT_TS, COMPARE));
+    implement(float_scope, STREAMIFIABLE_TS, "sable", {
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", FLOAT_TS)
     });
 
     // Record operations

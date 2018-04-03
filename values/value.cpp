@@ -477,3 +477,4 @@ public:
 #include "typedefinition.cpp"
 #include "function.cpp"
 #include "option.cpp"
+#include "float.cpp"

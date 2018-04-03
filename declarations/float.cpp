@@ -5,6 +5,7 @@ class FloatType: public Type {
 public:
     FloatType(std::string n, Type *mt = NULL)
         :Type(n, {}, mt ? mt : value_metatype) {
+        make_inner_scope(TypeSpec { this });
     }
     
     virtual Allocation measure(TypeMatch tm) {
@@ -57,5 +58,15 @@ public:
             as_what == AS_ARGUMENT ? (as_lvalue ? ALIAS : MEMORY) :
             throw INTERNAL_ERROR
         );
+    }
+    
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+        // SysV
+        x64->op(MOVSD, XMM0, Address(RSP, ALIAS_SIZE));
+        x64->op(MOVQ, RDI, Address(RSP, 0));
+        
+        Label label;
+        x64->code_label_import(label, "streamify_float");
+        x64->runtime->call_sysv(label);
     }
 };

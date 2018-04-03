@@ -463,38 +463,41 @@ public:
     }
 
     virtual void sysv_prologue(X64 *x64, unsigned passed_size) {
-        switch (passed_size) {
-        case 0:
-            break;
-        case 8:
-            if (arg_tss.size() >= 1 && arg_tss[0] == FLOAT_TS)
-                x64->op(MOVSD, XMM0, Address(RSP, 0));  // TODO, really
-            else
-                x64->op(MOVQ, RDI, Address(RSP, 0));
-            break;
-        case 16:
-            x64->op(MOVQ, RDI, Address(RSP, 8));
-            x64->op(MOVQ, RSI, Address(RSP, 0));
-            break;
-        case 24:
-            x64->op(MOVQ, RDI, Address(RSP, 16));
-            x64->op(MOVQ, RSI, Address(RSP, 8));
-            x64->op(MOVQ, RDX, Address(RSP, 0));
-            break;
-        case 32:
-            x64->op(MOVQ, RDI, Address(RSP, 24));
-            x64->op(MOVQ, RSI, Address(RSP, 16));
-            x64->op(MOVQ, RDX, Address(RSP, 8));
-            x64->op(MOVQ, RCX, Address(RSP, 0));
-            break;
-        default:
+        if (arg_tss.size() > 5) {
             std::cerr << "Oops, too many arguments to a SysV function!\n";
             throw INTERNAL_ERROR;
         }
+        
+        Register regs[] = { RDI, RSI, RDX, RCX, R8, R9 };
+        SseRegister sses[] = { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
+        
+        std::vector<bool> is_floats;
+        
+        if (pivot_ts != NO_TS)
+            is_floats.push_back(pivot_ts == FLOAT_TS);
+            
+        for (unsigned i = 0; i < arg_tss.size(); i++)
+            is_floats.push_back(arg_tss[i] == FLOAT_TS);
+        
+        unsigned reg_index = 0;
+        unsigned sse_index = 0;
+        unsigned stack_offset = 0;
+        
+        for (bool is_float : is_floats) {
+            if (is_float)
+                x64->op(MOVSD, sses[sse_index++], Address(RSP, stack_offset));
+            else
+                x64->op(MOVQ, regs[reg_index++], Address(RSP, stack_offset));
+                
+            stack_offset += 8;
+        }
+        
+        if (stack_offset != passed_size)
+            throw INTERNAL_ERROR;
     }
     
     virtual void sysv_epilogue(X64 *x64, unsigned passed_size) {
-        x64->op(MOVQ, Address(ESP, passed_size), RAX);
+        x64->op(MOVQ, Address(RSP, passed_size), RAX);
     }
     
     virtual Regs precompile(Regs preferred) {
