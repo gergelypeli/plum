@@ -59,9 +59,9 @@ void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
 // SELFX - address of the tree
 // KEYX - address of key (input), dark soul (output during removal)
 
-#define SELFX RSI
-#define KEYX  RDI
-#define ROOTX RAX
+#define SELFX R8
+#define KEYX  R9
+#define ROOTX R10
 #define THISX RCX
 #define THATX RDX
 

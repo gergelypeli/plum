@@ -318,8 +318,38 @@ public:
     virtual Storage compare(X64 *x64) {
         subcompile(x64);
 
+        int pop = 0;
+        int stack_size = left->ts.measure_stack();
+        Storage s, t;
+        
+        // NOTE: we assume destroy leaves all data as it is
+        
+        if (ls.where == STACK && rs.where == STACK) {
+            s = Storage(MEMORY, Address(RSP, stack_size));
+            t = Storage(MEMORY, Address(RSP, 0));
+            right->ts.destroy(t, x64);
+            left->ts.destroy(s, x64);
+            pop = 2 * stack_size;
+        }
+        else if (ls.where == STACK) {
+            s = Storage(MEMORY, Address(RSP, 0));
+            t = rs;
+            left->ts.destroy(s, x64);
+            pop = stack_size;
+        }
+        else if (rs.where == STACK) {
+            s = ls;
+            t = Storage(MEMORY, Address(RSP, 0));
+            right->ts.destroy(t, x64);
+            pop = stack_size;
+        }
+        else {
+            s = ls;
+            t = rs;
+        }
+        
         Label less, greater, end;
-        left->ts.compare(ls, rs, x64, less, greater);
+        left->ts.compare(s, t, x64, less, greater);
         
         x64->op(MOVQ, reg, 0);
         x64->op(JMP, end);
@@ -333,13 +363,49 @@ public:
         
         x64->code_label(end);
         
+        if (pop)
+            x64->op(ADDQ, RSP, pop);
+        
         return Storage(REGISTER, reg);
     }
 
     virtual Storage equal(X64 *x64, bool negate) {
         subcompile(x64);
 
-        left->ts.equal(ls, rs, x64);
+        int pop = 0;
+        int stack_size = left->ts.measure_stack();
+        Storage s, t;
+        
+        // NOTE: we assume destroy leaves all data as it is
+        
+        if (ls.where == STACK && rs.where == STACK) {
+            s = Storage(MEMORY, Address(RSP, stack_size));
+            t = Storage(MEMORY, Address(RSP, 0));
+            right->ts.destroy(t, x64);
+            left->ts.destroy(s, x64);
+            pop = 2 * stack_size;
+        }
+        else if (ls.where == STACK) {
+            s = Storage(MEMORY, Address(RSP, 0));
+            t = rs;
+            left->ts.destroy(s, x64);
+            pop = stack_size;
+        }
+        else if (rs.where == STACK) {
+            s = ls;
+            t = Storage(MEMORY, Address(RSP, 0));
+            right->ts.destroy(t, x64);
+            pop = stack_size;
+        }
+        else {
+            s = ls;
+            t = rs;
+        }
+
+        left->ts.equal(s, t, x64);
+
+        if (pop)
+            x64->op(LEA, RSP, Address(RSP, pop));  // leave flags
         
         return Storage(FLAGS, negate ? SETNE : SETE);
     }

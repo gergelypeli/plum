@@ -104,51 +104,22 @@ public:
     }
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // No need to handle STACK here, GenericOperationValue takes care of it
+        
         switch (s.where * t.where) {
         case REGISTER_REGISTER:
             decref(s.reg, x64);
             decref(t.reg, x64);
             x64->op(CMPQ, s.reg, t.reg);
             break;
-        case REGISTER_STACK:
-            x64->op(POPQ, RBX);
-            decref(s.reg, x64);
-            decref(RBX, x64);
-            x64->op(CMPQ, s.reg, RBX);
-            break;
         case REGISTER_MEMORY:
             decref(s.reg, x64);
             x64->op(CMPQ, s.reg, t.address);
             break;
 
-        case STACK_REGISTER:
-            x64->op(POPQ, RBX);
-            decref(RBX, x64);
-            decref(t.reg, x64);
-            x64->op(CMPQ, RBX, t.reg);
-            break;
-        case STACK_STACK:
-            x64->op(POPQ, RBX);
-            decref(RBX, x64);
-            x64->op(XCHGQ, RBX, Address(RSP, 0));
-            decref(RBX, x64);
-            x64->op(CMPQ, RBX, Address(RSP, 0));
-            x64->op(POPQ, RBX);
-            break;
-        case STACK_MEMORY:
-            x64->op(POPQ, RBX);
-            decref(RBX, x64);
-            x64->op(CMPQ, RBX, t.address);
-            break;
-
         case MEMORY_REGISTER:
             decref(t.reg, x64);
             x64->op(CMPQ, s.address, t.reg);
-            break;
-        case MEMORY_STACK:
-            x64->op(POPQ, RBX);
-            decref(RBX, x64);
-            x64->op(CMPQ, s.address, RBX);
             break;
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
@@ -249,10 +220,14 @@ public:
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        if (s.where != STACK || t.where != MEMORY || t.address.base != RSI || t.address.index != RDI)
+        if (s.where != STACK || t.where != MEMORY)
             throw INTERNAL_ERROR;
 
-        x64->op(POPQ, t.address + ADDRESS_SIZE);  // The FCB pointer is on the stack top
+        // A WeakAnchor is a weak reference, followed by an FCB pointer.
+        // But when creating one in a Weak*Map, the FCB is allocated later,
+        // so the pointer is at the lower address. That's why we reverse the order here.
+        
+        x64->op(POPQ, t.address + ADDRESS_SIZE);
         
         WeakReferenceType::create(tm, s, t, x64);
     }

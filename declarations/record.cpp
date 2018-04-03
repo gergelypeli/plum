@@ -111,30 +111,7 @@ public:
     }
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        int stack_size = tm[0].measure_stack();
-
-        switch (s.where * t.where) {
-        case STACK_STACK:
-            s = Storage(MEMORY, Address(RSP, stack_size));
-            t = Storage(MEMORY, Address(RSP, 0));
-            destroy(tm, t, x64);
-            destroy(tm, s, x64);
-            equal(tm, s, t, x64);
-            x64->op(LEA, RSP, Address(RSP, 2 * stack_size));
-            return;
-        case STACK_MEMORY:
-            s = Storage(MEMORY, Address(RSP, 0));
-            destroy(tm, s, x64);
-            equal(tm, s, t, x64);
-            x64->op(LEA, RSP, Address(RSP, stack_size));
-            return;
-        case MEMORY_STACK:
-            t = Storage(MEMORY, Address(RSP, 0));
-            destroy(tm, t, x64);
-            equal(tm, s, t, x64);
-            x64->op(LEA, RSP, Address(RSP, stack_size));
-            return;
-        case MEMORY_MEMORY: {
+        if (s.where == MEMORY && t.where == MEMORY) {
             Label end;
             if ((s.regs() | t.regs()) & EQUAL_CLOB)
                 throw INTERNAL_ERROR;
@@ -147,90 +124,21 @@ public:
             x64->code_label(end);
             return;
         }
-        default:
+        else
             throw INTERNAL_ERROR;
-        }
     }
     
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        int stack_size = tm[0].measure_stack();
-
-        StorageWhereWhere stw = s.where * t.where;  // s and t may be overwritten
-
-        switch (stw) {
-        case STACK_STACK:
-            x64->op(PUSHQ, RBP);
-            x64->op(MOVQ, RBP, RSP);
-            s = Storage(MEMORY, Address(RBP, ADDRESS_SIZE + stack_size));
-            t = Storage(MEMORY, Address(RBP, ADDRESS_SIZE));
-            break;
-        case STACK_MEMORY:
-            x64->op(PUSHQ, RBP);
-            x64->op(MOVQ, RBP, RSP);
-            s = Storage(MEMORY, Address(RBP, ADDRESS_SIZE));
-            break;
-        case MEMORY_STACK:
-            x64->op(PUSHQ, RBP);
-            x64->op(MOVQ, RBP, RSP);
-            t = Storage(MEMORY, Address(RBP, ADDRESS_SIZE));
-            break;
-        case MEMORY_MEMORY:
+        if (s.where == MEMORY && t.where == MEMORY) {
             if ((s.regs() | t.regs()) & COMPARE_CLOB)
                 throw INTERNAL_ERROR;
                 
             for (unsigned i = 0; i < comparable_member_count(); i++)
                 member_variables[i]->compare(tm, s, t, x64, less, greater);
             return;
-        default:
-            throw INTERNAL_ERROR;
         }
-
-        Label xless, xgreater, xend, xclean;
-        if ((s.regs() | t.regs()) & COMPARE_CLOB)
+        else
             throw INTERNAL_ERROR;
-
-        for (unsigned i = 0; i < comparable_member_count(); i++)
-            member_variables[i]->compare(tm, s, t, x64, xless, xgreater);
-
-        x64->op(LEARIP, RBX, xend);
-        x64->op(JMP, xclean);
-        
-        x64->code_label(xless);
-        x64->op(LEARIP, RBX, less);
-        x64->op(JMP, xclean);
-        
-        x64->code_label(xgreater);
-        x64->op(LEARIP, RBX, greater);
-        
-        x64->code_label(xclean);
-        x64->op(PUSHQ, RBX);
-
-        switch (stw) {
-        case STACK_STACK:
-            destroy(tm, t + ADDRESS_SIZE, x64);
-            destroy(tm, s + ADDRESS_SIZE, x64);
-            x64->op(POPQ, RBX);
-            x64->op(POPQ, RBP);
-            x64->op(ADDQ, RSP, 2 * stack_size);
-            break;
-        case STACK_MEMORY:
-            destroy(tm, s + ADDRESS_SIZE, x64);
-            x64->op(POPQ, RBX);
-            x64->op(POPQ, RBP);
-            x64->op(ADDQ, RSP, stack_size);
-            break;
-        case MEMORY_STACK:
-            destroy(tm, t + ADDRESS_SIZE, x64);
-            x64->op(POPQ, RBX);
-            x64->op(POPQ, RBP);
-            x64->op(ADDQ, RSP, stack_size);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-
-        x64->op(JMP, RBX);
-        x64->code_label(xend);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
@@ -285,45 +193,20 @@ public:
         :RecordType(n, Metatypes {}) {
     }
 
-    virtual bool stack_both(Label fn, Storage s, Storage t, X64 *x64) {
-        switch (s.where * t.where) {
-        case STACK_STACK:
-            break;
-        case STACK_MEMORY:
-            x64->op(MOVQ, RBX, t.address);
-            x64->runtime->incref(RBX);
-            x64->op(PUSHQ, RBX);
-            break;
-        case MEMORY_STACK:  // Reverse order!
-            x64->op(MOVQ, RBX, s.address);
-            x64->runtime->incref(RBX);
-            x64->op(PUSHQ, RBX);
-            break;
-        case MEMORY_MEMORY:
-            // FIXME: this won't work with RSP based addresses!
-            x64->op(MOVQ, RBX, s.address);
-            x64->runtime->incref(RBX);
-            x64->op(PUSHQ, RBX);
-
-            x64->op(MOVQ, RBX, t.address);
-            x64->runtime->incref(RBX);
-            x64->op(PUSHQ, RBX);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-
-        x64->op(CALL, fn);
-
-        x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve flags
-        
-        return (s.where == MEMORY && t.where == STACK);  // reversed operands
-    }
-
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         Label streq_label = x64->once->compile(compile_stringeq);
-
-        stack_both(streq_label, s, t, x64);
+        
+        if (s.where == MEMORY && t.where == MEMORY) {
+            x64->op(MOVQ, RBX, t.address);  // may be RSP-based
+            x64->op(PUSHQ, s.address);
+            x64->op(PUSHQ, RBX);
+            
+            x64->op(CALL, streq_label);
+            
+            x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve flags
+        }
+        else
+            throw INTERNAL_ERROR;
         
         // flags already set
     }
@@ -362,8 +245,8 @@ public:
         x64->op(SETE, CL);
         
         x64->code_label(done);  // the result in CL, will be preserved
-        x64->runtime->decref(RBX);
-        x64->runtime->decref(RAX);
+        //x64->runtime->decref(RBX);
+        //x64->runtime->decref(RAX);
 
         x64->op(CMPB, CL, 1);  // set flags
 
@@ -378,16 +261,19 @@ public:
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
         Label strcmp_label = x64->once->compile(compile_stringcmp);
 
-        bool reversed = stack_both(strcmp_label, s, t, x64);
-
-        if (reversed) {
-            x64->op(JL, greater);
-            x64->op(JG, less);
-        }
-        else {
+        if (s.where == MEMORY && t.where == MEMORY) {
+            x64->op(MOVQ, RBX, t.address);  // may be RSP-based
+            x64->op(PUSHQ, s.address);
+            x64->op(PUSHQ, RBX);
+            
+            x64->op(CALL, strcmp_label);
+            
+            x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve flags
             x64->op(JL, less);
             x64->op(JG, greater);
         }
+        else
+            throw INTERNAL_ERROR;
     }
 
     static void compile_stringcmp(Label label, X64 *x64) {
@@ -441,8 +327,8 @@ public:
         x64->op(MOVQ, RBX, 1);
                 
         x64->code_label(equal);  // common parts are equal, RBX determines the result
-        x64->runtime->decref(RDX);
-        x64->runtime->decref(RAX);
+        //x64->runtime->decref(RDX);
+        //x64->runtime->decref(RAX);
         
         x64->op(CMPQ, RBX, 0);  // set flags
         

@@ -109,11 +109,23 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label equal;
+        int pop = 0;
         
-        switch_var_value->compile_and_store(x64, Storage(STACK));
-        value->compile_and_store(x64, Storage(STACK));
+        Storage ss = switch_var_value->compile(x64);
+        if (ss.where != MEMORY)
+            throw INTERNAL_ERROR;
+
+        Storage vs = value->compile(x64);
+        if (vs.where == STACK) {
+            vs = Storage(MEMORY, Address(RSP, 0));
+            value->ts.destroy(vs, x64);
+            pop = value->ts.measure_stack();
+        }
         
-        switch_var_value->ts.equal(Storage(STACK), Storage(STACK), x64);
+        value->ts.equal(ss, vs, x64);
+        
+        if (pop)
+            x64->op(LEA, RSP, Address(RSP, pop));
         
         x64->op(JE, equal);
         
@@ -149,14 +161,23 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label equal;
+        int pop = 0;
         
         Storage ss = switch_var_value->compile(x64);
         if (ss.where != MEMORY)
             throw INTERNAL_ERROR;
         
         Storage is = initializer_value->compile(x64);
-            
+        if (is.where == STACK) {
+            is = Storage(MEMORY, Address(RSP, 0));
+            initializer_value->ts.destroy(is, x64);
+            pop = initializer_value->ts.measure_stack();
+        }
+        
         switch_var_value->ts.equal(ss, is, x64);
+
+        if (pop)
+            x64->op(LEA, RSP, Address(RSP, pop));
         
         x64->op(JE, equal);
         
@@ -209,14 +230,24 @@ public:
     virtual Storage compile(X64 *x64) {
         Label equal;
         
-        Storage s = switch_var_value->compile(x64);
-        if (s.where != MEMORY)
+        Storage ss = switch_var_value->compile(x64);
+        if (ss.where != MEMORY)
             throw INTERNAL_ERROR;
             
         for (auto &v : values) {
-            Storage t = v->compile(x64);
+            int pop = 0;
+            Storage vs = v->compile(x64);
             
-            switch_var_value->ts.equal(s, t, x64);
+            if (vs.where == STACK) {
+                vs = Storage(MEMORY, Address(RSP, 0));
+                v->ts.destroy(vs, x64);
+                pop = v->ts.measure_stack();
+            }
+            
+            switch_var_value->ts.equal(ss, vs, x64);
+            
+            if (pop)
+                x64->op(LEA, RSP, Address(RSP, pop));
             
             x64->op(JE, equal);
         }

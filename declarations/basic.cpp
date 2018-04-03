@@ -150,6 +150,7 @@ public:
     }
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // No need to take care of STACK here, GenericOperationValue takes care of it
         // Only RBX is usable as scratch
         BinaryOp MOV = MOVQ % os;
         BinaryOp CMP = CMPQ % os;
@@ -163,11 +164,6 @@ public:
             x64->op(MOV, RBX, s.value);
             x64->op(CMP, RBX, t.reg);
             break;
-        case CONSTANT_STACK:
-            x64->op(MOV, RBX, s.value);
-            x64->op(CMP, RBX, Address(RSP, 0));
-            x64->op(POPQ, RBX);
-            break;
         case CONSTANT_MEMORY:
             x64->op(MOV, RBX, s.value);
             x64->op(CMP, RBX, t.address);
@@ -179,30 +175,8 @@ public:
         case REGISTER_REGISTER:
             x64->op(CMP, s.reg, t.reg);
             break;
-        case REGISTER_STACK:
-            x64->op(POPQ, RBX);
-            x64->op(CMP, s.reg, RBX);
-            break;
         case REGISTER_MEMORY:
             x64->op(CMP, s.reg, t.address);
-            break;
-
-        case STACK_CONSTANT:
-            x64->op(POPQ, RBX);
-            x64->op(CMP, RBX, t.value);
-            break;
-        case STACK_REGISTER:
-            x64->op(POPQ, RBX);
-            x64->op(CMP, RBX, t.reg);
-            break;
-        case STACK_STACK:
-            x64->op(POPQ, RBX);
-            x64->op(CMP, RBX, Address(RSP, 0));
-            x64->op(POPQ, RBX);
-            break;
-        case STACK_MEMORY:
-            x64->op(POPQ, RBX);
-            x64->op(CMP, RBX, t.address);
             break;
 
         case MEMORY_CONSTANT:
@@ -210,10 +184,6 @@ public:
             break;
         case MEMORY_REGISTER:
             x64->op(CMP, s.address, t.reg);
-            break;
-        case MEMORY_STACK:
-            x64->op(POPQ, RBX);
-            x64->op(CMP, s.address, RBX);
             break;
         case MEMORY_MEMORY:
             x64->op(MOV, RBX, s.address);
