@@ -297,9 +297,11 @@ void builtin_types(Scope *root_scope) {
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
     ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
     SAME_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, same_type };
+    ANY_ARRAY_WEAKREF_TS = { weakref_type, array_type, any_type };
     ANY_CIRCULARRAY_REF_TS = { ref_type, circularray_type, any_type };
     ANY_CIRCULARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, circularray_type, any_type };
     SAME_CIRCULARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, circularray_type, same_type };
+    ANY_CIRCULARRAY_WEAKREF_TS = { weakref_type, circularray_type, any_type };
     ANY_RBTREE_REF_TS = { ref_type, rbtree_type, any_type };
     ANY_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, any_type };
     SAME_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, same_type };
@@ -607,7 +609,7 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
-    array_scope->add(new TemplateOperation<ArrayIndexValue>("index", ANY_ARRAY_REF_TS, TWEAK));
+    array_scope->add(new TemplateOperation<ArrayIndexValue>("index", ANY_ARRAY_WEAKREF_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", ANY_ARRAY_REF_TS));
@@ -630,7 +632,7 @@ void define_circularray() {
     circularray_scope->add(new TemplateIdentifier<CircularrayLengthValue>("length", ANY_CIRCULARRAY_REF_TS));
     //circularray_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
     //circularray_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
-    circularray_scope->add(new TemplateOperation<CircularrayIndexValue>("index", ANY_CIRCULARRAY_REF_TS, TWEAK));
+    circularray_scope->add(new TemplateOperation<CircularrayIndexValue>("index", ANY_CIRCULARRAY_WEAKREF_TS, TWEAK));
     //circularray_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayPushValue>("push", ANY_CIRCULARRAY_REF_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayPopValue>("pop", ANY_CIRCULARRAY_REF_TS));

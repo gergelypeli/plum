@@ -117,6 +117,9 @@ public:
         :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
         elem_ts = match[1];
         borrow = NULL;
+        
+        if (pivot->ts.rvalue()[0] != weakref_type)
+            throw INTERNAL_ERROR;  // sanity check
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -149,7 +152,7 @@ public:
 
         switch (ls.where) {
         case REGISTER:
-            // Keep REGISTER reference, defer decref
+            // Keep REGISTER weakreference, defer decweakref
             x64->op(MOVQ, borrow->get_address(), ls.reg);
             
             fix_RBX_index(ls.reg, x64);
@@ -158,10 +161,10 @@ public:
             x64->op(LEA, ls.reg, Address(ls.reg, RBX, elems_offset));
             return Storage(MEMORY, Address(ls.reg, 0));
         case MEMORY:
-            // Add reference, defer decref
+            // Add weak reference, defer decweakref
             x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
             x64->op(MOVQ, borrow->get_address(), reg);
-            x64->runtime->incref(reg);
+            x64->runtime->incweakref(reg);
             
             fix_RBX_index(reg, x64);
             
