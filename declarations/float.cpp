@@ -48,7 +48,7 @@ public:
     //virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     //}
 
-    //virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    //virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     //}
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {

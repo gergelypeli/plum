@@ -348,20 +348,9 @@ public:
             t = rs;
         }
         
-        Label less, greater, end;
-        left->ts.compare(s, t, x64, less, greater);
+        left->ts.compare(s, t, x64);
         
-        x64->op(MOVQ, reg, 0);
-        x64->op(JMP, end);
-        
-        x64->code_label(less);
-        x64->op(MOVQ, reg, -1);
-        x64->op(JMP, end);
-        
-        x64->code_label(greater);
-        x64->op(MOVQ, reg, 1);
-        
-        x64->code_label(end);
+        x64->op(MOVSXBQ, reg, BL);  // sign extend byte to qword
         
         if (pop)
             x64->op(ADDQ, RSP, pop);

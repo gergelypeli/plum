@@ -337,7 +337,9 @@ void compile_rbtree_has(Label label, TypeSpec elem_ts, X64 *x64) {
     if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
         
-    elem_ts.compare(ks, vs, x64, less, greater);
+    elem_ts.compare(ks, vs, x64);
+    x64->op(JL, less);
+    x64->op(JG, greater);
     
     x64->code_label(finish);
     x64->op(MOVQ, KEYX, ROOTX);  // Found index or NIL
@@ -375,7 +377,9 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
 
-    elem_ts.compare(ks, vs, x64, less, greater);
+    elem_ts.compare(ks, vs, x64);
+    x64->op(JL, less);
+    x64->op(JG, greater);
     
     // Found the value, destroy to make place for the new one
     //x64->log("Rbtree add found.");
@@ -433,7 +437,9 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
 
-    elem_ts.compare(ks, vs, x64, remove_left, remove_right);
+    elem_ts.compare(ks, vs, x64);
+    x64->op(JL, remove_left);
+    x64->op(JG, remove_right);
     
     // Found the value, remove it
     Label no_left, no_right, no_children, was_red;

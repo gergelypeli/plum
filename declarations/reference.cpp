@@ -131,11 +131,9 @@ public:
         }
     }
 
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         equal(tm, s, t, x64);
-
-        x64->op(JB, less);
-        x64->op(JA, greater);
+        x64->blcompar(true);
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {

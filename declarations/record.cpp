@@ -128,13 +128,21 @@ public:
             throw INTERNAL_ERROR;
     }
     
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where == MEMORY && t.where == MEMORY) {
             if ((s.regs() | t.regs()) & COMPARE_CLOB)
                 throw INTERNAL_ERROR;
                 
-            for (unsigned i = 0; i < comparable_member_count(); i++)
-                member_variables[i]->compare(tm, s, t, x64, less, greater);
+            Label end;
+                
+            for (unsigned i = 0; i < comparable_member_count(); i++) {
+                if (i > 0)
+                    x64->op(JNE, end);
+                    
+                member_variables[i]->compare(tm, s, t, x64);
+            }
+            
+            x64->code_label(end);
             return;
         }
         else
@@ -201,14 +209,12 @@ public:
             x64->op(PUSHQ, s.address);
             x64->op(PUSHQ, RBX);
             
-            x64->op(CALL, streq_label);
+            x64->op(CALL, streq_label);  // ZF as expected
             
-            x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve flags
+            x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
         }
         else
             throw INTERNAL_ERROR;
-        
-        // flags already set
     }
     
     static void compile_stringeq(Label label, X64 *x64) {
@@ -217,48 +223,36 @@ public:
 
         x64->op(PUSHQ, RAX);
         x64->op(PUSHQ, RCX);
-        x64->op(PUSHQ, RSI);
-        x64->op(PUSHQ, RDI);
         
-        x64->op(MOVB, CL, 0);  // assume inequality
-        x64->op(MOVQ, RAX, Address(RSP, 48));
-        x64->op(MOVQ, RBX, Address(RSP, 40));
+        x64->op(MOVQ, RAX, Address(RSP, 32));
+        x64->op(MOVQ, RBX, Address(RSP, 24));
         
         x64->op(CMPQ, RAX, RBX);
-        x64->op(JE, sete);  // identical
-        
-        x64->op(CMPQ, RAX, 0);
-        x64->op(JE, done);  // nothing equals null
-        x64->op(CMPQ, RBX, 0);
-        x64->op(JE, done);  // nothing equals null
+        x64->op(JE, done);  // identical, must be equal, ZF as expected
         
         x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, Address(RBX, ARRAY_LENGTH_OFFSET));
-        x64->op(JNE, sete);  // different length
+        x64->op(JNE, done);  // different length, can't be equal, ZF as expected
         
+        x64->op(PUSHQ, RSI);
+        x64->op(PUSHQ, RDI);
         x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
         x64->op(LEA, RDI, Address(RBX, ARRAY_ELEMS_OFFSET));
-        x64->op(REPECMPSW);
-        x64->op(CMPQ, RCX, 0);  // equal, if all compared
-        
-        x64->code_label(sete);
-        x64->op(SETE, CL);
-        
-        x64->code_label(done);  // the result in CL, will be preserved
-        //x64->runtime->decref(RBX);
-        //x64->runtime->decref(RAX);
-
-        x64->op(CMPB, CL, 1);  // set flags
-
+        x64->op(REPECMPSW);  // no flags set if RCX=0
         x64->op(POPQ, RDI);
         x64->op(POPQ, RSI);
+
+        x64->op(CMPQ, RCX, 0);  // equal, if all compared, ZF as expected
+        
+        x64->code_label(done);
+
         x64->op(POPQ, RCX);
         x64->op(POPQ, RAX);
         
         x64->op(RET);
     }
 
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         Label strcmp_label = x64->once->compile(compile_stringcmp);
 
         if (s.where == MEMORY && t.where == MEMORY) {
@@ -266,18 +260,16 @@ public:
             x64->op(PUSHQ, s.address);
             x64->op(PUSHQ, RBX);
             
-            x64->op(CALL, strcmp_label);
+            x64->op(CALL, strcmp_label);  // BL, flags as expected
             
             x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve flags
-            x64->op(JL, less);
-            x64->op(JG, greater);
         }
         else
             throw INTERNAL_ERROR;
     }
 
     static void compile_stringcmp(Label label, X64 *x64) {
-        // Expects arguments on the stack, returns RBX.
+        // Expects arguments on the stack, returns BL/flags.
         x64->code_label_local(label, "stringcmp");
         
         x64->op(PUSHQ, RAX);
@@ -286,51 +278,35 @@ public:
         x64->op(PUSHQ, RSI);
         x64->op(PUSHQ, RDI);
         
-        Label equal, less, greater, s_longer, begin;
-        x64->op(MOVQ, RBX, 0);  // assume equality
-        x64->op(MOVQ, RAX, Address(RSP, 56));
-        x64->op(MOVQ, RDX, Address(RSP, 48));
+        Label s_longer, begin, end;
+        x64->op(MOVQ, RAX, Address(RSP, 56));  // s
+        x64->op(MOVQ, RDX, Address(RSP, 48));  // t
         
-        x64->op(CMPQ, RAX, RDX);
-        x64->op(JE, equal);
-        x64->op(CMPQ, RAX, 0);
-        x64->op(JE, less);
-        x64->op(CMPQ, RDX, 0);
-        x64->op(JE, greater);
-
+        x64->op(MOVB, BL, 0);  // assume equality
         x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
         x64->op(JE, begin);
         x64->op(JA, s_longer);
         
-        x64->op(MOVQ, RBX, -1);  // t is longer, on common equality t is greater
+        x64->op(MOVB, BL, -1);  // s is shorter, on common equality s is less
         x64->op(JMP, begin);
 
         x64->code_label(s_longer);
-        x64->op(MOVQ, RBX, 1);  // s is longer, on common equality s is greater
+        x64->op(MOVB, BL, 1);  // s is longer, on common equality s is greater
         x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
         
         x64->code_label(begin);
-        x64->op(CMPQ, RCX, 0);
-        x64->op(JE, equal);
         x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
         x64->op(LEA, RDI, Address(RDX, ARRAY_ELEMS_OFFSET));
-        x64->op(REPECMPSW);
-        x64->op(JE, equal);
-        x64->op(JA, greater);
+        x64->op(CMPB, BL, BL);  // only to initialize flags for equality
+        x64->op(REPECMPSW);  // no flags set if RCX=0
         
-        x64->code_label(less);
-        x64->op(MOVQ, RBX, -1);
-        x64->op(JMP, equal);
+        x64->op(JE, end);  // common part was equal, result is according to preset BL
         
-        x64->code_label(greater);
-        x64->op(MOVQ, RBX, 1);
-                
-        x64->code_label(equal);  // common parts are equal, RBX determines the result
-        //x64->runtime->decref(RDX);
-        //x64->runtime->decref(RAX);
+        x64->blcompar(true);  // set BL according to the detected difference
         
-        x64->op(CMPQ, RBX, 0);  // set flags
+        x64->code_label(end);
+        x64->op(CMPB, BL, 0);  // must set flags even if BL was preset
         
         x64->op(POPQ, RDI);
         x64->op(POPQ, RSI);

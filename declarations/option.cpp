@@ -127,19 +127,24 @@ public:
             throw INTERNAL_ERROR;
     }
     
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         int flag_size = get_flag_size(tm[1]);
 
         if (s.where == MEMORY && t.where == MEMORY) {
-            Label eq;
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(CMPQ, RBX, t.address);
-            x64->op(JB, less);
-            x64->op(JA, greater);
-            x64->op(CMPQ, RBX, 0);
-            x64->op(JE, eq);
-            tm[1].compare(Storage(MEMORY, s.address + flag_size), Storage(MEMORY, t.address + flag_size), x64, less, greater);
-            x64->code_label(eq);
+            Label end;
+            x64->op(CMPQ, s.address, 0);
+            x64->op(SETE, BH);
+            x64->op(CMPQ, t.address, 0);
+            x64->op(SETE, BL);
+            
+            x64->op(SUBB, BL, BH);
+            x64->op(JNE, end);  // exactly one was none, order is decided, BL, flags as expected
+            x64->op(CMPW, BX, 0);
+            x64->op(JE, end);  // both were none, equality is decided, BL, flags as expected
+            
+            // neither are none, must compare according to the type parameter
+            tm[1].compare(Storage(MEMORY, s.address + flag_size), Storage(MEMORY, t.address + flag_size), x64);
+            x64->code_label(end);
             return;
         }
         else

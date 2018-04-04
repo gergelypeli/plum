@@ -195,17 +195,9 @@ public:
         }
     }
 
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         equal(tm, s, t, x64);
-
-        if (is_unsigned) {
-            x64->op(JB, less);
-            x64->op(JA, greater);
-        }
-        else {
-            x64->op(JL, less);
-            x64->op(JG, greater);
-        }
+        x64->blcompar(is_unsigned);
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
@@ -232,25 +224,39 @@ public:
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         // SysV
         x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-        x64->op(MOVQ, RSI, Address(RSP, 0));
         
         Label label;
         
         if (is_unsigned) {
             x64->code_label_import(label, "streamify_unteger");
             
-            // Zero extend RDI
-            x64->op(SHLQ, RDI, 8 * (8 - size));
-            x64->op(SHRQ, RDI, 8 * (8 - size));
+            if (size == 1)
+                x64->op(MOVZXBQ, RDI, Address(RSP, ALIAS_SIZE));
+            else if (size == 2)
+                x64->op(MOVZXWQ, RDI, Address(RSP, ALIAS_SIZE));
+            else if (size == 4)
+                x64->op(MOVZXDQ, RDI, Address(RSP, ALIAS_SIZE));
+            else if (size == 8)
+                x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+            else
+                throw INTERNAL_ERROR;
         }
         else {
             x64->code_label_import(label, "streamify_integer");
-            
-            // Sign extend RDI
-            x64->op(SHLQ, RDI, 8 * (8 - size));
-            x64->op(SARQ, RDI, 8 * (8 - size));
+
+            if (size == 1)
+                x64->op(MOVSXBQ, RDI, Address(RSP, ALIAS_SIZE));
+            else if (size == 2)
+                x64->op(MOVSXWQ, RDI, Address(RSP, ALIAS_SIZE));
+            else if (size == 4)
+                x64->op(MOVSXDQ, RDI, Address(RSP, ALIAS_SIZE));
+            else if (size == 8)
+                x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+            else
+                throw INTERNAL_ERROR;
         }
         
+        x64->op(MOVQ, RSI, Address(RSP, 0));
         x64->runtime->call_sysv(label);
     }
 

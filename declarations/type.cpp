@@ -186,14 +186,15 @@ public:
     }
 
     // Allowed to clobber EQUAL_CLOB
-    // Always returns the result in FLAGS (ZF if equal)
+    // Returns result in ZF (set iff equal)
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         std::cerr << "Uncomparable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
     // Allowed to clobber COMPARE_CLOB
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
+    // Returns result in BL (-1/0/+1), and the flags (below&less/equal/above&greater)
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         std::cerr << "Uncomparable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -344,8 +345,8 @@ public:
         tm[1].equal(s, t, x64);
     }
 
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64, Label less, Label greater) {
-        tm[1].compare(s, t, x64, less, greater);
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        tm[1].compare(s, t, x64);
     }
 
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {

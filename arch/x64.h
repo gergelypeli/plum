@@ -24,6 +24,11 @@ enum Register {
 };
 
 
+enum HighByteRegister {
+    AH=4, CH, DH, BH
+};
+
+
 const char *SSE_REGISTER_NAMES[] = {
     "XMM0", "XMM1", "XMM2", "XMM3", "XMM4", "XMM5", "XMM6", "XMM7",
     "XMM8", "XMM9", "XMM10", "XMM11", "XMM12", "XMM13", "XMM14", "XMM15",
@@ -252,8 +257,7 @@ struct Address {
 
 enum Opsize {
     OPSIZE_LEGACY_BYTE, OPSIZE_LEGACY_WORD, OPSIZE_LEGACY_DWORD, OPSIZE_LEGACY_QWORD,
-    OPSIZE_WORD, OPSIZE_DWORD, OPSIZE_QWORD,
-    OPSIZE_DEFAULT=OPSIZE_DWORD
+    OPSIZE_HIGH_BYTE, OPSIZE_WORD, OPSIZE_DEFAULT, OPSIZE_QWORD
 };
 
 
@@ -375,8 +379,13 @@ enum MemoryOp {
 
 
 enum RegisterFirstOp {
-    IMUL2W=1, IMUL2D, IMUL2Q,
-    MOVSXDQ=7
+    IMUL2B_, IMUL2W, IMUL2D, IMUL2Q,
+    MOVSXBB_, MOVSXBW, MOVSXBD, MOVSXBQ,
+    MOVSXWB_, MOVSXWW_, MOVSXWD, MOVSXWQ,
+    MOVSXDB_, MOVSXDW_, MOVSXDD_, MOVSXDQ,  // the DQ variant has QWORD size to sign extend
+    MOVZXBB_, MOVZXBW, MOVZXBD, MOVZXBQ,
+    MOVZXWB_, MOVZXWW_, MOVZXWD, MOVZXWQ,
+    MOVZXDB_, MOVZXDW_, MOVZXDQ, MOVZXDQ_,  // the DQ variant has DWORD size to zero extend
 };
 
 RegisterFirstOp operator%(RegisterFirstOp x, int y) { return (RegisterFirstOp)((x & ~3) | (y & 3)); }
@@ -582,6 +591,7 @@ public:
     void op(BinaryOp opcode, Register x, int y);
     void op(BinaryOp opcode, Address x, int y);
     void op(BinaryOp opcode, Register x, Register y);
+    void op(BinaryOp opcode, Register x, HighByteRegister y);
     void op(BinaryOp opcode, Address x, Register y);
     void op(BinaryOp opcode, Register x, Address y);
     void op(BinaryOp opcode, Register x, Label y);
@@ -605,6 +615,7 @@ public:
     void op(RegisterMemoryOp opcode, Register x, Address y);
     void op(LeaRipOp opcode, Register r, Label l, int offset = 0);
     void op(BitSetOp, Register x);
+    void op(BitSetOp, HighByteRegister x);
     void op(BitSetOp, Address x);
     void op(BranchOp opcode, Label c);
     void op(JumpOp opcode, Label c);

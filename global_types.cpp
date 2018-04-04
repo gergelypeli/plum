@@ -205,8 +205,8 @@ void TypeSpec::equal(Storage s, Storage t, X64 *x64) {
 }
 
 
-void TypeSpec::compare(Storage s, Storage t, X64 *x64, Label less, Label greater) {
-    at(0)->compare(match(), s, t, x64, less, greater);
+void TypeSpec::compare(Storage s, Storage t, X64 *x64) {
+    at(0)->compare(match(), s, t, x64);
 }
 
 

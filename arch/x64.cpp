@@ -18,7 +18,7 @@ Opsize OPSIZE_NONBYTE(int opcode) {
     return (
         (opcode & 3) == 0 ? throw X64_ERROR :
         (opcode & 3) == 1 ? OPSIZE_WORD :
-        (opcode & 3) == 2 ? OPSIZE_DWORD :
+        (opcode & 3) == 2 ? OPSIZE_DEFAULT :
         (opcode & 3) == 3 ? OPSIZE_QWORD :
         throw X64_ERROR
     );
@@ -479,11 +479,18 @@ void X64::prefixed_op(int code, Opsize opsize, RexFlags rxbq) {
         rex(REX_W | rxb);
         code |= 1;
         break;
+    case OPSIZE_HIGH_BYTE:
+        // Don't alter the lowest bit, assume byte operands, but don't use REX prefix,
+        // because we want to use a high byte register. But check for the expected usage,
+        // since we can only suppress the REX if the questionable flag is the only reason.
+        if (rxb != REX_NONE || !questionable)
+            throw X64_ERROR;
+        break;
     case OPSIZE_WORD:
         code_byte(OPSIZE_WORD_PREFIX);
         rex(rxb);
         break;
-    case OPSIZE_DWORD:
+    case OPSIZE_DEFAULT:
         // The default opsize may be byte for some operations (bitsets!), and using the
         // questionable registers needs a forced REX prefix.
         rex(rxb, questionable);
@@ -673,13 +680,16 @@ void X64::code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm) 
 // Own helper function
 
 void X64::blcompar(bool is_unsigned) {
-    // We can't use BH with the current enums, so we must hardcode all instructions
-    // to avoid REX prefixes prepended.
-    
-    if (is_unsigned)
-        code_qword(0xFB28C3970FC7920F);  // SETB BH; SETA BL; SUB BL, BH
-    else
-        code_qword(0xFB28C39F0FC79C0F);  // SETL BH; SETG BL; SUB BL, BH
+    if (is_unsigned) {
+        op(SETB, BH);
+        op(SETA, BL);
+        op(SUBB, BL, BH);
+    }
+    else {
+        op(SETL, BH);
+        op(SETG, BL);
+        op(SUBB, BL, BH);
+    }
     
     // BL finally contains -1 iff below/less, +1 iff above/greater, 0 iff equal.
     // The flags are also set accordingly, now independently of the signedness.
@@ -834,6 +844,17 @@ void X64::op(BinaryOp opcode, Register x, Register y) {
     code_op(info.op2, OPSIZE_LEGACY(opcode), y, x);
 }
 
+void X64::op(BinaryOp opcode, Register x, HighByteRegister y) {
+    if ((opcode & 3) != 0)
+        throw X64_ERROR;  // Must use byte operands for this combination
+        
+    if (q(x))
+        throw X64_ERROR;  // Regular register mustn't be questionable
+
+    auto &info = binary_info[opcode >> 2];
+    code_op(info.op2, OPSIZE_HIGH_BYTE, (Register)y, x);
+}
+
 void X64::op(BinaryOp opcode, Address x, Register y) {
     auto &info = binary_info[opcode >> 2];
     code_op(info.op2, OPSIZE_LEGACY(opcode), y, x);
@@ -985,7 +1006,13 @@ void X64::op(MemoryOp opcode, Address x) {
 
 
 int registerfirst_info[] = {
-    0x0FAF, 0x63
+    0x0FAF,
+    0x0FBE,
+    0x0FBF,
+    0x63,  // MOVSXD with QWORD size sign extends a DWORD to QWORD
+    0x0FB6,
+    0x0FB7,
+    0x63   // MOVSXD with DWORD size zero extends a DWORD to QWORD (like a normal MOVD)
 };
 
 void X64::op(RegisterFirstOp opcode, Register x, Register y) {
@@ -1060,6 +1087,11 @@ void X64::op(LeaRipOp, Register r, Label l, int offset) {
 
 void X64::op(BitSetOp opcode, Register x) {
     code_op(0x0F90 | opcode, OPSIZE_DEFAULT, SLASH_0, x);
+}
+
+
+void X64::op(BitSetOp opcode, HighByteRegister x) {
+    code_op(0x0F90 | opcode, OPSIZE_HIGH_BYTE, SLASH_0, (Register)x);
 }
 
 
