@@ -257,6 +257,17 @@ enum Opsize {
 };
 
 
+enum RexFlags {
+    REX_NONE=0x00,
+    REX_B=0x01,
+    REX_X=0x02,
+    REX_R=0x04,
+    REX_W=0x08,
+    REX_Q=0x10  // virtual flag, set if a register operand is SIL, DIL, SPL, BPL.
+};
+
+RexFlags operator |(RexFlags x, RexFlags y) { return (RexFlags)((int)x | (int)y); }
+
 
 enum SimpleOp {
     CBW, CDQ, CDQE, CLC, CLD, CLI, CLTS, CMC, CQO, CWD, CWDE, HLT, IRET, LAHF, NOP,
@@ -490,6 +501,7 @@ public:
         unsigned def_index;
     };
 
+
     std::vector<char> code;
     std::vector<char> data;
     std::map<unsigned, Def> defs;
@@ -537,16 +549,16 @@ public:
     void effective_address(int regfield, Address rm);
     void effective_address(int regfield, Label l, int offset);
 
-    int q(Register r);
-    int r(Register regfield);
-    int r(SseRegister regfield);
-    int xb(Register regfield);
-    int xb(SseRegister regfield);
-    int xb(Address rm);
+    RexFlags q(Register r);
+    RexFlags r(Register regfield);
+    RexFlags r(SseRegister regfield);
+    RexFlags xb(Register regfield);
+    RexFlags xb(SseRegister regfield);
+    RexFlags xb(Address rm);
     
-    void rex(int wrxb, bool force = false);
+    void rex(RexFlags wrxb, bool force = false);
     void prefixless_op(int opcode);
-    void prefixed_op(int opcode, Opsize opsize, int rxb = 0);
+    void prefixed_op(int opcode, Opsize opsize, RexFlags rxbq = REX_NONE);
     
     void code_op(int opcode, Opsize opsize, Slash regfield, Register rm);
     void code_op(int opcode, Opsize opsize, Register regfield, Register rm);

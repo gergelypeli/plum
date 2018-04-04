@@ -27,12 +27,6 @@ Opsize OPSIZE_NONBYTE(int opcode) {
 const int OPSIZE_WORD_PREFIX = 0x66;
 const int OPSIZE_REX_PREFIX = 0x40;
 
-const int REX_Q = 0x10;  // virtual flag, set if a register operand is SIL, DIL, SPL, BPL.
-const int REX_W = 0x08;
-const int REX_R = 0x04;
-const int REX_X = 0x02;
-const int REX_B = 0x01;
-
 
 std::ostream &operator << (std::ostream &os, const Register r) {
     os << (r == NOREG ? "---" : REGISTER_NAMES[r]);
@@ -393,43 +387,43 @@ void X64::code_reference(Label label, int offset) {
 }
 
 
-int X64::q(Register r) {
-    return (r == SIL || r == DIL || r == SPL || r == BPL ? REX_Q : 0);
+RexFlags X64::q(Register r) {
+    return (r == SIL || r == DIL || r == SPL || r == BPL ? REX_Q : REX_NONE);
 }
 
 
-int X64::r(Register regfield) {
+RexFlags X64::r(Register regfield) {
     return
-        (regfield >= 8 ? REX_R : 0x00);
+        (regfield >= 8 ? REX_R : REX_NONE);
 }
 
 
-int X64::r(SseRegister regfield) {
+RexFlags X64::r(SseRegister regfield) {
     return
-        (regfield >= 8 ? REX_R : 0x00);
+        (regfield >= 8 ? REX_R : REX_NONE);
 }
 
 
-int X64::xb(Address rm) {
+RexFlags X64::xb(Address rm) {
     return
-        (rm.index != NOREG && rm.index >= 8 ? REX_X : 0x00) |
-        (rm.base != NOREG && rm.base >= 8 ? REX_B : 0x00);
+        (rm.index != NOREG && rm.index >= 8 ? REX_X : REX_NONE) |
+        (rm.base != NOREG && rm.base >= 8 ? REX_B : REX_NONE);
 }
 
 
-int X64::xb(Register rm) {
+RexFlags X64::xb(Register rm) {
     return
-        (rm >= 8 ? REX_B : 0x00);
+        (rm >= 8 ? REX_B : REX_NONE);
 }
 
 
-int X64::xb(SseRegister rm) {
+RexFlags X64::xb(SseRegister rm) {
     return
-        (rm >= 8 ? REX_B : 0x00);
+        (rm >= 8 ? REX_B : REX_NONE);
 }
 
 
-void X64::rex(int wrxb, bool force) {
+void X64::rex(RexFlags wrxb, bool force) {
     if (wrxb || force)
         code_byte(OPSIZE_REX_PREFIX | wrxb);
 }
@@ -445,7 +439,7 @@ void X64::prefixless_op(int code) {
 }
 
 
-void X64::prefixed_op(int code, Opsize opsize, int rxbq) {
+void X64::prefixed_op(int code, Opsize opsize, RexFlags rxbq) {
     // size == 0 => byte  =>      _RXB op0
     // size == 1 => word  => 0x66 _RXB op1
     // size == 2 => dword =>      _RXB op1
@@ -464,7 +458,7 @@ void X64::prefixed_op(int code, Opsize opsize, int rxbq) {
     }
 
     bool questionable = rxbq & REX_Q;
-    int rxb = rxbq & ~REX_Q;
+    RexFlags rxb = (RexFlags)(rxbq & ~REX_Q);
 
     switch (opsize) {
     case OPSIZE_LEGACY_BYTE:
@@ -641,7 +635,7 @@ void X64::code_op(int opcode, Opsize opsize, Register regfield, Address rm) {
 
 
 void X64::code_op(int opcode, Opsize opsize, Slash regfield, Label l, int offset) {
-    prefixed_op(opcode, opsize, 0);
+    prefixed_op(opcode, opsize);
     effective_address(regfield, l, offset);
 }
 
@@ -951,9 +945,9 @@ void X64::op(StackOp opcode, int x) {
 
 void X64::op(StackOp opcode, Register x) {
     if (opcode == PUSHQ)
-        prefixed_op(0x50 | (x & 0x07), OPSIZE_DEFAULT, (x & 0x08 ? REX_B : 0));
+        prefixed_op(0x50 | (x & 0x07), OPSIZE_DEFAULT, xb(x));
     else
-        prefixed_op(0x58 | (x & 0x07), OPSIZE_DEFAULT, (x & 0x08 ? REX_B : 0));
+        prefixed_op(0x58 | (x & 0x07), OPSIZE_DEFAULT, xb(x));
 }
 
 void X64::op(StackOp opcode, Address x) {
