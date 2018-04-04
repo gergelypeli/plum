@@ -520,10 +520,11 @@ public:
     void code_word(short x);
     void code_dword(int x);
     void code_qword(long x);
-    void effective_address(int regfield, Register rm);
-    void effective_address(int regfield, SseRegister rm);
-    void effective_address(int regfield, Address rm);
-    void effective_address(int regfield, Label l, int offset);
+    void code_label(Label c, unsigned size = 0);
+    void code_label_import(Label c, std::string name);
+    void code_label_local(Label c, std::string name, unsigned size = 0);
+    void code_label_global(Label c, std::string name, unsigned size = 0);
+    void code_reference(Label c, int offset = 0);
     
     X64();
     ~X64();
@@ -531,11 +532,10 @@ public:
     void init(std::string module_name);
     void done(std::string name);
     
-    void code_label(Label c, unsigned size = 0);
-    void code_label_import(Label c, std::string name);
-    void code_label_local(Label c, std::string name, unsigned size = 0);
-    void code_label_global(Label c, std::string name, unsigned size = 0);
-    void code_reference(Label c, int offset = 0);
+    void effective_address(int regfield, Register rm);
+    void effective_address(int regfield, SseRegister rm);
+    void effective_address(int regfield, Address rm);
+    void effective_address(int regfield, Label l, int offset);
 
     int q(Register r);
     int r(Register regfield);
@@ -545,9 +545,9 @@ public:
     int xb(Address rm);
     
     void rex(int wrxb, bool force = false);
-
-    void code_op(int opcode);
-    void code_op(int opcode, Opsize opsize, int rxb = 0);
+    void prefixless_op(int opcode);
+    void prefixed_op(int opcode, Opsize opsize, int rxb = 0);
+    
     void code_op(int opcode, Opsize opsize, Slash regfield, Register rm);
     void code_op(int opcode, Opsize opsize, Register regfield, Register rm);
     void code_op(int opcode, Opsize opsize, Slash regfield, Address rm);
@@ -558,6 +558,8 @@ public:
     void code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm);
     void code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm);
     void code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm);
+
+    void blcompar(bool is_unsigned);
 
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);

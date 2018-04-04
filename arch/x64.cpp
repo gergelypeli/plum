@@ -435,7 +435,7 @@ void X64::rex(int wrxb, bool force) {
 }
 
 
-void X64::code_op(int code) {
+void X64::prefixless_op(int code) {
     // Multi-byte opcodes must be emitted MSB first
     
     if (code & 0xFF00)
@@ -445,7 +445,7 @@ void X64::code_op(int code) {
 }
 
 
-void X64::code_op(int code, Opsize opsize, int rxbq) {
+void X64::prefixed_op(int code, Opsize opsize, int rxbq) {
     // size == 0 => byte  =>      _RXB op0
     // size == 1 => word  => 0x66 _RXB op1
     // size == 2 => dword =>      _RXB op1
@@ -501,7 +501,7 @@ void X64::code_op(int code, Opsize opsize, int rxbq) {
         throw X64_ERROR;
     }
 
-    code_op(code);
+    prefixless_op(code);
 }
 
 
@@ -617,62 +617,78 @@ void X64::effective_address(int regfield, Label l, int offset) {
 
 
 void X64::code_op(int opcode, Opsize opsize, Slash regfield, Register rm) {
-    code_op(opcode, opsize, xb(rm) | q(rm));
+    prefixed_op(opcode, opsize, xb(rm) | q(rm));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, Register regfield, Register rm) {
-    code_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield) | q(rm));
+    prefixed_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield) | q(rm));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, Slash regfield, Address rm) {
-    code_op(opcode, opsize, xb(rm));
+    prefixed_op(opcode, opsize, xb(rm));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, Register regfield, Address rm) {
-    code_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
+    prefixed_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, Slash regfield, Label l, int offset) {
-    code_op(opcode, opsize, 0);
+    prefixed_op(opcode, opsize, 0);
     effective_address(regfield, l, offset);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, Register regfield, Label l, int offset) {
-    code_op(opcode, opsize, r(regfield) | q(regfield));
+    prefixed_op(opcode, opsize, r(regfield) | q(regfield));
     effective_address(regfield, l, offset);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm) {
-    code_op(opcode, opsize, r(regfield) | xb(rm));
+    prefixed_op(opcode, opsize, r(regfield) | xb(rm));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm) {
-    code_op(opcode, opsize, r(regfield) | xb(rm));
+    prefixed_op(opcode, opsize, r(regfield) | xb(rm));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm) {
-    code_op(opcode, opsize, r(regfield) | xb(rm) | q(rm));
+    prefixed_op(opcode, opsize, r(regfield) | xb(rm) | q(rm));
     effective_address(regfield, rm);
 }
 
 
 void X64::code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm) {
-    code_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
+    prefixed_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
     effective_address(regfield, rm);
+}
+
+
+// Own helper function
+
+void X64::blcompar(bool is_unsigned) {
+    // We can't use BH with the current enums, so we must hardcode all instructions
+    // to avoid REX prefixes prepended.
+    
+    if (is_unsigned)
+        code_qword(0xFB28C3970FC7920F);  // SETB BH; SETA BL; SUB BL, BH
+    else
+        code_qword(0xFB28C39F0FC79C0F);  // SETL BH; SETG BL; SUB BL, BH
+    
+    // BL finally contains -1 iff below/less, +1 iff above/greater, 0 iff equal.
+    // The flags are also set accordingly, now independently of the signedness.
 }
 
 
@@ -686,7 +702,7 @@ int simple_info[] = {
 
 
 void X64::op(SimpleOp opcode) {
-    code_op(simple_info[opcode]);
+    prefixless_op(simple_info[opcode]);
 }
 
 
@@ -730,17 +746,17 @@ void X64::op(UnaryOp opcode, Address x) {
 
 void X64::op(PortOp opcode) {
     if ((opcode | 3) == INQ)
-        code_op(0xEC, OPSIZE_LEGACY(opcode));
+        prefixed_op(0xEC, OPSIZE_LEGACY(opcode));
     else
-        code_op(0xEE, OPSIZE_LEGACY(opcode));
+        prefixed_op(0xEE, OPSIZE_LEGACY(opcode));
 }
 
 
 void X64::op(PortOp opcode, int x) {
     if ((opcode | 3) == INQ)
-        code_op(0xE4, OPSIZE_LEGACY(opcode));
+        prefixed_op(0xE4, OPSIZE_LEGACY(opcode));
     else
-        code_op(0xE6, OPSIZE_LEGACY(opcode));
+        prefixed_op(0xE6, OPSIZE_LEGACY(opcode));
      
     code_byte(x);
 }
@@ -767,7 +783,7 @@ void X64::op(StringOp opcode) {
     if (info & 0xFF00)
         code_byte(info >> 8);
         
-    code_op(info & 0xFF, OPSIZE_LEGACY(opcode));
+    prefixed_op(info & 0xFF, OPSIZE_LEGACY(opcode));
 }
 
 
@@ -843,7 +859,7 @@ void X64::op(BinaryOp opcode, Register x, Label y) {
 
 
 void X64::op(MovabsOp opcode, Register x, long y) {
-    code_op(0xB8 + (x & 7), OPSIZE_QWORD, xb(x));
+    prefixed_op(0xB8 + (x & 7), OPSIZE_QWORD, xb(x));
     code_qword(y);
 }
 
@@ -935,9 +951,9 @@ void X64::op(StackOp opcode, int x) {
 
 void X64::op(StackOp opcode, Register x) {
     if (opcode == PUSHQ)
-        code_op(0x50 | (x & 0x07), OPSIZE_DEFAULT, (x & 0x08 ? REX_B : 0));
+        prefixed_op(0x50 | (x & 0x07), OPSIZE_DEFAULT, (x & 0x08 ? REX_B : 0));
     else
-        code_op(0x58 | (x & 0x07), OPSIZE_DEFAULT, (x & 0x08 ? REX_B : 0));
+        prefixed_op(0x58 | (x & 0x07), OPSIZE_DEFAULT, (x & 0x08 ? REX_B : 0));
 }
 
 void X64::op(StackOp opcode, Address x) {
@@ -1061,7 +1077,7 @@ void X64::op(BitSetOp opcode, Address x) {
 
 
 void X64::op(BranchOp opcode, Label c) {
-    code_op(0x0F80 | opcode);
+    prefixless_op(0x0F80 | opcode);
     code_reference(c);
 }
 
@@ -1070,11 +1086,11 @@ void X64::op(BranchOp opcode, Label c) {
 
 void X64::op(JumpOp opcode, Label c) {
     if (opcode == CALL) {
-        code_op(0xE8);
+        prefixless_op(0xE8);
         code_reference(c);
     }
     else if (opcode == JMP) {
-        code_op(0xE9);
+        prefixless_op(0xE9);
         code_reference(c);
     }
     else
@@ -1108,15 +1124,15 @@ void X64::op(JumpOp opcode, Register x) {
 
 void X64::op(ConstantOp opcode, int x) {
     if (opcode == INT) {
-        code_op(0xCD);
+        prefixless_op(0xCD);
         code_byte(x);
     }
     else if (opcode == RETX) {
-        code_op(0xC2);
+        prefixless_op(0xC2);
         code_word(x);
     }
     else if (opcode == RETFX) {
-        code_op(0xCA);
+        prefixless_op(0xCA);
         code_word(x);
     }
 }
