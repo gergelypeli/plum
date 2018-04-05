@@ -37,7 +37,7 @@ const char *SSE_REGISTER_NAMES[] = {
 enum SseRegister {
     XMM0=0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
     XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15,
-    NOXMM=-1
+    NOSSE=-1
 };
 
 
@@ -103,25 +103,34 @@ enum Slash {
 };
 
 
+enum RegSubset {
+    GPR_SUBSET,
+    PTR_SUBSET,
+    SSE_SUBSET
+};
+
 struct Regs {
 private:
     // 16 registers, except RBX (3, 0x08), RSP (4, 0x10), RBP (5, 0x20)
-    static const int AVAILABLE_MASK = 0xFFC7;
+    static const unsigned long AVAILABLE_MASK = 0xFFFFFFC7;
+    static const unsigned long GPR_MASK = 0x0000FFC7;
+    static const unsigned long PTR_MASK = 0x0000FFC7;
+    static const unsigned long SSE_MASK = 0xFFFF0000;
+    static const int REGS_TOTAL = 32;
     
-    enum Subset {
-        GPR_SUBSET=0xFFC7,
-        PTR_SUBSET=0xFFC7,
-        SSE_SUBSET=0x0000  // TODO
-    };
+    unsigned long available;
     
-    int available;
-    
-    Regs(int a) {
+    Regs(unsigned long a) {
         available = a;
     }
 
     void validate(Register r) {
-        if (r == NOREG || !(AVAILABLE_MASK & (1 << (int)r)))
+        if (r == NOREG || r == RBX || r == RSP || r == RBP)
+            throw X64_ERROR;
+    }
+
+    void validate(SseRegister r) {
+        if (r == NOSSE)
             throw X64_ERROR;
     }
 
@@ -136,20 +145,20 @@ public:
     
     Regs(Register r) {
         validate(r);
-        available = (1 << (int)r);
+        available = (1UL << (int)r);
     }
 
     Regs(Register r1, Register r2) {
         validate(r1);
         validate(r2);
-        available = (1 << (int)r1) | (1 << (int)r2);
+        available = (1UL << (int)r1) | (1UL << (int)r2);
     }
 
     Regs(Register r1, Register r2, Register r3) {
         validate(r1);
         validate(r2);
         validate(r3);
-        available = (1 << (int)r1) | (1 << (int)r2) | (1 << (int)r3);
+        available = (1UL << (int)r1) | (1UL << (int)r2) | (1UL << (int)r3);
     }
 
     Regs(Register r1, Register r2, Register r3, Register r4) {
@@ -157,7 +166,7 @@ public:
         validate(r2);
         validate(r3);
         validate(r4);
-        available = (1 << (int)r1) | (1 << (int)r2) | (1 << (int)r3) | (1 << (int)r4);
+        available = (1UL << (int)r1) | (1UL << (int)r2) | (1UL << (int)r3) | (1UL << (int)r4);
     }
 
     Regs(Register r1, Register r2, Register r3, Register r4, Register r5) {
@@ -166,7 +175,12 @@ public:
         validate(r3);
         validate(r4);
         validate(r5);
-        available = (1 << (int)r1) | (1 << (int)r2) | (1 << (int)r3) | (1 << (int)r4) | (1 << (int)r5);
+        available = (1UL << (int)r1) | (1UL << (int)r2) | (1UL << (int)r3) | (1UL << (int)r4) | (1UL << (int)r5);
+    }
+
+    Regs(SseRegister s) {
+        validate(s);
+        available = (1UL << ((int)s + 16));
     }
 
     Regs operator |(Regs other) {
@@ -181,20 +195,34 @@ public:
         return Regs(~available & AVAILABLE_MASK);
     }
     
-    bool has(Register r) {
-        validate(r);
-        return available & (1 << (int)r);
+    explicit operator bool() {
+        return available != 0;
+    }
+    
+    bool has_any() {
+        return (available & GPR_MASK) != 0;
     }
 
-    bool has_any() {
-        return (available & GPR_SUBSET) != 0;
+    bool has_sse() {
+        return (available & SSE_MASK) != 0;
     }
 
     int count() {
         int n = 0;
         
-        for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & GPR_SUBSET & (1 << i)) {
+        for (int i=0; i<REGS_TOTAL; i++)
+            if (available & GPR_MASK & (1UL << i)) {
+                n++;
+            }
+    
+        return n;
+    }
+
+    int count_sse() {
+        int n = 0;
+        
+        for (int i=0; i<REGS_TOTAL; i++)
+            if (available & SSE_MASK & (1UL << i)) {
                 n++;
             }
     
@@ -202,12 +230,22 @@ public:
     }
 
     Register get_any() {
-        for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & GPR_SUBSET & (1 << i)) {
+        for (int i=0; i<REGS_TOTAL; i++)
+            if (available & GPR_MASK & (1UL << i)) {
                 return (Register)i;
             }
     
         std::cerr << "No available register!\n";
+        throw X64_ERROR;
+    }
+
+    SseRegister get_sse() {
+        for (int i=0; i<REGS_TOTAL; i++)
+            if (available & SSE_MASK & (1UL << i)) {
+                return (SseRegister)(i - 16);
+            }
+    
+        std::cerr << "No available SSE register!\n";
         throw X64_ERROR;
     }
 };

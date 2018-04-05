@@ -6,8 +6,9 @@ public:
     //Regs rclob;
     
     FloatOperationValue(OperationType o, Value *p, TypeMatch &match)
-        :OptimizedOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p) {
-        //is_left_lvalue = false;
+        :OptimizedOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p,
+        is_assignment(o) ? PTR_SUBSET : SSE_SUBSET, SSE_SUBSET
+        ) {
     }
     /*
     virtual Regs preallocate_gpr(Regs preferred, Regs lclob, Regs rclob) {

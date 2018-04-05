@@ -98,7 +98,7 @@ public:
             // Since lvalues, these will be MEMORY
             Storage s = values[i]->compile(x64);
 
-            if (s.is_clobbered(Regs::all())) {
+            if (s.regs().has_any()) {  // that is, non-RBP
                 StorageWhere where = stacked(tss[i].where(AS_ARGUMENT));
                 Storage t(where);
                 values[i]->ts.store(s, t, x64);

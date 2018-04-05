@@ -334,7 +334,7 @@ void compile_rbtree_has(Label label, TypeSpec elem_ts, X64 *x64) {
 
     Storage ks(MEMORY, Address(KEYX, 0));
     Storage vs(MEMORY, Address(SELFX, ROOTX, RBNODE_VALUE_OFFSET));
-    if ((COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX)).has_any())
+    if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
         
     elem_ts.compare(ks, vs, x64);
@@ -374,7 +374,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     
     Storage ks(MEMORY, Address(KEYX, 0));
     Storage vs(MEMORY, Address(SELFX, ROOTX, RBNODE_VALUE_OFFSET));
-    if ((COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX)).has_any())
+    if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
 
     elem_ts.compare(ks, vs, x64);
@@ -434,7 +434,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     
     Storage ks(MEMORY, Address(KEYX, 0));  // can't use STACK, that would be popped!
     Storage vs(MEMORY, Address(SELFX, ROOTX, RBNODE_VALUE_OFFSET));
-    if ((COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX)).has_any())
+    if (COMPARE_CLOB & Regs(ROOTX, SELFX, KEYX))
         throw INTERNAL_ERROR;
 
     elem_ts.compare(ks, vs, x64);

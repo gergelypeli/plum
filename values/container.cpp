@@ -114,7 +114,9 @@ public:
     Borrow *borrow;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-        :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
+        :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot,
+        GPR_SUBSET, GPR_SUBSET
+        ) {
         elem_ts = match[1];
         borrow = NULL;
         

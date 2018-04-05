@@ -2,7 +2,9 @@
 class BooleanOperationValue: public OptimizedOperationValue {
 public:
     BooleanOperationValue(OperationType o, Value *p, TypeMatch &match)
-        :OptimizedOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p) {
+        :OptimizedOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p,
+        is_assignment(o) ? PTR_SUBSET : GPR_SUBSET, GPR_SUBSET
+        ) {
     }
 };
 

@@ -7,7 +7,9 @@ public:
     bool is_unsigned;
     
     IntegerOperationValue(OperationType o, Value *pivot, TypeMatch &match)
-        :OptimizedOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), pivot) {
+        :OptimizedOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), pivot,
+        is_assignment(o) ? PTR_SUBSET : GPR_SUBSET, GPR_SUBSET
+        ) {
         int size = match[0].measure_raw();
         os = (
             size == 1 ? 0 :
@@ -96,7 +98,7 @@ public:
         // Used for assigning divmod/exponent.
         switch (ls.where) {
         case MEMORY:
-            if (ls.is_clobbered(Regs(RAX, RDX))) {
+            if (ls.regs() & Regs(RAX, RDX)) {
                 x64->op(LEA, RCX, ls.address);
                 ls = Storage(MEMORY, Address(RCX, 0));
             }

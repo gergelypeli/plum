@@ -29,6 +29,7 @@ struct Storage {
     int value;  // Must be 32-bit only, greater values must be loaded to registers.
     ConditionCode cc;
     Register reg;
+    SseRegister sse;
     Address address;
     
     Storage() {
@@ -36,6 +37,7 @@ struct Storage {
         value = 0;
         cc = CC_NONE;
         reg = NOREG;
+        sse = NOSSE;
     }
 
     Storage(StorageWhere w) {
@@ -48,6 +50,7 @@ struct Storage {
         value = 0;
         cc = CC_NONE;
         reg = NOREG;
+        sse = NOSSE;
     }
 
     Storage(StorageWhere w, int v) {
@@ -60,6 +63,7 @@ struct Storage {
         value = v;
         cc = CC_NONE;
         reg = NOREG;
+        sse = NOSSE;
     }
 
     Storage(StorageWhere w, ConditionCode c) {
@@ -72,6 +76,7 @@ struct Storage {
         value = 0;
         cc = c;
         reg = NOREG;
+        sse = NOSSE;
     }
 
     Storage(StorageWhere w, Register r) {
@@ -84,6 +89,20 @@ struct Storage {
         value = 0;
         cc = CC_NONE;
         reg = r;
+        sse = NOSSE;
+    }
+
+    Storage(StorageWhere w, SseRegister s) {
+        if (w != REGISTER) {
+            std::cerr << "Wrong Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        where = w;
+        value = 0;
+        cc = CC_NONE;
+        reg = NOREG;
+        sse = s;
     }
     
     Storage(StorageWhere w, Address a) {
@@ -96,6 +115,7 @@ struct Storage {
         value = 0;
         cc = CC_NONE;
         reg = NOREG;
+        sse = NOSSE;
         address = a;
     }
 
@@ -110,7 +130,7 @@ struct Storage {
         case FLAGS:
             return regs;
         case REGISTER:
-            return regs | reg;
+            return reg != NOREG ? Regs(reg) : sse != NOSSE ? Regs(sse) : regs;
         case STACK:
         case ALISTACK:
             return regs;
@@ -126,30 +146,6 @@ struct Storage {
                 regs = regs | address.index;
                 
             return regs;
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-    
-    bool is_clobbered(Regs clobbered) {
-        switch (where) {
-        case NOWHERE:
-            return false;
-        case CONSTANT:
-            return false;
-        case FLAGS:
-            return true;
-        case REGISTER:
-            return clobbered.has(reg);
-        case STACK:
-        case ALISTACK:
-            return false;
-        case MEMORY:
-        case ALIAS:
-            return (
-                (address.base != NOREG && address.base != RBP && clobbered.has(address.base)) ||
-                (address.index != NOREG && clobbered.has(address.index))
-            );
         default:
             throw INTERNAL_ERROR;
         }

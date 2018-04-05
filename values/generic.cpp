@@ -91,7 +91,7 @@ public:
         if (ls.where != MEMORY)
             throw INTERNAL_ERROR;
 
-        if (ls.is_clobbered(rclob)) {
+        if (ls.regs() & rclob) {
             Storage s = Storage(ALISTACK);
             left->ts.store(ls, s, x64);
             ls = s;
@@ -133,7 +133,7 @@ public:
     virtual Storage compare(X64 *x64) {
         ls = left->compile(x64);
         
-        if (ls.is_clobbered(rclob)) {
+        if (ls.regs() & rclob) {
             Storage s = Storage(STACK);
             left->ts.store(ls, s, x64);
             ls = s;
@@ -188,7 +188,7 @@ public:
     virtual Storage equal(X64 *x64, bool negate) {
         ls = left->compile(x64);
         
-        if (ls.is_clobbered(rclob)) {
+        if (ls.regs() & rclob) {
             Storage s = Storage(STACK);
             left->ts.store(ls, s, x64);
             ls = s;
@@ -261,8 +261,9 @@ public:
 class OptimizedOperationValue: public GenericOperationValue {
 public:
     Storage auxls;
+    RegSubset lsubset, rsubset;
     
-    OptimizedOperationValue(OperationType o, TypeSpec at, TypeSpec rt, Value *l)
+    OptimizedOperationValue(OperationType o, TypeSpec at, TypeSpec rt, Value *l, RegSubset lss, RegSubset rss)
         :GenericOperationValue(o, at, rt, l) {
 
         if (left->ts.where(AS_VALUE) != REGISTER)
@@ -270,73 +271,111 @@ public:
             
         if (at != NO_TS && at.where(AS_VALUE) != REGISTER)
             throw INTERNAL_ERROR;
-    }
-/*
-    GenericOperationValue(TypeSpec at, TypeSpec rt, Value *l)
-        :GenericValue(at, rt, l) {
-        operation = TWEAK;
-        is_left_lvalue = is_assignment(operation);
-        //reg = NOREG;
-        
-        if (left->ts.where(AS_VALUE) != REGISTER)
-            throw INTERNAL_ERROR;
             
-        if (at != NO_TS && at.where(AS_VALUE) != REGISTER)
-            throw INTERNAL_ERROR;
+        lsubset = lss;
+        rsubset = rss;
     }
-*/    
     
     virtual Storage pick_early_auxls(Regs preferred) {
-        Register r = NOREG;
+        if (lsubset == GPR_SUBSET || lsubset == PTR_SUBSET) {
+            Register r = NOREG;
         
-        if ((preferred & clob & ~rclob).has_any()) {
-            // We have preferred registers clobbered by the left side only, use one
-            r = (preferred & clob & ~rclob).get_any();
-        }
-        else if ((clob & ~rclob).has_any()) {
-            // We have registers clobbered by the left side only, use one
-            r = (clob & ~rclob).get_any();
-        }
-        else if ((preferred & ~rclob).has_any()) {
-            // We have preferred registers not clobbered by the right side, allocate one
-            r = (preferred & ~rclob).get_any();
-        }
-        else if (rclob.count() <= 2) {
-            // Just allocate a register that is not clobbered by the right side
-            r = (~rclob).get_any();
-        }
-        else if (rclob.count() >= 2) {
-            // The right side clobbers many registers, so pick one for the left later
-            return Storage();
-        }
+            if ((preferred & clob & ~rclob).has_any()) {
+                // We have preferred registers clobbered by the left side only, use one
+                r = (preferred & clob & ~rclob).get_any();
+            }
+            else if ((clob & ~rclob).has_any()) {
+                // We have registers clobbered by the left side only, use one
+                r = (clob & ~rclob).get_any();
+            }
+            else if ((preferred & ~rclob).has_any()) {
+                // We have preferred registers not clobbered by the right side, allocate one
+                r = (preferred & ~rclob).get_any();
+            }
+            else if (rclob.count() <= 2) {
+                // Just allocate a register that is not clobbered by the right side
+                r = (~rclob).get_any();
+            }
+            else {
+                // The right side clobbers many registers, so pick one for the left later
+                return Storage();
+            }
         
-        if (is_left_lvalue)
-            return Storage(MEMORY, Address(r, 0));
-        else
+            if (lsubset == PTR_SUBSET)
+                return Storage(MEMORY, Address(r, 0));
+            else
+                return Storage(REGISTER, r);
+        }
+        else if (lsubset == SSE_SUBSET) {
+            SseRegister r = NOSSE;
+        
+            if ((preferred & clob & ~rclob).has_sse()) {
+                // We have preferred registers clobbered by the left side only, use one
+                r = (preferred & clob & ~rclob).get_sse();
+            }
+            else if ((clob & ~rclob).has_sse()) {
+                // We have registers clobbered by the left side only, use one
+                r = (clob & ~rclob).get_sse();
+            }
+            else if ((preferred & ~rclob).has_sse()) {
+                // We have preferred registers not clobbered by the right side, allocate one
+                r = (preferred & ~rclob).get_sse();
+            }
+            else if (rclob.count_sse() <= 2) {
+                // Just allocate a register that is not clobbered by the right side
+                r = (~rclob).get_sse();
+            }
+            else {
+                // The right side clobbers many registers, so pick one for the left later
+                return Storage();
+            }
+        
             return Storage(REGISTER, r);
+        }
+        else
+            throw INTERNAL_ERROR;
     }
 
     virtual Storage pick_late_auxls() {
         // The right side clobbered many registers, pick one that is not used by its value
-        Register r = (clob & ~rs.regs()).get_any();
+        
+        if (lsubset == GPR_SUBSET || lsubset == PTR_SUBSET) {
+            Register r = (clob & ~rs.regs()).get_any();
 
-        if (is_left_lvalue)
-            return Storage(MEMORY, Address(r, 0));
-        else
+            if (lsubset == PTR_SUBSET)
+                return Storage(MEMORY, Address(r, 0));
+            else
+                return Storage(REGISTER, r);
+        }
+        else if (lsubset == SSE_SUBSET) {
+            SseRegister r = (clob & ~rs.regs()).get_sse();
+
             return Storage(REGISTER, r);
+        }
+        else
+            throw INTERNAL_ERROR;
     }
 
-    virtual Storage pick_auxrs(bool is_right_lvalue) {
-        Register r = (~(ls.regs() | auxls.regs())).get_any();
-        
+    virtual Storage pick_auxrs(RegSubset rss) {
         // Since the code can be more optimal if we don't load the right argument
         // into registers before actually executing the operation, we may leave it
         // in memory in many cases, only have to load stuff from ALISTACK and ALIAS.
+
+        if (rss == GPR_SUBSET || rss == PTR_SUBSET) {
+            Register r = (~(ls.regs() | auxls.regs())).get_any();
         
-        if (is_right_lvalue)
-            return Storage(MEMORY, Address(r, 0));
-        else
+            if (rss == PTR_SUBSET)
+                return Storage(MEMORY, Address(r, 0));
+            else
+                return Storage(REGISTER, r);
+        }
+        else if (rss == SSE_SUBSET) {
+            SseRegister r = (~(ls.regs() | auxls.regs())).get_sse();
+        
             return Storage(REGISTER, r);
+        }
+        else
+            throw INTERNAL_ERROR;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -370,7 +409,7 @@ public:
             
             switch (ls.where) {
             case MEMORY:
-                if (ls.is_clobbered(rclob)) {
+                if (ls.regs() & rclob) {
                     // We got a dynamic address clobbered by the right side
                     
                     if (auxls.where == MEMORY) {
@@ -415,7 +454,7 @@ public:
                 }
                 break;
             case REGISTER:
-                if (ls.is_clobbered(rclob)) {
+                if (ls.regs() & rclob) {
                     if (auxls.where == REGISTER) {
                         left->ts.store(ls, auxls, x64);
                         ls = auxls;
@@ -516,7 +555,7 @@ public:
         case REGISTER:
             break;
         case STACK: {
-            Storage auxrs = pick_auxrs(false);
+            Storage auxrs = pick_auxrs(rsubset);
             right->ts.store(rs, auxrs, x64);
             rs = auxrs;
             }
@@ -524,13 +563,13 @@ public:
         case MEMORY:
             break;
         case ALISTACK: {
-            Storage auxrs = pick_auxrs(true);
+            Storage auxrs = pick_auxrs(PTR_SUBSET);
             right->ts.store(rs, auxrs, x64);
             rs = auxrs;
             }
             break;
         case ALIAS: {
-            Storage auxrs = pick_auxrs(true);
+            Storage auxrs = pick_auxrs(PTR_SUBSET);
             right->ts.store(rs, auxrs, x64);
             rs = auxrs;
             }

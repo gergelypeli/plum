@@ -151,7 +151,9 @@ public:
     TypeSpec elem_ts;
 
     ArrayReallocValue(OperationType o, Value *l, TypeMatch &match)
-        :OptimizedOperationValue(o, INTEGER_OVALUE_TS, l->ts, l) {
+        :OptimizedOperationValue(o, INTEGER_OVALUE_TS, l->ts, l,
+        PTR_SUBSET, GPR_SUBSET
+        ) {
         elem_ts = match[1];
     }
 
