@@ -66,6 +66,46 @@ public:
         );
     }
 
+    virtual void little_prearrange(X64 *x64) {
+        // Get rs into a register, but out of RAX/RCX/RDX, may use RBX
+        // Used for divmod/exponent.
+        switch (rs.where) {
+        case CONSTANT:
+            x64->op(MOVQ % os, RBX, rs.value);
+            rs = Storage(REGISTER, RBX);
+            break;
+        case REGISTER:
+            if (rs.reg == RAX || rs.reg == RCX || rs.reg == RDX) {
+                x64->op(MOVQ % os, RBX, rs.reg);
+                rs = Storage(REGISTER, RBX);
+            }
+            break;
+        case MEMORY:
+            x64->op(MOVQ % os, RBX, rs.reg);
+            rs = Storage(REGISTER, RBX);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+    
+    virtual void big_prearrange(X64 *x64) {
+        little_prearrange(x64);
+        
+        // Get ls out of RAX/RDX, may use RCX
+        // Used for assigning divmod/exponent.
+        switch (ls.where) {
+        case MEMORY:
+            if (ls.is_clobbered(Regs(RAX, RDX))) {
+                x64->op(LEA, RCX, ls.address);
+                ls = Storage(MEMORY, Address(RCX, 0));
+            }
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+        
     virtual Storage unary(X64 *x64, UnaryOp opcode) {
         subcompile(x64);
 
@@ -214,80 +254,23 @@ public:
         }
     }
 
-    virtual void arrange_in_rax_rcx(X64 *x64) {
-        // Careful, not to destroy the base register of the other address before dereferencing!
-
-        switch (ls.where * rs.where) {
-        case CONSTANT_CONSTANT:
-            x64->op(MOVQ % os, RAX, ls.value);
-            x64->op(MOVQ % os, RCX, rs.value);
-            break;
-        case CONSTANT_REGISTER:
-            x64->op(MOVQ % os, RCX, rs.reg);  // Order!
-            x64->op(MOVQ % os, RAX, ls.value);
-            break;
-        case CONSTANT_MEMORY:
-            x64->op(MOVQ % os, RCX, rs.address);  // Order!
-            x64->op(MOVQ % os, RAX, ls.value);
-            break;
-        case REGISTER_CONSTANT:
-            x64->op(MOVQ % os, RAX, ls.reg);  // Order!
-            x64->op(MOVQ % os, RCX, rs.value);
-            break;
-        case REGISTER_REGISTER:
-            x64->op(MOVQ % os, RBX, rs.reg);
-            x64->op(MOVQ % os, RAX, ls.reg);
-            x64->op(MOVQ % os, RCX, RBX);
-            break;
-        case REGISTER_MEMORY:
-            x64->op(MOVQ % os, RBX, rs.address);
-            x64->op(MOVQ % os, RAX, ls.reg);
-            x64->op(MOVQ % os, RCX, RBX);
-            break;
-        case MEMORY_CONSTANT:
-            x64->op(MOVQ % os, RAX, ls.address);  // Order!
-            x64->op(MOVQ % os, RCX, rs.value);
-            break;
-        case MEMORY_REGISTER:
-            x64->op(MOVQ % os, RBX, rs.reg);
-            x64->op(MOVQ % os, RAX, ls.address);
-            x64->op(MOVQ % os, RCX, RBX);
-            break;
-        case MEMORY_MEMORY:
-            x64->op(MOVQ % os, RBX, rs.address);
-            x64->op(MOVQ % os, RAX, ls.address);
-            x64->op(MOVQ % os, RCX, RBX);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-
     virtual Storage binary_divmod(X64 *x64, bool mod) {
         subcompile(x64);
 
         if (ls.where == CONSTANT && rs.where == CONSTANT)
             return Storage(CONSTANT, mod ? ls.value % rs.value : ls.value / rs.value);
 
-        arrange_in_rax_rcx(x64);
-        
-        SimpleOp prep = (os == 0 ? CBW : os == 1 ? CWD : os == 2 ? CDQ : CQO);
-        UnaryOp opcode = (is_unsigned ? DIVQ : IDIVQ);
+        little_prearrange(x64);  // move rs out of RAX/RCX/RDX, potentially into RBX
 
-        x64->op(prep);
-        x64->op(opcode % os, RCX);
+        left->ts.store(ls, Storage(REGISTER, RAX), x64);
+
+        x64->op(os == 0 ? CBW : os == 1 ? CWD : os == 2 ? CDQ : CQO);
+        x64->op((is_unsigned ? DIVQ : IDIVQ) % os, rs.reg);
+
+        if (mod && os == 0)
+            x64->op(MOVB, DL, AH);  // Result in AH, get it into a sane register
             
-        if (!mod)
-            return Storage(REGISTER, RAX);
-        else {
-            if (os == 0) {
-                // Result in AH, get it into a sane register
-                x64->op(SHRW, RAX, 8);
-                return Storage(REGISTER, RAX);
-            }
-            else
-                return Storage(REGISTER, RDX);
-        }
+        return Storage(REGISTER, mod ? RDX : RAX);
     }
 
     virtual Storage binary_shift(X64 *x64, ShiftOp opcode) {
@@ -367,10 +350,12 @@ public:
     virtual Storage binary_exponent(X64 *x64) {
         subcompile(x64);
 
-        arrange_in_rax_rcx(x64);
+        little_prearrange(x64);  // get rs out of RAX/RCX/RDX, potentially into RBX
+
+        left->ts.store(ls, Storage(REGISTER, RAX), x64);
         
-        // base in RAX, exponent in RCX, result in RDX
-        exponentiation_by_squaring(x64, RAX, RCX, RDX);
+        // base in RAX, exponent in rs, result in RDX
+        exponentiation_by_squaring(x64, RAX, rs.reg, RDX);
 
         return Storage(REGISTER, RDX);
     }
@@ -482,34 +467,6 @@ public:
         return ls;
     }
 
-    virtual void big_prearrange(X64 *x64) {
-        // Get rs into a register, but out of RAX/RCX/RDX
-        switch (rs.where) {
-        case CONSTANT:
-            x64->op(MOVQ % os, RBX, rs.value);
-            rs = Storage(REGISTER, RBX);
-            break;
-        case REGISTER:
-            if (rs.reg == RAX || rs.reg == RCX || rs.reg == RDX) {
-                x64->op(MOVQ % os, RBX, rs.reg);
-                rs = Storage(REGISTER, RBX);
-            }
-            break;
-        case MEMORY:
-            x64->op(MOVQ % os, RBX, rs.reg);
-            rs = Storage(REGISTER, RBX);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        // Get ls out of RAX/RDX
-        if (ls.is_clobbered(Regs(RAX, RDX))) {
-            x64->op(LEA, RCX, ls.address);
-            ls = Storage(MEMORY, Address(RCX, 0));
-        }
-    }
-    
     virtual Storage assign_divmod(X64 *x64, bool mod) {
         subcompile(x64);
 
