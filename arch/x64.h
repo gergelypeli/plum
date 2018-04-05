@@ -107,6 +107,13 @@ struct Regs {
 private:
     // 16 registers, except RBX (3, 0x08), RSP (4, 0x10), RBP (5, 0x20)
     static const int AVAILABLE_MASK = 0xFFC7;
+    
+    enum Subset {
+        GPR_SUBSET=0xFFC7,
+        PTR_SUBSET=0xFFC7,
+        SSE_SUBSET=0x0000  // TODO
+    };
+    
     int available;
     
     Regs(int a) {
@@ -180,18 +187,14 @@ public:
     }
 
     bool has_any() {
-        return (available & AVAILABLE_MASK) != 0;
-    }
-
-    explicit operator bool() {
-        return (available & AVAILABLE_MASK) != 0;
+        return (available & GPR_SUBSET) != 0;
     }
 
     int count() {
         int n = 0;
         
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & AVAILABLE_MASK & (1 << i)) {
+            if (available & GPR_SUBSET & (1 << i)) {
                 n++;
             }
     
@@ -200,7 +203,7 @@ public:
 
     Register get_any() {
         for (int i=0; i<REGISTER_COUNT; i++)
-            if (available & AVAILABLE_MASK & (1 << i)) {
+            if (available & GPR_SUBSET & (1 << i)) {
                 return (Register)i;
             }
     

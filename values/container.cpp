@@ -108,13 +108,13 @@ public:
 };
 
 
-class ContainerIndexValue: public GenericOperationValue {
+class ContainerIndexValue: public OptimizedOperationValue {
 public:
     TypeSpec elem_ts;
     Borrow *borrow;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-        :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
+        :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
         elem_ts = match[1];
         borrow = NULL;
         
@@ -125,7 +125,7 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         borrow = new Borrow;
         scope->add(borrow);
-        return GenericOperationValue::check(args, kwargs, scope);
+        return OptimizedOperationValue::check(args, kwargs, scope);
     }
 
     virtual void fix_RBX_index(Register r, X64 *x64) {
@@ -134,7 +134,7 @@ public:
     virtual Storage subcompile(int elems_offset, X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
     
-        GenericOperationValue::subcompile(x64);
+        OptimizedOperationValue::subcompile(x64);
 
         switch (rs.where) {
         case CONSTANT:
@@ -162,15 +162,15 @@ public:
             return Storage(MEMORY, Address(ls.reg, 0));
         case MEMORY:
             // Add weak reference, defer decweakref
-            x64->op(MOVQ, reg, ls.address);  // reg may be the base of ls.address
-            x64->op(MOVQ, borrow->get_address(), reg);
-            x64->runtime->incweakref(reg);
+            x64->op(MOVQ, auxls.reg, ls.address);  // reg may be the base of ls.address
+            x64->op(MOVQ, borrow->get_address(), auxls.reg);
+            x64->runtime->incweakref(auxls.reg);
             
-            fix_RBX_index(reg, x64);
+            fix_RBX_index(auxls.reg, x64);
             
             x64->op(IMUL3Q, RBX, RBX, elem_size);
-            x64->op(LEA, reg, Address(reg, RBX, elems_offset));
-            return Storage(MEMORY, Address(reg, 0));
+            x64->op(LEA, auxls.reg, Address(auxls.reg, RBX, elems_offset));
+            return Storage(MEMORY, Address(auxls.reg, 0));
         default:
             throw INTERNAL_ERROR;
         }

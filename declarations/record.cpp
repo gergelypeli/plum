@@ -113,7 +113,7 @@ public:
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where == MEMORY && t.where == MEMORY) {
             Label end;
-            if ((s.regs() | t.regs()) & EQUAL_CLOB)
+            if (((s.regs() | t.regs()) & EQUAL_CLOB).has_any())
                 throw INTERNAL_ERROR;
             
             for (unsigned i = 0; i < comparable_member_count(); i++) {
@@ -130,7 +130,7 @@ public:
     
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where == MEMORY && t.where == MEMORY) {
-            if ((s.regs() | t.regs()) & COMPARE_CLOB)
+            if (((s.regs() | t.regs()) & COMPARE_CLOB).has_any())
                 throw INTERNAL_ERROR;
                 
             Label end;

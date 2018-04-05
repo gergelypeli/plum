@@ -146,17 +146,17 @@ public:
 };
 
 
-class ArrayReallocValue: public GenericOperationValue {
+class ArrayReallocValue: public OptimizedOperationValue {
 public:
     TypeSpec elem_ts;
 
     ArrayReallocValue(OperationType o, Value *l, TypeMatch &match)
-        :GenericOperationValue(o, INTEGER_OVALUE_TS, l->ts, l) {
+        :OptimizedOperationValue(o, INTEGER_OVALUE_TS, l->ts, l) {
         elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = GenericOperationValue::precompile(preferred);
+        Regs clob = OptimizedOperationValue::precompile(preferred);
         return clob | RAX | RCX;
     }
 
