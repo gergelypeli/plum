@@ -285,15 +285,18 @@ struct Address {
     Register index;
     int scale;
     int offset;  // Offsets are never longer than 32 bits, except in some wicked cases
+    Label label;
 
-    Address() {
+    Address()
+        :label(Label::LEAVE_UNDEFINED) {
         base = NOREG;
         index = NOREG;
         scale = 0;
         offset = 0;
     }
 
-    Address(Register b, int o) {
+    Address(Register b, int o)
+        :label(Label::LEAVE_UNDEFINED) {
         if (b == NOREG) {
             std::cerr << "Address without base register!\n";
             throw X64_ERROR;
@@ -305,7 +308,8 @@ struct Address {
         offset = o;
     }
 
-    Address(Register b, Register i, int o) {
+    Address(Register b, Register i, int o)
+        :label(Label::LEAVE_UNDEFINED) {
         if (b == NOREG) {
             std::cerr << "Address without base register!\n";
             throw X64_ERROR;
@@ -317,7 +321,8 @@ struct Address {
         offset = o;
     }
 
-    Address(Register b, Register i, int s, int o) {
+    Address(Register b, Register i, int s, int o)
+        :label(Label::LEAVE_UNDEFINED) {
         if (b == NOREG) {
             std::cerr << "Address without base register!\n";
             throw X64_ERROR;
@@ -332,7 +337,17 @@ struct Address {
         offset = o;
     }
 
+    Address(Label l, int o)
+        :label(l) {
+        base = NOREG;
+        index = NOREG;
+        scale = 1;
+        offset = o;
+    }
+
     Address operator + (int x) {
-        return Address(base, index, scale, offset + x);
+        Address a(*this);
+        a.offset += x;
+        return a;
     }
 };

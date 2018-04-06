@@ -306,7 +306,6 @@ public:
     void effective_address(int regfield, Register rm);
     void effective_address(int regfield, SseRegister rm);
     void effective_address(int regfield, Address rm);
-    void effective_address(int regfield, Label l, int offset);
 
     RexFlags q(Register r);
     RexFlags r(Register regfield);
@@ -323,8 +322,6 @@ public:
     void code_op(int opcode, Opsize opsize, Register regfield, Register rm);
     void code_op(int opcode, Opsize opsize, Slash regfield, Address rm);
     void code_op(int opcode, Opsize opsize, Register regfield, Address rm);
-    void code_op(int opcode, Opsize opsize, Slash regfield, Label l, int offset);
-    void code_op(int opcode, Opsize opsize, Register regfield, Label l, int offset);
     void code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm);
     void code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm);
     void code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm);
@@ -344,7 +341,7 @@ public:
     void op(BinaryOp opcode, Register x, HighByteRegister y);
     void op(BinaryOp opcode, Address x, Register y);
     void op(BinaryOp opcode, Register x, Address y);
-    void op(BinaryOp opcode, Register x, Label y);
+    //void op(BinaryOp opcode, Register x, Label y);
     void op(MovabsOp opcode, Register x, long y);  // 64-bit immediate capable
     void op(ShiftOp opcode, Register x, Register cl);
     void op(ShiftOp opcode, Address x, Register cl);

@@ -29,8 +29,8 @@ public:
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
-        case CONSTANT_MEMORY:
-            x64->op(MOVQ, RBX, s.label);
+        case MEMORY_MEMORY:
+            x64->op(MOVQ, RBX, s.address);
             x64->op(MOVQ, t.address, RBX);
             break;
         default:

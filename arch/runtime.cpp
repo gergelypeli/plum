@@ -6,7 +6,7 @@ class Runtime {
 public:
     X64 *x64;
     
-    Label zero_label, float_sign_bit_label;
+    Label zero_label, float_minus_zero_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label memalloc_label, memfree_label, memrealloc_label;
     Label log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
@@ -18,10 +18,11 @@ public:
         
         x64->absolute_label(zero_label, 0);
 
+        // Float constants are aligned to 16 bytes so SSE packed instructions can use it
         x64->data_align(16);
-        x64->data_label(float_sign_bit_label);
-        x64->data_qword(1UL << 63);
-        x64->data_qword(0);
+        x64->data_label(float_minus_zero_label);
+        x64->data_double(-0.0);
+        x64->data_double(0.0);
 
         x64->code_label_import(memalloc_label, "memalloc");
         x64->code_label_import(memfree_label, "memfree");

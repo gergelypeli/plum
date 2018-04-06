@@ -31,10 +31,8 @@ struct Storage {
     Register reg;
     SseRegister sse;
     Address address;
-    Label label;
     
-    Storage()
-        :label(Label::LEAVE_UNDEFINED) {
+    Storage() {
         where = NOWHERE;
         value = 0;
         cc = CC_NONE;
@@ -42,8 +40,7 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w)
-        :label(Label::LEAVE_UNDEFINED) {
+    Storage(StorageWhere w) {
         if (w != STACK && w != ALISTACK) {
             std::cerr << "Incomplete Storage!\n";
             throw INTERNAL_ERROR;
@@ -56,8 +53,7 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w, int v)
-        :label(Label::LEAVE_UNDEFINED) {
+    Storage(StorageWhere w, int v) {
         if (w != CONSTANT) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -70,8 +66,7 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w, ConditionCode c)
-        :label(Label::LEAVE_UNDEFINED) {
+    Storage(StorageWhere w, ConditionCode c) {
         if (w != FLAGS) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -84,8 +79,7 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w, Register r)
-        :label(Label::LEAVE_UNDEFINED) {
+    Storage(StorageWhere w, Register r) {
         if (w != REGISTER) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -98,8 +92,7 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w, SseRegister s)
-        :label(Label::LEAVE_UNDEFINED) {
+    Storage(StorageWhere w, SseRegister s) {
         if (w != REGISTER) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -112,22 +105,7 @@ struct Storage {
         sse = s;
     }
 
-    Storage(StorageWhere w, Label l)
-        :label(l) {
-        if (w != CONSTANT) {
-            std::cerr << "Wrong Storage!\n";
-            throw INTERNAL_ERROR;
-        }
-
-        where = w;
-        value = 0;
-        cc = CC_NONE;
-        reg = NOREG;
-        sse = NOSSE;
-    }
-    
-    Storage(StorageWhere w, Address a)
-        :label(Label::LEAVE_UNDEFINED) {
+    Storage(StorageWhere w, Address a) {
         if (w != MEMORY && w != ALIAS) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;

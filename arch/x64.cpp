@@ -210,7 +210,7 @@ void X64::add_def(Label label, const Def &def) {
 }
 
 
-void X64::absolute_label(Label c, unsigned long value, unsigned size = 0) {
+void X64::absolute_label(Label c, unsigned long value, unsigned size) {
     add_def(c, Def(DEF_ABSOLUTE, value, size, "", false));
 }
 
@@ -501,6 +501,11 @@ void X64::effective_address(int regfield, Address x) {
         throw X64_ERROR;
     }
 
+    if (x.label.def_index != 0 && (x.base != NOREG || x.index != NOREG)) {
+        std::cerr << "Oops, can't use base or index for RIP relative addressing!\n";
+        throw X64_ERROR;
+    }
+
     // The cut off bits belong to the REX prefix
     regfield &= 7;
     int base = x.base == NOREG ? NOREG : x.base & 7;  // RSP and R12 need a SIB
@@ -508,9 +513,16 @@ void X64::effective_address(int regfield, Address x) {
     int scale = (x.scale == 1 ? 0 : x.scale == 2 ? 1 : x.scale == 4 ? 2 : x.scale == 8 ? 3 : x.index == NOREG ? 0 : throw X64_ERROR);
     int offset = x.offset;
     
-    if (base == NOREG) {
-        // No base can only be encoded with a SIB, RBP/R13 in r/m means [RIP]
-        // Must use the encoding with no offset and RBP/R13 base to get disp32 with no base
+    if (x.label.def_index != 0) {
+        // Accessing a fixed memory location is only allowed using RIP-relative addressing,
+        // so our code can be position independent.
+        // Specifying DISP0 offsets with RBP/R13 base in r/m means [RIP+disp32].
+
+        code_byte((DISP0 << 6) | (regfield << 3) | RBP);
+        code_reference(x.label, offset);
+    }
+    else if (base == NOREG) {
+        // Specifying DISP0 offsets with SIB with RBP/R13 base means [disp32].
 
         if (index != NOREG) {
             code_byte((DISP0 << 6) | (regfield << 3) | USE_SIB);
@@ -523,7 +535,8 @@ void X64::effective_address(int regfield, Address x) {
         
         code_dword(offset);
     }
-    else if (offset == 0 && base != RBP) {  // [RBP] and [R13] must use explicit offset
+    else if (offset == 0 && base != RBP) {
+        // A RBP/R13 base means [RIP+disp32] in r/m base, and [disp32] in SIB base!
         // Omit offset
         
         if (index != NOREG) {  // need a SIB for index
@@ -566,16 +579,9 @@ void X64::effective_address(int regfield, Address x) {
         }
         else  // base with disp32 can be encoded in r/m if not RSP/R12
             code_byte((DISP32 << 6) | (regfield << 3) | base);
-            
-        code_dword(offset);  // 32-bit offsets only
+
+        code_dword(offset);
     }
-}
-
-
-void X64::effective_address(int regfield, Label l, int offset) {
-    const int DISP0 = 0;
-    code_byte((DISP0 << 6) | ((regfield & 7) << 3) | RBP);  // means [RIP + disp32]
-    code_reference(l, offset);
 }
 
 
@@ -600,18 +606,6 @@ void X64::code_op(int opcode, Opsize opsize, Slash regfield, Address rm) {
 void X64::code_op(int opcode, Opsize opsize, Register regfield, Address rm) {
     prefixed_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
     effective_address(regfield, rm);
-}
-
-
-void X64::code_op(int opcode, Opsize opsize, Slash regfield, Label l, int offset) {
-    prefixed_op(opcode, opsize);
-    effective_address(regfield, l, offset);
-}
-
-
-void X64::code_op(int opcode, Opsize opsize, Register regfield, Label l, int offset) {
-    prefixed_op(opcode, opsize, r(regfield) | q(regfield));
-    effective_address(regfield, l, offset);
 }
 
 
@@ -698,13 +692,11 @@ struct {
 void X64::op(UnaryOp opcode, Register x) {
     auto &info = unary_info[opcode >> 2];
     code_op(info.op, OPSIZE_LEGACY(opcode), info.regfield, x);
-    //effective_address(info.regfield, x);
 }
 
 void X64::op(UnaryOp opcode, Address x) {
     auto &info = unary_info[opcode >> 2];
     code_op(info.op, OPSIZE_LEGACY(opcode), info.regfield, x);
-    //effective_address(info.regfield, x);
 }
 
 
@@ -825,11 +817,6 @@ void X64::op(BinaryOp opcode, Address x, Register y) {
 void X64::op(BinaryOp opcode, Register x, Address y) {
     auto &info = binary_info[opcode >> 2];
     code_op(info.op3, OPSIZE_LEGACY(opcode), x, y);
-}
-
-void X64::op(BinaryOp opcode, Register x, Label y) {
-    auto &info = binary_info[opcode >> 2];
-    code_op(info.op3, OPSIZE_LEGACY(opcode), x, y, 0);
 }
 
 
@@ -1041,7 +1028,7 @@ void X64::op(RegisterMemoryOp opcode, Register x, Address y) {
 
 
 void X64::op(LeaRipOp, Register r, Label l, int offset) {
-    code_op(0x8D, OPSIZE_QWORD, r, l, offset);  // must use 64-bit opsize
+    code_op(0x8D, OPSIZE_QWORD, r, Address(l, offset));  // must use 64-bit opsize
 }
 
 
