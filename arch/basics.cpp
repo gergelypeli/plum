@@ -108,11 +108,12 @@ enum RegSubset {
 
 struct Regs {
 private:
-    // 16 registers, except RBX (3, 0x08), RSP (4, 0x10), RBP (5, 0x20)
-    static const unsigned long AVAILABLE_MASK = 0xFFFFFFC7;
+    // 16 general registers, except RBX (3, 0x08), RSP (4, 0x10), RBP (5, 0x20).
+    // 16 SSE registers, except XMM0 (0+16, 0x10000).
     static const unsigned long GPR_MASK = 0x0000FFC7;
     static const unsigned long PTR_MASK = 0x0000FFC7;
-    static const unsigned long SSE_MASK = 0xFFFF0000;
+    static const unsigned long SSE_MASK = 0xFFFE0000;
+    static const unsigned long ALL_MASK = GPR_MASK | PTR_MASK | SSE_MASK;
     static const int REGS_TOTAL = 32;
     
     unsigned long available;
@@ -126,8 +127,8 @@ private:
             throw X64_ERROR;
     }
 
-    void validate(SseRegister r) {
-        if (r == NOSSE)
+    void validate(SseRegister s) {
+        if (s == NOSSE || s == XMM0)
             throw X64_ERROR;
     }
 
@@ -137,7 +138,7 @@ public:
     }
     
     static Regs all() {
-        return Regs(AVAILABLE_MASK);
+        return Regs(ALL_MASK);
     }
     
     Regs(Register r) {
@@ -189,7 +190,7 @@ public:
     }
 
     Regs operator~() {
-        return Regs(~available & AVAILABLE_MASK);
+        return Regs(~available & ALL_MASK);
     }
     
     explicit operator bool() {

@@ -229,7 +229,7 @@ public:
     
     struct Def {
         Def_type type;
-        int location;  // Can be arbitrary value for absolute symbols
+        unsigned long location;  // Can be arbitrary value for absolute symbols
         unsigned size;
         std::string name;
         bool is_global;
@@ -255,7 +255,7 @@ public:
     
     struct Ref {
         Ref_type type;
-        int location;
+        unsigned long location;
         unsigned def_index;
     };
 
@@ -273,7 +273,9 @@ public:
     
     void add_def(Label label, const Def &def);
 
-    void data_align();
+    void absolute_label(Label c, unsigned long value, unsigned size = 0);
+
+    void data_align(int bytes);
     void data_byte(char x);
     void data_word(short x);
     void data_dword(int x);
@@ -285,7 +287,6 @@ public:
     void data_label_global(Label c, std::string name, unsigned size = 0);
     void data_reference(Label c);
 
-    void code_align();
     void code_byte(char x);
     void code_word(short x);
     void code_dword(int x);

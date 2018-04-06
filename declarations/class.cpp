@@ -198,7 +198,7 @@ public:
         std::vector<VirtualEntry *> vt = ts.get_virtual_table();
         TypeMatch tm = type_parameters_to_match(ts);
 
-        x64->data_align();
+        x64->data_align(8);
         
         std::stringstream ss;
         ss << ts[0]->name << "_virtual_table";

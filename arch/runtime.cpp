@@ -6,16 +6,22 @@ class Runtime {
 public:
     X64 *x64;
     
-    Label zero_label;
+    Label zero_label, float_sign_bit_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label, log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
+    Label memalloc_label, memfree_label, memrealloc_label;
+    Label log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
     Label finalize_label, alloc_fcb_label, free_fcb_label, finalize_reference_array_label, string_regexp_match_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Runtime(X64 *x) {
         x64 = x;
         
-        x64->add_def(zero_label, X64::Def(X64::DEF_ABSOLUTE_EXPORT, 0, 0, "ABSOLUTE_ZERO", false));
+        x64->absolute_label(zero_label, 0);
+
+        x64->data_align(16);
+        x64->data_label(float_sign_bit_label);
+        x64->data_qword(1UL << 63);
+        x64->data_qword(0);
 
         x64->code_label_import(memalloc_label, "memalloc");
         x64->code_label_import(memfree_label, "memfree");
@@ -35,7 +41,7 @@ public:
         if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKREFCOUNT_OFFSET != -8 || HEAP_FINALIZER_OFFSET != -24)
             throw X64_ERROR;
     
-        x64->data_align();
+        x64->data_align(8);
         x64->data_qword(0);  // next
         x64->data_reference(empty_function_label);  // finalizer
         x64->data_qword(1);  // artificial reference to prevent freeing

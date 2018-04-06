@@ -20,11 +20,11 @@ public:
     void set_data(std::vector<char> &d);
     void done(std::string filename);
 
-    unsigned export_absolute(std::string name, int value, unsigned size, bool is_global);
-    unsigned export_data(std::string name, int location, unsigned size, bool is_global);
-    unsigned export_code(std::string name, int location, unsigned size, bool is_global);
+    unsigned export_absolute(std::string name, Elf64_Addr value, unsigned size, bool is_global);
+    unsigned export_data(std::string name, Elf64_Addr location, unsigned size, bool is_global);
+    unsigned export_code(std::string name, Elf64_Addr location, unsigned size, bool is_global);
     unsigned import(std::string name);
     
-    void code_relocation(unsigned index, int location, int addend);
-    void data_relocation(unsigned index, int location, int addend);
+    void code_relocation(unsigned index, Elf64_Addr location, int addend);
+    void data_relocation(unsigned index, Elf64_Addr location, int addend);
 };

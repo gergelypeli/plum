@@ -200,7 +200,7 @@ unsigned Ork::add_string(std::string s) {
 }
 
 
-unsigned Ork::export_absolute(std::string name, int value, unsigned size, bool is_global) {
+unsigned Ork::export_absolute(std::string name, Elf64_Addr value, unsigned size, bool is_global) {
     symbols.push_back(Elf64_Sym());
     Elf64_Sym &s = symbols.back();
 
@@ -215,7 +215,7 @@ unsigned Ork::export_absolute(std::string name, int value, unsigned size, bool i
 }
 
 
-unsigned Ork::export_data(std::string name, int location, unsigned size, bool is_global) {
+unsigned Ork::export_data(std::string name, Elf64_Addr location, unsigned size, bool is_global) {
     symbols.push_back(Elf64_Sym());
     Elf64_Sym &s = symbols.back();
 
@@ -230,7 +230,7 @@ unsigned Ork::export_data(std::string name, int location, unsigned size, bool is
 }
 
 
-unsigned Ork::export_code(std::string name, int location, unsigned size, bool is_global) {
+unsigned Ork::export_code(std::string name, Elf64_Addr location, unsigned size, bool is_global) {
     symbols.push_back(Elf64_Sym());
     Elf64_Sym &s = symbols.back();
 
@@ -260,7 +260,7 @@ unsigned Ork::import(std::string name) {
 }
 
 
-void Ork::code_relocation(unsigned index, int location, int addend) {
+void Ork::code_relocation(unsigned index, Elf64_Addr location, int addend) {
     if (!index) {
         std::cerr << "Invalid symbol index for code relocation!\n";
         throw X64_ERROR;
@@ -269,13 +269,13 @@ void Ork::code_relocation(unsigned index, int location, int addend) {
     code_relocations.push_back(Elf64_Rela());
     Elf64_Rela &r = code_relocations.back();
 
-    r.r_offset = location;    // 32-bit offsets only
+    r.r_offset = location;
     r.r_info = ELF64_R_INFO(index, R_X86_64_PC32);
     r.r_addend = addend;
 }
 
 
-void Ork::data_relocation(unsigned index, int location, int addend) {
+void Ork::data_relocation(unsigned index, Elf64_Addr location, int addend) {
     if (!index) {
         std::cerr << "Invalid symbol index for data relocation!\n";
         throw X64_ERROR;
