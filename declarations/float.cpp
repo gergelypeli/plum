@@ -29,6 +29,9 @@ public:
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case REGISTER_MEMORY:
+            x64->op(MOVSD, t.address, s.sse);
+            break;
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
             x64->op(MOVQ, t.address, RBX);
@@ -45,15 +48,125 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    //virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    //}
+    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // No need to take care of STACK here, GenericOperationValue takes care of it
+        // Thanks, NaN!
+        
+        switch (s.where * t.where) {
+        case REGISTER_REGISTER:
+            x64->op(COMISD, s.sse, t.sse);
+            x64->op(SETP, BH);
+            x64->op(SETE, BL);
+            x64->op(CMPW, BX, 1);
+            break;
+        case REGISTER_MEMORY:
+            x64->op(COMISD, s.sse, t.address);
+            x64->op(SETP, BH);
+            x64->op(SETE, BL);
+            x64->op(CMPW, BX, 1);
+            break;
+        case MEMORY_REGISTER:
+            x64->op(COMISD, t.sse, s.address);  // swapped arguments, but hey!
+            x64->op(SETP, BH);
+            x64->op(SETE, BL);
+            x64->op(CMPW, BX, 1);
+            break;
+        case MEMORY_MEMORY:
+            x64->op(MOVSD, XMM0, s.address);
+            x64->op(COMISD, XMM0, t.address);
+            x64->op(SETP, BH);
+            x64->op(SETE, BL);
+            x64->op(CMPW, BX, 1);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
 
-    //virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    //}
-    
+    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // We need to do something with NaN-s, so do what Java does, and treat them
+        // as greater than everything, including positive infinity. Chuck Norris likes this.
+        Label finite, end;
+        
+        switch (s.where * t.where) {
+        case REGISTER_REGISTER:
+            x64->op(COMISD, s.sse, t.sse);
+            x64->op(JNP, finite);
+            
+            // BH=1 iff s is finite, BL=1 iff t is finite
+            x64->op(COMISD, s.sse, s.sse);
+            x64->op(SETNP, BH);
+            x64->op(COMISD, t.sse, t.sse);
+            x64->op(SETNP, BL);
+            x64->op(SUBB, BL, BH);
+            x64->op(JMP, end);
+            
+            x64->code_label(finite);
+            x64->blcompar(true);
+            x64->code_label(end);
+            break;
+        case REGISTER_MEMORY:
+            x64->op(COMISD, s.sse, t.address);
+            x64->op(JNP, finite);
+            
+            // BH=1 iff s is finite, BL=1 iff t is finite
+            x64->op(COMISD, s.sse, s.sse);
+            x64->op(SETNP, BH);
+            x64->op(MOVSD, XMM0, t.address);
+            x64->op(COMISD, XMM0, XMM0);
+            x64->op(SETNP, BL);
+            x64->op(SUBB, BL, BH);
+            x64->op(JMP, end);
+            
+            x64->code_label(finite);
+            x64->blcompar(true);
+            x64->code_label(end);
+            break;
+        case MEMORY_REGISTER:
+            x64->op(MOVSD, XMM0, s.address);
+            x64->op(COMISD, XMM0, t.sse);
+            x64->op(JNP, finite);
+            
+            // BH=1 iff s is finite, BL=1 iff t is finite
+            x64->op(COMISD, XMM0, XMM0);
+            x64->op(SETNP, BH);
+            x64->op(COMISD, t.sse, t.sse);
+            x64->op(SETNP, BL);
+            x64->op(SUBB, BL, BH);
+            x64->op(JMP, end);
+            
+            x64->code_label(finite);
+            x64->blcompar(true);
+            x64->code_label(end);
+            break;
+
+            break;
+        case MEMORY_MEMORY:
+            x64->op(MOVSD, XMM0, s.address);
+            x64->op(COMISD, XMM0, t.address);
+            x64->op(JNP, finite);
+            
+            // BH=1 iff s is finite, BL=1 iff t is finite
+            x64->op(COMISD, XMM0, XMM0);
+            x64->op(SETNP, BH);
+            x64->op(MOVSD, XMM0, t.address);
+            x64->op(COMISD, XMM0, XMM0);
+            x64->op(SETNP, BL);
+            x64->op(SUBB, BL, BH);
+            x64->op(JMP, end);
+            
+            x64->code_label(finite);
+            x64->blcompar(true);
+            x64->code_label(end);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
         return (
-            as_what == AS_VALUE ? NOWHERE :
+            as_what == AS_VALUE ? REGISTER :
             as_what == AS_VARIABLE ? MEMORY :
             as_what == AS_ARGUMENT ? (as_lvalue ? ALIAS : MEMORY) :
             throw INTERNAL_ERROR

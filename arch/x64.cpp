@@ -1149,6 +1149,7 @@ int sse_ssemem_info[] = {  // xmm1, xmm2/mem64  Test REX placement!
     0xF20F5F,  // MAXSD
     0xF20F5D,  // MINSD
     0xF20F51,  // SQRTSD
+    0x660FEF,  // PXOR
 };
 
 void X64::op(SseSsememOp opcode, SseRegister x, SseRegister y) {

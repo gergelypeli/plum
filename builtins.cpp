@@ -425,6 +425,45 @@ void define_integers() {
 }
 
 
+void define_float() {
+    struct {
+        const char *name;
+        OperationType operation;
+    } float_rvalue_operations[] = {
+        { "unary_minus", NEGATE },
+        { "binary_star", MULTIPLY },
+        { "binary_slash", DIVIDE },
+        { "binary_plus", ADD },
+        { "binary_minus", SUBTRACT },
+        { "is_equal", EQUAL },
+        { "not_equal", NOT_EQUAL },
+        { "is_less", LESS },
+        { "is_greater", GREATER },
+        { "not_greater", LESS_EQUAL },
+        { "not_less", GREATER_EQUAL },
+        { "compare", COMPARE },
+    }, float_lvalue_operations[] = {
+        { "assign other", ASSIGN },
+        { "assign_plus", ASSIGN_ADD },
+        { "assign_minus", ASSIGN_SUBTRACT },
+        { "assign_star", ASSIGN_MULTIPLY },
+        { "assign_slash", ASSIGN_DIVIDE },
+    };
+
+    Scope *float_scope = float_type->get_inner_scope(TypeMatch());
+
+    for (auto &item : float_rvalue_operations)
+        float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_TS, item.operation));
+
+    for (auto &item : float_lvalue_operations)
+        float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
+    
+    implement(float_scope, STREAMIFIABLE_TS, "sable", {
+        new TemplateIdentifier<GenericStreamificationValue>("streamify", FLOAT_TS)
+    });
+}
+
+
 void define_interfaces() {
     // Streamifiable interface
     DataScope *sis = streamifiable_type->make_inner_scope(STREAMIFIABLE_TS);
@@ -866,6 +905,8 @@ Scope *init_builtins() {
     
     // Integer operations
     define_integers();
+    
+    define_float();
         
     // Character operations
     Scope *char_scope = character_type->get_inner_scope(TypeMatch());
@@ -903,14 +944,6 @@ Scope *init_builtins() {
     treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     implement(treenum_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
-    });
-
-    // Float operations
-    Scope *float_scope = float_type->get_inner_scope(TypeMatch());
-    float_scope->add(new TemplateOperation<FloatOperationValue>("assign other", FLOAT_LVALUE_TS, ASSIGN));
-    float_scope->add(new TemplateOperation<FloatOperationValue>("compare", FLOAT_TS, COMPARE));
-    implement(float_scope, STREAMIFIABLE_TS, "sable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", FLOAT_TS)
     });
 
     // Record operations
