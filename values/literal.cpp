@@ -56,7 +56,7 @@ public:
         x64->data_label(label);
         x64->data_double(number);
         
-        return Storage(CONSTANT, label.freeze());
+        return Storage(CONSTANT, label);
     }
 };
 

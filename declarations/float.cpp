@@ -30,7 +30,7 @@ public:
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
         case CONSTANT_MEMORY:
-            x64->op(MOVQ, RBX, Label::thaw(s.value));
+            x64->op(MOVQ, RBX, s.label);
             x64->op(MOVQ, t.address, RBX);
             break;
         default:

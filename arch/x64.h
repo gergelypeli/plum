@@ -257,6 +257,10 @@ private:
     Label(void *) {}  // Fuuuck
     
 public:
+    enum LeaveUndefined {
+        LEAVE_UNDEFINED
+    };
+
     unsigned def_index;
     
     Label() {
@@ -272,12 +276,8 @@ public:
         def_index = c.def_index;
     }
     
-    int freeze() {
-        return def_index;
-    }
-    
-    static Label thaw(int x) {
-        return Label(x);
+    Label(LeaveUndefined) {
+        def_index = 0;
     }
 };
 

@@ -31,8 +31,10 @@ struct Storage {
     Register reg;
     SseRegister sse;
     Address address;
+    Label label;
     
-    Storage() {
+    Storage()
+        :label(Label::LEAVE_UNDEFINED) {
         where = NOWHERE;
         value = 0;
         cc = CC_NONE;
@@ -40,7 +42,8 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w) {
+    Storage(StorageWhere w)
+        :label(Label::LEAVE_UNDEFINED) {
         if (w != STACK && w != ALISTACK) {
             std::cerr << "Incomplete Storage!\n";
             throw INTERNAL_ERROR;
@@ -53,7 +56,8 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w, int v) {
+    Storage(StorageWhere w, int v)
+        :label(Label::LEAVE_UNDEFINED) {
         if (w != CONSTANT) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -66,7 +70,8 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w, ConditionCode c) {
+    Storage(StorageWhere w, ConditionCode c)
+        :label(Label::LEAVE_UNDEFINED) {
         if (w != FLAGS) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -79,7 +84,8 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w, Register r) {
+    Storage(StorageWhere w, Register r)
+        :label(Label::LEAVE_UNDEFINED) {
         if (w != REGISTER) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -92,7 +98,8 @@ struct Storage {
         sse = NOSSE;
     }
 
-    Storage(StorageWhere w, SseRegister s) {
+    Storage(StorageWhere w, SseRegister s)
+        :label(Label::LEAVE_UNDEFINED) {
         if (w != REGISTER) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -104,8 +111,23 @@ struct Storage {
         reg = NOREG;
         sse = s;
     }
+
+    Storage(StorageWhere w, Label l)
+        :label(l) {
+        if (w != CONSTANT) {
+            std::cerr << "Wrong Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        where = w;
+        value = 0;
+        cc = CC_NONE;
+        reg = NOREG;
+        sse = NOSSE;
+    }
     
-    Storage(StorageWhere w, Address a) {
+    Storage(StorageWhere w, Address a)
+        :label(Label::LEAVE_UNDEFINED) {
         if (w != MEMORY && w != ALIAS) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
@@ -120,32 +142,33 @@ struct Storage {
     }
 
     Regs regs() {
-        Regs regs;
-        
         switch (where) {
         case NOWHERE:
-            return regs;
+            return Regs();
         case CONSTANT:
-            return regs;
+            return Regs();
         case FLAGS:
-            return regs;
+            return Regs();
         case REGISTER:
-            return reg != NOREG ? Regs(reg) : sse != NOSSE ? Regs(sse) : regs;
+            return reg != NOREG ? Regs(reg) : sse != NOSSE ? Regs(sse) : Regs();
         case STACK:
         case ALISTACK:
-            return regs;
+            return Regs();
         case MEMORY:
         case ALIAS:
             // Although RBX and RSP based addresses can be used locally, they shouldn't be
             // passed between Value-s, so no one should be interested in their clobbed registers.
             // In those cases just crash, as RBX and RSP are also illegal in a Regs.
-            if (address.base != NOREG && address.base != RBP)
-                regs = regs | address.base;
-
-            if (address.index != NOREG)
-                regs = regs | address.index;
-                
-            return regs;
+            if (address.base != NOREG && address.base != RBP) {
+                if (address.index != NOREG)
+                    return Regs(address.base, address.index);
+                else
+                    return Regs(address.base);
+            }
+            else if (address.index != NOREG)
+                return Regs(address.index);
+            else
+                return Regs();
         default:
             throw INTERNAL_ERROR;
         }
