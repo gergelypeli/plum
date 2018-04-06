@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include "x64.h"
-#include "heap.h"
 
 
 Opsize OPSIZE_LEGACY(int opcode) {
@@ -46,59 +45,6 @@ std::ostream &operator << (std::ostream &os, const ConditionCode cc) {
 }
 
 
-Address::Address() {
-    base = NOREG;
-    index = NOREG;
-    scale = 0;
-    offset = 0;
-}
-
-
-Address::Address(Register b, int o) {
-    if (b == NOREG) {
-        std::cerr << "Address without base register!\n";
-        throw X64_ERROR;
-    }
-          
-    base = b;
-    index = NOREG;
-    scale = 0;
-    offset = o;
-}
-
-
-Address::Address(Register b, Register i, int o) {
-    if (b == NOREG) {
-        std::cerr << "Address without base register!\n";
-        throw X64_ERROR;
-    }
-          
-    base = b;
-    index = i;
-    scale = 1;
-    offset = o;
-}
-
-
-Address::Address(Register b, Register i, int s, int o) {
-    if (b == NOREG) {
-        std::cerr << "Address without base register!\n";
-        throw X64_ERROR;
-    }
-    
-    if (i != NOREG && s != 1 && s != 2 && s != 4 && s != 8)
-        throw X64_ERROR;
-    
-    base = b;
-    index = i;
-    scale = s;
-    offset = o;
-}
-
-
-Address Address::operator + (int x) {
-    return Address(base, index, scale, offset + x);
-}
 
 
 X64::X64() {
