@@ -1,6 +1,7 @@
 
 enum FunctionType {
-    GENERIC_FUNCTION, INTERFACE_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION
+    GENERIC_FUNCTION, INTERFACE_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION,
+    SYSV_FUNCTION
 };
 
     
@@ -17,7 +18,6 @@ public:
     Function *implemented_function;
 
     Label label;
-    bool is_sysv;
     
     Function(std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
         :Identifier(n, pts) {
@@ -30,8 +30,6 @@ public:
 
         containing_role = NULL;
         implemented_function = NULL;
-        
-        is_sysv = false;
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
@@ -157,7 +155,6 @@ public:
     ImportedFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
         :Function(n, pts, ft, ats, ans, rts, et) {
         import_name = in;
-        is_sysv = true;
     }
 
     virtual Label get_label(X64 *x64) {

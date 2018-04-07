@@ -692,7 +692,7 @@ public:
         for (unsigned i = 0; i < values.size(); i++)
             passed_size += push_arg(arg_tss[i], values[i].get(), x64);
             
-        if (function->is_sysv)
+        if (function->type == SYSV_FUNCTION)
             call_sysv(x64, passed_size);
         else if (function->virtual_index >= 0 && !is_static)
             call_virtual(x64, passed_size);
