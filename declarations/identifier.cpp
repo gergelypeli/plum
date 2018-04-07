@@ -71,24 +71,6 @@ public:
     }
 };
 
-typedef Value *(*GenericValueFactory)(OperationType, Value *, TypeMatch &);
-
-class GenericOperation: public Identifier {
-public:
-    GenericValueFactory factory;
-    OperationType operation;
-    
-    GenericOperation(std::string n, TypeSpec t, GenericValueFactory f, OperationType o)
-        :Identifier(n, t) {
-        factory = f;
-        operation = o;
-    }
-
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return factory(operation, cpivot, match);
-    }
-};
-
 
 template <typename T>
 class TemplateOperation: public Identifier {

@@ -153,3 +153,60 @@ public:
         }
     }
 };
+
+
+class FloatFunctionValue: public GenericValue {
+public:
+    Regs rclob;
+    std::string import_name;
+    
+    FloatFunctionValue(ImportedFloatFunction *f, Value *l, TypeMatch &match)
+        :GenericValue(f->arg_ts, f->res_ts, l) {
+        import_name = f->import_name;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        left->precompile();
+        
+        if (right)
+            rclob = right->precompile();
+            
+        return Regs::all();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage ls = left->compile(x64);
+        
+        if (rclob) {
+            // Chickening out
+            left->ts.store(ls, Storage(STACK), x64);
+            ls = Storage(STACK);
+        }
+        
+        if (right)
+            right->compile_and_store(x64, Storage(REGISTER, XMM1));
+        
+        // Can't move simply to XMM0, as it's our scratch
+        switch (ls.where) {
+        case REGISTER:
+            x64->op(MOVSD, XMM0, ls.sse);
+            break;
+        case STACK:
+            x64->op(MOVSD, XMM0, Address(RSP, 0));
+            x64->op(ADDQ, RSP, FLOAT_SIZE);
+            break;
+        case MEMORY:
+            x64->op(MOVSD, XMM0, ls.address);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        x64->runtime->call_sysv(x64->once->import(import_name));
+        
+        // TODO: this is not nice, but can't return values in the scratch register
+        x64->op(MOVSD, XMM1, XMM0);
+        
+        return Storage(REGISTER, XMM1);
+    }
+};

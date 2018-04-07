@@ -98,7 +98,7 @@ public:
                     x64->op(ADDQ, RAX, s.address.offset);
                     
                 x64->op(PUSHQ, RAX);
-                x64->op(CALL, finalizer_function->x64_label);
+                x64->op(CALL, finalizer_function->get_label(x64));
                 x64->op(POPQ, RAX);
 
                 if (s.address.offset)

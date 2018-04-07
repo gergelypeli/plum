@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
+#include <math.h>
 
 #define PCRE2_CODE_UNIT_WIDTH 16
 #include <pcre2.h>
@@ -349,6 +350,21 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
     pcre2_code_free(re);
     
     return result_array;
+}
+
+
+double float_log(double x) {
+    return log(x);
+}
+
+
+double float_exp(double x) {
+    return exp(x);
+}
+
+
+double float_pow(double x, double y) {
+    return pow(x, y);
 }
 
 

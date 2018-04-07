@@ -14,7 +14,7 @@ public:
     std::vector<Label> incref_labels, decref_labels;
 
     Label sysv_memalloc_label, sysv_memfree_label, sysv_memrealloc_label;
-    Label sysv_log_label, sysv_dump_label, sysv_die_label, sysv_dies_label;
+    Label sysv_logfunc_label, sysv_dump_label, sysv_die_label, sysv_dies_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
     
     Runtime(X64 *x) {
@@ -31,10 +31,12 @@ public:
         x64->code_label_import(sysv_memalloc_label, "memalloc");
         x64->code_label_import(sysv_memfree_label, "memfree");
         x64->code_label_import(sysv_memrealloc_label, "memrealloc");
-        x64->code_label_import(sysv_log_label, "logfunc");  // bah...
+        
+        x64->code_label_import(sysv_logfunc_label, "logfunc");  // bah...
         x64->code_label_import(sysv_dump_label, "dump");  // bah...
         x64->code_label_import(sysv_die_label, "die");
         x64->code_label_import(sysv_dies_label, "dies");
+        
         x64->code_label_import(sysv_sort_label, "sort");
         x64->code_label_import(sysv_string_regexp_match_label, "string_regexp_match");
 
@@ -345,7 +347,7 @@ public:
 
         pusha();
         x64->op(LEARIP, RDI, message_label);
-        call_sysv(sysv_log_label);
+        call_sysv(sysv_logfunc_label);
         popa();
     }
 

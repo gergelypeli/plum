@@ -24,7 +24,7 @@ TEST       = run/test
 TESTOBJ    = run/test.o
 TESTSRC    = run/test.plum
 #TESTLOG    = run/plum.log
-TESTLIBS   = -lpcre2-16
+TESTLIBS   = -lpcre2-16 -lm
 
 exe: uncore $(EXE)
 

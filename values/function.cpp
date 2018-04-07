@@ -235,9 +235,9 @@ public:
 
         if (function) {
             if (function->name == "start")
-                x64->code_label_global(function->x64_label, function->name);
+                x64->code_label_global(function->get_label(x64), function->name);
             else
-                x64->code_label_local(function->x64_label, function->name);
+                x64->code_label_local(function->get_label(x64), function->name);
         }
         else {
             std::cerr << "Nameless function!\n";
@@ -495,16 +495,20 @@ public:
         if (stack_offset != passed_size)
             throw INTERNAL_ERROR;
             
-        x64->runtime->call_sysv(function->x64_label);
+        x64->runtime->call_sysv(function->get_label(x64));
 
         bool is_void = res_tss.size() == 0;
         
-        if (!is_void)
-            x64->op(MOVQ, Address(RSP, passed_size), RAX);
+        if (!is_void) {
+            if (res_tss[0] == FLOAT_TS)
+                x64->op(MOVSD, Address(RSP, passed_size), XMM0);
+            else
+                x64->op(MOVQ, Address(RSP, passed_size), RAX);
+        }
     }
     
     virtual void call_static(X64 *x64, unsigned passed_size) {
-        x64->op(CALL, function->x64_label);
+        x64->op(CALL, function->get_label(x64));
     }
 
     virtual void call_virtual(X64 *x64, unsigned passed_size) {

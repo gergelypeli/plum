@@ -78,9 +78,6 @@ int main(int argc, char **argv) {
     x64->once = new Once();
     x64->runtime = new Runtime(x64);
 
-    // Must mark imported functions first as sysv
-    ImportedFunction::import_all(x64);
-    
     value_root->precompile(Regs::all());
     value_root->compile(x64);
     x64->once->for_all(x64);

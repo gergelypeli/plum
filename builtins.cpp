@@ -882,6 +882,10 @@ void builtin_runtime(Scope *root_scope) {
     root_scope->add(new ImportedFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
 
     root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
+    
+    root_scope->add(new ImportedFloatFunction("float_log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
+    root_scope->add(new ImportedFloatFunction("float_exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));
+    root_scope->add(new ImportedFloatFunction("float_pow", "binary_exponent", FLOAT_TS, FLOAT_TS, FLOAT_TS));
 }
 
 

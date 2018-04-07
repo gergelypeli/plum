@@ -14,6 +14,7 @@ class BaseRole;
 class PartialVariable;
 class Evaluable;
 class Function;
+class ImportedFloatFunction;
 class ClassType;
 
 class Type;

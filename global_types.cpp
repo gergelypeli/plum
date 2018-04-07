@@ -336,6 +336,11 @@ Label Once::compile(TypedFunctionCompiler tfc, TypeSpec ts) {
 }
 
 
+Label Once::import(std::string name) {
+    return function_import_labels[name];
+}
+
+
 void Once::for_all(X64 *x64) {
     // NOTE: once functions may ask to once compile other functions.
     
@@ -361,6 +366,13 @@ void Once::for_all(X64 *x64) {
             //std::cerr << "Now compiling " << (void *)fc << " as " << label.def_index << ".\n";
             fc(label, x64);
         }
+    }
+    
+    for (auto &kv : function_import_labels) {
+        std::string name = kv.first;
+        Label label = kv.second;
+        
+        x64->code_label_import(label, name);
     }
 }
 

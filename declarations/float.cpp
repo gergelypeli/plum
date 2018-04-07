@@ -1,6 +1,4 @@
 
-// NOTE: CONSTANT storage means having a Label.def_index in s.value.
-
 class FloatType: public Type {
 public:
     FloatType(std::string n, Type *mt = NULL)
@@ -18,6 +16,9 @@ public:
             x64->op(ADDQ, RSP, FLOAT_SIZE);
             break;
         case MEMORY_NOWHERE:
+            break;
+        case MEMORY_REGISTER:
+            x64->op(MOVSD, t.sse, s.address);
             break;
         case MEMORY_STACK:
             x64->op(PUSHQ, s.address);

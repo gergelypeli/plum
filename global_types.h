@@ -64,15 +64,19 @@ public:
     typedef void (*FunctionCompiler)(Label, X64 *);
     typedef void (*TypedFunctionCompiler)(Label, TypeSpec, X64 *);
     typedef std::pair<TypedFunctionCompiler, TypeSpec> FunctionCompilerTuple;
-    
+
     std::map<FunctionCompiler, Label> function_compiler_labels;
     std::map<FunctionCompilerTuple, Label> typed_function_compiler_labels;
     
     std::set<FunctionCompiler> function_compiler_todo;
     std::set<FunctionCompilerTuple> typed_function_compiler_todo;
+
+    std::map<std::string, Label> function_import_labels;
     
     Label compile(FunctionCompiler fc);
     Label compile(TypedFunctionCompiler tfc, TypeSpec ts);
+    Label import(std::string name);
+
     void for_all(X64 *x64);
 };
 

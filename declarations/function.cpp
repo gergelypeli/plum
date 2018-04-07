@@ -16,7 +16,7 @@ public:
     Role *containing_role;
     Function *implemented_function;
 
-    Label x64_label;
+    Label label;
     bool is_sysv;
     
     Function(std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
@@ -92,7 +92,11 @@ public:
             throw INTERNAL_ERROR;
             
         //std::cerr << "Function entry " << name << ".\n";
-        return x64_label;
+        return label;
+    }
+    
+    virtual Label get_label(X64 *x64) {
+        return label;
     }
     
     virtual bool does_implement(TypeMatch tm, Function *iff, TypeMatch iftm) {
@@ -143,35 +147,39 @@ public:
 
         return does_implement(TypeMatch(), original_function, role_tm);
     }
-
-    //virtual int get_containing_role_offset(TypeMatch tm) {
-    //    return (containing_role ? containing_role->compute_offset(tm) : 0);
-    //}
 };
 
 
 class ImportedFunction: public Function {
 public:
-    static std::vector<ImportedFunction *> to_be_imported;
-    
-    static void import_all(X64 *x64) {
-        for (auto i : to_be_imported)
-            i->import(x64);
-    }
-    
     std::string import_name;
     
     ImportedFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
         :Function(n, pts, ft, ats, ans, rts, et) {
         import_name = in;
-        to_be_imported.push_back(this);
+        is_sysv = true;
     }
 
-    virtual void import(X64 *x64) {
-        is_sysv = true;
-        x64->code_label_import(x64_label, import_name);
+    virtual Label get_label(X64 *x64) {
+        return x64->once->import(import_name);
     }
 };
 
-std::vector<ImportedFunction *> ImportedFunction::to_be_imported;
 
+class ImportedFloatFunction: public Identifier {
+public:
+    std::string import_name;
+    TypeSpec arg_ts;
+    TypeSpec res_ts;
+    
+    ImportedFloatFunction(std::string in, std::string n, TypeSpec pts, TypeSpec ats, TypeSpec rts)
+        :Identifier(n, pts) {
+        import_name = in;
+        arg_ts = ats;
+        res_ts = rts;
+    }
+    
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make_float_function_value(this, cpivot, match);
+    }
+};

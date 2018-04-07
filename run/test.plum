@@ -265,6 +265,8 @@ test_floats? :Function as:
     y = -0.0
     prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
 
+    prints("e={e} log(10)={l} 1.5**2={m}" {e: 1.0 exp, l: 10.0 log, m: 1.5 ** 2.0})
+    
 
 test_strings? :Function as:
     a? = 1

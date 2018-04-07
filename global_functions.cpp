@@ -71,6 +71,11 @@ Value *make_float_value(TypeSpec ts, double number) {
 }
 
 
+Value *make_float_function_value(ImportedFloatFunction *f, Value *cpivot, TypeMatch &match) {
+    return new FloatFunctionValue(f, cpivot, match);
+}
+
+
 Value *make_string_literal_value(std::string text) {
     return new StringLiteralValue(text);
 }
