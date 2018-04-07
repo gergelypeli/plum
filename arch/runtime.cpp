@@ -8,11 +8,15 @@ public:
     
     Label zero_label, float_minus_zero_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
-    Label memalloc_label, memfree_label, memrealloc_label;
-    Label log_label, dump_label, die_label, dies_label, sort_label, empty_function_label, weak_finalized_die_label;
-    Label finalize_label, alloc_fcb_label, free_fcb_label, finalize_reference_array_label, string_regexp_match_label;
+    Label empty_function_label;
+    Label alloc_fcb_label, free_fcb_label;
+    Label finalize_label, finalize_reference_array_label, weak_finalized_die_label;
     std::vector<Label> incref_labels, decref_labels;
 
+    Label sysv_memalloc_label, sysv_memfree_label, sysv_memrealloc_label;
+    Label sysv_log_label, sysv_dump_label, sysv_die_label, sysv_dies_label;
+    Label sysv_sort_label, sysv_string_regexp_match_label;
+    
     Runtime(X64 *x) {
         x64 = x;
         
@@ -24,15 +28,15 @@ public:
         x64->data_double(-0.0);
         x64->data_double(0.0);
 
-        x64->code_label_import(memalloc_label, "memalloc");
-        x64->code_label_import(memfree_label, "memfree");
-        x64->code_label_import(memrealloc_label, "memrealloc");
-        x64->code_label_import(log_label, "logfunc");  // bah...
-        x64->code_label_import(dump_label, "dump");  // bah...
-        x64->code_label_import(die_label, "die");
-        x64->code_label_import(dies_label, "dies");
-        x64->code_label_import(sort_label, "sort");
-        x64->code_label_import(string_regexp_match_label, "string_regexp_match");
+        x64->code_label_import(sysv_memalloc_label, "memalloc");
+        x64->code_label_import(sysv_memfree_label, "memfree");
+        x64->code_label_import(sysv_memrealloc_label, "memrealloc");
+        x64->code_label_import(sysv_log_label, "logfunc");  // bah...
+        x64->code_label_import(sysv_dump_label, "dump");  // bah...
+        x64->code_label_import(sysv_die_label, "die");
+        x64->code_label_import(sysv_dies_label, "dies");
+        x64->code_label_import(sysv_sort_label, "sort");
+        x64->code_label_import(sysv_string_regexp_match_label, "string_regexp_match");
 
         init_memory_management();
     }
@@ -179,7 +183,7 @@ public:
     
         x64->code_label(no_weakrefs);
         x64->op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
-        x64->op(CALL, memfree_label);  // will probably clobber everything
+        call_sysv(sysv_memfree_label);  // will probably clobber everything
 
         popa();
         x64->op(RET);
@@ -187,7 +191,7 @@ public:
         x64->code_label_global(alloc_RAX_RBX_label, "alloc_RAX_RBX");
         pusha(true);
         x64->op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
-        x64->op(CALL, memalloc_label);
+        call_sysv(sysv_memalloc_label);
         x64->op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
         x64->op(MOVQ, Address(RAX, HEAP_NEXT_OFFSET), 0);
         x64->op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);  // object finalizer
@@ -205,7 +209,7 @@ public:
         pusha(true);
         x64->op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
         x64->op(LEA, RSI, Address(RBX, HEAP_HEADER_SIZE));
-        x64->op(CALL, memrealloc_label);
+        call_sysv(sysv_memrealloc_label);
         x64->op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
         popa(true);
         x64->op(RET);
@@ -225,7 +229,7 @@ public:
         //op(PUSHQ, RCX);  // payload1
         //op(PUSHQ, RDX);  // payload2
         x64->op(MOVQ, RDI, FCB_SIZE);
-        x64->op(CALL, memalloc_label);
+        call_sysv(sysv_memalloc_label);
         popa(true);  // leave RAX on the stack
     
         x64->op(MOVQ, Address(RAX, FCB_CALLBACK_OFFSET), RBX);
@@ -264,7 +268,7 @@ public:
         x64->code_label(no_next2);
     
         x64->op(MOVQ, RDI, RAX);
-        x64->op(CALL, memfree_label);
+        call_sysv(sysv_memfree_label);
 
         popa();
         x64->op(RET);
@@ -317,7 +321,7 @@ public:
     void memfree(Register reg) {
         pusha();
         x64->op(LEA, RDI, Address(reg, HEAP_HEADER_OFFSET));
-        x64->op(CALL, memfree_label);
+        call_sysv(sysv_memfree_label);
         popa();
     }
 
@@ -341,7 +345,7 @@ public:
 
         pusha();
         x64->op(LEARIP, RDI, message_label);
-        x64->op(CALL, log_label);
+        call_sysv(sysv_log_label);
         popa();
     }
 
@@ -355,7 +359,7 @@ public:
             x64->op(PUSHQ, r);
         
         x64->op(LEARIP, RDI, message_label);
-        x64->op(CALL, dump_label);
+        call_sysv(sysv_dump_label);
 
         for (Register r : { R15, R14, R13, R12, R11, R10, R9, R8, RDI, RSI, RBP, RDX, RDX, RCX, RBX, RAX })
             x64->op(POPQ, r);
@@ -369,14 +373,14 @@ public:
         x64->data_zstring(message);
     
         x64->op(LEARIP, RDI, message_label);
-        x64->op(CALL, die_label);
+        call_sysv(sysv_die_label);
         x64->op(UD2);
     }
 
 
     void dies(Register r) {
         x64->op(MOVQ, RDI, r);
-        x64->op(CALL, dies_label);
+        call_sysv(sysv_dies_label);
         x64->op(UD2);
     }
 };
