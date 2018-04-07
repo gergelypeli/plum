@@ -883,9 +883,9 @@ void builtin_runtime(Scope *root_scope) {
 
     root_scope->add(new ImportedFunction("stringify_integer", "stringify", INTEGER_TS, SYSV_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     
-    root_scope->add(new ImportedFloatFunction("float_log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
-    root_scope->add(new ImportedFloatFunction("float_exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));
-    root_scope->add(new ImportedFloatFunction("float_pow", "binary_exponent", FLOAT_TS, FLOAT_TS, FLOAT_TS));
+    root_scope->add(new ImportedFloatFunction("log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
+    root_scope->add(new ImportedFloatFunction("exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));
+    root_scope->add(new ImportedFloatFunction("pow", "binary_exponent", FLOAT_TS, FLOAT_TS, FLOAT_TS));
 }
 
 

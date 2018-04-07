@@ -337,7 +337,12 @@ Label Once::compile(TypedFunctionCompiler tfc, TypeSpec ts) {
 
 
 Label Once::import(std::string name) {
-    return function_import_labels[name];
+    return import_labels[name];
+}
+
+
+Label Once::import_got(std::string name) {
+    return import_got_labels[name];
 }
 
 
@@ -368,11 +373,24 @@ void Once::for_all(X64 *x64) {
         }
     }
     
-    for (auto &kv : function_import_labels) {
+    for (auto &kv : import_labels) {
+        std::string name = kv.first;
+        Label label = kv.second;
+
+        // symbol points to the function start in the code segment
+        x64->code_label_import(label, name);
+    }
+
+    for (auto &kv : import_got_labels) {
         std::string name = kv.first;
         Label label = kv.second;
         
-        x64->code_label_import(label, name);
+        Label shared_label;
+        x64->code_label_import(shared_label, name);
+        
+        // symbol points to the function address in the data segment
+        x64->data_label_local(label, name + "@GOT");
+        x64->data_reference(shared_label);
     }
 }
 

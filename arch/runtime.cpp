@@ -43,7 +43,6 @@ public:
         init_memory_management();
     }
 
-
     void data_heap_header() {
         if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKREFCOUNT_OFFSET != -8 || HEAP_FINALIZER_OFFSET != -24)
             throw X64_ERROR;
@@ -54,7 +53,6 @@ public:
         x64->data_qword(1);  // artificial reference to prevent freeing
         x64->data_qword(0);  // weakrefcount
     }
-
 
     Label data_heap_string(std::vector<unsigned short> characters) {
         if (ARRAY_HEADER_SIZE != 16 || ARRAY_RESERVATION_OFFSET != 0 || ARRAY_LENGTH_OFFSET != 8)
@@ -82,11 +80,23 @@ public:
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
         x64->op(ANDQ, RSP, -16);
+        
         x64->op(CALL, l);
+        
         x64->op(MOVQ, RSP, RBP);
         x64->op(POPQ, RBP);
     }
 
+    void call_sysv_got(Label got_l) {
+        x64->op(PUSHQ, RBP);
+        x64->op(MOVQ, RBP, RSP);
+        x64->op(ANDQ, RSP, -16);
+        
+        x64->op(CALL, Address(got_l, 0));
+        
+        x64->op(MOVQ, RSP, RBP);
+        x64->op(POPQ, RBP);
+    }
 
     int pusha(bool except_rax = false) {
         // RBX and the last 4 are preserved by the System V ABI

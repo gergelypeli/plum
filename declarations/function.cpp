@@ -1,7 +1,7 @@
 
 enum FunctionType {
     GENERIC_FUNCTION, INTERFACE_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION,
-    SYSV_FUNCTION
+    SYSV_FUNCTION, SYSV_GOT_FUNCTION
 };
 
     
@@ -158,7 +158,12 @@ public:
     }
 
     virtual Label get_label(X64 *x64) {
-        return x64->once->import(import_name);
+        if (type == SYSV_FUNCTION)
+            return x64->once->import(import_name);
+        else if (type == SYSV_GOT_FUNCTION)
+            return x64->once->import_got(import_name);
+        else
+            throw INTERNAL_ERROR;
     }
 };
 

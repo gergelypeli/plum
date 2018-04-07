@@ -160,7 +160,7 @@ void X64::done(std::string filename) {
             break;
             
         case REF_DATA_ABSOLUTE:
-            // 8-byte absolute references from data to data or absolute values.
+            // 8-byte absolute references from data to code, data or absolute values.
             // May be used for intra-data absolute addresses, or 8-byte constants.
             
             switch (d.type) {
@@ -175,6 +175,9 @@ void X64::done(std::string filename) {
             case DEF_CODE:
             case DEF_CODE_EXPORT:
                 ork->data_relocation(code_symbol_index, r.location, d.location);
+                break;
+            case DEF_CODE_IMPORT:
+                ork->data_relocation(d.symbol_index, r.location, 0);
                 break;
             default:
                 std::cerr << "Can't relocate data absolute to this symbol!\n";

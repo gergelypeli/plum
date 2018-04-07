@@ -353,21 +353,6 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
 }
 
 
-double float_log(double x) {
-    return log(x);
-}
-
-
-double float_exp(double x) {
-    return exp(x);
-}
-
-
-double float_pow(double x, double y) {
-    return pow(x, y);
-}
-
-
 // Entry point
 
 extern void start();

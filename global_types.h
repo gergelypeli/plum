@@ -71,11 +71,14 @@ public:
     std::set<FunctionCompiler> function_compiler_todo;
     std::set<FunctionCompilerTuple> typed_function_compiler_todo;
 
-    std::map<std::string, Label> function_import_labels;
+    std::map<std::string, Label> import_labels;
+    std::map<std::string, Label> import_got_labels;
     
     Label compile(FunctionCompiler fc);
     Label compile(TypedFunctionCompiler tfc, TypeSpec ts);
+    
     Label import(std::string name);
+    Label import_got(std::string name);
 
     void for_all(X64 *x64);
 };

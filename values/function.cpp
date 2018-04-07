@@ -495,7 +495,12 @@ public:
         if (stack_offset != passed_size)
             throw INTERNAL_ERROR;
             
-        x64->runtime->call_sysv(function->get_label(x64));
+        if (function->type == SYSV_FUNCTION)
+            x64->runtime->call_sysv(function->get_label(x64));
+        else if (function->type == SYSV_GOT_FUNCTION)
+            x64->runtime->call_sysv_got(function->get_label(x64));
+        else
+            throw INTERNAL_ERROR;
 
         bool is_void = res_tss.size() == 0;
         
@@ -692,7 +697,7 @@ public:
         for (unsigned i = 0; i < values.size(); i++)
             passed_size += push_arg(arg_tss[i], values[i].get(), x64);
             
-        if (function->type == SYSV_FUNCTION)
+        if (function->type == SYSV_FUNCTION || function->type == SYSV_GOT_FUNCTION)
             call_sysv(x64, passed_size);
         else if (function->virtual_index >= 0 && !is_static)
             call_virtual(x64, passed_size);

@@ -202,7 +202,7 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        x64->runtime->call_sysv(x64->once->import(import_name));
+        x64->runtime->call_sysv_got(x64->once->import_got(import_name));
         
         // TODO: this is not nice, but can't return values in the scratch register
         x64->op(MOVSD, XMM1, XMM0);
