@@ -462,7 +462,7 @@ public:
         return true;
     }
 
-    virtual void sysv_prologue(X64 *x64, unsigned passed_size) {
+    virtual void call_sysv(X64 *x64, unsigned passed_size) {
         if (arg_tss.size() > 5) {
             std::cerr << "Oops, too many arguments to a SysV function!\n";
             throw INTERNAL_ERROR;
@@ -494,10 +494,34 @@ public:
         
         if (stack_offset != passed_size)
             throw INTERNAL_ERROR;
+            
+        x64->runtime->call_sysv(function->x64_label);
+
+        bool is_void = res_tss.size() == 0;
+        
+        if (!is_void)
+            x64->op(MOVQ, Address(RSP, passed_size), RAX);
     }
     
-    virtual void sysv_epilogue(X64 *x64, unsigned passed_size) {
-        x64->op(MOVQ, Address(RSP, passed_size), RAX);
+    virtual void call_static(X64 *x64, unsigned passed_size) {
+        x64->op(CALL, function->x64_label);
+    }
+
+    virtual void call_virtual(X64 *x64, unsigned passed_size) {
+        int vti = function->virtual_index;
+        
+        if (!pivot)
+            throw INTERNAL_ERROR;
+
+        TypeSpec pts = pivot->ts.rvalue();
+        
+        if (pts[0] != weakref_type)  // Was: borrowed_type
+            throw INTERNAL_ERROR;
+            
+        x64->op(MOVQ, RBX, Address(RSP, passed_size - REFERENCE_SIZE));  // self pointer
+        x64->op(MOVQ, RBX, Address(RBX, 0));  // VMT pointer
+        x64->op(CALL, Address(RBX, vti * ADDRESS_SIZE));
+        std::cerr << "Will invoke virtual method of " << pts << " #" << vti << ".\n";
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -664,31 +688,13 @@ public:
         for (unsigned i = 0; i < values.size(); i++)
             passed_size += push_arg(arg_tss[i], values[i].get(), x64);
             
-        if (function->is_sysv && passed_size > 0)
-            sysv_prologue(x64, passed_size);
-        
-        int vti = function->virtual_index;
-        
-        if (vti >= 0 && !is_static) {
-            if (!pivot)
-                throw INTERNAL_ERROR;
-
-            TypeSpec pts = pivot->ts.rvalue();
-            
-            if (pts[0] != weakref_type)  // Was: borrowed_type
-                throw INTERNAL_ERROR;
-                
-            x64->op(MOVQ, RBX, Address(RSP, passed_size - REFERENCE_SIZE));  // self pointer
-            x64->op(MOVQ, RBX, Address(RBX, 0));  // VMT pointer
-            x64->op(CALL, Address(RBX, vti * ADDRESS_SIZE));
-            std::cerr << "Will invoke virtual method of " << pts << " #" << vti << ".\n";
-        }
+        if (function->is_sysv)
+            call_sysv(x64, passed_size);
+        else if (function->virtual_index >= 0 && !is_static)
+            call_virtual(x64, passed_size);
         else
-            x64->op(CALL, function->x64_label);
+            call_static(x64, passed_size);
         
-        if (function->is_sysv && !is_void)
-            sysv_epilogue(x64, passed_size);
-
         if (function->exception_type || has_code_arg) {
             Label ex, noex;
             

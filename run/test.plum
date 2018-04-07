@@ -241,7 +241,12 @@ test_floats? :Function as:
     prints("Streamified as {j}" {})
 
     prints("Result is 160: {x}" {x: 100.0 + 2.0 * 3.0 / 0.1 })
-
+    
+    x? = 1.1
+    y? = 2.2
+    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: x, z: x<=>x, a: x==x, b: x<x, c: x>x, d: x<=x, e: x>=x})
+    
 
 test_strings? :Function as:
     a? = 1
