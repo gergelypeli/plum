@@ -64,6 +64,7 @@ public:
         // greater => -
         // Since we need to avoid false positives for unordered results, we must
         // check our conditions together with parity before coming to any conclusion.
+        // TODO: NaN != NaN is currently false for us. Shall it be true?
 
         switch (ls.where * rs.where) {
         case REGISTER_REGISTER:

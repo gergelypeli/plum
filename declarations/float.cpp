@@ -22,6 +22,10 @@ public:
         case MEMORY_STACK:
             x64->op(PUSHQ, s.address);
             break;
+        case MEMORY_MEMORY:
+            x64->op(MOVQ, RBX, s.address);
+            x64->op(MOVQ, t.address, RBX);
+            break;
         default:
             throw INTERNAL_ERROR;
         }
@@ -49,8 +53,8 @@ public:
     }
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        // No need to take care of STACK here, GenericOperationValue takes care of it
-        // Thanks, NaN!
+        // No need to take care of STACK here, GenericOperationValue takes care of it.
+        // Values are equal iff ZF && !PF. Thanks, NaN!
         
         switch (s.where * t.where) {
         case REGISTER_REGISTER:
@@ -181,5 +185,18 @@ public:
         Label label;
         x64->code_label_import(label, "streamify_float");
         x64->runtime->call_sysv(label);
+    }
+    
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+        if (name == "nan")
+            return make_float_value(FLOAT_TS, NAN);
+        else if (name == "pinf")
+            return make_float_value(FLOAT_TS, INFINITY);
+        else if (name == "ninf")
+            return make_float_value(FLOAT_TS, -INFINITY);
+        else {
+            std::cerr << "No Float initializer called " << name << "!\n";
+            return NULL;
+        }
     }
 };

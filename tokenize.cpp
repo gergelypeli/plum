@@ -196,7 +196,7 @@ std::vector<Token> tokenize(std::string buffer) {
             do {
                 i++;
                 c = buffer[i];
-            } while (ispunct(c) && !is_paren(c) && !is_separator(c) && !is_quote(c));
+            } while (ispunct(c) && !is_prefix(c) && !is_paren(c) && !is_separator(c) && !is_quote(c));
         }
         else {
             std::cerr << "Invalid input character " << c << "!\n";

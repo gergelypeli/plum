@@ -245,8 +245,26 @@ test_floats? :Function as:
     x? = 1.1
     y? = 2.2
     prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
-    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: x, z: x<=>x, a: x==x, b: x<x, c: x>x, d: x<=x, e: x>=x})
+
+    y = x
+    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
     
+    y = `nan
+    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+
+    x = `nan    
+    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+
+    y = `pinf
+    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+
+    x = `ninf
+    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+
+    x = 0.0
+    y = -0.0
+    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+
 
 test_strings? :Function as:
     a? = 1
