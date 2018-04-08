@@ -12,6 +12,8 @@
 #include <stdarg.h>
 #include <math.h>
 
+bool matchlog;
+
 #include "utf8.c"
 #include "util.cpp"
 #include "arch/ork.cpp"
@@ -26,7 +28,7 @@
 #include "typize.cpp"
 
 
-std::string read_source(const char *filename) {
+std::string read_source(std::string filename) {
     std::ifstream source(filename, std::ios::binary);
     
     if (!source.is_open())
@@ -42,10 +44,36 @@ std::string read_source(const char *filename) {
 
 
 int main(int argc, char **argv) {
-    if (argc != 3)
+    matchlog = false;
+    std::string input, output;
+    
+    for (int i = 1; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            if (argv[i][1] == 'm')
+                matchlog = true;
+            else {
+                std::cerr << "Invalid option: " << argv[i] << "\n";
+                return 1;
+            }
+        }
+        else {
+            if (input.size() == 0)
+                input = argv[i];
+            else if (output.size() == 0)
+                output = argv[i];
+            else {
+                std::cerr << "Excess argument: " << argv[i] << "\n";
+                return 1;
+            }
+        }
+    }
+    
+    if (output.size() == 0) {
+        std::cerr << "Not enough arguments!\n";
         return 1;
-        
-    std::string buffer = read_source(argv[1]);
+    }
+    
+    std::string buffer = read_source(input);
     
     std::vector<Token> tokens = tokenize(buffer);
     //for (auto &token : tokens)
@@ -82,7 +110,8 @@ int main(int argc, char **argv) {
     value_root->compile(x64);
     x64->once->for_all(x64);
 
-    x64->done(argv[2]);
+    x64->done(output);
+    std::cerr << "Done.\n";
     
     return 0;
 }

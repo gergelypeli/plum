@@ -525,8 +525,6 @@ Value *rolematch(Value *v, TypeSpec s, TypeSpecIter target, TypeSpec &ifts) {
 
 // *******
 
-#define MATCHLOG if (false)
-
 bool is_any(Type *t) {
     return t == any_type || t == any2_type || t == any3_type || t == anyid_type || t == anyid2_type || t == anyid3_type;
 }
@@ -534,7 +532,7 @@ bool is_any(Type *t) {
 
 bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, int mi, Type *metatype) {
     if (!TypeSpec(s).has_meta(metatype)) {
-        MATCHLOG std::cerr << "No match, type parameter not a " << metatype->name << "!\n";
+        if (matchlog) std::cerr << "No match, type parameter not a " << metatype->name << "!\n";
         return false;
     }
     
@@ -592,7 +590,7 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
                 return false;
         }
         else {
-            MATCHLOG std::cerr << "No match, type parameters differ!\n";
+            if (matchlog) std::cerr << "No match, type parameters differ!\n";
             return false;
         }
     }
@@ -612,7 +610,7 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         return match_type_parameters(s, t, match);
     }
     
-    MATCHLOG std::cerr << "No match, unconvertible types!\n";
+    if (matchlog) std::cerr << "No match, unconvertible types!\n";
     return false;
 }
 
@@ -633,7 +631,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
             needs_weaken = true;
         }
         else if (*s == weakref_type && *t == ref_type) {
-            MATCHLOG std::cerr << "No match, weak reference for strong!\n";
+            if (matchlog) std::cerr << "No match, weak reference for strong!\n";
             return false;
         }
     }
@@ -649,7 +647,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     
     if (strict) {
         // For conversion to lvalue, only an exact match was acceptable
-        MATCHLOG std::cerr << "No match, lvalue types differ!\n";
+        if (matchlog) std::cerr << "No match, lvalue types differ!\n";
         return false;
     }
 
@@ -659,7 +657,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
             return true;
 
         if (*s == uninitialized_type) {
-            MATCHLOG std::cerr << "No match, Uninitialized for Void!\n";
+            if (matchlog) std::cerr << "No match, Uninitialized for Void!\n";
             std::cerr << "Uninitialized value dropped on the floor!\n";
             return false;
         }
@@ -682,15 +680,15 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
     
     if (is_any(*t)) {
         if (*s == void_type) {
-            MATCHLOG std::cerr << "No match, Void for Any!\n";
+            if (matchlog) std::cerr << "No match, Void for Any!\n";
             return false;
         }
         else if (*s == multi_type || *s == multilvalue_type || *s == multitype_type) {
-            MATCHLOG std::cerr << "No match, Multi for Any!\n";
+            if (matchlog) std::cerr << "No match, Multi for Any!\n";
             return false;
         }
         else if (*s == whatever_type) {
-            MATCHLOG std::cerr << "No match, Whatever for Any!\n";
+            if (matchlog) std::cerr << "No match, Whatever for Any!\n";
             return false;
         }
         
@@ -704,7 +702,7 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
     
     if (*t == multi_type || *t == multilvalue_type || *t == multitype_type) {
         if (*s != *t) {
-            MATCHLOG std::cerr << "No match, scalar for Multi!\n";
+            if (matchlog) std::cerr << "No match, scalar for Multi!\n";
             return false;
         }
         
@@ -715,12 +713,12 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         if (*s == multilvalue_type || *s == multitype_type) {
             if (*t == void_type) {
                 // This is not allowed because a Multi may contain uninitialized values
-                MATCHLOG std::cerr << "No match, Multi for Void!\n";
+                if (matchlog) std::cerr << "No match, Multi for Void!\n";
                 std::cerr << "Multi value dropped on the floor!\n";
                 return false;
             }
             else {
-                MATCHLOG std::cerr << "No match, Multi* for scalar!\n";
+                if (matchlog) std::cerr << "No match, Multi* for scalar!\n";
                 return false;
             }
         }
@@ -736,7 +734,7 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         
             TypeSpec ss = tss[0];
             s = ss.begin();
-            MATCHLOG std::cerr << "Unpacking Multi to " << ss << ".\n";
+            if (matchlog) std::cerr << "Unpacking Multi to " << ss << ".\n";
             value = make_scalar_conversion_value(value);
 
             // ss is a local variable, so call this in the scope
@@ -754,11 +752,11 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
     
     if (*t == lvalue_type) {
         if (!value) {
-            MATCHLOG std::cerr << "No match, nothing for Lvalue!\n";
+            if (matchlog) std::cerr << "No match, nothing for Lvalue!\n";
             return false;
         }
         else if (*s != lvalue_type) {
-            MATCHLOG std::cerr << "No match, rvalue for Lvalue!\n";
+            if (matchlog) std::cerr << "No match, rvalue for Lvalue!\n";
             return false;
         }
         
@@ -777,12 +775,12 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
 
         if (!value) {
             if (*t == void_type) {
-                MATCHLOG std::cerr << "Matched nothing for Void Code.\n";
+                if (matchlog) std::cerr << "Matched nothing for Void Code.\n";
                 match[0].push_back(void_type);
                 return true;
             }
             else {
-                MATCHLOG std::cerr << "No match, nothing for nonvoid Code!\n";
+                if (matchlog) std::cerr << "No match, nothing for nonvoid Code!\n";
                 return false;
             }
         }
@@ -802,7 +800,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
     }
     else if (*t == ovalue_type) {
         if (!value) {
-            MATCHLOG std::cerr << "Matched nothing for Ovalue.\n";
+            if (matchlog) std::cerr << "Matched nothing for Ovalue.\n";
             return true;
         }
         
@@ -818,11 +816,11 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         // This is a special case, Uninitialized only occurs with Any.
         // Maybe this should be checked in an identifier directly.
         if (!value) {
-            MATCHLOG std::cerr << "No match, nothing for Uninitialized!\n";
+            if (matchlog) std::cerr << "No match, nothing for Uninitialized!\n";
             return false;
         }
         else if (*s != uninitialized_type) {
-            MATCHLOG std::cerr << "No match, rvalue for Uninitialized!\n";
+            if (matchlog) std::cerr << "No match, rvalue for Uninitialized!\n";
             return false;
         }
         
@@ -837,7 +835,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
     }
     else {
         if (!value) {
-            MATCHLOG std::cerr << "No match, nothing for something!\n";
+            if (matchlog) std::cerr << "No match, nothing for something!\n";
             return false;
         }
         
@@ -863,7 +861,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
     if (tt == NO_TS)
         throw INTERNAL_ERROR;  // Mustn't be called with NO_TS
 
-    MATCHLOG std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
+    if (matchlog) std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
 
     match[0] = NO_TS;
     match[1] = NO_TS;
@@ -879,9 +877,9 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
         return false;
     }
         
-    MATCHLOG std::cerr << "Matched as " << match[0];
-    MATCHLOG if (match.size() > 1) { std::cerr << ", parameters"; for (unsigned i = 1; i < match.size(); i++) std::cerr << " " << match[i]; }
-    MATCHLOG std::cerr << ".\n";
+    if (matchlog) std::cerr << "Matched as " << match[0];
+    if (matchlog) if (match.size() > 1) { std::cerr << ", parameters"; for (unsigned i = 1; i < match.size(); i++) std::cerr << " " << match[i]; }
+    if (matchlog) std::cerr << ".\n";
 
     return true;
 }

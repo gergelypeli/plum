@@ -10,11 +10,10 @@ SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=always
 
-TOP        = plum.cpp
+MAIN       = plum.cpp
 EXE        = run/plum
+EXEFLAGS   = 
 CORE       = core.plum.*(N) core.test.*(N)
-
-MAIN       = run/main
 
 HEAPH      = arch/heap.h
 RUNTIMESRC = run/runtime.c
@@ -28,14 +27,17 @@ TESTLIBS   = -lpcre2-16 -lm
 
 exe: uncore $(EXE)
 
-test: uncore $(TEST)
+test: uncore untest $(TEST)
 
 uncore:
 	@rm -f $(CORE)
 
+untest:
+	@rm -f $(TEST) $(TESTOBJ)
+
 $(EXE): $(SOURCES)
 	@clear
-	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(TOP) 2>&1 | head -n 30
+	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(MAIN) 2>&1 | head -n 30
 
 $(TEST): $(RUNTIMEOBJ) $(TESTOBJ)
 	@gcc $(CFLAGS) -o $(TEST) $(RUNTIMEOBJ) $(TESTOBJ) $(TESTLIBS)
@@ -44,7 +46,7 @@ $(RUNTIMEOBJ): $(RUNTIMESRC) $(HEAPH)
 	@gcc $(CFLAGS) -c -o $(RUNTIMEOBJ) $(RUNTIMESRC)
 
 $(TESTOBJ): $(TESTSRC) $(EXE)
-	@$(EXE) $(TESTSRC) $(TESTOBJ) # 2>&1 | tee $(TESTLOG)
+	@$(EXE) $(EXEFLAGS) $(TESTSRC) $(TESTOBJ) # 2>&1 | tee $(TESTLOG)
 
 clean:
 	@rm -f $(EXE) $(TEST) $(RUNTIMEOBJ) $(TESTOBJ)
