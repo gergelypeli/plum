@@ -330,7 +330,7 @@ public:
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        return tm[1].store(s, t, x64);
+        tm[1].store(s, t, x64);
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -394,7 +394,7 @@ public:
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        return tm[1].store(s, t, x64);
+        tm[1].store(s, t, x64);
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {

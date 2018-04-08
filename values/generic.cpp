@@ -92,9 +92,7 @@ public:
             throw INTERNAL_ERROR;
 
         if (ls.regs() & rclob) {
-            Storage s = Storage(ALISTACK);
-            left->ts.store(ls, s, x64);
-            ls = s;
+            ls = left->ts.store(ls, Storage(ALISTACK), x64);
         }
         
         x64->unwind->push(this);
@@ -134,9 +132,7 @@ public:
         ls = left->compile(x64);
         
         if (ls.regs() & rclob) {
-            Storage s = Storage(STACK);
-            left->ts.store(ls, s, x64);
-            ls = s;
+            ls = left->ts.store(ls, Storage(STACK), x64);
         }
 
         x64->unwind->push(this);
@@ -189,9 +185,7 @@ public:
         ls = left->compile(x64);
         
         if (ls.regs() & rclob) {
-            Storage s = Storage(STACK);
-            left->ts.store(ls, s, x64);
-            ls = s;
+            ls = left->ts.store(ls, Storage(STACK), x64);
         }
 
         x64->unwind->push(this);
@@ -421,8 +415,7 @@ public:
                     }
                     else {
                         // Spill address to stack
-                        left->ts.store(ls, Storage(ALISTACK), x64);
-                        ls = Storage(ALISTACK);
+                        ls = left->ts.store(ls, Storage(ALISTACK), x64);
                     }
                 }
                 break;
@@ -445,23 +438,19 @@ public:
                 break;
             case FLAGS:
                 if (auxls.where == REGISTER) {
-                    left->ts.store(ls, auxls, x64);
-                    ls = auxls;
+                    ls = left->ts.store(ls, auxls, x64);
                 }
                 else {
-                    left->ts.store(ls, Storage(STACK), x64);
-                    ls = Storage(STACK);
+                    ls = left->ts.store(ls, Storage(STACK), x64);
                 }
                 break;
             case REGISTER:
                 if (ls.regs() & rclob) {
                     if (auxls.where == REGISTER) {
-                        left->ts.store(ls, auxls, x64);
-                        ls = auxls;
+                        ls = left->ts.store(ls, auxls, x64);
                     }
                     else {
-                        left->ts.store(ls, Storage(STACK), x64);
-                        ls = Storage(STACK);
+                        ls = left->ts.store(ls, Storage(STACK), x64);
                     }
                 }
                 break;
@@ -480,13 +469,11 @@ public:
                 else if (auxls.where == REGISTER) {
                     // We already know a register that won't be clobbered, save value there
                     // This may actually reuse the same register, but that's OK
-                    left->ts.store(ls, auxls, x64);
-                    ls = auxls;
+                    ls = left->ts.store(ls, auxls, x64);
                 }
                 else {
                     // Nothing is sure, push the value onto the stack
-                    left->ts.store(ls, Storage(STACK), x64);
-                    ls = Storage(STACK);
+                    ls = left->ts.store(ls, Storage(STACK), x64);
                 }
                 break;
             case ALISTACK: {
@@ -499,13 +486,11 @@ public:
                 
                 if (auxls.where == REGISTER) {
                     // We already know a register that won't be clobbered, save value there
-                    left->ts.store(ls, auxls, x64);
-                    ls = auxls;
+                    ls = left->ts.store(ls, auxls, x64);
                 }
                 else {
                     // Nothing is sure, push the value onto the stack
-                    left->ts.store(ls, Storage(STACK), x64);
-                    ls = Storage(STACK);
+                    ls = left->ts.store(ls, Storage(STACK), x64);
                 }
                 }
                 break;
@@ -519,13 +504,11 @@ public:
                 
                 if (auxls.where == REGISTER) {
                     // We already know a register that won't be clobbered, save value there
-                    left->ts.store(ls, auxls, x64);
-                    ls = auxls;
+                    ls = left->ts.store(ls, auxls, x64);
                 }
                 else {
                     // Nothing is sure, push the value onto the stack
-                    left->ts.store(ls, Storage(STACK), x64);
-                    ls = Storage(STACK);
+                    ls = left->ts.store(ls, Storage(STACK), x64);
                 }
                 }
                 break;
@@ -554,25 +537,16 @@ public:
             break;
         case REGISTER:
             break;
-        case STACK: {
-            Storage auxrs = pick_auxrs(rsubset);
-            right->ts.store(rs, auxrs, x64);
-            rs = auxrs;
-            }
+        case STACK:
+            rs = right->ts.store(rs, pick_auxrs(rsubset), x64);
             break;
         case MEMORY:
             break;
-        case ALISTACK: {
-            Storage auxrs = pick_auxrs(PTR_SUBSET);
-            right->ts.store(rs, auxrs, x64);
-            rs = auxrs;
-            }
+        case ALISTACK:
+            rs = right->ts.store(rs, pick_auxrs(PTR_SUBSET), x64);
             break;
-        case ALIAS: {
-            Storage auxrs = pick_auxrs(PTR_SUBSET);
-            right->ts.store(rs, auxrs, x64);
-            rs = auxrs;
-            }
+        case ALIAS:
+            rs = right->ts.store(rs, pick_auxrs(PTR_SUBSET), x64);
             break;
         default:
             throw INTERNAL_ERROR;
@@ -588,8 +562,7 @@ public:
             break;
         case STACK:
             if (auxls.where == REGISTER) {
-                left->ts.store(ls, auxls, x64);
-                ls = auxls;
+                ls = left->ts.store(ls, auxls, x64);
             }
             else
                 throw INTERNAL_ERROR;
@@ -598,16 +571,14 @@ public:
             break;
         case ALISTACK:
             if (auxls.where == MEMORY) {
-                left->ts.store(ls, auxls, x64);
-                ls = auxls;
+                ls = left->ts.store(ls, auxls, x64);
             }
             else
                 throw INTERNAL_ERROR;
             break;
         case ALIAS:
             if (auxls.where == MEMORY) {
-                left->ts.store(ls, auxls, x64);
-                ls = auxls;
+                ls = left->ts.store(ls, auxls, x64);
             }
             else
                 throw INTERNAL_ERROR;

@@ -35,8 +35,8 @@ public:
     bool has_meta(Type *mt);
     bool is_meta();
     bool is_hyper();
-    void store(Storage s, Storage t, X64 *x64);
-    void create(Storage s, Storage t, X64 *x64);
+    Storage store(Storage s, Storage t, X64 *x64);
+    Storage create(Storage s, Storage t, X64 *x64);
     void destroy(Storage s, X64 *x64);
     void equal(Storage s, Storage t, X64 *x64);
     void compare(Storage s, Storage t, X64 *x64);

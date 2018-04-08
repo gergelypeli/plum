@@ -185,18 +185,20 @@ Value *TypeSpec::autoconv(TypeSpecIter target, Value *orig, TypeSpec &ifts) {
 }
 
 
-void TypeSpec::store(Storage s, Storage t, X64 *x64) {
-    return at(0)->store(match(), s, t, x64);
+Storage TypeSpec::store(Storage s, Storage t, X64 *x64) {
+    at(0)->store(match(), s, t, x64);
+    return t;
 }
 
 
-void TypeSpec::create(Storage s, Storage t, X64 *x64) {
-    return at(0)->create(match(), s, t, x64);
+Storage TypeSpec::create(Storage s, Storage t, X64 *x64) {
+    at(0)->create(match(), s, t, x64);
+    return t;
 }
 
 
 void TypeSpec::destroy(Storage s, X64 *x64) {
-    return at(0)->destroy(match(), s, x64);
+    at(0)->destroy(match(), s, x64);
 }
 
 

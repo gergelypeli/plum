@@ -35,12 +35,10 @@ public:
         if (s.where == MEMORY) {
             switch (value->ts.where(AS_VALUE)) {
             case REGISTER:
-                value->ts.store(s, Storage(REGISTER, reg), x64);
-                s = Storage(REGISTER, reg);
+                s = value->ts.store(s, Storage(REGISTER, reg), x64);
                 break;
             case STACK:
-                value->ts.store(s, Storage(STACK), x64);
-                s = Storage(STACK);
+                s = value->ts.store(s, Storage(STACK), x64);
                 break;
             default:
                 throw INTERNAL_ERROR;

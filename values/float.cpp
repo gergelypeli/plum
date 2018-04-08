@@ -179,8 +179,7 @@ public:
         
         if (rclob) {
             // Chickening out
-            left->ts.store(ls, Storage(STACK), x64);
-            ls = Storage(STACK);
+            ls = left->ts.store(ls, Storage(STACK), x64);
         }
         
         if (right)
