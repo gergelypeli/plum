@@ -689,8 +689,17 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
             MATCHLOG std::cerr << "No match, Multi for Any!\n";
             return false;
         }
+        else if (*s == whatever_type) {
+            MATCHLOG std::cerr << "No match, Whatever for Any!\n";
+            return false;
+        }
         
         return match_type_parameters(s, t, match);
+    }
+    
+    if (*s == whatever_type) {
+        value->ts = TypeSpec(t);
+        return true;
     }
     
     if (*t == multi_type || *t == multilvalue_type || *t == multitype_type) {

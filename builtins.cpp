@@ -109,6 +109,9 @@ void builtin_types(Scope *root_scope) {
     role_type = new AttributeType("Role");
     root_scope->add(role_type);
 
+    whatever_type = new WhateverType("<Whatever>");
+    root_scope->add(whatever_type);
+
     // Phase 5: declare regular types
     boolean_type = new BooleanType("Boolean", 1);
     root_scope->add(boolean_type);
@@ -272,6 +275,7 @@ void builtin_types(Scope *root_scope) {
     MULTI_TS = { multi_type };
     MULTILVALUE_TS = { multilvalue_type };
     MULTITYPE_TS = { multitype_type };
+    WHATEVER_TS = { whatever_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };

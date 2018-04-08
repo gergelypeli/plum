@@ -540,13 +540,38 @@ public:
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        if (s.where != NOWHERE || t.where != NOWHERE) {
+        // STACK storage is faked by Whatever controls
+        if ((s.where != NOWHERE && s.where != STACK) || t.where != NOWHERE) {
             std::cerr << "Invalid Void store from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
         }
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+    }
+};
+
+
+class WhateverType: public Type {
+public:
+    WhateverType(std::string name)
+        :Type(name, {}, value_metatype) {
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // STACK storage is faked by Whatever controls
+        if ((s.where != NOWHERE && s.where != STACK) || t.where != NOWHERE) {
+            std::cerr << "Invalid Whatever store from " << s << " to " << t << "!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        throw INTERNAL_ERROR;
     }
 };
 

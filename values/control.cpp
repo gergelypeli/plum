@@ -715,6 +715,7 @@ public:
         :ControlValue("raise") {
         dummy = NULL;
         exception_value = 0;
+        ts = WHATEVER_TS;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -777,7 +778,9 @@ public:
         }
         
         x64->unwind->initiate(dummy, x64);
-        return Storage();
+
+        // Since we're Whatever, must deceive our parent with a believable Storage.
+        return Storage(STACK);
     }
 };
 
@@ -1053,6 +1056,7 @@ public:
         :ControlValue(es->get_label()) {
         dummy = NULL;
         eval_scope = es;
+        ts = WHATEVER_TS;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -1080,7 +1084,7 @@ public:
         if (value)
             value->precompile(preferred);
             
-        return Regs::all();  // We're Void
+        return Regs::all();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -1093,6 +1097,8 @@ public:
         
         x64->op(MOVB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
         x64->unwind->initiate(dummy, x64);
-        return Storage();
+        
+        // Since we're Whatever, must deceive our parent with a believable Storage.
+        return Storage(STACK);
     }
 };

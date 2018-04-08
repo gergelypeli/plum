@@ -36,10 +36,11 @@ Type *void_type = NULL;
 Type *partial_type = NULL;
 Type *uninitialized_type = NULL;
 Type *initializable_type = NULL;
-
 Type *multi_type = NULL;
 Type *multilvalue_type = NULL;
 Type *multitype_type = NULL;
+Type *whatever_type = NULL;
+
 Type *boolean_type = NULL;
 Type *integer_type = NULL;
 Type *integer32_type = NULL;
@@ -108,6 +109,7 @@ TypeSpec ANY_LVALUE_TS;
 TypeSpec SAME_TS;
 TypeSpec SAME_LVALUE_TS;
 TypeSpec SAME2_LVALUE_TS;
+TypeSpec WHATEVER_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;
 TypeSpec INTEGER_LVALUE_TS;

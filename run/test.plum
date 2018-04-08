@@ -504,6 +504,10 @@ test_controls? :Function as:
         
     prints("Let's hope that {x3} == 33." {})
     
+    # Must survive adding an Integer to a Whatever
+    :lol:
+        100 + :lol
+    
     x3 = :switch 1 do: :yield 44
     
     prints("Let's hope that {x3} == 44." {})
@@ -515,7 +519,7 @@ test_controls? :Function as:
     x4? Integer = :try 66
 
     prints("Let's hope that {x4} == 66." {})
-
+    
     :if Boolean `false > `true then:
         prints("Fake news!")
 
