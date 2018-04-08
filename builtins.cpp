@@ -805,6 +805,7 @@ void define_map() {
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new TemplateIdentifier<MapAddValue>("add", PIVOT));
     is->add(new TemplateIdentifier<MapRemoveValue>("remove", PIVOT));
+    is->add(new TemplateIdentifier<MapHasValue>("has", PIVOT));
     is->add(new TemplateIdentifier<MapIndexValue>("index", PIVOT));
     
     class_type->complete_type();
@@ -823,6 +824,7 @@ void define_weakvaluemap() {
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new TemplateIdentifier<WeakValueMapAddValue>("add", PIVOT));
     is->add(new TemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT));
+    is->add(new TemplateIdentifier<WeakValueMapHasValue>("has", PIVOT));
     is->add(new TemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT));
     
     class_type->complete_type();
@@ -841,6 +843,7 @@ void define_weakindexmap() {
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new TemplateIdentifier<WeakIndexMapAddValue>("add", PIVOT));
     is->add(new TemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT));
+    is->add(new TemplateIdentifier<WeakIndexMapHasValue>("has", PIVOT));
     is->add(new TemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT));
     
     class_type->complete_type();
@@ -859,7 +862,7 @@ void define_weakset() {
     is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
     is->add(new TemplateIdentifier<WeakSetAddValue>("add", PIVOT));
     is->add(new TemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT));
-    is->add(new TemplateIdentifier<WeakSetIndexValue>("index", PIVOT));
+    is->add(new TemplateIdentifier<WeakSetHasValue>("has", PIVOT));
     
     class_type->complete_type();
 }

@@ -738,7 +738,7 @@ test_classes? :Function Greetable Ref as:
     :try
         ws add(gr)
         ws add(gr)
-    prints("ws stores gr: {x}" {x: ws[gr]})
+    prints("ws stores gr: {x}" {x: ws has(gr)})
     prints("ws length is {x}" {x: ws length})
 
     killer? Greetable Ref = `init

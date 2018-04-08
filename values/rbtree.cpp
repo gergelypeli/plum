@@ -619,6 +619,56 @@ public:
 };
 
 
+class MapHasValue: public Value {
+public:
+    TypeSpec key_ts, value_ts, item_ts, key_arg_ts;
+    std::unique_ptr<Value> pivot, key, value;
+
+    MapHasValue(Value *l, TypeMatch &match)
+        :Value(BOOLEAN_TS) {
+        pivot.reset(l);
+        key_ts = match[1];
+        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        
+        key_arg_ts = key_ts;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return check_arguments(args, kwargs, {
+            { "key", &key_arg_ts, scope, &key }
+        });
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        return clob | SELFX | KEYX | ROOTX | THISX | THATX | COMPARE_CLOB;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int key_stack_size = key_arg_ts.measure_stack();
+        
+        pivot->compile_and_store(x64, Storage(STACK));
+        key->compile_and_store(x64, Storage(STACK));
+        
+        Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
+
+        x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
+        x64->op(MOVQ, SELFX, Address(RBX, CLASS_MEMBERS_OFFSET));
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, KEYX, Address(RSP, 0));
+
+        x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
+        
+        key_arg_ts.store(Storage(STACK), Storage(), x64);
+        pivot->ts.store(Storage(STACK), Storage(), x64);
+        
+        x64->op(CMPQ, KEYX, RBNODE_NIL);
+
+        return Storage(FLAGS, CC_NOT_EQUAL);
+    }
+};
+
+
 class MapIndexValue: public Value {
 public:
     TypeSpec key_ts, value_ts, item_ts, key_arg_ts;
@@ -644,20 +694,6 @@ public:
         return clob | SELFX | KEYX | ROOTX | THISX | THATX | COMPARE_CLOB;
     }
 
-    virtual Storage postresult(X64 *x64) {
-        int key_size = key_ts.measure_stack();  // in an Item it's rounded up
-
-        Label ok;
-        x64->op(CMPQ, KEYX, RBNODE_NIL);
-        x64->op(JNE, ok);
-
-        x64->runtime->die("Map missing!");  // TODO
-
-        x64->code_label(ok);
-        
-        return Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size));
-    }
-
     virtual Storage compile(X64 *x64) {
         int key_stack_size = key_arg_ts.measure_stack();
         
@@ -676,7 +712,17 @@ public:
         key_arg_ts.store(Storage(STACK), Storage(), x64);
         pivot->ts.store(Storage(STACK), Storage(), x64);
         
-        return postresult(x64);
+        int key_size = key_ts.measure_stack();  // in an Item it's rounded up
+
+        Label ok;
+        x64->op(CMPQ, KEYX, RBNODE_NIL);
+        x64->op(JNE, ok);
+
+        x64->runtime->die("Map missing!");  // TODO
+
+        x64->code_label(ok);
+        
+        return Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size));
     }
 };
 
@@ -755,6 +801,14 @@ public:
 };
 
 
+class WeakValueMapHasValue: public MapHasValue {
+public:
+    WeakValueMapHasValue(Value *l, TypeMatch &match)
+        :MapHasValue(l, wvmatch(match)) {
+    }
+};
+
+
 class WeakValueMapIndexValue: public MapIndexValue {
 public:
     WeakValueMapIndexValue(Value *l, TypeMatch &match)
@@ -793,6 +847,15 @@ class WeakIndexMapRemoveValue: public MapRemoveValue {
 public:
     WeakIndexMapRemoveValue(Value *l, TypeMatch &match)
         :MapRemoveValue(l, wimatch(match)) {
+        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+    }
+};
+
+
+class WeakIndexMapHasValue: public MapHasValue {
+public:
+    WeakIndexMapHasValue(Value *l, TypeMatch &match)
+        :MapHasValue(l, wimatch(match)) {
         key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
     }
 };
@@ -842,20 +905,14 @@ public:
 };
 
 
-class WeakSetIndexValue: public MapIndexValue {
+class WeakSetHasValue: public MapHasValue {
 public:
-    WeakSetIndexValue(Value *l, TypeMatch &match)
-        :MapIndexValue(l, wsmatch(match)) {
+    WeakSetHasValue(Value *l, TypeMatch &match)
+        :MapHasValue(l, wsmatch(match)) {
         key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
-        ts = BOOLEAN_TS;
-    }
-
-    virtual Storage postresult(X64 *x64) {
-        x64->op(CMPQ, KEYX, RBNODE_NIL);
-        
-        return Storage(FLAGS, CC_NOT_EQUAL);
     }
 };
+
 
 #undef SELFX
 #undef KEYX
