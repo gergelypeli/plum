@@ -770,4 +770,6 @@ start? :Function as:
     test_options
     test_classes
     
+    fs.File
+    
     prints("Done.")

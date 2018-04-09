@@ -40,6 +40,13 @@ public:
             
         return factory();
     }
+    
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (s.where != NOWHERE || t.where != NOWHERE) {
+            std::cerr << "Invalid metatype store from " << s << " to " << t << "!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
 };
 
 

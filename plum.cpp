@@ -59,6 +59,7 @@ std::string read_source(std::string filename) {
 
 
 struct Module {
+    std::string file_name;
     std::unique_ptr<Value> value;
     ModuleScope *module_scope;
     std::set<std::string> required_module_names;
@@ -69,6 +70,7 @@ std::map<std::string, Module> modules_by_name;
 
 
 void import(std::string module_name, std::string file_name, Scope *root_scope) {
+    std::cerr << "Importing module " << module_name << " from " << file_name << "\n";
     std::string buffer = read_source(file_name);
     
     std::vector<Token> tokens = tokenize(buffer);
@@ -83,22 +85,37 @@ void import(std::string module_name, std::string file_name, Scope *root_scope) {
     ModuleScope *module_scope = new ModuleScope(module_name);
     root_scope->add(module_scope);
     DataBlockValue *value_root = new DataBlockValue(module_scope);
-    
+
+    // Must install Module entry before typization
+    modules_by_name[module_name] = Module {
+        file_name,
+        std::unique_ptr<Value>(value_root),
+        module_scope,
+        {}
+    };
+
     for (auto &a : expr_root->args)
         value_root->check_statement(a.get());
         
     value_root->complete_definition();
-    
-    modules_by_name[module_name] = Module { std::unique_ptr<Value>(value_root), module_scope, {} };
 }
 
 
 ModuleScope *lookup_module(std::string module_name, ModuleScope *module_scope) {
+    if (modules_by_name.count(module_scope->module_name) != 1)
+        throw INTERNAL_ERROR;
+        
     Module &this_module = modules_by_name[module_scope->module_name];
     this_module.required_module_names.insert(module_name);
     
     if (!modules_by_name.count(module_name)) {
-        std::string file_name = module_name + ".plum";
+        std::string prefix;
+        std::string::size_type i = this_module.file_name.rfind("/");
+        
+        if (i != std::string::npos)
+            prefix = this_module.file_name.substr(0, i + 1);
+        
+        std::string file_name = prefix + module_name + ".plum";
         Scope *root_scope = module_scope->outer_scope;
         
         import(module_name, file_name, root_scope);
