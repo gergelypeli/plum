@@ -11,247 +11,10 @@ void set_typespec(Value *value, TypeSpec ts) {
 }
 
 
-Value *make_variable_value(Variable *decl, Value *pivot, TypeMatch &match) {
-    return new VariableValue(decl, pivot, match);
-}
-
-
-Value *make_partial_variable_value(PartialVariable *decl, Value *pivot, TypeMatch &match) {
-    return new PartialVariableValue(decl, pivot, match);
-}
-
-
-Value *make_role_value(Role *role, Value *pivot, TypeMatch &tm) {
-    return new RoleValue(role, pivot, tm);
-}
-
-
-Value *make_function_call_value(Function *decl, Value *pivot, TypeMatch &match) {
-    return new FunctionCallValue(decl, pivot, match);
-}
-
-
-Value *make_type_value(Type *mt, TypeSpec ts) {
-    return new TypeValue(mt, ts);
-}
-
-
-Value *make_code_block_value(TypeSpec *context) {
-    return new CodeBlockValue(context);
-}
-
-
-Value *make_multi_value() {
-    return new MultiValue();
-}
-
-
-Value *make_eval_value(std::string en) {
-    return new EvalValue(en);
-}
-
-
-Value *make_yield_value(EvalScope *es) {
-    return new YieldValue(es);
-}
-
-
-Value *make_declaration_value(std::string name, TypeSpec *context) {
-    return new DeclarationValue(name, context);
-}
-
-
-Value *make_basic_value(TypeSpec ts, long number) {
-    return new BasicValue(ts, number);
-}
-
-
-Value *make_float_value(TypeSpec ts, double number) {
-    return new FloatValue(ts, number);
-}
-
-
-Value *make_float_function_value(ImportedFloatFunction *f, Value *cpivot, TypeMatch &match) {
-    return new FloatFunctionValue(f, cpivot, match);
-}
-
-
-Value *make_string_literal_value(std::string text) {
-    return new StringLiteralValue(text);
-}
-
-
-Value *make_code_scope_value(Value *value, CodeScope *code_scope) {
-    return new CodeScopeValue(value, code_scope);
-}
-
-
-Value *make_scalar_conversion_value(Value *p) {
-    return new ScalarConversionValue(p);
-}
-
-
-Value *make_void_conversion_value(Value *p) {
-    return new VoidConversionValue(p);
-}
-
-
 Value *peek_void_conversion_value(Value *v) {
     VoidConversionValue *vcv = ptr_cast<VoidConversionValue>(v);
     
     return vcv ? vcv->orig.get() : v;
-}
-
-
-Value *make_implementation_conversion_value(ImplementationType *imt, Value *p, TypeMatch &match) {
-    return new ImplementationConversionValue(imt, p, match);
-}
-
-
-Value *make_boolean_not_value(Value *p) {
-    TypeMatch match;
-    
-    if (!typematch(BOOLEAN_TS, p, match))
-        throw INTERNAL_ERROR;
-        
-    return new BooleanOperationValue(COMPLEMENT, p, match);
-}
-
-
-Value *make_array_empty_value(TypeSpec ts) {
-    return new ArrayEmptyValue(ts);
-}
-
-
-Value *make_array_initializer_value(TypeSpec ts) {
-    return new ArrayInitializerValue(ts);
-}
-
-
-Value *make_circularray_empty_value(TypeSpec ts) {
-    return new CircularrayEmptyValue(ts);
-}
-
-
-Value *make_circularray_initializer_value(TypeSpec ts) {
-    return new CircularrayInitializerValue(ts);
-}
-
-
-Value *make_rbtree_empty_value(TypeSpec ts) {
-    return new RbtreeEmptyValue(ts);
-}
-
-
-Value *make_rbtree_reserved_value(TypeSpec ts) {
-    return new RbtreeReservedValue(ts);
-}
-
-
-Value *make_rbtree_initializer_value(TypeSpec ts) {
-    return new RbtreeInitializerValue(ts);
-}
-
-
-Value *make_unicode_character_value() {
-    return new UnicodeCharacterValue();
-}
-
-
-Value *make_integer_definition_value() {
-    return new IntegerDefinitionValue();
-}
-
-
-Value *make_enumeration_definition_value() {
-    return new EnumerationDefinitionValue();
-}
-
-
-Value *make_treenumeration_definition_value() {
-    return new TreenumerationDefinitionValue();
-}
-
-
-Value *make_treenumeration_matcher_value(TypeSpec ts, int i, Value *p) {
-    return new TreenumerationMatcherValue(i, p);
-}
-
-
-Value *make_record_definition_value() {
-    return new RecordDefinitionValue();
-}
-
-
-Value *make_record_initializer_value(TypeMatch &match) {
-    return new RecordInitializerValue(match);
-}
-
-
-Value *make_record_preinitializer_value(TypeSpec ts) {
-    return new RecordPreinitializerValue(ts);
-}
-
-
-Value *make_record_postinitializer_value(Value *v) {
-    return new RecordPostinitializerValue(v);
-}
-
-
-Value *make_class_definition_value() {
-    return new ClassDefinitionValue();
-}
-
-
-Value *make_class_preinitializer_value(TypeSpec ts) {
-    return new ClassPreinitializerValue(ts);
-}
-
-
-Value *make_reference_weaken_value(Value *v) {
-    TypeMatch tm;
-    return new ReferenceWeakenValue(v, tm);
-}
-
-
-Value *make_interface_definition_value() {
-    return new InterfaceDefinitionValue();
-}
-
-
-Value *make_implementation_definition_value() {
-    return new ImplementationDefinitionValue();
-}
-
-
-Value *make_cast_value(Value *v, TypeSpec ts) {
-    return new CastValue(v, ts);
-}
-
-
-Value *make_equality_value(bool no, Value *v) {
-    return new EqualityValue(no, v);
-}
-
-
-Value *make_comparison_value(ConditionCode cc, Value *v) {
-    return new ComparisonValue(cc, v);
-}
-
-
-CreateValue *make_initialization_by_value(std::string name, Value *v, Scope *scope) {
-    Args fake_args;
-    Kwargs fake_kwargs;
-    
-    DeclarationValue *dv = new DeclarationValue(name);
-    dv->check(fake_args, fake_kwargs, scope);
-    
-    TypeMatch tm = { VOID_UNINITIALIZED_TS, VOID_TS };
-    CreateValue *cv = new CreateValue(dv, tm);
-    if (!cv->use(v, scope))
-        throw INTERNAL_ERROR;
-    
-    return cv;
 }
 
 
@@ -292,91 +55,6 @@ bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
 }
 
 
-Value *make_record_unwrap_value(TypeSpec cast_ts, Value *v) {
-    return new RecordUnwrapValue(cast_ts, v);
-}
-
-
-Value *make_record_wrapper_value(Value *pivot, TypeSpec pivot_cast_ts, TypeSpec result_ts, std::string operation_name, std::string arg_operation_name) {
-    return new RecordWrapperValue(pivot, pivot_cast_ts, result_ts, operation_name, arg_operation_name);
-}
-
-
-Value *make_class_wrapper_initializer_value(Value *object, Value *value) {
-    return new ClassWrapperInitializerValue(object, value);
-}
-
-
-Value *make_option_none_value(TypeSpec ts) {
-    return new OptionNoneValue(ts);
-}
-
-
-Value *make_option_some_value(TypeSpec ts) {
-    return new OptionSomeValue(ts);
-}
-
-
-Value *make_option_none_matcher_value(Value *p, TypeMatch &match) {
-    return new OptionNoneMatcherValue(p, match);
-}
-
-
-Value *make_option_some_matcher_value(Value *p, TypeMatch &match) {
-    return new OptionSomeMatcherValue(p, match);
-}
-
-
-Value *make_evaluable_value(Evaluable *e, Value *cpivot, TypeMatch &match) {
-    return new EvaluableValue(e, cpivot, match);
-}
-
-
-Value *make_implicit_equality_matcher_value(Value *p) {
-    return new ImplicitEqualityMatcherValue(p);
-}
-
-
-Value *make_initializer_equality_matcher_value(Value *p) {
-    return new InitializerEqualityMatcherValue(p);
-}
-
-
-Value *make_bulk_equality_matcher_value() {
-    return new BulkEqualityMatcherValue();
-}
-
-
-Value *make_create_value(Value *p, TypeMatch &match) {
-    return new CreateValue(p, match);
-}
-
-
-Value *make_weakanchorage_value(TypeSpec rts) {
-    return new WeakAnchorageValue(rts);
-}
-
-
-Value *make_weakanchorage_dead_matcher_value(Value *p, TypeMatch &match) {
-    return new WeakAnchorageDeadMatcherValue(p, match);
-}
-
-
-Value *make_weakanchorage_live_matcher_value(Value *p, TypeMatch &match) {
-    return new WeakAnchorageLiveMatcherValue(p, match);
-}
-
-
-Value *make_string_regexp_matcher_value(Value *p, TypeMatch &match) {
-    return new StringRegexpMatcherValue(p, match);
-}
-
-
-Value *make_class_matcher_value(std::string name, Value *pivot) {
-    return new ClassMatcherValue(name, pivot);
-}
-
-
 // Declaration operations
 
 Declaration *make_record_compare() {
@@ -414,21 +92,17 @@ bool descend_into_explicit_scope(std::string &name, Scope *&scope) {
 }
 
 
-// TypeSpec operations
-/*
-bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts) {
-    ImplementationType *imp = dynamic_cast<ImplementationType *>(t);
-
-    if (imp) {
-        ifts = imp->get_interface_ts(match);
-        
-        if (ifts[0] == *target)
-            return true;
-    }
-
-    return false;
+std::string print_exception_type(TreenumerationType *t) {
+    return t ? t->name : "-";
 }
-*/
+
+
+TreenumerationType *make_treenum(const char *name, const char *kw1) {
+    return new TreenumerationType(name, { "", kw1 }, { 0, 0 });
+}
+
+
+// Matching
 
 Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
     Scope *inner_scope = match[0][0]->get_inner_scope(match);
@@ -457,31 +131,6 @@ Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, T
     }
 
     return NULL;
-}
-
-
-TypeMatch type_parameters_to_match(TypeSpec ts) {
-    TypeMatch fake_match;
-    fake_match[0] = ts;
-    TypeSpecIter tsi(ts.begin());
-    tsi++;
-    
-    for (unsigned i = 0; i < ts[0]->get_parameter_count(); i++) {
-        fake_match[i + 1] = TypeSpec(tsi);
-        tsi += fake_match[i + 1].size();
-    }
-    
-    return fake_match;
-}
-
-
-std::string print_exception_type(TreenumerationType *t) {
-    return t ? t->name : "-";
-}
-
-
-TreenumerationType *make_treenum(const char *name, const char *kw1) {
-    return new TreenumerationType(name, { "", kw1 }, { 0, 0 });
 }
 
 
@@ -524,6 +173,7 @@ Value *rolematch(Value *v, TypeSpec s, TypeSpecIter target, TypeSpec &ifts) {
 
 
 // *******
+extern bool matchlog;
 
 bool is_any(Type *t) {
     return t == any_type || t == any2_type || t == any3_type || t == anyid_type || t == anyid2_type || t == anyid3_type;
@@ -881,5 +531,133 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
     if (matchlog) if (match.size() > 1) { std::cerr << ", parameters"; for (unsigned i = 1; i < match.size(); i++) std::cerr << " " << match[i]; }
     if (matchlog) std::cerr << ".\n";
 
+    return true;
+}
+
+
+// Checking
+
+void check_retros(unsigned i, CodeScope *code_scope, const std::vector<ArgInfo> &arg_infos) {
+    // Grab all preceding Dvalue bar declarations, and put them in this scope.
+    // Retro variables must only be accessible from the following Code argument's
+    // scope, because their initialization is only guaranteed while that Code
+    // is being evaluated.
+    std::vector<Variable *> retros;
+    
+    for (unsigned j = i - 1; j < i; j--) {
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(arg_infos[j].target->get());
+        
+        if (dv) {
+            if (dv->ts[0] != dvalue_type)
+                break;
+                
+            Declaration *decl = declaration_get_decl(dv);
+            Variable *var = ptr_cast<Variable>(decl);
+            if (!var)
+                throw INTERNAL_ERROR;
+                
+            var->outer_scope->remove(var);
+            retros.push_back(var);
+        }
+    }
+
+    for (auto var : retros) {
+        std::cerr << "Moving retro variable " << var->name << " to code scope.\n";
+        code_scope->add(var);
+    }
+}
+
+
+bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) {
+    if (i >= arg_infos.size()) {
+        std::cerr << "Too many arguments!\n";
+        return false;
+    }
+
+    std::unique_ptr<Value> *target = arg_infos[i].target;
+    TypeSpec *context = arg_infos[i].context;
+    Scope *scope = arg_infos[i].scope;
+
+    if (*target) {
+        std::cerr << "Argument " << i << " already supplied!\n";
+        return false;
+    }
+
+    // Allow callers turn off contexts this way
+    if (context && (*context)[0] == any_type)
+        context = NULL;
+
+    CodeScope *code_scope = NULL;
+    
+    if (context && (*context)[0] == code_type) {
+        code_scope = new CodeScope;
+        
+        check_retros(i, code_scope, arg_infos);
+        
+        scope->add(code_scope);
+    }
+
+    Value *v = typize(e, code_scope ? code_scope : scope, context);
+    
+    // Hack for omitting strict checking in :is controls
+    if (context && (*context)[0] == equalitymatcher_type)
+        context = NULL;
+
+    TypeMatch match;
+    
+    if (context && !typematch(*context, v, match, code_scope)) {
+        std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *context << "!\n";
+        return false;
+    }
+
+    if (code_scope && !code_scope->is_taken)
+        throw INTERNAL_ERROR;
+
+    target->reset(v);
+    return true;
+}
+
+
+bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
+    for (unsigned i = 0; i < args.size(); i++) {
+        Expr *e = args[i].get();
+        
+        if (!check_argument(i, e, arg_infos))
+            return false;
+    }
+            
+    for (auto &kv : kwargs) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < arg_infos.size(); j++) {
+            if (arg_infos[j].name == kv.first) {
+                i = j;
+                break;
+            }
+        }
+            
+        if (i == (unsigned)-1) {
+            std::cerr << "No argument named " << kv.first << "!\n";
+            return false;
+        }
+        
+        Expr *e = kv.second.get();
+        
+        if (!check_argument(i, e, arg_infos))
+            return false;
+    }
+    
+    for (auto &arg_info : arg_infos) {
+        if (!*arg_info.target && arg_info.context) {
+            TypeSpec &ts = *arg_info.context;
+            
+            // Allow NO_TS to drop an argument, used in WeakSet
+            if (ts != NO_TS && ts[0] != ovalue_type && !(ts[0] == code_type && ts[1] == void_type)) {
+                std::cerr << "Missing argument " << arg_info.name << "!\n";
+                return false;
+            }
+        }
+    }
+    
     return true;
 }

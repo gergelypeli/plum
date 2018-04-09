@@ -120,7 +120,17 @@ bool TypeSpec::is_hyper() {
 
 
 TypeMatch TypeSpec::match() {
-    return type_parameters_to_match(*this);
+    TypeMatch fake_match;
+    fake_match[0] = *this;
+    TypeSpecIter tsi(begin());
+    tsi++;
+
+    for (unsigned i = 0; i < at(0)->get_parameter_count(); i++) {
+        fake_match[i + 1] = TypeSpec(tsi);
+        tsi += fake_match[i + 1].size();
+    }
+
+    return fake_match;
 }
 
 

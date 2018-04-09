@@ -77,7 +77,7 @@ public:
                 
                 if (role_scope) {
                     // Function overrides must pretend they take the role pivot type
-                    TypeMatch tm = type_parameters_to_match(pivot_ts);
+                    TypeMatch tm = pivot_ts.match();
                     role_scope->get_role()->compute_match(tm);
                     pivot_ts = tm[0].prefix(weakref_type);
                 }

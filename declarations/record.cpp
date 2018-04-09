@@ -159,7 +159,6 @@ public:
 
         if (n == "{}") {
             // Anonymous initializer
-            //TypeMatch match = type_parameters_to_match(ts);
             return make_record_initializer_value(tm);
         }
         else {

@@ -1,4 +1,44 @@
 
+const char NO_EXCEPTION = 0;
+const char RETURN_EXCEPTION = -1;
+
+class VirtualEntry;
+
+class Declaration;
+class Allocable;
+class Variable;
+class Role;
+class BaseRole;
+class PartialVariable;
+class Evaluable;
+class Function;
+class ImportedFloatFunction;
+class ClassType;
+
+class Type;
+class TreenumerationType;
+class ArrayType;
+class InterfaceType;
+class ImplementationType;
+class HeapType;
+
+class Scope;
+class CodeScope;
+class DataScope;
+class SwitchScope;
+class TryScope;
+class EvalScope;
+class FunctionScope;
+
+class Value;
+class DeclarationValue;
+class CreateValue;
+class GenericValue;
+class PartialVariableValue;
+class FunctionReturnValue;
+class FunctionCallValue;
+
+
 class TypeSpec;
 typedef std::array<TypeSpec,4> TypeMatch;
 struct Allocation;
@@ -123,3 +163,8 @@ struct Allocation {
 Allocation stack_size(Allocation a);
 
 std::ostream &operator<<(std::ostream &os, const Allocation &a);
+
+template <class T, class S> T *ptr_cast(S *s) {
+    return dynamic_cast<T *>(s);
+}
+

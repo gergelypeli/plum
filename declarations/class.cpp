@@ -196,7 +196,7 @@ public:
     
     static void compile_virtual_table(Label label, TypeSpec ts, X64 *x64) {
         std::vector<VirtualEntry *> vt = ts.get_virtual_table();
-        TypeMatch tm = type_parameters_to_match(ts);
+        TypeMatch tm = ts.match();
 
         x64->data_align(8);
         

@@ -562,7 +562,7 @@ public:
         // from the interface definition, the substitution will replace Same types
         // with Same types. But the functions in the implementation will be similarly
         // parametrized, so the comparison should compare Same to Same, and succeed.
-        TypeMatch iftm = type_parameters_to_match(interface_ts);
+        TypeMatch iftm = interface_ts.match();
         TypeMatch empty_match;
 
         for (auto &c : inner_scope->contents) {

@@ -12,21 +12,36 @@
 #include <stdarg.h>
 #include <math.h>
 
-bool matchlog;
-
 #include "utf8.c"
 #include "util.cpp"
+
 #include "arch/ork.cpp"
 #include "arch/heap.h"
 #include "arch/basics.cpp"
 #include "arch/x64.cpp"
 #include "arch/runtime.cpp"
 #include "arch/storage.cpp"
+
 #include "tokenize.cpp"
 #include "treeize.cpp"
 #include "tupleize.cpp"
+
+#include "global_types.h"
+#include "global_functions.h"
+#include "global_factories.h"
+#include "builtins.h"
+
+#include "declarations/declaration.cpp"
+#include "values/value.cpp"
+
+#include "builtins.cpp"
+#include "global_factories.cpp"
+#include "global_functions.cpp"
+#include "global_types.cpp"
+
 #include "typize.cpp"
 
+bool matchlog;
 
 std::string read_source(std::string filename) {
     std::ifstream source(filename, std::ios::binary);

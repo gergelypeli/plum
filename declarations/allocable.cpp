@@ -310,7 +310,7 @@ public:
         // Inward compute the offset, and update the match for the inner roles
         offset += get_offset(tm);
         TypeSpec ts = typesubst(alloc_ts, tm);
-        tm = type_parameters_to_match(ts);
+        tm = ts.match();
         
         return offset;
     }
@@ -322,7 +322,7 @@ public:
         
         // Inward update the match for the inner roles
         TypeSpec ts = typesubst(alloc_ts, tm);
-        tm = type_parameters_to_match(ts);
+        tm = ts.match();
     }
     
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
