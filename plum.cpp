@@ -58,6 +58,68 @@ std::string read_source(std::string filename) {
 }
 
 
+struct Module {
+    std::unique_ptr<Value> value;
+    ModuleScope *module_scope;
+    std::set<std::string> required_module_names;
+};
+
+
+std::map<std::string, Module> modules_by_name;
+
+
+void import(std::string module_name, std::string file_name, Scope *root_scope) {
+    std::string buffer = read_source(file_name);
+    
+    std::vector<Token> tokens = tokenize(buffer);
+    //for (auto &token : tokens)
+    //    std::cerr << "Token: " << token.text << "\n";
+    
+    std::vector<Node> nodes = treeize(tokens);
+
+    std::unique_ptr<Expr> expr_root(tupleize(nodes));
+    //print_expr_tree(expr_root.get(), 0, "*");
+
+    ModuleScope *module_scope = new ModuleScope(module_name);
+    root_scope->add(module_scope);
+    DataBlockValue *value_root = new DataBlockValue(module_scope);
+    
+    for (auto &a : expr_root->args)
+        value_root->check_statement(a.get());
+        
+    value_root->complete_definition();
+    
+    modules_by_name[module_name] = Module { std::unique_ptr<Value>(value_root), module_scope, {} };
+}
+
+
+ModuleScope *lookup_module(std::string module_name, ModuleScope *module_scope) {
+    Module &this_module = modules_by_name[module_scope->module_name];
+    this_module.required_module_names.insert(module_name);
+    
+    if (!modules_by_name.count(module_name)) {
+        std::string file_name = module_name + ".plum";
+        Scope *root_scope = module_scope->outer_scope;
+        
+        import(module_name, file_name, root_scope);
+    }
+    
+    return modules_by_name[module_name].module_scope;
+}
+
+
+void order_modules(std::string name, std::vector<std::unique_ptr<Value>> &ordered_values) {
+    if (!modules_by_name.count(name))
+        return;  // already collected
+        
+    for (auto &n : modules_by_name[name].required_module_names)
+        order_modules(n, ordered_values);
+        
+    ordered_values.push_back(std::move(modules_by_name[name].value));
+    modules_by_name.erase(name);
+}
+
+
 int main(int argc, char **argv) {
     matchlog = false;
     std::string input, output;
@@ -87,31 +149,14 @@ int main(int argc, char **argv) {
         std::cerr << "Not enough arguments!\n";
         return 1;
     }
-    
-    std::string buffer = read_source(input);
-    
-    std::vector<Token> tokens = tokenize(buffer);
-    //for (auto &token : tokens)
-    //    std::cerr << "Token: " << token.text << "\n";
-    
-    std::vector<Node> nodes = treeize(tokens);
-
-    std::unique_ptr<Expr> expr_root(tupleize(nodes));
-    //print_expr_tree(expr_root.get(), 0, "*");
 
     Scope *root_scope = init_builtins();
-    DataScope *module_scope = new DataScope;
-    //module_scope->set_pivot_type_hint(VOID_TS);  // FIXME: something else!
-    root_scope->add(module_scope);
-    std::unique_ptr<DataBlockValue> value_root;
     
-    value_root.reset(new DataBlockValue(module_scope));
-    for (auto &a : expr_root->args)
-        value_root->check_statement(a.get());
-        
-    value_root->complete_definition();
-    //Value *v = typize(expr_root.get(), module_scope);
-
+    import("main", input, root_scope);
+    
+    std::vector<std::unique_ptr<Value>> module_values;
+    order_modules("main", module_values);
+    
     root_scope->allocate();
     
     X64 *x64 = new X64();
@@ -121,12 +166,14 @@ int main(int argc, char **argv) {
     x64->once = new Once();
     x64->runtime = new Runtime(x64);
 
-    value_root->precompile(Regs::all());
-    value_root->compile(x64);
-    x64->once->for_all(x64);
-
-    x64->done(output);
-    std::cerr << "Done.\n";
+    for (auto &value : module_values) {
+        value->precompile(Regs::all());
+        value->compile(x64);
+    }
     
+    x64->once->for_all(x64);
+    x64->done(output);
+    
+    std::cerr << "Done.\n";
     return 0;
 }

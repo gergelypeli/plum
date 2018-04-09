@@ -185,8 +185,29 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-        //if (p)
-        //    p->set_marker(marker);
+
+        if (!p && name.find(".") != std::string::npos) {
+            std::string::size_type i = 0;
+            
+            while (islower(name[i])) {
+                i = name.find_first_of(".", i);
+                
+                if (i == std::string::npos) {
+                    i = name.size() + 1;
+                    break;
+                }
+                    
+                i += 1;
+            }
+            
+            if (i > 0) {
+                std::string module_name = name.substr(0, i - 1);
+                name = name.substr(i);
+
+                std::cerr << "Will lookup symbol " << name << " in module " << module_name << "\n";
+                scope = lookup_module(module_name, scope->get_module_scope());
+            }
+        }
         
         value = lookup(name, p, expr, scope);
         

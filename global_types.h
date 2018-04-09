@@ -25,6 +25,7 @@ class HeapType;
 class Scope;
 class CodeScope;
 class DataScope;
+class ModuleScope;
 class SwitchScope;
 class TryScope;
 class EvalScope;

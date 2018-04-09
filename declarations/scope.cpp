@@ -75,6 +75,10 @@ public:
         return outer_scope->get_eval_scope();
     }
 
+    virtual ModuleScope *get_module_scope() {
+        return outer_scope->get_module_scope();
+    }
+
     virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
         for (auto &content : contents)
@@ -217,6 +221,21 @@ public:
             return rs->get_original_declaration(n);
             
         return NULL;
+    }
+};
+
+
+class ModuleScope: public DataScope {
+public:
+    std::string module_name;
+    
+    ModuleScope(std::string mn)
+        :DataScope() {
+        module_name = mn;
+    }
+
+    virtual ModuleScope *get_module_scope() {
+        return this;
     }
 };
 
