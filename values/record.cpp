@@ -121,6 +121,10 @@ public:
         value.reset(v);
     }
     
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return value->check(args, kwargs, scope);
+    }
+
     virtual Regs precompile(Regs preferred) {
         return value->precompile(preferred);
     }

@@ -145,7 +145,7 @@ public:
 
             if (value) {
                 if (is_initializer_function_call(value))
-                    return pivot ? value : make_cast_value(value, rts);
+                    return pivot ? value : make_class_postinitializer_value(value);
                         
                 std::cerr << "Can't initialize class with non-initializer " << name << "!\n";
                 return NULL;

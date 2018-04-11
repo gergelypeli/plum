@@ -251,7 +251,7 @@ public:
 
     virtual bool use(Value *v, Scope *scope) {
         if (!v->ts.is_meta() && !v->ts.is_hyper()) {
-            std::cerr << "Can't declare as " << v->ts << "!\n";
+            std::cerr << "Not a type used for declaration, but a value of " << v->ts << "!\n";
             return false;
         }
         

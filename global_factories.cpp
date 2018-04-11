@@ -190,6 +190,11 @@ Value *make_class_preinitializer_value(TypeSpec ts) {
 }
 
 
+Value *make_class_postinitializer_value(Value *v) {
+    return new ClassPostinitializerValue(v);
+}
+
+
 Value *make_reference_weaken_value(Value *v) {
     TypeMatch tm;
     return new ReferenceWeakenValue(v, tm);

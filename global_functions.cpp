@@ -619,6 +619,13 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
 
 
 bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
+    //std::cerr << "Checking arguments: ";
+    
+    //for (auto &ai : arg_infos)
+    //    std::cerr << ai.name << ":" << (ai.context ? *ai.context : NO_TS) << " ";
+        
+    //std::cerr << "\n";
+
     for (unsigned i = 0; i < args.size(); i++) {
         Expr *e = args[i].get();
         

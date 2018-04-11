@@ -770,6 +770,7 @@ start? :Function as:
     test_options
     test_classes
     
-    fs.File
+    f? = fs.File Ref `at "/dev/null"
+    prints("File is at {x}" {x: f name})
     
     prints("Done.")

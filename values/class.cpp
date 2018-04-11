@@ -31,6 +31,29 @@ public:
 };
 
 
+class ClassPostinitializerValue: public Value {
+public:
+    std::unique_ptr<Value> pivot;
+
+    ClassPostinitializerValue(Value *p)
+        :Value(p->ts.unprefix(initializable_type).reprefix(weakref_type, ref_type)) {
+        pivot.reset(p);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return pivot->check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return pivot->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return pivot->compile(x64);
+    }
+};
+
+
 class ClassWrapperInitializerValue: public Value {
 public:
     std::unique_ptr<Value> object, value;
