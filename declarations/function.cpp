@@ -1,7 +1,11 @@
 
 enum FunctionType {
-    GENERIC_FUNCTION, INTERFACE_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION,
-    SYSV_FUNCTION, SYSV_GOT_FUNCTION
+    GENERIC_FUNCTION, INTERFACE_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION
+};
+
+
+enum FunctionProt {
+    NATIVE_FUNCTION, SYSV_FUNCTION, SYSV_GOT_FUNCTION
 };
 
     
@@ -13,6 +17,7 @@ public:
     TreenumerationType *exception_type;
     int virtual_index;
     FunctionType type;
+    FunctionProt prot;
     
     Role *containing_role;
     Function *implemented_function;
@@ -28,6 +33,7 @@ public:
         exception_type = et;
         virtual_index = -1;
 
+        prot = NATIVE_FUNCTION;
         containing_role = NULL;
         implemented_function = NULL;
     }
@@ -148,22 +154,34 @@ public:
 };
 
 
-class ImportedFunction: public Function {
+class SysvFunction: public Function {
 public:
     std::string import_name;
     
-    ImportedFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
+    SysvFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
         :Function(n, pts, ft, ats, ans, rts, et) {
         import_name = in;
+        prot = SYSV_FUNCTION;
     }
 
     virtual Label get_label(X64 *x64) {
-        if (type == SYSV_FUNCTION)
-            return x64->once->import(import_name);
-        else if (type == SYSV_GOT_FUNCTION)
-            return x64->once->import_got(import_name);
-        else
-            throw INTERNAL_ERROR;
+        return x64->once->import(import_name);
+    }
+};
+
+
+class SysvGotFunction: public Function {
+public:
+    std::string import_name;
+    
+    SysvGotFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
+        :Function(n, pts, ft, ats, ans, rts, et) {
+        import_name = in;
+        prot = SYSV_GOT_FUNCTION;
+    }
+
+    virtual Label get_label(X64 *x64) {
+        return x64->once->import_got(import_name);
     }
 };
 

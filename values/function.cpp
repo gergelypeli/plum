@@ -15,6 +15,7 @@ public:
     RoleScope *role_scope;
 
     FunctionType type;
+    std::string import_name;
     Function *function;  // If declared with a name, which is always, for now
         
     FunctionDefinitionValue(Value *r, TypeMatch &tm)
@@ -135,6 +136,30 @@ public:
         
         deferred_body_expr = kwargs["as"].get();
         std::cerr << "Deferring definition of function body.\n";
+
+        Expr *import_expr = kwargs["import"].get();
+
+        if (import_expr) {
+            Value *i = typize(import_expr, scope, &STRING_TS);
+            StringLiteralValue *sl = ptr_cast<StringLiteralValue>(i);
+            
+            if (!sl) {
+                std::cerr << "Function import is not a string literal!\n";
+                return false;
+            }
+            
+            import_name = sl->text;
+        }
+        
+        if (deferred_body_expr && import_expr) {
+            std::cerr << "Can't specify function body and import!\n";
+            return false;
+        }
+
+        if (!deferred_body_expr && !import_expr) {
+            std::cerr << "Must specify function body or import!\n";
+            return false;
+        }
         
         return true;
     }
@@ -143,11 +168,11 @@ public:
         std::cerr << "Completing definition of function body " << function->name << ".\n";
         Scope *bs = fn_scope->add_body_scope();
 
-        PartialVariable *pv = NULL;
-        if (fn_scope->self_scope->contents.size() > 0)
-            pv = ptr_cast<PartialVariable>(fn_scope->self_scope->contents.back().get());
-        
         if (deferred_body_expr) {
+            PartialVariable *pv = NULL;
+            if (fn_scope->self_scope->contents.size() > 0)
+                pv = ptr_cast<PartialVariable>(fn_scope->self_scope->contents.back().get());
+                
             if (pv) {
                 // Must do this only after the class definition is completed
                 if (pv->alloc_ts[1] == weakref_type) {
@@ -330,7 +355,11 @@ public:
         }
         
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
-        function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+        
+        if (import_name.size())
+            function = new SysvGotFunction(import_name, name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+        else
+            function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
 
         if (role_scope) {
             if (!function->set_role_scope(role_scope))
@@ -495,9 +524,9 @@ public:
         if (stack_offset != passed_size)
             throw INTERNAL_ERROR;
             
-        if (function->type == SYSV_FUNCTION)
+        if (function->prot == SYSV_FUNCTION)
             x64->runtime->call_sysv(function->get_label(x64));
-        else if (function->type == SYSV_GOT_FUNCTION)
+        else if (function->prot == SYSV_GOT_FUNCTION)
             x64->runtime->call_sysv_got(function->get_label(x64));
         else
             throw INTERNAL_ERROR;
@@ -697,7 +726,7 @@ public:
         for (unsigned i = 0; i < values.size(); i++)
             passed_size += push_arg(arg_tss[i], values[i].get(), x64);
             
-        if (function->type == SYSV_FUNCTION || function->type == SYSV_GOT_FUNCTION)
+        if (function->prot == SYSV_FUNCTION || function->prot == SYSV_GOT_FUNCTION)
             call_sysv(x64, passed_size);
         else if (function->virtual_index >= 0 && !is_static)
             call_virtual(x64, passed_size);
