@@ -310,8 +310,6 @@ test_strings? :Function as:
     
     prints((xx? = "hi") + xx)
     
-    prints(333 stringify)
-
     prints("XXXXX{a}YYYYY" {})
 
     prints("{six} and {seven}" { six: 6, seven: 7 })
@@ -770,7 +768,10 @@ start? :Function as:
     test_options
     test_classes
     
-    f? = fs.File Ref `at "/dev/null"
+    f? = fs.File `at "test.mkdir"
     prints("File is at {x}" {x: f name})
+    
+    :try
+        f mkdir(0o710)
     
     prints("Done.")

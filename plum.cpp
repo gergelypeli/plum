@@ -30,6 +30,7 @@
 #include "global_functions.h"
 #include "global_factories.h"
 #include "builtins.h"
+#include "builtins_errno.h"
 
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
@@ -67,6 +68,7 @@ struct Module {
 
 
 std::map<std::string, Module> modules_by_name;
+std::vector<Module> modules_in_order;
 
 
 void import(std::string module_name, std::string file_name, Scope *root_scope) {
@@ -83,7 +85,8 @@ void import(std::string module_name, std::string file_name, Scope *root_scope) {
     //print_expr_tree(expr_root.get(), 0, "*");
 
     ModuleScope *module_scope = new ModuleScope(module_name);
-    root_scope->add(module_scope);
+    module_scope->outer_scope = root_scope;
+    //root_scope->add(module_scope);
     DataBlockValue *value_root = new DataBlockValue(module_scope);
 
     // Must install Module entry before typization
@@ -125,14 +128,14 @@ ModuleScope *lookup_module(std::string module_name, ModuleScope *module_scope) {
 }
 
 
-void order_modules(std::string name, std::vector<std::unique_ptr<Value>> &ordered_values) {
+void order_modules(std::string name) {
     if (!modules_by_name.count(name))
         return;  // already collected
         
     for (auto &n : modules_by_name[name].required_module_names)
-        order_modules(n, ordered_values);
+        order_modules(n);
         
-    ordered_values.push_back(std::move(modules_by_name[name].value));
+    modules_in_order.push_back(std::move(modules_by_name[name]));
     modules_by_name.erase(name);
 }
 
@@ -171,10 +174,13 @@ int main(int argc, char **argv) {
     
     import("main", input, root_scope);
     
-    std::vector<std::unique_ptr<Value>> module_values;
-    order_modules("main", module_values);
+    order_modules("main");
     
+    // Does not allocate the module contents
     root_scope->allocate();
+
+    for (Module &m : modules_in_order)
+        m.module_scope->allocate();
     
     X64 *x64 = new X64();
     x64->init("mymodule");
@@ -183,9 +189,9 @@ int main(int argc, char **argv) {
     x64->once = new Once();
     x64->runtime = new Runtime(x64);
 
-    for (auto &value : module_values) {
-        value->precompile(Regs::all());
-        value->compile(x64);
+    for (Module &m : modules_in_order) {
+        m.value->precompile(Regs::all());
+        m.value->compile(x64);
     }
     
     x64->once->for_all(x64);

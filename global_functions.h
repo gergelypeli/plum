@@ -22,6 +22,7 @@ void set_typespec(Value *value, TypeSpec ts);
 //bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts);
 std::string print_exception_type(TreenumerationType *t);
 TreenumerationType *make_treenum(const char *name, const char *kw1);
+TreenumerationType *make_treenum(const char *name, TreenumInput *x);
 
 
 // Streamification

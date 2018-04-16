@@ -91,6 +91,7 @@ TreenumerationType *container_empty_exception_type = NULL;
 TreenumerationType *container_lent_exception_type = NULL;
 TreenumerationType *match_unmatched_exception_type = NULL;
 TreenumerationType *code_break_exception_type = NULL;
+TreenumerationType *errno_exception_type = NULL;
 
 InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;

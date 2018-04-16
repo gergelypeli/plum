@@ -104,10 +104,9 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        ts.create(Storage(), Storage(STACK), x64);
+        //ts.create(Storage(), Storage(STACK), x64);
+        x64->op(SUBQ, RSP, ts.measure_stack());
         return Storage(MEMORY, Address(RSP, 0));
-        //x64->op(PUSHQ, RSP);
-        //return Storage(ALISTACK);
     }
 };
 

@@ -3,6 +3,9 @@
 #include <string.h>
 #include <locale.h>
 #include <math.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
 
 #define PCRE2_CODE_UNIT_WIDTH 16
 #include <pcre2.h>
@@ -27,7 +30,7 @@ static int allocation_count = 0;
 static locale_t unfucked_locale;
 
 
-// Exported helpers
+// Memory management
 
 void *memalloc(long size) {
     allocation_count += 1;
@@ -51,45 +54,7 @@ void *memrealloc(void *m, long size) {
 }
 
 
-void logfunc(const char *message) {
-    fprintf(stderr, "LOG: %s\n", message);
-}
-
-
-struct R { unsigned long r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rsp, rdx, rcx, rbx, rax; };
-
-void dump(const char *message, struct R r) {
-    fprintf(stderr, "DUMP: %s\n", message);
-    fprintf(stderr, "              ____    ____          ____    ____          ____    ____          ____    ____\n");
-    fprintf(stderr, "      RAX=%016lx  RBX=%016lx  RCX=%016lx  RDX=%016lx\n", r.rax, r.rbx, r.rcx, r.rdx);
-    fprintf(stderr, "      RSP=%016lx  RBP=%016lx  RSI=%016lx  RDI=%016lx\n", r.rsp + 32, r.rbp, r.rsi, r.rdi);
-    fprintf(stderr, "      R8 =%016lx  R9 =%016lx  R10=%016lx  R11=%016lx\n", r.r8, r.r9, r.r10, r.r11);
-    fprintf(stderr, "      R12=%016lx  R13=%016lx  R14=%016lx  R15=%016lx\n", r.r12, r.r13, r.r14, r.r15);
-}
-
-
-void die(const char *message) {
-    fprintf(stderr, "Can't go on like this... %s\n", message);
-    abort();
-}
-
-
-void dies(void *s) {
-    long character_length = ALEN(s);
-    char bytes[character_length * 3];
-    int byte_length = encode_utf8_buffer(AELE(s), character_length, bytes);
-    fprintf(stderr, "DIE: %.*s\n", byte_length, bytes);
-    abort();
-}
-
-
 // Internal helpers
-
-
-
-//void nothing() {
-//}
-
 
 void *allocate_basic_array(long length, long size) {
     void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
@@ -153,86 +118,44 @@ void lvalue_append_decode_utf8(void **character_array_lvalue, char *byte_array, 
 }
 
 
-// Library functions
+// Exported helpers
 
-void printi(long a) {
-    printf("%ld\n", a);
+
+void logfunc(const char *message) {
+    fprintf(stderr, "LOG: %s\n", message);
 }
 
 
-void printc(short a) {
-    printf("%c\n", a);
+struct R { unsigned long r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rsp, rdx, rcx, rbx, rax; };
+
+void dump(const char *message, struct R r) {
+    fprintf(stderr, "DUMP: %s\n", message);
+    fprintf(stderr, "              ____    ____          ____    ____          ____    ____          ____    ____\n");
+    fprintf(stderr, "      RAX=%016lx  RBX=%016lx  RCX=%016lx  RDX=%016lx\n", r.rax, r.rbx, r.rcx, r.rdx);
+    fprintf(stderr, "      RSP=%016lx  RBP=%016lx  RSI=%016lx  RDI=%016lx\n", r.rsp + 32, r.rbp, r.rsi, r.rdi);
+    fprintf(stderr, "      R8 =%016lx  R9 =%016lx  R10=%016lx  R11=%016lx\n", r.r8, r.r9, r.r10, r.r11);
+    fprintf(stderr, "      R12=%016lx  R13=%016lx  R14=%016lx  R15=%016lx\n", r.r12, r.r13, r.r14, r.r15);
 }
 
 
-void printd(double a) {
-    printf("%g\n", a);
+void die(const char *message) {
+    fprintf(stderr, "Can't go on like this... %s\n", message);
+    abort();
 }
 
 
-void printz(const char *s) {
-    printf("%s\n", s);
-}
-
-
-void prints(void *s) {
-    if (s) {
-        long character_length = ALEN(s);
-        char bytes[character_length * 3];
-        int byte_length = encode_utf8_buffer(AELE(s), character_length, bytes);
-        printf("%.*s\n", byte_length, bytes);
-    }
-    else
-        printf("(null)\n");
-}
-
-
-void printb(void *s) {
-    if (s) {
-        long byte_length = ALEN(s);
-        char *bytes = AELE(s);
-        printf("%.*s\n", (int)byte_length, bytes);
-    }
-    else
-        printf("(null)\n");
-}
-
-
-void *decode_utf8(void *byte_array) {
-    if (!byte_array)
-        return NULL;
-
-    long byte_length = ALEN(byte_array);
-    char *bytes = AELE(byte_array);
-
-    void *character_array = allocate_basic_array(byte_length, 2);
-    unsigned short *characters = AELE(character_array);
-    
-    long character_length = decode_utf8_buffer(bytes, byte_length, characters);
-    ALEN(character_array) = character_length;
-    
-    return reallocate_array(character_array, character_length, 2);
-}
-
-
-void *encode_utf8(void *character_array) {
-    if (!character_array)
-        return NULL;
-
-    long character_length = ALEN(character_array);
-    unsigned short *characters = AELE(character_array);
-    
-    void *byte_array = allocate_basic_array(character_length * 3, 1);
-    char *bytes = AELE(byte_array);
-
-    long byte_length = encode_utf8_buffer(characters, character_length, bytes);
-    ALEN(byte_array) = byte_length;
-    
-    return reallocate_array(byte_array, byte_length, 1);
+void dies(void *s) {
+    long character_length = ALEN(s);
+    char bytes[character_length * 3 + 1];
+    int byte_length = encode_utf8_buffer(AELE(s), character_length, bytes);
+    bytes[byte_length] = '\0';
+    fprintf(stderr, "DIE: %.*s\n", byte_length, bytes);
+    abort();
 }
 
 
 // FIXME: snprintf for double is locale-dependent!
+/*
 #define STRINGIFY(fmt, val) \
     char byte_array[ARRAY_HEADER_SIZE + 20]; \
     ALEN(byte_array) = snprintf(byte_array + ARRAY_HEADER_SIZE, sizeof(byte_array) - ARRAY_HEADER_SIZE, fmt, val); \
@@ -242,7 +165,7 @@ void *encode_utf8(void *character_array) {
 void *stringify_integer(long x) {
     STRINGIFY("%ld", x);
 }
-
+*/
 
 void streamify_integer(long x, void **character_array_lvalue) {
     char byte_array[30];
@@ -350,6 +273,100 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
     pcre2_code_free(re);
     
     return result_array;
+}
+
+
+// Library functions (argument order is reversed!)
+
+void printi(long a) {
+    printf("%ld\n", a);
+}
+
+
+void printc(short a) {
+    printf("%c\n", a);
+}
+
+
+void printd(double a) {
+    printf("%g\n", a);
+}
+
+
+void printz(const char *s) {
+    printf("%s\n", s);
+}
+
+
+void prints(void *s) {
+    if (s) {
+        long character_length = ALEN(s);
+        char bytes[character_length * 3 + 1];
+        int byte_length = encode_utf8_buffer(AELE(s), character_length, bytes);
+        bytes[byte_length] = '\0';
+        printf("%.*s\n", byte_length, bytes);
+    }
+    else
+        printf("(null)\n");
+}
+
+
+void printb(void *s) {
+    if (s) {
+        long byte_length = ALEN(s);
+        char *bytes = AELE(s);
+        printf("%.*s\n", (int)byte_length, bytes);
+    }
+    else
+        printf("(null)\n");
+}
+
+
+void *decode_utf8(void *byte_array) {
+    if (!byte_array)
+        return NULL;
+
+    long byte_length = ALEN(byte_array);
+    char *bytes = AELE(byte_array);
+
+    void *character_array = allocate_basic_array(byte_length, 2);
+    unsigned short *characters = AELE(character_array);
+    
+    long character_length = decode_utf8_buffer(bytes, byte_length, characters);
+    ALEN(character_array) = character_length;
+    
+    return reallocate_array(character_array, character_length, 2);
+}
+
+
+void *encode_utf8(void *character_array) {
+    if (!character_array)
+        return NULL;
+
+    long character_length = ALEN(character_array);
+    unsigned short *characters = AELE(character_array);
+    
+    void *byte_array = allocate_basic_array(character_length * 3, 1);
+    char *bytes = AELE(byte_array);
+
+    long byte_length = encode_utf8_buffer(characters, character_length, bytes);
+    ALEN(byte_array) = byte_length;
+    
+    return reallocate_array(byte_array, byte_length, 1);
+}
+
+
+char path_mkdir(long mode, void *path_lvalue) {
+    void *name_array = *(void **)path_lvalue;
+    long character_length = ALEN(name_array);
+    char bytes[character_length * 3 + 1];
+    int byte_length = encode_utf8_buffer(AELE(name_array), character_length, bytes);
+    bytes[byte_length] = '\0';
+
+    fprintf(stderr, "mkdir '%s' %lo\n", bytes, mode);
+    int rc = mkdir(bytes, mode);
+    
+    return (rc == -1 ? errno : 0);
 }
 
 

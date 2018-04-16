@@ -1,8 +1,15 @@
 
-File? :Class as:
+File? :Record as:
     name? String
 
     at? :Initializer from:
         name? String
     as:
         $ name = name
+
+    mkdir? :Function from:
+        mode? Integer
+    may:
+        Errno_exception
+    import:
+        "path_mkdir"

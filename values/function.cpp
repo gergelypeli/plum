@@ -161,6 +161,8 @@ public:
             return false;
         }
         
+        // TODO: warn for invalid keywords!
+        
         return true;
     }
 
@@ -357,7 +359,7 @@ public:
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         
         if (import_name.size())
-            function = new SysvGotFunction(import_name, name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+            function = new SysvFunction(import_name, name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
         else
             function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
 
@@ -524,12 +526,7 @@ public:
         if (stack_offset != passed_size)
             throw INTERNAL_ERROR;
             
-        if (function->prot == SYSV_FUNCTION)
-            x64->runtime->call_sysv(function->get_label(x64));
-        else if (function->prot == SYSV_GOT_FUNCTION)
-            x64->runtime->call_sysv_got(function->get_label(x64));
-        else
-            throw INTERNAL_ERROR;
+        x64->runtime->call_sysv_got(function->get_label(x64));
 
         bool is_void = res_tss.size() == 0;
         
@@ -538,6 +535,11 @@ public:
                 x64->op(MOVSD, Address(RSP, passed_size), XMM0);
             else
                 x64->op(MOVQ, Address(RSP, passed_size), RAX);
+        }
+        else if (function->exception_type) {
+            // AL contains the potential exception
+            x64->op(MOVB, BL, AL);
+            x64->op(CMPB, BL, 0);  // set ZF if OK
         }
     }
     
@@ -726,7 +728,7 @@ public:
         for (unsigned i = 0; i < values.size(); i++)
             passed_size += push_arg(arg_tss[i], values[i].get(), x64);
             
-        if (function->prot == SYSV_FUNCTION || function->prot == SYSV_GOT_FUNCTION)
+        if (function->prot == SYSV_FUNCTION)
             call_sysv(x64, passed_size);
         else if (function->virtual_index >= 0 && !is_static)
             call_virtual(x64, passed_size);

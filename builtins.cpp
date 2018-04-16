@@ -260,8 +260,11 @@ void builtin_types(Scope *root_scope) {
     match_unmatched_exception_type = make_treenum("Match_unmatched_exception", "UNMATCHED");
     root_scope->add(match_unmatched_exception_type);
 
-    code_break_exception_type = make_treenum("<Code_break>", "CODE_BREAK");
+    code_break_exception_type = make_treenum("<Code_break_exception>", "CODE_BREAK");
     root_scope->add(code_break_exception_type);
+    
+    errno_exception_type = make_treenum("Errno_exception", errno_treenum_input);
+    root_scope->add(errno_exception_type);
     
     // NO_TS will contain no Type pointers
     HYPERTYPE_TS = { metatype_hypertype };
@@ -888,7 +891,7 @@ void builtin_runtime(Scope *root_scope) {
     root_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     root_scope->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
 
-    root_scope->add(new SysvFunction("stringify_integer", "stringify", INTEGER_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
+    //root_scope->add(new SysvFunction("stringify_integer", "stringify", INTEGER_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     
     root_scope->add(new ImportedFloatFunction("log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
     root_scope->add(new ImportedFloatFunction("exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));

@@ -467,8 +467,10 @@ public:
             throw INTERNAL_ERROR;
             
         for (unsigned i = 1; i < ps.size(); i++)
-            if (ps[i] >= i)
+            if (ps[i] == i) {
+                std::cerr << "Invalid treenum!\n";
                 throw INTERNAL_ERROR;
+            }
             
         parents = ps;
     }

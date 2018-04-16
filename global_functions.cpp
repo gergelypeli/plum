@@ -101,6 +101,32 @@ TreenumerationType *make_treenum(const char *name, const char *kw1) {
     return new TreenumerationType(name, { "", kw1 }, { 0, 0 });
 }
 
+/*
+TreenumerationType *make_treenum(const char *name, const char **kws) {
+    std::vector<std::string> keywords = { "" };
+    std::vector<unsigned> parents = { 0 };
+
+    for (const char *kw : kws) {
+        keywords.push_back(kw);
+        parents.push_back(0);
+    }
+
+    return new TreenumerationType(name, keywords, parents);
+}
+*/
+
+TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
+    std::vector<std::string> keywords = { "" };
+    std::vector<unsigned> parents = { 0 };
+
+    for (unsigned i = 0; x[i].kw; i++) {
+        keywords.push_back(x[i].kw);
+        parents.push_back(x[i].p);
+    }
+
+    return new TreenumerationType(name, keywords, parents);
+}
+
 
 // Matching
 

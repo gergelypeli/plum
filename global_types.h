@@ -169,3 +169,8 @@ template <class T, class S> T *ptr_cast(S *s) {
     return dynamic_cast<T *>(s);
 }
 
+
+struct TreenumInput {
+    const char *kw;
+    unsigned p;
+};
