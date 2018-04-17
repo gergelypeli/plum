@@ -527,17 +527,10 @@ public:
         
         x64->runtime->call_sysv_got(function->get_label(x64));
 
-        bool is_void = res_tss.size() == 0;
+        // We return simple values in RAX and XMM0 like SysV
+        bool is_void = (res_tss.size() == 0);
         
-        if (!is_void) {
-            // Must move raw values
-            
-            if (res_tss[0].where(AS_VALUE) == SSEREGISTER)
-                x64->op(MOVSD, Address(RSP, passed_size), XMM0);
-            else
-                x64->op(MOVQ, Address(RSP, passed_size), RAX);
-        }
-        else if (function->exception_type) {
+        if (is_void && function->exception_type) {
             if (function->exception_type != errno_exception_type)
                 throw INTERNAL_ERROR;
                 
@@ -739,8 +732,9 @@ public:
     */
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
-        bool is_void = res_tss.size() == 0;
-        
+        bool is_void = (res_tss.size() == 0);
+        StorageWhere simple_where = NOWHERE;
+
         for (unsigned i = 0; i < res_tss.size(); i++) {
             TypeSpec res_ts = res_tss[i];
             StorageWhere res_where = res_ts.where(AS_ARGUMENT);
@@ -752,6 +746,13 @@ public:
             }
             else
                 throw INTERNAL_ERROR;
+        }
+
+        if (res_tss.size() == 1) {
+            simple_where = res_tss[0].where(AS_VALUE);
+            
+            if (simple_where == REGISTER || simple_where == SSEREGISTER)
+                res_total = 0;
         }
 
         if (res_total)
@@ -824,8 +825,14 @@ public:
         //std::cerr << "Compiled call of " << function->name << ".\n";
         if (is_void)
             return Storage();
-        else if (res_tss.size() == 1)
-            return Storage(stacked(res_tss[0].where(AS_ARGUMENT)));  // ret_res(res_tss[0], x64);
+        else if (res_tss.size() == 1) {
+            if (simple_where == REGISTER)
+                return Storage(REGISTER, RAX);
+            else if (simple_where == SSEREGISTER)
+                return Storage(SSEREGISTER, XMM0);
+            else
+                return Storage(stacked(res_tss[0].where(AS_ARGUMENT)));
+        }
         else
             return Storage(STACK);  // Multiple result values
     }
@@ -842,7 +849,9 @@ public:
             pushed_tss[i].store(pushed_storages[i], Storage(), x64);
         
         // This area is uninitialized
-        x64->op(ADDQ, RSP, res_total);
+        if (res_total)
+            x64->op(ADDQ, RSP, res_total);
+            
         return NULL;
     }
 };
@@ -910,27 +919,40 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        // Since we store each result in a variable, upon an exception we must
-        // destroy the already set ones before unwinding!
+        StorageWhere simple_where = NOWHERE;
         
-        Storage r = Storage(MEMORY, Address(RAX, 0));
-        
-        x64->unwind->push(this);
-        
-        for (unsigned i = 0; i < values.size(); i++) {
-            Storage var_storage = result_vars[i]->get_storage(match, r);
-            var_storages.push_back(var_storage);
-            TypeSpec var_ts = result_vars[i]->alloc_ts;
+        if (result_vars.size() == 1)
+            simple_where = result_vars[0]->alloc_ts.where(AS_VALUE);
             
-            Storage s = values[i]->compile(x64);
-            Storage t = var_storage;
-
-            x64->op(MOVQ, RAX, RESULT_ALIAS_ADDRESS);
-            var_ts.create(s, t, x64);
+        if (simple_where == REGISTER) {
+            values[0]->compile_and_store(x64, Storage(REGISTER, RAX));
         }
+        else if (simple_where == SSEREGISTER) {
+            values[0]->compile_and_store(x64, Storage(SSEREGISTER, XMM0));
+        }
+        else {
+            // Since we store each result in a variable, upon an exception we must
+            // destroy the already set ones before unwinding!
+        
+            Storage r = Storage(MEMORY, Address(RAX, 0));
+        
+            x64->unwind->push(this);
+        
+            for (unsigned i = 0; i < values.size(); i++) {
+                Storage var_storage = result_vars[i]->get_storage(match, r);
+                var_storages.push_back(var_storage);
+                TypeSpec var_ts = result_vars[i]->alloc_ts;
+            
+                Storage s = values[i]->compile(x64);
+                Storage t = var_storage;
 
-        x64->unwind->pop(this);
+                x64->op(MOVQ, RAX, RESULT_ALIAS_ADDRESS);
+                var_ts.create(s, t, x64);
+            }
 
+            x64->unwind->pop(this);
+        }
+        
         x64->op(MOVB, EXCEPTION_ADDRESS, RETURN_EXCEPTION);
         x64->unwind->initiate(dummy, x64);
         
@@ -946,4 +968,3 @@ public:
         return NULL;
     }
 };
-
