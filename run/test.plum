@@ -775,8 +775,7 @@ start? :Function as:
         f mkdir(0o710)
 
     :try
-        g? = fs.Path `at "/test.mkdir"
-        g mkdir(0o777)
+        fs.Path `at "/test.mkdir" mkdir(0o777)
         prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
     or:
         :is ~EACCES then:

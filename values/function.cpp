@@ -172,6 +172,7 @@ public:
 
         if (deferred_body_expr) {
             PartialVariable *pv = NULL;
+            
             if (fn_scope->self_scope->contents.size() > 0)
                 pv = ptr_cast<PartialVariable>(fn_scope->self_scope->contents.back().get());
                 
@@ -185,15 +186,13 @@ public:
                     
                     pv->set_member_names(ct->get_member_names());
                 }
-                else if (pv->alloc_ts[1] == lvalue_type) {
-                    RecordType *rt = ptr_cast<RecordType>(pv->alloc_ts[2]);
+                else {
+                    RecordType *rt = ptr_cast<RecordType>(pv->alloc_ts[1]);
                     if (!rt)
                         throw INTERNAL_ERROR;
                     
                     pv->set_member_names(rt->get_member_names());
                 }
-                else
-                    throw INTERNAL_ERROR;
             }
         
             // The body is in a separate CodeScope, but instead of a dedicated CodeValue,
@@ -401,7 +400,8 @@ public:
     Register reg;
     
     unsigned res_total;
-    std::vector<Storage> arg_storages;
+    std::vector<TypeSpec> pushed_tss;
+    std::vector<Storage> pushed_storages;
     
     TypeSpec pivot_ts;
     std::vector<TypeSpec> arg_tss;
@@ -524,9 +524,6 @@ public:
             stack_offset += 8;
         }
         
-        if (stack_offset != passed_size)
-            throw INTERNAL_ERROR;
-
         x64->runtime->call_sysv_got(function->get_label(x64));
 
         bool is_void = res_tss.size() == 0;
@@ -582,6 +579,34 @@ public:
         
         return Regs::all();  // assume everything is clobbered
     }
+
+    virtual int push_pivot(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+        Storage s = arg_value->compile(x64);
+        
+        StorageWhere where = stacked(arg_ts.where(AS_PIVOT));
+        Storage t(where);
+
+        if (s.where == STACK && t.where == ALISTACK) {
+            // This is possible with record pivot arguments, handle it specially
+            x64->op(PUSHQ, RSP);
+            
+            pushed_tss.push_back(arg_ts);
+            pushed_storages.push_back(s);
+            
+            pushed_tss.push_back(arg_ts);
+            pushed_storages.push_back(t);
+            
+            return arg_ts.measure_where(STACK) + arg_ts.measure_where(ALISTACK);
+        }
+        else {
+            arg_ts.store(s, t, x64);
+            
+            pushed_tss.push_back(arg_ts);
+            pushed_storages.push_back(t);  // For unwinding
+            
+            return arg_ts.measure_where(where);
+        }
+    }
     
     virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         if (arg_ts[0] == code_type) {
@@ -628,7 +653,9 @@ public:
             x64->op(PUSHQ, RBX);
             
             current_except_label = NULL;
-            arg_storages.push_back(Storage(STACK));
+            
+            pushed_tss.push_back(arg_ts);
+            pushed_storages.push_back(Storage(STACK));
             
             return ADDRESS_SIZE;
         }
@@ -645,26 +672,28 @@ public:
                 arg_ts.create(Storage(), t, x64);
             }
 
-            arg_storages.push_back(t);  // For unwinding
+            pushed_tss.push_back(arg_ts);
+            pushed_storages.push_back(t);  // For unwinding
         
             return arg_ts.measure_where(where);
         }
     }
 
-    virtual void pop_arg(TypeSpec arg_ts, X64 *x64) {
+    virtual void pop_arg(X64 *x64) {
+        TypeSpec arg_ts = pushed_tss.back();
+        pushed_tss.pop_back();
+        
+        Storage s = pushed_storages.back();
+        pushed_storages.pop_back();
+        
         if (arg_ts[0] == code_type) {
             x64->op(ADDQ, RSP, 8);
         }
         else {
-            StorageWhere where = arg_ts.where(AS_ARGUMENT);
-            where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
-        
-            arg_ts.store(Storage(where), Storage(), x64);
+            arg_ts.store(s, Storage(), x64);
         }
-        
-        arg_storages.pop_back();
     }
-
+    /*
     virtual Storage ret_res(TypeSpec res_ts, X64 *x64) {
         // Return a result from the stack in its native storage
         Storage s, t;
@@ -703,7 +732,7 @@ public:
         res_ts.store(s, t, x64);
         return t;
     }
-    
+    */
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
         bool is_void = res_tss.size() == 0;
@@ -728,7 +757,7 @@ public:
         unsigned passed_size = 0;
         
         if (pivot) {
-            passed_size += push_arg(pivot_ts, pivot.get(), x64);
+            passed_size += push_pivot(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
         
@@ -763,20 +792,36 @@ public:
         x64->unwind->pop(this);
         
         for (int i = values.size() - 1; i >= 0; i--)
-            pop_arg(arg_tss[i], x64);
+            pop_arg(x64);
             
         if (pivot) {
-            if (is_void)
-                return ret_res(pivot_ts, x64);
+            if (pushed_storages.size() == 2) {
+                // A record pivot argument was handled specially, remove the second ALISTACK
+                pop_arg(x64);
+            }
             
-            pop_arg(pivot_ts, x64);
+            if (is_void) {
+                // Return pivot argument
+                Storage s = pushed_storages[0];
+                
+                if (s.where == ALISTACK) {
+                    // Returninig ALISTACK is a bit evil, as the caller would need to
+                    // allocate a register to do anything meaningful with it, so do that here
+                    Storage t = Storage(MEMORY, Address(reg, 0));
+                    s = pushed_tss[0].store(s, t, x64);
+                }
+                
+                return s;
+            }
+            
+            pop_arg(x64);
         }
             
         //std::cerr << "Compiled call of " << function->name << ".\n";
         if (is_void)
             return Storage();
         else if (res_tss.size() == 1)
-            return ret_res(res_tss[0], x64);
+            return Storage(stacked(res_tss[0].where(AS_ARGUMENT)));  // ret_res(res_tss[0], x64);
         else
             return Storage(STACK);  // Multiple result values
     }
@@ -789,12 +834,10 @@ public:
             return NULL;
         }
         
-        for (int i = arg_storages.size() - 1; i >= 0; i--) {
-            TypeSpec ts = (pivot ? (i > 0 ? arg_tss[i - 1] : pivot_ts) : arg_tss[i]);
-            ts.store(arg_storages[i], Storage(), x64);
-        }
+        for (int i = pushed_tss.size() - 1; i >= 0; i--)
+            pushed_tss[i].store(pushed_storages[i], Storage(), x64);
         
-        // This area is either uninitialized, or contains aliases to uninitialized variables
+        // This area is uninitialized
         x64->op(ADDQ, RSP, res_total);
         return NULL;
     }

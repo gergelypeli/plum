@@ -44,26 +44,27 @@ public:
 
 class Variable: public Allocable {
 public:
-    bool is_argument;
+    AsWhat as_what;
     
     Variable(std::string name, TypeSpec pts, TypeSpec vts)
         :Allocable(name, pts, vts) {
         if (vts == NO_TS)
             throw INTERNAL_ERROR;
             
-        is_argument = false;
+        as_what = AS_VARIABLE;
     }
 
     virtual void set_outer_scope(Scope *os) {
         Allocable::set_outer_scope(os);
         
-        is_argument = (os && os->type == ARGUMENT_SCOPE);
+        if (os && os->type == ARGUMENT_SCOPE)
+            as_what = (name == "$" ? AS_PIVOT : AS_ARGUMENT);
     }
     
     virtual TypeSpec get_typespec(TypeMatch tm) {
         TypeSpec ts = typesubst(alloc_ts, tm);
         
-        if (is_argument && outer_scope == outer_scope->get_function_scope()->head_scope) {
+        if (as_what == AS_ARGUMENT && outer_scope == outer_scope->get_function_scope()->head_scope) {
             if (ts[0] == lvalue_type)
                 return ts;
             else if (ts[0] == ovalue_type)
@@ -85,7 +86,7 @@ public:
     virtual void allocate() {
         Allocable::allocate();
             
-        where = alloc_ts.where(is_argument ? AS_ARGUMENT : AS_VARIABLE);
+        where = alloc_ts.where(as_what);
             
         Allocation a = (
             where == MEMORY ? alloc_ts.measure() :

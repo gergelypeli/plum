@@ -96,7 +96,7 @@ public:
 class RecordPreinitializerValue: public Value {
 public:
     RecordPreinitializerValue(TypeSpec ts)
-        :Value(ts.prefix(lvalue_type).prefix(initializable_type)) {  // TODO: eiiii...
+        :Value(ts.prefix(initializable_type)) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -106,7 +106,8 @@ public:
     virtual Storage compile(X64 *x64) {
         //ts.create(Storage(), Storage(STACK), x64);
         x64->op(SUBQ, RSP, ts.measure_stack());
-        return Storage(MEMORY, Address(RSP, 0));
+        return Storage(STACK);
+        //return Storage(MEMORY, Address(RSP, 0));
     }
 };
 
@@ -131,12 +132,10 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage s = value->compile(x64);
         
-        // ALIAS pivot is popped into a register based MEMORY, we'll ignore that,
-        // and just return the record on the stack by value
-        if (s.where != MEMORY)
+        if (s.where != STACK)
             throw INTERNAL_ERROR;
         
-        return Storage(STACK);
+        return s;
     }
 };
 

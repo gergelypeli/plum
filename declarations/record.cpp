@@ -84,7 +84,7 @@ public:
                 var->create(tm, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
             return;
         default:
-            throw INTERNAL_ERROR;
+            Type::create(tm, s, t, x64);
         }
     }
 
@@ -94,13 +94,14 @@ public:
                 var->destroy(tm, Storage(MEMORY, s.address), x64);
         }
         else
-            throw INTERNAL_ERROR;
+            Type::destroy(tm, s, x64);
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
         return (
             as_what == AS_VALUE ? STACK :
             as_what == AS_VARIABLE ? MEMORY :
+            as_what == AS_PIVOT ? ALIAS :
             as_what == AS_ARGUMENT ? (as_lvalue ? ALIAS : MEMORY) :
             throw INTERNAL_ERROR
         );

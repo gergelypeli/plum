@@ -326,7 +326,8 @@ void *decode_utf8(void *byte_array) {
 }
 
 
-void *encode_utf8(void *character_array) {
+void *encode_utf8(void *string_alias) {
+    void *character_array = *(void **)string_alias;
     if (!character_array)
         return NULL;
 
@@ -343,8 +344,8 @@ void *encode_utf8(void *character_array) {
 }
 
 
-long path_mkdir(long mode, void *path_lvalue) {
-    void *name_array = *(void **)path_lvalue;
+long path_mkdir(long mode, void *path_alias) {
+    void *name_array = *(void **)path_alias;
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
     int byte_length = encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes);

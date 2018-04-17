@@ -12,8 +12,6 @@ public:
 
     void setup_inner(Type *t, TypeSpec pts) {
         inner_scope = t->make_inner_scope(pts);
-        //scope->add(inner_scope);
-        //inner_scope->set_pivot_type_hint(pts);
     }
 
     void defer_as(Kwargs &kwargs) {
@@ -279,7 +277,7 @@ public:
         record_type = new RecordType("<anonymous>", Metatypes {});
         TypeSpec rts = { record_type };
 
-        setup_inner(record_type, rts.lvalue());
+        setup_inner(record_type, rts);
         
         inner_scope->set_meta_scope(record_metatype->get_inner_scope(TypeMatch()));
 

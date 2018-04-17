@@ -104,6 +104,7 @@ public:
         return (
             as_what == AS_VALUE ? STACK :
             as_what == AS_VARIABLE ? MEMORY :
+            as_what == AS_PIVOT ? MEMORY :
             as_what == AS_ARGUMENT ? (as_lvalue ? ALIAS : MEMORY) :
             throw INTERNAL_ERROR
         );

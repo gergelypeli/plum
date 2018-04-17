@@ -496,7 +496,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             return false;
         }
         else if (*s != uninitialized_type) {
-            if (matchlog) std::cerr << "No match, rvalue for Uninitialized!\n";
+            if (matchlog) std::cerr << "No match, initialized for Uninitialized!\n";
             return false;
         }
         

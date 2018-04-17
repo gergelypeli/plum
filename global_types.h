@@ -46,7 +46,7 @@ struct Allocation;
 
 
 enum AsWhat {
-    AS_VALUE, AS_VARIABLE, AS_ARGUMENT
+    AS_VALUE, AS_VARIABLE, AS_ARGUMENT, AS_PIVOT
 };
 
 
