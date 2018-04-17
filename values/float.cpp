@@ -102,14 +102,14 @@ public:
 
         switch (ls.where * rs.where) {
         case MEMORY_REGISTER:
-            x64->op(MOVSD, XMM0, ls.address);
-            x64->op(opcode, XMM0, rs.sse);
-            x64->op(MOVSD, ls.address, XMM0);
+            x64->op(MOVSD, XMM15, ls.address);
+            x64->op(opcode, XMM15, rs.sse);
+            x64->op(MOVSD, ls.address, XMM15);
             return ls;
         case MEMORY_MEMORY:
-            x64->op(MOVSD, XMM0, ls.address);
-            x64->op(opcode, XMM0, rs.address);
-            x64->op(MOVSD, ls.address, XMM0);
+            x64->op(MOVSD, XMM15, ls.address);
+            x64->op(opcode, XMM15, rs.address);
+            x64->op(MOVSD, ls.address, XMM15);
             return ls;
         default:
             throw INTERNAL_ERROR;
@@ -185,7 +185,6 @@ public:
         if (right)
             right->compile_and_store(x64, Storage(REGISTER, XMM1));
         
-        // Can't move simply to XMM0, as it's our scratch
         switch (ls.where) {
         case REGISTER:
             x64->op(MOVSD, XMM0, ls.sse);
@@ -203,9 +202,6 @@ public:
         
         x64->runtime->call_sysv_got(x64->once->import_got(import_name));
         
-        // TODO: this is not nice, but can't return values in the scratch register
-        x64->op(MOVSD, XMM1, XMM0);
-        
-        return Storage(REGISTER, XMM1);
+        return Storage(REGISTER, XMM0);
     }
 };

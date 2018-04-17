@@ -77,8 +77,8 @@ public:
             x64->op(CMPW, BX, 1);
             break;
         case MEMORY_MEMORY:
-            x64->op(MOVSD, XMM0, s.address);
-            x64->op(COMISD, XMM0, t.address);
+            x64->op(MOVSD, XMM15, s.address);
+            x64->op(COMISD, XMM15, t.address);
             x64->op(SETP, BH);
             x64->op(SETE, BL);
             x64->op(CMPW, BX, 1);
@@ -117,8 +117,8 @@ public:
             // BH=1 iff s is finite, BL=1 iff t is finite
             x64->op(COMISD, s.sse, s.sse);
             x64->op(SETNP, BH);
-            x64->op(MOVSD, XMM0, t.address);
-            x64->op(COMISD, XMM0, XMM0);
+            x64->op(MOVSD, XMM15, t.address);
+            x64->op(COMISD, XMM15, XMM15);
             x64->op(SETNP, BL);
             x64->op(SUBB, BL, BH);
             x64->op(JMP, end);
@@ -128,12 +128,12 @@ public:
             x64->code_label(end);
             break;
         case MEMORY_REGISTER:
-            x64->op(MOVSD, XMM0, s.address);
-            x64->op(COMISD, XMM0, t.sse);
+            x64->op(MOVSD, XMM15, s.address);
+            x64->op(COMISD, XMM15, t.sse);
             x64->op(JNP, finite);
             
             // BH=1 iff s is finite, BL=1 iff t is finite
-            x64->op(COMISD, XMM0, XMM0);
+            x64->op(COMISD, XMM15, XMM15);
             x64->op(SETNP, BH);
             x64->op(COMISD, t.sse, t.sse);
             x64->op(SETNP, BL);
@@ -147,15 +147,15 @@ public:
 
             break;
         case MEMORY_MEMORY:
-            x64->op(MOVSD, XMM0, s.address);
-            x64->op(COMISD, XMM0, t.address);
+            x64->op(MOVSD, XMM15, s.address);
+            x64->op(COMISD, XMM15, t.address);
             x64->op(JNP, finite);
             
             // BH=1 iff s is finite, BL=1 iff t is finite
-            x64->op(COMISD, XMM0, XMM0);
+            x64->op(COMISD, XMM15, XMM15);
             x64->op(SETNP, BH);
-            x64->op(MOVSD, XMM0, t.address);
-            x64->op(COMISD, XMM0, XMM0);
+            x64->op(MOVSD, XMM15, t.address);
+            x64->op(COMISD, XMM15, XMM15);
             x64->op(SETNP, BL);
             x64->op(SUBB, BL, BH);
             x64->op(JMP, end);
