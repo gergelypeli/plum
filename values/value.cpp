@@ -139,21 +139,6 @@ public:
 };
 
 
-void unwind_destroy_var(TypeSpec &ts, Storage s, X64 *x64) {
-    if (s.where == ALIAS) {
-        std::cerr << "ALIAS vars are no longer used since records are returned by value!\n";
-        throw INTERNAL_ERROR;
-        // Load the address, and destroy the result there
-        //Register reg = RAX;  // FIXME: is this okay to clobber this register?
-        //Storage t = Storage(MEMORY, Address(reg, 0));
-        //ts.store(s, t, x64);
-        //ts.destroy(t, x64);
-    }
-    else
-        ts.destroy(s, x64);
-}
-
-
 class CastValue: public Value {
 public:
     std::unique_ptr<Value> pivot;

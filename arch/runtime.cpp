@@ -1,5 +1,6 @@
 
 #define EXCEPTION_ADDRESS Address(RBP, -8)
+#define RESULT_ALIAS_ADDRESS Address(RBP, -16)
 
 
 class Runtime {

@@ -275,6 +275,7 @@ public:
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
         x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        x64->op(MOVQ, RESULT_ALIAS_ADDRESS, RAX);
         
         if (containing_role_offset)
             x64->op(SUBQ, self_storage.address, containing_role_offset);
@@ -525,16 +526,15 @@ public:
         
         if (stack_offset != passed_size)
             throw INTERNAL_ERROR;
-            
+
         x64->runtime->call_sysv_got(function->get_label(x64));
 
         bool is_void = res_tss.size() == 0;
         
         if (!is_void) {
-            if (res_tss[0] == FLOAT_TS)
-                x64->op(MOVSD, Address(RSP, passed_size), XMM0);
-            else
-                x64->op(MOVQ, Address(RSP, passed_size), RAX);
+            Storage s = (res_tss[0] == FLOAT_TS ? Storage(REGISTER, XMM0) : Storage(REGISTER, RAX));
+            Storage t = Storage(MEMORY, Address(RSP, passed_size));
+            res_tss[0].create(s, t, x64);
         }
         else if (function->exception_type) {
             if (function->exception_type != errno_exception_type)
@@ -547,6 +547,7 @@ public:
     }
     
     virtual void call_static(X64 *x64, unsigned passed_size) {
+        x64->op(LEA, RAX, Address(RSP, passed_size));
         x64->op(CALL, function->get_label(x64));
     }
 
@@ -561,6 +562,7 @@ public:
         if (pts[0] != weakref_type)  // Was: borrowed_type
             throw INTERNAL_ERROR;
             
+        x64->op(LEA, RAX, Address(RSP, passed_size));
         x64->op(MOVQ, RBX, Address(RSP, passed_size - REFERENCE_SIZE));  // self pointer
         x64->op(MOVQ, RBX, Address(RBX, 0));  // VMT pointer
         x64->op(CALL, Address(RBX, vti * ADDRESS_SIZE));
@@ -713,12 +715,14 @@ public:
             if (res_where == MEMORY) {
                 // Must skip some place for uninitialized data
                 int size = res_ts.measure_stack();
-                x64->op(SUBQ, RSP, size);
                 res_total += size;
             }
             else
                 throw INTERNAL_ERROR;
         }
+
+        if (res_total)
+            x64->op(SUBQ, RSP, res_total);
 
         x64->unwind->push(this);
         unsigned passed_size = 0;
@@ -803,11 +807,14 @@ public:
     std::vector<std::unique_ptr<Value>> values;
     Declaration *dummy;
     std::vector<Storage> var_storages;
+    TypeMatch match;
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(VOID_TS) {
         if (v)
             throw INTERNAL_ERROR;
+            
+        match = m;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -859,15 +866,19 @@ public:
         // Since we store each result in a variable, upon an exception we must
         // destroy the already set ones before unwinding!
         
+        Storage r = Storage(MEMORY, Address(RAX, 0));
+        
         x64->unwind->push(this);
         
         for (unsigned i = 0; i < values.size(); i++) {
-            Storage var_storage = result_vars[i]->get_local_storage();
+            Storage var_storage = result_vars[i]->get_storage(match, r);
             var_storages.push_back(var_storage);
             TypeSpec var_ts = result_vars[i]->alloc_ts;
             
             Storage s = values[i]->compile(x64);
             Storage t = var_storage;
+
+            x64->op(MOVQ, RAX, RESULT_ALIAS_ADDRESS);
             var_ts.create(s, t, x64);
         }
 
@@ -880,8 +891,10 @@ public:
     }
     
     virtual Scope *unwind(X64 *x64) {
+        x64->op(MOVQ, RAX, RESULT_ALIAS_ADDRESS);
+        
         for (int i = var_storages.size() - 1; i >= 0; i--)
-            unwind_destroy_var(result_vars[i]->alloc_ts, var_storages[i], x64);
+            result_vars[i]->alloc_ts.destroy(var_storages[i], x64);
             
         return NULL;
     }

@@ -84,7 +84,7 @@ public:
     
     virtual Scope *unwind(X64 *x64) {
         for (int i = var_storages.size() - 1; i >= 0; i--)
-            unwind_destroy_var(record_type->member_variables[i]->alloc_ts, var_storages[i], x64);
+            record_type->member_variables[i]->alloc_ts.destroy(var_storages[i], x64);
 
         x64->op(ADDQ, RSP, ts.measure_stack());
             
