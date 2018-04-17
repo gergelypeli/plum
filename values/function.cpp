@@ -537,9 +537,12 @@ public:
                 x64->op(MOVQ, Address(RSP, passed_size), RAX);
         }
         else if (function->exception_type) {
+            if (function->exception_type != errno_exception_type)
+                throw INTERNAL_ERROR;
+                
             // AL contains the potential exception
-            x64->op(MOVB, BL, AL);
-            x64->op(CMPB, BL, 0);  // set ZF if OK
+            x64->op(CMPB, RAX, 0);  // set ZF if no exception
+            x64->op(LEA, RBX, Address(RAX, ERRNO_TREENUM_OFFSET));
         }
     }
     

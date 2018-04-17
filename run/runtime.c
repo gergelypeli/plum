@@ -13,14 +13,14 @@
 #include "../utf8.c"
 #include "../arch/heap.h"
 
-#define ALEN(x) *(long *)((x) + ARRAY_LENGTH_OFFSET)
-#define ARES(x) *(long *)((x) + ARRAY_RESERVATION_OFFSET)
-#define AELE(x) ((x) + ARRAY_ELEMS_OFFSET)
+#define ALENGTH(x) *(long *)((x) + ARRAY_LENGTH_OFFSET)
+#define ARESERVATION(x) *(long *)((x) + ARRAY_RESERVATION_OFFSET)
+#define AELEMENTS(x) ((x) + ARRAY_ELEMS_OFFSET)
 
-#define HREF(x) *(long *)((x) + HEAP_REFCOUNT_OFFSET)
-#define HWEA(x) *(long *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
-#define HFIN(x) *(long *)((x) + HEAP_FINALIZER_OFFSET)
-#define HNEX(x) *(long *)((x) + HEAP_NEXT_OFFSET)
+#define HREFCOUNT(x) *(long *)((x) + HEAP_REFCOUNT_OFFSET)
+#define HWEAKREFCOUNT(x) *(long *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
+#define HFINALIZER(x) *(long *)((x) + HEAP_FINALIZER_OFFSET)
+#define HNEXT(x) *(long *)((x) + HEAP_NEXT_OFFSET)
 
 
 extern void empty_function();
@@ -59,13 +59,13 @@ void *memrealloc(void *m, long size) {
 void *allocate_basic_array(long length, long size) {
     void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     
-    HNEX(array) = 0;
-    HREF(array) = 1;
-    HWEA(array) = 0;
-    HFIN(array) = (long)(void *)empty_function;  // TODO: this only works for basic types!
+    HNEXT(array) = 0;
+    HREFCOUNT(array) = 1;
+    HWEAKREFCOUNT(array) = 0;
+    HFINALIZER(array) = (long)(void *)empty_function;  // TODO: this only works for basic types!
     
-    ARES(array) = length;
-    ALEN(array) = 0;
+    ARESERVATION(array) = length;
+    ALENGTH(array) = 0;
     
     return array;
 }
@@ -75,37 +75,37 @@ void *allocate_string_array(long length) {
     int size = ADDRESS_SIZE;
     void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     
-    HNEX(array) = 0;
-    HREF(array) = 1;
-    HWEA(array) = 0;
-    HFIN(array) = (long)(void *)finalize_reference_array;
+    HNEXT(array) = 0;
+    HREFCOUNT(array) = 1;
+    HWEAKREFCOUNT(array) = 0;
+    HFINALIZER(array) = (long)(void *)finalize_reference_array;
     
-    ARES(array) = length;
-    ALEN(array) = 0;
+    ARESERVATION(array) = length;
+    ALENGTH(array) = 0;
     
     return array;
 }
 
 
 void *reallocate_array(void *array, long length, long size) {
-    if (HREF(array) != 1)
-        fprintf(stderr, "Oops, reallocating an array with %ld references!\n", HREF(array));
+    if (HREFCOUNT(array) != 1)
+        fprintf(stderr, "Oops, reallocating an array with %ld references!\n", HREFCOUNT(array));
 
     array = memrealloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
-    ARES(array) = length;
+    ARESERVATION(array) = length;
     return array;
 }
 
 
 void *append_decode_utf8(void *character_array, char *bytes, long byte_length) {
-    long character_length = ALEN(character_array);
-    long character_reserve = ARES(character_array);
+    long character_length = ALENGTH(character_array);
+    long character_reserve = ARESERVATION(character_array);
     
     if (character_reserve - character_length < byte_length)
         character_array = reallocate_array(character_array, character_length + byte_length, 2);
         
-    unsigned short *characters = AELE(character_array);
-    ALEN(character_array) += decode_utf8_buffer(bytes, byte_length, characters + character_length);
+    unsigned short *characters = AELEMENTS(character_array);
+    ALENGTH(character_array) += decode_utf8_buffer(bytes, byte_length, characters + character_length);
     
     return character_array;
 }
@@ -145,27 +145,14 @@ void die(const char *message) {
 
 
 void dies(void *s) {
-    long character_length = ALEN(s);
+    long character_length = ALENGTH(s);
     char bytes[character_length * 3 + 1];
-    int byte_length = encode_utf8_buffer(AELE(s), character_length, bytes);
+    int byte_length = encode_utf8_buffer(AELEMENTS(s), character_length, bytes);
     bytes[byte_length] = '\0';
     fprintf(stderr, "DIE: %.*s\n", byte_length, bytes);
     abort();
 }
 
-
-// FIXME: snprintf for double is locale-dependent!
-/*
-#define STRINGIFY(fmt, val) \
-    char byte_array[ARRAY_HEADER_SIZE + 20]; \
-    ALEN(byte_array) = snprintf(byte_array + ARRAY_HEADER_SIZE, sizeof(byte_array) - ARRAY_HEADER_SIZE, fmt, val); \
-    return decode_utf8(byte_array);
-
-
-void *stringify_integer(long x) {
-    STRINGIFY("%ld", x);
-}
-*/
 
 void streamify_integer(long x, void **character_array_lvalue) {
     char byte_array[30];
@@ -207,11 +194,11 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
     //prints(subject_array);
     //prints(pattern_array);
     
-    PCRE2_SPTR subject = AELE(subject_array);
-    PCRE2_SIZE subject_length = ALEN(subject_array);
+    PCRE2_SPTR subject = AELEMENTS(subject_array);
+    PCRE2_SIZE subject_length = ALENGTH(subject_array);
     
-    PCRE2_SPTR pattern = AELE(pattern_array);
-    PCRE2_SIZE pattern_length = ALEN(pattern_array);
+    PCRE2_SPTR pattern = AELEMENTS(pattern_array);
+    PCRE2_SIZE pattern_length = ALENGTH(pattern_array);
     
     int errornumber;
     PCRE2_SIZE erroroffset;
@@ -249,9 +236,9 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
         PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(match_data);
         
         result_array = allocate_string_array(rc);
-        void **result_refs = AELE(result_array);
-        ALEN(result_array) = rc;
-        short *subject_characters = AELE(subject_array);
+        void **result_refs = AELEMENTS(result_array);
+        ALENGTH(result_array) = rc;
+        short *subject_characters = AELEMENTS(subject_array);
         
         for (int i = 0; i < rc; i++) {
             size_t start = ovector[2 * i];
@@ -259,8 +246,8 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
             //fprintf(stderr, "PCRE2 match %d start %ld length %ld.\n", i, start, len);
             
             void *target_array = allocate_basic_array(len, CHARACTER_SIZE);
-            ALEN(target_array) = len;
-            short *target_characters = AELE(target_array);
+            ALENGTH(target_array) = len;
+            short *target_characters = AELEMENTS(target_array);
             
             for (unsigned j = 0; j < len; j++)
                 target_characters[j] = subject_characters[start + j];
@@ -300,9 +287,9 @@ void printz(const char *s) {
 
 void prints(void *s) {
     if (s) {
-        long character_length = ALEN(s);
+        long character_length = ALENGTH(s);
         char bytes[character_length * 3 + 1];
-        int byte_length = encode_utf8_buffer(AELE(s), character_length, bytes);
+        int byte_length = encode_utf8_buffer(AELEMENTS(s), character_length, bytes);
         bytes[byte_length] = '\0';
         printf("%.*s\n", byte_length, bytes);
     }
@@ -313,8 +300,8 @@ void prints(void *s) {
 
 void printb(void *s) {
     if (s) {
-        long byte_length = ALEN(s);
-        char *bytes = AELE(s);
+        long byte_length = ALENGTH(s);
+        char *bytes = AELEMENTS(s);
         printf("%.*s\n", (int)byte_length, bytes);
     }
     else
@@ -326,14 +313,14 @@ void *decode_utf8(void *byte_array) {
     if (!byte_array)
         return NULL;
 
-    long byte_length = ALEN(byte_array);
-    char *bytes = AELE(byte_array);
+    long byte_length = ALENGTH(byte_array);
+    char *bytes = AELEMENTS(byte_array);
 
     void *character_array = allocate_basic_array(byte_length, 2);
-    unsigned short *characters = AELE(character_array);
+    unsigned short *characters = AELEMENTS(character_array);
     
     long character_length = decode_utf8_buffer(bytes, byte_length, characters);
-    ALEN(character_array) = character_length;
+    ALENGTH(character_array) = character_length;
     
     return reallocate_array(character_array, character_length, 2);
 }
@@ -343,30 +330,32 @@ void *encode_utf8(void *character_array) {
     if (!character_array)
         return NULL;
 
-    long character_length = ALEN(character_array);
-    unsigned short *characters = AELE(character_array);
+    long character_length = ALENGTH(character_array);
+    unsigned short *characters = AELEMENTS(character_array);
     
     void *byte_array = allocate_basic_array(character_length * 3, 1);
-    char *bytes = AELE(byte_array);
+    char *bytes = AELEMENTS(byte_array);
 
     long byte_length = encode_utf8_buffer(characters, character_length, bytes);
-    ALEN(byte_array) = byte_length;
+    ALENGTH(byte_array) = byte_length;
     
     return reallocate_array(byte_array, byte_length, 1);
 }
 
 
-char path_mkdir(long mode, void *path_lvalue) {
+long path_mkdir(long mode, void *path_lvalue) {
     void *name_array = *(void **)path_lvalue;
-    long character_length = ALEN(name_array);
+    long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
-    int byte_length = encode_utf8_buffer(AELE(name_array), character_length, bytes);
+    int byte_length = encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes);
     bytes[byte_length] = '\0';
 
     fprintf(stderr, "mkdir '%s' %lo\n", bytes, mode);
     int rc = mkdir(bytes, mode);
+    long ret = (rc == -1 ? errno : 0);
     
-    return (rc == -1 ? errno : 0);
+    fprintf(stderr, "mkdir ret %ld\n", ret);
+    return ret;
 }
 
 

@@ -768,10 +768,20 @@ start? :Function as:
     test_options
     test_classes
     
-    f? = fs.File `at "test.mkdir"
-    prints("File is at {x}" {x: f name})
+    f? = fs.Path `at "test.mkdir"
+    prints("Path is at {x}" {x: f name})
     
     :try
         f mkdir(0o710)
-    
+
+    :try
+        g? = fs.Path `at "/test.mkdir"
+        g mkdir(0o777)
+        prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
+    or:
+        :is ~EACCES then:
+            :yield
+        else:
+            prints("MKDIR WEIRD EXCEPTION!")
+        
     prints("Done.")

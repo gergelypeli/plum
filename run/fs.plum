@@ -1,5 +1,5 @@
 
-File? :Record as:
+Path? :Record as:
     name? String
 
     at? :Initializer from:
