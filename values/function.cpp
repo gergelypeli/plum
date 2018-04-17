@@ -513,15 +513,16 @@ public:
         
         unsigned reg_index = 0;
         unsigned sse_index = 0;
-        unsigned stack_offset = 0;
+        unsigned stack_offset = is_floats.size() * ADDRESS_SIZE;  // reverse order for SysV
         
         for (bool is_float : is_floats) {
+            // Must move raw values so it doesn't count as a copy
+            stack_offset -= ADDRESS_SIZE;
+            
             if (is_float)
                 x64->op(MOVSD, sses[sse_index++], Address(RSP, stack_offset));
             else
                 x64->op(MOVQ, regs[reg_index++], Address(RSP, stack_offset));
-                
-            stack_offset += 8;
         }
         
         x64->runtime->call_sysv_got(function->get_label(x64));
@@ -529,9 +530,12 @@ public:
         bool is_void = res_tss.size() == 0;
         
         if (!is_void) {
-            Storage s = (res_tss[0] == FLOAT_TS ? Storage(REGISTER, XMM0) : Storage(REGISTER, RAX));
-            Storage t = Storage(MEMORY, Address(RSP, passed_size));
-            res_tss[0].create(s, t, x64);
+            // Must move raw values
+            
+            if (res_tss[0] == FLOAT_TS)
+                x64->op(MOVSD, Address(RSP, passed_size), XMM0);
+            else
+                x64->op(MOVQ, Address(RSP, passed_size), RAX);
         }
         else if (function->exception_type) {
             if (function->exception_type != errno_exception_type)

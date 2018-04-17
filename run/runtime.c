@@ -263,7 +263,7 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
 }
 
 
-// Library functions (argument order is reversed!)
+// Library functions
 
 void printi(long a) {
     printf("%ld\n", a);
@@ -344,7 +344,7 @@ void *encode_utf8(void *string_alias) {
 }
 
 
-long path_mkdir(long mode, void *path_alias) {
+long path_mkdir(void *path_alias, long mode) {
     void *name_array = *(void **)path_alias;
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];

@@ -302,8 +302,6 @@ test_strings? :Function as:
 
     :if z == "Sziɐ!" then: prints("z is Sziɐ!")
 
-    #(1, 2) + (3, 4)
-
     :if a == a then:
         zz? = "ZZ"
         prints(zz)
@@ -382,8 +380,7 @@ test_records? :Function as:
     r? Pair = `new
     r dump
     
-    s? Pair = { second: 222 }
-    s dump
+    Pair { second: 222 } dump
 
     q first = 11
     prints("{p} and {q} compares as {c}" { p: p, q: q, c: p <=> q })
