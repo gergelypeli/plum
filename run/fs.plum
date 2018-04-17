@@ -13,3 +13,8 @@ Path? :Record as:
         Errno_exception
     import:
         "path_mkdir"
+
+    rmdir? :Function may:
+        Errno_exception
+    import:
+        "path_rmdir"

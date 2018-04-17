@@ -772,6 +772,9 @@ start? :Function as:
         f mkdir(0o710)
 
     :try
+        f rmdir
+
+    :try
         fs.Path `at "/test.mkdir" mkdir(0o777)
         prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
     or:

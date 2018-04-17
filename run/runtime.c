@@ -5,6 +5,7 @@
 #include <math.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <errno.h>
 
 #define PCRE2_CODE_UNIT_WIDTH 16
@@ -356,6 +357,22 @@ long path_mkdir(void *path_alias, long mode) {
     long ret = (rc == -1 ? errno : 0);
     
     fprintf(stderr, "mkdir ret %ld\n", ret);
+    return ret;
+}
+
+
+long path_rmdir(void *path_alias) {
+    void *name_array = *(void **)path_alias;
+    long character_length = ALENGTH(name_array);
+    char bytes[character_length * 3 + 1];
+    int byte_length = encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes);
+    bytes[byte_length] = '\0';
+
+    fprintf(stderr, "rmdir '%s'\n", bytes);
+    int rc = rmdir(bytes);
+    long ret = (rc == -1 ? errno : 0);
+    
+    fprintf(stderr, "rmdir ret %ld\n", ret);
     return ret;
 }
 
