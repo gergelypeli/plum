@@ -85,7 +85,7 @@ public:
 class IntegerMetaType: public MetaType {
 public:
     IntegerMetaType(std::string name, Type *st)
-        :MetaType(name, st, make_integer_definition_value) {
+        :MetaType(name, st, make<IntegerDefinitionValue>) {
     }
 };
 
@@ -93,7 +93,7 @@ public:
 class EnumerationMetaType: public MetaType {
 public:
     EnumerationMetaType(std::string name, Type *st)
-        :MetaType(name, st, make_enumeration_definition_value) {
+        :MetaType(name, st, make<EnumerationDefinitionValue>) {
     }
 };
 
@@ -101,13 +101,13 @@ public:
 class TreenumerationMetaType: public MetaType {
 public:
     TreenumerationMetaType(std::string name, Type *st)
-        :MetaType(name, st, make_treenumeration_definition_value) {
+        :MetaType(name, st, make<TreenumerationDefinitionValue>) {
     }
 
     // NOTE: experimental thing for exception specifications
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         if (n == "{}")
-            return make_treenumeration_definition_value();
+            return make<TreenumerationDefinitionValue>();
         
         return NULL;
     }
@@ -117,7 +117,7 @@ public:
 class RecordMetaType: public MetaType {
 public:
     RecordMetaType(std::string name, Type *st)
-        :MetaType(name, st, make_record_definition_value) {
+        :MetaType(name, st, make<RecordDefinitionValue>) {
     }
 };
 
@@ -125,7 +125,7 @@ public:
 class ClassMetaType: public MetaType {
 public:
     ClassMetaType(std::string name, Type *st)
-        :MetaType(name, st, make_class_definition_value) {
+        :MetaType(name, st, make<ClassDefinitionValue>) {
     }
 };
 
@@ -133,7 +133,7 @@ public:
 class InterfaceMetaType: public MetaType {
 public:
     InterfaceMetaType(std::string name, Type *st)
-        :MetaType(name, st, make_interface_definition_value) {
+        :MetaType(name, st, make<InterfaceDefinitionValue>) {
     }
 };
 
@@ -141,6 +141,6 @@ public:
 class ImplementationMetaType: public MetaType {
 public:
     ImplementationMetaType(std::string name, Type *st)
-        :MetaType(name, st, make_implementation_definition_value) {
+        :MetaType(name, st, make<ImplementationDefinitionValue>) {
     }
 };

@@ -160,9 +160,6 @@ public:
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
         return tm[1].lookup_matcher(name, pivot);
-        //return make_reference_conversion_value(name, pivot);
-        //std::cerr << "Matchers must be looked up by weak reference!\n";
-        //throw INTERNAL_ERROR;
     }
 
     virtual DataScope *get_inner_scope(TypeMatch tm) {
@@ -269,7 +266,7 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "to")
-            return make_weakanchorage_value(rts);
+            return make<WeakAnchorageValue>(rts);
 
         std::cerr << "No WeakAnchorage initializer called " << name << "!\n";
         return NULL;
@@ -277,9 +274,9 @@ public:
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         if (n == "dead")
-            return make_weakanchorage_dead_matcher_value(pivot, tm);
+            return make<WeakAnchorageDeadMatcherValue>(pivot, tm);
         else if (n == "live")
-            return make_weakanchorage_live_matcher_value(pivot, tm);
+            return make<WeakAnchorageLiveMatcherValue>(pivot, tm);
             
         std::cerr << "Can't match WeakAnchorage as " << n << "!\n";
         return NULL;
@@ -320,9 +317,9 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "empty")
-            return make_array_empty_value(rts);
+            return make<ArrayEmptyValue>(rts);
         else if (name == "{}")
-            return make_array_initializer_value(rts);
+            return make<ArrayInitializerValue>(rts);
 
         std::cerr << "No Array initializer called " << name << "!\n";
         return NULL;
@@ -374,9 +371,9 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
 
         if (name == "empty")
-            return make_circularray_empty_value(rts);
+            return make<CircularrayEmptyValue>(rts);
         else if (name == "{}")
-            return make_circularray_initializer_value(rts);
+            return make<CircularrayInitializerValue>(rts);
 
         std::cerr << "No Circularray initializer called " << name << "!\n";
         return NULL;
@@ -445,11 +442,11 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "empty")
-            return make_rbtree_empty_value(rts);
+            return make<RbtreeEmptyValue>(rts);
         else if (name == "reserved")
-            return make_rbtree_reserved_value(rts);
+            return make<RbtreeReservedValue>(rts);
         else if (name == "{}")
-            return make_rbtree_initializer_value(rts);
+            return make<RbtreeInitializerValue>(rts);
 
         std::cerr << "No " << this->name << " initializer called " << name << "!\n";
         return NULL;

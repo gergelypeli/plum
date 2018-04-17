@@ -286,9 +286,9 @@ public:
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         if (name == "false")
-            return make_basic_value(tm[0], 0);
+            return make<BasicValue>(tm[0], 0);
         else if (name == "true")
-            return make_basic_value(tm[0], 1);
+            return make<BasicValue>(tm[0], 1);
         else {
             std::cerr << "No Boolean initializer called " << name << "!\n";
             return NULL;
@@ -353,9 +353,9 @@ public:
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         if (name == "zero")
-            return make_basic_value(tm[0], 0);
+            return make<BasicValue>(tm[0], 0);
         else if (name == "unicode")
-            return make_unicode_character_value();
+            return make<UnicodeCharacterValue>();
         else {
             std::cerr << "No Character initializer called " << name << "!\n";
             return NULL;
@@ -417,7 +417,7 @@ public:
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
-                return make_basic_value(tm[0], i);
+                return make<BasicValue>(tm[0], i);
         
         return NULL;
     }
@@ -479,7 +479,7 @@ public:
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
-                return make_basic_value(tm[0], i);
+                return make<BasicValue>(tm[0], i);
         
         return NULL;
     }
@@ -487,7 +487,7 @@ public:
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
-                return make_treenumeration_matcher_value(tm[0], i, pivot);
+                return make<TreenumerationMatcherValue>(i, pivot);
         
         return NULL;
     }

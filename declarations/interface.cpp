@@ -104,7 +104,7 @@ public:
         if (!typematch(implementor_ts, pivot, match))
             return NULL;
 
-        return make_implementation_conversion_value(this, pivot, match);
+        return make<ImplementationConversionValue>(this, pivot, match);
     }
 
 
@@ -151,7 +151,7 @@ public:
     
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *pivot) {
         // The second type parameter is the concrete type
-        pivot = make_cast_value(pivot, tm[2]);
+        pivot = make<CastValue>(pivot, tm[2]);
             
         return inner_scope->lookup(n, pivot);
     }

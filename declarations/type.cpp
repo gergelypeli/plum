@@ -109,7 +109,7 @@ public:
             result_ts.insert(result_ts.end(), ts.begin(), ts.end());
         }
 
-        return make_type_value(upper_type, result_ts);
+        return make<TypeValue>(upper_type, result_ts);
     }
 
     virtual void allocate() {
@@ -408,7 +408,7 @@ public:
         if (pv->is_uninitialized(n)) {
             pv->be_initialized(n);
             
-            Value *member = tm[1].lookup_inner(n, make_cast_value(v, tm[1]));
+            Value *member = tm[1].lookup_inner(n, make<CastValue>(v, tm[1]));
             TypeSpec member_ts = get_typespec(member);
             
             if (member_ts[0] == lvalue_type) {
@@ -425,7 +425,7 @@ public:
             return member;
         }
         else if (pv->is_initialized(n)) {
-            return tm[1].lookup_inner(n, make_cast_value(v, tm[1]));
+            return tm[1].lookup_inner(n, make<CastValue>(v, tm[1]));
         }
         else
             return NULL;
@@ -440,7 +440,7 @@ public:
             return NULL;
         }
 
-        Value *member = tm[1].lookup_inner(n, make_cast_value(v, tm[1].prefix(initializable_type)));
+        Value *member = tm[1].lookup_inner(n, make<CastValue>(v, tm[1].prefix(initializable_type)));
         if (!member)
             return NULL;
         
@@ -459,7 +459,7 @@ public:
 
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
         if (n == "create from")
-            return make_create_value(pivot, tm);
+            return make<CreateValue>(pivot, tm);
         else
             return NULL;
     }
@@ -506,7 +506,7 @@ public:
         // We've found an initializer where a match was expected
         
         if (n == "{}") {
-            return make_bulk_equality_matcher_value();
+            return make<BulkEqualityMatcherValue>();
         }
         else {
             Value *v = tm[1].lookup_initializer(n);
@@ -515,7 +515,7 @@ public:
                 return NULL;
         
             // Any arguments for us are actually arguments for the initializer
-            return make_initializer_equality_matcher_value(v);
+            return make<InitializerEqualityMatcherValue>(v);
         }
     }
 };

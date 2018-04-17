@@ -28,7 +28,6 @@
 
 #include "global_types.h"
 #include "global_functions.h"
-#include "global_factories.h"
 #include "builtins.h"
 #include "builtins_errno.h"
 
@@ -36,7 +35,6 @@
 #include "values/value.cpp"
 
 #include "builtins.cpp"
-#include "global_factories.cpp"
 #include "global_functions.cpp"
 #include "global_types.cpp"
 

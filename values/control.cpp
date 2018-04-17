@@ -51,7 +51,7 @@ public:
         //if (context && (*context)[0] == any_type)
         //    context = NULL;
     
-        Value *v = make_code_block_value(context);
+        Value *v = make<CodeBlockValue>(context);
         Kwargs fake_kwargs;
 
         if (!v->check(args, fake_kwargs, arg_info.scope))
@@ -617,7 +617,7 @@ public:
                 return false;
             }
             
-            match.reset(make_implicit_equality_matcher_value(match.release()));
+            match.reset(make<ImplicitEqualityMatcherValue>(match.release()));
             
             Args fake_args;
             Kwargs fake_kwargs;
@@ -635,7 +635,7 @@ public:
 
         // Now that we handled the implicit equality matching case, voidize the match value
         if (match->ts != VOID_TS)
-            match.reset(make_void_conversion_value(match.release()));
+            match.reset(make<VoidConversionValue>(match.release()));
 
         ArgInfos infos = {
             { "then", &VOID_CODE_TS, then_scope, &then_branch },

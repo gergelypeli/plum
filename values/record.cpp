@@ -169,7 +169,7 @@ public:
         arg_operation_name = aon;
         
         if (pcts != NO_TS)
-            pivot = make_record_unwrap_value(pcts, pivot);
+            pivot = make<RecordUnwrapValue>(pcts, pivot);
         
         if (on != "") {
             pivot = pivot->ts.lookup_inner(on, pivot);

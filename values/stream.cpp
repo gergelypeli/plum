@@ -51,6 +51,22 @@ public:
 };
 
 
+CreateValue *make_initialization_by_value(std::string name, Value *v, Scope *scope) {
+    Args fake_args;
+    Kwargs fake_kwargs;
+    
+    DeclarationValue *dv = new DeclarationValue(name);
+    dv->check(fake_args, fake_kwargs, scope);
+    
+    TypeMatch tm = { VOID_UNINITIALIZED_TS, VOID_TS };
+    CreateValue *cv = new CreateValue(dv, tm);
+    if (!cv->use(v, scope))
+        throw INTERNAL_ERROR;
+    
+    return cv;
+}
+
+
 Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     std::vector<std::string> fragments = brace_split(text);
     
@@ -103,7 +119,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             }
         }
         else {
-            pivot = make_string_literal_value(fragment);
+            pivot = make<StringLiteralValue>(fragment);
         }
 
         TypeMatch match;
@@ -123,11 +139,11 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     }
 
     TypeMatch match;  // kinda unnecessary
-    Value *ret = make_variable_value(interpolated_var, NULL, match);
+    Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, match);
     ret = ret->lookup_inner("realloc");  // FIXME: missing check, but at least no arguments
     block->add_statement(ret, true);
     
-    return make_code_scope_value(block, code_scope);
+    return make<CodeScopeValue>(block, code_scope);
 }
 
 

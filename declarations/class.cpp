@@ -139,13 +139,13 @@ public:
             // Named initializer
             TypeSpec rts = tm[0].prefix(ref_type);
             
-            Value *preinit = pivot ? pivot : make_class_preinitializer_value(rts);
+            Value *preinit = pivot ? pivot : make<ClassPreinitializerValue>(rts);
 
             Value *value = inner_scope->lookup(name, preinit);
 
             if (value) {
                 if (is_initializer_function_call(value))
-                    return pivot ? value : make_class_postinitializer_value(value);
+                    return pivot ? value : make<ClassPostinitializerValue>(value);
                         
                 std::cerr << "Can't initialize class with non-initializer " << name << "!\n";
                 return NULL;
@@ -248,7 +248,7 @@ public:
             else {
                 ts = tm[0].prefix(t);
                 std::cerr << "Autoconverting a " << get_typespec(orig) << " to " << ts << ".\n";
-                return make_cast_value(orig, ts);
+                return make<CastValue>(orig, ts);
             }
         }
         
@@ -281,7 +281,7 @@ public:
             Role *containing_role = rs->get_role();
             Declaration *original_declaration = rs->get_original_declaration(n);
 
-            Value *role_value = make_role_value(containing_role, v, tm);
+            Value *role_value = make<RoleValue>(containing_role, v, tm);
             Value *fcv = original_declaration->match(n, role_value);
             
             if (!fcv) {
@@ -305,7 +305,7 @@ public:
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v) {
-        return make_class_matcher_value(n, v);
+        return make<ClassMatcherValue>(n, v);
     }
 };
 
@@ -328,9 +328,9 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (!pivot)
-            pivot = make_class_preinitializer_value(rts);
+            pivot = make<ClassPreinitializerValue>(rts);
         
-        return make_class_wrapper_initializer_value(pivot, array_initializer);
+        return make<ClassWrapperInitializerValue>(pivot, array_initializer);
     }
 };
 
@@ -353,9 +353,9 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (!pivot)
-            pivot = make_class_preinitializer_value(rts);
+            pivot = make<ClassPreinitializerValue>(rts);
         
-        return make_class_wrapper_initializer_value(pivot, carray_initializer);
+        return make<ClassWrapperInitializerValue>(pivot, carray_initializer);
     }
 };
 
@@ -378,9 +378,9 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (!pivot)
-            pivot = make_class_preinitializer_value(rts);
+            pivot = make<ClassPreinitializerValue>(rts);
         
-        return make_class_wrapper_initializer_value(pivot, tree_initializer);
+        return make<ClassWrapperInitializerValue>(pivot, tree_initializer);
     }
 };
 
@@ -404,9 +404,9 @@ public:
         TypeSpec rts = real_ts.prefix(ref_type);
         
         if (!pivot)
-            pivot = make_class_preinitializer_value(rts);
+            pivot = make<ClassPreinitializerValue>(rts);
         
-        return make_class_wrapper_initializer_value(pivot, tree_initializer);
+        return make<ClassWrapperInitializerValue>(pivot, tree_initializer);
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {

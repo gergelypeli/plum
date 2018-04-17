@@ -73,7 +73,7 @@ public:
         DeclarationValue *dv = ptr_cast<DeclarationValue>(values[i].get());
 
         std::cerr << "Fixing bare declaration " << i << " with " << implicit_ts << ".\n";
-        Value *tv = make_type_value(type_metatype, implicit_ts);
+        Value *tv = make<TypeValue>(type_metatype, implicit_ts);
         
         if (!declaration_use(dv, tv, scope))
             throw INTERNAL_ERROR;

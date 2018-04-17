@@ -160,17 +160,17 @@ public:
 
         if (n == "{}") {
             // Anonymous initializer
-            return make_record_initializer_value(tm);
+            return make<RecordInitializerValue>(tm);
         }
         else {
             // Named initializer
-            Value *pre = make_record_preinitializer_value(tm[0]);
+            Value *pre = make<RecordPreinitializerValue>(tm[0]);
 
             Value *value = inner_scope->lookup(n, pre);
 
             // FIXME: check if the method is Void!
             if (value)
-                return make_record_postinitializer_value(value);
+                return make<RecordPostinitializerValue>(value);
             
             std::cerr << "Can't initialize record as " << n << "!\n";
             return NULL;
@@ -369,7 +369,7 @@ public:
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
         if (n == "empty") {
-            return make_string_literal_value("");
+            return make<StringLiteralValue>("");
         }
         
         std::cerr << "No String initializer " << n << "!\n";
@@ -378,7 +378,7 @@ public:
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         if (n == "re")
-            return make_string_regexp_matcher_value(pivot, tm);
+            return make<StringRegexpMatcherValue>(pivot, tm);
             
         std::cerr << "Can't match String as " << n << "!\n";
         return NULL;
@@ -409,7 +409,7 @@ public:
         
         Value *v = member_ts.lookup_initializer(n);
         if (v) 
-            return make_record_wrapper_value(v, NO_TS, tm[0], "", "");
+            return make<RecordWrapperValue>(v, NO_TS, tm[0], "", "");
         
         std::cerr << "No Autoweakref initializer " << n << "!\n";
         return NULL;
@@ -417,8 +417,8 @@ public:
     
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p) {
         TypeSpec member_ts = tm[1].prefix(weakanchorage_type).prefix(ref_type);
-        p = make_record_unwrap_value(member_ts, p);
-        p = make_reference_weaken_value(p);
+        p = make<RecordUnwrapValue>(member_ts, p);
+        p = make<ReferenceWeakenValue>(p, tm);
         
         Value *v = member_ts.reprefix(ref_type, weakref_type).lookup_matcher(n, p);
         if (v)

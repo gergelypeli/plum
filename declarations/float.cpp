@@ -191,11 +191,11 @@ public:
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         if (name == "nan")
-            return make_float_value(FLOAT_TS, NAN);
+            return make<FloatValue>(FLOAT_TS, NAN);
         else if (name == "pinf")
-            return make_float_value(FLOAT_TS, INFINITY);
+            return make<FloatValue>(FLOAT_TS, INFINITY);
         else if (name == "ninf")
-            return make_float_value(FLOAT_TS, -INFINITY);
+            return make<FloatValue>(FLOAT_TS, -INFINITY);
         else {
             std::cerr << "No Float initializer called " << name << "!\n";
             return NULL;

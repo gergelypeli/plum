@@ -4,6 +4,7 @@ const char RETURN_EXCEPTION = -1;
 
 class VirtualEntry;
 
+// Declarations
 class Declaration;
 class Allocable;
 class Variable;
@@ -15,6 +16,7 @@ class Function;
 class ImportedFloatFunction;
 class ClassType;
 
+// Types
 class Type;
 class TreenumerationType;
 class ArrayType;
@@ -22,6 +24,7 @@ class InterfaceType;
 class ImplementationType;
 class HeapType;
 
+// Scopes
 class Scope;
 class CodeScope;
 class DataScope;
@@ -31,14 +34,61 @@ class TryScope;
 class EvalScope;
 class FunctionScope;
 
-class Value;
-class DeclarationValue;
+// Values
+class ArrayEmptyValue;
+class ArrayInitializerValue;
+class BasicValue;
+class BulkEqualityMatcherValue;
+class CastValue;
+class CircularrayEmptyValue;
+class CircularrayInitializerValue;
+class ClassDefinitionValue;
+class ClassMatcherValue;
+class ClassPostinitializerValue;
+class ClassPreinitializerValue;
+class ClassWrapperInitializerValue;
 class CreateValue;
-class GenericValue;
-class PartialVariableValue;
-class FunctionReturnValue;
+class DeclarationValue;
+class EnumerationDefinitionValue;
+class EvaluableValue;
+class FloatFunctionValue;
+class FloatValue;
 class FunctionCallValue;
-
+class FunctionReturnValue;
+class GenericValue;
+class ImplementationConversionValue;
+class ImplementationDefinitionValue;
+class InitializerEqualityMatcherValue;
+class IntegerDefinitionValue;
+class InterfaceDefinitionValue;
+class OptionNoneMatcherValue;
+class OptionNoneValue;
+class OptionSomeMatcherValue;
+class OptionSomeValue;
+class PartialVariableValue;
+class RbtreeEmptyValue;
+class RbtreeInitializerValue;
+class RbtreeReservedValue;
+class RecordDefinitionValue;
+class RecordInitializerValue;
+class RecordPostinitializerValue;
+class RecordPreinitializerValue;
+class RecordUnwrapValue;
+class RecordWrapperValue;
+class ReferenceWeakenValue;
+class RoleValue;
+class StringLiteralValue;
+class StringRegexpMatcherValue;
+class TreenumerationDefinitionValue;
+class TreenumerationMatcherValue;
+class TypeValue;
+class UnicodeCharacterValue;
+class Value;
+class VariableValue;
+class WeakAnchorageDeadMatcherValue;
+class WeakAnchorageLiveMatcherValue;
+class WeakAnchorageValue;
+class YieldValue;
 
 class TypeSpec;
 typedef std::array<TypeSpec,4> TypeMatch;

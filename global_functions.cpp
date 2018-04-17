@@ -145,7 +145,7 @@ Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, T
             if (ifts[0] == *target) {
                 // Direct implementation
                 //std::cerr << "Found direct implementation.\n";
-                return make_implementation_conversion_value(imp, orig, match);
+                return make<ImplementationConversionValue>(imp, orig, match);
             }
             else {
                 //std::cerr << "Trying indirect implementation with " << ifts << "\n";
@@ -316,7 +316,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         bool ok = match_type_parameters(s, t, match);
         
         if (ok && needs_weaken)
-            value = make_reference_weaken_value(value);
+            value = make<ReferenceWeakenValue>(value, match);
         
         return ok;
     }
@@ -338,14 +338,14 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
             return false;
         }
 
-        value = make_void_conversion_value(value);
+        value = make<VoidConversionValue>(value);
         return true;
     }
     
     bool ok = match_regular_type(s, t, match, value);
     
     if (ok && needs_weaken)
-        value = make_reference_weaken_value(value);
+        value = make<ReferenceWeakenValue>(value, match);
         
     return ok;
 }
@@ -411,7 +411,7 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
             TypeSpec ss = tss[0];
             s = ss.begin();
             if (matchlog) std::cerr << "Unpacking Multi to " << ss << ".\n";
-            value = make_scalar_conversion_value(value);
+            value = make<ScalarConversionValue>(value);
 
             // ss is a local variable, so call this in the scope
             return match_special_type(s, t, match, value, strict);
@@ -471,7 +471,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         if (!match_anymulti_type(s, t, match, value, false))
             return false;
 
-        value = make_code_scope_value(value, code_scope);
+        value = make<CodeScopeValue>(value, code_scope);
         return true;
     }
     else if (*t == ovalue_type) {

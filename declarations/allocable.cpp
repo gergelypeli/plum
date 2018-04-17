@@ -80,7 +80,7 @@ public:
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable
-        return make_variable_value(this, cpivot, match);
+        return make<VariableValue>(this, cpivot, match);
     }
     
     virtual void allocate() {
@@ -151,7 +151,7 @@ public:
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_partial_variable_value(this, cpivot, match);
+        return make<PartialVariableValue>(this, cpivot, match);
     }
 
     virtual void set_member_names(std::vector<std::string> mn) {
@@ -227,7 +227,7 @@ public:
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_evaluable_value(this, cpivot, match);
+        return make<EvaluableValue>(this, cpivot, match);
     }
     
     virtual void allocate() {
@@ -264,7 +264,7 @@ public:
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_role_value(this, cpivot, match);
+        return make<RoleValue>(this, cpivot, match);
     }
 
     virtual void set_outer_scope(Scope *os) {

@@ -67,7 +67,7 @@ public:
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_cast_value(cpivot, typesubst(cast_ts, match));
+        return make<CastValue>(cpivot, typesubst(cast_ts, match));
     }
 };
 
@@ -126,7 +126,7 @@ public:
         TypeSpec rts = typesubst(result_ts, match);
         TypeSpec pcts = typesubst(pivot_cast_ts, match);
             
-        Value *wrapper = make_record_wrapper_value(pivot, pcts, rts, operation_name, arg_operation_name);
+        Value *wrapper = make<RecordWrapperValue>(pivot, pcts, rts, operation_name, arg_operation_name);
         
         return wrapper;
     }
@@ -179,6 +179,6 @@ public:
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_yield_value(eval_scope);
+        return make<YieldValue>(eval_scope);
     }
 };

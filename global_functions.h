@@ -46,3 +46,35 @@ Value *lookup_switch(Scope *scope, Token token);
 
 // Top
 ModuleScope *lookup_module(std::string module_name, ModuleScope *module_scope);
+
+
+// Makers
+template <typename T>
+Value *make() {
+    return new T;
+}
+
+template <typename T, typename A>
+Value *make(A a) {
+    return new T(a);
+}
+
+template <typename T, typename A, typename B>
+Value *make(A a, B b) {
+    return new T(a, b);
+}
+
+template <typename T, typename A, typename B, typename C>
+Value *make(A a, B b, C c) {
+    return new T(a, b, c);
+}
+
+template <typename T, typename A, typename B, typename C, typename D>
+Value *make(A a, B b, C c, D d) {
+    return new T(a, b, c, d);
+}
+
+template <typename T, typename A, typename B, typename C, typename D, typename E>
+Value *make(A a, B b, C c, D d, E e) {
+    return new T(a, b, c, d, e);
+}

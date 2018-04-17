@@ -214,9 +214,9 @@ public:
             // Named initializer
             
             if (n == "none")
-                return make_option_none_value(tm[0]);
+                return make<OptionNoneValue>(tm[0]);
             else if (n == "some")
-                return make_option_some_value(tm[0]);
+                return make<OptionSomeValue>(tm[0]);
                 
             std::cerr << "Can't initialize Option as " << n << "!\n";
             return NULL;
@@ -225,9 +225,9 @@ public:
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
         if (n == "none")
-            return make_option_none_matcher_value(pivot, tm);
+            return make<OptionNoneMatcherValue>(pivot, tm);
         else if (n == "some")
-            return make_option_some_matcher_value(pivot, tm);
+            return make<OptionSomeMatcherValue>(pivot, tm);
             
         std::cerr << "Can't match Option as " << n << "!\n";
         return NULL;

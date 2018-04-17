@@ -34,7 +34,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
             
             if (fallback) {
                 bool no = (name == "not_equal");
-                value = make_equality_value(no, fallback);
+                value = make<EqualityValue>(no, fallback);
             }
         }
     }
@@ -59,7 +59,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
                     throw INTERNAL_ERROR
                 );
                 
-                value = make_comparison_value(cc, fallback);
+                value = make<ComparisonValue>(cc, fallback);
             }
         }
     }
@@ -139,7 +139,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
 
         if (context) {
-            value = make_code_block_value(context);
+            value = make<CodeBlockValue>(context);
             value->set_token(expr->token);
         
             bool ok = value->check(expr->args, expr->kwargs, scope);
@@ -149,7 +149,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
         }
         else {
-            value = make_multi_value();
+            value = make<MultiValue>();
             value->set_token(expr->token);
         
             bool ok = value->check(expr->args, expr->kwargs, scope);
@@ -170,7 +170,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw TYPE_ERROR;
         }
         else {
-            value = make_declaration_value(name, context);
+            value = make<DeclarationValue>(name, context);
             value->set_token(expr->token);
             bool ok = value->check(expr->args, expr->kwargs, scope);
         
@@ -239,7 +239,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw TYPE_ERROR;
     }
     else if (expr->type == Expr::EVAL) {
-        value = make_eval_value(expr->text);
+        value = make<EvalValue>(expr->text);
         value->set_token(expr->token);
         value->set_context_ts(context);
         
@@ -375,7 +375,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         
         if (is_float) {
             double x = parse_float(text);
-            value = make_float_value(FLOAT_TS, is_negative ? -x : x);
+            value = make<FloatValue>(FLOAT_TS, is_negative ? -x : x);
         }
         else {
             IntegerType *t = ptr_cast<IntegerType>(
@@ -427,13 +427,13 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 }
             }
 
-            value = make_basic_value(TypeSpec { t }, is_negative ? -x : x);
+            value = make<BasicValue>(TypeSpec { t }, is_negative ? -x : x);
         }
         
         value->set_token(expr->token);
     }
     else if (expr->type == Expr::STRING) {
-        value = make_string_literal_value(expr->text);
+        value = make<StringLiteralValue>(expr->text);
         value->set_token(expr->token);
     }
     else {

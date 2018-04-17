@@ -46,7 +46,7 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        return make_function_call_value(this, cpivot, match);
+        return make<FunctionCallValue>(this, cpivot, match);
     }
 
     virtual std::vector<TypeSpec> get_result_tss(TypeMatch &match) {
@@ -184,6 +184,6 @@ public:
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make_float_function_value(this, cpivot, match);
+        return make<FloatFunctionValue>(this, cpivot, match);
     }
 };
