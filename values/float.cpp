@@ -11,7 +11,7 @@ public:
         ls = left->compile(x64);
 
         switch (ls.where) {
-        case REGISTER:
+        case SSEREGISTER:
             x64->op(PXOR, ls.sse, Address(x64->runtime->float_minus_zero_label, 0));
             return ls;
         case MEMORY:
@@ -29,13 +29,13 @@ public:
         subcompile(x64);
 
         switch (ls.where * rs.where) {
-        case REGISTER_REGISTER:
+        case SSEREGISTER_SSEREGISTER:
             x64->op(opcode, ls.sse, rs.sse);
             return ls;
-        case REGISTER_MEMORY:
+        case SSEREGISTER_MEMORY:
             x64->op(opcode, ls.sse, rs.address);
             return ls;
-        case MEMORY_REGISTER:
+        case MEMORY_SSEREGISTER:
             if (commutative) {
                 x64->op(opcode, rs.sse, ls.address);
                 return rs;
@@ -67,19 +67,19 @@ public:
         // TODO: NaN != NaN is currently false for us. Shall it be true?
 
         switch (ls.where * rs.where) {
-        case REGISTER_REGISTER:
+        case SSEREGISTER_SSEREGISTER:
             x64->op(COMISD, ls.sse, rs.sse);
             x64->op(SETP, BH);
             x64->op(bitset(cc), BL);
             x64->op(CMPW, BX, 1);
             return Storage(FLAGS, CC_EQUAL);
-        case REGISTER_MEMORY:
+        case SSEREGISTER_MEMORY:
             x64->op(COMISD, ls.sse, rs.address);
             x64->op(SETP, BH);
             x64->op(bitset(cc), BL);
             x64->op(CMPW, BX, 1);
             return Storage(FLAGS, CC_EQUAL);
-        case MEMORY_REGISTER:
+        case MEMORY_SSEREGISTER:
             x64->op(COMISD, rs.sse, ls.address);  // swapped arguments
             x64->op(SETP, BH);
             x64->op(bitset(swapped(cc)), BL);
@@ -101,7 +101,7 @@ public:
         subcompile(x64);
 
         switch (ls.where * rs.where) {
-        case MEMORY_REGISTER:
+        case MEMORY_SSEREGISTER:
             x64->op(MOVSD, XMM15, ls.address);
             x64->op(opcode, XMM15, rs.sse);
             x64->op(MOVSD, ls.address, XMM15);
@@ -183,10 +183,10 @@ public:
         }
         
         if (right)
-            right->compile_and_store(x64, Storage(REGISTER, XMM1));
+            right->compile_and_store(x64, Storage(SSEREGISTER, XMM1));
         
         switch (ls.where) {
-        case REGISTER:
+        case SSEREGISTER:
             x64->op(MOVSD, XMM0, ls.sse);
             break;
         case STACK:
@@ -202,6 +202,6 @@ public:
         
         x64->runtime->call_sysv_got(x64->once->import_got(import_name));
         
-        return Storage(REGISTER, XMM0);
+        return Storage(SSEREGISTER, XMM0);
     }
 };

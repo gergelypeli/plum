@@ -21,6 +21,12 @@ enum Register {
 };
 
 
+std::ostream &operator << (std::ostream &os, const Register r) {
+    os << (r == NOREG ? "---" : REGISTER_NAMES[r]);
+    return os;
+}
+
+
 enum HighByteRegister {
     AH=4, CH, DH, BH
 };
@@ -36,6 +42,12 @@ enum SseRegister {
     XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15,
     NOSSE=-1
 };
+
+
+std::ostream &operator << (std::ostream &os, const SseRegister r) {
+    os << (r == NOSSE ? "---" : SSE_REGISTER_NAMES[r]);
+    return os;
+}
 
 
 const char *CONDITION_NAMES[] = {
@@ -60,6 +72,12 @@ enum ConditionCode {
     CC_LESS_EQUAL, CC_GREATER,
     CC_NONE
 };
+
+
+std::ostream &operator << (std::ostream &os, const ConditionCode cc) {
+    os << (cc == CC_NONE ? "---" : CONDITION_NAMES[cc]);
+    return os;
+}
 
 
 ConditionCode negated(ConditionCode cc) {
@@ -351,3 +369,45 @@ struct Address {
         return a;
     }
 };
+
+
+std::ostream &operator << (std::ostream &os, const Address &a) {
+    os << "[";
+    
+    if (a.base != NOREG) {
+        os << a.base;
+        
+        if (a.index != NOREG) {
+            os << "+" << a.index;
+            
+            if (a.scale != 1)
+                os << "*" << a.scale;
+        }
+        
+        if (a.offset > 0)
+            os << "+" << a.offset;
+        else if (a.offset < 0)
+            os << a.offset;
+    }
+    else if (a.index != NOREG) {
+        os << a.index;
+            
+        if (a.scale != 1)
+            os << "*" << a.scale;
+            
+        if (a.offset > 0)
+            os << "+" << a.offset;
+        else if (a.offset < 0)
+            os << a.offset;
+    }
+    else if (a.label.def_index != 0) {
+        os << "RIP+#" << a.label.def_index;
+    }
+    else {
+        os << a.offset;
+    }
+
+    os << "]";
+    
+    return os;
+}

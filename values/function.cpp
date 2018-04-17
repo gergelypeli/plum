@@ -506,10 +506,10 @@ public:
         std::vector<bool> is_floats;
         
         if (pivot_ts != NO_TS)
-            is_floats.push_back(pivot_ts == FLOAT_TS);
+            is_floats.push_back(pivot_ts.where(AS_VALUE) == SSEREGISTER);
             
         for (unsigned i = 0; i < arg_tss.size(); i++)
-            is_floats.push_back(arg_tss[i] == FLOAT_TS);
+            is_floats.push_back(arg_tss[i].where(AS_VALUE) == SSEREGISTER);
         
         unsigned reg_index = 0;
         unsigned sse_index = 0;
@@ -532,7 +532,7 @@ public:
         if (!is_void) {
             // Must move raw values
             
-            if (res_tss[0] == FLOAT_TS)
+            if (res_tss[0].where(AS_VALUE) == SSEREGISTER)
                 x64->op(MOVSD, Address(RSP, passed_size), XMM0);
             else
                 x64->op(MOVQ, Address(RSP, passed_size), RAX);

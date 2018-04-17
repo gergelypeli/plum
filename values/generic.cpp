@@ -260,10 +260,10 @@ public:
     OptimizedOperationValue(OperationType o, TypeSpec at, TypeSpec rt, Value *l, RegSubset lss, RegSubset rss)
         :GenericOperationValue(o, at, rt, l) {
 
-        if (left->ts.where(AS_VALUE) != REGISTER)
-            throw INTERNAL_ERROR;
-            
-        if (at != NO_TS && at.where(AS_VALUE) != REGISTER)
+        StorageWhere lw = left->ts.where(AS_VALUE);
+        StorageWhere rw = (at != NO_TS ? at.where(AS_VALUE) : NOWHERE);
+        
+        if ((lw != REGISTER && lw != SSEREGISTER) || (rw != REGISTER && rw != SSEREGISTER && rw != NOWHERE))
             throw INTERNAL_ERROR;
             
         lsubset = lss;
@@ -324,7 +324,7 @@ public:
                 return Storage();
             }
         
-            return Storage(REGISTER, r);
+            return Storage(SSEREGISTER, r);
         }
         else
             throw INTERNAL_ERROR;
@@ -366,7 +366,7 @@ public:
         else if (rss == SSE_SUBSET) {
             SseRegister r = (~(ls.regs() | auxls.regs())).get_sse();
         
-            return Storage(REGISTER, r);
+            return Storage(SSEREGISTER, r);
         }
         else
             throw INTERNAL_ERROR;
@@ -445,8 +445,9 @@ public:
                 }
                 break;
             case REGISTER:
+            case SSEREGISTER:
                 if (ls.regs() & rclob) {
-                    if (auxls.where == REGISTER) {
+                    if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
                         ls = left->ts.store(ls, auxls, x64);
                     }
                     else {
@@ -466,7 +467,7 @@ public:
                     // Okay, the right side has no side effects, and we don't want to
                     // destroy the address either, so keep the MEMORY storage.
                 }
-                else if (auxls.where == REGISTER) {
+                else if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
                     // We already know a register that won't be clobbered, save value there
                     // This may actually reuse the same register, but that's OK
                     ls = left->ts.store(ls, auxls, x64);
@@ -484,7 +485,7 @@ public:
                 x64->op(POPQ, tmpr);
                 ls = Storage(MEMORY, Address(tmpr, 0));
                 
-                if (auxls.where == REGISTER) {
+                if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
                     // We already know a register that won't be clobbered, save value there
                     ls = left->ts.store(ls, auxls, x64);
                 }
@@ -502,7 +503,7 @@ public:
                 x64->op(MOVQ, tmpr, ls.address);
                 ls = Storage(MEMORY, Address(tmpr, 0));
                 
-                if (auxls.where == REGISTER) {
+                if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
                     // We already know a register that won't be clobbered, save value there
                     ls = left->ts.store(ls, auxls, x64);
                 }
@@ -537,6 +538,8 @@ public:
             break;
         case REGISTER:
             break;
+        case SSEREGISTER:
+            break;
         case STACK:
             rs = right->ts.store(rs, pick_auxrs(rsubset), x64);
             break;
@@ -560,8 +563,10 @@ public:
             throw INTERNAL_ERROR;
         case REGISTER:
             break;
+        case SSEREGISTER:
+            break;
         case STACK:
-            if (auxls.where == REGISTER) {
+            if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
                 ls = left->ts.store(ls, auxls, x64);
             }
             else
@@ -604,12 +609,16 @@ public:
 
         left->ts.compare(ls, rs, x64);
         
-        if (auxls.where != REGISTER)
-            throw INTERNAL_ERROR;
-        
-        x64->op(MOVSXBQ, auxls.reg, BL);  // sign extend byte to qword
-        
-        return auxls;
+        if (auxls.where != REGISTER) {
+            // This happens when the comparison used SSE registers
+            x64->op(MOVSXBQ, RBX, BL);  // sign extend byte to qword
+            x64->op(PUSHQ, RBX);
+            return Storage(STACK);
+        }
+        else {
+            x64->op(MOVSXBQ, auxls.reg, BL);  // sign extend byte to qword
+            return auxls;
+        }
     }
 
     virtual Storage equal(X64 *x64, bool negate) {
@@ -640,5 +649,3 @@ public:
         return NULL;
     }
 };
-
-

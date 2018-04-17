@@ -17,7 +17,7 @@ public:
             break;
         case MEMORY_NOWHERE:
             break;
-        case MEMORY_REGISTER:
+        case MEMORY_SSEREGISTER:
             x64->op(MOVSD, t.sse, s.address);
             break;
         case MEMORY_STACK:
@@ -34,7 +34,7 @@ public:
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
-        case REGISTER_MEMORY:
+        case SSEREGISTER_MEMORY:
             x64->op(MOVSD, t.address, s.sse);
             break;
         case MEMORY_MEMORY:
@@ -58,19 +58,19 @@ public:
         // Values are equal iff ZF && !PF. Thanks, NaN!
         
         switch (s.where * t.where) {
-        case REGISTER_REGISTER:
+        case SSEREGISTER_SSEREGISTER:
             x64->op(COMISD, s.sse, t.sse);
             x64->op(SETP, BH);
             x64->op(SETE, BL);
             x64->op(CMPW, BX, 1);
             break;
-        case REGISTER_MEMORY:
+        case SSEREGISTER_MEMORY:
             x64->op(COMISD, s.sse, t.address);
             x64->op(SETP, BH);
             x64->op(SETE, BL);
             x64->op(CMPW, BX, 1);
             break;
-        case MEMORY_REGISTER:
+        case MEMORY_SSEREGISTER:
             x64->op(COMISD, t.sse, s.address);  // swapped arguments, but hey!
             x64->op(SETP, BH);
             x64->op(SETE, BL);
@@ -94,7 +94,7 @@ public:
         Label finite, end;
         
         switch (s.where * t.where) {
-        case REGISTER_REGISTER:
+        case SSEREGISTER_SSEREGISTER:
             x64->op(COMISD, s.sse, t.sse);
             x64->op(JNP, finite);
             
@@ -110,7 +110,7 @@ public:
             x64->blcompar(true);
             x64->code_label(end);
             break;
-        case REGISTER_MEMORY:
+        case SSEREGISTER_MEMORY:
             x64->op(COMISD, s.sse, t.address);
             x64->op(JNP, finite);
             
@@ -127,7 +127,7 @@ public:
             x64->blcompar(true);
             x64->code_label(end);
             break;
-        case MEMORY_REGISTER:
+        case MEMORY_SSEREGISTER:
             x64->op(MOVSD, XMM15, s.address);
             x64->op(COMISD, XMM15, t.sse);
             x64->op(JNP, finite);
@@ -171,7 +171,7 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
         return (
-            as_what == AS_VALUE ? REGISTER :
+            as_what == AS_VALUE ? SSEREGISTER :
             as_what == AS_VARIABLE ? MEMORY :
             as_what == AS_PIVOT ? MEMORY :
             as_what == AS_ARGUMENT ? (as_lvalue ? ALIAS : MEMORY) :
