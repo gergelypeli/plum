@@ -100,12 +100,13 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         return (
             as_what == AS_VALUE ? STACK :
             as_what == AS_VARIABLE ? MEMORY :
-            as_what == AS_PIVOT ? MEMORY :
-            as_what == AS_ARGUMENT ? (as_lvalue ? ALIAS : MEMORY) :
+            as_what == AS_ARGUMENT ? MEMORY :
+            as_what == AS_PIVOT_ARGUMENT ? MEMORY :
+            as_what == AS_LVALUE_ARGUMENT ? ALIAS :
             throw INTERNAL_ERROR
         );
     }

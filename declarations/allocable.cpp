@@ -58,7 +58,7 @@ public:
         Allocable::set_outer_scope(os);
         
         if (os && os->type == ARGUMENT_SCOPE)
-            as_what = (name == "$" ? AS_PIVOT : AS_ARGUMENT);
+            as_what = (name == "$" ? AS_PIVOT_ARGUMENT : AS_ARGUMENT);
     }
     
     virtual TypeSpec get_typespec(TypeMatch tm) {

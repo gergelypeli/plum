@@ -580,7 +580,7 @@ public:
     virtual int push_pivot(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         Storage s = arg_value->compile(x64);
         
-        StorageWhere where = stacked(arg_ts.where(AS_PIVOT));
+        StorageWhere where = stacked(arg_ts.where(AS_PIVOT_ARGUMENT));
         Storage t(where);
 
         if (s.where == STACK && t.where == ALISTACK) {

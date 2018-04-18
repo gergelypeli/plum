@@ -96,7 +96,7 @@ struct Allocation;
 
 
 enum AsWhat {
-    AS_VALUE, AS_VARIABLE, AS_ARGUMENT, AS_PIVOT
+    AS_VALUE, AS_VARIABLE, AS_ARGUMENT, AS_PIVOT_ARGUMENT, AS_LVALUE_ARGUMENT
 };
 
 
@@ -117,7 +117,7 @@ public:
     Label get_virtual_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
     Value *autoconv(iterator target, Value *orig, TypeSpec &ifts);
-    StorageWhere where(AsWhat as_what, bool as_lvalue = false);
+    StorageWhere where(AsWhat as_what);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t = NULL);
     TypeSpec reprefix(Type *s, Type *t);

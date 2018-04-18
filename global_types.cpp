@@ -134,8 +134,8 @@ TypeMatch TypeSpec::match() {
 }
 
 
-StorageWhere TypeSpec::where(AsWhat as_what, bool as_lvalue) {
-    return at(0)->where(match(), as_what, as_lvalue);
+StorageWhere TypeSpec::where(AsWhat as_what) {
+    return at(0)->where(match(), as_what);
 }
 
 

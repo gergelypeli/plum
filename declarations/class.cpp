@@ -119,10 +119,6 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    //virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
-        //return (as_what == AS_VARIABLE ? MEMORY : throw INTERNAL_ERROR);
-    //}
-
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
         //TypeSpec ts(tsi);
 

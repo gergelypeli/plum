@@ -117,7 +117,7 @@ public:
             inner_scope->allocate();
     }
     
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         std::cerr << "Nowhere type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -284,7 +284,7 @@ public:
         :Type(name, param_metatypes, mt) {
     }
     
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         if (as_what == AS_VARIABLE)
             return MEMORY;  // TODO: all types must be MEMORY for this combination!
         else
@@ -321,8 +321,11 @@ public:
         :Type(n, Metatypes { value_metatype }, attribute_metatype) {
     }
 
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
-        return tm[1].where(as_what, as_lvalue || this == lvalue_type || this == dvalue_type);
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        if (as_what == AS_ARGUMENT && (this == lvalue_type || this == dvalue_type))
+            as_what = AS_LVALUE_ARGUMENT;
+            
+        return tm[1].where(as_what);
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -385,8 +388,8 @@ public:
         :Type(name, Metatypes { type_metatype }, value_metatype) {
     }
 
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
-        return tm[1].where(as_what, as_lvalue);
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        return tm[1].where(as_what);
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -472,8 +475,8 @@ public:
         :Type(name, Metatypes { type_metatype }, type_metatype) {
     }
 
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
-        return tm[1].where(as_what, as_lvalue);
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        return tm[1].where(as_what);
     }
 
     virtual Allocation measure(TypeMatch tm) {

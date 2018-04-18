@@ -47,7 +47,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         return (
             as_what == AS_VARIABLE ? MEMORY :
             throw INTERNAL_ERROR
@@ -135,7 +135,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what, bool as_lvalue) {
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         return (
             as_what == AS_VARIABLE ? MEMORY :
             throw INTERNAL_ERROR
