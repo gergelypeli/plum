@@ -780,7 +780,7 @@ public:
         x64->unwind->initiate(dummy, x64);
 
         // Since we're Whatever, must deceive our parent with a believable Storage.
-        return Storage(STACK);
+        return (context_ts != VOID_TS ? Storage(STACK) : Storage());
     }
 };
 
@@ -1099,6 +1099,6 @@ public:
         x64->unwind->initiate(dummy, x64);
         
         // Since we're Whatever, must deceive our parent with a believable Storage.
-        return Storage(STACK);
+        return (context_ts != VOID_TS ? Storage(STACK) : Storage());
     }
 };

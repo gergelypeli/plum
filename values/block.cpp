@@ -3,8 +3,8 @@ class CodeScopeValue: public Value {
 public:
     std::unique_ptr<Value> value;
     CodeScope *code_scope;
-    Register reg;
     bool may_be_aborted;
+    Storage save_storage;
 
     CodeScopeValue(Value *v, CodeScope *s)
         :Value(v->ts.rvalue()) {
@@ -20,8 +20,21 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = value->precompile(preferred);
-        reg = preferred.get_any();
-        return clob | reg;
+        
+        if (value->ts != VOID_TS) {
+            switch (value->ts.where(AS_VALUE)) {
+            case REGISTER:
+                save_storage = Storage(REGISTER, preferred.get_any());
+                break;
+            case SSEREGISTER:
+                save_storage = Storage(SSEREGISTER, preferred.get_sse());
+                break;
+            default:
+                save_storage = Storage(STACK);
+            }
+        }
+        
+        return clob | save_storage.regs();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -32,18 +45,8 @@ public:
         // Can't let the result be passed as a MEMORY storage, because it may
         // point to a local variable that we're about to destroy. So grab that
         // value while we can. 
-        if (s.where == MEMORY) {
-            switch (value->ts.where(AS_VALUE)) {
-            case REGISTER:
-                s = value->ts.store(s, Storage(REGISTER, reg), x64);
-                break;
-            case STACK:
-                s = value->ts.store(s, Storage(STACK), x64);
-                break;
-            default:
-                throw INTERNAL_ERROR;
-            }
-        }
+        if (s.where == MEMORY)
+            s = value->ts.store(s, save_storage, x64);
         
         code_scope->finalize_contents(x64);
 

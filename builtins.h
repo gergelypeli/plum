@@ -111,6 +111,7 @@ TypeSpec ANY_LVALUE_TS;
 TypeSpec SAME_TS;
 TypeSpec SAME_LVALUE_TS;
 TypeSpec SAME2_LVALUE_TS;
+TypeSpec UNIT_TS;
 TypeSpec WHATEVER_TS;
 TypeSpec BOOLEAN_TS;
 TypeSpec INTEGER_TS;

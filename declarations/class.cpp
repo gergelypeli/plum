@@ -442,7 +442,6 @@ public:
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        //tm[0] = typesubst(SAMEID_WEAKANCHOR_ZERO_MAP_TS, tm);
-        return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), VOID_TS, name, pivot);
+        return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), UNIT_TS, name, pivot);
     }
 };

@@ -23,11 +23,6 @@ Declaration *declaration_get_decl(DeclarationValue *dv) {
 }
 
 
-//bool declaration_use(DeclarationValue *dv, Value *v, Scope *s) {
-//    return dv->use(v, s);
-//}
-
-
 PartialVariable *partial_variable_get_pv(Value *v) {
     return dynamic_cast<PartialVariableValue *>(v)->partial_variable;
 }
@@ -207,8 +202,6 @@ bool is_any(Type *t) {
 
 
 bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, int mi, Type *metatype) {
-    std::cerr << "XXX match " << TypeSpec(s) << " " << TypeSpec(t) << "\n";
-
     if (!TypeSpec(s).has_meta(metatype)) {
         if (matchlog) std::cerr << "No match, type parameter not a " << metatype->name << "!\n";
         return false;
@@ -227,8 +220,6 @@ bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, in
         match[0].push_back(*s);
         s++;
     }
-
-    std::cerr << "YYY match " << match << "\n";
 
     t++;
     return true;

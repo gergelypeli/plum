@@ -76,7 +76,7 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(sameid3_type);
 
     // Phase 4: declare special types
-    unit_type = new UnitType("Unit");
+    unit_type = new UnitType("<Unit>");
     root_scope->add(unit_type);
 
     void_type = new VoidType("<Void>");
@@ -281,6 +281,7 @@ void builtin_types(Scope *root_scope) {
     MULTI_TS = { multi_type };
     MULTILVALUE_TS = { multilvalue_type };
     MULTITYPE_TS = { multitype_type };
+    UNIT_TS = { unit_type };
     WHATEVER_TS = { whatever_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };

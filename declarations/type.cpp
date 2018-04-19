@@ -541,15 +541,9 @@ public:
         :Type(name, {}, value_metatype) {
     }
 
-    virtual Allocation measure(TypeMatch tm) {
-        return Allocation();
-    }
-
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        // Moving 0 bits is easy
-    }
-
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        if (s.where != NOWHERE || t.where != NOWHERE)
+            throw INTERNAL_ERROR;
     }
 };
 
