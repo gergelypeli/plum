@@ -411,7 +411,10 @@ public:
         if (pv->is_uninitialized(n)) {
             pv->be_initialized(n);
             
-            Value *member = tm[1].lookup_inner(n, make<CastValue>(v, tm[1]));
+            // TODO: technically the cast type should be lvalue for records only,
+            // because for classes it makes $ a Weakref Lvalue, which is awkward.
+            // But this is for lookup only, so it doesn't really matter.
+            Value *member = tm[1].lookup_inner(n, make<CastValue>(v, tm[1].lvalue()));
             TypeSpec member_ts = get_typespec(member);
             
             if (member_ts[0] == lvalue_type) {

@@ -33,7 +33,8 @@ public:
 
     virtual Storage get_local_storage() {
         // Without pivot as a function local variable
-        return get_storage(TypeMatch(), Storage(MEMORY, Address(RBP, 0)));
+        Storage fn_storage(MEMORY, Address(RBP, 0));
+        return get_storage(TypeMatch(), fn_storage);
     }
     
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {

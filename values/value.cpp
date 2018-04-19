@@ -164,6 +164,8 @@ public:
     std::unique_ptr<Value> pivot;
     Register reg;
     TypeMatch match;
+    TypeSpec pts;
+    bool is_rvalue;
     
     VariableValue(Variable *v, Value *p, TypeMatch &tm)
         :Value(v->get_typespec(tm)) {
@@ -171,6 +173,19 @@ public:
         pivot.reset(p);
         reg = NOREG;
         match = tm;
+        is_rvalue = false;
+        
+        if (pivot) {
+            pts = pivot->ts.rvalue();
+
+            if (pts[0] == ref_type)
+                throw INTERNAL_ERROR;  // variables are accessed by weak references only
+                
+            is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != weakref_type);
+            
+            if (is_rvalue)
+                ts = ts.rvalue();
+        }
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -178,25 +193,22 @@ public:
             
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
-            
-        if (variable->where == ALIAS) {
-            // Just a sanity check, aliases are function arguments, and must have no pivot
-            if (pivot)
+
+        if (pivot) {
+            if (variable->where == ALIAS)
                 throw INTERNAL_ERROR;
                 
-            reg = preferred.get_any();
-            //std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
-            clob = clob | reg;
+            if (pts[0] == weakref_type) {
+                reg = preferred.get_any();
+                clob = clob | reg;
+            }
         }
-        
-        if (pivot && pivot->ts.rvalue()[0] == ref_type) {
-            std::cerr << "This is a bit suspicious, strong reference as variable pivot?\n";
-            throw INTERNAL_ERROR;
-        }
-        
-        if (pivot && pivot->ts.rvalue()[0] == weakref_type) {
-            reg = preferred.get_any();
-            clob = clob | reg;
+        else {
+            if (variable->where == ALIAS) {
+                reg = preferred.get_any();
+                //std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
+                clob = clob | reg;
+            }
         }
         
         return clob;
@@ -206,40 +218,46 @@ public:
         Storage t;
         
         if (pivot) {
+            // Rvalue containers are on the STACK, so we must extract our variable
+            // and discard it all.
+            if (is_rvalue)
+                x64->op(SUBQ, RSP, ts.measure_stack());
+
             Storage s = pivot->compile(x64);
             
-            if (pivot->ts.rvalue()[0] == weakref_type) {
+            if (pts[0] == weakref_type) {
                 // FIXME: technically we must borrow a reference here, or the container
                 // may be destroyed before accessing this variable!
                 
-                pivot->ts.rvalue().store(s, Storage(REGISTER, reg), x64);
+                pts.store(s, Storage(REGISTER, reg), x64);
                 x64->runtime->decweakref(reg);
                 s = Storage(MEMORY, Address(reg, 0));
             }
-            else if (pivot->ts[0] == partial_type) {
-                // Initializing a member of a class or record
-                
-                if (pivot->ts[1] == weakref_type) {
-                    // Dereference this
-                    x64->op(MOVQ, reg, t.address);
-                    s = Storage(MEMORY, Address(reg, 0));
-                }
-                else if (pivot->ts[1] == lvalue_type) {
-                    ;
-                }
-                else
+            else if (is_rvalue) {
+                if (s.where != STACK)
                     throw INTERNAL_ERROR;
+                    
+                s = variable->get_storage(match, Storage(MEMORY, Address(RSP, 0)));
+                t = Storage(MEMORY, Address(RSP, pts.measure_stack()));
+
+                ts.create(s, t, x64);
+                pts.store(Storage(STACK), Storage(), x64);
+                
+                return Storage(STACK);
             }
+            
+            if (s.where != MEMORY)
+                throw INTERNAL_ERROR;
             
             t = variable->get_storage(match, s);
         }
         else {
             t = variable->get_local_storage();
-        }
 
-        if (t.where == ALIAS) {
-            x64->op(MOVQ, reg, t.address);
-            t = Storage(MEMORY, Address(reg, 0));
+            if (t.where == ALIAS) {
+                x64->op(MOVQ, reg, t.address);
+                t = Storage(MEMORY, Address(reg, 0));
+            }
         }
         
         return t;    

@@ -68,11 +68,15 @@ public:
             if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
-                    TypeSpec partial_ts = pivot_ts.reprefix(initializable_type, partial_type);
-                    self_var = new PartialVariable("$", NO_TS, partial_ts);
+                    TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
+                    self_var = new PartialVariable("$", NO_TS, self_ts);
                 }
-                else
-                    self_var = new Variable("$", NO_TS, pivot_ts);
+                else {
+                    // Records have a rvalue pivot type, but the self argument must be treated
+                    // as lvalue, so the members will also be lvalue-s.
+                    TypeSpec self_ts = (pivot_ts[0] == weakref_type ? pivot_ts : pivot_ts.lvalue());
+                    self_var = new Variable("$", NO_TS, self_ts);
+                }
                 
                 ss->add(self_var);
                 

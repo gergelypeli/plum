@@ -381,6 +381,8 @@ test_records? :Function as:
     r dump
     
     Pair { second: 222 } dump
+    
+    prints("Second is {x}" {x: Pair { second: 222 } second})
 
     q first = 11
     prints("{p} and {q} compares as {c}" { p: p, q: q, c: p <=> q })
