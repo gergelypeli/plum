@@ -12,7 +12,7 @@ CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=
 
 MAIN       = plum.cpp
 EXE        = run/plum
-EXEFLAGS   = 
+#EXEFLAGS   = -m
 CORE       = core.plum.*(N) core.test.*(N)
 
 HEAPH      = arch/heap.h

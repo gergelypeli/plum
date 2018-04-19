@@ -249,7 +249,51 @@ public:
         return var;
     }
 
-    virtual bool use(Value *v, Scope *scope) {
+    virtual void fix_bare(TypeSpec var_ts, Scope *scope) {
+        // This must be called after/instead of check
+        var = new Variable(name, scope->pivot_type_hint(), var_ts.lvalue());
+        decl = var;
+        
+        scope->add(decl);
+        
+        ts = var->alloc_ts.reprefix(lvalue_type, uninitialized_type);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() > 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky declaration!\n";
+            return false;
+        }
+
+        std::cerr << "Trying to declare " << name << "\n";
+
+        if (args.size() == 0) {
+            if (!context) {
+                // Must call fix_bare later to add the real declaration
+                ts = UNIT_UNINITIALIZED_TS;  // dummy type, just to be Uninitialized
+                return true;
+            }
+
+            if ((*context)[0] == dvalue_type) {
+                ts = *context;
+                TypeSpec var_ts = ts.reprefix(dvalue_type, lvalue_type);
+                var = new RetroVariable(name, NO_TS, var_ts);
+            
+                decl = var;
+                scope->add(decl);
+            
+                return true;
+            }
+
+            std::cerr << "Bare declaration is not allowed in this context!\n";
+            return false;
+        }
+
+        if (!descend_into_explicit_scope(name, scope))  // Modifies both arguments
+            return false;
+
+        Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
+        
         if (!v->ts.is_meta() && !v->ts.is_hyper()) {
             std::cerr << "Not a type used for declaration, but a value of " << v->ts << "!\n";
             return false;
@@ -276,43 +320,12 @@ public:
         return true;
     }
 
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() > 1 || kwargs.size() != 0) {
-            std::cerr << "Whacky declaration!\n";
-            return false;
-        }
-
-        std::cerr << "Trying to declare " << name << "\n";
-
-        if (args.size() == 0) {
-            if (!context || (*context)[0] != dvalue_type) {
-                //std::cerr << "Bare declaration is not allowed in this context!\n";
-                //return false;
-
-                // Must call use later to add the real declaration                
-                ts = VOID_UNINITIALIZED_TS;
-                return true;
-            }
-
-            ts = *context;
-            TypeSpec var_ts = ts.reprefix(dvalue_type, lvalue_type);
-            var = new RetroVariable(name, NO_TS, var_ts);
-            
-            decl = var;
-            scope->add(decl);
-            
-            return true;
-        }
-
-        if (!descend_into_explicit_scope(name, scope))  // Modifies both arguments
-            return false;
-
-        Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
-        
-        return use(v, scope);
-    }
-
     virtual bool complete_definition() {
+        if (!decl) {
+            std::cerr << "Bare declaration was not fixed!\n";
+            throw INTERNAL_ERROR;
+        }
+            
         if (value)
             return value->complete_definition();
         else
@@ -354,26 +367,14 @@ public:
         :GenericValue(tm[1], tm[1].prefix(lvalue_type), l) {
     }
 
-    virtual bool fix_bare(Scope *scope) {
-        DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
-
-        TypeSpec implicit_ts = right->ts.rvalue();
-        std::cerr << "Fixing bare declaration with " << implicit_ts << ".\n";
-        Value *tv = make<TypeValue>(type_metatype, implicit_ts);
-        
-        if (!declaration_use(dv, tv, scope))
-            return false;
-            
-        arg_ts = left->ts.unprefix(uninitialized_type);
-        ts = left->ts.reprefix(uninitialized_type, lvalue_type);
-        
-        return true;
-    }
-
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        // CreateValue may operate on uninitialized member variables, or newly
+        // declared local variables. The latter case needs some extra care.
         // Since the declared variable will be initialized in the final step, we
-        // should make it the last declaration in this scope, so it can be taken
-        // to its parent scope if necessary.
+        // should make it the last declaration in this scope, despite the syntax
+        // which puts it at the beginning of the initialization expression.
+        // This way it can also be taken to its parent scope if necessary.
+        
         DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
         Declaration *d = NULL;
         
@@ -381,9 +382,11 @@ public:
             d = declaration_get_decl(dv);
             
             if (d)
-                scope->remove(d);
+                scope->remove(d);  // care
+            else if (dv->ts == UNIT_UNINITIALIZED_TS)
+                arg_ts = ANY_TS;  // bare
             else
-                arg_ts = ANY_TS;
+                throw INTERNAL_ERROR;
         }
         
         if (!GenericValue::check(args, kwargs, scope))
@@ -391,20 +394,30 @@ public:
             
         if (dv) {
             if (d)
-                scope->add(d);
-            else {
-                if (!fix_bare(scope))
-                    return false;
+                scope->add(d);  // care
+            else if (dv->ts == UNIT_UNINITIALIZED_TS) {
+                // bare
+                TypeSpec implicit_ts = right->ts.rvalue();
+                std::cerr << "Fixing bare declaration with " << implicit_ts << ".\n";
+                dv->fix_bare(implicit_ts, scope);
+            
+                arg_ts = left->ts.unprefix(uninitialized_type);
+                ts = left->ts.reprefix(uninitialized_type, lvalue_type);
             }
+            else
+                throw INTERNAL_ERROR;
         }
         
         return true;
     }
 
-    virtual bool use(Value *r, Scope *scope) {
+    virtual void use(Value *r) {
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
+        
+        if (!declaration_get_decl(dv))  // make sure no unfixed bare declarations
+            throw INTERNAL_ERROR;
+            
         right.reset(r);
-
-        return fix_bare(scope);
     }
     
     virtual Declaration *get_decl() {

@@ -73,11 +73,8 @@ public:
         DeclarationValue *dv = ptr_cast<DeclarationValue>(values[i].get());
 
         std::cerr << "Fixing bare declaration " << i << " with " << implicit_ts << ".\n";
-        Value *tv = make<TypeValue>(type_metatype, implicit_ts);
-        
-        if (!declaration_use(dv, tv, scope))
-            throw INTERNAL_ERROR;
-            
+        dv->fix_bare(implicit_ts, scope);
+
         tss[i] = dv->ts.unprefix(uninitialized_type);
         return dv->ts;
     }
@@ -184,7 +181,7 @@ public:
             // TODO: this may be too strict, but we can't call typespec, because we don't
             // have a value for the right side, and we can't convert the type either.
             if (left_ts[0] == uninitialized_type) {
-                if (left_ts[1] == void_type) {
+                if (left_ts == UNIT_UNINITIALIZED_TS) {
                     // Fix bare declaration, and place it in its scope
                     left_ts = left->fix_bare(i, right_ts, scope);
                     declarations[i] = left->get_declaration(i);

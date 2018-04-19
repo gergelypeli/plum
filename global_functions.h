@@ -2,7 +2,7 @@
 // Value wrappers
 
 Declaration *declaration_get_decl(DeclarationValue *dv);
-bool declaration_use(DeclarationValue *dv, Value *v, Scope *s);
+//bool declaration_use(DeclarationValue *dv, Value *v, Scope *s);
 PartialVariable *partial_variable_get_pv(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);

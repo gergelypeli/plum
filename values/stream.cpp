@@ -52,16 +52,12 @@ public:
 
 
 CreateValue *make_initialization_by_value(std::string name, Value *v, Scope *scope) {
-    Args fake_args;
-    Kwargs fake_kwargs;
-    
     DeclarationValue *dv = new DeclarationValue(name);
-    dv->check(fake_args, fake_kwargs, scope);
+    dv->fix_bare(v->ts, scope);
     
-    TypeMatch tm = { VOID_UNINITIALIZED_TS, VOID_TS };
+    TypeMatch tm = { dv->ts, dv->ts.unprefix(uninitialized_type) };
     CreateValue *cv = new CreateValue(dv, tm);
-    if (!cv->use(v, scope))
-        throw INTERNAL_ERROR;
+    cv->use(v);
     
     return cv;
 }

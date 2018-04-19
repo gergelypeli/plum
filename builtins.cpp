@@ -76,7 +76,10 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(sameid3_type);
 
     // Phase 4: declare special types
-    void_type = new VoidType("Void");
+    unit_type = new UnitType("Unit");
+    root_scope->add(unit_type);
+
+    void_type = new VoidType("<Void>");
     root_scope->add(void_type);
 
     multi_type = new MultiType("<Multi>");
@@ -301,7 +304,7 @@ void builtin_types(Scope *root_scope) {
     ANYID_AUTOWEAKREF_LVALUE_TS = { lvalue_type, autoweakref_type, anyid_type };
     SAMEID_WEAKANCHORAGE_REF_LVALUE_TS = { lvalue_type, ref_type, weakanchorage_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
-    VOID_UNINITIALIZED_TS = { uninitialized_type, void_type };
+    UNIT_UNINITIALIZED_TS = { uninitialized_type, unit_type };
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
     ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
     SAME_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, same_type };
@@ -344,9 +347,9 @@ void builtin_types(Scope *root_scope) {
     SAMEID_WEAKANCHOR_SAME2_MAP_TS = { map_type, weakanchor_type, sameid_type, same2_type };
     SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, same2_type };
     ANYID_WEAKSET_WEAKREF_TS = { weakref_type, weakset_type, anyid_type };
-    SAMEID_WEAKANCHOR_VOID_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, void_type };
-    SAMEID_WEAKANCHOR_VOID_MAP_TS = { map_type, weakanchor_type, sameid_type, void_type };
-    SAMEID_WEAKANCHOR_VOID_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, void_type };
+    SAMEID_WEAKANCHOR_UNIT_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, unit_type };
+    SAMEID_WEAKANCHOR_UNIT_MAP_TS = { map_type, weakanchor_type, sameid_type, unit_type };
+    SAMEID_WEAKANCHOR_UNIT_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, unit_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -855,7 +858,7 @@ void define_weakindexmap() {
 
 void define_weakset() {
     TypeSpec PIVOT = ANYID_WEAKSET_WEAKREF_TS;
-    TypeSpec CAST = SAMEID_WEAKANCHOR_VOID_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec CAST = SAMEID_WEAKANCHOR_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(weakset_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);

@@ -554,6 +554,25 @@ public:
 };
 
 
+class UnitType: public Type {
+public:
+    UnitType(std::string name)
+        :Type(name, {}, value_metatype) {
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        return Allocation();
+    }
+
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // Moving 0 bits is easy
+    }
+
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+    }
+};
+
+
 class WhateverType: public Type {
 public:
     WhateverType(std::string name)
