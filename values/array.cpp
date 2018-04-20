@@ -281,6 +281,18 @@ public:
 };
 
 
+class ArrayReservedValue: public ContainerReservedValue {
+public:
+    ArrayReservedValue(TypeSpec ts)
+        :ContainerReservedValue(ts) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return subcompile(compile_array_alloc, x64);
+    }
+};
+
+
 class ArrayInitializerValue: public ContainerInitializerValue {
 public:
     ArrayInitializerValue(TypeSpec ts)

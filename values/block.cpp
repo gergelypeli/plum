@@ -164,31 +164,16 @@ public:
                     return false;
                 }
                 
-                /*
-                CodeScopeValue *csv = ptr_cast<CodeScopeValue>(v.get());
-                if (!csv)
-                    throw INTERNAL_ERROR;
-
-                Value *st = csv->value.get();
-                
-                st = peek_void_conversion_value(st);
-                
-                CreateValue *cv = ptr_cast<CreateValue>(st);
-                
-                DeclarationValue *dv = ptr_cast<DeclarationValue>(cv ? cv->left.get() : st);
-                
-                if (dv) {
-                    Declaration *decl = declaration_get_decl(dv);
-                    decl->outer_scope->remove(decl);
-                    scope->add(decl);
-                }
-                */
-                
                 v->escape_statement_variables();
                 
                 add_statement(v.release(), false);
             }
-        
+            
+            //std::cerr << "Code block final statement is " << statements.back()->ts << "\n";
+            
+            //if (statements.back()->ts == WHATEVER_TS)
+            //    ts = WHATEVER_TS;
+            
             std::unique_ptr<Value> v;
         
             if (!check_argument(0, args.back().get(), { { "stmt", context, scope, &v } })) {

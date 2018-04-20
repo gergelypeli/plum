@@ -319,6 +319,8 @@ public:
         
         if (name == "empty")
             return make<ArrayEmptyValue>(rts);
+        else if (name == "reserved")
+            return make<ArrayReservedValue>(rts);
         else if (name == "{}")
             return make<ArrayInitializerValue>(rts);
 
@@ -373,6 +375,8 @@ public:
 
         if (name == "empty")
             return make<CircularrayEmptyValue>(rts);
+        else if (name == "reserved")
+            return make<CircularrayReservedValue>(rts);
         else if (name == "{}")
             return make<CircularrayInitializerValue>(rts);
 

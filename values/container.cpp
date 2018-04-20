@@ -204,6 +204,32 @@ public:
 };
 
 
+class ContainerReservedValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    ContainerReservedValue(TypeSpec ts)
+        :GenericValue(INTEGER_TS, ts, NULL) {
+        elem_ts = container_elem_ts(ts);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = right->precompile(preferred);
+        return clob | RAX;
+    }
+
+    virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
+        Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
+
+        right->compile_and_store(x64, Storage(REGISTER, RAX));
+
+        x64->op(CALL, alloc_label);
+        
+        return Storage(REGISTER, RAX);
+    }
+};
+
+
 class ContainerInitializerValue: public Value {
 public:
     TypeSpec elem_ts;

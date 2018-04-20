@@ -29,8 +29,10 @@ public:
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == ARGUMENT_SCOPE) {
-            if (!represented_ts.has_meta(attribute_metatype) && !represented_ts.has_meta(value_metatype))
+            if (!represented_ts.has_meta(attribute_metatype) && !represented_ts.has_meta(value_metatype)) {
+                std::cerr << "Invalid type for argument declaration: " << represented_ts << "!\n";
                 return NULL;
+            }
             
             if (represented_ts[0] == code_type)
                 return new Evaluable(name, pivot_ts, represented_ts);
@@ -38,8 +40,10 @@ public:
                 return new Variable(name, pivot_ts, represented_ts);
         }
         else {
-            if (!represented_ts.has_meta(value_metatype))
+            if (!represented_ts.has_meta(value_metatype)) {
+                std::cerr << "Invalid type for variable declaration: " << represented_ts << "!\n";
                 return NULL;
+            }
 
             return new Variable(name, pivot_ts, represented_ts.lvalue());
         }

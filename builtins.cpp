@@ -143,7 +143,7 @@ void builtin_types(Scope *root_scope) {
     unsigned_integer16_type = new IntegerType("Unteger16", 2, true);
     root_scope->add(unsigned_integer16_type);
     
-    unsigned_integer8_type = new IntegerType("Unteger8", 1, true);
+    unsigned_integer8_type = new IntegerType("Byte", 1, true);
     root_scope->add(unsigned_integer8_type);
 
     float_type = new FloatType("Float");

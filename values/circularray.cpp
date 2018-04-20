@@ -172,6 +172,18 @@ public:
 };
 
 
+class CircularrayReservedValue: public ContainerReservedValue {
+public:
+    CircularrayReservedValue(TypeSpec ts)
+        :ContainerReservedValue(ts) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return subcompile(compile_circularray_alloc, x64);
+    }
+};
+
+
 class CircularrayInitializerValue: public ContainerInitializerValue {
 public:
     CircularrayInitializerValue(TypeSpec ts)

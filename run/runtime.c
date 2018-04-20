@@ -23,6 +23,12 @@
 #define HFINALIZER(x) *(long *)((x) + HEAP_FINALIZER_OFFSET)
 #define HNEXT(x) *(long *)((x) + HEAP_NEXT_OFFSET)
 
+#define RECORDMEMBER(obj, mtype) *(mtype *)(obj)
+#define CLASSMEMBER(obj, mtype) *(mtype *)(obj + CLASS_MEMBERS_OFFSET)
+
+typedef void *Ref;
+typedef void *Alias;
+typedef long Exc;
 
 extern void empty_function();
 extern void finalize_reference_array();
@@ -345,8 +351,8 @@ void *encode_utf8(void *string_alias) {
 }
 
 
-long path_mkdir(void *path_alias, long mode) {
-    void *name_array = *(void **)path_alias;
+Exc path_mkdir(Alias path_alias, long mode) {
+    void *name_array = RECORDMEMBER(path_alias, Ref);
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
     int byte_length = encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes);
@@ -354,15 +360,15 @@ long path_mkdir(void *path_alias, long mode) {
 
     fprintf(stderr, "mkdir '%s' %lo\n", bytes, mode);
     int rc = mkdir(bytes, mode);
-    long ret = (rc == -1 ? errno : 0);
+    long exc = (rc == -1 ? errno : 0);
     
-    fprintf(stderr, "mkdir ret %ld\n", ret);
-    return ret;
+    fprintf(stderr, "mkdir ret %ld\n", exc);
+    return exc;
 }
 
 
-long path_rmdir(void *path_alias) {
-    void *name_array = *(void **)path_alias;
+Exc path_rmdir(Alias path_alias) {
+    void *name_array = RECORDMEMBER(path_alias, Ref);
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
     int byte_length = encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes);
@@ -370,10 +376,27 @@ long path_rmdir(void *path_alias) {
 
     fprintf(stderr, "rmdir '%s'\n", bytes);
     int rc = rmdir(bytes);
-    long ret = (rc == -1 ? errno : 0);
+    long exc = (rc == -1 ? errno : 0);
     
-    fprintf(stderr, "rmdir ret %ld\n", ret);
-    return ret;
+    fprintf(stderr, "rmdir ret %ld\n", exc);
+    return exc;
+}
+
+
+Exc reader_read(Ref reader_ref, Ref buffer_array) {
+    int fd = CLASSMEMBER(reader_ref, int);
+    long buffer_length = ALENGTH(buffer_array);
+    long buffer_reservation = ARESERVATION(buffer_array);
+    char *buffer_elements = AELEMENTS(buffer_array);
+    
+    int rc = read(fd, buffer_elements, buffer_reservation - buffer_length);
+    long exc = (rc == -1 ? errno : 0);
+    fprintf(stderr, "read %d ret %ld\n", fd, exc);
+    
+    if (rc >= 0)
+        ALENGTH(buffer_array) += rc;
+    
+    return exc;
 }
 
 

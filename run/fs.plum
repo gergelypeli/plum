@@ -18,3 +18,22 @@ Path? :Record as:
         Errno_exception
     import:
         "path_rmdir"
+
+Reader? :Class as:
+    fd? Integer
+    
+    on? :Initializer from:
+        fd? Integer
+    as:
+        $ fd = fd
+
+    stdin? :Initializer
+    as:
+        $ fd = 0
+        
+    read? :Function from:
+        buffer? Byte Array Ref
+    may:
+        Errno_exception
+    import:
+        "reader_read"

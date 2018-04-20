@@ -849,6 +849,7 @@ public:
             return NULL;
         }
         
+        //std::cerr << "Unwinding function call " << function->name << " would wipe " << pushed_tss.size() << " arguments.\n";
         for (int i = pushed_tss.size() - 1; i >= 0; i--)
             pushed_tss[i].store(pushed_storages[i], Storage(), x64);
         

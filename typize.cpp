@@ -282,7 +282,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             
             // We must have checked this.
             if (!ts.has_meta(value_metatype) && !ts.has_meta(metatype_hypertype)) {
-                std::cerr << "Initializer with nonvalue type context: " << ts << "!\n";
+                std::cerr << "Initializer with nonvalue type context: " << ts << " at " << expr->token << "!\n";
                 throw TYPE_ERROR;
             }
             
@@ -389,7 +389,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 integer_type
             );
         
-            if (context && t == integer_type) {
+            if (context && *context != ANY_TS && t == integer_type) {
                 Type *x = (*context)[0];
                 x = (x == code_type || x == ovalue_type ? (*context)[1] : x);
                 t = ptr_cast<IntegerType>(x);

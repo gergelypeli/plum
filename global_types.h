@@ -37,11 +37,13 @@ class FunctionScope;
 // Values
 class ArrayEmptyValue;
 class ArrayInitializerValue;
+class ArrayReservedValue;
 class BasicValue;
 class BulkEqualityMatcherValue;
 class CastValue;
 class CircularrayEmptyValue;
 class CircularrayInitializerValue;
+class CircularrayReservedValue;
 class ClassDefinitionValue;
 class ClassMatcherValue;
 class ClassPostinitializerValue;

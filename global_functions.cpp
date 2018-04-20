@@ -605,8 +605,8 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     }
 
     // Allow callers turn off contexts this way
-    if (context && (*context)[0] == any_type)
-        context = NULL;
+    //if (context && (*context)[0] == any_type)
+    //    context = NULL;
 
     CodeScope *code_scope = NULL;
     

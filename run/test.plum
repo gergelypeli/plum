@@ -497,7 +497,7 @@ test_controls? :Function as:
         prints("Now yielding.")
         :lol 33
         prints("Don't print this!")
-        44
+        :lol 44
         
     prints("Let's hope that {x3} == 33." {})
     
@@ -523,10 +523,10 @@ test_controls? :Function as:
     :if !! Boolean `true then:
         prints("Faker news!")
 
-    twice(how: h? what: (prints("You want {h}?" {}), h * 1000))
+    twice(how: h? what:this: (prints("You want {h}?" {}), :this h * 1000))
 
     :eval:
-        passthrough(what: (:eval, 0))
+        passthrough(what:this: (:eval, :this 0))
         prints("This shouldn't be printed!")
 
     :hihi:if `true then: x3 else:if `false then: x4
@@ -752,21 +752,7 @@ test_classes? :Function Greetable Ref as:
     :return killer
 
 
-start? :Function as:
-    test_integers
-    test_floats
-    test_strings
-    test_enums
-    test_ovalues
-    test_records
-    test_multis
-    test_controls
-    test_arrays
-    test_circularrays
-    test_rbtrees
-    test_options
-    test_classes
-    
+test_files? :Function as:
     f? = fs.Path `at "test.mkdir"
     prints("Path is at {x}" {x: f name})
     
@@ -784,5 +770,29 @@ start? :Function as:
             :yield
         else:
             prints("MKDIR WEIRD EXCEPTION!")
+
+    b? Byte Array Ref = `reserved 100
+    :try
+        stdin? fs.Reader Ref = `stdin
+        stdin read(b)
+        
+    prints("Read {n} bytes from stdin." {n: b length})
+    
+
+start? :Function as:
+    test_integers
+    test_floats
+    test_strings
+    test_enums
+    test_ovalues
+    test_records
+    test_multis
+    test_controls
+    test_arrays
+    test_circularrays
+    test_rbtrees
+    test_options
+    test_classes
+    test_files
         
     prints("Done.")

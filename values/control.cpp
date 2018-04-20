@@ -46,13 +46,23 @@ public:
             
             return true;
         }
+
+        Kwargs fake_kwargs;
+
+        if (args.size() > 1) {
+            Expr *arg = new Expr(Expr::TUPLE, Token());
+            arg->args = std::move(args);
+            args.clear();
+            args.push_back(std::unique_ptr<Expr>(arg));
+            //std::cerr << "XXX " << token << "\n";
+            //throw INTERNAL_ERROR;
+        }
+            
+        return check_arguments(args, fake_kwargs, ArgInfos { arg_info });
     
         TypeSpec *context = arg_info.context;
-        //if (context && (*context)[0] == any_type)
-        //    context = NULL;
     
         Value *v = make<CodeBlockValue>(context);
-        Kwargs fake_kwargs;
 
         if (!v->check(args, fake_kwargs, arg_info.scope))
             return false;
@@ -741,6 +751,7 @@ public:
         }
         
         TypeSpec ets = { et };
+        std::cerr << ":raise context: " << ets << ".\n";
         
         if (!check_args(args, { "value", &ets, scope, &value }))
             return false;
@@ -808,9 +819,9 @@ public:
 
         // Allow a :try without error handling to return the body type even without
         // the context explicitly set, to make :try in a declaration simpler.
-        TypeSpec *ctx = (kwargs.size() == 0 ? NULL : &context_ts);
+        //TypeSpec *ctx = (kwargs.size() == 0 ? &ANY_TS : &context_ts);
         
-        if (!check_args(args, { "body", ctx, try_scope, &body }))
+        if (!check_args(args, { "body", &context_ts, try_scope, &body }))
             return false;
         
         if (kwargs.size() == 0)
@@ -994,7 +1005,9 @@ public:
         if (!setup_yieldable(scope))
             return false;
         
-        if (!check_args(args, { "body", &context_ts, eval_scope, &body }))
+        TypeSpec *ctx = (context_ts == VOID_TS ? &context_ts : &WHATEVER_TS);
+        
+        if (!check_args(args, { "body", ctx, eval_scope, &body }))
             return false;
         
         ArgInfos infos = {
@@ -1012,13 +1025,13 @@ public:
     
     virtual Storage compile(X64 *x64) {
         x64->unwind->push(this);
-        Storage s = body->compile(x64);
+        body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
         
         Storage yield_storage = get_yield_storage();
         
-        if (yield_storage.where != NOWHERE)
-            body->ts.create(s, yield_storage, x64);
+        //if (yield_storage.where != NOWHERE)
+            //body->ts.create(s, yield_storage, x64);
         
         eval_scope->finalize_contents(x64);
 
