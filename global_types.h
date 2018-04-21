@@ -91,6 +91,7 @@ class WeakAnchorageDeadMatcherValue;
 class WeakAnchorageLiveMatcherValue;
 class WeakAnchorageValue;
 class YieldValue;
+class YieldableValue;
 
 class TypeSpec;
 typedef std::array<TypeSpec,4> TypeMatch;

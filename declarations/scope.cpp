@@ -388,45 +388,19 @@ public:
 
 class EvalScope: public CodeScope {
 public:
-    TypeSpec ts;
-    std::string label;
-    Variable *yield_var;
+    YieldableValue *yieldable_value;
 
-    EvalScope(TypeSpec t, std::string l)
+    EvalScope(YieldableValue *yv)
         :CodeScope() {
-        ts = t;
-        label = l;
-        yield_var = NULL;
+        yieldable_value = yv;
+    }
+
+    YieldableValue *get_yieldable_value() {
+        return yieldable_value;
     }
 
     EvalScope *get_eval_scope() {
         return this;
-    }
-
-    int get_exception_value() {
-        EvalScope *es = outer_scope->get_eval_scope();
-        
-        return (es ? es->get_exception_value() : RETURN_EXCEPTION) - 1;
-    }
-    
-    TypeSpec get_ts() {
-        return ts;
-    }
-    
-    const char *get_variable_name() {
-        return "<yielded>";
-    }
-    
-    std::string get_label() {
-        return label;
-    }
-    
-    void set_yield_var(Variable *v) {
-        yield_var = v;
-    }
-    
-    Variable *get_yield_var() {
-        return yield_var;
     }
 };
 

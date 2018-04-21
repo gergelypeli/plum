@@ -541,6 +541,10 @@ public:
         :Type(name, {}, value_metatype) {
     }
 
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        return NOWHERE;
+    }
+
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE)
             throw INTERNAL_ERROR;

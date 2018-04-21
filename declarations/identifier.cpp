@@ -171,14 +171,14 @@ public:
 
 class Yield: public Identifier {
 public:
-    EvalScope *eval_scope;
+    YieldableValue *yieldable_value;
     
-    Yield(std::string n, EvalScope *es)
+    Yield(std::string n, YieldableValue *yv)
         :Identifier(n, NO_TS) {
-        eval_scope = es;
+        yieldable_value = yv;
     }
     
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make<YieldValue>(eval_scope);
+        return make<YieldValue>(yieldable_value);
     }
 };

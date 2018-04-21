@@ -201,6 +201,8 @@ public:
 };
 
 
+
+
 class YieldableValue: public ControlValue {
 public:
     std::string eval_name;
@@ -214,32 +216,66 @@ public:
         yield_var = NULL;
     }
 
+    virtual std::string get_label() {
+        return eval_name;
+    }
+
     virtual bool setup_yieldable(Scope *scope) {
         ts = context_ts;
-            
-        eval_scope = new EvalScope(ts, eval_name);
+
+        eval_scope = new EvalScope(this);
         scope->add(eval_scope);
         
         if (eval_name.size())
-            eval_scope->add(new Yield(":" + eval_name, eval_scope));
+            eval_scope->add(new Yield(":" + eval_name, this));
         
-        if (ts != VOID_TS) {
+        if (ts.where(AS_VALUE) == STACK) {
             // Add the variable after the EvalScope, so it can survive the finalization
             // of the scope, and can be left uninitialized until the successful completion.
-            yield_var = new Variable(eval_scope->get_variable_name(), NO_TS, ts);
+            yield_var = new Variable("<" + eval_name + ">", NO_TS, ts);
             scope->add(yield_var);
-            eval_scope->set_yield_var(yield_var);
         }
         
         return true;
     }
-    
+
+    virtual int get_yield_exception_value() {
+        EvalScope *es = eval_scope->outer_scope->get_eval_scope();
+        
+        return (es ? es->get_yieldable_value()->get_yield_exception_value() : RETURN_EXCEPTION) - 1;
+    }
+
     virtual Storage get_yield_storage() {
-        if (yield_var) {
-            return yield_var->get_local_storage();
-        }
-        else
+        switch (ts.where(AS_VALUE)) {
+        case NOWHERE:
             return Storage();
+        case REGISTER:
+            return Storage(REGISTER, RAX);
+        case SSEREGISTER:
+            return Storage(SSEREGISTER, XMM0);
+        case STACK:
+            return yield_var->get_local_storage();
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual void store_yield(Storage s, X64 *x64) {
+        Storage t = get_yield_storage();
+        //std::cerr << "Storing " << eval_name << " yield into " << t << "\n";
+        
+        switch (t.where) {
+        case NOWHERE:
+        case REGISTER:
+        case SSEREGISTER:
+            ts.store(s, t, x64);
+            break;
+        case MEMORY:
+            ts.create(s, t, x64);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        };
     }
 };
 
@@ -542,7 +578,7 @@ public:
         
         Label live;
         
-        x64->op(CMPB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
+        x64->op(CMPB, EXCEPTION_ADDRESS, get_yield_exception_value());
         x64->op(JE, live);
 
         x64->unwind->initiate(eval_scope, x64);
@@ -844,11 +880,8 @@ public:
         handling = false;
         Storage s = body->compile(x64);
         x64->unwind->pop(this);
-        
-        Storage var_storage = get_yield_storage();
 
-        if (var_storage.where != NOWHERE)
-            body->ts.create(s, var_storage, x64);
+        store_yield(s, x64);
 
         try_scope->finalize_contents(x64);
         
@@ -886,7 +919,7 @@ public:
         
         Label caught;
     
-        x64->op(CMPB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
+        x64->op(CMPB, EXCEPTION_ADDRESS, get_yield_exception_value());
         x64->op(JE, caught);
 
         x64->unwind->initiate(eval_scope, x64);
@@ -1007,11 +1040,6 @@ public:
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
         
-        Storage yield_storage = get_yield_storage();
-        
-        //if (yield_storage.where != NOWHERE)
-            //body->ts.create(s, yield_storage, x64);
-        
         eval_scope->finalize_contents(x64);
 
         Label ok, caught;
@@ -1019,7 +1047,7 @@ public:
         x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         x64->op(JE, ok);
         
-        x64->op(CMPB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
+        x64->op(CMPB, EXCEPTION_ADDRESS, get_yield_exception_value());
         x64->op(JE, caught);
         
         x64->unwind->initiate(eval_scope, x64);
@@ -1029,7 +1057,7 @@ public:
         
         x64->code_label(ok);
         
-        return yield_storage;
+        return get_yield_storage();
     }
     
     virtual Scope *unwind(X64 *x64) {
@@ -1042,17 +1070,17 @@ class YieldValue: public ControlValue {
 public:
     Declaration *dummy;
     std::unique_ptr<Value> value;
-    EvalScope *eval_scope;
+    YieldableValue *yieldable_value;
 
-    YieldValue(EvalScope *es)
-        :ControlValue(es->get_label()) {
+    YieldValue(YieldableValue *yv)
+        :ControlValue(yv->get_label()) {
         dummy = NULL;
-        eval_scope = es;
+        yieldable_value = yv;
         ts = WHATEVER_TS;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        TypeSpec arg_ts = eval_scope->get_ts();
+        TypeSpec arg_ts = yieldable_value->ts;
         
         if (arg_ts == VOID_TS)
             arg_ts = NO_TS;
@@ -1082,12 +1110,10 @@ public:
     virtual Storage compile(X64 *x64) {
         if (value) {
             Storage s = value->compile(x64);
-
-            Storage var_storage = eval_scope->get_yield_var()->get_local_storage();
-            value->ts.create(s, var_storage, x64);
+            yieldable_value->store_yield(s, x64);
         }
         
-        x64->op(MOVB, EXCEPTION_ADDRESS, eval_scope->get_exception_value());
+        x64->op(MOVB, EXCEPTION_ADDRESS, yieldable_value->get_yield_exception_value());
         x64->unwind->initiate(dummy, x64);
         
         // Since we're Whatever, must deceive our parent with a believable Storage.
