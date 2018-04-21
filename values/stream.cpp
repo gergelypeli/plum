@@ -51,6 +51,38 @@ public:
 };
 
 
+// This is a simplified CodeBlockValue that allows a nonvoid result
+class InterpolationValue: public Value {
+public:
+    std::vector<std::unique_ptr<Value>> statements;
+
+    InterpolationValue()
+        :Value(STRING_TS) {
+    }
+
+    virtual void add_statement(Value *value) {
+        statements.push_back(std::unique_ptr<Value>(value));
+        value->complete_definition();
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob;
+        
+        for (unsigned i = 0; i < statements.size(); i++)
+            clob = clob | statements[i]->precompile(preferred);
+            
+        return clob;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        for (unsigned i = 0; i < statements.size() - 1; i++)
+            statements[i]->compile_and_store(x64, Storage());
+        
+        return statements.back()->compile(x64);
+    }
+};
+
+
 CreateValue *make_initialization_by_value(std::string name, Value *v, Scope *scope) {
     DeclarationValue *dv = new DeclarationValue(name);
     dv->fix_bare(v->ts, scope);
@@ -75,18 +107,18 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     CodeScope *code_scope = new CodeScope;
     scope->add(code_scope);
     
-    CodeBlockValue *block = new CodeBlockValue(NULL);
+    InterpolationValue *interpolation = new InterpolationValue;
     
     CreateValue *cv = make_initialization_by_value("<interpolated>", new StringBufferValue(100), code_scope);
     Variable *interpolated_var = ptr_cast<Variable>(cv->get_decl());
-    block->add_statement(cv);
+    interpolation->add_statement(cv);
 
     for (auto &kv : expr->kwargs) {
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
         Value *keyword_value = typize(expr, code_scope);
         CreateValue *decl_value = make_initialization_by_value(keyword, keyword_value, code_scope);
-        block->add_statement(decl_value);
+        interpolation->add_statement(decl_value);
     }
 
     bool pseudo_only = (expr->kwargs.size() > 0);
@@ -130,16 +162,14 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             throw TYPE_ERROR;
         }
 
-        block->add_statement(streamify);
+        interpolation->add_statement(streamify);
         identifier = !identifier;
     }
 
     TypeMatch match;  // kinda unnecessary
     Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, match);
     ret = ret->lookup_inner("realloc");  // FIXME: missing check, but at least no arguments
-    block->add_statement(ret, true);
+    interpolation->add_statement(ret);
     
-    return make<CodeScopeValue>(block, code_scope);
+    return make<CodeScopeValue>(interpolation, code_scope);
 }
-
-

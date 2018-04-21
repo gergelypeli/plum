@@ -44,10 +44,10 @@ public:
         
         // Can't let the result be passed as a MEMORY storage, because it may
         // point to a local variable that we're about to destroy. So grab that
-        // value while we can. 
+        // value while we can. This actually happens for interpolations.
         if (s.where == MEMORY)
             s = value->ts.store(s, save_storage, x64);
-        
+
         code_scope->finalize_contents(x64);
 
         if (may_be_aborted) {
@@ -131,8 +131,11 @@ public:
     TypeSpec *context;
 
     CodeBlockValue(TypeSpec *c)
-        :Value(VOID_TS) {  // Will be overridden
+        :Value(VOID_TS) {  // May be overridden
         context = c;
+        
+        if (!c || (*c != VOID_TS && *c != VOID_CODE_TS && *c != WHATEVER_TS && *c != WHATEVER_CODE_TS))
+            throw INTERNAL_ERROR;
     }
 
     virtual void add_statement(Value *value, bool result = false) {
@@ -145,11 +148,6 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        //if (args.size() < 2) {
-        //    std::cerr << "Weird, I thought tuples contain at least two expressions!\n";
-        //    throw INTERNAL_ERROR;
-        //}
-
         if (kwargs.size() > 0) {
             std::cerr << "Labeled statements make no sense!\n";
             return false;
