@@ -984,7 +984,7 @@ public:
         if (!setup_yieldable(scope))
             return false;
         
-        TypeSpec *ctx = (context_ts == VOID_TS ? &context_ts : &WHATEVER_TS);
+        TypeSpec *ctx = (context_ts == VOID_TS ? &VOID_CODE_TS : &WHATEVER_CODE_TS);
         
         if (!check_args(args, { "body", ctx, eval_scope, &body }))
             return false;

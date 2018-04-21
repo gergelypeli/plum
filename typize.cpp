@@ -441,9 +441,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         throw INTERNAL_ERROR;
     }
     
-    //if (context && (*context)[0] == code_type)
-    //    value->set_marker(marker);
-    
     return value;
 }
 

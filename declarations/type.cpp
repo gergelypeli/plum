@@ -573,6 +573,10 @@ public:
         :Type(name, {}, value_metatype) {
     }
 
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        return NOWHERE;
+    }
+
     virtual Allocation measure(TypeMatch tm) {
         throw INTERNAL_ERROR;
     }

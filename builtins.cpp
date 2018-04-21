@@ -283,6 +283,7 @@ void builtin_types(Scope *root_scope) {
     MULTITYPE_TS = { multitype_type };
     UNIT_TS = { unit_type };
     WHATEVER_TS = { whatever_type };
+    WHATEVER_CODE_TS = { code_type, whatever_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };

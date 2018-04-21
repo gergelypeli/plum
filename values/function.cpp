@@ -201,33 +201,11 @@ public:
         
             // The body is in a separate CodeScope, but instead of a dedicated CodeValue,
             // we'll handle its compilation.
-            Value *bv = typize(deferred_body_expr, bs, &VOID_CODE_TS);
+            // Disallow fallthrough in nonvoid functions.
+            bool is_void = (fn_scope->result_scope->contents.size() == 0);
+            TypeSpec *ctx = (is_void ? &VOID_CODE_TS : &WHATEVER_CODE_TS);
+            Value *bv = typize(deferred_body_expr, bs, ctx);
             body.reset(bv);
-            
-            if (fn_scope->result_scope->contents.size()) {
-                // TODO: this is a very lame check for a mandatory :return, but we should
-                // probably have a NORETURN type for this.
-
-                FunctionReturnValue *rv = ptr_cast<FunctionReturnValue>(bv);
-                
-                if (!rv) {
-                    CodeBlockValue *cbv = ptr_cast<CodeBlockValue>(bv);
-                    if (!cbv)
-                        throw INTERNAL_ERROR;
-                    
-                    Value *last_statement = cbv->statements.back().get();
-                    CodeScopeValue *csv = ptr_cast<CodeScopeValue>(last_statement);
-                    if (!csv)
-                        throw INTERNAL_ERROR;
-                    
-                    rv = ptr_cast<FunctionReturnValue>(csv->value.get());
-                    
-                    if (!rv) {
-                        std::cerr << "Non-Void function " << function->name << " does not end with a :return control: " << token << "\n";
-                        return false;
-                    }
-                }
-            }
             
             if (pv) {
                 if (!pv->is_complete()) {
@@ -871,7 +849,7 @@ public:
     TypeMatch match;
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
-        :Value(VOID_TS) {
+        :Value(WHATEVER_TS) {
         if (v)
             throw INTERNAL_ERROR;
             
