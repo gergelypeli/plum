@@ -169,11 +169,6 @@ public:
                 add_statement(v.release(), false);
             }
             
-            //std::cerr << "Code block final statement is " << statements.back()->ts << "\n";
-            
-            //if (statements.back()->ts == WHATEVER_TS)
-            //    ts = WHATEVER_TS;
-            
             std::unique_ptr<Value> v;
         
             if (!check_argument(0, args.back().get(), { { "stmt", context, scope, &v } })) {

@@ -47,40 +47,17 @@ public:
             return true;
         }
 
-        Kwargs fake_kwargs;
-
         if (args.size() > 1) {
+            // Controls don't want multiple positional arguments, turn them into
+            // a single code block
             Expr *arg = new Expr(Expr::TUPLE, Token());
             arg->args = std::move(args);
             args.clear();
             args.push_back(std::unique_ptr<Expr>(arg));
-            //std::cerr << "XXX " << token << "\n";
-            //throw INTERNAL_ERROR;
         }
             
+        Kwargs fake_kwargs;
         return check_arguments(args, fake_kwargs, ArgInfos { arg_info });
-    
-        TypeSpec *context = arg_info.context;
-    
-        Value *v = make<CodeBlockValue>(context);
-
-        if (!v->check(args, fake_kwargs, arg_info.scope))
-            return false;
-        
-        // TODO: isn't the code_block_value's job to check this type already?
-        if (context && (*context)[0] != equalitymatcher_type) {
-            TypeMatch match;
-            
-            if (!typematch(*context, v, match)) {
-                std::cerr << "Wrong :" << name << " positional argument type!\n";
-                std::cerr << "  Expected " << *context << " got " << v->ts << "!\n";
-                return false;
-            }
-        }
-        
-        arg_info.target->reset(v);
-        
-        return true;
     }
 
     virtual bool check_kwargs(Kwargs &kwargs, ArgInfos arg_infos) {
@@ -751,7 +728,6 @@ public:
         }
         
         TypeSpec ets = { et };
-        std::cerr << ":raise context: " << ets << ".\n";
         
         if (!check_args(args, { "value", &ets, scope, &value }))
             return false;
@@ -819,7 +795,10 @@ public:
 
         // Allow a :try without error handling to return the body type even without
         // the context explicitly set, to make :try in a declaration simpler.
-        //TypeSpec *ctx = (kwargs.size() == 0 ? &ANY_TS : &context_ts);
+        if (context_ts == ANY_TS && kwargs.size() > 0) {
+            std::cerr << "A :try in Any context can't have multiple tails: " << token << "\n";
+            return false;
+        }
         
         if (!check_args(args, { "body", &context_ts, try_scope, &body }))
             return false;
