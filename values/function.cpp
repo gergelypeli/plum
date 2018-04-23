@@ -13,7 +13,6 @@ public:
     Variable *self_var;
     TypeMatch match;
     RoleScope *role_scope;
-    bool has_code_arg;
 
     FunctionType type;
     std::string import_name;
@@ -29,7 +28,6 @@ public:
         self_var = NULL;
         role_scope = NULL;
         fn_scope = NULL;
-        has_code_arg = false;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -235,7 +233,6 @@ public:
             exception_type_value->compile(x64);  // to compile treenum definitions
     
         unsigned frame_size = fn_scope->get_frame_size();
-        //Label epilogue_label = fn_scope->get_epilogue_label();
 
         int containing_role_offset = (role_scope ? role_scope->get_role()->compute_offset(match) : 0);
         if (containing_role_offset)
@@ -264,7 +261,7 @@ public:
         
         Storage fes = fn_scope->get_forwarded_exception_storage();
         if (fes.where == MEMORY)
-            x64->op(MOVQ, fes.address, 0);
+            x64->op(MOVQ, fes.address, NO_EXCEPTION);
         
         if (containing_role_offset)
             x64->op(SUBQ, self_storage.address, containing_role_offset);
@@ -320,6 +317,7 @@ public:
         std::vector<TypeSpec> arg_tss;
         std::vector<std::string> arg_names;
         std::vector<TypeSpec> result_tss;
+        bool has_code_arg = false;
 
         for (auto &d : fn_scope->head_scope->contents) {
             // FIXME: with an (invalid here) nested declaration this can be a CodeScope, too
@@ -333,9 +331,6 @@ public:
                     has_code_arg = true;
             }
         }
-
-        if (has_code_arg)
-            fn_scope->make_forwarded_exception_storage();
 
         // Not returned, but must be processed
         for (auto &d : fn_scope->self_scope->contents) {
@@ -355,6 +350,19 @@ public:
             else
                 throw INTERNAL_ERROR;
         }
+
+        // Preparing hidden local variables
+        StorageWhere simple_where = (
+            result_tss.size() == 0 ? NOWHERE :
+            result_tss.size() == 1 ? result_tss[0].where(AS_VALUE) :
+            STACK
+        );
+        
+        if (simple_where != NOWHERE && simple_where != REGISTER && simple_where != SSEREGISTER)
+            fn_scope->make_result_alias_storage();
+
+        if (has_code_arg)
+            fn_scope->make_forwarded_exception_storage();
         
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         
@@ -872,12 +880,15 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        StorageWhere simple_where = NOWHERE;
-        
-        if (result_vars.size() == 1)
-            simple_where = result_vars[0]->alloc_ts.where(AS_VALUE);
+        StorageWhere simple_where = (
+            result_vars.size() == 0 ? NOWHERE :
+            result_vars.size() == 1 ? result_vars[0]->alloc_ts.where(AS_VALUE) :
+            STACK
+        );
             
-        if (simple_where == REGISTER) {
+        if (simple_where == NOWHERE)
+            ;
+        else if (simple_where == REGISTER) {
             values[0]->compile_and_store(x64, Storage(REGISTER, RAX));
         }
         else if (simple_where == SSEREGISTER) {
@@ -888,6 +899,9 @@ public:
             // destroy the already set ones before unwinding!
         
             Storage ras = fn_scope->get_result_alias_storage();
+            if (ras.where != MEMORY)
+                throw INTERNAL_ERROR;
+            
             Storage r = Storage(MEMORY, Address(RAX, 0));
         
             x64->unwind->push(this);
@@ -900,9 +914,7 @@ public:
                 Storage s = values[i]->compile(x64);
                 Storage t = var_storage;
 
-                if (ras.where == MEMORY)
-                    x64->op(MOVQ, RAX, ras.address);
-                    
+                x64->op(MOVQ, RAX, ras.address);
                 var_ts.create(s, t, x64);
             }
 

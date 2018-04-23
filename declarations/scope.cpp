@@ -505,7 +505,7 @@ public:
     }
     
     Storage get_result_alias_storage() {
-        return forwarded_exception_storage;
+        return result_alias_storage;
     }
 
     virtual TypeSpec pivot_type_hint() {
