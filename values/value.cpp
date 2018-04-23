@@ -133,7 +133,7 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        x64->op(MOVB, EXCEPTION_ADDRESS, raised_type->get_keyword_index(keyword));
+        x64->op(MOVQ, RDX, raised_type->get_keyword_index(keyword));
         x64->unwind->initiate(raising_dummy, x64);
     }
 };
@@ -284,6 +284,7 @@ public:
     Evaluable *evaluable;
     std::vector<std::unique_ptr<Value>> arg_values;
     std::vector<Storage> arg_storages;
+    FunctionScope *fn_scope;
     
     EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
         :Value(typesubst(e->alloc_ts, tm).unprefix(code_type)) {
@@ -320,6 +321,8 @@ public:
         // Must insert dummy after evaluating arguments
         if (!check_raise(code_break_exception_type, scope))
             return false;
+
+        fn_scope = scope->get_function_scope();
             
         return true;
     }
@@ -368,8 +371,16 @@ public:
         // This is like with function calls
         Label noex;
         x64->op(JE, noex);  // Expect ZF if OK
-        x64->op(MOVB, EXCEPTION_ADDRESS, BL);  // Expect BL if not OK
+
+        // Store forwarded exception, and replace it with CODE_BREAK
+        Storage fes = fn_scope->get_forwarded_exception_storage();
+        if (fes.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        x64->op(MOVQ, fes.address, RDX);
+        x64->op(MOVQ, RDX, code_break_exception_type->get_keyword_index("CODE_BREAK"));
         x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
+
         x64->code_label(noex);
 
         x64->unwind->pop(this);

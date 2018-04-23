@@ -13,6 +13,7 @@ public:
     Variable *self_var;
     TypeMatch match;
     RoleScope *role_scope;
+    bool has_code_arg;
 
     FunctionType type;
     std::string import_name;
@@ -28,6 +29,7 @@ public:
         self_var = NULL;
         role_scope = NULL;
         fn_scope = NULL;
+        has_code_arg = false;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -255,8 +257,14 @@ public:
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(MOVQ, RESULT_ALIAS_ADDRESS, RAX);
+        
+        Storage ras = fn_scope->get_result_alias_storage();
+        if (ras.where == MEMORY)
+            x64->op(MOVQ, ras.address, RAX);
+        
+        Storage fes = fn_scope->get_forwarded_exception_storage();
+        if (fes.where == MEMORY)
+            x64->op(MOVQ, fes.address, 0);
         
         if (containing_role_offset)
             x64->op(SUBQ, self_storage.address, containing_role_offset);
@@ -266,23 +274,27 @@ public:
         x64->unwind->pop(this);
         
         x64->op(NOP);
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         fn_scope->body_scope->finalize_contents(x64);
         
         if (may_be_aborted) {
             Label ok;
-            x64->op(CMPB, EXCEPTION_ADDRESS, RETURN_EXCEPTION);
+            x64->op(CMPQ, RDX, RETURN_EXCEPTION);
             x64->op(JNE, ok);
-            x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+            x64->op(MOVQ, RDX, NO_EXCEPTION);  // caught
             x64->code_label(ok);
         }
 
         if (containing_role_offset)
             x64->op(ADDQ, self_storage.address, containing_role_offset);
         
-        x64->op(MOVB, BL, EXCEPTION_ADDRESS);
         x64->op(ADDQ, RSP, frame_size);
-        x64->op(CMPB, BL, 0);  // ZF => OK
+        
+        if (fes.where == MEMORY)
+            x64->op(MOVQ, RDX, fes.address);
+            
+        x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
         x64->op(POPQ, RBP);
         x64->op(RET);
         
@@ -316,8 +328,14 @@ public:
             if (v) {
                 arg_tss.push_back(v->alloc_ts);  // FIXME
                 arg_names.push_back(v->name);
+                
+                if (v->alloc_ts[0] == code_type)
+                    has_code_arg = true;
             }
         }
+
+        if (has_code_arg)
+            fn_scope->make_forwarded_exception_storage();
 
         // Not returned, but must be processed
         for (auto &d : fn_scope->self_scope->contents) {
@@ -518,7 +536,7 @@ public:
                 
             // AL contains the potential exception
             x64->op(CMPB, RAX, 0);  // set ZF if no exception
-            x64->op(LEA, RBX, Address(RAX, ERRNO_TREENUM_OFFSET));
+            x64->op(LEA, RDX, Address(RAX, ERRNO_TREENUM_OFFSET));
         }
     }
     
@@ -590,11 +608,15 @@ public:
     virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         if (arg_ts[0] == code_type) {
             TypeSpec rts = arg_ts.unprefix(code_type);
-            Label begin, skip, end, except;
+            Label begin, skip, end;
             
             x64->op(JMP, skip);
+            
+            // Compile the Code argument, and make sure unwindings only unwind this piece
+            // of code, not the actual function call. We'll report our exception/yield,
+            // even if the function itself can't interpret it, only forward it back.
             x64->code_label(begin);
-            current_except_label = &except;  // for unwinding
+            current_except_label = &end;  // for unwinding
             
             if (arg_value) {
                 Storage s = arg_value->compile(x64);
@@ -616,16 +638,9 @@ public:
                 }
             }
             
-            x64->op(MOVB, BL, 0);
-            
             x64->code_label(end);
-            x64->op(CMPB, BL, 0);  // ZF => OK
+            x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
             x64->op(RET);
-            
-            // Jump here if the code above raise an exception, and report CODE_BREAK
-            x64->code_label(except);
-            x64->op(MOVB, BL, code_break_exception_type->get_keyword_index("CODE_BREAK"));
-            x64->op(JMP, end);
             
             x64->code_label(skip);
             x64->op(LEARIP, RBX, begin);
@@ -672,46 +687,7 @@ public:
             arg_ts.store(s, Storage(), x64);
         }
     }
-    /*
-    virtual Storage ret_res(TypeSpec res_ts, X64 *x64) {
-        // Return a result from the stack in its native storage
-        Storage s, t;
-        
-        switch (res_ts.where(AS_ARGUMENT)) {
-        case MEMORY:
-            s = Storage(STACK);
-            
-            switch (res_ts.where(AS_VALUE)) {
-            case REGISTER:
-                t = Storage(REGISTER, reg);
-                break;
-            case STACK:
-                t = Storage(STACK);
-                break;
-            default:
-                throw INTERNAL_ERROR;
-            }
-            break;
-        case ALIAS:
-            s = Storage(ALISTACK);
-            
-            switch (res_ts.where(AS_VARIABLE)) {
-            case MEMORY:
-                // Pop the address into a MEMORY with a dynamic base register
-                t = Storage(MEMORY, Address(reg, 0));
-                break;
-            default:
-                throw INTERNAL_ERROR;
-            }
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        res_ts.store(s, t, x64);
-        return t;
-    }
-    */
+
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
         bool is_void = (res_tss.size() == 0);
@@ -759,21 +735,14 @@ public:
             call_static(x64, passed_size);
         
         if (function->exception_type || has_code_arg) {
-            Label ex, noex;
+            Label noex;
             
             x64->op(JE, noex);  // Expect ZF if OK
-            x64->op(MOVB, EXCEPTION_ADDRESS, BL);  // Expect BL if not OK
             
-            x64->code_label(ex);
+            // Reraise exception in RDX (also exceptions forwarded back from a Code argument)
             x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
             
             x64->code_label(noex);
-            
-            if (has_code_arg) {
-                // Must continue unwinding if a Code argument raised something
-                x64->op(CMPB, EXCEPTION_ADDRESS, 0);
-                x64->op(JNE, ex);
-            }
         }
 
         x64->unwind->pop(this);
@@ -847,6 +816,7 @@ public:
     Declaration *dummy;
     std::vector<Storage> var_storages;
     TypeMatch match;
+    FunctionScope *fn_scope;
     
     FunctionReturnValue(OperationType o, Value *v, TypeMatch &m)
         :Value(WHATEVER_TS) {
@@ -862,7 +832,7 @@ public:
             return false;
         }
 
-        FunctionScope *fn_scope = scope->get_function_scope();
+        fn_scope = scope->get_function_scope();
         if (!fn_scope) {
             std::cerr << "A :return control outside of a function!\n";
             return false;
@@ -917,6 +887,7 @@ public:
             // Since we store each result in a variable, upon an exception we must
             // destroy the already set ones before unwinding!
         
+            Storage ras = fn_scope->get_result_alias_storage();
             Storage r = Storage(MEMORY, Address(RAX, 0));
         
             x64->unwind->push(this);
@@ -929,22 +900,26 @@ public:
                 Storage s = values[i]->compile(x64);
                 Storage t = var_storage;
 
-                x64->op(MOVQ, RAX, RESULT_ALIAS_ADDRESS);
+                if (ras.where == MEMORY)
+                    x64->op(MOVQ, RAX, ras.address);
+                    
                 var_ts.create(s, t, x64);
             }
 
             x64->unwind->pop(this);
         }
         
-        x64->op(MOVB, EXCEPTION_ADDRESS, RETURN_EXCEPTION);
+        x64->op(MOVQ, RDX, RETURN_EXCEPTION);
         x64->unwind->initiate(dummy, x64);
         
         return Storage();
     }
     
     virtual Scope *unwind(X64 *x64) {
-        x64->op(MOVQ, RAX, RESULT_ALIAS_ADDRESS);
-        
+        Storage ras = fn_scope->get_result_alias_storage();
+        if (ras.where == MEMORY)
+            x64->op(MOVQ, RAX, ras.address);
+            
         for (int i = var_storages.size() - 1; i >= 0; i--)
             result_vars[i]->alloc_ts.destroy(var_storages[i], x64);
             

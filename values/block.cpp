@@ -24,10 +24,10 @@ public:
         if (value->ts != VOID_TS) {
             switch (value->ts.where(AS_VALUE)) {
             case REGISTER:
-                save_storage = Storage(REGISTER, preferred.get_any());
+                save_storage = Storage(REGISTER, RAX);
                 break;
             case SSEREGISTER:
-                save_storage = Storage(SSEREGISTER, preferred.get_sse());
+                save_storage = Storage(SSEREGISTER, XMM0);
                 break;
             default:
                 save_storage = Storage(STACK);
@@ -42,6 +42,8 @@ public:
         Storage s = value->compile(x64);
         x64->unwind->pop(this);
         
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
+        
         // Can't let the result be passed as a MEMORY storage, because it may
         // point to a local variable that we're about to destroy. So grab that
         // value while we can. This actually happens for interpolations.
@@ -52,7 +54,7 @@ public:
 
         if (may_be_aborted) {
             Label ok;
-            x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
             x64->op(JE, ok);
     
             x64->unwind->initiate(code_scope, x64);

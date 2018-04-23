@@ -448,6 +448,8 @@ public:
     ArgumentScope *head_scope;
     CodeScope *body_scope;
     TreenumerationType *exception_type;
+    Storage forwarded_exception_storage;
+    Storage result_alias_storage;
 
     FunctionScope()
         :Scope(FUNCTION_SCOPE) {
@@ -488,6 +490,22 @@ public:
     
     TreenumerationType *get_exception_type() {
         return exception_type;
+    }
+
+    void make_forwarded_exception_storage() {
+        forwarded_exception_storage.where = MEMORY;
+    }
+    
+    Storage get_forwarded_exception_storage() {
+        return forwarded_exception_storage;
+    }
+
+    void make_result_alias_storage() {
+        result_alias_storage.where = MEMORY;
+    }
+    
+    Storage get_result_alias_storage() {
+        return forwarded_exception_storage;
     }
 
     virtual TypeSpec pivot_type_hint() {
@@ -540,11 +558,15 @@ public:
 
         //std::cerr << "Function head is " << head_scope->size - 16 << "bytes, self is " << self_scope->size - head_scope->size << " bytes, result is " << result_scope->size - self_scope->size << " bytes.\n";
 
-        // Reserve [RBP - 8] for local exceptions
-        body_scope->reserve(Allocation { INTEGER_SIZE, 0, 0, 0 });
+        if (result_alias_storage.where == MEMORY) {
+            Allocation a = body_scope->reserve(Allocation { ALIAS_SIZE, 0, 0, 0 });
+            result_alias_storage.address = Address(RBP, a.concretize());
+        }
         
-        // Reserve [RBP - 16] for the result address
-        body_scope->reserve(Allocation { ADDRESS_SIZE, 0, 0, 0 });
+        if (forwarded_exception_storage.where == MEMORY) {
+            Allocation a = body_scope->reserve(Allocation { INTEGER_SIZE, 0, 0, 0 });
+            forwarded_exception_storage.address = Address(RBP, a.concretize());
+        }
         
         body_scope->allocate();
         

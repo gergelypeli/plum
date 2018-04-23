@@ -266,6 +266,7 @@ public:
         
         switch (t.where) {
         case NOWHERE:
+            break;
         case REGISTER:
         case SSEREGISTER:
             ts.store(s, t, x64);
@@ -467,7 +468,7 @@ public:
         if (es.where != MEMORY || es.address.base != RBP)
             throw INTERNAL_ERROR;  // FIXME: lame temporary restriction only
         
-        Label start, end, ok;
+        Label start, end;
         x64->code_label(start);
 
         x64->unwind->push(this);
@@ -479,12 +480,9 @@ public:
         // On exception we jump here, so the each variable won't be created
         next_try_scope->finalize_contents(x64);
         
-        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JE, ok);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JMP, end);
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        x64->op(JNE, end);  // dropped
 
-        x64->code_label(ok);
         body->compile_and_store(x64, Storage());
         
         next->ts.destroy(es, x64);  // destroy the each variable
@@ -499,8 +497,6 @@ public:
     
     virtual Scope *unwind(X64 *x64) {
         // May be called only while executing next
-        //x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        //x64->op(JMP, end);
         return next_try_scope;
     }
 };
@@ -571,6 +567,7 @@ public:
         
         x64->unwind->pop(this);
 
+        // Normal control flow dies here
         x64->runtime->die("Switch assertion failed!");
 
         switch_scope->finalize_contents(x64);
@@ -578,13 +575,13 @@ public:
         
         Label live;
         
-        x64->op(CMPB, EXCEPTION_ADDRESS, get_yield_exception_value());
-        x64->op(JE, live);
+        x64->op(CMPQ, RDX, get_yield_exception_value());
+        x64->op(JE, live);  // dropped
 
+        // Otherwise must have raised something
         x64->unwind->initiate(eval_scope, x64);
 
         x64->code_label(live);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
 
         return get_yield_storage();
     }
@@ -600,21 +597,24 @@ public:
 class IsValue: public ControlValue {
 public:
     std::unique_ptr<Value> match, then_branch, else_branch;
-    Variable *matched_var;
+    //Variable *matched_var;
     CodeScope *then_scope;
     TryScope *match_try_scope;
     Label end;
+    bool matching;
+    const int CAUGHT_UNMATCHED_EXCEPTION = -255;  // hopefully outside of yield range
     
     IsValue(Value *v, TypeMatch &m)
         :ControlValue("is") {
+        matching = false;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         then_scope = new CodeScope;
         scope->add(then_scope);
 
-        matched_var = new Variable("<matched>", NO_TS, INTEGER_TS);
-        then_scope->add(matched_var);
+        //matched_var = new Variable("<matched>", NO_TS, INTEGER_TS);
+        //then_scope->add(matched_var);
 
         match_try_scope = new TransparentTryScope;
         then_scope->add(match_try_scope);
@@ -685,15 +685,16 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label else_label, end;
-        Address matched_addr = matched_var->get_local_storage().address;
+        //Address matched_addr = matched_var->get_local_storage().address;
 
         x64->unwind->push(this);
         
-        x64->op(MOVQ, matched_addr, 0);
-        
+        //x64->op(MOVQ, matched_addr, 0);
+        matching = true;
         match->compile_and_store(x64, Storage());
+        matching = false;
 
-        x64->op(MOVQ, matched_addr, 1);
+        //x64->op(MOVQ, matched_addr, 1);
 
         if (then_branch)
             then_branch->compile_and_store(x64, Storage());
@@ -702,17 +703,17 @@ public:
         then_scope->finalize_contents(x64);
         
         // Take care of the unmatched case
-        x64->op(CMPQ, matched_addr, 0);
-        x64->op(JE, else_label);
+        x64->op(CMPQ, RDX, CAUGHT_UNMATCHED_EXCEPTION);
+        x64->op(JE, else_label);  // dropped
         
         // Take care of the matched but raised case
-        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JE, end);
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        x64->op(JE, end);  // proceed
         
+        // The then branch raised something, unwind
         x64->unwind->initiate(then_scope, x64);
         
         x64->code_label(else_label);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);  // clear caught UNMATCHED
         
         if (else_branch)
             else_branch->compile_and_store(x64, Storage());
@@ -723,6 +724,9 @@ public:
     }
     
     virtual Scope *unwind(X64 *x64) {
+        if (matching)
+            x64->op(MOVQ, RDX, CAUGHT_UNMATCHED_EXCEPTION);  // replace UNMATCHED from the match
+
         return then_scope;
     }
 };
@@ -791,10 +795,10 @@ public:
         
         switch (s.where) {
         case CONSTANT:
-            x64->op(MOVB, EXCEPTION_ADDRESS, s.value);
+            x64->op(MOVQ, RDX, s.value);
             break;
         case REGISTER:
-            x64->op(MOVB, EXCEPTION_ADDRESS, s.reg);
+            x64->op(MOVZXBQ, RDX, s.reg);
             break;
         default:
             throw INTERNAL_ERROR;
@@ -836,7 +840,9 @@ public:
             return false;
         }
         
-        if (!check_args(args, { "body", &context_ts, try_scope, &body }))
+        TypeSpec ctx_ts = (context_ts[0] == code_type ? context_ts : context_ts.prefix(code_type));
+        
+        if (!check_args(args, { "body", &ctx_ts, try_scope, &body }))
             return false;
         
         if (kwargs.size() == 0)
@@ -886,25 +892,26 @@ public:
         try_scope->finalize_contents(x64);
         
         // The body may throw an exception
-        Label die, live;
-        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-        x64->op(JLE, live);
+        Label live, unwind;
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        x64->op(JE, live);
+        x64->op(JL, unwind);  // reraise yields from body
         
-        // User exception, prepare for handling
+        // Caught exception, prepare for handling (single byte unsigned in DL)
         if (switch_var) {
             Storage switch_storage = switch_var->get_local_storage();
-            x64->op(MOVB, BL, EXCEPTION_ADDRESS);
-            x64->op(MOVB, switch_storage.address, BL);
+            x64->op(MOVB, switch_storage.address, DL);
         }
 
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-    
+        // dropped RDX
+
         x64->unwind->push(this);
         handling = true;
         if (handler)
             handler->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
 
+        // Normal execution will die here
         TreenumerationType *et = try_scope->get_exception_type();
         if (et) {
             x64->op(PUSHQ, switch_var->get_local_storage().address);
@@ -917,16 +924,13 @@ public:
         switch_scope->finalize_contents(x64);
         eval_scope->finalize_contents(x64);
         
-        Label caught;
-    
-        x64->op(CMPB, EXCEPTION_ADDRESS, get_yield_exception_value());
-        x64->op(JE, caught);
+        x64->op(CMPQ, RDX, get_yield_exception_value());
+        x64->op(JE, live);  // dropped
 
+        // reraise exceptions from the handler, or yields from anywhere
+        x64->code_label(unwind);
         x64->unwind->initiate(eval_scope, x64);
 
-        x64->code_label(caught);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
-    
         x64->code_label(live);
         
         return get_yield_storage();
@@ -1042,18 +1046,16 @@ public:
         
         eval_scope->finalize_contents(x64);
 
-        Label ok, caught;
+        Label ok;
         
-        x64->op(CMPB, EXCEPTION_ADDRESS, NO_EXCEPTION);
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
         x64->op(JE, ok);
         
-        x64->op(CMPB, EXCEPTION_ADDRESS, get_yield_exception_value());
-        x64->op(JE, caught);
-        
+        x64->op(CMPQ, RDX, get_yield_exception_value());
+        x64->op(JE, ok);  // dropped
+
+        // reraise other exceptions        
         x64->unwind->initiate(eval_scope, x64);
-        
-        x64->code_label(caught);
-        x64->op(MOVB, EXCEPTION_ADDRESS, NO_EXCEPTION);
         
         x64->code_label(ok);
         
@@ -1113,7 +1115,7 @@ public:
             yieldable_value->store_yield(s, x64);
         }
         
-        x64->op(MOVB, EXCEPTION_ADDRESS, yieldable_value->get_yield_exception_value());
+        x64->op(MOVQ, RDX, yieldable_value->get_yield_exception_value());
         x64->unwind->initiate(dummy, x64);
         
         // Since we're Whatever, must deceive our parent with a believable Storage.

@@ -1,6 +1,6 @@
 
-#define EXCEPTION_ADDRESS Address(RBP, -8)
-#define RESULT_ALIAS_ADDRESS Address(RBP, -16)
+//#define EXCEPTION_ADDRESS Address(RBP, -8)
+//#define RESULT_ALIAS_ADDRESS Address(RBP, -8)
 
 
 class Runtime {
@@ -368,14 +368,19 @@ public:
         x64->data_label(message_label);
         x64->data_zstring(message);
 
+        x64->op(PUSHFQ);
+
         for (Register r : { RAX, RBX, RCX, RDX, RSP, RBP, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 })
             x64->op(PUSHQ, r);
         
         x64->op(LEARIP, RDI, message_label);
+        x64->op(MOVQ, RSI, RSP);
         call_sysv(sysv_dump_label);
 
         for (Register r : { R15, R14, R13, R12, R11, R10, R9, R8, RDI, RSI, RBP, RDX, RDX, RCX, RBX, RAX })
             x64->op(POPQ, r);
+            
+        x64->op(POPFQ);
     }
 
 

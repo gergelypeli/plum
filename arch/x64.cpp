@@ -489,6 +489,12 @@ void X64::effective_address(int regfield, Address x) {
         throw X64_ERROR;
     }
 
+    if (x.base == NOREG && x.index == NOREG && x.offset == 0 && x.label.def_index == 0) {
+        // This is likely an uninitialized Address, disallow
+        std::cerr << "Null address used in instruction!\n";
+        throw X64_ERROR;
+    }
+
     // The cut off bits belong to the REX prefix
     regfield &= 7;
     int base = x.base == NOREG ? NOREG : x.base & 7;  // RSP and R12 need a SIB
@@ -515,7 +521,7 @@ void X64::effective_address(int regfield, Address x) {
             code_byte((DISP0 << 6)  | (regfield << 3) | USE_SIB);
             code_byte((SCALE1 << 6) | (NO_INDEX << 3) | RBP);  // disp32 only
         }
-        
+                
         code_dword(offset);
     }
     else if (offset == 0 && base != RBP) {

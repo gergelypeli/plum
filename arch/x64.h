@@ -24,7 +24,7 @@ RexFlags operator |(RexFlags x, RexFlags y) { return (RexFlags)((int)x | (int)y)
 
 enum SimpleOp {
     CBW, CDQ, CDQE, CLC, CLD, CLI, CLTS, CMC, CQO, CWD, CWDE, HLT, IRET, LAHF, NOP,
-    POPA, POPF, PUSHA, PUSHF, RETF, RET, SAHF, STC, STD, STI, UD2, XLAT,
+    POPA, POPFQ, PUSHA, PUSHFQ, RETF, RET, SAHF, STC, STD, STI, UD2, XLAT,
     FDIVP, FRNDINT, FMULP, FSUBRP, FINIT
 };
 

@@ -133,15 +133,22 @@ void logfunc(const char *message) {
 }
 
 
-struct R { unsigned long r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rsp, rdx, rcx, rbx, rax; };
+struct R { unsigned long r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rsp, rdx, rcx, rbx, rax, rflags; };
 
-void dump(const char *message, struct R r) {
-    fprintf(stderr, "DUMP: %s\n", message);
+void dump(const char *message, struct R *r) {
+    fprintf(stderr, "DUMP: %s [%c%c%c%c%c%c]\n", message,
+        (r->rflags & 1 ?    'C' : 'c'),
+        (r->rflags & 4 ?    'P' : 'p'),
+        (r->rflags & 16 ?   'A' : 'a'),
+        (r->rflags & 64 ?   'Z' : 'z'),
+        (r->rflags & 128 ?  'S' : 's'),
+        (r->rflags & 2048 ? 'O' : 'o')
+    );
     fprintf(stderr, "              ____    ____          ____    ____          ____    ____          ____    ____\n");
-    fprintf(stderr, "      RAX=%016lx  RBX=%016lx  RCX=%016lx  RDX=%016lx\n", r.rax, r.rbx, r.rcx, r.rdx);
-    fprintf(stderr, "      RSP=%016lx  RBP=%016lx  RSI=%016lx  RDI=%016lx\n", r.rsp + 32, r.rbp, r.rsi, r.rdi);
-    fprintf(stderr, "      R8 =%016lx  R9 =%016lx  R10=%016lx  R11=%016lx\n", r.r8, r.r9, r.r10, r.r11);
-    fprintf(stderr, "      R12=%016lx  R13=%016lx  R14=%016lx  R15=%016lx\n", r.r12, r.r13, r.r14, r.r15);
+    fprintf(stderr, "      RAX=%016lx  RBX=%016lx  RCX=%016lx  RDX=%016lx\n", r->rax, r->rbx, r->rcx, r->rdx);
+    fprintf(stderr, "      RSP=%016lx  RBP=%016lx  RSI=%016lx  RDI=%016lx\n", r->rsp + 32, r->rbp, r->rsi, r->rdi);
+    fprintf(stderr, "      R8 =%016lx  R9 =%016lx  R10=%016lx  R11=%016lx\n", r->r8, r->r9, r->r10, r->r11);
+    fprintf(stderr, "      R12=%016lx  R13=%016lx  R14=%016lx  R15=%016lx\n", r->r12, r->r13, r->r14, r->r15);
 }
 
 
