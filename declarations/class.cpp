@@ -216,7 +216,7 @@ public:
     }
 
     virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
-        x64->op(LEARIP, RBX, vt_label, virtual_offset * ADDRESS_SIZE);
+        x64->op(LEA, RBX, Address(vt_label, virtual_offset * ADDRESS_SIZE));
         x64->op(MOVQ, addr + data_offset + CLASS_VT_OFFSET, RBX);
 
         for (auto &var : member_allocables) {

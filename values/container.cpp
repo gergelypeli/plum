@@ -16,7 +16,7 @@ void container_alloc(int header_size, int elem_size, int reservation_offset, Lab
     x64->op(PUSHQ, RAX);
     x64->op(IMUL3Q, RAX, RAX, elem_size);
     x64->op(ADDQ, RAX, header_size);
-    x64->op(LEARIP, RBX, finalizer_label);
+    x64->op(LEA, RBX, Address(finalizer_label, 0));
     
     x64->runtime->alloc_RAX_RBX();
     

@@ -204,7 +204,7 @@ public:
     // nested streamifications must take care!
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         Label us_label = x64->runtime->data_heap_string(decode_utf8("<unstreamifiable>"));
-        x64->op(LEARIP, RBX, us_label);
+        x64->op(LEA, RBX, Address(us_label, 0));
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
         STRING_TS.streamify(false, x64);

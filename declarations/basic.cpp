@@ -377,7 +377,7 @@ public:
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         Label es_label = x64->once->compile(compile_streamification);
 
-        x64->op(LEARIP, RBX, get_stringifications_label(x64));  // table start
+        x64->op(LEA, RBX, Address(get_stringifications_label(x64), 0));  // table start
         x64->op(CALL, es_label);
     }
     

@@ -758,7 +758,7 @@ static void alloc_fcb(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     Label callback_label = x64->once->compile(compile_process_fcb, item_ts);
     
     x64->op(MOVQ, RAX, Address(RSP, 0));  // referred heap object
-    x64->op(LEARIP, RBX, callback_label);  // callback
+    x64->op(LEA, RBX, Address(callback_label, 0));  // callback
     x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
     x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
     

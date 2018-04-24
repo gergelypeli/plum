@@ -240,7 +240,7 @@ public:
         x64->op(LEA, RDI, Address(RBX, ARRAY_ELEMS_OFFSET));
         x64->op(MOVQ, RSI, Address(RBX, ARRAY_LENGTH_OFFSET));
         x64->op(MOVQ, RDX, elem_size);
-        x64->op(LEARIP, RCX, compar);
+        x64->op(LEA, RCX, Address(compar, 0));
         
         x64->runtime->call_sysv(x64->runtime->sysv_sort_label);
         

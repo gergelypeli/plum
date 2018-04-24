@@ -80,7 +80,7 @@ public:
         
         x64->op(MOVQ, RAX, ADDRESS_SIZE * 2);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
-        x64->op(LEARIP, RBX, finalizer_label);
+        x64->op(LEA, RBX, Address(finalizer_label, 0));
         x64->runtime->alloc_RAX_RBX();
 
         x64->op(PUSHQ, RAX);
@@ -88,7 +88,7 @@ public:
         right->compile_and_store(x64, Storage(STACK));
         
         x64->op(MOVQ, RAX, Address(RSP, 0));  // the object address
-        x64->op(LEARIP, RBX, callback_label);
+        x64->op(LEA, RBX, Address(callback_label, 0));
         x64->op(MOVQ, RCX, Address(RSP, 8));  // the anchorage address as the payload1
         x64->op(MOVQ, RDX, 0);
         x64->op(CALL, x64->runtime->alloc_fcb_label);

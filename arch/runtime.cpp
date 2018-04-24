@@ -357,7 +357,7 @@ public:
         x64->data_zstring(message);
 
         pusha();
-        x64->op(LEARIP, RDI, message_label);
+        x64->op(LEA, RDI, Address(message_label, 0));
         call_sysv(sysv_logfunc_label);
         popa();
     }
@@ -373,7 +373,7 @@ public:
         for (Register r : { RAX, RBX, RCX, RDX, RSP, RBP, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 })
             x64->op(PUSHQ, r);
         
-        x64->op(LEARIP, RDI, message_label);
+        x64->op(LEA, RDI, Address(message_label, 0));
         x64->op(MOVQ, RSI, RSP);
         call_sysv(sysv_dump_label);
 
@@ -390,7 +390,7 @@ public:
         x64->data_label(message_label);
         x64->data_zstring(message);
     
-        x64->op(LEARIP, RDI, message_label);
+        x64->op(LEA, RDI, Address(message_label, 0));
         call_sysv(sysv_die_label);
         x64->op(UD2);
     }

@@ -112,7 +112,7 @@ public:
         std::vector<unsigned short> characters = decode_utf8(text);
         Label l = x64->runtime->data_heap_string(characters);
         
-        x64->op(LEARIP, RBX, l);
+        x64->op(LEA, RBX, Address(l, 0));
         x64->runtime->incref(RBX);  // This way we can return the same static string many times
         x64->op(PUSHQ, RBX);
         
@@ -167,7 +167,7 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        x64->op(LEARIP, RBX, parents_label);
+        x64->op(LEA, RBX, Address(parents_label, 0));
         
         x64->code_label(loop);
         x64->op(CMPB, reg, index);

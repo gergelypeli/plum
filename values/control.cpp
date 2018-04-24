@@ -915,7 +915,7 @@ public:
         TreenumerationType *et = try_scope->get_exception_type();
         if (et) {
             x64->op(PUSHQ, switch_var->get_local_storage().address);
-            x64->op(LEARIP, RBX, et->get_stringifications_label(x64));
+            x64->op(LEA, RBX, Address(et->get_stringifications_label(x64), 0));
             x64->op(PUSHQ, RBX);
             x64->op(PUSHQ, token.row + 1);
             x64->op(JMP, x64->once->compile(compile_die));
@@ -950,7 +950,7 @@ public:
         
         // Allocate a stream for 100 characters
         x64->op(MOVQ, RAX, 100 * CHARACTER_SIZE + ARRAY_HEADER_SIZE);
-        x64->op(LEARIP, RBX, x64->runtime->empty_function_label);
+        x64->op(LEA, RBX, Address(x64->runtime->empty_function_label, 0));
         x64->runtime->alloc_RAX_RBX();
         x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), 100);
         x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
@@ -964,7 +964,7 @@ public:
         //  RSP + 24 = exception
 
         x64->op(MOVQ, RAX, RSP);  // address of the stream variable
-        x64->op(LEARIP, RBX, uncaught_message_label_1);
+        x64->op(LEA, RBX, Address(uncaught_message_label_1, 0));
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, RAX);
         STRING_TS.streamify(false, x64);
@@ -980,7 +980,7 @@ public:
         x64->op(ADDQ, RSP, 16);
 
         x64->op(MOVQ, RAX, RSP);  // address of the stream variable
-        x64->op(LEARIP, RBX, uncaught_message_label_2);
+        x64->op(LEA, RBX, Address(uncaught_message_label_2, 0));
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, RAX);
         STRING_TS.streamify(false, x64);
@@ -993,7 +993,7 @@ public:
         x64->op(ADDQ, RSP, 16);
 
         x64->op(MOVQ, RAX, RSP);  // address of the stream variable
-        x64->op(LEARIP, RBX, uncaught_message_label_3);
+        x64->op(LEA, RBX, Address(uncaught_message_label_3, 0));
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, RAX);
         STRING_TS.streamify(false, x64);

@@ -23,9 +23,9 @@ RexFlags operator |(RexFlags x, RexFlags y) { return (RexFlags)((int)x | (int)y)
 
 
 enum SimpleOp {
-    CBW, CDQ, CDQE, CLC, CLD, CLI, CLTS, CMC, CQO, CWD, CWDE, HLT, IRET, LAHF, NOP,
-    POPA, POPFQ, PUSHA, PUSHFQ, RETF, RET, SAHF, STC, STD, STI, UD2, XLAT,
-    FDIVP, FRNDINT, FMULP, FSUBRP, FINIT
+    CBW, CDQ, CLC, CLD, CLI, CLTS, CMC, CQO,
+    CWD, HLT, IRET, LAHF, NOP, POPFQ, PUSHFQ, RETF,
+    RET, SAHF, STC, STD, STI, UD2
 };
 
 
@@ -149,11 +149,6 @@ Imul3Op operator%(Imul3Op x, int y) { return (Imul3Op)((x & ~3) | (y & 3)); }
 
 enum RegisterMemoryOp {
     LEA
-};
-
-
-enum LeaRipOp {
-    LEARIP  // home made instruction for LEA r, [RIP + disp32]
 };
 
 
@@ -360,7 +355,6 @@ public:
     void op(Imul3Op opcode, Register x, Register y, int z);
     void op(Imul3Op opcode, Register x, Address y, int z);
     void op(RegisterMemoryOp opcode, Register x, Address y);
-    void op(LeaRipOp opcode, Register r, Label l, int offset = 0);
     void op(BitSetOp, Register x);
     void op(BitSetOp, HighByteRegister x);
     void op(BitSetOp, Address x);

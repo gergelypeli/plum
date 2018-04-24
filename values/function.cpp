@@ -623,7 +623,7 @@ public:
             csv->compile_evaluable(begin, x64);
             
             x64->code_label(skip);
-            x64->op(LEARIP, RBX, begin);
+            x64->op(LEA, RBX, Address(begin, 0));
             x64->op(PUSHQ, RBX);
             
             pushed_tss.push_back(arg_ts);

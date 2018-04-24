@@ -191,12 +191,12 @@ public:
         x64->op(JNE, some);
         
         // `none
-        x64->op(LEARIP, RBX, none_label);
+        x64->op(LEA, RBX, Address(none_label, 0));
         x64->op(JMP, ok);
         
         // `some
         x64->code_label(some);
-        x64->op(LEARIP, RBX, some_label);
+        x64->op(LEA, RBX, Address(some_label, 0));
         
         x64->code_label(ok);
         x64->op(PUSHQ, RBX);

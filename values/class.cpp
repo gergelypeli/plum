@@ -16,7 +16,7 @@ public:
         
         x64->op(MOVQ, RAX, heap_size);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
-        x64->op(LEARIP, RBX, finalizer_label);
+        x64->op(LEA, RBX, Address(finalizer_label, 0));
         x64->runtime->alloc_RAX_RBX();
 
         Label vt_label = class_ts.get_virtual_table_label(x64);
@@ -140,7 +140,7 @@ public:
         
         value->compile_and_store(x64, Storage(STACK));
         
-        x64->op(LEARIP, RBX, ts.get_virtual_table_label(x64));
+        x64->op(LEA, RBX, Address(ts.get_virtual_table_label(x64), 0));
         x64->op(PUSHQ, RBX);
         
         x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));  // the reference
