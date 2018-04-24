@@ -181,7 +181,7 @@ as:
 passthrough? :Function from: what? Integer Code as:
     :try what or:
         prints("Passthrough code is breaking.")
-        :yield
+        :fixed
 
 
 test_integers? :Function as:
@@ -469,7 +469,7 @@ test_controls? :Function as:
             
         :is ~SMALL_ERROR then:
             prints("This was a small error!")
-            :yield
+            :fixed
             
         prints("Too bad!")
 
@@ -767,7 +767,7 @@ test_files? :Function as:
         prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
     or:
         :is ~EACCES then:
-            :yield
+            :fixed
         else:
             prints("MKDIR WEIRD EXCEPTION!")
 

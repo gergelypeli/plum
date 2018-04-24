@@ -205,19 +205,19 @@ public:
 
 class YieldableValue: public ControlValue {
 public:
-    std::string eval_name;
+    std::string yield_name;
     EvalScope *eval_scope;
     Variable *yield_var;
     
-    YieldableValue(std::string n, std::string en)
+    YieldableValue(std::string n, std::string yn)
         :ControlValue(n) {
-        eval_name = en;
+        yield_name = yn;
         eval_scope = NULL;
         yield_var = NULL;
     }
 
-    virtual std::string get_label() {
-        return eval_name;
+    virtual std::string get_yield_label() {
+        return yield_name;
     }
 
     virtual bool setup_yieldable(Scope *scope) {
@@ -226,13 +226,13 @@ public:
         eval_scope = new EvalScope(this);
         scope->add(eval_scope);
         
-        if (eval_name.size())
-            eval_scope->add(new Yield(":" + eval_name, this));
+        if (yield_name.size())
+            eval_scope->add(new Yield(":" + yield_name, this));
         
         if (ts.where(AS_VALUE) == STACK) {
             // Add the variable after the EvalScope, so it can survive the finalization
             // of the scope, and can be left uninitialized until the successful completion.
-            yield_var = new Variable("<" + eval_name + ">", NO_TS, ts);
+            yield_var = new Variable("<" + yield_name + ">", NO_TS, ts);
             scope->add(yield_var);
         }
         
@@ -821,7 +821,7 @@ public:
     bool handling;
     
     TryValue(Value *v, TypeMatch &m)
-        :YieldableValue("try", "yield") {
+        :YieldableValue("try", "fixed") {
         try_scope = NULL;
         switch_var = NULL;
         switch_scope = NULL;
@@ -1075,7 +1075,7 @@ public:
     YieldableValue *yieldable_value;
 
     YieldValue(YieldableValue *yv)
-        :ControlValue(yv->get_label()) {
+        :ControlValue(yv->get_yield_label()) {
         dummy = NULL;
         yieldable_value = yv;
         ts = WHATEVER_TS;
