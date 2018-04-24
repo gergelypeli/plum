@@ -64,6 +64,40 @@ public:
             
         return s;
     }
+
+    virtual void compile_evaluable(Label label, X64 *x64) {
+        x64->code_label(label);
+        
+        x64->unwind->push(this);
+        Storage s = value->compile(x64);
+        x64->unwind->pop(this);
+        
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
+
+        // Move the result to the caller's stack frame (skip return address and old RBP)        
+        Storage t = Storage(MEMORY, Address(RSP, 2 * ADDRESS_SIZE));
+        
+        switch (s.where) {
+        case NOWHERE:
+            break;
+        case CONSTANT:
+        case FLAGS:
+        case REGISTER:
+        case MEMORY:
+            ts.create(s, t, x64);
+            break;
+        case STACK:
+            ts.create(s, t + ts.measure_stack(), x64);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        code_scope->finalize_contents(x64);
+
+        x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
+        x64->op(RET);
+    }
     
     virtual Scope *unwind(X64 *x64) {
         may_be_aborted = true;

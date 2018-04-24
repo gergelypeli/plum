@@ -417,7 +417,6 @@ public:
     std::vector<std::string> arg_names;
     
     bool has_code_arg;
-    Label *current_except_label;
     bool is_static;
         
     FunctionCallValue(Function *f, Value *p, TypeMatch &m)
@@ -439,7 +438,6 @@ public:
             
         res_total = 0;
         has_code_arg = false;
-        current_except_label = NULL;
         is_static = false;
     }
 
@@ -615,46 +613,18 @@ public:
     
     virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         if (arg_ts[0] == code_type) {
-            TypeSpec rts = arg_ts.unprefix(code_type);
-            Label begin, skip, end;
+            CodeScopeValue *csv = ptr_cast<CodeScopeValue>(arg_value);
+            if (!csv)
+                throw INTERNAL_ERROR;
             
+            Label begin, skip;
             x64->op(JMP, skip);
-            
-            // Compile the Code argument, and make sure unwindings only unwind this piece
-            // of code, not the actual function call. We'll report our exception/yield,
-            // even if the function itself can't interpret it, only forward it back.
-            x64->code_label(begin);
-            current_except_label = &end;  // for unwinding
-            
-            if (arg_value) {
-                Storage s = arg_value->compile(x64);
-                
-                switch (s.where) {
-                case NOWHERE:
-                    break;
-                case CONSTANT:
-                case FLAGS:
-                case REGISTER:
-                case MEMORY:
-                    rts.create(s, Storage(MEMORY, Address(RSP, 2 * ADDRESS_SIZE)), x64);
-                    break;
-                case STACK:
-                    rts.create(s, Storage(MEMORY, Address(RSP, 2 * ADDRESS_SIZE + rts.measure_stack())), x64);
-                    break;
-                default:
-                    throw INTERNAL_ERROR;
-                }
-            }
-            
-            x64->code_label(end);
-            x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
-            x64->op(RET);
+
+            csv->compile_evaluable(begin, x64);
             
             x64->code_label(skip);
             x64->op(LEARIP, RBX, begin);
             x64->op(PUSHQ, RBX);
-            
-            current_except_label = NULL;
             
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(Storage(STACK));
@@ -797,13 +767,6 @@ public:
     }
 
     virtual Scope *unwind(X64 *x64) {
-        if (current_except_label) {
-            // We're compiling a Code argument, so for exceptions we don't roll back the
-            // previous arguments and leave, but just jump to the reporting of this one.
-            x64->op(JMP, *current_except_label);
-            return NULL;
-        }
-        
         //std::cerr << "Unwinding function call " << function->name << " would wipe " << pushed_tss.size() << " arguments.\n";
         for (int i = pushed_tss.size() - 1; i >= 0; i--)
             pushed_tss[i].store(pushed_storages[i], Storage(), x64);
