@@ -61,3 +61,7 @@ const int ALIAS_SIZE = 8;
 const int INTEGER_SIZE = 8;
 const int CHARACTER_SIZE = 2;
 const int FLOAT_SIZE = 8;
+
+const int ERRNO_TREENUM_OFFSET = 10;
+const int NO_EXCEPTION = 0;
+const int RETURN_EXCEPTION = -1;

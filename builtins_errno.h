@@ -1,5 +1,3 @@
-#define ERRNO_TREENUM_OFFSET 10
-
 #define XPERMISSION 1
 #define XMISMATCH 2
 #define XTRANSIENT 3
@@ -8,6 +6,7 @@
 #define XRESOURCE 6
 #define XCONFLICT 7
 #define XSUPPORT 8
+
 
 TreenumInput errno_treenum_input[] = {
 { "PERMISSION", 0 },
@@ -20,7 +19,7 @@ TreenumInput errno_treenum_input[] = {
 { "SUPPORT", 0 },
 { "", 0 },
 { "", 0 },
-{ "EPERM", XPERMISSION },  // 1 + 10
+{ "EPERM", XPERMISSION },  // 1 + ERRNO_TREENUM_OFFSET
 { "ENOENT", XMISMATCH },
 { "ESRCH", XMISMATCH },
 { "EINTR", XTRANSIENT },
@@ -152,7 +151,7 @@ TreenumInput errno_treenum_input[] = {
 { "EOWNERDEAD", 0 },
 { "ENOTRECOVERABLE", 0 },
 { "ERFKILL", 0 },
-{ "EHWPOISON", 0 },  // 133 + 10
+{ "EHWPOISON", 0 },  // 133 + ERRNO_TREENUM_OFFSET
 { NULL, 0 }
 };
 

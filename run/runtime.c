@@ -28,7 +28,14 @@
 
 typedef void *Ref;
 typedef void *Alias;
-typedef long Exc;
+
+typedef struct {
+    long valued;  // returned in RAX
+    long raised;  // returned in RDX
+} Varied;
+
+#define VALUED(x) ((Varied) { x, NO_EXCEPTION })
+#define RAISED(x) ((Varied) { 0, x + ERRNO_TREENUM_OFFSET })
 
 extern void empty_function();
 extern void finalize_reference_array();
@@ -358,7 +365,7 @@ void *encode_utf8(void *string_alias) {
 }
 
 
-Exc path_mkdir(Alias path_alias, long mode) {
+Varied path_mkdir(Alias path_alias, long mode) {
     void *name_array = RECORDMEMBER(path_alias, Ref);
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
@@ -367,14 +374,15 @@ Exc path_mkdir(Alias path_alias, long mode) {
 
     fprintf(stderr, "mkdir '%s' %lo\n", bytes, mode);
     int rc = mkdir(bytes, mode);
-    long exc = (rc == -1 ? errno : 0);
+    int er = errno;
+
+    fprintf(stderr, "mkdir ret %d\n", er);
     
-    fprintf(stderr, "mkdir ret %ld\n", exc);
-    return exc;
+    return rc == -1 ? RAISED(er) : VALUED(0);
 }
 
 
-Exc path_rmdir(Alias path_alias) {
+Varied path_rmdir(Alias path_alias) {
     void *name_array = RECORDMEMBER(path_alias, Ref);
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
@@ -383,27 +391,28 @@ Exc path_rmdir(Alias path_alias) {
 
     fprintf(stderr, "rmdir '%s'\n", bytes);
     int rc = rmdir(bytes);
-    long exc = (rc == -1 ? errno : 0);
+    int er = errno;
     
-    fprintf(stderr, "rmdir ret %ld\n", exc);
-    return exc;
+    fprintf(stderr, "rmdir ret %d\n", er);
+    return rc == -1 ? RAISED(er) : VALUED(0);
 }
 
 
-Exc reader_read(Ref reader_ref, Ref buffer_array) {
+Varied reader_read(Ref reader_ref, Ref buffer_array) {
     int fd = CLASSMEMBER(reader_ref, int);
     long buffer_length = ALENGTH(buffer_array);
     long buffer_reservation = ARESERVATION(buffer_array);
     char *buffer_elements = AELEMENTS(buffer_array);
     
     int rc = read(fd, buffer_elements, buffer_reservation - buffer_length);
-    long exc = (rc == -1 ? errno : 0);
-    fprintf(stderr, "read %d ret %ld\n", fd, exc);
+    int er = errno;
+    
+    fprintf(stderr, "read %d ret %d\n", fd, er);
     
     if (rc >= 0)
         ALENGTH(buffer_array) += rc;
     
-    return exc;
+    return rc == -1 ? RAISED(er) : VALUED(0);
 }
 
 

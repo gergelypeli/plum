@@ -533,17 +533,12 @@ public:
         
         x64->runtime->call_sysv_got(function->get_label(x64));
 
-        // We return simple values in RAX and XMM0 like SysV
-        bool is_void = (res_tss.size() == 0);
-        
-        if (is_void && function->exception_type) {
-            if (function->exception_type != errno_exception_type)
-                throw INTERNAL_ERROR;
-                
-            // AL contains the potential exception
-            x64->op(CMPB, RAX, 0);  // set ZF if no exception
-            x64->op(LEA, RDX, Address(RAX, ERRNO_TREENUM_OFFSET));
-        }
+        //x64->runtime->dump("Returned from SysV.");
+
+        // We return simple values in RAX and XMM0 like SysV.
+        // Raised exception in RDX.
+        if (function->exception_type)
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
     }
     
     virtual void call_static(X64 *x64, unsigned passed_size) {

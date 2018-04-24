@@ -1,7 +1,4 @@
 
-const char NO_EXCEPTION = 0;
-const char RETURN_EXCEPTION = -1;
-
 class VirtualEntry;
 
 // Declarations
