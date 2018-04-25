@@ -97,9 +97,12 @@ public:
 std::vector<unsigned short> decode_utf8(std::string text) {
     int bytelen = text.size();
     std::vector<unsigned short> characters;
-    characters.resize(bytelen);
-    int charlen = decode_utf8_buffer(text.data(), bytelen, characters.data());
-    characters.resize(charlen);
+    characters.resize(bytelen);  // upper limit
+    
+    long character_count, byte_count;
+    decode_utf8_buffer(text.data(), bytelen, characters.data(), characters.size(), &byte_count, &character_count);
+    
+    characters.resize(character_count);
     return characters;
 }
 

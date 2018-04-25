@@ -1,9 +1,12 @@
 
-long decode_utf8_buffer(const char *bytes, long byte_length, unsigned short *characters) {
+void decode_utf8_buffer(const char *bytes, long byte_length, unsigned short *characters, long character_length, long *byte_count, long *character_count) {
+    const char *bytes_start = bytes;
     const char *bytes_end = bytes + byte_length;
-    const unsigned short *characters_start = characters;
     
-    while (bytes < bytes_end) {
+    const unsigned short *characters_start = characters;
+    const unsigned short *characters_end = characters + character_length;
+    
+    while (bytes < bytes_end && characters < characters_end) {
         if ((bytes[0] & 0x80) == 0x00) {
             characters[0] = bytes[0];
             bytes += 1;
@@ -49,27 +52,40 @@ long decode_utf8_buffer(const char *bytes, long byte_length, unsigned short *cha
             break;
     }
     
-    return characters - characters_start;
+    *byte_count = bytes - bytes_start;
+    *character_count = characters - characters_start;
 }
 
 
-long encode_utf8_buffer(const unsigned short *characters, long character_length, char *bytes) {
+void encode_utf8_buffer(const unsigned short *characters, long character_length, char *bytes, long byte_length, long *character_count, long *byte_count) {
+    const unsigned short *characters_start = characters;
     const unsigned short *characters_end = characters + character_length;
+
     const char *bytes_start = bytes;
+    const char *bytes_end = bytes + byte_length;
     
     while (characters < characters_end) {
         if (characters[0] < 0x0080) {
+            if (bytes >= bytes_end)
+                break;
+                
             bytes[0] = characters[0];
             characters += 1;
             bytes += 1;
         }
         else if (characters[0] < 0x0800) {
+            if (bytes + 1 >= bytes_end)
+                break;
+
             bytes[0] = 0xC0 | ((characters[0] & 0x07C0) >> 6);
             bytes[1] = 0x80 | (characters[0] & 0x003F);
             characters += 1;
             bytes += 2;
         }
         else {
+            if (bytes + 2 >= bytes_end)
+                break;
+
             bytes[0] = 0xE0 | ((characters[0] & 0xF000) >> 12);
             bytes[1] = 0x80 | ((characters[0] & 0x0FC0) >> 6);
             bytes[2] = 0x80 | (characters[0] & 0x003F);
@@ -77,6 +93,7 @@ long encode_utf8_buffer(const unsigned short *characters, long character_length,
             bytes += 3;
         }
     }
-    
-    return bytes - bytes_start;
+
+    *character_count = characters - characters_start;
+    *byte_count = bytes - bytes_start;
 }

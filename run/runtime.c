@@ -119,7 +119,11 @@ void *append_decode_utf8(void *character_array, char *bytes, long byte_length) {
         character_array = reallocate_array(character_array, character_length + byte_length, 2);
         
     unsigned short *characters = AELEMENTS(character_array);
-    ALENGTH(character_array) += decode_utf8_buffer(bytes, byte_length, characters + character_length);
+    long available_length = ARESERVATION(character_array) - ALENGTH(character_array);
+    
+    long byte_count, character_count;
+    decode_utf8_buffer(bytes, byte_length, characters + character_length, available_length, &byte_count, &character_count);
+    ALENGTH(character_array) += character_count;
     
     return character_array;
 }
@@ -168,9 +172,12 @@ void die(const char *message) {
 void dies(void *s) {
     long character_length = ALENGTH(s);
     char bytes[character_length * 3 + 1];
-    int byte_length = encode_utf8_buffer(AELEMENTS(s), character_length, bytes);
-    bytes[byte_length] = '\0';
-    fprintf(stderr, "DIE: %.*s\n", byte_length, bytes);
+    
+    long character_count, byte_count;
+    encode_utf8_buffer(AELEMENTS(s), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
+
+    bytes[byte_count] = '\0';
+    fprintf(stderr, "DIE: %.*s\n", (int)byte_count, bytes);
     abort();
 }
 
@@ -310,9 +317,12 @@ void prints(void *s) {
     if (s) {
         long character_length = ALENGTH(s);
         char bytes[character_length * 3 + 1];
-        int byte_length = encode_utf8_buffer(AELEMENTS(s), character_length, bytes);
-        bytes[byte_length] = '\0';
-        printf("%.*s\n", byte_length, bytes);
+        
+        long character_count, byte_count;
+        encode_utf8_buffer(AELEMENTS(s), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
+
+        bytes[byte_count] = '\0';
+        printf("%.*s\n", (int)byte_count, bytes);
     }
     else
         printf("(null)\n");
@@ -340,10 +350,11 @@ void *decode_utf8(void *byte_array) {
     void *character_array = allocate_basic_array(byte_length, 2);
     unsigned short *characters = AELEMENTS(character_array);
     
-    long character_length = decode_utf8_buffer(bytes, byte_length, characters);
-    ALENGTH(character_array) = character_length;
+    long byte_count, character_count;
+    decode_utf8_buffer(bytes, byte_length, characters, ARESERVATION(character_array), &byte_count, &character_count);
+    ALENGTH(character_array) = character_count;
     
-    return reallocate_array(character_array, character_length, 2);
+    return reallocate_array(character_array, character_count, 2);
 }
 
 
@@ -357,11 +368,13 @@ void *encode_utf8(void *string_alias) {
     
     void *byte_array = allocate_basic_array(character_length * 3, 1);
     char *bytes = AELEMENTS(byte_array);
+    long byte_length = character_length * 3;
 
-    long byte_length = encode_utf8_buffer(characters, character_length, bytes);
-    ALENGTH(byte_array) = byte_length;
+    long character_count, byte_count;
+    encode_utf8_buffer(characters, character_length, bytes, byte_length, &character_count, &byte_count);
+    ALENGTH(byte_array) = byte_count;
     
-    return reallocate_array(byte_array, byte_length, 1);
+    return reallocate_array(byte_array, byte_count, 1);
 }
 
 
@@ -369,8 +382,10 @@ Varied path_mkdir(Alias path_alias, long mode) {
     void *name_array = RECORDMEMBER(path_alias, Ref);
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
-    int byte_length = encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes);
-    bytes[byte_length] = '\0';
+    
+    long character_count, byte_count;
+    encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
+    bytes[byte_count] = '\0';
 
     fprintf(stderr, "mkdir '%s' %lo\n", bytes, mode);
     int rc = mkdir(bytes, mode);
@@ -386,8 +401,10 @@ Varied path_rmdir(Alias path_alias) {
     void *name_array = RECORDMEMBER(path_alias, Ref);
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
-    int byte_length = encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes);
-    bytes[byte_length] = '\0';
+    
+    long character_count, byte_count;
+    encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
+    bytes[byte_count] = '\0';
 
     fprintf(stderr, "rmdir '%s'\n", bytes);
     int rc = rmdir(bytes);
