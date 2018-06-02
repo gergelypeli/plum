@@ -78,6 +78,8 @@ class ReferenceWeakenValue;
 class RoleValue;
 class StringLiteralValue;
 class StringRegexpMatcherValue;
+class SliceEmptyValue;
+class SliceAllValue;
 class TreenumerationDefinitionValue;
 class TreenumerationMatcherValue;
 class TypeValue;

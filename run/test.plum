@@ -566,6 +566,19 @@ test_arrays? :Function as:
     :try st pop
     prints("Popped baz as {baz}" {})
     prints("Popped stack length: {x}" { x: st length })
+    
+    sl? String Array Ref = { "foo", "bar", "baz" }
+    
+    sl1? String Slice = `empty
+    prints("Empty slice is {x} long" { x: sl1 length })
+    
+    sl2? String Slice = `all(sl)
+    prints("Full slice is {x} long" { x: sl2 length })
+    prints("And contains {x}" { x: :try sl2[2] })
+    
+    sl3? = :try sl slice(1, 1)
+    prints("Mid slice is {x} long" { x: sl3 length })
+    prints("And contains {x}" { x: :try sl3[0] })
 
 
 test_circularrays? :Function as:

@@ -188,6 +188,9 @@ void builtin_types(Scope *root_scope) {
     string_type = new StringType("String");
     root_scope->add(string_type);
 
+    slice_type = new SliceType("Slice");
+    root_scope->add(slice_type);
+
     option_type = new OptionType("Option");
     root_scope->add(option_type);
 
@@ -263,6 +266,9 @@ void builtin_types(Scope *root_scope) {
     match_unmatched_exception_type = make_treenum("Match_unmatched_exception", "UNMATCHED");
     root_scope->add(match_unmatched_exception_type);
 
+    lookup_exception_type = make_treenum("Lookup_exception", "NOT_FOUND");
+    root_scope->add(lookup_exception_type);
+
     code_break_exception_type = make_treenum("<Code_break_exception>", "CODE_BREAK");
     root_scope->add(code_break_exception_type);
     
@@ -330,6 +336,7 @@ void builtin_types(Scope *root_scope) {
     STRING_TS = { string_type };
     STRING_LVALUE_TS = { lvalue_type, string_type };
     STRING_ARRAY_REF_TS = { ref_type, array_type, string_type };
+    ANY_SLICE_TS = { slice_type, any_type };
     ANY_OPTION_TS = { option_type, any_type };
     ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
     ANY_STACK_REF_TS = { ref_type, stack_type, any_type };
@@ -627,6 +634,29 @@ void define_string() {
 }
 
 
+void define_slice() {
+    TypeSpec SAME_ARRAY_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, array_type, same_type };
+    
+    RecordType *record_type = ptr_cast<RecordType>(slice_type);
+    DataScope *is = record_type->make_inner_scope(ANY_SLICE_TS);
+
+    is->add(new Variable("weakref", ANY_SLICE_TS, SAME_ARRAY_WEAKREF_LVALUE_TS));
+    is->add(new Variable("front", ANY_SLICE_TS, INTEGER_LVALUE_TS));
+    is->add(new Variable("length", ANY_SLICE_TS, INTEGER_LVALUE_TS));
+
+    is->add(new TemplateIdentifier<SliceIndexValue>("index", ANY_SLICE_TS));
+
+    //implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+    //    new SliceElementIterator("iter", ANY_SLICE_TS)
+    //});
+
+    //is->add(new SliceElementIterator("elements", ANY_SLICE_TS);
+    // TODO: other iterators
+    
+    record_type->complete_type();
+}
+
+
 void define_autoweakref() {
     RecordType *record_type = ptr_cast<RecordType>(autoweakref_type);
     DataScope *is = record_type->make_inner_scope(ANYID_AUTOWEAKREF_TS);
@@ -665,6 +695,7 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayAutogrowValue>("autogrow", ANY_ARRAY_REF_LVALUE_TS));
+    array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", ANY_ARRAY_WEAKREF_TS));
     
     // Array iterable operations
     implement(array_scope, SAME_ITERABLE_TS, "ible", {
@@ -910,8 +941,11 @@ Scope *init_builtins() {
     builtin_types(root_scope);
 
     define_string();
+    define_slice();
+    
     define_interfaces();
     define_iterators();
+    
     define_stack();
     define_queue();
     define_set();
@@ -919,12 +953,12 @@ Scope *init_builtins() {
     define_weakvaluemap();
     define_weakindexmap();
     define_weakset();
+    
     define_option();
     define_autoweakref();
     
     // Integer operations
     define_integers();
-    
     define_float();
         
     // Character operations

@@ -9,7 +9,7 @@ public:
     
     Label zero_label, float_minus_zero_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
-    Label empty_function_label;
+    Label empty_function_label, empty_array_label;
     Label alloc_fcb_label, free_fcb_label;
     Label finalize_label, finalize_reference_array_label, weak_finalized_die_label;
     std::vector<Label> incref_labels, decref_labels;
@@ -28,6 +28,11 @@ public:
         x64->data_label(float_minus_zero_label);
         x64->data_double(-0.0);
         x64->data_double(0.0);
+
+        data_heap_header();
+        x64->data_label(empty_array_label);
+        x64->data_qword(0);  // reservation
+        x64->data_qword(0);  // length
 
         x64->code_label_import(sysv_memalloc_label, "memalloc");
         x64->code_label_import(sysv_memfree_label, "memfree");

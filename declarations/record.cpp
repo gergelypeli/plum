@@ -387,6 +387,29 @@ public:
 };
 
 
+class SliceType: public RecordType {
+public:
+    SliceType(std::string n)
+        :RecordType(n, Metatypes { value_metatype }) {
+    }
+
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+        if (n == "empty")
+            return make<SliceEmptyValue>(tm);
+        else if (n == "all")
+            return make<SliceAllValue>(tm);
+        
+        std::cerr << "No Slice initializer " << n << "!\n";
+        return NULL;
+    }
+
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+        std::cerr << "Can't match Slice as " << n << "!\n";
+        return NULL;
+    }
+};
+
+
 class ItemType: public RecordType {
 public:
     ItemType(std::string n)

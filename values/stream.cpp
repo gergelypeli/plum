@@ -116,7 +116,13 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     for (auto &kv : expr->kwargs) {
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
-        Value *keyword_value = typize(expr, code_scope);
+        Value *keyword_value = typize(expr, code_scope, &ANY_TS);
+        
+        if (keyword_value->ts == VOID_TS) {
+            std::cerr << "Cannot interpolate Void {" << keyword << "}!\n";
+            throw TYPE_ERROR;
+        }
+        
         CreateValue *decl_value = make_initialization_by_value(keyword, keyword_value, code_scope);
         interpolation->add_statement(decl_value);
     }
