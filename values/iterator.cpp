@@ -141,6 +141,3 @@ public:
         return Storage(STACK);
     }
 };
-
-
-// Iterator initializers

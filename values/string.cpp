@@ -227,3 +227,171 @@ public:
         return Storage(MEMORY, Address(RAX, 0));
     }
 };
+
+
+// Iteration
+// TODO: too many similarities with container iteration!
+
+class SliceIterValue: public SimpleRecordValue {
+public:
+    SliceIterValue(TypeSpec t, Value *l)
+        :SimpleRecordValue(t, l) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        x64->op(PUSHQ, 0);
+
+        left->compile_and_store(x64, Storage(STACK));
+        
+        return Storage(STACK);
+    }
+};
+
+
+class SliceElemIterValue: public SliceIterValue {
+public:
+    SliceElemIterValue(Value *l, TypeMatch &match)
+        :SliceIterValue(typesubst(SAME_SLICEELEMITER_TS, match), l) {
+    }
+};
+
+
+class SliceIndexIterValue: public SliceIterValue {
+public:
+    SliceIndexIterValue(Value *l, TypeMatch &match)
+        :SliceIterValue(typesubst(SAME_SLICEINDEXITER_TS, match), l) {
+    }
+};
+
+
+class SliceItemIterValue: public SliceIterValue {
+public:
+    SliceItemIterValue(Value *l, TypeMatch &match)
+        :SliceIterValue(typesubst(SAME_SLICEITEMITER_TS, match), l) {
+    }
+};
+
+
+class SliceNextValue: public GenericValue, public Raiser {
+public:
+    Regs clob;
+    bool is_down;
+    TypeSpec elem_ts;
+    int elem_size;
+    
+    SliceNextValue(TypeSpec ts, TypeSpec ets, Value *l, bool d)
+        :GenericValue(NO_TS, ts, l) {
+        is_down = d;
+        elem_ts = ets;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_arguments(args, kwargs, {}))
+            return false;
+
+        if (!check_raise(iterator_done_exception_type, scope))
+            return false;
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        clob = left->precompile(preferred);
+
+        if (!clob.has_any())
+            clob = clob | RAX;
+
+        return clob;
+    }
+
+    virtual Storage subcompile(X64 *x64) {
+        elem_size = array_elem_size(elem_ts);
+        ls = left->compile(x64);  // iterator
+        Register reg = (clob & ~ls.regs()).get_any();
+        Label ok;
+
+        int LENGTH_OFFSET = REFERENCE_SIZE + INTEGER_SIZE;
+        int VALUE_OFFSET = REFERENCE_SIZE + 2 * INTEGER_SIZE;
+        
+        switch (ls.where) {
+        case MEMORY:
+            x64->op(MOVQ, RBX, ls.address + VALUE_OFFSET);
+            x64->op(MOVQ, reg, ls.address); // array weakreference without incweakref
+            x64->op(CMPQ, RBX, ls.address + LENGTH_OFFSET);
+            x64->op(JNE, ok);
+            
+            raise("ITERATOR_DONE", x64);
+            
+            x64->code_label(ok);
+            x64->op(is_down ? DECQ : INCQ, ls.address + VALUE_OFFSET);
+            
+            return Storage(REGISTER, reg);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
+
+
+class SliceNextElemValue: public SliceNextValue {
+public:
+    SliceNextElemValue(Value *l, TypeMatch &match)
+        :SliceNextValue(match[1], match[1], l, false) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int FRONT_OFFSET = REFERENCE_SIZE;
+        Storage r = subcompile(x64);
+        
+        x64->op(ADDQ, RBX, ls.address + FRONT_OFFSET);
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        
+        return Storage(MEMORY, Address(r.reg, 0));
+    }
+};
+
+
+class SliceNextIndexValue: public SliceNextValue {
+public:
+    SliceNextIndexValue(Value *l, TypeMatch &match)
+        :SliceNextValue(INTEGER_TS, match[1], l, false) {
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage r = subcompile(x64);
+        
+        x64->op(MOVQ, r.reg, RBX);
+        
+        return Storage(REGISTER, r.reg);
+    }
+};
+
+
+class SliceNextItemValue: public SliceNextValue {
+public:
+    SliceNextItemValue(Value *l, TypeMatch &match)
+        :SliceNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, false) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        int FRONT_OFFSET = REFERENCE_SIZE;
+        int item_stack_size = ts.measure_stack();
+
+        Storage r = subcompile(x64);
+
+        x64->op(SUBQ, RSP, item_stack_size);
+        x64->op(MOVQ, Address(RSP, 0), RBX);
+        
+        x64->op(ADDQ, RBX, ls.address + FRONT_OFFSET);
+        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        
+        Storage s = Storage(MEMORY, Address(r.reg, 0));
+        Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
+        elem_ts.create(s, t, x64);
+        
+        return Storage(STACK);
+    }
+};
+

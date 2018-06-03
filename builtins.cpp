@@ -248,6 +248,15 @@ void builtin_types(Scope *root_scope) {
     rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { value_metatype });
     root_scope->add(rbtreeelembyorderiter_type);
 
+    sliceelemiter_type = new RecordType("Sliceelem_iter", { value_metatype });
+    root_scope->add(sliceelemiter_type);
+    
+    sliceindexiter_type = new RecordType("Sliceindex_iter", { value_metatype });
+    root_scope->add(sliceindexiter_type);
+    
+    sliceitemiter_type = new RecordType("Sliceitem_iter", { value_metatype });
+    root_scope->add(sliceitemiter_type);
+
     equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
     root_scope->add(equalitymatcher_type);
 
@@ -372,6 +381,9 @@ void builtin_types(Scope *root_scope) {
     SAME_CIRCULARRAYITEMITER_TS = { circularrayitemiter_type, same_type };
     SAME_RBTREEELEMBYAGEITER_TS = { rbtreeelembyageiter_type, same_type };
     SAME_RBTREEELEMBYORDERITER_TS = { rbtreeelembyorderiter_type, same_type };
+    SAME_SLICEELEMITER_TS = { sliceelemiter_type, same_type };
+    SAME_SLICEINDEXITER_TS = { sliceindexiter_type, same_type };
+    SAME_SLICEITEMITER_TS = { sliceitemiter_type, same_type };
 }
 
 
@@ -549,6 +561,27 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
 }
 
 
+template <typename NextValue>
+void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
+    TypeSpec PIVOT_TS = { iter_type, any_type };
+    TypeSpec SAME_ARRAY_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, array_type, same_type };
+    
+    DataScope *aiis = iter_type->make_inner_scope(PIVOT_TS);
+
+    // Order matters!
+    aiis->add(new Variable("container", PIVOT_TS, SAME_ARRAY_WEAKREF_LVALUE_TS));
+    aiis->add(new Variable("front", PIVOT_TS, INTEGER_LVALUE_TS));
+    aiis->add(new Variable("length", PIVOT_TS, INTEGER_LVALUE_TS));
+    aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
+
+    implement(aiis, interface_ts, "iterator", {
+        new TemplateIdentifier<NextValue>("next", PIVOT_TS)
+    });
+    
+    iter_type->complete_type();
+}
+
+
 void define_iterators() {
     // Counter operations
     for (auto is_down : { false, true }) {
@@ -597,6 +630,11 @@ void define_iterators() {
     // Rbtree Iterator operations
     define_container_iterator<RbtreeNextElemByAgeValue>(rbtreeelembyageiter_type, rbtree_type, SAME_ITERATOR_TS);
     define_container_iterator<RbtreeNextElemByOrderValue>(rbtreeelembyorderiter_type, rbtree_type, SAME_ITERATOR_TS);
+
+    // Slice Iterator operations
+    define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ITERATOR_TS);
+    define_slice_iterator<SliceNextIndexValue>(sliceindexiter_type, INTEGER_ITERATOR_TS);
+    define_slice_iterator<SliceNextItemValue>(sliceitemiter_type, INTEGER_SAME_ITEM_ITERATOR_TS);
 }
 
 
@@ -646,12 +684,13 @@ void define_slice() {
 
     is->add(new TemplateIdentifier<SliceIndexValue>("index", ANY_SLICE_TS));
 
-    //implement(is, TypeSpec { iterable_type, same_type }, "ible", {
-    //    new SliceElementIterator("iter", ANY_SLICE_TS)
-    //});
+    implement(is, SAME_ITERABLE_TS, "ible", {
+        new TemplateIdentifier<SliceElemIterValue>("iter", ANY_SLICE_TS)
+    });
 
-    //is->add(new SliceElementIterator("elements", ANY_SLICE_TS);
-    // TODO: other iterators
+    is->add(new TemplateIdentifier<SliceElemIterValue>("elements", ANY_SLICE_TS));
+    is->add(new TemplateIdentifier<SliceIndexIterValue>("indexes", ANY_SLICE_TS));
+    is->add(new TemplateIdentifier<SliceItemIterValue>("items", ANY_SLICE_TS));
     
     record_type->complete_type();
 }

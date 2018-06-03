@@ -580,6 +580,9 @@ test_arrays? :Function as:
     prints("Mid slice is {x} long" { x: sl3 length })
     prints("And contains {x}" { x: :try sl3[0] })
 
+    :for sl3 each: x? do:
+        prints("Slice has: {x}" {})
+
 
 test_circularrays? :Function as:
     ca? String Circularray Ref = { "foo", "bar", "baz", "xxx" }
