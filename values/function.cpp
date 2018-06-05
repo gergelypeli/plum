@@ -508,27 +508,34 @@ public:
         
         Register regs[] = { RDI, RSI, RDX, RCX, R8, R9 };
         SseRegister sses[] = { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
-        
-        std::vector<bool> is_floats;
-        
+        TSs tss;
+
         if (pivot_ts != NO_TS)
-            is_floats.push_back(pivot_ts.where(AS_VALUE) == SSEREGISTER);
-            
-        for (unsigned i = 0; i < arg_tss.size(); i++)
-            is_floats.push_back(arg_tss[i].where(AS_VALUE) == SSEREGISTER);
+            tss.push_back(pivot_ts);
         
+        for (unsigned i = 0; i < arg_tss.size(); i++)
+            tss.push_back(arg_tss[i]);
+
         unsigned reg_index = 0;
         unsigned sse_index = 0;
-        unsigned stack_offset = is_floats.size() * ADDRESS_SIZE;  // reverse order for SysV
+        unsigned stack_offset = 0;  // reverse argument order for SysV!
         
-        for (bool is_float : is_floats) {
+        for (auto &ts : tss)
+            stack_offset += ts.measure_stack();
+
+        for (auto &ts : tss) {
+            unsigned s = ts.measure_stack();
+            bool is_float = ts.where(AS_VALUE) == SSEREGISTER;
+            
             // Must move raw values so it doesn't count as a copy
-            stack_offset -= ADDRESS_SIZE;
+            stack_offset -= s;
             
             if (is_float)
                 x64->op(MOVSD, sses[sse_index++], Address(RSP, stack_offset));
-            else
+            else if (s == ADDRESS_SIZE)
                 x64->op(MOVQ, regs[reg_index++], Address(RSP, stack_offset));
+            else
+                x64->op(LEA, regs[reg_index++], Address(RSP, stack_offset));
         }
         
         x64->runtime->call_sysv_got(function->get_label(x64));

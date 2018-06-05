@@ -157,7 +157,7 @@ public:
         
         x64->op(SUBQ, RDX, RBX);
         x64->op(CMPQ, RCX, RDX);
-        x64->op(JB, ok);
+        x64->op(JBE, ok);
         
         x64->code_label(nok);
         x64->runtime->decweakref(RAX);

@@ -26,16 +26,24 @@
 #define RECORDMEMBER(obj, mtype) *(mtype *)(obj)
 #define CLASSMEMBER(obj, mtype) *(mtype *)(obj + CLASS_MEMBERS_OFFSET)
 
+#define SELEMENTS(x, s) (AELEMENTS((x)->weakref) + (s) * (x)->front)
+#define SLENGTH(x) ((x)->length)
+
 typedef void *Ref;
 typedef void *Alias;
+typedef struct {
+    void *weakref;
+    long front;
+    long length;
+} *Slice;
 
 typedef struct {
     long valued;  // returned in RAX
     long raised;  // returned in RDX
 } Varied;
 
-#define VALUED(x) ((Varied) { x, NO_EXCEPTION })
-#define RAISED(x) ((Varied) { 0, x + ERRNO_TREENUM_OFFSET })
+#define VALUED(x) ((Varied) { (long)(x), NO_EXCEPTION })
+#define RAISED(x) ((Varied) { 0, (x) + ERRNO_TREENUM_OFFSET })
 
 extern void empty_function();
 extern void finalize_reference_array();
@@ -108,6 +116,11 @@ void *reallocate_array(void *array, long length, long size) {
     array = memrealloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     ARESERVATION(array) = length;
     return array;
+}
+
+
+void free_basic_array(void *array) {
+    memfree(array + HEAP_HEADER_OFFSET);
 }
 
 
@@ -415,21 +428,79 @@ Varied path_rmdir(Alias path_alias) {
 }
 
 
-Varied reader_read(Ref reader_ref, Ref buffer_array) {
+Varied reader_read(Ref reader_ref, Slice buffer_slice) {
     int fd = CLASSMEMBER(reader_ref, int);
-    long buffer_length = ALENGTH(buffer_array);
-    long buffer_reservation = ARESERVATION(buffer_array);
-    char *buffer_elements = AELEMENTS(buffer_array);
+    long buffer_length = SLENGTH(buffer_slice);
+    char *buffer_elements = SELEMENTS(buffer_slice, 1);
     
-    int rc = read(fd, buffer_elements, buffer_reservation - buffer_length);
+    int rc = read(fd, buffer_elements, buffer_length);
     int er = errno;
     
-    fprintf(stderr, "read %d ret %d\n", fd, er);
+    fprintf(stderr, "read from %d returned %d\n", fd, rc);
     
-    if (rc >= 0)
-        ALENGTH(buffer_array) += rc;
+    return rc == -1 ? RAISED(er) : VALUED(rc);
+}
+
+
+Varied reader_get(Ref reader_ref, long length) {
+    int fd = CLASSMEMBER(reader_ref, int);
+    void *byte_array = allocate_basic_array(length, 1);
+    long buffer_length = length;
+    char *buffer_elements = AELEMENTS(byte_array);
     
-    return rc == -1 ? RAISED(er) : VALUED(0);
+    int rc = read(fd, buffer_elements, buffer_length);
+    int er = errno;
+    
+    fprintf(stderr, "get from %d returned %d\n", fd, rc);
+    
+    if (rc == -1) {
+        free_basic_array(byte_array);
+        return RAISED(er);
+    }
+
+    byte_array = reallocate_array(byte_array, rc, 1);
+    ALENGTH(byte_array) = rc;
+    
+    return VALUED(byte_array);
+}
+
+
+Varied reader_get_all(Ref reader_ref) {
+    int length = 4096;
+    int fd = CLASSMEMBER(reader_ref, int);
+    void *byte_array = allocate_basic_array(length, 1);
+    long buffer_length = length;
+    char *buffer_elements = AELEMENTS(byte_array);
+    
+    long read_length = 0;
+
+    while (1) {
+        int rc = read(fd, buffer_elements + read_length, buffer_length - read_length);
+        int er = errno;
+
+        fprintf(stderr, "get_all from %d returned %d\n", fd, rc);
+    
+        if (rc == 0)
+            break;
+            
+        if (rc == -1) {
+            free_basic_array(byte_array);
+            return RAISED(er);
+        }
+        
+        read_length += rc;
+        
+        if (read_length == buffer_length) {
+            byte_array = reallocate_array(byte_array, read_length + 4096, 1);
+            buffer_length = ALENGTH(byte_array);
+            buffer_elements = AELEMENTS(byte_array);
+        }
+    }
+
+    byte_array = reallocate_array(byte_array, read_length, 1);
+    ALENGTH(byte_array) = read_length;
+
+    return VALUED(byte_array);
 }
 
 

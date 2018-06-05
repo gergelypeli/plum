@@ -787,12 +787,18 @@ test_files? :Function as:
         else:
             prints("MKDIR WEIRD EXCEPTION!")
 
-    b? Byte Array Ref = `reserved 100
+    stdin? fs.Reader Ref = `stdin
+    b? Byte Array Ref = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+    n? Integer = 0
+    
     :try
-        stdin? fs.Reader Ref = `stdin
-        stdin read(b)
+        n = stdin read(:try b slice(0, 10))
         
-    prints("Read {n} bytes from stdin." {n: b length})
+    prints("Read {n} bytes from stdin." {})
+    
+    :try
+        text? = stdin get(100)
+        prints("Got {n} bytes from stdin." { n: text length })
     
 
 start? :Function as:

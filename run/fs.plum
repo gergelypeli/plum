@@ -31,9 +31,27 @@ Reader? :Class as:
     as:
         $ fd = 0
         
-    read? :Function from:
-        buffer? Byte Array Ref
+    read? :Function
+        Integer
+    from:
+        buffer? Byte Slice
     may:
         Errno_exception
     import:
         "reader_read"
+
+    get? :Function
+        Byte Array Ref
+    from:
+        length? Integer
+    may:
+        Errno_exception
+    import:
+        "reader_get"
+
+    get_all? :Function
+        Byte Array Ref
+    may:
+        Errno_exception
+    import:
+        "reader_get_all"
