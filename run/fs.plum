@@ -55,3 +55,56 @@ Reader? :Class as:
         Errno_exception
     import:
         "reader_get_all"
+
+
+Reader_buffer? :Class as:
+    reader? Reader Ref
+    buffer? Byte Array Ref
+    length? Integer
+    
+    new? :Initializer from:
+        r? Reader Ref
+    as:
+        $ reader = r
+        $ buffer = Byte Array Ref `all(0, 4096)
+        $ length = 0
+        
+    fill? :Function as:
+        $ length += :try $ reader read(:try $ buffer slice($ length, $ buffer length - $ length))
+
+    peek? :Function Byte Slice as:
+        :return :try $ buffer slice(0, $ length)
+        
+    grab? :Function from:
+        length? Integer
+    as:
+        $ buffer remove(length)
+        $ length -= length  # TODO
+    
+    
+Decoder? :Class as:
+    rbuffer? Reader_buffer Ref
+    
+    new? :Initializer from:
+        rb? Reader_buffer Ref
+    as:
+        $ rbuffer = rb
+        
+    getline? :Function String as:
+        bytes? Byte Slice = :eval:
+            :repeat on: `true do:
+                s? = $ rbuffer peek
+            
+                :try
+                    i? = s find(10)  # newline
+                    :eval s slice(0, i)
+                or:
+                    $ rbuffer fill
+                    :fixed
+                    
+            :eval `empty  # FIXME: workaround for :repeat not being Whatever
+            
+        string? = bytes decode_utf8
+        $ rbuffer grab(bytes length + 1)
+        
+        :return string

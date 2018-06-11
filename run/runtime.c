@@ -353,7 +353,7 @@ void printb(void *s) {
 }
 
 
-void *decode_utf8(void *byte_array) {
+void *decode_utf8(Ref byte_array) {
     if (!byte_array)
         return NULL;
 
@@ -371,7 +371,7 @@ void *decode_utf8(void *byte_array) {
 }
 
 
-void *encode_utf8(void *string_alias) {
+void *encode_utf8(Alias string_alias) {
     void *character_array = *(void **)string_alias;
     if (!character_array)
         return NULL;
@@ -388,6 +388,21 @@ void *encode_utf8(void *string_alias) {
     ALENGTH(byte_array) = byte_count;
     
     return reallocate_array(byte_array, byte_count, 1);
+}
+
+
+void *decode_utf8_slice(Slice byte_slice) {
+    long byte_length = SLENGTH(byte_slice);
+    char *bytes = SELEMENTS(byte_slice, 1);
+
+    void *character_array = allocate_basic_array(byte_length, 2);
+    unsigned short *characters = AELEMENTS(character_array);
+    
+    long byte_count, character_count;
+    decode_utf8_buffer(bytes, byte_length, characters, ARESERVATION(character_array), &byte_count, &character_count);
+    ALENGTH(character_array) = character_count;
+    
+    return reallocate_array(character_array, character_count, 2);
 }
 
 

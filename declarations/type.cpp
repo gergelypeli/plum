@@ -216,12 +216,12 @@ public:
     }
 
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
-        std::cerr << "Uninitializable type: " << name << "!\n";
+        std::cerr << "No initializer " << name << " `" << n << "!\n";
         throw INTERNAL_ERROR;
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
-        std::cerr << "Unmatchable type: " << name << "!\n";
+        std::cerr << "No matcher " << name << " ~" << n << "!\n";
         throw INTERNAL_ERROR;
     }
 

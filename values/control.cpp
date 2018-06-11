@@ -39,7 +39,7 @@ public:
 
     virtual bool check_args(Args &args, ArgInfo arg_info) {
         if (args.size() == 0) {
-            if (*arg_info.context != NO_TS) {
+            if (*arg_info.context != NO_TS && *arg_info.context != VOID_TS) {
                 std::cerr << "Missing :" << name << " positional argument!\n";
                 return false;
             }

@@ -683,6 +683,8 @@ void define_slice() {
     is->add(new Variable("length", ANY_SLICE_TS, INTEGER_LVALUE_TS));
 
     is->add(new TemplateIdentifier<SliceIndexValue>("index", ANY_SLICE_TS));
+    is->add(new TemplateIdentifier<SliceFindValue>("find", ANY_SLICE_TS));
+    is->add(new TemplateIdentifier<SliceSliceValue>("slice", ANY_SLICE_TS));
 
     implement(is, SAME_ITERABLE_TS, "ible", {
         new TemplateIdentifier<SliceElemIterValue>("iter", ANY_SLICE_TS)
@@ -728,6 +730,7 @@ void define_array() {
 
     array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
+    array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", ANY_ARRAY_REF_TS));  // needs Ref
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateOperation<ArrayIndexValue>("index", ANY_ARRAY_WEAKREF_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));
@@ -947,6 +950,8 @@ void define_weakset() {
 
 
 void builtin_runtime(Scope *root_scope) {
+    TypeSpec BYTE_SLICE_TS = { slice_type, unsigned_integer8_type };
+
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
     TSs FLOAT_TSS = { FLOAT_TS };
@@ -965,6 +970,7 @@ void builtin_runtime(Scope *root_scope) {
     root_scope->add(new SysvFunction("prints", "prints", NO_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL));
     root_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     root_scope->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
+    root_scope->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
 
     //root_scope->add(new SysvFunction("stringify_integer", "stringify", INTEGER_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     

@@ -625,9 +625,9 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     if (context && !typematch(*context, v, match, code_scope)) {
         // Make an effort to print meaningful error messages
         if (*context == WHATEVER_CODE_TS)
-            std::cerr << "Expression must transfer control, not return " << get_typespec(v) << "!\n";
+            std::cerr << "Expression must transfer control, not return " << get_typespec(v) << " at " << e->token << "!\n";
         else
-            std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *context << "!\n";
+            std::cerr << "Argument type mismatch, " << get_typespec(v) << " is not a " << *context << " at " << e->token << "!\n";
 
         return false;
     }

@@ -230,6 +230,65 @@ public:
 };
 
 
+class ContainerAllValue: public Value {
+public:
+    std::unique_ptr<Value> fill_value;
+    std::unique_ptr<Value> length_value;
+    TypeSpec elem_ts;
+    
+    ContainerAllValue(TypeSpec ts)
+        :Value(ts) {
+        elem_ts = container_elem_ts(ts);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        ArgInfos infos = {
+            { "fill", &elem_ts, scope, &fill_value },
+            { "length", &INTEGER_TS, scope, &length_value }
+        };
+        
+        if (!check_arguments(args, kwargs, infos))
+            return false;
+
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return fill_value->precompile(preferred) | length_value->precompile(preferred) | Regs(RAX, RCX, RDX);
+    }
+    
+    virtual Storage subcompile(int length_offset, int elems_offset, Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
+        Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
+        int elem_size = container_elem_size(elem_ts);
+
+        fill_value->compile_and_store(x64, Storage(STACK));
+        length_value->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(MOVQ, RAX, Address(RSP, 0));
+        x64->op(CALL, alloc_label);  // RAX - container reference
+        x64->op(POPQ, Address(RAX, length_offset));
+        
+        Label loop, check;
+        x64->op(MOVQ, RCX, 0);
+        x64->op(JMP, check);
+        
+        x64->code_label(loop);
+        x64->op(IMUL3Q, RDX, RCX, elem_size);
+        
+        elem_ts.create(Storage(MEMORY, Address(RSP, 0)), Storage(MEMORY, Address(RAX, RDX, elems_offset)), x64);
+        x64->op(INCQ, RCX);
+        
+        x64->code_label(check);
+        x64->op(CMPQ, RCX, Address(RAX, length_offset));
+        x64->op(JB, loop);
+        
+        elem_ts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage(REGISTER, RAX);
+    }
+};
+
+
 class ContainerInitializerValue: public Value {
 public:
     TypeSpec elem_ts;

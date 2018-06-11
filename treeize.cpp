@@ -281,7 +281,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
             else if (c == ')') {
                 if (parens.back() != PAREN) {
-                    std::cerr << "Mismatched " << token.text << "!\n";
+                    std::cerr << "Mismatched paren: " << token << "\n";
                     throw TREE_ERROR;
                 }
                     
@@ -301,7 +301,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
             else if (c == ']') {
                 if (parens.back() != BRACKET) {
-                    std::cerr << "Mismatched " << token.text << "!\n";
+                    std::cerr << "Mismatched bracket: " << token << "!\n";
                     throw TREE_ERROR;
                 }
                     
@@ -320,7 +320,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
             else if (c == '}') {
                 if (parens.back() != BRACE) {
-                    std::cerr << "Mismatched " << token.text << "!\n";
+                    std::cerr << "Mismatched brace: " << token << "!\n";
                     throw TREE_ERROR;
                 }
                     
@@ -341,7 +341,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
             else if (token.text == " dedent") {
                 if (parens.back() != BLOCK) {
-                    std::cerr << "Mismatched " << token.text << "!\n";
+                    std::cerr << "Unclosed grouping: " << token << "!\n";
                     throw TREE_ERROR;
                 }
                     
@@ -353,7 +353,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
             else if (token.text == " separate") {
                 if (parens.back() != BLOCK && parens.back() != UNIT) {
-                    std::cerr << "Unclosed parentheses " << token.text << "!\n";
+                    std::cerr << "Unclosed grouping: " << token << "!\n";
                     throw TREE_ERROR;
                 }
                 
@@ -362,7 +362,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 fore = SEPARATING;
             }
             else {
-                std::cerr << "Invalid internal thingy " << token.text << "!\n";
+                std::cerr << "Invalid internal thingy " << token << "!\n";
                 throw INTERNAL_ERROR;
             }
         }

@@ -138,7 +138,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return array_value->precompile(preferred) | front_value->precompile(preferred) | length_value->precompile(preferred);
+        return array_value->precompile(preferred) | front_value->precompile(preferred) | length_value->precompile(preferred) | Regs(RAX, RCX, RDX);
     }
     
     virtual Storage compile(X64 *x64) {
@@ -168,6 +168,69 @@ public:
         x64->op(PUSHQ, RCX);
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, RAX);
+        
+        return Storage(STACK);
+    }
+};
+
+
+class SliceSliceValue: public Value, public Raiser {
+public:
+    std::unique_ptr<Value> slice_value;
+    std::unique_ptr<Value> front_value;
+    std::unique_ptr<Value> length_value;
+    Register reg;
+    
+    SliceSliceValue(Value *pivot, TypeMatch &match)
+        :Value(match[0]) {
+        
+        slice_value.reset(pivot);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(lookup_exception_type, scope))
+            return false;
+
+        ArgInfos infos = {
+            { "front", &INTEGER_TS, scope, &front_value },
+            { "length", &INTEGER_TS, scope, &length_value }
+        };
+        
+        if (!check_arguments(args, kwargs, infos))
+            return false;
+
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return slice_value->precompile(preferred) | front_value->precompile(preferred) | length_value->precompile(preferred) | Regs(RAX, RCX, RDX);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        slice_value->compile_and_store(x64, Storage(STACK));
+        front_value->compile_and_store(x64, Storage(STACK));
+        length_value->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(POPQ, RCX);  // length
+        x64->op(POPQ, RBX);  // front
+        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));  // old length
+        
+        Label ok, nok;
+        x64->op(CMPQ, RBX, RDX);
+        x64->op(JAE, nok);
+        
+        x64->op(SUBQ, RDX, RBX);
+        x64->op(CMPQ, RCX, RDX);
+        x64->op(JBE, ok);
+        
+        x64->code_label(nok);
+        ts.store(Storage(STACK), Storage(), x64);
+
+        raise("NOT_FOUND", x64);
+        
+        x64->code_label(ok);
+        x64->op(ADDQ, Address(RSP, ADDRESS_SIZE), RBX);  // adjust front
+        x64->op(MOVQ, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE), RCX);  // set length
         
         return Storage(STACK);
     }
@@ -227,6 +290,67 @@ public:
         return Storage(MEMORY, Address(RAX, 0));
     }
 };
+
+
+class SliceFindValue: public GenericValue, public Raiser {
+public:
+    TypeSpec slice_ts;
+    TypeSpec elem_ts;
+    
+    SliceFindValue(Value *l, TypeMatch &match)
+        :GenericValue(match[1], INTEGER_TS, l) {
+        elem_ts = match[1];
+        slice_ts = match[0];
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(lookup_exception_type, scope))
+            return false;
+
+        return GenericValue::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RCX, RDX) | COMPARE_CLOB;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        left->compile_and_store(x64, Storage(STACK));
+        right->compile_and_store(x64, Storage(STACK));
+        
+        Label loop, check, found;
+        int elem_size = array_elem_size(elem_ts);
+        int stack_size = elem_ts.measure_stack();
+    
+        x64->op(MOVQ, RAX, Address(RSP, stack_size));
+
+        x64->op(MOVQ, RCX, 0);
+        x64->op(MOVQ, RDX, Address(RSP, stack_size + ADDRESS_SIZE));  // front index
+        x64->op(IMUL3Q, RDX, RDX, elem_size);
+        x64->op(JMP, check);
+        
+        x64->code_label(loop);
+        elem_ts.compare(Storage(MEMORY, Address(RAX, RDX, ARRAY_ELEMS_OFFSET)), Storage(MEMORY, Address(RSP, 0)), x64);
+        x64->op(JE, found);
+
+        x64->op(INCQ, RCX);
+        x64->op(ADDQ, RDX, elem_size);
+        
+        x64->code_label(check);
+        x64->op(CMPQ, RCX, Address(RSP, stack_size + ADDRESS_SIZE + INTEGER_SIZE));  // length
+        x64->op(JB, loop);
+
+        raise("NOT_FOUND", x64);
+
+        x64->code_label(found);
+        
+        elem_ts.store(Storage(STACK), Storage(), x64);
+        slice_ts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage(REGISTER, RCX);
+    }
+};
+
 
 
 // Iteration

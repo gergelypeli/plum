@@ -35,6 +35,7 @@ class FunctionScope;
 class ArrayEmptyValue;
 class ArrayInitializerValue;
 class ArrayReservedValue;
+class ArrayAllValue;
 class BasicValue;
 class BulkEqualityMatcherValue;
 class CastValue;

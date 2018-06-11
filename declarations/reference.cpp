@@ -321,6 +321,8 @@ public:
             return make<ArrayEmptyValue>(rts);
         else if (name == "reserved")
             return make<ArrayReservedValue>(rts);
+        else if (name == "all")
+            return make<ArrayAllValue>(rts);
         else if (name == "{}")
             return make<ArrayInitializerValue>(rts);
 

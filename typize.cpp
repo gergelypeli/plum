@@ -279,6 +279,10 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 std::cerr << "Initializer without type context: " << expr->token << "\n";
                 throw TYPE_ERROR;
             }
+
+            // TODO: strip some prefixes
+            if (ts[0] == code_type)
+                ts = ts.unprefix(code_type);
             
             // We must have checked this.
             if (!ts.has_meta(value_metatype) && !ts.has_meta(metatype_hypertype)) {

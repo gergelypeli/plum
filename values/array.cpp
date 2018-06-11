@@ -225,7 +225,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return Regs(RAX, RCX, RDX, RSI, RDI) | COMPARE_CLOB;
+        return left->precompile(preferred) | Regs(RAX, RCX, RDX, RSI, RDI) | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -269,6 +269,136 @@ public:
 };
 
 
+class ArrayRemoveValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    ArrayRemoveValue(Value *l, TypeMatch &match)
+        :GenericValue(INTEGER_TS, match[0], l) {
+        elem_ts = match[1];
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred) | right->precompile(preferred) | Regs::all();  // SysV
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Label remove_label = x64->once->compile(compile_remove, elem_ts);
+
+        left->compile_and_store(x64, Storage(STACK));
+        right->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(CALL, remove_label);
+        
+        x64->op(POPQ, RBX);
+        
+        return Storage(STACK);
+    }
+    
+    static void compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
+        int elem_size = array_elem_size(elem_ts);
+
+        x64->code_label(label);
+        Label ok, loop, check;
+        
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));
+        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RCX, Address(RSP, ADDRESS_SIZE));
+        x64->op(JAE, ok);
+        
+        x64->runtime->die("Array remove length out of bounds!");
+        
+        // Destroy the first elements
+        x64->code_label(ok);
+        x64->op(MOVQ, RCX, 0);
+        x64->op(JMP, check);
+        
+        x64->code_label(loop);
+        x64->op(IMUL3Q, RDX, RCX, elem_size);
+        
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, RDX, ARRAY_ELEMS_OFFSET)), x64);
+        x64->op(INCQ, RCX);
+        
+        x64->code_label(check);
+        x64->op(CMPQ, RCX, Address(RSP, ADDRESS_SIZE));
+        x64->op(JB, loop);
+
+        x64->op(SUBQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+
+        // call memmove - RDI = dest, RSI = src, RDX = n
+        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));  // dest
+        
+        x64->op(IMUL3Q, RSI, RCX, elem_size);
+        x64->op(ADDQ, RSI, RDI);  // src
+        
+        x64->op(MOVQ, RDX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(IMUL3Q, RDX, RDX, elem_size);  // n
+        
+        x64->runtime->call_sysv_got(x64->once->import_got("memmove"));
+
+        x64->op(RET);
+    }
+};
+
+/*
+class ArrayFindValue: public GenericValue, public Raiser {
+public:
+    TypeSpec rts;
+    TypeSpec elem_ts;
+    
+    ArrayFindValue(Value *l, TypeMatch &match)
+        :GenericValue(match[1], INTEGER_TS, l) {
+        elem_ts = match[1];
+        rts = match[0];
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(lookup_exception_type, scope))
+            return false;
+
+        return GenericValue::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RCX, RDX) | COMPARE_CLOB;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        left->compile_and_store(x64, Storage(STACK));
+        right->compile_and_store(x64, Storage(STACK));
+        
+        Label loop, check, found;
+        int elem_size = array_elem_size(elem_ts);
+        int stack_size = elem_ts.measure_stack();
+    
+        x64->op(MOVQ, RAX, Address(RSP, stack_size));
+
+        x64->op(MOVQ, RCX, 0);
+        x64->op(JMP, check);
+        
+        x64->code_label(loop);
+        x64->op(IMUL3Q, RDX, RCX, elem_size);
+        elem_ts.compare(Storage(MEMORY, Address(RAX, RDX, ARRAY_ELEMS_OFFSET)), Storage(MEMORY, Address(RSP, 0)), x64);
+        x64->op(JE, found);
+
+        x64->op(INCQ, RCX);
+        
+        x64->code_label(check);
+        x64->op(CMPQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(JB, loop);
+
+        raise("NOT_FOUND", x64);
+
+        x64->code_label(found);
+        
+        elem_ts.store(Storage(STACK), Storage(), x64);
+        rts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage(REGISTER, RCX);
+    }
+};
+*/
+
 class ArrayEmptyValue: public ContainerEmptyValue {
 public:
     ArrayEmptyValue(TypeSpec ts)
@@ -289,6 +419,18 @@ public:
 
     virtual Storage compile(X64 *x64) {
         return subcompile(compile_array_alloc, x64);
+    }
+};
+
+
+class ArrayAllValue: public ContainerAllValue {
+public:
+    ArrayAllValue(TypeSpec ts)
+        :ContainerAllValue(ts) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, compile_array_alloc, x64);
     }
 };
 
