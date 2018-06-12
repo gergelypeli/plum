@@ -85,7 +85,7 @@ public:
         return clob;
     }
 
-    virtual Storage assign(X64 *x64) {
+    virtual Storage assign_create(X64 *x64) {
         ls = left->compile(x64);
 
         if (ls.where != MEMORY)
@@ -120,7 +120,12 @@ public:
             ls = Storage(MEMORY, Address(r, 0));
         }
 
-        ts.store(rs, ls, x64);
+        if (operation == ASSIGN)
+            ts.store(rs, ls, x64);
+        else if (operation == CREATE)
+            ts.create(rs, ls, x64);
+        else
+            throw INTERNAL_ERROR;
         
         if (need_alipop)
             x64->op(ADDQ, RSP, ADDRESS_SIZE);
@@ -233,7 +238,9 @@ public:
     virtual Storage compile(X64 *x64) {
         switch (operation) {
         case ASSIGN:
-            return assign(x64);
+            return assign_create(x64);
+        case CREATE:
+            return assign_create(x64);
         case COMPARE:
             return compare(x64);
         case EQUAL:

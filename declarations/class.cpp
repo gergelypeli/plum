@@ -208,7 +208,7 @@ public:
     }
     
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        x64->code_label_local(label, "x_finalizer");  // FIXME: ambiguous name!
+        x64->code_label_local(label, ts[0]->name + "_finalizer");  // FIXME: ambiguous name!
 
         ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
 

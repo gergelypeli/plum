@@ -174,13 +174,16 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void add_statement(Value *value, bool result = false) {
+    virtual bool add_statement(Value *value, bool result = false) {
         statements.push_back(std::unique_ptr<Value>(value));
         
-        value->complete_definition();
+        if (!value->complete_definition())
+            return false;
         
         if (result)
             ts = value->ts;  // TODO: rip code_type
+            
+        return true;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -200,7 +203,8 @@ public:
                 
                 v->escape_statement_variables();
                 
-                add_statement(v.release(), false);
+                if (!add_statement(v.release(), false))
+                    return false;
             }
             
             std::unique_ptr<Value> v;
@@ -210,7 +214,8 @@ public:
                 return false;
             }
         
-            add_statement(v.release(), true);
+            if (!add_statement(v.release(), true))
+                return false;
         }
 
         return true;
@@ -378,10 +383,10 @@ public:
 
 
 
-class CreateValue: public GenericValue {
+class CreateValue: public GenericOperationValue {
 public:
     CreateValue(Value *l, TypeMatch &tm)
-        :GenericValue(tm[1], tm[1].prefix(lvalue_type), l) {
+        :GenericOperationValue(CREATE, tm[1], tm[1].prefix(lvalue_type), l) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -406,7 +411,7 @@ public:
                 throw INTERNAL_ERROR;
         }
         
-        if (!GenericValue::check(args, kwargs, scope))
+        if (!GenericOperationValue::check(args, kwargs, scope))
             return false;
             
         if (dv) {
@@ -442,7 +447,7 @@ public:
 
         return (dv ? declaration_get_decl(dv) : NULL);
     }
-    
+    /*
     virtual Regs precompile(Regs preferred) {
         return left->precompile(preferred) | right->precompile(preferred);
     }
@@ -460,10 +465,14 @@ public:
         //std::cerr << "XXX CreateValue " << (i ? i->name : "?") << " from " << rs << "\n";
         
         arg_ts.create(rs, ls, x64);
+
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
+        if (!dv)
+            std::cerr << "XXX member init " << arg_ts << " from " << rs << " to " << ls << "\n";
         
         return ls;
     }
-    
+    */
     virtual void escape_statement_variables() {
         DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
         

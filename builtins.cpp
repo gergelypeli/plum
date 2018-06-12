@@ -968,6 +968,7 @@ void builtin_runtime(Scope *root_scope) {
     root_scope->add(new SysvFunction("printd", "printd", NO_TS, GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL));
     root_scope->add(new SysvFunction("printb", "printb", NO_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL));
     root_scope->add(new SysvFunction("prints", "prints", NO_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL));
+    root_scope->add(new SysvFunction("printp", "printp", NO_TS, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL));  // needs Lvalue to avoid ref copy
     root_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     root_scope->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
     root_scope->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
@@ -1052,6 +1053,7 @@ Scope *init_builtins() {
     root_scope->add(new ReferenceOperation("assign other", ANYID_REF_LVALUE_TS, ASSIGN));
     root_scope->add(new ReferenceOperation("is_equal", ANYID_REF_TS, EQUAL));
     root_scope->add(new ReferenceOperation("not_equal", ANYID_REF_TS, NOT_EQUAL));
+    root_scope->add(new TemplateIdentifier<GenericStreamificationValue>("<streamify>", ANYID_REF_TS));
 
     typedef TemplateOperation<WeakreferenceOperationValue> WeakreferenceOperation;
     root_scope->add(new WeakreferenceOperation("assign other", ANYID_WEAKREF_LVALUE_TS, ASSIGN));

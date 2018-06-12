@@ -26,7 +26,6 @@ public:
 
 class GenericStreamificationValue: public GenericValue {
 public:
-
     GenericStreamificationValue(Value *p, TypeMatch &match)
         :GenericValue(STRING_LVALUE_TS, VOID_TS, p) {
     }
@@ -50,6 +49,59 @@ public:
     }
 };
 
+/*
+// Does not work, as interpolation creates an extra variable anyway
+class RefStreamificationValue: public GenericStreamificationValue {
+public:
+    RefStreamificationValue(Value *p, TypeMatch &match)
+        :GenericStreamificationValue(p, match) {
+    }
+
+    virtual Storage compile(X64 *x64) {
+        // We subclass this to be able to print variables containing invalid pointers
+        // that would crash when pushed onto the stack.
+        
+        x64->runtime->log("Refstr");
+        
+        ls = left->compile(x64);
+        
+        switch (ls.where) {
+        case STACK:
+            break;
+        case MEMORY:
+            x64->op(PUSHQ, ls.address);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        right->compile_and_store(x64, Storage(ALISTACK));
+            
+        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+        x64->op(MOVQ, RSI, Address(RSP, 0));
+        
+        Label label;
+        x64->code_label_import(label, "streamify_reference");
+        x64->runtime->call_sysv(label);
+        
+        right->ts.store(Storage(ALISTACK), Storage(), x64);
+        
+        switch (ls.where) {
+        case STACK:
+            left->ts.store(ls, Storage(), x64);
+            break;
+        case MEMORY:
+            x64->op(ADDQ, RSP, ADDRESS_SIZE);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        x64->runtime->log("Refstr2");
+        return Storage();
+    }
+};
+*/
 
 // This is a simplified CodeBlockValue that allows a nonvoid result
 class InterpolationValue: public Value {
@@ -157,14 +209,18 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         }
 
         TypeMatch match;
-        if (!typematch(STREAMIFIABLE_TS, pivot, match)) {
-            std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
-            throw TYPE_ERROR;
+        Value *streamify = NULL;
+        
+        if (typematch(STREAMIFIABLE_TS, pivot, match)) {
+            streamify = lookup_fake("streamify", pivot, expr->token, code_scope, NULL, interpolated_var);
+        }
+        else if (pivot->ts.rvalue()[0] == ref_type) {
+            // Complimentary streamification of references
+            streamify = lookup_fake("<streamify>", pivot, expr->token, code_scope, NULL, interpolated_var);
         }
 
-        Value *streamify = lookup_fake("streamify", pivot, expr->token, code_scope, NULL, interpolated_var);
         if (!streamify) {
-            std::cerr << "Cannot interpolate badly streamifiable " << pivot->ts << "!\n";
+            std::cerr << "Cannot interpolate unstreamifiable " << pivot->ts << "!\n";
             throw TYPE_ERROR;
         }
 

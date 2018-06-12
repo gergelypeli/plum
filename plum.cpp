@@ -98,7 +98,10 @@ void import(std::string module_name, std::string file_name, Scope *root_scope) {
     for (auto &a : expr_root->args)
         value_root->check_statement(a.get());
         
-    value_root->complete_definition();
+    if (!value_root->complete_definition()) {
+        std::cerr << "Error compiling module " << module_name << "!\n";
+        throw INTERNAL_ERROR;  // FIXME
+    }
 }
 
 

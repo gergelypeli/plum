@@ -129,6 +129,8 @@ public:
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case MEMORY_NOWHERE:
+            return;
         case MEMORY_ALISTACK:
             x64->op(LEA, RBX, s.address);
             x64->op(PUSHQ, RBX);

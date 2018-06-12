@@ -225,8 +225,6 @@ public:
     
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         // SysV
-        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-        
         Label label;
         
         if (is_unsigned) {

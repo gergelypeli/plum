@@ -225,6 +225,13 @@ void streamify_float(double x, void **character_array_lvalue) {
 }
 
 
+void streamify_reference(Ref x, void **character_array_lvalue) {
+    char byte_array[30];
+    long byte_length = snprintf(byte_array, sizeof(byte_array), "%p", x);
+    lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
+}
+
+
 void sort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *)) {
     qsort(base, nmemb, size, compar);
 }
@@ -350,6 +357,12 @@ void printb(void *s) {
     }
     else
         printf("(null)\n");
+}
+
+
+void printp(void **x) {
+    // This function uses an Lvalue, so invalid pointers can be passed
+    printf("%p\n", *x);
 }
 
 
