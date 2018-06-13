@@ -94,7 +94,7 @@ Decoder? :Class as:
         bytes? Byte Slice = :eval:
             :repeat on: `true do:
                 s? = $ rbuffer peek
-            
+                
                 :try
                     i? = s find(10)  # newline
                     :eval s slice(0, i)

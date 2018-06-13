@@ -263,6 +263,7 @@ public:
     virtual void allocate() {
         offset = outer_scope->reserve(Allocation { 0, 0, 0, 0 });
         
+        //std::cerr << "Allocating " << this << " persistent contents.\n";
         for (auto &d : contents)
             if (!d->is_transient())
                 d->allocate();
@@ -271,6 +272,7 @@ public:
         Allocation min_size = size;
         Allocation max_size = size;
 
+        //std::cerr << "Allocating " << this << " transient contents.\n";
         for (auto &d : contents)
             if (d->is_transient()) {
                 d->allocate();
@@ -283,7 +285,7 @@ public:
                 size = min_size;
             }
         
-        //std::cerr << "CodeScope reserving " << min_size << "+" << (max_size - min_size) << " bytes.\n";
+        //std::cerr << "Allocated " << this << " total " << min_size << " / " << max_size << " bytes.\n";
         outer_scope->reserve(max_size);
         is_allocated = true;
     }

@@ -28,11 +28,9 @@ public:
         
         // This uses SSE instructions, so SysV stack alignment must be ensured
         x64->runtime->call_sysv(x64->runtime->sysv_string_regexp_match_label);
-        
-        x64->op(POPQ, RBX);
-        x64->runtime->decref(RBX);
-        x64->op(POPQ, RBX);
-        x64->runtime->decref(RBX);
+
+        right->ts.store(Storage(STACK), Storage(), x64);
+        left->ts.store(Storage(STACK), Storage(), x64);
         
         x64->op(CMPQ, RAX, 0);
         x64->op(JNE, ok);
@@ -162,6 +160,7 @@ public:
         x64->code_label(nok);
         x64->runtime->decweakref(RAX);
 
+        // all popped
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
@@ -224,8 +223,7 @@ public:
         x64->op(JBE, ok);
         
         x64->code_label(nok);
-        ts.store(Storage(STACK), Storage(), x64);
-
+        ts.store(Storage(STACK), Storage(), x64);  // pop Slice
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
@@ -279,7 +277,8 @@ public:
         Label ok;
         x64->op(CMPQ, RAX, RDX);
         x64->op(JB, ok);
-        
+
+        // all popped        
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
@@ -340,10 +339,11 @@ public:
         x64->op(CMPQ, RCX, Address(RSP, stack_size + ADDRESS_SIZE + INTEGER_SIZE));  // length
         x64->op(JB, loop);
 
+        elem_ts.store(Storage(STACK), Storage(), x64);
+        slice_ts.store(Storage(STACK), Storage(), x64);
         raise("NOT_FOUND", x64);
 
         x64->code_label(found);
-        
         elem_ts.store(Storage(STACK), Storage(), x64);
         slice_ts.store(Storage(STACK), Storage(), x64);
         

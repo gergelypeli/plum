@@ -377,6 +377,7 @@ public:
         Scope *s = decl->outer_scope;
         s->remove(decl);
         s->outer_scope->add(decl);
+        //std::cerr << "Escaped variable " << name << " from " << s << " to " << s->outer_scope << "\n";
     }
 };
 

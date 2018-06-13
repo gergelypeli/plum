@@ -275,7 +275,7 @@ public:
     void data_word(short x);
     void data_dword(int x);
     void data_qword(long x);
-    void data_zstring(const char *s);
+    void data_zstring(std::string s);
     void data_double(double x);
     void data_label(Label c, unsigned size = 0);
     void data_label_local(Label c, std::string name, unsigned size = 0);

@@ -144,7 +144,8 @@ public:
         x64->runtime->decweakref(RBX);  // for the anchorage
         x64->op(CMPQ, Address(RBX, 0), 0);
         x64->op(JE, ok);
-        
+
+        // popped        
         raise("UNMATCHED", x64);
                 
         x64->code_label(ok);
@@ -179,6 +180,7 @@ public:
         x64->op(CMPQ, Address(RBX, 0), 0);
         x64->op(JNE, ok);
         
+        // popped
         raise("UNMATCHED", x64);
                 
         x64->code_label(ok);

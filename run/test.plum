@@ -799,9 +799,13 @@ test_files? :Function as:
     :try
         text? = stdin get(100)
         prints("Got {n} bytes from stdin." { n: text length })
-        
+
     rb? = fs.Reader_buffer Ref `new(stdin)
     dc? = fs.Decoder Ref `new(rb)
+
+    prints("Say something!")
+    s? = dc getline
+    prints("So, {s}?" {})
     
 
 start? :Function as:

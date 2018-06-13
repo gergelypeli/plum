@@ -128,7 +128,8 @@ public:
             x64->op(LEA, RSP, Address(RSP, pop));
         
         x64->op(JE, equal);
-        
+
+        // popped        
         raise("UNMATCHED", x64);
         
         x64->code_label(equal);
@@ -180,7 +181,8 @@ public:
             x64->op(LEA, RSP, Address(RSP, pop));
         
         x64->op(JE, equal);
-        
+
+        // popped        
         raise("UNMATCHED", x64);
         
         x64->code_label(equal);
@@ -252,6 +254,7 @@ public:
             x64->op(JE, equal);
         }
         
+        // popped
         raise("UNMATCHED", x64);
         
         x64->code_label(equal);

@@ -340,64 +340,6 @@ public:
     }
 };
 
-/*
-class ArrayFindValue: public GenericValue, public Raiser {
-public:
-    TypeSpec rts;
-    TypeSpec elem_ts;
-    
-    ArrayFindValue(Value *l, TypeMatch &match)
-        :GenericValue(match[1], INTEGER_TS, l) {
-        elem_ts = match[1];
-        rts = match[0];
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(lookup_exception_type, scope))
-            return false;
-
-        return GenericValue::check(args, kwargs, scope);
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RCX, RDX) | COMPARE_CLOB;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        left->compile_and_store(x64, Storage(STACK));
-        right->compile_and_store(x64, Storage(STACK));
-        
-        Label loop, check, found;
-        int elem_size = array_elem_size(elem_ts);
-        int stack_size = elem_ts.measure_stack();
-    
-        x64->op(MOVQ, RAX, Address(RSP, stack_size));
-
-        x64->op(MOVQ, RCX, 0);
-        x64->op(JMP, check);
-        
-        x64->code_label(loop);
-        x64->op(IMUL3Q, RDX, RCX, elem_size);
-        elem_ts.compare(Storage(MEMORY, Address(RAX, RDX, ARRAY_ELEMS_OFFSET)), Storage(MEMORY, Address(RSP, 0)), x64);
-        x64->op(JE, found);
-
-        x64->op(INCQ, RCX);
-        
-        x64->code_label(check);
-        x64->op(CMPQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(JB, loop);
-
-        raise("NOT_FOUND", x64);
-
-        x64->code_label(found);
-        
-        elem_ts.store(Storage(STACK), Storage(), x64);
-        rts.store(Storage(STACK), Storage(), x64);
-        
-        return Storage(REGISTER, RCX);
-    }
-};
-*/
 
 class ArrayEmptyValue: public ContainerEmptyValue {
 public:

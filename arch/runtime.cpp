@@ -356,7 +356,7 @@ public:
         x64->op(JE, ok);
     }
 
-    void log(const char *message) {
+    void log(std::string message) {
         Label message_label;
         x64->data_label(message_label);
         x64->data_zstring(message);
@@ -368,7 +368,7 @@ public:
     }
 
 
-    void dump(const char *message) {
+    void dump(std::string message) {
         Label message_label;
         x64->data_label(message_label);
         x64->data_zstring(message);
@@ -389,7 +389,7 @@ public:
     }
 
 
-    void die(const char *message) {
+    void die(std::string message) {
         // TODO: this encodes the message several times unnecessarily!
         Label message_label;
         x64->data_label(message_label);

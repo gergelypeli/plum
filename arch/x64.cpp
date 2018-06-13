@@ -226,9 +226,9 @@ void X64::data_qword(long x) {
 }
 
 
-void X64::data_zstring(const char *s) {
-    while (*s)
-        data.push_back(*s++);
+void X64::data_zstring(std::string s) {
+    for (char c : s)
+        data.push_back(c);
         
     data.push_back(0);
 }

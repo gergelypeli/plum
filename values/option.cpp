@@ -79,7 +79,7 @@ public:
         case STACK:
             left->ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
             x64->op(CMPQ, Address(RSP, 0), 0);
-            x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));
+            x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));  // discard STACK, keep flags
             x64->op(JE, ok);
             
             raise("UNMATCHED", x64);
@@ -130,6 +130,7 @@ public:
             x64->op(CMPQ, Address(RSP, 0), 0);
             x64->op(JNE, ok);
 
+            left->ts.store(ls, Storage(), x64);
             raise("UNMATCHED", x64);
 
             x64->code_label(ok);

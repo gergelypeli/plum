@@ -410,6 +410,8 @@ public:
     unsigned res_total;
     std::vector<TypeSpec> pushed_tss;
     std::vector<Storage> pushed_storages;
+    std::vector<unsigned> pushed_sizes;
+    bool pushed_pivots;
     
     TypeSpec pivot_ts;
     std::vector<TypeSpec> arg_tss;
@@ -439,6 +441,7 @@ public:
         res_total = 0;
         has_code_arg = false;
         is_static = false;
+        pushed_pivots = false;
     }
 
     virtual void be_static() {
@@ -508,31 +511,21 @@ public:
         
         Register regs[] = { RDI, RSI, RDX, RCX, R8, R9 };
         SseRegister sses[] = { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
-        TSs tss;
-
-        if (pivot_ts != NO_TS)
-            tss.push_back(pivot_ts);
-        
-        for (unsigned i = 0; i < arg_tss.size(); i++)
-            tss.push_back(arg_tss[i]);
-
         unsigned reg_index = 0;
         unsigned sse_index = 0;
-        unsigned stack_offset = 0;  // reverse argument order for SysV!
         
-        for (auto &ts : tss)
-            stack_offset += ts.measure_stack();
+        // For pushed pivots, ignore the pushed value, only use the pushed alias
+        unsigned stack_offset = passed_size - (pushed_pivots ? pushed_sizes[0] : 0);  // reverse argument order for SysV!
 
-        for (auto &ts : tss) {
-            unsigned s = ts.measure_stack();
-            bool is_float = ts.where(AS_VALUE) == SSEREGISTER;
-            
+        for (unsigned i = (pushed_pivots ? 1 : 0); i < pushed_tss.size(); i++) {
             // Must move raw values so it doesn't count as a copy
-            stack_offset -= s;
+            stack_offset -= pushed_sizes[i];
+            
+            bool is_float = pushed_tss[i].where(AS_VALUE) == SSEREGISTER;
             
             if (is_float)
                 x64->op(MOVSD, sses[sse_index++], Address(RSP, stack_offset));
-            else if (s == ADDRESS_SIZE)
+            else if (pushed_sizes[i] == ADDRESS_SIZE)
                 x64->op(MOVQ, regs[reg_index++], Address(RSP, stack_offset));
             else
                 x64->op(LEA, regs[reg_index++], Address(RSP, stack_offset));
@@ -542,7 +535,17 @@ public:
 
         //x64->runtime->dump("Returned from SysV.");
 
-        // We return simple values in RAX and XMM0 like SysV.
+        
+        switch (res_total) {
+        case 0:
+            break;  // We return simple values in RAX and XMM0 like SysV.
+        case ADDRESS_SIZE:
+            x64->op(MOVQ, Address(RSP, passed_size), RAX);  // simple records, like String
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
         // Raised exception in RDX.
         if (function->exception_type)
             x64->op(CMPQ, RDX, NO_EXCEPTION);
@@ -585,7 +588,7 @@ public:
         return Regs::all();  // assume everything is clobbered
     }
 
-    virtual int push_pivot(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+    virtual void push_pivot(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         Storage s = arg_value->compile(x64);
         
         StorageWhere where = stacked(arg_ts.where(AS_PIVOT_ARGUMENT));
@@ -597,23 +600,24 @@ public:
             
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(s);
+            pushed_sizes.push_back(arg_ts.measure_where(STACK));
             
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(t);
+            pushed_sizes.push_back(arg_ts.measure_where(ALISTACK));
             
-            return arg_ts.measure_where(STACK) + arg_ts.measure_where(ALISTACK);
+            pushed_pivots = true;
         }
         else {
             arg_ts.store(s, t, x64);
             
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(t);  // For unwinding
-            
-            return arg_ts.measure_where(where);
+            pushed_sizes.push_back(arg_ts.measure_where(where));
         }
     }
     
-    virtual int push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+    virtual void push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         if (arg_ts[0] == code_type) {
             CodeScopeValue *csv = ptr_cast<CodeScopeValue>(arg_value);
             if (!csv)
@@ -630,8 +634,7 @@ public:
             
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(Storage(STACK));
-            
-            return ADDRESS_SIZE;
+            pushed_sizes.push_back(ADDRESS_SIZE);
         }
         else {
             StorageWhere where = stacked(arg_ts.where(AS_ARGUMENT));
@@ -648,8 +651,7 @@ public:
 
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(t);  // For unwinding
-        
-            return arg_ts.measure_where(where);
+            pushed_sizes.push_back(arg_ts.measure_where(where));
         }
     }
 
@@ -660,8 +662,10 @@ public:
         Storage s = pushed_storages.back();
         pushed_storages.pop_back();
         
+        pushed_sizes.pop_back();
+        
         if (arg_ts[0] == code_type) {
-            x64->op(ADDQ, RSP, 8);
+            x64->op(ADDQ, RSP, ADDRESS_SIZE);
         }
         else {
             arg_ts.store(s, Storage(), x64);
@@ -697,15 +701,18 @@ public:
             x64->op(SUBQ, RSP, res_total);
 
         x64->unwind->push(this);
-        unsigned passed_size = 0;
         
         if (pivot) {
-            passed_size += push_pivot(pivot_ts, pivot.get(), x64);
+            push_pivot(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
         
         for (unsigned i = 0; i < values.size(); i++)
-            passed_size += push_arg(arg_tss[i], values[i].get(), x64);
+            push_arg(arg_tss[i], values[i].get(), x64);
+
+        unsigned passed_size = 0;
+        for (unsigned &s : pushed_sizes)
+            passed_size += s;
             
         if (function->prot == SYSV_FUNCTION)
             call_sysv(x64, passed_size);

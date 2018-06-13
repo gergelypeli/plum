@@ -393,7 +393,8 @@ public:
             
             Label locked;
             x64->runtime->lock(RAX, locked);
-            
+
+            // MEMORY arg
             raise("CONTAINER_LENT", x64);
 
             x64->code_label(locked);
@@ -485,6 +486,8 @@ public:
         x64->op(JNE, ok);
 
         if (raising_dummy) {
+            elem_ts.store(Storage(STACK), Storage(), x64);
+            ts.store(Storage(STACK), Storage(), x64);
             raise("CONTAINER_FULL", x64);
         }
         else
@@ -533,6 +536,7 @@ public:
         x64->op(CMPQ, Address(RAX, length_offset), 0);
         x64->op(JNE, ok);
 
+        // REGISTER arg
         raise("CONTAINER_EMPTY", x64);
         
         x64->code_label(ok);
@@ -618,7 +622,8 @@ public:
             x64->op(MOVQ, reg, ls.address); // array reference without incref
             x64->op(CMPQ, RBX, Address(reg, length_offset));
             x64->op(JNE, ok);
-            
+
+            // MEMORY arg
             raise("ITERATOR_DONE", x64);
             
             x64->code_label(ok);

@@ -1020,6 +1020,8 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (!setup_yieldable(scope))
             return false;
+            
+        //std::cerr << "Put :eval variable into " << scope << "\n";
         
         TypeSpec *ctx = (context_ts == VOID_TS ? &VOID_CODE_TS : &WHATEVER_CODE_TS);
         

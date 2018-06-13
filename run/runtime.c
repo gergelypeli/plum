@@ -110,8 +110,15 @@ void *allocate_string_array(long length) {
 
 
 void *reallocate_array(void *array, long length, long size) {
-    if (HREFCOUNT(array) != 1)
+    if (HREFCOUNT(array) != 1) {
         fprintf(stderr, "Oops, reallocating an array with %ld references!\n", HREFCOUNT(array));
+        abort();
+    }
+
+    if (ALENGTH(array) > length) {
+        fprintf(stderr, "Oops, reallocating an array with too large length!\n");
+        abort();
+    }
 
     array = memrealloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     ARESERVATION(array) = length;
@@ -408,13 +415,17 @@ void *decode_utf8_slice(Slice byte_slice) {
     long byte_length = SLENGTH(byte_slice);
     char *bytes = SELEMENTS(byte_slice, 1);
 
+    //fprintf(stderr, "decode_utf8_slice byte length %ld.\n", byte_length);
+
     void *character_array = allocate_basic_array(byte_length, 2);
     unsigned short *characters = AELEMENTS(character_array);
     
     long byte_count, character_count;
     decode_utf8_buffer(bytes, byte_length, characters, ARESERVATION(character_array), &byte_count, &character_count);
     ALENGTH(character_array) = character_count;
-    
+
+    //fprintf(stderr, "decode_utf8_slice decoded %ld bytes to %ld characters.\n", byte_count, character_count);
+
     return reallocate_array(character_array, character_count, 2);
 }
 

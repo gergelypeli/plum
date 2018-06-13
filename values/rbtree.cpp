@@ -271,6 +271,8 @@ public:
         // Non-autogrowing Rbtree-s only raise a CONTAINER_FULL exception, if the operation
         // actually tried to increase the size, not when an existing node is updated.
         if (raising_dummy) {
+            elem_ts.store(Storage(STACK), Storage(), x64);
+            left->ts.store(Storage(STACK), Storage(), x64);
             raise("CONTAINER_FULL", x64);
         }
         else
@@ -465,7 +467,7 @@ public:
 
         x64->op(CALL, next_label);
         
-        x64->op(POPQ, RCX);
+        x64->op(POPQ, RCX);  // ALISTACK popped
         x64->op(CMPQ, RAX, 0);
         x64->op(JNE, ok);
 
