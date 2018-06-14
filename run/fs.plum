@@ -12,18 +12,19 @@ Path? :Record as:
     may:
         Errno_exception
     import:
-        "path_mkdir"
+        "fs__Path__mkdir"
 
     rmdir? :Function may:
         Errno_exception
     import:
-        "path_rmdir"
+        "fs__Path__rmdir"
 
-Reader? :Class as:
-    fd? Integer
+
+File? :Class as:
+    fd? Integer32
     
     on? :Initializer from:
-        fd? Integer
+        fd? Integer32
     as:
         $ fd = fd
 
@@ -38,39 +39,32 @@ Reader? :Class as:
     may:
         Errno_exception
     import:
-        "reader_read"
-
-    get? :Function
-        Byte Array Ref
-    from:
-        length? Integer
-    may:
-        Errno_exception
-    import:
-        "reader_get"
-
-    get_all? :Function
-        Byte Array Ref
-    may:
-        Errno_exception
-    import:
-        "reader_get_all"
+        "fs__File__read"
 
 
-Reader_buffer? :Class as:
-    reader? Reader Ref
+File_reader? :Class as:
+    file? File Ref
     buffer? Byte Array Ref
     length? Integer
     
     new? :Initializer from:
-        r? Reader Ref
+        f? File Ref
     as:
-        $ reader = r
+        $ file = f
         $ buffer = Byte Array Ref `all(0, 4096)
         $ length = 0
         
-    fill? :Function as:
-        $ length += :try $ reader read(:try $ buffer slice($ length, $ buffer length - $ length))
+    fill? :Function may: { EXHAUSTED } as:
+        :if $ length == $ buffer length then:
+            $ buffer refill(0, 4096)
+            
+        rest? = :try $ buffer slice($ length, $ buffer length - $ length)
+        readed? = :try $ file read(rest)
+        
+        :if readed == 0 then:
+            :raise `EXHAUSTED
+        else:
+            $ length += readed
 
     peek? :Function Byte Slice as:
         :return :try $ buffer slice(0, $ length)
@@ -83,28 +77,45 @@ Reader_buffer? :Class as:
     
     
 Decoder? :Class as:
-    rbuffer? Reader_buffer Ref
+    reader? File_reader Ref
     
     new? :Initializer from:
-        rb? Reader_buffer Ref
+        r? File_reader Ref
     as:
-        $ rbuffer = rb
+        $ reader = r
         
-    getline? :Function String as:
-        bytes? Byte Slice = :eval:
-            :repeat on: `true do:
-                s? = $ rbuffer peek
-                
-                :try
-                    i? = s find(10)  # newline
-                    :eval s slice(0, i)
-                or:
-                    $ rbuffer fill
-                    :fixed
-                    
-            :eval `empty  # FIXME: workaround for :repeat not being Whatever
+    get_line? :Function String may: { EXHAUSTED } as:
+        :repeat on: `true do:
+            s? = $ reader peek
             
-        string? = bytes decode_utf8
-        $ rbuffer grab(bytes length + 1)
+            :try
+                i? = s find(10)  # newline
+                string? = s slice(0, i) decode_utf8
+                $ reader grab(i + 1)
+                :return string
+            or:
+                :try
+                    $ reader fill
+                or:
+                    :if s length == 0 then:
+                        :raise `EXHAUSTED
+                    else:
+                        string? = s decode_utf8
+                        $ reader grab(s length)
+                        :return string
+                        
+                :fixed
+            
+        :return `empty  # Workaround
+
+    get_lines? :Function String Stack Ref as:
+        lines? String Stack Ref = `empty
         
-        :return string
+        :x:repeat on: `true do:
+            :try
+                s? = $ get_line
+                :try lines push(s)
+            or:
+                :x
+
+        :return lines

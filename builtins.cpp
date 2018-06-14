@@ -731,6 +731,7 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", ANY_ARRAY_REF_TS));  // needs Ref
+    array_scope->add(new TemplateIdentifier<ArrayRefillValue>("refill", ANY_ARRAY_REF_LVALUE_TS));
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateOperation<ArrayIndexValue>("index", ANY_ARRAY_WEAKREF_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));

@@ -430,7 +430,7 @@ void *decode_utf8_slice(Slice byte_slice) {
 }
 
 
-Varied path_mkdir(Alias path_alias, long mode) {
+Varied fs__Path__mkdir(Alias path_alias, long mode) {
     void *name_array = RECORDMEMBER(path_alias, Ref);
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
@@ -449,7 +449,7 @@ Varied path_mkdir(Alias path_alias, long mode) {
 }
 
 
-Varied path_rmdir(Alias path_alias) {
+Varied fs__Path__rmdir(Alias path_alias) {
     void *name_array = RECORDMEMBER(path_alias, Ref);
     long character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
@@ -467,8 +467,8 @@ Varied path_rmdir(Alias path_alias) {
 }
 
 
-Varied reader_read(Ref reader_ref, Slice buffer_slice) {
-    int fd = CLASSMEMBER(reader_ref, int);
+Varied fs__File__read(Ref file_ref, Slice buffer_slice) {
+    int fd = CLASSMEMBER(file_ref, int);
     long buffer_length = SLENGTH(buffer_slice);
     char *buffer_elements = SELEMENTS(buffer_slice, 1);
     

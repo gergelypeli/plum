@@ -341,6 +341,80 @@ public:
 };
 
 
+class ArrayRefillValue: public Value {
+public:
+    std::unique_ptr<Value> array_value;
+    std::unique_ptr<Value> fill_value;
+    std::unique_ptr<Value> length_value;
+    TypeSpec elem_ts;
+    
+    ArrayRefillValue(Value *l, TypeMatch &match)
+        :Value(match[0]) {
+        array_value.reset(l);
+        elem_ts = match[1];
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        ArgInfos infos = {
+            { "fill", &elem_ts, scope, &fill_value },
+            { "length", &INTEGER_TS, scope, &length_value }
+        };
+        
+        if (!check_arguments(args, kwargs, infos))
+            return false;
+
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return array_value->precompile(preferred) | fill_value->precompile(preferred) | length_value->precompile(preferred) | Regs(RAX, RCX, RDX);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label ok, loop, check;
+        int elem_size = container_elem_size(elem_ts);
+        int stack_size = elem_ts.measure_stack();
+        Label realloc_array = x64->once->compile(compile_array_realloc, elem_ts);
+
+        array_value->compile_and_store(x64, Storage(ALISTACK));
+        fill_value->compile_and_store(x64, Storage(STACK));
+        length_value->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(MOVQ, RBX, Address(RSP, 0));  // extra length
+        x64->op(MOVQ, RDX, Address(RSP, stack_size + INTEGER_SIZE));  // array alias
+        x64->op(MOVQ, RAX, Address(RDX, 0));  // array ref without incref
+        
+        x64->op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+        x64->op(JBE, ok);
+        
+        // Need to reallocate
+        x64->op(CALL, realloc_array);
+        x64->op(MOVQ, Address(RDX, 0), RAX);
+        
+        x64->code_label(ok);
+        x64->op(MOVQ, RDX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(IMUL3Q, RDX, RDX, elem_size);
+        x64->op(POPQ, RCX);  // extra length
+        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(JMP, check);
+        
+        x64->code_label(loop);
+        elem_ts.create(Storage(MEMORY, Address(RSP, 0)), Storage(MEMORY, Address(RAX, RDX, ARRAY_ELEMS_OFFSET)), x64);
+        x64->op(ADDQ, RDX, elem_size);
+        x64->op(DECQ, RCX);
+        
+        x64->code_label(check);
+        x64->op(CMPQ, RCX, 0);
+        x64->op(JNE, loop);
+        
+        elem_ts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage(ALISTACK);
+    }
+};
+
+
 class ArrayEmptyValue: public ContainerEmptyValue {
 public:
     ArrayEmptyValue(TypeSpec ts)

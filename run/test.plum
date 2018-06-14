@@ -787,7 +787,7 @@ test_files? :Function as:
         else:
             prints("MKDIR WEIRD EXCEPTION!")
 
-    stdin? fs.Reader Ref = `stdin
+    stdin? fs.File Ref = `stdin
     b? Byte Array Ref = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
     n? Integer = 0
     
@@ -796,17 +796,20 @@ test_files? :Function as:
         
     prints("Read {n} bytes from stdin." {})
     
-    :try
-        text? = stdin get(100)
-        prints("Got {n} bytes from stdin." { n: text length })
-
-    rb? = fs.Reader_buffer Ref `new(stdin)
-    dc? = fs.Decoder Ref `new(rb)
+    fr? = fs.File_reader Ref `new(stdin)
+    dc? = fs.Decoder Ref `new(fr)
 
     prints("Say something!")
-    s? = dc getline
+    s? = :try dc get_line
     prints("So, {s}?" {})
     
+    prints("All your lines are belong to us!")
+    lines? = dc get_lines
+    prints("Those were {n} lines." {n: lines length})
+    
+    :for lines items each: it? do:
+        prints("Line {x}: {y}" {x: it index, y: it value})
+
 
 start? :Function as:
     test_integers
