@@ -203,6 +203,12 @@ void X64::data_align(int bytes) {
 }
 
 
+void X64::data_blob(int bytes) {
+    data.resize(data.size() + bytes);
+    memset(data.data() + data.size() - bytes, 0, bytes);
+}
+
+
 void X64::data_byte(char x) {
     data.push_back(x);
 }
@@ -329,6 +335,8 @@ void X64::code_reference(Label label, int offset) {
     r.def_index = label.def_index;
 
     code_dword(offset);  // 32-bit offset only
+    
+    // TODO: shall we store 0 only, and put the offset into the addend?
 }
 
 
@@ -768,6 +776,16 @@ void X64::op(BinaryOp opcode, Register x, int y) {
 }
 
 void X64::op(BinaryOp opcode, Address x, int y) {
+    if (x.label.def_index) {
+        // Must adjust RIP-relative offset with trailing immediate operand
+        switch (opcode & 3) {
+        case 0: x.offset -= 1; break;
+        case 1: x.offset -= 2; break;
+        case 2: x.offset -= 4; break;
+        case 3: x.offset -= 4; break;  // 32-bit immediate only
+        }
+    }
+
     auto &info = binary_info[opcode >> 2];
     code_op(info.op1, OPSIZE_LEGACY(opcode), info.regfield1, x);
     
@@ -870,6 +888,11 @@ void X64::op(ShiftOp opcode, Address x, char y) {
         code_op(0xD0, OPSIZE_LEGACY(opcode), info, x);
     }
     else {
+        if (x.label.def_index) {
+            // Must adjust RIP-relative offset with trailing immediate operand
+            x.offset -= 1;
+        }
+
         code_op(0xC0, OPSIZE_LEGACY(opcode), info, x);
         code_byte(y);
     }
@@ -984,6 +1007,19 @@ void X64::op(Imul3Op opcode, Register x, Register y, int z) {
 }
 
 void X64::op(Imul3Op opcode, Register x, Address y, int z) {
+    if (y.label.def_index) {
+        // Must adjust RIP-relative offset with trailing immediate operand
+        if (z >= -128 && z <= 127) {
+            y.offset -= 1;
+        }
+        else switch (opcode & 3) {
+            case 0: throw X64_ERROR;
+            case 1: y.offset -= 2;
+            case 2: y.offset -= 4;
+            case 3: y.offset -= 4;  // 32-bit immediate only
+        }
+    }
+
     if (z >= -128 && z <= 127) {
         code_op(0x6B, OPSIZE_NONBYTE(opcode), x, y);
         code_byte(z);

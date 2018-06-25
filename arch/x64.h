@@ -271,6 +271,7 @@ public:
     void absolute_label(Label c, unsigned long value, unsigned size = 0);
 
     void data_align(int bytes);
+    void data_blob(int bytes);
     void data_byte(char x);
     void data_word(short x);
     void data_dword(int x);
