@@ -62,6 +62,7 @@ struct Module {
     std::unique_ptr<Value> value;
     ModuleScope *module_scope;
     std::set<std::string> required_module_names;
+    ModuleType *module_type;
 };
 
 
@@ -82,23 +83,40 @@ void import(std::string module_name, std::string file_name, Scope *root_scope) {
     std::unique_ptr<Expr> expr_root(tupleize(nodes));
     //print_expr_tree(expr_root.get(), 0, "*");
 
+    // Don't put in the root scope yet, they will be reordered
     ModuleScope *module_scope = new ModuleScope(module_name);
     module_scope->outer_scope = root_scope;
-    //root_scope->add(module_scope);
     DataBlockValue *value_root = new DataBlockValue(module_scope);
 
-    // Must install Module entry before typization
+    ModuleType *module_type = new ModuleType("<" + module_name + ">", module_scope);
+    root_scope->add(module_type);
+    module_scope->set_pivot_type_hint(TypeSpec { module_type });
+
+    // Must install Module entry before typization to collect imported modules
     modules_by_name[module_name] = Module {
         file_name,
         std::unique_ptr<Value>(value_root),
         module_scope,
-        {}
+        {},
+        module_type
     };
+    
+    bool ok = true;
+    
+    if (expr_root->type == Expr::TUPLE) {
+        for (auto &a : expr_root->args)
+            ok = ok && value_root->check_statement(a.get());
+    }
+    else {
+        ok = value_root->check_statement(expr_root.get());
+    }
 
-    for (auto &a : expr_root->args)
-        value_root->check_statement(a.get());
-        
-    if (!value_root->complete_definition()) {
+    // Must complete the type first
+    ok = ok && module_type->complete_type();
+
+    ok = ok && value_root->complete_definition();
+    
+    if (!ok) {
         std::cerr << "Error compiling module " << module_name << "!\n";
         throw INTERNAL_ERROR;  // FIXME
     }
@@ -129,13 +147,17 @@ ModuleScope *lookup_module(std::string module_name, ModuleScope *module_scope) {
 }
 
 
-void order_modules(std::string name) {
+void order_modules(std::string name, Scope *root_scope) {
     if (!modules_by_name.count(name))
         return;  // already collected
         
     for (auto &n : modules_by_name[name].required_module_names)
-        order_modules(n);
+        order_modules(n, root_scope);
         
+    // Now add to the root scope in order
+    modules_by_name[name].module_scope->outer_scope = NULL;
+    root_scope->add(modules_by_name[name].module_scope);
+    
     modules_in_order.push_back(std::move(modules_by_name[name]));
     modules_by_name.erase(name);
 }
@@ -175,25 +197,36 @@ int main(int argc, char **argv) {
     
     import("main", input, root_scope);
     
-    order_modules("main");
+    order_modules("main", root_scope);
     
-    // Does not allocate the module contents
+    // Allocate builtins and modules
     root_scope->allocate();
-
-    for (Module &m : modules_in_order)
-        m.module_scope->allocate();
     
     X64 *x64 = new X64();
     x64->init("mymodule");
 
     x64->unwind = new Unwind();
     x64->once = new Once();
-    x64->runtime = new Runtime(x64);
+    x64->runtime = new Runtime(x64, root_scope->size.concretize());
+
+    std::vector<Function *> initializers;
 
     for (Module &m : modules_in_order) {
         m.value->precompile(Regs::all());
         m.value->compile(x64);
+        
+        Function *f = m.module_type->get_initializer_function();
+        if (f)
+            initializers.push_back(f);
     }
+
+    Label init_count, init_ptrs;
+    x64->data_label_global(init_count, "initializer_count");
+    x64->data_qword(initializers.size());
+    
+    x64->data_label_global(init_ptrs, "initializer_pointers");
+    for (Function *f : initializers)
+        x64->data_reference(f->get_label(x64));
     
     x64->once->for_all(x64);
     x64->done(output);

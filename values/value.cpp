@@ -181,7 +181,7 @@ public:
             if (pts[0] == ref_type)
                 throw INTERNAL_ERROR;  // variables are accessed by weak references only
                 
-            is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != weakref_type);
+            is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != weakref_type && !pts.has_meta(module_metatype));
             
             if (is_rvalue)
                 ts = ts.rvalue();
@@ -273,7 +273,7 @@ public:
         :VariableValue(pv, p, match) {
         partial_variable = pv;
         
-        // First, it's not assignable, second, it may already has an lvalue_type inside it
+        // First, it's not assignable, second, it may already have an lvalue_type inside it
         ts = ts.rvalue();
     }
 };
@@ -467,6 +467,41 @@ public:
         }
     }
 };
+
+
+class ModuleValue: public Value {
+public:
+    ModuleScope *module_scope;
+    
+    ModuleValue(ModuleScope *ms, TypeSpec mts)
+        :Value(mts) {
+        module_scope = ms;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return Regs();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        if (!module_scope)
+            throw INTERNAL_ERROR;
+            
+        int module_offset = module_scope->offset.concretize();
+        return Storage(MEMORY, Address(x64->runtime->application_label, module_offset));
+    }
+};
+
+
+class PartialModuleValue: public ModuleValue {
+public:
+    PartialModuleIdentifier *partial_module;
+    
+    PartialModuleValue(PartialModuleIdentifier *pm, ModuleScope *ms, TypeSpec mts)
+        :ModuleValue(ms, mts) {
+        partial_module = pm;
+    }
+};
+
 
 
 #include "type.cpp"

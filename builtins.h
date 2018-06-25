@@ -19,6 +19,7 @@ Type *sameid3_type = NULL;
 
 Type *value_metatype = NULL;
 Type *identity_metatype = NULL;
+Type *module_metatype = NULL;
 Type *attribute_metatype = NULL;
 Type *enumeration_metatype = NULL;
 Type *treenumeration_metatype = NULL;

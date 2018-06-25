@@ -228,10 +228,17 @@ public:
 class ModuleScope: public DataScope {
 public:
     std::string module_name;
+    Allocation offset;
     
     ModuleScope(std::string mn)
         :DataScope() {
         module_name = mn;
+    }
+
+    virtual void allocate() {
+        DataScope::allocate();
+        
+        offset = outer_scope->reserve(size);
     }
 
     virtual ModuleScope *get_module_scope() {

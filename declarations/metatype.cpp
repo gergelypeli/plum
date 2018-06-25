@@ -74,6 +74,14 @@ public:
 };
 
 
+class ModuleMetaType: public MetaType {
+public:
+    ModuleMetaType(std::string name, Type *st)
+        :MetaType(name, st, NULL) {
+    }
+};
+
+
 class AttributeMetaType: public MetaType {
 public:
     AttributeMetaType(std::string name, Type *st)
@@ -144,3 +152,4 @@ public:
         :MetaType(name, st, make<ImplementationDefinitionValue>) {
     }
 };
+

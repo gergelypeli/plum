@@ -179,7 +179,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
 
-            std::cerr << "Declared " << name << " as " << value->ts << ".\n";
+            std::cerr << "Declared " << name << ".\n";
         }
     }
     else if (expr->type == Expr::IDENTIFIER) {
@@ -202,10 +202,16 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             
             if (i > 0) {
                 std::string module_name = name.substr(0, i - 1);
-                name = name.substr(i);
+                name = (i < name.size() ? name.substr(i) : "");
 
-                std::cerr << "Will lookup symbol " << name << " in module " << module_name << "\n";
-                scope = lookup_module(module_name, scope->get_module_scope());
+                if (name.size() > 0) {
+                    std::cerr << "Will lookup symbol " << name << " in module " << module_name << "\n";
+                    scope = lookup_module(module_name, scope->get_module_scope());
+                }
+                else {
+                    std::cerr << "Unexpected bare module name " << module_name << "!\n";
+                    throw TYPE_ERROR;
+                }
             }
         }
         

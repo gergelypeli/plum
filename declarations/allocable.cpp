@@ -53,6 +53,8 @@ public:
             throw INTERNAL_ERROR;
             
         as_what = AS_VARIABLE;
+        
+        std::cerr << "Variable " << pts << " " << name << " is " << vts << ".\n";
     }
 
     virtual void set_outer_scope(Scope *os) {
@@ -142,17 +144,12 @@ public:
 };
 
 
-class PartialVariable: public Variable {
+class PartialInitializable {
 public:
     std::set<std::string> uninitialized_member_names;
     std::set<std::string> initialized_member_names;
     
-    PartialVariable(std::string name, TypeSpec pts, TypeSpec vts)
-        :Variable(name, pts, vts) {
-    }
-
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make<PartialVariableValue>(this, cpivot, match);
+    PartialInitializable() {
     }
 
     virtual void set_member_names(std::vector<std::string> mn) {
@@ -183,6 +180,18 @@ public:
 
     virtual bool is_dirty() {
         return initialized_member_names.size() != 0;
+    }
+};
+
+
+class PartialVariable: public Variable, public PartialInitializable {
+public:
+    PartialVariable(std::string name, TypeSpec pts, TypeSpec vts)
+        :Variable(name, pts, vts) {
+    }
+
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make<PartialVariableValue>(this, cpivot, match);
     }
 };
 
@@ -398,3 +407,31 @@ public:
 Declaration *make_shadow_role(Role *orole, Role *prole) {
     return new ShadowRole(orole, prole);
 }
+
+
+class ModuleIdentifier: public Allocable {
+public:
+    ModuleScope *module_scope;
+    
+    ModuleIdentifier(std::string n, ModuleScope *ms, TypeSpec mts)
+        :Allocable(n, NO_TS, mts) {
+        module_scope = ms;
+    }
+    
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make<ModuleValue>(module_scope, alloc_ts);
+    }
+};
+
+
+class PartialModuleIdentifier: public ModuleIdentifier, public PartialInitializable {
+public:
+    PartialModuleIdentifier(std::string name, ModuleScope *ms, TypeSpec mts)
+        :ModuleIdentifier(name, ms, mts) {
+    }
+
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make<PartialModuleValue>(this, module_scope, alloc_ts);
+    }
+};
+

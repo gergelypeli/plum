@@ -119,3 +119,10 @@ Decoder? :Class as:
                 :x
 
         :return lines
+        
+        
+global_integer? Integer
+
+init? :Initializer as:
+    @ global_integer = 101
+    prints("Global integer initialized to {x}" {x: @ global_integer})

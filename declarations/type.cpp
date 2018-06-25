@@ -408,7 +408,7 @@ public:
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Partial inner lookup " << n << ".\n";
-        PartialVariable *pv = partial_variable_get_pv(v);
+        PartialInitializable *pv = partial_get_pi(v);
         
         if (pv->is_uninitialized(n)) {
             pv->be_initialized(n);
@@ -416,7 +416,16 @@ public:
             // TODO: technically the cast type should be lvalue for records only,
             // because for classes it makes $ a Weakref Lvalue, which is awkward.
             // But this is for lookup only, so it doesn't really matter.
-            Value *member = tm[1].lookup_inner(n, make<CastValue>(v, tm[1].lvalue()));
+            TypeSpec cast_ts = tm[1];
+            if (cast_ts.has_meta(record_metatype))
+                cast_ts = cast_ts.lvalue();
+            
+            Value *member = tm[1].lookup_inner(n, make<CastValue>(v, cast_ts));
+            if (!member) {
+                std::cerr << "Uninitialized member " << cast_ts << " " << n << " not found in scope!\n";
+                throw INTERNAL_ERROR;
+            }
+            
             TypeSpec member_ts = get_typespec(member);
             
             if (member_ts[0] == lvalue_type) {
@@ -427,8 +436,10 @@ public:
                 std::cerr << "Member role " << n << " is not yet initialized.\n";
                 set_typespec(member, member_ts.prefix(initializable_type));
             }
-            else
+            else {
+                std::cerr << "Weird member variable " << n << ": " << member_ts << "!\n";
                 throw INTERNAL_ERROR;
+            }
                 
             return member;
         }
@@ -441,7 +452,7 @@ public:
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Partial partinitializer lookup " << n << ".\n";
-        PartialVariable *pv = partial_variable_get_pv(v);
+        PartialInitializable *pv = partial_get_pi(v);
 
         if (pv->is_dirty()) {
             std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
@@ -597,6 +608,69 @@ public:
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         throw INTERNAL_ERROR;
+    }
+};
+
+
+class ModuleType: public Type {
+public:
+    ModuleScope *module_scope;
+    std::vector<std::string> member_names;
+    Function *initializer_function;
+
+    ModuleType(std::string name, ModuleScope *ms)
+        :Type(name, {}, module_metatype) {
+        module_scope = ms;
+        initializer_function = NULL;
+    }
+    
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        return NOWHERE;
+    }
+
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (s.where != NOWHERE || t.where != NOWHERE) {
+            std::cerr << "Invalid module store from " << s << " to " << t << "!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+        return module_scope->lookup(n, v);
+    }
+        
+    virtual bool complete_type() {
+        for (auto &c : module_scope->contents) {
+            Allocable *v = ptr_cast<Allocable>(c.get());
+            
+            if (v) {
+                //member_allocables.push_back(v);
+                //member_tss.push_back(v->alloc_ts.rvalue());
+                member_names.push_back(v->name);
+            }
+
+            Function *f = ptr_cast<Function>(c.get());
+            
+            if (f && f->type == INITIALIZER_FUNCTION) {
+                if (initializer_function) {
+                    std::cerr << "Multiple module initializers!\n";
+                    return false;
+                }
+                    
+                initializer_function = f;
+            }
+        }
+        
+        std::cerr << "Module " << name << " has " << member_names.size() << " member variables.\n";
+        return true;
+    }
+
+    virtual std::vector<std::string> get_member_names() {
+        return member_names;
+    }
+    
+    virtual Function *get_initializer_function() {
+        return initializer_function;
     }
 };
 

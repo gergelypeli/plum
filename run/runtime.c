@@ -546,9 +546,16 @@ Varied reader_get_all(Ref reader_ref) {
 // Entry point
 
 extern void start();
+extern long initializer_count;
+extern void (*initializer_pointers[])();
 
 int main() {
     unfucked_locale = newlocale(LC_NUMERIC_MASK, "C", NULL);
+    
+    for (int i = 0; i < initializer_count; i++) {
+        //fprintf(stderr, "Running initializer %d...\n", i);
+        initializer_pointers[i]();
+    }
     
     start();
 

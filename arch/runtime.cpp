@@ -7,6 +7,7 @@ class Runtime {
 public:
     X64 *x64;
     
+    Label application_label;
     Label zero_label, float_minus_zero_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label empty_function_label, empty_array_label;
@@ -18,8 +19,13 @@ public:
     Label sysv_logfunc_label, sysv_dump_label, sysv_die_label, sysv_dies_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
     
-    Runtime(X64 *x) {
+    Runtime(X64 *x, unsigned application_size) {
         x64 = x;
+        
+        std::cerr << "Application size is " << application_size << " bytes.\n";
+        x64->data_align(16);
+        x64->data_label(application_label);
+        x64->data_blob(application_size);
         
         x64->absolute_label(zero_label, 0);
 

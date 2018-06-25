@@ -13,6 +13,9 @@ void builtin_types(Scope *root_scope) {
 
     identity_metatype = new IdentityMetaType(":Identity", type_metatype);
     root_scope->add(identity_metatype);
+
+    module_metatype = new ModuleMetaType("<:Module>", type_metatype);
+    root_scope->add(module_metatype);
     
     attribute_metatype = new AttributeMetaType(":Attribute", type_metatype);
     root_scope->add(attribute_metatype);

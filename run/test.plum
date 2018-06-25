@@ -60,7 +60,7 @@ as:
 
 
 restart? :Function as:
-    start  # check predeclarations
+    @ start  # check predeclarations
 
 
 nasty? :Function may: { SMALL_ERROR, BIG_ERROR } as:
@@ -185,7 +185,7 @@ passthrough? :Function from: what? Integer Code as:
 
 
 test_integers? :Function as:
-    printi(f(1, 2))
+    printi(@ f(1, 2))
     
     a? Integer = 0
     a = 2
@@ -352,9 +352,9 @@ test_enums? :Function as:
 
 
 test_ovalues? :Function as:
-    printi(g(100, 100))
-    printi(g(100))
-    printi(g)
+    printi(@ g(100, 100))
+    printi(@ g(100))
+    printi(@ g)
 
 
 test_records? :Function as:
@@ -362,10 +362,10 @@ test_records? :Function as:
 
     p first = 123
     p second = 456
-    print_pair(p)
+    @ print_pair(p)
     printi(p meth)
 
-    p = make_pair
+    p = @ make_pair
     printi(p second)
     
     q? Pair = `new
@@ -373,7 +373,7 @@ test_records? :Function as:
     q second = 456
     :if p == q then: prints("Equal tuples.") else: prints("Inequal tuples.")
     
-    print_pair
+    @ print_pair
     
     p dump dump
     
@@ -392,25 +392,25 @@ test_multis? :Function as:
     x1? Integer = 0
     x2? Integer = 0
     x3? Integer = 0
-    (x1, x2, x3) = triple
+    (x1, x2, x3) = @ triple
     prints("Triple returned {x1}, {x2}, {x3}." {})
     
-    (x2, x3) = triple
+    (x2, x3) = @ triple
     prints("Triple short returned {x2}, {x3}." {})
 
-    x3 = triple
+    x3 = @ triple
     prints("Triple scalarized to {x3}" {})
     
-    (y1? Integer, y2? Integer, y3? Integer) = triple
+    (y1? Integer, y2? Integer, y3? Integer) = @ triple
     prints("Triple initialized {y1}, {y2}, {y3}." {})
     
-    (y4? Integer, y5? Integer) = triple
+    (y4? Integer, y5? Integer) = @ triple
     prints("Triple short initialized {y4}, {y5}." {})
         
-    (z1?, z2?, z3?) = triple
+    (z1?, z2?, z3?) = @ triple
     prints("Triple bare initialized {z1}, {z2}, {z3}." {})
 
-    (z4?, z5?) = triple
+    (z4?, z5?) = @ triple
     prints("Triple bare short initialized {z4}, {z5}." {})
 
 
@@ -462,7 +462,7 @@ test_controls? :Function as:
         :yield
 
     :try
-        nasty
+        @ nasty
     or:
         :is ~BIG_ERROR then:
             prints("This was a big error!")
@@ -523,10 +523,10 @@ test_controls? :Function as:
     :if !! Boolean `true then:
         prints("Faker news!")
 
-    twice(how: h? what:this: (prints("You want {h}?" {}), :this h * 1000))
+    @ twice(how: h? what:this: (prints("You want {h}?" {}), :this h * 1000))
 
     :eval:
-        passthrough(what:this: (:eval, :this 0))
+        @ passthrough(what:this: (:eval, :this 0))
         prints("This shouldn't be printed!")
 
     :hihi:if `true then: x3 else:if `false then: x4
@@ -812,19 +812,19 @@ test_files? :Function as:
 
 
 start? :Function as:
-    test_integers
-    test_floats
-    test_strings
-    test_enums
-    test_ovalues
-    test_records
-    test_multis
-    test_controls
-    test_arrays
-    test_circularrays
-    test_rbtrees
-    test_options
-    test_classes
-    test_files
+    @ test_integers
+    @ test_floats
+    @ test_strings
+    @ test_enums
+    @ test_ovalues
+    @ test_records
+    @ test_multis
+    @ test_controls
+    @ test_arrays
+    @ test_circularrays
+    @ test_rbtrees
+    @ test_options
+    @ test_classes
+    @ test_files
         
     prints("Done.")

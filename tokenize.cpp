@@ -176,7 +176,7 @@ std::vector<Token> tokenize(std::string buffer) {
         else if (is_separator(c)) {
             i++;
         }
-        else if (c == '$') {
+        else if (c == '$' || c == '@') {
             i++;
         }
         else if (is_quote(c)) {

@@ -28,12 +28,12 @@ TypeSpec::TypeSpec(Type *t, TypeSpec &tm1, TypeSpec &tm2) {
 
 TypeSpec TypeSpec::prefix(Type *t) {
     if (t->get_parameter_count() != 1) {
-        std::cerr << "Can't prefix Type " << t->name << " with " << t->get_parameter_count() << " parameters: " << *this << "!\n";
+        std::cerr << "Can't prefix " << t->name << " with " << t->get_parameter_count() << " parameters to " << *this << "!\n";
         throw INTERNAL_ERROR;
     }
     
     if (!has_meta(t->param_metatypes[0])) {
-        std::cerr << "Can't prefix Type " << t->name << " requiring a " << t->param_metatypes[0]->name  << " parameters: " << *this << "!\n";
+        std::cerr << "Can't prefix " << t->name << " requiring a " << t->param_metatypes[0]->name  << " parameter to " << *this << "!\n";
         throw INTERNAL_ERROR;
     }
     
@@ -98,6 +98,9 @@ TypeSpec TypeSpec::lvalue() {
 
 
 bool TypeSpec::has_meta(Type *mt) {
+    if (size() == 0)
+        return false;
+        
     Type *ms = at(0)->upper_type;
     
     while (ms && ms != mt) {

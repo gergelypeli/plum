@@ -240,7 +240,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 text = token.text.substr(1);
             }
         }
-        else if (isalpha(c) || c == '_' || c == '$') {
+        else if (isalpha(c) || c == '_' || c == '$' || c == '@') {
             if (token.text.back() == ':') {
                 type = Node::LABEL;
                 back = LABELING;

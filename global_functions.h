@@ -2,7 +2,7 @@
 // Value wrappers
 
 Declaration *declaration_get_decl(DeclarationValue *dv);
-PartialVariable *partial_variable_get_pv(Value *v);
+PartialInitializable *partial_get_pi(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
 void function_call_be_static(Value *fcv);

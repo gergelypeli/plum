@@ -64,8 +64,26 @@ public:
         Scope *ss = fn_scope->add_self_scope();
         if (scope->type == DATA_SCOPE) {
             pivot_ts = scope->pivot_type_hint();
+            ModuleScope *module_scope = scope->get_module_scope();
             
-            if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
+            if (pivot_ts.has_meta(module_metatype)) {
+                // Module method
+                Declaration *mod_var;
+                
+                if (type == INITIALIZER_FUNCTION) {
+                    pivot_ts = pivot_ts.prefix(initializable_type);
+                    TypeSpec mod_ts = pivot_ts.reprefix(initializable_type, partial_type);
+                    mod_var = new PartialModuleIdentifier("@", module_scope, mod_ts);
+                }
+                else {
+                    mod_var = new ModuleIdentifier("@", module_scope, pivot_ts);
+                }
+                
+                ss->add(mod_var);
+            }
+            else if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
+                ss->add(new ModuleIdentifier("@", module_scope, module_scope->pivot_type_hint()));
+            
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
                     TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
@@ -175,27 +193,38 @@ public:
         Scope *bs = fn_scope->add_body_scope();
 
         if (deferred_body_expr) {
-            PartialVariable *pv = NULL;
+            PartialInitializable *pi = NULL;
             
             if (fn_scope->self_scope->contents.size() > 0)
-                pv = ptr_cast<PartialVariable>(fn_scope->self_scope->contents.back().get());
+                pi = ptr_cast<PartialInitializable>(fn_scope->self_scope->contents.back().get());
                 
-            if (pv) {
+            if (pi) {
+                Allocable *ae = ptr_cast<Allocable>(pi);
+                TypeSpec ats = ae->alloc_ts.unprefix(partial_type);
+                
                 // Must do this only after the class definition is completed
-                if (pv->alloc_ts[1] == weakref_type) {
+                if (ats.has_meta(module_metatype)) {
+                    // Module initializer
+                    ModuleType *mt = ptr_cast<ModuleType>(ats[0]);
+                    if (!mt)
+                        throw INTERNAL_ERROR;
+                    
+                    pi->set_member_names(mt->get_member_names());
+                }
+                else if (ae->alloc_ts[1] == weakref_type) {
                     // TODO: this should also work for records
-                    ClassType *ct = ptr_cast<ClassType>(pv->alloc_ts[2]);
+                    ClassType *ct = ptr_cast<ClassType>(ae->alloc_ts[2]);
                     if (!ct)
                         throw INTERNAL_ERROR;
                     
-                    pv->set_member_names(ct->get_member_names());
+                    pi->set_member_names(ct->get_member_names());
                 }
                 else {
-                    RecordType *rt = ptr_cast<RecordType>(pv->alloc_ts[1]);
+                    RecordType *rt = ptr_cast<RecordType>(ae->alloc_ts[1]);
                     if (!rt)
                         throw INTERNAL_ERROR;
                     
-                    pv->set_member_names(rt->get_member_names());
+                    pi->set_member_names(rt->get_member_names());
                 }
             }
         
@@ -207,8 +236,8 @@ public:
             Value *bv = typize(deferred_body_expr, bs, ctx);
             body.reset(bv);
             
-            if (pv) {
-                if (!pv->is_complete()) {
+            if (pi) {
+                if (!pi->is_complete()) {
                     std::cerr << "Not all members initialized!\n";
                     return false;
                 }
@@ -339,6 +368,9 @@ public:
             
             if (v) {
             }
+            else
+                throw INTERNAL_ERROR;
+            
         }
         
         for (auto &d : fn_scope->result_scope->contents) {
@@ -442,6 +474,11 @@ public:
         has_code_arg = false;
         is_static = false;
         pushed_pivots = false;
+        
+        if (pivot_ts.has_meta(module_metatype)) {
+            // Module pivots are only symbolic, they are not pushed or popped.
+            pivot_ts = {};
+        }
     }
 
     virtual void be_static() {
@@ -702,7 +739,7 @@ public:
 
         x64->unwind->push(this);
         
-        if (pivot) {
+        if (pivot_ts.size()) {
             push_pivot(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
@@ -737,7 +774,7 @@ public:
         for (int i = values.size() - 1; i >= 0; i--)
             pop_arg(x64);
             
-        if (pivot) {
+        if (pivot_ts.size()) {
             if (pushed_storages.size() == 2) {
                 // A record pivot argument was handled specially, remove the second ALISTACK
                 pop_arg(x64);
@@ -745,15 +782,16 @@ public:
             
             if (is_void) {
                 // Return pivot argument
-                Storage s = pushed_storages[0];
                 
+                Storage s = pushed_storages[0];
+            
                 if (s.where == ALISTACK) {
                     // Returninig ALISTACK is a bit evil, as the caller would need to
                     // allocate a register to do anything meaningful with it, so do that here
                     Storage t = Storage(MEMORY, Address(reg, 0));
                     s = pushed_tss[0].store(s, t, x64);
                 }
-                
+            
                 return s;
             }
             
