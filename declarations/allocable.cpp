@@ -144,54 +144,17 @@ public:
 };
 
 
-class PartialInitializable {
+class PartialVariable: public Variable {
 public:
-    std::set<std::string> uninitialized_member_names;
-    std::set<std::string> initialized_member_names;
-    
-    PartialInitializable() {
-    }
+    std::unique_ptr<PartialInfo> partial_info;
 
-    virtual void set_member_names(std::vector<std::string> mn) {
-        uninitialized_member_names.insert(mn.begin(), mn.end());
-    }
-    
-    virtual void be_initialized(std::string name) {
-        initialized_member_names.insert(name);
-        uninitialized_member_names.erase(name);
-    }
-    
-    virtual bool is_initialized(std::string name) {
-        return initialized_member_names.count(name) == 1;
-    }
-
-    virtual bool is_uninitialized(std::string name) {
-        return uninitialized_member_names.count(name) == 1;
-    }
-    
-    virtual bool is_complete() {
-        return uninitialized_member_names.size() == 0;
-    }
-
-    virtual void be_complete() {
-        initialized_member_names.insert(uninitialized_member_names.begin(), uninitialized_member_names.end());
-        uninitialized_member_names.clear();
-    }
-
-    virtual bool is_dirty() {
-        return initialized_member_names.size() != 0;
-    }
-};
-
-
-class PartialVariable: public Variable, public PartialInitializable {
-public:
     PartialVariable(std::string name, TypeSpec pts, TypeSpec vts)
         :Variable(name, pts, vts) {
+        partial_info.reset(new PartialInfo);
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make<PartialVariableValue>(this, cpivot, match);
+        return make<PartialVariableValue>(this, cpivot, match, partial_info.get());
     }
 };
 
@@ -409,29 +372,51 @@ Declaration *make_shadow_role(Role *orole, Role *prole) {
 }
 
 
-class ModuleIdentifier: public Allocable {
+class ModuleVariable: public Variable {
 public:
     ModuleScope *module_scope;
+    Storage local_storage;
     
-    ModuleIdentifier(std::string n, ModuleScope *ms, TypeSpec mts)
-        :Allocable(n, NO_TS, mts) {
+    ModuleVariable(std::string n, ModuleScope *ms, TypeSpec mts)
+        :Variable(n, NO_TS, mts) {
         module_scope = ms;
     }
-    
+
+    virtual void allocate() {
+        // This is just an alias, we don't allocate actual data here
+        where = MEMORY;
+    }
+
+    virtual void fix(X64 *x64) {
+        int module_offset = module_scope->offset.concretize();
+        local_storage = Storage(MEMORY, Address(x64->runtime->application_label, module_offset));
+    }
+
+    virtual Storage get_storage(TypeMatch tm, Storage s) {
+        throw INTERNAL_ERROR;  // not contained in anything else
+    }
+
+    virtual Storage get_local_storage() {
+        return local_storage;
+    }
+    /*
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make<ModuleValue>(module_scope, alloc_ts);
     }
+    */
 };
 
 
-class PartialModuleIdentifier: public ModuleIdentifier, public PartialInitializable {
+class PartialModuleVariable: public ModuleVariable {
 public:
-    PartialModuleIdentifier(std::string name, ModuleScope *ms, TypeSpec mts)
-        :ModuleIdentifier(name, ms, mts) {
+    std::unique_ptr<PartialInfo> partial_info;
+
+    PartialModuleVariable(std::string name, ModuleScope *ms, TypeSpec mts)
+        :ModuleVariable(name, ms, mts) {
+        partial_info.reset(new PartialInfo);
     }
 
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make<PartialModuleValue>(this, module_scope, alloc_ts);
+        return make<PartialVariableValue>(this, cpivot, match, partial_info.get());
     }
 };
-

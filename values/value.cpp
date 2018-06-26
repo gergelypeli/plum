@@ -267,11 +267,11 @@ public:
 
 class PartialVariableValue: public VariableValue {
 public:
-    PartialVariable *partial_variable;
+    PartialInfo *partial_info;
     
-    PartialVariableValue(PartialVariable *pv, Value *p, TypeMatch &match)
+    PartialVariableValue(Variable *pv, Value *p, TypeMatch &match, PartialInfo *pi)
         :VariableValue(pv, p, match) {
-        partial_variable = pv;
+        partial_info = pi;
         
         // First, it's not assignable, second, it may already have an lvalue_type inside it
         ts = ts.rvalue();
@@ -467,41 +467,6 @@ public:
         }
     }
 };
-
-
-class ModuleValue: public Value {
-public:
-    ModuleScope *module_scope;
-    
-    ModuleValue(ModuleScope *ms, TypeSpec mts)
-        :Value(mts) {
-        module_scope = ms;
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        return Regs();
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        if (!module_scope)
-            throw INTERNAL_ERROR;
-            
-        int module_offset = module_scope->offset.concretize();
-        return Storage(MEMORY, Address(x64->runtime->application_label, module_offset));
-    }
-};
-
-
-class PartialModuleValue: public ModuleValue {
-public:
-    PartialModuleIdentifier *partial_module;
-    
-    PartialModuleValue(PartialModuleIdentifier *pm, ModuleScope *ms, TypeSpec mts)
-        :ModuleValue(ms, mts) {
-        partial_module = pm;
-    }
-};
-
 
 
 #include "type.cpp"

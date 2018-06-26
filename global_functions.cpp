@@ -23,15 +23,11 @@ Declaration *declaration_get_decl(DeclarationValue *dv) {
 }
 
 
-PartialInitializable *partial_get_pi(Value *v) {
+PartialInfo *partial_variable_get_info(Value *v) {
     PartialVariableValue *pvv = dynamic_cast<PartialVariableValue *>(v);
     if (pvv)
-        return pvv->partial_variable;
+        return pvv->partial_info;
         
-    PartialModuleValue *pmv = dynamic_cast<PartialModuleValue *>(v);
-    if (pmv)
-        return pmv->partial_module;
-
     throw INTERNAL_ERROR;
 }
 

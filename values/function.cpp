@@ -11,6 +11,7 @@ public:
     bool may_be_aborted;
     TypeSpec pivot_ts;
     Variable *self_var;
+    ModuleVariable *mod_var;
     TypeMatch match;
     RoleScope *role_scope;
 
@@ -26,6 +27,7 @@ public:
         deferred_body_expr = NULL;
         may_be_aborted = false;
         self_var = NULL;
+        mod_var = NULL;
         role_scope = NULL;
         fn_scope = NULL;
     }
@@ -70,21 +72,21 @@ public:
             
             if (pivot_ts.has_meta(module_metatype)) {
                 // Module method
-                Declaration *mod_var;
                 
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
                     TypeSpec mod_ts = pivot_ts.reprefix(initializable_type, partial_type);
-                    mod_var = new PartialModuleIdentifier("@", module_scope, mod_ts);
+                    mod_var = new PartialModuleVariable("@", module_scope, mod_ts);
                 }
                 else {
-                    mod_var = new ModuleIdentifier("@", module_scope, pivot_ts);
+                    mod_var = new ModuleVariable("@", module_scope, pivot_ts);
                 }
                 
                 ms->add(mod_var);
             }
             else if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
-                ms->add(new ModuleIdentifier("@", module_scope, module_scope->pivot_type_hint()));
+                mod_var = new ModuleVariable("@", module_scope, module_scope->pivot_type_hint());
+                ms->add(mod_var);
             
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
@@ -195,18 +197,28 @@ public:
         Scope *bs = fn_scope->add_body_scope();
 
         if (deferred_body_expr) {
-            PartialInitializable *pi = NULL;
+            PartialInfo *pi = NULL;
+            TypeSpec ats;
             
-            if (fn_scope->self_scope->contents.size() > 0)
-                pi = ptr_cast<PartialInitializable>(fn_scope->self_scope->contents.back().get());
+            if (fn_scope->self_scope->contents.size() > 0) {
+                PartialVariable *pv = ptr_cast<PartialVariable>(fn_scope->self_scope->contents.back().get());
+                
+                if (pv) {
+                    pi = pv->partial_info.get();
+                    ats = pv->alloc_ts.unprefix(partial_type);
+                }
+            }
 
-            if (!pi)
-                pi = ptr_cast<PartialInitializable>(fn_scope->mod_scope->contents.back().get());
+            if (!pi) {
+                PartialModuleVariable *pm = ptr_cast<PartialModuleVariable>(fn_scope->mod_scope->contents.back().get());
                 
+                if (pm) {
+                    pi = pm->partial_info.get();
+                    ats = pm->alloc_ts.unprefix(partial_type);
+                }
+            }
+            
             if (pi) {
-                Allocable *ae = ptr_cast<Allocable>(pi);
-                TypeSpec ats = ae->alloc_ts.unprefix(partial_type);
-                
                 // Must do this only after the class definition is completed
                 if (ats.has_meta(module_metatype)) {
                     // Module initializer
@@ -216,16 +228,16 @@ public:
                     
                     pi->set_member_names(mt->get_member_names());
                 }
-                else if (ae->alloc_ts[1] == weakref_type) {
+                else if (ats[0] == weakref_type) {
                     // TODO: this should also work for records
-                    ClassType *ct = ptr_cast<ClassType>(ae->alloc_ts[2]);
+                    ClassType *ct = ptr_cast<ClassType>(ats[1]);
                     if (!ct)
                         throw INTERNAL_ERROR;
                     
                     pi->set_member_names(ct->get_member_names());
                 }
                 else {
-                    RecordType *rt = ptr_cast<RecordType>(ae->alloc_ts[1]);
+                    RecordType *rt = ptr_cast<RecordType>(ats[0]);
                     if (!rt)
                         throw INTERNAL_ERROR;
                     
@@ -265,6 +277,9 @@ public:
             
         if (exception_type_value)
             exception_type_value->compile(x64);  // to compile treenum definitions
+
+        if (mod_var)
+            mod_var->fix(x64);  // hack to access application_label
     
         unsigned frame_size = fn_scope->get_frame_size();
 

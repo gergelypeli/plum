@@ -565,7 +565,8 @@ public:
         self_scope->reserve(head_scope->size);
         self_scope->allocate();
 
-        // mod_scope is not allocated, it is a global variable
+        // mod_scope is allocated, but only for technical reasons, it's actually global data
+        mod_scope->allocate();
 
         // results are now dynamically located from offset 0
         //result_scope->reserve(self_scope->size);

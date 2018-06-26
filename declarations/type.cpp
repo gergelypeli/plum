@@ -408,10 +408,10 @@ public:
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Partial inner lookup " << n << ".\n";
-        PartialInitializable *pv = partial_get_pi(v);
+        PartialInfo *pi = partial_variable_get_info(v);
         
-        if (pv->is_uninitialized(n)) {
-            pv->be_initialized(n);
+        if (pi->is_uninitialized(n)) {
+            pi->be_initialized(n);
             
             // TODO: technically the cast type should be lvalue for records only,
             // because for classes it makes $ a Weakref Lvalue, which is awkward.
@@ -443,7 +443,7 @@ public:
                 
             return member;
         }
-        else if (pv->is_initialized(n)) {
+        else if (pi->is_initialized(n)) {
             return tm[1].lookup_inner(n, make<CastValue>(v, tm[1]));
         }
         else
@@ -452,9 +452,9 @@ public:
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Partial partinitializer lookup " << n << ".\n";
-        PartialInitializable *pv = partial_get_pi(v);
+        PartialInfo *pi = partial_variable_get_info(v);
 
-        if (pv->is_dirty()) {
+        if (pi->is_dirty()) {
             std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
             return NULL;
         }
@@ -463,7 +463,7 @@ public:
         if (!member)
             return NULL;
         
-        pv->be_complete();
+        pi->be_complete();
         
         return member;
     }
@@ -624,10 +624,6 @@ public:
         initializer_function = NULL;
     }
     
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
-        return NOWHERE;
-    }
-
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where != NOWHERE || t.where != NOWHERE) {
             std::cerr << "Invalid module store from " << s << " to " << t << "!\n";
