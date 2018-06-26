@@ -454,6 +454,7 @@ class FunctionScope: public Scope {
 public:
     ArgumentScope *result_scope;
     ArgumentScope *self_scope;
+    ArgumentScope *mod_scope;
     ArgumentScope *head_scope;
     CodeScope *body_scope;
     TreenumerationType *exception_type;
@@ -464,6 +465,7 @@ public:
         :Scope(FUNCTION_SCOPE) {
         result_scope = NULL;
         self_scope = NULL;
+        mod_scope = NULL;
         head_scope = NULL;
         body_scope = NULL;
         exception_type = NULL;
@@ -479,6 +481,12 @@ public:
         self_scope = new ArgumentScope;
         add(self_scope);
         return self_scope;
+    }
+
+    Scope *add_mod_scope() {
+        mod_scope = new ArgumentScope;
+        add(mod_scope);
+        return mod_scope;
     }
     
     Scope *add_head_scope() {
@@ -523,23 +531,19 @@ public:
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
-        if (body_scope) {
-            Value *v = head_scope->lookup(name, pivot);
-            if (v)
-                return v;
-        }
+        Value *v;
         
-        if (head_scope) {
-            Value *v = self_scope->lookup(name, pivot);
-            if (v)
-                return v;
-        }
+        v = head_scope ? head_scope->lookup(name, pivot) : NULL;
+        if (v)
+            return v;
+        
+        v = self_scope ? self_scope->lookup(name, pivot) : NULL;
+        if (v)
+            return v;
 
-        if (self_scope) {
-            Value *v = result_scope->lookup(name, pivot);
-            if (v)
-                return v;
-        }
+        v = mod_scope ? mod_scope->lookup(name, pivot) : NULL;
+        if (v)
+            return v;
 
         return NULL;
     }
@@ -560,6 +564,8 @@ public:
 
         self_scope->reserve(head_scope->size);
         self_scope->allocate();
+
+        // mod_scope is not allocated, it is a global variable
 
         // results are now dynamically located from offset 0
         //result_scope->reserve(self_scope->size);

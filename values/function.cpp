@@ -62,6 +62,8 @@ public:
         }
 
         Scope *ss = fn_scope->add_self_scope();
+        Scope *ms = fn_scope->add_mod_scope();
+        
         if (scope->type == DATA_SCOPE) {
             pivot_ts = scope->pivot_type_hint();
             ModuleScope *module_scope = scope->get_module_scope();
@@ -79,10 +81,10 @@ public:
                     mod_var = new ModuleIdentifier("@", module_scope, pivot_ts);
                 }
                 
-                ss->add(mod_var);
+                ms->add(mod_var);
             }
             else if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
-                ss->add(new ModuleIdentifier("@", module_scope, module_scope->pivot_type_hint()));
+                ms->add(new ModuleIdentifier("@", module_scope, module_scope->pivot_type_hint()));
             
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
@@ -197,6 +199,9 @@ public:
             
             if (fn_scope->self_scope->contents.size() > 0)
                 pi = ptr_cast<PartialInitializable>(fn_scope->self_scope->contents.back().get());
+
+            if (!pi)
+                pi = ptr_cast<PartialInitializable>(fn_scope->mod_scope->contents.back().get());
                 
             if (pi) {
                 Allocable *ae = ptr_cast<Allocable>(pi);
