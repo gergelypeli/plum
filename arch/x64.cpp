@@ -1014,9 +1014,9 @@ void X64::op(Imul3Op opcode, Register x, Address y, int z) {
         }
         else switch (opcode & 3) {
             case 0: throw X64_ERROR;
-            case 1: y.offset -= 2;
-            case 2: y.offset -= 4;
-            case 3: y.offset -= 4;  // 32-bit immediate only
+            case 1: y.offset -= 2; break;
+            case 2: y.offset -= 4; break;
+            case 3: y.offset -= 4; break;  // 32-bit immediate only
         }
     }
 
