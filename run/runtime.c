@@ -11,17 +11,18 @@
 #define PCRE2_CODE_UNIT_WIDTH 16
 #include <pcre2.h>
 
+#include "../typedefs.h"
 #include "../utf8.c"
 #include "../arch/heap.h"
 
-#define ALENGTH(x) *(long *)((x) + ARRAY_LENGTH_OFFSET)
-#define ARESERVATION(x) *(long *)((x) + ARRAY_RESERVATION_OFFSET)
+#define ALENGTH(x) *(int64 *)((x) + ARRAY_LENGTH_OFFSET)
+#define ARESERVATION(x) *(int64 *)((x) + ARRAY_RESERVATION_OFFSET)
 #define AELEMENTS(x) ((x) + ARRAY_ELEMS_OFFSET)
 
-#define HREFCOUNT(x) *(long *)((x) + HEAP_REFCOUNT_OFFSET)
-#define HWEAKREFCOUNT(x) *(long *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
-#define HFINALIZER(x) *(long *)((x) + HEAP_FINALIZER_OFFSET)
-#define HNEXT(x) *(long *)((x) + HEAP_NEXT_OFFSET)
+#define HREFCOUNT(x) *(int64 *)((x) + HEAP_REFCOUNT_OFFSET)
+#define HWEAKREFCOUNT(x) *(int64 *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
+#define HFINALIZER(x) *(int64 *)((x) + HEAP_FINALIZER_OFFSET)
+#define HNEXT(x) *(int64 *)((x) + HEAP_NEXT_OFFSET)
 
 #define RECORDMEMBER(obj, mtype) *(mtype *)(obj)
 #define CLASSMEMBER(obj, mtype) *(mtype *)(obj + CLASS_MEMBERS_OFFSET)
@@ -33,16 +34,16 @@ typedef void *Ref;
 typedef void *Alias;
 typedef struct {
     void *weakref;
-    long front;
-    long length;
+    int64 front;
+    int64 length;
 } *Slice;
 
 typedef struct {
-    long valued;  // returned in RAX
-    long raised;  // returned in RDX
+    int64 valued;  // returned in RAX
+    int64 raised;  // returned in RDX
 } Varied;
 
-#define VALUED(x) ((Varied) { (long)(x), NO_EXCEPTION })
+#define VALUED(x) ((Varied) { (int64)(x), NO_EXCEPTION })
 #define RAISED(x) ((Varied) { 0, (x) + ERRNO_TREENUM_OFFSET })
 
 extern void empty_function();
@@ -54,10 +55,10 @@ static locale_t unfucked_locale;
 
 // Memory management
 
-void *memalloc(long size) {
+void *memalloc(int64 size) {
     allocation_count += 1;
     void *x = malloc(size);
-    //fprintf(stderr, " -- malloc %p %ld\n", x, size);
+    //fprintf(stderr, " -- malloc %p %lld\n", x, size);
     return x;
 }
 
@@ -69,22 +70,22 @@ void memfree(void *m) {
 }
 
 
-void *memrealloc(void *m, long size) {
+void *memrealloc(void *m, int64 size) {
     void *x = realloc(m, size);
-    //fprintf(stderr, " -- realloc %p %ld %p\n", m, size, x);
+    //fprintf(stderr, " -- realloc %p %lld %p\n", m, size, x);
     return x;
 }
 
 
 // Internal helpers
 
-void *allocate_basic_array(long length, long size) {
+void *allocate_basic_array(int64 length, int64 size) {
     void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     
     HNEXT(array) = 0;
     HREFCOUNT(array) = 1;
     HWEAKREFCOUNT(array) = 0;
-    HFINALIZER(array) = (long)(void *)empty_function;  // TODO: this only works for basic types!
+    HFINALIZER(array) = (int64)(void *)empty_function;  // TODO: this only works for basic types!
     
     ARESERVATION(array) = length;
     ALENGTH(array) = 0;
@@ -93,14 +94,14 @@ void *allocate_basic_array(long length, long size) {
 }
 
 
-void *allocate_string_array(long length) {
+void *allocate_string_array(int64 length) {
     int size = ADDRESS_SIZE;
     void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     
     HNEXT(array) = 0;
     HREFCOUNT(array) = 1;
     HWEAKREFCOUNT(array) = 0;
-    HFINALIZER(array) = (long)(void *)finalize_reference_array;
+    HFINALIZER(array) = (int64)(void *)finalize_reference_array;
     
     ARESERVATION(array) = length;
     ALENGTH(array) = 0;
@@ -109,9 +110,9 @@ void *allocate_string_array(long length) {
 }
 
 
-void *reallocate_array(void *array, long length, long size) {
+void *reallocate_array(void *array, int64 length, int64 size) {
     if (HREFCOUNT(array) != 1) {
-        fprintf(stderr, "Oops, reallocating an array with %ld references!\n", HREFCOUNT(array));
+        fprintf(stderr, "Oops, reallocating an array with %lld references!\n", HREFCOUNT(array));
         abort();
     }
 
@@ -131,17 +132,17 @@ void free_basic_array(void *array) {
 }
 
 
-void *append_decode_utf8(void *character_array, char *bytes, long byte_length) {
-    long character_length = ALENGTH(character_array);
-    long character_reserve = ARESERVATION(character_array);
+void *append_decode_utf8(void *character_array, char *bytes, int64 byte_length) {
+    int64 character_length = ALENGTH(character_array);
+    int64 character_reserve = ARESERVATION(character_array);
     
     if (character_reserve - character_length < byte_length)
         character_array = reallocate_array(character_array, character_length + byte_length, 2);
         
-    unsigned short *characters = AELEMENTS(character_array);
-    long available_length = ARESERVATION(character_array) - ALENGTH(character_array);
+    unsigned16 *characters = AELEMENTS(character_array);
+    int64 available_length = ARESERVATION(character_array) - ALENGTH(character_array);
     
-    long byte_count, character_count;
+    int64 byte_count, character_count;
     decode_utf8_buffer(bytes, byte_length, characters + character_length, available_length, &byte_count, &character_count);
     ALENGTH(character_array) += character_count;
     
@@ -149,7 +150,7 @@ void *append_decode_utf8(void *character_array, char *bytes, long byte_length) {
 }
 
 
-void lvalue_append_decode_utf8(void **character_array_lvalue, char *byte_array, long byte_length) {
+void lvalue_append_decode_utf8(void **character_array_lvalue, char *byte_array, int64 byte_length) {
     void *character_array = *character_array_lvalue;
     character_array = append_decode_utf8(character_array, byte_array, byte_length);
     *character_array_lvalue = character_array;
@@ -164,7 +165,7 @@ void logfunc(const char *message) {
 }
 
 
-struct R { unsigned long r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rsp, rdx, rcx, rbx, rax, rflags; };
+struct R { unsigned64 r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rsp, rdx, rcx, rbx, rax, rflags; };
 
 void dump(const char *message, struct R *r) {
     fprintf(stderr, "DUMP: %s [%c%c%c%c%c%c]\n", message,
@@ -176,10 +177,10 @@ void dump(const char *message, struct R *r) {
         (r->rflags & 2048 ? 'O' : 'o')
     );
     fprintf(stderr, "              ____    ____          ____    ____          ____    ____          ____    ____\n");
-    fprintf(stderr, "      RAX=%016lx  RBX=%016lx  RCX=%016lx  RDX=%016lx\n", r->rax, r->rbx, r->rcx, r->rdx);
-    fprintf(stderr, "      RSP=%016lx  RBP=%016lx  RSI=%016lx  RDI=%016lx\n", r->rsp + 32, r->rbp, r->rsi, r->rdi);
-    fprintf(stderr, "      R8 =%016lx  R9 =%016lx  R10=%016lx  R11=%016lx\n", r->r8, r->r9, r->r10, r->r11);
-    fprintf(stderr, "      R12=%016lx  R13=%016lx  R14=%016lx  R15=%016lx\n", r->r12, r->r13, r->r14, r->r15);
+    fprintf(stderr, "      RAX=%016llx  RBX=%016llx  RCX=%016llx  RDX=%016llx\n", r->rax, r->rbx, r->rcx, r->rdx);
+    fprintf(stderr, "      RSP=%016llx  RBP=%016llx  RSI=%016llx  RDI=%016llx\n", r->rsp + 32, r->rbp, r->rsi, r->rdi);
+    fprintf(stderr, "      R8 =%016llx  R9 =%016llx  R10=%016llx  R11=%016llx\n", r->r8, r->r9, r->r10, r->r11);
+    fprintf(stderr, "      R12=%016llx  R13=%016llx  R14=%016llx  R15=%016llx\n", r->r12, r->r13, r->r14, r->r15);
 }
 
 
@@ -190,10 +191,10 @@ void die(const char *message) {
 
 
 void dies(void *s) {
-    long character_length = ALENGTH(s);
+    int64 character_length = ALENGTH(s);
     char bytes[character_length * 3 + 1];
     
-    long character_count, byte_count;
+    int64 character_count, byte_count;
     encode_utf8_buffer(AELEMENTS(s), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
 
     bytes[byte_count] = '\0';
@@ -202,23 +203,23 @@ void dies(void *s) {
 }
 
 
-void streamify_integer(long x, void **character_array_lvalue) {
+void streamify_integer(int64 x, void **character_array_lvalue) {
     char byte_array[30];
-    long byte_length = snprintf(byte_array, sizeof(byte_array), "%ld", x);
+    int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%lld", x);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
-void streamify_unteger(unsigned long x, void **character_array_lvalue) {
+void streamify_unteger(unsigned64 x, void **character_array_lvalue) {
     char byte_array[30];
-    long byte_length = snprintf(byte_array, sizeof(byte_array), "%lu", x);
+    int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%llu", x);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
 void streamify_boolean(unsigned char x, void **character_array_lvalue) {
     char *byte_array = (x ? "`true" : "`false");
-    long byte_length = strlen(byte_array);
+    int64 byte_length = strlen(byte_array);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
@@ -226,7 +227,7 @@ void streamify_boolean(unsigned char x, void **character_array_lvalue) {
 void streamify_float(double x, void **character_array_lvalue) {
     char byte_array[30];
     locale_t xxx = uselocale(unfucked_locale);
-    long byte_length = snprintf(byte_array, sizeof(byte_array), "%g", x);
+    int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%g", x);
     uselocale(xxx);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
@@ -234,7 +235,7 @@ void streamify_float(double x, void **character_array_lvalue) {
 
 void streamify_reference(Ref x, void **character_array_lvalue) {
     char byte_array[30];
-    long byte_length = snprintf(byte_array, sizeof(byte_array), "%p", x);
+    int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%p", x);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
@@ -293,16 +294,16 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
         result_array = allocate_string_array(rc);
         void **result_refs = AELEMENTS(result_array);
         ALENGTH(result_array) = rc;
-        short *subject_characters = AELEMENTS(subject_array);
+        unsigned16 *subject_characters = AELEMENTS(subject_array);
         
         for (int i = 0; i < rc; i++) {
             size_t start = ovector[2 * i];
             size_t len = ovector[2 * i + 1] - ovector[2 * i];
-            //fprintf(stderr, "PCRE2 match %d start %ld length %ld.\n", i, start, len);
+            //fprintf(stderr, "PCRE2 match %d start %lld length %lld.\n", i, start, len);
             
             void *target_array = allocate_basic_array(len, CHARACTER_SIZE);
             ALENGTH(target_array) = len;
-            short *target_characters = AELEMENTS(target_array);
+            unsigned16 *target_characters = AELEMENTS(target_array);
             
             for (unsigned j = 0; j < len; j++)
                 target_characters[j] = subject_characters[start + j];
@@ -320,12 +321,12 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
 
 // Library functions
 
-void printi(long a) {
-    printf("%ld\n", a);
+void printi(int64 a) {
+    printf("%lld\n", a);
 }
 
 
-void printc(short a) {
+void printc(unsigned16 a) {
     printf("%c\n", a);
 }
 
@@ -342,10 +343,10 @@ void printz(const char *s) {
 
 void prints(void *s) {
     if (s) {
-        long character_length = ALENGTH(s);
+        int64 character_length = ALENGTH(s);
         char bytes[character_length * 3 + 1];
         
-        long character_count, byte_count;
+        int64 character_count, byte_count;
         encode_utf8_buffer(AELEMENTS(s), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
 
         bytes[byte_count] = '\0';
@@ -358,7 +359,7 @@ void prints(void *s) {
 
 void printb(void *s) {
     if (s) {
-        long byte_length = ALENGTH(s);
+        int64 byte_length = ALENGTH(s);
         char *bytes = AELEMENTS(s);
         printf("%.*s\n", (int)byte_length, bytes);
     }
@@ -377,13 +378,13 @@ void *decode_utf8(Ref byte_array) {
     if (!byte_array)
         return NULL;
 
-    long byte_length = ALENGTH(byte_array);
+    int64 byte_length = ALENGTH(byte_array);
     char *bytes = AELEMENTS(byte_array);
 
     void *character_array = allocate_basic_array(byte_length, 2);
-    unsigned short *characters = AELEMENTS(character_array);
+    unsigned16 *characters = AELEMENTS(character_array);
     
-    long byte_count, character_count;
+    int64 byte_count, character_count;
     decode_utf8_buffer(bytes, byte_length, characters, ARESERVATION(character_array), &byte_count, &character_count);
     ALENGTH(character_array) = character_count;
     
@@ -396,14 +397,14 @@ void *encode_utf8(Alias string_alias) {
     if (!character_array)
         return NULL;
 
-    long character_length = ALENGTH(character_array);
-    unsigned short *characters = AELEMENTS(character_array);
+    int64 character_length = ALENGTH(character_array);
+    unsigned16 *characters = AELEMENTS(character_array);
     
     void *byte_array = allocate_basic_array(character_length * 3, 1);
     char *bytes = AELEMENTS(byte_array);
-    long byte_length = character_length * 3;
+    int64 byte_length = character_length * 3;
 
-    long character_count, byte_count;
+    int64 character_count, byte_count;
     encode_utf8_buffer(characters, character_length, bytes, byte_length, &character_count, &byte_count);
     ALENGTH(byte_array) = byte_count;
     
@@ -412,34 +413,34 @@ void *encode_utf8(Alias string_alias) {
 
 
 void *decode_utf8_slice(Slice byte_slice) {
-    long byte_length = SLENGTH(byte_slice);
+    int64 byte_length = SLENGTH(byte_slice);
     char *bytes = SELEMENTS(byte_slice, 1);
 
-    //fprintf(stderr, "decode_utf8_slice byte length %ld.\n", byte_length);
+    //fprintf(stderr, "decode_utf8_slice byte length %lld.\n", byte_length);
 
     void *character_array = allocate_basic_array(byte_length, 2);
-    unsigned short *characters = AELEMENTS(character_array);
+    unsigned16 *characters = AELEMENTS(character_array);
     
-    long byte_count, character_count;
+    int64 byte_count, character_count;
     decode_utf8_buffer(bytes, byte_length, characters, ARESERVATION(character_array), &byte_count, &character_count);
     ALENGTH(character_array) = character_count;
 
-    //fprintf(stderr, "decode_utf8_slice decoded %ld bytes to %ld characters.\n", byte_count, character_count);
+    //fprintf(stderr, "decode_utf8_slice decoded %lld bytes to %lld characters.\n", byte_count, character_count);
 
     return reallocate_array(character_array, character_count, 2);
 }
 
 
-Varied fs__Path__mkdir(Alias path_alias, long mode) {
+Varied fs__Path__mkdir(Alias path_alias, int64 mode) {
     void *name_array = RECORDMEMBER(path_alias, Ref);
-    long character_length = ALENGTH(name_array);
+    int64 character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
     
-    long character_count, byte_count;
+    int64 character_count, byte_count;
     encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
     bytes[byte_count] = '\0';
 
-    fprintf(stderr, "mkdir '%s' %lo\n", bytes, mode);
+    fprintf(stderr, "mkdir '%s' %llo\n", bytes, mode);
     int rc = mkdir(bytes, mode);
     int er = errno;
 
@@ -451,10 +452,10 @@ Varied fs__Path__mkdir(Alias path_alias, long mode) {
 
 Varied fs__Path__rmdir(Alias path_alias) {
     void *name_array = RECORDMEMBER(path_alias, Ref);
-    long character_length = ALENGTH(name_array);
+    int64 character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
     
-    long character_count, byte_count;
+    int64 character_count, byte_count;
     encode_utf8_buffer(AELEMENTS(name_array), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
     bytes[byte_count] = '\0';
 
@@ -469,7 +470,7 @@ Varied fs__Path__rmdir(Alias path_alias) {
 
 Varied fs__File__read(Ref file_ref, Slice buffer_slice) {
     int fd = CLASSMEMBER(file_ref, int);
-    long buffer_length = SLENGTH(buffer_slice);
+    int64 buffer_length = SLENGTH(buffer_slice);
     char *buffer_elements = SELEMENTS(buffer_slice, 1);
     
     int rc = read(fd, buffer_elements, buffer_length);
@@ -481,10 +482,10 @@ Varied fs__File__read(Ref file_ref, Slice buffer_slice) {
 }
 
 
-Varied reader_get(Ref reader_ref, long length) {
+Varied reader_get(Ref reader_ref, int64 length) {
     int fd = CLASSMEMBER(reader_ref, int);
     void *byte_array = allocate_basic_array(length, 1);
-    long buffer_length = length;
+    int64 buffer_length = length;
     char *buffer_elements = AELEMENTS(byte_array);
     
     int rc = read(fd, buffer_elements, buffer_length);
@@ -508,10 +509,10 @@ Varied reader_get_all(Ref reader_ref) {
     int length = 4096;
     int fd = CLASSMEMBER(reader_ref, int);
     void *byte_array = allocate_basic_array(length, 1);
-    long buffer_length = length;
+    int64 buffer_length = length;
     char *buffer_elements = AELEMENTS(byte_array);
     
-    long read_length = 0;
+    int64 read_length = 0;
 
     while (1) {
         int rc = read(fd, buffer_elements + read_length, buffer_length - read_length);
@@ -546,7 +547,7 @@ Varied reader_get_all(Ref reader_ref) {
 // Entry point
 
 extern void start();
-extern long initializer_count;
+extern int64 initializer_count;
 extern void (*initializer_pointers[])();
 
 int main() {

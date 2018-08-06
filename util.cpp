@@ -95,12 +95,12 @@ public:
 };
 
 
-std::vector<unsigned short> decode_utf8(std::string text) {
+std::vector<unsigned16> decode_utf8(std::string text) {
     int bytelen = text.size();
-    std::vector<unsigned short> characters;
+    std::vector<unsigned16> characters;
     characters.resize(bytelen);  // upper limit
     
-    long character_count, byte_count;
+    int64 character_count, byte_count;
     decode_utf8_buffer(text.data(), bytelen, characters.data(), characters.size(), &byte_count, &character_count);
     
     characters.resize(character_count);
@@ -108,7 +108,7 @@ std::vector<unsigned short> decode_utf8(std::string text) {
 }
 
 
-unsigned long parse_unsigned_integer(std::string text) {
+unsigned64 parse_unsigned_integer(std::string text) {
     unsigned base = 10;
     unsigned n = text.size();
     unsigned start = 0;
@@ -140,9 +140,9 @@ unsigned long parse_unsigned_integer(std::string text) {
         start = 2;
     }
     
-    const unsigned long limit_value = (0UL - 1) / base;
-    const unsigned long limit_digit = (0UL - 1) % base;
-    unsigned long value = 0;
+    const unsigned64 limit_value = (0UL - 1) / base;
+    const unsigned64 limit_digit = (0UL - 1) % base;
+    unsigned64 value = 0;
     
     for (unsigned i = start; i < n; i++) {
         char c = text[i];
@@ -150,7 +150,7 @@ unsigned long parse_unsigned_integer(std::string text) {
         if (c == '_')
             continue;
 
-        unsigned long digit = (
+        unsigned64 digit = (
             c >= '0' && c <= '9' ? c - '0' :
             c >= 'a' && c <= 'f' ? c - 'a' + 10 :
             c >= 'A' && c <= 'F' ? c - 'A' + 10 :

@@ -7,9 +7,9 @@
 class BasicValue: public Value {
 public:
     Register reg;
-    long number;
+    int64 number;
     
-    BasicValue(TypeSpec ts, long n)
+    BasicValue(TypeSpec ts, int64 n)
         :Value(ts) {
         reg = NOREG;
         number = n;
@@ -109,7 +109,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        std::vector<unsigned short> characters = decode_utf8(text);
+        std::vector<unsigned16> characters = decode_utf8(text);
         Label l = x64->runtime->data_heap_string(characters);
         
         x64->op(LEA, RBX, Address(l, 0));

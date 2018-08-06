@@ -224,7 +224,7 @@ public:
     
     struct Def {
         Def_type type;
-        unsigned long location;  // Can be arbitrary value for absolute symbols
+        unsigned64 location;  // Can be arbitrary value for absolute symbols
         unsigned size;
         std::string name;
         bool is_global;
@@ -250,7 +250,7 @@ public:
     
     struct Ref {
         Ref_type type;
-        unsigned long location;
+        unsigned64 location;
         unsigned def_index;
     };
 
@@ -268,14 +268,14 @@ public:
     
     void add_def(Label label, const Def &def);
 
-    void absolute_label(Label c, unsigned long value, unsigned size = 0);
+    void absolute_label(Label c, unsigned64 value, unsigned size = 0);
 
     void data_align(int bytes);
     void data_blob(int bytes);
     void data_byte(char x);
-    void data_word(short x);
+    void data_word(int16 x);
     void data_dword(int x);
-    void data_qword(long x);
+    void data_qword(int64 x);
     void data_zstring(std::string s);
     void data_double(double x);
     void data_label(Label c, unsigned size = 0);
@@ -284,9 +284,9 @@ public:
     void data_reference(Label c);
 
     void code_byte(char x);
-    void code_word(short x);
+    void code_word(int16 x);
     void code_dword(int x);
-    void code_qword(long x);
+    void code_qword(int64 x);
     void code_label(Label c, unsigned size = 0);
     void code_label_import(Label c, std::string name);
     void code_label_local(Label c, std::string name, unsigned size = 0);
@@ -338,7 +338,7 @@ public:
     void op(BinaryOp opcode, Address x, Register y);
     void op(BinaryOp opcode, Register x, Address y);
     //void op(BinaryOp opcode, Register x, Label y);
-    void op(MovabsOp opcode, Register x, long y);  // 64-bit immediate capable
+    void op(MovabsOp opcode, Register x, int64 y);  // 64-bit immediate capable
     void op(ShiftOp opcode, Register x, Register cl);
     void op(ShiftOp opcode, Address x, Register cl);
     void op(ShiftOp opcode, Register x, char y);

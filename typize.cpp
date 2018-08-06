@@ -412,7 +412,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 
         
             // parse the part without sign into a 64-bit unsigned
-            unsigned long x = parse_unsigned_integer(text);
+            unsigned64 x = parse_unsigned_integer(text);
 
             if (t->is_unsigned) {
                 if (

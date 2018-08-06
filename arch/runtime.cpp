@@ -66,7 +66,7 @@ public:
         x64->data_qword(0);  // weakrefcount
     }
 
-    Label data_heap_string(std::vector<unsigned short> characters) {
+    Label data_heap_string(std::vector<unsigned16> characters) {
         if (ARRAY_HEADER_SIZE != 16 || ARRAY_RESERVATION_OFFSET != 0 || ARRAY_LENGTH_OFFSET != 8)
             throw X64_ERROR;
         
@@ -77,7 +77,7 @@ public:
         x64->data_qword(characters.size());
         x64->data_qword(characters.size());
 
-        for (unsigned short &c : characters)
+        for (unsigned16 &c : characters)
             x64->data_word(c);
 
         return l;

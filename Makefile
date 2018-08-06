@@ -8,7 +8,7 @@ MODULES    = tokenize treeize tupleize typize util plum builtins global_types gl
 HEADERS    = builtins builtins_errno global_types global_functions arch/ork arch/x64 arch/heap
 SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h)
 COMPILE    = g++
-CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -g -fdiagnostics-color=always
+CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
 MAIN       = plum.cpp
 EXE        = run/plum

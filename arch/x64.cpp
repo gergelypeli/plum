@@ -91,7 +91,7 @@ void X64::done(std::string filename) {
             switch (d.type) {
             case DEF_CODE:
             case DEF_CODE_EXPORT: {
-                long distance = d.location - (r.location + 1);
+                int64 distance = d.location - (r.location + 1);
                     
                 if (distance > 127 || distance < -128) {
                     std::cerr << "REF_CODE_SHORT can't jump " << distance << " bytes!\n";
@@ -116,7 +116,7 @@ void X64::done(std::string filename) {
             switch (d.type) {
             case DEF_CODE:
             case DEF_CODE_EXPORT: {
-                long distance = d.location - (r.location + 4);
+                int64 distance = d.location - (r.location + 4);
                 
                 if (distance > 2147483647 || distance < -2147483648) {
                     std::cerr << "REF_CODE_RELATIVE can't jump " << distance << " bytes!\n";
@@ -146,7 +146,7 @@ void X64::done(std::string filename) {
             switch (d.type) {
             case DEF_ABSOLUTE:
             case DEF_ABSOLUTE_EXPORT:
-                *(unsigned long *)&data[r.location] = d.location;
+                *(unsigned64 *)&data[r.location] = d.location;
                 break;
             case DEF_DATA_EXPORT:
             case DEF_DATA:
@@ -193,7 +193,7 @@ void X64::add_def(Label label, const Def &def) {
 }
 
 
-void X64::absolute_label(Label c, unsigned long value, unsigned size) {
+void X64::absolute_label(Label c, unsigned64 value, unsigned size) {
     add_def(c, Def(DEF_ABSOLUTE, value, size, "", false));
 }
 
@@ -214,7 +214,7 @@ void X64::data_byte(char x) {
 }
 
 
-void X64::data_word(short x) {
+void X64::data_word(int16 x) {
     data.resize(data.size() + 2);
     *(short *)(data.data() + data.size() - 2) = x;
 }
@@ -226,9 +226,9 @@ void X64::data_dword(int x) {
 }
 
 
-void X64::data_qword(long x) {
+void X64::data_qword(int64 x) {
     data.resize(data.size() + 8);
-    *(long *)(data.data() + data.size() - 8) = x;
+    *(int64 *)(data.data() + data.size() - 8) = x;
 }
 
 
@@ -283,9 +283,9 @@ void X64::code_byte(char x) {
 }
 
 
-void X64::code_word(short x) {
+void X64::code_word(int16 x) {
     code.resize(code.size() + 2);
-    *(short *)(code.data() + code.size() - 2) = x;
+    *(int16 *)(code.data() + code.size() - 2) = x;
 }
 
 
@@ -295,9 +295,9 @@ void X64::code_dword(int x) {
 }
 
 
-void X64::code_qword(long x) {
+void X64::code_qword(int64 x) {
     code.resize(code.size() + 8);
-    *(long *)(code.data() + code.size() - 8) = x;
+    *(int64 *)(code.data() + code.size() - 8) = x;
 }
 
 
@@ -829,7 +829,7 @@ void X64::op(BinaryOp opcode, Register x, Address y) {
 
 
 
-void X64::op(MovabsOp opcode, Register x, long y) {
+void X64::op(MovabsOp opcode, Register x, int64 y) {
     prefixed_op(0xB8 + (x & 7), OPSIZE_QWORD, xb(x));
     code_qword(y);
 }

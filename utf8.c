@@ -1,10 +1,10 @@
 
-void decode_utf8_buffer(const char *bytes, long byte_length, unsigned short *characters, long character_length, long *byte_count, long *character_count) {
+void decode_utf8_buffer(const char *bytes, int64 byte_length, unsigned16 *characters, int64 character_length, int64 *byte_count, int64 *character_count) {
     const char *bytes_start = bytes;
     const char *bytes_end = bytes + byte_length;
     
-    const unsigned short *characters_start = characters;
-    const unsigned short *characters_end = characters + character_length;
+    const unsigned16 *characters_start = characters;
+    const unsigned16 *characters_end = characters + character_length;
     
     while (bytes < bytes_end && characters < characters_end) {
         if ((bytes[0] & 0x80) == 0x00) {
@@ -57,9 +57,9 @@ void decode_utf8_buffer(const char *bytes, long byte_length, unsigned short *cha
 }
 
 
-void encode_utf8_buffer(const unsigned short *characters, long character_length, char *bytes, long byte_length, long *character_count, long *byte_count) {
-    const unsigned short *characters_start = characters;
-    const unsigned short *characters_end = characters + character_length;
+void encode_utf8_buffer(const unsigned16 *characters, int64 character_length, char *bytes, int64 byte_length, int64 *character_count, int64 *byte_count) {
+    const unsigned16 *characters_start = characters;
+    const unsigned16 *characters_end = characters + character_length;
 
     const char *bytes_start = bytes;
     const char *bytes_end = bytes + byte_length;
