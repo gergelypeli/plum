@@ -11,9 +11,9 @@
 #define PCRE2_CODE_UNIT_WIDTH 16
 #include <pcre2.h>
 
-#include "../typedefs.h"
-#include "../utf8.c"
-#include "../arch/heap.h"
+#include "../environment/typedefs.h"
+#include "../environment/utf8.c"
+#include "../environment/heap.h"
 
 #define ALENGTH(x) *(int64 *)((x) + ARRAY_LENGTH_OFFSET)
 #define ARESERVATION(x) *(int64 *)((x) + ARRAY_RESERVATION_OFFSET)

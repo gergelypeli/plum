@@ -1,8 +1,4 @@
 
-enum Error {
-    TOKEN_ERROR, TREE_ERROR, TUPLE_ERROR, TYPE_ERROR,
-    INTERNAL_ERROR, X64_ERROR
-};
 
 // From https://stackoverflow.com/questions/874134/find-if-string-ends-with-another-string-in-c
 inline bool desuffix(std::string &value, std::string const &ending)

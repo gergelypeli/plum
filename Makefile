@@ -5,8 +5,8 @@ DECLS      = declaration identifier scope type basic record reference interface 
 VALUES     = value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class circularray rbtree rbtree_helpers container option equality float
 ARCHS      = ork x64 storage runtime basics
 MODULES    = tokenize treeize tupleize typize util plum builtins global_types global_functions $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%)
-HEADERS    = builtins builtins_errno global_types global_functions arch/ork arch/x64 arch/heap
-SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h)
+HEADERS    = builtins builtins_errno global_types global_functions arch/ork arch/x64 environment/heap environment/typedefs
+SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h) environment/utf8.c
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
@@ -15,9 +15,9 @@ EXE        = run/plum
 #EXEFLAGS   = -m
 CORE       = core.plum.*(N) core.test.*(N)
 
-HEAPH      = arch/heap.h
-RUNTIMESRC = run/runtime.c
-RUNTIMEOBJ = run/runtime.o
+HEAPH      = environment/heap.h
+MAINSRC    = run/main.c
+MAINOBJ    = run/main.o
 
 TEST       = run/test
 TESTOBJ    = run/test.o
@@ -39,14 +39,14 @@ $(EXE): $(SOURCES)
 	@clear
 	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(MAIN) 2>&1 | head -n 30
 
-$(TEST): $(RUNTIMEOBJ) $(TESTOBJ)
-	@gcc $(CFLAGS) -o $(TEST) $(RUNTIMEOBJ) $(TESTOBJ) $(TESTLIBS)
+$(TEST): $(MAINOBJ) $(TESTOBJ)
+	@gcc $(CFLAGS) -o $(TEST) $(MAINOBJ) $(TESTOBJ) $(TESTLIBS)
 
-$(RUNTIMEOBJ): $(RUNTIMESRC) $(HEAPH)
-	@gcc $(CFLAGS) -c -o $(RUNTIMEOBJ) $(RUNTIMESRC)
+$(MAINOBJ): $(MAINSRC) $(HEAPH)
+	@gcc $(CFLAGS) -c -o $(MAINOBJ) $(MAINSRC)
 
 $(TESTOBJ): $(TESTSRC) $(EXE)
 	@$(EXE) $(EXEFLAGS) $(TESTSRC) $(TESTOBJ) # 2>&1 | tee $(TESTLOG)
 
 clean:
-	@rm -f $(EXE) $(TEST) $(RUNTIMEOBJ) $(TESTOBJ)
+	@rm -f $(EXE) $(TEST) $(MAINOBJ) $(TESTOBJ)

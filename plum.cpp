@@ -12,16 +12,17 @@
 #include <stdarg.h>
 #include <math.h>
 
-#include "typedefs.h"
-#include "utf8.c"
-#include "util.cpp"
+#include "environment/typedefs.h"
+#include "environment/utf8.c"
+#include "environment/heap.h"
 
 #include "arch/ork.cpp"
-#include "arch/heap.h"
 #include "arch/basics.cpp"
 #include "arch/x64.cpp"
 #include "arch/runtime.cpp"
 #include "arch/storage.cpp"
+
+#include "util.cpp"
 
 #include "tokenize.cpp"
 #include "treeize.cpp"

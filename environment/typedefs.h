@@ -2,3 +2,8 @@ typedef short int16;
 typedef unsigned short unsigned16;
 typedef long long int64;
 typedef unsigned long long unsigned64;
+
+enum Error {
+    TOKEN_ERROR, TREE_ERROR, TUPLE_ERROR, TYPE_ERROR,
+    INTERNAL_ERROR, X64_ERROR
+};
