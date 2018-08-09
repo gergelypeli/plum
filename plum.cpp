@@ -19,7 +19,6 @@
 #include "arch/ork.cpp"
 #include "arch/basics.cpp"
 #include "arch/x64.cpp"
-#include "arch/runtime.cpp"
 #include "arch/storage.cpp"
 
 #include "util.cpp"
@@ -29,6 +28,7 @@
 #include "tupleize.cpp"
 
 #include "global_types.h"
+#include "global_types_x64.h"
 #include "global_functions.h"
 #include "builtins.h"
 #include "builtins_errno.h"
@@ -39,6 +39,7 @@
 #include "builtins.cpp"
 #include "global_functions.cpp"
 #include "global_types.cpp"
+#include "global_types_x64.cpp"
 
 #include "typize.cpp"
 

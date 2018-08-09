@@ -155,45 +155,6 @@ std::ostream &operator<<(std::ostream &os, const TypeMatch &tm);
 
 
 
-class Once {
-public:
-    typedef void (*FunctionCompiler)(Label, X64 *);
-    typedef void (*TypedFunctionCompiler)(Label, TypeSpec, X64 *);
-    typedef std::pair<TypedFunctionCompiler, TypeSpec> FunctionCompilerTuple;
-
-    std::map<FunctionCompiler, Label> function_compiler_labels;
-    std::map<FunctionCompilerTuple, Label> typed_function_compiler_labels;
-    
-    std::set<FunctionCompiler> function_compiler_todo;
-    std::set<FunctionCompilerTuple> typed_function_compiler_todo;
-
-    std::map<std::string, Label> import_labels;
-    std::map<std::string, Label> import_got_labels;
-    
-    Label compile(FunctionCompiler fc);
-    Label compile(TypedFunctionCompiler tfc, TypeSpec ts);
-    
-    Label import(std::string name);
-    Label import_got(std::string name);
-
-    void for_all(X64 *x64);
-};
-
-
-
-
-class Unwind {
-public:
-    std::vector<Value *> stack;
-    
-    void push(Value *v);
-    void pop(Value *v);
-    void initiate(Declaration *last, X64 *x64);
-};
-
-
-
-
 struct ArgInfo {
     const char *name;
     TypeSpec *context;
