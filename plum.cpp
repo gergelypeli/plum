@@ -1,16 +1,4 @@
-#include <string>
-#include <vector>
-#include <map>
-#include <set>
-#include <stack>
-#include <memory>
-#include <iostream>
-#include <sstream>
-#include <fstream>
-#include <algorithm>
-
-#include <stdarg.h>
-#include <math.h>
+#include "precompiled.h"
 
 #include "environment/typedefs.h"
 #include "environment/utf8.c"
