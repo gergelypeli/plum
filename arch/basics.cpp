@@ -82,7 +82,7 @@ std::ostream &operator << (std::ostream &os, const ConditionCode cc) {
 
 ConditionCode negated(ConditionCode cc) {
     // The lowest bit negates the condition meaning
-    return cc != CC_NONE ? (ConditionCode)(cc ^ 1) : throw X64_ERROR;
+    return cc != CC_NONE ? (ConditionCode)(cc ^ 1) : throw ASM_ERROR;
 }
 
 
@@ -98,7 +98,7 @@ ConditionCode swapped(ConditionCode cc) {
         cc == CC_GREATER ? CC_LESS :
         cc == CC_LESS_EQUAL ? CC_GREATER_EQUAL :
         cc == CC_GREATER_EQUAL ? CC_LESS_EQUAL :
-        throw X64_ERROR
+        throw ASM_ERROR
     );
 }
 
@@ -142,12 +142,12 @@ private:
 
     void validate(Register r) {
         if (r == NOREG || r == RBX || r == RSP || r == RBP)
-            throw X64_ERROR;
+            throw ASM_ERROR;
     }
 
     void validate(SseRegister s) {
         if (s == NOSSE || s == XMM15)
-            throw X64_ERROR;
+            throw ASM_ERROR;
     }
 
 public:
@@ -252,7 +252,7 @@ public:
             }
     
         std::cerr << "No available register!\n";
-        throw X64_ERROR;
+        throw ASM_ERROR;
     }
 
     SseRegister get_sse() {
@@ -262,7 +262,7 @@ public:
             }
     
         std::cerr << "No available SSE register!\n";
-        throw X64_ERROR;
+        throw ASM_ERROR;
     }
 };
 
@@ -317,7 +317,7 @@ struct Address {
         :label(Label::LEAVE_UNDEFINED) {
         if (b == NOREG) {
             std::cerr << "Address without base register!\n";
-            throw X64_ERROR;
+            throw ASM_ERROR;
         }
           
         base = b;
@@ -330,7 +330,7 @@ struct Address {
         :label(Label::LEAVE_UNDEFINED) {
         if (b == NOREG) {
             std::cerr << "Address without base register!\n";
-            throw X64_ERROR;
+            throw ASM_ERROR;
         }
           
         base = b;
@@ -343,11 +343,11 @@ struct Address {
         :label(Label::LEAVE_UNDEFINED) {
         if (b == NOREG) {
             std::cerr << "Address without base register!\n";
-            throw X64_ERROR;
+            throw ASM_ERROR;
         }
     
         if (i != NOREG && s != 1 && s != 2 && s != 4 && s != 8)
-            throw X64_ERROR;
+            throw ASM_ERROR;
     
         base = b;
         index = i;

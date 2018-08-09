@@ -1,4 +1,24 @@
 
+class Once;
+class Unwind;
+class Runtime;
+
+
+class X64: public Asm64 {
+public:
+    Once *once;
+    Unwind *unwind;
+    Runtime *runtime;
+    
+    X64()
+        :Asm64() {
+        once = NULL;
+        unwind = NULL;
+        runtime = NULL;
+    }
+};
+
+
 class Once {
 public:
     typedef void (*FunctionCompiler)(Label, X64 *);

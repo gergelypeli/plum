@@ -285,7 +285,7 @@ unsigned Ork::import(std::string name) {
 void Ork::code_relocation(unsigned index, Elf64_Addr location, int addend) {
     if (!index) {
         std::cerr << "Invalid symbol index for code relocation!\n";
-        throw X64_ERROR;
+        throw ASM_ERROR;
     }
         
     code_relocations.push_back(Elf64_Rela());
@@ -300,7 +300,7 @@ void Ork::code_relocation(unsigned index, Elf64_Addr location, int addend) {
 void Ork::data_relocation(unsigned index, Elf64_Addr location, int addend) {
     if (!index) {
         std::cerr << "Invalid symbol index for data relocation!\n";
-        throw X64_ERROR;
+        throw ASM_ERROR;
     }
 
     data_relocations.push_back(Elf64_Rela());

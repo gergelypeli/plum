@@ -160,7 +160,7 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
 
 void Runtime::data_heap_header() {
     if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKREFCOUNT_OFFSET != -8 || HEAP_FINALIZER_OFFSET != -24)
-        throw X64_ERROR;
+        throw ASM_ERROR;
 
     x64->data_align(8);
     x64->data_qword(0);  // next
@@ -171,7 +171,7 @@ void Runtime::data_heap_header() {
 
 Label Runtime::data_heap_string(std::vector<unsigned16> characters) {
     if (ARRAY_HEADER_SIZE != 16 || ARRAY_RESERVATION_OFFSET != 0 || ARRAY_LENGTH_OFFSET != 8)
-        throw X64_ERROR;
+        throw ASM_ERROR;
     
     Label l;
 
@@ -419,28 +419,28 @@ void Runtime::init_memory_management() {
 
 void Runtime::incref(Register reg) {
     if (reg == RSP || reg == RBP || reg == NOREG)
-        throw X64_ERROR;
+        throw ASM_ERROR;
     
     x64->op(CALL, incref_labels[reg]);
 }
 
 void Runtime::decref(Register reg) {
     if (reg == RSP || reg == RBP || reg == NOREG)
-        throw X64_ERROR;
+        throw ASM_ERROR;
 
     x64->op(CALL, decref_labels[reg]);
 }
 
 void Runtime::incweakref(Register reg) {
     if (reg == RSP || reg == RBP || reg == NOREG)
-        throw X64_ERROR;
+        throw ASM_ERROR;
 
     x64->op(INCQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET));
 }
 
 void Runtime::decweakref(Register reg) {
     if (reg == RSP || reg == RBP || reg == NOREG)
-        throw X64_ERROR;
+        throw ASM_ERROR;
 
     x64->op(DECQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET));
 }

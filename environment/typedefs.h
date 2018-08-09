@@ -5,5 +5,5 @@ typedef unsigned long long unsigned64;
 
 enum Error {
     TOKEN_ERROR, TREE_ERROR, TUPLE_ERROR, TYPE_ERROR,
-    INTERNAL_ERROR, X64_ERROR
+    INTERNAL_ERROR, ASM_ERROR
 };

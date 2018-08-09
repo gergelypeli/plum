@@ -98,7 +98,7 @@ class YieldableValue;
 class TypeSpec;
 typedef std::array<TypeSpec,4> TypeMatch;
 struct Allocation;
-
+class X64;
 
 enum AsWhat {
     AS_VALUE, AS_VARIABLE, AS_ARGUMENT, AS_PIVOT_ARGUMENT, AS_LVALUE_ARGUMENT
