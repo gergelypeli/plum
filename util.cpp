@@ -67,29 +67,6 @@ bool is_assignment(OperationType o) {
 }
 
 
-template <typename T>
-class GenericArgs: public std::vector<std::unique_ptr<T>> {
-};
-
-
-template <typename T>
-class GenericKwargs: public std::vector<std::pair<std::string, std::unique_ptr<T>>> {
-public:
-    std::unique_ptr<T> &operator[](std::string s) {
-        for (unsigned i = 0; i < this->size(); i++)
-            if (this->at(i).first == s)
-                return this->at(i).second;
-            
-        this->push_back(std::make_pair(s, std::unique_ptr<T>()));
-        return this->back().second;
-    }
-    
-    std::unique_ptr<T> &operator[](unsigned i) {
-        return this->at(i).second;
-    }
-};
-
-
 std::vector<unsigned16> decode_utf8(std::string text) {
     int bytelen = text.size();
     std::vector<unsigned16> characters;

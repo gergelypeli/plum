@@ -61,8 +61,7 @@ std::ostream &operator<<(std::ostream &os, const Allocation &a) {
 
 
 
-class PartialInfo {
-public:
+struct PartialInfo {
     std::set<std::string> uninitialized_member_names;
     std::set<std::string> initialized_member_names;
     

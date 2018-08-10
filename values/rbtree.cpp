@@ -508,10 +508,15 @@ public:
         if (!pivot->check(fake_args, fake_kwargs, scope))
             return false;
 
-        return check_arguments(args, kwargs, {
-            { "key", &key_arg_ts, scope, &key },
-            { "value", &value_arg_ts, scope, &value }  // disabled if NO_TS
-        });
+        if (value_arg_ts == NO_TS)  // used in WeakSet
+            return check_arguments(args, kwargs, {
+                { "key", &key_arg_ts, scope, &key }
+            });
+        else
+            return check_arguments(args, kwargs, {
+                { "key", &key_arg_ts, scope, &key },
+                { "value", &value_arg_ts, scope, &value }
+            });
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -889,7 +894,7 @@ public:
     WeakSetAddValue(Value *l, TypeMatch &match)
         :MapAddValue(l, wsmatch(match)) {
         key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
-        value_arg_ts = NO_TS;
+        value_arg_ts = NO_TS;  // special handling
     }
 
     virtual void prekey(Address alias_addr, X64 *x64) {

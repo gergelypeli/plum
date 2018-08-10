@@ -652,17 +652,23 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
         
     //std::cerr << "\n";
 
+    unsigned n = arg_infos.size();
+    Expr *exprs[n];
+
+    for (unsigned i = 0; i < n; i++)
+        exprs[i] = NULL;
+
     for (unsigned i = 0; i < args.size(); i++) {
-        Expr *e = args[i].get();
+        exprs[i] = args[i].get();
         
-        if (!check_argument(i, e, arg_infos))
-            return false;
+        //if (!check_argument(i, e, arg_infos))
+        //    return false;
     }
             
     for (auto &kv : kwargs) {
         unsigned i = (unsigned)-1;
         
-        for (unsigned j = 0; j < arg_infos.size(); j++) {
+        for (unsigned j = 0; j < n; j++) {
             if (arg_infos[j].name == kv.first) {
                 i = j;
                 break;
@@ -674,20 +680,34 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
             return false;
         }
         
-        Expr *e = kv.second.get();
-        
-        if (!check_argument(i, e, arg_infos))
+        if (exprs[i]) {
+            std::cerr << "Argument " << i << " duplicated as " << kv.first << "!\n";
             return false;
+        }
+        
+        exprs[i] = kv.second.get();
+        //std::cerr << "Checking keyword argument " << kv.first << ".\n";
+        
+        //if (!check_argument(i, e, arg_infos))
+        //    return false;
     }
-    
-    for (auto &arg_info : arg_infos) {
-        if (!*arg_info.target && arg_info.context) {
-            TypeSpec &ts = *arg_info.context;
-            
-            // Allow NO_TS to drop an argument, used in WeakSet
-            if (ts != NO_TS && ts[0] != ovalue_type && !(ts[0] == code_type && ts[1] == void_type)) {
-                std::cerr << "Missing argument " << arg_info.name << "!\n";
+
+    for (unsigned i = 0; i < n; i++) {
+        if (exprs[i]) {
+            if (!check_argument(i, exprs[i], arg_infos))
                 return false;
+        }
+        else {
+            if (arg_infos[i].context) {
+                TypeSpec &ts = *arg_infos[i].context;
+            
+                if (ts[0] != ovalue_type && !(ts[0] == code_type && ts[1] == void_type)) {
+                    std::cerr << "Missing mandatory argument " << arg_infos[i].name << "!\n";
+                    return false;
+                }
+            }
+            else {
+                std::cerr << "XXX is this used somewhere?\n";
             }
         }
     }

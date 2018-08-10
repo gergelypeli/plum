@@ -1,6 +1,12 @@
 
 // Types
 
+struct ArgInfo;
+typedef std::vector<ArgInfo> ArgInfos;
+struct PartialInfo;
+struct TreenumInput;
+struct Allocation;
+
 class VirtualEntry;
 
 // Declarations
@@ -99,7 +105,6 @@ class YieldableValue;
 
 class TypeSpec;
 typedef std::array<TypeSpec,4> TypeMatch;
-struct Allocation;
 class X64;
 
 enum AsWhat {
@@ -153,12 +158,6 @@ typedef std::vector<std::string> Ss;
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts);
 std::ostream &operator<<(std::ostream &os, const TSs &tss);
 std::ostream &operator<<(std::ostream &os, const TypeMatch &tm);
-
-
-struct ArgInfo;
-typedef std::vector<ArgInfo> ArgInfos;
-class PartialInfo;
-struct TreenumInput;
 
 
 template <class T, class S> T *ptr_cast(S *s) {

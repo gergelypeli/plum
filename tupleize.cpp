@@ -2,8 +2,8 @@
 // Stage 3
 
 class Expr;
-typedef GenericArgs<Expr> Args;
-typedef GenericKwargs<Expr> Kwargs;
+typedef std::vector<std::unique_ptr<Expr>> Args;
+typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
 class Expr {
 public:
