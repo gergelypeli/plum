@@ -15,20 +15,17 @@
 #include "treeize.cpp"
 #include "tupleize.cpp"
 
-#include "global_types.h"
-#include "global_types_x64.h"
-#include "global_functions.h"
-#include "builtins.h"
+#include "globals/globals.h"
+#include "structs.cpp"
 
-#include "declutil.cpp"
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
 
-#include "builtins.cpp"
-#include "builtins_errno.cpp"
-#include "global_functions.cpp"
-#include "global_types.cpp"
-#include "global_types_x64.cpp"
+#include "globals/builtins.cpp"
+#include "globals/builtins_errno.cpp"
+#include "globals/functions.cpp"
+#include "globals/types.cpp"
+#include "globals/runtime.cpp"
 
 #include "typize.cpp"
 
