@@ -153,80 +153,12 @@ std::ostream &operator<<(std::ostream &os, const TSs &tss);
 std::ostream &operator<<(std::ostream &os, const TypeMatch &tm);
 
 
-
-
-struct ArgInfo {
-    const char *name;
-    TypeSpec *context;
-    Scope *scope;
-    std::unique_ptr<Value> *target;  // Yes, a pointer to an unique_ptr
-};
-
+struct ArgInfo;
 typedef std::vector<ArgInfo> ArgInfos;
+class PartialInfo;
+struct TreenumInput;
 
-
-
-struct Allocation {
-    int bytes;
-    int count1;
-    int count2;
-    int count3;
-    
-    Allocation(int b = 0, int c1 = 0, int c2 = 0, int c3 = 0);
-    int concretize(TypeMatch tm);
-    int concretize();
-};
-
-Allocation stack_size(Allocation a);
-
-std::ostream &operator<<(std::ostream &os, const Allocation &a);
 
 template <class T, class S> T *ptr_cast(S *s) {
     return dynamic_cast<T *>(s);
 }
-
-
-struct TreenumInput {
-    const char *kw;
-    unsigned p;
-};
-
-
-class PartialInfo {
-public:
-    std::set<std::string> uninitialized_member_names;
-    std::set<std::string> initialized_member_names;
-    
-    PartialInfo() {
-    }
-
-    virtual void set_member_names(std::vector<std::string> mn) {
-        uninitialized_member_names.insert(mn.begin(), mn.end());
-    }
-    
-    virtual void be_initialized(std::string name) {
-        initialized_member_names.insert(name);
-        uninitialized_member_names.erase(name);
-    }
-    
-    virtual bool is_initialized(std::string name) {
-        return initialized_member_names.count(name) == 1;
-    }
-
-    virtual bool is_uninitialized(std::string name) {
-        return uninitialized_member_names.count(name) == 1;
-    }
-    
-    virtual bool is_complete() {
-        return uninitialized_member_names.size() == 0;
-    }
-
-    virtual void be_complete() {
-        initialized_member_names.insert(uninitialized_member_names.begin(), uninitialized_member_names.end());
-        uninitialized_member_names.clear();
-    }
-
-    virtual bool is_dirty() {
-        return initialized_member_names.size() != 0;
-    }
-};

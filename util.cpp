@@ -1,5 +1,4 @@
 
-
 // From https://stackoverflow.com/questions/874134/find-if-string-ends-with-another-string-in-c
 inline bool desuffix(std::string &value, std::string const &ending)
 {
@@ -257,3 +256,5 @@ double parse_float(std::string text) {
     
     return value * pow(10.0, exponent);
 }
+
+

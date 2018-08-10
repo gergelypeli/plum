@@ -206,3 +206,5 @@ TypeSpec SAME_SLICEITEMITER_TS;
 TypeSpec ANY_ANY2_ITEM_TS;
 TypeSpec SAME_SAME2_ITEM_TS;
 TypeSpec INTEGER_SAME_ITEM_TS;
+
+extern TreenumInput errno_treenum_input[];

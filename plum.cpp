@@ -19,12 +19,13 @@
 #include "global_types_x64.h"
 #include "global_functions.h"
 #include "builtins.h"
-#include "builtins_errno.h"
 
+#include "declutil.cpp"
 #include "declarations/declaration.cpp"
 #include "values/value.cpp"
 
 #include "builtins.cpp"
+#include "builtins_errno.cpp"
 #include "global_functions.cpp"
 #include "global_types.cpp"
 #include "global_types_x64.cpp"
