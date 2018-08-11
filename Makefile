@@ -1,13 +1,13 @@
 .PHONY: build clean
 SHELL      = /bin/zsh
 
-DECLS      = declaration identifier scope type basic record reference interface class option allocable function metatype float
-VALUES     = value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class circularray rbtree rbtree_helpers container option equality float
+DECLS      = all declaration identifier scope type basic record reference interface class option allocable function metatype float
+VALUES     = all value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class circularray rbtree rbtree_helpers container option equality float
 ARCHS      = ork asm64 storage basics
-GLOBALS    = builtins builtins_errno types functions runtime
+GLOBALS    = all builtins builtins_errno typespec typematch functions runtime
 MODULES    = tokenize treeize tupleize typize util structs plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%)
-HEADERS    = globals/globals environment/heap environment/typedefs
-SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h) environment/utf8.c
+HEADERS    = all globals/all declarations/all values/all environment/heap environment/typedefs environment/utf8
+SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
@@ -20,7 +20,7 @@ PRECOMPIN  = precompiled.h
 PRECOMPOUT = precompiled.h.gch
 
 HEAPH      = environment/heap.h
-MAINSRC    = run/main.c
+MAINSRC    = environment/main.c
 MAINOBJ    = run/main.o
 
 TEST       = run/test

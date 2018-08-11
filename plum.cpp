@@ -1,7 +1,7 @@
 #include "precompiled.h"
 
 #include "environment/typedefs.h"
-#include "environment/utf8.c"
+#include "environment/utf8.h"
 #include "environment/heap.h"
 
 #include "arch/ork.cpp"
@@ -15,19 +15,15 @@
 #include "treeize.cpp"
 #include "tupleize.cpp"
 
-#include "globals/globals.h"
+#include "all.h"
 #include "structs.cpp"
 
-#include "declarations/declaration.cpp"
-#include "values/value.cpp"
-
-#include "globals/builtins.cpp"
-#include "globals/builtins_errno.cpp"
-#include "globals/functions.cpp"
-#include "globals/types.cpp"
-#include "globals/runtime.cpp"
+#include "declarations/all.cpp"
+#include "values/all.cpp"
+#include "globals/all.cpp"
 
 #include "typize.cpp"
+
 
 bool matchlog;
 

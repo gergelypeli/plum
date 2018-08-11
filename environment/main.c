@@ -12,7 +12,7 @@
 #include <pcre2.h>
 
 #include "../environment/typedefs.h"
-#include "../environment/utf8.c"
+#include "../environment/utf8.h"
 #include "../environment/heap.h"
 
 #define ALENGTH(x) *(int64 *)((x) + ARRAY_LENGTH_OFFSET)

@@ -72,31 +72,3 @@ public:
         throw INTERNAL_ERROR;
     }
 };
-
-
-#include "scope.cpp"
-#include "identifier.cpp"
-#include "allocable.cpp"
-#include "function.cpp"
-#include "type.cpp"
-#include "metatype.cpp"
-
-
-class Borrow: public Declaration {
-public:
-    Allocation offset;
-    
-    virtual void allocate() {
-        offset = outer_scope->reserve(Allocation(REFERENCE_SIZE));
-    }
-    
-    virtual Address get_address() {
-        return Address(RBP, offset.concretize());
-    }
-    
-    virtual void finalize(X64 *x64) {
-        //x64->log("Unborrowing.");
-        x64->op(MOVQ, RBX, get_address());
-        x64->runtime->decweakref(RBX);
-    }
-};
