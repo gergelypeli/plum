@@ -39,13 +39,17 @@ public:
             else
                 return new Variable(name, pivot_ts, represented_ts);
         }
-        else {
+        else if (st == CODE_SCOPE || st == DATA_SCOPE) {
             if (!represented_ts.has_meta(value_metatype)) {
                 std::cerr << "Invalid type for variable declaration: " << represented_ts << "!\n";
                 return NULL;
             }
 
             return new Variable(name, pivot_ts, represented_ts.lvalue());
+        }
+        else {
+            std::cerr << "Variables must be declared in code or data scopes!\n";
+            return NULL;
         }
     }
 };

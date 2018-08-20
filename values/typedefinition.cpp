@@ -111,7 +111,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE)
+        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE)
             return new IntegerType(name, size, is_not_signed);
         else
             return NULL;
@@ -123,7 +123,6 @@ class EnumerationDefinitionValue: public TypeDefinitionValue {
 public:
     std::vector<std::string> keywords;
     Label stringifications_label;
-    std::string declname;
 
     EnumerationDefinitionValue()
         :TypeDefinitionValue() {
@@ -156,8 +155,7 @@ public:
     }
     
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE) {
-            declname = name;
+        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
             return new EnumerationType(name, keywords);
         }
         else
@@ -170,7 +168,6 @@ class TreenumerationDefinitionValue: public TypeDefinitionValue {
 public:
     std::vector<std::string> keywords;
     std::vector<unsigned> parents;
-    std::string declname;
 
     TreenumerationDefinitionValue()
         :TypeDefinitionValue() {
@@ -249,8 +246,7 @@ public:
     }
     
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE) {
-            declname = name;
+        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
             return new TreenumerationType(name, keywords, parents);
         }
         else
@@ -306,8 +302,9 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
             record_type->set_name(name);
+            inner_scope->set_name(name);
             return record_type;
         }
         else
@@ -359,8 +356,9 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE) {  // TODO: limit to module scope!
+        if (st == MODULE_SCOPE) {
             singleton_type->set_name(name);
+            inner_scope->set_name(name);
             return singleton_type;
         }
         else
@@ -412,8 +410,9 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
             class_type->set_name(name);
+            inner_scope->set_name(name);
             return class_type;
         }
         else
@@ -547,8 +546,9 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
             interface_type->set_name(name);
+            inner_scope->set_name(name);
             return interface_type;
         }
         else
@@ -657,8 +657,9 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE) {
+        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
             implementation_type->set_name(name);
+            inner_scope->set_name(name);
             return implementation_type;
         }
         else

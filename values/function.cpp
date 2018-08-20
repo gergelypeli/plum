@@ -11,7 +11,6 @@ public:
     bool may_be_aborted;
     TypeSpec pivot_ts;
     Variable *self_var;
-    ModuleVariable *mod_var;
     SingletonVariable *ston_var;
     TypeMatch match;
     RoleScope *role_scope;
@@ -28,7 +27,6 @@ public:
         deferred_body_expr = NULL;
         may_be_aborted = false;
         self_var = NULL;
-        mod_var = NULL;
         ston_var = NULL;
         role_scope = NULL;
         fn_scope = NULL;
@@ -66,27 +64,11 @@ public:
         }
 
         Scope *ss = fn_scope->add_self_scope();
-        Scope *ms = fn_scope->add_mod_scope();
         
         if (scope->type == DATA_SCOPE) {
             pivot_ts = scope->pivot_type_hint();
-            ModuleScope *module_scope = scope->get_module_scope();
             
-            if (pivot_ts.has_meta(module_metatype)) {
-                // Module method
-                
-                if (type == INITIALIZER_FUNCTION) {
-                    pivot_ts = pivot_ts.prefix(initializable_type);
-                    TypeSpec mod_ts = pivot_ts.reprefix(initializable_type, partial_type);
-                    mod_var = new PartialModuleVariable("@", module_scope, mod_ts);
-                }
-                else {
-                    mod_var = new ModuleVariable("@", module_scope, pivot_ts);
-                }
-                
-                ms->add(mod_var);
-            }
-            else if (pivot_ts.has_meta(singleton_metatype)) {
+            if (pivot_ts.has_meta(singleton_metatype)) {
                 // Singleton method
                 SingletonScope *singleton_scope = scope->get_singleton_scope();
                 
@@ -99,12 +81,9 @@ public:
                     ston_var = new SingletonVariable("$", singleton_scope, pivot_ts);
                 }
                 
-                ms->add(ston_var);
+                ss->add(ston_var);
             }
             else if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
-                mod_var = new ModuleVariable("@", module_scope, module_scope->pivot_type_hint());
-                ms->add(mod_var);
-            
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
                     TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
@@ -218,43 +197,26 @@ public:
             TypeSpec ats;
             
             if (fn_scope->self_scope->contents.size() > 0) {
-                PartialVariable *pv = ptr_cast<PartialVariable>(fn_scope->self_scope->contents.back().get());
+                Declaration *d = fn_scope->self_scope->contents.back().get();
+                
+                PartialVariable *pv = ptr_cast<PartialVariable>(d);
                 
                 if (pv) {
                     pi = pv->partial_info.get();
                     ats = pv->alloc_ts.unprefix(partial_type);
                 }
-            }
 
-            if (!pi) {
-                PartialModuleVariable *pm = ptr_cast<PartialModuleVariable>(fn_scope->mod_scope->contents.back().get());
-                
-                if (pm) {
-                    pi = pm->partial_info.get();
-                    ats = pm->alloc_ts.unprefix(partial_type);
-                }
-            }
-
-            if (!pi) {
-                PartialSingletonVariable *ps = ptr_cast<PartialSingletonVariable>(fn_scope->mod_scope->contents.back().get());
+                PartialSingletonVariable *ps = ptr_cast<PartialSingletonVariable>(d);
                 
                 if (ps) {
                     pi = ps->partial_info.get();
                     ats = ps->alloc_ts.unprefix(partial_type);
                 }
             }
-            
+
             if (pi) {
                 // Must do this only after the class definition is completed
-                if (ats.has_meta(module_metatype)) {
-                    // Module initializer
-                    ModuleType *mt = ptr_cast<ModuleType>(ats[0]);
-                    if (!mt)
-                        throw INTERNAL_ERROR;
-                    
-                    pi->set_member_names(mt->get_member_names());
-                }
-                else if (ats.has_meta(singleton_metatype)) {
+                if (ats.has_meta(singleton_metatype)) {
                     // Singleton initializer
                     SingletonType *st = ptr_cast<SingletonType>(ats[0]);
                     if (!st)
@@ -312,9 +274,6 @@ public:
         if (exception_type_value)
             exception_type_value->compile(x64);  // to compile treenum definitions
 
-        if (mod_var)
-            mod_var->fix(x64);  // hack to access application_label
-
         if (ston_var)
             ston_var->fix(x64);  // hack to access application_label
     
@@ -327,10 +286,13 @@ public:
         Storage self_storage = self_var ? self_var->get_local_storage() : Storage();
 
         if (function) {
-            if (function->name == "start")
-                x64->code_label_global(function->get_label(x64), function->name);
-            else
-                x64->code_label_local(function->get_label(x64), function->name);
+            std::string fqn = fn_scope->outer_scope->fully_qualify(function->name);
+            x64->code_label_local(function->get_label(x64), fqn);
+            
+            if (fqn == "main.Main.start") {
+                Label dummy;
+                x64->code_label_global(dummy, "start");
+            }
         }
         else {
             std::cerr << "Nameless function!\n";
@@ -391,7 +353,7 @@ public:
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st != DATA_SCOPE) {
-            std::cerr << "Can't declare functions in this scope!\n";
+            std::cerr << "Functions must be declared in data scopes!\n";
             return NULL;
         }
         

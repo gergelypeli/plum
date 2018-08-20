@@ -3,20 +3,6 @@
 #2
 #wtf? 2
 
-f? :Function Integer from:
-    x? Integer
-    y? Integer
-as:
-    :return x * 2 + y * 3
-
-
-g? :Function Integer from:
-    xxx? Integer Ovalue
-    yyy? Integer Ovalue
-as:
-    :return xxx + yyy
-
-
 Pair? :Record as:
     first? Integer
     second? Integer
@@ -41,31 +27,20 @@ Pair? :Record as:
         $ second sable streamify(stream)
         ")" sable streamify(stream)
         
-        
-make_pair? :Function Pair as:
-    p? Pair = {}
-    p first = 11
-    p second = 22
-    :return p
+
+Pairs? :Singleton as:        
+    make_pair? :Function Pair as:
+        p? Pair = {}
+        p first = 11
+        p second = 22
+        :return p
 
 
-triple? :Function (Integer, Integer, Integer) as:
-    :return (97, 98, 99)
+    print_pair? :Function from:
+        p? Pair Ovalue
+    as:
+        prints("A pair of ({x}, {y})" { x: p first, y: p second })
 
-    
-print_pair? :Function from:
-    p? Pair Ovalue
-as:
-    prints("A pair of ({x}, {y})" { x: p first, y: p second })
-
-
-restart? :Function as:
-    @ start  # check predeclarations
-
-
-nasty? :Function may: { SMALL_ERROR, BIG_ERROR } as:
-    :raise `SMALL_ERROR
-    
     
 XCounter? :Record as:
     current? Integer
@@ -178,669 +153,697 @@ Single? :Singleton as:
         :return $ single_number
 
 
-twice? :Function from:
-    how? Integer Dvalue
-    what? Integer Code
-as:
-    :try
-        sum? = what(1) + what(2)
-        prints("That was {sum}." {})
-    or:
-        prints("What failed!")
+Util? :Singleton as:
+    f? :Function Integer from:
+        x? Integer
+        y? Integer
+    as:
+        :return x * 2 + y * 3
 
 
-passthrough? :Function from: what? Integer Code as:
-    :try what or:
-        prints("Passthrough code is breaking.")
-        :fixed
+    g? :Function Integer from:
+        xxx? Integer Ovalue
+        yyy? Integer Ovalue
+    as:
+        :return xxx + yyy
 
 
-test_integers? :Function as:
-    printi(@ f(1, 2))
-    
-    a? Integer = 0
-    a = 2
-    b? Integer = 0
-    b = 3
-    
-    :if a == b then: prints("a == b") else: prints("a != b")
-    
-    :if a < b && a > b then: prints("Huh?") else: prints("Huh.")
-    
-    c? Integer = 0
-    c = Integer :if a == b then: 100 else: 200
-    prints("This should be 200: {c}" {})
-
-    d? = 6u8
-    d += 7u8
-    d = d * d
-    
-    :if d != 0 then: prints("Yes, d is nonzero.")
-
-    Myint? :Integer bytes: 8 is_unsigned: `false
-    myvar? Myint = 0
-    
-    e? = +5_000_000_000
-    prints("Five billion is {e}" {})
-    
-    f? = 0x_1234_5678_9abc_def0
-    prints("A big hex number is {f}" {})
-    
-    g? = 1_311_768_467_463_790_320
-    prints("The same in English {g}" {})
-
-    h? = 0o110_642_547_423_257_157_360
-    prints("Again in octal base {h}" {})
-    
-    i? = 0b_0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100_1101_1110_1111_0000
-    prints("Aaaaaaaaand finally {i}" {})
-    
-    Mybyte? :Integer bytes: 1 is_unsigned: `false
-    mybyte? Mybyte = -128
-    prints("Mybyte is {mybyte}" {})
-    
-    false? Boolean = `false
-    true? Boolean = `true
-    
-    prints("Or truth table: {a} {b} {c} {d}" { a: false || false, b: false || true, c: true || false, d: true || true })
-    prints("And truth table: {a} {b} {c} {d}" { a: false && false, b: false && true, c: true && false, d: true && true })
+    triple? :Function (Integer, Integer, Integer) as:
+        :return (97, 98, 99)
 
 
-test_floats? :Function as:
-    j? = -31.4e-01
-    printd(j)
-    prints("Streamified as {j}" {})
-
-    prints("Result is 160: {x}" {x: 100.0 + 2.0 * 3.0 / 0.1 })
-    
-    x? = 1.1
-    y? = 2.2
-    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
-
-    y = x
-    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
-    
-    y = `nan
-    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
-
-    x = `nan    
-    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
-
-    y = `pinf
-    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
-
-    x = `ninf
-    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
-
-    x = 0.0
-    y = -0.0
-    prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
-
-    prints("e={e} log(10)={l} 1.5**2={m}" {e: 1.0 exp, l: 10.0 log, m: 1.5 ** 2.0})
-    
-
-test_strings? :Function as:
-    a? = 1
-    prints("Hello!")
-
-    s? = "Szia!"
-    prints(s)
-
-    #c = 4
-    #printu8(s[c])
-    
-    prints(s + s)
-
-    s chars[3] = s[4]
-    prints(s)
-
-    s chars[3] = `unicode 592
-    prints(s)
-
-    prints("s[3] is now '{c}'" { c: s[3] })
-
-    z? = ""
-    prints("Ez tök 대박")
-    
-    :if z == String `empty then: prints("z is empty")
-    
-    z = s
-    printb(z encode_utf8)
-
-    :if z == `empty then: prints("ERROR z is still empty")
-
-    :if z == "Szia!" then: prints("ERROR z is Szia!")
-
-    :if z == "Sziɐ!" then: prints("z is Sziɐ!")
-
-    :if a == a then:
-        zz? = "ZZ"
-        prints(zz)
-    
-    prints((xx? = "hi") + xx)
-    
-    prints("XXXXX{a}YYYYY" {})
-
-    prints("{six} and {seven}" { six: 6, seven: 7 })
-
-    prints("aba and ab compares as: {c}" { c: "aba" <=> "ab" })
-    prints("aba is less than ab: {c}" { c: "aba" < "ab" })
-
-    chars? = "BFADCE"
-    prints("Unsorted: {chars}" {})
-    chars chars sort
-    prints("Sorted:   {chars}" {})
-
-    :is "foo" ~re ".*" then:
-        prints("Regexp matched.")
-    else:
-        prints("REGEXP NOT MATCHED!")
-    
-    :is m? = "foo" ~re ".*" then:
-        prints("Regexp matched as: {x}" {x: m[0]})
-    else:
-        prints("REGEXP NOT MATCHED!")
-
-    :is m? = "this and that" ~re "(th[a-z]*).*(th[a-z]+)" then:
-        prints("Regexp matched as {x} and {y}" {x: m[1], y: m[2]})
-    else:
-        prints("REGEXP NOT MATCHED!")
-        
-    :switch "foo" do:
-        :is ~re ".*" then:
-            prints("Regexp matched in switch.")
-            :yield
+    nasty? :Function may: { SMALL_ERROR, BIG_ERROR } as:
+        :raise `SMALL_ERROR
 
 
-test_enums? :Function as:
-    Myenum? :Enumeration
-        FOO, BAR, BAZ
-
-    fbb? Myenum = `BAR
-    :if fbb == `FOO then: prints("fbb is FOO") else: prints("fbb is not FOO")
-
-    prints("fbb is actually {f}!" { f: fbb })
-
-
-test_ovalues? :Function as:
-    printi(@ g(100, 100))
-    printi(@ g(100))
-    printi(@ g)
+    twice? :Function from:
+        how? Integer Dvalue
+        what? Integer Code
+    as:
+        :try
+            sum? = what(1) + what(2)
+            prints("That was {sum}." {})
+        or:
+            prints("What failed!")
 
 
-test_records? :Function as:
-    p? Pair = `new
-
-    p first = 123
-    p second = 456
-    @ print_pair(p)
-    printi(p meth)
-
-    p = @ make_pair
-    printi(p second)
-    
-    q? Pair = `new
-    q first = 123
-    q second = 456
-    :if p == q then: prints("Equal tuples.") else: prints("Inequal tuples.")
-    
-    @ print_pair
-    
-    p dump dump
-    
-    r? Pair = `new
-    r dump
-    
-    Pair { second: 222 } dump
-    
-    prints("Second is {x}" {x: Pair { second: 222 } second})
-
-    q first = 11
-    prints("{p} and {q} compares as {c}" { p: p, q: q, c: p <=> q })
-
-
-test_multis? :Function as:
-    x1? Integer = 0
-    x2? Integer = 0
-    x3? Integer = 0
-    (x1, x2, x3) = @ triple
-    prints("Triple returned {x1}, {x2}, {x3}." {})
-    
-    (x2, x3) = @ triple
-    prints("Triple short returned {x2}, {x3}." {})
-
-    x3 = @ triple
-    prints("Triple scalarized to {x3}" {})
-    
-    (y1? Integer, y2? Integer, y3? Integer) = @ triple
-    prints("Triple initialized {y1}, {y2}, {y3}." {})
-    
-    (y4? Integer, y5? Integer) = @ triple
-    prints("Triple short initialized {y4}, {y5}." {})
-        
-    (z1?, z2?, z3?) = @ triple
-    prints("Triple bare initialized {z1}, {z2}, {z3}." {})
-
-    (z4?, z5?) = @ triple
-    prints("Triple bare short initialized {z4}, {z5}." {})
-
-
-test_controls? :Function as:
-    :repeat i? = 0 on: i < 3 by: i += 1 do:
-        prints("something")
-
-    prints("Done.")
-
-    MyTree? :Treenumeration
-        ONE { TEN, ELEVEN, TWELVE },
-        TWO { TWENTY },
-        THREE,
-        FOUR
-
-    my_tree? MyTree = `TWENTY
-    prints("This tree is {my_tree}." {})
-    
-    :switch my_tree do:
-        :is ~TWO then:
-            prints("Two-something.")
-
-        :is `TWENTY then:
-            prints("Implicitly twenty.")
-
-        :is my_tree then:
-            prints("Implicitly itself.")
-
-        :is {} then:
-            prints("IN THE EMPTY SET!")
-            
-        :is { `TWENTY } then:
-            prints("Single twenty.")
-            
-        :is { my_tree } then:
-            prints("Single itself.")
-            
-        :is { `ONE, `TWENTY, `FOUR } then:
-            prints("Multi twenty.")
-            
-        :is { `ONE, my_tree, `FOUR } then:
-            prints("Multi itself.")
-
-        :is ~TWENTY then:
-            prints("Twenty.")
-            :yield
-            
-        prints("Not any.")
-        :yield
-
-    :try
-        @ nasty
-    or:
-        :is ~BIG_ERROR then:
-            prints("This was a big error!")
-            
-        :is ~SMALL_ERROR then:
-            prints("This was a small error!")
+    passthrough? :Function from: what? Integer Code as:
+        :try what or:
+            prints("Passthrough code is breaking.")
             :fixed
-            
-        prints("Too bad!")
 
-    :for 3 countup each: c? do:
-        prints("Counting up: {c}" {})
 
-    :for 3 countdown each: c? do:
-        prints("Counting down: {c}" {})
+Main? :Singleton as:
+    restart? :Function as:
+        $ start  # check predeclarations
 
-    :for "Abc" each: c? do:
-        prints("Iterating elems: {c}" {})
 
-    :for "Abc" indexes each: i? do:
-        prints("Iterating indexes: {i}" {})
-        
-    :for "Abc" items each: it? do:
-        prints("Iterating items: {i} => {e}" {i: it index, e: it value})
-
-    ait? = "Abc" elements
-    :for ait each: c? do:
-        prints("Iterating elems again: {c}" {})
+    test_integers? :Function as:
+        printi(Util f(1, 2))
     
-    x3? Integer = 0
-    x3 = :lol:
-        prints("Now yielding.")
-        :lol 33
-        prints("Don't print this!")
-        :lol 44
-        
-    prints("Let's hope that {x3} == 33." {})
+        a? Integer = 0
+        a = 2
+        b? Integer = 0
+        b = 3
     
-    # Must survive adding an Integer to a Whatever
-    :lol:
-        100 + :lol
+        :if a == b then: prints("a == b") else: prints("a != b")
     
-    x3 = :switch 1 do: :yield 44
+        :if a < b && a > b then: prints("Huh?") else: prints("Huh.")
     
-    prints("Let's hope that {x3} == 44." {})
+        c? Integer = 0
+        c = Integer :if a == b then: 100 else: 200
+        prints("This should be 200: {c}" {})
+
+        d? = 6u8
+        d += 7u8
+        d = d * d
     
-    x3 = :try 55
+        :if d != 0 then: prints("Yes, d is nonzero.")
 
-    prints("Let's hope that {x3} == 55." {})
+        Myint? :Integer bytes: 8 is_unsigned: `false
+        myvar? Myint = 0
     
-    x4? Integer = :try 66
-
-    prints("Let's hope that {x4} == 66." {})
+        e? = +5_000_000_000
+        prints("Five billion is {e}" {})
     
-    :if Boolean `false > `true then:
-        prints("Fake news!")
-
-    :if !! Boolean `true then:
-        prints("Faker news!")
-
-    @ twice(how: h? what:this: (prints("You want {h}?" {}), :this h * 1000))
-
-    :eval:
-        @ passthrough(what:this: (:eval, :this 0))
-        prints("This shouldn't be printed!")
-
-    :hihi:if `true then: x3 else:if `false then: x4
-
-    :if `true then:
-        last? = 0
-        prints("Returning.")
-        :return
+        f? = 0x_1234_5678_9abc_def0
+        prints("A big hex number is {f}" {})
     
-    prints("Don't print this!")
+        g? = 1_311_768_467_463_790_320
+        prints("The same in English {g}" {})
 
-
-test_arrays? :Function as:
-    strings? String Array Ref = `empty
-    prints("Empty array length: {x}" { x: strings length })
-
-    ss? String Array Ref = { "foo", "bar" }
-    prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
-
-    ss_popped1? = :try ss pop
-    prints("Array popped {ss_popped1}" {})
-    ss_popped2? String = :try ss pop
-    prints("Array popped {ss_popped2}" {})
-
-    st? String Stack Ref = `empty
-    :try st push("foo")
-    :try st push("bar")
-    :try st push("baz")
-    prints("Pushed stack length: {x}" { x: st length })
-    prints("Pushed stack has 2. elem: {x}" { x: st[2] })
+        h? = 0o110_642_547_423_257_157_360
+        prints("Again in octal base {h}" {})
     
-    :for st each: x? do:
-        prints("Stack has: {x}" {})
+        i? = 0b_0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100_1101_1110_1111_0000
+        prints("Aaaaaaaaand finally {i}" {})
     
-    baz? String = :try st pop
-    :try st pop
-    :try st pop
-    prints("Popped baz as {baz}" {})
-    prints("Popped stack length: {x}" { x: st length })
+        Mybyte? :Integer bytes: 1 is_unsigned: `false
+        mybyte? Mybyte = -128
+        prints("Mybyte is {mybyte}" {})
     
-    sl? String Array Ref = { "foo", "bar", "baz" }
+        false? Boolean = `false
+        true? Boolean = `true
     
-    sl1? String Slice = `empty
-    prints("Empty slice is {x} long" { x: sl1 length })
+        prints("Or truth table: {a} {b} {c} {d}" { a: false || false, b: false || true, c: true || false, d: true || true })
+        prints("And truth table: {a} {b} {c} {d}" { a: false && false, b: false && true, c: true && false, d: true && true })
+
+
+    test_floats? :Function as:
+        j? = -31.4e-01
+        printd(j)
+        prints("Streamified as {j}" {})
+
+        prints("Result is 160: {x}" {x: 100.0 + 2.0 * 3.0 / 0.1 })
     
-    sl2? String Slice = `all(sl)
-    prints("Full slice is {x} long" { x: sl2 length })
-    prints("And contains {x}" { x: :try sl2[2] })
+        x? = 1.1
+        y? = 2.2
+        prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+
+        y = x
+        prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
     
-    sl3? = :try sl slice(1, 1)
-    prints("Mid slice is {x} long" { x: sl3 length })
-    prints("And contains {x}" { x: :try sl3[0] })
+        y = `nan
+        prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
 
-    :for sl3 each: x? do:
-        prints("Slice has: {x}" {})
+        x = `nan    
+        prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
 
+        y = `pinf
+        prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
 
-test_circularrays? :Function as:
-    ca? String Circularray Ref = { "foo", "bar", "baz", "xxx" }
-    :try ca pop
-    prints("Have a Circularray of {x}" { x: ca length })
-    ca1? String = :try ca shift
-    prints("Shifted {x}, remained {y} and {z}." { x: ca1, y: ca[0], z: ca[1] })
-    :try ca unshift "foo"
-    :try ca unshift "foofoo"
-    prints("Unshifted {x} and {y} to {z} and {w}" { x: ca[0], y: ca[1], z: ca[2], w: ca[3] })
-    prints("Circularray length is {l}" { l: ca length })
+        x = `ninf
+        prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
 
-    :for ca items each: it? do:
-        prints("Circularray items: {x} => {y}" {x: it index, y: it value})
+        x = 0.0
+        y = -0.0
+        prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
 
-    qu? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
-    :try qu shift
-    :try qu push "I"  # folds
-    :try qu push "J"  # grows
-    :for qu items each: it? do:
-        prints("Queue items: {x} => {y}" { x: it index, y: it value })
-
-    qv? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
-    :try qv pop
-    :try qv unshift "@"  # folds
-    :try qv unshift "@@" # grows
-    :for qv items each: it? do:
-        prints("Queue items: {x} => {y}" { x: it index, y: it value })
-
-
-test_rbtrees? :Function as:
-    rb? String Rbtree Ref = `reserved 8
+        prints("e={e} log(10)={l} 1.5**2={m}" {e: 1.0 exp, l: 10.0 log, m: 1.5 ** 2.0})
     
-    :try
-        rb add "A"
-        rb add "C"
-        rb add "E"
-        rb add "D"
-        rb add "B"
-        
-    prints("After adding A, length is {l}" { l: rb length })
+
+    test_strings? :Function as:
+        a? = 1
+        prints("Hello!")
+
+        s? = "Szia!"
+        prints(s)
+
+        #c = 4
+        #printu8(s[c])
     
-    :for rb elements_by_age each: e? do:
-        prints("Rbtree element by age: {e}" {})
+        prints(s + s)
 
-    :for rb elements_by_order each: e? do:
-        prints("Rbtree element by order: {e}" {})
+        s chars[3] = s[4]
+        prints(s)
 
-    :if rb has "A" then:
-        prints("Rb has A, good.")
-        
-    :if !! rb has "Z" then:
-        prints("Rb has no Z, good")
+        s chars[3] = `unicode 592
+        prints(s)
+
+        prints("s[3] is now '{c}'" { c: s[3] })
+
+        z? = ""
+        prints("Ez tök 대박")
     
-    :try
-        rb remove "A"
-        rb remove "B"
-        rb remove "C"
-        rb remove "D"
-        rb remove "E"
-        
-    prints("After removing all, length is {l}" { l: rb length })
+        :if z == String `empty then: prints("z is empty")
     
-    :if !! rb has "A" then:
-        prints("Rb has no A, good")
+        z = s
+        printb(z encode_utf8)
 
-    st? String Set Ref = { "A", "B" }
+        :if z == `empty then: prints("ERROR z is still empty")
+
+        :if z == "Szia!" then: prints("ERROR z is Szia!")
+
+        :if z == "Sziɐ!" then: prints("z is Sziɐ!")
+
+        :if a == a then:
+            zz? = "ZZ"
+            prints(zz)
     
-    :try
-        st add "C"
-        st add "D"
+        prints((xx? = "hi") + xx)
     
-    :for st elements_by_age each: e? do:
-        prints("Set element: {e}" {})
+        prints("XXXXX{a}YYYYY" {})
 
-    mp? (String, String) Map Ref = {{ "A", "a" }, { "B", "b" }}
-    :try
-        mp add("C", "c")
-        mp add("D", "d")
-    :try
-        mp remove("C")
-    prints("Map length is {x}" {x: mp length})
-    
-    :for mp wrapped elements_by_order each: iv? do:
-        prints("Map element: {x} => {y}" {x: iv index, y: iv value})
-    
-    prints("Map element at A is: {x}" {x: mp["A"]})
+        prints("{six} and {seven}" { six: 6, seven: 7 })
 
+        prints("aba and ab compares as: {c}" { c: "aba" <=> "ab" })
+        prints("aba is less than ab: {c}" { c: "aba" < "ab" })
 
-test_options? :Function as:
-    op1? String Option = `some "XYZ"
-    prints("This option is: {op1}" {})
-    
-    op2? String Option = `none
-    prints("That option is: {op2}" {})
-    
-    op2 = op1
-    prints("And became: {op2}" {})
-    prints("So they're now equal: {x}" {x: op1 == op2})
-    #prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
-    
-    :is op1s? = op1 ~some then:
-        prints("It contained some {op1s}." {})
-    else:
-        prints("IT CONTAINED NONE!")
+        chars? = "BFADCE"
+        prints("Unsorted: {chars}" {})
+        chars chars sort
+        prints("Sorted:   {chars}" {})
 
-    :is op1 ~none then:
-        prints("IT CONTAINED NONE!")
-    else:
-        prints("It contained some.")
-            
-
-test_classes? :Function Greetable Ref as:
-    gr? Greetable Ref = `second_init
-    gr greet
-    
-    gr2? = gr
-    gr2 = gr
-    
-    wgr? = :weak gr
-    wgr greet
-    
-    wgr = gr
-    
-    gr derived base base_method
-    
-    bs? = gr derived base
-    
-    :is gr ~Greetable then:
-        prints("Huh, greetable is Greetable.")
-
-    :is gr ~Base then:
-        prints("WAT, greetable is Base.")
-
-    :is bs ~Greetable then:
-        prints("WAT, base is Greetable.")
-    
-    wt? Greetable Autoweakref = `to(gr)
-    
-    :is wt ~live then:
-        prints("WT is live.")
-    else:
-        prints("WT IS DEAD!")
-        
-    :is wt ~dead then:
-        prints("WT IS DEAD!")
-    else:
-        prints("WT is live.")
-
-    wvm? (String, Greetable) WeakValueMap Ref = `empty
-    :try
-        wvm add("x", gr)
-        wvm add("y", gr)
-    wvm["y"] greet
-    wvm remove("y")
-    prints("wvm length is {x}" {x: wvm length})
-
-    wim? (Greetable, String) WeakIndexMap Ref = `empty
-    :try
-        wim add(gr, "incorrect")
-        wim add(gr, "correct")
-    prints("wim stores for gr: {x}" {x: wim[gr]})
-    prints("wim length is {x}" {x: wim length})
-    
-    ws? Greetable WeakSet Ref = `empty
-    :try
-        ws add(gr)
-        ws add(gr)
-    prints("ws stores gr: {x}" {x: ws has(gr)})
-    prints("ws length is {x}" {x: ws length})
-
-    killer? Greetable Ref = `init
-    wgr = killer
-    bs = killer derived base
-    gr = killer
-    gr2 = killer
-
-    prints("wvm length became {x}" {x: wvm length})
-    prints("wim length became {x}" {x: wim length})
-
-    # Must return this so that all local references can be destroyed before the
-    # killer is finalized    
-    :return killer
-
-
-test_singletons? :Function as:
-    prints("Single value should be 111: {x}" {x: Single single_function})
-
-
-test_files? :Function as:
-    f? = fs.Path `at "test.mkdir"
-    prints("Path is at {x}" {x: f name})
-    
-    :try
-        f mkdir(0o710)
-
-    :try
-        f rmdir
-
-    :try
-        fs.Path `at "/test.mkdir" mkdir(0o777)
-        prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
-    or:
-        :is ~EACCES then:
-            :fixed
+        :is "foo" ~re ".*" then:
+            prints("Regexp matched.")
         else:
-            prints("MKDIR WEIRD EXCEPTION!")
-
-    stdin? fs.File Ref = `stdin
-    b? Byte Array Ref = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
-    n? Integer = 0
+            prints("REGEXP NOT MATCHED!")
     
-    :try
-        n = stdin read(:try b slice(0, 10))
+        :is m? = "foo" ~re ".*" then:
+            prints("Regexp matched as: {x}" {x: m[0]})
+        else:
+            prints("REGEXP NOT MATCHED!")
+
+        :is m? = "this and that" ~re "(th[a-z]*).*(th[a-z]+)" then:
+            prints("Regexp matched as {x} and {y}" {x: m[1], y: m[2]})
+        else:
+            prints("REGEXP NOT MATCHED!")
         
-    prints("Read {n} bytes from stdin." {})
-    
-    fr? = fs.File_reader Ref `new(stdin)
-    dc? = fs.Decoder Ref `new(fr)
-
-    prints("Say something!")
-    s? = :try dc get_line
-    prints("So, {s}?" {})
-    
-    prints("All your lines are belong to us!")
-    lines? = dc get_lines
-    prints("Those were {n} lines." {n: lines length})
-    
-    :for lines items each: it? do:
-        prints("Line {x}: {y}" {x: it index, y: it value})
+        :switch "foo" do:
+            :is ~re ".*" then:
+                prints("Regexp matched in switch.")
+                :yield
 
 
-start? :Function as:
-    @ test_integers
-    @ test_floats
-    @ test_strings
-    @ test_enums
-    @ test_ovalues
-    @ test_records
-    @ test_multis
-    @ test_controls
-    @ test_arrays
-    @ test_circularrays
-    @ test_rbtrees
-    @ test_options
-    @ test_classes
-    @ test_singletons
-    @ test_files
+    test_enums? :Function as:
+        Myenum? :Enumeration
+            FOO, BAR, BAZ
+
+        fbb? Myenum = `BAR
+        :if fbb == `FOO then: prints("fbb is FOO") else: prints("fbb is not FOO")
+
+        prints("fbb is actually {f}!" { f: fbb })
+
+
+    test_ovalues? :Function as:
+        printi(Util g(100, 100))
+        printi(Util g(100))
+        printi(Util g)
+
+
+    test_records? :Function as:
+        p? Pair = `new
+
+        p first = 123
+        p second = 456
+        Pairs print_pair(p)
+        printi(p meth)
+
+        p = Pairs make_pair
+        printi(p second)
+    
+        q? Pair = `new
+        q first = 123
+        q second = 456
+        :if p == q then: prints("Equal tuples.") else: prints("Inequal tuples.")
+    
+        Pairs print_pair
+    
+        p dump dump
+    
+        r? Pair = `new
+        r dump
+    
+        Pair { second: 222 } dump
+    
+        prints("Second is {x}" {x: Pair { second: 222 } second})
+
+        q first = 11
+        prints("{p} and {q} compares as {c}" { p: p, q: q, c: p <=> q })
+
+
+    test_multis? :Function as:
+        x1? Integer = 0
+        x2? Integer = 0
+        x3? Integer = 0
+        (x1, x2, x3) = Util triple
+        prints("Triple returned {x1}, {x2}, {x3}." {})
+    
+        (x2, x3) = Util triple
+        prints("Triple short returned {x2}, {x3}." {})
+
+        x3 = Util triple
+        prints("Triple scalarized to {x3}" {})
+    
+        (y1? Integer, y2? Integer, y3? Integer) = Util triple
+        prints("Triple initialized {y1}, {y2}, {y3}." {})
+    
+        (y4? Integer, y5? Integer) = Util triple
+        prints("Triple short initialized {y4}, {y5}." {})
         
-    prints("Done.")
+        (z1?, z2?, z3?) = Util triple
+        prints("Triple bare initialized {z1}, {z2}, {z3}." {})
+
+        (z4?, z5?) = Util triple
+        prints("Triple bare short initialized {z4}, {z5}." {})
+
+
+    test_controls? :Function as:
+        :repeat i? = 0 on: i < 3 by: i += 1 do:
+            prints("something")
+
+        prints("Done.")
+
+        MyTree? :Treenumeration
+            ONE { TEN, ELEVEN, TWELVE },
+            TWO { TWENTY },
+            THREE,
+            FOUR
+
+        my_tree? MyTree = `TWENTY
+        prints("This tree is {my_tree}." {})
+    
+        :switch my_tree do:
+            :is ~TWO then:
+                prints("Two-something.")
+
+            :is `TWENTY then:
+                prints("Implicitly twenty.")
+
+            :is my_tree then:
+                prints("Implicitly itself.")
+
+            :is {} then:
+                prints("IN THE EMPTY SET!")
+            
+            :is { `TWENTY } then:
+                prints("Single twenty.")
+            
+            :is { my_tree } then:
+                prints("Single itself.")
+            
+            :is { `ONE, `TWENTY, `FOUR } then:
+                prints("Multi twenty.")
+            
+            :is { `ONE, my_tree, `FOUR } then:
+                prints("Multi itself.")
+
+            :is ~TWENTY then:
+                prints("Twenty.")
+                :yield
+            
+            prints("Not any.")
+            :yield
+
+        :try
+            Util nasty
+        or:
+            :is ~BIG_ERROR then:
+                prints("This was a big error!")
+            
+            :is ~SMALL_ERROR then:
+                prints("This was a small error!")
+                :fixed
+            
+            prints("Too bad!")
+
+        :for 3 countup each: c? do:
+            prints("Counting up: {c}" {})
+
+        :for 3 countdown each: c? do:
+            prints("Counting down: {c}" {})
+
+        :for "Abc" each: c? do:
+            prints("Iterating elems: {c}" {})
+
+        :for "Abc" indexes each: i? do:
+            prints("Iterating indexes: {i}" {})
+        
+        :for "Abc" items each: it? do:
+            prints("Iterating items: {i} => {e}" {i: it index, e: it value})
+
+        ait? = "Abc" elements
+        :for ait each: c? do:
+            prints("Iterating elems again: {c}" {})
+    
+        x3? Integer = 0
+        x3 = :lol:
+            prints("Now yielding.")
+            :lol 33
+            prints("Don't print this!")
+            :lol 44
+        
+        prints("Let's hope that {x3} == 33." {})
+    
+        # Must survive adding an Integer to a Whatever
+        :lol:
+            100 + :lol
+    
+        x3 = :switch 1 do: :yield 44
+    
+        prints("Let's hope that {x3} == 44." {})
+    
+        x3 = :try 55
+
+        prints("Let's hope that {x3} == 55." {})
+    
+        x4? Integer = :try 66
+
+        prints("Let's hope that {x4} == 66." {})
+    
+        :if Boolean `false > `true then:
+            prints("Fake news!")
+
+        :if !! Boolean `true then:
+            prints("Faker news!")
+
+        Util twice(how: h? what:this: (prints("You want {h}?" {}), :this h * 1000))
+
+        :eval:
+            Util passthrough(what:this: (:eval, :this 0))
+            prints("This shouldn't be printed!")
+
+        :hihi:if `true then: x3 else:if `false then: x4
+
+        :if `true then:
+            last? = 0
+            prints("Returning.")
+            :return
+    
+        prints("Don't print this!")
+
+
+    test_arrays? :Function as:
+        strings? String Array Ref = `empty
+        prints("Empty array length: {x}" { x: strings length })
+
+        ss? String Array Ref = { "foo", "bar" }
+        prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
+
+        ss_popped1? = :try ss pop
+        prints("Array popped {ss_popped1}" {})
+        ss_popped2? String = :try ss pop
+        prints("Array popped {ss_popped2}" {})
+
+        st? String Stack Ref = `empty
+        :try st push("foo")
+        :try st push("bar")
+        :try st push("baz")
+        prints("Pushed stack length: {x}" { x: st length })
+        prints("Pushed stack has 2. elem: {x}" { x: st[2] })
+    
+        :for st each: x? do:
+            prints("Stack has: {x}" {})
+    
+        baz? String = :try st pop
+        :try st pop
+        :try st pop
+        prints("Popped baz as {baz}" {})
+        prints("Popped stack length: {x}" { x: st length })
+    
+        sl? String Array Ref = { "foo", "bar", "baz" }
+    
+        sl1? String Slice = `empty
+        prints("Empty slice is {x} long" { x: sl1 length })
+    
+        sl2? String Slice = `all(sl)
+        prints("Full slice is {x} long" { x: sl2 length })
+        prints("And contains {x}" { x: :try sl2[2] })
+    
+        sl3? = :try sl slice(1, 1)
+        prints("Mid slice is {x} long" { x: sl3 length })
+        prints("And contains {x}" { x: :try sl3[0] })
+
+        :for sl3 each: x? do:
+            prints("Slice has: {x}" {})
+
+
+    test_circularrays? :Function as:
+        ca? String Circularray Ref = { "foo", "bar", "baz", "xxx" }
+        :try ca pop
+        prints("Have a Circularray of {x}" { x: ca length })
+        ca1? String = :try ca shift
+        prints("Shifted {x}, remained {y} and {z}." { x: ca1, y: ca[0], z: ca[1] })
+        :try ca unshift "foo"
+        :try ca unshift "foofoo"
+        prints("Unshifted {x} and {y} to {z} and {w}" { x: ca[0], y: ca[1], z: ca[2], w: ca[3] })
+        prints("Circularray length is {l}" { l: ca length })
+
+        :for ca items each: it? do:
+            prints("Circularray items: {x} => {y}" {x: it index, y: it value})
+
+        qu? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
+        :try qu shift
+        :try qu push "I"  # folds
+        :try qu push "J"  # grows
+        :for qu items each: it? do:
+            prints("Queue items: {x} => {y}" { x: it index, y: it value })
+
+        qv? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
+        :try qv pop
+        :try qv unshift "$"  # folds
+        :try qv unshift "$$" # grows
+        :for qv items each: it? do:
+            prints("Queue items: {x} => {y}" { x: it index, y: it value })
+
+
+    test_rbtrees? :Function as:
+        rb? String Rbtree Ref = `reserved 8
+    
+        :try
+            rb add "A"
+            rb add "C"
+            rb add "E"
+            rb add "D"
+            rb add "B"
+        
+        prints("After adding A, length is {l}" { l: rb length })
+    
+        :for rb elements_by_age each: e? do:
+            prints("Rbtree element by age: {e}" {})
+
+        :for rb elements_by_order each: e? do:
+            prints("Rbtree element by order: {e}" {})
+
+        :if rb has "A" then:
+            prints("Rb has A, good.")
+        
+        :if !! rb has "Z" then:
+            prints("Rb has no Z, good")
+    
+        :try
+            rb remove "A"
+            rb remove "B"
+            rb remove "C"
+            rb remove "D"
+            rb remove "E"
+        
+        prints("After removing all, length is {l}" { l: rb length })
+    
+        :if !! rb has "A" then:
+            prints("Rb has no A, good")
+
+        st? String Set Ref = { "A", "B" }
+    
+        :try
+            st add "C"
+            st add "D"
+    
+        :for st elements_by_age each: e? do:
+            prints("Set element: {e}" {})
+
+        mp? (String, String) Map Ref = {{ "A", "a" }, { "B", "b" }}
+        :try
+            mp add("C", "c")
+            mp add("D", "d")
+        :try
+            mp remove("C")
+        prints("Map length is {x}" {x: mp length})
+    
+        :for mp wrapped elements_by_order each: iv? do:
+            prints("Map element: {x} => {y}" {x: iv index, y: iv value})
+    
+        prints("Map element at A is: {x}" {x: mp["A"]})
+
+
+    test_options? :Function as:
+        op1? String Option = `some "XYZ"
+        prints("This option is: {op1}" {})
+    
+        op2? String Option = `none
+        prints("That option is: {op2}" {})
+    
+        op2 = op1
+        prints("And became: {op2}" {})
+        prints("So they're now equal: {x}" {x: op1 == op2})
+        #prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
+    
+        :is op1s? = op1 ~some then:
+            prints("It contained some {op1s}." {})
+        else:
+            prints("IT CONTAINED NONE!")
+
+        :is op1 ~none then:
+            prints("IT CONTAINED NONE!")
+        else:
+            prints("It contained some.")
+            
+
+    test_classes? :Function Greetable Ref as:
+        gr? Greetable Ref = `second_init
+        gr greet
+    
+        gr2? = gr
+        gr2 = gr
+    
+        wgr? = :weak gr
+        wgr greet
+    
+        wgr = gr
+    
+        gr derived base base_method
+    
+        bs? = gr derived base
+    
+        :is gr ~Greetable then:
+            prints("Huh, greetable is Greetable.")
+
+        :is gr ~Base then:
+            prints("WAT, greetable is Base.")
+
+        :is bs ~Greetable then:
+            prints("WAT, base is Greetable.")
+    
+        wt? Greetable Autoweakref = `to(gr)
+    
+        :is wt ~live then:
+            prints("WT is live.")
+        else:
+            prints("WT IS DEAD!")
+        
+        :is wt ~dead then:
+            prints("WT IS DEAD!")
+        else:
+            prints("WT is live.")
+
+        wvm? (String, Greetable) WeakValueMap Ref = `empty
+        :try
+            wvm add("x", gr)
+            wvm add("y", gr)
+        wvm["y"] greet
+        wvm remove("y")
+        prints("wvm length is {x}" {x: wvm length})
+
+        wim? (Greetable, String) WeakIndexMap Ref = `empty
+        :try
+            wim add(gr, "incorrect")
+            wim add(gr, "correct")
+        prints("wim stores for gr: {x}" {x: wim[gr]})
+        prints("wim length is {x}" {x: wim length})
+    
+        ws? Greetable WeakSet Ref = `empty
+        :try
+            ws add(gr)
+            ws add(gr)
+        prints("ws stores gr: {x}" {x: ws has(gr)})
+        prints("ws length is {x}" {x: ws length})
+
+        killer? Greetable Ref = `init
+        wgr = killer
+        bs = killer derived base
+        gr = killer
+        gr2 = killer
+
+        prints("wvm length became {x}" {x: wvm length})
+        prints("wim length became {x}" {x: wim length})
+
+        # Must return this so that all local references can be destroyed before the
+        # killer is finalized    
+        :return killer
+
+
+    test_singletons? :Function as:
+        prints("Single value should be 111: {x}" {x: Single single_function})
+
+
+    test_files? :Function as:
+        f? = fs.Path `at "test.mkdir"
+        prints("Path is at {x}" {x: f name})
+    
+        :try
+            f mkdir(0o710)
+
+        :try
+            f rmdir
+
+        :try
+            fs.Path `at "/test.mkdir" mkdir(0o777)
+            prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
+        or:
+            :is ~EACCES then:
+                :fixed
+            else:
+                prints("MKDIR WEIRD EXCEPTION!")
+
+        stdin? fs.File Ref = `stdin
+        b? Byte Array Ref = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+        n? Integer = 0
+    
+        :try
+            n = stdin read(:try b slice(0, 10))
+        
+        prints("Read {n} bytes from stdin." {})
+    
+        fr? = fs.File_reader Ref `new(stdin)
+        dc? = fs.Decoder Ref `new(fr)
+
+        prints("Say something!")
+        s? = :try dc get_line
+        prints("So, {s}?" {})
+    
+        prints("All your lines are belong to us!")
+        lines? = dc get_lines
+        prints("Those were {n} lines." {n: lines length})
+    
+        :for lines items each: it? do:
+            prints("Line {x}: {y}" {x: it index, y: it value})
+
+
+    start? :Function as:
+        $ test_integers
+        $ test_floats
+        $ test_strings
+        $ test_enums
+        $ test_ovalues
+        $ test_records
+        $ test_multis
+        $ test_controls
+        $ test_arrays
+        $ test_circularrays
+        $ test_rbtrees
+        $ test_options
+        $ test_classes
+        $ test_singletons
+        $ test_files
+        
+        prints("Done.")

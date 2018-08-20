@@ -65,8 +65,10 @@ public:
         
             return new Variable(name, NO_TS, var_ts);
         }
-        else
+        else {
+            std::cerr << "Variables by value must be declared in code scopes!\n";
             return NULL;
+        }
     }
     
     virtual bool unpack(std::vector<TypeSpec> &tss) {

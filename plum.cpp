@@ -75,7 +75,6 @@ void import(std::string module_name, std::string file_name, Scope *root_scope) {
 
     ModuleType *module_type = new ModuleType("<" + module_name + ">", module_scope);
     root_scope->add(module_type);
-    module_scope->set_pivot_type_hint(TypeSpec { module_type });
 
     // Must install Module entry before typization to collect imported modules
     modules_by_name[module_name] = Module {

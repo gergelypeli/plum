@@ -1,6 +1,6 @@
 
 enum ScopeType {
-    ROOT_SCOPE, DATA_SCOPE, CODE_SCOPE, ARGUMENT_SCOPE, FUNCTION_SCOPE
+    ROOT_SCOPE, DATA_SCOPE, CODE_SCOPE, ARGUMENT_SCOPE, FUNCTION_SCOPE, MODULE_SCOPE
 };
 
 
@@ -98,11 +98,54 @@ public:
     virtual TypeSpec pivot_type_hint() {
         throw INTERNAL_ERROR;
     }
+    
+    virtual std::string fully_qualify(std::string n) {
+        throw INTERNAL_ERROR;
+    }
+};
+
+
+class ModuleScope: public Scope {
+public:
+    std::string module_name;
+    Allocation offset;
+    
+    ModuleScope(std::string mn)
+        :Scope(MODULE_SCOPE) {
+        module_name = mn;
+    }
+
+    virtual Allocation reserve(Allocation s) {
+        Allocation pos = size;
+        
+        size.bytes += stack_size(s.bytes);  // Simple strategy
+        size.count1 += s.count1;
+        size.count2 += s.count2;
+        size.count3 += s.count3;
+        //std::cerr << "ModuleScope is now " << size << " bytes.\n";
+    
+        return pos;
+    }
+
+    virtual void allocate() {
+        Scope::allocate();
+        
+        offset = outer_scope->reserve(size);
+    }
+
+    virtual ModuleScope *get_module_scope() {
+        return this;
+    }
+
+    virtual std::string fully_qualify(std::string n) {
+        return module_name + "." + n;
+    }
 };
 
 
 class DataScope: public Scope {
 public:
+    std::string name;
     TypeSpec pivot_ts;
     Scope *meta_scope;
     std::vector<VirtualEntry *> virtual_table;
@@ -113,6 +156,10 @@ public:
         pivot_ts = NO_TS;
         meta_scope = NULL;
         am_virtual_scope = false;
+    }
+    
+    virtual void set_name(std::string n) {
+        name = n;
     }
     
     virtual void be_virtual_scope() {
@@ -177,6 +224,13 @@ public:
         //std::cerr << "DataScope setting virtual entry " << i << ".\n";
         virtual_table[i] = entry;
     }
+
+    virtual std::string fully_qualify(std::string n) {
+        if (name == "")
+            throw INTERNAL_ERROR;
+            
+        return outer_scope->fully_qualify(name + "." + n);
+    }
 };
 
 
@@ -225,28 +279,6 @@ public:
             return rs->get_original_declaration(n);
             
         return NULL;
-    }
-};
-
-
-class ModuleScope: public DataScope {
-public:
-    std::string module_name;
-    Allocation offset;
-    
-    ModuleScope(std::string mn)
-        :DataScope() {
-        module_name = mn;
-    }
-
-    virtual void allocate() {
-        DataScope::allocate();
-        
-        offset = outer_scope->reserve(size);
-    }
-
-    virtual ModuleScope *get_module_scope() {
-        return this;
     }
 };
 
@@ -478,7 +510,6 @@ class FunctionScope: public Scope {
 public:
     ArgumentScope *result_scope;
     ArgumentScope *self_scope;
-    ArgumentScope *mod_scope;
     ArgumentScope *head_scope;
     CodeScope *body_scope;
     TreenumerationType *exception_type;
@@ -489,7 +520,6 @@ public:
         :Scope(FUNCTION_SCOPE) {
         result_scope = NULL;
         self_scope = NULL;
-        mod_scope = NULL;
         head_scope = NULL;
         body_scope = NULL;
         exception_type = NULL;
@@ -507,12 +537,6 @@ public:
         return self_scope;
     }
 
-    Scope *add_mod_scope() {
-        mod_scope = new ArgumentScope;
-        add(mod_scope);
-        return mod_scope;
-    }
-    
     Scope *add_head_scope() {
         head_scope = new ArgumentScope;
         add(head_scope);
@@ -565,10 +589,6 @@ public:
         if (v)
             return v;
 
-        v = mod_scope ? mod_scope->lookup(name, pivot) : NULL;
-        if (v)
-            return v;
-
         return NULL;
     }
     
@@ -588,9 +608,6 @@ public:
 
         self_scope->reserve(head_scope->size);
         self_scope->allocate();
-
-        // mod_scope is allocated, but only for technical reasons, it's actually global data
-        mod_scope->allocate();
 
         // results are now dynamically located from offset 0
         //result_scope->reserve(self_scope->size);

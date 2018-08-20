@@ -414,6 +414,7 @@ public:
         PartialInfo *pi = partial_variable_get_info(v);
         
         if (pi->is_uninitialized(n)) {
+            std::cerr << "Partial member " << n << " is uninitialized.\n";
             pi->be_initialized(n);
             
             // TODO: technically the cast type should be lvalue for records only,
@@ -448,11 +449,13 @@ public:
             return member;
         }
         else if (pi->is_initialized(n)) {
-            std::cerr << "Member " << n << " is already initialized.\n";
+            std::cerr << "Partial member " << n << " is initialized.\n";
             return tm[1].lookup_inner(n, make<CastValue>(v, tm[1]));
         }
-        else
+        else {
+            std::cerr << "Partial member " << n << " not found!\n";
             return NULL;
+        }
     }
     
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *v) {

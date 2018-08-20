@@ -225,6 +225,7 @@ public:
         parent_role = NULL;
         
         inner_scope = new RoleScope(this, original_scope);  // we won't look up from the inside
+        inner_scope->set_name(name);
         inner_scope->be_virtual_scope();
         inner_scope->set_pivot_type_hint(pts);
 
@@ -370,51 +371,6 @@ public:
 Declaration *make_shadow_role(Role *orole, Role *prole) {
     return new ShadowRole(orole, prole);
 }
-
-
-class ModuleVariable: public Variable {
-public:
-    ModuleScope *module_scope;
-    Storage local_storage;
-    
-    ModuleVariable(std::string n, ModuleScope *ms, TypeSpec mts)
-        :Variable(n, NO_TS, mts) {
-        module_scope = ms;
-    }
-
-    virtual void allocate() {
-        // This is just an alias, we don't allocate actual data here
-        where = MEMORY;
-    }
-
-    virtual void fix(X64 *x64) {
-        int module_offset = module_scope->offset.concretize();
-        local_storage = Storage(MEMORY, Address(x64->runtime->application_label, module_offset));
-    }
-
-    virtual Storage get_storage(TypeMatch tm, Storage s) {
-        throw INTERNAL_ERROR;  // not contained in anything else
-    }
-
-    virtual Storage get_local_storage() {
-        return local_storage;
-    }
-};
-
-
-class PartialModuleVariable: public ModuleVariable {
-public:
-    std::unique_ptr<PartialInfo> partial_info;
-
-    PartialModuleVariable(std::string name, ModuleScope *ms, TypeSpec mts)
-        :ModuleVariable(name, ms, mts) {
-        partial_info.reset(new PartialInfo);
-    }
-
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make<PartialVariableValue>(this, cpivot, match, partial_info.get());
-    }
-};
 
 
 class SingletonVariable: public Variable {

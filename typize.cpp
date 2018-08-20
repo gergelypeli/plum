@@ -1,7 +1,7 @@
 
 // Stage 4
 
-Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
+Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
     if (pivot && pivot->ts[0] == multi_type) {
         // Conversions from Multi to a scalar can only be attempted once (see typematch),
         // but it's not a problem, since we don't want Multi pivots anyway. But for correct
@@ -13,7 +13,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     //std::cerr << "Looking up  " << get_typespec(pivot) << " " << name << " definition.\n";
     Value *value = NULL;
     
-    for (Scope *s = scope; s; s = s->outer_scope) {
+    for (Scope *s = in_scope; s; s = s->outer_scope) {
         value = s->lookup(name, pivot);
         
         if (value)
@@ -30,7 +30,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     if (!value) {
         if (name == "is_equal" || name == "not_equal") {
             std::cerr << "Trying equal fallback for missing " << name << ".\n";
-            Value *fallback = lookup_unchecked("equal", pivot, scope);
+            Value *fallback = lookup_unchecked("equal", pivot, in_scope);
             
             if (fallback) {
                 bool no = (name == "not_equal");
@@ -45,7 +45,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
             name == "not_less" || name == "not_greater"
         ) {
             std::cerr << "Trying compare fallback for missing " << name << ".\n";
-            Value *fallback = lookup_unchecked("compare", pivot, scope);
+            Value *fallback = lookup_unchecked("compare", pivot, in_scope);
             
             if (fallback) {
                 // Comparison results are signed integers
@@ -74,9 +74,9 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
 }
 
 
-Value *lookup(std::string name, Value *pivot, Expr *expr, Scope *scope, TypeSpec *context) {
+Value *lookup(std::string name, Value *pivot, Scope *in_scope, Expr *expr, Scope *scope, TypeSpec *context) {
     //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
-    Value *value = lookup_unchecked(name, pivot, scope);
+    Value *value = lookup_unchecked(name, pivot, in_scope);
     
     if (!value) {
         std::cerr << "No match for " << get_typespec(pivot) << " " << name << " at " << expr->token << "!\n";
@@ -105,7 +105,7 @@ Value *lookup_fake(std::string name, Value *pivot, Token token, Scope *scope, Ty
         fake_expr.args.push_back(std::unique_ptr<Expr>(fake_arg_expr));
     }
     
-    return lookup(name, pivot, &fake_expr, scope, context);
+    return lookup(name, pivot, scope, &fake_expr, scope, context);
 }
 
 
@@ -185,6 +185,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        Scope *in_scope = scope;
 
         if (!p && name.find(".") != std::string::npos) {
             std::string::size_type i = 0;
@@ -206,7 +207,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 
                 if (name.size() > 0) {
                     std::cerr << "Will lookup symbol " << name << " in module " << module_name << "\n";
-                    scope = lookup_module(module_name, scope->get_module_scope());
+                    in_scope = lookup_module(module_name, scope->get_module_scope());
                 }
                 else {
                     std::cerr << "Unexpected bare module name " << module_name << "!\n";
@@ -215,7 +216,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
         }
         
-        value = lookup(name, p, expr, scope);
+        value = lookup(name, p, in_scope, expr, scope);
         
         if (!value)
             throw TYPE_ERROR;
@@ -239,7 +240,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
         }
         
-        value = lookup(name, NULL, expr, scope, context);
+        value = lookup(name, NULL, scope, expr, scope, context);
 
         if (!value)
             throw TYPE_ERROR;

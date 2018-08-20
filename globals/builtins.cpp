@@ -989,7 +989,7 @@ void builtin_runtime(Scope *root_scope) {
 
 
 Scope *init_builtins() {
-    Scope *root_scope = new DataScope();
+    Scope *root_scope = new DataScope;
 
     builtin_types(root_scope);
 
