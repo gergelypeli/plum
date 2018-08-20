@@ -12,6 +12,7 @@ public:
     TypeSpec pivot_ts;
     Variable *self_var;
     ModuleVariable *mod_var;
+    SingletonVariable *ston_var;
     TypeMatch match;
     RoleScope *role_scope;
 
@@ -28,6 +29,7 @@ public:
         may_be_aborted = false;
         self_var = NULL;
         mod_var = NULL;
+        ston_var = NULL;
         role_scope = NULL;
         fn_scope = NULL;
     }
@@ -83,6 +85,21 @@ public:
                 }
                 
                 ms->add(mod_var);
+            }
+            else if (pivot_ts.has_meta(singleton_metatype)) {
+                // Singleton method
+                SingletonScope *singleton_scope = scope->get_singleton_scope();
+                
+                if (type == INITIALIZER_FUNCTION) {
+                    pivot_ts = pivot_ts.prefix(initializable_type);  // called by the runtime only
+                    TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
+                    ston_var = new PartialSingletonVariable("$", singleton_scope, self_ts);
+                }
+                else {
+                    ston_var = new SingletonVariable("$", singleton_scope, pivot_ts);
+                }
+                
+                ms->add(ston_var);
             }
             else if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
                 mod_var = new ModuleVariable("@", module_scope, module_scope->pivot_type_hint());
@@ -217,6 +234,15 @@ public:
                     ats = pm->alloc_ts.unprefix(partial_type);
                 }
             }
+
+            if (!pi) {
+                PartialSingletonVariable *ps = ptr_cast<PartialSingletonVariable>(fn_scope->mod_scope->contents.back().get());
+                
+                if (ps) {
+                    pi = ps->partial_info.get();
+                    ats = ps->alloc_ts.unprefix(partial_type);
+                }
+            }
             
             if (pi) {
                 // Must do this only after the class definition is completed
@@ -227,6 +253,14 @@ public:
                         throw INTERNAL_ERROR;
                     
                     pi->set_member_names(mt->get_member_names());
+                }
+                else if (ats.has_meta(singleton_metatype)) {
+                    // Singleton initializer
+                    SingletonType *st = ptr_cast<SingletonType>(ats[0]);
+                    if (!st)
+                        throw INTERNAL_ERROR;
+                    
+                    pi->set_member_names(st->get_member_names());
                 }
                 else if (ats[0] == weakref_type) {
                     // TODO: this should also work for records
@@ -280,6 +314,9 @@ public:
 
         if (mod_var)
             mod_var->fix(x64);  // hack to access application_label
+
+        if (ston_var)
+            ston_var->fix(x64);  // hack to access application_label
     
         unsigned frame_size = fn_scope->get_frame_size();
 
@@ -647,9 +684,13 @@ public:
 
     virtual void push_pivot(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         Storage s = arg_value->compile(x64);
+        Storage t;
+        StorageWhere where = arg_ts.where(AS_PIVOT_ARGUMENT);
         
-        StorageWhere where = stacked(arg_ts.where(AS_PIVOT_ARGUMENT));
-        Storage t(where);
+        if (where != NOWHERE) {
+            where = stacked(where);
+            t = Storage(where);
+        }
 
         if (s.where == STACK && t.where == ALISTACK) {
             // This is possible with record pivot arguments, handle it specially

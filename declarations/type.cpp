@@ -129,6 +129,9 @@ public:
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case NOWHERE_NOWHERE:
+            return;
+            
         case MEMORY_NOWHERE:
             return;
         case MEMORY_ALISTACK:
@@ -427,6 +430,7 @@ public:
             }
             
             TypeSpec member_ts = get_typespec(member);
+            std::cerr << "Partial member " << n << " is " << member_ts << "\n";
             
             if (member_ts[0] == lvalue_type) {
                 std::cerr << "Member variable " << n << " is not yet initialized.\n";
@@ -444,6 +448,7 @@ public:
             return member;
         }
         else if (pi->is_initialized(n)) {
+            std::cerr << "Member " << n << " is already initialized.\n";
             return tm[1].lookup_inner(n, make<CastValue>(v, tm[1]));
         }
         else
@@ -611,70 +616,3 @@ public:
     }
 };
 
-
-class ModuleType: public Type {
-public:
-    ModuleScope *module_scope;
-    std::vector<std::string> member_names;
-    Function *initializer_function;
-
-    ModuleType(std::string name, ModuleScope *ms)
-        :Type(name, {}, module_metatype) {
-        module_scope = ms;
-        initializer_function = NULL;
-    }
-    
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        if (s.where != NOWHERE || t.where != NOWHERE) {
-            std::cerr << "Invalid module store from " << s << " to " << t << "!\n";
-            throw INTERNAL_ERROR;
-        }
-    }
-
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
-        return module_scope->lookup(n, v);
-    }
-        
-    virtual bool complete_type() {
-        for (auto &c : module_scope->contents) {
-            Allocable *v = ptr_cast<Allocable>(c.get());
-            
-            if (v) {
-                //member_allocables.push_back(v);
-                //member_tss.push_back(v->alloc_ts.rvalue());
-                member_names.push_back(v->name);
-            }
-
-            Function *f = ptr_cast<Function>(c.get());
-            
-            if (f && f->type == INITIALIZER_FUNCTION) {
-                if (initializer_function) {
-                    std::cerr << "Multiple module initializers!\n";
-                    return false;
-                }
-                    
-                initializer_function = f;
-            }
-        }
-        
-        std::cerr << "Module " << name << " has " << member_names.size() << " member variables.\n";
-        return true;
-    }
-
-    virtual std::vector<std::string> get_member_names() {
-        return member_names;
-    }
-    
-    virtual Function *get_initializer_function() {
-        return initializer_function;
-    }
-};
-
-
-#include "interface.cpp"
-#include "basic.cpp"
-#include "float.cpp"
-#include "reference.cpp"
-#include "record.cpp"
-#include "class.cpp"
-#include "option.cpp"

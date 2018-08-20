@@ -79,6 +79,10 @@ public:
         return outer_scope->get_module_scope();
     }
 
+    virtual SingletonScope *get_singleton_scope() {
+        return outer_scope->get_singleton_scope();
+    }
+
     virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
         for (auto &content : contents)
@@ -242,6 +246,26 @@ public:
     }
 
     virtual ModuleScope *get_module_scope() {
+        return this;
+    }
+};
+
+
+class SingletonScope: public DataScope {
+public:
+    Allocation offset;
+    
+    SingletonScope()
+        :DataScope() {
+    }
+
+    virtual void allocate() {
+        DataScope::allocate();
+        
+        offset = outer_scope->reserve(size);
+    }
+
+    virtual SingletonScope *get_singleton_scope() {
         return this;
     }
 };

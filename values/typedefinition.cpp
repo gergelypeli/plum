@@ -316,6 +316,59 @@ public:
 };
 
 
+class SingletonDefinitionValue: public TypeDefinitionValue {
+public:
+    SingletonType *singleton_type;
+    
+    SingletonDefinitionValue()
+        :TypeDefinitionValue() {
+        singleton_type = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (kwargs.size() != 1 || !kwargs["as"]) {
+            std::cerr << "Whacky singleton!\n";
+            return false;
+        }
+
+        singleton_type = new SingletonType("<anonymous>", Metatypes {});
+        TypeSpec sts = { singleton_type };
+
+        setup_inner(singleton_type, sts);
+
+        defer_as(kwargs);
+            
+        std::cerr << "Deferring singleton definition.\n";
+        return true;
+    }
+
+    virtual bool complete_definition() {
+        std::cerr << "Completing singleton " << singleton_type->name << " definition.\n";
+        if (!complete_as())
+            return false;
+
+        return complete(singleton_type);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return data_value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return data_value->compile(x64);
+    }
+
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE) {  // TODO: limit to module scope!
+            singleton_type->set_name(name);
+            return singleton_type;
+        }
+        else
+            return NULL;
+    }
+};
+
+
 class ClassDefinitionValue: public TypeDefinitionValue {
 public:
     ClassType *class_type;

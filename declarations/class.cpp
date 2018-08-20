@@ -157,7 +157,6 @@ public:
 
         is->be_virtual_scope();
         
-        TypeSpec cts = { ref_type, this };
         is->set_meta_scope(class_metatype->get_inner_scope(TypeMatch()));
 
         Allocation vt_offset = is->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer

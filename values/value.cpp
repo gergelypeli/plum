@@ -181,7 +181,7 @@ public:
             if (pts[0] == ref_type)
                 throw INTERNAL_ERROR;  // variables are accessed by weak references only
                 
-            is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != weakref_type && !pts.has_meta(module_metatype));
+            is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != weakref_type && !pts.has_meta(module_metatype) && !pts.has_meta(singleton_metatype));
             
             if (is_rvalue)
                 ts = ts.rvalue();

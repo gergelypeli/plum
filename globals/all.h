@@ -163,6 +163,7 @@ Type *treenumeration_metatype = NULL;
 Type *integer_metatype = NULL;
 Type *record_metatype = NULL;
 Type *class_metatype = NULL;
+Type *singleton_metatype = NULL;
 Type *interface_metatype = NULL;
 Type *implementation_metatype = NULL;
 

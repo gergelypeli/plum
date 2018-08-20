@@ -17,6 +17,9 @@ void builtin_types(Scope *root_scope) {
     module_metatype = new ModuleMetaType("<:Module>", type_metatype);
     root_scope->add(module_metatype);
     
+    singleton_metatype = new SingletonMetaType(":Singleton", type_metatype);
+    root_scope->add(singleton_metatype);
+
     attribute_metatype = new AttributeMetaType(":Attribute", type_metatype);
     root_scope->add(attribute_metatype);
     

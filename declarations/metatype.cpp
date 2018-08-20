@@ -138,6 +138,14 @@ public:
 };
 
 
+class SingletonMetaType: public MetaType {
+public:
+    SingletonMetaType(std::string name, Type *st)
+        :MetaType(name, st, make<SingletonDefinitionValue>) {
+    }
+};
+
+
 class InterfaceMetaType: public MetaType {
 public:
     InterfaceMetaType(std::string name, Type *st)

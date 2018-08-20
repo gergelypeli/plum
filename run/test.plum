@@ -167,6 +167,17 @@ Greetable? :Class as:
     name? String
 
 
+Single? :Singleton as:
+    single_number? Integer
+    
+    init? :Initializer as:
+        prints("Initializing Single.")
+        $ single_number = 111
+    
+    single_function? :Function Integer as:
+        :return $ single_number
+
+
 twice? :Function from:
     how? Integer Dvalue
     what? Integer Code
@@ -768,6 +779,10 @@ test_classes? :Function Greetable Ref as:
     :return killer
 
 
+test_singletons? :Function as:
+    prints("Single value should be 111: {x}" {x: Single single_function})
+
+
 test_files? :Function as:
     f? = fs.Path `at "test.mkdir"
     prints("Path is at {x}" {x: f name})
@@ -825,6 +840,7 @@ start? :Function as:
     @ test_rbtrees
     @ test_options
     @ test_classes
+    @ test_singletons
     @ test_files
         
     prints("Done.")

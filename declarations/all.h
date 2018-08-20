@@ -27,6 +27,7 @@ class Scope;
 class CodeScope;
 class DataScope;
 class ModuleScope;
+class SingletonScope;
 class SwitchScope;
 class TryScope;
 class EvalScope;

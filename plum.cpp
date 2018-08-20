@@ -194,24 +194,30 @@ int main(int argc, char **argv) {
     x64->once = new Once();
     x64->runtime = new Runtime(x64, root_scope->size.concretize());
 
-    std::vector<Function *> initializers;
+    std::vector<Label> initializer_labels, finalizer_labels;
 
     for (Module &m : modules_in_order) {
         m.value->precompile(Regs::all());
         m.value->compile(x64);
-        
-        Function *f = m.module_type->get_initializer_function();
-        if (f)
-            initializers.push_back(f);
+
+        m.module_type->collect_initializer_labels(initializer_labels, x64);
+        m.module_type->collect_finalizer_labels(finalizer_labels, x64);
     }
 
-    Label init_count, init_ptrs;
+    Label init_count, init_ptrs, fin_count, fin_ptrs;
     x64->data_label_global(init_count, "initializer_count");
-    x64->data_qword(initializers.size());
+    x64->data_qword(initializer_labels.size());
     
     x64->data_label_global(init_ptrs, "initializer_pointers");
-    for (Function *f : initializers)
-        x64->data_reference(f->get_label(x64));
+    for (Label l : initializer_labels)
+        x64->data_reference(l);
+
+    x64->data_label_global(fin_count, "finalizer_count");
+    x64->data_qword(finalizer_labels.size());
+    
+    x64->data_label_global(fin_ptrs, "finalizer_pointers");
+    for (Label l : finalizer_labels)
+        x64->data_reference(l);
     
     x64->once->for_all(x64);
     x64->done(output);

@@ -399,11 +399,6 @@ public:
     virtual Storage get_local_storage() {
         return local_storage;
     }
-    /*
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
-        return make<ModuleValue>(module_scope, alloc_ts);
-    }
-    */
 };
 
 
@@ -413,6 +408,51 @@ public:
 
     PartialModuleVariable(std::string name, ModuleScope *ms, TypeSpec mts)
         :ModuleVariable(name, ms, mts) {
+        partial_info.reset(new PartialInfo);
+    }
+
+    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+        return make<PartialVariableValue>(this, cpivot, match, partial_info.get());
+    }
+};
+
+
+class SingletonVariable: public Variable {
+public:
+    SingletonScope *singleton_scope;
+    Storage local_storage;
+    
+    SingletonVariable(std::string n, SingletonScope *ss, TypeSpec mts)
+        :Variable(n, NO_TS, mts) {
+        singleton_scope = ss;
+    }
+
+    virtual void allocate() {
+        // This is just an alias, we don't allocate actual data here
+        where = MEMORY;
+    }
+
+    virtual void fix(X64 *x64) {
+        int offset = singleton_scope->offset.concretize();
+        local_storage = Storage(MEMORY, Address(x64->runtime->application_label, offset));
+    }
+
+    virtual Storage get_storage(TypeMatch tm, Storage s) {
+        throw INTERNAL_ERROR;  // not contained in anything else
+    }
+
+    virtual Storage get_local_storage() {
+        return local_storage;
+    }
+};
+
+
+class PartialSingletonVariable: public SingletonVariable {
+public:
+    std::unique_ptr<PartialInfo> partial_info;
+
+    PartialSingletonVariable(std::string name, SingletonScope *ss, TypeSpec mts)
+        :SingletonVariable(name, ss, mts) {
         partial_info.reset(new PartialInfo);
     }
 

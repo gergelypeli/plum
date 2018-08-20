@@ -164,6 +164,8 @@ int TypeSpec::measure_stack() {
 
 int TypeSpec::measure_where(StorageWhere where) {
     switch (where) {
+    case NOWHERE:
+        return 0;
     case MEMORY:
         return measure_raw();
     case STACK:
