@@ -957,6 +957,10 @@ void define_weakset() {
 
 
 void builtin_runtime(Scope *root_scope) {
+    SingletonType *st = new SingletonType("Std");
+    root_scope->add(st);
+    
+    TypeSpec STD_TS = { st };
     TypeSpec BYTE_SLICE_TS = { slice_type, unsigned_integer8_type };
 
     TSs NO_TSS = { };
@@ -970,12 +974,17 @@ void builtin_runtime(Scope *root_scope) {
     Ss no_names = { };
     Ss value_names = { "value" };
 
-    root_scope->add(new SysvFunction("printi", "printi", NO_TS, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new SysvFunction("printc", "printc", NO_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new SysvFunction("printd", "printd", NO_TS, GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new SysvFunction("printb", "printb", NO_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL));
-    root_scope->add(new SysvFunction("prints", "prints", NO_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL));
-    root_scope->add(new SysvFunction("printp", "printp", NO_TS, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL));  // needs Lvalue to avoid ref copy
+    Scope *is = st->make_inner_scope(STD_TS);
+
+    is->add(new SysvFunction("printi", "printi", STD_TS, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL));
+    is->add(new SysvFunction("printc", "printc", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
+    is->add(new SysvFunction("printd", "printd", STD_TS, GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL));
+    is->add(new SysvFunction("printb", "printb", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL));
+    is->add(new SysvFunction("prints", "prints", STD_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL));
+    is->add(new SysvFunction("printp", "printp", STD_TS, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL));  // needs Lvalue to avoid ref copy
+
+    st->complete_type();
+
     root_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     root_scope->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
     root_scope->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));

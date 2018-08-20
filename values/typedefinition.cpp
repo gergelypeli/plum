@@ -328,7 +328,7 @@ public:
             return false;
         }
 
-        singleton_type = new SingletonType("<anonymous>", Metatypes {});
+        singleton_type = new SingletonType("<anonymous>");
         TypeSpec sts = { singleton_type };
 
         setup_inner(singleton_type, sts);

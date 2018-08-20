@@ -8,8 +8,8 @@ public:
     Function *finalizer_function;
     //BaseRole *base_role;
 
-    SingletonType(std::string name, Metatypes param_metatypes)
-        :Type(name, param_metatypes, singleton_metatype) {
+    SingletonType(std::string name)
+        :Type(name, {}, singleton_metatype) {
         initializer_function = NULL;
         finalizer_function = NULL;
         //base_role = NULL;

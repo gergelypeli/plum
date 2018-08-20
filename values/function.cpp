@@ -577,9 +577,11 @@ public:
             // Must move raw values so it doesn't count as a copy
             stack_offset -= pushed_sizes[i];
             
-            bool is_float = pushed_tss[i].where(AS_VALUE) == SSEREGISTER;
+            StorageWhere pushed_where = pushed_tss[i].where(AS_VALUE);
             
-            if (is_float)
+            if (pushed_where == NOWHERE)
+                ;  // happens for singleton pivots
+            else if (pushed_where == SSEREGISTER)
                 x64->op(MOVSD, sses[sse_index++], Address(RSP, stack_offset));
             else if (pushed_sizes[i] == ADDRESS_SIZE)
                 x64->op(MOVQ, regs[reg_index++], Address(RSP, stack_offset));
