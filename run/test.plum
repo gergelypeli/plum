@@ -3,18 +3,6 @@
 #2
 #wtf? 2
 
-
-Myint? :Integer bytes: 8 is_unsigned: `false
-Mybyte? :Integer bytes: 1 is_unsigned: `false
-Myenum? :Enumeration
-    FOO, BAR, BAZ
-MyTree? :Treenumeration
-    ONE { TEN, ELEVEN, TWELVE },
-    TWO { TWENTY },
-    THREE,
-    FOUR
-
-
 Pair? :Record as:
     first? Integer
     second? Integer
@@ -97,14 +85,14 @@ XStringiterator? :Record as:
 
 
 Base? :Class as:
-    #Type? :Enumeration
-    #    NICE, UGLY
+    Type? :Enumeration
+        NICE, UGLY
         
-    #type? Base.Type
+    type? .Type
     base_value? Integer
     
     base_init? :Initializer as:
-        #$ type = `NICE
+        $ type = `NICE
         $ base_value = 100
         Std prints("The base is initialized.")
     
@@ -215,6 +203,12 @@ Main? :Singleton as:
         $ start  # check predeclarations
 
 
+    Myint? :Integer bytes: 8 is_unsigned: `false
+
+
+    Mybyte? :Integer bytes: 1 is_unsigned: `false
+
+
     test_integers? :Function as:
         Std printi(Util f(1, 2))
     
@@ -237,7 +231,7 @@ Main? :Singleton as:
     
         :if d != 0 then: Std prints("Yes, d is nonzero.")
 
-        myvar? Myint = 0
+        myvar? .Myint = 0
     
         e? = +5_000_000_000
         Std prints("Five billion is {e}" {})
@@ -254,7 +248,7 @@ Main? :Singleton as:
         i? = 0b_0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100_1101_1110_1111_0000
         Std prints("Aaaaaaaaand finally {i}" {})
     
-        mybyte? Mybyte = -128
+        mybyte? .Mybyte = -128
         Std prints("Mybyte is {mybyte}" {})
     
         false? Boolean = `false
@@ -370,9 +364,12 @@ Main? :Singleton as:
                 :yield
 
 
-    test_enums? :Function as:
+    Myenum? :Enumeration
+        FOO, BAR, BAZ
 
-        fbb? Myenum = `BAR
+
+    test_enums? :Function as:
+        fbb? .Myenum = `BAR
         :if fbb == `FOO then: Std prints("fbb is FOO") else: Std prints("fbb is not FOO")
 
         Std prints("fbb is actually {f}!" { f: fbb })
@@ -441,14 +438,20 @@ Main? :Singleton as:
         Std prints("Triple bare short initialized {z4}, {z5}." {})
 
 
+    MyTree? :Treenumeration
+        ONE { TEN, ELEVEN, TWELVE },
+        TWO { TWENTY },
+        THREE,
+        FOUR
+
+
     test_controls? :Function as:
         :repeat i? = 0 on: i < 3 by: i += 1 do:
             Std prints("something")
 
         Std prints("Done.")
 
-
-        my_tree? MyTree = `TWENTY
+        my_tree? .MyTree = `TWENTY
         Std prints("This tree is {my_tree}." {})
     
         :switch my_tree do:

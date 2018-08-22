@@ -194,7 +194,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         
         char c = token.text[0];
         
-        if (isdigit(c) || c == '.') {
+        if (isdigit(c)) {
             type = Node::UNSIGNED_NUMBER;
             back = LITERAL;
             fore = LITERAL;
@@ -240,7 +240,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 text = token.text.substr(1);
             }
         }
-        else if (isalpha(c) || c == '_' || c == '$' || c == '@') {
+        else if (isalpha(c) || c == '_' || c == '$' || c == '.') {
             if (token.text.back() == ':') {
                 type = Node::LABEL;
                 back = LABELING;

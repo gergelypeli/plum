@@ -6,24 +6,18 @@ public:
     std::vector<std::string> member_names;
     Function *initializer_function;
     Function *finalizer_function;
+    std::string prefix;
     //BaseRole *base_role;
 
     SingletonType(std::string name)
         :Type(name, {}, singleton_metatype) {
         initializer_function = NULL;
         finalizer_function = NULL;
+        prefix = name + ".";
         //base_role = NULL;
     }
 
-    virtual Value *match(std::string name, Value *pivot) {
-        if (name != this->name)
-            return NULL;
-
-        if (pivot)
-            return NULL;
-            
-        TypeSpec result_ts = { this };
-        
+    virtual Value *matched(TypeSpec result_ts) {
         return make<TypeValue>(this, result_ts);
     }
 

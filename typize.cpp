@@ -22,7 +22,17 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
                 break;
         }
     }
+    else if (name[0] == '.' && isupper(name[1])) {
+        // Local type
+        for (Scope *s = in_scope; s; s = s->outer_scope) {
+            if (s->type == DATA_SCOPE) {
+                value = s->lookup(name.substr(1), pivot);
+                break;
+            }
+        }
+    }
     else if (isupper(name[0])) {
+        // Global type
         for (Scope *s = in_scope->get_module_scope(); s; s = s->outer_scope) {
             value = s->lookup(name, pivot);
         
@@ -31,6 +41,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
         }
     }
     else {
+        // Local variable
         for (Scope *s = in_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
             value = s->lookup(name, pivot);
         

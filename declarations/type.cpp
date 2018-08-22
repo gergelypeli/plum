@@ -8,12 +8,14 @@ typedef std::vector<Type *> Metatypes;
 class Type: public Declaration {
 public:
     std::string name;
+    std::string prefix;
     Metatypes param_metatypes;
     DataScope *inner_scope;  // Will be owned by the outer scope
     Type *upper_type;
     
     Type(std::string n, Metatypes pmts, Type *ut) {
         name = n;
+        prefix = n + ".";
         param_metatypes = pmts;
         upper_type = ut;
         inner_scope = NULL;
@@ -25,6 +27,7 @@ public:
     
     virtual void set_name(std::string n) {
         name = n;
+        prefix = n + ".";
     }
     
     virtual void set_outer_scope(Scope *os) {
@@ -53,10 +56,28 @@ public:
     virtual DataScope *get_inner_scope() {
         return inner_scope;
     }
+
+    virtual Value *matched(TypeSpec result_ts) {
+        return make<TypeValue>(upper_type, result_ts);
+    }
     
     virtual Value *match(std::string name, Value *pivot) {
-        if (name != this->name)
+        //std::cerr << "Matching " << name << " to type " << this->name << "\n";
+        
+        if (name != this->name) {
+            //std::cerr << "Rematching " << name << " to prefix " << this->prefix << "\n";
+            
+            if (deprefix(name, prefix)) {
+                //std::cerr << "Entering explicit scope " << prefix << "\n";
+                
+                Scope *s = get_inner_scope();
+                
+                if (s)
+                    return s->lookup(name, pivot);
+            }
+                
             return NULL;
+        }
 
         TSs tss;
         unsigned pc = get_parameter_count();
@@ -113,7 +134,7 @@ public:
             result_ts.insert(result_ts.end(), ts.begin(), ts.end());
         }
 
-        return make<TypeValue>(upper_type, result_ts);
+        return matched(result_ts);
     }
 
     virtual void allocate() {

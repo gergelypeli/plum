@@ -13,6 +13,20 @@ inline bool desuffix(std::string &value, std::string const &ending)
 }
 
 
+inline bool deprefix(std::string &value, std::string const &beginning)
+{
+    if (beginning.size() > value.size())
+        return false;
+        
+    if (!std::equal(beginning.begin(), beginning.end(), value.begin()))
+        return false;
+        
+    value = value.substr(beginning.size());
+    std::cerr << "Deprefixed " << beginning << " into " << value << "\n";
+    return true;
+}
+
+
 unsigned stack_size(unsigned size) {
     return (size + 7) & ~7;
 }

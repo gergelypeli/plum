@@ -115,7 +115,7 @@ std::vector<Token> tokenize(std::string buffer) {
             
             continue;
         }
-        else if (isdigit(c) || c == '.') {
+        else if (isdigit(c)) {  // .1 is not a valid floating point constant
             // For the sake of floating point numbers, include a plus or minus sign following
             // a letter E if that was the first letter in the token.
             int letter_count = 0;
