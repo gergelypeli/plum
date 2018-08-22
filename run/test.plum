@@ -3,6 +3,18 @@
 #2
 #wtf? 2
 
+
+Myint? :Integer bytes: 8 is_unsigned: `false
+Mybyte? :Integer bytes: 1 is_unsigned: `false
+Myenum? :Enumeration
+    FOO, BAR, BAZ
+MyTree? :Treenumeration
+    ONE { TEN, ELEVEN, TWELVE },
+    TWO { TWENTY },
+    THREE,
+    FOUR
+
+
 Pair? :Record as:
     first? Integer
     second? Integer
@@ -85,14 +97,14 @@ XStringiterator? :Record as:
 
 
 Base? :Class as:
-    Type? :Enumeration
-        NICE, UGLY
+    #Type? :Enumeration
+    #    NICE, UGLY
         
-    type? Type
+    #type? Base.Type
     base_value? Integer
     
     base_init? :Initializer as:
-        $ type = `NICE
+        #$ type = `NICE
         $ base_value = 100
         Std prints("The base is initialized.")
     
@@ -225,7 +237,6 @@ Main? :Singleton as:
     
         :if d != 0 then: Std prints("Yes, d is nonzero.")
 
-        Myint? :Integer bytes: 8 is_unsigned: `false
         myvar? Myint = 0
     
         e? = +5_000_000_000
@@ -243,7 +254,6 @@ Main? :Singleton as:
         i? = 0b_0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100_1101_1110_1111_0000
         Std prints("Aaaaaaaaand finally {i}" {})
     
-        Mybyte? :Integer bytes: 1 is_unsigned: `false
         mybyte? Mybyte = -128
         Std prints("Mybyte is {mybyte}" {})
     
@@ -361,8 +371,6 @@ Main? :Singleton as:
 
 
     test_enums? :Function as:
-        Myenum? :Enumeration
-            FOO, BAR, BAZ
 
         fbb? Myenum = `BAR
         :if fbb == `FOO then: Std prints("fbb is FOO") else: Std prints("fbb is not FOO")
@@ -439,11 +447,6 @@ Main? :Singleton as:
 
         Std prints("Done.")
 
-        MyTree? :Treenumeration
-            ONE { TEN, ELEVEN, TWELVE },
-            TWO { TWENTY },
-            THREE,
-            FOUR
 
         my_tree? MyTree = `TWENTY
         Std prints("This tree is {my_tree}." {})

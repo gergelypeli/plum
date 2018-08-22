@@ -2,7 +2,7 @@
 // Matching
 
 Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
-    Scope *inner_scope = match[0][0]->get_inner_scope(match);
+    Scope *inner_scope = match[0][0]->get_inner_scope();
     if (!inner_scope)
         return NULL;
 

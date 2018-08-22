@@ -13,11 +13,30 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
     //std::cerr << "Looking up  " << get_typespec(pivot) << " " << name << " definition.\n";
     Value *value = NULL;
     
-    for (Scope *s = in_scope; s; s = s->outer_scope) {
-        value = s->lookup(name, pivot);
+    if (name[0] == ':') {
+        // Controls now can be defined both in builtins and some controls
+        for (Scope *s = in_scope; s; s = s->outer_scope) {
+            value = s->lookup(name, pivot);
         
-        if (value)
-            break;
+            if (value)
+                break;
+        }
+    }
+    else if (isupper(name[0])) {
+        for (Scope *s = in_scope->get_module_scope(); s; s = s->outer_scope) {
+            value = s->lookup(name, pivot);
+        
+            if (value)
+                break;
+        }
+    }
+    else {
+        for (Scope *s = in_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
+            value = s->lookup(name, pivot);
+        
+            if (value)
+                break;
+        }
     }
 
     if (!value) {

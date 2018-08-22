@@ -47,6 +47,8 @@ public:
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
+        //std::cerr << "Scope lookup among " << contents.size() << " declarations.\n";
+        
         for (int i = contents.size() - 1; i >= 0; i--) {
             Value *v = contents[i]->match(name, pivot);
             

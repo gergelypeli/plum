@@ -150,7 +150,7 @@ public:
         if (outer_scope)
             inner_scope->set_outer_scope(outer_scope);
 
-        inner_scope->set_meta_scope(singleton_metatype->get_inner_scope(TypeMatch()));
+        inner_scope->set_meta_scope(singleton_metatype->get_inner_scope());
 
         //Allocation vt_offset = is->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer
         //if (vt_offset.bytes != CLASS_VT_OFFSET)  // sanity check

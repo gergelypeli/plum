@@ -34,6 +34,7 @@ public:
                 return NULL;
         }
         else {
+            //std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
             if (typematch(pivot_ts, pivot, match))
                 return matched(pivot, match);
             else {

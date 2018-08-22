@@ -44,7 +44,7 @@ public:
     Value *lookup_partinitializer(std::string name, Value *pivot);
     Value *lookup_matcher(std::string name, Value *pivot);
     Value *lookup_inner(std::string name, Value *pivot);
-    DataScope *get_inner_scope();
+    //DataScope *get_inner_scope();
     void init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64);
 };
 
@@ -241,7 +241,6 @@ TreenumerationType *errno_exception_type = NULL;
 InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;
 InterfaceType *iterable_type = NULL;
-
 
 TypeSpec HYPERTYPE_TS;
 TypeSpec NO_TS;

@@ -260,8 +260,8 @@ public:
         x64->runtime->call_sysv(label);
     }
 
-    DataScope *get_inner_scope(TypeMatch tm) {
-        return integer_metatype->get_inner_scope(tm);
+    DataScope *get_inner_scope() {
+        return integer_metatype->get_inner_scope();
     }
 };
 
@@ -270,7 +270,7 @@ class BooleanType: public BasicType {
 public:
     BooleanType(std::string n, unsigned s)
         :BasicType(n, s, true) {
-        make_inner_scope(TypeSpec { this });
+        //make_inner_scope(TypeSpec { this });
     }
 
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
@@ -300,7 +300,7 @@ class CharacterType: public BasicType {
 public:
     CharacterType(std::string n, unsigned s)
         :BasicType(n, s, true) {
-        make_inner_scope(TypeSpec { this });
+        //make_inner_scope(TypeSpec { this });
     }
 
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
@@ -421,8 +421,8 @@ public:
         return NULL;
     }
     
-    DataScope *get_inner_scope(TypeMatch tm) {
-        return enumeration_metatype->get_inner_scope(tm);
+    DataScope *get_inner_scope() {
+        return enumeration_metatype->get_inner_scope();
     }
 
     virtual Label get_stringifications_label(X64 *x64) {
@@ -491,8 +491,8 @@ public:
         return NULL;
     }
     
-    DataScope *get_inner_scope(TypeMatch tm) {
-        return treenumeration_metatype->get_inner_scope(tm);
+    DataScope *get_inner_scope() {
+        return treenumeration_metatype->get_inner_scope();
     }
 
     virtual Label get_parents_label(X64 *x64) {

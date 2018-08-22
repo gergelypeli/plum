@@ -50,6 +50,10 @@ public:
         return inner_scope;
     }
     
+    virtual DataScope *get_inner_scope() {
+        return inner_scope;
+    }
+    
     virtual Value *match(std::string name, Value *pivot) {
         if (name != this->name)
             return NULL;
@@ -231,18 +235,16 @@ public:
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
-        Scope *scope = get_inner_scope(tm);
+        Scope *scope = get_inner_scope();
         
-        if (scope)
+        if (scope) {
+            //std::cerr << "Type inner lookup in " << name << ".\n";
             return scope->lookup(n, v);
+        }
         
         return NULL;
     }
 
-    virtual DataScope *get_inner_scope(TypeMatch tm) {
-        return inner_scope;
-    }
-    
     virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         throw INTERNAL_ERROR;
     }
@@ -381,9 +383,9 @@ public:
         return tm[1].lookup_inner(n, v);
     }
 
-    virtual DataScope *get_inner_scope(TypeMatch tm) {
-        return tm[1].get_inner_scope();
-    }
+    //virtual DataScope *get_inner_scope(TypeMatch tm) {
+    //    return tm[1].get_inner_scope();
+    //}
 };
 
 
@@ -485,6 +487,7 @@ public:
     }
 
     virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
+        // TODO: not used now
         if (n == "create from")
             return make<CreateValue>(pivot, tm);
         else

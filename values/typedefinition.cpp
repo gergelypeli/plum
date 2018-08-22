@@ -275,7 +275,7 @@ public:
 
         setup_inner(record_type, rts);
         
-        inner_scope->set_meta_scope(record_metatype->get_inner_scope(TypeMatch()));
+        inner_scope->set_meta_scope(record_metatype->get_inner_scope());
 
         defer_as(kwargs);
             
@@ -425,10 +425,12 @@ class RoleDefinitionValue: public Value {
 public:
     std::unique_ptr<Value> value;
     TypeSpec role_ts, pivot_ts;
+    DataScope *original_scope;
     Role *role;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm)
         :Value(HYPERTYPE_TS) {
+        original_scope = NULL;
         role = NULL;
     }
 
@@ -447,11 +449,14 @@ public:
         }
 
         role_ts = ptr_cast<TypeValue>(v)->represented_ts;
+        ClassType *ct = ptr_cast<ClassType>(role_ts[0]);
         
-        if (!ptr_cast<ClassType>(role_ts[0])) {
+        if (!ct) {
             std::cerr << "Class type name expected!\n";
             return false;
         }
+        
+        original_scope = ct->get_inner_scope();
 
         pivot_ts = scope->pivot_type_hint();
         value.reset(v);
@@ -475,7 +480,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        role = new Role(name, pivot_ts, role_ts, role_ts.get_inner_scope());
+        role = new Role(name, pivot_ts, role_ts, original_scope);
         return role;
     }
 };
@@ -488,7 +493,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        role = new BaseRole(name, pivot_ts, role_ts, role_ts.get_inner_scope());
+        role = new BaseRole(name, pivot_ts, role_ts, original_scope);
         return role;
     }
 };

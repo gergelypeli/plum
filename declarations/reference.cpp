@@ -159,6 +159,12 @@ public:
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+        //std::cerr << "Ref inner lookup " << tm << " " << n << ".\n";
+        Value *value = Type::lookup_inner(tm, n, v);
+        
+        if (value)
+            return value;
+
         return tm[1].lookup_inner(n, v);
     }
 
@@ -174,9 +180,9 @@ public:
         return tm[1].lookup_matcher(name, pivot);
     }
 
-    virtual DataScope *get_inner_scope(TypeMatch tm) {
-        return tm[1].get_inner_scope();
-    }
+    //virtual DataScope *get_inner_scope(TypeMatch tm) {
+    //    return tm[1].get_inner_scope();
+    //}
 
     virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return tm[1].get_virtual_table();

@@ -487,7 +487,7 @@ void define_float() {
         { "assign_slash", ASSIGN_DIVIDE },
     };
 
-    Scope *float_scope = float_type->get_inner_scope(TypeMatch());
+    Scope *float_scope = float_type->get_inner_scope();
 
     for (auto &item : float_rvalue_operations)
         float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_TS, item.operation));
@@ -498,6 +498,10 @@ void define_float() {
     implement(float_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", FLOAT_TS)
     });
+    
+    float_scope->add(new ImportedFloatFunction("log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
+    float_scope->add(new ImportedFloatFunction("exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));
+    float_scope->add(new ImportedFloatFunction("pow", "binary_exponent", FLOAT_TS, FLOAT_TS, FLOAT_TS));
 }
 
 
@@ -732,7 +736,7 @@ void define_option() {
 
 
 void define_array() {
-    Scope *array_scope = array_type->get_inner_scope(TypeMatch());
+    Scope *array_scope = array_type->get_inner_scope();
 
     array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
@@ -758,7 +762,7 @@ void define_array() {
 
 
 void define_circularray() {
-    Scope *circularray_scope = circularray_type->get_inner_scope(TypeMatch());
+    Scope *circularray_scope = circularray_type->get_inner_scope();
 
     circularray_scope->add(new TemplateIdentifier<CircularrayLengthValue>("length", ANY_CIRCULARRAY_REF_TS));
     //circularray_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
@@ -783,7 +787,7 @@ void define_circularray() {
 
 
 void define_rbtree() {
-    Scope *rbtree_scope = rbtree_type->get_inner_scope(TypeMatch());
+    Scope *rbtree_scope = rbtree_type->get_inner_scope();
 
     rbtree_scope->add(new TemplateIdentifier<RbtreeLengthValue>("length", ANY_RBTREE_REF_TS));
     //array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REF_TS, TWEAK));
@@ -985,15 +989,12 @@ void builtin_runtime(Scope *root_scope) {
 
     st->complete_type();
 
-    root_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
-    root_scope->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
-    root_scope->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
+    array_type->get_inner_scope()->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
+    string_type->get_inner_scope()->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
+    slice_type->get_inner_scope()->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
 
     //root_scope->add(new SysvFunction("stringify_integer", "stringify", INTEGER_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
     
-    root_scope->add(new ImportedFloatFunction("log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
-    root_scope->add(new ImportedFloatFunction("exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));
-    root_scope->add(new ImportedFloatFunction("pow", "binary_exponent", FLOAT_TS, FLOAT_TS, FLOAT_TS));
 }
 
 
@@ -1024,7 +1025,7 @@ Scope *init_builtins() {
     define_float();
         
     // Character operations
-    Scope *char_scope = character_type->get_inner_scope(TypeMatch());
+    Scope *char_scope = character_type->make_inner_scope(CHARACTER_TS);
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
     char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", CHARACTER_TS, COMPARE));
     implement(char_scope, STREAMIFIABLE_TS, "sable", {
@@ -1032,17 +1033,15 @@ Scope *init_builtins() {
     });
     
     // Boolean operations
-    Scope *bool_scope = boolean_type->get_inner_scope(TypeMatch());
+    Scope *bool_scope = boolean_type->make_inner_scope(BOOLEAN_TS);
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("compare", BOOLEAN_TS, COMPARE));
+    bool_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", BOOLEAN_TS));
+    bool_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and", BOOLEAN_TS));
+    bool_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", BOOLEAN_TS));
     implement(bool_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", BOOLEAN_TS)
     });
-
-    // Logical operations, unscoped
-    root_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", BOOLEAN_TS));
-    root_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and", BOOLEAN_TS));
-    root_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", ANY_TS));
 
     // Enum operations
     Scope *enum_scope = enumeration_metatype->make_inner_scope(ANY_TS);
@@ -1064,17 +1063,19 @@ Scope *init_builtins() {
     Scope *record_scope = record_metatype->make_inner_scope(ANY_LVALUE_TS);
     record_scope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
 
-    // Reference operations, unscoped
+    // Reference operations
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
-    root_scope->add(new ReferenceOperation("assign other", ANYID_REF_LVALUE_TS, ASSIGN));
-    root_scope->add(new ReferenceOperation("is_equal", ANYID_REF_TS, EQUAL));
-    root_scope->add(new ReferenceOperation("not_equal", ANYID_REF_TS, NOT_EQUAL));
-    root_scope->add(new TemplateIdentifier<GenericStreamificationValue>("<streamify>", ANYID_REF_TS));
+    Scope *ref_scope = ref_type->make_inner_scope(ANYID_REF_TS);
+    ref_scope->add(new ReferenceOperation("assign other", ANYID_REF_LVALUE_TS, ASSIGN));
+    ref_scope->add(new ReferenceOperation("is_equal", ANYID_REF_TS, EQUAL));
+    ref_scope->add(new ReferenceOperation("not_equal", ANYID_REF_TS, NOT_EQUAL));
+    ref_scope->add(new TemplateIdentifier<GenericStreamificationValue>("<streamify>", ANYID_REF_TS));
 
     typedef TemplateOperation<WeakreferenceOperationValue> WeakreferenceOperation;
-    root_scope->add(new WeakreferenceOperation("assign other", ANYID_WEAKREF_LVALUE_TS, ASSIGN));
-    root_scope->add(new WeakreferenceOperation("is_equal", ANYID_WEAKREF_TS, EQUAL));
-    root_scope->add(new WeakreferenceOperation("not_equal", ANYID_WEAKREF_TS, NOT_EQUAL));
+    Scope *weakref_scope = weakref_type->make_inner_scope(ANYID_WEAKREF_TS);
+    weakref_scope->add(new WeakreferenceOperation("assign other", ANYID_WEAKREF_LVALUE_TS, ASSIGN));
+    weakref_scope->add(new WeakreferenceOperation("is_equal", ANYID_WEAKREF_TS, EQUAL));
+    weakref_scope->add(new WeakreferenceOperation("not_equal", ANYID_WEAKREF_TS, NOT_EQUAL));
 
     // Array operations
     define_array();
@@ -1086,10 +1087,12 @@ Scope *init_builtins() {
     define_rbtree();
     
     // Unpacking
-    root_scope->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTILVALUE_TS));
+    Scope *mls = multilvalue_type->make_inner_scope(MULTILVALUE_TS);
+    mls->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTILVALUE_TS));
 
     // Initializing
-    root_scope->add(new TemplateIdentifier<CreateValue>("assign other", ANY_UNINITIALIZED_TS));
+    Scope *uns = uninitialized_type->make_inner_scope(ANY_UNINITIALIZED_TS);
+    uns->add(new TemplateIdentifier<CreateValue>("assign other", ANY_UNINITIALIZED_TS));
     
     // Builtin controls, unscoped
     root_scope->add(new TemplateOperation<IfValue>(":if", NO_TS, TWEAK));

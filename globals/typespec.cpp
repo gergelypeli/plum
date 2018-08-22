@@ -252,9 +252,9 @@ Value *TypeSpec::lookup_inner(std::string name, Value *pivot) {
 }
 
 
-DataScope *TypeSpec::get_inner_scope() {
-    return at(0)->get_inner_scope(match());
-}
+//DataScope *TypeSpec::get_inner_scope() {
+//    return at(0)->get_inner_scope(match());
+//}
 
 
 void TypeSpec::init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
