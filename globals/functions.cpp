@@ -205,8 +205,12 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
         return false;
     }
 
-    if (code_scope && !code_scope->is_taken)
-        throw INTERNAL_ERROR;
+    if (code_scope) {
+        if (!code_scope->is_taken)
+            throw INTERNAL_ERROR;
+
+        code_scope->leave();
+    }
 
     target->reset(v);
     return true;

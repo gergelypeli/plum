@@ -237,6 +237,12 @@ public:
         }
     }
     
+    virtual bool complete_role() {
+        inner_scope->leave();
+        
+        return true;
+    }
+    
     virtual Value *matched(Value *cpivot, TypeMatch &match) {
         return make<RoleValue>(this, cpivot, match);
     }

@@ -95,6 +95,8 @@ void import(std::string module_name, std::string file_name, Scope *root_scope) {
         ok = value_root->check_statement(expr_root.get());
     }
 
+    module_scope->leave();
+
     // Must complete the type first
     ok = ok && module_type->complete_type();
 
@@ -180,8 +182,9 @@ int main(int argc, char **argv) {
     Scope *root_scope = init_builtins();
     
     import("main", input, root_scope);
-    
     order_modules("main", root_scope);
+
+    root_scope->leave();
     
     // Allocate builtins and modules
     root_scope->allocate();

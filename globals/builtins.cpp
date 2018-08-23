@@ -402,6 +402,7 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
         inner_scope->add(d);
     
     implementation->complete_type();
+    inner_scope->leave();
     implementor_scope->add(implementation);
 }
 
@@ -518,6 +519,7 @@ void define_interfaces() {
     );
     sis->add(sf);
     streamifiable_type->complete_type();
+    sis->leave();
     
     // Iterable interface
     DataScope *jis = iterable_type->make_inner_scope(ANY_ITERABLE_TS);
@@ -531,6 +533,7 @@ void define_interfaces() {
     );
     jis->add(xf);
     iterable_type->complete_type();
+    jis->leave();
 
     // Iterator interface
     DataScope *iis = iterator_type->make_inner_scope(ANY_ITERATOR_TS);
@@ -550,7 +553,9 @@ void define_interfaces() {
         new Identity("iter", ANY_TS)
     });
     iterator_type->complete_type();
+    iis->leave();
 }
+
 
 template <typename NextValue>
 void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec interface_ts) {
@@ -568,6 +573,7 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
     });
     
     iter_type->complete_type();
+    aiis->leave();
 }
 
 
@@ -589,6 +595,7 @@ void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
     });
     
     iter_type->complete_type();
+    aiis->leave();
 }
 
 
@@ -614,6 +621,7 @@ void define_iterators() {
         implement(cis, INTEGER_ITERATOR_TS, "iter", { next_fn });
         
         counter_type->complete_type();
+        cis->leave();
     }
 
     // Item type for itemized iteration
@@ -624,6 +632,7 @@ void define_iterators() {
     itis->add(new Variable("value", ANY_ANY2_ITEM_TS, SAME2_LVALUE_TS));
     
     item_type->complete_type();
+    itis->leave();
     
     TypeSpec INTEGER_SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, integer_type, same_type };
 

@@ -9,6 +9,7 @@ public:
     std::vector<std::unique_ptr<Declaration>> contents;
     Allocation size;
     bool is_allocated;  // for sanity checks
+    bool is_left;
     ScopeType type;
     
     Scope(ScopeType st)
@@ -16,11 +17,17 @@ public:
         type = st;
         size = Allocation { 0, 0, 0, 0 };
         is_allocated = false;
+        is_left = false;
     }
     
     virtual void add(Declaration *decl) {
         if (!decl)
             throw INTERNAL_ERROR;
+            
+        if (is_left) {
+            std::cerr << "Scope already left!\n";
+            throw INTERNAL_ERROR;
+        }
             
         decl->set_outer_scope(this);
         contents.push_back(std::unique_ptr<Declaration>(decl));
@@ -36,6 +43,21 @@ public:
         else {
             std::cerr << "Not the last declaration to remove!\n";
             throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual void outer_scope_left() {
+        if (!is_left) {
+            std::cerr << "Scope not left properly!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+    
+    virtual void leave() {
+        is_left = true;
+        
+        for (int i = contents.size() - 1; i >= 0; i--) {
+            contents[i]->outer_scope_left();
         }
     }
     
@@ -547,7 +569,10 @@ public:
     
     Scope *add_body_scope() {
         body_scope = new CodeScope;
+        bool hack = is_left;  // See FunctionDefinitionValue
+        is_left = false;
         add(body_scope);
+        is_left = hack;
         return body_scope;
     }
     

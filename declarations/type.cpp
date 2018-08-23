@@ -28,6 +28,9 @@ public:
     virtual void set_name(std::string n) {
         name = n;
         prefix = n + ".";
+        
+        if (inner_scope)
+            inner_scope->set_name(n);
     }
     
     virtual void set_outer_scope(Scope *os) {

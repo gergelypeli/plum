@@ -13,7 +13,22 @@ public:
             
             if (f) {
                 member_functions.push_back(f);
+                continue;
             }
+            
+            FunctionScope *fs = ptr_cast<FunctionScope>(c.get());
+            
+            if (fs)
+                continue;
+
+            ImplementationType *it = ptr_cast<ImplementationType>(c.get());
+            
+            if (it)
+                continue;
+                
+            std::cerr << "Not a function or implementation in an interface!\n";
+            throw INTERNAL_ERROR;
+            return false;
         }
         
         //std::cerr << "Interface " << name << " has " << member_functions.size() << " member functions.\n";
@@ -81,6 +96,41 @@ public:
     }
 
     virtual bool complete_type() {
+        // NOTE: this is kinda weird, but correct.
+        // If a parametric type implements an interface with the same type parameter
+        // used, we can't concretize that here yet. So the fake_match, despite being
+        // a replacement, may still have Same types. When getting the argument types
+        // from the interface definition, the substitution will replace Same types
+        // with Same types. But the functions in the implementation will be similarly
+        // parametrized, so the comparison should compare Same to Same, and succeed.
+        InterfaceType *interface_type = ptr_cast<InterfaceType>(interface_ts[0]);
+        TypeMatch iftm = interface_ts.match();
+        TypeMatch empty_match;
+
+        for (auto &c : inner_scope->contents) {
+            Function *f = ptr_cast<Function>(c.get());
+            
+            if (!f)
+                continue;  // Builtin types have a range of classes to implement stuff
+            
+            //std::cerr << "Checking imp fun: " << f->name << "\n";
+            //std::cerr << "XXX " << interface_type->member_functions.size() << "\n";
+            
+            bool found = false;
+            
+            for (Function *iff : interface_type->member_functions) {
+                if (f->does_implement(empty_match, iff, iftm)) {
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                std::cerr << "Invalid implementation of function: " << interface_type->name << "." << f->name << "!\n";
+                return false;
+            }
+        }
+
         // FIXME: check order!
         
         for (auto &c : inner_scope->contents) {

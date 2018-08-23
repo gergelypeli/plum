@@ -133,6 +133,13 @@ public:
 
         Value *value = typize(expr, scope);
         
+        // This is just a check for explicitly scoped declarations
+        //DeclarationValue *dv = ptr_cast<DeclarationValue>(value);
+        //Declaration *d = declaration_get_decl(dv);
+        
+        //if (d->outer_scope != scope)
+        //    std::cerr << "Hah, a declaration wandered away!\n";
+        
         statements.push_back(std::unique_ptr<Value>(value));
         return true;
     }

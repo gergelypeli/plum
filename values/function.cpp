@@ -63,6 +63,8 @@ public:
             rs->add(decl);
         }
 
+        rs->leave();
+
         Scope *ss = fn_scope->add_self_scope();
         
         if (scope->type == DATA_SCOPE) {
@@ -106,6 +108,8 @@ public:
                 }
             }
         }
+
+        ss->leave();
 
         // TODO: why do we store this in the fn scope?
         Expr *e = kwargs["may"].get();
@@ -156,6 +160,8 @@ public:
             }
         }
         
+        hs->leave();
+        
         deferred_body_expr = kwargs["as"].get();
         std::cerr << "Deferring definition of function body.\n";
 
@@ -184,6 +190,13 @@ public:
         }
         
         // TODO: warn for invalid keywords!
+        
+        // Yes, we leave this scope without adding the body scope. This is because
+        // declarations with excplit scope put the declaration somewhere else than the
+        // definition value, and the outer scope is left before the function definition
+        // is completed. To make this case work, we please the outer scope with leaving
+        // early, and don't mind entering the body scope later anyway.
+        fn_scope->leave();
         
         return true;
     }
@@ -256,6 +269,8 @@ public:
                 }
             }
         }
+
+        bs->leave();
 
         return true;
     }

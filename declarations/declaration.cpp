@@ -6,7 +6,7 @@ public:
     Scope *outer_scope;
     Label finalization_label;
     bool need_finalization_label;
-
+    
     Declaration() {
         outer_scope = NULL;
         need_finalization_label = false;
@@ -21,6 +21,10 @@ public:
             throw INTERNAL_ERROR;
             
         outer_scope = os;
+    }
+
+    virtual void outer_scope_left() {
+        // Nothing to do here
     }
 
     virtual bool is_called(std::string name) {

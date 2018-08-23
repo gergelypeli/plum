@@ -10,6 +10,8 @@ public:
     }
 
     virtual bool complete_type() {
+        inner_scope->add(make_record_compare());
+
         for (auto &c : inner_scope->contents) {
             Variable *v = ptr_cast<Variable>(c.get());
             

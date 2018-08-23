@@ -24,6 +24,7 @@ class FloatValue;
 class FunctionCallValue;
 class FunctionReturnValue;
 class GenericValue;
+class GenericStreamificationValue;
 class ImplementationConversionValue;
 class ImplementationDefinitionValue;
 class InitializerEqualityMatcherValue;

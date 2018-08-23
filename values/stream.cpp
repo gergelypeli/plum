@@ -233,5 +233,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     ret = ret->lookup_inner("realloc");  // FIXME: missing check, but at least no arguments
     interpolation->add_statement(ret);
     
+    code_scope->leave();
+    
     return make<CodeScopeValue>(interpolation, code_scope);
 }

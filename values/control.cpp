@@ -432,6 +432,8 @@ public:
         
         this->next.reset(next);
 
+        next_try_scope->leave();
+
         ArgInfos infos = {
             { "each", &each_ts, scope, &each },
             { "do", &VOID_CODE_TS, scope, &body }
@@ -541,6 +543,9 @@ public:
         
         if (!check_kwargs(kwargs, infos))
             return false;
+
+        switch_scope->leave();
+        eval_scope->leave();
 
         return true;
     }
@@ -660,6 +665,8 @@ public:
         if (match->ts != VOID_TS)
             match.reset(make<VoidConversionValue>(match.release()));
 
+        match_try_scope->leave();
+
         ArgInfos infos = {
             { "then", &VOID_CODE_TS, then_scope, &then_branch },
             { "else", &VOID_CODE_TS, scope, &else_branch },
@@ -667,6 +674,8 @@ public:
         
         if (!check_kwargs(kwargs, infos))
             return false;
+
+        then_scope->leave();
 
         return true;
     }
@@ -847,6 +856,8 @@ public:
         
         if (kwargs.size() == 0)
             context_ts = body->ts.rvalue();
+
+        try_scope->leave();
         
         if (!setup_yieldable(scope))
             return false;
@@ -868,6 +879,9 @@ public:
         
         if (!check_kwargs(kwargs, infos))
             return false;
+
+        switch_scope->leave();
+        eval_scope->leave();
 
         return true;
     }
@@ -1033,6 +1047,8 @@ public:
         
         if (!check_kwargs(kwargs, infos))
             return false;
+        
+        eval_scope->leave();
         
         return true;
     }
