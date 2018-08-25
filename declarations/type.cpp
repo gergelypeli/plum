@@ -10,7 +10,7 @@ public:
     std::string name;
     std::string prefix;
     Metatypes param_metatypes;
-    DataScope *inner_scope;  // Will be owned by the outer scope
+    std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
     Type *upper_type;
     
     Type(std::string n, Metatypes pmts, Type *ut) {
@@ -18,7 +18,7 @@ public:
         prefix = n + ".";
         param_metatypes = pmts;
         upper_type = ut;
-        inner_scope = NULL;
+        //inner_scope = NULL;
     }
     
     virtual unsigned get_parameter_count() {
@@ -47,17 +47,23 @@ public:
         if (inner_scope)
             throw INTERNAL_ERROR;
             
-        inner_scope = new DataScope;
+        inner_scope.reset(new DataScope);
         inner_scope->set_pivot_type_hint(pts);
+        inner_scope->set_name(name);
         
         if (outer_scope)
             inner_scope->set_outer_scope(outer_scope);
             
-        return inner_scope;
+        return inner_scope.get();
     }
     
     virtual DataScope *get_inner_scope() {
-        return inner_scope;
+        return inner_scope.get();
+    }
+
+    virtual void outer_scope_left() {
+        if (inner_scope)
+            inner_scope->outer_scope_left();
     }
 
     virtual Value *matched(TypeSpec result_ts) {

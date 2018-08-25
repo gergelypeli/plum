@@ -95,13 +95,13 @@ void import(std::string module_name, std::string file_name, Scope *root_scope) {
         ok = value_root->check_statement(expr_root.get());
     }
 
-    module_scope->leave();
-
     // Must complete the type first
     ok = ok && module_type->complete_type();
 
     ok = ok && value_root->complete_definition();
     
+    module_scope->leave();
+
     if (!ok) {
         std::cerr << "Error compiling module " << module_name << "!\n";
         throw INTERNAL_ERROR;  // FIXME

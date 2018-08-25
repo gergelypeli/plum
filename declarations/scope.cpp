@@ -174,6 +174,7 @@ public:
     Scope *meta_scope;
     std::vector<VirtualEntry *> virtual_table;
     bool am_virtual_scope;
+    std::vector<DataScope *> export_scopes;
     
     DataScope()
         :Scope(DATA_SCOPE) {
@@ -206,6 +207,14 @@ public:
     }
 
     virtual Value *lookup(std::string name, Value *pivot) {
+        for (int i = export_scopes.size() - 1; i >= 0; i--) {
+            std::cerr << "Looking up in export scope #" << i << "\n";
+            Value *v = export_scopes[i]->lookup(name, pivot);
+            
+            if (v)
+                return v;
+        }
+            
         Value *value = Scope::lookup(name, pivot);
             
         if (!value && meta_scope)
@@ -254,6 +263,19 @@ public:
             throw INTERNAL_ERROR;
             
         return outer_scope->fully_qualify(name + "." + n);
+    }
+    
+    virtual void push_scope(DataScope *s) {
+        std::cerr << "Pushed export scope to " << name << "\n";
+        export_scopes.push_back(s);
+    }
+    
+    virtual void pop_scope(DataScope *s) {
+        if (export_scopes.back() != s)
+            throw INTERNAL_ERROR;
+            
+        std::cerr << "Popped export scope from " << name << "\n";
+        export_scopes.pop_back();
     }
 };
 
@@ -323,6 +345,36 @@ public:
 
     virtual SingletonScope *get_singleton_scope() {
         return this;
+    }
+};
+
+
+class ExportScope: public DataScope {
+public:
+    DataScope *target_scope;
+    
+    ExportScope(DataScope *ts)
+        :DataScope() {
+        target_scope = ts;
+        target_scope->push_scope(this);
+    }
+    
+    virtual void outer_scope_left() {
+        DataScope::outer_scope_left();
+        
+        target_scope->pop_scope(this);
+    }
+};
+
+
+class RootScope: public DataScope {
+public:
+    RootScope()
+        :DataScope() {
+    }
+    
+    virtual ModuleScope *get_module_scope() {
+        return NULL;
     }
 };
 

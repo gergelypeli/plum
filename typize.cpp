@@ -13,17 +13,15 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
     //std::cerr << "Looking up  " << get_typespec(pivot) << " " << name << " definition.\n";
     Value *value = NULL;
     
-    if (name[0] == ':') {
-        // Controls now can be defined both in builtins and some controls
-        for (Scope *s = in_scope; s; s = s->outer_scope) {
-            value = s->lookup(name, pivot);
-        
-            if (value)
-                break;
-        }
+    // Types are not pivot-scoped, but explicit scoped.
+    
+    if (in_scope == colon_scope) {
+        // Implicitly scoped identifier
+        std::cerr << "Looking up in Colon.\n";
+        value = in_scope->lookup(name, pivot);
     }
     else if (name[0] == '.' && isupper(name[1])) {
-        // Local type
+        // Local type, look up in enclosing data scope
         for (Scope *s = in_scope; s; s = s->outer_scope) {
             if (s->type == DATA_SCOPE) {
                 value = s->lookup(name.substr(1), pivot);
@@ -32,16 +30,20 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
         }
     }
     else if (isupper(name[0])) {
-        // Global type
-        for (Scope *s = in_scope->get_module_scope(); s; s = s->outer_scope) {
-            value = s->lookup(name, pivot);
+        // Global type, look up in module and root level
+        Scope *module_scope = in_scope->get_module_scope();
+        value = module_scope->lookup(name, pivot);
         
-            if (value)
-                break;
-        }
+        if (!value)
+            value = module_scope->outer_scope->lookup(name, pivot);
     }
-    else {
-        // Local variable
+    else if (pivot) {
+        // Pivoted value
+        std::cerr << "Looking up in inner scope.\n";
+        value = pivot->lookup_inner(name);
+    }
+    else if (islower(name[0]) || name[0] == '$' || name[0] == '<') {
+        // Local variable, look up in function body
         for (Scope *s = in_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
             value = s->lookup(name, pivot);
         
@@ -49,12 +51,9 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
                 break;
         }
     }
-
-    if (!value) {
-        if (pivot) {
-            //std::cerr << "Looking up in inner scopes, too.\n";
-            value = pivot->lookup_inner(name);
-        }
+    else {
+        std::cerr << "Sorry: " << name << "!\n";
+        throw INTERNAL_ERROR;
     }
 
     if (!value) {
@@ -252,7 +251,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw TYPE_ERROR;
     }
     else if (expr->type == Expr::CONTROL) {
-        std::string name = ":" + expr->text;
+        std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         //if (p)
         //    p->set_marker(marker);
@@ -269,8 +268,11 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
         }
+
+        //if (isupper(name[0]))
+        //    name = "Colon." + name;
         
-        value = lookup(name, NULL, scope, expr, scope, context);
+        value = lookup(name, NULL, colon_scope, expr, scope, context);
 
         if (!value)
             throw TYPE_ERROR;

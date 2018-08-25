@@ -229,6 +229,9 @@ Type *sliceindexiter_type = NULL;
 Type *sliceitemiter_type = NULL;
 Type *equalitymatcher_type = NULL;
 
+Type *colon_type = NULL;
+DataScope *colon_scope = NULL;
+
 TreenumerationType *iterator_done_exception_type = NULL;
 TreenumerationType *container_full_exception_type = NULL;
 TreenumerationType *container_empty_exception_type = NULL;
@@ -241,6 +244,7 @@ TreenumerationType *errno_exception_type = NULL;
 InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;
 InterfaceType *iterable_type = NULL;
+
 
 TypeSpec HYPERTYPE_TS;
 TypeSpec NO_TS;
@@ -298,6 +302,7 @@ TypeSpec STRING_TS;
 TypeSpec STRING_LVALUE_TS;
 TypeSpec STRING_ARRAY_REF_TS;
 TypeSpec ANY_SLICE_TS;
+TypeSpec BYTE_SLICE_TS;
 TypeSpec ANY_OPTION_TS;
 TypeSpec ANY_OPTION_LVALUE_TS;
 TypeSpec OPTIONSELECTOR_TS;
@@ -343,6 +348,7 @@ TypeSpec SAME_SLICEITEMITER_TS;
 TypeSpec ANY_ANY2_ITEM_TS;
 TypeSpec SAME_SAME2_ITEM_TS;
 TypeSpec INTEGER_SAME_ITEM_TS;
+TypeSpec COLON_TS;
 
 extern TreenumInput errno_treenum_input[];
 

@@ -267,7 +267,7 @@ public:
         if (pos != std::string::npos) {
             // Static call to inherited method
             
-            Scope *scope = inner_scope;
+            Scope *scope = inner_scope.get();
             
             if (!descend_into_explicit_scope(n, scope))  // Modifies both arguments
                 return NULL;

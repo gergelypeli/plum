@@ -94,15 +94,16 @@ public:
     
     virtual DataScope *make_inner_scope(TypeSpec pts) {
         // TODO: this is copied from Type, because we need a special scope type
-        inner_scope = new SingletonScope;
+        inner_scope.reset(new SingletonScope);
         inner_scope->set_pivot_type_hint(pts);
+        inner_scope->set_name(name);
         
         if (outer_scope)
             inner_scope->set_outer_scope(outer_scope);
 
         inner_scope->set_meta_scope(singleton_metatype->get_inner_scope());
 
-        return inner_scope;
+        return inner_scope.get();
     }
 
     virtual std::vector<std::string> get_member_names() {

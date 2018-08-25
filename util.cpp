@@ -22,7 +22,7 @@ inline bool deprefix(std::string &value, std::string const &beginning)
         return false;
         
     value = value.substr(beginning.size());
-    std::cerr << "Deprefixed " << beginning << " into " << value << "\n";
+    //std::cerr << "Deprefixed " << beginning << " into " << value << "\n";
     return true;
 }
 

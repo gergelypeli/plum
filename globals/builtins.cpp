@@ -5,44 +5,51 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(metatype_hypertype);
 
     // Phase 2: declare the metatypes
-    type_metatype = new TypeMetaType(":Type", NULL);
+    // Abstract metatypes can't be looked up, so their scope doesn't matter
+    type_metatype = new TypeMetaType("<Type>", NULL);
     root_scope->add(type_metatype);
 
-    value_metatype = new ValueMetaType(":Value", type_metatype);
+    value_metatype = new ValueMetaType("<Value>", type_metatype);
     root_scope->add(value_metatype);
 
-    identity_metatype = new IdentityMetaType(":Identity", type_metatype);
+    identity_metatype = new IdentityMetaType("<Identity>", type_metatype);
     root_scope->add(identity_metatype);
 
-    module_metatype = new ModuleMetaType("<:Module>", type_metatype);
+    module_metatype = new ModuleMetaType("<Module>", type_metatype);
     root_scope->add(module_metatype);
-    
-    singleton_metatype = new SingletonMetaType(":Singleton", type_metatype);
-    root_scope->add(singleton_metatype);
 
-    attribute_metatype = new AttributeMetaType(":Attribute", type_metatype);
+    attribute_metatype = new AttributeMetaType("<Attribute>", type_metatype);
     root_scope->add(attribute_metatype);
     
-    integer_metatype = new IntegerMetaType(":Integer", value_metatype);
-    root_scope->add(integer_metatype);
+    // Here comes a bit of a twist
+    singleton_metatype = new SingletonMetaType("Singleton", type_metatype);
+    colon_type = new SingletonType("Colon");
+    root_scope->add(colon_type);
+    colon_scope = colon_type->make_inner_scope({ colon_type });
+    
+    // User accessible metatypes go into the colon scope
+    colon_scope->add(singleton_metatype);
 
-    enumeration_metatype = new EnumerationMetaType(":Enumeration", value_metatype);
-    root_scope->add(enumeration_metatype);
+    integer_metatype = new IntegerMetaType("Integer", value_metatype);
+    colon_scope->add(integer_metatype);
 
-    treenumeration_metatype = new TreenumerationMetaType(":Treenumeration", value_metatype);
-    root_scope->add(treenumeration_metatype);
+    enumeration_metatype = new EnumerationMetaType("Enumeration", value_metatype);
+    colon_scope->add(enumeration_metatype);
 
-    record_metatype = new RecordMetaType(":Record", value_metatype);
-    root_scope->add(record_metatype);
+    treenumeration_metatype = new TreenumerationMetaType("Treenumeration", value_metatype);
+    colon_scope->add(treenumeration_metatype);
 
-    class_metatype = new ClassMetaType(":Class", identity_metatype);
-    root_scope->add(class_metatype);
+    record_metatype = new RecordMetaType("Record", value_metatype);
+    colon_scope->add(record_metatype);
 
-    interface_metatype = new InterfaceMetaType(":Interface", type_metatype);
-    root_scope->add(interface_metatype);
+    class_metatype = new ClassMetaType("Class", identity_metatype);
+    colon_scope->add(class_metatype);
 
-    implementation_metatype = new ImplementationMetaType(":Implementation", type_metatype);
-    root_scope->add(implementation_metatype);
+    interface_metatype = new InterfaceMetaType("Interface", type_metatype);
+    colon_scope->add(interface_metatype);
+
+    implementation_metatype = new ImplementationMetaType("Implementation", type_metatype);
+    colon_scope->add(implementation_metatype);
 
     // Phase 3: declare wildcard types, so subsequent types can have an inner scope
     any_type = new AnyType("<Any>", {}, value_metatype);
@@ -352,6 +359,7 @@ void builtin_types(Scope *root_scope) {
     STRING_LVALUE_TS = { lvalue_type, string_type };
     STRING_ARRAY_REF_TS = { ref_type, array_type, string_type };
     ANY_SLICE_TS = { slice_type, any_type };
+    BYTE_SLICE_TS = { slice_type, unsigned_integer8_type };
     ANY_OPTION_TS = { option_type, any_type };
     ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
     ANY_STACK_REF_TS = { ref_type, stack_type, any_type };
@@ -390,6 +398,7 @@ void builtin_types(Scope *root_scope) {
     SAME_SLICEELEMITER_TS = { sliceelemiter_type, same_type };
     SAME_SLICEINDEXITER_TS = { sliceindexiter_type, same_type };
     SAME_SLICEITEMITER_TS = { sliceitemiter_type, same_type };
+    COLON_TS = { colon_type };
 }
 
 
@@ -446,20 +455,22 @@ void define_integers() {
         { "assign_shift_right", ASSIGN_SHIFT_RIGHT }
     };
 
-    Scope *integer_scope = integer_metatype->make_inner_scope(ANY_TS);
+    Scope *integer_metascope = integer_metatype->make_inner_scope(ANY_TS);
     
     for (auto &item : integer_rvalue_operations)
-        integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_TS, item.operation));
+        integer_metascope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_TS, item.operation));
 
     for (auto &item : integer_lvalue_operations)
-        integer_scope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
+        integer_metascope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
 
-    implement(integer_scope, STREAMIFIABLE_TS, "sable", {
+    implement(integer_metascope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
     });
     
-    integer_scope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
-    integer_scope->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
+    integer_metascope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
+    integer_metascope->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
+    
+    integer_metascope->leave();
 }
 
 
@@ -503,6 +514,8 @@ void define_float() {
     float_scope->add(new ImportedFloatFunction("log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
     float_scope->add(new ImportedFloatFunction("exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));
     float_scope->add(new ImportedFloatFunction("pow", "binary_exponent", FLOAT_TS, FLOAT_TS, FLOAT_TS));
+
+    float_scope->leave();
 }
 
 
@@ -681,13 +694,15 @@ void define_string() {
     is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
     is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
-
     // String operations
     implement(is, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", STRING_TS)
     });
 
+    is->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
+
     record_type->complete_type();
+    is->leave();
 }
 
 
@@ -712,8 +727,11 @@ void define_slice() {
     is->add(new TemplateIdentifier<SliceElemIterValue>("elements", ANY_SLICE_TS));
     is->add(new TemplateIdentifier<SliceIndexIterValue>("indexes", ANY_SLICE_TS));
     is->add(new TemplateIdentifier<SliceItemIterValue>("items", ANY_SLICE_TS));
+
+    is->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL));
     
     record_type->complete_type();
+    is->leave();
 }
 
 
@@ -727,6 +745,7 @@ void define_autoweakref() {
     is->add(new TemplateOperation<RecordOperationValue>("compare", ANYID_AUTOWEAKREF_TS, COMPARE));
 
     record_type->complete_type();
+    is->leave();
 }
 
 
@@ -741,6 +760,7 @@ void define_option() {
     });
 
     option_type->complete_type();
+    is->leave();
 }
 
 
@@ -767,6 +787,11 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REF_TS));
+    
+    array_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL));
+
+    array_type->complete_type();
+    array_scope->leave();
 }
 
 
@@ -792,6 +817,9 @@ void define_circularray() {
     circularray_scope->add(new TemplateIdentifier<CircularrayElemIterValue>("elements", ANY_CIRCULARRAY_REF_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayIndexIterValue>("indexes", ANY_CIRCULARRAY_REF_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayItemIterValue>("items", ANY_CIRCULARRAY_REF_TS));
+
+    circularray_type->complete_type();
+    circularray_scope->leave();
 }
 
 
@@ -808,6 +836,9 @@ void define_rbtree() {
     // Rbtree iterable operations
     rbtree_scope->add(new TemplateIdentifier<RbtreeElemByAgeIterValue>("elements_by_age", ANY_RBTREE_REF_TS));
     rbtree_scope->add(new TemplateIdentifier<RbtreeElemByOrderIterValue>("elements_by_order", ANY_RBTREE_REF_TS));
+
+    rbtree_type->complete_type();
+    rbtree_scope->leave();
 }
 
 
@@ -836,6 +867,7 @@ void define_stack() {
     is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
 
     class_type->complete_type();
+    is->leave();
 }
 
 
@@ -866,6 +898,7 @@ void define_queue() {
     is->add(new ClassWrapperIdentifier("shift", PIVOT, CAST, "shift"));
 
     class_type->complete_type();
+    is->leave();
 }
 
 
@@ -891,6 +924,7 @@ void define_set() {
     is->add(new ClassWrapperIdentifier("elements_by_order", PIVOT, CAST, "elements_by_order"));
 
     class_type->complete_type();
+    is->leave();
 }
 
 
@@ -910,6 +944,7 @@ void define_map() {
     is->add(new TemplateIdentifier<MapIndexValue>("index", PIVOT));
     
     class_type->complete_type();
+    is->leave();
 }
 
 
@@ -929,6 +964,7 @@ void define_weakvaluemap() {
     is->add(new TemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT));
     
     class_type->complete_type();
+    is->leave();
 }
 
 
@@ -948,6 +984,7 @@ void define_weakindexmap() {
     is->add(new TemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT));
     
     class_type->complete_type();
+    is->leave();
 }
 
 
@@ -966,6 +1003,30 @@ void define_weakset() {
     is->add(new TemplateIdentifier<WeakSetHasValue>("has", PIVOT));
     
     class_type->complete_type();
+    is->leave();
+}
+
+
+void builtin_colon(Scope *root_scope) {
+    colon_scope->add(new TemplateOperation<IfValue>("if", NO_TS, TWEAK));
+    colon_scope->add(new TemplateIdentifier<RepeatValue>("repeat", NO_TS));
+    colon_scope->add(new TemplateIdentifier<ForEachValue>("for", NO_TS));
+    colon_scope->add(new TemplateIdentifier<SwitchValue>("switch", NO_TS));
+    colon_scope->add(new TemplateIdentifier<RaiseValue>("raise", NO_TS));
+    colon_scope->add(new TemplateIdentifier<TryValue>("try", NO_TS));
+    colon_scope->add(new TemplateIdentifier<IsValue>("is", NO_TS));
+    colon_scope->add(new TemplateOperation<FunctionReturnValue>("return", NO_TS, TWEAK));
+
+    colon_scope->add(new TemplateIdentifier<ReferenceWeakenValue>("weak", NO_TS));
+
+    colon_scope->add(new TemplateIdentifier<FunctionDefinitionValue>("Function", NO_TS));
+    colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer", NO_TS));
+    colon_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>("Finalizer", NO_TS));
+    colon_scope->add(new TemplateIdentifier<RoleDefinitionValue>("Role", NO_TS));
+    colon_scope->add(new TemplateIdentifier<BaseRoleDefinitionValue>("Base", NO_TS));
+    
+    colon_type->complete_type();
+    colon_scope->leave();
 }
 
 
@@ -974,7 +1035,6 @@ void builtin_runtime(Scope *root_scope) {
     root_scope->add(st);
     
     TypeSpec STD_TS = { st };
-    TypeSpec BYTE_SLICE_TS = { slice_type, unsigned_integer8_type };
 
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
@@ -997,18 +1057,12 @@ void builtin_runtime(Scope *root_scope) {
     is->add(new SysvFunction("printp", "printp", STD_TS, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL));  // needs Lvalue to avoid ref copy
 
     st->complete_type();
-
-    array_type->get_inner_scope()->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
-    string_type->get_inner_scope()->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
-    slice_type->get_inner_scope()->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
-
-    //root_scope->add(new SysvFunction("stringify_integer", "stringify", INTEGER_TS, GENERIC_FUNCTION, NO_TSS, no_names, TSs { STRING_TS }, NULL));
-    
+    is->leave();
 }
 
 
 Scope *init_builtins() {
-    Scope *root_scope = new DataScope;
+    Scope *root_scope = new RootScope;
 
     builtin_types(root_scope);
 
@@ -1040,6 +1094,7 @@ Scope *init_builtins() {
     implement(char_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", CHARACTER_TS)
     });
+    char_scope->leave();
     
     // Boolean operations
     Scope *bool_scope = boolean_type->make_inner_scope(BOOLEAN_TS);
@@ -1051,26 +1106,30 @@ Scope *init_builtins() {
     implement(bool_scope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", BOOLEAN_TS)
     });
+    bool_scope->leave();
 
     // Enum operations
-    Scope *enum_scope = enumeration_metatype->make_inner_scope(ANY_TS);
-    enum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
-    enum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    implement(enum_scope, STREAMIFIABLE_TS, "sable", {
+    Scope *enum_metascope = enumeration_metatype->make_inner_scope(ANY_TS);
+    enum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
+    enum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
+    implement(enum_metascope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
     });
+    enum_metascope->leave();
 
     // Treenum operations
-    Scope *treenum_scope = treenumeration_metatype->make_inner_scope(ANY_TS);
-    treenum_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
-    treenum_scope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    implement(treenum_scope, STREAMIFIABLE_TS, "sable", {
+    Scope *treenum_metascope = treenumeration_metatype->make_inner_scope(ANY_TS);
+    treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
+    treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
+    implement(treenum_metascope, STREAMIFIABLE_TS, "sable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
     });
+    treenum_metascope->leave();
 
     // Record operations
-    Scope *record_scope = record_metatype->make_inner_scope(ANY_LVALUE_TS);
-    record_scope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
+    Scope *record_metascope = record_metatype->make_inner_scope(ANY_LVALUE_TS);
+    record_metascope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
+    record_metascope->leave();
 
     // Reference operations
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
@@ -1079,12 +1138,14 @@ Scope *init_builtins() {
     ref_scope->add(new ReferenceOperation("is_equal", ANYID_REF_TS, EQUAL));
     ref_scope->add(new ReferenceOperation("not_equal", ANYID_REF_TS, NOT_EQUAL));
     ref_scope->add(new TemplateIdentifier<GenericStreamificationValue>("<streamify>", ANYID_REF_TS));
+    ref_scope->leave();
 
     typedef TemplateOperation<WeakreferenceOperationValue> WeakreferenceOperation;
     Scope *weakref_scope = weakref_type->make_inner_scope(ANYID_WEAKREF_TS);
     weakref_scope->add(new WeakreferenceOperation("assign other", ANYID_WEAKREF_LVALUE_TS, ASSIGN));
     weakref_scope->add(new WeakreferenceOperation("is_equal", ANYID_WEAKREF_TS, EQUAL));
     weakref_scope->add(new WeakreferenceOperation("not_equal", ANYID_WEAKREF_TS, NOT_EQUAL));
+    weakref_scope->leave();
 
     // Array operations
     define_array();
@@ -1098,30 +1159,17 @@ Scope *init_builtins() {
     // Unpacking
     Scope *mls = multilvalue_type->make_inner_scope(MULTILVALUE_TS);
     mls->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTILVALUE_TS));
+    mls->leave();
 
     // Initializing
     Scope *uns = uninitialized_type->make_inner_scope(ANY_UNINITIALIZED_TS);
     uns->add(new TemplateIdentifier<CreateValue>("assign other", ANY_UNINITIALIZED_TS));
+    uns->leave();
     
-    // Builtin controls, unscoped
-    root_scope->add(new TemplateOperation<IfValue>(":if", NO_TS, TWEAK));
-    root_scope->add(new TemplateIdentifier<RepeatValue>(":repeat", NO_TS));
-    root_scope->add(new TemplateIdentifier<ForEachValue>(":for", NO_TS));
-    root_scope->add(new TemplateIdentifier<SwitchValue>(":switch", NO_TS));
-    root_scope->add(new TemplateIdentifier<RaiseValue>(":raise", NO_TS));
-    root_scope->add(new TemplateIdentifier<TryValue>(":try", NO_TS));
-    root_scope->add(new TemplateIdentifier<IsValue>(":is", NO_TS));
-    root_scope->add(new TemplateOperation<FunctionReturnValue>(":return", NO_TS, TWEAK));
-
-    root_scope->add(new TemplateIdentifier<ReferenceWeakenValue>(":weak", NO_TS));
-
-    root_scope->add(new TemplateIdentifier<FunctionDefinitionValue>(":Function", NO_TS));
-    root_scope->add(new TemplateIdentifier<InitializerDefinitionValue>(":Initializer", NO_TS));
-    root_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>(":Finalizer", NO_TS));
-    root_scope->add(new TemplateIdentifier<RoleDefinitionValue>(":Role", NO_TS));
-    root_scope->add(new TemplateIdentifier<BaseRoleDefinitionValue>(":Base", NO_TS));
+    // Builtin controls
+    builtin_colon(root_scope);
     
-    // Library functions, unscoped
+    // Library functions
     builtin_runtime(root_scope);
 
     return root_scope;

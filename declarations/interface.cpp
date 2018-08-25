@@ -194,7 +194,7 @@ public:
 
     virtual DataScope *find_inner_scope(std::string n) {
         if (name == n)
-            return inner_scope;
+            return inner_scope.get();
         else
             return NULL;
     }

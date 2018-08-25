@@ -226,8 +226,12 @@ public:
         eval_scope = new EvalScope(this);
         scope->add(eval_scope);
         
-        if (yield_name.size())
-            eval_scope->add(new Yield(":" + yield_name, this));
+        if (yield_name.size()) {
+            ExportScope *es = new ExportScope(colon_scope);
+            eval_scope->add(es);
+            es->add(new Yield(yield_name, this));
+            es->leave();
+        }
         
         if (ts.where(AS_VALUE) == STACK) {
             // Add the variable after the EvalScope, so it can survive the finalization
