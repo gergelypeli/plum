@@ -1,6 +1,6 @@
 
 enum ScopeType {
-    ROOT_SCOPE, DATA_SCOPE, CODE_SCOPE, ARGUMENT_SCOPE, FUNCTION_SCOPE, MODULE_SCOPE
+    ROOT_SCOPE, DATA_SCOPE, CODE_SCOPE, ARGUMENT_SCOPE, FUNCTION_SCOPE, MODULE_SCOPE, EXPORT_SCOPE
 };
 
 
@@ -174,7 +174,7 @@ public:
     Scope *meta_scope;
     std::vector<VirtualEntry *> virtual_table;
     bool am_virtual_scope;
-    std::vector<DataScope *> export_scopes;
+    std::vector<Scope *> export_scopes;
     
     DataScope()
         :Scope(DATA_SCOPE) {
@@ -265,12 +265,12 @@ public:
         return outer_scope->fully_qualify(name + "." + n);
     }
     
-    virtual void push_scope(DataScope *s) {
+    virtual void push_scope(Scope *s) {
         std::cerr << "Pushed export scope to " << name << "\n";
         export_scopes.push_back(s);
     }
     
-    virtual void pop_scope(DataScope *s) {
+    virtual void pop_scope(Scope *s) {
         if (export_scopes.back() != s)
             throw INTERNAL_ERROR;
             
@@ -349,24 +349,6 @@ public:
 };
 
 
-class ExportScope: public DataScope {
-public:
-    DataScope *target_scope;
-    
-    ExportScope(DataScope *ts)
-        :DataScope() {
-        target_scope = ts;
-        target_scope->push_scope(this);
-    }
-    
-    virtual void outer_scope_left() {
-        DataScope::outer_scope_left();
-        
-        target_scope->pop_scope(this);
-    }
-};
-
-
 class RootScope: public DataScope {
 public:
     RootScope()
@@ -375,6 +357,24 @@ public:
     
     virtual ModuleScope *get_module_scope() {
         return NULL;
+    }
+};
+
+
+class ExportScope: public Scope {
+public:
+    DataScope *target_scope;
+    
+    ExportScope(DataScope *ts)
+        :Scope(EXPORT_SCOPE) {
+        target_scope = ts;
+        target_scope->push_scope(this);
+    }
+    
+    virtual void outer_scope_left() {
+        Scope::outer_scope_left();
+        
+        target_scope->pop_scope(this);
     }
 };
 

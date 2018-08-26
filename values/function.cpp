@@ -290,7 +290,7 @@ public:
             exception_type_value->compile(x64);  // to compile treenum definitions
 
         if (ston_var)
-            ston_var->fix(x64);  // hack to access application_label
+            ston_var->set_application_label(x64->runtime->application_label);
     
         unsigned frame_size = fn_scope->get_frame_size();
 

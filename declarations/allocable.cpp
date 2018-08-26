@@ -217,14 +217,14 @@ static Declaration *make_shadow_role(Role *orole, Role *prole);
 
 class Role: public Allocable {
 public:
-    DataScope *inner_scope;
+    std::unique_ptr<RoleScope> inner_scope;
     Role *parent_role;
     
     Role(std::string name, TypeSpec pts, TypeSpec rts, DataScope *original_scope)
         :Allocable(name, pts, rts) {
         parent_role = NULL;
         
-        inner_scope = new RoleScope(this, original_scope);  // we won't look up from the inside
+        inner_scope.reset(new RoleScope(this, original_scope));  // we won't look up from the inside
         inner_scope->set_name(name);
         inner_scope->be_virtual_scope();
         inner_scope->set_pivot_type_hint(pts);
@@ -257,7 +257,7 @@ public:
 
     virtual DataScope *find_inner_scope(std::string n) {
         if (name == n)
-            return inner_scope;
+            return inner_scope.get();
         else
             return NULL;
     }
@@ -314,7 +314,7 @@ public:
     
     virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
         int role_data_offset = data_offset + get_offset(tm);
-        int role_virtual_offset = virtual_offset + ptr_cast<RoleScope>(inner_scope)->virtual_offset;
+        int role_virtual_offset = virtual_offset + inner_scope->virtual_offset;
         TypeSpec role_ts = typesubst(alloc_ts, tm);
         
         role_ts.init_vt(addr, role_data_offset, vt_label, role_virtual_offset, x64);
@@ -352,7 +352,7 @@ public:
     Role *original_role;
     
     ShadowRole(Role *orole, Role *prole)
-        :Role(orole->name, prole->pivot_ts, orole->alloc_ts, orole->inner_scope) {
+        :Role(orole->name, prole->pivot_ts, orole->alloc_ts, orole->inner_scope.get()) {
         // NOTE: the pivot is from the parent role, not the original one, as all overriding
         // methods have our implementing type for pivot
         original_role = orole;
@@ -364,7 +364,7 @@ public:
         
         where = original_role->where;
         offset = original_role->offset;
-        ptr_cast<RoleScope>(inner_scope)->virtual_offset = ptr_cast<RoleScope>(original_role->inner_scope)->virtual_offset;
+        inner_scope->virtual_offset = original_role->inner_scope->virtual_offset;
         
         if (where == NOWHERE)
             throw INTERNAL_ERROR;
@@ -382,7 +382,7 @@ Declaration *make_shadow_role(Role *orole, Role *prole) {
 class SingletonVariable: public Variable {
 public:
     SingletonScope *singleton_scope;
-    Storage local_storage;
+    Label application_label;
     
     SingletonVariable(std::string n, SingletonScope *ss, TypeSpec mts)
         :Variable(n, NO_TS, mts) {
@@ -394,9 +394,8 @@ public:
         where = MEMORY;
     }
 
-    virtual void fix(X64 *x64) {
-        int offset = singleton_scope->offset.concretize();
-        local_storage = Storage(MEMORY, Address(x64->runtime->application_label, offset));
+    virtual void set_application_label(Label al) {
+        application_label = al;
     }
 
     virtual Storage get_storage(TypeMatch tm, Storage s) {
@@ -404,7 +403,8 @@ public:
     }
 
     virtual Storage get_local_storage() {
-        return local_storage;
+        int offset = singleton_scope->offset.concretize();
+        return Storage(MEMORY, Address(application_label, offset));
     }
 };
 

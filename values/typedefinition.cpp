@@ -321,31 +321,7 @@ public:
                 deferred_exprs.push_back(as);
         }
     }
-    /*
-    bool complete_as() {
-        data_value.reset(new DataBlockValue(inner_scope));
 
-        for (Expr *expr : deferred_exprs)
-            if (!data_value->check_statement(expr))
-                return false;
-
-        return true;
-    }
-    
-    bool complete(Type *t = NULL) {
-        // Must complete records/classes before compiling method bodies
-        if (t)
-            if (!t->complete_type())
-                return false;
-            
-        bool ok = data_value->complete_definition();
-        
-        if (inner_scope)
-            inner_scope->leave();
-            
-        return ok;
-    }
-    */
     virtual bool complete_definition() {
         if (!defined_type || !inner_scope)
             throw INTERNAL_ERROR;
@@ -369,6 +345,14 @@ public:
         inner_scope->leave();
 
         return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return data_value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return data_value->compile(x64);
     }
 };
 
@@ -396,22 +380,6 @@ public:
             
         std::cerr << "Deferring record definition.\n";
         return true;
-    }
-    /*
-    virtual bool complete_definition() {
-        std::cerr << "Completing record definition.\n";
-        if (!complete_as())
-            return false;
-
-        return complete(record_type);
-    }
-    */
-    virtual Regs precompile(Regs preferred) {
-        return data_value->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return data_value->compile(x64);
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
@@ -447,22 +415,6 @@ public:
         std::cerr << "Deferring singleton definition.\n";
         return true;
     }
-    /*
-    virtual bool complete_definition() {
-        std::cerr << "Completing singleton " << singleton_type->name << " definition.\n";
-        if (!complete_as())
-            return false;
-
-        return complete(singleton_type);
-    }
-    */
-    virtual Regs precompile(Regs preferred) {
-        return data_value->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return data_value->compile(x64);
-    }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == MODULE_SCOPE) {
@@ -497,22 +449,6 @@ public:
         std::cerr << "Deferring class definition.\n";
         return true;
     }
-    /*
-    virtual bool complete_definition() {
-        std::cerr << "Completing class " << class_type->name << " definition.\n";
-        if (!complete_as())
-            return false;
-
-        return complete(class_type);
-    }
-    */
-    virtual Regs precompile(Regs preferred) {
-        return data_value->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return data_value->compile(x64);
-    }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
@@ -546,22 +482,6 @@ public:
             
         std::cerr << "Deferring interface definition.\n";
         return true;
-    }
-    /*
-    virtual bool complete_definition() {
-        std::cerr << "Completing interface definition.\n";
-        if (!complete_as())
-            return false;
-            
-        return complete(interface_type);
-    }
-    */
-    virtual Regs precompile(Regs preferred) {
-        return data_value->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return data_value->compile(x64);
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
@@ -616,22 +536,6 @@ public:
             
         std::cerr << "Deferring implementation definition.\n";
         return true;
-    }
-    /*
-    virtual bool complete_definition() {
-        std::cerr << "Completing implementation definition.\n";
-        if (!complete_as())
-            return false;
-            
-        return complete(implementation_type);
-    }
-    */
-    virtual Regs precompile(Regs preferred) {
-        return data_value->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return data_value->compile(x64);
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {

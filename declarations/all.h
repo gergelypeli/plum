@@ -32,3 +32,4 @@ class SwitchScope;
 class TryScope;
 class EvalScope;
 class FunctionScope;
+class ExportScope;
