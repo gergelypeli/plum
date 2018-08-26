@@ -374,7 +374,7 @@ public:
 
         setup_inner(defined_type, rts);
         
-        inner_scope->set_meta_scope(record_metatype->get_inner_scope());
+        //inner_scope->set_meta_scope(record_metatype->get_inner_scope());
 
         defer_as(kwargs);
             

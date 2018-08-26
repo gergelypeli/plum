@@ -42,14 +42,23 @@ public:
         if (inner_scope)
             inner_scope->set_outer_scope(os);
     }
+
+    virtual DataScope *make_inner_scope() {
+        return new DataScope;
+    }
     
     virtual DataScope *make_inner_scope(TypeSpec pts) {
         if (inner_scope)
             throw INTERNAL_ERROR;
             
-        inner_scope.reset(new DataScope);
+        inner_scope.reset(make_inner_scope());
         inner_scope->set_pivot_type_hint(pts);
         inner_scope->set_name(name);
+        
+        Scope *meta_scope = upper_type->get_inner_scope();
+        
+        if (meta_scope)
+            inner_scope->set_meta_scope(meta_scope);
         
         if (outer_scope)
             inner_scope->set_outer_scope(outer_scope);

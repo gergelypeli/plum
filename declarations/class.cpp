@@ -157,7 +157,7 @@ public:
 
         is->be_virtual_scope();
         
-        is->set_meta_scope(class_metatype->get_inner_scope());
+        //is->set_meta_scope(class_metatype->get_inner_scope());
 
         Allocation vt_offset = is->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer
         if (vt_offset.bytes != CLASS_VT_OFFSET)  // sanity check

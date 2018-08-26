@@ -57,39 +57,20 @@ public:
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         return NOWHERE;
     }
-    /*
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
 
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        throw INTERNAL_ERROR;
+    virtual DataScope *make_inner_scope() {
+        return new SingletonScope;
     }
-    
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
-    */
-    // No initializers are accessible from the language, done by the runtime itself
     
     virtual DataScope *make_inner_scope(TypeSpec pts) {
-        // TODO: this is copied from Type, because we need a special scope type
-        inner_scope.reset(new SingletonScope);
-        inner_scope->set_pivot_type_hint(pts);
-        inner_scope->set_name(name);
-        
-        if (outer_scope)
-            inner_scope->set_outer_scope(outer_scope);
-
-        inner_scope->set_meta_scope(singleton_metatype->get_inner_scope());
-
-        return inner_scope.get();
+        return Type::make_inner_scope(pts);  // Thanks, C++!
     }
 
     virtual std::vector<std::string> get_member_names() {
         return member_names;
     }
 
+    // No initializers are accessible from the language, done by the runtime itself
     Label compile_initializer(X64 *x64) {
         Label label;
         x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
