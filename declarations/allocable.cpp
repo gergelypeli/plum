@@ -381,12 +381,12 @@ Declaration *make_shadow_role(Role *orole, Role *prole) {
 
 class SingletonVariable: public Variable {
 public:
-    SingletonScope *singleton_scope;
-    Label application_label;
+    //SingletonScope *singleton_scope;
+    //Label application_label;
     
-    SingletonVariable(std::string n, SingletonScope *ss, TypeSpec mts)
+    SingletonVariable(std::string n, TypeSpec mts)
         :Variable(n, NO_TS, mts) {
-        singleton_scope = ss;
+        //singleton_scope = ss;
     }
 
     virtual void allocate() {
@@ -394,17 +394,18 @@ public:
         where = MEMORY;
     }
 
-    virtual void set_application_label(Label al) {
-        application_label = al;
-    }
+    //virtual void set_application_label(Label al) {
+    //    application_label = al;
+    //}
 
     virtual Storage get_storage(TypeMatch tm, Storage s) {
         throw INTERNAL_ERROR;  // not contained in anything else
     }
 
     virtual Storage get_local_storage() {
-        int offset = singleton_scope->offset.concretize();
-        return Storage(MEMORY, Address(application_label, offset));
+        return outer_scope->get_singleton_scope()->get_global_storage();
+        //int offset = singleton_scope->offset.concretize();
+        //return Storage(MEMORY, Address(application_label, offset));
     }
 };
 
@@ -413,8 +414,8 @@ class PartialSingletonVariable: public SingletonVariable {
 public:
     std::unique_ptr<PartialInfo> partial_info;
 
-    PartialSingletonVariable(std::string name, SingletonScope *ss, TypeSpec mts)
-        :SingletonVariable(name, ss, mts) {
+    PartialSingletonVariable(std::string name, TypeSpec mts)
+        :SingletonVariable(name, mts) {
         partial_info.reset(new PartialInfo);
     }
 

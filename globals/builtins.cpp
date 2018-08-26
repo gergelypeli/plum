@@ -1061,8 +1061,8 @@ void builtin_runtime(Scope *root_scope) {
 }
 
 
-Scope *init_builtins() {
-    Scope *root_scope = new RootScope;
+RootScope *init_builtins() {
+    RootScope *root_scope = new RootScope;
 
     builtin_types(root_scope);
 

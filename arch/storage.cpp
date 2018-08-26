@@ -159,7 +159,7 @@ struct Storage {
 };
 
 
-Storage operator+(Storage &s, int offset) {
+Storage operator+(const Storage &s, int offset) {
     if (s.where == MEMORY)
         return Storage(MEMORY, s.address + offset);
     else

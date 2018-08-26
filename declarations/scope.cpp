@@ -99,12 +99,16 @@ public:
         return outer_scope->get_eval_scope();
     }
 
+    virtual SingletonScope *get_singleton_scope() {
+        return outer_scope->get_singleton_scope();
+    }
+
     virtual ModuleScope *get_module_scope() {
         return outer_scope->get_module_scope();
     }
 
-    virtual SingletonScope *get_singleton_scope() {
-        return outer_scope->get_singleton_scope();
+    virtual RootScope *get_root_scope() {
+        return outer_scope->get_root_scope();
     }
 
     virtual void allocate() {
@@ -125,44 +129,6 @@ public:
     
     virtual std::string fully_qualify(std::string n) {
         throw INTERNAL_ERROR;
-    }
-};
-
-
-class ModuleScope: public Scope {
-public:
-    std::string module_name;
-    Allocation offset;
-    
-    ModuleScope(std::string mn)
-        :Scope(MODULE_SCOPE) {
-        module_name = mn;
-    }
-
-    virtual Allocation reserve(Allocation s) {
-        Allocation pos = size;
-        
-        size.bytes += stack_size(s.bytes);  // Simple strategy
-        size.count1 += s.count1;
-        size.count2 += s.count2;
-        size.count3 += s.count3;
-        //std::cerr << "ModuleScope is now " << size << " bytes.\n";
-    
-        return pos;
-    }
-
-    virtual void allocate() {
-        Scope::allocate();
-        
-        offset = outer_scope->reserve(size);
-    }
-
-    virtual ModuleScope *get_module_scope() {
-        return this;
-    }
-
-    virtual std::string fully_qualify(std::string n) {
-        return module_name + "." + n;
     }
 };
 
@@ -329,6 +295,70 @@ public:
 };
 
 
+class RootScope: public DataScope {
+public:
+    Label application_label;
+    
+    RootScope()
+        :DataScope() {
+    }
+    
+    virtual RootScope *get_root_scope() {
+        return this;
+    }
+    
+    virtual void set_application_label(Label al) {
+        application_label = al;
+    }
+    
+    virtual Storage get_global_storage() {
+        return Storage(MEMORY, Address(application_label, 0));
+    }
+};
+
+
+class ModuleScope: public Scope {
+public:
+    std::string module_name;
+    Allocation offset;
+    
+    ModuleScope(std::string mn)
+        :Scope(MODULE_SCOPE) {
+        module_name = mn;
+    }
+
+    virtual Allocation reserve(Allocation s) {
+        Allocation pos = size;
+        
+        size.bytes += stack_size(s.bytes);  // Simple strategy
+        size.count1 += s.count1;
+        size.count2 += s.count2;
+        size.count3 += s.count3;
+        //std::cerr << "ModuleScope is now " << size << " bytes.\n";
+    
+        return pos;
+    }
+
+    virtual void allocate() {
+        Scope::allocate();
+        
+        offset = outer_scope->reserve(size);
+    }
+
+    virtual ModuleScope *get_module_scope() {
+        return this;
+    }
+
+    virtual Storage get_global_storage() {
+        return get_root_scope()->get_global_storage() + offset.concretize();
+    }
+
+    virtual std::string fully_qualify(std::string n) {
+        return module_name + "." + n;
+    }
+};
+
+
 class SingletonScope: public DataScope {
 public:
     Allocation offset;
@@ -346,19 +376,13 @@ public:
     virtual SingletonScope *get_singleton_scope() {
         return this;
     }
+
+    virtual Storage get_global_storage() {
+        return get_module_scope()->get_global_storage() + offset.concretize();
+    }
 };
 
 
-class RootScope: public DataScope {
-public:
-    RootScope()
-        :DataScope() {
-    }
-    
-    virtual ModuleScope *get_module_scope() {
-        return NULL;
-    }
-};
 
 
 class ExportScope: public Scope {

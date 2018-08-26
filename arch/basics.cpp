@@ -363,7 +363,7 @@ struct Address {
         offset = o;
     }
 
-    Address operator + (int x) {
+    Address operator + (int x) const {
         Address a(*this);
         a.offset += x;
         return a;

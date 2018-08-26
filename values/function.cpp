@@ -72,15 +72,14 @@ public:
             
             if (pivot_ts.has_meta(singleton_metatype)) {
                 // Singleton method
-                SingletonScope *singleton_scope = scope->get_singleton_scope();
                 
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);  // called by the runtime only
                     TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
-                    ston_var = new PartialSingletonVariable("$", singleton_scope, self_ts);
+                    ston_var = new PartialSingletonVariable("$", self_ts);
                 }
                 else {
-                    ston_var = new SingletonVariable("$", singleton_scope, pivot_ts);
+                    ston_var = new SingletonVariable("$", pivot_ts);
                 }
                 
                 ss->add(ston_var);
@@ -289,8 +288,8 @@ public:
         if (exception_type_value)
             exception_type_value->compile(x64);  // to compile treenum definitions
 
-        if (ston_var)
-            ston_var->set_application_label(x64->runtime->application_label);
+        //if (ston_var)
+        //    ston_var->set_application_label(x64->runtime->application_label);
     
         unsigned frame_size = fn_scope->get_frame_size();
 

@@ -549,6 +549,9 @@ Varied reader_get_all(Ref reader_ref) {
 extern void start();
 extern int64 initializer_count;
 extern void (*initializer_pointers[])();
+extern int64 finalizer_count;
+extern void (*finalizer_pointers[])();
+
 
 int main() {
     unfucked_locale = newlocale(LC_NUMERIC_MASK, "C", NULL);
@@ -559,6 +562,11 @@ int main() {
     }
     
     start();
+
+    for (int i = finalizer_count - 1; i >= 0; i--) {
+        //fprintf(stderr, "Running initializer %d...\n", i);
+        finalizer_pointers[i]();
+    }
 
     freelocale(unfucked_locale);
 

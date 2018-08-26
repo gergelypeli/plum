@@ -33,3 +33,4 @@ class TryScope;
 class EvalScope;
 class FunctionScope;
 class ExportScope;
+class RootScope;

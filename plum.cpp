@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    Scope *root_scope = init_builtins();
+    RootScope *root_scope = init_builtins();
     
     import("main", input, root_scope);
     order_modules("main", root_scope);
@@ -188,14 +188,17 @@ int main(int argc, char **argv) {
     
     // Allocate builtins and modules
     root_scope->allocate();
+    unsigned application_size = root_scope->size.concretize();
     
     X64 *x64 = new X64();
     x64->init("mymodule");
 
     x64->unwind = new Unwind();
     x64->once = new Once();
-    x64->runtime = new Runtime(x64, root_scope->size.concretize());
+    x64->runtime = new Runtime(x64, application_size);
 
+    root_scope->set_application_label(x64->runtime->application_label);
+    
     std::vector<Label> initializer_labels, finalizer_labels;
 
     for (Module &m : modules_in_order) {

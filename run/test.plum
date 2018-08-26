@@ -149,13 +149,32 @@ Greetable? :Class as:
 
 Single? :Singleton as:
     single_number? Integer
+    single_text? String
     
     init? :Initializer as:
         Std prints("Initializing Single.")
         $ single_number = 111
+        $ single_text = "NEEDS " + "CLEANUP"
+    
+    ? :Finalizer as:
+        Std prints("Finalizing Single.")
     
     single_function? :Function Integer as:
         :return $ single_number
+
+
+Double? :Singleton as:
+    double_number? Integer
+    
+    init? :Initializer as:
+        Std prints("Initializing Double.")
+        $ double_number = 222
+    
+    ? :Finalizer as:
+        Std prints("Finalizing Double.")
+    
+    double_function? :Function Integer as:
+        :return $ double_number
 
 
 Util? :Singleton as:
@@ -795,6 +814,7 @@ Main? :Singleton as:
 
     test_singletons? :Function as:
         Std prints("Single value should be 111: {x}" {x: Single single_function})
+        Std prints("Double value should be 222: {x}" {x: Double double_function})
 
 
     test_files? :Function as:

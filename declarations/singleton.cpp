@@ -57,9 +57,9 @@ public:
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         return NOWHERE;
     }
-
+    /*
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        Type::store(tm, s, t, x64);
+        throw INTERNAL_ERROR;
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -67,29 +67,9 @@ public:
     }
     
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
-        if (s.where == MEMORY) {
-            if (finalizer_function) {
-                if (s.address.base != RAX || s.address.index != NOREG)
-                    throw INTERNAL_ERROR;  // Hoho
-                    
-                if (s.address.offset)
-                    x64->op(ADDQ, RAX, s.address.offset);
-                    
-                x64->op(PUSHQ, RAX);
-                x64->op(CALL, finalizer_function->get_label(x64));
-                x64->op(POPQ, RAX);
-
-                if (s.address.offset)
-                    x64->op(SUBQ, RAX, s.address.offset);
-            }
-        
-            for (auto &var : member_allocables)  // FIXME: reverse!
-                var->destroy(tm, s, x64);
-        }
-        else
-            throw INTERNAL_ERROR;
+        throw INTERNAL_ERROR;
     }
-
+    */
     // No initializers are accessible from the language, done by the runtime itself
     
     virtual DataScope *make_inner_scope(TypeSpec pts) {
@@ -110,24 +90,34 @@ public:
         return member_names;
     }
 
-    virtual Function *get_initializer_function() {
-        return initializer_function;
-    }
+    Label compile_initializer(X64 *x64) {
+        Label label;
+        x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
 
-    virtual Function *get_finalizer_function() {
-        return finalizer_function;
-    }
-
-    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
-        return x64->once->compile(compile_finalizer, tm[0]);
-    }
-    
-    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        x64->code_label_local(label, ts[0]->name + "_finalizer");  // FIXME: ambiguous name!
-
-        ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
+        if (initializer_function)
+            x64->op(CALL, initializer_function->get_label(x64));  // no arguments
 
         x64->op(RET);
+        return label;
+    }
+
+    Label compile_finalizer(X64 *x64) {
+        Label label;
+        x64->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
+
+        if (finalizer_function)
+            x64->op(CALL, finalizer_function->get_label(x64));  // no arguments
+
+        TypeSpec ts = { this };
+        TypeMatch tm = ts.match();
+        SingletonScope *ss = ptr_cast<SingletonScope>(inner_scope.get());
+        Storage s(MEMORY, Address(x64->runtime->application_label, ss->offset.concretize()));
+
+        for (auto &var : member_allocables)  // FIXME: reverse!
+            var->destroy(tm, s, x64);
+
+        x64->op(RET);
+        return label;
     }
 };
 
@@ -166,21 +156,12 @@ public:
     }
 
     virtual void collect_initializer_labels(std::vector<Label> &labels, X64 *x64) {
-        for (SingletonType *s : singleton_types) {
-            Function *f = s->get_initializer_function();
-            
-            if (f)
-                labels.push_back(f->get_label(x64));
-        }
+        for (SingletonType *s : singleton_types)
+            labels.push_back(s->compile_initializer(x64));
     }
 
     virtual void collect_finalizer_labels(std::vector<Label> &labels, X64 *x64) {
-        for (SingletonType *s : singleton_types) {
-            Function *f = s->get_finalizer_function();
-            
-            if (f)
-                labels.push_back(f->get_label(x64));
-        }
+        for (SingletonType *s : singleton_types)
+            labels.push_back(s->compile_finalizer(x64));
     }
 };
-
