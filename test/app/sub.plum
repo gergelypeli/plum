@@ -1,0 +1,9 @@
+Sub? :Singleton as:
+    sub_value? Integer
+    
+    init? :Initializer as:
+        Std prints("Initializing Sub.")
+        $ sub_value = 333
+
+    ? :Finalizer as:
+        Std prints("Finalizing Sub.")

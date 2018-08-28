@@ -858,6 +858,8 @@ Main? :Singleton as:
     
         :for lines items each: it? do:
             Std prints("Line {x}: {y}" {x: it index, y: it value})
+            
+        .sub.Sub
 
 
     start? :Function as:

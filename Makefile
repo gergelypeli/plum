@@ -12,9 +12,9 @@ COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
 MAIN       = plum.cpp
-EXE        = run/plum
-#EXEFLAGS   = -m
-CORE       = core.plum.*(N) core.test.*(N)
+BIN        = run/plum
+BINFLAGS   = 
+CORE       = core.plum.*(N) core.app.*(N)
 
 PRECOMPIN  = precompiled.h
 PRECOMPOUT = precompiled.h.gch
@@ -23,37 +23,37 @@ HEAPH      = environment/heap.h
 MAINSRC    = environment/main.c
 MAINOBJ    = run/main.o
 
-TEST       = run/test
-TESTOBJ    = run/test.o
-TESTSRC    = run/test.plum
+TESTBIN    = run/app
+TESTOBJ    = run/app.o
+TESTSRC    = test/app.plum
 #TESTLOG    = run/plum.log
 TESTLIBS   = -lpcre2-16 -lm
 
-exe: uncore $(EXE)
+exe: uncore $(BIN)
 
-test: uncore untest $(TEST)
+test: uncore untest $(TESTBIN)
 
 uncore:
 	@rm -f $(CORE)
 
 untest:
-	@rm -f $(TEST) $(TESTOBJ)
+	@rm -f $(TESTBIN) $(TESTOBJ)
 
-$(EXE): $(SOURCES)
+$(BIN): $(SOURCES)
 	@clear
 	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(MAIN) 2>&1 | head -n 30
 
 $(PRECOMPOUT): $(PRECOMPIN)
 	@$(COMPILE) $(CFLAGS) -o $@ $<
 
-$(TEST): $(MAINOBJ) $(TESTOBJ)
-	@gcc $(CFLAGS) -o $(TEST) $(MAINOBJ) $(TESTOBJ) $(TESTLIBS)
+$(TESTBIN): $(MAINOBJ) $(TESTOBJ)
+	@gcc $(CFLAGS) -o $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(TESTLIBS)
 
 $(MAINOBJ): $(MAINSRC) $(HEAPH)
 	@gcc $(CFLAGS) -c -o $(MAINOBJ) $(MAINSRC)
 
-$(TESTOBJ): $(TESTSRC) $(EXE)
-	@$(EXE) $(EXEFLAGS) $(TESTSRC) $(TESTOBJ) # 2>&1 | tee $(TESTLOG)
+$(TESTOBJ): $(TESTSRC) $(BIN)
+	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) # 2>&1 | tee $(TESTLOG)
 
 clean:
-	@rm -f $(EXE) $(TEST) $(MAINOBJ) $(TESTOBJ) $(PRECOMPOUT)
+	@rm -f $(BIN) $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(PRECOMPOUT)

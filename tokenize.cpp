@@ -57,6 +57,16 @@ std::vector<Token> tokenize(std::string buffer) {
     int row_start = 0;
     int i = 0;
     int indent = -1;
+
+    // Put the whole source in an indent/dedent pair
+    if (buffer[0] == ' ') {
+        std::cerr << "Source file can't begin with indentation!\n";
+        throw TOKEN_ERROR;
+    }
+    else {
+        tokens.push_back(Token(" indent", row_count, 0));
+        indent++;
+    }
     
     while (buffer[i] != '\0') {
         char c = buffer[i];
@@ -104,7 +114,7 @@ std::vector<Token> tokenize(std::string buffer) {
                 continue;
             }
 
-            std::cerr << "Invalid indentation of " << n << " spaces!\n";
+            std::cerr << "Invalid indentation of " << n << " spaces (at " << indent << ")!\n";
             throw TOKEN_ERROR;
         }
         else if (c == '#') {

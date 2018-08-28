@@ -402,6 +402,11 @@ std::ostream &operator << (std::ostream &os, const Address &a) {
     }
     else if (a.label.def_index != 0) {
         os << "RIP+#" << a.label.def_index;
+        
+        if (a.offset > 0)
+            os << "+" << a.offset;
+        else if (a.offset < 0)
+            os << a.offset;
     }
     else {
         os << a.offset;

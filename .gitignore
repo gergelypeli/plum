@@ -1,8 +1,6 @@
-plum
-test
+run/*
 .*
 core.*
 *.sav
-*.o
 *.log
 *.diff

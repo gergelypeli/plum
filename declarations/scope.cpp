@@ -350,6 +350,9 @@ public:
     }
 
     virtual Storage get_global_storage() {
+        if (!is_allocated)
+            throw INTERNAL_ERROR;
+            
         return get_root_scope()->get_global_storage() + offset.concretize();
     }
 
@@ -378,6 +381,9 @@ public:
     }
 
     virtual Storage get_global_storage() {
+        if (!is_allocated)
+            throw INTERNAL_ERROR;
+            
         return get_module_scope()->get_global_storage() + offset.concretize();
     }
 };

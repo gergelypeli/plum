@@ -167,7 +167,7 @@ Storage operator+(const Storage &s, int offset) {
 }
 
 
-std::ostream &operator<<(std::ostream &os, Storage &s) {
+std::ostream &operator<<(std::ostream &os, const Storage &s) {
     if (s.where == NOWHERE)
         os << "NOWHERE";
     else if (s.where == CONSTANT)

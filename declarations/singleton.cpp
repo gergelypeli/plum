@@ -92,7 +92,7 @@ public:
         TypeSpec ts = { this };
         TypeMatch tm = ts.match();
         SingletonScope *ss = ptr_cast<SingletonScope>(inner_scope.get());
-        Storage s(MEMORY, Address(x64->runtime->application_label, ss->offset.concretize()));
+        Storage s = ss->get_global_storage();
 
         for (auto &var : member_allocables)  // FIXME: reverse!
             var->destroy(tm, s, x64);

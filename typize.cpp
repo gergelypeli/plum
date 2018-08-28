@@ -219,6 +219,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         if (!p && name.find(".") != std::string::npos) {
             std::string::size_type i = 0;
             
+            if (name[0] == '.' && islower(name[1]))
+                i = 1;
+            
             while (islower(name[i])) {
                 i = name.find_first_of(".", i);
                 
