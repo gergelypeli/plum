@@ -326,7 +326,7 @@ public:
         :Scope(MODULE_SCOPE) {
         module_name = mn;
     }
-
+    
     virtual Allocation reserve(Allocation s) {
         Allocation pos = size;
         
@@ -338,7 +338,7 @@ public:
     
         return pos;
     }
-
+    
     virtual void allocate() {
         Scope::allocate();
         

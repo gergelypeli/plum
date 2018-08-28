@@ -75,7 +75,7 @@ public:
 
 class ImplementationType: public Type {
 public:
-    std::vector<Function *> member_functions;
+    std::vector<Function *> member_functions;  // currently set, but unused
     TypeSpec interface_ts;
     TypeSpec implementor_ts;  // aka pivot type
 

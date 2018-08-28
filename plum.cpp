@@ -25,7 +25,9 @@
 #include "typize.cpp"
 
 
+Root *root;
 bool matchlog;
+
 
 std::string read_source(std::string filename) {
     std::ifstream source(filename, std::ios::binary);
@@ -42,20 +44,7 @@ std::string read_source(std::string filename) {
 }
 
 
-struct Module {
-    std::string file_name;
-    std::unique_ptr<Value> value;
-    ModuleScope *module_scope;
-    std::set<std::string> required_module_names;
-    ModuleType *module_type;
-};
-
-
-std::map<std::string, Module> modules_by_name;
-std::vector<Module> modules_in_order;
-
-
-void import(std::string module_name, std::string file_name, Scope *root_scope) {
+void import(std::string module_name, std::string file_name, Root *root) {
     std::cerr << "Importing module " << module_name << " from " << file_name << "\n";
     std::string buffer = read_source(file_name);
     
@@ -68,84 +57,31 @@ void import(std::string module_name, std::string file_name, Scope *root_scope) {
     std::unique_ptr<Expr> expr_root(tupleize(nodes));
     //print_expr_tree(expr_root.get(), 0, "*");
 
-    // Don't put in the root scope yet, they will be reordered
-    ModuleScope *module_scope = new ModuleScope(module_name);
-    module_scope->outer_scope = root_scope;
-    DataBlockValue *value_root = new DataBlockValue(module_scope);
-
-    ModuleType *module_type = new ModuleType("<" + module_name + ">", module_scope);
-    root_scope->add(module_type);
-
-    // Must install Module entry before typization to collect imported modules
-    modules_by_name[module_name] = Module {
-        file_name,
-        std::unique_ptr<Value>(value_root),
-        module_scope,
-        {},
-        module_type
-    };
-    
-    bool ok = true;
-    
-    if (expr_root->type == Expr::TUPLE) {
-        for (auto &a : expr_root->args)
-            ok = ok && value_root->check_statement(a.get());
-    }
-    else {
-        ok = value_root->check_statement(expr_root.get());
-    }
-
-    // Must complete the type first
-    ok = ok && module_type->complete_type();
-
-    ok = ok && value_root->complete_definition();
-    
-    module_scope->leave();
-
-    if (!ok) {
-        std::cerr << "Error compiling module " << module_name << "!\n";
-        throw INTERNAL_ERROR;  // FIXME
-    }
+    root->compile_module(module_name, file_name, expr_root.get());
 }
 
 
-ModuleScope *lookup_module(std::string module_name, ModuleScope *module_scope) {
-    if (modules_by_name.count(module_scope->module_name) != 1)
-        throw INTERNAL_ERROR;
-        
-    Module &this_module = modules_by_name[module_scope->module_name];
-    this_module.required_module_names.insert(module_name);
+Scope *lookup_module(std::string module_name, ModuleScope *module_scope) {
+    Module *this_module = root->modules_by_name[module_scope->module_name];
     
-    if (!modules_by_name.count(module_name)) {
+    if (!this_module)
+        throw INTERNAL_ERROR;
+    
+    this_module->required_module_names.insert(module_name);
+    
+    if (!root->modules_by_name.count(module_name)) {
         std::string prefix;
-        std::string::size_type i = this_module.file_name.rfind("/");
+        std::string::size_type i = this_module->file_name.rfind("/");
         
         if (i != std::string::npos)
-            prefix = this_module.file_name.substr(0, i + 1);
+            prefix = this_module->file_name.substr(0, i + 1);
         
         std::string file_name = prefix + module_name + ".plum";
-        Scope *root_scope = module_scope->outer_scope;
         
-        import(module_name, file_name, root_scope);
+        import(module_name, file_name, root);
     }
     
-    return modules_by_name[module_name].module_scope;
-}
-
-
-void order_modules(std::string name, Scope *root_scope) {
-    if (!modules_by_name.count(name))
-        return;  // already collected
-        
-    for (auto &n : modules_by_name[name].required_module_names)
-        order_modules(n, root_scope);
-        
-    // Now add to the root scope in order
-    modules_by_name[name].module_scope->outer_scope = NULL;
-    root_scope->add(modules_by_name[name].module_scope);
-    
-    modules_in_order.push_back(std::move(modules_by_name[name]));
-    modules_by_name.erase(name);
+    return root->modules_by_name[module_name]->module_scope;
 }
 
 
@@ -180,15 +116,13 @@ int main(int argc, char **argv) {
     }
 
     RootScope *root_scope = init_builtins();
+    root = new Root(root_scope);
     
-    import("main", input, root_scope);
-    order_modules("main", root_scope);
-
-    root_scope->leave();
+    import("main", input, root);
+    root->order_modules("main");
     
     // Allocate builtins and modules
-    root_scope->allocate();
-    unsigned application_size = root_scope->size.concretize();
+    unsigned application_size = root->allocate_modules();
     
     X64 *x64 = new X64();
     x64->init("mymodule");
@@ -197,32 +131,7 @@ int main(int argc, char **argv) {
     x64->once = new Once();
     x64->runtime = new Runtime(x64, application_size);
 
-    root_scope->set_application_label(x64->runtime->application_label);
-    
-    std::vector<Label> initializer_labels, finalizer_labels;
-
-    for (Module &m : modules_in_order) {
-        m.value->precompile(Regs::all());
-        m.value->compile(x64);
-
-        m.module_type->collect_initializer_labels(initializer_labels, x64);
-        m.module_type->collect_finalizer_labels(finalizer_labels, x64);
-    }
-
-    Label init_count, init_ptrs, fin_count, fin_ptrs;
-    x64->data_label_global(init_count, "initializer_count");
-    x64->data_qword(initializer_labels.size());
-    
-    x64->data_label_global(init_ptrs, "initializer_pointers");
-    for (Label l : initializer_labels)
-        x64->data_reference(l);
-
-    x64->data_label_global(fin_count, "finalizer_count");
-    x64->data_qword(finalizer_labels.size());
-    
-    x64->data_label_global(fin_ptrs, "finalizer_pointers");
-    for (Label l : finalizer_labels)
-        x64->data_reference(l);
+    root->compile_modules(x64);
     
     x64->once->for_all(x64);
     x64->done(output);
