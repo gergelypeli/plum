@@ -27,13 +27,16 @@
 
 Root *root;
 bool matchlog;
+std::string local_path, global_path;
 
 
-std::string read_source(std::string filename) {
-    std::ifstream source(filename, std::ios::binary);
+std::string read_source(std::string file_name) {
+    std::ifstream source(file_name, std::ios::binary);
     
-    if (!source.is_open())
-        return "";
+    if (!source.is_open()) {
+        std::cerr << "Can't open file " << file_name << "!\n";
+        throw INTERNAL_ERROR;
+    }
     
     std::string buffer((std::istreambuf_iterator<char>(source)),
                        (std::istreambuf_iterator<char>()));
@@ -44,8 +47,24 @@ std::string read_source(std::string filename) {
 }
 
 
-void import(std::string module_name, std::string file_name, Root *root) {
-    std::cerr << "Importing module " << module_name << " from " << file_name << "\n";
+void import(std::string required_name, Root *root) {
+    std::string file_name = required_name;
+    
+    for (unsigned i = 0; i < file_name.size(); i++)
+        if (file_name[i] == '.')
+            file_name[i] = '/';
+            
+    if (file_name == "")
+        file_name = local_path;  // application main module
+    else if (file_name[0] == '/')
+        file_name = local_path + file_name;  // application submodule
+    else
+        file_name = global_path + "/" + file_name;  // system module
+        
+    file_name = file_name + ".plum";
+
+    std::string display_name = (required_name.size() ? required_name : "<main>");
+    std::cerr << "Importing module " << display_name << " from " << file_name << "\n";
     std::string buffer = read_source(file_name);
     
     std::vector<Token> tokens = tokenize(buffer);
@@ -57,31 +76,27 @@ void import(std::string module_name, std::string file_name, Root *root) {
     std::unique_ptr<Expr> expr_root(tupleize(nodes));
     //print_expr_tree(expr_root.get(), 0, "*");
 
-    root->compile_module(module_name, file_name, expr_root.get());
+    root->typize_module(required_name, expr_root.get());
 }
 
 
-Scope *lookup_module(std::string module_name, ModuleScope *module_scope) {
-    Module *this_module = root->modules_by_name[module_scope->module_name];
+Scope *lookup_module(std::string required_name, Scope *scope) {
+    ModuleScope *this_scope = scope->get_module_scope();
+    std::string this_name = this_scope->module_name;
+    Module *this_module = root->modules_by_name[this_name];
     
     if (!this_module)
         throw INTERNAL_ERROR;
     
-    this_module->required_module_names.insert(module_name);
+    if (required_name[0] == '.')
+        required_name = this_module->package_name + required_name;
     
-    if (!root->modules_by_name.count(module_name)) {
-        std::string prefix;
-        std::string::size_type i = this_module->file_name.rfind("/");
-        
-        if (i != std::string::npos)
-            prefix = this_module->file_name.substr(0, i + 1);
-        
-        std::string file_name = prefix + module_name + ".plum";
-        
-        import(module_name, file_name, root);
-    }
+    this_module->required_module_names.insert(required_name);
     
-    return root->modules_by_name[module_name]->module_scope;
+    if (!root->modules_by_name.count(required_name))
+        import(required_name, root);
+
+    return root->get_module_scope(required_name);
 }
 
 
@@ -115,11 +130,25 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if (!desuffix(input, ".plum")) {
+        std::cerr << "Input file name must have a .plum suffix!\n";
+        return 1;
+    }
+
+    std::string cwd = get_working_path();
+
+    if (input[0] == '/')
+        local_path = input;
+    else
+        local_path = cwd + "/" + input;
+        
+    global_path = local_path.substr(0, local_path.rfind('/'));  // TODO
+
     RootScope *root_scope = init_builtins();
     root = new Root(root_scope);
     
-    import("main", input, root);
-    root->order_modules("main");
+    import("", root);
+    root->order_modules("");
     
     // Allocate builtins and modules
     unsigned application_size = root->allocate_modules();

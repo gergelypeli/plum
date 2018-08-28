@@ -2,21 +2,21 @@
 class Module {
 public:
     std::string module_name;
-    std::string file_name;
+    std::string package_name;
     ModuleScope *module_scope;
     DataBlockValue *value_root;
     std::set<std::string> required_module_names;
     std::vector<SingletonType *> singleton_types;
     
-    Module(std::string mn, std::string fn) {
+    Module(std::string mn) {
         module_name = mn;
-        file_name = fn;
+        package_name = mn;  // TODO: allow explicit submodule declarations
         
         module_scope = new ModuleScope(module_name);
         value_root = new DataBlockValue(module_scope);
     }
     
-    bool process(Expr *expr_root) {
+    bool typize(Expr *expr_root) {
         bool ok = true;
 
         if (expr_root->type == Expr::TUPLE) {
@@ -66,18 +66,29 @@ public:
         root_scope = rs;
     }
 
-    void compile_module(std::string module_name, std::string file_name, Expr *expr_root) {
+    void typize_module(std::string module_name, Expr *expr_root) {
         // Must install Module entry before typization to collect imported modules
-        Module *m = new Module(module_name, file_name);
+        Module *m = new Module(module_name);
         modules_by_name[module_name] = m;
         m->module_scope->outer_scope = root_scope;  // temporary hack
 
-        bool ok = m->process(expr_root);
+        bool ok = m->typize(expr_root);
     
         if (!ok) {
             std::cerr << "Error compiling module " << module_name << "!\n";
-            throw INTERNAL_ERROR;  // FIXME
+            throw TYPE_ERROR;
         }
+    }
+
+    Scope *get_module_scope(std::string mn) {
+        Scope *s = modules_by_name[mn]->module_scope;
+        
+        if (!s->is_left) {
+            std::cerr << "Circular module dependencies in " << mn << "!\n";
+            throw TYPE_ERROR;
+        }
+        
+        return s;
     }
 
     void order_modules(std::string name) {

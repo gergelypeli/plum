@@ -236,7 +236,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 
                 if (name.size() > 0) {
                     std::cerr << "Will lookup symbol " << name << " in module " << module_name << "\n";
-                    in_scope = lookup_module(module_name, scope->get_module_scope());
+                    in_scope = lookup_module(module_name, scope);
                 }
                 else {
                     std::cerr << "Unexpected bare module name " << module_name << "!\n";

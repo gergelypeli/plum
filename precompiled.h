@@ -12,5 +12,6 @@
 
 #include <stdarg.h>
 #include <math.h>
+#include <unistd.h>
 
 #include "elf.h"

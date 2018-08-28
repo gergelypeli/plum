@@ -21,4 +21,4 @@ Value *lookup_switch(Scope *scope, Token token);
 
 
 // Top
-Scope *lookup_module(std::string module_name, ModuleScope *module_scope);
+Scope *lookup_module(std::string required_name, Scope *scope);
