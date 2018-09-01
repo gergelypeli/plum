@@ -47,8 +47,8 @@ std::string read_source(std::string file_name) {
 }
 
 
-void import(std::string required_name, Root *root) {
-    std::string file_name = required_name;
+Module *import(std::string module_name) {
+    std::string file_name = module_name;
     
     for (unsigned i = 0; i < file_name.size(); i++)
         if (file_name[i] == '.')
@@ -63,7 +63,7 @@ void import(std::string required_name, Root *root) {
         
     file_name = file_name + ".plum";
 
-    std::string display_name = (required_name.size() ? required_name : "<main>");
+    std::string display_name = (module_name.size() ? module_name : "<main>");
     std::cerr << "Importing module " << display_name << " from " << file_name << "\n";
     std::string buffer = read_source(file_name);
     
@@ -76,27 +76,31 @@ void import(std::string required_name, Root *root) {
     std::unique_ptr<Expr> expr_root(tupleize(nodes));
     //print_expr_tree(expr_root.get(), 0, "*");
 
-    root->typize_module(required_name, expr_root.get());
+    return root->typize_module(module_name, expr_root.get());
 }
 
 
-Scope *lookup_module(std::string required_name, Scope *scope) {
-    ModuleScope *this_scope = scope->get_module_scope();
-    std::string this_name = this_scope->module_name;
-    Module *this_module = root->modules_by_name[this_name];
+ModuleScope *import_module(std::string required_name, Scope *scope) {
+    std::string module_name = root->resolve_module(required_name, scope);
+    Module *m = root->get_module(module_name);
     
-    if (!this_module)
-        throw INTERNAL_ERROR;
-    
-    if (required_name[0] == '.')
-        required_name = this_module->package_name + required_name;
-    
-    this_module->required_module_names.insert(required_name);
-    
-    if (!root->modules_by_name.count(required_name))
-        import(required_name, root);
+    if (!m)
+        m = import(module_name);
+        
+    return m->module_scope;
+}
 
-    return root->get_module_scope(required_name);
+
+ModuleScope *lookup_module(std::string required_name, Scope *scope) {
+    std::string module_name = root->resolve_module(required_name, scope);
+    Module *m = root->get_module(module_name);
+    
+    if (!m) {
+        std::cerr << "Using unimported module " << required_name << "!\n";
+        throw TYPE_ERROR;
+    }
+
+    return m->module_scope;
 }
 
 
@@ -147,7 +151,7 @@ int main(int argc, char **argv) {
     RootScope *root_scope = init_builtins();
     root = new Root(root_scope);
     
-    import("", root);
+    import("");
     root->order_modules("");
     
     // Allocate builtins and modules

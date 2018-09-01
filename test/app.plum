@@ -817,6 +817,10 @@ Main? :Singleton as:
         Std prints("Double value should be 222: {x}" {x: Double double_function})
 
 
+    ? :Import fs
+    ? :Import .sub
+    
+
     test_files? :Function as:
         f? = fs.Path `at "test.mkdir"
         Std prints("Path is at {x}" {x: f name})

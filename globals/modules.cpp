@@ -66,7 +66,34 @@ public:
         root_scope = rs;
     }
 
-    void typize_module(std::string module_name, Expr *expr_root) {
+    std::string resolve_module(std::string required_name, Scope *scope) {
+        ModuleScope *this_scope = scope->get_module_scope();
+        std::string this_name = this_scope->module_name;
+        Module *this_module = modules_by_name[this_name];
+    
+        if (!this_module)
+            throw INTERNAL_ERROR;
+    
+        if (required_name[0] == '.')
+            required_name = this_module->package_name + required_name;
+    
+        this_module->required_module_names.insert(required_name);
+        
+        return required_name;
+    }
+    
+    Module *get_module(std::string module_name) {
+        Module *m = modules_by_name[module_name];
+        
+        if (m && !m->module_scope->is_left) {
+            std::cerr << "Circular module dependencies in " << module_name << "!\n";
+            throw TYPE_ERROR;
+        }
+        
+        return m;
+    }
+
+    Module *typize_module(std::string module_name, Expr *expr_root) {
         // Must install Module entry before typization to collect imported modules
         Module *m = new Module(module_name);
         modules_by_name[module_name] = m;
@@ -78,19 +105,10 @@ public:
             std::cerr << "Error compiling module " << module_name << "!\n";
             throw TYPE_ERROR;
         }
-    }
-
-    Scope *get_module_scope(std::string mn) {
-        Scope *s = modules_by_name[mn]->module_scope;
         
-        if (!s->is_left) {
-            std::cerr << "Circular module dependencies in " << mn << "!\n";
-            throw TYPE_ERROR;
-        }
-        
-        return s;
+        return m;
     }
-
+    
     void order_modules(std::string name) {
         if (!modules_by_name.count(name))
             return;  // already collected

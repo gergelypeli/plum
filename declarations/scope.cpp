@@ -389,8 +389,6 @@ public:
 };
 
 
-
-
 class ExportScope: public Scope {
 public:
     DataScope *target_scope;
@@ -405,6 +403,26 @@ public:
         Scope::outer_scope_left();
         
         target_scope->pop_scope(this);
+    }
+};
+
+
+class ModuleImportScope: public ExportScope {
+public:
+    std::string prefix;
+    ModuleScope *module_scope;
+    
+    ModuleImportScope(ModuleScope *ms)
+        :ExportScope(ms->get_root_scope()) {
+        module_scope = ms;
+        prefix = module_scope->module_name + ".";
+    }
+    
+    virtual Value *lookup(std::string name, Value *pivot) {
+        if (deprefix(name, prefix))
+            return module_scope->lookup(name, pivot);
+        else
+            return NULL;
     }
 };
 

@@ -51,6 +51,8 @@ void builtin_types(Scope *root_scope) {
     implementation_metatype = new ImplementationMetaType("Implementation", type_metatype);
     colon_scope->add(implementation_metatype);
 
+    colon_scope->add(new ImportMetaType("Import", type_metatype));
+
     // Phase 3: declare wildcard types, so subsequent types can have an inner scope
     any_type = new AnyType("<Any>", {}, value_metatype);
     root_scope->add(any_type);
@@ -1024,7 +1026,7 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>("Finalizer", NO_TS));
     colon_scope->add(new TemplateIdentifier<RoleDefinitionValue>("Role", NO_TS));
     colon_scope->add(new TemplateIdentifier<BaseRoleDefinitionValue>("Base", NO_TS));
-    
+
     colon_type->complete_type();
     colon_scope->leave();
 }
@@ -1063,6 +1065,7 @@ void builtin_runtime(Scope *root_scope) {
 
 RootScope *init_builtins() {
     RootScope *root_scope = new RootScope;
+    root_scope->set_name("<root>");
 
     builtin_types(root_scope);
 

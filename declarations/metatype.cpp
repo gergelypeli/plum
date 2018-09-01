@@ -161,3 +161,10 @@ public:
     }
 };
 
+
+class ImportMetaType: public MetaType {
+public:
+    ImportMetaType(std::string name, Type *st)
+        :MetaType(name, st, make<ImportDefinitionValue>) {
+    }
+};

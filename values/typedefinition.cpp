@@ -4,6 +4,14 @@ public:
     TypeDefinitionValue()
         :Value(HYPERTYPE_TS) {
     }
+
+    virtual Regs precompile(Regs) {
+        return Regs();
+    }
+
+    virtual Storage compile(X64 *) {
+        return Storage();
+    }
 };
 
 
@@ -61,14 +69,6 @@ public:
         return true;
     }
     
-    virtual Regs precompile(Regs) {
-        return Regs();
-    }
-    
-    virtual Storage compile(X64 *) {
-        return Storage();
-    }
-
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE)
             return new IntegerType(name, size, is_not_signed);
@@ -105,13 +105,6 @@ public:
         return true;
     }
 
-    virtual Regs precompile(Regs) {
-        return Regs();
-    }
-
-    virtual Storage compile(X64 *) {
-        return Storage();
-    }
     
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
@@ -196,14 +189,6 @@ public:
         return true;
     }
 
-    virtual Regs precompile(Regs) {
-        return Regs();
-    }
-
-    virtual Storage compile(X64 *) {
-        return Storage();
-    }
-    
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
             return new TreenumerationType(name, keywords, parents);
@@ -264,14 +249,6 @@ public:
         return role->complete_role();
     }
     
-    virtual Regs precompile(Regs preferred) {
-        return Regs();
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return Storage();
-    }
-
     virtual Declaration *declare(std::string name, ScopeType st) {
         role = new Role(name, pivot_ts, role_ts, original_scope);
         return role;
@@ -288,6 +265,56 @@ public:
     virtual Declaration *declare(std::string name, ScopeType st) {
         role = new BaseRole(name, pivot_ts, role_ts, original_scope);
         return role;
+    }
+};
+
+
+class ImportDefinitionValue: public TypeDefinitionValue {
+public:
+    ModuleImportScope *module_import_scope;
+
+    ImportDefinitionValue()
+        :TypeDefinitionValue() {
+        module_import_scope = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1 || kwargs.size() != 0) {
+            std::cerr << "Whacky Import!\n";
+            return false;
+        }
+        
+        Expr *e = args[0].get();
+        
+        if (e->type != Expr::IDENTIFIER) {
+            std::cerr << "Import expects an identifier for the module name!\n";
+            return false;
+        }
+        
+        ModuleScope *module_scope = import_module(e->text, scope);
+        
+        if (!module_scope)
+            return false;
+
+        module_import_scope = new ModuleImportScope(module_scope);
+        module_import_scope->leave();
+        
+        return true;
+    }
+    
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == MODULE_SCOPE || st == DATA_SCOPE) {
+            if (name != "<anonymous>") {
+                std::cerr << "Import declaration must be anonymous!\n";
+                return NULL;
+            }
+            
+            return module_import_scope;
+        }
+        else {
+            std::cerr << "Import declaration must be in an data scope!\n";
+            return NULL;
+        }
     }
 };
 
@@ -547,5 +574,4 @@ public:
             return NULL;
     }
 };
-
 

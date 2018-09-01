@@ -42,6 +42,11 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
         std::cerr << "Looking up in inner scope.\n";
         value = pivot->lookup_inner(name);
     }
+    else if ((name[0] == '.' && islower(name[1])) || (islower(name[0]) && name.find(".") != std::string::npos)) {
+        // Module qualified identifier, look up in root scope
+        Scope *root_scope = in_scope->get_root_scope();
+        value = root_scope->lookup(name, pivot);
+    }
     else if (islower(name[0]) || name[0] == '$' || name[0] == '<') {
         // Local variable, look up in function body
         for (Scope *s = in_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
@@ -215,7 +220,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         Scope *in_scope = scope;
-
+        /*
         if (!p && name.find(".") != std::string::npos) {
             std::string::size_type i = 0;
             
@@ -247,7 +252,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 }
             }
         }
-        
+        */
         value = lookup(name, p, in_scope, expr, scope);
         
         if (!value)

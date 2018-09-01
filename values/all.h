@@ -27,6 +27,7 @@ class GenericValue;
 class GenericStreamificationValue;
 class ImplementationConversionValue;
 class ImplementationDefinitionValue;
+class ImportDefinitionValue;
 class InitializerEqualityMatcherValue;
 class IntegerDefinitionValue;
 class InterfaceDefinitionValue;
