@@ -271,15 +271,26 @@ public:
 
 class ImportDefinitionValue: public TypeDefinitionValue {
 public:
-    ModuleImportScope *module_import_scope;
+    ImportScope *import_scope;
 
     ImportDefinitionValue()
         :TypeDefinitionValue() {
-        module_import_scope = NULL;
+        import_scope = NULL;
     }
 
+    virtual bool check_identifier(Expr *e) {
+        if (e->type != Expr::IDENTIFIER) {
+            std::cerr << "Not an identifier imported!\n";
+            return false;
+        }
+        
+        import_scope->add(e->text);
+        return true;
+    }
+    
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() != 0) {
+        if (args.size() != 1 || kwargs.size() > 1) {
             std::cerr << "Whacky Import!\n";
             return false;
         }
@@ -291,13 +302,33 @@ public:
             return false;
         }
         
-        ModuleScope *module_scope = import_module(e->text, scope);
+        ModuleScope *source_scope = import_module(e->text, scope);
         
-        if (!module_scope)
+        if (!source_scope)
             return false;
 
-        module_import_scope = new ModuleImportScope(module_scope);
-        module_import_scope->leave();
+        ModuleScope *target_scope = scope->get_module_scope();
+
+        import_scope = new ImportScope(source_scope, target_scope);
+        
+        if (kwargs.size() == 1) {
+            if (!kwargs["for"]) {
+                std::cerr << "Whacky Import!\n";
+                return false;
+            }
+            
+            Expr *f = kwargs["for"].get();
+            bool ok = true;
+            
+            if (f->type == Expr::TUPLE) {
+                for (auto &x : f->args)
+                    ok = ok && check_identifier(x.get());
+            }
+            else
+                ok = check_identifier(f);
+        }
+        
+        import_scope->leave();
         
         return true;
     }
@@ -309,7 +340,7 @@ public:
                 return NULL;
             }
             
-            return module_import_scope;
+            return import_scope;
         }
         else {
             std::cerr << "Import declaration must be in an data scope!\n";

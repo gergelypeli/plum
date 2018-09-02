@@ -818,7 +818,8 @@ Main? :Singleton as:
 
 
     ? :Import fs
-    ? :Import .sub
+    ? :Import .sub for:
+        Sub
     
 
     test_files? :Function as:
@@ -864,6 +865,7 @@ Main? :Singleton as:
             Std prints("Line {x}: {y}" {x: it index, y: it value})
             
         .sub.Sub
+        Sub
 
 
     start? :Function as:

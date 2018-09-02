@@ -8,11 +8,11 @@ public:
     std::set<std::string> required_module_names;
     std::vector<SingletonType *> singleton_types;
     
-    Module(std::string mn) {
+    Module(std::string mn, RootScope *rs) {
         module_name = mn;
         package_name = mn;  // TODO: allow explicit submodule declarations
         
-        module_scope = new ModuleScope(module_name);
+        module_scope = new ModuleScope(module_name, rs);
         value_root = new DataBlockValue(module_scope);
     }
     
@@ -68,7 +68,7 @@ public:
 
     std::string resolve_module(std::string required_name, Scope *scope) {
         ModuleScope *this_scope = scope->get_module_scope();
-        std::string this_name = this_scope->module_name;
+        std::string this_name = this_scope->name;
         Module *this_module = modules_by_name[this_name];
     
         if (!this_module)
@@ -95,9 +95,8 @@ public:
 
     Module *typize_module(std::string module_name, Expr *expr_root) {
         // Must install Module entry before typization to collect imported modules
-        Module *m = new Module(module_name);
+        Module *m = new Module(module_name, root_scope);
         modules_by_name[module_name] = m;
-        m->module_scope->outer_scope = root_scope;  // temporary hack
 
         bool ok = m->typize(expr_root);
     

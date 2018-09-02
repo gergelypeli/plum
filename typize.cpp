@@ -30,12 +30,12 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
         }
     }
     else if (isupper(name[0])) {
-        // Global type, look up in module and root level
+        // Global type, look up in module level
         Scope *module_scope = in_scope->get_module_scope();
         value = module_scope->lookup(name, pivot);
         
-        if (!value)
-            value = module_scope->outer_scope->lookup(name, pivot);
+        //if (!value)
+        //    value = module_scope->outer_scope->lookup(name, pivot);
     }
     else if (pivot) {
         // Pivoted value
@@ -43,9 +43,9 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
         value = pivot->lookup_inner(name);
     }
     else if ((name[0] == '.' && islower(name[1])) || (islower(name[0]) && name.find(".") != std::string::npos)) {
-        // Module qualified identifier, look up in root scope
-        Scope *root_scope = in_scope->get_root_scope();
-        value = root_scope->lookup(name, pivot);
+        // Module qualified identifier, look up in module scope
+        Scope *module_scope = in_scope->get_module_scope();
+        value = module_scope->lookup(name, pivot);
     }
     else if (islower(name[0]) || name[0] == '$' || name[0] == '<') {
         // Local variable, look up in function body

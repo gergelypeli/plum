@@ -133,45 +133,25 @@ public:
 };
 
 
-class DataScope: public Scope {
+class NamedScope: public Scope {
 public:
     std::string name;
-    TypeSpec pivot_ts;
     Scope *meta_scope;
-    std::vector<VirtualEntry *> virtual_table;
-    bool am_virtual_scope;
     std::vector<Scope *> export_scopes;
     
-    DataScope()
-        :Scope(DATA_SCOPE) {
-        pivot_ts = NO_TS;
+    NamedScope(ScopeType st)
+        :Scope(st) {
         meta_scope = NULL;
-        am_virtual_scope = false;
     }
     
     virtual void set_name(std::string n) {
         name = n;
     }
     
-    virtual void be_virtual_scope() {
-        am_virtual_scope = true;
-    }
-    
-    virtual bool is_virtual_scope() {
-        return am_virtual_scope;
-    }
-    
     virtual void set_meta_scope(Scope *ms) {
         meta_scope = ms;
     }
     
-    virtual void set_pivot_type_hint(TypeSpec t) {
-        if (t == VOID_TS || t == NO_TS)
-            throw INTERNAL_ERROR;
-            
-        pivot_ts = t;
-    }
-
     virtual Value *lookup(std::string name, Value *pivot) {
         for (int i = export_scopes.size() - 1; i >= 0; i--) {
             std::cerr << "Looking up in export scope #" << i << "\n";
@@ -202,6 +182,52 @@ public:
         return pos;
     }
 
+    virtual std::string fully_qualify(std::string n) {
+        return outer_scope->fully_qualify(name + "." + n);
+    }
+    
+    virtual void push_scope(Scope *s) {
+        std::cerr << "Pushed export scope to " << name << "\n";
+        export_scopes.push_back(s);
+    }
+    
+    virtual void pop_scope(Scope *s) {
+        if (export_scopes.back() != s)
+            throw INTERNAL_ERROR;
+            
+        std::cerr << "Popped export scope from " << name << "\n";
+        export_scopes.pop_back();
+    }
+};
+
+
+class DataScope: public NamedScope {
+public:
+    TypeSpec pivot_ts;
+    std::vector<VirtualEntry *> virtual_table;
+    bool am_virtual_scope;
+    
+    DataScope()
+        :NamedScope(DATA_SCOPE) {
+        pivot_ts = NO_TS;
+        am_virtual_scope = false;
+    }
+    
+    virtual void be_virtual_scope() {
+        am_virtual_scope = true;
+    }
+    
+    virtual bool is_virtual_scope() {
+        return am_virtual_scope;
+    }
+    
+    virtual void set_pivot_type_hint(TypeSpec t) {
+        if (t == VOID_TS || t == NO_TS)
+            throw INTERNAL_ERROR;
+            
+        pivot_ts = t;
+    }
+
     virtual TypeSpec pivot_type_hint() {
         //if (pivot_ts == NO_TS)
         //    throw INTERNAL_ERROR;
@@ -222,26 +248,6 @@ public:
     virtual void set_virtual_entry(int i, VirtualEntry *entry) {
         //std::cerr << "DataScope setting virtual entry " << i << ".\n";
         virtual_table[i] = entry;
-    }
-
-    virtual std::string fully_qualify(std::string n) {
-        if (name == "")
-            throw INTERNAL_ERROR;
-            
-        return outer_scope->fully_qualify(name + "." + n);
-    }
-    
-    virtual void push_scope(Scope *s) {
-        std::cerr << "Pushed export scope to " << name << "\n";
-        export_scopes.push_back(s);
-    }
-    
-    virtual void pop_scope(Scope *s) {
-        if (export_scopes.back() != s)
-            throw INTERNAL_ERROR;
-            
-        std::cerr << "Popped export scope from " << name << "\n";
-        export_scopes.pop_back();
     }
 };
 
@@ -295,12 +301,12 @@ public:
 };
 
 
-class RootScope: public DataScope {
+class RootScope: public NamedScope {
 public:
     Label application_label;
     
     RootScope()
-        :DataScope() {
+        :NamedScope(ROOT_SCOPE) {
     }
     
     virtual RootScope *get_root_scope() {
@@ -314,33 +320,25 @@ public:
     virtual Storage get_global_storage() {
         return Storage(MEMORY, Address(application_label, 0));
     }
+
+    virtual std::string fully_qualify(std::string n) {
+        return n;
+    }
 };
 
 
-class ModuleScope: public Scope {
+class ModuleScope: public NamedScope {
 public:
-    std::string module_name;
     Allocation offset;
     
-    ModuleScope(std::string mn)
-        :Scope(MODULE_SCOPE) {
-        module_name = mn;
+    ModuleScope(std::string mn, RootScope *rs)
+        :NamedScope(MODULE_SCOPE) {
+        set_name(mn);
+        set_meta_scope(rs);
     }
-    
-    virtual Allocation reserve(Allocation s) {
-        Allocation pos = size;
-        
-        size.bytes += stack_size(s.bytes);  // Simple strategy
-        size.count1 += s.count1;
-        size.count2 += s.count2;
-        size.count3 += s.count3;
-        //std::cerr << "ModuleScope is now " << size << " bytes.\n";
-    
-        return pos;
-    }
-    
+
     virtual void allocate() {
-        Scope::allocate();
+        NamedScope::allocate();
         
         offset = outer_scope->reserve(size);
     }
@@ -354,10 +352,6 @@ public:
             throw INTERNAL_ERROR;
             
         return get_root_scope()->get_global_storage() + offset.concretize();
-    }
-
-    virtual std::string fully_qualify(std::string n) {
-        return module_name + "." + n;
     }
 };
 
@@ -391,9 +385,9 @@ public:
 
 class ExportScope: public Scope {
 public:
-    DataScope *target_scope;
+    NamedScope *target_scope;
     
-    ExportScope(DataScope *ts)
+    ExportScope(NamedScope *ts)
         :Scope(EXPORT_SCOPE) {
         target_scope = ts;
         target_scope->push_scope(this);
@@ -407,22 +401,32 @@ public:
 };
 
 
-class ModuleImportScope: public ExportScope {
+class ImportScope: public ExportScope {
 public:
     std::string prefix;
-    ModuleScope *module_scope;
+    ModuleScope *source_scope;
+    std::set<std::string> identifiers;
     
-    ModuleImportScope(ModuleScope *ms)
-        :ExportScope(ms->get_root_scope()) {
-        module_scope = ms;
-        prefix = module_scope->module_name + ".";
+    ImportScope(ModuleScope *ss, ModuleScope *ts)
+        :ExportScope(ts) {
+        source_scope = ss;
+        prefix = source_scope->name + ".";
+    }
+    
+    virtual void add(std::string id) {
+        identifiers.insert(id);
     }
     
     virtual Value *lookup(std::string name, Value *pivot) {
-        if (deprefix(name, prefix))
-            return module_scope->lookup(name, pivot);
-        else
-            return NULL;
+        if (deprefix(name, prefix)) {
+            std::cerr << "Looking up deprefixed identifier " << prefix << name << "\n";
+            return source_scope->lookup(name, pivot);
+        }
+            
+        if (identifiers.count(name) > 0)
+            return source_scope->lookup(name, pivot);
+            
+        return NULL;
     }
 };
 
