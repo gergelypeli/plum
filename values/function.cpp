@@ -485,6 +485,8 @@ public:
     
     bool has_code_arg;
     bool is_static;
+    Label static_label;
+    
         
     FunctionCallValue(Function *f, Value *p, TypeMatch &m)
         :Value(NO_TS) {
@@ -512,10 +514,6 @@ public:
             // Module pivots are only symbolic, they are not pushed or popped.
             pivot_ts = {};
         }
-    }
-
-    virtual void be_static() {
-        is_static = true;
     }
 
     virtual bool unpack(std::vector<TypeSpec> &tss) {
@@ -625,7 +623,7 @@ public:
     
     virtual void call_static(X64 *x64, unsigned passed_size) {
         x64->op(LEA, RAX, Address(RSP, passed_size));
-        x64->op(CALL, function->get_label(x64));
+        x64->op(CALL, (is_static ? static_label : function->get_label(x64)));
     }
 
     virtual void call_virtual(X64 *x64, unsigned passed_size) {
@@ -748,6 +746,39 @@ public:
         }
     }
 
+    virtual void check_static_cast() {
+        // Figure out if the pivot is in the form of $.foo bar baz
+        // This can probably be simplified if role selection can collapse
+        Value *p = pivot.get();
+        int virtual_offset = 0;
+        
+        while (true) {
+            RoleValue *rv = ptr_cast<RoleValue>(p);
+            
+            if (!rv)
+                break;  // non-role, so not
+                
+            Role *r = rv->role;
+            
+            if (rv->is_static()) {
+                int vi = virtual_offset + function->virtual_index;
+                VirtualEntry *ve = r->alloc_ts.get_virtual_table()[vi];
+                static_label = ve->get_virtual_entry_label(r->alloc_ts.match(), x64);
+                is_static = true;
+                break;
+            }
+            else {
+                // Sanity check, these role selections always refer to a toplevel role,
+                // never a shadow role, so virtual offsets must be summed.
+                if (r->parent_role)
+                    throw INTERNAL_ERROR;
+                    
+                virtual_offset += r->inner_scope->virtual_offset;
+                p = rv->pivot.get();
+            }
+        }
+    }
+
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
         bool is_void = (res_tss.size() == 0);
@@ -781,6 +812,8 @@ public:
         if (pivot_ts.size()) {
             push_pivot(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
+            
+            check_static_cast();
         }
         
         for (unsigned i = 0; i < values.size(); i++)

@@ -44,7 +44,6 @@ public:
     Value *lookup_partinitializer(std::string name, Value *pivot);
     Value *lookup_matcher(std::string name, Value *pivot);
     Value *lookup_inner(std::string name, Value *pivot);
-    //DataScope *get_inner_scope();
     void init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64);
 };
 
@@ -69,7 +68,6 @@ Declaration *declaration_get_decl(DeclarationValue *dv);
 PartialInfo *partial_variable_get_info(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
-void function_call_be_static(Value *fcv);
 TypeSpec type_value_represented_ts(Value *v);
 Value *peek_void_conversion_value(Value *v);
 
@@ -82,7 +80,6 @@ bool descend_into_explicit_scope(std::string &name, Scope *&scope);
 // TypeSpec operations
 TypeSpec get_typespec(Value *value);
 void set_typespec(Value *value, TypeSpec ts);
-//bool is_implementation(Type *t, TypeMatch &match, TypeSpecIter target, TypeSpec &ifts);
 std::string print_exception_type(TreenumerationType *t);
 TreenumerationType *make_treenum(const char *name, const char *kw1);
 TreenumerationType *make_treenum(const char *name, TreenumInput *x);

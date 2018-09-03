@@ -47,7 +47,7 @@ bool is_identifier(char c) {
 
 
 bool is_prefix(char c) {
-    return c == ':' || c == '`' || c == '~' || c == '?';
+    return c == ':' || c == '`' || c == '~' || c == '?' || c == '$';
 }
 
 
@@ -184,9 +184,6 @@ std::vector<Token> tokenize(std::string buffer) {
             i++;
         }
         else if (is_separator(c)) {
-            i++;
-        }
-        else if (c == '$' || c == '@') {
             i++;
         }
         else if (is_quote(c)) {

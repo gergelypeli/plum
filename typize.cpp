@@ -47,6 +47,28 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
         Scope *module_scope = in_scope->get_module_scope();
         value = module_scope->lookup(name, pivot);
     }
+    else if (name[0] == '$' && name[1] == '.') {
+        // Static cast to role
+        FunctionScope *fs = in_scope->get_function_scope();
+        
+        if (fs) {
+            Value *self_value = fs->lookup("$", pivot);
+            
+            if (self_value) {
+                std::cerr << "XXX " << name << "\n";
+                Value *member_value = self_value->lookup_inner(name.substr(2));
+                
+                if (member_value) {
+                    RoleValue *role_value = ptr_cast<RoleValue>(member_value);
+                    
+                    if (role_value) {
+                        role_value->be_static();
+                        value = role_value;
+                    }
+                }
+            }
+        }
+    }
     else if (islower(name[0]) || name[0] == '$' || name[0] == '<') {
         // Local variable, look up in function body
         for (Scope *s = in_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
@@ -220,39 +242,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         Scope *in_scope = scope;
-        /*
-        if (!p && name.find(".") != std::string::npos) {
-            std::string::size_type i = 0;
-            
-            if (name[0] == '.' && islower(name[1]))
-                i = 1;
-            
-            while (islower(name[i])) {
-                i = name.find_first_of(".", i);
-                
-                if (i == std::string::npos) {
-                    i = name.size() + 1;
-                    break;
-                }
-                    
-                i += 1;
-            }
-            
-            if (i > 0) {
-                std::string module_name = name.substr(0, i - 1);
-                name = (i < name.size() ? name.substr(i) : "");
 
-                if (name.size() > 0) {
-                    std::cerr << "Will lookup symbol " << name << " in module " << module_name << "\n";
-                    in_scope = lookup_module(module_name, scope);
-                }
-                else {
-                    std::cerr << "Unexpected bare module name " << module_name << "!\n";
-                    throw TYPE_ERROR;
-                }
-            }
-        }
-        */
         value = lookup(name, p, in_scope, expr, scope);
         
         if (!value)

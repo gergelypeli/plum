@@ -423,6 +423,7 @@ public:
     std::unique_ptr<Value> pivot;
     Register reg;
     TypeMatch match;
+    bool am_static;
     
     RoleValue(Role *r, Value *p, TypeMatch &tm)
         :Value(typesubst(r->alloc_ts, tm).prefix(weakref_type)) {  // Was: borrowed_type
@@ -430,6 +431,15 @@ public:
         pivot.reset(p);
         reg = NOREG;
         match = tm;
+        am_static = false;
+    }
+    
+    virtual void be_static() {
+        am_static = true;
+    }
+    
+    virtual bool is_static() {
+        return am_static;
     }
     
     virtual Regs precompile(Regs preferred) {

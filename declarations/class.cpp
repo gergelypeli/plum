@@ -261,34 +261,6 @@ public:
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Class inner lookup " << n << ".\n";
         
-        // Must allow calling base method foo.bar.baz!
-        auto pos = n.find(".");
-        
-        if (pos != std::string::npos) {
-            // Static call to inherited method
-            
-            Scope *scope = inner_scope.get();
-            
-            if (!descend_into_explicit_scope(n, scope))  // Modifies both arguments
-                return NULL;
-                
-            RoleScope *rs = ptr_cast<RoleScope>(scope);
-            Role *containing_role = rs->get_role();
-            Declaration *original_declaration = rs->get_original_declaration(n);
-
-            Value *role_value = make<RoleValue>(containing_role, v, tm);
-            Value *fcv = original_declaration->match(n, role_value);
-            
-            if (!fcv) {
-                std::cerr << "Excplicit lookup of " << n << " failed the match!\n";
-                throw INTERNAL_ERROR;
-            }
-            
-            function_call_be_static(fcv);
-            
-            return fcv;
-        }
-        
         Value *value = HeapType::lookup_inner(tm, n, v);
         
         if (!value && base_role) {

@@ -39,11 +39,6 @@ bool is_initializer_function_call(Value *value) {
 }
 
 
-void function_call_be_static(Value *v) {
-    ptr_cast<FunctionCallValue>(v)->be_static();
-}
-
-
 TypeSpec type_value_represented_ts(Value *v) {
     return ptr_cast<TypeValue>(v)->represented_ts;
 }

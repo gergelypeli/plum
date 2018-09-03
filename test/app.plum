@@ -114,7 +114,7 @@ Derived? :Class as:
         
     base.base_method? :Function as:
         Std prints("Derived base_method, the base value is {x}." {x: $ base base_value})
-        $ base.base_method
+        $.base base_method
         
     ? :Finalizer as:
         Std prints("The derived is finalized.")
@@ -141,7 +141,7 @@ Greetable? :Class as:
 
     derived.base.base_method? :Function as:
         Std prints("Greetable base_method, the base value is {x}." {x: $ derived base base_value})
-        $ derived.base.base_method
+        $.derived base base_method
 
     number? Integer
     name? String
