@@ -172,10 +172,6 @@ public:
         return tm[1].lookup_initializer(name);
     }
 
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        return tm[1].lookup_partinitializer(name, pivot);
-    }
-
     virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
         return tm[1].lookup_matcher(name, pivot);
     }

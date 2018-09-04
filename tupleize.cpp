@@ -10,7 +10,7 @@ public:
     enum ExprType {
         TUPLE,
         UNSIGNED_NUMBER, NEGATIVE_NUMBER, STRING,
-        INITIALIZER, PARTINITIALIZER, MATCHER, IDENTIFIER,
+        INITIALIZER, MATCHER, IDENTIFIER,
         CONTROL, EVAL, DECLARATION
     } type;
     Token token;
@@ -63,7 +63,6 @@ public:
             type == NEGATIVE_NUMBER ? "NEGATIVE_NUMBER" :
             type == STRING ? "STRING" :
             type == INITIALIZER ? "INITIALIZER" :
-            type == PARTINITIALIZER ? "PARTINITIALIZER" :
             type == MATCHER ? "MATCHER" :
             type == IDENTIFIER ? "IDENTIFIER" :
             type == CONTROL ? "CONTROL" :
@@ -194,7 +193,6 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
             node.type == Node::EVAL ? Expr::EVAL :
             node.type == Node::DECLARATION ? Expr::DECLARATION :
             node.type == Node::INITIALIZER ? Expr::INITIALIZER :
-            node.type == Node::PARTINITIALIZER ? Expr::PARTINITIALIZER :
             node.type == Node::MATCHER ? Expr::MATCHER :
             throw INTERNAL_ERROR
         );

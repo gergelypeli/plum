@@ -119,9 +119,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        //TypeSpec ts(tsi);
-
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         // NOTE: initializers must only appear in code scopes, and there all types
         // must be concrete, not having free parameters. Also, the automatic variable is
         // put in the local scope, so there will be no pivot for it to derive any
@@ -135,13 +133,13 @@ public:
             // Named initializer
             TypeSpec rts = tm[0].prefix(ref_type);
             
-            Value *preinit = pivot ? pivot : make<ClassPreinitializerValue>(rts);
+            Value *preinit = make<ClassPreinitializerValue>(rts);
 
             Value *value = inner_scope->lookup(name, preinit);
 
             if (value) {
                 if (is_initializer_function_call(value))
-                    return pivot ? value : make<ClassPostinitializerValue>(value);
+                    return make<ClassPostinitializerValue>(value);
                         
                 std::cerr << "Can't initialize class with non-initializer " << name << "!\n";
                 return NULL;
@@ -260,6 +258,12 @@ public:
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Class inner lookup " << n << ".\n";
+        bool dot = false;
+        
+        if (n[0] == '.') {
+            dot = true;
+            n = n.substr(1);
+        }
         
         Value *value = HeapType::lookup_inner(tm, n, v);
         
@@ -267,7 +271,19 @@ public:
             TypeSpec ts = typesubst(base_role->alloc_ts, tm);
             value = ts.lookup_inner(n, v);
         }
-        
+
+        if (dot && value) {
+            RoleValue *role_value = ptr_cast<RoleValue>(value);
+                
+            if (role_value) {
+                role_value_be_static(role_value);
+            }
+            else {
+                std::cerr << "Static cast can only be used on roles!\n";
+                value = NULL;
+            }
+        }
+                
         return value;
     }
 
@@ -283,7 +299,7 @@ public:
         :ClassType(name, Metatypes { value_metatype }) {
     }
     
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec ats = tm[0].unprefix(stack_type).prefix(array_type);
         Value *array_initializer = ats.lookup_initializer(name);
         
@@ -294,8 +310,7 @@ public:
 
         TypeSpec rts = tm[0].prefix(ref_type);
         
-        if (!pivot)
-            pivot = make<ClassPreinitializerValue>(rts);
+        Value *pivot = make<ClassPreinitializerValue>(rts);
         
         return make<ClassWrapperInitializerValue>(pivot, array_initializer);
     }
@@ -308,7 +323,7 @@ public:
         :ClassType(name, Metatypes { value_metatype }) {
     }
     
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec cts = tm[0].unprefix(queue_type).prefix(circularray_type);
         Value *carray_initializer = cts.lookup_initializer(name);
         
@@ -319,8 +334,7 @@ public:
 
         TypeSpec rts = tm[0].prefix(ref_type);
         
-        if (!pivot)
-            pivot = make<ClassPreinitializerValue>(rts);
+        Value *pivot = make<ClassPreinitializerValue>(rts);
         
         return make<ClassWrapperInitializerValue>(pivot, carray_initializer);
     }
@@ -333,7 +347,7 @@ public:
         :ClassType(name, Metatypes { value_metatype }) {
     }
     
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
         TypeSpec tts = tm[0].unprefix(set_type).prefix(rbtree_type);
         Value *tree_initializer = tts.lookup_initializer(name);
         
@@ -344,8 +358,7 @@ public:
 
         TypeSpec rts = tm[0].prefix(ref_type);
         
-        if (!pivot)
-            pivot = make<ClassPreinitializerValue>(rts);
+        Value *pivot = make<ClassPreinitializerValue>(rts);
         
         return make<ClassWrapperInitializerValue>(pivot, tree_initializer);
     }
@@ -358,7 +371,7 @@ public:
         :ClassType(name, param_metatypes) {
     }
     
-    virtual Value *lookup_map_partinitializer(TypeSpec real_ts, TypeSpec key_ts, TypeSpec value_ts, std::string name, Value *pivot) {
+    virtual Value *lookup_map_initializer(TypeSpec real_ts, TypeSpec key_ts, TypeSpec value_ts, std::string name) {
         TypeSpec tree_ts = TypeSpec(item_type, key_ts, value_ts).prefix(rbtree_type);
         Value *tree_initializer = tree_ts.lookup_initializer(name);
         
@@ -370,14 +383,13 @@ public:
         // This may be something non-Map, if subclasses call this.
         TypeSpec rts = real_ts.prefix(ref_type);
         
-        if (!pivot)
-            pivot = make<ClassPreinitializerValue>(rts);
+        Value *pivot = make<ClassPreinitializerValue>(rts);
         
         return make<ClassWrapperInitializerValue>(pivot, tree_initializer);
     }
     
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        return lookup_map_partinitializer(tm[0], tm[1], tm[2], name, pivot);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+        return lookup_map_initializer(tm[0], tm[1], tm[2], name);
     }
 };
 
@@ -388,8 +400,8 @@ public:
         :MapType(name, param_metatypes) {
     }
     
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        return MapType::lookup_map_partinitializer(tm[0], tm[1], tm[2].prefix(weakanchor_type), name, pivot);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+        return MapType::lookup_map_initializer(tm[0], tm[1], tm[2].prefix(weakanchor_type), name);
     }
 };
 
@@ -400,8 +412,8 @@ public:
         :MapType(name, param_metatypes) {
     }
     
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), tm[2], name, pivot);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(weakanchor_type), tm[2], name);
     }
 };
 
@@ -412,7 +424,7 @@ public:
         :MapType(name, param_metatypes) {
     }
     
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string name, Value *pivot) {
-        return MapType::lookup_map_partinitializer(tm[0], tm[1].prefix(weakanchor_type), UNIT_TS, name, pivot);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(weakanchor_type), UNIT_TS, name);
     }
 };

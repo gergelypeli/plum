@@ -41,7 +41,6 @@ public:
     void compare(Storage s, Storage t, X64 *x64);
     void streamify(bool repr, X64 *x64);
     Value *lookup_initializer(std::string name);
-    Value *lookup_partinitializer(std::string name, Value *pivot);
     Value *lookup_matcher(std::string name, Value *pivot);
     Value *lookup_inner(std::string name, Value *pivot);
     void init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64);
@@ -70,7 +69,7 @@ bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
 TypeSpec type_value_represented_ts(Value *v);
 Value *peek_void_conversion_value(Value *v);
-
+void role_value_be_static(RoleValue *rv);
 
 // Declaration wrappers
 Declaration *make_record_compare();

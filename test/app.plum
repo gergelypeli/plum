@@ -108,7 +108,7 @@ Derived? :Class as:
     derived_value? Integer
     
     derived_init? :Initializer as:
-        $ base ?base_init
+        $.base base_init
         $ derived_value = 1000
         Std prints("The derived is initialized.")
         
@@ -124,14 +124,14 @@ Greetable? :Class as:
     derived? :Role Derived
 
     init? :Initializer as:
-        $ derived ?derived_init
+        $.derived derived_init
         
         $ number = 1
         $ name = "The Greetable"
         Std prints("I'm here as {x}." { x: $ name })
         
     second_init? :Initializer as:
-        $ ?init
+        $ init
         
     greet? :Function as:
         Std prints("Hello, I'm {me}!" { me: $ name })

@@ -18,6 +18,11 @@ Value *peek_void_conversion_value(Value *v) {
 }
 
 
+void role_value_be_static(RoleValue *rv) {
+    rv->be_static();
+}
+
+
 Declaration *declaration_get_decl(DeclarationValue *dv) {
     return dv->get_decl();
 }

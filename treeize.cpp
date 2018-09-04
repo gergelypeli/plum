@@ -52,7 +52,7 @@ public:
     enum NodeType {
         NONE, OPEN, CLOSE,
         UNSIGNED_NUMBER, STRING,
-        INITIALIZER, PARTINITIALIZER, MATCHER,
+        INITIALIZER, MATCHER,
         IDENTIFIER, LABEL, CONTROL, EVAL, DECLARATION,
         SEPARATOR
     } type;
@@ -83,7 +83,6 @@ public:
             type == UNSIGNED_NUMBER ? "UNSIGNED_NUMBER" :
             type == STRING ? "STRING" :
             type == INITIALIZER ? "INITIALIZER" :
-            type == PARTINITIALIZER ? "PARTINITIALIZER" :
             type == MATCHER ? "MATCHER" :
             type == IDENTIFIER ? "IDENTIFIER" :
             type == LABEL ? "LABEL" :
@@ -227,18 +226,10 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             text = token.text.substr(1);
         }
         else if (c == '?') {
-            if (token.text == "?") {
-                type = Node::DECLARATION;
-                back = DECLARING;
-                fore = DECLARING;
-                text = "";
-            }
-            else {
-                type = Node::PARTINITIALIZER;
-                back = TEXTUAL;
-                fore = TEXTUAL;
-                text = token.text.substr(1);
-            }
+            type = Node::DECLARATION;
+            back = DECLARING;
+            fore = DECLARING;
+            text = "";
         }
         else if (isalpha(c) || c == '_' || c == '$' || c == '.') {
             if (token.text.back() == ':') {

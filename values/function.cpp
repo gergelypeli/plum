@@ -746,7 +746,7 @@ public:
         }
     }
 
-    virtual void check_static_cast() {
+    virtual void check_static_cast(X64 *x64) {
         // Figure out if the pivot is in the form of $.foo bar baz
         // This can probably be simplified if role selection can collapse
         Value *p = pivot.get();
@@ -813,7 +813,7 @@ public:
             push_pivot(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
             
-            check_static_cast();
+            check_static_cast(x64);
         }
         
         for (unsigned i = 0; i < values.size(); i++)

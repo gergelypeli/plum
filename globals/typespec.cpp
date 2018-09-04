@@ -237,11 +237,6 @@ Value *TypeSpec::lookup_initializer(std::string name) {
 }
 
 
-Value *TypeSpec::lookup_partinitializer(std::string name, Value *pivot) {
-    return at(0)->lookup_partinitializer(match(), name, pivot);
-}
-
-
 Value *TypeSpec::lookup_matcher(std::string name, Value *pivot) {
     return at(0)->lookup_matcher(match(), name, pivot);
 }

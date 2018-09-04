@@ -260,10 +260,6 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
-        return lookup_partinitializer(tm, n, NULL);
-    }
-
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
         std::cerr << "No initializer " << name << " `" << n << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -452,69 +448,82 @@ public:
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
         std::cerr << "Partial inner lookup " << n << ".\n";
-        PartialInfo *pi = partial_variable_get_info(v);
+        bool dot = false;
         
-        if (pi->is_uninitialized(n)) {
-            std::cerr << "Partial member " << n << " is uninitialized.\n";
-            pi->be_initialized(n);
+        if (n[0] == '.') {
+            dot = true;
+            n = n.substr(1);
+        }
+        
+        PartialInfo *pi = partial_variable_get_info(v);
+        TypeSpec cast_ts = tm[1];
+        // Use lvalue pivot cast for records so the members will be lvalues, too
+        if (cast_ts.has_meta(record_metatype))
+            cast_ts = cast_ts.lvalue();
+
+        Value *member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts));
+
+        if (!member) {
+            // Consider initializer delegation before giving up
+            cast_ts = tm[1].prefix(initializable_type);
+            member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts));
             
-            // TODO: technically the cast type should be lvalue for records only,
-            // because for classes it makes $ a Weakref Lvalue, which is awkward.
-            // But this is for lookup only, so it doesn't really matter.
-            TypeSpec cast_ts = tm[1];
-            if (cast_ts.has_meta(record_metatype))
-                cast_ts = cast_ts.lvalue();
-            
-            Value *member = tm[1].lookup_inner(n, make<CastValue>(v, cast_ts));
-            if (!member) {
-                std::cerr << "Uninitialized member " << cast_ts << " " << n << " not found in scope!\n";
-                throw INTERNAL_ERROR;
-            }
-            
-            TypeSpec member_ts = get_typespec(member);
-            std::cerr << "Partial member " << n << " is " << member_ts << "\n";
-            
-            if (member_ts[0] == lvalue_type) {
-                std::cerr << "Member variable " << n << " is not yet initialized.\n";
-                set_typespec(member, member_ts.reprefix(lvalue_type, uninitialized_type));
-            }
-            else if (member_ts[0] == weakref_type) {
-                std::cerr << "Member role " << n << " is not yet initialized.\n";
-                set_typespec(member, member_ts.prefix(initializable_type));
-            }
-            else {
-                std::cerr << "Weird member variable " << n << ": " << member_ts << "!\n";
-                throw INTERNAL_ERROR;
-            }
+            if (member) {
+                if (pi->is_dirty()) {
+                    std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
+                    return NULL;
+                }
                 
-            return member;
-        }
-        else if (pi->is_initialized(n)) {
-            std::cerr << "Partial member " << n << " is initialized.\n";
-            return tm[1].lookup_inner(n, make<CastValue>(v, tm[1]));
-        }
-        else {
+                pi->be_complete();
+                return member;
+            }
+            
             std::cerr << "Partial member " << n << " not found!\n";
             return NULL;
         }
-    }
-    
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *v) {
-        std::cerr << "Partial partinitializer lookup " << n << ".\n";
-        PartialInfo *pi = partial_variable_get_info(v);
-
-        if (pi->is_dirty()) {
-            std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
-            return NULL;
+        
+        if (pi->is_uninitialized(n)) {
+            std::cerr << "Partial member " << n << " is uninitialized.\n";
+            
+            TypeSpec member_ts = get_typespec(member);
+            //std::cerr << "Partial member " << n << " is " << member_ts << "\n";
+            
+            if (ptr_cast<RoleValue>(member)) {
+                std::cerr << "Member role " << n << " is not yet initialized.\n";
+                
+                if (dot) {
+                    // Accessed with the $.foo syntax, allow
+                    set_typespec(member, member_ts.prefix(initializable_type));
+                    pi->be_initialized(n);
+                    return member;
+                }
+                else {
+                    // Accessed with the $ foo syntax, reject
+                    std::cerr << "Member role " << n << " is not yet initialized!\n";
+                    return NULL;
+                }
+            }
+            else {
+                std::cerr << "Member variable " << n << " is not yet initialized.\n";
+                set_typespec(member, member_ts.reprefix(lvalue_type, uninitialized_type));
+                pi->be_initialized(n);
+                return member;
+            }
         }
-
-        Value *member = tm[1].lookup_inner(n, make<CastValue>(v, tm[1].prefix(initializable_type)));
-        if (!member)
-            return NULL;
-        
-        pi->be_complete();
-        
-        return member;
+        else if (pi->is_initialized(n)) {
+            std::cerr << "Partial member " << n << " is initialized.\n";
+            return member;
+        }
+        else {
+            if (!pi->is_complete()) {
+                std::cerr << "Partial member " << n << " is not yet accessible!\n";
+                return NULL;
+            }
+            else {
+                std::cerr << "Partial member " << n << " is accessible.\n";
+                return member;
+            }
+        }
     }
 };
 
@@ -522,15 +531,7 @@ public:
 class UninitializedType: public Type {
 public:
     UninitializedType(std::string name)
-        :Type(name, Metatypes { type_metatype }, type_metatype) {
-    }
-
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
-        // TODO: not used now
-        if (n == "create from")
-            return make<CreateValue>(pivot, tm);
-        else
-            return NULL;
+        :Type(name, Metatypes { value_metatype }, type_metatype) {
     }
 };
 
@@ -557,8 +558,8 @@ public:
         tm[1].create(s, t, x64);
     }
 
-    virtual Value *lookup_partinitializer(TypeMatch tm, std::string n, Value *pivot) {
-        return tm[1].lookup_partinitializer(n, pivot);
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+        return tm[1].lookup_inner(n, v);  // should look up role initializers
     }
 };
 

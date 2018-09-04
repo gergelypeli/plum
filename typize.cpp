@@ -54,19 +54,8 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
         if (fs) {
             Value *self_value = fs->lookup("$", pivot);
             
-            if (self_value) {
-                std::cerr << "XXX " << name << "\n";
-                Value *member_value = self_value->lookup_inner(name.substr(2));
-                
-                if (member_value) {
-                    RoleValue *role_value = ptr_cast<RoleValue>(member_value);
-                    
-                    if (role_value) {
-                        role_value->be_static();
-                        value = role_value;
-                    }
-                }
-            }
+            if (self_value)
+                value = self_value->lookup_inner(name.substr(1));
         }
     }
     else if (islower(name[0]) || name[0] == '$' || name[0] == '<') {
@@ -222,7 +211,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
         
         if (p) {
-            std::cerr << "Invalid declaration!\n";
+            std::cerr << "Invalid declaration with pivot: " << expr->token << "!\n";
             throw TYPE_ERROR;
         }
         else {
@@ -348,33 +337,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             std::cerr << "Using initializer " << ts << " `" << name << ".\n";
             //std::cerr << "... with type " << value->ts << "\n";
         }
-    }
-    else if (expr->type == Expr::PARTINITIALIZER) {
-        std::string name = expr->text;
-        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
-
-        if (!p) {
-            std::cerr << "Partinitializer without pivot!\n";
-            throw TYPE_ERROR;
-        }
-
-        value = p->ts.lookup_partinitializer(name, p);
-            
-        if (!value) {
-            std::cerr << "No partinitializer " << p->ts << " `" << name << "!\n";
-            throw TYPE_ERROR;
-        }
-            
-        value->set_token(expr->token);
-        bool ok = value->check(expr->args, expr->kwargs, scope);
-        
-        if (!ok) {
-            std::cerr << "Partinitializer argument problem for " << expr->token << "!\n";
-            throw TYPE_ERROR;
-        }
-            
-        std::cerr << "Using partinitializer " << p->ts << " `" << name << ".\n";
-        //std::cerr << "... with type " << value->ts << "\n";
     }
     else if (expr->type == Expr::MATCHER) {
         std::string name = expr->text;
