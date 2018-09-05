@@ -401,7 +401,7 @@ public:
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return MapType::lookup_map_initializer(tm[0], tm[1], tm[2].prefix(weakanchor_type), name, scope);
+        return MapType::lookup_map_initializer(tm[0], tm[1], tm[2].prefix(nosyvalue_type), name, scope);
     }
 };
 
@@ -413,7 +413,7 @@ public:
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(weakanchor_type), tm[2], name, scope);
+        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(nosyvalue_type), tm[2], name, scope);
     }
 };
 
@@ -425,6 +425,6 @@ public:
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(weakanchor_type), UNIT_TS, name, scope);
+        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(nosyvalue_type), UNIT_TS, name, scope);
     }
 };

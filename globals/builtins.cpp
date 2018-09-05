@@ -170,14 +170,14 @@ void builtin_types(Scope *root_scope) {
     ptr_type = new PointerType("Ptr");
     root_scope->add(ptr_type);
 
-    weakanchorage_type = new WeakAnchorageType("<Weakanchorage>");
-    root_scope->add(weakanchorage_type);
+    nosyobject_type = new NosyObjectType("<NosyObject>");
+    root_scope->add(nosyobject_type);
 
-    autoweakref_type = new AutoweakrefType("Autoweakref");
-    root_scope->add(autoweakref_type);
+    weakref_type = new WeakrefType("Weakref");
+    root_scope->add(weakref_type);
 
-    weakanchor_type = new WeakAnchorType("<Weakanchor>");
-    root_scope->add(weakanchor_type);
+    nosyvalue_type = new NosyValueType("<NosyValue>");
+    root_scope->add(nosyvalue_type);
 
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
@@ -332,9 +332,9 @@ void builtin_types(Scope *root_scope) {
     ANYID_REF_LVALUE_TS = { lvalue_type, ref_type, anyid_type };
     ANYID_PTR_TS = { ptr_type, anyid_type };
     ANYID_PTR_LVALUE_TS = { lvalue_type, ptr_type, anyid_type };
-    ANYID_AUTOWEAKREF_TS = { autoweakref_type, anyid_type };
-    ANYID_AUTOWEAKREF_LVALUE_TS = { lvalue_type, autoweakref_type, anyid_type };
-    SAMEID_WEAKANCHORAGE_REF_LVALUE_TS = { lvalue_type, ref_type, weakanchorage_type, sameid_type };
+    ANYID_WEAKREF_TS = { weakref_type, anyid_type };
+    ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
+    SAMEID_NOSYOBJECT_REF_LVALUE_TS = { lvalue_type, ref_type, nosyobject_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     UNIT_UNINITIALIZED_TS = { uninitialized_type, unit_type };
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
@@ -373,17 +373,17 @@ void builtin_types(Scope *root_scope) {
     ANY_SET_PTR_TS = { ptr_type, set_type, any_type };
     ANY_ANY2_MAP_PTR_TS = { ptr_type, map_type, any_type, any2_type };
     ANY_ANYID2_WEAKVALUEMAP_PTR_TS = { ptr_type, weakvaluemap_type, any_type, anyid2_type };
-    SAME_SAMEID2_WEAKANCHOR_MAP_TS = { map_type, same_type, weakanchor_type, sameid2_type };
-    SAME_SAMEID2_WEAKANCHOR_MAP_PTR_TS = { ptr_type, map_type, same_type, weakanchor_type, sameid2_type };
-    SAME_SAMEID2_WEAKANCHOR_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, weakanchor_type, sameid2_type };
+    SAME_SAMEID2_NOSYVALUE_MAP_TS = { map_type, same_type, nosyvalue_type, sameid2_type };
+    SAME_SAMEID2_NOSYVALUE_MAP_PTR_TS = { ptr_type, map_type, same_type, nosyvalue_type, sameid2_type };
+    SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, nosyvalue_type, sameid2_type };
     ANYID_ANY2_WEAKINDEXMAP_PTR_TS = { ptr_type, weakindexmap_type, anyid_type, any2_type };
-    SAMEID_WEAKANCHOR_SAME2_MAP_PTR_TS = { ptr_type, map_type, weakanchor_type, sameid_type, same2_type };
-    SAMEID_WEAKANCHOR_SAME2_MAP_TS = { map_type, weakanchor_type, sameid_type, same2_type };
-    SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, same2_type };
+    SAMEID_NOSYVALUE_SAME2_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, same2_type };
+    SAMEID_NOSYVALUE_SAME2_MAP_TS = { map_type, nosyvalue_type, sameid_type, same2_type };
+    SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, same2_type };
     ANYID_WEAKSET_PTR_TS = { ptr_type, weakset_type, anyid_type };
-    SAMEID_WEAKANCHOR_UNIT_MAP_PTR_TS = { ptr_type, map_type, weakanchor_type, sameid_type, unit_type };
-    SAMEID_WEAKANCHOR_UNIT_MAP_TS = { map_type, weakanchor_type, sameid_type, unit_type };
-    SAMEID_WEAKANCHOR_UNIT_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, unit_type };
+    SAMEID_NOSYVALUE_UNIT_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, unit_type };
+    SAMEID_NOSYVALUE_UNIT_MAP_TS = { map_type, nosyvalue_type, sameid_type, unit_type };
+    SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, unit_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
@@ -737,14 +737,14 @@ void define_slice() {
 }
 
 
-void define_autoweakref() {
-    RecordType *record_type = ptr_cast<RecordType>(autoweakref_type);
-    DataScope *is = record_type->make_inner_scope(ANYID_AUTOWEAKREF_TS);
+void define_weakref() {
+    RecordType *record_type = ptr_cast<RecordType>(weakref_type);
+    DataScope *is = record_type->make_inner_scope(ANYID_WEAKREF_TS);
 
-    is->add(new Variable("anchorage", ANYID_AUTOWEAKREF_TS, SAMEID_WEAKANCHORAGE_REF_LVALUE_TS));
+    is->add(new Variable("nosyobject", ANYID_WEAKREF_TS, SAMEID_NOSYOBJECT_REF_LVALUE_TS));
 
-    is->add(new TemplateOperation<RecordOperationValue>("assign other", ANYID_AUTOWEAKREF_LVALUE_TS, ASSIGN));
-    is->add(new TemplateOperation<RecordOperationValue>("compare", ANYID_AUTOWEAKREF_TS, COMPARE));
+    is->add(new TemplateOperation<RecordOperationValue>("assign other", ANYID_WEAKREF_LVALUE_TS, ASSIGN));
+    is->add(new TemplateOperation<RecordOperationValue>("compare", ANYID_WEAKREF_TS, COMPARE));
 
     record_type->complete_type();
     is->leave();
@@ -952,7 +952,7 @@ void define_map() {
 
 void define_weakvaluemap() {
     TypeSpec PIVOT = ANY_ANYID2_WEAKVALUEMAP_PTR_TS;
-    TypeSpec CAST = SAME_SAMEID2_WEAKANCHOR_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec CAST = SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(weakvaluemap_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
@@ -972,7 +972,7 @@ void define_weakvaluemap() {
 
 void define_weakindexmap() {
     TypeSpec PIVOT = ANYID_ANY2_WEAKINDEXMAP_PTR_TS;
-    TypeSpec CAST = SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec CAST = SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(weakindexmap_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
@@ -992,7 +992,7 @@ void define_weakindexmap() {
 
 void define_weakset() {
     TypeSpec PIVOT = ANYID_WEAKSET_PTR_TS;
-    TypeSpec CAST = SAMEID_WEAKANCHOR_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec CAST = SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(weakset_type);
     DataScope *is = class_type->make_inner_scope(PIVOT);
@@ -1086,7 +1086,7 @@ RootScope *init_builtins() {
     define_weakset();
     
     define_option();
-    define_autoweakref();
+    define_weakref();
     
     // Integer operations
     define_integers();

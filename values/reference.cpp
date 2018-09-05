@@ -81,10 +81,10 @@ public:
 };
 
 
-class WeakAnchorageValue: public GenericValue {
+class NosyObjectValue: public GenericValue {
 public:
-    WeakAnchorageValue(TypeSpec rts)
-        :GenericValue(rts.unprefix(ref_type).reprefix(weakanchorage_type, ptr_type), rts, NULL) {
+    NosyObjectValue(TypeSpec rts)
+        :GenericValue(rts.unprefix(ref_type).reprefix(nosyobject_type, ptr_type), rts, NULL) {
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -107,12 +107,12 @@ public:
         
         x64->op(MOVQ, RAX, Address(RSP, 0));  // the object address
         x64->op(LEA, RBX, Address(callback_label, 0));
-        x64->op(MOVQ, RCX, Address(RSP, 8));  // the anchorage address as the payload1
+        x64->op(MOVQ, RCX, Address(RSP, 8));  // the nosy address as the payload1
         x64->op(MOVQ, RDX, 0);
         x64->op(CALL, x64->runtime->alloc_fcb_label);
         
         x64->op(POPQ, RCX);  // object address
-        x64->op(POPQ, RDX);  // anchorage address
+        x64->op(POPQ, RDX);  // nosy address
         
         x64->op(MOVQ, Address(RDX, 0), RCX);
         x64->op(MOVQ, Address(RDX, 8), RAX);
@@ -121,12 +121,9 @@ public:
     }
     
     static void compile_callback(Label label, X64 *x64) {
-        x64->code_label_local(label, "weakanchorage_callback");
+        x64->code_label_local(label, "nosyobject_callback");
         
-        x64->runtime->log("WeakAnchorage callback.");
-        
-        //x64->op(MOVQ, RBX, Address(RCX, 0));
-        //x64->runtime->decweakref(RBX);
+        x64->runtime->log("NosyObject callback.");
         
         x64->op(MOVQ, Address(RCX, 0), 0);
         x64->op(MOVQ, Address(RCX, 8), 0);  // clear FCB address for the finalizer
@@ -137,9 +134,9 @@ public:
 };
 
 
-class WeakAnchorageDeadMatcherValue: public GenericValue, public Raiser {
+class NosyObjectDeadMatcherValue: public GenericValue, public Raiser {
 public:
-    WeakAnchorageDeadMatcherValue(Value *p, TypeMatch &match)
+    NosyObjectDeadMatcherValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, VOID_TS, p) {
     }
 
@@ -159,7 +156,6 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        //x64->runtime->decweakref(RBX);  // for the anchorage
         x64->op(CMPQ, Address(RBX, 0), 0);
         x64->op(JE, ok);
 
@@ -172,9 +168,9 @@ public:
 };
 
 
-class WeakAnchorageLiveMatcherValue: public GenericValue, public Raiser {
+class NosyObjectLiveMatcherValue: public GenericValue, public Raiser {
 public:
-    WeakAnchorageLiveMatcherValue(Value *p, TypeMatch &match)
+    NosyObjectLiveMatcherValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, match[1].prefix(ptr_type), p) {
     }
 
@@ -194,7 +190,6 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        //x64->runtime->decweakref(RBX);  // for the anchorage
         x64->op(CMPQ, Address(RBX, 0), 0);
         x64->op(JNE, ok);
         
@@ -203,7 +198,6 @@ public:
                 
         x64->code_label(ok);
         x64->op(MOVQ, RBX, Address(RBX, 0));
-        //x64->runtime->incweakref(RBX);  // for the object
         x64->op(PUSHQ, RBX);
 
         return Storage(STACK);

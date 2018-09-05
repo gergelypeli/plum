@@ -30,11 +30,6 @@ const int CLASS_HEADER_SIZE = 8;
 const int CLASS_VT_OFFSET = 0;
 const int CLASS_MEMBERS_OFFSET = 8;
 
-const int ROLE_HEADER_SIZE = 0;
-const int ROLE_HEADER_OFFSET = 0;
-//const int ROLE_WEAKREFCOUNT_OFFSET = -8;  // must be the same
-const int ROLE_CLASS_OFFSET = 0;
-
 const int RBTREE_HEADER_SIZE = 48;
 const int RBTREE_RESERVATION_OFFSET = 0;
 const int RBTREE_LENGTH_OFFSET = 8;
@@ -57,6 +52,7 @@ const int RBNODE_BLACKEN_MASK = -2;
 
 const int ADDRESS_SIZE = 8;
 const int REFERENCE_SIZE = 8;
+const int POINTER_SIZE = 8;
 const int ALIAS_SIZE = 8;
 const int INTEGER_SIZE = 8;
 const int CHARACTER_SIZE = 2;

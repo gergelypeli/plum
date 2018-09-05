@@ -424,25 +424,25 @@ public:
 };
 
 
-class AutoweakrefType: public RecordType {
+class WeakrefType: public RecordType {
 public:
-    AutoweakrefType(std::string n)
+    WeakrefType(std::string n)
         :RecordType(n, Metatypes { identity_metatype }) {
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
-        TypeSpec member_ts = tm[1].prefix(weakanchorage_type).prefix(ref_type);
+        TypeSpec member_ts = tm[1].prefix(nosyobject_type).prefix(ref_type);
         
         Value *v = member_ts.lookup_initializer(n, s);
         if (v) 
             return make<RecordWrapperValue>(v, NO_TS, tm[0], "", "", s);
         
-        std::cerr << "No Autoweakref initializer " << n << "!\n";
+        std::cerr << "No Weakref initializer " << n << "!\n";
         return NULL;
     }
     
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p, Scope *s) {
-        TypeSpec member_ts = tm[1].prefix(weakanchorage_type).prefix(ref_type);
+        TypeSpec member_ts = tm[1].prefix(nosyobject_type).prefix(ref_type);
         p = make<RecordUnwrapValue>(member_ts, p);
         p = make<ReferenceBorrowValue>(p, s);
         
@@ -450,7 +450,7 @@ public:
         if (v)
             return v;
         
-        std::cerr << "No Autoweakref matcher " << n << "!\n";
+        std::cerr << "No Weakref matcher " << n << "!\n";
         return NULL;
     }
 };

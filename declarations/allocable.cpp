@@ -268,9 +268,7 @@ public:
         where = MEMORY;
             
         Allocation a = alloc_ts.measure();
-        a.bytes += ROLE_HEADER_SIZE;
         offset = outer_scope->reserve(a);
-        offset.bytes += ROLE_HEADER_SIZE;
         
         inner_scope->virtual_reserve(alloc_ts.get_virtual_table());
 

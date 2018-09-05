@@ -215,9 +215,9 @@ public:
 
 
 // This is a hack type to cooperate closely with Weak*Map
-class WeakAnchorType: public PointerType {
+class NosyValueType: public PointerType {
 public:
-    WeakAnchorType(std::string name)
+    NosyValueType(std::string name)
         :PointerType(name) {
     }
 
@@ -233,7 +233,7 @@ public:
         if (s.where != STACK || t.where != MEMORY)
             throw INTERNAL_ERROR;
 
-        // A WeakAnchor is a pointer, followed by an FCB pointer.
+        // A NosyValue is a pointer, followed by an FCB pointer.
         // But when creating one in a Weak*Map, the FCB is allocated later,
         // so the pointer is at the lower address. That's why we reverse the order here.
         
@@ -270,9 +270,9 @@ public:
 
 
 
-class WeakAnchorageType: public HeapType {
+class NosyObjectType: public HeapType {
 public:
-    WeakAnchorageType(std::string name)
+    NosyObjectType(std::string name)
         :HeapType(name, Metatypes { identity_metatype }) {
     }
     
@@ -280,19 +280,19 @@ public:
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "to")
-            return make<WeakAnchorageValue>(rts);
+            return make<NosyObjectValue>(rts);
 
-        std::cerr << "No WeakAnchorage initializer called " << name << "!\n";
+        std::cerr << "No NosyObject initializer called " << name << "!\n";
         return NULL;
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         if (n == "dead")
-            return make<WeakAnchorageDeadMatcherValue>(pivot, tm);
+            return make<NosyObjectDeadMatcherValue>(pivot, tm);
         else if (n == "live")
-            return make<WeakAnchorageLiveMatcherValue>(pivot, tm);
+            return make<NosyObjectLiveMatcherValue>(pivot, tm);
             
-        std::cerr << "Can't match WeakAnchorage as " << n << "!\n";
+        std::cerr << "Can't match NosyObject as " << n << "!\n";
         return NULL;
     }
 
@@ -303,8 +303,8 @@ public:
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         Label skip;
 
-        x64->code_label_local(label, "x_weakanchorage_finalizer");
-        x64->runtime->log("Weak anchorage finalized.");
+        x64->code_label_local(label, "x_nosyobject_finalizer");
+        x64->runtime->log("Nosy object finalized.");
         
         x64->op(MOVQ, RBX, Address(RAX, 0));
         x64->op(CMPQ, RBX, 0);

@@ -764,7 +764,7 @@ Main? :Singleton as:
         :is bs ~Greetable then:
             Std prints("WAT, base is Greetable.")
     
-        wt? Greetable Autoweakref = `to(gr)
+        wt? Greetable Weakref = `to(gr)
     
         :is wt ~live then:
             Std prints("WT is live.")
