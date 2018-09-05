@@ -232,6 +232,7 @@ Type *equalitymatcher_type = NULL;
 
 Type *colon_type = NULL;
 DataScope *colon_scope = NULL;
+Value *colon_value = NULL;
 
 TreenumerationType *iterator_done_exception_type = NULL;
 TreenumerationType *container_full_exception_type = NULL;

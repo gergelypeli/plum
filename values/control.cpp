@@ -390,7 +390,7 @@ public:
     
         //std::cerr << "XXX :foreach iterable is " << ib->ts << "\n";
         
-        Value *ib2 = lookup_fake("iter", ib.release(), token, scope, NULL);
+        Value *ib2 = lookup_fake("iter", ib.release(), scope, token, NULL);
         
         if (!ib2) {
             std::cerr << "Iterable didn't implement the iter method!\n";
@@ -422,7 +422,7 @@ public:
         TypeSpec elem_ts = match[1];
         each_ts = elem_ts.prefix(dvalue_type);  //lvalue();
         
-        Value *next = lookup_fake("next", it, token, next_try_scope, NULL);
+        Value *next = lookup_fake("next", it, next_try_scope, token, NULL);
         
         if (!next) {
             std::cerr << "Iterator didn't implement the next method!\n";

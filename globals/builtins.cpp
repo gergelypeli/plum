@@ -1029,6 +1029,8 @@ void builtin_colon(Scope *root_scope) {
 
     colon_type->complete_type();
     colon_scope->leave();
+    
+    colon_value = new Value(VOID_TS);  // completely dummy, for lookup_unchecked
 }
 
 

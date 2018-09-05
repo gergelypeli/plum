@@ -212,11 +212,11 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         Value *streamify = NULL;
         
         if (typematch(STREAMIFIABLE_TS, pivot, scope, match)) {
-            streamify = lookup_fake("streamify", pivot, expr->token, code_scope, NULL, interpolated_var);
+            streamify = lookup_fake("streamify", pivot, code_scope, expr->token, NULL, interpolated_var);
         }
         else if (pivot->ts.rvalue()[0] == ref_type) {
             // Complimentary streamification of references
-            streamify = lookup_fake("<streamify>", pivot, expr->token, code_scope, NULL, interpolated_var);
+            streamify = lookup_fake("<streamify>", pivot, code_scope, expr->token, NULL, interpolated_var);
         }
 
         if (!streamify) {
