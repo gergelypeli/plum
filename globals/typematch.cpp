@@ -165,20 +165,20 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
     bool needs_weaken = false;
 
-    if (*s == ref_type || *s == weakref_type || *t == ref_type || *t == weakref_type) {
+    if (*s == ref_type || *s == ptr_type || *t == ref_type || *t == ptr_type) {
         if (*s == *t) {
             match[0].push_back(*t);
             s++;
             t++;
         }
-        else if (*s == ref_type && *t == weakref_type && !strict) {
+        else if (*s == ref_type && *t == ptr_type && !strict) {
             match[0].push_back(*t);
             s++;
             t++;
             needs_weaken = true;
         }
-        else if (*s == weakref_type && *t == ref_type) {
-            if (matchlog) std::cerr << "No match, weak reference for strong!\n";
+        else if (*s == ptr_type && *t == ref_type) {
+            if (matchlog) std::cerr << "No match, ptr for ref!\n";
             return false;
         }
     }
@@ -187,7 +187,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         bool ok = match_type_parameters(s, t, match);
         
         if (ok && needs_weaken)
-            value = make<ReferenceWeakenValue>(value, match);
+            value = make<ReferenceBorrowValue>(value, match);
         
         return ok;
     }
@@ -216,7 +216,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     bool ok = match_regular_type(s, t, match, value);
     
     if (ok && needs_weaken)
-        value = make<ReferenceWeakenValue>(value, match);
+        value = make<ReferenceBorrowValue>(value, match);
         
     return ok;
 }

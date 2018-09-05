@@ -167,8 +167,8 @@ void builtin_types(Scope *root_scope) {
     ref_type = new ReferenceType("Ref");
     root_scope->add(ref_type);
 
-    weakref_type = new WeakReferenceType("Weakref");
-    root_scope->add(weakref_type);
+    ptr_type = new PointerType("Ptr");
+    root_scope->add(ptr_type);
 
     weakanchorage_type = new WeakAnchorageType("<Weakanchorage>");
     root_scope->add(weakanchorage_type);
@@ -330,8 +330,8 @@ void builtin_types(Scope *root_scope) {
     FLOAT_LVALUE_TS = { lvalue_type, float_type };
     ANYID_REF_TS = { ref_type, anyid_type };
     ANYID_REF_LVALUE_TS = { lvalue_type, ref_type, anyid_type };
-    ANYID_WEAKREF_TS = { weakref_type, anyid_type };
-    ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
+    ANYID_PTR_TS = { ptr_type, anyid_type };
+    ANYID_PTR_LVALUE_TS = { lvalue_type, ptr_type, anyid_type };
     ANYID_AUTOWEAKREF_TS = { autoweakref_type, anyid_type };
     ANYID_AUTOWEAKREF_LVALUE_TS = { lvalue_type, autoweakref_type, anyid_type };
     SAMEID_WEAKANCHORAGE_REF_LVALUE_TS = { lvalue_type, ref_type, weakanchorage_type, sameid_type };
@@ -340,11 +340,11 @@ void builtin_types(Scope *root_scope) {
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
     ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
     SAME_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, same_type };
-    ANY_ARRAY_WEAKREF_TS = { weakref_type, array_type, any_type };
+    ANY_ARRAY_PTR_TS = { ptr_type, array_type, any_type };
     ANY_CIRCULARRAY_REF_TS = { ref_type, circularray_type, any_type };
     ANY_CIRCULARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, circularray_type, any_type };
     SAME_CIRCULARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, circularray_type, same_type };
-    ANY_CIRCULARRAY_WEAKREF_TS = { weakref_type, circularray_type, any_type };
+    ANY_CIRCULARRAY_PTR_TS = { ptr_type, circularray_type, any_type };
     ANY_RBTREE_REF_TS = { ref_type, rbtree_type, any_type };
     ANY_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, any_type };
     SAME_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, same_type };
@@ -368,20 +368,20 @@ void builtin_types(Scope *root_scope) {
     ANY_QUEUE_REF_TS = { ref_type, queue_type, any_type };
     ANY_SET_REF_TS = { ref_type, set_type, any_type };
     ANY_ANY2_MAP_REF_TS = { ref_type, map_type, any_type, any2_type };
-    ANY_STACK_WEAKREF_TS = { weakref_type, stack_type, any_type };
-    ANY_QUEUE_WEAKREF_TS = { weakref_type, queue_type, any_type };
-    ANY_SET_WEAKREF_TS = { weakref_type, set_type, any_type };
-    ANY_ANY2_MAP_WEAKREF_TS = { weakref_type, map_type, any_type, any2_type };
-    ANY_ANYID2_WEAKVALUEMAP_WEAKREF_TS = { weakref_type, weakvaluemap_type, any_type, anyid2_type };
+    ANY_STACK_PTR_TS = { ptr_type, stack_type, any_type };
+    ANY_QUEUE_PTR_TS = { ptr_type, queue_type, any_type };
+    ANY_SET_PTR_TS = { ptr_type, set_type, any_type };
+    ANY_ANY2_MAP_PTR_TS = { ptr_type, map_type, any_type, any2_type };
+    ANY_ANYID2_WEAKVALUEMAP_PTR_TS = { ptr_type, weakvaluemap_type, any_type, anyid2_type };
     SAME_SAMEID2_WEAKANCHOR_MAP_TS = { map_type, same_type, weakanchor_type, sameid2_type };
-    SAME_SAMEID2_WEAKANCHOR_MAP_WEAKREF_TS = { weakref_type, map_type, same_type, weakanchor_type, sameid2_type };
+    SAME_SAMEID2_WEAKANCHOR_MAP_PTR_TS = { ptr_type, map_type, same_type, weakanchor_type, sameid2_type };
     SAME_SAMEID2_WEAKANCHOR_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, weakanchor_type, sameid2_type };
-    ANYID_ANY2_WEAKINDEXMAP_WEAKREF_TS = { weakref_type, weakindexmap_type, anyid_type, any2_type };
-    SAMEID_WEAKANCHOR_SAME2_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, same2_type };
+    ANYID_ANY2_WEAKINDEXMAP_PTR_TS = { ptr_type, weakindexmap_type, anyid_type, any2_type };
+    SAMEID_WEAKANCHOR_SAME2_MAP_PTR_TS = { ptr_type, map_type, weakanchor_type, sameid_type, same2_type };
     SAMEID_WEAKANCHOR_SAME2_MAP_TS = { map_type, weakanchor_type, sameid_type, same2_type };
     SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, same2_type };
-    ANYID_WEAKSET_WEAKREF_TS = { weakref_type, weakset_type, anyid_type };
-    SAMEID_WEAKANCHOR_UNIT_MAP_WEAKREF_TS = { weakref_type, map_type, weakanchor_type, sameid_type, unit_type };
+    ANYID_WEAKSET_PTR_TS = { ptr_type, weakset_type, anyid_type };
+    SAMEID_WEAKANCHOR_UNIT_MAP_PTR_TS = { ptr_type, map_type, weakanchor_type, sameid_type, unit_type };
     SAMEID_WEAKANCHOR_UNIT_MAP_TS = { map_type, weakanchor_type, sameid_type, unit_type };
     SAMEID_WEAKANCHOR_UNIT_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, weakanchor_type, sameid_type, unit_type };
     COUNTUP_TS = { countup_type };
@@ -595,12 +595,12 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
 template <typename NextValue>
 void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
     TypeSpec PIVOT_TS = { iter_type, any_type };
-    TypeSpec SAME_ARRAY_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, array_type, same_type };
+    TypeSpec SAME_ARRAY_PTR_LVALUE_TS = { lvalue_type, ptr_type, array_type, same_type };
     
     DataScope *aiis = iter_type->make_inner_scope(PIVOT_TS);
 
     // Order matters!
-    aiis->add(new Variable("container", PIVOT_TS, SAME_ARRAY_WEAKREF_LVALUE_TS));
+    aiis->add(new Variable("container", PIVOT_TS, SAME_ARRAY_PTR_LVALUE_TS));
     aiis->add(new Variable("front", PIVOT_TS, INTEGER_LVALUE_TS));
     aiis->add(new Variable("length", PIVOT_TS, INTEGER_LVALUE_TS));
     aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
@@ -709,12 +709,12 @@ void define_string() {
 
 
 void define_slice() {
-    TypeSpec SAME_ARRAY_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, array_type, same_type };
+    TypeSpec SAME_ARRAY_PTR_LVALUE_TS = { lvalue_type, ptr_type, array_type, same_type };
     
     RecordType *record_type = ptr_cast<RecordType>(slice_type);
     DataScope *is = record_type->make_inner_scope(ANY_SLICE_TS);
 
-    is->add(new Variable("weakref", ANY_SLICE_TS, SAME_ARRAY_WEAKREF_LVALUE_TS));
+    is->add(new Variable("ptr", ANY_SLICE_TS, SAME_ARRAY_PTR_LVALUE_TS));
     is->add(new Variable("front", ANY_SLICE_TS, INTEGER_LVALUE_TS));
     is->add(new Variable("length", ANY_SLICE_TS, INTEGER_LVALUE_TS));
 
@@ -774,12 +774,12 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", ANY_ARRAY_REF_TS));  // needs Ref
     array_scope->add(new TemplateIdentifier<ArrayRefillValue>("refill", ANY_ARRAY_REF_LVALUE_TS));
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
-    array_scope->add(new TemplateOperation<ArrayIndexValue>("index", ANY_ARRAY_WEAKREF_TS, TWEAK));
+    array_scope->add(new TemplateOperation<ArrayIndexValue>("index", ANY_ARRAY_PTR_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayAutogrowValue>("autogrow", ANY_ARRAY_REF_LVALUE_TS));
-    array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", ANY_ARRAY_WEAKREF_TS));
+    array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", ANY_ARRAY_PTR_TS));
     
     // Array iterable operations
     implement(array_scope, SAME_ITERABLE_TS, "ible", {
@@ -803,7 +803,7 @@ void define_circularray() {
     circularray_scope->add(new TemplateIdentifier<CircularrayLengthValue>("length", ANY_CIRCULARRAY_REF_TS));
     //circularray_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
     //circularray_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
-    circularray_scope->add(new TemplateOperation<CircularrayIndexValue>("index", ANY_CIRCULARRAY_WEAKREF_TS, TWEAK));
+    circularray_scope->add(new TemplateOperation<CircularrayIndexValue>("index", ANY_CIRCULARRAY_PTR_TS, TWEAK));
     //circularray_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayPushValue>("push", ANY_CIRCULARRAY_REF_TS));
     circularray_scope->add(new TemplateIdentifier<CircularrayPopValue>("pop", ANY_CIRCULARRAY_REF_TS));
@@ -845,7 +845,7 @@ void define_rbtree() {
 
 
 void define_stack() {
-    TypeSpec PIVOT = ANY_STACK_WEAKREF_TS;
+    TypeSpec PIVOT = ANY_STACK_PTR_TS;
     TypeSpec CAST = SAME_ARRAY_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(stack_type);
@@ -874,7 +874,7 @@ void define_stack() {
 
 
 void define_queue() {
-    TypeSpec PIVOT = ANY_QUEUE_WEAKREF_TS;
+    TypeSpec PIVOT = ANY_QUEUE_PTR_TS;
     TypeSpec CAST = SAME_CIRCULARRAY_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(queue_type);
@@ -905,7 +905,7 @@ void define_queue() {
 
 
 void define_set() {
-    TypeSpec PIVOT = ANY_SET_WEAKREF_TS;
+    TypeSpec PIVOT = ANY_SET_PTR_TS;
     TypeSpec CAST = SAME_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(set_type);
@@ -931,7 +931,7 @@ void define_set() {
 
 
 void define_map() {
-    TypeSpec PIVOT = ANY_ANY2_MAP_WEAKREF_TS;
+    TypeSpec PIVOT = ANY_ANY2_MAP_PTR_TS;
     TypeSpec CAST = SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(map_type);
@@ -951,7 +951,7 @@ void define_map() {
 
 
 void define_weakvaluemap() {
-    TypeSpec PIVOT = ANY_ANYID2_WEAKVALUEMAP_WEAKREF_TS;
+    TypeSpec PIVOT = ANY_ANYID2_WEAKVALUEMAP_PTR_TS;
     TypeSpec CAST = SAME_SAMEID2_WEAKANCHOR_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(weakvaluemap_type);
@@ -971,7 +971,7 @@ void define_weakvaluemap() {
 
 
 void define_weakindexmap() {
-    TypeSpec PIVOT = ANYID_ANY2_WEAKINDEXMAP_WEAKREF_TS;
+    TypeSpec PIVOT = ANYID_ANY2_WEAKINDEXMAP_PTR_TS;
     TypeSpec CAST = SAMEID_WEAKANCHOR_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(weakindexmap_type);
@@ -991,7 +991,7 @@ void define_weakindexmap() {
 
 
 void define_weakset() {
-    TypeSpec PIVOT = ANYID_WEAKSET_WEAKREF_TS;
+    TypeSpec PIVOT = ANYID_WEAKSET_PTR_TS;
     TypeSpec CAST = SAMEID_WEAKANCHOR_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
     
     ClassType *class_type = ptr_cast<ClassType>(weakset_type);
@@ -1019,7 +1019,7 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<IsValue>("is", NO_TS));
     colon_scope->add(new TemplateOperation<FunctionReturnValue>("return", NO_TS, TWEAK));
 
-    colon_scope->add(new TemplateIdentifier<ReferenceWeakenValue>("weak", NO_TS));
+    colon_scope->add(new TemplateIdentifier<ReferenceBorrowValue>("weak", NO_TS));
 
     colon_scope->add(new TemplateIdentifier<FunctionDefinitionValue>("Function", NO_TS));
     colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer", NO_TS));
@@ -1143,12 +1143,12 @@ RootScope *init_builtins() {
     ref_scope->add(new TemplateIdentifier<GenericStreamificationValue>("<streamify>", ANYID_REF_TS));
     ref_scope->leave();
 
-    typedef TemplateOperation<WeakreferenceOperationValue> WeakreferenceOperation;
-    Scope *weakref_scope = weakref_type->make_inner_scope(ANYID_WEAKREF_TS);
-    weakref_scope->add(new WeakreferenceOperation("assign other", ANYID_WEAKREF_LVALUE_TS, ASSIGN));
-    weakref_scope->add(new WeakreferenceOperation("is_equal", ANYID_WEAKREF_TS, EQUAL));
-    weakref_scope->add(new WeakreferenceOperation("not_equal", ANYID_WEAKREF_TS, NOT_EQUAL));
-    weakref_scope->leave();
+    typedef TemplateOperation<PointerOperationValue> PointerOperation;
+    Scope *ptr_scope = ptr_type->make_inner_scope(ANYID_PTR_TS);
+    ptr_scope->add(new PointerOperation("assign other", ANYID_PTR_LVALUE_TS, ASSIGN));
+    ptr_scope->add(new PointerOperation("is_equal", ANYID_PTR_TS, EQUAL));
+    ptr_scope->add(new PointerOperation("not_equal", ANYID_PTR_TS, NOT_EQUAL));
+    ptr_scope->leave();
 
     // Array operations
     define_array();

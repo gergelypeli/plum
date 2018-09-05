@@ -194,18 +194,18 @@ public:
 };
 
 
-class WeakReferenceType: public ReferenceType {
+class PointerType: public ReferenceType {
 public:
-    WeakReferenceType(std::string name)
+    PointerType(std::string name)
         :ReferenceType(name) {
     }
     
     virtual void incref(Register r, X64 *x64) {
-        x64->runtime->incweakref(r);
+        //x64->runtime->incweakref(r);
     }
 
     virtual void decref(Register r, X64 *x64) {
-        x64->runtime->decweakref(r);
+        //x64->runtime->decweakref(r);
     }
 
     //virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
@@ -215,10 +215,10 @@ public:
 
 
 // This is a hack type to cooperate closely with Weak*Map
-class WeakAnchorType: public WeakReferenceType {
+class WeakAnchorType: public PointerType {
 public:
     WeakAnchorType(std::string name)
-        :WeakReferenceType(name) {
+        :PointerType(name) {
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -233,13 +233,13 @@ public:
         if (s.where != STACK || t.where != MEMORY)
             throw INTERNAL_ERROR;
 
-        // A WeakAnchor is a weak reference, followed by an FCB pointer.
+        // A WeakAnchor is a pointer, followed by an FCB pointer.
         // But when creating one in a Weak*Map, the FCB is allocated later,
         // so the pointer is at the lower address. That's why we reverse the order here.
         
         x64->op(POPQ, t.address + ADDRESS_SIZE);
         
-        WeakReferenceType::create(tm, s, t, x64);
+        PointerType::create(tm, s, t, x64);
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
@@ -251,7 +251,7 @@ public:
         x64->op(CALL, x64->runtime->free_fcb_label);
         x64->op(POPQ, RAX);
         
-        WeakReferenceType::destroy(tm, s, x64);
+        PointerType::destroy(tm, s, x64);
     }
 };
 
@@ -310,7 +310,7 @@ public:
         x64->op(CMPQ, RBX, 0);
         x64->op(JE, skip);
         
-        x64->runtime->decweakref(RBX);
+        //x64->runtime->decweakref(RBX);
         x64->op(MOVQ, RAX, Address(RAX, 8));
         x64->op(CALL, x64->runtime->free_fcb_label);
         

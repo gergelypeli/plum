@@ -494,7 +494,7 @@ public:
         pivot.reset(l->lookup_inner("wrapped")->lookup_inner("autogrow"));
         key_ts = match[1];
         value_ts = match[2];
-        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
         
         // To help subclasses tweaking these
         key_arg_ts = key_ts;
@@ -586,7 +586,7 @@ public:
         :Value(VOID_TS) {
         pivot.reset(l);
         key_ts = match[1];
-        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
         
         key_arg_ts = key_ts;
     }
@@ -635,7 +635,7 @@ public:
         :Value(BOOLEAN_TS) {
         pivot.reset(l);
         key_ts = match[1];
-        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
         
         key_arg_ts = key_ts;
     }
@@ -685,7 +685,7 @@ public:
         :Value(match[2]) {
         pivot.reset(l);
         key_ts = match[1];
-        item_ts = match[0].unprefix(weakref_type).reprefix(map_type, item_type);
+        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
         
         key_arg_ts = key_ts;
     }
@@ -779,7 +779,7 @@ static void alloc_fcb(TypeSpec item_ts, Address alias_addr, X64 *x64) {
 
 TypeMatch &wvmatch(TypeMatch &match) {
     static TypeMatch tm;
-    tm[0] = typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_WEAKREF_TS, match);
+    tm[0] = typesubst(SAME_SAMEID2_WEAKANCHOR_MAP_PTR_TS, match);
     tm[1] = match[1];
     tm[2] = match[2].prefix(weakanchor_type);
     tm[3] = NO_TS;
@@ -791,7 +791,7 @@ class WeakValueMapAddValue: public MapAddValue {
 public:
     WeakValueMapAddValue(Value *l, TypeMatch &match)
         :MapAddValue(l, wvmatch(match)) {
-        value_arg_ts = value_ts.reprefix(weakanchor_type, weakref_type);
+        value_arg_ts = value_ts.reprefix(weakanchor_type, ptr_type);
     }
 
     virtual void prevalue(Address alias_addr, X64 *x64) {
@@ -820,7 +820,7 @@ class WeakValueMapIndexValue: public MapIndexValue {
 public:
     WeakValueMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wvmatch(match)) {
-        ts = ts.reprefix(weakanchor_type, weakref_type);
+        ts = ts.reprefix(weakanchor_type, ptr_type);
     }
 };
 
@@ -829,7 +829,7 @@ public:
 
 TypeMatch &wimatch(TypeMatch &match) {
     static TypeMatch tm;
-    tm[0] = typesubst(SAMEID_WEAKANCHOR_SAME2_MAP_WEAKREF_TS, match);
+    tm[0] = typesubst(SAMEID_WEAKANCHOR_SAME2_MAP_PTR_TS, match);
     tm[1] = match[1].prefix(weakanchor_type);
     tm[2] = match[2];
     tm[3] = NO_TS;
@@ -841,7 +841,7 @@ class WeakIndexMapAddValue: public MapAddValue {
 public:
     WeakIndexMapAddValue(Value *l, TypeMatch &match)
         :MapAddValue(l, wimatch(match)) {
-        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        key_arg_ts = key_ts.reprefix(weakanchor_type, ptr_type);
     }
 
     virtual void prekey(Address alias_addr, X64 *x64) {
@@ -854,7 +854,7 @@ class WeakIndexMapRemoveValue: public MapRemoveValue {
 public:
     WeakIndexMapRemoveValue(Value *l, TypeMatch &match)
         :MapRemoveValue(l, wimatch(match)) {
-        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        key_arg_ts = key_ts.reprefix(weakanchor_type, ptr_type);
     }
 };
 
@@ -863,7 +863,7 @@ class WeakIndexMapHasValue: public MapHasValue {
 public:
     WeakIndexMapHasValue(Value *l, TypeMatch &match)
         :MapHasValue(l, wimatch(match)) {
-        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        key_arg_ts = key_ts.reprefix(weakanchor_type, ptr_type);
     }
 };
 
@@ -872,7 +872,7 @@ class WeakIndexMapIndexValue: public MapIndexValue {
 public:
     WeakIndexMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wimatch(match)) {
-        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        key_arg_ts = key_ts.reprefix(weakanchor_type, ptr_type);
     }
 };
 
@@ -881,7 +881,7 @@ public:
 
 TypeMatch &wsmatch(TypeMatch &match) {
     static TypeMatch tm;
-    tm[0] = typesubst(SAMEID_WEAKANCHOR_UNIT_MAP_WEAKREF_TS, match);
+    tm[0] = typesubst(SAMEID_WEAKANCHOR_UNIT_MAP_PTR_TS, match);
     tm[1] = match[1].prefix(weakanchor_type);
     tm[2] = UNIT_TS;
     tm[3] = NO_TS;
@@ -893,7 +893,7 @@ class WeakSetAddValue: public MapAddValue {
 public:
     WeakSetAddValue(Value *l, TypeMatch &match)
         :MapAddValue(l, wsmatch(match)) {
-        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        key_arg_ts = key_ts.reprefix(weakanchor_type, ptr_type);
         value_arg_ts = NO_TS;  // special handling
     }
 
@@ -907,7 +907,7 @@ class WeakSetRemoveValue: public MapRemoveValue {
 public:
     WeakSetRemoveValue(Value *l, TypeMatch &match)
         :MapRemoveValue(l, wsmatch(match)) {
-        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        key_arg_ts = key_ts.reprefix(weakanchor_type, ptr_type);
     }
 };
 
@@ -916,7 +916,7 @@ class WeakSetHasValue: public MapHasValue {
 public:
     WeakSetHasValue(Value *l, TypeMatch &match)
         :MapHasValue(l, wsmatch(match)) {
-        key_arg_ts = key_ts.reprefix(weakanchor_type, weakref_type);
+        key_arg_ts = key_ts.reprefix(weakanchor_type, ptr_type);
     }
 };
 

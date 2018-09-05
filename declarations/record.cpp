@@ -444,9 +444,9 @@ public:
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p) {
         TypeSpec member_ts = tm[1].prefix(weakanchorage_type).prefix(ref_type);
         p = make<RecordUnwrapValue>(member_ts, p);
-        p = make<ReferenceWeakenValue>(p, tm);
+        p = make<ReferenceBorrowValue>(p, tm);
         
-        Value *v = member_ts.reprefix(ref_type, weakref_type).lookup_matcher(n, p);
+        Value *v = member_ts.reprefix(ref_type, ptr_type).lookup_matcher(n, p);
         if (v)
             return v;
         

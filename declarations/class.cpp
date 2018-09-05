@@ -109,11 +109,11 @@ public:
                 var->destroy(tm, s, x64);
 
             // Allow the destroyed members release potential backreferences first
-            Label no_weakrefs;
-            x64->op(CMPQ, Address(RAX, ROLE_WEAKREFCOUNT_OFFSET), 0);
-            x64->op(JE, no_weakrefs);
-            x64->runtime->die("Weakly referenced role finalized!");
-            x64->code_label(no_weakrefs);
+            //Label no_weakrefs;
+            //x64->op(CMPQ, Address(RAX, ROLE_WEAKREFCOUNT_OFFSET), 0);
+            //x64->op(JE, no_weakrefs);
+            //x64->runtime->die("Weakly referenced role finalized!");
+            //x64->code_label(no_weakrefs);
         }
         else
             throw INTERNAL_ERROR;
@@ -231,7 +231,7 @@ public:
             TypeSpec ts = get_typespec(orig).rvalue();
             Type *t = ts[0];
             
-            if (t == ref_type || t == weakref_type)
+            if (t == ref_type || t == ptr_type)
                 ts = ts.unprefix(t);
             else
                 throw INTERNAL_ERROR;

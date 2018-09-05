@@ -92,8 +92,9 @@ public:
                 }
                 else {
                     // Records have a rvalue pivot type, but the self argument must be treated
-                    // as lvalue, so the members will also be lvalue-s.
-                    TypeSpec self_ts = (pivot_ts[0] == weakref_type ? pivot_ts : pivot_ts.lvalue());
+                    // as lvalue, so the members will also be lvalue-s. But not in classes,
+                    // as an lvalue self would be awkward.
+                    TypeSpec self_ts = (pivot_ts[0] == ptr_type ? pivot_ts : pivot_ts.lvalue());
                     self_var = new Variable("$", NO_TS, self_ts);
                 }
                 
@@ -103,7 +104,7 @@ public:
                     // Function overrides must pretend they take the role pivot type
                     TypeMatch tm = pivot_ts.match();
                     role_scope->get_role()->compute_match(tm);
-                    pivot_ts = tm[0].prefix(weakref_type);
+                    pivot_ts = tm[0].prefix(ptr_type);
                 }
             }
         }
@@ -236,8 +237,7 @@ public:
                     
                     pi->set_member_names(st->get_member_names());
                 }
-                else if (ats[0] == weakref_type) {
-                    // TODO: this should also work for records
+                else if (ats[0] == ptr_type) {
                     ClassType *ct = ptr_cast<ClassType>(ats[1]);
                     if (!ct)
                         throw INTERNAL_ERROR;
@@ -634,7 +634,7 @@ public:
 
         TypeSpec pts = pivot->ts.rvalue();
         
-        if (pts[0] != weakref_type)  // Was: borrowed_type
+        if (pts[0] != ptr_type)
             throw INTERNAL_ERROR;
             
         x64->op(LEA, RAX, Address(RSP, passed_size));

@@ -180,10 +180,11 @@ public:
         if (pivot) {
             pts = pivot->ts.rvalue();
 
+            // Sanity check
             if (pts[0] == ref_type)
                 throw INTERNAL_ERROR;  // variables are accessed by weak references only
                 
-            is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != weakref_type && !pts.has_meta(module_metatype) && !pts.has_meta(singleton_metatype));
+            is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != ptr_type && !pts.has_meta(module_metatype) && !pts.has_meta(singleton_metatype));
             
             if (is_rvalue)
                 ts = ts.rvalue();
@@ -200,7 +201,7 @@ public:
             if (variable->where == ALIAS)
                 throw INTERNAL_ERROR;
                 
-            if (pts[0] == weakref_type) {
+            if (pts[0] == ptr_type) {
                 reg = preferred.get_any();
                 clob = clob | reg;
             }
@@ -227,12 +228,12 @@ public:
 
             Storage s = pivot->compile(x64);
             
-            if (pts[0] == weakref_type) {
+            if (pts[0] == ptr_type) {
                 // FIXME: technically we must borrow a reference here, or the container
                 // may be destroyed before accessing this variable!
                 
                 pts.store(s, Storage(REGISTER, reg), x64);
-                x64->runtime->decweakref(reg);
+                //x64->runtime->decweakref(reg);
                 s = Storage(MEMORY, Address(reg, 0));
             }
             else if (is_rvalue) {
@@ -426,7 +427,7 @@ public:
     bool am_static;
     
     RoleValue(Role *r, Value *p, TypeMatch &tm)
-        :Value(typesubst(r->alloc_ts, tm).prefix(weakref_type)) {  // Was: borrowed_type
+        :Value(typesubst(r->alloc_ts, tm).prefix(ptr_type)) {
         role = r;
         pivot.reset(p);
         reg = NOREG;
@@ -457,21 +458,21 @@ public:
         
         switch (s.where) {
         case REGISTER:
-            x64->runtime->decweakref(s.reg);
+            //x64->runtime->decweakref(s.reg);
             x64->op(ADDQ, s.reg, offset);
-            x64->runtime->incweakref(s.reg);
+            //x64->runtime->incweakref(s.reg);
             return s;
         case STACK:
-            x64->op(POPQ, RBX);
-            x64->runtime->decweakref(RBX);
-            x64->op(ADDQ, RBX, offset);
-            x64->runtime->incweakref(RBX);
-            x64->op(PUSHQ, RBX);
+            //x64->op(POPQ, RBX);
+            //x64->runtime->decweakref(RBX);
+            x64->op(ADDQ, Address(RSP, 0), offset);
+            //x64->runtime->incweakref(RBX);
+            //x64->op(PUSHQ, RBX);
             return s;
         case MEMORY:
             x64->op(MOVQ, RBX, s.address);
             x64->op(ADDQ, RBX, offset);
-            x64->runtime->incweakref(RBX);
+            //x64->runtime->incweakref(RBX);
             x64->op(PUSHQ, RBX);
             return Storage(STACK);
         default:

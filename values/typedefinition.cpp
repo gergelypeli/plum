@@ -498,7 +498,7 @@ public:
         }
 
         defined_type = new ClassType("<anonymous>", Metatypes {});
-        TypeSpec cts = { weakref_type, defined_type };
+        TypeSpec cts = { ptr_type, defined_type };
 
         setup_inner(defined_type, cts);
 

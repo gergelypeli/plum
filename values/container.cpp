@@ -1,6 +1,6 @@
 
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
-    // FIXME: this won't work for weakrefs
+    // FIXME: this won't work for ptr
     return ts.rvalue().unprefix(ref_type).unprefix(container_type);
 }
 
@@ -111,22 +111,23 @@ public:
 class ContainerIndexValue: public OptimizedOperationValue {
 public:
     TypeSpec elem_ts;
-    Borrow *borrow;
+    // If the container is guaranteed, then the elements as well
+    //Borrow *borrow;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match)
         :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot,
         GPR_SUBSET, GPR_SUBSET
         ) {
         elem_ts = match[1];
-        borrow = NULL;
+        //borrow = NULL;
         
-        if (pivot->ts.rvalue()[0] != weakref_type)
+        if (pivot->ts.rvalue()[0] != ptr_type)
             throw INTERNAL_ERROR;  // sanity check
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        borrow = new Borrow;
-        scope->add(borrow);
+        //borrow = new Borrow;
+        //scope->add(borrow);
         return OptimizedOperationValue::check(args, kwargs, scope);
     }
 
@@ -155,7 +156,7 @@ public:
         switch (ls.where) {
         case REGISTER:
             // Keep REGISTER weakreference, defer decweakref
-            x64->op(MOVQ, borrow->get_address(), ls.reg);
+            //x64->op(MOVQ, borrow->get_address(), ls.reg);
             
             fix_RBX_index(ls.reg, x64);
             
@@ -165,8 +166,8 @@ public:
         case MEMORY:
             // Add weak reference, defer decweakref
             x64->op(MOVQ, auxls.reg, ls.address);  // reg may be the base of ls.address
-            x64->op(MOVQ, borrow->get_address(), auxls.reg);
-            x64->runtime->incweakref(auxls.reg);
+            //x64->op(MOVQ, borrow->get_address(), auxls.reg);
+            //x64->runtime->incweakref(auxls.reg);
             
             fix_RBX_index(auxls.reg, x64);
             

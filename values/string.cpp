@@ -56,11 +56,11 @@ public:
 
     virtual Storage compile(X64 *x64) {
         x64->op(LEA, RBX, Address(x64->runtime->empty_array_label, 0));
-        x64->runtime->incweakref(RBX);
+        //x64->runtime->incweakref(RBX);
         
         x64->op(PUSHQ, 0);  // length
         x64->op(PUSHQ, 0);  // front
-        x64->op(PUSHQ, RBX);  // weakref
+        x64->op(PUSHQ, RBX);  // ptr
         
         return Storage(STACK);
     }
@@ -70,7 +70,7 @@ public:
 class SliceAllValue: public GenericValue {
 public:
     SliceAllValue(TypeMatch &match)
-        :GenericValue(match[1].prefix(array_type).prefix(weakref_type), match[1].prefix(slice_type), NULL) {
+        :GenericValue(match[1].prefix(array_type).prefix(ptr_type), match[1].prefix(slice_type), NULL) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -91,7 +91,7 @@ public:
             break;
         case MEMORY:
             x64->op(MOVQ, RBX, rs.address);
-            x64->runtime->incweakref(RBX);
+            //x64->runtime->incweakref(RBX);
             r = RBX;
             break;
         default:
@@ -100,7 +100,7 @@ public:
         
         x64->op(PUSHQ, Address(r, ARRAY_LENGTH_OFFSET));  // length
         x64->op(PUSHQ, 0);  // front
-        x64->op(PUSHQ, r);  // weakref
+        x64->op(PUSHQ, r);  // ptr
         
         return Storage(STACK);
     }
@@ -146,7 +146,7 @@ public:
         
         x64->op(POPQ, RCX);  // length
         x64->op(POPQ, RBX);  // front
-        x64->op(POPQ, RAX);  // weakref
+        x64->op(POPQ, RAX);  // ptr
         x64->op(MOVQ, RDX, Address(RAX, ARRAY_LENGTH_OFFSET));
         
         Label ok, nok;
@@ -158,7 +158,7 @@ public:
         x64->op(JBE, ok);
         
         x64->code_label(nok);
-        x64->runtime->decweakref(RAX);
+        //x64->runtime->decweakref(RAX);
 
         // all popped
         raise("NOT_FOUND", x64);
@@ -238,20 +238,21 @@ public:
 class SliceIndexValue: public GenericValue, public Raiser {
 public:
     TypeSpec elem_ts;
-    Borrow *borrow;
+    // Since Slice is guaranteed to be valid, the element is as well
+    //Borrow *borrow;
     
     SliceIndexValue(Value *pivot, TypeMatch &match)
         :GenericValue(INTEGER_TS, match[1].lvalue(), pivot) {
         elem_ts = match[1];
-        borrow = NULL;
+        //borrow = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (!check_raise(lookup_exception_type, scope))
             return false;
         
-        borrow = new Borrow;
-        scope->add(borrow);
+        //borrow = new Borrow;
+        //scope->add(borrow);
         
         return GenericValue::check(args, kwargs, scope);
     }
@@ -268,11 +269,11 @@ public:
         right->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RAX);  // index
-        x64->op(POPQ, RBX);  // weakref
+        x64->op(POPQ, RBX);  // ptr
         x64->op(POPQ, RCX);  // front
         x64->op(POPQ, RDX);  // length
         
-        x64->op(MOVQ, borrow->get_address(), RBX);  // defer decweakref
+        //x64->op(MOVQ, borrow->get_address(), RBX);
         
         Label ok;
         x64->op(CMPQ, RAX, RDX);
@@ -440,7 +441,7 @@ public:
         switch (ls.where) {
         case MEMORY:
             x64->op(MOVQ, RBX, ls.address + VALUE_OFFSET);
-            x64->op(MOVQ, reg, ls.address); // array weakreference without incweakref
+            x64->op(MOVQ, reg, ls.address); // array ptr
             x64->op(CMPQ, RBX, ls.address + LENGTH_OFFSET);
             x64->op(JNE, ok);
             

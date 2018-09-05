@@ -7,24 +7,24 @@ public:
 };
 
 
-class WeakreferenceOperationValue: public ReferenceOperationValue {
+class PointerOperationValue: public ReferenceOperationValue {
 public:
-    WeakreferenceOperationValue(OperationType o, Value *l, TypeMatch &match)
+    PointerOperationValue(OperationType o, Value *l, TypeMatch &match)
         :ReferenceOperationValue(o, l, match) {
     }
 };
 
 
-class ReferenceWeakenValue: public Value {
+class ReferenceBorrowValue: public Value {
 public:
     std::unique_ptr<Value> value;
     
-    ReferenceWeakenValue(Value *v, TypeMatch &tm)
+    ReferenceBorrowValue(Value *v, TypeMatch &tm)
         :Value(NO_TS) {
         if (v) {
             // When used as an automatic conversion
             value.reset(v);
-            ts = value->ts.rvalue().reprefix(ref_type, weakref_type);
+            ts = value->ts.rvalue().reprefix(ref_type, ptr_type);
         }
     }
     
@@ -33,7 +33,7 @@ public:
         if (!check_arguments(args, kwargs, {{ "value", NULL, scope, &value }}))
             return false;
             
-        ts = value->ts.rvalue().reprefix(ref_type, weakref_type);
+        ts = value->ts.rvalue().reprefix(ref_type, ptr_type);
         return true;
     }
     
@@ -46,12 +46,12 @@ public:
         
         switch (s.where) {
         case REGISTER:
-            x64->runtime->incweakref(s.reg);
+            //x64->runtime->incweakref(s.reg);
             x64->runtime->decref(s.reg);
             return s;
         case STACK:
             x64->op(MOVQ, RBX, Address(RSP, 0));
-            x64->runtime->incweakref(RBX);
+            //x64->runtime->incweakref(RBX);
             x64->runtime->decref(RBX);
             return s;
         case MEMORY:
@@ -66,7 +66,7 @@ public:
 class WeakAnchorageValue: public GenericValue {
 public:
     WeakAnchorageValue(TypeSpec rts)
-        :GenericValue(rts.unprefix(ref_type).reprefix(weakanchorage_type, weakref_type), rts, NULL) {
+        :GenericValue(rts.unprefix(ref_type).reprefix(weakanchorage_type, ptr_type), rts, NULL) {
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -107,8 +107,8 @@ public:
         
         x64->runtime->log("WeakAnchorage callback.");
         
-        x64->op(MOVQ, RBX, Address(RCX, 0));
-        x64->runtime->decweakref(RBX);
+        //x64->op(MOVQ, RBX, Address(RCX, 0));
+        //x64->runtime->decweakref(RBX);
         
         x64->op(MOVQ, Address(RCX, 0), 0);
         x64->op(MOVQ, Address(RCX, 8), 0);  // clear FCB address for the finalizer
@@ -141,7 +141,7 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->runtime->decweakref(RBX);  // for the anchorage
+        //x64->runtime->decweakref(RBX);  // for the anchorage
         x64->op(CMPQ, Address(RBX, 0), 0);
         x64->op(JE, ok);
 
@@ -157,7 +157,7 @@ public:
 class WeakAnchorageLiveMatcherValue: public GenericValue, public Raiser {
 public:
     WeakAnchorageLiveMatcherValue(Value *p, TypeMatch &match)
-        :GenericValue(NO_TS, match[1].prefix(weakref_type), p) {
+        :GenericValue(NO_TS, match[1].prefix(ptr_type), p) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -176,7 +176,7 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->runtime->decweakref(RBX);  // for the anchorage
+        //x64->runtime->decweakref(RBX);  // for the anchorage
         x64->op(CMPQ, Address(RBX, 0), 0);
         x64->op(JNE, ok);
         
@@ -185,7 +185,7 @@ public:
                 
         x64->code_label(ok);
         x64->op(MOVQ, RBX, Address(RBX, 0));
-        x64->runtime->incweakref(RBX);  // for the object
+        //x64->runtime->incweakref(RBX);  // for the object
         x64->op(PUSHQ, RBX);
 
         return Storage(STACK);

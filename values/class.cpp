@@ -2,7 +2,7 @@
 class ClassPreinitializerValue: public Value {
 public:
     ClassPreinitializerValue(TypeSpec rts)
-        :Value(rts.reprefix(ref_type, weakref_type).prefix(initializable_type)) {
+        :Value(rts.reprefix(ref_type, ptr_type).prefix(initializable_type)) {
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -10,7 +10,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        TypeSpec class_ts = ts.unprefix(initializable_type).unprefix(weakref_type);;
+        TypeSpec class_ts = ts.unprefix(initializable_type).unprefix(ptr_type);;
         Label finalizer_label = class_ts.get_finalizer_label(x64);
         unsigned heap_size = class_ts.measure_raw();
         
@@ -36,7 +36,7 @@ public:
     std::unique_ptr<Value> pivot;
 
     ClassPostinitializerValue(Value *p)
-        :Value(p->ts.unprefix(initializable_type).reprefix(weakref_type, ref_type)) {
+        :Value(p->ts.unprefix(initializable_type).reprefix(ptr_type, ref_type)) {
         pivot.reset(p);
     }
 
@@ -59,7 +59,7 @@ public:
     std::unique_ptr<Value> object, value;
     
     ClassWrapperInitializerValue(Value *o, Value *v)
-        :Value(o->ts.unprefix(initializable_type).reprefix(weakref_type, ref_type)) {
+        :Value(o->ts.unprefix(initializable_type).reprefix(ptr_type, ref_type)) {
         object.reset(o);
         value.reset(v);
     }

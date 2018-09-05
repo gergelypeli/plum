@@ -161,14 +161,14 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
 }
 
 void Runtime::data_heap_header() {
-    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_WEAKREFCOUNT_OFFSET != -8 || HEAP_FINALIZER_OFFSET != -24)
+    if (HEAP_HEADER_SIZE != 32 || HEAP_REFCOUNT_OFFSET != -16 || HEAP_FINALIZER_OFFSET != -24)
         throw ASM_ERROR;
 
     x64->data_align(8);
     x64->data_qword(0);  // next
     x64->data_reference(empty_function_label);  // finalizer
     x64->data_qword(1);  // artificial reference to prevent freeing
-    x64->data_qword(0);  // weakrefcount
+    x64->data_qword(0);  // padding, used to be weakrefcount
 }
 
 Label Runtime::data_heap_string(std::vector<unsigned16> characters) {
@@ -283,7 +283,7 @@ void Runtime::init_memory_management() {
     x64->code_label_global(finalize_label, "finalize");
     const int ARG_OFFSET = pusha() + 8;
 
-    Label fcb_loop, fcb_cond, no_weakrefs;
+    Label fcb_loop, fcb_cond; //, no_weakrefs;
     x64->op(JMP, fcb_cond);
 
     x64->code_label(fcb_loop);
@@ -305,12 +305,12 @@ void Runtime::init_memory_management() {
     x64->op(CALL, Address(RAX, HEAP_FINALIZER_OFFSET));  // may clobber everything
 
     x64->op(MOVQ, RAX, Address(RSP, ARG_OFFSET));
-    x64->op(CMPQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);
-    x64->op(JE, no_weakrefs);
-    dump("RAX=weakrefcount");
-    die("Weakly referenced object finalized!");
+    //x64->op(CMPQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);
+    //x64->op(JE, no_weakrefs);
+    //dump("RAX=weakrefcount");
+    //die("Weakly referenced object finalized!");
 
-    x64->code_label(no_weakrefs);
+    //x64->code_label(no_weakrefs);
     x64->op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
     call_sysv(sysv_memfree_label);  // will probably clobber everything
 
@@ -325,7 +325,7 @@ void Runtime::init_memory_management() {
     x64->op(MOVQ, Address(RAX, HEAP_NEXT_OFFSET), 0);
     x64->op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);  // object finalizer
     x64->op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
-    x64->op(MOVQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);  // start from 0
+    //x64->op(MOVQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);  // start from 0
     popa(true);
     x64->op(RET);
 
@@ -432,7 +432,7 @@ void Runtime::decref(Register reg) {
 
     x64->op(CALL, decref_labels[reg]);
 }
-
+/*
 void Runtime::incweakref(Register reg) {
     if (reg == RSP || reg == RBP || reg == NOREG)
         throw ASM_ERROR;
@@ -446,7 +446,7 @@ void Runtime::decweakref(Register reg) {
 
     x64->op(DECQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET));
 }
-
+*/
 void Runtime::memfree(Register reg) {
     pusha();
     x64->op(LEA, RDI, Address(reg, HEAP_HEADER_OFFSET));

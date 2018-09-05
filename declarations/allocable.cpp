@@ -333,8 +333,8 @@ public:
         if (where != NOWHERE)
             return;
         
-        // Overlay weakrefcount and VT headers
-        Allocation overlay = outer_scope->reserve(Allocation(-ADDRESS_SIZE * 2));
+        // Overlay VT header
+        Allocation overlay = outer_scope->reserve(Allocation(-ADDRESS_SIZE));
         if (overlay.concretize() != ADDRESS_SIZE)  // original offset
             throw INTERNAL_ERROR;
         
@@ -426,6 +426,8 @@ public:
 
 
 // TODO: this is technically not a subclass of Allocable
+// Commenting out until becomes usable again with strong ref counts
+/*
 class Borrow: public Declaration {
 public:
     Allocation offset;
@@ -441,6 +443,7 @@ public:
     virtual void finalize(X64 *x64) {
         //x64->log("Unborrowing.");
         x64->op(MOVQ, RBX, get_address());
-        x64->runtime->decweakref(RBX);
+        //x64->runtime->decweakref(RBX);
     }
 };
+*/

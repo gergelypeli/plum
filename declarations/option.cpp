@@ -10,7 +10,7 @@ public:
         // This is because we may use an implicit flag if the first 8 bytes are known not be
         // all zeroes, such as a reference.
         Type *t = some_ts[0];
-        return t == ref_type || t == weakref_type || t == string_type || ptr_cast<HeapType>(t) ? 0 : INTEGER_SIZE;
+        return t == ref_type || t == ptr_type || t == string_type || ptr_cast<HeapType>(t) ? 0 : INTEGER_SIZE;
     }
 
     virtual Allocation measure(TypeMatch tm) {

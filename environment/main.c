@@ -20,20 +20,20 @@
 #define AELEMENTS(x) ((x) + ARRAY_ELEMS_OFFSET)
 
 #define HREFCOUNT(x) *(int64 *)((x) + HEAP_REFCOUNT_OFFSET)
-#define HWEAKREFCOUNT(x) *(int64 *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
+//#define HWEAKREFCOUNT(x) *(int64 *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
 #define HFINALIZER(x) *(int64 *)((x) + HEAP_FINALIZER_OFFSET)
 #define HNEXT(x) *(int64 *)((x) + HEAP_NEXT_OFFSET)
 
 #define RECORDMEMBER(obj, mtype) *(mtype *)(obj)
 #define CLASSMEMBER(obj, mtype) *(mtype *)(obj + CLASS_MEMBERS_OFFSET)
 
-#define SELEMENTS(x, s) (AELEMENTS((x)->weakref) + (s) * (x)->front)
+#define SELEMENTS(x, s) (AELEMENTS((x)->ptr) + (s) * (x)->front)
 #define SLENGTH(x) ((x)->length)
 
 typedef void *Ref;
 typedef void *Alias;
 typedef struct {
-    void *weakref;
+    void *ptr;
     int64 front;
     int64 length;
 } *Slice;
@@ -84,7 +84,7 @@ void *allocate_basic_array(int64 length, int64 size) {
     
     HNEXT(array) = 0;
     HREFCOUNT(array) = 1;
-    HWEAKREFCOUNT(array) = 0;
+    //HWEAKREFCOUNT(array) = 0;
     HFINALIZER(array) = (int64)(void *)empty_function;  // TODO: this only works for basic types!
     
     ARESERVATION(array) = length;
@@ -100,7 +100,7 @@ void *allocate_string_array(int64 length) {
     
     HNEXT(array) = 0;
     HREFCOUNT(array) = 1;
-    HWEAKREFCOUNT(array) = 0;
+    //HWEAKREFCOUNT(array) = 0;
     HFINALIZER(array) = (int64)(void *)finalize_reference_array;
     
     ARESERVATION(array) = length;
