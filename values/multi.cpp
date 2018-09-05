@@ -157,7 +157,7 @@ public:
         Value *value = typize(args[0].get(), scope);
         TypeMatch match;
         
-        if (!typematch(MULTI_TS, value, match)) {
+        if (!typematch(MULTI_TS, value, scope, match)) {
             std::cerr << "Multivalue is needed in an unpacking!\n";
             return false;
         }

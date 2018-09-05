@@ -158,22 +158,22 @@ public:
         );
     }
 
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         //std::cerr << "Ref inner lookup " << tm << " " << n << ".\n";
-        Value *value = Type::lookup_inner(tm, n, v);
+        Value *value = Type::lookup_inner(tm, n, v, s);
         
         if (value)
             return value;
 
-        return tm[1].lookup_inner(n, v);
+        return tm[1].lookup_inner(n, v, s);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        return tm[1].lookup_initializer(name);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        return tm[1].lookup_initializer(name, scope);
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
-        return tm[1].lookup_matcher(name, pivot);
+    virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot, Scope *scope) {
+        return tm[1].lookup_matcher(name, pivot, scope);
     }
 
     //virtual DataScope *get_inner_scope(TypeMatch tm) {
@@ -276,7 +276,7 @@ public:
         :HeapType(name, Metatypes { identity_metatype }) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "to")
@@ -286,7 +286,7 @@ public:
         return NULL;
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         if (n == "dead")
             return make<WeakAnchorageDeadMatcherValue>(pivot, tm);
         else if (n == "live")
@@ -327,7 +327,7 @@ public:
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "empty")
@@ -385,7 +385,7 @@ public:
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         TypeSpec rts = tm[0].prefix(ref_type);
 
         if (name == "empty")
@@ -458,7 +458,7 @@ public:
         make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         TypeSpec rts = tm[0].prefix(ref_type);
         
         if (name == "empty")

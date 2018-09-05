@@ -206,7 +206,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "{}") {
             // Anonymous initializers rejected
             return NULL;
@@ -224,7 +224,7 @@ public:
         }
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *s) {
         if (n == "none")
             return make<OptionNoneMatcherValue>(pivot, tm);
         else if (n == "some")

@@ -12,7 +12,7 @@ public:
         alloc_ts = ats;
     }
     
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         throw INTERNAL_ERROR;
     }
     
@@ -81,7 +81,7 @@ public:
         return ts;
     }
     
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable
         return make<VariableValue>(this, cpivot, match);
     }
@@ -153,7 +153,7 @@ public:
         partial_info.reset(new PartialInfo);
     }
 
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<PartialVariableValue>(this, cpivot, match, partial_info.get());
     }
 };
@@ -199,7 +199,7 @@ public:
         }
     }
     
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<EvaluableValue>(this, cpivot, match);
     }
     
@@ -243,7 +243,7 @@ public:
         return true;
     }
     
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<RoleValue>(this, cpivot, match);
     }
 
@@ -419,31 +419,28 @@ public:
         partial_info.reset(new PartialInfo);
     }
 
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<PartialVariableValue>(this, cpivot, match, partial_info.get());
     }
 };
 
 
 // TODO: this is technically not a subclass of Allocable
-// Commenting out until becomes usable again with strong ref counts
-/*
-class Borrow: public Declaration {
+class Unborrow: public Declaration {
 public:
     Allocation offset;
     
     virtual void allocate() {
         offset = outer_scope->reserve(Allocation(REFERENCE_SIZE));
     }
-    
+
     virtual Address get_address() {
         return Address(RBP, offset.concretize());
     }
     
     virtual void finalize(X64 *x64) {
-        //x64->log("Unborrowing.");
+        //x64->runtime->log("Unborrowing.");
         x64->op(MOVQ, RBX, get_address());
-        //x64->runtime->decweakref(RBX);
+        x64->runtime->decref(RBX);
     }
 };
-*/

@@ -145,13 +145,13 @@ public:
         return true;
     }
 
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, Scope *scope) {
         if (name != this->name)
             return NULL;
             
         TypeMatch match;
         
-        if (!typematch(implementor_ts, pivot, match))
+        if (!typematch(implementor_ts, pivot, scope, match))
             return NULL;
 
         return make<ImplementationConversionValue>(this, pivot, match);
@@ -199,11 +199,11 @@ public:
             return NULL;
     }
     
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         // The second type parameter is the concrete type
         pivot = make<CastValue>(pivot, tm[2]);
             
-        return inner_scope->lookup(n, pivot);
+        return inner_scope->lookup(n, pivot, scope);
     }
     
     virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {

@@ -1019,7 +1019,7 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<IsValue>("is", NO_TS));
     colon_scope->add(new TemplateOperation<FunctionReturnValue>("return", NO_TS, TWEAK));
 
-    colon_scope->add(new TemplateIdentifier<ReferenceBorrowValue>("weak", NO_TS));
+    colon_scope->add(new TemplateIdentifier<ReferenceBorrowValue>("borrow", NO_TS));
 
     colon_scope->add(new TemplateIdentifier<FunctionDefinitionValue>("Function", NO_TS));
     colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer", NO_TS));

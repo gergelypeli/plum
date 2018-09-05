@@ -68,11 +68,11 @@ public:
         return size.concretize(tm);
     }
     
-    virtual Value *lookup(std::string name, Value *pivot) {
+    virtual Value *lookup(std::string name, Value *pivot, Scope *scope) {
         //std::cerr << "Scope lookup among " << contents.size() << " declarations.\n";
         
         for (int i = contents.size() - 1; i >= 0; i--) {
-            Value *v = contents[i]->match(name, pivot);
+            Value *v = contents[i]->match(name, pivot, scope);
             
             if (v) {
                 //std::cerr << "XXX: " << name << " " << get_typespec(pivot) << " => " << get_typespec(v) << "\n";
@@ -152,19 +152,19 @@ public:
         meta_scope = ms;
     }
     
-    virtual Value *lookup(std::string name, Value *pivot) {
+    virtual Value *lookup(std::string name, Value *pivot, Scope *scope) {
         for (int i = export_scopes.size() - 1; i >= 0; i--) {
             std::cerr << "Looking up in export scope #" << i << "\n";
-            Value *v = export_scopes[i]->lookup(name, pivot);
+            Value *v = export_scopes[i]->lookup(name, pivot, scope);
             
             if (v)
                 return v;
         }
             
-        Value *value = Scope::lookup(name, pivot);
+        Value *value = Scope::lookup(name, pivot, scope);
             
         if (!value && meta_scope)
-            value = meta_scope->lookup(name, pivot);
+            value = meta_scope->lookup(name, pivot, scope);
                 
         return value;
     }
@@ -417,14 +417,14 @@ public:
         identifiers.insert(id);
     }
     
-    virtual Value *lookup(std::string name, Value *pivot) {
+    virtual Value *lookup(std::string name, Value *pivot, Scope *scope) {
         if (deprefix(name, prefix)) {
             std::cerr << "Looking up deprefixed identifier " << prefix << name << "\n";
-            return source_scope->lookup(name, pivot);
+            return source_scope->lookup(name, pivot, scope);
         }
             
         if (identifiers.count(name) > 0)
-            return source_scope->lookup(name, pivot);
+            return source_scope->lookup(name, pivot, scope);
             
         return NULL;
     }
@@ -709,14 +709,14 @@ public:
         return NO_TS;
     }
     
-    virtual Value *lookup(std::string name, Value *pivot) {
+    virtual Value *lookup(std::string name, Value *pivot, Scope *scope) {
         Value *v;
         
-        v = head_scope ? head_scope->lookup(name, pivot) : NULL;
+        v = head_scope ? head_scope->lookup(name, pivot, scope) : NULL;
         if (v)
             return v;
         
-        v = self_scope ? self_scope->lookup(name, pivot) : NULL;
+        v = self_scope ? self_scope->lookup(name, pivot, scope) : NULL;
         if (v)
             return v;
 

@@ -232,18 +232,18 @@ void TypeSpec::streamify(bool repr, X64 *x64) {
 }
 
 
-Value *TypeSpec::lookup_initializer(std::string name) {
-    return at(0)->lookup_initializer(match(), name);
+Value *TypeSpec::lookup_initializer(std::string name, Scope *scope) {
+    return at(0)->lookup_initializer(match(), name, scope);
 }
 
 
-Value *TypeSpec::lookup_matcher(std::string name, Value *pivot) {
-    return at(0)->lookup_matcher(match(), name, pivot);
+Value *TypeSpec::lookup_matcher(std::string name, Value *pivot, Scope *scope) {
+    return at(0)->lookup_matcher(match(), name, pivot, scope);
 }
 
 
-Value *TypeSpec::lookup_inner(std::string name, Value *pivot) {
-    return at(0)->lookup_inner(match(), name, pivot);
+Value *TypeSpec::lookup_inner(std::string name, Value *pivot, Scope *scope) {
+    return at(0)->lookup_inner(match(), name, pivot, scope);
 }
 
 

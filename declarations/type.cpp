@@ -79,7 +79,7 @@ public:
         return make<TypeValue>(upper_type, result_ts);
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, Scope *scope) {
         //std::cerr << "Matching " << name << " to type " << this->name << "\n";
         
         if (name != this->name) {
@@ -91,7 +91,7 @@ public:
                 Scope *s = get_inner_scope();
                 
                 if (s)
-                    return s->lookup(name, pivot);
+                    return s->lookup(name, pivot, scope);
             }
                 
             return NULL;
@@ -120,7 +120,7 @@ public:
         else {
             TypeMatch match;
             
-            if (!typematch(MULTITYPE_TS, pivot, match)) {
+            if (!typematch(MULTITYPE_TS, pivot, scope, match)) {
                 std::cerr << "Type " << name << " needs type parameters!\n";
                 return NULL;
             }
@@ -259,22 +259,22 @@ public:
         x64->op(ADDQ, RSP, 16);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         std::cerr << "No initializer " << name << " `" << n << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         std::cerr << "No matcher " << name << " ~" << n << "!\n";
         throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         Scope *scope = get_inner_scope();
         
         if (scope) {
             //std::cerr << "Type inner lookup in " << name << ".\n";
-            return scope->lookup(n, v);
+            return scope->lookup(n, v, s);
         }
         
         return NULL;
@@ -398,12 +398,12 @@ public:
         tm[1].streamify(repr, x64);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
-        return tm[1].lookup_initializer(n);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
+        return tm[1].lookup_initializer(n, s);
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
-        return tm[1].lookup_matcher(n, pivot);
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
+        return tm[1].lookup_matcher(n, pivot, scope);
     }
 
     virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
@@ -414,8 +414,8 @@ public:
         return tm[1].get_virtual_table_label(x64);
     }
 
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
-        return tm[1].lookup_inner(n, v);
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
+        return tm[1].lookup_inner(n, v, s);
     }
 
     //virtual DataScope *get_inner_scope(TypeMatch tm) {
@@ -446,7 +446,7 @@ public:
         tm[1].create(s, t, x64);
     }
 
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         std::cerr << "Partial inner lookup " << n << ".\n";
         bool dot = false;
         
@@ -461,12 +461,12 @@ public:
         if (cast_ts.has_meta(record_metatype))
             cast_ts = cast_ts.lvalue();
 
-        Value *member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts));
+        Value *member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts), s);
 
         if (!member) {
             // Consider initializer delegation before giving up
             cast_ts = tm[1].prefix(initializable_type);
-            member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts));
+            member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts), s);
             
             if (member) {
                 if (pi->is_dirty()) {
@@ -558,8 +558,8 @@ public:
         tm[1].create(s, t, x64);
     }
 
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
-        return tm[1].lookup_inner(n, v);  // should look up role initializers
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
+        return tm[1].lookup_inner(n, v, s);  // should look up role initializers
     }
 };
 
@@ -572,14 +572,14 @@ public:
         :Type(name, Metatypes { value_metatype }, value_metatype) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
         // We've found an initializer where a match was expected
         
         if (n == "{}") {
             return make<BulkEqualityMatcherValue>();
         }
         else {
-            Value *v = tm[1].lookup_initializer(n);
+            Value *v = tm[1].lookup_initializer(n, s);
             
             if (!v)
                 return NULL;

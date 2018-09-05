@@ -18,20 +18,37 @@ public:
 class ReferenceBorrowValue: public Value {
 public:
     std::unique_ptr<Value> value;
+    Unborrow *unborrow;
     
+    ReferenceBorrowValue(Value *v, Scope *s)
+        :Value(NO_TS) {
+        // Used with automatic conversions
+        if (!v || !s)
+            throw INTERNAL_ERROR;
+                
+        value.reset(v);
+
+        unborrow = new Unborrow;
+        s->add(unborrow);
+        ts = value->ts.rvalue().reprefix(ref_type, ptr_type);
+    }
+
     ReferenceBorrowValue(Value *v, TypeMatch &tm)
         :Value(NO_TS) {
-        if (v) {
-            // When used as an automatic conversion
-            value.reset(v);
-            ts = value->ts.rvalue().reprefix(ref_type, ptr_type);
-        }
+        // Used with the :borrow operation, together with check, below
+        if (v)
+            throw INTERNAL_ERROR;
+        
+        unborrow = NULL;
     }
-    
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        // When used as the :weak control
+        // When used as the :borrow control
         if (!check_arguments(args, kwargs, {{ "value", NULL, scope, &value }}))
             return false;
+            
+        unborrow = new Unborrow;
+        scope->add(unborrow);
             
         ts = value->ts.rvalue().reprefix(ref_type, ptr_type);
         return true;
@@ -46,15 +63,16 @@ public:
         
         switch (s.where) {
         case REGISTER:
-            //x64->runtime->incweakref(s.reg);
-            x64->runtime->decref(s.reg);
+            x64->op(MOVQ, unborrow->get_address(), s.reg);
             return s;
         case STACK:
             x64->op(MOVQ, RBX, Address(RSP, 0));
-            //x64->runtime->incweakref(RBX);
-            x64->runtime->decref(RBX);
+            x64->op(MOVQ, unborrow->get_address(), RBX);
             return s;
         case MEMORY:
+            x64->op(MOVQ, RBX, s.address);
+            x64->runtime->incref(RBX);
+            x64->op(MOVQ, unborrow->get_address(), RBX);
             return s;
         default:
             throw INTERNAL_ERROR;

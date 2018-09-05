@@ -119,7 +119,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         // NOTE: initializers must only appear in code scopes, and there all types
         // must be concrete, not having free parameters. Also, the automatic variable is
         // put in the local scope, so there will be no pivot for it to derive any
@@ -135,7 +135,7 @@ public:
             
             Value *preinit = make<ClassPreinitializerValue>(rts);
 
-            Value *value = inner_scope->lookup(name, preinit);
+            Value *value = inner_scope->lookup(name, preinit, scope);
 
             if (value) {
                 if (is_initializer_function_call(value))
@@ -256,7 +256,7 @@ public:
         return HeapType::autoconv(tm, target, orig, ifts);
     }
 
-    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v) {
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         std::cerr << "Class inner lookup " << n << ".\n";
         bool dot = false;
         
@@ -265,11 +265,11 @@ public:
             n = n.substr(1);
         }
         
-        Value *value = HeapType::lookup_inner(tm, n, v);
+        Value *value = HeapType::lookup_inner(tm, n, v, s);
         
         if (!value && base_role) {
             TypeSpec ts = typesubst(base_role->alloc_ts, tm);
-            value = ts.lookup_inner(n, v);
+            value = ts.lookup_inner(n, v, s);
         }
 
         if (dot && value) {
@@ -287,7 +287,7 @@ public:
         return value;
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
         return make<ClassMatcherValue>(n, v);
     }
 };
@@ -299,9 +299,9 @@ public:
         :ClassType(name, Metatypes { value_metatype }) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         TypeSpec ats = tm[0].unprefix(stack_type).prefix(array_type);
-        Value *array_initializer = ats.lookup_initializer(name);
+        Value *array_initializer = ats.lookup_initializer(name, scope);
         
         if (!array_initializer) {
             std::cerr << "No Stack initializer called " << name << "!\n";
@@ -323,9 +323,9 @@ public:
         :ClassType(name, Metatypes { value_metatype }) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         TypeSpec cts = tm[0].unprefix(queue_type).prefix(circularray_type);
-        Value *carray_initializer = cts.lookup_initializer(name);
+        Value *carray_initializer = cts.lookup_initializer(name, scope);
         
         if (!carray_initializer) {
             std::cerr << "No Queue initializer called " << name << "!\n";
@@ -347,9 +347,9 @@ public:
         :ClassType(name, Metatypes { value_metatype }) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         TypeSpec tts = tm[0].unprefix(set_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name);
+        Value *tree_initializer = tts.lookup_initializer(name, scope);
         
         if (!tree_initializer) {
             std::cerr << "No Set initializer called " << name << "!\n";
@@ -371,9 +371,9 @@ public:
         :ClassType(name, param_metatypes) {
     }
     
-    virtual Value *lookup_map_initializer(TypeSpec real_ts, TypeSpec key_ts, TypeSpec value_ts, std::string name) {
+    virtual Value *lookup_map_initializer(TypeSpec real_ts, TypeSpec key_ts, TypeSpec value_ts, std::string name, Scope *scope) {
         TypeSpec tree_ts = TypeSpec(item_type, key_ts, value_ts).prefix(rbtree_type);
-        Value *tree_initializer = tree_ts.lookup_initializer(name);
+        Value *tree_initializer = tree_ts.lookup_initializer(name, scope);
         
         if (!tree_initializer) {
             std::cerr << "No " << this->name << " initializer called " << name << "!\n";
@@ -388,8 +388,8 @@ public:
         return make<ClassWrapperInitializerValue>(pivot, tree_initializer);
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        return lookup_map_initializer(tm[0], tm[1], tm[2], name);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        return lookup_map_initializer(tm[0], tm[1], tm[2], name, scope);
     }
 };
 
@@ -400,8 +400,8 @@ public:
         :MapType(name, param_metatypes) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        return MapType::lookup_map_initializer(tm[0], tm[1], tm[2].prefix(weakanchor_type), name);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        return MapType::lookup_map_initializer(tm[0], tm[1], tm[2].prefix(weakanchor_type), name, scope);
     }
 };
 
@@ -412,8 +412,8 @@ public:
         :MapType(name, param_metatypes) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(weakanchor_type), tm[2], name);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(weakanchor_type), tm[2], name, scope);
     }
 };
 
@@ -424,7 +424,7 @@ public:
         :MapType(name, param_metatypes) {
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
-        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(weakanchor_type), UNIT_TS, name);
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(weakanchor_type), UNIT_TS, name, scope);
     }
 };

@@ -153,7 +153,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         //TypeSpec ts(tsi);
 
         // NOTE: initializers must only appear in code scopes, and there all types
@@ -169,7 +169,7 @@ public:
             // Named initializer
             Value *pre = make<RecordPreinitializerValue>(tm[0]);
 
-            Value *value = inner_scope->lookup(n, pre);
+            Value *value = inner_scope->lookup(n, pre, scope);
 
             // FIXME: check if the method is Void!
             if (value)
@@ -180,7 +180,7 @@ public:
         }
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         std::cerr << "No Record matchers yet!\n";
         throw INTERNAL_ERROR;
     }
@@ -370,7 +370,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "empty") {
             return make<StringLiteralValue>("");
         }
@@ -379,7 +379,7 @@ public:
         return NULL;
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         if (n == "re")
             return make<StringRegexpMatcherValue>(pivot, tm);
             
@@ -395,7 +395,7 @@ public:
         :RecordType(n, Metatypes { value_metatype }) {
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "empty")
             return make<SliceEmptyValue>(tm);
         else if (n == "all")
@@ -405,7 +405,7 @@ public:
         return NULL;
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         std::cerr << "Can't match Slice as " << n << "!\n";
         return NULL;
     }
@@ -430,23 +430,23 @@ public:
         :RecordType(n, Metatypes { identity_metatype }) {
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
         TypeSpec member_ts = tm[1].prefix(weakanchorage_type).prefix(ref_type);
         
-        Value *v = member_ts.lookup_initializer(n);
+        Value *v = member_ts.lookup_initializer(n, s);
         if (v) 
-            return make<RecordWrapperValue>(v, NO_TS, tm[0], "", "");
+            return make<RecordWrapperValue>(v, NO_TS, tm[0], "", "", s);
         
         std::cerr << "No Autoweakref initializer " << n << "!\n";
         return NULL;
     }
     
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p, Scope *s) {
         TypeSpec member_ts = tm[1].prefix(weakanchorage_type).prefix(ref_type);
         p = make<RecordUnwrapValue>(member_ts, p);
-        p = make<ReferenceBorrowValue>(p, tm);
+        p = make<ReferenceBorrowValue>(p, s);
         
-        Value *v = member_ts.reprefix(ref_type, ptr_type).lookup_matcher(n, p);
+        Value *v = member_ts.reprefix(ref_type, ptr_type).lookup_matcher(n, p, s);
         if (v)
             return v;
         

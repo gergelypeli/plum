@@ -486,12 +486,13 @@ public:
 
 class MapAddValue: public Value {
 public:
+    Value *temp_l;
     TypeSpec key_ts, value_ts, item_ts, key_arg_ts, value_arg_ts;
     std::unique_ptr<Value> pivot, key, value;
 
     MapAddValue(Value *l, TypeMatch &match)
         :Value(VOID_TS) {
-        pivot.reset(l->lookup_inner("wrapped")->lookup_inner("autogrow"));
+        temp_l = l;
         key_ts = match[1];
         value_ts = match[2];
         item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
@@ -503,6 +504,8 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         // Autogrow stuff
+        pivot.reset(temp_l->lookup_inner("wrapped", scope)->lookup_inner("autogrow", scope));
+
         Args fake_args;
         Kwargs fake_kwargs;
         if (!pivot->check(fake_args, fake_kwargs, scope))

@@ -88,8 +88,8 @@ public:
         return true;
     }
     
-    virtual Value *lookup_inner(std::string name) {
-        return ts.lookup_inner(name, this);
+    virtual Value *lookup_inner(std::string name, Scope *scope) {
+        return ts.lookup_inner(name, this, scope);
     }
 };
 

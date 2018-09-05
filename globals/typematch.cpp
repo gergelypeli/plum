@@ -162,8 +162,8 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 }
 
 
-bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
-    bool needs_weaken = false;
+bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, Scope *scope, bool strict) {
+    bool needs_borrow = false;
 
     if (*s == ref_type || *s == ptr_type || *t == ref_type || *t == ptr_type) {
         if (*s == *t) {
@@ -175,7 +175,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
             match[0].push_back(*t);
             s++;
             t++;
-            needs_weaken = true;
+            needs_borrow = true;
         }
         else if (*s == ptr_type && *t == ref_type) {
             if (matchlog) std::cerr << "No match, ptr for ref!\n";
@@ -186,8 +186,8 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     if (*s == *t || is_any(*t)) {
         bool ok = match_type_parameters(s, t, match);
         
-        if (ok && needs_weaken)
-            value = make<ReferenceBorrowValue>(value, match);
+        if (ok && needs_borrow)
+            value = make<ReferenceBorrowValue>(value, scope);
         
         return ok;
     }
@@ -215,14 +215,14 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     
     bool ok = match_regular_type(s, t, match, value);
     
-    if (ok && needs_weaken)
-        value = make<ReferenceBorrowValue>(value, match);
+    if (ok && needs_borrow)
+        value = make<ReferenceBorrowValue>(value, scope);
         
     return ok;
 }
 
 
-bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool strict) {
+bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, Scope *scope, bool strict) {
     // Allow any_type match references
     
     if (is_any(*t)) {
@@ -254,7 +254,7 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         }
         
         // Match Multi to Multi
-        return match_special_type(s, t, match, value, strict);
+        return match_special_type(s, t, match, value, scope, strict);
     }
     else {
         if (*s == multilvalue_type || *s == multitype_type) {
@@ -285,16 +285,16 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
             value = make<ScalarConversionValue>(value);
 
             // ss is a local variable, so call this in the scope
-            return match_special_type(s, t, match, value, strict);
+            return match_special_type(s, t, match, value, scope, strict);
         }
 
         // Match scalar to scalar
-        return match_special_type(s, t, match, value, strict);
+        return match_special_type(s, t, match, value, scope, strict);
     }
 }
 
 
-bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, CodeScope *code_scope) {
+bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, Scope *scope) {
     // Checking attribute templates
     
     if (*t == lvalue_type) {
@@ -314,7 +314,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         if (*s == void_type || *t == void_type)
             throw INTERNAL_ERROR;
         
-        return match_anymulti_type(s, t, match, value, true);
+        return match_anymulti_type(s, t, match, value, scope, true);
     }
     else if (*t == code_type) {  // evalue
         match[0].push_back(*t);
@@ -339,8 +339,12 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        if (!match_anymulti_type(s, t, match, value, false))
+        if (!match_anymulti_type(s, t, match, value, scope, false))
             return false;
+
+        CodeScope *code_scope = ptr_cast<CodeScope>(scope);
+        if (!code_scope)
+            throw INTERNAL_ERROR;
 
         value = make<CodeScopeValue>(value, code_scope);
         return true;
@@ -357,7 +361,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_anymulti_type(s, t, match, value, false);
+        return match_anymulti_type(s, t, match, value, scope, false);
     }
     else if (*t == uninitialized_type) {
         // This is a special case, Uninitialized only occurs with Any.
@@ -390,7 +394,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_anymulti_type(s, t, match, value, false);
+        return match_anymulti_type(s, t, match, value, scope, false);
     }
 }
 
@@ -404,7 +408,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
 //  * Void Code - accepts everything, even Void and NULL.
 // No other type accepts Void, not even Any.
 
-bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_scope) {
+bool typematch(TypeSpec tt, Value *&value, Scope *scope, TypeMatch &match) {
     if (tt == NO_TS)
         throw INTERNAL_ERROR;  // Mustn't be called with NO_TS
 
@@ -419,7 +423,7 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match, CodeScope *code_sco
     TypeSpecIter s(ss.begin());
     TypeSpecIter t(tt.begin());
     
-    if (!match_attribute_type(s, t, match, value, code_scope)) {
+    if (!match_attribute_type(s, t, match, value, scope)) {
         //std::cerr << "Typematch failed with " << get_typespec(value) << " to " << tt << "!\n";
         return false;
     }

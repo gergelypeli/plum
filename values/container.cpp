@@ -313,7 +313,7 @@ public:
                 
             TypeMatch match;
             
-            if (!typematch(elem_ts, v, match)) {
+            if (!typematch(elem_ts, v, scope, match)) {
                 std::cerr << "Container element is not " << elem_ts << ", but " << get_typespec(v) << "!\n";
                 return false;
             }

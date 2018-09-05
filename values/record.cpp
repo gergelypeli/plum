@@ -164,7 +164,7 @@ public:
     std::unique_ptr<Value> operation;
     std::string arg_operation_name;
 
-    RecordWrapperValue(Value *pivot, TypeSpec pcts, TypeSpec rts, std::string on, std::string aon)
+    RecordWrapperValue(Value *pivot, TypeSpec pcts, TypeSpec rts, std::string on, std::string aon, Scope *scope)
         :Value(rts) {
         arg_operation_name = aon;
         
@@ -172,7 +172,7 @@ public:
             pivot = make<RecordUnwrapValue>(pcts, pivot);
         
         if (on != "") {
-            pivot = pivot->ts.lookup_inner(on, pivot);
+            pivot = pivot->ts.lookup_inner(on, pivot, scope);
             if (!pivot)
                 throw INTERNAL_ERROR;
         }

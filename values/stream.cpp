@@ -190,8 +190,8 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             // For identifiers, we look up outer scopes, but we don't need to look
             // in inner scopes, because that would need a pivot value, which we don't have.
             
-            for (Scope *s = code_scope; s; s = s->outer_scope) {
-                pivot = s->lookup(fragment, NULL);
+            for (Scope *s = code_scope; s && s->type == CODE_SCOPE; s = s->outer_scope) {
+                pivot = s->lookup(fragment, NULL, scope);
         
                 if (pivot)
                     break;
@@ -211,7 +211,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         TypeMatch match;
         Value *streamify = NULL;
         
-        if (typematch(STREAMIFIABLE_TS, pivot, match)) {
+        if (typematch(STREAMIFIABLE_TS, pivot, scope, match)) {
             streamify = lookup_fake("streamify", pivot, expr->token, code_scope, NULL, interpolated_var);
         }
         else if (pivot->ts.rvalue()[0] == ref_type) {
@@ -230,7 +230,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
 
     TypeMatch match;  // kinda unnecessary
     Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, match);
-    ret = ret->lookup_inner("realloc");  // FIXME: missing check, but at least no arguments
+    ret = ret->lookup_inner("realloc", scope);  // FIXME: missing check, but at least no arguments
     interpolation->add_statement(ret);
     
     code_scope->leave();

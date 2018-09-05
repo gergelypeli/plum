@@ -746,7 +746,7 @@ Main? :Singleton as:
         gr2? = gr
         gr2 = gr
     
-        wgr? = :weak gr
+        wgr? = :borrow gr
         wgr greet
     
         wgr = gr

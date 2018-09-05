@@ -31,7 +31,7 @@ public:
         return false;
     }
 
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, Scope *scope) {
         return NULL;
     }
 

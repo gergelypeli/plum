@@ -1,7 +1,7 @@
 
 // Stage 4
 
-Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
+Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope, Scope *scope) {
     if (pivot && pivot->ts[0] == multi_type) {
         // Conversions from Multi to a scalar can only be attempted once (see typematch),
         // but it's not a problem, since we don't want Multi pivots anyway. But for correct
@@ -18,13 +18,13 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
     if (in_scope == colon_scope) {
         // Implicitly scoped identifier
         std::cerr << "Looking up in Colon.\n";
-        value = in_scope->lookup(name, pivot);
+        value = in_scope->lookup(name, pivot, scope);
     }
     else if (name[0] == '.' && isupper(name[1])) {
         // Local type, look up in enclosing data scope
         for (Scope *s = in_scope; s; s = s->outer_scope) {
             if (s->type == DATA_SCOPE) {
-                value = s->lookup(name.substr(1), pivot);
+                value = s->lookup(name.substr(1), pivot, scope);
                 break;
             }
         }
@@ -32,7 +32,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
     else if (isupper(name[0])) {
         // Global type, look up in module level
         Scope *module_scope = in_scope->get_module_scope();
-        value = module_scope->lookup(name, pivot);
+        value = module_scope->lookup(name, pivot, scope);
         
         //if (!value)
         //    value = module_scope->outer_scope->lookup(name, pivot);
@@ -40,28 +40,28 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
     else if (pivot) {
         // Pivoted value
         std::cerr << "Looking up in inner scope.\n";
-        value = pivot->lookup_inner(name);
+        value = pivot->lookup_inner(name, scope);
     }
     else if ((name[0] == '.' && islower(name[1])) || (islower(name[0]) && name.find(".") != std::string::npos)) {
         // Module qualified identifier, look up in module scope
         Scope *module_scope = in_scope->get_module_scope();
-        value = module_scope->lookup(name, pivot);
+        value = module_scope->lookup(name, pivot, scope);
     }
     else if (name[0] == '$' && name[1] == '.') {
         // Static cast to role
         FunctionScope *fs = in_scope->get_function_scope();
         
         if (fs) {
-            Value *self_value = fs->lookup("$", pivot);
+            Value *self_value = fs->lookup("$", pivot, scope);
             
             if (self_value)
-                value = self_value->lookup_inner(name.substr(1));
+                value = self_value->lookup_inner(name.substr(1), scope);
         }
     }
     else if (islower(name[0]) || name[0] == '$' || name[0] == '<') {
         // Local variable, look up in function body
         for (Scope *s = in_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
-            value = s->lookup(name, pivot);
+            value = s->lookup(name, pivot, scope);
         
             if (value)
                 break;
@@ -75,7 +75,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
     if (!value) {
         if (name == "is_equal" || name == "not_equal") {
             std::cerr << "Trying equal fallback for missing " << name << ".\n";
-            Value *fallback = lookup_unchecked("equal", pivot, in_scope);
+            Value *fallback = lookup_unchecked("equal", pivot, in_scope, scope);
             
             if (fallback) {
                 bool no = (name == "not_equal");
@@ -90,7 +90,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
             name == "not_less" || name == "not_greater"
         ) {
             std::cerr << "Trying compare fallback for missing " << name << ".\n";
-            Value *fallback = lookup_unchecked("compare", pivot, in_scope);
+            Value *fallback = lookup_unchecked("compare", pivot, in_scope, scope);
             
             if (fallback) {
                 // Comparison results are signed integers
@@ -121,7 +121,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *in_scope) {
 
 Value *lookup(std::string name, Value *pivot, Scope *in_scope, Expr *expr, Scope *scope, TypeSpec *context) {
     //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
-    Value *value = lookup_unchecked(name, pivot, in_scope);
+    Value *value = lookup_unchecked(name, pivot, in_scope, scope);
     
     if (!value) {
         std::cerr << "No match for " << get_typespec(pivot) << " " << name << " at " << expr->token << "!\n";
@@ -163,7 +163,7 @@ Value *lookup_switch(Scope *scope, Token token) {
     }
     
     Variable *v = ss->get_variable();
-    Value *p = v->match(v->name, NULL);
+    Value *p = v->match(v->name, NULL, scope);
     
     if (!p)
         throw INTERNAL_ERROR;
@@ -319,7 +319,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             if (name.size() == 0)
                 name = "{}";
             
-            value = ts.lookup_initializer(name);
+            value = ts.lookup_initializer(name, scope);
             
             if (!value) {
                 std::cerr << "No initializer " << ts << " `" << name << "!\n";
@@ -345,7 +345,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         if (!p)
             p = lookup_switch(scope, expr->token);
 
-        value = p->ts.lookup_matcher(name, p);
+        value = p->ts.lookup_matcher(name, p, scope);
     
         if (!value) {
             std::cerr << "No matcher " << p->ts << " ~" << name << "!\n";

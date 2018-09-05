@@ -190,7 +190,7 @@ public:
         x64->runtime->call_sysv(label);
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         if (name == "nan")
             return make<FloatValue>(FLOAT_TS, NAN);
         else if (name == "pinf")

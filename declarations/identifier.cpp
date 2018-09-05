@@ -16,12 +16,12 @@ public:
         return n == name;
     }
 
-    virtual Value *matched(Value *pivot, TypeMatch &match) {
+    virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
         std::cerr << "Unmatchable identifier!\n";
         throw INTERNAL_ERROR;
     }
     
-    virtual Value *match(std::string n, Value *pivot) {
+    virtual Value *match(std::string n, Value *pivot, Scope *scope) {
         if (n != name)
             return NULL;
             
@@ -29,14 +29,14 @@ public:
             
         if (pivot_ts == NO_TS) {
             if (!pivot)
-                return matched(NULL, match);
+                return matched(NULL, scope, match);
             else
                 return NULL;
         }
         else {
             //std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
-            if (typematch(pivot_ts, pivot, match))
-                return matched(pivot, match);
+            if (typematch(pivot_ts, pivot, scope, match))
+                return matched(pivot, scope, match);
             else {
                 //std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";
                 return NULL;
@@ -52,7 +52,7 @@ public:
         :Identifier(name, pts) {
     }
 
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return cpivot;
     }
 };
@@ -67,7 +67,7 @@ public:
         cast_ts = cts;
     }
 
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<CastValue>(cpivot, typesubst(cast_ts, match));
     }
 };
@@ -83,7 +83,7 @@ public:
         operation = o;
     }
     
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return new T(operation, cpivot, match);
     }
 };
@@ -96,7 +96,7 @@ public:
         :Identifier(n, t) {
     }
     
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return new T(cpivot, match);
     }
 };
@@ -120,14 +120,14 @@ public:
         arg_operation_name = aon;
     }
     
-    virtual Value *matched(Value *pivot, TypeMatch &match) {
+    virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
         if (!pivot)
             throw INTERNAL_ERROR;
         
         TypeSpec rts = typesubst(result_ts, match);
         TypeSpec pcts = typesubst(pivot_cast_ts, match);
             
-        Value *wrapper = make<RecordWrapperValue>(pivot, pcts, rts, operation_name, arg_operation_name);
+        Value *wrapper = make<RecordWrapperValue>(pivot, pcts, rts, operation_name, arg_operation_name, scope);
         
         return wrapper;
     }
@@ -147,19 +147,19 @@ public:
         autogrow = ag;
     }
     
-    virtual Value *matched(Value *pivot, TypeMatch &match) {
-        Value *member = get_typespec(pivot).lookup_inner("wrapped", pivot);
+    virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
+        Value *member = get_typespec(pivot).lookup_inner("wrapped", pivot, scope);
         
         if (autogrow) {
             TypeSpec mts = get_typespec(member);
-            member = mts.lookup_inner("autogrow", member);
+            member = mts.lookup_inner("autogrow", member, scope);
             if (!member) {
                 std::cerr << "No autogrow for " << mts << "!\n";
                 throw INTERNAL_ERROR;
             }
         }
         
-        Value *operation = get_typespec(member).lookup_inner(operation_name, member);
+        Value *operation = get_typespec(member).lookup_inner(operation_name, member, scope);
         if (!operation) {
             std::cerr << "No operation " << operation_name << " in " << get_typespec(member) << "!\n";
             throw INTERNAL_ERROR;
@@ -179,7 +179,7 @@ public:
         yieldable_value = yv;
     }
     
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<YieldValue>(yieldable_value);
     }
 };

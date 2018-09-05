@@ -38,7 +38,7 @@ public:
         implemented_function = NULL;
     }
 
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // TODO: do this properly!
         
         if (type == INTERFACE_FUNCTION) {
@@ -183,7 +183,7 @@ public:
         res_ts = rts;
     }
     
-    virtual Value *matched(Value *cpivot, TypeMatch &match) {
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<FloatFunctionValue>(this, cpivot, match);
     }
 };

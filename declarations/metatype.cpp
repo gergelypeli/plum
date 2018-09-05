@@ -5,7 +5,7 @@ public:
         :Type("", Metatypes { }, NULL) {
     }
     
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, Scope *scope) {
         return NULL;
     }
 };
@@ -28,7 +28,7 @@ public:
         factory = f;
     }
 
-    virtual Value *match(std::string name, Value *pivot) {
+    virtual Value *match(std::string name, Value *pivot, Scope *scope) {
         if (name != this->name)
             return NULL;
             
@@ -113,7 +113,7 @@ public:
     }
 
     // NOTE: experimental thing for exception specifications
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "{}")
             return make<TreenumerationDefinitionValue>();
         

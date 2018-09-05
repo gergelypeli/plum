@@ -283,7 +283,7 @@ public:
         x64->runtime->call_sysv(label);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         if (name == "false")
             return make<BasicValue>(tm[0], 0);
         else if (name == "true")
@@ -350,7 +350,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         if (name == "zero")
             return make<BasicValue>(tm[0], 0);
         else if (name == "unicode")
@@ -413,7 +413,7 @@ public:
         x64->op(RET);
     }
 
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make<BasicValue>(tm[0], i);
@@ -475,7 +475,7 @@ public:
         parents = ps;
     }
     
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n) {
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make<BasicValue>(tm[0], i);
@@ -483,7 +483,7 @@ public:
         return NULL;
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot) {
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         for (unsigned i = 0; i < keywords.size(); i++)
             if (keywords[i] == n)
                 return make<TreenumerationMatcherValue>(i, pivot);

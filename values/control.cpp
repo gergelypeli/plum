@@ -411,10 +411,10 @@ public:
         scope->add(next_try_scope);
 
         TypeMatch imatch;
-        Value *it = iterator_var->matched(NULL, imatch);
+        Value *it = iterator_var->matched(NULL, scope, imatch);
         
         TypeMatch match;
-        if (!typematch(ANY_ITERATOR_TS, it, match)) {
+        if (!typematch(ANY_ITERATOR_TS, it, scope, match)) {
             std::cerr << "Iterable iter didn't return an Iterator, but: " << it->ts << "!\n";
             return false;
         }

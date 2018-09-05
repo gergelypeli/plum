@@ -40,9 +40,9 @@ public:
     void equal(Storage s, Storage t, X64 *x64);
     void compare(Storage s, Storage t, X64 *x64);
     void streamify(bool repr, X64 *x64);
-    Value *lookup_initializer(std::string name);
-    Value *lookup_matcher(std::string name, Value *pivot);
-    Value *lookup_inner(std::string name, Value *pivot);
+    Value *lookup_initializer(std::string name, Scope *scope);
+    Value *lookup_matcher(std::string name, Value *pivot, Scope *scope);
+    Value *lookup_inner(std::string name, Value *pivot, Scope *scope);
     void init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64);
 };
 
@@ -90,7 +90,7 @@ void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);
 
 // Check
 Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
-bool typematch(TypeSpec tt, Value *&v, TypeMatch &match, CodeScope *code_scope = NULL);
+bool typematch(TypeSpec tt, Value *&v, Scope *scope, TypeMatch &match);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos);
 bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);
@@ -127,6 +127,11 @@ Value *make(A a, B b, C c, D d) {
 template <typename T, typename A, typename B, typename C, typename D, typename E>
 Value *make(A a, B b, C c, D d, E e) {
     return new T(a, b, c, d, e);
+}
+
+template <typename T, typename A, typename B, typename C, typename D, typename E, typename F>
+Value *make(A a, B b, C c, D d, E e, F f) {
+    return new T(a, b, c, d, e, f);
 }
 
 
