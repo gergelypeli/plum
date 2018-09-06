@@ -222,7 +222,7 @@ public:
     }
 
     virtual Allocation measure(TypeMatch tm) {
-        return Allocation(REFERENCE_SIZE * 2);
+        return Allocation(NOSYVALUE_SIZE);
     }
     
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -233,11 +233,11 @@ public:
         if (s.where != STACK || t.where != MEMORY)
             throw INTERNAL_ERROR;
 
-        // A NosyValue is a pointer, followed by an FCB pointer.
+        // A NosyValue is an object pointer, followed by an FCB pointer.
         // But when creating one in a Weak*Map, the FCB is allocated later,
         // so the pointer is at the lower address. That's why we reverse the order here.
         
-        x64->op(POPQ, t.address + ADDRESS_SIZE);
+        x64->op(POPQ, t.address + NOSYVALUE_FCB_OFFSET);
         
         PointerType::create(tm, s, t, x64);
     }
@@ -247,7 +247,7 @@ public:
             throw INTERNAL_ERROR;
             
         x64->op(PUSHQ, RAX);
-        x64->op(MOVQ, RAX, s.address + ADDRESS_SIZE);
+        x64->op(MOVQ, RAX, s.address + NOSYVALUE_FCB_OFFSET);
         x64->op(CALL, x64->runtime->free_fcb_label);
         x64->op(POPQ, RAX);
         
@@ -306,12 +306,12 @@ public:
         x64->code_label_local(label, "x_nosyobject_finalizer");
         x64->runtime->log("Nosy object finalized.");
         
-        x64->op(MOVQ, RBX, Address(RAX, 0));
+        x64->op(MOVQ, RBX, Address(RAX, NOSYOBJECT_PTR_OFFSET));
         x64->op(CMPQ, RBX, 0);
         x64->op(JE, skip);
         
         //x64->runtime->decweakref(RBX);
-        x64->op(MOVQ, RAX, Address(RAX, 8));
+        x64->op(MOVQ, RAX, Address(RAX, NOSYOBJECT_FCB_OFFSET));
         x64->op(CALL, x64->runtime->free_fcb_label);
         
         x64->code_label(skip);

@@ -229,11 +229,9 @@ public:
             Storage s = pivot->compile(x64);
             
             if (pts[0] == ptr_type) {
-                // FIXME: technically we must borrow a reference here, or the container
-                // may be destroyed before accessing this variable!
+                // The container is guaranteed to stay until the end of the statement, so are we
                 
                 pts.store(s, Storage(REGISTER, reg), x64);
-                //x64->runtime->decweakref(reg);
                 s = Storage(MEMORY, Address(reg, 0));
             }
             else if (is_rvalue) {

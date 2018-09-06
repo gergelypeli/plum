@@ -964,6 +964,8 @@ void define_weakvaluemap() {
     is->add(new TemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT));
     is->add(new TemplateIdentifier<WeakValueMapHasValue>("has", PIVOT));
     is->add(new TemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT));
+
+    // Must not define iteration due to the volatility of this container
     
     class_type->complete_type();
     is->leave();
@@ -984,6 +986,8 @@ void define_weakindexmap() {
     is->add(new TemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT));
     is->add(new TemplateIdentifier<WeakIndexMapHasValue>("has", PIVOT));
     is->add(new TemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT));
+
+    // Must not define iteration due to the volatility of this container
     
     class_type->complete_type();
     is->leave();
@@ -1003,6 +1007,8 @@ void define_weakset() {
     is->add(new TemplateIdentifier<WeakSetAddValue>("add", PIVOT));
     is->add(new TemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT));
     is->add(new TemplateIdentifier<WeakSetHasValue>("has", PIVOT));
+
+    // Must not define iteration due to the volatility of this container
     
     class_type->complete_type();
     is->leave();

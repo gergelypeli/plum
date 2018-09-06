@@ -96,7 +96,7 @@ public:
         Label callback_label = x64->once->compile(compile_callback);
         Label finalizer_label = ts.unprefix(ref_type).get_finalizer_label(x64);
         
-        x64->op(MOVQ, RAX, ADDRESS_SIZE * 2);
+        x64->op(MOVQ, RAX, NOSYOBJECT_SIZE);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
         x64->op(LEA, RBX, Address(finalizer_label, 0));
         x64->runtime->alloc_RAX_RBX();
@@ -114,8 +114,8 @@ public:
         x64->op(POPQ, RCX);  // object address
         x64->op(POPQ, RDX);  // nosy address
         
-        x64->op(MOVQ, Address(RDX, 0), RCX);
-        x64->op(MOVQ, Address(RDX, 8), RAX);
+        x64->op(MOVQ, Address(RDX, NOSYOBJECT_PTR_OFFSET), RCX);
+        x64->op(MOVQ, Address(RDX, NOSYOBJECT_FCB_OFFSET), RAX);
         
         return Storage(REGISTER, RDX);
     }
@@ -125,8 +125,8 @@ public:
         
         x64->runtime->log("NosyObject callback.");
         
-        x64->op(MOVQ, Address(RCX, 0), 0);
-        x64->op(MOVQ, Address(RCX, 8), 0);  // clear FCB address for the finalizer
+        x64->op(MOVQ, Address(RCX, NOSYOBJECT_PTR_OFFSET), 0);
+        x64->op(MOVQ, Address(RCX, NOSYOBJECT_FCB_OFFSET), 0);  // clear FCB address for the finalizer
         
         x64->op(CALL, x64->runtime->free_fcb_label);
         x64->op(RET);
@@ -156,7 +156,7 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->op(CMPQ, Address(RBX, 0), 0);
+        x64->op(CMPQ, Address(RBX, NOSYOBJECT_PTR_OFFSET), 0);
         x64->op(JE, ok);
 
         // popped        
@@ -170,13 +170,19 @@ public:
 
 class NosyObjectLiveMatcherValue: public GenericValue, public Raiser {
 public:
+    Unborrow *unborrow;
+    
     NosyObjectLiveMatcherValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, match[1].prefix(ptr_type), p) {
+        unborrow = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (!check_raise(match_unmatched_exception_type, scope))
             return false;
+        
+        unborrow = new Unborrow;
+        scope->add(unborrow);
         
         return GenericValue::check(args, kwargs, scope);
     }
@@ -190,14 +196,16 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->op(CMPQ, Address(RBX, 0), 0);
+        x64->op(CMPQ, Address(RBX, NOSYOBJECT_PTR_OFFSET), 0);
         x64->op(JNE, ok);
         
         // popped
         raise("UNMATCHED", x64);
                 
         x64->code_label(ok);
-        x64->op(MOVQ, RBX, Address(RBX, 0));
+        x64->op(MOVQ, RBX, Address(RBX, NOSYOBJECT_PTR_OFFSET));
+        x64->runtime->incref(RBX);
+        x64->op(MOVQ, unborrow->get_address(), RBX);
         x64->op(PUSHQ, RBX);
 
         return Storage(STACK);

@@ -821,9 +821,33 @@ public:
 
 class WeakValueMapIndexValue: public MapIndexValue {
 public:
+    Unborrow *unborrow;
+    
     WeakValueMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wvmatch(match)) {
         ts = ts.reprefix(nosyvalue_type, ptr_type);
+    }
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!MapIndexValue::check(args, kwargs, scope))
+            return false;
+            
+        unborrow = new Unborrow;
+        scope->add(unborrow);
+        
+        return true;
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage s = MapIndexValue::compile(x64);
+        
+        if (s.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        x64->op(MOVQ, RBX, s.address);
+        x64->runtime->incref(RBX);
+        
+        return s;
     }
 };
 
