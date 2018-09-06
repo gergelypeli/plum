@@ -739,15 +739,16 @@ public:
 
 // Weak map helpers
 
-static void compile_process_fcb(Label label, TypeSpec item_ts, X64 *x64) {
-    x64->code_label_local(label, "xy_weakmap_callback");
+static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) {
+    std::stringstream ss;
+    ss << item_ts << " Nosyvalue callback";
+    
+    x64->code_label_local(label, ss.str());
+    x64->runtime->log(ss.str());
+    
     // RAX - fcb, RCX - payload1, RDX - payload2
     // We may clobber all registers
     // FIXME: make sure these registers can be safely moved to the RB-pseudoregisters!
-
-    std::stringstream ss;
-    ss << item_ts << " callback";
-    x64->runtime->log(ss.str().c_str());  // "WeakMap callback.");
     
     Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
 
@@ -763,18 +764,20 @@ static void compile_process_fcb(Label label, TypeSpec item_ts, X64 *x64) {
 }
 
 
-static void alloc_fcb(TypeSpec item_ts, Address alias_addr, X64 *x64) {
-    // Allocate and push a FCB pointer. We may clobber RAX, RBX, RCX, RDX.
-    Label callback_label = x64->once->compile(compile_process_fcb, item_ts);
+static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
+    // Turn a Ptr into a NosyValue. We may clobber RAX, RBX, RCX, RDX.
+    Label callback_label = x64->once->compile(compile_nosyvalue_callback, item_ts);
     
     x64->op(MOVQ, RAX, Address(RSP, 0));  // referred heap object
     x64->op(LEA, RBX, Address(callback_label, 0));  // callback
     x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
     x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
     
+    x64->op(PUSHQ, RAX);  // in NosyValue the object pointer is at the lower address...
+    
     x64->op(CALL, x64->runtime->alloc_fcb_label);
     
-    x64->op(PUSHQ, RAX);  // last minute nosyvalue
+    x64->op(MOVQ, Address(RSP, ADDRESS_SIZE), RAX);  // .. and the fcb at the higher address
 }
 
 
@@ -798,7 +801,7 @@ public:
     }
 
     virtual void prevalue(Address alias_addr, X64 *x64) {
-        alloc_fcb(item_ts, alias_addr, x64);
+        ptr_to_nosyvalue(item_ts, alias_addr, x64);
     }
 };
 
@@ -872,7 +875,7 @@ public:
     }
 
     virtual void prekey(Address alias_addr, X64 *x64) {
-        alloc_fcb(item_ts, alias_addr, x64);
+        ptr_to_nosyvalue(item_ts, alias_addr, x64);
     }
 };
 
@@ -925,7 +928,7 @@ public:
     }
 
     virtual void prekey(Address alias_addr, X64 *x64) {
-        alloc_fcb(item_ts, alias_addr, x64);
+        ptr_to_nosyvalue(item_ts, alias_addr, x64);
     }
 };
 

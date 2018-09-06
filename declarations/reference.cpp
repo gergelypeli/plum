@@ -215,6 +215,9 @@ public:
 
 
 // This is a hack type to cooperate closely with Weak*Map
+// It contains a Ptr first field, so it can disguise as a Ptr within Weak*Map, and
+// comparisons would work with the input Ptr-s. But it actually contains another
+// pointer to an FCB that gets triggered when the pointed object is finalized.
 class NosyValueType: public PointerType {
 public:
     NosyValueType(std::string name)
@@ -233,13 +236,9 @@ public:
         if (s.where != STACK || t.where != MEMORY)
             throw INTERNAL_ERROR;
 
-        // A NosyValue is an object pointer, followed by an FCB pointer.
-        // But when creating one in a Weak*Map, the FCB is allocated later,
-        // so the pointer is at the lower address. That's why we reverse the order here.
-        
-        x64->op(POPQ, t.address + NOSYVALUE_FCB_OFFSET);
-        
         PointerType::create(tm, s, t, x64);
+
+        x64->op(POPQ, t.address + NOSYVALUE_FCB_OFFSET);
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
