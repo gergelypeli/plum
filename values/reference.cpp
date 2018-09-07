@@ -59,6 +59,8 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        // Our argument is a Ref, so it points to the beginning of the object,
+        // and can be used in reference counting directly.
         Storage s = value->compile(x64);
         
         switch (s.where) {

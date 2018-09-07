@@ -52,16 +52,20 @@ public:
 
     virtual void allocate() {
         // Let the base be allocated first, then it will skip itself
+        // TODO: sort the base role first instead of hacking
         
         if (base_role) {
             base_role->allocate();
-            inner_scope->set_virtual_entry(0, this);
+            inner_scope->set_virtual_entry(VT_BASEVT_INDEX, this);
         }
         else {
+            if (VT_BASEVT_INDEX != 0)
+                throw INTERNAL_ERROR;
+                
             std::vector<VirtualEntry *> vt = { this };
             inner_scope->virtual_reserve(vt);
         }
-            
+        
         HeapType::allocate();
     }
 

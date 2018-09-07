@@ -144,11 +144,11 @@ public:
         x64->op(PUSHQ, RBX);
         
         x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));  // the reference
-        x64->op(MOVQ, RBX, Address(RBX, 0));  // the virtual table
+        x64->op(MOVQ, RBX, Address(RBX, CLASS_VT_OFFSET));  // the virtual table
         x64->op(JMP, cond);
         
         x64->code_label(loop);
-        x64->op(MOVQ, RBX, Address(RBX, 0));  // base virtual table
+        x64->op(MOVQ, RBX, Address(RBX, VT_BASEVT_INDEX * ADDRESS_SIZE));  // base virtual table
         
         x64->code_label(cond);
         x64->op(CMPQ, RBX, Address(RSP, 0));
