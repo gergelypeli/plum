@@ -170,6 +170,15 @@ Value *lookup_switch(Scope *scope, Token token) {
 
 
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
+    // Sanity check, interface types can't be contexts, as they're not concrete types,
+    // so they're useless for initializers, but would allow a multi-tailed control to
+    // have multiple concrete result types.
+    if (context && (*context).rvalue().has_meta(interface_metatype))
+        throw INTERNAL_ERROR;
+
+    // NULL context is used for pivot position expressions.
+    // &ANY_TS context may be used for arguments, this also make tuples into code blocks.
+
     Value *value = NULL;
 
     if (!expr)

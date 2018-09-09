@@ -54,6 +54,11 @@ bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
 }
 
 
+Value *value_lookup_inner(Value *value, std::string name, Scope *scope) {
+    return value->lookup_inner(name, scope);
+}
+
+
 // Declaration operations
 
 Declaration *make_record_compare() {
@@ -199,7 +204,12 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
         scope->add(code_scope);
     }
 
-    Value *v = typize(e, code_scope ? code_scope : scope, context);
+    TypeSpec *constructive_context = context;
+    
+    if (context && (*context).rvalue().has_meta(interface_metatype))
+        constructive_context = NULL;
+
+    Value *v = typize(e, code_scope ? code_scope : scope, constructive_context);
     
     // Hack for omitting strict checking in :is controls
     if (context && (*context)[0] == equalitymatcher_type)

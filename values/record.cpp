@@ -172,7 +172,7 @@ public:
             pivot = make<RecordUnwrapValue>(pcts, pivot);
         
         if (on != "") {
-            pivot = pivot->ts.lookup_inner(on, pivot, scope);
+            pivot = pivot->lookup_inner(on, scope);
             if (!pivot)
                 throw INTERNAL_ERROR;
         }

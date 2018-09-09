@@ -461,14 +461,15 @@ public:
         if (cast_ts.has_meta(record_metatype))
             cast_ts = cast_ts.lvalue();
 
-        Value *member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts), s);
+        Value *cast_value = make<CastValue>(v, cast_ts);
+        Value *member = value_lookup_inner(cast_value, n, s);
 
         if (!member) {
             // Consider initializer delegation before giving up
             std::cerr << "Partial not found, considering initializer delegation.\n";
             
-            cast_ts = tm[1].prefix(initializable_type);
-            member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts), s);
+            set_typespec(cast_value, tm[1].prefix(initializable_type));
+            member = value_lookup_inner(cast_value, n, s);
             
             if (member) {
                 if (pi->is_dirty()) {

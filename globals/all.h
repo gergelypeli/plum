@@ -62,7 +62,6 @@ template <class T, class S> T *ptr_cast(S *s) {
 // Functions
 
 // Value wrappers
-
 Declaration *declaration_get_decl(DeclarationValue *dv);
 PartialInfo *partial_variable_get_info(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
@@ -70,6 +69,7 @@ bool is_initializer_function_call(Value *value);
 TypeSpec type_value_represented_ts(Value *v);
 Value *peek_void_conversion_value(Value *v);
 void role_value_be_static(RoleValue *rv);
+Value *value_lookup_inner(Value *value, std::string name, Scope *scope);
 
 // Declaration wrappers
 Declaration *make_record_compare();

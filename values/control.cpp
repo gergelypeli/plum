@@ -16,15 +16,6 @@ public:
             return;
             
         context_ts = *c;
-        Type *t = context_ts.rvalue()[0];
-        
-        if (ptr_cast<InterfaceType>(t)) {
-            // Can't allow Interface context types, because the concrete return types
-            // may become different at different exit points!
-            std::cerr << "Control :" << name << " in Interface context!\n";
-            throw TYPE_ERROR;
-        }
-        
         Type *a = context_ts[0];
         
         if (a == code_type)

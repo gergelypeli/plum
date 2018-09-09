@@ -148,18 +148,18 @@ public:
     }
     
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
-        Value *member = get_typespec(pivot).lookup_inner("wrapped", pivot, scope);
+        Value *member = value_lookup_inner(pivot, "wrapped", scope);
         
         if (autogrow) {
-            TypeSpec mts = get_typespec(member);
-            member = mts.lookup_inner("autogrow", member, scope);
+            member = value_lookup_inner(member, "autogrow", scope);
+            
             if (!member) {
-                std::cerr << "No autogrow for " << mts << "!\n";
+                std::cerr << "No autogrow for " << get_typespec(member) << "!\n";
                 throw INTERNAL_ERROR;
             }
         }
         
-        Value *operation = get_typespec(member).lookup_inner(operation_name, member, scope);
+        Value *operation = value_lookup_inner(member, operation_name, scope);
         if (!operation) {
             std::cerr << "No operation " << operation_name << " in " << get_typespec(member) << "!\n";
             throw INTERNAL_ERROR;

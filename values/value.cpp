@@ -454,7 +454,7 @@ public:
         Storage s = pivot->compile(x64);
         int offset = role->offset.concretize(match);  // May step multiple roles
         
-        std::cerr << "XXX RoleValue for " << role->name << " has offset " << offset << "\n";
+        //std::cerr << "XXX RoleValue for " << role->name << " has offset " << offset << "\n";
         
         switch (s.where) {
         case REGISTER:

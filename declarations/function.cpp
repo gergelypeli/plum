@@ -120,6 +120,8 @@ public:
     }
     
     virtual bool does_implement(std::string prefix, TypeMatch tm, Function *iff, TypeMatch iftm) {
+        // The pivot type is not checked, since it is likely to be different
+        
         if (name != prefix + iff->name)
             return false;
     
