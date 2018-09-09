@@ -7,7 +7,7 @@ class Declaration;
 class Allocable;
 class Variable;
 class Role;
-class BaseRole;
+//class BaseRole;
 class PartialVariable;
 class Evaluable;
 class Function;

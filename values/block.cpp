@@ -318,9 +318,11 @@ public:
             return false;
         }
 
+        /*
         if (!descend_into_explicit_scope(name, scope))  // Modifies both arguments
             return false;
-
+        */
+        
         Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
         
         if (!v->ts.is_meta() && !v->ts.is_hyper()) {

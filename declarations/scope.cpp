@@ -251,7 +251,7 @@ public:
     }
 };
 
-
+/*
 class RoleScope: public DataScope {
 public:
     Role *role;
@@ -299,7 +299,7 @@ public:
         return NULL;
     }
 };
-
+*/
 
 class RootScope: public NamedScope {
 public:

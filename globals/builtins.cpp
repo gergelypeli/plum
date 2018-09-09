@@ -404,17 +404,24 @@ void builtin_types(Scope *root_scope) {
 }
 
 
-void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Declaration *> contents) {
+void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
     TypeSpec implementor_ts = implementor_scope->pivot_type_hint();
     ImplementationType *implementation = new ImplementationType(implementation_name, implementor_ts, interface_ts);
-    DataScope *inner_scope = implementation->make_inner_scope(implementor_ts);
-    
-    for (Declaration *d : contents)
-        inner_scope->add(d);
-    
+    //DataScope *inner_scope = implementation->make_inner_scope(implementor_ts);
     implementation->complete_type();
-    inner_scope->leave();
+    //inner_scope->leave();
     implementor_scope->add(implementation);
+    
+    for (Identifier *i : contents) {
+        Function *f = ptr_cast<Function>(i);
+        
+        if (f)
+            if (!implementation->check_implementation(f))
+                throw INTERNAL_ERROR;
+        
+        i->name = implementation_name + "." + i->name;  // TODO: ugly!
+        implementor_scope->add(i);
+    }
 }
 
 
@@ -530,6 +537,7 @@ void define_interfaces() {
         TSs { STRING_LVALUE_TS },
         Ss { "stream" },
         TSs {},
+        NULL,
         NULL
     );
     sis->add(sf);
@@ -544,6 +552,7 @@ void define_interfaces() {
         TSs {},
         Ss {},
         TSs { SAME_ITERATOR_TS },
+        NULL,
         NULL
     );
     jis->add(xf);
@@ -558,7 +567,8 @@ void define_interfaces() {
         TSs {},
         Ss {},
         TSs { SAME_TS },
-        iterator_done_exception_type
+        iterator_done_exception_type,
+        NULL
     );
     iis->add(nf);
     implement(iis, SAME_ITERABLE_TS, "ible", {
@@ -624,7 +634,7 @@ void define_iterators() {
     
         cis->add(new Variable("limit", COUNTER_TS, INTEGER_LVALUE_TS));  // Order matters!
         cis->add(new Variable("value", COUNTER_TS, INTEGER_LVALUE_TS));
-        Declaration *next_fn;
+        Identifier *next_fn;
         
         if (!is_down) {
             next_fn = new TemplateIdentifier<CountupNextValue>("next", COUNTER_TS);
@@ -701,7 +711,7 @@ void define_string() {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", STRING_TS)
     });
 
-    is->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL));
+    is->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL, NULL));
 
     record_type->complete_type();
     is->leave();
@@ -730,7 +740,7 @@ void define_slice() {
     is->add(new TemplateIdentifier<SliceIndexIterValue>("indexes", ANY_SLICE_TS));
     is->add(new TemplateIdentifier<SliceItemIterValue>("items", ANY_SLICE_TS));
 
-    is->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL));
+    is->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
     
     record_type->complete_type();
     is->leave();
@@ -790,7 +800,7 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REF_TS));
     
-    array_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL));
+    array_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
 
     array_type->complete_type();
     array_scope->leave();
@@ -1059,12 +1069,12 @@ void builtin_runtime(Scope *root_scope) {
 
     Scope *is = st->make_inner_scope(STD_TS);
 
-    is->add(new SysvFunction("printi", "printi", STD_TS, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL));
-    is->add(new SysvFunction("printc", "printc", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL));
-    is->add(new SysvFunction("printd", "printd", STD_TS, GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL));
-    is->add(new SysvFunction("printb", "printb", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL));
-    is->add(new SysvFunction("prints", "prints", STD_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL));
-    is->add(new SysvFunction("printp", "printp", STD_TS, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL));  // needs Lvalue to avoid ref copy
+    is->add(new SysvFunction("printi", "printi", STD_TS, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("printc", "printc", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("printd", "printd", STD_TS, GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("printb", "printb", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("prints", "prints", STD_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("printp", "printp", STD_TS, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL, NULL));  // needs Lvalue to avoid ref copy
 
     st->complete_type();
     is->leave();

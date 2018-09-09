@@ -20,11 +20,11 @@ public:
         x64->runtime->alloc_RAX_RBX();
 
         Label vt_label = class_ts.get_virtual_table_label(x64);
-        int virtual_offset = 0;
+        //int virtual_offset = 0;
         Address addr(RAX, 0);
-        int data_offset = 0;
+        //int data_offset = 0;
         
-        class_ts.init_vt(addr, data_offset, vt_label, virtual_offset, x64);
+        class_ts.init_vt(addr, vt_label, x64);
         
         return Storage(REGISTER, RAX);
     }

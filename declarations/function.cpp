@@ -15,27 +15,39 @@ public:
     std::vector<std::string> arg_names;
     std::vector<TypeSpec> res_tss;
     TreenumerationType *exception_type;
+    FunctionScope *fn_scope;
+    
     int virtual_index;
     FunctionType type;
     FunctionProt prot;
     
-    Role *containing_role;
+    Role *associated_role;
     Function *implemented_function;
 
     Label label;
     
-    Function(std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
+    Function(std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
         :Identifier(n, pts) {
         type = ft;
         arg_tss = ats;
         arg_names = ans;
         res_tss = rts;
         exception_type = et;
-        virtual_index = -1;
-
+        fn_scope = fs;
+        
+        virtual_index = -1;  // for class methods only
         prot = NATIVE_FUNCTION;
-        containing_role = NULL;
+        associated_role = NULL;  // for overriding class methods only
         implemented_function = NULL;
+    }
+
+    virtual void set_outer_scope(Scope *os) {
+        // Abuse here, too
+        Identifier::set_outer_scope(os);
+        
+        // Some built-in interface functions may have no fn scope now
+        if (fn_scope)
+            fn_scope->set_outer_scope(os);
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
@@ -75,7 +87,7 @@ public:
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
         
         if (ds && ds->is_virtual_scope() && type == GENERIC_FUNCTION) {
-            if (!containing_role) {
+            if (!associated_role) {
                 std::vector<VirtualEntry *> vt;
                 vt.push_back(this);
                 virtual_index = ds->virtual_reserve(vt);
@@ -84,10 +96,14 @@ public:
             else {
                 // Copying it is necessary, as overriding functions can only get it from each other
                 virtual_index = implemented_function->virtual_index;
-                ds->set_virtual_entry(virtual_index, this);
-                std::cerr << "Set virtual index " << virtual_index << " for function " << name << ".\n";
+                int virtual_offset = role_get_virtual_offset(associated_role);
+                ds->set_virtual_entry(virtual_offset + virtual_index, this);
+                std::cerr << "Set virtual index " << virtual_offset << "+" << virtual_index << " for function " << name << ".\n";
             }
         }
+        
+        if (fn_scope)
+            fn_scope->allocate();
     }
     
     virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
@@ -103,8 +119,8 @@ public:
         return label;
     }
     
-    virtual bool does_implement(TypeMatch tm, Function *iff, TypeMatch iftm) {
-        if (name != iff->name)
+    virtual bool does_implement(std::string prefix, TypeMatch tm, Function *iff, TypeMatch iftm) {
+        if (name != prefix + iff->name)
             return false;
     
         if (get_argument_tss(tm) != iff->get_argument_tss(iftm)) {
@@ -135,21 +151,8 @@ public:
         return true;
     }
 
-    virtual bool set_role_scope(RoleScope *rs) {
-        containing_role = rs->get_role();
-        
-        Declaration *original_declaration = rs->get_original_declaration(name);
-        Function *original_function = ptr_cast<Function>(original_declaration);
-        
-        if (!original_function) {
-            std::cerr << "No original function " << name << "!\n";
-            return false;
-        }
-        
-        TypeMatch role_tm;  // assume parameterless outermost class, derive role parameters
-        containing_role->compute_match(role_tm);
-
-        return does_implement(TypeMatch(), original_function, role_tm);
+    virtual void set_associated_role(Role *ar) {
+        associated_role = ar;
     }
 };
 
@@ -158,8 +161,8 @@ class SysvFunction: public Function {
 public:
     std::string import_name;
     
-    SysvFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et)
-        :Function(n, pts, ft, ats, ans, rts, et) {
+    SysvFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
+        :Function(n, pts, ft, ats, ans, rts, et, fs) {
         import_name = in;
         prot = SYSV_FUNCTION;
     }

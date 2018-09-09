@@ -252,8 +252,8 @@ Value *TypeSpec::lookup_inner(std::string name, Value *pivot, Scope *scope) {
 //}
 
 
-void TypeSpec::init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
-    at(0)->init_vt(match(), addr, data_offset, vt_label, virtual_offset, x64);
+void TypeSpec::init_vt(Address self_addr, Label vt_label, X64 *x64) {
+    at(0)->init_vt(match(), self_addr, vt_label, x64);
 }
 
 

@@ -452,7 +452,9 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Storage s = pivot->compile(x64);
-        int offset = role->compute_offset(match);  // May step multiple roles
+        int offset = role->offset.concretize(match);  // May step multiple roles
+        
+        std::cerr << "XXX RoleValue for " << role->name << " has offset " << offset << "\n";
         
         switch (s.where) {
         case REGISTER:

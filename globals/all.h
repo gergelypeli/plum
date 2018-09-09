@@ -43,7 +43,7 @@ public:
     Value *lookup_initializer(std::string name, Scope *scope);
     Value *lookup_matcher(std::string name, Value *pivot, Scope *scope);
     Value *lookup_inner(std::string name, Value *pivot, Scope *scope);
-    void init_vt(Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64);
+    void init_vt(Address self_addr, Label vt_label, X64 *x64);
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
@@ -73,7 +73,10 @@ void role_value_be_static(RoleValue *rv);
 
 // Declaration wrappers
 Declaration *make_record_compare();
-bool descend_into_explicit_scope(std::string &name, Scope *&scope);
+int role_get_virtual_offset(Role *r);
+bool role_is_base(Role *r);
+void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
+//bool descend_into_explicit_scope(std::string &name, Scope *&scope);
 
 
 // TypeSpec operations

@@ -301,7 +301,7 @@ public:
         return find_implementation(tm, target, orig, ifts);
     }
 
-    virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
+    virtual void init_vt(TypeMatch tm, Address addr, Label vt_label, X64 *x64) {
         std::cerr << "Unvtinitable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -465,6 +465,8 @@ public:
 
         if (!member) {
             // Consider initializer delegation before giving up
+            std::cerr << "Partial not found, considering initializer delegation.\n";
+            
             cast_ts = tm[1].prefix(initializable_type);
             member = cast_ts.lookup_inner(n, make<CastValue>(v, cast_ts), s);
             

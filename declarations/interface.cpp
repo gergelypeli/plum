@@ -26,6 +26,13 @@ public:
             if (it)
                 continue;
                 
+            // OK, we have to forgive built-in implementations of nested interfaces,
+            // which may be of any class, but at least they have a qualified name.
+            Identifier *i = ptr_cast<Identifier>(c.get());
+            
+            if (i && i->name.find(".") != std::string::npos)
+                continue;
+                
             std::cerr << "Not a function or implementation in an interface!\n";
             throw INTERNAL_ERROR;
             return false;
@@ -78,11 +85,18 @@ public:
     std::vector<Function *> member_functions;  // currently set, but unused
     TypeSpec interface_ts;
     TypeSpec implementor_ts;  // aka pivot type
+    std::string prefix;
 
     ImplementationType(std::string name, TypeSpec irts, TypeSpec ifts)
         :Type(name, Metatypes { value_metatype, type_metatype }, implementation_metatype) {
         interface_ts = ifts;
         implementor_ts = irts;
+        prefix = name + ".";
+    }
+
+    virtual void set_name(std::string n) {
+        name = n;
+        prefix = n + ".";
     }
 
     virtual TypeSpec get_interface_ts(TypeMatch &match) {
@@ -95,7 +109,14 @@ public:
         return ts;
     }
 
-    virtual bool complete_type() {
+    virtual ImplementationType *lookup_implementation(std::string name) {
+        if (deprefix(name, prefix))
+            return this;
+        else
+            return NULL;
+    }
+
+    virtual bool check_implementation(Function *override) {
         // NOTE: this is kinda weird, but correct.
         // If a parametric type implements an interface with the same type parameter
         // used, we can't concretize that here yet. So the fake_match, despite being
@@ -106,42 +127,25 @@ public:
         InterfaceType *interface_type = ptr_cast<InterfaceType>(interface_ts[0]);
         TypeMatch iftm = interface_ts.match();
         TypeMatch empty_match;
-
-        for (auto &c : inner_scope->contents) {
-            Function *f = ptr_cast<Function>(c.get());
-            
-            if (!f)
-                continue;  // Builtin types have a range of classes to implement stuff
-            
-            //std::cerr << "Checking imp fun: " << f->name << "\n";
-            //std::cerr << "XXX " << interface_type->member_functions.size() << "\n";
-            
-            bool found = false;
-            
-            for (Function *iff : interface_type->member_functions) {
-                if (f->does_implement(empty_match, iff, iftm)) {
-                    found = true;
-                    break;
-                }
-            }
-            
-            if (!found) {
-                std::cerr << "Invalid implementation of function: " << interface_type->name << "." << f->name << "!\n";
-                return false;
-            }
-        }
-
-        // FIXME: check order!
+        bool found = false;
         
-        for (auto &c : inner_scope->contents) {
-            Function *f = ptr_cast<Function>(c.get());
-            
-            if (f) {
-                member_functions.push_back(f);
+        for (Function *iff : interface_type->member_functions) {
+            if (override->does_implement(prefix, empty_match, iff, iftm)) {
+                found = true;
+                break;
             }
         }
         
-        //std::cerr << "Implementation " << name << " has " << member_functions.size() << " member functions.\n";
+        if (!found) {
+            std::cerr << "Invalid implementation of function: " << interface_type->name << "." << override->name << "!\n";
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // FIXME: to be removed, the inner scope will be empty now
+    virtual bool complete_type() {
         return true;
     }
 
@@ -191,19 +195,22 @@ public:
             throw INTERNAL_ERROR
         );
     }
-
+    /*
     virtual DataScope *find_inner_scope(std::string n) {
         if (name == n)
             return inner_scope.get();
         else
             return NULL;
     }
-    
+    */
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
         // The second type parameter is the concrete type
         pivot = make<CastValue>(pivot, tm[2]);
-            
-        return inner_scope->lookup(n, pivot, scope);
+        
+        // TODO: this is not very exact to find an implementing function...
+        std::cerr << "Looking up implementing function " << prefix + n << " in outer scope.\n";
+        return outer_scope->lookup(prefix + n, pivot, scope);
+        //return inner_scope->lookup(n, pivot, scope);
     }
     
     virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {

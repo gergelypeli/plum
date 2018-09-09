@@ -4,8 +4,9 @@ public:
     std::vector<Allocable *> member_allocables;  // FIXME: not necessary Variables
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
+    std::vector<Role *> member_roles;
     Function *finalizer_function;
-    BaseRole *base_role;
+    Role *base_role;
 
     ClassType(std::string name, Metatypes param_metatypes)
         :HeapType(name, param_metatypes, class_metatype) {
@@ -22,6 +23,21 @@ public:
                 member_tss.push_back(v->alloc_ts.rvalue());
                 member_names.push_back(v->name);
             }
+
+            Role *r = ptr_cast<Role>(c.get());
+            
+            if (r) {
+                member_roles.push_back(r);
+                
+                if (role_is_base(r)) {
+                    if (base_role) {
+                        std::cerr << "Multiple base roles!\n";
+                        return false;
+                    }
+                
+                    base_role = r;
+                }
+            }
             
             Function *f = ptr_cast<Function>(c.get());
             
@@ -33,17 +49,6 @@ public:
                     
                 finalizer_function = f;
             }
-            
-            BaseRole *b = ptr_cast<BaseRole>(c.get());
-            
-            if (b) {
-                if (base_role) {
-                    std::cerr << "Multiple base roles!\n";
-                    return false;
-                }
-                
-                base_role = b;
-            }
         }
         
         std::cerr << "Class " << name << " has " << member_allocables.size() << " member variables.\n";
@@ -52,10 +57,9 @@ public:
 
     virtual void allocate() {
         // Let the base be allocated first, then it will skip itself
-        // TODO: sort the base role first instead of hacking
         
         if (base_role) {
-            base_role->allocate();
+            ptr_cast<Allocable>(base_role)->allocate();
             inner_scope->set_virtual_entry(VT_BASEVT_INDEX, this);
         }
         else {
@@ -73,7 +77,7 @@ public:
         // This must point to our base type's virtual table, or NULL
         
         if (base_role)
-            return typesubst(base_role->alloc_ts, tm).get_virtual_table_label(x64);
+            return typesubst(ptr_cast<Allocable>(base_role)->alloc_ts, tm).get_virtual_table_label(x64);
         else {
             //std::cerr << "Class " << tm << " has no base.\n";
             return x64->runtime->zero_label;
@@ -167,14 +171,14 @@ public:
         
         return is;
     }
-
+    /*
     virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
         std::vector<TypeSpec> tss;
         for (auto &ts : member_tss)
             tss.push_back(typesubst(ts, match));
         return tss;
     }
-    
+    */
     virtual std::vector<std::string> get_member_names() {
         return member_names;
     }
@@ -216,16 +220,13 @@ public:
         x64->op(RET);
     }
 
-    virtual void init_vt(TypeMatch tm, Address addr, int data_offset, Label vt_label, int virtual_offset, X64 *x64) {
-        x64->op(LEA, RBX, Address(vt_label, virtual_offset * ADDRESS_SIZE));
-        x64->op(MOVQ, addr + data_offset + CLASS_VT_OFFSET, RBX);
+    virtual void init_vt(TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
+        x64->op(LEA, RBX, Address(vt_label, 0));
+        x64->op(MOVQ, self_addr + CLASS_VT_OFFSET, RBX);
 
-        for (auto &var : member_allocables) {
-            Role *r = ptr_cast<Role>(var);
-            
-            if (r)
-                r->init_vt(tm, addr, data_offset, vt_label, virtual_offset, x64);
-        }
+        // Roles compute their offsets in terms of the implementor class type parameters
+        for (auto &r : member_roles)
+            role_init_vt(r, tm, self_addr, vt_label, x64);
     }
 
     virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
@@ -250,7 +251,7 @@ public:
         }
         
         if (base_role) {
-            TypeSpec ts = typesubst(base_role->alloc_ts, tm);
+            TypeSpec ts = typesubst(ptr_cast<Allocable>(base_role)->alloc_ts, tm);
             Value *v = ts.autoconv(target, orig, ifts);
             
             if (v)
@@ -261,7 +262,7 @@ public:
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
-        std::cerr << "Class inner lookup " << n << ".\n";
+        std::cerr << "Class " << name << " inner lookup " << n << ".\n";
         bool dot = false;
         
         if (n[0] == '.') {
@@ -272,7 +273,7 @@ public:
         Value *value = HeapType::lookup_inner(tm, n, v, s);
         
         if (!value && base_role) {
-            TypeSpec ts = typesubst(base_role->alloc_ts, tm);
+            TypeSpec ts = typesubst(ptr_cast<Allocable>(base_role)->alloc_ts, tm);
             value = ts.lookup_inner(n, v, s);
         }
 
@@ -293,6 +294,215 @@ public:
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
         return make<ClassMatcherValue>(n, v);
+    }
+};
+
+
+class Role: public Allocable {
+public:
+    std::string prefix;
+    bool is_base;
+    Role *original_role;
+    int virtual_offset;
+    std::vector<std::unique_ptr<Role>> shadow_roles;
+    DataScope *virtual_scope;  // All shadow Role-s will point to the class scope
+    
+    Role(std::string n, TypeSpec pts, TypeSpec ts, bool ib)
+        :Allocable(n, pts, ts) {
+        std::cerr << "Creating " << (ib ? "base " : "") << "role " << name << ".\n";
+        
+        prefix = name + ".";
+        is_base = ib;
+        original_role = NULL;
+        virtual_offset = -1;
+        virtual_scope = NULL;
+
+        ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
+        if (!ct)
+            throw INTERNAL_ERROR;
+
+        for (auto &r : ct->member_roles) {
+            shadow_roles.push_back(std::make_unique<Role>(prefix, r));
+        }
+    }
+
+    Role(std::string p, Role *role)
+        :Allocable(p + role->name, NO_TS, role->alloc_ts) {
+        std::cerr << "Creating shadow role " << name << ".\n";
+        
+        prefix = name + ".";
+        is_base = false;
+        original_role = role;
+        virtual_offset = -1;
+
+        for (auto &sr : role->shadow_roles) {
+            shadow_roles.push_back(std::make_unique<Role>(prefix, sr.get()));
+        }
+    }
+
+    virtual void set_virtual_scope(DataScope *vs) {
+        virtual_scope = vs;
+        
+        for (auto &sr : shadow_roles) {
+            sr->set_virtual_scope(vs);
+        }
+    }
+    
+    virtual void set_outer_scope(Scope *os) {
+        if (original_role)
+            throw INTERNAL_ERROR;
+            
+        DataScope *ds = ptr_cast<DataScope>(os);
+        if (!ds)
+            throw INTERNAL_ERROR;
+            
+        if (!ds->is_virtual_scope())
+            throw INTERNAL_ERROR;
+            
+        set_virtual_scope(ds);
+    }
+    
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
+        return make<RoleValue>(this, cpivot, match);
+    }
+
+    virtual Role *lookup_role(std::string name) {
+        std::string n = name;
+        
+        if (deprefix(n, prefix)) {
+            if (n.find('.') != std::string::npos) {
+                for (auto &sr : shadow_roles) {
+                    Role *r = sr->lookup_role(name);
+                    if (r)
+                        return r;
+                }
+                
+                return NULL;
+            }
+            else
+                return this;
+        }
+        else
+            return NULL;
+    }
+
+    virtual bool check_override(Function *override) {
+        Declaration *decl = NULL;
+        ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
+        std::string override_name = override->name;
+        
+        if (!deprefix(override_name, prefix))
+            throw INTERNAL_ERROR;
+        
+        for (auto &d : ct->inner_scope->contents) {
+            if (d->is_called(override_name)) {
+                decl = d.get();
+                break;
+            }
+        }
+        
+        if (!decl) {
+            std::cerr << "No function to override!\n";
+            return NULL;
+        }
+        
+        Function *original = ptr_cast<Function>(decl);
+        
+        if (!original) {
+            std::cerr << "Not a function to override!\n";
+            return false;
+        }
+
+        TypeMatch role_tm;  // assume parameterless outermost class, derive role parameters
+        //containing_role->compute_match(role_tm);
+
+        // this automatically sets original_function
+        if (!override->does_implement(prefix, TypeMatch(), original, role_tm))
+            return false;
+        
+        return true;
+    }
+
+    virtual void allocate() {
+        if (original_role)
+            throw INTERNAL_ERROR;
+            
+        if (virtual_offset != -1) {
+            if (is_base)
+                return;
+            else
+                throw INTERNAL_ERROR;
+        }
+        
+        where = MEMORY;
+        
+        Allocation size = alloc_ts.measure();
+        offset = virtual_scope->reserve(size);
+            
+        std::vector<VirtualEntry *> vt = alloc_ts.get_virtual_table();
+        virtual_offset = virtual_scope->virtual_reserve(vt);
+
+        // Just in case we'll have parametrized classes
+        // Let the shadow roles express their offsets in terms of the implementor type
+        // parameters. The offsets they can grab from their original scopes are expressed
+        // in terms of our parameters, so calculate and pass the transformation matrix
+        // so thay can calculate the required size polynoms.
+        TypeMatch tm = alloc_ts.match();
+        Allocation size1 = (tm[1] != NO_TS ? tm[1].measure() : Allocation());
+        Allocation size2 = (tm[2] != NO_TS ? tm[2].measure() : Allocation());
+        Allocation size3 = (tm[3] != NO_TS ? tm[3].measure() : Allocation());
+
+        // Every concretization step rounds the concrete size up
+        size1.bytes = stack_size(size1.bytes);
+        size2.bytes = stack_size(size2.bytes);
+        size3.bytes = stack_size(size3.bytes);
+
+        for (auto &sr : shadow_roles)
+            sr->relocate(size1, size2, size3, offset, virtual_offset);
+    }
+    
+    virtual void relocate(Allocation size1, Allocation size2, Allocation size3, Allocation explicit_offset, int explicit_virtual_offset) {
+        if (!original_role)
+            throw INTERNAL_ERROR;
+
+        if (virtual_offset != -1)
+            throw INTERNAL_ERROR;
+        
+        // Offset within the explicit role, in terms of the role type parameters
+        Allocation o = original_role->offset;
+        
+        // Offset within the current class, in terms of its type parameters
+        offset = Allocation(
+            o.bytes + o.count1 * size1.bytes  + o.count2 * size2.bytes  + o.count3 * size3.bytes  + explicit_offset.bytes,
+            0 +       o.count1 * size1.count1 + o.count2 * size2.count1 + o.count3 * size3.count1 + explicit_offset.count1,
+            0 +       o.count1 * size1.count2 + o.count2 * size2.count2 + o.count3 * size3.count2 + explicit_offset.count2,
+            0 +       o.count1 * size1.count3 + o.count2 * size2.count3 + o.count3 * size3.count3 + explicit_offset.count3
+        );
+            
+        virtual_offset = original_role->virtual_offset + explicit_virtual_offset;
+        
+        for (auto &sr : shadow_roles)
+            sr->relocate(size1, size2, size3, explicit_offset, explicit_virtual_offset);
+    }
+
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        if (original_role)
+            throw INTERNAL_ERROR;
+            
+        TypeSpec ts = typesubst(alloc_ts, tm);
+        int o = offset.concretize(tm);
+        ts.destroy(s + o, x64);
+    }
+    
+    virtual void init_vt(TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
+        // Base roles have a VT pointer overlapping the main class VT, don't overwrite
+        if (!is_base) {
+            x64->op(LEA, RBX, Address(vt_label, virtual_offset * ADDRESS_SIZE));
+            x64->op(MOVQ, self_addr + offset.concretize(tm) + CLASS_VT_OFFSET, RBX);
+        }
+
+        for (auto &sr : shadow_roles)
+            sr->init_vt(tm, self_addr, vt_label, x64);
     }
 };
 

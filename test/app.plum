@@ -116,6 +116,9 @@ Derived? :Class as:
         Std prints("Derived base_method, the base value is {x}." {x: $ base base_value})
         $.base base_method
         
+    derived_method? :Function as:
+        Std prints("Derived method, just for fun.")
+        
     ? :Finalizer as:
         Std prints("The derived is finalized.")
         
@@ -748,9 +751,10 @@ Main? :Singleton as:
     
         wgr? = :borrow gr
         wgr greet
-    
+
         wgr = gr
     
+        gr derived derived_method
         gr derived base base_method
     
         bs? = gr derived base

@@ -203,13 +203,13 @@ class RoleDefinitionValue: public TypeDefinitionValue {
 public:
     std::unique_ptr<Value> value;
     TypeSpec role_ts, pivot_ts;
-    DataScope *original_scope;
-    Role *role;
+    //DataScope *original_scope;
+    //Role *role;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm)
         :TypeDefinitionValue() {
-        original_scope = NULL;
-        role = NULL;
+        //original_scope = NULL;
+        //role = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -234,23 +234,23 @@ public:
             return false;
         }
         
-        original_scope = ct->get_inner_scope();
+        //original_scope = ct->get_inner_scope();
 
         pivot_ts = scope->pivot_type_hint();
         value.reset(v);
         
         return true;
     }
-
+    /*
     virtual bool complete_definition() {
         std::cerr << "Completing role " << role->name << " definition.\n";
         
         // The role's inner scope is filled by declarations, but they should be checked
         return role->complete_role();
     }
-    
+    */
     virtual Declaration *declare(std::string name, ScopeType st) {
-        role = new Role(name, pivot_ts, role_ts, original_scope);
+        Role *role = new Role(name, pivot_ts, role_ts, false);
         return role;
     }
 };
@@ -263,7 +263,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        role = new BaseRole(name, pivot_ts, role_ts, original_scope);
+        Role *role = new Role(name, pivot_ts, role_ts, true);
         return role;
     }
 };

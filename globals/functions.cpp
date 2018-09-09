@@ -60,7 +60,19 @@ Declaration *make_record_compare() {
     return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);
 }
 
+int role_get_virtual_offset(Role *r) {
+    return r->virtual_offset;
+}
 
+bool role_is_base(Role *r) {
+    return r->is_base;
+}
+
+void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
+    r->init_vt(tm, self_addr, vt_label, x64);
+}
+
+/*
 bool descend_into_explicit_scope(std::string &name, Scope *&scope) {
     while (true) {
         auto pos = name.find(".");
@@ -89,7 +101,7 @@ bool descend_into_explicit_scope(std::string &name, Scope *&scope) {
     
     return true;
 }
-
+*/
 
 std::string print_exception_type(TreenumerationType *t) {
     return t ? t->name : "-";

@@ -13,7 +13,7 @@ public:
     Variable *self_var;
     SingletonVariable *ston_var;
     TypeMatch match;
-    RoleScope *role_scope;
+    Scope *outer_scope;
 
     FunctionType type;
     std::string import_name;
@@ -28,21 +28,23 @@ public:
         may_be_aborted = false;
         self_var = NULL;
         ston_var = NULL;
-        role_scope = NULL;
         fn_scope = NULL;
+        outer_scope = NULL;
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         // For later
-        role_scope = ptr_cast<RoleScope>(scope);
+        outer_scope = scope;
         
         fn_scope = new FunctionScope();
+        
+        // This is temporary, to allow lookups in the result/head scopes
         scope->add(fn_scope);
 
         Scope *rs = fn_scope->add_result_scope();
         
         for (auto &arg : args) {
-            Value *r = typize(arg.get(), scope);
+            Value *r = typize(arg.get(), rs);
         
             if (!r->ts.is_meta()) {
                 std::cerr << "Function result expression is not a type!\n";
@@ -100,12 +102,14 @@ public:
                 
                 ss->add(self_var);
                 
+                /*
                 if (role_scope) {
                     // Function overrides must pretend they take the role pivot type
                     TypeMatch tm = pivot_ts.match();
                     role_scope->get_role()->compute_match(tm);
                     pivot_ts = tm[0].prefix(ptr_type);
                 }
+                */
             }
         }
 
@@ -197,6 +201,9 @@ public:
         // is completed. To make this case work, we please the outer scope with leaving
         // early, and don't mind entering the body scope later anyway.
         fn_scope->leave();
+
+        // This was temporary
+        scope->remove(fn_scope);
         
         return true;
     }
@@ -284,49 +291,50 @@ public:
     virtual Storage compile(X64 *x64) {
         if (!body)
             return Storage();
+
+        if (!function) {
+            std::cerr << "Nameless function!\n";
+            throw INTERNAL_ERROR;
+        }
             
         if (exception_type_value)
             exception_type_value->compile(x64);  // to compile treenum definitions
 
-        //if (ston_var)
-        //    ston_var->set_application_label(x64->runtime->application_label);
-    
         unsigned frame_size = fn_scope->get_frame_size();
-
-        int containing_role_offset = (role_scope ? role_scope->get_role()->compute_offset(match) : 0);
-        if (containing_role_offset)
-            std::cerr << "Function body of " << function->name << " has containing role offset " << containing_role_offset << ".\n";
+        int associated_role_offset = 0;
+        
+        if (function->associated_role) {
+            associated_role_offset = function->associated_role->offset.concretize(match);
+            std::cerr << "Function body of " << function->name << " has associated role offset " << associated_role_offset << ".\n";
+        }
         
         Storage self_storage = self_var ? self_var->get_local_storage() : Storage();
 
-        if (function) {
-            std::string fqn = fn_scope->outer_scope->fully_qualify(function->name);
-            x64->code_label_local(function->get_label(x64), fqn);
+        std::string fqn = fn_scope->outer_scope->fully_qualify(function->name);
+        x64->code_label_local(function->get_label(x64), fqn);
             
-            if (fqn == ".Main.start") {
-                Label dummy;
-                x64->code_label_global(dummy, "start");
-            }
-        }
-        else {
-            std::cerr << "Nameless function!\n";
-            throw INTERNAL_ERROR;
+        if (fqn == ".Main.start") {
+            Label dummy;
+            x64->code_label_global(dummy, "start");
         }
         
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
         
+        // If the result is nonsimple, we'll return it at the given location pointed by RAX
         Storage ras = fn_scope->get_result_alias_storage();
         if (ras.where == MEMORY)
             x64->op(MOVQ, ras.address, RAX);
         
+        // If this function has Code arguments, them raising an exception will be raised here
         Storage fes = fn_scope->get_forwarded_exception_storage();
         if (fes.where == MEMORY)
             x64->op(MOVQ, fes.address, NO_EXCEPTION);
         
-        if (containing_role_offset)
-            x64->op(SUBQ, self_storage.address, containing_role_offset);
+        // Overriding functions get the self argument point to the role data area
+        if (associated_role_offset)
+            x64->op(SUBQ, self_storage.address, associated_role_offset);
         
         x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
@@ -345,8 +353,9 @@ public:
             x64->code_label(ok);
         }
 
-        if (containing_role_offset)
-            x64->op(ADDQ, self_storage.address, containing_role_offset);
+        // If the caller reuses the self pointer, it must continue pointing to the role data
+        if (associated_role_offset)
+            x64->op(ADDQ, self_storage.address, associated_role_offset);
         
         x64->op(ADDQ, RSP, frame_size);
         
@@ -429,16 +438,62 @@ public:
         if (has_code_arg)
             fn_scope->make_forwarded_exception_storage();
         
+        // Let's deal with virtual method overrides!
+        Role *associated_role = NULL;
+        ImplementationType *associated_implementation = NULL;
+        
+        if (name.find('.') != std::string::npos) {
+            for (auto &d : outer_scope->contents) {
+                Role *r = ptr_cast<Role>(d.get());
+                
+                if (r) {
+                    associated_role = r->lookup_role(name);
+                    if (associated_role)
+                        break;
+                }
+            }
+
+            if (!associated_role) {
+                for (auto &d : outer_scope->contents) {
+                    ImplementationType *imp = ptr_cast<ImplementationType>(d.get());
+                
+                    if (imp) {
+                        associated_implementation = imp->lookup_implementation(name);
+                        if (associated_implementation)
+                            break;
+                    }
+                }
+                
+            }
+            
+            if (!associated_role && !associated_implementation) {
+                std::cerr << "Invalid role/implementation qualification for function!\n";
+                return NULL;
+            }
+        }
+        
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         
         if (import_name.size())
-            function = new SysvFunction(import_name, name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+            function = new SysvFunction(import_name, name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
         else
-            function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type());
+            function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
 
-        if (role_scope) {
-            if (!function->set_role_scope(role_scope))
+        if (associated_role) {
+            if (!associated_role->check_override(function)) {
+                std::cerr << "Invalid override for function!\n";
                 return NULL;
+            }
+            
+            function->set_associated_role(associated_role);
+        }
+        else if (associated_implementation) {
+            if (!associated_implementation->check_implementation(function)) {
+                std::cerr << "Invalid implementation for function!\n";
+                return NULL;
+            }
+            
+            //function->set_associated_implementation(associated_implementation);
         }
 
         return function;
@@ -637,8 +692,8 @@ public:
         if (pts[0] != ptr_type)
             throw INTERNAL_ERROR;
             
-        x64->op(LEA, RAX, Address(RSP, passed_size));
-        x64->op(MOVQ, RBX, Address(RSP, passed_size - REFERENCE_SIZE));  // self pointer
+        x64->op(LEA, RAX, Address(RSP, passed_size));  // TODO: not needed for simple returns
+        x64->op(MOVQ, RBX, Address(RSP, passed_size - POINTER_SIZE));  // self pointer
         x64->op(MOVQ, RBX, Address(RBX, 0));  // VMT pointer
         x64->op(CALL, Address(RBX, vti * ADDRESS_SIZE));
         std::cerr << "Will invoke virtual method of " << pts << " #" << vti << ".\n";
@@ -748,7 +803,8 @@ public:
 
     virtual void check_static_cast(X64 *x64) {
         // Figure out if the pivot is in the form of $.foo bar baz
-        // This can probably be simplified if role selection can collapse
+        // We need the virtual offset of bar baz within the VT of foo.
+        
         Value *p = pivot.get();
         int virtual_offset = 0;
         
@@ -756,11 +812,13 @@ public:
             RoleValue *rv = ptr_cast<RoleValue>(p);
             
             if (!rv)
-                break;  // non-role, so not
+                break;  // non-role, so no static cast used
                 
             Role *r = rv->role;
             
             if (rv->is_static()) {
+                // The initial role is a static cast, so we already have the virtual offset
+                // within it.
                 int vi = virtual_offset + function->virtual_index;
                 VirtualEntry *ve = r->alloc_ts.get_virtual_table()[vi];
                 static_label = ve->get_virtual_entry_label(r->alloc_ts.match(), x64);
@@ -768,12 +826,13 @@ public:
                 break;
             }
             else {
-                // Sanity check, these role selections always refer to a toplevel role,
-                // never a shadow role, so virtual offsets must be summed.
-                if (r->parent_role)
-                    throw INTERNAL_ERROR;
+                // If role selections were collapsed, the role refers a shadow role,
+                // whose virtual offset is the absolute offset computed by summing all
+                // outer role offsets, so we can use it in a single step. The static
+                // role selection is never collapsed, so we're still summing the relative
+                // offsets within it.
                     
-                virtual_offset += r->inner_scope->virtual_offset;
+                virtual_offset += r->virtual_offset;
                 p = rv->pivot.get();
             }
         }
