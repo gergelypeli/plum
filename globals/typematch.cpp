@@ -7,7 +7,7 @@ Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, T
         return NULL;
 
     for (auto &d : inner_scope->contents) {
-        ImplementationType *imp = dynamic_cast<ImplementationType *>(d.get());
+        Implementation *imp = ptr_cast<Implementation>(d.get());
 
         if (imp) {
             ifts = imp->get_interface_ts(match);   // pivot match

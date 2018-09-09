@@ -19,7 +19,7 @@ class Type;
 class TreenumerationType;
 class ArrayType;
 class InterfaceType;
-class ImplementationType;
+class Implementation;
 class HeapType;
 
 // Scopes

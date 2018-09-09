@@ -440,7 +440,7 @@ public:
         
         // Let's deal with virtual method overrides!
         Role *associated_role = NULL;
-        ImplementationType *associated_implementation = NULL;
+        Implementation *associated_implementation = NULL;
         
         if (name.find('.') != std::string::npos) {
             for (auto &d : outer_scope->contents) {
@@ -455,7 +455,7 @@ public:
 
             if (!associated_role) {
                 for (auto &d : outer_scope->contents) {
-                    ImplementationType *imp = ptr_cast<ImplementationType>(d.get());
+                    Implementation *imp = ptr_cast<Implementation>(d.get());
                 
                     if (imp) {
                         associated_implementation = imp->lookup_implementation(name);

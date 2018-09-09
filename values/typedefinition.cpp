@@ -553,12 +553,13 @@ public:
 };
 
 
-class ImplementationDefinitionValue: public ScopedTypeDefinitionValue {
+class ImplementationDefinitionValue: public TypeDefinitionValue {
 public:
+    TypeSpec pivot_ts;
     TypeSpec interface_ts;
     
     ImplementationDefinitionValue()
-        :ScopedTypeDefinitionValue() {
+        :TypeDefinitionValue() {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -575,34 +576,22 @@ public:
             return false;
         }
         
+        pivot_ts = scope->pivot_type_hint();
         interface_ts = ptr_cast<TypeValue>(v)->represented_ts;  // NOTE: May still contain Some types
-        InterfaceType *interface_type = ptr_cast<InterfaceType>(interface_ts[0]);
         
-        if (!interface_type) {
+        if (!interface_ts.has_meta(interface_metatype)) {
             std::cerr << "Implementation needs an interface type name!\n";
             return false;
         }
 
-        TypeSpec implementor_ts = scope->pivot_type_hint();
-        defined_type = new ImplementationType("<anonymous>", implementor_ts, interface_ts);
-
-        setup_inner(defined_type, implementor_ts);
-        //inner_scope->set_meta_scope(_metatype->get_inner_scope());
-        //implementation_type->set_inner_scope(inner_scope);  // for preview only
-
-        defer_as(kwargs);
-            
-        std::cerr << "Deferring implementation definition.\n";
         return true;
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
-            defined_type->set_name(name);
-            return defined_type;
+        if (st == DATA_SCOPE) {
+            return new Implementation(name, pivot_ts, interface_ts);
         }
         else
             return NULL;
     }
 };
-

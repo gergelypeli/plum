@@ -406,9 +406,9 @@ void builtin_types(Scope *root_scope) {
 
 void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
     TypeSpec implementor_ts = implementor_scope->pivot_type_hint();
-    ImplementationType *implementation = new ImplementationType(implementation_name, implementor_ts, interface_ts);
+    Implementation *implementation = new Implementation(implementation_name, implementor_ts, interface_ts);
     //DataScope *inner_scope = implementation->make_inner_scope(implementor_ts);
-    implementation->complete_type();
+    //implementation->complete_type();
     //inner_scope->leave();
     implementor_scope->add(implementation);
     

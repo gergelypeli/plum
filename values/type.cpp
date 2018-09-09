@@ -84,21 +84,31 @@ public:
 
 class ImplementationConversionValue: public Value {
 public:
+    Implementation *implementation;
     std::unique_ptr<Value> orig;
     
-    ImplementationConversionValue(ImplementationType *imt, Value *o, TypeMatch &tm)
-        :Value(TypeSpec { imt }) {
-        TypeSpec ifts = imt->get_interface_ts(tm);
-        TypeSpec ots = o->ts;  // FIXME: if that's an ICV, too, then parse the orig ts from it!
-        
-        // NOTE: ots may be Lvalue, but this is necessary for records, where the pivot type
-        // must be Lvalue in order to match any implemented method!
-        
-        ts.insert(ts.end(), ifts.begin(), ifts.end());
-        ts.insert(ts.end(), ots.begin(), ots.end());
-            
+    ImplementationConversionValue(Implementation *imt, Value *o, TypeMatch &tm)
+        :Value(imt->get_interface_ts(tm)) {
+        implementation = imt;
         orig.reset(o);
-        //std::cerr << "XXX Created implementation conversion " << implementation_type->name << " as " << ts << ".\n";;
+    }
+    
+    virtual Value *lookup_inner(std::string name, Scope *scope) {
+        Scope *implementor_scope = implementation->outer_scope;
+        ts = orig->ts;  // implementor_scope->pivot_type_hint();
+        std::string implementing_name = implementation->prefix + name;
+        
+        // In the case of nested interfaces (such as Iterable in Iterator) the ts
+        // is a concrete type, while the implementation of the nested interface methods
+        // are in the enclosing interface, not in the concrete type scope. So looking
+        // up by ts won't find it, and we must look up directly in the implementor scope.
+        //std::cerr << "Looking up implementation " << ts << " " << implementing_name << "\n";
+        Value *value = implementor_scope->lookup(implementing_name, this, scope);
+
+        if (!value)
+            std::cerr << "Oops, missing implementation?\n";
+
+        return value;
     }
     
     virtual Regs precompile(Regs preferred) {
