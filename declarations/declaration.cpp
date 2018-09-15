@@ -76,3 +76,23 @@ public:
         throw INTERNAL_ERROR;
     }
 };
+
+
+class AbsoluteVirtualEntry: public VirtualEntry {
+public:
+    Label label;
+    int value;
+    
+    AbsoluteVirtualEntry() {
+        value = 0;
+    }
+    
+    virtual void set(int v) {
+        value = v;
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        x64->absolute_label(label, value);  // forcing an int into an unsigned64...
+        return label;
+    }
+};

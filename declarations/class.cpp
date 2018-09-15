@@ -7,11 +7,13 @@ public:
     std::vector<Role *> member_roles;
     Function *finalizer_function;
     Role *base_role;
+    AbsoluteVirtualEntry *fastforward_ve;
 
     ClassType(std::string name, Metatypes param_metatypes)
         :HeapType(name, param_metatypes, class_metatype) {
         finalizer_function = NULL;
         base_role = NULL;
+        fastforward_ve = new AbsoluteVirtualEntry;
     }
 
     virtual bool complete_type() {
@@ -61,13 +63,17 @@ public:
         if (base_role) {
             ptr_cast<Allocable>(base_role)->allocate();
             inner_scope->set_virtual_entry(VT_BASEVT_INDEX, this);
+            inner_scope->set_virtual_entry(VT_FASTFORWARD_INDEX, fastforward_ve);
         }
         else {
-            if (VT_BASEVT_INDEX != 0)
+            std::vector<VirtualEntry *> vt = { this, fastforward_ve };
+            int virtual_index = inner_scope->virtual_reserve(vt);
+            
+            if (virtual_index != VT_BASEVT_INDEX)
                 throw INTERNAL_ERROR;
                 
-            std::vector<VirtualEntry *> vt = { this };
-            inner_scope->virtual_reserve(vt);
+            if (virtual_index + 1 != VT_FASTFORWARD_INDEX)
+                throw INTERNAL_ERROR;
         }
         
         HeapType::allocate();
@@ -306,6 +312,7 @@ public:
     int virtual_offset;
     std::vector<std::unique_ptr<Role>> shadow_roles;
     DataScope *virtual_scope;  // All shadow Role-s will point to the class scope
+    AbsoluteVirtualEntry *fastforward_ve;
     
     Role(std::string n, TypeSpec pts, TypeSpec ts, bool ib)
         :Allocable(n, pts, ts) {
@@ -316,6 +323,7 @@ public:
         original_role = NULL;
         virtual_offset = -1;
         virtual_scope = NULL;
+        fastforward_ve = new AbsoluteVirtualEntry;
 
         ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
         if (!ct)
@@ -334,6 +342,7 @@ public:
         is_base = false;
         original_role = role;
         virtual_offset = -1;
+        fastforward_ve = new AbsoluteVirtualEntry;
 
         for (auto &sr : role->shadow_roles) {
             shadow_roles.push_back(std::make_unique<Role>(prefix, sr.get()));
@@ -442,6 +451,9 @@ public:
         std::vector<VirtualEntry *> vt = alloc_ts.get_virtual_table();
         virtual_offset = virtual_scope->virtual_reserve(vt);
 
+        fastforward_ve->set(-offset.concretize());  // well, this is not parametrized yet
+        virtual_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
+
         // Just in case we'll have parametrized classes
         // Let the shadow roles express their offsets in terms of the implementor type
         // parameters. The offsets they can grab from their original scopes are expressed
@@ -480,6 +492,9 @@ public:
         );
             
         virtual_offset = original_role->virtual_offset + explicit_virtual_offset;
+        
+        fastforward_ve->set(-offset.concretize());  // well, this is not parametrized yet
+        virtual_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
         
         for (auto &sr : shadow_roles)
             sr->relocate(size1, size2, size3, explicit_offset, explicit_virtual_offset);

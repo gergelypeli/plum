@@ -31,7 +31,7 @@ const int CLASS_VT_OFFSET = 0;
 const int CLASS_MEMBERS_OFFSET = 8;
 
 const int VT_BASEVT_INDEX = 0;
-const int VT_DISTANCE_INDEX = 1;
+const int VT_FASTFORWARD_INDEX = 1;
 
 const int RBTREE_HEADER_SIZE = 48;
 const int RBTREE_RESERVATION_OFFSET = 0;
