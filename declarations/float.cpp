@@ -12,6 +12,8 @@ public:
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case SSEREGISTER_NOWHERE:
+            break;
         case STACK_NOWHERE:
             x64->op(ADDQ, RSP, FLOAT_SIZE);
             break;
