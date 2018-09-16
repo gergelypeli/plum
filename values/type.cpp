@@ -62,6 +62,7 @@ public:
     VoidConversionValue(Value *o)
         :Value(VOID_TS) {
         orig.reset(o);
+        set_token(o->token);
         //marker = orig->marker;
     }
     
@@ -91,6 +92,9 @@ public:
         :Value(imt->get_interface_ts(tm)) {
         implementation = imt;
         orig.reset(o);
+        
+        if (o->ts[0] == lvalue_type)
+            ts = ts.lvalue();
     }
     
     virtual Value *lookup_inner(std::string name, Scope *scope) {
