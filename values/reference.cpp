@@ -116,7 +116,7 @@ public:
         x64->op(POPQ, RCX);  // object address
         x64->op(POPQ, RDX);  // nosy address
         
-        x64->op(MOVQ, Address(RDX, NOSYOBJECT_PTR_OFFSET), RCX);
+        x64->op(MOVQ, Address(RDX, NOSYOBJECT_RAW_OFFSET), RCX);
         x64->op(MOVQ, Address(RDX, NOSYOBJECT_FCB_OFFSET), RAX);
         
         return Storage(REGISTER, RDX);
@@ -127,7 +127,7 @@ public:
         
         x64->runtime->log("NosyObject callback.");
         
-        x64->op(MOVQ, Address(RCX, NOSYOBJECT_PTR_OFFSET), 0);
+        x64->op(MOVQ, Address(RCX, NOSYOBJECT_RAW_OFFSET), 0);
         x64->op(MOVQ, Address(RCX, NOSYOBJECT_FCB_OFFSET), 0);  // clear FCB address for the finalizer
         
         x64->op(CALL, x64->runtime->free_fcb_label);
@@ -158,7 +158,7 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->op(CMPQ, Address(RBX, NOSYOBJECT_PTR_OFFSET), 0);
+        x64->op(CMPQ, Address(RBX, NOSYOBJECT_RAW_OFFSET), 0);
         x64->op(JE, ok);
 
         // popped        
@@ -172,19 +172,13 @@ public:
 
 class NosyObjectLiveMatcherValue: public GenericValue, public Raiser {
 public:
-    Unborrow *unborrow;
-    
     NosyObjectLiveMatcherValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, match[1].prefix(ptr_type), p) {
-        unborrow = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (!check_raise(match_unmatched_exception_type, scope))
             return false;
-        
-        unborrow = new Unborrow;
-        scope->add(unborrow);
         
         return GenericValue::check(args, kwargs, scope);
     }
@@ -198,18 +192,17 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
-        x64->op(CMPQ, Address(RBX, NOSYOBJECT_PTR_OFFSET), 0);
+        x64->op(CMPQ, Address(RBX, NOSYOBJECT_RAW_OFFSET), 0);
         x64->op(JNE, ok);
         
         // popped
         raise("UNMATCHED", x64);
                 
         x64->code_label(ok);
-        x64->op(MOVQ, RBX, Address(RBX, NOSYOBJECT_PTR_OFFSET));
+        x64->op(MOVQ, RBX, Address(RBX, NOSYOBJECT_RAW_OFFSET));
         x64->runtime->incref(RBX);
-        x64->op(MOVQ, unborrow->get_address(), RBX);
         x64->op(PUSHQ, RBX);
-
+        
         return Storage(STACK);
     }
 };

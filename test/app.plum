@@ -785,6 +785,7 @@ Main? :Singleton as:
         :try
             wvm add("x", gr)
             wvm add("y", gr)
+
         wvm["y"] greet
         wvm remove("y")
         Std prints("wvm length is {x}" {x: wvm length})
@@ -813,6 +814,7 @@ Main? :Singleton as:
 
         Std prints("wvm length became {x}" {x: wvm length})
         Std prints("wim length became {x}" {x: wim length})
+        Std prints("ws length became {x}" {x: ws length})
 
         # Must return this so that all local references can be destroyed before the
         # killer is finalized    

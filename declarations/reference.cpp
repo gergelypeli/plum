@@ -215,7 +215,7 @@ public:
 
 
 // This is a hack type to cooperate closely with Weak*Map
-// It contains a Ptr first field, so it can disguise as a Ptr within Weak*Map, and
+// It contains a raw pointer first field, so it can disguise as a Ptr within Weak*Map, and
 // comparisons would work with the input Ptr-s. But it actually contains another
 // pointer to an FCB that gets triggered when the pointed object is finalized.
 class NosyValueType: public PointerType {
@@ -229,15 +229,15 @@ public:
     }
     
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        throw INTERNAL_ERROR;  // for safety
+        throw INTERNAL_ERROR;  // for safety, we'll handle everything manually
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // The only known usage is storing a STACK argument into a Weak*Map entry
         if (s.where != STACK || t.where != MEMORY)
             throw INTERNAL_ERROR;
 
-        PointerType::create(tm, s, t, x64);
-
+        x64->op(POPQ, t.address + NOSYVALUE_RAW_OFFSET);
         x64->op(POPQ, t.address + NOSYVALUE_FCB_OFFSET);
     }
 
@@ -249,8 +249,6 @@ public:
         x64->op(MOVQ, RAX, s.address + NOSYVALUE_FCB_OFFSET);
         x64->op(CALL, x64->runtime->free_fcb_label);
         x64->op(POPQ, RAX);
-        
-        PointerType::destroy(tm, s, x64);
     }
 };
 
@@ -305,12 +303,10 @@ public:
         x64->code_label_local(label, "x_nosyobject_finalizer");
         x64->runtime->log("Nosy object finalized.");
         
-        x64->op(MOVQ, RBX, Address(RAX, NOSYOBJECT_PTR_OFFSET));
-        x64->op(CMPQ, RBX, 0);
+        x64->op(MOVQ, RAX, Address(RAX, NOSYOBJECT_FCB_OFFSET));
+        x64->op(CMPQ, RAX, 0);
         x64->op(JE, skip);
         
-        //x64->runtime->decweakref(RBX);
-        x64->op(MOVQ, RAX, Address(RAX, NOSYOBJECT_FCB_OFFSET));
         x64->op(CALL, x64->runtime->free_fcb_label);
         
         x64->code_label(skip);
