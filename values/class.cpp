@@ -69,15 +69,16 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return object->precompile(preferred) | value->precompile(preferred);
+        return object->precompile(preferred) | value->precompile(preferred) | Regs(RAX);
     }
 
     virtual Storage compile(X64 *x64) {
         object->compile_and_store(x64, Storage(STACK));
         value->compile_and_store(x64, Storage(STACK));
         
-        x64->op(MOVQ, RBX, Address(RSP, REFERENCE_SIZE));
-        x64->op(POPQ, Address(RBX, CLASS_MEMBERS_OFFSET));  // creating ref from STACK to MEMORY
+        x64->op(MOVQ, RAX, Address(RSP, REFERENCE_SIZE));
+        value->ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, CLASS_MEMBERS_OFFSET)), x64);
+        //x64->op(POPQ, Address(RBX, CLASS_MEMBERS_OFFSET));  // creating ref from STACK to MEMORY
 
         return Storage(STACK);
     }

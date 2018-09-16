@@ -59,6 +59,16 @@ Value *value_lookup_inner(Value *value, std::string name, Scope *scope) {
 }
 
 
+bool value_check(Value *v, Args &a, Kwargs &k, Scope *s) {
+    return v->check(a, k, s);
+}
+
+
+const char *typeidname(Value *v) {
+    return typeid(*v).name();
+}
+
+
 // Declaration operations
 
 Declaration *make_record_compare() {

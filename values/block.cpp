@@ -42,6 +42,8 @@ public:
         Storage s = value->compile(x64);
         x64->unwind->pop(this);
         
+        // TODO: this instruction is a bit annoying, we should optimize the case
+        // when no exceptions are raised, and no declarations to finalize.
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         
         // Can't let the result be passed as a MEMORY storage, because it may

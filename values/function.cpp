@@ -660,7 +660,6 @@ public:
 
         //x64->runtime->dump("Returned from SysV.");
 
-        
         switch (res_total) {
         case 0:
             break;  // We return simple values in RAX and XMM0 like SysV.
@@ -677,7 +676,9 @@ public:
     }
     
     virtual void call_static(X64 *x64, unsigned passed_size) {
-        x64->op(LEA, RAX, Address(RSP, passed_size));
+        if (res_total)
+            x64->op(LEA, RAX, Address(RSP, passed_size));
+            
         x64->op(CALL, (is_static ? static_label : function->get_label(x64)));
     }
 
@@ -691,10 +692,12 @@ public:
         
         if (pts[0] != ptr_type)
             throw INTERNAL_ERROR;
+
+        if (res_total)
+            x64->op(LEA, RAX, Address(RSP, passed_size));
             
-        x64->op(LEA, RAX, Address(RSP, passed_size));  // TODO: not needed for simple returns
         x64->op(MOVQ, RBX, Address(RSP, passed_size - POINTER_SIZE));  // self pointer
-        x64->op(MOVQ, RBX, Address(RBX, 0));  // VMT pointer
+        x64->op(MOVQ, RBX, Address(RBX, CLASS_VT_OFFSET));  // VMT pointer
         x64->op(CALL, Address(RBX, vti * ADDRESS_SIZE));
         std::cerr << "Will invoke virtual method of " << pts << " #" << vti << ".\n";
     }
@@ -881,14 +884,14 @@ public:
         unsigned passed_size = 0;
         for (unsigned &s : pushed_sizes)
             passed_size += s;
-            
+
         if (function->prot == SYSV_FUNCTION)
             call_sysv(x64, passed_size);
         else if (function->virtual_index >= 0 && !is_static)
             call_virtual(x64, passed_size);
         else
             call_static(x64, passed_size);
-        
+
         if (function->exception_type || has_code_arg) {
             Label noex;
             
@@ -1043,6 +1046,7 @@ public:
             if (ras.where != MEMORY)
                 throw INTERNAL_ERROR;
             
+            // This must be the result base for unwinding, too
             Storage r = Storage(MEMORY, Address(RAX, 0));
         
             x64->unwind->push(this);
@@ -1071,7 +1075,7 @@ public:
     virtual Scope *unwind(X64 *x64) {
         Storage ras = fn_scope->get_result_alias_storage();
         if (ras.where == MEMORY)
-            x64->op(MOVQ, RAX, ras.address);
+            x64->op(MOVQ, RAX, ras.address);  // load result base
             
         for (int i = var_storages.size() - 1; i >= 0; i--)
             result_vars[i]->alloc_ts.destroy(var_storages[i], x64);

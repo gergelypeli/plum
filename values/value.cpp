@@ -160,6 +160,32 @@ public:
 };
 
 
+class PtrCastValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+    
+    PtrCastValue(Value *p, TypeMatch tm)
+        :Value(NO_TS) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_arguments(args, kwargs, { { "ref", &ANYID_REF_TS, scope, &value } }))
+            return false;
+
+        ts = value->ts.rvalue().reprefix(ref_type, ptr_type);
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return value->compile(x64);
+    }
+};
+
+
 class VariableValue: public Value {
 public:
     Variable *variable;
@@ -386,6 +412,7 @@ public:
 
         x64->unwind->pop(this);
 
+        // FIXME: these must be destroyed even if the body raises an exception!
         for (int i = arg_storages.size() - 1; i >= 0; i--) {
             Storage x = arg_storages[i];
             Register reg = RAX;

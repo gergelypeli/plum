@@ -372,6 +372,7 @@ public:
     }
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
+        std::cerr << "XXX Role matched " << name << " with " << typeidname(cpivot) << "\n";
         return make<RoleValue>(this, cpivot, match);
     }
 
@@ -433,6 +434,8 @@ public:
     }
 
     virtual void allocate() {
+        // Only called for explicitly declared roles
+        
         if (original_role)
             throw INTERNAL_ERROR;
             
@@ -474,6 +477,8 @@ public:
     }
     
     virtual void relocate(Allocation size1, Allocation size2, Allocation size3, Allocation explicit_offset, int explicit_virtual_offset) {
+        // Only called for shadow roles
+
         if (!original_role)
             throw INTERNAL_ERROR;
 

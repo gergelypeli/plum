@@ -45,7 +45,7 @@ void builtin_types(Scope *root_scope) {
     class_metatype = new ClassMetaType("Class", identity_metatype);
     colon_scope->add(class_metatype);
 
-    interface_metatype = new InterfaceMetaType("Interface", type_metatype);
+    interface_metatype = new InterfaceMetaType("Interface", value_metatype);
     colon_scope->add(interface_metatype);
 
     implementation_metatype = new ImplementationMetaType("Implementation", type_metatype);
@@ -780,7 +780,7 @@ void define_array() {
     Scope *array_scope = array_type->get_inner_scope();
 
     array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_REF_TS));
-    array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
+    array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_LVALUE_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", ANY_ARRAY_REF_TS));  // needs Ref
     array_scope->add(new TemplateIdentifier<ArrayRefillValue>("refill", ANY_ARRAY_REF_LVALUE_TS));
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
@@ -1035,7 +1035,7 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<IsValue>("is", NO_TS));
     colon_scope->add(new TemplateOperation<FunctionReturnValue>("return", NO_TS, TWEAK));
 
-    colon_scope->add(new TemplateIdentifier<ReferenceBorrowValue>("borrow", NO_TS));
+    colon_scope->add(new TemplateIdentifier<PtrCastValue>("ptr", NO_TS));
 
     colon_scope->add(new TemplateIdentifier<FunctionDefinitionValue>("Function", NO_TS));
     colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer", NO_TS));
@@ -1166,6 +1166,7 @@ RootScope *init_builtins() {
     ptr_scope->add(new PointerOperation("assign other", ANYID_PTR_LVALUE_TS, ASSIGN));
     ptr_scope->add(new PointerOperation("is_equal", ANYID_PTR_TS, EQUAL));
     ptr_scope->add(new PointerOperation("not_equal", ANYID_PTR_TS, NOT_EQUAL));
+    ptr_scope->add(new TemplateIdentifier<GenericStreamificationValue>("<streamify>", ANYID_PTR_TS));
     ptr_scope->leave();
 
     // Array operations

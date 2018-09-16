@@ -107,7 +107,7 @@ public:
     virtual void finalize(X64 *x64) {
         // This method is only called on local variables, and it's an overload
         Identifier::finalize(x64);  // Place label
-        //std::cerr << "Finalizing variable " << name << ".\n";
+        //x64->runtime->log(std::string("Finalizing local variable ") + name);
         
         alloc_ts.destroy(get_local_storage(), x64);
     }
@@ -121,10 +121,11 @@ public:
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         TypeSpec ts = typesubst(alloc_ts, tm);
         int o = offset.concretize(tm);
-        ts.store(s + o, t + o, x64);
+        ts.store(s.where == NOWHERE ? s : s + o, t + o, x64);
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        //x64->runtime->log(std::string("Destroying variable ") + name);
         TypeSpec ts = typesubst(alloc_ts, tm);
         int o = offset.concretize(tm);
         ts.destroy(s + o, x64);

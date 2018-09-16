@@ -135,15 +135,20 @@ public:
 };
 
 
-CreateValue *make_initialization_by_value(std::string name, Value *v, Scope *scope) {
+Value *make_initialization_by_value(std::string name, Value *v, CodeScope *statement_scope) {
     DeclarationValue *dv = new DeclarationValue(name);
-    dv->fix_bare(v->ts, scope);
+    dv->fix_bare(v->ts, statement_scope->outer_scope);  // save ourselves an escape operation
     
     TypeMatch tm = { dv->ts, dv->ts.unprefix(uninitialized_type) };
     CreateValue *cv = new CreateValue(dv, tm);
     cv->use(v);
     
-    return cv;
+    Value *vcv = new VoidConversionValue(cv);
+    
+    statement_scope->leave();
+    CodeScopeValue *csv = new CodeScopeValue(vcv, statement_scope);
+    
+    return csv;
 }
 
 
@@ -161,21 +166,26 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     
     InterpolationValue *interpolation = new InterpolationValue;
     
-    CreateValue *cv = make_initialization_by_value("<interpolated>", new StringBufferValue(100), code_scope);
-    Variable *interpolated_var = ptr_cast<Variable>(cv->get_decl());
+    CodeScope *statement_scope = new CodeScope;
+    code_scope->add(statement_scope);
+    Value *cv = make_initialization_by_value("<interpolated>", new StringBufferValue(100, statement_scope), statement_scope);
+    Variable *interpolated_var = ptr_cast<Variable>(code_scope->contents.back().get());
     interpolation->add_statement(cv);
 
     for (auto &kv : expr->kwargs) {
+        CodeScope *statement_scope = new CodeScope;
+        code_scope->add(statement_scope);
+
         std::string keyword = kv.first;
         Expr *expr = kv.second.get();
-        Value *keyword_value = typize(expr, code_scope, &ANY_TS);
+        Value *keyword_value = typize(expr, statement_scope, &ANY_TS);
         
         if (keyword_value->ts == VOID_TS) {
             std::cerr << "Cannot interpolate Void {" << keyword << "}!\n";
             throw TYPE_ERROR;
         }
         
-        CreateValue *decl_value = make_initialization_by_value(keyword, keyword_value, code_scope);
+        Value *decl_value = make_initialization_by_value(keyword, keyword_value, statement_scope);
         interpolation->add_statement(decl_value);
     }
 
@@ -190,8 +200,8 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
             // For identifiers, we look up outer scopes, but we don't need to look
             // in inner scopes, because that would need a pivot value, which we don't have.
             
-            for (Scope *s = code_scope; s && s->type == CODE_SCOPE; s = s->outer_scope) {
-                pivot = s->lookup(fragment, NULL, scope);
+            for (Scope *s = code_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
+                pivot = s->lookup(fragment, NULL, code_scope);
         
                 if (pivot)
                     break;
@@ -211,11 +221,11 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         TypeMatch match;
         Value *streamify = NULL;
         
-        if (typematch(STREAMIFIABLE_TS, pivot, scope, match)) {
+        if (typematch(STREAMIFIABLE_TS, pivot, code_scope, match)) {
             streamify = lookup_fake("streamify", pivot, code_scope, expr->token, NULL, interpolated_var);
         }
-        else if (pivot->ts.rvalue()[0] == ref_type) {
-            // Complimentary streamification of references
+        else if (pivot->ts.rvalue()[0] == ref_type || pivot->ts.rvalue()[0] == ptr_type) {
+            // Complimentary streamification of references and pointers
             streamify = lookup_fake("<streamify>", pivot, code_scope, expr->token, NULL, interpolated_var);
         }
 
@@ -229,8 +239,8 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     }
 
     TypeMatch match;  // kinda unnecessary
-    Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, match);
-    ret = ret->lookup_inner("realloc", scope);  // FIXME: missing check, but at least no arguments
+    Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, code_scope, match);
+    ret = ret->lookup_inner("realloc", code_scope);  // FIXME: missing check, but at least no arguments
     interpolation->add_statement(ret);
     
     code_scope->leave();

@@ -749,7 +749,7 @@ Main? :Singleton as:
         gr2? = gr
         gr2 = gr
     
-        wgr? = :borrow gr
+        wgr? = :ptr gr
         wgr greet
 
         wgr = gr
@@ -758,6 +758,7 @@ Main? :Singleton as:
         gr derived base base_method
     
         bs? = gr derived base
+        gr greet  # To make sure base refcount don't destroy the Greetable VT
     
         :is gr ~Greetable then:
             Std prints("Huh, greetable is Greetable.")
@@ -803,10 +804,12 @@ Main? :Singleton as:
         Std prints("ws length is {x}" {x: ws length})
 
         killer? Greetable Ref = `init
+        Std prints("Now killing the previous instance...")
         wgr = killer
         bs = killer derived base
         gr = killer
         gr2 = killer
+        Std prints("Must have been killed.")
 
         Std prints("wvm length became {x}" {x: wvm length})
         Std prints("wim length became {x}" {x: wim length})

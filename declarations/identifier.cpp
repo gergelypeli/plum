@@ -26,6 +26,7 @@ public:
             return NULL;
             
         TypeMatch match;
+        //std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
             
         if (pivot_ts == NO_TS) {
             if (!pivot)
@@ -33,14 +34,18 @@ public:
             else
                 return NULL;
         }
-        else {
-            //std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
-            if (typematch(pivot_ts, pivot, scope, match))
+        
+        if (pivot_ts.has_meta(record_metatype)) {
+            // Identifiers in records may handle lvalue pivots differently than rvalues
+            if (typematch(pivot_ts.lvalue(), pivot, scope, match))
                 return matched(pivot, scope, match);
-            else {
-                //std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";
-                return NULL;
-            }
+        }
+        
+        if (typematch(pivot_ts, pivot, scope, match))
+            return matched(pivot, scope, match);
+        else {
+            //std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";
+            return NULL;
         }
     }
 };
