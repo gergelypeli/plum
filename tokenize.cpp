@@ -3,7 +3,7 @@
 
 struct Token {
     std::string text;
-    int row;  // zero-based
+    int row;  // one-based
     int column;  // zero-based
 
     Token() {
@@ -21,7 +21,7 @@ struct Token {
 
 
 std::ostream &operator<<(std::ostream &os, const Token &token) {
-    os << (token.row + 1) << ":" << (token.column + 1) << ":\"" << token.text << "\"";
+    os << token.row << ":" << (token.column + 1) << ":\"" << token.text << "\"";
     return os;
 }
 
@@ -53,7 +53,7 @@ bool is_prefix(char c) {
 
 std::vector<Token> tokenize(std::string buffer) {
     std::vector<Token> tokens;
-    int row_count = 0;
+    int row_count = 1;
     int row_start = 0;
     int i = 0;
     int indent = -1;

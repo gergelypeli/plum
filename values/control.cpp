@@ -926,7 +926,7 @@ public:
             x64->op(PUSHQ, switch_var->get_local_storage().address);
             x64->op(LEA, RBX, Address(et->get_stringifications_label(x64), 0));
             x64->op(PUSHQ, RBX);
-            x64->op(PUSHQ, token.row + 1);
+            x64->op(PUSHQ, token.row);
             x64->op(JMP, x64->once->compile(compile_die));
         }
             

@@ -241,6 +241,12 @@ public:
 
     virtual Storage compile(X64 *x64) {
         for (unsigned i = 0; i < statements.size() - 1; i++) {
+            // Poor man's debug info
+            Label l;
+            std::stringstream ss;
+            ss << "line." << statements[i]->token.row;
+            x64->code_label_local(l, ss.str());
+            
             statements[i]->compile_and_store(x64, Storage());
             x64->op(NOP);  // For readability
         }
