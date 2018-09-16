@@ -424,17 +424,12 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (ptr_cast<ContainerAutogrowValue>(left.get())) {
-            Args fake_args;
-            Kwargs fake_kwargs;
-            if (!left->check(fake_args, fake_kwargs, scope))
-                return false;
-            // Allow autogrow raise its own exceptions
-        }
-        else {
+        // If we are operating on an autogrow, that can also raise an exception,
+        // but then we won't. Unfortunately this is a lame way to check this.
+        
+        if (!scope->get_try_scope()->get_exception_type())
             if (!check_raise(container_full_exception_type, scope))
                 return false;
-        }
         
         return GenericValue::check(args, kwargs, scope);
     }

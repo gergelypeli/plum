@@ -157,6 +157,12 @@ public:
                 std::cerr << "No autogrow for " << get_typespec(member) << "!\n";
                 throw INTERNAL_ERROR;
             }
+            
+            Args args;
+            Kwargs kwargs;
+            
+            if (!value_check(member, args, kwargs, scope))
+                throw INTERNAL_ERROR;
         }
         
         Value *operation = value_lookup_inner(member, operation_name, scope);
