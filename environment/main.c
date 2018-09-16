@@ -48,6 +48,7 @@ typedef struct {
 
 extern void empty_function();
 extern void finalize_reference_array();
+extern int64 refcount_balance;
 
 static int allocation_count = 0;
 static locale_t unfucked_locale;
@@ -90,6 +91,8 @@ void *allocate_basic_array(int64 length, int64 size) {
     ARESERVATION(array) = length;
     ALENGTH(array) = 0;
     
+    refcount_balance += 1;
+    
     return array;
 }
 
@@ -105,6 +108,8 @@ void *allocate_string_array(int64 length) {
     
     ARESERVATION(array) = length;
     ALENGTH(array) = 0;
+
+    refcount_balance += 1;
     
     return array;
 }
@@ -162,6 +167,11 @@ void lvalue_append_decode_utf8(void **character_array_lvalue, char *byte_array, 
 
 void logfunc(const char *message) {
     fprintf(stderr, "LOG: %s\n", message);
+}
+
+
+void logreffunc(const char *message, unsigned64 ptr) {
+    fprintf(stderr, "LOGREF: %s %016llx %lld\n", message, ptr, HREFCOUNT(ptr));
 }
 
 
@@ -572,4 +582,7 @@ int main() {
 
     if (allocation_count)
         printf("Oops, the allocation count is %d!\n", allocation_count);
+        
+    if (refcount_balance)
+        printf("Oops, the refcount balance is %lld!\n", refcount_balance);
 }

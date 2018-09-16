@@ -145,12 +145,16 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     x64->data_qword(0);  // reservation
     x64->data_qword(0);  // length
 
+    data_heap_header();
+    x64->data_label(borrow_dummy_label);
+
     x64->code_label_import(sysv_memalloc_label, "memalloc");
     x64->code_label_import(sysv_memfree_label, "memfree");
     x64->code_label_import(sysv_memrealloc_label, "memrealloc");
     
     x64->code_label_import(sysv_logfunc_label, "logfunc");  // bah...
-    x64->code_label_import(sysv_dump_label, "dump");  // bah...
+    x64->code_label_import(sysv_logreffunc_label, "logreffunc");
+    x64->code_label_import(sysv_dump_label, "dump");
     x64->code_label_import(sysv_die_label, "die");
     x64->code_label_import(sysv_dies_label, "dies");
     
@@ -252,22 +256,38 @@ void Runtime::popa(bool except_rax) {
 }
 
 void Runtime::init_memory_management() {
+    x64->data_align(8);
+    x64->data_label_global(refcount_balance_label, "refcount_balance");
+    x64->data_qword(0);
+
     incref_labels.resize(REGISTER_COUNT);
     decref_labels.resize(REGISTER_COUNT);
 
     for (Register reg : { RAX, RBX, RCX, RDX, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 }) {
         Label il;
+        // We use a standard stack frame only for debugging, should be cleaned up later
     
         // NOTE: preserves all registers, including RBX
         x64->code_label_global(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg]);
+        x64->op(PUSHQ, RBP);
+        x64->op(MOVQ, RBP, RSP);
+
         x64->op(INCQ, Address(reg, HEAP_REFCOUNT_OFFSET));
+        //logref(std::string("INCREF ") + REGISTER_NAMES[reg], reg);
+
+        x64->op(INCQ, Address(refcount_balance_label, 0));
+        x64->op(POPQ, RBP);
         x64->op(RET);
     
         Label dl, dl2;
     
         // NOTE: preserves all registers, including RBX
         x64->code_label_global(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg]);
+        x64->op(PUSHQ, RBP);
+        x64->op(MOVQ, RBP, RSP);
+
         x64->op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
+        //logref(std::string("DECREF ") + REGISTER_NAMES[reg], reg);
         x64->op(JNE, dl);
 
         x64->op(PUSHQ, reg);
@@ -275,6 +295,8 @@ void Runtime::init_memory_management() {
         x64->op(ADDQ, RSP, 8);
 
         x64->code_label(dl);
+        x64->op(DECQ, Address(refcount_balance_label, 0));
+        x64->op(POPQ, RBP);
         x64->op(RET);
     }
 
@@ -283,7 +305,8 @@ void Runtime::init_memory_management() {
     x64->code_label_global(finalize_label, "finalize");
     const int ARG_OFFSET = pusha() + 8;
 
-    Label fcb_loop, fcb_cond; //, no_weakrefs;
+    Label fcb_loop, fcb_cond;
+    //log("Finalizing object.");
     x64->op(JMP, fcb_cond);
 
     x64->code_label(fcb_loop);
@@ -326,6 +349,7 @@ void Runtime::init_memory_management() {
     x64->op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);  // object finalizer
     x64->op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
     //x64->op(MOVQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);  // start from 0
+    x64->op(INCQ, Address(refcount_balance_label, 0));  // necessary to keep the balance
     popa(true);
     x64->op(RET);
 
@@ -478,6 +502,19 @@ void Runtime::log(std::string message) {
     popa();
 }
 
+void Runtime::logref(std::string message, Register r) {
+    Label message_label;
+    x64->data_label(message_label);
+    x64->data_zstring(message);
+
+    x64->op(PUSHFQ);
+    pusha();
+    x64->op(MOVQ, RSI, r);
+    x64->op(LEA, RDI, Address(message_label, 0));
+    call_sysv(sysv_logreffunc_label);
+    popa();
+    x64->op(POPFQ);
+}
 
 void Runtime::dump(std::string message) {
     Label message_label;

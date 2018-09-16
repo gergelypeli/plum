@@ -398,7 +398,7 @@ public:
     X64 *x64;
     
     Label application_label;
-    Label zero_label, float_minus_zero_label;
+    Label zero_label, float_minus_zero_label, borrow_dummy_label, refcount_balance_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label empty_function_label, empty_array_label;
     Label alloc_fcb_label, free_fcb_label;
@@ -406,7 +406,7 @@ public:
     std::vector<Label> incref_labels, decref_labels;
 
     Label sysv_memalloc_label, sysv_memfree_label, sysv_memrealloc_label;
-    Label sysv_logfunc_label, sysv_dump_label, sysv_die_label, sysv_dies_label;
+    Label sysv_logfunc_label, sysv_logreffunc_label, sysv_dump_label, sysv_die_label, sysv_dies_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
     
     Runtime(X64 *x, unsigned application_size);
@@ -433,6 +433,7 @@ public:
     void lock(Register r, Label ok);
     
     void log(std::string message);
+    void logref(std::string message, Register r);
     void dump(std::string message);
     void die(std::string message);
     void dies(Register r);
