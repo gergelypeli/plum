@@ -191,7 +191,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 
         if (context) {
             value = make<CodeBlockValue>(context);
-            value->set_token(expr->token);
         
             bool ok = value->check(expr->args, expr->kwargs, scope);
             if (!ok) {
@@ -201,7 +200,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
         else {
             value = make<MultiValue>();
-            value->set_token(expr->token);
         
             bool ok = value->check(expr->args, expr->kwargs, scope);
             if (!ok) {
@@ -222,7 +220,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
         else {
             value = make<DeclarationValue>(name, context);
-            value->set_token(expr->token);
             bool ok = value->check(expr->args, expr->kwargs, scope);
         
             if (!ok) {
@@ -268,7 +265,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     }
     else if (expr->type == Expr::EVAL) {
         value = make<EvalValue>(expr->text);
-        value->set_token(expr->token);
         value->set_context_ts(context);
         
         if (!value->check(expr->args, expr->kwargs, scope))
@@ -328,7 +324,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
             
-            value->set_token(expr->token);
             bool ok = value->check(expr->args, expr->kwargs, scope);
         
             if (!ok) {
@@ -354,7 +349,6 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw TYPE_ERROR;
         }
 
-        value->set_token(expr->token);
         bool ok = value->check(expr->args, expr->kwargs, scope);
     
         if (!ok) {
@@ -434,18 +428,16 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 
             value = make<BasicValue>(TypeSpec { t }, is_negative ? -x : x);
         }
-        
-        value->set_token(expr->token);
     }
     else if (expr->type == Expr::STRING) {
         value = make<StringLiteralValue>(expr->text);
-        value->set_token(expr->token);
     }
     else {
         std::cerr << "Can't typize this now: " << expr->token << "!\n";
         throw INTERNAL_ERROR;
     }
     
+    value->set_token(expr->token);
     return value;
 }
 
