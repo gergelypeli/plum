@@ -72,3 +72,5 @@ const int FLOAT_SIZE = 8;
 const int ERRNO_TREENUM_OFFSET = 10;
 const int NO_EXCEPTION = 0;
 const int RETURN_EXCEPTION = -1;
+
+const int OPTION_FLAG_NONE = 0;

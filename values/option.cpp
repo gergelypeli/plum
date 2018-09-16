@@ -38,8 +38,10 @@ public:
     virtual Storage compile(X64 *x64) {
         some->compile_and_store(x64, Storage(STACK));
         
-        if (flag_size)
-            x64->op(PUSHQ, 1);
+        if (flag_size == ADDRESS_SIZE)
+            x64->op(PUSHQ, OPTION_FLAG_NONE + 1);
+        else if (flag_size)
+            throw INTERNAL_ERROR;
             
         return Storage(STACK);
     }
@@ -78,7 +80,7 @@ public:
         switch (ls.where) {
         case STACK:
             left->ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
-            x64->op(CMPQ, Address(RSP, 0), 0);
+            x64->op(CMPQ, Address(RSP, 0), OPTION_FLAG_NONE);
             x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));  // discard STACK, keep flags
             x64->op(JE, ok);
             
@@ -87,7 +89,7 @@ public:
             x64->code_label(ok);
             return Storage();
         case MEMORY:
-            x64->op(CMPQ, ls.address, 0);
+            x64->op(CMPQ, ls.address, OPTION_FLAG_NONE);
             x64->op(JE, ok);
 
             raise("UNMATCHED", x64);
@@ -127,19 +129,21 @@ public:
             
         switch (ls.where) {
         case STACK:
-            x64->op(CMPQ, Address(RSP, 0), 0);
+            x64->op(CMPQ, Address(RSP, 0), OPTION_FLAG_NONE);
             x64->op(JNE, ok);
 
             left->ts.store(ls, Storage(), x64);
             raise("UNMATCHED", x64);
 
             x64->code_label(ok);
-            if (flag_size)
-                x64->op(ADDQ, RSP, INTEGER_SIZE);
+            if (flag_size == ADDRESS_SIZE)
+                x64->op(ADDQ, RSP, ADDRESS_SIZE);
+            else if (flag_size)
+                throw INTERNAL_ERROR;
                 
             return Storage(STACK);
         case MEMORY:
-            x64->op(CMPQ, ls.address, 0);
+            x64->op(CMPQ, ls.address, OPTION_FLAG_NONE);
             x64->op(JNE, ok);
             
             raise("UNMATCHED", x64);

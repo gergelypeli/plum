@@ -67,17 +67,17 @@ public:
             x64->op(ADDQ, RSP, stack_size);
             return;
         case MEMORY_MEMORY:  // duplicates data
-            x64->op(CMPQ, s.address, 0);
+            x64->op(CMPQ, s.address, OPTION_FLAG_NONE);
             x64->op(JE, none);
             
-            if (flag_size)
-                x64->op(MOVQ, t.address, 1);
+            if (flag_size == ADDRESS_SIZE)
+                x64->op(MOVQ, t.address, OPTION_FLAG_NONE + 1);
                 
             tm[1].create(s + flag_size, t + flag_size, x64);
             x64->op(JMP, end);
 
             x64->code_label(none);
-            x64->op(MOVQ, t.address, 0);
+            x64->op(MOVQ, t.address, OPTION_FLAG_NONE);
             
             x64->code_label(end);
             return;
@@ -91,7 +91,7 @@ public:
         Label none;
         
         if (s.where == MEMORY) {
-            x64->op(CMPQ, s.address, 0);
+            x64->op(CMPQ, s.address, OPTION_FLAG_NONE);
             x64->op(JE, none);
             tm[1].destroy(s + flag_size, x64);
             x64->code_label(none);
@@ -119,7 +119,7 @@ public:
             x64->op(MOVQ, RBX, s.address);
             x64->op(CMPQ, RBX, t.address);
             x64->op(JNE, end);
-            x64->op(CMPQ, RBX, 0);
+            x64->op(CMPQ, RBX, OPTION_FLAG_NONE);
             x64->op(JE, end);
             tm[1].equal(Storage(MEMORY, s.address + flag_size), Storage(MEMORY, t.address + flag_size), x64);
             x64->code_label(end);
@@ -134,9 +134,9 @@ public:
 
         if (s.where == MEMORY && t.where == MEMORY) {
             Label end;
-            x64->op(CMPQ, s.address, 0);
+            x64->op(CMPQ, s.address, OPTION_FLAG_NONE);
             x64->op(SETE, BH);
-            x64->op(CMPQ, t.address, 0);
+            x64->op(CMPQ, t.address, OPTION_FLAG_NONE);
             x64->op(SETE, BL);
             
             x64->op(SUBB, BL, BH);
@@ -160,7 +160,8 @@ public:
         
         x64->op(CALL, os_label);
         
-        x64->op(CMPQ, Address(RSP, ALIAS_SIZE), 0);
+        // also streamify the some value
+        x64->op(CMPQ, Address(RSP, ALIAS_SIZE), OPTION_FLAG_NONE);
         x64->op(JE, ok);
         
         if (flag_size) {
@@ -176,7 +177,7 @@ public:
             x64->op(PUSHQ, 1);
             x64->op(PUSHQ, RBX);
         }
-                
+        
         x64->code_label(ok);
     }
     
@@ -187,7 +188,7 @@ public:
         
         x64->code_label_local(label, "option_streamification");
 
-        x64->op(CMPQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE), 0);  // the flag
+        x64->op(CMPQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE), OPTION_FLAG_NONE);
         x64->op(JNE, some);
         
         // `none
@@ -199,10 +200,12 @@ public:
         x64->op(LEA, RBX, Address(some_label, 0));
         
         x64->code_label(ok);
+        
         x64->op(PUSHQ, RBX);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
         STRING_TS.streamify(false, x64);
         x64->op(ADDQ, RSP, 16);
+        
         x64->op(RET);
     }
 
