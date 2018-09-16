@@ -565,12 +565,14 @@ extern void (*finalizer_pointers[])();
 
 int main() {
     unfucked_locale = newlocale(LC_NUMERIC_MASK, "C", NULL);
+    setlinebuf(stdout);
+    setlinebuf(stderr);
     
     for (int i = 0; i < initializer_count; i++) {
         //fprintf(stderr, "Running initializer %d...\n", i);
         initializer_pointers[i]();
     }
-    
+
     start();
 
     for (int i = finalizer_count - 1; i >= 0; i--) {
