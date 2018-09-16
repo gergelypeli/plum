@@ -394,7 +394,7 @@ public:
             
         // TODO: this should be a "local variable", to be destroyed once we're done
         // instead of letting the enclosing scope destroy it.
-        TypeSpec its = iterator->ts;
+        TypeSpec its = iterator->ts.lvalue();
         iterator_var = new Variable("<iterator>", NO_TS, its);
         scope->add(iterator_var);
 
@@ -472,6 +472,8 @@ public:
         Storage ns = next->compile(x64);
         x64->unwind->pop(this);
         
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
+
         next->ts.create(ns, es, x64);  // create the each variable
         // Finalize after storing, so the return value won't be lost
         // On exception we jump here, so the each variable won't be created
@@ -896,9 +898,11 @@ public:
         Storage s = body->compile(x64);
         x64->unwind->pop(this);
 
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
+
         store_yield(s, x64);
 
-        try_scope->finalize_contents(x64);
+        try_scope->finalize_contents(x64);  // exceptions from body jump here
         
         // The body may throw an exception
         Label live, unwind;
@@ -1056,8 +1060,10 @@ public:
         x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
+
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
         
-        eval_scope->finalize_contents(x64);
+        eval_scope->finalize_contents(x64);  // exceptions from body jump here
 
         Label ok;
         
