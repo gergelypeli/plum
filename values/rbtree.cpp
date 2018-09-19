@@ -772,7 +772,8 @@ static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     x64->op(LEA, RBX, Address(callback_label, 0));  // callback
     x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
     x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
-    
+
+    x64->runtime->decref(RAX);  // TODO: don't let the object die here!
     x64->op(PUSHQ, RAX);  // in NosyValue the object pointer is at the lower address...
     
     x64->op(CALL, x64->runtime->alloc_fcb_label);
@@ -824,7 +825,7 @@ public:
 
 class WeakValueMapIndexValue: public MapIndexValue {
 public:
-    Unborrow *unborrow;
+    //Unborrow *unborrow;
     
     WeakValueMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wvmatch(match)) {
@@ -835,8 +836,8 @@ public:
         if (!MapIndexValue::check(args, kwargs, scope))
             return false;
             
-        unborrow = new Unborrow;
-        scope->add(unborrow);
+        //unborrow = new Unborrow;
+        //scope->add(unborrow);
         
         return true;
     }
@@ -848,7 +849,7 @@ public:
             throw INTERNAL_ERROR;
             
         x64->op(MOVQ, RBX, s.address);
-        x64->runtime->incref(RBX);
+        //x64->runtime->incref(RBX);
         
         return s;
     }

@@ -444,7 +444,7 @@ public:
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p, Scope *s) {
         TypeSpec member_ts = tm[1].prefix(nosyobject_type).prefix(ref_type);
         p = make<RecordUnwrapValue>(member_ts, p);
-        p = make<ReferenceBorrowValue>(p, s);
+        //p = make<ReferenceBorrowValue>(p, s);
         
         Value *v = member_ts.reprefix(ref_type, ptr_type).lookup_matcher(n, p, s);
         if (v)

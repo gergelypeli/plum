@@ -56,7 +56,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         x64->op(LEA, RBX, Address(x64->runtime->empty_array_label, 0));
-        //x64->runtime->incweakref(RBX);
+        x64->runtime->incref(RBX);
         
         x64->op(PUSHQ, 0);  // length
         x64->op(PUSHQ, 0);  // front
@@ -91,7 +91,7 @@ public:
             break;
         case MEMORY:
             x64->op(MOVQ, RBX, rs.address);
-            //x64->runtime->incweakref(RBX);
+            x64->runtime->incref(RBX);
             r = RBX;
             break;
         default:
@@ -238,7 +238,6 @@ public:
 class SliceIndexValue: public GenericValue, public Raiser {
 public:
     TypeSpec elem_ts;
-    // Since Slice is guaranteed to be valid, the element is as well
     //Borrow *borrow;
     
     SliceIndexValue(Value *pivot, TypeMatch &match)
@@ -272,7 +271,9 @@ public:
         x64->op(POPQ, RBX);  // ptr
         x64->op(POPQ, RCX);  // front
         x64->op(POPQ, RDX);  // length
-        
+
+        // FIXME: implement proper borrow
+        x64->runtime->decref(RBX);        
         //x64->op(MOVQ, borrow->get_address(), RBX);
         
         Label ok;

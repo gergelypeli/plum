@@ -9,6 +9,7 @@ public:
     CodeScopeValue(Value *v, CodeScope *s)
         :Value(v->ts.rvalue()) {
         value.reset(v);
+        set_token(v->token);
         code_scope = s;
         code_scope->taken();
         may_be_aborted = false;

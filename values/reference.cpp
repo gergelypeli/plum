@@ -14,7 +14,7 @@ public:
     }
 };
 
-
+/*
 class ReferenceBorrowValue: public Value {
 public:
     std::unique_ptr<Value> value;
@@ -81,7 +81,7 @@ public:
         }
     }
 };
-
+*/
 
 class NosyObjectValue: public GenericValue {
 public:
@@ -115,6 +115,8 @@ public:
         
         x64->op(POPQ, RCX);  // object address
         x64->op(POPQ, RDX);  // nosy address
+
+        x64->runtime->decref(RCX);
         
         x64->op(MOVQ, Address(RDX, NOSYOBJECT_RAW_OFFSET), RCX);
         x64->op(MOVQ, Address(RDX, NOSYOBJECT_FCB_OFFSET), RAX);
@@ -158,6 +160,7 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
+        x64->runtime->decref(RBX);
         x64->op(CMPQ, Address(RBX, NOSYOBJECT_RAW_OFFSET), 0);
         x64->op(JE, ok);
 
@@ -192,6 +195,7 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RBX);
+        x64->runtime->decref(RBX);
         x64->op(CMPQ, Address(RBX, NOSYOBJECT_RAW_OFFSET), 0);
         x64->op(JNE, ok);
         

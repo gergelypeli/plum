@@ -255,9 +255,11 @@ public:
             Storage s = pivot->compile(x64);
             
             if (pts[0] == ptr_type) {
-                // The container is guaranteed to stay until the end of the statement, so are we
-                
                 pts.store(s, Storage(REGISTER, reg), x64);
+                
+                // FIXME: implement a proper unborrow!
+                pts.store(Storage(REGISTER, reg), Storage(), x64);
+                
                 s = Storage(MEMORY, Address(reg, 0));
             }
             else if (is_rvalue) {
@@ -497,10 +499,9 @@ public:
             //x64->op(PUSHQ, RBX);
             return s;
         case MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(ADDQ, RBX, offset);
-            //x64->runtime->incweakref(RBX);
-            x64->op(PUSHQ, RBX);
+            // TODO: optimize this incref thing
+            pivot->ts.store(s, Storage(STACK), x64);
+            x64->op(ADDQ, Address(RSP, 0), offset);
             return Storage(STACK);
         default:
             throw INTERNAL_ERROR;

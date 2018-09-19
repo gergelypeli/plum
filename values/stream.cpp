@@ -168,7 +168,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     
     CodeScope *statement_scope = new CodeScope;
     code_scope->add(statement_scope);
-    Value *cv = make_initialization_by_value("<interpolated>", new StringBufferValue(100, statement_scope), statement_scope);
+    Value *cv = make_initialization_by_value("<interpolated>", new StringBufferValue(100), statement_scope);
     Variable *interpolated_var = ptr_cast<Variable>(code_scope->contents.back().get());
     interpolation->add_statement(cv);
 
@@ -239,7 +239,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     }
 
     TypeMatch match;  // kinda unnecessary
-    Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, code_scope, match);
+    Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, match);
     ret = ret->lookup_inner("realloc", code_scope);  // FIXME: missing check, but at least no arguments
     interpolation->add_statement(ret);
     

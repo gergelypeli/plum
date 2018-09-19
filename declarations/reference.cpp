@@ -9,18 +9,20 @@ public:
         return Allocation(REFERENCE_SIZE);
     }
 
-    virtual void incref(Register r, X64 *x64) {
+    virtual void incref(Register r, X64 *x64, bool is_class) {
         x64->runtime->incref(r);
     }
 
-    virtual void decref(Register r, X64 *x64) {
+    virtual void decref(Register r, X64 *x64, bool is_class) {
         x64->runtime->decref(r);
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        bool is_class = tm[1].has_meta(class_metatype);
+    
         switch (s.where * t.where) {
         case REGISTER_NOWHERE:
-            decref(s.reg, x64);
+            decref(s.reg, x64, is_class);
             return;
         case REGISTER_REGISTER:
             if (s.reg != t.reg)
@@ -31,12 +33,12 @@ public:
             return;
         case REGISTER_MEMORY:
             x64->op(XCHGQ, t.address, s.reg);
-            decref(s.reg, x64);
+            decref(s.reg, x64, is_class);
             return;
 
         case STACK_NOWHERE:
             x64->op(POPQ, RBX);
-            decref(RBX, x64);
+            decref(RBX, x64, is_class);
             return;
         case STACK_REGISTER:
             x64->op(POPQ, t.reg);
@@ -46,25 +48,25 @@ public:
         case STACK_MEMORY:
             x64->op(POPQ, RBX);
             x64->op(XCHGQ, RBX, t.address);
-            decref(RBX, x64);
+            decref(RBX, x64, is_class);
             return;
 
         case MEMORY_NOWHERE:
             return;
         case MEMORY_REGISTER:
             x64->op(MOVQ, t.reg, s.address);
-            incref(t.reg, x64);
+            incref(t.reg, x64, is_class);
             return;
         case MEMORY_STACK:
             x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64);
+            incref(RBX, x64, is_class);
             x64->op(PUSHQ, RBX);
             return;
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64);
+            incref(RBX, x64, is_class);
             x64->op(XCHGQ, RBX, t.address);
-            decref(RBX, x64);
+            decref(RBX, x64, is_class);
             return;
         default:
             Type::store(tm, s, t, x64);
@@ -73,6 +75,7 @@ public:
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Assume the target MEMORY is uninitialized
+        bool is_class = tm[1].has_meta(class_metatype);
         
         switch (s.where * t.where) {
         case NOWHERE_MEMORY:
@@ -86,7 +89,7 @@ public:
             return;
         case MEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64);
+            incref(RBX, x64, is_class);
             x64->op(MOVQ, t.address, RBX);
             return;
         default:
@@ -95,9 +98,11 @@ public:
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        bool is_class = tm[1].has_meta(class_metatype);
+
         if (s.where == MEMORY) {
             x64->op(MOVQ, RBX, s.address);
-            decref(RBX, x64);
+            decref(RBX, x64, is_class);
         }
         else
             throw INTERNAL_ERROR;
@@ -105,20 +110,21 @@ public:
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // No need to handle STACK here, GenericOperationValue takes care of it
+        bool is_class = tm[1].has_meta(class_metatype);
         
         switch (s.where * t.where) {
         case REGISTER_REGISTER:
-            decref(s.reg, x64);
-            decref(t.reg, x64);
+            decref(s.reg, x64, is_class);
+            decref(t.reg, x64, is_class);
             x64->op(CMPQ, s.reg, t.reg);
             break;
         case REGISTER_MEMORY:
-            decref(s.reg, x64);
+            decref(s.reg, x64, is_class);
             x64->op(CMPQ, s.reg, t.address);
             break;
 
         case MEMORY_REGISTER:
-            decref(t.reg, x64);
+            decref(t.reg, x64, is_class);
             x64->op(CMPQ, s.address, t.reg);
             break;
         case MEMORY_MEMORY:
@@ -199,13 +205,35 @@ public:
     PointerType(std::string name)
         :ReferenceType(name) {
     }
-    
-    virtual void incref(Register r, X64 *x64) {
-        //x64->runtime->incweakref(r);
+
+    virtual void incref(Register r, X64 *x64, bool is_class) {
+        // Class Ptr-s may point to roles within the object
+
+        if (is_class) {
+            x64->op(PUSHQ, r);
+            x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
+            x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+            x64->op(ADDQ, r, Address(RSP, 0));
+            x64->runtime->incref(r);
+            x64->op(POPQ, r);
+        }
+        else
+            x64->runtime->incref(r);
     }
 
-    virtual void decref(Register r, X64 *x64) {
-        //x64->runtime->decweakref(r);
+    virtual void decref(Register r, X64 *x64, bool is_class) {
+        // Class Ptr-s may point to roles within the object
+
+        if (is_class) {
+            x64->op(PUSHQ, r);
+            x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
+            x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+            x64->op(ADDQ, r, Address(RSP, 0));
+            x64->runtime->decref(r);
+            x64->op(POPQ, r);
+        }
+        else
+            x64->runtime->decref(r);
     }
 
     //virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {

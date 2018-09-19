@@ -604,32 +604,32 @@ Main? :Singleton as:
         :try st push("baz")
         Std prints("Pushed stack length: {x}" { x: st length })
         Std prints("Pushed stack has 2. elem: {x}" { x: st[2] })
-    
+
         :for st each: x? do:
             Std prints("Stack has: {x}" {})
-    
+
         baz? String = :try st pop
         :try st pop
         :try st pop
         Std prints("Popped baz as {baz}" {})
         Std prints("Popped stack length: {x}" { x: st length })
-    
+
         sl? String Array Ref = { "foo", "bar", "baz" }
-    
+
         sl1? String Slice = `empty
         Std prints("Empty slice is {x} long" { x: sl1 length })
-    
+
         sl2? String Slice = `all(sl)
         Std prints("Full slice is {x} long" { x: sl2 length })
         Std prints("And contains {x}" { x: :try sl2[2] })
-    
+
         sl3? = :try sl slice(1, 1)
         Std prints("Mid slice is {x} long" { x: sl3 length })
         Std prints("And contains {x}" { x: :try sl3[0] })
 
         :for sl3 each: x? do:
             Std prints("Slice has: {x}" {})
-
+            
 
     test_circularrays? :Function as:
         ca? String Circularray Ref = { "foo", "bar", "baz", "xxx" }
@@ -753,13 +753,13 @@ Main? :Singleton as:
         wgr greet
 
         wgr = gr
-    
+
         gr derived derived_method
         gr derived base base_method
-    
+
         bs? = gr derived base
         gr greet  # To make sure base refcount don't destroy the Greetable VT
-    
+
         :is gr ~Greetable then:
             Std prints("Huh, greetable is Greetable.")
 
@@ -768,14 +768,14 @@ Main? :Singleton as:
 
         :is bs ~Greetable then:
             Std prints("WAT, base is Greetable.")
-    
+
         wt? Greetable Weakref = `to(gr)
-    
+
         :is wt ~live then:
             Std prints("WT is live.")
         else:
             Std prints("WT IS DEAD!")
-        
+
         :is wt ~dead then:
             Std prints("WT IS DEAD!")
         else:
