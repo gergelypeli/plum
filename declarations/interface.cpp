@@ -46,15 +46,11 @@ public:
         return Allocation();
     }
 
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        Type::store(tm, s, t, x64);
-    }
-
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Assume the target MEMORY is uninitialized
         
         switch (s.where * t.where) {
-        case NOWHERE_MEMORY:
+        case NOWHERE_MEMORY:  // TODO: hm?
             return;
         default:
             throw INTERNAL_ERROR;

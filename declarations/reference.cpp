@@ -182,10 +182,6 @@ public:
         return tm[1].lookup_matcher(name, pivot, scope);
     }
 
-    //virtual DataScope *get_inner_scope(TypeMatch tm) {
-    //    return tm[1].get_inner_scope();
-    //}
-
     virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return tm[1].get_virtual_table();
     }
@@ -235,10 +231,6 @@ public:
         else
             x64->runtime->decref(r);
     }
-
-    //virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot) {
-    //    return tm[1].lookup_matcher(name, pivot);
-    //}
 };
 
 

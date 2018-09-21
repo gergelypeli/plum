@@ -357,11 +357,8 @@ public:
                 ts.store(s, Storage(), x64);
             }
             else {
-                // TODO: shouldn't we handle STACK here instead of MEMORY?
-                where = ts.where(AS_VALUE);
-                t = (where == REGISTER ? Storage(REGISTER, RAX) : where == MEMORY ? Storage(MEMORY, Address(RAX, 0)) : throw INTERNAL_ERROR);
-                std::cerr << "Scalarizing multi member " << i << " from " << s << " to " << t << ".\n";
-                ts.store(s, t, x64);
+                std::cerr << "Keeping multi member " << i << " as " << s << ".\n";
+                t = s;
             }
         }
 

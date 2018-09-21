@@ -1,12 +1,11 @@
 
 class ClassType: public HeapType, public VirtualEntry {
 public:
-    std::vector<Allocable *> member_allocables;  // FIXME: not necessary Variables
-    std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
+    std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
     std::vector<Role *> member_roles;
     Function *finalizer_function;
-    Role *base_role;
+    Allocable *base_role;
     AbsoluteVirtualEntry *fastforward_ve;
 
     ClassType(std::string name, Metatypes param_metatypes)
@@ -22,7 +21,6 @@ public:
             
             if (v) {
                 member_allocables.push_back(v);
-                member_tss.push_back(v->alloc_ts.rvalue());
                 member_names.push_back(v->name);
             }
 
@@ -37,7 +35,7 @@ public:
                         return false;
                     }
                 
-                    base_role = r;
+                    base_role = ptr_cast<Allocable>(r);
                 }
             }
             
@@ -61,7 +59,7 @@ public:
         // Let the base be allocated first, then it will skip itself
         
         if (base_role) {
-            ptr_cast<Allocable>(base_role)->allocate();
+            base_role->allocate();
             inner_scope->set_virtual_entry(VT_BASEVT_INDEX, this);
             inner_scope->set_virtual_entry(VT_FASTFORWARD_INDEX, fastforward_ve);
         }
@@ -83,7 +81,7 @@ public:
         // This must point to our base type's virtual table, or NULL
         
         if (base_role)
-            return typesubst(ptr_cast<Allocable>(base_role)->alloc_ts, tm).get_virtual_table_label(x64);
+            return base_role->get_typespec(tm).get_virtual_table_label(x64);
         else {
             //std::cerr << "Class " << tm << " has no base.\n";
             return x64->runtime->zero_label;
@@ -94,43 +92,24 @@ public:
         return inner_scope->get_size(tm);
     }
 
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        Type::store(tm, s, t, x64);
-    }
-
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        throw INTERNAL_ERROR;
-    }
-    
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
-        if (s.where == MEMORY) {
-            if (finalizer_function) {
-                if (s.address.base != RAX || s.address.index != NOREG)
-                    throw INTERNAL_ERROR;  // Hoho
-                    
-                if (s.address.offset)
-                    x64->op(ADDQ, RAX, s.address.offset);
-                    
-                x64->op(PUSHQ, RAX);
-                x64->op(CALL, finalizer_function->get_label(x64));
-                x64->op(POPQ, RAX);
-
-                if (s.address.offset)
-                    x64->op(SUBQ, RAX, s.address.offset);
-            }
-        
-            for (auto &var : member_allocables)  // FIXME: reverse!
-                var->destroy(tm, s, x64);
-
-            // Allow the destroyed members release potential backreferences first
-            //Label no_weakrefs;
-            //x64->op(CMPQ, Address(RAX, ROLE_WEAKREFCOUNT_OFFSET), 0);
-            //x64->op(JE, no_weakrefs);
-            //x64->runtime->die("Weakly referenced role finalized!");
-            //x64->code_label(no_weakrefs);
-        }
-        else
+        if (s.where != MEMORY || s.address.base != RAX || s.address.index != NOREG)
             throw INTERNAL_ERROR;
+
+        if (finalizer_function) {
+            if (s.address.offset)
+                x64->op(ADDQ, RAX, s.address.offset);
+                
+            x64->op(PUSHQ, RAX);
+            x64->op(CALL, finalizer_function->get_label(x64));
+            x64->op(POPQ, RAX);
+
+            if (s.address.offset)
+                x64->op(SUBQ, RAX, s.address.offset);
+        }
+    
+        for (auto &var : member_allocables)  // FIXME: reverse!
+            var->destroy(tm, s, x64);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
@@ -177,14 +156,7 @@ public:
         
         return is;
     }
-    /*
-    virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
-        std::vector<TypeSpec> tss;
-        for (auto &ts : member_tss)
-            tss.push_back(typesubst(ts, match));
-        return tss;
-    }
-    */
+
     virtual std::vector<std::string> get_member_names() {
         return member_names;
     }
@@ -257,7 +229,7 @@ public:
         }
         
         if (base_role) {
-            TypeSpec ts = typesubst(ptr_cast<Allocable>(base_role)->alloc_ts, tm);
+            TypeSpec ts = base_role->get_typespec(tm);
             Value *v = ts.autoconv(target, orig, ifts);
             
             if (v)
@@ -279,7 +251,7 @@ public:
         Value *value = HeapType::lookup_inner(tm, n, v, s);
         
         if (!value && base_role) {
-            TypeSpec ts = typesubst(ptr_cast<Allocable>(base_role)->alloc_ts, tm);
+            TypeSpec ts = base_role->get_typespec(tm);
             value = ts.lookup_inner(n, v, s);
         }
 
@@ -372,7 +344,7 @@ public:
     }
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        std::cerr << "XXX Role matched " << name << " with " << typeidname(cpivot) << "\n";
+        //std::cerr << "XXX Role matched " << name << " with " << typeidname(cpivot) << "\n";
         return make<RoleValue>(this, cpivot, match);
     }
 
@@ -446,6 +418,7 @@ public:
                 throw INTERNAL_ERROR;
         }
         
+        Allocable::allocate();
         where = MEMORY;
         
         Allocation size = alloc_ts.measure();

@@ -11,9 +11,9 @@ public:
         where = NOWHERE;
         alloc_ts = ats;
     }
-    
-    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        throw INTERNAL_ERROR;
+
+    virtual TypeSpec get_typespec(TypeMatch tm) {
+        return typesubst(alloc_ts, tm);
     }
     
     virtual void allocate() {
@@ -106,7 +106,7 @@ public:
     
     virtual void finalize(X64 *x64) {
         // This method is only called on local variables, and it's an overload
-        Identifier::finalize(x64);  // Place label
+        Allocable::finalize(x64);  // Place label
         //x64->runtime->log(std::string("Finalizing local variable ") + name);
         
         alloc_ts.destroy(get_local_storage(), x64);

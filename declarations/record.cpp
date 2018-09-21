@@ -34,9 +34,6 @@ public:
         int stack_size = tm[0].measure_stack();
         
         switch (s.where * t.where) {
-        //case REGISTER_STACK:  // for the sake of String, FIXME: check size and stuff!
-        //    x64->op(PUSHQ, s.reg);
-        //    return;
         case STACK_NOWHERE:
             destroy(tm, Storage(MEMORY, Address(RSP, 0)), x64);
             x64->op(ADDQ, RSP, stack_size);
@@ -74,9 +71,6 @@ public:
             for (auto &var : member_variables)
                 var->create(tm, Storage(), Storage(MEMORY, t.address), x64);
             return;
-        //case REGISTER_MEMORY:  // for the sake of String, FIXME: check sizes
-        //    x64->op(MOVQ, t.address, s.reg);
-        //    return;
         case STACK_MEMORY:
             create(tm, Storage(MEMORY, Address(RSP, 0)), t, x64);
             store(tm, s, Storage(), x64);
