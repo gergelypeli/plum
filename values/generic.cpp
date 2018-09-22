@@ -144,30 +144,20 @@ public:
         rs = right->compile(x64);
         x64->unwind->pop(this);
 
-        int pop = 0;
         int stack_size = left->ts.measure_stack();
         Storage s, t;
-        
-        // NOTE: we assume destroy leaves all data as it is
         
         if (ls.where == STACK && rs.where == STACK) {
             s = Storage(MEMORY, Address(RSP, stack_size));
             t = Storage(MEMORY, Address(RSP, 0));
-            right->ts.destroy(t, x64);
-            left->ts.destroy(s, x64);
-            pop = 2 * stack_size;
         }
         else if (ls.where == STACK) {
             s = Storage(MEMORY, Address(RSP, 0));
             t = rs;
-            left->ts.destroy(s, x64);
-            pop = stack_size;
         }
         else if (rs.where == STACK) {
             s = ls;
             t = Storage(MEMORY, Address(RSP, 0));
-            right->ts.destroy(t, x64);
-            pop = stack_size;
         }
         else {
             s = ls;
@@ -177,12 +167,22 @@ public:
         left->ts.compare(s, t, x64);
 
         Register r = clob.get_any();
-        
         x64->op(MOVSXBQ, r, BL);  // sign extend byte to qword
 
-        if (pop)
-            x64->op(LEA, RSP, Address(RSP, pop));  // leave flags
-        
+        if (ls.where == STACK && rs.where == STACK) {
+            right->ts.destroy(t, x64);
+            left->ts.destroy(s, x64);
+            x64->op(ADDQ, RSP, 2 * stack_size);
+        }
+        else if (ls.where == STACK) {
+            left->ts.destroy(s, x64);
+            x64->op(ADDQ, RSP, stack_size);
+        }
+        else if (rs.where == STACK) {
+            right->ts.destroy(t, x64);
+            x64->op(ADDQ, RSP, stack_size);
+        }
+
         return Storage(REGISTER, r);
     }
 
@@ -197,41 +197,50 @@ public:
         rs = right->compile(x64);
         x64->unwind->pop(this);
 
-        int pop = 0;
         int stack_size = left->ts.measure_stack();
         Storage s, t;
-        
-        // NOTE: we assume destroy leaves all data as it is
         
         if (ls.where == STACK && rs.where == STACK) {
             s = Storage(MEMORY, Address(RSP, stack_size));
             t = Storage(MEMORY, Address(RSP, 0));
-            right->ts.destroy(t, x64);
-            left->ts.destroy(s, x64);
-            pop = 2 * stack_size;
         }
         else if (ls.where == STACK) {
             s = Storage(MEMORY, Address(RSP, 0));
             t = rs;
-            left->ts.destroy(s, x64);
-            pop = stack_size;
         }
         else if (rs.where == STACK) {
             s = ls;
             t = Storage(MEMORY, Address(RSP, 0));
-            right->ts.destroy(t, x64);
-            pop = stack_size;
         }
         else {
             s = ls;
             t = rs;
         }
-
+        
         left->ts.equal(s, t, x64);
 
-        if (pop)
-            x64->op(LEA, RSP, Address(RSP, pop));  // leave flags
-        
+        Register r = clob.get_any();
+
+        if (ls.where == STACK && rs.where == STACK) {
+            x64->op(negate ? SETNE : SETE, r);
+            right->ts.destroy(t, x64);
+            left->ts.destroy(s, x64);
+            x64->op(ADDQ, RSP, 2 * stack_size);
+            return Storage(REGISTER, r);
+        }
+        else if (ls.where == STACK) {
+            x64->op(negate ? SETNE : SETE, r);
+            left->ts.destroy(s, x64);
+            x64->op(ADDQ, RSP, stack_size);
+            return Storage(REGISTER, r);
+        }
+        else if (rs.where == STACK) {
+            x64->op(negate ? SETNE : SETE, r);
+            right->ts.destroy(t, x64);
+            x64->op(ADDQ, RSP, stack_size);
+            return Storage(REGISTER, r);
+        }
+
         return Storage(FLAGS, negate ? CC_NOT_EQUAL : CC_EQUAL);
     }
 

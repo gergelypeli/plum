@@ -158,15 +158,15 @@ public:
         x64->op(JBE, ok);
         
         x64->code_label(nok);
-        //x64->runtime->decweakref(RAX);
 
         // all popped
+        x64->runtime->decref(RAX);
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
         x64->op(PUSHQ, RCX);
         x64->op(PUSHQ, RBX);
-        x64->op(PUSHQ, RAX);
+        x64->op(PUSHQ, RAX);  // inherit reference
         
         return Storage(STACK);
     }
