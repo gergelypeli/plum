@@ -238,20 +238,21 @@ public:
 class SliceIndexValue: public GenericValue, public Raiser {
 public:
     TypeSpec elem_ts;
-    //Borrow *borrow;
+    Unborrow *unborrow;
     
     SliceIndexValue(Value *pivot, TypeMatch &match)
         :GenericValue(INTEGER_TS, match[1].lvalue(), pivot) {
         elem_ts = match[1];
-        //borrow = NULL;
+        unborrow = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (!check_raise(lookup_exception_type, scope))
             return false;
         
-        //borrow = new Borrow;
-        //scope->add(borrow);
+        // Borrow only if not raising
+        unborrow = new Unborrow;
+        scope->add(unborrow);
         
         return GenericValue::check(args, kwargs, scope);
     }
@@ -272,21 +273,21 @@ public:
         x64->op(POPQ, RCX);  // front
         x64->op(POPQ, RDX);  // length
 
-        // FIXME: implement proper borrow
-        x64->runtime->decref(RBX);        
-        //x64->op(MOVQ, borrow->get_address(), RBX);
-        
         Label ok;
         x64->op(CMPQ, RAX, RDX);
         x64->op(JB, ok);
 
-        // all popped        
+        // all popped
+        x64->runtime->decref(RBX);
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
         x64->op(ADDQ, RAX, RCX);
         x64->op(IMUL3Q, RAX, RAX, elem_size);
         x64->op(LEA, RAX, Address(RAX, RBX, ARRAY_ELEMS_OFFSET));
+
+        // Borrow Lvalue container
+        x64->op(MOVQ, unborrow->get_address(), RBX);
     
         return Storage(MEMORY, Address(RAX, 0));
     }

@@ -194,14 +194,16 @@ public:
     TypeMatch match;
     TypeSpec pts;
     bool is_rvalue;
+    Unborrow *unborrow;
     
-    VariableValue(Variable *v, Value *p, TypeMatch &tm)
+    VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
         :Value(v->get_typespec(tm)) {
         variable = v;
         pivot.reset(p);
         reg = NOREG;
         match = tm;
         is_rvalue = false;
+        unborrow = NULL;
         
         if (pivot) {
             pts = pivot->ts.rvalue();
@@ -209,11 +211,16 @@ public:
             // Sanity check
             if (pts[0] == ref_type)
                 throw INTERNAL_ERROR;  // variables are accessed by weak references only
+            else if (pts[0] == ptr_type) {
+                unborrow = new Unborrow;
+                scope->add(unborrow);
+            }
                 
             is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != ptr_type && !pts.has_meta(module_metatype) && !pts.has_meta(singleton_metatype));
             
             if (is_rvalue)
                 ts = ts.rvalue();
+                
         }
     }
     
@@ -257,8 +264,7 @@ public:
             if (pts[0] == ptr_type) {
                 pts.store(s, Storage(REGISTER, reg), x64);
                 
-                // FIXME: implement a proper unborrow!
-                pts.store(Storage(REGISTER, reg), Storage(), x64);
+                pts.borrow(reg, unborrow, x64);
                 
                 s = Storage(MEMORY, Address(reg, 0));
             }
@@ -298,8 +304,8 @@ class PartialVariableValue: public VariableValue {
 public:
     PartialInfo *partial_info;
     
-    PartialVariableValue(Variable *pv, Value *p, TypeMatch &match, PartialInfo *pi)
-        :VariableValue(pv, p, match) {
+    PartialVariableValue(Variable *pv, Value *p, Scope *scope, TypeMatch &match, PartialInfo *pi)
+        :VariableValue(pv, p, scope, match) {
         partial_info = pi;
         
         // First, it's not assignable, second, it may already have an lvalue_type inside it

@@ -683,20 +683,28 @@ class MapIndexValue: public Value {
 public:
     TypeSpec key_ts, value_ts, item_ts, key_arg_ts;
     std::unique_ptr<Value> pivot, key, value;
+    Unborrow *unborrow;
 
     MapIndexValue(Value *l, TypeMatch &match)
         :Value(match[2]) {
         pivot.reset(l);
         key_ts = match[1];
-        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
+        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);  // TODO: Lvalue?
         
         key_arg_ts = key_ts;
+        unborrow = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        return check_arguments(args, kwargs, {
+        if (!check_arguments(args, kwargs, {
             { "key", &key_arg_ts, scope, &key }
-        });
+        }))
+            return false;
+            
+        unborrow = new Unborrow;
+        scope->add(unborrow);
+        
+        return true;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -731,6 +739,10 @@ public:
         x64->runtime->die("Map missing!");  // TODO
 
         x64->code_label(ok);
+
+        // Borrow Lvalue container
+        x64->runtime->incref(SELFX);
+        x64->op(MOVQ, unborrow->get_address(), SELFX);
         
         return Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size));
     }
@@ -825,33 +837,10 @@ public:
 
 class WeakValueMapIndexValue: public MapIndexValue {
 public:
-    //Unborrow *unborrow;
-    
     WeakValueMapIndexValue(Value *l, TypeMatch &match)
         :MapIndexValue(l, wvmatch(match)) {
+        // We must not return an Lvalue to this NosyValue!
         ts = ts.reprefix(nosyvalue_type, ptr_type);
-    }
-    
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!MapIndexValue::check(args, kwargs, scope))
-            return false;
-            
-        //unborrow = new Unborrow;
-        //scope->add(unborrow);
-        
-        return true;
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Storage s = MapIndexValue::compile(x64);
-        
-        if (s.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
-        x64->op(MOVQ, RBX, s.address);
-        //x64->runtime->incref(RBX);
-        
-        return s;
     }
 };
 

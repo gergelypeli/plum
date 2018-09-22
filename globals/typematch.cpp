@@ -163,8 +163,6 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 
 
 bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, Scope *scope, bool strict) {
-    //bool needs_borrow = false;
-
     if (*s == ref_type || *s == ptr_type || *t == ref_type || *t == ptr_type) {
         if (*s == *t) {
             match[0].push_back(*t);
@@ -176,7 +174,6 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
             s++;
             t++;
             value = new CastValue(value, value->ts.rvalue().reprefix(ref_type, ptr_type));
-            //needs_borrow = true;
         }
         else if (*s == ptr_type && *t == ref_type) {
             if (matchlog) std::cerr << "No match, ptr for ref!\n";
@@ -186,9 +183,6 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     
     if (*s == *t || is_any(*t)) {
         bool ok = match_type_parameters(s, t, match);
-        
-        //if (ok && needs_borrow)
-        //    value = make<ReferenceBorrowValue>(value, scope);
         
         return ok;
     }
@@ -216,9 +210,6 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     
     bool ok = match_regular_type(s, t, match, value);
     
-    //if (ok && needs_borrow)
-    //    value = make<ReferenceBorrowValue>(value, scope);
-        
     return ok;
 }
 

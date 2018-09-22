@@ -83,7 +83,7 @@ public:
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable
-        return make<VariableValue>(this, cpivot, match);
+        return make<VariableValue>(this, cpivot, scope, match);
     }
     
     virtual void allocate() {
@@ -155,7 +155,7 @@ public:
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        return make<PartialVariableValue>(this, cpivot, match, partial_info.get());
+        return make<PartialVariableValue>(this, cpivot, scope, match, partial_info.get());
     }
 };
 
@@ -254,18 +254,18 @@ public:
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        return make<PartialVariableValue>(this, cpivot, match, partial_info.get());
+        return make<PartialVariableValue>(this, cpivot, scope, match, partial_info.get());
     }
 };
 
 
-// TODO: this is technically not a subclass of Allocable
+// Extend the lifetime of Lvalue containers until the end of the innermost scope
 class Unborrow: public Declaration {
 public:
     Allocation offset;
     
     virtual void allocate() {
-        offset = outer_scope->reserve(Allocation(REFERENCE_SIZE));
+        offset = outer_scope->reserve(Allocation(ADDRESS_SIZE));
     }
 
     virtual Address get_address() {
@@ -278,3 +278,4 @@ public:
         x64->runtime->decref(RBX);
     }
 };
+

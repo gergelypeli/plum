@@ -40,6 +40,7 @@ public:
     void equal(Storage s, Storage t, X64 *x64);
     void compare(Storage s, Storage t, X64 *x64);
     void streamify(bool repr, X64 *x64);
+    void borrow(Register reg, Unborrow *unborrow, X64 *x64);
     Value *lookup_initializer(std::string name, Scope *scope);
     Value *lookup_matcher(std::string name, Value *pivot, Scope *scope);
     Value *lookup_inner(std::string name, Value *pivot, Scope *scope);
@@ -400,7 +401,7 @@ public:
     X64 *x64;
     
     Label application_label;
-    Label zero_label, float_zero_label, float_minus_zero_label, borrow_dummy_label, refcount_balance_label;
+    Label zero_label, float_zero_label, float_minus_zero_label, refcount_balance_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label empty_function_label, empty_array_label;
     Label alloc_fcb_label, free_fcb_label;

@@ -111,8 +111,7 @@ public:
 class ContainerIndexValue: public OptimizedOperationValue {
 public:
     TypeSpec elem_ts;
-    // If the container is guaranteed, then the elements as well
-    //Borrow *borrow;
+    Unborrow *unborrow;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match)
         :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot,
@@ -126,8 +125,9 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        //borrow = new Borrow;
-        //scope->add(borrow);
+        unborrow = new Unborrow;
+        scope->add(unborrow);
+        
         return OptimizedOperationValue::check(args, kwargs, scope);
     }
 
@@ -155,8 +155,8 @@ public:
 
         switch (ls.where) {
         case REGISTER:
-            // Keep REGISTER weakreference, defer decweakref
-            //x64->op(MOVQ, borrow->get_address(), ls.reg);
+            // Borrow Lvalue container
+            x64->op(MOVQ, unborrow->get_address(), ls.reg);
             
             fix_RBX_index(ls.reg, x64);
             
@@ -164,10 +164,10 @@ public:
             x64->op(LEA, ls.reg, Address(ls.reg, RBX, elems_offset));
             return Storage(MEMORY, Address(ls.reg, 0));
         case MEMORY:
-            // Add weak reference, defer decweakref
             x64->op(MOVQ, auxls.reg, ls.address);  // reg may be the base of ls.address
-            //x64->op(MOVQ, borrow->get_address(), auxls.reg);
-            //x64->runtime->incweakref(auxls.reg);
+            // Borrow Lvalue container
+            x64->runtime->incref(auxls.reg);
+            x64->op(MOVQ, unborrow->get_address(), auxls.reg);
             
             fix_RBX_index(auxls.reg, x64);
             

@@ -265,6 +265,11 @@ public:
         x64->op(ADDQ, RSP, 16);
     }
 
+    virtual void borrow(TypeMatch tm, Register reg, Unborrow *unborrow, X64 *x64) {
+        std::cerr << "Unborrowable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         std::cerr << "No initializer " << name << " `" << n << "!\n";
         throw INTERNAL_ERROR;

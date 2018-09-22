@@ -232,6 +232,11 @@ void TypeSpec::streamify(bool repr, X64 *x64) {
 }
 
 
+void TypeSpec::borrow(Register reg, Unborrow *unborrow, X64 *x64) {
+    at(0)->borrow(match(), reg, unborrow, x64);
+}
+
+
 Value *TypeSpec::lookup_initializer(std::string name, Scope *scope) {
     return at(0)->lookup_initializer(match(), name, scope);
 }

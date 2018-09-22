@@ -209,6 +209,19 @@ public:
         :ReferenceType(name) {
     }
 
+    virtual void borrow(TypeMatch tm, Register reg, Unborrow *unborrow, X64 *x64) {
+        bool is_class = tm[1].has_meta(class_metatype);
+        
+        if (is_class) {
+            x64->op(MOVQ, RBX, Address(reg, CLASS_VT_OFFSET));
+            x64->op(MOVQ, RBX, Address(RBX, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+            x64->op(ADDQ, RBX, reg);
+            x64->op(MOVQ, unborrow->get_address(), RBX);
+        }
+        else
+            x64->op(MOVQ, unborrow->get_address(), reg);
+    }
+
     virtual void incref(Register r, X64 *x64, bool is_class) {
         // Class Ptr-s may point to roles within the object
 

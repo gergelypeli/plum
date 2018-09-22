@@ -45,7 +45,6 @@ class RecordPostinitializerValue;
 class RecordPreinitializerValue;
 class RecordUnwrapValue;
 class RecordWrapperValue;
-class ReferenceBorrowValue;
 class RoleValue;
 class SingletonDefinitionValue;
 class StringLiteralValue;
