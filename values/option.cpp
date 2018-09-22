@@ -10,7 +10,7 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        ts.create(Storage(), Storage(STACK), x64);
+        ts.store(Storage(), Storage(STACK), x64);
         return Storage(STACK);
     }
 };

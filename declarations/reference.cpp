@@ -21,6 +21,13 @@ public:
         bool is_class = tm[1].has_meta(class_metatype);
     
         switch (s.where * t.where) {
+        case NOWHERE_REGISTER:
+            std::cerr << "Reference must be initialized!\n";
+            throw TYPE_ERROR;
+        case NOWHERE_STACK:
+            std::cerr << "Reference must be initialized!\n";
+            throw TYPE_ERROR;
+        
         case REGISTER_NOWHERE:
             decref(s.reg, x64, is_class);
             return;
@@ -62,7 +69,7 @@ public:
             incref(RBX, x64, is_class);
             x64->op(PUSHQ, RBX);
             return;
-        case MEMORY_MEMORY:
+        case MEMORY_MEMORY:  // must work with self-assignment
             x64->op(MOVQ, RBX, s.address);
             incref(RBX, x64, is_class);
             x64->op(XCHGQ, RBX, t.address);

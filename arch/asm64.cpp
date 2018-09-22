@@ -1533,7 +1533,7 @@ struct {
     int op1;
     int op2;
 } ssemem_ssemem_info[] = {   // xmm1, xmm2/mem64    xmm1/mem64, xmm2
-    { 0xF30F7E, 0x660FD6 },  // MOVQ
+    { 0xF30F7E, 0x660FD6 },  // MOVQW
     { 0xF20F10, 0xF20F11 },  // MOVSD
     { 0xF30F10, 0xF30F11 },  // MOVSS
 };

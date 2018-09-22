@@ -171,6 +171,8 @@ public:
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // Assume MEMORY are initialized
+        
         switch (s.where * t.where) {
         case NOWHERE_NOWHERE:
             return;
@@ -224,11 +226,15 @@ public:
     }
     
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        // Assume target is uninitialized
+        
         std::cerr << "Uncreatable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        // Assume source is initialized
+        
         std::cerr << "Undestroyable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }

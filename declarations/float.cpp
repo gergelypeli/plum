@@ -12,11 +12,20 @@ public:
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case NOWHERE_SSEREGISTER:
+            x64->op(MOVSD, t.sse, Address(x64->runtime->float_zero_label, 0));
+            break;
+        case NOWHERE_STACK:
+            x64->op(PUSHQ, 0);  // using that 0.0 is represented as all zeroes
+            break;
+
         case SSEREGISTER_NOWHERE:
             break;
+            
         case STACK_NOWHERE:
             x64->op(ADDQ, RSP, FLOAT_SIZE);
             break;
+            
         case MEMORY_NOWHERE:
             break;
         case MEMORY_SSEREGISTER:
@@ -36,6 +45,9 @@ public:
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         switch (s.where * t.where) {
+        case NOWHERE_MEMORY:
+            x64->op(MOVQ, t.address, 0);  // using that 0.0 is represented as all zeroes
+            break;
         case SSEREGISTER_MEMORY:
             x64->op(MOVSD, t.address, s.sse);
             break;

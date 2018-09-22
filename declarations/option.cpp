@@ -21,8 +21,13 @@ public:
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         int stack_size = tm[0].measure_stack();
+        int flag_size = get_flag_size(tm[1]);
         
         switch (s.where * t.where) {
+        case NOWHERE_STACK:
+            x64->op(SUBQ, RSP, stack_size);
+            x64->op(MOVQ, Address(RSP, 0), OPTION_FLAG_NONE);
+            return;
         case STACK_NOWHERE:
             destroy(tm, Storage(MEMORY, Address(RSP, 0)), x64);
             x64->op(ADDQ, RSP, stack_size);
@@ -30,8 +35,8 @@ public:
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            store(tm, Storage(MEMORY, Address(RSP, 0)), t, x64);
-            store(tm, s, Storage(), x64);
+            destroy(tm, t, x64);
+            create(tm, s, t, x64);
             return;
         case MEMORY_NOWHERE:
             return;
@@ -39,9 +44,38 @@ public:
             x64->op(SUBQ, RSP, stack_size);
             create(tm, s, Storage(MEMORY, Address(RSP, 0)), x64);
             return;
-        case MEMORY_MEMORY:  // duplicates data
-            destroy(tm, t, x64);
-            create(tm, s, t, x64);
+        case MEMORY_MEMORY: { // must work for self-assignment
+            Label s_none, none_some, some_none, end;
+            
+            x64->op(CMPQ, s.address, OPTION_FLAG_NONE);
+            x64->op(JE, s_none);
+
+            // s some
+            x64->op(CMPQ, t.address, OPTION_FLAG_NONE);
+            x64->op(JE, some_none);
+
+            // some_some
+            tm[1].store(s + flag_size, t + flag_size, x64);
+            x64->op(JMP, end);
+
+            // some_none
+            x64->code_label(some_none);
+            if (flag_size == ADDRESS_SIZE)
+                x64->op(MOVQ, t.address, OPTION_FLAG_NONE + 1);
+
+            tm[1].create(s + flag_size, t + flag_size, x64);
+            x64->op(JMP, end);
+
+            x64->code_label(s_none);
+            x64->op(CMPQ, t.address, OPTION_FLAG_NONE);
+            x64->op(JE, end);  // none_none
+
+            // none_some
+            tm[1].destroy(t + flag_size, x64);
+            x64->op(MOVQ, t.address, OPTION_FLAG_NONE);
+
+            x64->code_label(end);
+        }
             return;
         default:
             Type::store(tm, s, t, x64);
@@ -54,16 +88,11 @@ public:
         Label none, end;
 
         switch (s.where * t.where) {
-        case NOWHERE_STACK:
-            x64->op(SUBQ, RSP, stack_size);
-            x64->op(MOVQ, Address(RSP, 0), 0);
-            return;
         case NOWHERE_MEMORY:
-            x64->op(MOVQ, t.address, 0);
+            x64->op(MOVQ, t.address, OPTION_FLAG_NONE);
             return;
         case STACK_MEMORY:
-            create(tm, Storage(MEMORY, Address(RSP, 0)), t, x64);
-            destroy(tm, Storage(MEMORY, Address(RSP, 0)), x64);
+            x64->copy(Address(RSP, 0), t.address, tm[0].measure_raw());
             x64->op(ADDQ, RSP, stack_size);
             return;
         case MEMORY_MEMORY:  // duplicates data

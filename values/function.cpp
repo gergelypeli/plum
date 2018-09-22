@@ -777,8 +777,8 @@ public:
                 arg_value->compile_and_store(x64, t);
             }
             else {
-                // Optional argument
-                arg_ts.create(Storage(), t, x64);
+                // Optional argument initialized to default value
+                arg_ts.store(Storage(), t, x64);
             }
 
             pushed_tss.push_back(arg_ts);

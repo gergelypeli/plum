@@ -400,7 +400,7 @@ public:
     X64 *x64;
     
     Label application_label;
-    Label zero_label, float_minus_zero_label, borrow_dummy_label, refcount_balance_label;
+    Label zero_label, float_zero_label, float_minus_zero_label, borrow_dummy_label, refcount_balance_label;
     Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
     Label empty_function_label, empty_array_label;
     Label alloc_fcb_label, free_fcb_label;

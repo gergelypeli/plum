@@ -136,6 +136,11 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
 
     // Float constants are aligned to 16 bytes so SSE packed instructions can use it
     x64->data_align(16);
+    x64->data_label(float_zero_label);
+    x64->data_double(0.0);
+    x64->data_double(0.0);
+
+    x64->data_align(16);
     x64->data_label(float_minus_zero_label);
     x64->data_double(-0.0);
     x64->data_double(0.0);

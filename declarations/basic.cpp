@@ -21,6 +21,13 @@ public:
         BinaryOp mov = MOVQ % os;
         
         switch (s.where * t.where) {
+        case NOWHERE_REGISTER:  // this is used by the boolean and operation
+            x64->op(mov, t.reg, 0);
+            return;
+        case NOWHERE_STACK:  // this is used by pushing optional function arguments
+            x64->op(PUSHQ, 0);
+            return;
+
         case CONSTANT_NOWHERE:
             return;
         case CONSTANT_CONSTANT:
@@ -109,12 +116,6 @@ public:
         switch (s.where * t.where) {
         case NOWHERE_MEMORY:
             x64->op(mov, t.address, 0);
-            return;
-        case NOWHERE_REGISTER:  // this is used by the boolean and operation
-            x64->op(mov, t.reg, 0);
-            return;
-        case NOWHERE_STACK:  // this is used by pushing optional function arguments
-            x64->op(PUSHQ, 0);
             return;
         case CONSTANT_MEMORY:
             x64->op(mov, t.address, s.value);

@@ -34,6 +34,10 @@ public:
         int stack_size = tm[0].measure_stack();
         
         switch (s.where * t.where) {
+        case NOWHERE_STACK:
+            x64->op(SUBQ, RSP, stack_size);
+            create(tm, Storage(), Storage(MEMORY, Address(RSP, 0)), x64);
+            return;
         case STACK_NOWHERE:
             destroy(tm, Storage(MEMORY, Address(RSP, 0)), x64);
             x64->op(ADDQ, RSP, stack_size);
@@ -41,8 +45,8 @@ public:
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            store(tm, Storage(MEMORY, Address(RSP, 0)), t, x64);
-            store(tm, s, Storage(), x64);
+            destroy(tm, t, x64);
+            create(tm, s, t, x64);
             return;
         case MEMORY_NOWHERE:
             return;
@@ -63,17 +67,13 @@ public:
         int stack_size = tm[0].measure_stack();
 
         switch (s.where * t.where) {
-        case NOWHERE_STACK:
-            x64->op(SUBQ, RSP, stack_size);
-            create(tm, Storage(), Storage(MEMORY, Address(RSP, 0)), x64);
-            return;
         case NOWHERE_MEMORY:
             for (auto &var : member_variables)
                 var->create(tm, Storage(), Storage(MEMORY, t.address), x64);
             return;
         case STACK_MEMORY:
-            create(tm, Storage(MEMORY, Address(RSP, 0)), t, x64);
-            store(tm, s, Storage(), x64);
+            x64->copy(Address(RSP, 0), t.address, tm[0].measure_raw());
+            x64->op(ADDQ, RSP, stack_size);
             return;
         case MEMORY_MEMORY:  // duplicates data
             for (auto &var : member_variables)
