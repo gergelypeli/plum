@@ -39,6 +39,8 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        x64->code_line_info(token.file_index, token.row);
+
         x64->unwind->push(this);
         Storage s = value->compile(x64);
         x64->unwind->pop(this);
@@ -244,15 +246,23 @@ public:
 
     virtual Storage compile(X64 *x64) {
         for (unsigned i = 0; i < statements.size() - 1; i++) {
+            Token &token = statements[i]->token;
+            
             // Poor man's debug info
-            Label l;
-            std::stringstream ss;
-            ss << "line." << statements[i]->token.row;
-            x64->code_label_local(l, ss.str());
+            //Label l;
+            //std::stringstream ss;
+            //ss << "line." << token.row;
+            //x64->code_label_local(l, ss.str());
+            
+            // Dwarves debug info
+            x64->code_line_info(token.file_index, token.row);
             
             statements[i]->compile_and_store(x64, Storage());
             x64->op(NOP);  // For readability
         }
+
+        Token &token = statements.back()->token;
+        x64->code_line_info(token.file_index, token.row);
         
         return statements.back()->compile(x64);
     }

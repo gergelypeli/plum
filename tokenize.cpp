@@ -3,17 +3,20 @@
 
 struct Token {
     std::string text;
+    int file_index;
     int row;  // one-based
     int column;  // zero-based
 
     Token() {
         text = "";
+        file_index = -1;
         row = -1;
         column = -1;
     }
     
-    Token(const std::string &t, int r, int c) {
+    Token(const std::string &t, int f, int r, int c) {
         text = t;
+        file_index = f;
         row = r;
         column = c;
     }
@@ -51,7 +54,7 @@ bool is_prefix(char c) {
 }
 
 
-std::vector<Token> tokenize(std::string buffer) {
+std::vector<Token> tokenize(std::string buffer, int file_index) {
     std::vector<Token> tokens;
     int row_count = 1;
     int row_start = 0;
@@ -64,7 +67,7 @@ std::vector<Token> tokenize(std::string buffer) {
         throw TOKEN_ERROR;
     }
     else {
-        tokens.push_back(Token(" indent", row_count, 0));
+        tokens.push_back(Token(" indent", file_index, row_count, 0));
         indent++;
     }
     
@@ -93,24 +96,24 @@ std::vector<Token> tokenize(std::string buffer) {
             int mod = n % 4;
             
             if (ind == indent && mod == 0) {
-                tokens.push_back(Token(" separate", row_count, 0));  // May be removed by subsequent label
+                tokens.push_back(Token(" separate", file_index, row_count, 0));  // May be removed by subsequent label
                 continue;
             }
             else if (ind == indent && mod == 1) {
                 continue;
             }
             else if (ind == indent + 1 && mod == 0) {
-                tokens.push_back(Token(" indent", row_count, 0));
+                tokens.push_back(Token(" indent", file_index, row_count, 0));
                 indent++;
                 continue;
             }
             else if (ind < indent && mod == 0) {
                 while (ind < indent) {
-                    tokens.push_back(Token(" dedent", row_count, 0));
+                    tokens.push_back(Token(" dedent", file_index, row_count, 0));
                     indent--;
                 }
                 
-                tokens.push_back(Token(" separate", row_count, 0));  // May be removed by subsequent label
+                tokens.push_back(Token(" separate", file_index, row_count, 0));  // May be removed by subsequent label
                 continue;
             }
 
@@ -210,7 +213,7 @@ std::vector<Token> tokenize(std::string buffer) {
             throw TOKEN_ERROR;
         }
 
-        tokens.push_back(Token(buffer.substr(start, i - start), row_count, start - row_start));
+        tokens.push_back(Token(buffer.substr(start, i - start), file_index, row_count, start - row_start));
     }
 
     if (tokens.back().text == " separate")
@@ -218,7 +221,7 @@ std::vector<Token> tokenize(std::string buffer) {
 
     // Be nice, and don't complain if the last line is not terminated properly
     while (indent > 0) {
-        tokens.push_back(Token(" dedent", row_count, 0));
+        tokens.push_back(Token(" dedent", file_index, row_count, 0));
         indent--;
     }
     

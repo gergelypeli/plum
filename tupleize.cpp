@@ -211,7 +211,7 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
 
 
 Expr *tupleize(std::vector<Node> nodes) {
-    Expr *root = new Expr(Expr::TUPLE, Token("", 0, 0));
+    Expr *root = new Expr(Expr::TUPLE, Token("", -1, -1, -1));
     
     tupleize_arguments(root, nodes, 0);
     

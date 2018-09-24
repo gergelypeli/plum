@@ -28,6 +28,7 @@
 Root *root;
 bool matchlog;
 std::string local_path, global_path;
+std::vector<std::string> source_file_names;
 
 
 std::string read_source(std::string file_name) {
@@ -62,12 +63,15 @@ Module *import(std::string module_name) {
         file_name = global_path + "/" + file_name;  // system module
         
     file_name = file_name + ".plum";
+    
+    int file_index = source_file_names.size();
+    source_file_names.push_back(file_name);
 
     std::string display_name = (module_name.size() ? module_name : "<main>");
     std::cerr << "Importing module " << display_name << " from " << file_name << "\n";
     std::string buffer = read_source(file_name);
     
-    std::vector<Token> tokens = tokenize(buffer);
+    std::vector<Token> tokens = tokenize(buffer, file_index);
     //for (auto &token : tokens)
     //    std::cerr << "Token: " << token.text << "\n";
     
@@ -167,7 +171,7 @@ int main(int argc, char **argv) {
     root->compile_modules(x64);
     
     x64->once->for_all(x64);
-    x64->done(output);
+    x64->done(output, source_file_names);
     
     std::cerr << "Done.\n";
     return 0;

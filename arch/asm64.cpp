@@ -255,7 +255,16 @@ public:
     std::map<unsigned, Def> defs;
     std::vector<Ref> refs;
     unsigned code_symbol_index, data_symbol_index;
+    
+    std::vector<LineInfo> line_infos;
+    
     Ork *ork;
+
+    Asm64();
+    ~Asm64();
+    
+    void init(std::string module_name);
+    void done(std::string name, std::vector<std::string> source_file_names);
 
     void add_def(Label label, const Def &def);
 
@@ -283,12 +292,8 @@ public:
     void code_label_local(Label c, std::string name, unsigned size = 0);
     void code_label_global(Label c, std::string name, unsigned size = 0);
     void code_reference(Label c, int offset = 0);
-    
-    Asm64();
-    ~Asm64();
-    
-    void init(std::string module_name);
-    void done(std::string name);
+    void code_line_info(int file_index, int line_number);
+
     
     void effective_address(int regfield, Register rm);
     void effective_address(int regfield, SseRegister rm);
@@ -416,7 +421,7 @@ void Asm64::init(std::string module_name) {
 }
 
 
-void Asm64::done(std::string filename) {
+void Asm64::done(std::string filename, std::vector<std::string> source_file_names) {
     for (auto &kv : defs) {
         Def &d(kv.second);
 
@@ -536,6 +541,8 @@ void Asm64::done(std::string filename) {
 
     ork->set_code(code);
     ork->set_data(data);
+    ork->set_lineno(source_file_names, line_infos);
+    
     ork->done(filename);
     
     delete ork;
@@ -704,6 +711,11 @@ void Asm64::code_reference(Label label, int offset) {
     code_dword(offset);  // 32-bit offset only
     
     // TODO: shall we store 0 only, and put the offset into the addend?
+}
+
+
+void Asm64::code_line_info(int file_index, int line_number) {
+    line_infos.push_back(LineInfo { (int)code.size(), file_index, line_number });
 }
 
 
