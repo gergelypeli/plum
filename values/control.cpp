@@ -199,12 +199,14 @@ public:
     std::string yield_name;
     EvalScope *eval_scope;
     Variable *yield_var;
+    bool actually_yielded;
     
     YieldableValue(std::string n, std::string yn)
         :ControlValue(n) {
         yield_name = yn;
         eval_scope = NULL;
         yield_var = NULL;
+        actually_yielded = false;
     }
 
     virtual std::string get_yield_label() {
@@ -238,6 +240,10 @@ public:
         EvalScope *es = eval_scope->outer_scope->get_eval_scope();
         
         return (es ? es->get_yieldable_value()->get_yield_exception_value() : RETURN_EXCEPTION) - 1;
+    }
+
+    virtual void actually_yield() {
+        actually_yielded = true;
     }
 
     virtual Storage get_yield_storage() {
@@ -577,8 +583,10 @@ public:
         
         Label live;
         
-        x64->op(CMPQ, RDX, get_yield_exception_value());
-        x64->op(JE, live);  // dropped
+        if (actually_yielded) {
+            x64->op(CMPQ, RDX, get_yield_exception_value());
+            x64->op(JE, live);  // dropped
+        }
 
         // Otherwise must have raised something
         x64->unwind->initiate(eval_scope, x64);
@@ -937,8 +945,10 @@ public:
         switch_scope->finalize_contents(x64);
         eval_scope->finalize_contents(x64);
         
-        x64->op(CMPQ, RDX, get_yield_exception_value());
-        x64->op(JE, live);  // dropped
+        if (actually_yielded) {
+            x64->op(CMPQ, RDX, get_yield_exception_value());
+            x64->op(JE, live);  // dropped
+        }
 
         // reraise exceptions from the handler, or yields from anywhere
         x64->code_label(unwind);
@@ -1070,8 +1080,10 @@ public:
         x64->op(CMPQ, RDX, NO_EXCEPTION);
         x64->op(JE, ok);
         
-        x64->op(CMPQ, RDX, get_yield_exception_value());
-        x64->op(JE, ok);  // dropped
+        if (actually_yielded) {
+            x64->op(CMPQ, RDX, get_yield_exception_value());
+            x64->op(JE, ok);  // dropped
+        }
 
         // reraise other exceptions        
         x64->unwind->initiate(eval_scope, x64);
@@ -1134,6 +1146,7 @@ public:
             yieldable_value->store_yield(s, x64);
         }
         
+        yieldable_value->actually_yield();  // disallow optimizing handling out
         x64->op(MOVQ, RDX, yieldable_value->get_yield_exception_value());
         x64->unwind->initiate(dummy, x64);
         
