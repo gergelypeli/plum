@@ -262,17 +262,27 @@ public:
 // Extend the lifetime of Lvalue containers until the end of the innermost scope
 class Unborrow: public Declaration {
 public:
+    bool is_used;
     Allocation offset;
+    
+    Unborrow()
+        :Declaration() {
+        is_used = false;
+    }
     
     virtual void allocate() {
         offset = outer_scope->reserve(Allocation(ADDRESS_SIZE));
     }
 
     virtual Address get_address() {
+        is_used = true;
         return Address(RBP, offset.concretize());
     }
     
     virtual void finalize(X64 *x64) {
+        if (!is_used)
+            return;
+            
         //x64->runtime->log("Unborrowing.");
         x64->op(MOVQ, RBX, get_address());
         x64->runtime->decref(RBX);

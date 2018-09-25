@@ -262,9 +262,15 @@ public:
             Storage s = pivot->compile(x64);
             
             if (pts[0] == ptr_type) {
-                pts.store(s, Storage(REGISTER, reg), x64);
-                
-                pts.borrow(reg, unborrow, x64);
+                if (s.where == BMEMORY) {
+                    // We can borrow a reference to the container for free
+                    pts.store(s, Storage(BREGISTER, reg), x64);
+                }
+                else {
+                    // Or do that for money
+                    pts.store(s, Storage(REGISTER, reg), x64);
+                    pts.borrow(reg, unborrow, x64);
+                }
                 
                 s = Storage(MEMORY, Address(reg, 0));
             }
@@ -292,6 +298,15 @@ public:
             if (t.where == ALIAS) {
                 x64->op(MOVQ, reg, t.address);
                 t = Storage(MEMORY, Address(reg, 0));
+            }
+            
+            if (variable->name == "$" && ts[0] == ptr_type) {
+                // Try borrowing on the self argument, guaranteed not to change
+                if (t.where != MEMORY)
+                    throw INTERNAL_ERROR;
+                    
+                // Let the parent borrow this instead of making a reference copy
+                t.where = BMEMORY;
             }
         }
         
@@ -505,6 +520,7 @@ public:
             //x64->op(PUSHQ, RBX);
             return s;
         case MEMORY:
+        case BMEMORY:
             // TODO: optimize this incref thing
             pivot->ts.store(s, Storage(STACK), x64);
             x64->op(ADDQ, Address(RSP, 0), offset);

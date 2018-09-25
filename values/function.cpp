@@ -741,6 +741,10 @@ public:
             pushed_pivots = true;
         }
         else {
+            // Borrow pivot reference, if possible
+            if (s.where == BMEMORY && t.where == STACK)
+                t.where = BSTACK;
+            
             arg_ts.store(s, t, x64);
             
             pushed_tss.push_back(arg_ts);

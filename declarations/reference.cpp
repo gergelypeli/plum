@@ -59,22 +59,43 @@ public:
             return;
 
         case MEMORY_NOWHERE:
+        case BMEMORY_NOWHERE:
             return;
         case MEMORY_REGISTER:
+        case BMEMORY_REGISTER:
             x64->op(MOVQ, t.reg, s.address);
             incref(t.reg, x64, is_class);
             return;
         case MEMORY_STACK:
+        case BMEMORY_STACK:
             x64->op(MOVQ, RBX, s.address);
             incref(RBX, x64, is_class);
             x64->op(PUSHQ, RBX);
             return;
         case MEMORY_MEMORY:  // must work with self-assignment
+        case BMEMORY_MEMORY:
             x64->op(MOVQ, RBX, s.address);
             incref(RBX, x64, is_class);
             x64->op(XCHGQ, RBX, t.address);
             decref(RBX, x64, is_class);
             return;
+
+        case BREGISTER_NOWHERE:
+            return;
+            
+        case BSTACK_NOWHERE:
+            x64->op(ADDQ, RSP, REFERENCE_SIZE);
+            return;
+        case BSTACK_BSTACK:
+            return;
+            
+        case BMEMORY_BREGISTER:
+            x64->op(MOVQ, t.reg, s.address);
+            return;
+        case BMEMORY_BSTACK:
+            x64->op(PUSHQ, s.address);
+            return;
+            
         default:
             Type::store(tm, s, t, x64);
         }
