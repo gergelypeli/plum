@@ -193,7 +193,8 @@ public:
     Register reg;
     TypeMatch match;
     TypeSpec pts;
-    bool is_rvalue;
+    bool is_rvalue_record;
+    bool is_single_record;
     Unborrow *unborrow;
     
     VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
@@ -202,7 +203,8 @@ public:
         pivot.reset(p);
         reg = NOREG;
         match = tm;
-        is_rvalue = false;
+        is_rvalue_record = false;
+        is_single_record = false;
         unborrow = NULL;
         
         if (pivot) {
@@ -210,17 +212,22 @@ public:
 
             // Sanity check
             if (pts[0] == ref_type)
-                throw INTERNAL_ERROR;  // variables are accessed by weak references only
+                throw INTERNAL_ERROR;  // member variables are accessed by pointers only
             else if (pts[0] == ptr_type) {
-                unborrow = new Unborrow;
+                unborrow = new Unborrow;  // may or may not be used
                 scope->add(unborrow);
             }
                 
-            is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != ptr_type && !pts.has_meta(module_metatype) && !pts.has_meta(singleton_metatype));
-            
-            if (is_rvalue)
-                ts = ts.rvalue();
-                
+            //is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != ptr_type && !pts.has_meta(singleton_metatype));
+            if (pts.has_meta(record_metatype)) {
+                if (ptr_cast<RecordType>(pts[0])->is_single) {
+                    is_single_record = true;
+                }
+                else if (pivot->ts[0] != lvalue_type) {
+                    is_rvalue_record = true;
+                    ts = ts.rvalue();
+                }
+            }
         }
     }
     
@@ -256,7 +263,7 @@ public:
         if (pivot) {
             // Rvalue containers are on the STACK, so we must extract our variable
             // and discard it all.
-            if (is_rvalue)
+            if (is_rvalue_record)
                 x64->op(SUBQ, RSP, ts.measure_stack());
 
             Storage s = pivot->compile(x64);
@@ -274,7 +281,12 @@ public:
                 
                 s = Storage(MEMORY, Address(reg, 0));
             }
-            else if (is_rvalue) {
+            else if (is_single_record) {
+                // Selecting the single member of a record is a no-op
+                // This also assumes that there are no such things as custom record finalizers
+                return s;
+            }
+            else if (is_rvalue_record) {
                 if (s.where != STACK)
                     throw INTERNAL_ERROR;
                     

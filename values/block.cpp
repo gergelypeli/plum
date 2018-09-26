@@ -45,15 +45,14 @@ public:
         Storage s = value->compile(x64);
         x64->unwind->pop(this);
         
-        // TODO: this instruction is a bit annoying, we should optimize the case
-        // when no exceptions are raised, and no declarations to finalize.
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-        
         // Can't let the result be passed as a MEMORY storage, because it may
         // point to a local variable that we're about to destroy. So grab that
         // value while we can. This actually happens for interpolations.
         if (s.where == MEMORY)
             s = value->ts.store(s, save_storage, x64);
+
+        if (may_be_aborted)
+            x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         code_scope->finalize_contents(x64);
 

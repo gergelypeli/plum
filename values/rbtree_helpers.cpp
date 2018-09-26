@@ -365,10 +365,10 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     Label left_fix = x64->once->compile(compile_rbtree_left_fix);
     Label right_fix = x64->once->compile(compile_rbtree_right_fix);
     Label allocate = x64->once->compile(compile_rbtree_allocate);
-    int key_size = elem_ts.measure_stack();
-    int node_size = key_size + RBNODE_HEADER_SIZE;
+    int elem_size = elem_ts.measure_stack();
+    int node_size = elem_size + RBNODE_HEADER_SIZE;
     
-    //x64->log("Rbtree add.");
+    //x64->runtime->log("Rbtree add.");
     x64->op(CMPQ, ROOTX, RBNODE_NIL);
     x64->op(JE, no);
     
@@ -382,14 +382,14 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(JG, greater);
     
     // Found the value, destroy to make place for the new one
-    //x64->log("Rbtree add found.");
+    //x64->runtime->log("Rbtree add found.");
     elem_ts.destroy(vs, x64);
     x64->op(MOVQ, RBX, ROOTX);
     x64->op(MOVQ, KEYX, ROOTX);
     x64->op(RET);
     
     x64->code_label(less);
-    //x64->log("Rbtree add left.");
+    //x64->runtime->log("Rbtree add left.");
     x64->op(PUSHQ, ROOTX);
     x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(CALL, label);
@@ -399,7 +399,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(RET);
     
     x64->code_label(greater);
-    //x64->log("Rbtree add right.");
+    //x64->runtime->log("Rbtree add right.");
     x64->op(PUSHQ, ROOTX);
     x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(CALL, label);
@@ -409,7 +409,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(RET);
     
     x64->code_label(no);
-    //x64->log("Rbtree add missing.");
+    //x64->runtime->log("Rbtree add missing.");
     x64->op(MOVQ, RBX, node_size);
     x64->op(CALL, allocate);  // from SELFX to ROOTX (may be NIL)
     x64->op(MOVQ, RBX, ROOTX);

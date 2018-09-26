@@ -4,9 +4,11 @@ public:
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
+    bool is_single;
 
     RecordType(std::string n, Metatypes param_metatypes)
         :Type(n, param_metatypes, record_metatype) {
+        is_single = false;
     }
 
     virtual bool complete_type() {
@@ -22,15 +24,26 @@ public:
             }
         }
         
+        if (member_variables.size() == 1)
+            is_single = true;
+        
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
         return true;
     }
     
     virtual Allocation measure(TypeMatch tm) {
-        return inner_scope->get_size(tm);
+        if (is_single)
+            return typesubst(member_tss[0], tm).measure();
+        else
+            return inner_scope->get_size(tm);  // May round up
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (is_single) {
+            typesubst(member_tss[0], tm).store(s, t, x64);
+            return;
+        }
+    
         int stack_size = tm[0].measure_stack();
         
         switch (s.where * t.where) {
@@ -64,6 +77,11 @@ public:
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (is_single) {
+            typesubst(member_tss[0], tm).create(s, t, x64);
+            return;
+        }
+
         int stack_size = tm[0].measure_stack();
 
         switch (s.where * t.where) {
@@ -85,6 +103,11 @@ public:
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        if (is_single) {
+            typesubst(member_tss[0], tm).destroy(s, x64);
+            return;
+        }
+
         if (s.where == MEMORY) {
             for (auto &var : member_variables)  // FIXME: reverse!
                 var->destroy(tm, Storage(MEMORY, s.address), x64);
@@ -94,6 +117,12 @@ public:
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        if (is_single) {
+            // Make sure pivot arguments are still passed as ALIAS
+            if (as_what == AS_VALUE)
+                return typesubst(member_tss[0], tm).where(as_what);
+        }
+
         return (
             as_what == AS_VALUE ? STACK :
             as_what == AS_VARIABLE ? MEMORY :
@@ -109,14 +138,21 @@ public:
     }
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (is_single) {
+            typesubst(member_tss[0], tm).equal(s, t, x64);
+            return;
+        }
+
         if (s.where == MEMORY && t.where == MEMORY) {
             Label end;
             if ((s.regs() | t.regs()) & EQUAL_CLOB)
                 throw INTERNAL_ERROR;
             
             for (unsigned i = 0; i < comparable_member_count(); i++) {
+                if (i > 0)
+                    x64->op(JNE, end);
+
                 member_variables[i]->equal(tm, s, t, x64);
-                x64->op(JNE, end);
             }
             
             x64->code_label(end);
@@ -127,12 +163,17 @@ public:
     }
     
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if ((s.regs() | t.regs()) & COMPARE_CLOB)
+            throw INTERNAL_ERROR;
+            
+        if (is_single) {
+            typesubst(member_tss[0], tm).compare(s, t, x64);
+            return;
+        }
+
         if (s.where == MEMORY && t.where == MEMORY) {
-            if ((s.regs() | t.regs()) & COMPARE_CLOB)
-                throw INTERNAL_ERROR;
-                
             Label end;
-                
+
             for (unsigned i = 0; i < comparable_member_count(); i++) {
                 if (i > 0)
                     x64->op(JNE, end);
@@ -181,8 +222,10 @@ public:
     
     virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
         std::vector<TypeSpec> tss;
+        
         for (auto &ts : member_tss)
             tss.push_back(typesubst(ts, match));
+            
         return tss;
     }
     

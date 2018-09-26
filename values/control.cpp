@@ -478,11 +478,11 @@ public:
         Storage ns = next->compile(x64);
         x64->unwind->pop(this);
         
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-
         next->ts.create(ns, es, x64);  // create the each variable
+
         // Finalize after storing, so the return value won't be lost
         // On exception we jump here, so the each variable won't be created
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
         next_try_scope->finalize_contents(x64);
         
         x64->op(CMPQ, RDX, NO_EXCEPTION);
@@ -714,6 +714,8 @@ public:
             then_branch->compile_and_store(x64, Storage());
         
         x64->unwind->pop(this);
+        
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
         then_scope->finalize_contents(x64);
         
         // Take care of the unmatched case
@@ -906,10 +908,9 @@ public:
         Storage s = body->compile(x64);
         x64->unwind->pop(this);
 
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-
         store_yield(s, x64);
 
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
         try_scope->finalize_contents(x64);  // exceptions from body jump here
         
         // The body may throw an exception
@@ -1072,7 +1073,6 @@ public:
         x64->unwind->pop(this);
 
         x64->op(MOVQ, RDX, NO_EXCEPTION);
-        
         eval_scope->finalize_contents(x64);  // exceptions from body jump here
 
         Label ok;
