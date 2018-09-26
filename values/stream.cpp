@@ -36,10 +36,23 @@ public:
             
         return Regs::all();  // We're Void
     }
-    
-    virtual Storage compile(X64 *x64) {
-        compile_and_store_both(x64, Storage(STACK), Storage(ALISTACK));
 
+    virtual Storage compile(X64 *x64) {
+        // Let the pivot be borrowed if possible
+        ls = left->compile(x64);
+        
+        if (ls.where == BREGISTER || ls.where == BSTACK || ls.where == BMEMORY)
+            ls = left->ts.store(ls, Storage(BSTACK), x64);
+        else
+            ls = left->ts.store(ls, Storage(STACK), x64);
+        
+        x64->unwind->push(this);
+        
+        right->compile_and_store(x64, Storage(ALISTACK));
+        rs = Storage(ALISTACK);
+        
+        x64->unwind->pop(this);
+        
         left->ts.streamify(false, x64);
         
         right->ts.store(rs, Storage(), x64);
@@ -49,59 +62,6 @@ public:
     }
 };
 
-/*
-// Does not work, as interpolation creates an extra variable anyway
-class RefStreamificationValue: public GenericStreamificationValue {
-public:
-    RefStreamificationValue(Value *p, TypeMatch &match)
-        :GenericStreamificationValue(p, match) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        // We subclass this to be able to print variables containing invalid pointers
-        // that would crash when pushed onto the stack.
-        
-        x64->runtime->log("Refstr");
-        
-        ls = left->compile(x64);
-        
-        switch (ls.where) {
-        case STACK:
-            break;
-        case MEMORY:
-            x64->op(PUSHQ, ls.address);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        right->compile_and_store(x64, Storage(ALISTACK));
-            
-        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-        x64->op(MOVQ, RSI, Address(RSP, 0));
-        
-        Label label;
-        x64->code_label_import(label, "streamify_reference");
-        x64->runtime->call_sysv(label);
-        
-        right->ts.store(Storage(ALISTACK), Storage(), x64);
-        
-        switch (ls.where) {
-        case STACK:
-            left->ts.store(ls, Storage(), x64);
-            break;
-        case MEMORY:
-            x64->op(ADDQ, RSP, ADDRESS_SIZE);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        x64->runtime->log("Refstr2");
-        return Storage();
-    }
-};
-*/
 
 // This is a simplified CodeBlockValue that allows a nonvoid result
 class InterpolationValue: public Value {
