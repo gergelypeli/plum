@@ -12,8 +12,8 @@ public:
     }
 
     virtual bool complete_type() {
-        inner_scope->add(make_record_compare());
-
+        bool has_custom_compare = false;
+        
         for (auto &c : inner_scope->contents) {
             Variable *v = ptr_cast<Variable>(c.get());
             
@@ -22,7 +22,14 @@ public:
                 member_tss.push_back(v->alloc_ts.rvalue());
                 member_names.push_back(v->name);
             }
+            
+            Identifier *i = ptr_cast<Identifier>(c.get());
+            if (i && i->name == "compare")
+                has_custom_compare = true;
         }
+
+        if (!has_custom_compare)
+            inner_scope->add(make_record_compare());
         
         if (member_variables.size() == 1)
             is_single = true;
@@ -242,20 +249,22 @@ public:
     }
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        Label streq_label = x64->once->compile(compile_stringeq);
-
-        // TODO: now that String is a single record, other storages are possible!
         if (s.where == MEMORY && t.where == MEMORY) {
-            x64->op(MOVQ, RBX, t.address);  // may be RSP-based
+            if (t.address.base == RSP)
+                throw INTERNAL_ERROR;
+                
             x64->op(PUSHQ, s.address);
-            x64->op(PUSHQ, RBX);
-            
-            x64->op(CALL, streq_label);  // ZF as expected
-            
+            x64->op(PUSHQ, t.address);
+        }
+        else if ((s.where != STACK && s.where != BSTACK) || (t.where != STACK && t.where != BSTACK))
+            throw INTERNAL_ERROR;
+        
+        Label streq_label = x64->once->compile(compile_stringeq);
+        x64->op(CALL, streq_label);  // ZF as expected
+        
+        if (s.where == MEMORY && t.where == MEMORY) {
             x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
         }
-        else
-            throw INTERNAL_ERROR;
     }
     
     static void compile_stringeq(Label label, X64 *x64) {
@@ -294,20 +303,22 @@ public:
     }
 
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        Label strcmp_label = x64->once->compile(compile_stringcmp);
-
-        // TODO: now that String is a single record, other storages are possible!
         if (s.where == MEMORY && t.where == MEMORY) {
-            x64->op(MOVQ, RBX, t.address);  // may be RSP-based
+            if (t.address.base == RSP)
+                throw INTERNAL_ERROR;
+                
             x64->op(PUSHQ, s.address);
-            x64->op(PUSHQ, RBX);
-            
-            x64->op(CALL, strcmp_label);  // BL, flags as expected
-            
-            x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve flags
+            x64->op(PUSHQ, t.address);
         }
-        else
+        else if ((s.where != STACK && s.where != BSTACK) || (t.where != STACK && t.where != BSTACK))
             throw INTERNAL_ERROR;
+
+        Label strcmp_label = x64->once->compile(compile_stringcmp);
+        x64->op(CALL, strcmp_label);  // BL, flags as expected
+        
+        if (s.where == MEMORY && t.where == MEMORY) {
+            x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
+        }
     }
 
     static void compile_stringcmp(Label label, X64 *x64) {

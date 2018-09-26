@@ -9,6 +9,83 @@ public:
 };
 
 
+class StringOperationValue: public RecordOperationValue {
+public:
+    StringOperationValue(OperationType o, Value *p, TypeMatch &match)
+        :RecordOperationValue(o, p, match) {
+    }
+    
+    virtual void compile_and_stack_both(X64 *x64) {
+        // We have a custom comparison functions that takes stack arguments
+        ls = left->compile(x64);
+        
+        switch (ls.where) {
+        case REGISTER:
+        case MEMORY:
+            ls = left->ts.store(ls, Storage(STACK), x64);
+            break;
+        case BREGISTER:
+        case BMEMORY:
+            ls = left->ts.store(ls, Storage(BSTACK), x64);
+            break;
+        case STACK:
+        case BSTACK:
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        x64->unwind->push(this);
+        rs = right->compile(x64);
+        x64->unwind->pop(this);
+        
+        switch (rs.where) {
+        case REGISTER:
+        case MEMORY:
+            rs = right->ts.store(rs, Storage(STACK), x64);
+            break;
+        case BREGISTER:
+        case BMEMORY:
+            rs = right->ts.store(rs, Storage(BSTACK), x64);
+            break;
+        case STACK:
+        case BSTACK:
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+    
+    virtual Storage compare(X64 *x64) {
+        compile_and_stack_both(x64);
+        
+        left->ts.compare(ls, rs, x64);
+
+        Register r = clob.get_any();
+        x64->op(MOVSXBQ, r, BL);  // sign extend byte to qword
+
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
+
+        return Storage(REGISTER, r);
+    }
+
+    virtual Storage equal(X64 *x64, bool negate) {
+        compile_and_stack_both(x64);
+        
+        left->ts.equal(ls, rs, x64);
+
+        Register r = clob.get_any();
+        x64->op(negate ? SETNE : SETE, r);
+
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
+        
+        return Storage(REGISTER, r);
+    }
+};
+
+
 class RecordInitializerValue: public Value {
 public:
     RecordType *record_type;

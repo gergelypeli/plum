@@ -694,9 +694,10 @@ void define_string() {
     is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REF_LVALUE_TS, STRING_LVALUE_TS, "realloc"));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
-    is->add(new TemplateOperation<RecordOperationValue>("is_equal", STRING_TS, EQUAL));
-    is->add(new TemplateOperation<RecordOperationValue>("not_equal", STRING_TS, NOT_EQUAL));
-    is->add(new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE));
+
+    is->add(new TemplateOperation<StringOperationValue>("is_equal", STRING_TS, EQUAL));
+    is->add(new TemplateOperation<StringOperationValue>("not_equal", STRING_TS, NOT_EQUAL));
+    is->add(new TemplateOperation<StringOperationValue>("compare", ANY_TS, COMPARE));
 
     implement(is, TypeSpec { iterable_type, character_type }, "ible", {
         new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")

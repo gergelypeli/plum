@@ -104,7 +104,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return Regs();
+        return Regs(RAX);
         //return Regs().add(RAX).add(RCX).add(RSI).add(RDI);
     }
 
@@ -112,11 +112,13 @@ public:
         std::vector<unsigned16> characters = decode_utf8(text);
         Label l = x64->runtime->data_heap_string(characters);
         
-        x64->op(LEA, RBX, Address(l, 0));
-        //x64->runtime->incref(RBX);  // This way we can return the same static string many times
-        x64->op(PUSHQ, RBX);
+        x64->op(LEA, RAX, Address(l, 0));
+        return Storage(BREGISTER, RAX);
         
-        return Storage(BSTACK);
+        //x64->runtime->incref(RBX);  // This way we can return the same static string many times
+        //x64->op(PUSHQ, RBX);
+        
+        //return Storage(BSTACK);
     }
 };
 
