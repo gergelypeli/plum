@@ -742,7 +742,7 @@ public:
         }
         else {
             // Borrow pivot reference, if possible
-            if (s.where == BMEMORY && t.where == STACK)
+            if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
                 t.where = BSTACK;
             
             arg_ts.store(s, t, x64);
@@ -778,7 +778,13 @@ public:
 
             if (arg_value) {
                 // Specified argument
-                arg_value->compile_and_store(x64, t);
+                Storage s = arg_value->compile(x64);
+
+                // Borrow argument reference, if possible
+                if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
+                    t.where = BSTACK;
+
+                arg_ts.store(s, t, x64);
             }
             else {
                 // Optional argument initialized to default value

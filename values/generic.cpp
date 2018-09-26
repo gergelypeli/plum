@@ -146,16 +146,19 @@ public:
 
         int stack_size = left->ts.measure_stack();
         Storage s, t;
+
+        bool lx = (ls.where == STACK || ls.where == BSTACK);
+        bool rx = (rs.where == STACK || rs.where == BSTACK);
         
-        if (ls.where == STACK && rs.where == STACK) {
+        if (lx && rx) {
             s = Storage(MEMORY, Address(RSP, stack_size));
             t = Storage(MEMORY, Address(RSP, 0));
         }
-        else if (ls.where == STACK) {
+        else if (lx) {
             s = Storage(MEMORY, Address(RSP, 0));
             t = rs;
         }
-        else if (rs.where == STACK) {
+        else if (rx) {
             s = ls;
             t = Storage(MEMORY, Address(RSP, 0));
         }
@@ -163,25 +166,14 @@ public:
             s = ls;
             t = rs;
         }
-
+        
         left->ts.compare(s, t, x64);
 
         Register r = clob.get_any();
         x64->op(MOVSXBQ, r, BL);  // sign extend byte to qword
 
-        if (ls.where == STACK && rs.where == STACK) {
-            right->ts.destroy(t, x64);
-            left->ts.destroy(s, x64);
-            x64->op(ADDQ, RSP, 2 * stack_size);
-        }
-        else if (ls.where == STACK) {
-            left->ts.destroy(s, x64);
-            x64->op(ADDQ, RSP, stack_size);
-        }
-        else if (rs.where == STACK) {
-            right->ts.destroy(t, x64);
-            x64->op(ADDQ, RSP, stack_size);
-        }
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
 
         return Storage(REGISTER, r);
     }
@@ -200,15 +192,18 @@ public:
         int stack_size = left->ts.measure_stack();
         Storage s, t;
         
-        if (ls.where == STACK && rs.where == STACK) {
+        bool lx = (ls.where == STACK || ls.where == BSTACK);
+        bool rx = (rs.where == STACK || rs.where == BSTACK);
+        
+        if (lx && rx) {
             s = Storage(MEMORY, Address(RSP, stack_size));
             t = Storage(MEMORY, Address(RSP, 0));
         }
-        else if (ls.where == STACK) {
+        else if (lx) {
             s = Storage(MEMORY, Address(RSP, 0));
             t = rs;
         }
-        else if (rs.where == STACK) {
+        else if (rx) {
             s = ls;
             t = Storage(MEMORY, Address(RSP, 0));
         }
@@ -220,28 +215,12 @@ public:
         left->ts.equal(s, t, x64);
 
         Register r = clob.get_any();
+        x64->op(negate ? SETNE : SETE, r);
 
-        if (ls.where == STACK && rs.where == STACK) {
-            x64->op(negate ? SETNE : SETE, r);
-            right->ts.destroy(t, x64);
-            left->ts.destroy(s, x64);
-            x64->op(ADDQ, RSP, 2 * stack_size);
-            return Storage(REGISTER, r);
-        }
-        else if (ls.where == STACK) {
-            x64->op(negate ? SETNE : SETE, r);
-            left->ts.destroy(s, x64);
-            x64->op(ADDQ, RSP, stack_size);
-            return Storage(REGISTER, r);
-        }
-        else if (rs.where == STACK) {
-            x64->op(negate ? SETNE : SETE, r);
-            right->ts.destroy(t, x64);
-            x64->op(ADDQ, RSP, stack_size);
-            return Storage(REGISTER, r);
-        }
-
-        return Storage(FLAGS, negate ? CC_NOT_EQUAL : CC_EQUAL);
+        right->ts.store(rs, Storage(), x64);
+        left->ts.store(ls, Storage(), x64);
+        
+        return Storage(REGISTER, r);
     }
 
     virtual Storage compile(X64 *x64) {

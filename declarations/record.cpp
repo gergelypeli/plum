@@ -243,7 +243,8 @@ public:
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         Label streq_label = x64->once->compile(compile_stringeq);
-        
+
+        // TODO: now that String is a single record, other storages are possible!
         if (s.where == MEMORY && t.where == MEMORY) {
             x64->op(MOVQ, RBX, t.address);  // may be RSP-based
             x64->op(PUSHQ, s.address);
@@ -295,6 +296,7 @@ public:
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         Label strcmp_label = x64->once->compile(compile_stringcmp);
 
+        // TODO: now that String is a single record, other storages are possible!
         if (s.where == MEMORY && t.where == MEMORY) {
             x64->op(MOVQ, RBX, t.address);  // may be RSP-based
             x64->op(PUSHQ, s.address);

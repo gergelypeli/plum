@@ -113,10 +113,10 @@ public:
         Label l = x64->runtime->data_heap_string(characters);
         
         x64->op(LEA, RBX, Address(l, 0));
-        x64->runtime->incref(RBX);  // This way we can return the same static string many times
+        //x64->runtime->incref(RBX);  // This way we can return the same static string many times
         x64->op(PUSHQ, RBX);
         
-        return Storage(STACK);
+        return Storage(BSTACK);
     }
 };
 
