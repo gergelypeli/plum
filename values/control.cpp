@@ -965,6 +965,7 @@ public:
     }
     
     static void compile_die(Label label, X64 *x64) {
+        // TODO: allocate these only once!
         Label uncaught_message_label_1 = x64->runtime->data_heap_string(decode_utf8("Unhandled exception "));
         Label uncaught_message_label_2 = x64->runtime->data_heap_string(decode_utf8(" on line "));
         Label uncaught_message_label_3 = x64->runtime->data_heap_string(decode_utf8("!"));
@@ -973,12 +974,15 @@ public:
         x64->code_label_local(label, "die_uncaught");
         
         // Allocate a stream for 100 characters
-        x64->op(MOVQ, RAX, 100 * CHARACTER_SIZE + ARRAY_HEADER_SIZE);
+        x64->op(PUSHQ, 100 * CHARACTER_SIZE + ARRAY_HEADER_SIZE);
         x64->op(LEA, RBX, Address(x64->runtime->empty_function_label, 0));
-        x64->runtime->alloc_RAX_RBX();
+        x64->op(PUSHQ, RBX);
+        x64->runtime->heap_alloc();
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        
         x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), 100);
         x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
-        x64->op(PUSHQ, RAX);  // make it into a variable
+        x64->op(PUSHQ, RAX);  // make it into a variable or something
 
         // Streamifications will clobber all registers!
         // Stack layout:

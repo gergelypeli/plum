@@ -30,25 +30,28 @@ public:
         Label callback_label = x64->once->compile(compile_callback);
         Label finalizer_label = ts.unprefix(ref_type).get_finalizer_label(x64);
         
-        x64->op(MOVQ, RAX, NOSYOBJECT_SIZE);
-        //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
-        x64->op(LEA, RBX, Address(finalizer_label, 0));
-        x64->runtime->alloc_RAX_RBX();
-
-        x64->op(PUSHQ, RAX);
+        right->compile_and_store(x64, Storage(STACK));  // object address
         
-        right->compile_and_store(x64, Storage(STACK));
-        
-        x64->op(MOVQ, RAX, Address(RSP, 0));  // the object address
         x64->op(LEA, RBX, Address(callback_label, 0));
-        x64->op(MOVQ, RCX, Address(RSP, 8));  // the nosy address as the payload1
-        x64->op(MOVQ, RDX, 0);
-        x64->op(CALL, x64->runtime->alloc_fcb_label);
+        x64->op(PUSHQ, RBX);  // callback address
         
-        x64->op(POPQ, RCX);  // object address
+        x64->op(PUSHQ, NOSYOBJECT_SIZE);
+        x64->op(LEA, RBX, Address(finalizer_label, 0));
+        x64->op(PUSHQ, RBX);
+        x64->runtime->heap_alloc();
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        x64->op(PUSHQ, RAX);  // nosy address as payload1
+        
+        x64->op(PUSHQ, 0);  // payload2
+        
+        x64->op(CALL, x64->runtime->fcb_alloc_label);  // RAX - fcb address
+        
+        x64->op(POPQ, RDX);
         x64->op(POPQ, RDX);  // nosy address
+        x64->op(POPQ, RCX);
+        x64->op(POPQ, RCX);  // object address
 
-        x64->runtime->decref(RCX);
+        x64->runtime->decref(RCX);  // FIXME: this shouldn't finalize
         
         x64->op(MOVQ, Address(RDX, NOSYOBJECT_RAW_OFFSET), RCX);
         x64->op(MOVQ, Address(RDX, NOSYOBJECT_FCB_OFFSET), RAX);
@@ -60,11 +63,15 @@ public:
         x64->code_label_local(label, "nosyobject_callback");
         
         x64->runtime->log("NosyObject callback.");
-        
+
+        x64->op(MOVQ, RCX, Address(RSP, ADDRESS_SIZE * 2));  // payload1 arg (nosy address)
         x64->op(MOVQ, Address(RCX, NOSYOBJECT_RAW_OFFSET), 0);
         x64->op(MOVQ, Address(RCX, NOSYOBJECT_FCB_OFFSET), 0);  // clear FCB address for the finalizer
         
-        x64->op(CALL, x64->runtime->free_fcb_label);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * 3));  // fcb arg
+        x64->op(CALL, x64->runtime->fcb_free_label);
+        x64->op(ADDQ, RSP, ADDRESS_SIZE);
+        
         x64->op(RET);
     }
 };

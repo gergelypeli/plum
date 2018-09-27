@@ -12,13 +12,17 @@ int container_elem_size(TypeSpec elem_ts) {
 
 
 void container_alloc(int header_size, int elem_size, int reservation_offset, Label finalizer_label, X64 *x64) {
-    // RAX - reservation
+    // RAX - reservation size
     x64->op(PUSHQ, RAX);
+    
     x64->op(IMUL3Q, RAX, RAX, elem_size);
     x64->op(ADDQ, RAX, header_size);
     x64->op(LEA, RBX, Address(finalizer_label, 0));
     
-    x64->runtime->alloc_RAX_RBX();
+    x64->op(PUSHQ, RAX);
+    x64->op(PUSHQ, RBX);
+    x64->runtime->heap_alloc();
+    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
     
     x64->op(POPQ, Address(RAX, reservation_offset));
 }
@@ -30,7 +34,10 @@ void container_realloc(int header_size, int elem_size, int reservation_offset, X
     x64->op(IMUL3Q, RBX, RBX, elem_size);
     x64->op(ADDQ, RBX, header_size);
     
-    x64->runtime->realloc_RAX_RBX();
+    x64->op(PUSHQ, RAX);
+    x64->op(PUSHQ, RBX);
+    x64->runtime->heap_realloc();
+    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 }
 
 

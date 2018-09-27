@@ -402,10 +402,10 @@ public:
     
     Label application_label;
     Label zero_label, float_zero_label, float_minus_zero_label, refcount_balance_label;
-    Label alloc_RAX_RBX_label, realloc_RAX_RBX_label;
+    Label heap_alloc_label, heap_realloc_label;
+    Label fcb_alloc_label, fcb_free_label;
     Label empty_function_label, empty_array_label;
-    Label alloc_fcb_label, free_fcb_label;
-    Label finalize_label, finalize_reference_array_label, weak_finalized_die_label;
+    Label finalize_label, finalize_reference_array_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Label sysv_memalloc_label, sysv_memfree_label, sysv_memrealloc_label;
@@ -422,17 +422,22 @@ public:
     
     int pusha(bool except_rax = false);
     void popa(bool except_rax = false);
+    void compile_incref_decref();
+    void compile_finalize();
+    void compile_heap_alloc();
+    void compile_heap_realloc();
+    void compile_fcb_alloc();
+    void compile_fcb_free();
+    void compile_finalize_reference_array();
     
     void init_memory_management();
     
     void incref(Register reg);
     void decref(Register reg);
-    void incweakref(Register reg);
-    void decweakref(Register reg);
     
-    void memfree(Register reg);
-    void alloc_RAX_RBX();
-    void realloc_RAX_RBX();
+    //void memfree(Register reg);
+    void heap_alloc();
+    void heap_realloc();
     void lock(Register r, Label ok);
     
     void log(std::string message);

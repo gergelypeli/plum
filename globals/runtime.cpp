@@ -257,11 +257,175 @@ void Runtime::popa(bool except_rax) {
         x64->op(POPQ, RAX);
 }
 
-void Runtime::init_memory_management() {
-    x64->data_align(8);
-    x64->data_label_global(refcount_balance_label, "refcount_balance");
-    x64->data_qword(0);
+void Runtime::compile_finalize() {
+    // finalize(pointer)
+    
+    // Preserves all registers, including RBX
+    x64->code_label_global(finalize_label, "finalize");
+    const int ARG_OFFSET = pusha() + ADDRESS_SIZE;
+    Label fcb_loop, fcb_cond;
+    
+    //log("Finalizing heap object.");
+    x64->op(JMP, fcb_cond);
 
+    x64->code_label(fcb_loop);
+    log("Triggering prefinalizer callback.");
+    x64->op(PUSHQ, RBX);
+    x64->op(PUSHQ, Address(RBX, FCB_PAYLOAD1_OFFSET));  // TODO: why push these?
+    x64->op(PUSHQ, Address(RBX, FCB_PAYLOAD2_OFFSET));
+
+    // Finalizer callbacks may clobber everything, but must free this fcb, and potentially more
+    x64->op(CALL, Address(RBX, FCB_CALLBACK_OFFSET));
+    x64->op(ADDQ, RSP, 3 * ADDRESS_SIZE);
+
+    x64->code_label(fcb_cond);
+    // Must check the beginning of the chain, as any number of FCB-s may have been removed
+    x64->op(MOVQ, RAX, Address(RSP, ARG_OFFSET));  // pointer
+    x64->op(MOVQ, RBX, Address(RAX, HEAP_NEXT_OFFSET));
+    x64->op(CMPQ, RBX, FCB_NIL);
+    x64->op(JNE, fcb_loop);
+
+    //dump("finalizing");
+    x64->op(PUSHQ, RAX);
+    x64->op(CALL, Address(RAX, HEAP_FINALIZER_OFFSET));  // finalizers may clobber everything
+
+    x64->op(POPQ, RDI);
+    x64->op(SUBQ, RDI, HEAP_HEADER_SIZE);
+    call_sysv(sysv_memfree_label);  // will probably clobber everything
+
+    popa();
+    x64->op(RET);
+
+}
+
+void Runtime::compile_heap_alloc() {
+    // heap_alloc(size, finalizer)
+    
+    x64->code_label_global(heap_alloc_label, "heap_alloc");
+    const int ARG_OFFSET = pusha(true) + ADDRESS_SIZE;
+    
+    x64->op(MOVQ, RDI, Address(RSP, ARG_OFFSET + ADDRESS_SIZE));  // size arg
+    x64->op(ADDQ, RDI, HEAP_HEADER_SIZE);
+    call_sysv(sysv_memalloc_label);
+    
+    x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
+    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET));  // finalizer arg
+    //dump("heap_alloc");
+    
+    x64->op(MOVQ, Address(RAX, HEAP_NEXT_OFFSET), 0);
+    x64->op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);
+    x64->op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
+    
+    x64->op(INCQ, Address(refcount_balance_label, 0));  // necessary to keep the balance
+    
+    popa(true);
+    x64->op(RET);
+}
+
+void Runtime::compile_heap_realloc() {
+    // heap_realloc(pointer, new_size)
+
+    x64->code_label_global(heap_realloc_label, "heap_realloc");
+    const int ARG_OFFSET = pusha(true) + ADDRESS_SIZE;
+    Label realloc_ok;
+    
+    x64->op(MOVQ, RDI, Address(RSP, ARG_OFFSET + ADDRESS_SIZE));  // pointer arg
+    lock(RDI, realloc_ok);
+    die("Realloc of shared array!");
+
+    x64->code_label(realloc_ok);
+    x64->op(SUBQ, RDI, HEAP_HEADER_SIZE);
+    x64->op(MOVQ, RSI, Address(RSP, ARG_OFFSET));  // new_size arg
+    x64->op(ADDQ, RSI, HEAP_HEADER_SIZE);
+    call_sysv(sysv_memrealloc_label);
+    
+    x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
+    popa(true);
+    x64->op(RET);
+}
+
+void Runtime::compile_fcb_alloc() {
+    // fcb_alloc(pointer, callback, payload1, payload2)
+
+    x64->code_label_global(fcb_alloc_label, "fcb_alloc");
+    const int ARG_OFFSET = pusha(true) + ADDRESS_SIZE;
+
+    x64->op(MOVQ, RDI, FCB_SIZE);
+    call_sysv(sysv_memalloc_label);
+    
+    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET + ADDRESS_SIZE * 2));  // callback arg
+    x64->op(MOVQ, Address(RAX, FCB_CALLBACK_OFFSET), RBX);
+    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET + ADDRESS_SIZE));  // payload1 arg
+    x64->op(MOVQ, Address(RAX, FCB_PAYLOAD1_OFFSET), RBX);
+    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET));  // payload2 arg
+    x64->op(MOVQ, Address(RAX, FCB_PAYLOAD2_OFFSET), RBX);
+    
+    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET + ADDRESS_SIZE * 3));  // pointer arg
+    x64->op(MOVQ, RCX, Address(RBX, HEAP_NEXT_OFFSET));
+    x64->op(MOVQ, Address(RAX, FCB_NEXT_OFFSET), RCX);
+    x64->op(MOVQ, Address(RBX, HEAP_NEXT_OFFSET), RAX);
+    x64->op(ADDQ, RBX, HEAP_HEADER_OFFSET);
+    x64->op(MOVQ, Address(RAX, FCB_PREV_OFFSET), RBX);
+    //dump("alloc_fcb RAX=fcb, RBX=prev, RCX=next");
+
+    Label no_next;
+    x64->op(CMPQ, RCX, FCB_NIL);
+    x64->op(JE, no_next);
+    x64->op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RAX);
+    x64->code_label(no_next);
+
+    popa(true);
+    x64->op(RET);
+}
+
+void Runtime::compile_fcb_free() {
+    // fcb_free(fcb)
+    
+    x64->code_label_global(fcb_free_label, "fcb_free");
+    const int ARG_OFFSET = pusha() + ADDRESS_SIZE;
+
+    x64->op(MOVQ, RAX, Address(RSP, ARG_OFFSET));  // fcb
+    x64->op(MOVQ, RBX, Address(RAX, FCB_PREV_OFFSET));  // always valid
+    x64->op(MOVQ, RCX, Address(RAX, FCB_NEXT_OFFSET));
+    x64->op(MOVQ, Address(RBX, FCB_NEXT_OFFSET), RCX);
+    //dump("free_fcb RAX=fcb, RBX=prev, RCX=next");
+
+    Label no_next2;
+    x64->op(CMPQ, RCX, FCB_NIL);
+    x64->op(JE, no_next2);
+    x64->op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RBX);
+    x64->code_label(no_next2);
+
+    x64->op(MOVQ, RDI, RAX);
+    call_sysv(sysv_memfree_label);
+
+    popa();
+    x64->op(RET);
+}
+
+void Runtime::compile_finalize_reference_array() {
+    // finalize_reference_array(pointer)
+
+    x64->code_label_global(finalize_reference_array_label, "finalize_reference_array");
+    Label fra_cond, fra_loop;
+    
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+    x64->op(MOVQ, RCX, 0);
+    x64->op(JMP, fra_cond);
+
+    x64->code_label(fra_loop);
+    x64->op(MOVQ, RBX, Address(RAX, RCX, 8, ARRAY_ELEMS_OFFSET));
+    decref(RBX);
+    x64->op(INCQ, RCX);
+
+    x64->code_label(fra_cond);
+    x64->op(CMPQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+    x64->op(JB, fra_loop);
+
+    x64->op(RET);
+}
+
+void Runtime::compile_incref_decref() {
     incref_labels.resize(REGISTER_COUNT);
     decref_labels.resize(REGISTER_COUNT);
 
@@ -294,155 +458,30 @@ void Runtime::init_memory_management() {
 
         x64->op(PUSHQ, reg);
         x64->op(CALL, finalize_label);
-        x64->op(ADDQ, RSP, 8);
+        x64->op(ADDQ, RSP, ADDRESS_SIZE);
 
         x64->code_label(dl);
         x64->op(DECQ, Address(refcount_balance_label, 0));
         x64->op(POPQ, RBP);
         x64->op(RET);
     }
+}
 
-    // Stack - reference to finalize
-    // Preserves all registers, including RBX
-    x64->code_label_global(finalize_label, "finalize");
-    const int ARG_OFFSET = pusha() + 8;
-
-    Label fcb_loop, fcb_cond;
-    //log("Finalizing object.");
-    x64->op(JMP, fcb_cond);
-
-    x64->code_label(fcb_loop);
-    log("Triggering prefinalizer callback.");
-    x64->op(MOVQ, RCX, Address(RAX, FCB_PAYLOAD1_OFFSET));
-    x64->op(MOVQ, RDX, Address(RAX, FCB_PAYLOAD2_OFFSET));
-
-    // RAX - fcb, RCX, RDX - payloads, may clobber everything
-    // Must free this fcb, and potentially more
-    x64->op(CALL, Address(RAX, FCB_CALLBACK_OFFSET));
-
-    x64->code_label(fcb_cond);
-    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET));  // reference
-    x64->op(MOVQ, RAX, Address(RBX, HEAP_NEXT_OFFSET));
-    x64->op(CMPQ, RAX, FCB_NIL);
-    x64->op(JNE, fcb_loop);
-
-    x64->op(MOVQ, RAX, Address(RSP, ARG_OFFSET));
-    x64->op(CALL, Address(RAX, HEAP_FINALIZER_OFFSET));  // may clobber everything
-
-    x64->op(MOVQ, RAX, Address(RSP, ARG_OFFSET));
-    //x64->op(CMPQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);
-    //x64->op(JE, no_weakrefs);
-    //dump("RAX=weakrefcount");
-    //die("Weakly referenced object finalized!");
-
-    //x64->code_label(no_weakrefs);
-    x64->op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
-    call_sysv(sysv_memfree_label);  // will probably clobber everything
-
-    popa();
-    x64->op(RET);
-
-    x64->code_label_global(alloc_RAX_RBX_label, "alloc_RAX_RBX");
-    pusha(true);
-    x64->op(LEA, RDI, Address(RAX, HEAP_HEADER_SIZE));
-    call_sysv(sysv_memalloc_label);
-    x64->op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
-    x64->op(MOVQ, Address(RAX, HEAP_NEXT_OFFSET), 0);
-    x64->op(MOVQ, Address(RAX, HEAP_FINALIZER_OFFSET), RBX);  // object finalizer
-    x64->op(MOVQ, Address(RAX, HEAP_REFCOUNT_OFFSET), 1);  // start from 1
-    //x64->op(MOVQ, Address(RAX, HEAP_WEAKREFCOUNT_OFFSET), 0);  // start from 0
-    x64->op(INCQ, Address(refcount_balance_label, 0));  // necessary to keep the balance
-    popa(true);
-    x64->op(RET);
-
-    x64->code_label_global(realloc_RAX_RBX_label, "realloc_RAX_RBX");
-    Label realloc_ok;
-    lock(RAX, realloc_ok);
-    die("Realloc of shared array!");
-
-    x64->code_label(realloc_ok);
-    pusha(true);
-    x64->op(LEA, RDI, Address(RAX, HEAP_HEADER_OFFSET));
-    x64->op(LEA, RSI, Address(RBX, HEAP_HEADER_SIZE));
-    call_sysv(sysv_memrealloc_label);
-    x64->op(LEA, RAX, Address(RAX, -HEAP_HEADER_OFFSET));
-    popa(true);
-    x64->op(RET);
+void Runtime::init_memory_management() {
+    x64->data_align(ADDRESS_SIZE);
+    x64->data_label_global(refcount_balance_label, "refcount_balance");
+    x64->data_qword(0);
 
     x64->code_label_global(empty_function_label, "empty_function");
     x64->op(RET);
 
-    x64->code_label_global(weak_finalized_die_label, "weak_finalized_die");
-    die("Weakly referenced object finalized!");
-
-    // Clobbers RAX, RX, RCX, RDX, returns FCB pointer in RAX
-    x64->code_label_global(alloc_fcb_label, "alloc_fcb");
-
-    pusha();
-    //op(PUSHQ, RAX);  // heap
-    //op(PUSHQ, RBX);  // callback
-    //op(PUSHQ, RCX);  // payload1
-    //op(PUSHQ, RDX);  // payload2
-    x64->op(MOVQ, RDI, FCB_SIZE);
-    call_sysv(sysv_memalloc_label);
-    popa(true);  // leave RAX on the stack
-
-    x64->op(MOVQ, Address(RAX, FCB_CALLBACK_OFFSET), RBX);
-    x64->op(MOVQ, Address(RAX, FCB_PAYLOAD1_OFFSET), RCX);
-    x64->op(MOVQ, Address(RAX, FCB_PAYLOAD2_OFFSET), RDX);
-    x64->op(POPQ, RBX);  // object
-
-    x64->op(MOVQ, RCX, Address(RBX, HEAP_NEXT_OFFSET));
-    x64->op(MOVQ, Address(RAX, FCB_NEXT_OFFSET), RCX);
-    x64->op(MOVQ, Address(RBX, HEAP_NEXT_OFFSET), RAX);
-    x64->op(ADDQ, RBX, HEAP_HEADER_OFFSET);
-    x64->op(MOVQ, Address(RAX, FCB_PREV_OFFSET), RBX);
-    //dump("alloc_fcb RAX=fcb, RBX=prev, RCX=next");
-
-    Label no_next;
-    x64->op(CMPQ, RCX, FCB_NIL);
-    x64->op(JE, no_next);
-    x64->op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RAX);
-    x64->code_label(no_next);
-
-    x64->op(RET);
-
-    // RAX - fcb
-    x64->code_label_global(free_fcb_label, "free_fcb");
-    pusha();
-
-    x64->op(MOVQ, RBX, Address(RAX, FCB_PREV_OFFSET));  // always valid
-    x64->op(MOVQ, RCX, Address(RAX, FCB_NEXT_OFFSET));
-    x64->op(MOVQ, Address(RBX, FCB_NEXT_OFFSET), RCX);
-    //dump("free_fcb RAX=fcb, RBX=prev, RCX=next");
-
-    Label no_next2;
-    x64->op(CMPQ, RCX, FCB_NIL);
-    x64->op(JE, no_next2);
-    x64->op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RBX);
-    x64->code_label(no_next2);
-
-    x64->op(MOVQ, RDI, RAX);
-    call_sysv(sysv_memfree_label);
-
-    popa();
-    x64->op(RET);
-
-    x64->code_label_global(finalize_reference_array_label, "finalize_reference_array");
-    Label fra_cond, fra_loop;
-    x64->op(MOVQ, RCX, 0);
-    x64->op(JMP, fra_cond);
-
-    x64->code_label(fra_loop);
-    x64->op(MOVQ, RBX, Address(RAX, RCX, 8, ARRAY_ELEMS_OFFSET));
-    decref(RBX);
-    x64->op(INCQ, RCX);
-
-    x64->code_label(fra_cond);
-    x64->op(CMPQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
-    x64->op(JB, fra_loop);
-
-    x64->op(RET);
+    compile_incref_decref();
+    compile_finalize();
+    compile_heap_alloc();
+    compile_heap_realloc();
+    compile_fcb_alloc();
+    compile_fcb_free();
+    compile_finalize_reference_array();
 }
 
 void Runtime::incref(Register reg) {
@@ -458,34 +497,13 @@ void Runtime::decref(Register reg) {
 
     x64->op(CALL, decref_labels[reg]);
 }
-/*
-void Runtime::incweakref(Register reg) {
-    if (reg == RSP || reg == RBP || reg == NOREG)
-        throw ASM_ERROR;
 
-    x64->op(INCQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET));
+void Runtime::heap_alloc() {
+    x64->op(CALL, heap_alloc_label);
 }
 
-void Runtime::decweakref(Register reg) {
-    if (reg == RSP || reg == RBP || reg == NOREG)
-        throw ASM_ERROR;
-
-    x64->op(DECQ, Address(reg, HEAP_WEAKREFCOUNT_OFFSET));
-}
-*/
-void Runtime::memfree(Register reg) {
-    pusha();
-    x64->op(LEA, RDI, Address(reg, HEAP_HEADER_OFFSET));
-    call_sysv(sysv_memfree_label);
-    popa();
-}
-
-void Runtime::alloc_RAX_RBX() {
-    x64->op(CALL, alloc_RAX_RBX_label);
-}
-
-void Runtime::realloc_RAX_RBX() {
-    x64->op(CALL, realloc_RAX_RBX_label);
+void Runtime::heap_realloc() {
+    x64->op(CALL, heap_realloc_label);
 }
 
 void Runtime::lock(Register r, Label ok) {

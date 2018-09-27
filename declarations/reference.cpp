@@ -372,10 +372,11 @@ public:
         if (s.where != MEMORY)
             throw INTERNAL_ERROR;
             
-        x64->op(PUSHQ, RAX);
-        x64->op(MOVQ, RAX, s.address + NOSYVALUE_FCB_OFFSET);
-        x64->op(CALL, x64->runtime->free_fcb_label);
-        x64->op(POPQ, RAX);
+        //x64->op(PUSHQ, RAX);
+        x64->op(PUSHQ, s.address + NOSYVALUE_FCB_OFFSET);
+        x64->op(CALL, x64->runtime->fcb_free_label);
+        x64->op(ADDQ, RSP, ADDRESS_SIZE);
+        //x64->op(POPQ, RAX);
     }
 };
 
@@ -429,12 +430,15 @@ public:
 
         x64->code_label_local(label, "x_nosyobject_finalizer");
         x64->runtime->log("Nosy object finalized.");
-        
+
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
         x64->op(MOVQ, RAX, Address(RAX, NOSYOBJECT_FCB_OFFSET));
         x64->op(CMPQ, RAX, 0);
         x64->op(JE, skip);
         
-        x64->op(CALL, x64->runtime->free_fcb_label);
+        x64->op(PUSHQ, RAX);
+        x64->op(CALL, x64->runtime->fcb_free_label);
+        x64->op(POPQ, RAX);
         
         x64->code_label(skip);
         x64->op(RET);
@@ -475,8 +479,9 @@ public:
         Label start, end, loop;
 
         x64->code_label_local(label, "x_array_finalizer");
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
         //x64->log("finalize array");
-        x64->op(PUSHQ, RCX);
+        //x64->op(PUSHQ, RCX);
 
         x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, 0);
@@ -493,7 +498,7 @@ public:
         x64->op(JNE, loop);
 
         x64->code_label(end);
-        x64->op(POPQ, RCX);
+        //x64->op(POPQ, RCX);
         //x64->log("finalized array");
         x64->op(RET);
     }
@@ -531,9 +536,10 @@ public:
         Label start, end, loop, ok, ok1;
     
         x64->code_label_local(label, "x_circularray_finalizer");
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
         //x64->log("finalize circularray");
-        x64->op(PUSHQ, RCX);
-        x64->op(PUSHQ, RDX);
+        //x64->op(PUSHQ, RCX);
+        //x64->op(PUSHQ, RDX);
     
         x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, 0);
@@ -565,8 +571,8 @@ public:
         x64->op(JNE, loop);
     
         x64->code_label(end);
-        x64->op(POPQ, RDX);
-        x64->op(POPQ, RCX);
+        //x64->op(POPQ, RDX);
+        //x64->op(POPQ, RCX);
         //x64->log("finalized circularray");
         x64->op(RET);
     }
@@ -603,7 +609,8 @@ public:
         Label loop, cond;
 
         x64->code_label(label);
-        x64->op(PUSHQ, RCX);
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+        //x64->op(PUSHQ, RCX);
 
         x64->op(MOVQ, RCX, Address(RAX, RBTREE_LAST_OFFSET));
         x64->op(JMP, cond);
@@ -617,7 +624,7 @@ public:
         x64->op(CMPQ, RCX, RBNODE_NIL);
         x64->op(JNE, loop);
         
-        x64->op(POPQ, RCX);
+        //x64->op(POPQ, RCX);
         x64->op(RET);
     }
 };

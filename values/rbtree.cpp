@@ -752,32 +752,35 @@ public:
 // Weak map helpers
 
 static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) {
+    Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
+
     std::stringstream ss;
     ss << item_ts << " Nosyvalue callback";
-    
     x64->code_label_local(label, ss.str());
     x64->runtime->log(ss.str());
     
-    // RAX - fcb, RCX - payload1, RDX - payload2
+    // arguments: fcb, payload1, payload2
     // We may clobber all registers
-    // FIXME: make sure these registers can be safely moved to the RB-pseudoregisters!
-    
-    Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
 
-    x64->op(MOVQ, SELFX, Address(RCX, 0));  // load current rbtree ref
+    x64->op(MOVQ, SELFX, Address(RSP, ADDRESS_SIZE * 2));  // payload1 arg (rbtree ref address)
+    x64->op(MOVQ, SELFX, Address(SELFX, 0));  // load current rbtree ref
     x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(LEA, KEYX, Address(SELFX, RDX, RBNODE_VALUE_OFFSET));
+    x64->op(MOVQ, KEYX, Address(RSP, ADDRESS_SIZE));  // payload2 arg (elem index)
+    x64->op(LEA, KEYX, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET));  // use the elem key
 
     x64->op(CALL, remove_label);
-    
     x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+    
+    // Removing an element automatically destroys the NosyValue within, which frees
+    // the pointed FCB as well.
     
     x64->op(RET);
 }
 
 
 static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
-    // Turn a Ptr into a NosyValue. We may clobber RAX, RBX, RCX, RDX.
+    // Turn a Ptr into a NosyValue by replacing a pointer with a pointer+fcbaddr pair
+    // on the stack. We may clobber RAX, RBX, RCX, RDX.
     Label callback_label = x64->once->compile(compile_nosyvalue_callback, item_ts);
     
     x64->op(MOVQ, RAX, Address(RSP, 0));  // referred heap object
@@ -785,10 +788,15 @@ static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
     x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
 
-    x64->runtime->decref(RAX);  // TODO: don't let the object die here!
+    x64->runtime->decref(RAX);  // FIXME: don't let the object die here!
     x64->op(PUSHQ, RAX);  // in NosyValue the object pointer is at the lower address...
     
-    x64->op(CALL, x64->runtime->alloc_fcb_label);
+    x64->op(PUSHQ, RAX);
+    x64->op(PUSHQ, RBX);
+    x64->op(PUSHQ, RCX);
+    x64->op(PUSHQ, RDX);
+    x64->op(CALL, x64->runtime->fcb_alloc_label);
+    x64->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
     
     x64->op(MOVQ, Address(RSP, ADDRESS_SIZE), RAX);  // .. and the fcb at the higher address
 }

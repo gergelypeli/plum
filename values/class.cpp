@@ -14,17 +14,15 @@ public:
         Label finalizer_label = class_ts.get_finalizer_label(x64);
         unsigned heap_size = class_ts.measure_raw();
         
-        x64->op(MOVQ, RAX, heap_size);
+        x64->op(PUSHQ, heap_size);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
         x64->op(LEA, RBX, Address(finalizer_label, 0));
-        x64->runtime->alloc_RAX_RBX();
+        x64->op(PUSHQ, RBX);
+        x64->runtime->heap_alloc();
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 
         Label vt_label = class_ts.get_virtual_table_label(x64);
-        //int virtual_offset = 0;
-        Address addr(RAX, 0);
-        //int data_offset = 0;
-        
-        class_ts.init_vt(addr, vt_label, x64);
+        class_ts.init_vt(Address(RAX, 0), vt_label, x64);
         
         return Storage(REGISTER, RAX);
     }
