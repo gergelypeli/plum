@@ -398,6 +398,16 @@ public:
 
 class Runtime {
 public:
+    const int ARGS_1 = 16;
+    const int ARGS_2 = 24;
+    const int ARGS_3 = 32;
+    const int ARGS_4 = 40;
+    
+    const int ARG_1 = -8;
+    const int ARG_2 = -16;
+    const int ARG_3 = -24;
+    const int ARG_4 = -32;
+    
     X64 *x64;
     
     Label application_label;
@@ -437,7 +447,7 @@ public:
     
     void heap_alloc();
     void heap_realloc();
-    void lock(Register r, Label ok);
+    void check_unshared(Register r);
 
     void r10bcompar(bool is_unsigned);
     void copy(Address s, Address t, int size);

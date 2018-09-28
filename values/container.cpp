@@ -399,13 +399,14 @@ public:
             Label ok;
             x64->op(MOVQ, RAX, s.address);
             
-            Label locked;
-            x64->runtime->lock(RAX, locked);
+            Label unshared;
+            x64->runtime->check_unshared(RAX);
+            x64->op(JE, unshared);
 
             // MEMORY arg
             raise("CONTAINER_LENT", x64);
 
-            x64->code_label(locked);
+            x64->code_label(unshared);
             x64->op(MOVQ, R10, Address(RAX, length_offset));
             x64->op(CMPQ, R10, Address(RAX, reservation_offset));
             x64->op(JB, ok);

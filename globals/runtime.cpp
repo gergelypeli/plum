@@ -260,9 +260,9 @@ void Runtime::popa(bool except_rax) {
 void Runtime::compile_finalize() {
     // finalize(pointer)
     
-    // Preserves all registers, including RBX
+    // Preserves all registers, including the scratch ones
     x64->code_label_global(finalize_label, "finalize");
-    const int ARG_OFFSET = pusha() + ADDRESS_SIZE;
+    const int ARGS = pusha() + ARGS_1;
     Label fcb_loop, fcb_cond;
     
     //log("Finalizing heap object.");
@@ -280,7 +280,7 @@ void Runtime::compile_finalize() {
 
     x64->code_label(fcb_cond);
     // Must check the beginning of the chain, as any number of FCB-s may have been removed
-    x64->op(MOVQ, RAX, Address(RSP, ARG_OFFSET));  // pointer
+    x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // pointer
     x64->op(MOVQ, RBX, Address(RAX, HEAP_NEXT_OFFSET));
     x64->op(CMPQ, RBX, FCB_NIL);
     x64->op(JNE, fcb_loop);
@@ -302,14 +302,14 @@ void Runtime::compile_heap_alloc() {
     // heap_alloc(size, finalizer)
     
     x64->code_label_global(heap_alloc_label, "heap_alloc");
-    const int ARG_OFFSET = pusha(true) + ADDRESS_SIZE;
+    const int ARGS = pusha(true) + ARGS_2;
     
-    x64->op(MOVQ, RDI, Address(RSP, ARG_OFFSET + ADDRESS_SIZE));  // size arg
+    x64->op(MOVQ, RDI, Address(RSP, ARGS + ARG_1));  // size arg
     x64->op(ADDQ, RDI, HEAP_HEADER_SIZE);
     call_sysv(sysv_memalloc_label);
     
     x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
-    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET));  // finalizer arg
+    x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // finalizer arg
     //dump("heap_alloc");
     
     x64->op(MOVQ, Address(RAX, HEAP_NEXT_OFFSET), 0);
@@ -326,16 +326,18 @@ void Runtime::compile_heap_realloc() {
     // heap_realloc(pointer, new_size)
 
     x64->code_label_global(heap_realloc_label, "heap_realloc");
-    const int ARG_OFFSET = pusha(true) + ADDRESS_SIZE;
+    const int ARGS = pusha(true) + ARGS_2;
     Label realloc_ok;
     
-    x64->op(MOVQ, RDI, Address(RSP, ARG_OFFSET + ADDRESS_SIZE));  // pointer arg
-    lock(RDI, realloc_ok);
+    x64->op(MOVQ, RDI, Address(RSP, ARGS + ARG_1));  // pointer arg
+    check_unshared(RDI);
+    x64->op(JE, realloc_ok);
+    
     die("Realloc of shared array!");
 
     x64->code_label(realloc_ok);
     x64->op(SUBQ, RDI, HEAP_HEADER_SIZE);
-    x64->op(MOVQ, RSI, Address(RSP, ARG_OFFSET));  // new_size arg
+    x64->op(MOVQ, RSI, Address(RSP, ARGS + ARG_2));  // new_size arg
     x64->op(ADDQ, RSI, HEAP_HEADER_SIZE);
     call_sysv(sysv_memrealloc_label);
     
@@ -348,19 +350,19 @@ void Runtime::compile_fcb_alloc() {
     // fcb_alloc(pointer, callback, payload1, payload2)
 
     x64->code_label_global(fcb_alloc_label, "fcb_alloc");
-    const int ARG_OFFSET = pusha(true) + ADDRESS_SIZE;
+    const int ARGS = pusha(true) + ARGS_4;
 
     x64->op(MOVQ, RDI, FCB_SIZE);
     call_sysv(sysv_memalloc_label);
     
-    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET + ADDRESS_SIZE * 2));  // callback arg
+    x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // callback arg
     x64->op(MOVQ, Address(RAX, FCB_CALLBACK_OFFSET), RBX);
-    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET + ADDRESS_SIZE));  // payload1 arg
+    x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_3));  // payload1 arg
     x64->op(MOVQ, Address(RAX, FCB_PAYLOAD1_OFFSET), RBX);
-    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET));  // payload2 arg
+    x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_4));  // payload2 arg
     x64->op(MOVQ, Address(RAX, FCB_PAYLOAD2_OFFSET), RBX);
     
-    x64->op(MOVQ, RBX, Address(RSP, ARG_OFFSET + ADDRESS_SIZE * 3));  // pointer arg
+    x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_1));  // pointer arg
     x64->op(MOVQ, RCX, Address(RBX, HEAP_NEXT_OFFSET));
     x64->op(MOVQ, Address(RAX, FCB_NEXT_OFFSET), RCX);
     x64->op(MOVQ, Address(RBX, HEAP_NEXT_OFFSET), RAX);
@@ -382,9 +384,9 @@ void Runtime::compile_fcb_free() {
     // fcb_free(fcb)
     
     x64->code_label_global(fcb_free_label, "fcb_free");
-    const int ARG_OFFSET = pusha() + ADDRESS_SIZE;
+    const int ARGS = pusha() + ARGS_1;
 
-    x64->op(MOVQ, RAX, Address(RSP, ARG_OFFSET));  // fcb
+    x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // fcb
     x64->op(MOVQ, RBX, Address(RAX, FCB_PREV_OFFSET));  // always valid
     x64->op(MOVQ, RCX, Address(RAX, FCB_NEXT_OFFSET));
     x64->op(MOVQ, Address(RBX, FCB_NEXT_OFFSET), RCX);
@@ -408,8 +410,9 @@ void Runtime::compile_finalize_reference_array() {
 
     x64->code_label_global(finalize_reference_array_label, "finalize_reference_array");
     Label fra_cond, fra_loop;
+    const int ARGS = ARGS_1;
     
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+    x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));
     x64->op(MOVQ, RCX, 0);
     x64->op(JMP, fra_cond);
 
@@ -506,9 +509,8 @@ void Runtime::heap_realloc() {
     x64->op(CALL, heap_realloc_label);
 }
 
-void Runtime::lock(Register r, Label ok) {
+void Runtime::check_unshared(Register r) {
     x64->op(CMPQ, Address(r, HEAP_REFCOUNT_OFFSET), 1);
-    x64->op(JE, ok);
 }
 
 void Runtime::r10bcompar(bool is_unsigned) {
