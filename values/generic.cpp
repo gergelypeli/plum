@@ -170,7 +170,7 @@ public:
         left->ts.compare(s, t, x64);
 
         Register r = clob.get_any();
-        x64->op(MOVSXBQ, r, BL);  // sign extend byte to qword
+        x64->op(MOVSXBQ, r, R10B);  // sign extend byte to qword
 
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
@@ -606,12 +606,12 @@ public:
         
         if (auxls.where != REGISTER) {
             // This happens when the comparison used SSE registers
-            x64->op(MOVSXBQ, RBX, BL);  // sign extend byte to qword
-            x64->op(PUSHQ, RBX);
+            x64->op(MOVSXBQ, R10, R10B);  // sign extend byte to qword
+            x64->op(PUSHQ, R10);
             return Storage(STACK);
         }
         else {
-            x64->op(MOVSXBQ, auxls.reg, BL);  // sign extend byte to qword
+            x64->op(MOVSXBQ, auxls.reg, R10B);  // sign extend byte to qword
             return auxls;
         }
     }

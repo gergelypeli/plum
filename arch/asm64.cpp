@@ -319,10 +319,6 @@ public:
     void code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm);
     void code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm);
 
-    void blcompar(bool is_unsigned);
-    void pushblob(Address addr, int size);
-    void copy(Address s, Address t, int size);
-
     void op(SimpleOp opcode);
     void op(UnaryOp opcode, Register x);
     void op(UnaryOp opcode, Address x);
@@ -1006,56 +1002,6 @@ void Asm64::code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm
 void Asm64::code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm) {
     prefixed_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
     effective_address(regfield, rm);
-}
-
-
-// Own helper functions
-
-void Asm64::blcompar(bool is_unsigned) {
-    if (is_unsigned) {
-        op(SETB, BH);
-        op(SETA, BL);
-        op(SUBB, BL, BH);
-    }
-    else {
-        op(SETL, BH);
-        op(SETG, BL);
-        op(SUBB, BL, BH);
-    }
-    
-    // BL finally contains -1 iff below/less, +1 iff above/greater, 0 iff equal.
-    // The flags are also set accordingly, now independently of the signedness.
-}
-
-
-void Asm64::pushblob(Address addr, int size) {
-    int n = (size + ADDRESS_SIZE - 1) / ADDRESS_SIZE;
-    
-    for (int i = n - 1; i >= 0; i--)
-        op(PUSHQ, addr + i * ADDRESS_SIZE);
-}
-
-
-void Asm64::copy(Address s, Address t, int size) {
-    for (int i = 0; i < size / 8; i++) {
-        op(MOVQ, RBX, s + i * 8);
-        op(MOVQ, t + i * 8, RBX);
-    }
-    
-    if (size & 4) {
-        op(MOVD, EBX, s + (size & ~7));
-        op(MOVD, t + (size & ~7), EBX);
-    }
-    
-    if (size & 2) {
-        op(MOVW, BX, s + (size & ~3));
-        op(MOVW, t + (size & ~3), BX);
-    }
-
-    if (size & 1) {
-        op(MOVB, BL, s + (size & ~1));
-        op(MOVB, t + (size & ~1), BL);
-    }
 }
 
 

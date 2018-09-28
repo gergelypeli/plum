@@ -115,8 +115,8 @@ public:
         x64->op(LEA, RAX, Address(l, 0));
         return Storage(BREGISTER, RAX);
         
-        //x64->runtime->incref(RBX);  // This way we can return the same static string many times
-        //x64->op(PUSHQ, RBX);
+        //x64->runtime->incref(R10);  // This way we can return the same static string many times
+        //x64->op(PUSHQ, R10);
         
         //return Storage(BSTACK);
     }
@@ -169,14 +169,14 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        x64->op(LEA, RBX, Address(parents_label, 0));
+        x64->op(LEA, R10, Address(parents_label, 0));
         
         x64->code_label(loop);
         x64->op(CMPB, reg, index);
         x64->op(JE, match);
         
         x64->op(ANDQ, reg, 255);
-        x64->op(MOVB, reg, Address(RBX, reg, 0));
+        x64->op(MOVB, reg, Address(R10, reg, 0));
         
         x64->op(CMPB, reg, 0);
         x64->op(JNE, loop);

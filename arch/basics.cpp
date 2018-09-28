@@ -126,11 +126,11 @@ enum RegSubset {
 
 struct Regs {
 private:
-    // 16 general registers, except RBX (3, 0x08), RSP (4, 0x10), RBP (5, 0x20).
-    // 16 SSE registers, except XMM15 (15+16, 0x80000000).
-    static const unsigned64 GPR_MASK = 0x0000FFC7;
-    static const unsigned64 PTR_MASK = 0x0000FFC7;
-    static const unsigned64 SSE_MASK = 0x7FFF0000;
+    // 16 general registers, except RSP (4, 0x10), RBP (5, 0x20), R10 (10, 0x400), R11 (11, 0x800).
+    // 16 SSE registers, except XMM14 and XMM15 ({14,15}+16, 0xC0000000).
+    static const unsigned64 GPR_MASK = 0x0000F3CF;
+    static const unsigned64 PTR_MASK = 0x0000F3CF;
+    static const unsigned64 SSE_MASK = 0x3FFF0000;
     static const unsigned64 ALL_MASK = GPR_MASK | PTR_MASK | SSE_MASK;
     static const int REGS_TOTAL = 32;
     
@@ -141,12 +141,12 @@ private:
     }
 
     void validate(Register r) {
-        if (r == NOREG || r == RBX || r == RSP || r == RBP)
+        if (r == NOREG || r == RSP || r == RBP || r == R10 || r == R11)
             throw ASM_ERROR;
     }
 
     void validate(SseRegister s) {
-        if (s == NOSSE || s == XMM15)
+        if (s == NOSSE || s == XMM14 || s == XMM15)
             throw ASM_ERROR;
     }
 

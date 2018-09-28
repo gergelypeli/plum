@@ -696,9 +696,9 @@ public:
         if (res_total)
             x64->op(LEA, RAX, Address(RSP, passed_size));
             
-        x64->op(MOVQ, RBX, Address(RSP, passed_size - POINTER_SIZE));  // self pointer
-        x64->op(MOVQ, RBX, Address(RBX, CLASS_VT_OFFSET));  // VMT pointer
-        x64->op(CALL, Address(RBX, vti * ADDRESS_SIZE));
+        x64->op(MOVQ, R10, Address(RSP, passed_size - POINTER_SIZE));  // self pointer
+        x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));  // VMT pointer
+        x64->op(CALL, Address(R10, vti * ADDRESS_SIZE));
         std::cerr << "Will invoke virtual method of " << pts << " #" << vti << ".\n";
     }
     
@@ -765,8 +765,8 @@ public:
             csv->compile_evaluable(begin, x64);
             
             x64->code_label(skip);
-            x64->op(LEA, RBX, Address(begin, 0));
-            x64->op(PUSHQ, RBX);
+            x64->op(LEA, R10, Address(begin, 0));
+            x64->op(PUSHQ, R10);
             
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(Storage(STACK));

@@ -128,9 +128,9 @@ public:
             x64->op(PUSHQ, ls.reg);
             break;
         case MEMORY:
-            x64->op(MOVQ, RBX, ls.address);
-            x64->op(DECQ, RBX);
-            x64->op(PUSHQ, RBX);
+            x64->op(MOVQ, R10, ls.address);
+            x64->op(DECQ, R10);
+            x64->op(PUSHQ, R10);
             break;
         default:
             throw INTERNAL_ERROR;

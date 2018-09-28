@@ -200,8 +200,8 @@ public:
     }
 
     virtual void init_vt(TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
-        x64->op(LEA, RBX, Address(vt_label, 0));
-        x64->op(MOVQ, self_addr + CLASS_VT_OFFSET, RBX);
+        x64->op(LEA, R10, Address(vt_label, 0));
+        x64->op(MOVQ, self_addr + CLASS_VT_OFFSET, R10);
 
         // Roles compute their offsets in terms of the implementor class type parameters
         for (auto &r : member_roles)
@@ -491,8 +491,8 @@ public:
     virtual void init_vt(TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
         // Base roles have a VT pointer overlapping the main class VT, don't overwrite
         if (!is_base) {
-            x64->op(LEA, RBX, Address(vt_label, virtual_offset * ADDRESS_SIZE));
-            x64->op(MOVQ, self_addr + offset.concretize(tm) + CLASS_VT_OFFSET, RBX);
+            x64->op(LEA, R10, Address(vt_label, virtual_offset * ADDRESS_SIZE));
+            x64->op(MOVQ, self_addr + offset.concretize(tm) + CLASS_VT_OFFSET, R10);
         }
 
         for (auto &sr : shadow_roles)

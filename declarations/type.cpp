@@ -180,12 +180,12 @@ public:
         case MEMORY_NOWHERE:
             return;
         case MEMORY_ALISTACK:
-            x64->op(LEA, RBX, s.address);
-            x64->op(PUSHQ, RBX);
+            x64->op(LEA, R10, s.address);
+            x64->op(PUSHQ, R10);
             return;
         case MEMORY_ALIAS:
-            x64->op(LEA, RBX, s.address);
-            x64->op(MOVQ, t.address, RBX);
+            x64->op(LEA, R10, s.address);
+            x64->op(MOVQ, t.address, R10);
             return;
             
         case ALISTACK_NOWHERE:
@@ -215,8 +215,8 @@ public:
             x64->op(PUSHQ, s.address);
             return;
         case ALIAS_ALIAS:
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(MOVQ, t.address, RBX);
+            x64->op(MOVQ, R10, s.address);
+            x64->op(MOVQ, t.address, R10);
             return;
             
         default:
@@ -247,7 +247,7 @@ public:
     }
 
     // Allowed to clobber COMPARE_CLOB
-    // Returns result in BL (-1/0/+1), and the flags (below&less/equal/above&greater)
+    // Returns result in R10B (-1/0/+1), and the flags (below&less/equal/above&greater)
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         std::cerr << "Uncomparable type: " << name << "!\n";
         throw INTERNAL_ERROR;
@@ -258,8 +258,8 @@ public:
     // nested streamifications must take care!
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         Label us_label = x64->runtime->data_heap_string(decode_utf8("<unstreamifiable>"));
-        x64->op(LEA, RBX, Address(us_label, 0));
-        x64->op(PUSHQ, RBX);
+        x64->op(LEA, R10, Address(us_label, 0));
+        x64->op(PUSHQ, R10);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
         STRING_TS.streamify(false, x64);
         x64->op(ADDQ, RSP, 16);

@@ -16,8 +16,8 @@ public:
         
         x64->op(PUSHQ, heap_size);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
-        x64->op(LEA, RBX, Address(finalizer_label, 0));
-        x64->op(PUSHQ, RBX);
+        x64->op(LEA, R10, Address(finalizer_label, 0));
+        x64->op(PUSHQ, R10);
         x64->runtime->heap_alloc();
         x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 
@@ -76,7 +76,7 @@ public:
         
         x64->op(MOVQ, RAX, Address(RSP, REFERENCE_SIZE));
         value->ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, CLASS_MEMBERS_OFFSET)), x64);
-        //x64->op(POPQ, Address(RBX, CLASS_MEMBERS_OFFSET));  // creating ref from STACK to MEMORY
+        //x64->op(POPQ, Address(R10, CLASS_MEMBERS_OFFSET));  // creating ref from STACK to MEMORY
 
         return Storage(STACK);
     }
@@ -139,20 +139,20 @@ public:
         
         value->compile_and_store(x64, Storage(STACK));
         
-        x64->op(LEA, RBX, Address(ts.get_virtual_table_label(x64), 0));
-        x64->op(PUSHQ, RBX);
+        x64->op(LEA, R10, Address(ts.get_virtual_table_label(x64), 0));
+        x64->op(PUSHQ, R10);
         
-        x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));  // the reference
-        x64->op(MOVQ, RBX, Address(RBX, CLASS_VT_OFFSET));  // the virtual table
+        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE));  // the reference
+        x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));  // the virtual table
         x64->op(JMP, cond);
         
         x64->code_label(loop);
-        x64->op(MOVQ, RBX, Address(RBX, VT_BASEVT_INDEX * ADDRESS_SIZE));  // base virtual table
+        x64->op(MOVQ, R10, Address(R10, VT_BASEVT_INDEX * ADDRESS_SIZE));  // base virtual table
         
         x64->code_label(cond);
-        x64->op(CMPQ, RBX, Address(RSP, 0));
+        x64->op(CMPQ, R10, Address(RSP, 0));
         x64->op(JE, matched);
-        x64->op(CMPQ, RBX, 0);
+        x64->op(CMPQ, R10, 0);
         x64->op(JNE, loop);
         
         // Not matched

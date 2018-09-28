@@ -224,7 +224,7 @@ void Runtime::call_sysv_got(Label got_l) {
 int Runtime::pusha(bool except_rax) {
     // RBX and the last 4 are preserved by the System V ABI
     // But we save RBX, because it's annoying to handle it separately
-    // 10 registers, including RAX
+    // 10 registers total, including RAX
 
     if (!except_rax)
         x64->op(PUSHQ, RAX);
@@ -510,6 +510,46 @@ void Runtime::lock(Register r, Label ok) {
     x64->op(CMPQ, Address(r, HEAP_REFCOUNT_OFFSET), 1);
     x64->op(JE, ok);
 }
+
+void Runtime::r10bcompar(bool is_unsigned) {
+    if (is_unsigned) {
+        x64->op(SETB, R11B);
+        x64->op(SETA, R10B);
+        x64->op(SUBB, R10B, R11B);
+    }
+    else {
+        x64->op(SETL, R11B);
+        x64->op(SETG, R10B);
+        x64->op(SUBB, R10B, R11B);
+    }
+    
+    // R10B finally contains -1 iff below/less, +1 iff above/greater, 0 iff equal.
+    // The flags are also set accordingly, now independently of the signedness.
+}
+
+
+void Runtime::copy(Address s, Address t, int size) {
+    for (int i = 0; i < size / 8; i++) {
+        x64->op(MOVQ, R10, s + i * 8);
+        x64->op(MOVQ, t + i * 8, R10);
+    }
+    
+    if (size & 4) {
+        x64->op(MOVD, R10D, s + (size & ~7));
+        x64->op(MOVD, t + (size & ~7), R10D);
+    }
+    
+    if (size & 2) {
+        x64->op(MOVW, R10W, s + (size & ~3));
+        x64->op(MOVW, t + (size & ~3), R10W);
+    }
+
+    if (size & 1) {
+        x64->op(MOVB, R10B, s + (size & ~1));
+        x64->op(MOVB, t + (size & ~1), R10B);
+    }
+}
+
 
 void Runtime::log(std::string message) {
     Label message_label;

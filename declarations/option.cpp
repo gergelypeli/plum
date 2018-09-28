@@ -92,7 +92,7 @@ public:
             x64->op(MOVQ, t.address, OPTION_FLAG_NONE);
             return;
         case STACK_MEMORY:
-            x64->copy(Address(RSP, 0), t.address, tm[0].measure_raw());
+            x64->runtime->copy(Address(RSP, 0), t.address, tm[0].measure_raw());
             x64->op(ADDQ, RSP, stack_size);
             return;
         case MEMORY_MEMORY:  // duplicates data
@@ -145,10 +145,10 @@ public:
 
         if (s.where == MEMORY && t.where == MEMORY) {
             Label end;
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(CMPQ, RBX, t.address);
+            x64->op(MOVQ, R10, s.address);
+            x64->op(CMPQ, R10, t.address);
             x64->op(JNE, end);
-            x64->op(CMPQ, RBX, OPTION_FLAG_NONE);
+            x64->op(CMPQ, R10, OPTION_FLAG_NONE);
             x64->op(JE, end);
             tm[1].equal(Storage(MEMORY, s.address + flag_size), Storage(MEMORY, t.address + flag_size), x64);
             x64->code_label(end);
@@ -164,14 +164,14 @@ public:
         if (s.where == MEMORY && t.where == MEMORY) {
             Label end;
             x64->op(CMPQ, s.address, OPTION_FLAG_NONE);
-            x64->op(SETE, BH);
+            x64->op(SETE, R11B);
             x64->op(CMPQ, t.address, OPTION_FLAG_NONE);
-            x64->op(SETE, BL);
+            x64->op(SETE, R10B);
             
-            x64->op(SUBB, BL, BH);
-            x64->op(JNE, end);  // exactly one was none, order is decided, BL, flags as expected
-            x64->op(CMPW, BX, 0);
-            x64->op(JE, end);  // both were none, equality is decided, BL, flags as expected
+            x64->op(SUBB, R10B, R11B);
+            x64->op(JNE, end);  // exactly one was none, order is decided, R10B, flags as expected
+            x64->op(CMPB, R11B, 0);
+            x64->op(JE, end);  // both were none, equality is decided, R10B, flags as expected
             
             // neither are none, must compare according to the type parameter
             tm[1].compare(Storage(MEMORY, s.address + flag_size), Storage(MEMORY, t.address + flag_size), x64);
@@ -194,17 +194,17 @@ public:
         x64->op(JE, ok);
         
         if (flag_size) {
-            x64->op(POPQ, RBX);  // stream alias
+            x64->op(POPQ, R10);  // stream alias
             x64->op(ADDQ, RSP, 8);
-            x64->op(PUSHQ, RBX);  // overwrite flag
+            x64->op(PUSHQ, R10);  // overwrite flag
         }
         
         tm[1].streamify(true, x64);
         
         if (flag_size) {
-            x64->op(POPQ, RBX);
+            x64->op(POPQ, R10);
             x64->op(PUSHQ, 1);
-            x64->op(PUSHQ, RBX);
+            x64->op(PUSHQ, R10);
         }
         
         x64->code_label(ok);
@@ -221,16 +221,16 @@ public:
         x64->op(JNE, some);
         
         // `none
-        x64->op(LEA, RBX, Address(none_label, 0));
+        x64->op(LEA, R10, Address(none_label, 0));
         x64->op(JMP, ok);
         
         // `some
         x64->code_label(some);
-        x64->op(LEA, RBX, Address(some_label, 0));
+        x64->op(LEA, R10, Address(some_label, 0));
         
         x64->code_label(ok);
         
-        x64->op(PUSHQ, RBX);
+        x64->op(PUSHQ, R10);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
         STRING_TS.streamify(false, x64);
         x64->op(ADDQ, RSP, 16);

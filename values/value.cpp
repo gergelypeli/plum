@@ -422,11 +422,11 @@ public:
         if (ts != VOID_TS)
             x64->op(SUBQ, RSP, ts.measure_stack());
             
-        x64->op(MOVQ, RBX, es.address);  // Needs RBP
+        x64->op(MOVQ, R10, es.address);  // Needs RBP
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, Address(RBP, 0));  // Restore caller RBP
         
-        x64->op(CALL, RBX);
+        x64->op(CALL, R10);
         
         x64->op(POPQ, RBP);
 
@@ -525,11 +525,11 @@ public:
             //x64->runtime->incweakref(s.reg);
             return s;
         case STACK:
-            //x64->op(POPQ, RBX);
-            //x64->runtime->decweakref(RBX);
+            //x64->op(POPQ, R10);
+            //x64->runtime->decweakref(R10);
             x64->op(ADDQ, Address(RSP, 0), offset);
-            //x64->runtime->incweakref(RBX);
-            //x64->op(PUSHQ, RBX);
+            //x64->runtime->incweakref(R10);
+            //x64->op(PUSHQ, R10);
             return s;
         case MEMORY:
         case BMEMORY:

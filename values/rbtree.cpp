@@ -28,7 +28,7 @@ void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_rbtree_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - array, RBX - new reservation
+    // RAX - array, R10 - new reservation
     int elem_size = rbtree_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_rbtree_realloc");
@@ -40,7 +40,7 @@ void compile_rbtree_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - array, RBX - new reservation
+    // RAX - array, R10 - new reservation
     // Double the reservation until it's enough
     Label realloc_label = x64->once->compile(compile_rbtree_realloc, elem_ts);
 
@@ -54,14 +54,14 @@ void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
 
 // Register usage:
 // ROOTX - index of current node
-// RBX - return of operation
+// R10 - return of operation
 // THISX, THATX - child indexes
 // SELFX - address of the tree
 // KEYX - address of key (input), dark soul (output during removal)
 
 #define SELFX R8
 #define KEYX  R9
-#define ROOTX R10
+#define ROOTX RBX
 #define THISX RCX
 #define THATX RDX
 
@@ -149,8 +149,8 @@ public:
 
             x64->op(CALL, add_label);
 
-            x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
-            x64->op(ANDQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
+            x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+            x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
         
             elem_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), x64);
         }
@@ -262,8 +262,8 @@ public:
 
         x64->op(CALL, add);
 
-        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
-        x64->op(ANDQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+        x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
         
         x64->op(CMPQ, KEYX, RBNODE_NIL);
         x64->op(JNE, ok);
@@ -313,7 +313,7 @@ public:
 
         x64->op(CALL, remove);
 
-        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
         
         elem_ts.store(Storage(STACK), Storage(), x64);
         left->ts.store(Storage(STACK), Storage(), x64);
@@ -346,9 +346,9 @@ public:
     virtual Storage compile(X64 *x64) {
         left->compile_and_store(x64, Storage(STACK));
         
-        x64->op(POPQ, RBX);
-        x64->op(PUSHQ, Address(RBX, RBTREE_FIRST_OFFSET));
-        x64->op(PUSHQ, RBX);
+        x64->op(POPQ, R10);
+        x64->op(PUSHQ, Address(R10, RBTREE_FIRST_OFFSET));
+        x64->op(PUSHQ, R10);
         
         return Storage(STACK);
     }
@@ -393,25 +393,25 @@ public:
         
         switch (ls.where) {
         case MEMORY:
-            x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // offset
+            x64->op(MOVQ, R10, ls.address + REFERENCE_SIZE);  // offset
             x64->op(MOVQ, reg, ls.address); // tree reference without incref
-            x64->op(CMPQ, RBX, RBNODE_NIL);
+            x64->op(CMPQ, R10, RBNODE_NIL);
             x64->op(JNE, ok);
             
             raise("ITERATOR_DONE", x64);
             
             x64->code_label(ok);
-            x64->op(ADDQ, reg, RBX);
+            x64->op(ADDQ, reg, R10);
             
             if (is_down) {
-                x64->op(MOVQ, RBX, Address(reg, RBNODE_PRED_OFFSET));
-                x64->op(ANDQ, RBX, ~RBNODE_RED_BIT);  // remove color bit
+                x64->op(MOVQ, R10, Address(reg, RBNODE_PRED_OFFSET));
+                x64->op(ANDQ, R10, ~RBNODE_RED_BIT);  // remove color bit
             }
             else {
-                x64->op(MOVQ, RBX, Address(reg, RBNODE_NEXT_OFFSET));
+                x64->op(MOVQ, R10, Address(reg, RBNODE_NEXT_OFFSET));
             }
             
-            x64->op(MOVQ, ls.address + REFERENCE_SIZE, RBX);
+            x64->op(MOVQ, ls.address + REFERENCE_SIZE, R10);
             
             return Storage(MEMORY, Address(reg, RBNODE_VALUE_OFFSET));
         default:
@@ -475,7 +475,7 @@ public:
         
         x64->code_label(ok);
         x64->op(MOVQ, Address(RCX, REFERENCE_SIZE), RAX);  // save it
-        x64->op(LEA, RAX, Address(SELFX, RBX, RBNODE_VALUE_OFFSET));
+        x64->op(LEA, RAX, Address(SELFX, R10, RBNODE_VALUE_OFFSET));
 
         return Storage(MEMORY, Address(RAX, 0));
     }
@@ -553,15 +553,15 @@ public:
         
         Label add_label = x64->once->compile(compile_rbtree_add, item_ts);
 
-        x64->op(MOVQ, RBX, Address(RSP, key_stack_size + value_stack_size));
-        x64->op(MOVQ, SELFX, Address(RBX, 0));
+        x64->op(MOVQ, R10, Address(RSP, key_stack_size + value_stack_size));
+        x64->op(MOVQ, SELFX, Address(R10, 0));
 
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
         x64->op(LEA, KEYX, Address(RSP, value_stack_size));
 
         x64->op(CALL, add_label);
-        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
-        x64->op(ANDQ, Address(SELFX, RBX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+        x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
 
         // NOTE: we abuse the fact that Item contains index first, and value second,
         // and since they're parametric types, their sizes will be rounded up.
@@ -613,13 +613,13 @@ public:
         
         Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
 
-        x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
-        x64->op(MOVQ, SELFX, Address(RBX, CLASS_MEMBERS_OFFSET));
+        x64->op(MOVQ, R10, Address(RSP, key_stack_size));
+        x64->op(MOVQ, SELFX, Address(R10, CLASS_MEMBERS_OFFSET));
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
         x64->op(LEA, KEYX, Address(RSP, 0));  // NOTE: only the index part is present of the Item
 
         x64->op(CALL, remove_label);
-        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
 
         key_arg_ts.store(Storage(STACK), Storage(), x64);
         pivot->ts.store(Storage(STACK), Storage(), x64);
@@ -662,8 +662,8 @@ public:
         
         Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
 
-        x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
-        x64->op(MOVQ, SELFX, Address(RBX, CLASS_MEMBERS_OFFSET));
+        x64->op(MOVQ, R10, Address(RSP, key_stack_size));
+        x64->op(MOVQ, SELFX, Address(R10, CLASS_MEMBERS_OFFSET));
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
         x64->op(LEA, KEYX, Address(RSP, 0));
 
@@ -720,8 +720,8 @@ public:
         
         Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
 
-        x64->op(MOVQ, RBX, Address(RSP, key_stack_size));
-        x64->op(MOVQ, SELFX, Address(RBX, CLASS_MEMBERS_OFFSET));
+        x64->op(MOVQ, R10, Address(RSP, key_stack_size));
+        x64->op(MOVQ, SELFX, Address(R10, CLASS_MEMBERS_OFFSET));
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
         x64->op(LEA, KEYX, Address(RSP, 0));
 
@@ -769,7 +769,7 @@ static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) 
     x64->op(LEA, KEYX, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET));  // use the elem key
 
     x64->op(CALL, remove_label);
-    x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), RBX);
+    x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
     
     // Removing an element automatically destroys the NosyValue within, which frees
     // the pointed FCB as well.
@@ -780,11 +780,11 @@ static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) 
 
 static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     // Turn a Ptr into a NosyValue by replacing a pointer with a pointer+fcbaddr pair
-    // on the stack. We may clobber RAX, RBX, RCX, RDX.
+    // on the stack. We may clobber RAX, R10, RCX, RDX.
     Label callback_label = x64->once->compile(compile_nosyvalue_callback, item_ts);
     
     x64->op(MOVQ, RAX, Address(RSP, 0));  // referred heap object
-    x64->op(LEA, RBX, Address(callback_label, 0));  // callback
+    x64->op(LEA, R10, Address(callback_label, 0));  // callback
     x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
     x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
 
@@ -792,7 +792,7 @@ static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     x64->op(PUSHQ, RAX);  // in NosyValue the object pointer is at the lower address...
     
     x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, RBX);
+    x64->op(PUSHQ, R10);
     x64->op(PUSHQ, RCX);
     x64->op(PUSHQ, RDX);
     x64->op(CALL, x64->runtime->fcb_alloc_label);

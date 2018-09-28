@@ -35,8 +35,8 @@ public:
             x64->op(PUSHQ, s.address);
             break;
         case MEMORY_MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(MOVQ, t.address, RBX);
+            x64->op(MOVQ, R10, s.address);
+            x64->op(MOVQ, t.address, R10);
             break;
         default:
             throw INTERNAL_ERROR;
@@ -52,8 +52,8 @@ public:
             x64->op(MOVSD, t.address, s.sse);
             break;
         case MEMORY_MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(MOVQ, t.address, RBX);
+            x64->op(MOVQ, R10, s.address);
+            x64->op(MOVQ, t.address, R10);
             break;
         default:
             throw INTERNAL_ERROR;
@@ -74,32 +74,24 @@ public:
         switch (s.where * t.where) {
         case SSEREGISTER_SSEREGISTER:
             x64->op(COMISD, s.sse, t.sse);
-            x64->op(SETP, BH);
-            x64->op(SETE, BL);
-            x64->op(CMPW, BX, 1);
             break;
         case SSEREGISTER_MEMORY:
             x64->op(COMISD, s.sse, t.address);
-            x64->op(SETP, BH);
-            x64->op(SETE, BL);
-            x64->op(CMPW, BX, 1);
             break;
         case MEMORY_SSEREGISTER:
             x64->op(COMISD, t.sse, s.address);  // swapped arguments, but hey!
-            x64->op(SETP, BH);
-            x64->op(SETE, BL);
-            x64->op(CMPW, BX, 1);
             break;
         case MEMORY_MEMORY:
             x64->op(MOVSD, XMM15, s.address);
             x64->op(COMISD, XMM15, t.address);
-            x64->op(SETP, BH);
-            x64->op(SETE, BL);
-            x64->op(CMPW, BX, 1);
             break;
         default:
             throw INTERNAL_ERROR;
         }
+
+        x64->op(SETP, R11B);  // 1 iff unordered
+        x64->op(SETNE, R10B);  // 1 iff not equal
+        x64->op(ANDB, R10B, R11B);  // ZF iff (ordered and equal)
     }
 
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -112,33 +104,33 @@ public:
             x64->op(COMISD, s.sse, t.sse);
             x64->op(JNP, finite);
             
-            // BH=1 iff s is finite, BL=1 iff t is finite
+            // R11B=1 iff s is finite, R10B=1 iff t is finite
             x64->op(COMISD, s.sse, s.sse);
-            x64->op(SETNP, BH);
+            x64->op(SETNP, R11B);
             x64->op(COMISD, t.sse, t.sse);
-            x64->op(SETNP, BL);
-            x64->op(SUBB, BL, BH);
+            x64->op(SETNP, R10B);
+            x64->op(SUBB, R10B, R11B);
             x64->op(JMP, end);
             
             x64->code_label(finite);
-            x64->blcompar(true);
+            x64->runtime->r10bcompar(true);
             x64->code_label(end);
             break;
         case SSEREGISTER_MEMORY:
             x64->op(COMISD, s.sse, t.address);
             x64->op(JNP, finite);
             
-            // BH=1 iff s is finite, BL=1 iff t is finite
+            // R11B=1 iff s is finite, R10B=1 iff t is finite
             x64->op(COMISD, s.sse, s.sse);
-            x64->op(SETNP, BH);
+            x64->op(SETNP, R11B);
             x64->op(MOVSD, XMM15, t.address);
             x64->op(COMISD, XMM15, XMM15);
-            x64->op(SETNP, BL);
-            x64->op(SUBB, BL, BH);
+            x64->op(SETNP, R10B);
+            x64->op(SUBB, R10B, R11B);
             x64->op(JMP, end);
             
             x64->code_label(finite);
-            x64->blcompar(true);
+            x64->runtime->r10bcompar(true);
             x64->code_label(end);
             break;
         case MEMORY_SSEREGISTER:
@@ -146,16 +138,16 @@ public:
             x64->op(COMISD, XMM15, t.sse);
             x64->op(JNP, finite);
             
-            // BH=1 iff s is finite, BL=1 iff t is finite
+            // R11B=1 iff s is finite, R10B=1 iff t is finite
             x64->op(COMISD, XMM15, XMM15);
-            x64->op(SETNP, BH);
+            x64->op(SETNP, R11B);
             x64->op(COMISD, t.sse, t.sse);
-            x64->op(SETNP, BL);
-            x64->op(SUBB, BL, BH);
+            x64->op(SETNP, R10B);
+            x64->op(SUBB, R10B, R11B);
             x64->op(JMP, end);
             
             x64->code_label(finite);
-            x64->blcompar(true);
+            x64->runtime->r10bcompar(true);
             x64->code_label(end);
             break;
 
@@ -165,17 +157,17 @@ public:
             x64->op(COMISD, XMM15, t.address);
             x64->op(JNP, finite);
             
-            // BH=1 iff s is finite, BL=1 iff t is finite
+            // R11B=1 iff s is finite, R10B=1 iff t is finite
             x64->op(COMISD, XMM15, XMM15);
-            x64->op(SETNP, BH);
+            x64->op(SETNP, R11B);
             x64->op(MOVSD, XMM15, t.address);
             x64->op(COMISD, XMM15, XMM15);
-            x64->op(SETNP, BL);
-            x64->op(SUBB, BL, BH);
+            x64->op(SETNP, R10B);
+            x64->op(SUBB, R10B, R11B);
             x64->op(JMP, end);
             
             x64->code_label(finite);
-            x64->blcompar(true);
+            x64->runtime->r10bcompar(true);
             x64->code_label(end);
             break;
         default:

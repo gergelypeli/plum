@@ -32,12 +32,12 @@ public:
         
         right->compile_and_store(x64, Storage(STACK));  // object address
         
-        x64->op(LEA, RBX, Address(callback_label, 0));
-        x64->op(PUSHQ, RBX);  // callback address
+        x64->op(LEA, R10, Address(callback_label, 0));
+        x64->op(PUSHQ, R10);  // callback address
         
         x64->op(PUSHQ, NOSYOBJECT_SIZE);
-        x64->op(LEA, RBX, Address(finalizer_label, 0));
-        x64->op(PUSHQ, RBX);
+        x64->op(LEA, R10, Address(finalizer_label, 0));
+        x64->op(PUSHQ, R10);
         x64->runtime->heap_alloc();
         x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
         x64->op(PUSHQ, RAX);  // nosy address as payload1
@@ -98,9 +98,9 @@ public:
         Label ok;
         left->compile_and_store(x64, Storage(STACK));
         
-        x64->op(POPQ, RBX);
-        x64->runtime->decref(RBX);
-        x64->op(CMPQ, Address(RBX, NOSYOBJECT_RAW_OFFSET), 0);
+        x64->op(POPQ, R10);
+        x64->runtime->decref(R10);
+        x64->op(CMPQ, Address(R10, NOSYOBJECT_RAW_OFFSET), 0);
         x64->op(JE, ok);
 
         // popped        
@@ -133,18 +133,18 @@ public:
         Label ok;
         left->compile_and_store(x64, Storage(STACK));
         
-        x64->op(POPQ, RBX);
-        x64->runtime->decref(RBX);
-        x64->op(CMPQ, Address(RBX, NOSYOBJECT_RAW_OFFSET), 0);
+        x64->op(POPQ, R10);
+        x64->runtime->decref(R10);
+        x64->op(CMPQ, Address(R10, NOSYOBJECT_RAW_OFFSET), 0);
         x64->op(JNE, ok);
         
         // popped
         raise("UNMATCHED", x64);
                 
         x64->code_label(ok);
-        x64->op(MOVQ, RBX, Address(RBX, NOSYOBJECT_RAW_OFFSET));
-        x64->runtime->incref(RBX);
-        x64->op(PUSHQ, RBX);
+        x64->op(MOVQ, R10, Address(R10, NOSYOBJECT_RAW_OFFSET));
+        x64->runtime->incref(R10);
+        x64->op(PUSHQ, R10);
         
         return Storage(STACK);
     }

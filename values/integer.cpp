@@ -69,22 +69,22 @@ public:
     }
 
     virtual void little_prearrange(X64 *x64) {
-        // Get rs into a register, but out of RAX/RCX/RDX, may use RBX
+        // Get rs into a register, but out of RAX/RCX/RDX, may use R10
         // Used for divmod/exponent.
         switch (rs.where) {
         case CONSTANT:
-            x64->op(MOVQ % os, RBX, rs.value);
-            rs = Storage(REGISTER, RBX);
+            x64->op(MOVQ % os, R10, rs.value);
+            rs = Storage(REGISTER, R10);
             break;
         case REGISTER:
             if (rs.reg == RAX || rs.reg == RCX || rs.reg == RDX) {
-                x64->op(MOVQ % os, RBX, rs.reg);
-                rs = Storage(REGISTER, RBX);
+                x64->op(MOVQ % os, R10, rs.reg);
+                rs = Storage(REGISTER, R10);
             }
             break;
         case MEMORY:
-            x64->op(MOVQ % os, RBX, rs.reg);
-            rs = Storage(REGISTER, RBX);
+            x64->op(MOVQ % os, R10, rs.reg);
+            rs = Storage(REGISTER, R10);
             break;
         default:
             throw INTERNAL_ERROR;
@@ -262,7 +262,7 @@ public:
         if (ls.where == CONSTANT && rs.where == CONSTANT)
             return Storage(CONSTANT, mod ? ls.value % rs.value : ls.value / rs.value);
 
-        little_prearrange(x64);  // move rs out of RAX/RCX/RDX, potentially into RBX
+        little_prearrange(x64);  // move rs out of RAX/RCX/RDX, potentially into R10
 
         left->ts.store(ls, Storage(REGISTER, RAX), x64);
 
@@ -352,7 +352,7 @@ public:
     virtual Storage binary_exponent(X64 *x64) {
         subcompile(x64);
 
-        little_prearrange(x64);  // get rs out of RAX/RCX/RDX, potentially into RBX
+        little_prearrange(x64);  // get rs out of RAX/RCX/RDX, potentially into R10
 
         left->ts.store(ls, Storage(REGISTER, RAX), x64);
         
@@ -415,7 +415,7 @@ public:
     // address, and it may have been chosen to restore a spilled dynamic address.
     // As such, unlike with rvalue operations, reg is not guaranteed to be
     // distinct from ls.address.base. Since these operations return the left address,
-    // for a working register for values RBX must be used.
+    // for a working register for values R10 must be used.
     
     virtual Storage assign_binary(X64 *x64, BinaryOp opcode) {
         subcompile(x64);
@@ -431,8 +431,8 @@ public:
             x64->op(opcode % os, ls.address, rs.reg);
             return ls;
         case MEMORY:
-            x64->op(MOVQ % os, RBX, rs.address);
-            x64->op(opcode % os, ls.address, RBX);
+            x64->op(MOVQ % os, R10, rs.address);
+            x64->op(opcode % os, ls.address, R10);
             return ls;
         default:
             throw INTERNAL_ERROR;
@@ -450,17 +450,17 @@ public:
 
         switch (rs.where) {
         case CONSTANT:
-            x64->op(IMUL3Q % ios, RBX, ls.address, rs.value);
-            x64->op(MOVQ % os, ls.address, RBX);
+            x64->op(IMUL3Q % ios, R10, ls.address, rs.value);
+            x64->op(MOVQ % os, ls.address, R10);
             return ls;
         case REGISTER:
             x64->op(IMUL2Q % ios, rs.reg, ls.address);
             x64->op(MOVQ % os, ls.address, rs.reg);
             return ls;
         case MEMORY:
-            x64->op(MOVQ % os, RBX, ls.address);
-            x64->op(IMUL2Q % ios, RBX, rs.address);
-            x64->op(MOVQ % os, ls.address, RBX);
+            x64->op(MOVQ % os, R10, ls.address);
+            x64->op(IMUL2Q % ios, R10, rs.address);
+            x64->op(MOVQ % os, ls.address, R10);
             return ls;
         default:
             throw INTERNAL_ERROR;
@@ -535,11 +535,11 @@ public:
                 return ls;
             }
             else {
-                x64->op(MOVQ, RBX, RCX);
-                ls.address.base = RBX;
+                x64->op(MOVQ, R10, RCX);
+                ls.address.base = R10;
                 x64->op(MOVB, CL, rs.address);
                 x64->op(opcode % os, ls.address, CL);
-                x64->op(MOVQ, RCX, RBX);
+                x64->op(MOVQ, RCX, R10);
                 ls.address.base = RCX;
                 return ls;
             }

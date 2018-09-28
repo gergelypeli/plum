@@ -435,10 +435,12 @@ public:
     void incref(Register reg);
     void decref(Register reg);
     
-    //void memfree(Register reg);
     void heap_alloc();
     void heap_realloc();
     void lock(Register r, Label ok);
+
+    void r10bcompar(bool is_unsigned);
+    void copy(Address s, Address t, int size);
     
     void log(std::string message);
     void logref(std::string message, Register r);

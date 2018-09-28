@@ -44,8 +44,8 @@ public:
             return;
 
         case STACK_NOWHERE:
-            x64->op(POPQ, RBX);
-            decref(RBX, x64, is_class);
+            x64->op(POPQ, R10);
+            decref(R10, x64, is_class);
             return;
         case STACK_REGISTER:
             x64->op(POPQ, t.reg);
@@ -53,9 +53,9 @@ public:
         case STACK_STACK:
             return;
         case STACK_MEMORY:
-            x64->op(POPQ, RBX);
-            x64->op(XCHGQ, RBX, t.address);
-            decref(RBX, x64, is_class);
+            x64->op(POPQ, R10);
+            x64->op(XCHGQ, R10, t.address);
+            decref(R10, x64, is_class);
             return;
 
         case MEMORY_NOWHERE:
@@ -65,15 +65,15 @@ public:
             incref(t.reg, x64, is_class);
             return;
         case MEMORY_STACK:
-            x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64, is_class);
-            x64->op(PUSHQ, RBX);
+            x64->op(MOVQ, R10, s.address);
+            incref(R10, x64, is_class);
+            x64->op(PUSHQ, R10);
             return;
         case MEMORY_MEMORY:  // must work with self-assignment
-            x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64, is_class);
-            x64->op(XCHGQ, RBX, t.address);
-            decref(RBX, x64, is_class);
+            x64->op(MOVQ, R10, s.address);
+            incref(R10, x64, is_class);
+            x64->op(XCHGQ, R10, t.address);
+            decref(R10, x64, is_class);
             return;
 
         case BREGISTER_NOWHERE:
@@ -109,14 +109,14 @@ public:
             incref(t.reg, x64, is_class);
             return;
         case BSTACK_STACK:
-            x64->op(MOVQ, RBX, Address(RSP, 0));
-            incref(RBX, x64, is_class);
+            x64->op(MOVQ, R10, Address(RSP, 0));
+            incref(R10, x64, is_class);
             return;
         case BSTACK_MEMORY:
-            x64->op(POPQ, RBX);
-            incref(RBX, x64, is_class);
-            x64->op(XCHGQ, t.address, RBX);
-            decref(RBX, x64, is_class);
+            x64->op(POPQ, R10);
+            incref(R10, x64, is_class);
+            x64->op(XCHGQ, t.address, R10);
+            decref(R10, x64, is_class);
             return;
         case BSTACK_BREGISTER:
             x64->op(POPQ, t.reg);
@@ -131,15 +131,15 @@ public:
             incref(t.reg, x64, is_class);
             return;
         case BMEMORY_STACK:
-            x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64, is_class);
-            x64->op(PUSHQ, RBX);
+            x64->op(MOVQ, R10, s.address);
+            incref(R10, x64, is_class);
+            x64->op(PUSHQ, R10);
             return;
         case BMEMORY_MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64, is_class);
-            x64->op(XCHGQ, RBX, t.address);
-            decref(RBX, x64, is_class);
+            x64->op(MOVQ, R10, s.address);
+            incref(R10, x64, is_class);
+            x64->op(XCHGQ, R10, t.address);
+            decref(R10, x64, is_class);
             return;
         case BMEMORY_BREGISTER:
             x64->op(MOVQ, t.reg, s.address);
@@ -168,23 +168,23 @@ public:
             x64->op(POPQ, t.address);
             return;
         case MEMORY_MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64, is_class);
-            x64->op(MOVQ, t.address, RBX);
+            x64->op(MOVQ, R10, s.address);
+            incref(R10, x64, is_class);
+            x64->op(MOVQ, t.address, R10);
             return;
         case BREGISTER_MEMORY:
             incref(s.reg, x64, is_class);
             x64->op(MOVQ, t.address, s.reg);
             return;
         case BSTACK_MEMORY:
-            x64->op(POPQ, RBX);
-            incref(RBX, x64, is_class);
-            x64->op(MOVQ, t.address, RBX);
+            x64->op(POPQ, R10);
+            incref(R10, x64, is_class);
+            x64->op(MOVQ, t.address, R10);
             return;
         case BMEMORY_MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            incref(RBX, x64, is_class);
-            x64->op(MOVQ, t.address, RBX);
+            x64->op(MOVQ, R10, s.address);
+            incref(R10, x64, is_class);
+            x64->op(MOVQ, t.address, R10);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -195,8 +195,8 @@ public:
         bool is_class = tm[1].has_meta(class_metatype);
 
         if (s.where == MEMORY) {
-            x64->op(MOVQ, RBX, s.address);
-            decref(RBX, x64, is_class);
+            x64->op(MOVQ, R10, s.address);
+            decref(R10, x64, is_class);
         }
         else
             throw INTERNAL_ERROR;
@@ -222,8 +222,8 @@ public:
             x64->op(CMPQ, s.address, t.reg);
             break;
         case MEMORY_MEMORY:
-            x64->op(MOVQ, RBX, s.address);
-            x64->op(CMPQ, RBX, t.address);
+            x64->op(MOVQ, R10, s.address);
+            x64->op(CMPQ, R10, t.address);
             break;
             
         default:
@@ -233,7 +233,7 @@ public:
 
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         equal(tm, s, t, x64);
-        x64->blcompar(true);
+        x64->runtime->r10bcompar(true);
     }
     
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
@@ -300,10 +300,10 @@ public:
         bool is_class = tm[1].has_meta(class_metatype);
         
         if (is_class) {
-            x64->op(MOVQ, RBX, Address(reg, CLASS_VT_OFFSET));
-            x64->op(MOVQ, RBX, Address(RBX, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
-            x64->op(ADDQ, RBX, reg);
-            x64->op(MOVQ, unborrow->get_address(), RBX);
+            x64->op(MOVQ, R10, Address(reg, CLASS_VT_OFFSET));
+            x64->op(MOVQ, R10, Address(R10, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+            x64->op(ADDQ, R10, reg);
+            x64->op(MOVQ, unborrow->get_address(), R10);
         }
         else
             x64->op(MOVQ, unborrow->get_address(), reg);
@@ -487,9 +487,9 @@ public:
         x64->op(CMPQ, RCX, 0);
         x64->op(JE, end);
 
-        x64->op(IMUL3Q, RBX, RCX, elem_size);
+        x64->op(IMUL3Q, R10, RCX, elem_size);
         x64->op(LEA, RAX, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(ADDQ, RAX, RBX);
+        x64->op(ADDQ, RAX, R10);
 
         x64->code_label(loop);
         x64->op(SUBQ, RAX, elem_size);

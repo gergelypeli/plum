@@ -20,7 +20,7 @@ void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - array, RBX - new reservation
+    // RAX - array, R10 - new reservation
     int elem_size = array_elem_size(elem_ts);
 
     x64->code_label_local(label, "x_array_realloc");
@@ -32,7 +32,7 @@ void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - array, RBX - new reservation
+    // RAX - array, R10 - new reservation
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
     Label realloc_label = x64->once->compile(compile_array_realloc, elem_ts);
 
@@ -46,7 +46,7 @@ void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - array, RBX - new addition
+    // RAX - array, R10 - new addition
     Label grow_label = x64->once->compile(compile_array_grow, elem_ts);
 
     x64->code_label_local(label, "x_array_preappend");
@@ -111,26 +111,26 @@ public:
     }
     
     static void compile_array_concatenation(Label label, TypeSpec elem_ts, X64 *x64) {
-        // RAX - result, RBX - first, RDX - second
+        // RAX - result, R10 - first, RDX - second
         x64->code_label_local(label, "x_array_concatenation");
         Label alloc_array = x64->once->compile(compile_array_alloc, elem_ts);
         int elem_size = array_elem_size(elem_ts);
         
-        x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
+        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE));
         
-        x64->op(MOVQ, RAX, Address(RBX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RAX, Address(R10, ARRAY_LENGTH_OFFSET));
         x64->op(ADDQ, RAX, Address(RDX, ARRAY_LENGTH_OFFSET));  // total length in RAX
         
         x64->op(CALL, alloc_array);
         
-        x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));  // restored
+        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));  // restored
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE));
         
         x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
         
-        x64->op(LEA, RSI, Address(RBX, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(RBX, ARRAY_LENGTH_OFFSET));
+        x64->op(LEA, RSI, Address(R10, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(R10, ARRAY_LENGTH_OFFSET));
         x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
         x64->op(IMUL3Q, RCX, RCX, elem_size);
         x64->op(REPMOVSB);
@@ -174,25 +174,25 @@ public:
             throw INTERNAL_ERROR;
 
         if (ls.address.base == RAX || ls.address.index == RAX) {
-            x64->op(LEA, RBX, ls.address);
-            x64->op(PUSHQ, RBX);
+            x64->op(LEA, R10, ls.address);
+            x64->op(PUSHQ, R10);
         }
 
         switch (rs.where) {
         case NOWHERE:
             x64->op(MOVQ, RAX, ls.address);
-            x64->op(MOVQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));  // shrink to fit
+            x64->op(MOVQ, R10, Address(RAX, ARRAY_LENGTH_OFFSET));  // shrink to fit
             break;
         case CONSTANT:
             x64->op(MOVQ, RAX, ls.address);
-            x64->op(MOVQ, RBX, rs.value);
+            x64->op(MOVQ, R10, rs.value);
             break;
         case REGISTER:
-            x64->op(MOVQ, RBX, rs.reg);  // Order!
+            x64->op(MOVQ, R10, rs.reg);  // Order!
             x64->op(MOVQ, RAX, ls.address);
             break;
         case MEMORY:
-            x64->op(MOVQ, RBX, rs.address);  // Order!
+            x64->op(MOVQ, R10, rs.address);  // Order!
             x64->op(MOVQ, RAX, ls.address);
             break;
         default:
@@ -202,9 +202,9 @@ public:
         x64->op(CALL, realloc_array);
         
         if (ls.address.base == RAX || ls.address.index == RAX) {
-            x64->op(MOVQ, RBX, RAX);
+            x64->op(MOVQ, R10, RAX);
             x64->op(POPQ, RAX);
-            x64->op(MOVQ, Address(RAX, 0), RBX);
+            x64->op(MOVQ, Address(RAX, 0), R10);
             return Storage(MEMORY, Address(RAX, 0));
         }
         else {
@@ -236,9 +236,9 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         // RDI = base, RSI = nmemb, RDX = size, RCX = compar
-        x64->op(MOVQ, RBX, Address(RSP, 0));
-        x64->op(LEA, RDI, Address(RBX, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RSI, Address(RBX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, R10, Address(RSP, 0));
+        x64->op(LEA, RDI, Address(R10, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RSI, Address(R10, ARRAY_LENGTH_OFFSET));
         x64->op(MOVQ, RDX, elem_size);
         x64->op(LEA, RCX, Address(compar, 0));
         
@@ -252,18 +252,15 @@ public:
     static void compile_compar(Label label, TypeSpec elem_ts, X64 *x64) {
         // Generate a SysV function to wrap our compare function.
         // RDI and RSI contains the pointers to the array elements.
-        // RBX must be preserved.
         x64->code_label(label);
-        x64->op(PUSHQ, RBX);
         
         Storage a(MEMORY, Address(RDI, 0));
         Storage b(MEMORY, Address(RSI, 0));
 
         elem_ts.compare(a, b, x64);
         
-        x64->op(MOVSXBQ, RAX, BL);
+        x64->op(MOVSXBQ, RAX, R10B);
         
-        x64->op(POPQ, RBX);
         x64->op(RET);
     }
 };
@@ -290,7 +287,7 @@ public:
         
         x64->op(CALL, remove_label);
         
-        x64->op(POPQ, RBX);
+        x64->op(POPQ, R10);
         
         return Storage(STACK);
     }
@@ -380,12 +377,12 @@ public:
         fill_value->compile_and_store(x64, Storage(STACK));
         length_value->compile_and_store(x64, Storage(STACK));
         
-        x64->op(MOVQ, RBX, Address(RSP, 0));  // extra length
+        x64->op(MOVQ, R10, Address(RSP, 0));  // extra length
         x64->op(MOVQ, RDX, Address(RSP, stack_size + INTEGER_SIZE));  // array alias
         x64->op(MOVQ, RAX, Address(RDX, 0));  // array ref without incref
         
-        x64->op(ADDQ, RBX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(CMPQ, RBX, Address(RAX, ARRAY_RESERVATION_OFFSET));
+        x64->op(ADDQ, R10, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, R10, Address(RAX, ARRAY_RESERVATION_OFFSET));
         x64->op(JBE, ok);
         
         // Need to reallocate
@@ -536,8 +533,8 @@ public:
         
         Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
         
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        x64->op(IMUL3Q, R10, R10, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, R10, ARRAY_ELEMS_OFFSET));
         
         return Storage(MEMORY, Address(r.reg, 0));
     }
@@ -553,7 +550,7 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
         
-        x64->op(MOVQ, r.reg, RBX);
+        x64->op(MOVQ, r.reg, R10);
         
         return Storage(REGISTER, r.reg);
     }
@@ -573,10 +570,10 @@ public:
         Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
 
         x64->op(SUBQ, RSP, item_stack_size);
-        x64->op(MOVQ, Address(RSP, 0), RBX);
+        x64->op(MOVQ, Address(RSP, 0), R10);
         
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        x64->op(IMUL3Q, R10, R10, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, R10, ARRAY_ELEMS_OFFSET));
         
         Storage s = Storage(MEMORY, Address(r.reg, 0));
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));

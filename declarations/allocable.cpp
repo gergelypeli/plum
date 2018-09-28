@@ -284,8 +284,8 @@ public:
             return;
             
         //x64->runtime->log("Unborrowing.");
-        x64->op(MOVQ, RBX, get_address());
-        x64->runtime->decref(RBX);
+        x64->op(MOVQ, R10, get_address());
+        x64->runtime->decref(R10);
     }
 };
 

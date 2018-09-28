@@ -148,9 +148,10 @@ struct Storage {
         case MEMORY:
         case ALIAS:
         case BMEMORY:
-            // Although RBX and RSP based addresses can be used locally, they shouldn't be
+            // Although RSP, R10, R11 based addresses can be used locally, they shouldn't be
             // passed between Value-s, so no one should be interested in their clobbed registers.
-            // In those cases just crash, as RBX and RSP are also illegal in a Regs.
+            // In those cases just crash, as these registers are also illegal in a Regs.
+            // Passing RBP based addresses is fine, and RBP won't be included in the result.
             if (address.base != NOREG && address.base != RBP) {
                 if (address.index != NOREG)
                     return Regs(address.base, address.index);

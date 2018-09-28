@@ -17,10 +17,10 @@ void container_alloc(int header_size, int elem_size, int reservation_offset, Lab
     
     x64->op(IMUL3Q, RAX, RAX, elem_size);
     x64->op(ADDQ, RAX, header_size);
-    x64->op(LEA, RBX, Address(finalizer_label, 0));
+    x64->op(LEA, R10, Address(finalizer_label, 0));
     
     x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, RBX);
+    x64->op(PUSHQ, R10);
     x64->runtime->heap_alloc();
     x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
     
@@ -29,32 +29,32 @@ void container_alloc(int header_size, int elem_size, int reservation_offset, Lab
 
 
 void container_realloc(int header_size, int elem_size, int reservation_offset, X64 *x64) {
-    // RAX - array, RBX - new reservation
-    x64->op(MOVQ, Address(RAX, reservation_offset), RBX);
-    x64->op(IMUL3Q, RBX, RBX, elem_size);
-    x64->op(ADDQ, RBX, header_size);
+    // RAX - array, R10 - new reservation
+    x64->op(MOVQ, Address(RAX, reservation_offset), R10);
+    x64->op(IMUL3Q, R10, R10, elem_size);
+    x64->op(ADDQ, R10, header_size);
     
     x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, RBX);
+    x64->op(PUSHQ, R10);
     x64->runtime->heap_realloc();
     x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 }
 
 
 void container_grow(int reservation_offset, int min_reservation, Label realloc_label, X64 *x64) {
-    // RAX - array, RBX - new reservation
+    // RAX - array, R10 - new reservation
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
 
     Label check, ok;
-    x64->op(XCHGQ, RBX, Address(RAX, reservation_offset));  // save desired value
-    x64->op(CMPQ, RBX, min_reservation);
+    x64->op(XCHGQ, R10, Address(RAX, reservation_offset));  // save desired value
+    x64->op(CMPQ, R10, min_reservation);
     x64->op(JAE, check);
-    x64->op(MOVQ, RBX, min_reservation);
+    x64->op(MOVQ, R10, min_reservation);
     
     x64->code_label(check);
-    x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
+    x64->op(CMPQ, R10, Address(RAX, reservation_offset));
     x64->op(JAE, ok);
-    x64->op(SHLQ, RBX, 1);
+    x64->op(SHLQ, R10, 1);
     x64->op(JMP, check);
     
     x64->code_label(ok);
@@ -63,11 +63,11 @@ void container_grow(int reservation_offset, int min_reservation, Label realloc_l
 
 
 void container_preappend(int reservation_offset, int length_offset, Label grow_label, X64 *x64) {
-    // RAX - array, RBX - new addition
+    // RAX - array, R10 - new addition
 
     Label ok;
-    x64->op(ADDQ, RBX, Address(RAX, length_offset));
-    x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
+    x64->op(ADDQ, R10, Address(RAX, length_offset));
+    x64->op(CMPQ, R10, Address(RAX, reservation_offset));
     x64->op(JBE, ok);
 
     x64->op(CALL, grow_label);
@@ -138,7 +138,7 @@ public:
         return OptimizedOperationValue::check(args, kwargs, scope);
     }
 
-    virtual void fix_RBX_index(Register r, X64 *x64) {
+    virtual void fix_R10_index(Register r, X64 *x64) {
     }
 
     virtual Storage subcompile(int elems_offset, X64 *x64) {
@@ -148,13 +148,13 @@ public:
 
         switch (rs.where) {
         case CONSTANT:
-            x64->op(MOVQ, RBX, rs.value);
+            x64->op(MOVQ, R10, rs.value);
             break;
         case REGISTER:
-            x64->op(MOVQ, RBX, rs.reg);
+            x64->op(MOVQ, R10, rs.reg);
             break;
         case MEMORY:
-            x64->op(MOVQ, RBX, rs.address);
+            x64->op(MOVQ, R10, rs.address);
             break;
         default:
             throw INTERNAL_ERROR;
@@ -165,10 +165,10 @@ public:
             // Borrow Lvalue container
             x64->op(MOVQ, unborrow->get_address(), ls.reg);
             
-            fix_RBX_index(ls.reg, x64);
+            fix_R10_index(ls.reg, x64);
             
-            x64->op(IMUL3Q, RBX, RBX, elem_size);
-            x64->op(LEA, ls.reg, Address(ls.reg, RBX, elems_offset));
+            x64->op(IMUL3Q, R10, R10, elem_size);
+            x64->op(LEA, ls.reg, Address(ls.reg, R10, elems_offset));
             return Storage(MEMORY, Address(ls.reg, 0));
         case MEMORY:
             x64->op(MOVQ, auxls.reg, ls.address);  // reg may be the base of ls.address
@@ -176,10 +176,10 @@ public:
             x64->runtime->incref(auxls.reg);
             x64->op(MOVQ, unborrow->get_address(), auxls.reg);
             
-            fix_RBX_index(auxls.reg, x64);
+            fix_R10_index(auxls.reg, x64);
             
-            x64->op(IMUL3Q, RBX, RBX, elem_size);
-            x64->op(LEA, auxls.reg, Address(auxls.reg, RBX, elems_offset));
+            x64->op(IMUL3Q, R10, R10, elem_size);
+            x64->op(LEA, auxls.reg, Address(auxls.reg, R10, elems_offset));
             return Storage(MEMORY, Address(auxls.reg, 0));
         default:
             throw INTERNAL_ERROR;
@@ -406,11 +406,11 @@ public:
             raise("CONTAINER_LENT", x64);
 
             x64->code_label(locked);
-            x64->op(MOVQ, RBX, Address(RAX, length_offset));
-            x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
+            x64->op(MOVQ, R10, Address(RAX, length_offset));
+            x64->op(CMPQ, R10, Address(RAX, reservation_offset));
             x64->op(JB, ok);
             
-            x64->op(INCQ, RBX);
+            x64->op(INCQ, R10);
             x64->op(CALL, grow_label);
             x64->op(MOVQ, s.address, RAX);
             
@@ -472,7 +472,7 @@ public:
         return clob | RAX | RCX;
     }
 
-    virtual void fix_RBX_index(Register r, X64 *x64) {
+    virtual void fix_R10_index(Register r, X64 *x64) {
     }
 
     virtual Storage subcompile(int reservation_offset, int length_offset, int elems_offset, X64 *x64) {
@@ -484,8 +484,8 @@ public:
         Label ok, end;
         
         x64->op(MOVQ, RAX, Address(RSP, stack_size));
-        x64->op(MOVQ, RBX, Address(RAX, length_offset));
-        x64->op(CMPQ, RBX, Address(RAX, reservation_offset));
+        x64->op(MOVQ, R10, Address(RAX, length_offset));
+        x64->op(CMPQ, R10, Address(RAX, reservation_offset));
         x64->op(JNE, ok);
 
         if (raising_dummy) {
@@ -499,11 +499,11 @@ public:
         x64->code_label(ok);
         x64->op(INCQ, Address(RAX, length_offset));
 
-        // RBX contains the index of the newly created element
-        fix_RBX_index(RAX, x64);
+        // R10 contains the index of the newly created element
+        fix_R10_index(RAX, x64);
         
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(ADDQ, RAX, RBX);
+        x64->op(IMUL3Q, R10, R10, elem_size);
+        x64->op(ADDQ, RAX, R10);
         
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, elems_offset)), x64);
         
@@ -527,7 +527,7 @@ public:
         return clob | RAX | RCX;
     }
 
-    virtual void fix_RBX_index(Register r, X64 *x64) {
+    virtual void fix_R10_index(Register r, X64 *x64) {
     }
 
     virtual Storage subcompile(int length_offset, int elems_offset, X64 *x64) {
@@ -544,15 +544,15 @@ public:
         
         x64->code_label(ok);
         x64->op(DECQ, Address(RAX, length_offset));
-        x64->op(MOVQ, RBX, Address(RAX, length_offset));
+        x64->op(MOVQ, R10, Address(RAX, length_offset));
 
-        // RBX contains the index of the newly removed element
-        fix_RBX_index(RAX, x64);
+        // R10 contains the index of the newly removed element
+        fix_R10_index(RAX, x64);
 
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
+        x64->op(IMUL3Q, R10, R10, elem_size);
         x64->runtime->decref(RAX);
 
-        x64->op(ADDQ, RAX, RBX);
+        x64->op(ADDQ, RAX, R10);
         
         elem_ts.store(Storage(MEMORY, Address(RAX, elems_offset)), Storage(STACK), x64);
         elem_ts.destroy(Storage(MEMORY, Address(RAX, elems_offset)), x64);
@@ -621,9 +621,9 @@ public:
         switch (ls.where) {
         case MEMORY:
             //std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
-            x64->op(MOVQ, RBX, ls.address + REFERENCE_SIZE);  // value
+            x64->op(MOVQ, R10, ls.address + REFERENCE_SIZE);  // value
             x64->op(MOVQ, reg, ls.address); // array reference without incref
-            x64->op(CMPQ, RBX, Address(reg, length_offset));
+            x64->op(CMPQ, R10, Address(reg, length_offset));
             x64->op(JNE, ok);
 
             // MEMORY arg
@@ -632,7 +632,7 @@ public:
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + REFERENCE_SIZE);
             //x64->err("NEXT COMPILE");
-            return Storage(REGISTER, reg);  // non-refcounted reference, with RBX index
+            return Storage(REGISTER, reg);  // non-refcounted reference, with R10 index
         default:
             throw INTERNAL_ERROR;
         }

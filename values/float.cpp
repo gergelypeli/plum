@@ -69,29 +69,29 @@ public:
         switch (ls.where * rs.where) {
         case SSEREGISTER_SSEREGISTER:
             x64->op(COMISD, ls.sse, rs.sse);
-            x64->op(SETP, BH);
-            x64->op(bitset(cc), BL);
-            x64->op(CMPW, BX, 1);
-            return Storage(FLAGS, CC_EQUAL);
+            x64->op(SETNP, R11B);
+            x64->op(bitset(cc), R10B);
+            x64->op(ANDB, R10B, R11B);
+            return Storage(FLAGS, CC_NOT_EQUAL);
         case SSEREGISTER_MEMORY:
             x64->op(COMISD, ls.sse, rs.address);
-            x64->op(SETP, BH);
-            x64->op(bitset(cc), BL);
-            x64->op(CMPW, BX, 1);
-            return Storage(FLAGS, CC_EQUAL);
+            x64->op(SETNP, R11B);
+            x64->op(bitset(cc), R10B);
+            x64->op(ANDB, R10B, R11B);
+            return Storage(FLAGS, CC_NOT_EQUAL);
         case MEMORY_SSEREGISTER:
             x64->op(COMISD, rs.sse, ls.address);  // swapped arguments
-            x64->op(SETP, BH);
-            x64->op(bitset(swapped(cc)), BL);
-            x64->op(CMPW, BX, 1);
-            return Storage(FLAGS, CC_EQUAL);
+            x64->op(SETNP, R11B);
+            x64->op(bitset(swapped(cc)), R10B);
+            x64->op(ANDB, R10B, R11B);
+            return Storage(FLAGS, CC_NOT_EQUAL);
         case MEMORY_MEMORY:
             x64->op(MOVSD, auxls.sse, ls.address);
             x64->op(COMISD, auxls.sse, rs.address);
-            x64->op(SETP, BH);
-            x64->op(bitset(cc), BL);
-            x64->op(CMPW, BX, 1);
-            return Storage(FLAGS, CC_EQUAL);
+            x64->op(SETNP, R11B);
+            x64->op(bitset(cc), R10B);
+            x64->op(ANDB, R10B, R11B);
+            return Storage(FLAGS, CC_NOT_EQUAL);
         default:
             throw INTERNAL_ERROR;
         }

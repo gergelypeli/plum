@@ -97,7 +97,7 @@ public:
                 var->create(tm, Storage(), Storage(MEMORY, t.address), x64);
             return;
         case STACK_MEMORY:
-            x64->copy(Address(RSP, 0), t.address, tm[0].measure_raw());
+            x64->runtime->copy(Address(RSP, 0), t.address, tm[0].measure_raw());
             x64->op(ADDQ, RSP, stack_size);
             return;
         case MEMORY_MEMORY:  // duplicates data
@@ -275,19 +275,19 @@ public:
         x64->op(PUSHQ, RCX);
         
         x64->op(MOVQ, RAX, Address(RSP, 32));
-        x64->op(MOVQ, RBX, Address(RSP, 24));
+        x64->op(MOVQ, R10, Address(RSP, 24));
         
-        x64->op(CMPQ, RAX, RBX);
+        x64->op(CMPQ, RAX, R10);
         x64->op(JE, done);  // identical, must be equal, ZF as expected
         
         x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(CMPQ, RCX, Address(RBX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RCX, Address(R10, ARRAY_LENGTH_OFFSET));
         x64->op(JNE, done);  // different length, can't be equal, ZF as expected
         
         x64->op(PUSHQ, RSI);
         x64->op(PUSHQ, RDI);
         x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(LEA, RDI, Address(RBX, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RDI, Address(R10, ARRAY_ELEMS_OFFSET));
         x64->op(REPECMPSW);  // no flags set if RCX=0
         x64->op(POPQ, RDI);
         x64->op(POPQ, RSI);
@@ -314,7 +314,7 @@ public:
             throw INTERNAL_ERROR;
 
         Label strcmp_label = x64->once->compile(compile_stringcmp);
-        x64->op(CALL, strcmp_label);  // BL, flags as expected
+        x64->op(CALL, strcmp_label);  // R10B, flags as expected
         
         if (s.where == MEMORY && t.where == MEMORY) {
             x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
@@ -322,7 +322,7 @@ public:
     }
 
     static void compile_stringcmp(Label label, X64 *x64) {
-        // Expects arguments on the stack, returns BL/flags.
+        // Expects arguments on the stack, returns R10B/flags.
         x64->code_label_local(label, "stringcmp");
         
         x64->op(PUSHQ, RAX);
@@ -335,31 +335,31 @@ public:
         x64->op(MOVQ, RAX, Address(RSP, 56));  // s
         x64->op(MOVQ, RDX, Address(RSP, 48));  // t
         
-        x64->op(MOVB, BL, 0);  // assume equality
+        x64->op(MOVB, R10B, 0);  // assume equality
         x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
         x64->op(JE, begin);
         x64->op(JA, s_longer);
         
-        x64->op(MOVB, BL, -1);  // s is shorter, on common equality s is less
+        x64->op(MOVB, R10B, -1);  // s is shorter, on common equality s is less
         x64->op(JMP, begin);
 
         x64->code_label(s_longer);
-        x64->op(MOVB, BL, 1);  // s is longer, on common equality s is greater
+        x64->op(MOVB, R10B, 1);  // s is longer, on common equality s is greater
         x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
         
         x64->code_label(begin);
         x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
         x64->op(LEA, RDI, Address(RDX, ARRAY_ELEMS_OFFSET));
-        x64->op(CMPB, BL, BL);  // only to initialize flags for equality
+        x64->op(CMPB, R10B, R10B);  // only to initialize flags for equality
         x64->op(REPECMPSW);  // no flags set if RCX=0
         
-        x64->op(JE, end);  // common part was equal, result is according to preset BL
+        x64->op(JE, end);  // common part was equal, result is according to preset R10B
         
-        x64->blcompar(true);  // set BL according to the detected difference
+        x64->runtime->r10bcompar(true);  // set R10B according to the detected difference
         
         x64->code_label(end);
-        x64->op(CMPB, BL, 0);  // must set flags even if BL was preset
+        x64->op(CMPB, R10B, 0);  // must set flags even if R10B was preset
         
         x64->op(POPQ, RDI);
         x64->op(POPQ, RSI);
@@ -391,7 +391,7 @@ public:
     }
 
     static void compile_streamification(Label label, X64 *x64) {
-        // RAX - target array, RBX - tmp, RCX - size, RDX - source array, RDI - alias
+        // RAX - target array, R10 - tmp, RCX - size, RDX - source array, RDI - alias
         Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
         
         x64->code_label_local(label, "string_streamification");
@@ -400,7 +400,7 @@ public:
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
         
         x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, R10, Address(RDX, ARRAY_LENGTH_OFFSET));
 
         x64->op(CALL, preappend_array);
         

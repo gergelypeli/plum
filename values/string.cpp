@@ -55,12 +55,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        x64->op(LEA, RBX, Address(x64->runtime->empty_array_label, 0));
-        x64->runtime->incref(RBX);
+        x64->op(LEA, R10, Address(x64->runtime->empty_array_label, 0));
+        x64->runtime->incref(R10);
         
         x64->op(PUSHQ, 0);  // length
         x64->op(PUSHQ, 0);  // front
-        x64->op(PUSHQ, RBX);  // ptr
+        x64->op(PUSHQ, R10);  // ptr
         
         return Storage(STACK);
     }
@@ -86,13 +86,13 @@ public:
             r = rs.reg;
             break;
         case STACK:
-            x64->op(POPQ, RBX);
-            r = RBX;
+            x64->op(POPQ, R10);
+            r = R10;
             break;
         case MEMORY:
-            x64->op(MOVQ, RBX, rs.address);
-            x64->runtime->incref(RBX);
-            r = RBX;
+            x64->op(MOVQ, R10, rs.address);
+            x64->runtime->incref(R10);
+            r = R10;
             break;
         default:
             throw INTERNAL_ERROR;
@@ -145,15 +145,15 @@ public:
         length_value->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RCX);  // length
-        x64->op(POPQ, RBX);  // front
+        x64->op(POPQ, R10);  // front
         x64->op(POPQ, RAX);  // ptr
         x64->op(MOVQ, RDX, Address(RAX, ARRAY_LENGTH_OFFSET));
         
         Label ok, nok;
-        x64->op(CMPQ, RBX, RDX);
+        x64->op(CMPQ, R10, RDX);
         x64->op(JAE, nok);
         
-        x64->op(SUBQ, RDX, RBX);
+        x64->op(SUBQ, RDX, R10);
         x64->op(CMPQ, RCX, RDX);
         x64->op(JBE, ok);
         
@@ -165,7 +165,7 @@ public:
         
         x64->code_label(ok);
         x64->op(PUSHQ, RCX);
-        x64->op(PUSHQ, RBX);
+        x64->op(PUSHQ, R10);
         x64->op(PUSHQ, RAX);  // inherit reference
         
         return Storage(STACK);
@@ -211,14 +211,14 @@ public:
         length_value->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RCX);  // length
-        x64->op(POPQ, RBX);  // front
+        x64->op(POPQ, R10);  // front
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));  // old length
         
         Label ok, nok;
-        x64->op(CMPQ, RBX, RDX);
+        x64->op(CMPQ, R10, RDX);
         x64->op(JAE, nok);
         
-        x64->op(SUBQ, RDX, RBX);
+        x64->op(SUBQ, RDX, R10);
         x64->op(CMPQ, RCX, RDX);
         x64->op(JBE, ok);
         
@@ -227,7 +227,7 @@ public:
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
-        x64->op(ADDQ, Address(RSP, ADDRESS_SIZE), RBX);  // adjust front
+        x64->op(ADDQ, Address(RSP, ADDRESS_SIZE), R10);  // adjust front
         x64->op(MOVQ, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE), RCX);  // set length
         
         return Storage(STACK);
@@ -269,7 +269,7 @@ public:
         right->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RAX);  // index
-        x64->op(POPQ, RBX);  // ptr
+        x64->op(POPQ, R10);  // ptr
         x64->op(POPQ, RCX);  // front
         x64->op(POPQ, RDX);  // length
 
@@ -278,16 +278,16 @@ public:
         x64->op(JB, ok);
 
         // all popped
-        x64->runtime->decref(RBX);
+        x64->runtime->decref(R10);
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
         x64->op(ADDQ, RAX, RCX);
         x64->op(IMUL3Q, RAX, RAX, elem_size);
-        x64->op(LEA, RAX, Address(RAX, RBX, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RAX, Address(RAX, R10, ARRAY_ELEMS_OFFSET));
 
         // Borrow Lvalue container
-        x64->op(MOVQ, unborrow->get_address(), RBX);
+        x64->op(MOVQ, unborrow->get_address(), R10);
     
         return Storage(MEMORY, Address(RAX, 0));
     }
@@ -442,9 +442,9 @@ public:
         
         switch (ls.where) {
         case MEMORY:
-            x64->op(MOVQ, RBX, ls.address + VALUE_OFFSET);
+            x64->op(MOVQ, R10, ls.address + VALUE_OFFSET);
             x64->op(MOVQ, reg, ls.address); // array ptr
-            x64->op(CMPQ, RBX, ls.address + LENGTH_OFFSET);
+            x64->op(CMPQ, R10, ls.address + LENGTH_OFFSET);
             x64->op(JNE, ok);
             
             raise("ITERATOR_DONE", x64);
@@ -470,9 +470,9 @@ public:
         int FRONT_OFFSET = REFERENCE_SIZE;
         Storage r = subcompile(x64);
         
-        x64->op(ADDQ, RBX, ls.address + FRONT_OFFSET);
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, R10, ls.address + FRONT_OFFSET);
+        x64->op(IMUL3Q, R10, R10, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, R10, ARRAY_ELEMS_OFFSET));
         
         return Storage(MEMORY, Address(r.reg, 0));
     }
@@ -488,7 +488,7 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage r = subcompile(x64);
         
-        x64->op(MOVQ, r.reg, RBX);
+        x64->op(MOVQ, r.reg, R10);
         
         return Storage(REGISTER, r.reg);
     }
@@ -508,11 +508,11 @@ public:
         Storage r = subcompile(x64);
 
         x64->op(SUBQ, RSP, item_stack_size);
-        x64->op(MOVQ, Address(RSP, 0), RBX);
+        x64->op(MOVQ, Address(RSP, 0), R10);
         
-        x64->op(ADDQ, RBX, ls.address + FRONT_OFFSET);
-        x64->op(IMUL3Q, RBX, RBX, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, RBX, ARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, R10, ls.address + FRONT_OFFSET);
+        x64->op(IMUL3Q, R10, R10, elem_size);
+        x64->op(LEA, r.reg, Address(r.reg, R10, ARRAY_ELEMS_OFFSET));
         
         Storage s = Storage(MEMORY, Address(r.reg, 0));
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));

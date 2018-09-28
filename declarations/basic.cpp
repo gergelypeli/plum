@@ -17,7 +17,7 @@ public:
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        // Only RBX is usable as scratch
+        // Only R10 is usable as scratch
         BinaryOp mov = MOVQ % os;
         
         switch (s.where * t.where) {
@@ -50,8 +50,8 @@ public:
             x64->op(bitset(s.cc), t.reg);
             return;
         case FLAGS_STACK:
-            x64->op(bitset(s.cc), BL);
-            x64->op(PUSHQ, RBX);
+            x64->op(bitset(s.cc), R10B);
+            x64->op(PUSHQ, R10);
             return;
         case FLAGS_MEMORY:
             x64->op(bitset(s.cc), t.address);
@@ -71,7 +71,7 @@ public:
             return;
 
         case STACK_NOWHERE:
-            x64->op(POPQ, RBX);
+            x64->op(POPQ, R10);
             return;
         case STACK_REGISTER:
             x64->op(POPQ, t.reg);
@@ -82,8 +82,8 @@ public:
             if (size == INTEGER_SIZE)
                 x64->op(POPQ, t.address);
             else {
-                x64->op(POPQ, RBX);
-                x64->op(mov, t.address, RBX);
+                x64->op(POPQ, R10);
+                x64->op(mov, t.address, R10);
             }
             return;
 
@@ -96,13 +96,13 @@ public:
             if (size == INTEGER_SIZE)
                 x64->op(PUSHQ, s.address);
             else {
-                x64->op(mov, RBX, s.address);
-                x64->op(PUSHQ, RBX);
+                x64->op(mov, R10, s.address);
+                x64->op(PUSHQ, R10);
             }
             return;
         case MEMORY_MEMORY:
-            x64->op(mov, RBX, s.address);
-            x64->op(mov, t.address, RBX);
+            x64->op(mov, R10, s.address);
+            x64->op(mov, t.address, R10);
             return;
         
         default:
@@ -130,13 +130,13 @@ public:
             if (size == INTEGER_SIZE)
                 x64->op(POPQ, t.address);
             else {
-                x64->op(POPQ, RBX);
-                x64->op(mov, t.address, RBX);
+                x64->op(POPQ, R10);
+                x64->op(mov, t.address, R10);
             }
             return;
         case MEMORY_MEMORY:
-            x64->op(mov, RBX, s.address);
-            x64->op(mov, t.address, RBX);
+            x64->op(mov, R10, s.address);
+            x64->op(mov, t.address, R10);
             return;
         default:
             throw INTERNAL_ERROR;
@@ -152,22 +152,22 @@ public:
 
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // No need to take care of STACK here, GenericOperationValue takes care of it
-        // Only RBX is usable as scratch
+        // Only R10 is usable as scratch
         BinaryOp MOV = MOVQ % os;
         BinaryOp CMP = CMPQ % os;
         
         switch (s.where * t.where) {
         case CONSTANT_CONSTANT:
-            x64->op(MOV, RBX, s.value);
-            x64->op(CMP, RBX, t.value);
+            x64->op(MOV, R10, s.value);
+            x64->op(CMP, R10, t.value);
             break;
         case CONSTANT_REGISTER:
-            x64->op(MOV, RBX, s.value);
-            x64->op(CMP, RBX, t.reg);
+            x64->op(MOV, R10, s.value);
+            x64->op(CMP, R10, t.reg);
             break;
         case CONSTANT_MEMORY:
-            x64->op(MOV, RBX, s.value);
-            x64->op(CMP, RBX, t.address);
+            x64->op(MOV, R10, s.value);
+            x64->op(CMP, R10, t.address);
             break;
 
         case REGISTER_CONSTANT:
@@ -187,8 +187,8 @@ public:
             x64->op(CMP, s.address, t.reg);
             break;
         case MEMORY_MEMORY:
-            x64->op(MOV, RBX, s.address);
-            x64->op(CMP, RBX, t.address);
+            x64->op(MOV, R10, s.address);
+            x64->op(CMP, R10, t.address);
             break;
             
         default:
@@ -198,7 +198,7 @@ public:
 
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         equal(tm, s, t, x64);
-        x64->blcompar(is_unsigned);
+        x64->runtime->r10bcompar(is_unsigned);
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -325,7 +325,7 @@ public:
     }
     
     static void compile_streamification(Label label, X64 *x64) {
-        // RAX - target array, RBX - tmp, RCX - size, RDX - source character, RDI - alias
+        // RAX - target array, R10 - tmp, RCX - size, RDX - source character, RDI - alias
         Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
 
         x64->code_label_local(label, "character_streamification");
@@ -334,7 +334,7 @@ public:
         x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
 
         x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, RBX, 1);
+        x64->op(MOVQ, R10, 1);
         
         x64->op(CALL, preappend_array);
         
@@ -376,12 +376,12 @@ public:
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         Label es_label = x64->once->compile(compile_streamification);
 
-        x64->op(LEA, RBX, Address(get_stringifications_label(x64), 0));  // table start
+        x64->op(LEA, R10, Address(get_stringifications_label(x64), 0));  // table start
         x64->op(CALL, es_label);
     }
     
     static void compile_streamification(Label label, X64 *x64) {
-        // RAX - target array, RBX - table start, RCX - size, RDX - source enum, RDI - alias
+        // RAX - target array, R10 - table start, RCX - size, RDX - source enum, RDI - alias
         Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
 
         x64->code_label_local(label, "enum_streamification");
@@ -391,10 +391,10 @@ public:
 
         // Find the string for this enum value
         x64->op(ANDQ, RDX, 0xFF);
-        x64->op(MOVQ, RDX, Address(RBX, RDX, ADDRESS_SIZE, 0));
+        x64->op(MOVQ, RDX, Address(R10, RDX, ADDRESS_SIZE, 0));
             
         x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, RBX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, R10, Address(RDX, ARRAY_LENGTH_OFFSET));
 
         x64->op(CALL, preappend_array);
         
