@@ -391,7 +391,7 @@ public:
 
         // Find the string for this enum value
         x64->op(ANDQ, RDX, 0xFF);
-        x64->op(MOVQ, RDX, Address(R10, RDX, ADDRESS_SIZE, 0));
+        x64->op(MOVQ, RDX, Address(R10, RDX, Address::SCALE_8, 0));
             
         x64->op(MOVQ, RAX, Address(RDI, 0));
         x64->op(MOVQ, R10, Address(RDX, ARRAY_LENGTH_OFFSET));

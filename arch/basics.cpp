@@ -299,9 +299,13 @@ public:
 
 
 struct Address {
+    enum Scale {
+        SCALE_1, SCALE_2, SCALE_4, SCALE_8
+    };
+    
     Register base;
     Register index;
-    int scale;
+    Scale scale;
     int offset;  // Offsets are never longer than 32 bits, except in some wicked cases
     Label label;
 
@@ -309,7 +313,7 @@ struct Address {
         :label(Label::LEAVE_UNDEFINED) {
         base = NOREG;
         index = NOREG;
-        scale = 0;
+        scale = SCALE_1;
         offset = 0;
     }
 
@@ -322,7 +326,7 @@ struct Address {
           
         base = b;
         index = NOREG;
-        scale = 0;
+        scale = SCALE_1;
         offset = o;
     }
 
@@ -335,19 +339,16 @@ struct Address {
           
         base = b;
         index = i;
-        scale = 1;
+        scale = SCALE_1;
         offset = o;
     }
 
-    Address(Register b, Register i, int s, int o)
+    Address(Register b, Register i, Scale s, int o)
         :label(Label::LEAVE_UNDEFINED) {
         if (b == NOREG) {
             std::cerr << "Address without base register!\n";
             throw ASM_ERROR;
         }
-    
-        if (i != NOREG && s != 1 && s != 2 && s != 4 && s != 8)
-            throw ASM_ERROR;
     
         base = b;
         index = i;
@@ -359,7 +360,7 @@ struct Address {
         :label(l) {
         base = NOREG;
         index = NOREG;
-        scale = 1;
+        scale = SCALE_1;
         offset = o;
     }
 
@@ -380,8 +381,8 @@ std::ostream &operator << (std::ostream &os, const Address &a) {
         if (a.index != NOREG) {
             os << "+" << a.index;
             
-            if (a.scale != 1)
-                os << "*" << a.scale;
+            if (a.scale != Address::SCALE_1)
+                os << "*" << (a.scale == Address::SCALE_2 ? "2" : a.scale == Address::SCALE_4 ? "4" : "8");
         }
         
         if (a.offset > 0)
@@ -392,8 +393,8 @@ std::ostream &operator << (std::ostream &os, const Address &a) {
     else if (a.index != NOREG) {
         os << a.index;
             
-        if (a.scale != 1)
-            os << "*" << a.scale;
+        if (a.scale != Address::SCALE_1)
+            os << "*" << (a.scale == Address::SCALE_2 ? "2" : a.scale == Address::SCALE_4 ? "4" : "8");
             
         if (a.offset > 0)
             os << "+" << a.offset;

@@ -417,7 +417,7 @@ void Runtime::compile_finalize_reference_array() {
     x64->op(JMP, fra_cond);
 
     x64->code_label(fra_loop);
-    x64->op(MOVQ, RBX, Address(RAX, RCX, 8, ARRAY_ELEMS_OFFSET));
+    x64->op(MOVQ, RBX, Address(RAX, RCX, Address::SCALE_8, ARRAY_ELEMS_OFFSET));
     decref(RBX);
     x64->op(INCQ, RCX);
 

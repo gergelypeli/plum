@@ -1002,7 +1002,7 @@ public:
         x64->op(MOVQ, R10, Address(RSP, 16));  // stringifications
         x64->op(MOVB, RCX, Address(RSP, 24));  // exception
         x64->op(ANDQ, RCX, 255);
-        x64->op(PUSHQ, Address(R10, RCX, ADDRESS_SIZE, 0));  // treenum name string on the stack
+        x64->op(PUSHQ, Address(R10, RCX, Address::SCALE_8, 0));  // treenum name string on the stack
         x64->op(PUSHQ, RAX);
         STRING_TS.streamify(false, x64);
         x64->op(ADDQ, RSP, 16);

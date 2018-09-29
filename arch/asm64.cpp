@@ -882,7 +882,7 @@ void Asm64::effective_address(int regfield, Address x) {
     regfield &= 7;
     int base = x.base == NOREG ? NOREG : x.base & 7;  // RSP and R12 need a SIB
     int index = x.index == NOREG ? NOREG : x.index & 7;
-    int scale = (x.scale == 1 ? 0 : x.scale == 2 ? 1 : x.scale == 4 ? 2 : x.scale == 8 ? 3 : x.index == NOREG ? 0 : throw ASM_ERROR);
+    int scale = (x.scale == Address::SCALE_1 ? 0 : x.scale == Address::SCALE_2 ? 1 : x.scale == Address::SCALE_4 ? 2 : 3);
     int offset = x.offset;
     
     if (x.label.def_index != 0) {
