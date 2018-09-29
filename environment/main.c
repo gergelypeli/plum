@@ -213,6 +213,19 @@ void dies(void *s) {
 }
 
 
+void die_uncaught(Ref name, int64 row) {
+    int64 character_length = ALENGTH(name);
+    char bytes[character_length * 3 + 1];
+        
+    int64 character_count, byte_count;
+    encode_utf8_buffer(AELEMENTS(name), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
+    bytes[byte_count] = '\0';
+    
+    printf("Uncaught exception %s on line %lld!\n", bytes, row);
+    abort();
+}
+
+
 void streamify_integer(int64 x, void **character_array_lvalue) {
     char byte_array[30];
     int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%lld", x);

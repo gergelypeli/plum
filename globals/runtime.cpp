@@ -159,6 +159,7 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     x64->code_label_import(sysv_dump_label, "dump");
     x64->code_label_import(sysv_die_label, "die");
     x64->code_label_import(sysv_dies_label, "dies");
+    x64->code_label_import(sysv_die_uncaught_label, "die_uncaught");
     
     x64->code_label_import(sysv_sort_label, "sort");
     x64->code_label_import(sysv_string_regexp_match_label, "string_regexp_match");

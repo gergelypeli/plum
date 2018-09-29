@@ -520,6 +520,10 @@ Main? :Singleton as:
             
             Std prints("Too bad!")
 
+        # Only for testing uncaught exceptions!
+        #:try
+        #    Util nasty
+
         :for 3 countup each: c? do:
             Std prints("Counting up: {c}" {})
 

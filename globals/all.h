@@ -419,7 +419,8 @@ public:
     std::vector<Label> incref_labels, decref_labels;
 
     Label sysv_memalloc_label, sysv_memfree_label, sysv_memrealloc_label;
-    Label sysv_logfunc_label, sysv_logreffunc_label, sysv_dump_label, sysv_die_label, sysv_dies_label;
+    Label sysv_logfunc_label, sysv_logreffunc_label, sysv_dump_label;
+    Label sysv_die_label, sysv_dies_label, sysv_die_uncaught_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
     
     Runtime(X64 *x, unsigned application_size);
