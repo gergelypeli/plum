@@ -78,14 +78,14 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return Regs(RAX);
+        return Regs::all();
     }
 
     virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
         
         x64->op(MOVQ, R10, 0);
-        x64->op(CALL, alloc_label);
+        x64->op(CALL, alloc_label);  // clobbers all
         
         return Storage(REGISTER, RAX);
     }
@@ -102,8 +102,8 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = right->precompile(preferred);
-        return clob | RAX;
+        right->precompile(preferred);
+        return Regs::all();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -111,7 +111,7 @@ public:
 
         right->compile_and_store(x64, Storage(REGISTER, R10));  // FIXME: may be illegal
 
-        x64->op(CALL, alloc_label);
+        x64->op(CALL, alloc_label);  // clobbers all
         
         return Storage(REGISTER, RAX);
     }
@@ -125,8 +125,8 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = ContainerInitializerValue::precompile(preferred);
-        return clob | SELFX | ROOTX | KEYX | COMPARE_CLOB;
+        ContainerInitializerValue::precompile(preferred);
+        return Regs::all();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -136,8 +136,7 @@ public:
         int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, R10, elems.size());
-        x64->op(CALL, alloc_label);
-        //x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), elems.size());
+        x64->op(CALL, alloc_label);  // clobbers all
         x64->op(PUSHQ, RAX);
         
         for (auto &elem : elems) {
@@ -534,10 +533,12 @@ public:
 
     virtual void prekey(Address alias_addr, X64 *x64) {
         // To be overridden
+        // Must preserve SELFX and KEYX
     }
 
     virtual void prevalue(Address alias_addr, X64 *x64) {
         // To be overridden
+        // Must preserve SELFX and KEYX
     }
 
     virtual Storage compile(X64 *x64) {
@@ -780,7 +781,7 @@ static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) 
 
 static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     // Turn a Ptr into a NosyValue by replacing a pointer with a pointer+fcbaddr pair
-    // on the stack. We may clobber RAX, R10, RCX, RDX.
+    // on the stack. Clobbers all registers, except SELFX and KEYX.
     Label callback_label = x64->once->compile(compile_nosyvalue_callback, item_ts);
     
     x64->op(MOVQ, RAX, Address(RSP, 0));  // referred heap object
@@ -791,12 +792,18 @@ static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     x64->runtime->decref(RAX);  // FIXME: don't let the object die here!
     x64->op(PUSHQ, RAX);  // in NosyValue the object pointer is at the lower address...
     
+    x64->op(PUSHQ, SELFX);  // promised to preserve these two
+    x64->op(PUSHQ, KEYX);
+    
     x64->op(PUSHQ, RAX);
     x64->op(PUSHQ, R10);
     x64->op(PUSHQ, RCX);
     x64->op(PUSHQ, RDX);
-    x64->op(CALL, x64->runtime->fcb_alloc_label);
+    x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
     x64->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
+    
+    x64->op(POPQ, KEYX);
+    x64->op(POPQ, SELFX);  // preserved
     
     x64->op(MOVQ, Address(RSP, ADDRESS_SIZE), RAX);  // .. and the fcb at the higher address
 }
@@ -822,6 +829,7 @@ public:
     }
 
     virtual void prevalue(Address alias_addr, X64 *x64) {
+        // Must preserve SELFX and KEYX
         ptr_to_nosyvalue(item_ts, alias_addr, x64);
     }
 };
@@ -873,6 +881,7 @@ public:
     }
 
     virtual void prekey(Address alias_addr, X64 *x64) {
+        // Must preserve SELFX and KEYX
         ptr_to_nosyvalue(item_ts, alias_addr, x64);
     }
 };
@@ -926,6 +935,7 @@ public:
     }
 
     virtual void prekey(Address alias_addr, X64 *x64) {
+        // Must preserve SELFX and KEYX
         ptr_to_nosyvalue(item_ts, alias_addr, x64);
     }
 };

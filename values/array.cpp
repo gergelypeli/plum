@@ -92,8 +92,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RCX | RSI | RDI;
+        left->precompile(preferred);
+        right->precompile(preferred);
+        return Regs::all();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -122,7 +123,7 @@ public:
         x64->op(MOVQ, R10, Address(R10, ARRAY_LENGTH_OFFSET));
         x64->op(ADDQ, R10, Address(R11, ARRAY_LENGTH_OFFSET));  // total length
         
-        x64->op(CALL, alloc_array);
+        x64->op(CALL, alloc_array);  // clobbers all
         
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));  // restored
         x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
@@ -146,71 +147,45 @@ public:
 };
 
 
-class ArrayReallocValue: public OptimizedOperationValue {
+class ArrayReallocValue: public GenericOperationValue {
 public:
     TypeSpec elem_ts;
 
     ArrayReallocValue(OperationType o, Value *l, TypeMatch &match)
-        :OptimizedOperationValue(o, INTEGER_OVALUE_TS, l->ts, l,
-        PTR_SUBSET, GPR_SUBSET
-        ) {
+        :GenericOperationValue(o, INTEGER_OVALUE_TS, l->ts, l) {
         elem_ts = match[1];
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = OptimizedOperationValue::precompile(preferred);
-        return clob | RAX | RCX;
+        GenericOperationValue::precompile(preferred);
+        return Regs::all();
     }
 
     virtual Storage compile(X64 *x64) {
-        // TODO: this only works for arrays of basic types now, that can be just copied
-        // TODO: can't any type be moved?
-
         Label realloc_array = x64->once->compile(compile_array_realloc, elem_ts);
-        
-        subcompile(x64);
-        
-        if (ls.where != MEMORY)
-            throw INTERNAL_ERROR;
 
-        if (ls.address.base == RAX || ls.address.index == RAX) {
-            x64->op(LEA, R10, ls.address);
-            x64->op(PUSHQ, R10);
-        }
+        if (right) {
+            compile_and_store_both(x64, Storage(ALISTACK), Storage(STACK));
 
-        switch (rs.where) {
-        case NOWHERE:
-            x64->op(MOVQ, RAX, ls.address);
-            x64->op(MOVQ, R10, Address(RAX, ARRAY_LENGTH_OFFSET));  // shrink to fit
-            break;
-        case CONSTANT:
-            x64->op(MOVQ, RAX, ls.address);
-            x64->op(MOVQ, R10, rs.value);
-            break;
-        case REGISTER:
-            x64->op(MOVQ, R10, rs.reg);  // Order!
-            x64->op(MOVQ, RAX, ls.address);
-            break;
-        case MEMORY:
-            x64->op(MOVQ, R10, rs.address);  // Order!
-            x64->op(MOVQ, RAX, ls.address);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        x64->op(CALL, realloc_array);
-        
-        if (ls.address.base == RAX || ls.address.index == RAX) {
-            x64->op(MOVQ, R10, RAX);
-            x64->op(POPQ, RAX);
-            x64->op(MOVQ, Address(RAX, 0), R10);
-            return Storage(MEMORY, Address(RAX, 0));
+            x64->op(POPQ, R10);  // size
+            x64->op(MOVQ, R11, Address(RSP, 0));
+            x64->op(MOVQ, RAX, Address(R11, 0));
         }
         else {
-            x64->op(MOVQ, ls.address, RAX);
-            return ls;
+            left->compile_and_store(x64, Storage(ALISTACK));
+            x64->op(MOVQ, R11, Address(RSP, 0));
+            x64->op(MOVQ, RAX, Address(R11, 0));
+            x64->op(MOVQ, R10, Address(RAX, ARRAY_LENGTH_OFFSET));  // shrink to fit
         }
+        
+        x64->op(CALL, realloc_array);  // clobbers all
+        
+        x64->op(MOVQ, R11, Address(RSP, 0));
+        x64->op(MOVQ, Address(R11, 0), RAX);  // technically not an assignment
+        
+        x64->op(POPQ, RAX);
+        // Return MEMORY, because ALISTACK_STACK store is not implemented directly
+        return Storage(MEMORY, Address(RAX, 0));
     }
 };
 
@@ -364,7 +339,10 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return array_value->precompile(preferred) | fill_value->precompile(preferred) | length_value->precompile(preferred) | Regs(RAX, RCX, RDX);
+        array_value->precompile(preferred);
+        fill_value->precompile(preferred);
+        length_value->precompile(preferred);
+        return Regs::all();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -377,17 +355,18 @@ public:
         fill_value->compile_and_store(x64, Storage(STACK));
         length_value->compile_and_store(x64, Storage(STACK));
         
-        x64->op(MOVQ, R10, Address(RSP, 0));  // extra length
-        x64->op(MOVQ, RDX, Address(RSP, stack_size + INTEGER_SIZE));  // array alias
-        x64->op(MOVQ, RAX, Address(RDX, 0));  // array ref without incref
+        x64->op(MOVQ, R10, Address(RSP, 0));  // extra length (keep on stack)
+        x64->op(MOVQ, R11, Address(RSP, stack_size + INTEGER_SIZE));  // array alias
+        x64->op(MOVQ, RAX, Address(R11, 0));  // array ref without incref
         
         x64->op(ADDQ, R10, Address(RAX, ARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, R10, Address(RAX, ARRAY_RESERVATION_OFFSET));
         x64->op(JBE, ok);
         
         // Need to reallocate
-        x64->op(CALL, realloc_array);
-        x64->op(MOVQ, Address(RDX, 0), RAX);
+        x64->op(CALL, realloc_array);  // clobbers all
+        x64->op(MOVQ, R11, Address(RSP, stack_size + INTEGER_SIZE));  // array alias
+        x64->op(MOVQ, Address(R11, 0), RAX);
         
         x64->code_label(ok);
         x64->op(MOVQ, RDX, Address(RAX, ARRAY_LENGTH_OFFSET));

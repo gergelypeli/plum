@@ -314,7 +314,7 @@ public:
             x64->op(ADDQ, RSP, 16);
         }
 
-        x64->op(CALL, cs_label);
+        x64->op(CALL, cs_label);  // clobbers all
 
         if (repr) {
             x64->op(PUSHQ, 39);  // single quote
@@ -325,26 +325,27 @@ public:
     }
     
     static void compile_streamification(Label label, X64 *x64) {
-        // RAX - target array, R10 - tmp, RCX - size, RDX - source character, RDI - alias
+        // RAX - target array, RCX - size, R10 - source character, R11 - alias
         Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
 
         x64->code_label_local(label, "character_streamification");
 
-        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
+        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
 
-        x64->op(MOVQ, RAX, Address(RDI, 0));
+        x64->op(MOVQ, RAX, Address(R11, 0));
         x64->op(MOVQ, R10, 1);
         
-        x64->op(CALL, preappend_array);
+        x64->op(CALL, preappend_array);  // clobbers all
         
-        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
+        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
+        x64->op(MOVQ, Address(R11, 0), RAX);  // R11 no longer needed
 
         x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
         x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice (CHARACTER_SIZE)
 
-        x64->op(MOVW, Address(RDI, 0), DX);
+        x64->op(MOVW, Address(RDI, 0), R10W);
             
         x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), 1);
 
@@ -376,36 +377,40 @@ public:
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         Label es_label = x64->once->compile(compile_streamification);
 
-        x64->op(LEA, R10, Address(get_stringifications_label(x64), 0));  // table start
-        x64->op(CALL, es_label);
+        x64->op(LEA, RBX, Address(get_stringifications_label(x64), 0));  // table start
+        x64->op(CALL, es_label);  // clobbers all
     }
     
     static void compile_streamification(Label label, X64 *x64) {
-        // RAX - target array, R10 - table start, RCX - size, RDX - source enum, RDI - alias
+        // RAX - target array, RBX - table start, RCX - size, R10 - source enum, R11 - alias
         Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
 
         x64->code_label_local(label, "enum_streamification");
 
-        x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the enum
+        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the enum
 
         // Find the string for this enum value
-        x64->op(ANDQ, RDX, 0xFF);
-        x64->op(MOVQ, RDX, Address(R10, RDX, Address::SCALE_8, 0));
+        x64->op(ANDQ, R10, 0xFF);
+        x64->op(MOVQ, R10, Address(RBX, R10, Address::SCALE_8, 0));
             
-        x64->op(MOVQ, RAX, Address(RDI, 0));
-        x64->op(MOVQ, R10, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(PUSHQ, R10);  // save enum string
+            
+        x64->op(MOVQ, RAX, Address(R11, 0));
+        x64->op(MOVQ, R10, Address(R10, ARRAY_LENGTH_OFFSET));
 
-        x64->op(CALL, preappend_array);
+        x64->op(CALL, preappend_array);  // clobbers all
         
-        x64->op(MOVQ, Address(RDI, 0), RAX);  // RDI no longer needed
+        x64->op(POPQ, R10);  // enum string
+        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        x64->op(MOVQ, Address(R11, 0), RAX);  // R11 no longer needed
 
         x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
         x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice
+        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice (CHARACTER_SIZE)
 
-        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(LEA, RSI, Address(R10, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(R10, ARRAY_LENGTH_OFFSET));
         x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
         x64->op(IMUL3Q, RCX, RCX, CHARACTER_SIZE);
         

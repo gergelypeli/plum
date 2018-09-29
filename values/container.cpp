@@ -21,7 +21,7 @@ void container_alloc(int header_size, int elem_size, int reservation_offset, Lab
     
     x64->op(PUSHQ, R10);
     x64->op(PUSHQ, R11);
-    x64->runtime->heap_alloc();
+    x64->runtime->heap_alloc();  // clobbers all
     x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
     
     x64->op(POPQ, Address(RAX, reservation_offset));
@@ -36,7 +36,7 @@ void container_realloc(int header_size, int elem_size, int reservation_offset, X
     
     x64->op(PUSHQ, RAX);
     x64->op(PUSHQ, R10);
-    x64->runtime->heap_realloc();
+    x64->runtime->heap_realloc();  // clobbers all
     x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 }
 
@@ -58,7 +58,7 @@ void container_grow(int reservation_offset, int min_reservation, Label realloc_l
     x64->op(JMP, check);
     
     x64->code_label(ok);
-    x64->op(CALL, realloc_label);
+    x64->op(CALL, realloc_label);  // clobbers all
 }
 
 
@@ -70,7 +70,7 @@ void container_preappend(int reservation_offset, int length_offset, Label grow_l
     x64->op(CMPQ, R10, Address(RAX, reservation_offset));
     x64->op(JBE, ok);
 
-    x64->op(CALL, grow_label);
+    x64->op(CALL, grow_label);  // clobbers all
     
     x64->code_label(ok);
 }
@@ -198,14 +198,14 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return Regs(RAX);
+        return Regs::all();
     }
 
     virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
 
         x64->op(MOVQ, R10, 0);
-        x64->op(CALL, alloc_label);
+        x64->op(CALL, alloc_label);  // clobbers all
         
         return Storage(REGISTER, RAX);
     }
@@ -222,8 +222,8 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = right->precompile(preferred);
-        return clob | RAX;
+        right->precompile(preferred);
+        return Regs::all();
     }
 
     virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
@@ -231,7 +231,7 @@ public:
 
         right->compile_and_store(x64, Storage(REGISTER, R10));  // FIXME: this may be illegal
 
-        x64->op(CALL, alloc_label);
+        x64->op(CALL, alloc_label);  // clobbers all
         
         return Storage(REGISTER, RAX);
     }
@@ -262,7 +262,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return fill_value->precompile(preferred) | length_value->precompile(preferred) | Regs(RAX, RCX, RDX);
+        fill_value->precompile(preferred);
+        length_value->precompile(preferred);
+        return Regs::all();
     }
     
     virtual Storage subcompile(int length_offset, int elems_offset, Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
@@ -273,7 +275,7 @@ public:
         length_value->compile_and_store(x64, Storage(STACK));
         
         x64->op(MOVQ, R10, Address(RSP, 0));
-        x64->op(CALL, alloc_label);  // RAX - container reference
+        x64->op(CALL, alloc_label);  // clobbers all
         x64->op(POPQ, Address(RAX, length_offset));
         
         Label loop, check;
@@ -337,7 +339,7 @@ public:
         for (auto &elem : elems)
             clob = clob | elem->precompile(preferred);
             
-        return clob | RAX | RCX;
+        return Regs::all();
     }
 
     virtual Storage subcompile(int length_offset, int elems_offset, Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
@@ -346,7 +348,7 @@ public:
         int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, R10, elems.size());
-        x64->op(CALL, alloc_label);
+        x64->op(CALL, alloc_label);  // clobbers all
         x64->op(MOVQ, Address(RAX, length_offset), elems.size());
         x64->op(PUSHQ, RAX);
         
@@ -380,47 +382,43 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | RAX | RCX;
+        left->precompile(preferred);
+        return Regs::all();
     }
     
     virtual Storage subcompile(int reservation_offset, int length_offset, Once::TypedFunctionCompiler compile_grow, X64 *x64) {
         TypeSpec elem_ts = container_elem_ts(ts);
         Label grow_label = x64->once->compile(compile_grow, elem_ts);
         
-        Storage s = left->compile(x64);
+        left->compile_and_store(x64, Storage(ALISTACK));
         
-        switch (s.where) {
-        case MEMORY: {
-            if (s.address.base == RAX || s.address.index == RAX) {
-                x64->op(LEA, RCX, s.address);
-                s.address = Address(RCX, 0);
-            }
-            
-            Label ok;
-            x64->op(MOVQ, RAX, s.address);
-            
-            Label unshared;
-            x64->runtime->check_unshared(RAX);
-            x64->op(JE, unshared);
+        Label ok;
+        x64->op(MOVQ, R11, Address(RSP, 0));
+        x64->op(MOVQ, RAX, Address(R11, 0));
+        
+        Label unshared;
+        x64->runtime->check_unshared(RAX);
+        x64->op(JE, unshared);
 
-            // MEMORY arg
-            raise("CONTAINER_LENT", x64);
+        x64->op(POPQ, R11);  // popped
+        raise("CONTAINER_LENT", x64);
 
-            x64->code_label(unshared);
-            x64->op(MOVQ, R10, Address(RAX, length_offset));
-            x64->op(CMPQ, R10, Address(RAX, reservation_offset));
-            x64->op(JB, ok);
-            
-            x64->op(INCQ, R10);
-            x64->op(CALL, grow_label);
-            x64->op(MOVQ, s.address, RAX);
-            
-            x64->code_label(ok);
-            return s;
-        }
-        default:
-            throw INTERNAL_ERROR;
-        }
+        x64->code_label(unshared);
+        x64->op(MOVQ, R10, Address(RAX, length_offset));
+        x64->op(CMPQ, R10, Address(RAX, reservation_offset));
+        x64->op(JB, ok);
+        
+        x64->op(INCQ, R10);
+        x64->op(CALL, grow_label);  // clobbers all
+        x64->op(MOVQ, R11, Address(RSP, 0));
+        x64->op(MOVQ, Address(R11, 0), RAX);  // technically not an assignment
+        
+        x64->code_label(ok);
+
+        // Since the value will be needed, return MEMORY, because ALISTACK-STACK store
+        // is not implemented directly.
+        x64->op(POPQ, RAX);
+        return Storage(MEMORY, Address(RAX, 0));
     }
 };
 

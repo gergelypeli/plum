@@ -259,8 +259,8 @@ void Runtime::popa(bool except_rax) {
 
 void Runtime::compile_finalize() {
     // finalize(pointer)
-    
     // Preserves all registers, including the scratch ones
+    
     x64->code_label_global(finalize_label, "finalize");
     const int ARGS = pusha() + ARGS_1;
     Label fcb_loop, fcb_cond;
@@ -300,9 +300,10 @@ void Runtime::compile_finalize() {
 
 void Runtime::compile_heap_alloc() {
     // heap_alloc(size, finalizer)
+    // Clobbers all registers
     
     x64->code_label_global(heap_alloc_label, "heap_alloc");
-    const int ARGS = pusha(true) + ARGS_2;
+    const int ARGS = ARGS_2;
     
     x64->op(MOVQ, RDI, Address(RSP, ARGS + ARG_1));  // size arg
     x64->op(ADDQ, RDI, HEAP_HEADER_SIZE);
@@ -318,15 +319,15 @@ void Runtime::compile_heap_alloc() {
     
     x64->op(INCQ, Address(refcount_balance_label, 0));  // necessary to keep the balance
     
-    popa(true);
     x64->op(RET);
 }
 
 void Runtime::compile_heap_realloc() {
     // heap_realloc(pointer, new_size)
+    // Clobbers all registers
 
     x64->code_label_global(heap_realloc_label, "heap_realloc");
-    const int ARGS = pusha(true) + ARGS_2;
+    const int ARGS = ARGS_2;
     Label realloc_ok;
     
     x64->op(MOVQ, RDI, Address(RSP, ARGS + ARG_1));  // pointer arg
@@ -342,15 +343,15 @@ void Runtime::compile_heap_realloc() {
     call_sysv(sysv_memrealloc_label);
     
     x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
-    popa(true);
     x64->op(RET);
 }
 
 void Runtime::compile_fcb_alloc() {
     // fcb_alloc(pointer, callback, payload1, payload2)
+    // Clobbers all registers
 
     x64->code_label_global(fcb_alloc_label, "fcb_alloc");
-    const int ARGS = pusha(true) + ARGS_4;
+    const int ARGS = ARGS_4;
 
     x64->op(MOVQ, RDI, FCB_SIZE);
     call_sysv(sysv_memalloc_label);
@@ -376,15 +377,15 @@ void Runtime::compile_fcb_alloc() {
     x64->op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RAX);
     x64->code_label(no_next);
 
-    popa(true);
     x64->op(RET);
 }
 
 void Runtime::compile_fcb_free() {
     // fcb_free(fcb)
+    // Clobbers all registers
     
     x64->code_label_global(fcb_free_label, "fcb_free");
-    const int ARGS = pusha() + ARGS_1;
+    const int ARGS = ARGS_1;
 
     x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // fcb
     x64->op(MOVQ, RBX, Address(RAX, FCB_PREV_OFFSET));  // always valid
@@ -401,12 +402,12 @@ void Runtime::compile_fcb_free() {
     x64->op(MOVQ, RDI, RAX);
     call_sysv(sysv_memfree_label);
 
-    popa();
     x64->op(RET);
 }
 
 void Runtime::compile_finalize_reference_array() {
     // finalize_reference_array(pointer)
+    // Clobbers all registers
 
     x64->code_label_global(finalize_reference_array_label, "finalize_reference_array");
     Label fra_cond, fra_loop;
@@ -436,7 +437,7 @@ void Runtime::compile_incref_decref() {
         Label il;
         // We use a standard stack frame only for debugging, should be cleaned up later
     
-        // NOTE: preserves all registers, including RBX
+        // NOTE: preserves all registers, including the scratch ones
         x64->code_label_global(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg]);
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
@@ -450,7 +451,7 @@ void Runtime::compile_incref_decref() {
     
         Label dl, dl2;
     
-        // NOTE: preserves all registers, including RBX
+        // NOTE: preserves all registers, including the scratch ones
         x64->code_label_global(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg]);
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
@@ -461,7 +462,7 @@ void Runtime::compile_incref_decref() {
 
         x64->op(PUSHQ, reg);
         x64->op(CALL, finalize_label);
-        x64->op(ADDQ, RSP, ADDRESS_SIZE);
+        x64->op(POPQ, reg);
 
         x64->code_label(dl);
         x64->op(DECQ, Address(refcount_balance_label, 0));

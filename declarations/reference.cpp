@@ -372,11 +372,12 @@ public:
         if (s.where != MEMORY)
             throw INTERNAL_ERROR;
             
-        //x64->op(PUSHQ, RAX);
-        x64->op(PUSHQ, s.address + NOSYVALUE_FCB_OFFSET);
-        x64->op(CALL, x64->runtime->fcb_free_label);
+        x64->op(MOVQ, R10, s.address + NOSYVALUE_FCB_OFFSET);  // s may be RSP based
+        x64->runtime->pusha();
+        x64->op(PUSHQ, R10);
+        x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
         x64->op(ADDQ, RSP, ADDRESS_SIZE);
-        //x64->op(POPQ, RAX);
+        x64->runtime->popa();
     }
 };
 
@@ -437,7 +438,7 @@ public:
         x64->op(JE, skip);
         
         x64->op(PUSHQ, RAX);
-        x64->op(CALL, x64->runtime->fcb_free_label);
+        x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
         x64->op(POPQ, RAX);
         
         x64->code_label(skip);

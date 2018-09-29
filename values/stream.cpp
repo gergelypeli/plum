@@ -9,14 +9,14 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return Regs(RAX);
+        return Regs::all();
     }
 
     virtual Storage compile(X64 *x64) {
         Label alloc_array = x64->once->compile(compile_array_alloc, CHARACTER_TS);
         
         x64->op(MOVQ, R10, length);
-        x64->op(CALL, alloc_array);
+        x64->op(CALL, alloc_array);  // clobbers all
         //x64->op(PUSHQ, RAX);
         
         //return Storage(STACK);

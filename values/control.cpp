@@ -977,7 +977,7 @@ public:
         x64->op(PUSHQ, 100 * CHARACTER_SIZE + ARRAY_HEADER_SIZE);
         x64->op(LEA, R10, Address(x64->runtime->empty_function_label, 0));
         x64->op(PUSHQ, R10);
-        x64->runtime->heap_alloc();
+        x64->runtime->heap_alloc();  // clobbers all
         x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
         
         x64->op(MOVQ, Address(RAX, ARRAY_RESERVATION_OFFSET), 100);

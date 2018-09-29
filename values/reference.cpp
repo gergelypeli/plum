@@ -22,8 +22,8 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        Regs clob = right->precompile(preferred);
-        return clob | RAX | RCX | RDX;
+        right->precompile(preferred);
+        return Regs::all();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -38,13 +38,14 @@ public:
         x64->op(PUSHQ, NOSYOBJECT_SIZE);
         x64->op(LEA, R10, Address(finalizer_label, 0));
         x64->op(PUSHQ, R10);
-        x64->runtime->heap_alloc();
+        x64->runtime->heap_alloc();  // clobbers all
         x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        
         x64->op(PUSHQ, RAX);  // nosy address as payload1
         
         x64->op(PUSHQ, 0);  // payload2
         
-        x64->op(CALL, x64->runtime->fcb_alloc_label);  // RAX - fcb address
+        x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
         
         x64->op(POPQ, RDX);
         x64->op(POPQ, RDX);  // nosy address
@@ -69,7 +70,7 @@ public:
         x64->op(MOVQ, Address(RCX, NOSYOBJECT_FCB_OFFSET), 0);  // clear FCB address for the finalizer
         
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * 3));  // fcb arg
-        x64->op(CALL, x64->runtime->fcb_free_label);
+        x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
         x64->op(ADDQ, RSP, ADDRESS_SIZE);
         
         x64->op(RET);

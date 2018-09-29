@@ -6,7 +6,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return Regs(RAX);
+        return Regs::all();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -18,7 +18,9 @@ public:
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
         x64->op(LEA, R10, Address(finalizer_label, 0));
         x64->op(PUSHQ, R10);
-        x64->runtime->heap_alloc();
+        
+        x64->runtime->heap_alloc();  // clobbers all
+        
         x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 
         Label vt_label = class_ts.get_virtual_table_label(x64);
