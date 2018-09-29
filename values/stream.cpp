@@ -15,11 +15,12 @@ public:
     virtual Storage compile(X64 *x64) {
         Label alloc_array = x64->once->compile(compile_array_alloc, CHARACTER_TS);
         
-        x64->op(MOVQ, RAX, length);
+        x64->op(MOVQ, R10, length);
         x64->op(CALL, alloc_array);
-        x64->op(PUSHQ, RAX);
+        //x64->op(PUSHQ, RAX);
         
-        return Storage(STACK);
+        //return Storage(STACK);
+        return Storage(REGISTER, RAX);
     }
 };
 

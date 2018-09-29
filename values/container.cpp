@@ -12,15 +12,15 @@ int container_elem_size(TypeSpec elem_ts) {
 
 
 void container_alloc(int header_size, int elem_size, int reservation_offset, Label finalizer_label, X64 *x64) {
-    // RAX - reservation size
-    x64->op(PUSHQ, RAX);
-    
-    x64->op(IMUL3Q, RAX, RAX, elem_size);
-    x64->op(ADDQ, RAX, header_size);
-    x64->op(LEA, R10, Address(finalizer_label, 0));
-    
-    x64->op(PUSHQ, RAX);
+    // R10 - reservation size
     x64->op(PUSHQ, R10);
+    
+    x64->op(IMUL3Q, R10, R10, elem_size);
+    x64->op(ADDQ, R10, header_size);
+    x64->op(LEA, R11, Address(finalizer_label, 0));
+    
+    x64->op(PUSHQ, R10);
+    x64->op(PUSHQ, R11);
     x64->runtime->heap_alloc();
     x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
     
@@ -204,7 +204,7 @@ public:
     virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
 
-        x64->op(MOVQ, RAX, 0);
+        x64->op(MOVQ, R10, 0);
         x64->op(CALL, alloc_label);
         
         return Storage(REGISTER, RAX);
@@ -229,7 +229,7 @@ public:
     virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
 
-        right->compile_and_store(x64, Storage(REGISTER, RAX));
+        right->compile_and_store(x64, Storage(REGISTER, R10));  // FIXME: this may be illegal
 
         x64->op(CALL, alloc_label);
         
@@ -272,7 +272,7 @@ public:
         fill_value->compile_and_store(x64, Storage(STACK));
         length_value->compile_and_store(x64, Storage(STACK));
         
-        x64->op(MOVQ, RAX, Address(RSP, 0));
+        x64->op(MOVQ, R10, Address(RSP, 0));
         x64->op(CALL, alloc_label);  // RAX - container reference
         x64->op(POPQ, Address(RAX, length_offset));
         
@@ -345,7 +345,7 @@ public:
         int elem_size = container_elem_size(elem_ts);
         int stack_size = elem_ts.measure_stack();
     
-        x64->op(MOVQ, RAX, elems.size());
+        x64->op(MOVQ, R10, elems.size());
         x64->op(CALL, alloc_label);
         x64->op(MOVQ, Address(RAX, length_offset), elems.size());
         x64->op(PUSHQ, RAX);

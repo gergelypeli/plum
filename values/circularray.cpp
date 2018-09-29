@@ -31,7 +31,7 @@ void fix_R10_index_underflow(Register r, X64 *x64) {
 
 
 void compile_circularray_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - reservation
+    // R10 - reservation
     int elem_size = circularray_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(x64);
     

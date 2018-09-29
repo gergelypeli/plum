@@ -5,7 +5,7 @@ int array_elem_size(TypeSpec elem_ts) {
 
 
 void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - reservation
+    // R10 - reservation
     int elem_size = array_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(array_type).get_finalizer_label(x64);
     
@@ -93,7 +93,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RCX | RDX | RSI | RDI;
+        return clob | RAX | RCX | RSI | RDI;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -111,21 +111,21 @@ public:
     }
     
     static void compile_array_concatenation(Label label, TypeSpec elem_ts, X64 *x64) {
-        // RAX - result, R10 - first, RDX - second
+        // RAX - result, R10 - first, R11 - second
         x64->code_label_local(label, "x_array_concatenation");
         Label alloc_array = x64->once->compile(compile_array_alloc, elem_ts);
         int elem_size = array_elem_size(elem_ts);
         
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
-        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE));
+        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
         
-        x64->op(MOVQ, RAX, Address(R10, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RAX, Address(RDX, ARRAY_LENGTH_OFFSET));  // total length in RAX
+        x64->op(MOVQ, R10, Address(R10, ARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, R10, Address(R11, ARRAY_LENGTH_OFFSET));  // total length
         
         x64->op(CALL, alloc_array);
         
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));  // restored
-        x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE));
+        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
         
         x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
         
@@ -135,8 +135,8 @@ public:
         x64->op(IMUL3Q, RCX, RCX, elem_size);
         x64->op(REPMOVSB);
 
-        x64->op(LEA, RSI, Address(RDX, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(LEA, RSI, Address(R11, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(R11, ARRAY_LENGTH_OFFSET));
         x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
         x64->op(IMUL3Q, RCX, RCX, elem_size);
         x64->op(REPMOVSB);

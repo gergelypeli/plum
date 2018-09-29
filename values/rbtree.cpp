@@ -9,7 +9,7 @@ int rbtree_elem_size(TypeSpec elem_ts) {
 // value may be 0, which is an invalid offset, since the tree itself has a nonempty header.
 
 void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - reservation
+    // R10 - reservation
     int elem_size = rbtree_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(rbtree_type).get_finalizer_label(x64);
     
@@ -84,7 +84,7 @@ public:
     virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
         
-        x64->op(MOVQ, RAX, 0);
+        x64->op(MOVQ, R10, 0);
         x64->op(CALL, alloc_label);
         
         return Storage(REGISTER, RAX);
@@ -109,7 +109,7 @@ public:
     virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
 
-        right->compile_and_store(x64, Storage(REGISTER, RAX));
+        right->compile_and_store(x64, Storage(REGISTER, R10));  // FIXME: may be illegal
 
         x64->op(CALL, alloc_label);
         
@@ -135,7 +135,7 @@ public:
         Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
         int stack_size = elem_ts.measure_stack();
     
-        x64->op(MOVQ, RAX, elems.size());
+        x64->op(MOVQ, R10, elems.size());
         x64->op(CALL, alloc_label);
         //x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), elems.size());
         x64->op(PUSHQ, RAX);
