@@ -2,6 +2,7 @@
 class InterfaceType: public Type {
 public:
     std::vector<Function *> member_functions;
+    std::vector<Implementation *> member_implementations;
     
     InterfaceType(std::string name, Metatypes param_metatypes)
         :Type(name, param_metatypes, interface_metatype) {
@@ -21,17 +22,19 @@ public:
             if (fs)
                 continue;
 
-            Implementation *it = ptr_cast<Implementation>(c.get());
+            Implementation *imp = ptr_cast<Implementation>(c.get());
             
-            if (it)
+            if (imp) {
+                member_implementations.push_back(imp);
                 continue;
+            }
                 
             // OK, we have to forgive built-in implementations of nested interfaces,
             // which may be of any class, but at least they have a qualified name.
-            Identifier *i = ptr_cast<Identifier>(c.get());
+            //Identifier *i = ptr_cast<Identifier>(c.get());
             
-            if (i && i->name.find(".") != std::string::npos)
-                continue;
+            //if (i && i->name.find(".") != std::string::npos)
+            //    continue;
                 
             std::cerr << "Not a function or implementation in an interface!\n";
             throw INTERNAL_ERROR;
@@ -80,16 +83,59 @@ class Implementation: public Identifier {
 public:
     TypeSpec interface_ts;
     std::string prefix;
+    DataScope *implementor_scope;
+    Implementation *original_implementation;
+    std::vector<std::unique_ptr<Implementation>> shadow_implementations;
 
     Implementation(std::string name, TypeSpec pts, TypeSpec ifts)
         :Identifier(name, pts) {
         interface_ts = ifts;
         prefix = name + ".";
+        implementor_scope = NULL;
+        original_implementation = NULL;
+        
+        InterfaceType *ift = ptr_cast<InterfaceType>(ifts[0]);
+        if (!ift)
+            throw INTERNAL_ERROR;
+
+        for (auto &imp : ift->member_implementations) {
+            shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp));
+        }
+    }
+    
+    Implementation(std::string p, Implementation *oi)
+        :Identifier(p + oi->name, NO_TS) {
+        interface_ts = oi->interface_ts;
+        prefix = name + ".";
+        implementor_scope = NULL;
+        original_implementation = oi;
+        
+        for (auto &imp : oi->shadow_implementations) {
+            shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp.get()));
+        }
+    }
+
+    virtual void set_implementor(DataScope *is, TypeSpec ts) {
+        implementor_scope = is;
+        
+        for (auto &si : shadow_implementations) {
+            si->set_implementor(is, ts);
+        }
+    }
+    
+    virtual void set_outer_scope(Scope *os) {
+        if (original_implementation)
+            throw INTERNAL_ERROR;
+            
+        DataScope *ds = ptr_cast<DataScope>(os);
+        if (!ds)
+            throw INTERNAL_ERROR;
+            
+        set_implementor(ds, pivot_ts);
     }
 
     virtual void set_name(std::string n) {
-        name = n;
-        prefix = n + ".";
+        throw INTERNAL_ERROR;  // too late!
     }
 
     virtual TypeSpec get_interface_ts(TypeMatch &match) {
@@ -97,10 +143,47 @@ public:
     }
 
     virtual Implementation *lookup_implementation(std::string name) {
-        if (deprefix(name, prefix))
-            return this;
+        std::cerr << "Looking up implementation " << name << " under " << prefix << "\n";
+        std::string n = name;
+        
+        if (deprefix(n, prefix)) {
+            if (n.find('.') != std::string::npos) {
+                for (auto &si : shadow_implementations) {
+                    Implementation *i = si->lookup_implementation(name);
+                    if (i)
+                        return i;
+                }
+                
+                return NULL;
+            }
+            else
+                return this;
+        }
         else
             return NULL;
+    }
+
+    virtual Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+        ifts = get_interface_ts(match);   // pivot match
+
+        if (ifts[0] == *target) {
+            // Direct implementation
+            //std::cerr << "Found direct implementation.\n";
+            return make<ImplementationConversionValue>(this, orig, match);
+        }
+        else {
+            //std::cerr << "Trying indirect implementation with " << ifts << "\n";
+            TypeMatch iftm = ifts.match();
+            
+            for (auto &si : shadow_implementations) {
+                Value *v = si->find_implementation(iftm, target, orig, ifts);
+                
+                if (v)
+                    return v;
+            }
+            
+            return NULL;
+        }
     }
 
     virtual bool check_implementation(Function *override) {

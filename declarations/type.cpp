@@ -309,7 +309,22 @@ public:
             return orig;
         }
 
-        return find_implementation(tm, target, orig, ifts);
+        Scope *inner_scope = get_inner_scope();
+        if (!inner_scope)
+            return NULL;
+
+        for (auto &d : inner_scope->contents) {
+            Implementation *imp = ptr_cast<Implementation>(d.get());
+            
+            if (imp) {
+                Value *v = implementation_find(imp, tm, target, orig, ifts);
+                
+                if (v)
+                    return v;
+            }
+        }
+        
+        return NULL;    
     }
 
     virtual void init_vt(TypeMatch tm, Address addr, Label vt_label, X64 *x64) {

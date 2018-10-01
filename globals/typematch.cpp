@@ -1,6 +1,6 @@
 
 // Matching
-
+/*
 Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
     Scope *inner_scope = match[0][0]->get_inner_scope();
     if (!inner_scope)
@@ -29,7 +29,7 @@ Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, T
 
     return NULL;
 }
-
+*/
 
 TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     TypeSpec ts;

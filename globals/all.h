@@ -80,6 +80,7 @@ int role_get_virtual_offset(Role *r);
 bool role_is_base(Role *r);
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
 //bool descend_into_explicit_scope(std::string &name, Scope *&scope);
+Value *implementation_find(Implementation *imp, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
 
 
 // TypeSpec operations
@@ -95,7 +96,7 @@ void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);
 
 
 // Check
-Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
+//Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
 bool typematch(TypeSpec tt, Value *&v, Scope *scope, TypeMatch &match);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos);

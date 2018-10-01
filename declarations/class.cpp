@@ -315,6 +315,7 @@ public:
         is_base = false;
         original_role = role;
         virtual_offset = -1;
+        virtual_scope = NULL;
         fastforward_ve = new AbsoluteVirtualEntry;
 
         for (auto &sr : role->shadow_roles) {

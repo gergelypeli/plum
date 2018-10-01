@@ -597,6 +597,12 @@ Main? :Singleton as:
         ss? String Array Ref = { "foo", "bar" }
         Std prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
+        :for ss each: i? do:
+            Std prints("Array element {i}" {})
+
+        :for ss elements each: i? do:
+            Std prints("Array element {i}" {})
+
         ss_popped1? = :try ss pop
         Std prints("Array popped {ss_popped1}" {})
         ss_popped2? String = :try ss pop

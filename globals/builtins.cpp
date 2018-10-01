@@ -413,13 +413,19 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
     implementor_scope->add(implementation);
     
     for (Identifier *i : contents) {
+        i->name = implementation_name + "." + i->name;  // TODO: ugly!
+        
+        // Necessary to handle nested implementations
+        Implementation *associated_implementation = implementation->lookup_implementation(i->name);
+        if (!associated_implementation)
+            throw INTERNAL_ERROR;
+        
         Function *f = ptr_cast<Function>(i);
         
         if (f)
-            if (!implementation->check_implementation(f))
+            if (!associated_implementation->check_implementation(f))
                 throw INTERNAL_ERROR;
         
-        i->name = implementation_name + "." + i->name;  // TODO: ugly!
         implementor_scope->add(i);
     }
 }
@@ -571,11 +577,12 @@ void define_interfaces() {
         NULL
     );
     iis->add(nf);
-    implement(iis, SAME_ITERABLE_TS, "ible", {
+    implement(iis, SAME_ITERABLE_TS, "iterable", {
+        // FIXME
         // This must return the concrete type, so the pivot type must be Any so that no
         // conversion to an interface happens, which would hide the concrete type.
         // TODO: why would an ANY_ITERATOR_TS pivot break anything?
-        new Identity("iter", ANY_TS)
+        //new Identity("iter", ANY_TS)
     });
     iterator_type->complete_type();
     iis->leave();
@@ -594,7 +601,8 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
     aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
 
     implement(aiis, interface_ts, "iterator", {
-        new TemplateIdentifier<NextValue>("next", PIVOT_TS)
+        new TemplateIdentifier<NextValue>("next", PIVOT_TS),
+        new Identity("iterable.iter", ANY_TS)
     });
     
     iter_type->complete_type();
@@ -643,7 +651,10 @@ void define_iterators() {
             next_fn = new TemplateIdentifier<CountdownNextValue>("next", COUNTER_TS);
         }
 
-        implement(cis, INTEGER_ITERATOR_TS, "iter", { next_fn });
+        implement(cis, INTEGER_ITERATOR_TS, "iter", {
+            next_fn,
+            new Identity("iterable.iter", ANY_TS)
+        });
         
         counter_type->complete_type();
         cis->leave();

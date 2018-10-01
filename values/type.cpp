@@ -98,7 +98,7 @@ public:
     }
     
     virtual Value *lookup_inner(std::string name, Scope *scope) {
-        Scope *implementor_scope = implementation->outer_scope;
+        //Scope *implementor_scope = implementation->outer_scope;
         ts = orig->ts;  // implementor_scope->pivot_type_hint();
         std::string implementing_name = implementation->prefix + name;
         
@@ -107,10 +107,12 @@ public:
         // are in the enclosing interface, not in the concrete type scope. So looking
         // up by ts won't find it, and we must look up directly in the implementor scope.
         //std::cerr << "Looking up implementation " << ts << " " << implementing_name << "\n";
-        Value *value = implementor_scope->lookup(implementing_name, this, scope);
+        //Value *value = implementor_scope->lookup(implementing_name, this, scope);
+        
+        Value *value = implementation->implementor_scope->lookup(implementing_name, this, scope);
 
         if (!value)
-            std::cerr << "Oops, missing implementation?\n";
+            std::cerr << "Oops, missing implementation " << implementing_name << "?\n";
 
         return value;
     }

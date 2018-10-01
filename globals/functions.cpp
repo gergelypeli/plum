@@ -75,48 +75,26 @@ Declaration *make_record_compare() {
     return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);
 }
 
+
 int role_get_virtual_offset(Role *r) {
     return r->virtual_offset;
 }
+
 
 bool role_is_base(Role *r) {
     return r->is_base;
 }
 
+
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
     r->init_vt(tm, self_addr, vt_label, x64);
 }
 
-/*
-bool descend_into_explicit_scope(std::string &name, Scope *&scope) {
-    while (true) {
-        auto pos = name.find(".");
-        
-        if (pos == std::string::npos)
-            break;
-            
-        std::string scope_name = name.substr(0, pos);
-        name = name.substr(pos + 1);
-        DataScope *inner_scope = NULL;
-        
-        for (auto &d : scope->contents) {
-            inner_scope = d->find_inner_scope(scope_name);
-            
-            if (inner_scope)
-                break;
-        }
-        
-        if (!inner_scope) {
-            std::cerr << "Invalid explicit scope name " << scope_name << "!\n";
-            return false;
-        }
-        
-        scope = inner_scope;
-    }
-    
-    return true;
+
+Value *implementation_find(Implementation *imp, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+    return imp->find_implementation(match, target, orig, ifts);
 }
-*/
+
 
 std::string print_exception_type(TreenumerationType *t) {
     return t ? t->name : "-";
@@ -127,19 +105,6 @@ TreenumerationType *make_treenum(const char *name, const char *kw1) {
     return new TreenumerationType(name, { "", kw1 }, { 0, 0 });
 }
 
-/*
-TreenumerationType *make_treenum(const char *name, const char **kws) {
-    std::vector<std::string> keywords = { "" };
-    std::vector<unsigned> parents = { 0 };
-
-    for (const char *kw : kws) {
-        keywords.push_back(kw);
-        parents.push_back(0);
-    }
-
-    return new TreenumerationType(name, keywords, parents);
-}
-*/
 
 TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
     std::vector<std::string> keywords = { "" };
