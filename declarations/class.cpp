@@ -350,27 +350,27 @@ public:
         return make<RoleValue>(this, cpivot, match);
     }
 
-    virtual Role *lookup_role(std::string name) {
-        std::string n = name;
-        
-        if (deprefix(n, prefix)) {
-            if (n.find('.') != std::string::npos) {
-                for (auto &sr : shadow_roles) {
-                    Role *r = sr->lookup_role(name);
-                    if (r)
-                        return r;
-                }
-                
-                return NULL;
+    virtual Role *lookup_role(std::string n) {
+        if (n == name)
+            return this;
+        else if (has_prefix(n, prefix)) {
+            for (auto &sr : shadow_roles) {
+                Role *r = sr->lookup_role(n);
+                if (r)
+                    return r;
             }
-            else
-                return this;
         }
-        else
-            return NULL;
+        
+        return NULL;
     }
 
-    virtual bool check_override(Function *override) {
+    virtual bool check_associated(Declaration *d) {
+        Function *override = ptr_cast<Function>(d);
+        if (!override) {
+            std::cerr << "This declaration can't be associated with role " << name << "!\n";
+            return false;
+        }
+        
         Declaration *decl = NULL;
         ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
         std::string override_name = override->name;
@@ -403,6 +403,8 @@ public:
         // this automatically sets original_function
         if (!override->does_implement(prefix, TypeMatch(), original, role_tm))
             return false;
+        
+        override->set_associated_role(this);
         
         return true;
     }

@@ -27,6 +27,18 @@ inline bool deprefix(std::string &value, std::string const &beginning)
 }
 
 
+inline bool has_prefix(std::string &value, std::string const &beginning)
+{
+    if (beginning.size() > value.size())
+        return false;
+        
+    if (!std::equal(beginning.begin(), beginning.end(), value.begin()))
+        return false;
+        
+    return true;
+}
+
+
 std::string get_working_path() {
    char temp[4096];  // No fucking standard, also see http://insanecoding.blogspot.com/2007/11/pathmax-simply-isnt.html
    return ( getcwd(temp, 4096) ? std::string( temp ) : std::string("") );

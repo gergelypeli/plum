@@ -142,25 +142,18 @@ public:
         return typesubst(interface_ts, match);
     }
 
-    virtual Implementation *lookup_implementation(std::string name) {
-        std::cerr << "Looking up implementation " << name << " under " << prefix << "\n";
-        std::string n = name;
-        
-        if (deprefix(n, prefix)) {
-            if (n.find('.') != std::string::npos) {
-                for (auto &si : shadow_implementations) {
-                    Implementation *i = si->lookup_implementation(name);
-                    if (i)
-                        return i;
-                }
-                
-                return NULL;
+    virtual Implementation *lookup_implementation(std::string n) {
+        if (n == name)
+            return this;
+        else if (has_prefix(n, prefix)) {
+            for (auto &si : shadow_implementations) {
+                Implementation *i = si->lookup_implementation(n);
+                if (i)
+                    return i;
             }
-            else
-                return this;
         }
-        else
-            return NULL;
+        
+        return NULL;
     }
 
     virtual Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
@@ -186,7 +179,7 @@ public:
         }
     }
 
-    virtual bool check_implementation(Function *override) {
+    virtual bool check_associated(Declaration *decl) {
         // NOTE: this is kinda weird, but correct.
         // If a parametric type implements an interface with the same type parameter
         // used, we can't concretize that here yet. So the fake_match, despite being
@@ -194,6 +187,13 @@ public:
         // from the interface definition, the substitution will replace Same types
         // with Same types. But the functions in the implementation will be similarly
         // parametrized, so the comparison should compare Same to Same, and succeed.
+        
+        Function *override = ptr_cast<Function>(decl);
+        if (!override) {
+            std::cerr << "This declaration can't be associated with implementation " << name << "!\n";
+            return false;
+        }
+        
         InterfaceType *interface_type = ptr_cast<InterfaceType>(interface_ts[0]);
         TypeMatch iftm = interface_ts.match();
         TypeMatch empty_match;

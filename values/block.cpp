@@ -306,6 +306,33 @@ public:
         ts = var->alloc_ts.reprefix(lvalue_type, uninitialized_type);
     }
 
+    virtual bool associate(Declaration *decl, std::string name) {
+        for (auto &d : decl->outer_scope->contents) {
+            Role *r = ptr_cast<Role>(d.get());
+            
+            if (r) {
+                Role *associated_role = r->lookup_role(name);
+                
+                if (associated_role)
+                    return associated_role->check_associated(decl);
+            }
+        }
+
+        for (auto &d : decl->outer_scope->contents) {
+            Implementation *imp = ptr_cast<Implementation>(d.get());
+        
+            if (imp) {
+                Implementation *associated_implementation = imp->lookup_implementation(name);
+                
+                if (associated_implementation)
+                    return associated_implementation->check_associated(decl);
+            }
+        }
+            
+        std::cerr << "Invalid association qualification for declaration!\n";
+        return false;
+    }
+
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (args.size() > 1 || kwargs.size() != 0) {
             std::cerr << "Whacky declaration!\n";
@@ -336,11 +363,6 @@ public:
             return false;
         }
 
-        /*
-        if (!descend_into_explicit_scope(name, scope))  // Modifies both arguments
-            return false;
-        */
-        
         Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
         
         if (!v->ts.is_meta() && !v->ts.is_hyper()) {
@@ -358,6 +380,13 @@ public:
         }
 
         scope->add(decl);
+
+        auto i = name.rfind('.');
+        
+        if (i != std::string::npos) {
+            if (!associate(decl, name.substr(0, i)))
+                return false;
+        }
         
         if (scope->type == CODE_SCOPE) {
             var = ptr_cast<Variable>(decl);

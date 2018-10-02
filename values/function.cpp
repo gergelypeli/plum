@@ -438,63 +438,12 @@ public:
         if (has_code_arg)
             fn_scope->make_forwarded_exception_storage();
         
-        // Let's deal with virtual method overrides!
-        Role *associated_role = NULL;
-        Implementation *associated_implementation = NULL;
-        
-        if (name.find('.') != std::string::npos) {
-            for (auto &d : outer_scope->contents) {
-                Role *r = ptr_cast<Role>(d.get());
-                
-                if (r) {
-                    associated_role = r->lookup_role(name);
-                    if (associated_role)
-                        break;
-                }
-            }
-
-            if (!associated_role) {
-                for (auto &d : outer_scope->contents) {
-                    Implementation *imp = ptr_cast<Implementation>(d.get());
-                
-                    if (imp) {
-                        associated_implementation = imp->lookup_implementation(name);
-                        if (associated_implementation)
-                            break;
-                    }
-                }
-                
-            }
-            
-            if (!associated_role && !associated_implementation) {
-                std::cerr << "Invalid role/implementation qualification for function!\n";
-                return NULL;
-            }
-        }
-        
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         
         if (import_name.size())
             function = new SysvFunction(import_name, name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
         else
             function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
-
-        if (associated_role) {
-            if (!associated_role->check_override(function)) {
-                std::cerr << "Invalid override for function!\n";
-                return NULL;
-            }
-            
-            function->set_associated_role(associated_role);
-        }
-        else if (associated_implementation) {
-            if (!associated_implementation->check_implementation(function)) {
-                std::cerr << "Invalid implementation for function!\n";
-                return NULL;
-            }
-            
-            //function->set_associated_implementation(associated_implementation);
-        }
 
         return function;
     }
