@@ -162,6 +162,14 @@ public:
 };
 
 
+class LselfMetaType: public MetaType {
+public:
+    LselfMetaType(std::string name, Type *st)
+        :MetaType(name, st, make<LselfDefinitionValue>) {
+    }
+};
+
+
 class ImportMetaType: public MetaType {
 public:
     ImportMetaType(std::string name, Type *st)

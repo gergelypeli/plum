@@ -6,6 +6,7 @@
 Pair? :Record as:
     first? Integer
     second? Integer
+    lself? :Lself
 
     new? :Initializer as:
         $ first = 1
@@ -27,6 +28,10 @@ Pair? :Record as:
         $ second sable streamify(stream)
         ")" sable streamify(stream)
         
+    lself.reset? :Function as:
+        $ first = 0
+        $ second = 0
+
 
 Pairs? :Singleton as:        
     make_pair? :Function Pair as:

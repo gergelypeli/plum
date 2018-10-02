@@ -51,6 +51,9 @@ void builtin_types(Scope *root_scope) {
     implementation_metatype = new ImplementationMetaType("Implementation", type_metatype);
     colon_scope->add(implementation_metatype);
 
+    lself_metatype = new LselfMetaType("Lself", type_metatype);
+    colon_scope->add(lself_metatype);
+
     colon_scope->add(new ImportMetaType("Import", type_metatype));
 
     // Phase 3: declare wildcard types, so subsequent types can have an inner scope

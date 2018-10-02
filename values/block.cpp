@@ -328,6 +328,21 @@ public:
                     return associated_implementation->check_associated(decl);
             }
         }
+
+        for (auto &d : decl->outer_scope->contents) {
+            Lself *ls = ptr_cast<Lself>(d.get());
+        
+            if (ls) {
+                Lself *associated_lself = ls->lookup_lself(name);
+                if (associated_lself)
+                    return associated_lself->check_associated(decl);
+            
+                Implementation *associated_implementation = ls->lookup_implementation(name);
+                
+                if (associated_implementation)
+                    return associated_implementation->check_associated(decl);
+            }
+        }
             
         std::cerr << "Invalid association qualification for declaration!\n";
         return false;

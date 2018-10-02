@@ -156,6 +156,19 @@ public:
     virtual void set_associated_role(Role *ar) {
         associated_role = ar;
     }
+    
+    virtual void set_associated_lself(Lself *al) {
+        Scope *ss = fn_scope->self_scope;
+        if (ss->contents.size() != 1)
+            throw INTERNAL_ERROR;
+            
+        Variable *self_var = ptr_cast<Variable>(ss->contents[0].get());
+        if (!self_var)
+            throw INTERNAL_ERROR;
+            
+        pivot_ts = pivot_ts.lvalue();
+        self_var->alloc_ts = self_var->alloc_ts.lvalue();
+    }
 };
 
 

@@ -595,3 +595,28 @@ public:
             return NULL;
     }
 };
+
+
+class LselfDefinitionValue: public TypeDefinitionValue {
+public:
+    LselfDefinitionValue()
+        :TypeDefinitionValue() {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 0 || kwargs.size() != 0) {
+            std::cerr << "Whacky lself!\n";
+            return false;
+        }
+
+        return true;
+    }
+
+    virtual Declaration *declare(std::string name, ScopeType st) {
+        if (st == DATA_SCOPE) {
+            return new Lself(name, NO_TS);
+        }
+        else
+            return NULL;
+    }
+};

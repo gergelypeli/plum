@@ -31,6 +31,7 @@ class ImportDefinitionValue;
 class InitializerEqualityMatcherValue;
 class IntegerDefinitionValue;
 class InterfaceDefinitionValue;
+class LselfDefinitionValue;
 class OptionNoneMatcherValue;
 class OptionNoneValue;
 class OptionSomeMatcherValue;

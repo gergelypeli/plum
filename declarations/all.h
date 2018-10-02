@@ -20,6 +20,7 @@ class TreenumerationType;
 class ArrayType;
 class InterfaceType;
 class Implementation;
+class Lself;
 class HeapType;
 
 // Scopes

@@ -218,3 +218,75 @@ public:
         return make<ImplementationConversionValue>(this, pivot, match);
     }
 };
+
+
+class Lself: public Identifier {
+public:
+    std::string prefix;
+    DataScope *implementor_scope;
+    std::vector<Implementation *> outer_implementations;
+
+    Lself(std::string name, TypeSpec pts)
+        :Identifier(name, pts) {
+        prefix = name + ".";
+        implementor_scope = NULL;
+    }
+
+    virtual void set_outer_scope(Scope *os) {
+        DataScope *ds = ptr_cast<DataScope>(os);
+        if (!ds)
+            throw INTERNAL_ERROR;
+        
+        implementor_scope = ds;
+    }
+
+    virtual void set_name(std::string n) {
+        throw INTERNAL_ERROR;  // too late!
+    }
+
+    virtual Lself *lookup_lself(std::string n) {
+        if (n == name)
+            return this;
+        
+        return NULL;
+    }
+
+    virtual Implementation *lookup_implementation(std::string n) {
+        if (has_prefix(n, prefix)) {
+            for (auto &oi : outer_implementations) {
+                Implementation *i = oi->lookup_implementation(n);
+                if (i)
+                    return i;
+            }
+        }
+        
+        return NULL;
+    }
+
+    virtual Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+        TypeSpec ots = get_typespec(orig);
+        
+        if (ots[0] == lvalue_type) {
+            for (auto &oi : outer_implementations) {
+                Value *v = oi->find_implementation(match, target, orig, ifts);
+                
+                if (v)
+                    return v;
+            }
+        }
+            
+        return NULL;
+    }
+
+    virtual bool check_associated(Declaration *decl) {
+        Function *f = ptr_cast<Function>(decl);
+        if (!f) {
+            std::cerr << "This declaration can't be associated with Lself " << name << "!\n";
+            return false;
+        }
+
+        f->set_associated_lself(this);
+        
+        return true;
+    }
+};
