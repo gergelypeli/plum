@@ -91,8 +91,8 @@ void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 
 }
 
 
-Value *implementation_find(Implementation *imp, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
-    return imp->find_implementation(match, target, orig, ifts);
+Value *implementation_find(Implementation *imp, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+    return imp->find_implementation(match, target, orig, ifts, assume_lvalue);
 }
 
 

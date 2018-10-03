@@ -208,22 +208,20 @@ public:
             role_init_vt(r, tm, self_addr, vt_label, x64);
     }
 
-    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (tm[0][0] == *target) {
             ifts = tm[0];
             
+            // Optimize out identity cast
+            // TODO: maybe this never happens, because autoconv is never called then?
             TypeSpec ts = get_typespec(orig).rvalue();
-            Type *t = ts[0];
             
-            if (t == ref_type || t == ptr_type)
-                ts = ts.unprefix(t);
-            else
+            if (ts[0] != ref_type && ts[0] != ptr_type)
                 throw INTERNAL_ERROR;
                 
-            if (ts[0] == this)
+            if (ts[1] == this)
                 return orig;
             else {
-                ts = tm[0].prefix(t);
                 std::cerr << "Autoconverting a " << get_typespec(orig) << " to " << ts << ".\n";
                 return make<CastValue>(orig, ts);
             }
@@ -231,13 +229,13 @@ public:
         
         if (base_role) {
             TypeSpec ts = base_role->get_typespec(tm);
-            Value *v = ts.autoconv(target, orig, ifts);
+            Value *v = ts.autoconv(target, orig, ifts, assume_lvalue);
             
             if (v)
                 return v;
         }
         
-        return HeapType::autoconv(tm, target, orig, ifts);
+        return HeapType::autoconv(tm, target, orig, ifts, assume_lvalue);
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {

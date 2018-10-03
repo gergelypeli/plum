@@ -24,7 +24,7 @@ public:
     std::vector<VirtualEntry *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
-    Value *autoconv(iterator target, Value *orig, TypeSpec &ifts);
+    Value *autoconv(iterator target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
     StorageWhere where(AsWhat as_what);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t = NULL);
@@ -80,7 +80,7 @@ int role_get_virtual_offset(Role *r);
 bool role_is_base(Role *r);
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
 //bool descend_into_explicit_scope(std::string &name, Scope *&scope);
-Value *implementation_find(Implementation *imp, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
+Value *implementation_find(Implementation *imp, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
 
 
 // TypeSpec operations
@@ -96,9 +96,9 @@ void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);
 
 
 // Check
-//Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts);
 bool typematch(TypeSpec tt, Value *&v, Scope *scope, TypeMatch &match);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
+bool converts(TypeSpec sts, TypeSpec tts);
 bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos);
 bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);
 
@@ -180,6 +180,7 @@ Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;
 Type *dvalue_type = NULL;
 Type *code_type = NULL;
+Type *rvalue_type = NULL;
 Type *void_type = NULL;
 Type *unit_type = NULL;
 Type *partial_type = NULL;
@@ -206,7 +207,7 @@ Type *ptr_type = NULL;
 Type *nosyobject_type = NULL;
 Type *weakref_type = NULL;
 Type *nosyvalue_type = NULL;
-Type *role_type = NULL;
+//Type *role_type = NULL;
 Type *array_type = NULL;
 Type *circularray_type = NULL;
 Type *rbtree_type = NULL;
@@ -339,9 +340,11 @@ TypeSpec SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
 TypeSpec STREAMIFIABLE_TS;
 TypeSpec ANY_ITERATOR_TS;
 TypeSpec SAME_ITERATOR_TS;
+TypeSpec SAME_ITERATOR_RVALUE_TS;
 TypeSpec ANY_ITERABLE_TS;
 TypeSpec SAME_ITERABLE_TS;
 TypeSpec INTEGER_ITERATOR_TS;
+TypeSpec INTEGER_ITERABLE_TS;
 TypeSpec COUNTUP_TS;
 TypeSpec COUNTDOWN_TS;
 TypeSpec SAME_ARRAYELEMITER_TS;

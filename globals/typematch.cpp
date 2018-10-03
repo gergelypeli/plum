@@ -1,35 +1,5 @@
 
 // Matching
-/*
-Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
-    Scope *inner_scope = match[0][0]->get_inner_scope();
-    if (!inner_scope)
-        return NULL;
-
-    for (auto &d : inner_scope->contents) {
-        Implementation *imp = ptr_cast<Implementation>(d.get());
-
-        if (imp) {
-            ifts = imp->get_interface_ts(match);   // pivot match
-
-            // FIXME: check for proper type match!
-            if (ifts[0] == *target) {
-                // Direct implementation
-                //std::cerr << "Found direct implementation.\n";
-                return make<ImplementationConversionValue>(imp, orig, match);
-            }
-            else {
-                //std::cerr << "Trying indirect implementation with " << ifts << "\n";
-                Value *v = ifts.autoconv(target, orig, ifts);
-                if (v)
-                    return v;
-            }
-        }
-    }
-
-    return NULL;
-}
-*/
 
 TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     TypeSpec ts;
@@ -56,16 +26,6 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     }
     
     return ts;
-}
-
-
-Value *rolematch(Value *v, TypeSpec s, TypeSpecIter target, TypeSpec &ifts) {
-    // Return a role of v with an unprefixed type of s, with the front type
-    // being is equal to t, but with arbitrary type parameters, potentially
-    // derived from the type parameters of s. Or NULL, if it can't be done.
-    // May call itself recursively.
-    std::cerr << "Trying rolematch from " << s << " to " << target << ".\n";
-    return s.autoconv(target, v, ifts);
 }
 
 
@@ -146,9 +106,15 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
 }
 
 
-bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value) {
+bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool assume_lvalue) {
     TypeSpec ifts;
-    Value *role = rolematch(value, TypeSpec(s), t, ifts);
+    
+    // Return a role of v with an unprefixed type of s, with the front type
+    // being is equal to t, but with arbitrary type parameters, potentially
+    // derived from the type parameters of s. Or NULL, if it can't be done.
+    // May call itself recursively.
+    std::cerr << "Trying rolematch from " << s << " to " << t << ".\n";
+    Value *role = TypeSpec(s).autoconv(t, value, ifts, assume_lvalue);
         
     if (role) {
         value = role;
@@ -162,14 +128,14 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 }
 
 
-bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, Scope *scope, bool strict) {
+bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, Scope *scope, bool require_lvalue, bool assume_lvalue) {
     if (*s == ref_type || *s == ptr_type || *t == ref_type || *t == ptr_type) {
         if (*s == *t) {
             match[0].push_back(*t);
             s++;
             t++;
         }
-        else if (*s == ref_type && *t == ptr_type && !strict) {
+        else if (*s == ref_type && *t == ptr_type && !require_lvalue) {
             match[0].push_back(*t);
             s++;
             t++;
@@ -187,7 +153,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         return ok;
     }
     
-    if (strict) {
+    if (require_lvalue) {
         // For conversion to lvalue, only an exact match was acceptable
         if (matchlog) std::cerr << "No match, lvalue types differ!\n";
         return false;
@@ -208,13 +174,13 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         return true;
     }
     
-    bool ok = match_regular_type(s, t, match, value);
+    bool ok = match_regular_type(s, t, match, value, assume_lvalue);
     
     return ok;
 }
 
 
-bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, Scope *scope, bool strict) {
+bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, Scope *scope, bool require_lvalue, bool assume_lvalue) {
     // Allow any_type match references
     
     if (is_any(*t)) {
@@ -246,7 +212,7 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         }
         
         // Match Multi to Multi
-        return match_special_type(s, t, match, value, scope, strict);
+        return match_special_type(s, t, match, value, scope, require_lvalue, assume_lvalue);
     }
     else {
         if (*s == multilvalue_type || *s == multitype_type) {
@@ -277,11 +243,11 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
             value = make<ScalarConversionValue>(value);
 
             // ss is a local variable, so call this in the scope
-            return match_special_type(s, t, match, value, scope, strict);
+            return match_special_type(s, t, match, value, scope, require_lvalue, assume_lvalue);
         }
 
         // Match scalar to scalar
-        return match_special_type(s, t, match, value, scope, strict);
+        return match_special_type(s, t, match, value, scope, require_lvalue, assume_lvalue);
     }
 }
 
@@ -306,7 +272,22 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         if (*s == void_type || *t == void_type)
             throw INTERNAL_ERROR;
         
-        return match_anymulti_type(s, t, match, value, scope, true);
+        return match_anymulti_type(s, t, match, value, scope, true, true);
+    }
+    else if (*t == rvalue_type) {
+        // Only happens for interfaces
+        if (!value) {
+            if (matchlog) std::cerr << "No match, nothing for Rvalue!\n";
+            return false;
+        }
+        
+        match[0].push_back(*t);
+        t++;
+
+        if (*s == void_type || *t == void_type)
+            throw INTERNAL_ERROR;
+        
+        return match_anymulti_type(s, t, match, value, scope, false, true);
     }
     else if (*t == code_type) {  // evalue
         match[0].push_back(*t);
@@ -331,7 +312,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        if (!match_anymulti_type(s, t, match, value, scope, false))
+        if (!match_anymulti_type(s, t, match, value, scope, false, false))
             return false;
 
         CodeScope *code_scope = ptr_cast<CodeScope>(scope);
@@ -353,7 +334,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_anymulti_type(s, t, match, value, scope, false);
+        return match_anymulti_type(s, t, match, value, scope, false, false);
     }
     else if (*t == uninitialized_type) {
         // This is a special case, Uninitialized only occurs with Any.
@@ -386,7 +367,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_anymulti_type(s, t, match, value, scope, false);
+        return match_anymulti_type(s, t, match, value, scope, false, false);
     }
 }
 
@@ -425,4 +406,16 @@ bool typematch(TypeSpec tt, Value *&value, Scope *scope, TypeMatch &match) {
     if (matchlog) std::cerr << ".\n";
 
     return true;
+}
+
+
+bool converts(TypeSpec sts, TypeSpec tts) {
+    Value *dummy_value = new Value(sts);
+    TypeMatch dummy_match;
+        
+    bool ok = typematch(tts, dummy_value, NULL, dummy_match);
+    
+    delete dummy_value;
+    
+    return ok;
 }

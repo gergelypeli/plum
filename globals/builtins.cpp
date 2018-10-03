@@ -127,8 +127,11 @@ void builtin_types(Scope *root_scope) {
     code_type = new AttributeType("Code");
     root_scope->add(code_type);
 
-    role_type = new AttributeType("Role");
-    root_scope->add(role_type);
+    rvalue_type = new AttributeType("Rvalue", interface_metatype);
+    root_scope->add(rvalue_type);
+
+    //role_type = new AttributeType("Role");
+    //root_scope->add(role_type);
 
     whatever_type = new WhateverType("<Whatever>");
     root_scope->add(whatever_type);
@@ -357,7 +360,9 @@ void builtin_types(Scope *root_scope) {
     STREAMIFIABLE_TS = { streamifiable_type };
     ANY_ITERATOR_TS = { iterator_type, any_type };
     SAME_ITERATOR_TS = { iterator_type, same_type };
+    SAME_ITERATOR_RVALUE_TS = { rvalue_type, iterator_type, same_type };
     INTEGER_ITERATOR_TS = { iterator_type, integer_type };
+    INTEGER_ITERABLE_TS = { iterable_type, integer_type };
     ANY_ITERABLE_TS = { iterable_type, any_type };
     SAME_ITERABLE_TS = { iterable_type, same_type };
     STRING_TS = { string_type };
@@ -410,9 +415,6 @@ void builtin_types(Scope *root_scope) {
 void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
     TypeSpec implementor_ts = implementor_scope->pivot_type_hint();
     Implementation *implementation = new Implementation(implementation_name, implementor_ts, interface_ts);
-    //DataScope *inner_scope = implementation->make_inner_scope(implementor_ts);
-    //implementation->complete_type();
-    //inner_scope->leave();
     implementor_scope->add(implementation);
     
     for (Identifier *i : contents) {
@@ -431,6 +433,14 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
         i->name = implementation_name + "." + i->name;  // TODO: ugly!
         implementor_scope->add(i);
     }
+}
+
+
+void lself_implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
+    Lself *lself = new Lself("lself", NO_TS);
+    implementor_scope->add(lself);
+    
+    implement(implementor_scope, interface_ts, "lself." + implementation_name, contents);
 }
 
 
@@ -481,7 +491,7 @@ void define_integers() {
     for (auto &item : integer_lvalue_operations)
         integer_metascope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
 
-    implement(integer_metascope, STREAMIFIABLE_TS, "sable", {
+    implement(integer_metascope, STREAMIFIABLE_TS, "streamifiable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
     });
     
@@ -525,7 +535,7 @@ void define_float() {
     for (auto &item : float_lvalue_operations)
         float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
     
-    implement(float_scope, STREAMIFIABLE_TS, "sable", {
+    implement(float_scope, STREAMIFIABLE_TS, "streamifiable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", FLOAT_TS)
     });
     
@@ -560,7 +570,7 @@ void define_interfaces() {
         INTERFACE_FUNCTION,
         TSs {},
         Ss {},
-        TSs { SAME_ITERATOR_TS },
+        TSs { SAME_ITERATOR_RVALUE_TS },
         NULL,
         NULL
     );
@@ -580,13 +590,7 @@ void define_interfaces() {
         NULL
     );
     iis->add(nf);
-    implement(iis, SAME_ITERABLE_TS, "iterable", {
-        // FIXME
-        // This must return the concrete type, so the pivot type must be Any so that no
-        // conversion to an interface happens, which would hide the concrete type.
-        // TODO: why would an ANY_ITERATOR_TS pivot break anything?
-        //new Identity("iter", ANY_TS)
-    });
+    //implement(iis, SAME_ITERABLE_TS, "iterable", {});
     iterator_type->complete_type();
     iis->leave();
 }
@@ -603,9 +607,12 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
     aiis->add(new Variable("container", PIVOT_TS, SAME_CONTAINER_REF_LVALUE_TS));
     aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
 
-    implement(aiis, interface_ts, "iterator", {
+    lself_implement(aiis, interface_ts, "iterator", {
         new TemplateIdentifier<NextValue>("next", PIVOT_TS),
-        new Identity("iterable.iter", ANY_TS)
+    });
+    
+    implement(aiis, SAME_ITERABLE_TS, "iterable", {
+        new Identity("iter", ANY_TS)
     });
     
     iter_type->complete_type();
@@ -626,8 +633,12 @@ void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
     aiis->add(new Variable("length", PIVOT_TS, INTEGER_LVALUE_TS));
     aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
 
-    implement(aiis, interface_ts, "iterator", {
+    lself_implement(aiis, interface_ts, "iterator", {
         new TemplateIdentifier<NextValue>("next", PIVOT_TS)
+    });
+
+    implement(aiis, SAME_ITERABLE_TS, "iterable", {
+        new Identity("iter", ANY_TS)
     });
     
     iter_type->complete_type();
@@ -654,9 +665,12 @@ void define_iterators() {
             next_fn = new TemplateIdentifier<CountdownNextValue>("next", COUNTER_TS);
         }
 
-        implement(cis, INTEGER_ITERATOR_TS, "iter", {
+        lself_implement(cis, INTEGER_ITERATOR_TS, "iter", {
             next_fn,
-            new Identity("iterable.iter", ANY_TS)
+        });
+
+        implement(cis, INTEGER_ITERABLE_TS, "iterable", {
+            new Identity("iter", ANY_TS)
         });
         
         counter_type->complete_type();
@@ -713,7 +727,7 @@ void define_string() {
     is->add(new TemplateOperation<StringOperationValue>("not_equal", STRING_TS, NOT_EQUAL));
     is->add(new TemplateOperation<StringOperationValue>("compare", ANY_TS, COMPARE));
 
-    implement(is, TypeSpec { iterable_type, character_type }, "ible", {
+    implement(is, TypeSpec { iterable_type, character_type }, "iterable", {
         new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
     });
 
@@ -722,7 +736,7 @@ void define_string() {
     is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
     // String operations
-    implement(is, STREAMIFIABLE_TS, "sable", {
+    implement(is, STREAMIFIABLE_TS, "streamifiable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", STRING_TS)
     });
 
@@ -747,7 +761,7 @@ void define_slice() {
     is->add(new TemplateIdentifier<SliceFindValue>("find", ANY_SLICE_TS));
     is->add(new TemplateIdentifier<SliceSliceValue>("slice", ANY_SLICE_TS));
 
-    implement(is, SAME_ITERABLE_TS, "ible", {
+    implement(is, SAME_ITERABLE_TS, "iterable", {
         new TemplateIdentifier<SliceElemIterValue>("iter", ANY_SLICE_TS)
     });
 
@@ -782,7 +796,7 @@ void define_option() {
     is->add(new TemplateOperation<OptionOperationValue>("assign other", ANY_OPTION_LVALUE_TS, ASSIGN));
     is->add(new TemplateOperation<OptionOperationValue>("compare", ANY_OPTION_TS, COMPARE));
 
-    implement(is, STREAMIFIABLE_TS, "sable", {
+    implement(is, STREAMIFIABLE_TS, "streamifiable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_OPTION_TS)
     });
 
@@ -807,7 +821,7 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", ANY_ARRAY_PTR_TS));
     
     // Array iterable operations
-    implement(array_scope, SAME_ITERABLE_TS, "ible", {
+    implement(array_scope, SAME_ITERABLE_TS, "iterable", {
         new TemplateIdentifier<ArrayElemIterValue>("iter", ANY_ARRAY_REF_TS)
     });
 
@@ -837,7 +851,7 @@ void define_circularray() {
     circularray_scope->add(new TemplateIdentifier<CircularrayAutogrowValue>("autogrow", ANY_CIRCULARRAY_REF_LVALUE_TS));
     
     // Circularray iterable operations
-    implement(circularray_scope, SAME_ITERABLE_TS, "ible", {
+    implement(circularray_scope, SAME_ITERABLE_TS, "iterable", {
         new TemplateIdentifier<CircularrayElemIterValue>("iter", ANY_CIRCULARRAY_REF_TS)
     });
 
@@ -882,7 +896,7 @@ void define_stack() {
     is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
     is->add(new ClassWrapperIdentifier("realloc", PIVOT, CAST, "realloc"));
 
-    implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+    implement(is, TypeSpec { iterable_type, same_type }, "iterable", {
         new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
     });
 
@@ -911,7 +925,7 @@ void define_queue() {
     is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
     is->add(new ClassWrapperIdentifier("realloc", PIVOT, CAST, "realloc"));
 
-    implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+    implement(is, TypeSpec { iterable_type, same_type }, "iterable", {
         new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
     });
 
@@ -943,7 +957,7 @@ void define_set() {
     is->add(new ClassWrapperIdentifier("add", PIVOT, CAST, "add", true));
     is->add(new ClassWrapperIdentifier("remove", PIVOT, CAST, "remove"));
 
-    //implement(is, TypeSpec { iterable_type, same_type }, "ible", {
+    //implement(is, TypeSpec { iterable_type, same_type }, "iterable", {
     //    new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
     //});
 
@@ -1127,7 +1141,7 @@ RootScope *init_builtins() {
     Scope *char_scope = character_type->make_inner_scope(CHARACTER_TS);
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
     char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", CHARACTER_TS, COMPARE));
-    implement(char_scope, STREAMIFIABLE_TS, "sable", {
+    implement(char_scope, STREAMIFIABLE_TS, "streamifiable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", CHARACTER_TS)
     });
     char_scope->leave();
@@ -1139,7 +1153,7 @@ RootScope *init_builtins() {
     bool_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", BOOLEAN_TS));
     bool_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and", BOOLEAN_TS));
     bool_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", BOOLEAN_TS));
-    implement(bool_scope, STREAMIFIABLE_TS, "sable", {
+    implement(bool_scope, STREAMIFIABLE_TS, "streamifiable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", BOOLEAN_TS)
     });
     bool_scope->leave();
@@ -1148,7 +1162,7 @@ RootScope *init_builtins() {
     Scope *enum_metascope = enumeration_metatype->make_inner_scope(ANY_TS);
     enum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    implement(enum_metascope, STREAMIFIABLE_TS, "sable", {
+    implement(enum_metascope, STREAMIFIABLE_TS, "streamifiable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
     });
     enum_metascope->leave();
@@ -1157,7 +1171,7 @@ RootScope *init_builtins() {
     Scope *treenum_metascope = treenumeration_metatype->make_inner_scope(ANY_TS);
     treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    implement(treenum_metascope, STREAMIFIABLE_TS, "sable", {
+    implement(treenum_metascope, STREAMIFIABLE_TS, "streamifiable", {
         new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
     });
     treenum_metascope->leave();

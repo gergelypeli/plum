@@ -86,6 +86,7 @@ public:
     DataScope *implementor_scope;
     Implementation *original_implementation;
     std::vector<std::unique_ptr<Implementation>> shadow_implementations;
+    Lself *associated_lself;
 
     Implementation(std::string name, TypeSpec pts, TypeSpec ifts)
         :Identifier(name, pts) {
@@ -93,6 +94,7 @@ public:
         prefix = name + ".";
         implementor_scope = NULL;
         original_implementation = NULL;
+        associated_lself = NULL;
         
         InterfaceType *ift = ptr_cast<InterfaceType>(ifts[0]);
         if (!ift)
@@ -132,6 +134,8 @@ public:
             throw INTERNAL_ERROR;
             
         set_implementor(ds, pivot_ts);
+        
+        Identifier::set_outer_scope(os);
     }
 
     virtual void set_name(std::string n) {
@@ -156,7 +160,10 @@ public:
         return NULL;
     }
 
-    virtual Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+    virtual Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+        if (associated_lself && !assume_lvalue)
+            return NULL;
+
         ifts = get_interface_ts(match);   // pivot match
 
         if (ifts[0] == *target) {
@@ -169,7 +176,7 @@ public:
             TypeMatch iftm = ifts.match();
             
             for (auto &si : shadow_implementations) {
-                Value *v = si->find_implementation(iftm, target, orig, ifts);
+                Value *v = si->find_implementation(iftm, target, orig, ifts, assume_lvalue);
                 
                 if (v)
                     return v;
@@ -177,6 +184,10 @@ public:
             
             return NULL;
         }
+    }
+
+    virtual void set_associated_lself(Lself *l) {
+        associated_lself = l;
     }
 
     virtual bool check_associated(Declaration *decl) {
@@ -210,6 +221,9 @@ public:
             std::cerr << "Invalid implementation of function: " << interface_type->name << "." << override->name << "!\n";
             return false;
         }
+        
+        if (associated_lself)
+            override->set_associated_lself(associated_lself);
         
         return true;
     }
@@ -263,30 +277,20 @@ public:
         return NULL;
     }
 
-    virtual Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
-        TypeSpec ots = get_typespec(orig);
-        
-        if (ots[0] == lvalue_type) {
-            for (auto &oi : outer_implementations) {
-                Value *v = oi->find_implementation(match, target, orig, ifts);
-                
-                if (v)
-                    return v;
-            }
-        }
-            
-        return NULL;
-    }
-
     virtual bool check_associated(Declaration *decl) {
         Function *f = ptr_cast<Function>(decl);
-        if (!f) {
-            std::cerr << "This declaration can't be associated with Lself " << name << "!\n";
-            return false;
+        if (f) {
+            f->set_associated_lself(this);
+            return true;
         }
 
-        f->set_associated_lself(this);
+        Implementation *i = ptr_cast<Implementation>(decl);
+        if (i) {
+            i->set_associated_lself(this);
+            return true;
+        }
         
-        return true;
+        std::cerr << "This declaration can't be associated with Lself " << name << "!\n";
+        return false;
     }
 };

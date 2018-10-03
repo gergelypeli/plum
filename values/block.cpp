@@ -307,6 +307,9 @@ public:
     }
 
     virtual bool associate(Declaration *decl, std::string name) {
+        if (!decl || !decl->outer_scope)
+            throw INTERNAL_ERROR;
+            
         for (auto &d : decl->outer_scope->contents) {
             Role *r = ptr_cast<Role>(d.get());
             

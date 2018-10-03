@@ -125,25 +125,48 @@ public:
         if (name != prefix + iff->name)
             return false;
     
-        if (get_argument_tss(tm) != iff->get_argument_tss(iftm)) {
-            std::cerr << "Mismatching " << name << " implementation argument types: " <<
-                get_argument_tss(tm) << " should be " << iff->get_argument_tss(iftm) << "!\n";
+        // The interface arguments must be converted to the implementation arguments
+        TSs imp_arg_tss = get_argument_tss(tm);
+        TSs int_arg_tss = iff->get_argument_tss(iftm);
+        Ss imp_arg_names = get_argument_names();
+        Ss int_arg_names = iff->get_argument_names();
+        
+        if (imp_arg_tss.size() != int_arg_tss.size()) {
+            std::cerr << "Mismatching implementation argument length!\n";
             return false;
         }
         
-        if (get_argument_names() != iff->get_argument_names()) {
-            std::cerr << "Mismatching implementation argument names!\n";
-            return false;
+        for (unsigned i = 0; i < imp_arg_tss.size(); i++) {
+            if (imp_arg_names[i] != int_arg_names[i]) {
+                std::cerr << "Mismatching implementation argument names!\n";
+                return false;
+            }
+            
+            if (!converts(int_arg_tss[i], imp_arg_tss[i])) {
+                std::cerr << "Mismatching implementation argument types!\n";
+                return false;
+            }
         }
 
-        if (get_result_tss(tm) != iff->get_result_tss(iftm)) {
-            std::cerr << "Mismatching implementation result types!\n";
+        // The implementation result must be converted to the interface results
+        TSs imp_res_tss = get_result_tss(tm);
+        TSs int_res_tss = iff->get_result_tss(iftm);
+        
+        if (imp_res_tss.size() != int_res_tss.size()) {
+            std::cerr << "Mismatching implementation result length!\n";
             return false;
         }
         
+        for (unsigned i = 0; i < imp_res_tss.size(); i++) {
+            if (!converts(imp_res_tss[i], int_res_tss[i])) {
+                std::cerr << "Mismatching implementation result types!\n";
+                return false;
+            }
+        }
+
         // TODO: this should be referred somehow even if anonymous!
         if (exception_type != iff->exception_type) {
-            std::cerr << "Mismatching exception types, " <<
+            std::cerr << "Mismatching implementation exception types, " <<
                 print_exception_type(exception_type) << " is not " <<
                 print_exception_type(iff->exception_type) << "!\n";
             return false;

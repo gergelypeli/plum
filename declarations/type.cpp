@@ -303,7 +303,7 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts) {
+    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (tm[0][0] == *target) {
             ifts = tm[0];
             return orig;
@@ -317,7 +317,7 @@ public:
             Implementation *imp = ptr_cast<Implementation>(d.get());
             
             if (imp) {
-                Value *v = implementation_find(imp, tm, target, orig, ifts);
+                Value *v = implementation_find(imp, tm, target, orig, ifts, assume_lvalue);
                 
                 if (v)
                     return v;
@@ -385,8 +385,8 @@ public:
 
 class AttributeType: public Type {
 public:
-    AttributeType(std::string n)
-        :Type(n, Metatypes { value_metatype }, attribute_metatype) {
+    AttributeType(std::string n, Type *arg_metatype = value_metatype)
+        :Type(n, Metatypes { arg_metatype }, attribute_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {

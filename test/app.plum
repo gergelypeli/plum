@@ -22,11 +22,11 @@ Pair? :Record as:
     sable? :Implementation Streamifiable
 
     sable.streamify? :Function from: stream? String Lvalue as:
-        "(" sable streamify(stream)
-        $ first sable streamify(stream)
-        "," sable streamify(stream)
-        $ second sable streamify(stream)
-        ")" sable streamify(stream)
+        "(" streamifiable streamify(stream)
+        $ first streamifiable streamify(stream)
+        "," streamifiable streamify(stream)
+        $ second streamifiable streamify(stream)
+        ")" streamifiable streamify(stream)
         
     lself.reset? :Function as:
         $ first = 0
@@ -50,6 +50,7 @@ Pairs? :Singleton as:
 XCounter? :Record as:
     current? Integer
     limit? Integer
+    lself? :Lself
     
     new? :Initializer from:
         n? Integer
@@ -57,20 +58,26 @@ XCounter? :Record as:
         $ current = -1
         $ limit = n
         
-    ible? :Implementation Integer Iterator
+    lself.itor? :Implementation Integer Iterator
 
-    ible.next? :Function Integer may: Iterator_done_exception as:
-        #$ current += 1  FIXME
+    lself.itor.next? :Function Integer may: Iterator_done_exception as:
+        $ current += 1
     
         :if $ current == $ limit then:
             :raise `ITERATOR_DONE
             
         :return $ current
+        
+    ible? :Implementation Integer Iterable
+    
+    ible.iter? :Function XCounter as:
+        :return $
 
 
 XStringiterator? :Record as:
     string? String
     index? Integer
+    lself? :Lself
     
     new? :Initializer from:
         s? String
@@ -78,10 +85,10 @@ XStringiterator? :Record as:
         $ string = s
         $ index = -1
 
-    ible? :Implementation Character Iterator
+    lself.itor? :Implementation Character Iterator
     
-    ible.next? :Function Character may: Iterator_done_exception as:
-        #$ index += 1  FIXME
+    lself.itor.next? :Function Character may: Iterator_done_exception as:
+        $ index += 1
     
         :if $ index == $ string length then:
             :raise `ITERATOR_DONE
