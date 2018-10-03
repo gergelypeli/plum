@@ -4,7 +4,7 @@ typedef std::array<TypeSpec,4> TypeMatch;
 class X64;
 
 enum AsWhat {
-    AS_VALUE, AS_VARIABLE, AS_ARGUMENT, AS_PIVOT_ARGUMENT, AS_LVALUE_ARGUMENT
+    AS_VALUE, AS_VARIABLE, AS_ARGUMENT, AS_LVALUE_ARGUMENT
 };
 
 

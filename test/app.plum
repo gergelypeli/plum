@@ -51,7 +51,7 @@ XCounter? :Record as:
     current? Integer
     limit? Integer
     
-    new? :Function from:
+    new? :Initializer from:
         n? Integer
     as:
         $ current = -1
@@ -60,7 +60,7 @@ XCounter? :Record as:
     ible? :Implementation Integer Iterator
 
     ible.next? :Function Integer may: Iterator_done_exception as:
-        $ current += 1
+        #$ current += 1  FIXME
     
         :if $ current == $ limit then:
             :raise `ITERATOR_DONE
@@ -72,7 +72,7 @@ XStringiterator? :Record as:
     string? String
     index? Integer
     
-    new? :Function from:
+    new? :Initializer from:
         s? String
     as:
         $ string = s
@@ -81,7 +81,7 @@ XStringiterator? :Record as:
     ible? :Implementation Character Iterator
     
     ible.next? :Function Character may: Iterator_done_exception as:
-        $ index += 1
+        #$ index += 1  FIXME
     
         :if $ index == $ string length then:
             :raise `ITERATOR_DONE

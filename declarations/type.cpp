@@ -443,10 +443,6 @@ public:
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         return tm[1].lookup_inner(n, v, s);
     }
-
-    //virtual DataScope *get_inner_scope(TypeMatch tm) {
-    //    return tm[1].get_inner_scope();
-    //}
 };
 
 
@@ -457,6 +453,9 @@ public:
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        if (as_what == AS_ARGUMENT && tm[1].has_meta(record_metatype))
+            as_what = AS_LVALUE_ARGUMENT;
+
         return tm[1].where(as_what);
     }
 
@@ -572,6 +571,9 @@ public:
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        if (as_what == AS_ARGUMENT && tm[1].has_meta(record_metatype))
+            as_what = AS_LVALUE_ARGUMENT;
+            
         return tm[1].where(as_what);
     }
 

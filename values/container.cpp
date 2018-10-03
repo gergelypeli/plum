@@ -101,9 +101,14 @@ public:
 
         switch (ls.where) {
         case REGISTER:
-            x64->runtime->decref(ls.reg);
+            x64->runtime->decref(ls.reg);  // FIXME: not nice!
             x64->op(MOVQ, ls.reg, Address(ls.reg, length_offset));
             return Storage(REGISTER, ls.reg);
+        case STACK:
+            x64->op(POPQ, RBX);
+            x64->op(MOVQ, reg, Address(RBX, length_offset));
+            x64->runtime->decref(RBX);
+            return Storage(REGISTER, reg);
         case MEMORY:
             x64->op(MOVQ, reg, ls.address);
             x64->op(MOVQ, reg, Address(reg, length_offset));

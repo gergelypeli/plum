@@ -235,12 +235,27 @@ public:
         return pivot_ts;
     }
 
+    virtual void allocate() {
+        // Do two passes to first compute the size
+        for (auto &d : contents) {
+            if (!ptr_cast<Function>(d.get()))
+                d->allocate();
+        }
+            
+        is_allocated = true;
+
+        for (auto &d : contents) {
+            if (ptr_cast<Function>(d.get()))
+                d->allocate();
+        }
+    }
+
     virtual int virtual_reserve(std::vector<VirtualEntry *> vt) {
         int virtual_index = virtual_table.size();
         virtual_table.insert(virtual_table.end(), vt.begin(), vt.end());
         return virtual_index;
     }
-    
+
     virtual std::vector<VirtualEntry *> get_virtual_table() {
         return virtual_table;
     }

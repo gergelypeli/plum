@@ -180,7 +180,7 @@ public:
             as_what == AS_VALUE ? SSEREGISTER :
             as_what == AS_VARIABLE ? MEMORY :
             as_what == AS_ARGUMENT ? MEMORY :
-            as_what == AS_PIVOT_ARGUMENT ? MEMORY :
+            //as_what == AS_PIVOT_ARGUMENT ? MEMORY :
             as_what == AS_LVALUE_ARGUMENT ? ALIAS :
             throw INTERNAL_ERROR
         );

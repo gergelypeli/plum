@@ -134,7 +134,7 @@ public:
             as_what == AS_VALUE ? STACK :
             as_what == AS_VARIABLE ? MEMORY :
             as_what == AS_ARGUMENT ? MEMORY :
-            as_what == AS_PIVOT_ARGUMENT ? ALIAS :
+            //as_what == AS_PIVOT_ARGUMENT ? ALIAS :
             as_what == AS_LVALUE_ARGUMENT ? ALIAS :
             throw INTERNAL_ERROR
         );

@@ -261,7 +261,7 @@ public:
         Storage t;
         
         if (pivot) {
-            // Rvalue containers are on the STACK, so we must extract our variable
+            // Rvalue containers may be on the STACK, so we must extract our variable
             // and discard it all.
             if (is_rvalue_record)
                 x64->op(SUBQ, RSP, ts.measure_stack());
@@ -287,16 +287,24 @@ public:
                 return s;
             }
             else if (is_rvalue_record) {
-                if (s.where != STACK)
+                Storage r;
+                
+                if (s.where == STACK) {
+                    r = variable->get_storage(match, Storage(MEMORY, Address(RSP, 0)));
+                    t = Storage(MEMORY, Address(RSP, pts.measure_stack()));
+                }
+                else if (s.where == MEMORY) {
+                    r = variable->get_storage(match, s);
+                    t = Storage(MEMORY, Address(RSP, 0));
+                }
+                else
                     throw INTERNAL_ERROR;
                     
-                s = variable->get_storage(match, Storage(MEMORY, Address(RSP, 0)));
-                t = Storage(MEMORY, Address(RSP, pts.measure_stack()));
-
-                ts.create(s, t, x64);
-                pts.store(Storage(STACK), Storage(), x64);
+                ts.create(r, t, x64);
+                pts.store(s, Storage(), x64);
                 
                 return Storage(STACK);
+
             }
             
             if (s.where != MEMORY)

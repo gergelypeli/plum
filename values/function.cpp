@@ -96,20 +96,11 @@ public:
                     // Records have a rvalue pivot type, but the self argument must be treated
                     // as lvalue, so the members will also be lvalue-s. But not in classes,
                     // as an lvalue self would be awkward.
-                    TypeSpec self_ts = (pivot_ts[0] == ptr_type ? pivot_ts : pivot_ts.lvalue());
+                    TypeSpec self_ts = pivot_ts;  // (pivot_ts[0] == ptr_type ? pivot_ts : pivot_ts.lvalue());
                     self_var = new Variable("$", NO_TS, self_ts);
                 }
                 
                 ss->add(self_var);
-                
-                /*
-                if (role_scope) {
-                    // Function overrides must pretend they take the role pivot type
-                    TypeMatch tm = pivot_ts.match();
-                    role_scope->get_role()->compute_match(tm);
-                    pivot_ts = tm[0].prefix(ptr_type);
-                }
-                */
             }
         }
 
@@ -668,7 +659,7 @@ public:
     virtual void push_pivot(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         Storage s = arg_value->compile(x64);
         Storage t;
-        StorageWhere where = arg_ts.where(AS_PIVOT_ARGUMENT);
+        StorageWhere where = arg_ts.where(AS_ARGUMENT);
         
         if (where != NOWHERE) {
             where = stacked(where);

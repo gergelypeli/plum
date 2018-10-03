@@ -415,10 +415,10 @@ void *decode_utf8(Ref byte_array) {
 }
 
 
-void *encode_utf8(Alias string_alias) {
-    void *character_array = *(void **)string_alias;
-    if (!character_array)
-        return NULL;
+void *encode_utf8(Ref character_array) {  //(Alias string_alias) {
+    //void *character_array = *(void **)string_alias;
+    //if (!character_array)
+    //    return NULL;
 
     int64 character_length = ALENGTH(character_array);
     unsigned16 *characters = AELEMENTS(character_array);
@@ -454,8 +454,8 @@ void *decode_utf8_slice(Slice byte_slice) {
 }
 
 
-Varied fs__Path__mkdir(Alias path_alias, int64 mode) {
-    void *name_array = RECORDMEMBER(path_alias, Ref);
+Varied fs__Path__mkdir(Ref name_array /*Alias path_alias*/, int64 mode) {
+    //void *name_array = RECORDMEMBER(path_alias, Ref);
     int64 character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
     
@@ -473,8 +473,8 @@ Varied fs__Path__mkdir(Alias path_alias, int64 mode) {
 }
 
 
-Varied fs__Path__rmdir(Alias path_alias) {
-    void *name_array = RECORDMEMBER(path_alias, Ref);
+Varied fs__Path__rmdir(Ref name_array /*Alias path_alias*/) {
+    //void *name_array = RECORDMEMBER(path_alias, Ref);
     int64 character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
     
