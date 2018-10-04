@@ -419,15 +419,15 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
     
     for (Identifier *i : contents) {
         // Necessary to handle nested implementations
-        Implementation *associated_implementation = implementation->lookup_implementation(implementation_name);
-        if (!associated_implementation)
+        Associable *a = implementation->lookup_associable(implementation_name);
+        if (!a)
             throw INTERNAL_ERROR;
         
         // TODO: Can't associate built-in operations now
         Function *f = ptr_cast<Function>(i);
         
         if (f)
-            if (!associated_implementation->check_associated(f))
+            if (!a->check_associated(f))
                 throw INTERNAL_ERROR;
         
         i->name = implementation_name + "." + i->name;  // TODO: ugly!

@@ -70,6 +70,18 @@ public:
 };
 
 
+class Associable {
+public:
+    virtual Associable *lookup_associable(std::string n) {
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual bool check_associated(Declaration *decl) {
+        throw INTERNAL_ERROR;
+    }
+};
+
+
 class VirtualEntry {
 public:
     virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {

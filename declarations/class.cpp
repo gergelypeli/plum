@@ -275,7 +275,7 @@ public:
 };
 
 
-class Role: public Allocable {
+class Role: public Allocable, public Associable {
 public:
     std::string prefix;
     bool is_base;
@@ -348,14 +348,15 @@ public:
         return make<RoleValue>(this, cpivot, match);
     }
 
-    virtual Role *lookup_role(std::string n) {
+    virtual Associable *lookup_associable(std::string n) {
         if (n == name)
             return this;
         else if (has_prefix(n, prefix)) {
             for (auto &sr : shadow_roles) {
-                Role *r = sr->lookup_role(n);
-                if (r)
-                    return r;
+                Associable *a = sr->lookup_associable(n);
+                
+                if (a)
+                    return a;
             }
         }
         

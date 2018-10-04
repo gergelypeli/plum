@@ -79,7 +79,7 @@ public:
 
 
 
-class Implementation: public Identifier {
+class Implementation: public Identifier, public Associable {
 public:
     TypeSpec interface_ts;
     std::string prefix;
@@ -146,20 +146,6 @@ public:
         return typesubst(interface_ts, match);
     }
 
-    virtual Implementation *lookup_implementation(std::string n) {
-        if (n == name)
-            return this;
-        else if (has_prefix(n, prefix)) {
-            for (auto &si : shadow_implementations) {
-                Implementation *i = si->lookup_implementation(n);
-                if (i)
-                    return i;
-            }
-        }
-        
-        return NULL;
-    }
-
     virtual Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (associated_lself && !assume_lvalue)
             return NULL;
@@ -188,6 +174,21 @@ public:
 
     virtual void set_associated_lself(Lself *l) {
         associated_lself = l;
+    }
+
+    virtual Associable *lookup_associable(std::string n) {
+        if (n == name)
+            return this;
+        else if (has_prefix(n, prefix)) {
+            for (auto &si : shadow_implementations) {
+                Associable *a = si->lookup_associable(n);
+                
+                if (a)
+                    return a;
+            }
+        }
+        
+        return NULL;
     }
 
     virtual bool check_associated(Declaration *decl) {
@@ -234,7 +235,7 @@ public:
 };
 
 
-class Lself: public Identifier {
+class Lself: public Identifier, public Associable {
 public:
     std::string prefix;
     DataScope *implementor_scope;
@@ -258,19 +259,15 @@ public:
         throw INTERNAL_ERROR;  // too late!
     }
 
-    virtual Lself *lookup_lself(std::string n) {
+    virtual Associable *lookup_associable(std::string n) {
         if (n == name)
             return this;
-        
-        return NULL;
-    }
-
-    virtual Implementation *lookup_implementation(std::string n) {
-        if (has_prefix(n, prefix)) {
+        else if (has_prefix(n, prefix)) {
             for (auto &oi : outer_implementations) {
-                Implementation *i = oi->lookup_implementation(n);
-                if (i)
-                    return i;
+                Associable *a = oi->lookup_associable(n);
+                
+                if (a)
+                    return a;
             }
         }
         

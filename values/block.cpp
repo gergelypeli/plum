@@ -311,39 +311,13 @@ public:
             throw INTERNAL_ERROR;
             
         for (auto &d : decl->outer_scope->contents) {
-            Role *r = ptr_cast<Role>(d.get());
+            Associable *able = ptr_cast<Associable>(d.get());
             
-            if (r) {
-                Role *associated_role = r->lookup_role(name);
+            if (able) {
+                Associable *a = able->lookup_associable(name);
                 
-                if (associated_role)
-                    return associated_role->check_associated(decl);
-            }
-        }
-
-        for (auto &d : decl->outer_scope->contents) {
-            Implementation *imp = ptr_cast<Implementation>(d.get());
-        
-            if (imp) {
-                Implementation *associated_implementation = imp->lookup_implementation(name);
-                
-                if (associated_implementation)
-                    return associated_implementation->check_associated(decl);
-            }
-        }
-
-        for (auto &d : decl->outer_scope->contents) {
-            Lself *ls = ptr_cast<Lself>(d.get());
-        
-            if (ls) {
-                Lself *associated_lself = ls->lookup_lself(name);
-                if (associated_lself)
-                    return associated_lself->check_associated(decl);
-            
-                Implementation *associated_implementation = ls->lookup_implementation(name);
-                
-                if (associated_implementation)
-                    return associated_implementation->check_associated(decl);
+                if (a)
+                    return a->check_associated(decl);
             }
         }
             
