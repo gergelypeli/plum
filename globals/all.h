@@ -96,7 +96,7 @@ void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);
 
 
 // Check
-bool typematch(TypeSpec tt, Value *&v, Scope *scope, TypeMatch &match);
+bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
 bool converts(TypeSpec sts, TypeSpec tts);
 bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos);

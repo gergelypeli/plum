@@ -201,7 +201,7 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing definition of function body " << function->name << ".\n";
-        Scope *bs = fn_scope->add_body_scope();
+        CodeScope *bs = fn_scope->add_body_scope();
 
         if (deferred_body_expr) {
             PartialInfo *pi = NULL;
@@ -267,6 +267,7 @@ public:
             }
         }
 
+        bs->be_taken();
         bs->leave();
 
         return true;

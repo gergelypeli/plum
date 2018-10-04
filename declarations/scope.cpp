@@ -413,8 +413,15 @@ public:
         return true;
     }
     
-    virtual void taken() {
+    virtual void be_taken() {
         is_taken = true;
+    }
+
+    virtual void leave() {
+        if (!is_taken)
+            throw INTERNAL_ERROR;
+
+        Scope::leave();
     }
     
     virtual void allocate() {
@@ -534,6 +541,7 @@ class TransparentTryScope: public TryScope {
 public:
     TransparentTryScope()
         :TryScope() {
+        is_taken = true;
         contents_finalized = true;
     }
 
@@ -619,25 +627,25 @@ public:
         exception_type = NULL;
     }
     
-    Scope *add_result_scope() {
+    ArgumentScope *add_result_scope() {
         result_scope = new ArgumentScope;
         add(result_scope);
         return result_scope;
     }
     
-    Scope *add_self_scope() {
+    ArgumentScope *add_self_scope() {
         self_scope = new ArgumentScope;
         add(self_scope);
         return self_scope;
     }
 
-    Scope *add_head_scope() {
+    ArgumentScope *add_head_scope() {
         head_scope = new ArgumentScope;
         add(head_scope);
         return head_scope;
     }
     
-    Scope *add_body_scope() {
+    CodeScope *add_body_scope() {
         body_scope = new CodeScope;
         bool hack = is_left;  // See FunctionDefinitionValue
         is_left = false;

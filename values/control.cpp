@@ -411,7 +411,7 @@ public:
         Value *it = iterator_var->matched(NULL, scope, imatch);
         
         TypeMatch match;
-        if (!typematch(ANY_ITERATOR_TS, it, scope, match)) {
+        if (!typematch(ANY_ITERATOR_TS, it, match)) {
             std::cerr << "Iterable iter didn't return an Iterator, but: " << it->ts << "!\n";
             return false;
         }
@@ -433,6 +433,7 @@ public:
         
         this->next.reset(next);
 
+        next_try_scope->be_taken();
         next_try_scope->leave();
 
         ArgInfos infos = {
@@ -547,7 +548,9 @@ public:
         if (!check_kwargs(kwargs, infos))
             return false;
 
+        switch_scope->be_taken();
         switch_scope->leave();
+        eval_scope->be_taken();
         eval_scope->leave();
 
         return true;
@@ -670,6 +673,7 @@ public:
         if (match->ts != VOID_TS)
             match.reset(make<VoidConversionValue>(match.release()));
 
+        // This is a TransparentTryScope with no inner declarations, needs no finalization
         match_try_scope->leave();
 
         ArgInfos infos = {
@@ -680,6 +684,7 @@ public:
         if (!check_kwargs(kwargs, infos))
             return false;
 
+        then_scope->be_taken();
         then_scope->leave();
 
         return true;
@@ -864,6 +869,7 @@ public:
         if (kwargs.size() == 0)
             context_ts = body->ts.rvalue();
 
+        try_scope->be_taken();
         try_scope->leave();
         
         if (!setup_yieldable(scope))
@@ -887,7 +893,9 @@ public:
         if (!check_kwargs(kwargs, infos))
             return false;
 
+        switch_scope->be_taken();
         switch_scope->leave();
+        eval_scope->be_taken();
         eval_scope->leave();
 
         return true;
@@ -995,6 +1003,7 @@ public:
         if (!check_kwargs(kwargs, infos))
             return false;
         
+        eval_scope->be_taken();
         eval_scope->leave();
         
         return true;

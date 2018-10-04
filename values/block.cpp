@@ -11,7 +11,7 @@ public:
         value.reset(v);
         set_token(v->token);
         code_scope = s;
-        code_scope->taken();
+        code_scope->be_taken();
         may_be_aborted = false;
     }
 

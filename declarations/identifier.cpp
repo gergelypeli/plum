@@ -37,11 +37,11 @@ public:
         
         if (pivot_ts.has_meta(record_metatype)) {
             // Identifiers in records may handle lvalue pivots differently than rvalues
-            if (typematch(pivot_ts.lvalue(), pivot, scope, match))
+            if (typematch(pivot_ts.lvalue(), pivot, match))
                 return matched(pivot, scope, match);
         }
         
-        if (typematch(pivot_ts, pivot, scope, match))
+        if (typematch(pivot_ts, pivot, match))
             return matched(pivot, scope, match);
         else {
             //std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";

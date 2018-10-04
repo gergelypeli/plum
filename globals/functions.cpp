@@ -192,7 +192,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
 
     TypeMatch match;
     
-    if (context && !typematch(*context, v, code_scope ? code_scope : scope, match)) {
+    if (context && !typematch(*context, v, match)) {
         // Make an effort to print meaningful error messages
         if (*context == WHATEVER_CODE_TS)
             std::cerr << "Expression must transfer control, not return " << get_typespec(v) << " at " << e->token << "!\n";
@@ -203,9 +203,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     }
 
     if (code_scope) {
-        if (!code_scope->is_taken)
-            throw INTERNAL_ERROR;
-
+        v = make<CodeScopeValue>(v, code_scope);
         code_scope->leave();
     }
 

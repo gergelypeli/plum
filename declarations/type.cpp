@@ -120,7 +120,7 @@ public:
         else {
             TypeMatch match;
             
-            if (!typematch(MULTITYPE_TS, pivot, scope, match)) {
+            if (!typematch(MULTITYPE_TS, pivot, match)) {
                 std::cerr << "Type " << name << " needs type parameters!\n";
                 return NULL;
             }

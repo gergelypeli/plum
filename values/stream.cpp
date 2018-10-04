@@ -106,8 +106,8 @@ Value *make_initialization_by_value(std::string name, Value *v, CodeScope *state
     
     Value *vcv = new VoidConversionValue(cv);
     
-    statement_scope->leave();
     CodeScopeValue *csv = new CodeScopeValue(vcv, statement_scope);
+    statement_scope->leave();
     
     return csv;
 }
@@ -182,7 +182,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         TypeMatch match;
         Value *streamify = NULL;
         
-        if (typematch(STREAMIFIABLE_TS, pivot, code_scope, match)) {
+        if (typematch(STREAMIFIABLE_TS, pivot, match)) {
             streamify = lookup_fake("streamify", pivot, code_scope, expr->token, NULL, interpolated_var);
         }
         else if (pivot->ts.rvalue()[0] == ref_type || pivot->ts.rvalue()[0] == ptr_type) {
@@ -203,8 +203,9 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, code_scope, match);
     ret = ret->lookup_inner("realloc", code_scope);  // FIXME: missing check, but at least no arguments
     interpolation->add_statement(ret);
-    
+
+    Value *result = make<CodeScopeValue>(interpolation, code_scope);
     code_scope->leave();
     
-    return make<CodeScopeValue>(interpolation, code_scope);
+    return result;
 }
