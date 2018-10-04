@@ -186,13 +186,6 @@ public:
         
         // TODO: warn for invalid keywords!
         
-        // Yes, we leave this scope without adding the body scope. This is because
-        // declarations with excplit scope put the declaration somewhere else than the
-        // definition value, and the outer scope is left before the function definition
-        // is completed. To make this case work, we please the outer scope with leaving
-        // early, and don't mind entering the body scope later anyway.
-        fn_scope->leave();
-
         // This was temporary
         scope->remove(fn_scope);
         
@@ -269,6 +262,8 @@ public:
 
         bs->be_taken();
         bs->leave();
+
+        fn_scope->leave();
 
         return true;
     }

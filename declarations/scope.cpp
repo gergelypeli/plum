@@ -647,10 +647,7 @@ public:
     
     CodeScope *add_body_scope() {
         body_scope = new CodeScope;
-        bool hack = is_left;  // See FunctionDefinitionValue
-        is_left = false;
         add(body_scope);
-        is_left = hack;
         return body_scope;
     }
     
