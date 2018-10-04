@@ -1,18 +1,53 @@
 
-class ClassType: public HeapType, public VirtualEntry {
+class VtVirtualEntry: public VirtualEntry {
+public:
+    Allocable *allocable;
+    
+    VtVirtualEntry(Allocable *a) {
+        allocable = a;
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        if (allocable)
+            return allocable->get_typespec(tm).get_virtual_table_label(x64);
+        else
+            return x64->runtime->zero_label;
+    }
+};
+
+
+class FfwdVirtualEntry: public VirtualEntry {
+public:
+    Allocation offset;
+    
+    FfwdVirtualEntry(Allocation o) {
+        offset = o;
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        Label label;
+        x64->absolute_label(label, -offset.concretize(tm));  // forcing an int into an unsigned64...
+        return label;
+    }
+};
+
+
+class ClassType: public HeapType {
 public:
     std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
     std::vector<Role *> member_roles;
     Function *finalizer_function;
     Allocable *base_role;
-    AbsoluteVirtualEntry *fastforward_ve;
+    VtVirtualEntry *basevt_ve;
+    FfwdVirtualEntry *fastforward_ve;
 
     ClassType(std::string name, Metatypes param_metatypes)
         :HeapType(name, param_metatypes, class_metatype) {
         finalizer_function = NULL;
         base_role = NULL;
-        fastforward_ve = new AbsoluteVirtualEntry;
+        basevt_ve = NULL;
+        fastforward_ve = NULL;
     }
 
     virtual bool complete_type() {
@@ -57,14 +92,17 @@ public:
 
     virtual void allocate() {
         // Let the base be allocated first, then it will skip itself
+
+        basevt_ve = new VtVirtualEntry(base_role);
+        fastforward_ve = new FfwdVirtualEntry(Allocation(0));
         
         if (base_role) {
             base_role->allocate();
-            inner_scope->set_virtual_entry(VT_BASEVT_INDEX, this);
+            inner_scope->set_virtual_entry(VT_BASEVT_INDEX, basevt_ve);
             inner_scope->set_virtual_entry(VT_FASTFORWARD_INDEX, fastforward_ve);
         }
         else {
-            std::vector<VirtualEntry *> vt = { this, fastforward_ve };
+            std::vector<VirtualEntry *> vt = { basevt_ve, fastforward_ve };
             int virtual_index = inner_scope->virtual_reserve(vt);
             
             if (virtual_index != VT_BASEVT_INDEX)
@@ -75,17 +113,6 @@ public:
         }
         
         HeapType::allocate();
-    }
-
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
-        // This must point to our base type's virtual table, or NULL
-        
-        if (base_role)
-            return base_role->get_typespec(tm).get_virtual_table_label(x64);
-        else {
-            //std::cerr << "Class " << tm << " has no base.\n";
-            return x64->runtime->zero_label;
-        }
     }
 
     virtual Allocation measure(TypeMatch tm) {
@@ -148,8 +175,6 @@ public:
 
         is->be_virtual_scope();
         
-        //is->set_meta_scope(class_metatype->get_inner_scope());
-
         Allocation vt_offset = is->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer
         if (vt_offset.bytes != CLASS_VT_OFFSET)  // sanity check
             throw INTERNAL_ERROR;
@@ -283,7 +308,7 @@ public:
     int virtual_offset;
     std::vector<std::unique_ptr<Role>> shadow_roles;
     DataScope *virtual_scope;  // All shadow Role-s will point to the class scope
-    AbsoluteVirtualEntry *fastforward_ve;
+    FfwdVirtualEntry *fastforward_ve;
     
     Role(std::string n, TypeSpec pts, TypeSpec ts, bool ib)
         :Allocable(n, pts, ts) {
@@ -294,7 +319,7 @@ public:
         original_role = NULL;
         virtual_offset = -1;
         virtual_scope = NULL;
-        fastforward_ve = new AbsoluteVirtualEntry;
+        fastforward_ve = NULL;
 
         ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
         if (!ct)
@@ -314,7 +339,7 @@ public:
         original_role = role;
         virtual_offset = -1;
         virtual_scope = NULL;
-        fastforward_ve = new AbsoluteVirtualEntry;
+        fastforward_ve = NULL;
 
         for (auto &sr : role->shadow_roles) {
             shadow_roles.push_back(std::make_unique<Role>(prefix, sr.get()));
@@ -430,7 +455,7 @@ public:
         std::vector<VirtualEntry *> vt = alloc_ts.get_virtual_table();
         virtual_offset = virtual_scope->virtual_reserve(vt);
 
-        fastforward_ve->set(-offset.concretize());  // well, this is not parametrized yet
+        fastforward_ve = new FfwdVirtualEntry(offset);
         virtual_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
 
         // Just in case we'll have parametrized classes
@@ -474,7 +499,7 @@ public:
             
         virtual_offset = original_role->virtual_offset + explicit_virtual_offset;
         
-        fastforward_ve->set(-offset.concretize());  // well, this is not parametrized yet
+        fastforward_ve = new FfwdVirtualEntry(offset);
         virtual_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
         
         for (auto &sr : shadow_roles)
