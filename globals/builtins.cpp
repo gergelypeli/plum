@@ -422,15 +422,12 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
         Associable *a = implementation->lookup_associable(implementation_name);
         if (!a)
             throw INTERNAL_ERROR;
-        
-        // TODO: Can't associate built-in operations now
-        Function *f = ptr_cast<Function>(i);
-        
-        if (f)
-            if (!a->check_associated(f))
-                throw INTERNAL_ERROR;
-        
+
         i->name = implementation_name + "." + i->name;  // TODO: ugly!
+        
+        if (!a->check_associated(i))
+            throw INTERNAL_ERROR;
+        
         implementor_scope->add(i);
     }
 }
@@ -1116,10 +1113,11 @@ RootScope *init_builtins() {
 
     builtin_types(root_scope);
 
+    define_interfaces();
+
     define_string();
     define_slice();
     
-    define_interfaces();
     define_iterators();
     
     define_stack();

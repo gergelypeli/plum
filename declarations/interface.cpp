@@ -29,13 +29,6 @@ public:
                 continue;
             }
                 
-            // OK, we have to forgive built-in implementations of nested interfaces,
-            // which may be of any class, but at least they have a qualified name.
-            //Identifier *i = ptr_cast<Identifier>(c.get());
-            
-            //if (i && i->name.find(".") != std::string::npos)
-            //    continue;
-                
             std::cerr << "Not a function or implementation in an interface!\n";
             throw INTERNAL_ERROR;
             return false;
@@ -86,6 +79,7 @@ public:
     DataScope *implementor_scope;
     Implementation *original_implementation;
     std::vector<std::unique_ptr<Implementation>> shadow_implementations;
+    std::set<std::string> missing_function_names;
     Lself *associated_lself;
 
     Implementation(std::string name, TypeSpec pts, TypeSpec ifts)
@@ -96,13 +90,15 @@ public:
         original_implementation = NULL;
         associated_lself = NULL;
         
-        InterfaceType *ift = ptr_cast<InterfaceType>(ifts[0]);
+        InterfaceType *ift = ptr_cast<InterfaceType>(interface_ts[0]);
         if (!ift)
             throw INTERNAL_ERROR;
 
-        for (auto &imp : ift->member_implementations) {
+        for (auto &imp : ift->member_implementations)
             shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp));
-        }
+        
+        for (auto &f : ift->member_functions)
+            missing_function_names.insert(prefix + f->name);
     }
     
     Implementation(std::string p, Implementation *oi)
@@ -112,9 +108,15 @@ public:
         implementor_scope = NULL;
         original_implementation = oi;
         
-        for (auto &imp : oi->shadow_implementations) {
+        for (auto &imp : oi->shadow_implementations)
             shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp.get()));
-        }
+
+        InterfaceType *ift = ptr_cast<InterfaceType>(interface_ts[0]);
+        if (!ift)
+            throw INTERNAL_ERROR;
+            
+        for (auto &f : ift->member_functions)
+            missing_function_names.insert(prefix + f->name);
     }
 
     virtual void set_implementor(DataScope *is, TypeSpec ts) {
@@ -136,6 +138,16 @@ public:
         set_implementor(ds, pivot_ts);
         
         Identifier::set_outer_scope(os);
+    }
+
+    virtual void outer_scope_left() {
+        for (auto &si : shadow_implementations)
+            si->outer_scope_left();
+        
+        if (missing_function_names.size() > 0) {
+            std::cerr << "Missing functions in implementation " << name << "!\n";
+            throw TYPE_ERROR;
+        }
     }
 
     virtual void set_name(std::string n) {
@@ -200,10 +212,24 @@ public:
         // with Same types. But the functions in the implementation will be similarly
         // parametrized, so the comparison should compare Same to Same, and succeed.
         
+        Identifier *id = ptr_cast<Identifier>(decl);
+        if (!id)
+            return false;
+        
+        if (missing_function_names.count(id->name) != 1) {
+            std::cerr << "Unknown member " << id->name << " in implementation " << name << "!\n";
+            std::cerr << missing_function_names << "\n";
+            return false;
+        }
+        
+        missing_function_names.erase(id->name);
+        
+        // TODO: We can only check the validity of Function-s
         Function *override = ptr_cast<Function>(decl);
         if (!override) {
-            std::cerr << "This declaration can't be associated with implementation " << name << "!\n";
-            return false;
+            //std::cerr << "This declaration can't be associated with implementation " << name << "!\n";
+            //return false;
+            return true;
         }
         
         InterfaceType *interface_type = ptr_cast<InterfaceType>(interface_ts[0]);

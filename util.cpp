@@ -75,6 +75,24 @@ std::vector<std::string> brace_split(std::string s) {
 }
 
 
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const std::set<T> &x) {
+    os << "{";
+    bool first = true;
+    
+    for (auto &y : x) {
+        if (!first)
+            os << ", ";
+            
+        first = false;
+        os << y;
+    }
+    
+    os << "}";
+    return os;
+}
+
+
 enum OperationType {
     TWEAK,
     COMPLEMENT, NEGATE, GENERIC_UNARY,
