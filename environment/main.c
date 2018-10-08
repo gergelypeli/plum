@@ -372,8 +372,8 @@ void prints(void *s) {
         int64 character_count, byte_count;
         encode_utf8_buffer(AELEMENTS(s), character_length, bytes, sizeof(bytes) - 1, &character_count, &byte_count);
 
-        bytes[byte_count] = '\0';
-        printf("%.*s\n", (int)byte_count, bytes);
+        fwrite(bytes, 1, byte_count, stdout);
+        fwrite("\n", 1, 1, stdout);
     }
     else
         printf("(null)\n");
@@ -382,9 +382,10 @@ void prints(void *s) {
 
 void printb(void *s) {
     if (s) {
-        int64 byte_length = ALENGTH(s);
+        int64 byte_count = ALENGTH(s);
         char *bytes = AELEMENTS(s);
-        printf("%.*s\n", (int)byte_length, bytes);
+        fwrite(bytes, 1, byte_count, stdout);
+        fwrite("\n", 1, 1, stdout);
     }
     else
         printf("(null)\n");

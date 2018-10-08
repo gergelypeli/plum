@@ -427,6 +427,18 @@ public:
             return make<StringLiteralValue>("");
         }
         
+        if (n == "CRLF") {
+            return make<StringLiteralValue>("\r\n");
+        }
+        
+        int cc = character_code(n);
+        if (cc >= 0) {
+            if (cc >= 128)
+                throw INTERNAL_ERROR;
+                
+            return make<StringLiteralValue>(std::string(1, cc));
+        }
+        
         std::cerr << "No String initializer " << n << "!\n";
         return NULL;
     }

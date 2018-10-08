@@ -74,3 +74,5 @@ const int NO_EXCEPTION = 0;
 const int RETURN_EXCEPTION = -1;
 
 const int OPTION_FLAG_NONE = 0;
+
+const int CHARACTER_SINGLEQUOTE = 39;

@@ -117,6 +117,27 @@ bool is_assignment(OperationType o) {
 }
 
 
+// These must be uppercase for character interpolation
+struct {
+    std::string name;
+    int code;
+} character_codes[] = {
+    { "NUL", 0 },
+    { "HT", 9 },
+    { "LF", 10 },
+    { "CR", 13 }
+};
+
+
+int character_code(std::string name) {
+    for (unsigned i = 0; i < sizeof(character_codes) / sizeof(character_codes[0]); i++)
+        if (character_codes[i].name == name)
+            return character_codes[i].code;
+            
+    return -1;
+}
+
+
 std::vector<unsigned16> decode_utf8(std::string text) {
     int bytelen = text.size();
     std::vector<unsigned16> characters;

@@ -366,6 +366,8 @@ Main? :Singleton as:
         Std prints((xx? = "hi") + xx)
     
         Std prints("XXXXX{a}YYYYY" {})
+        Std prints("0{HT}8" {})
+        Std prints("NUL: {NUL}" {})
 
         Std prints("{six} and {seven}" { six: 6, seven: 7 })
 

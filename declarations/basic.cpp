@@ -308,7 +308,7 @@ public:
         Label cs_label = x64->once->compile(compile_streamification);
 
         if (repr) {
-            x64->op(PUSHQ, 39);  // single quote
+            x64->op(PUSHQ, CHARACTER_SINGLEQUOTE);
             x64->op(PUSHQ, Address(RSP, 8));
             x64->op(CALL, cs_label);
             x64->op(ADDQ, RSP, 16);
@@ -317,7 +317,7 @@ public:
         x64->op(CALL, cs_label);  // clobbers all
 
         if (repr) {
-            x64->op(PUSHQ, 39);  // single quote
+            x64->op(PUSHQ, CHARACTER_SINGLEQUOTE);  // single quote
             x64->op(PUSHQ, Address(RSP, 8));
             x64->op(CALL, cs_label);
             x64->op(ADDQ, RSP, 16);
@@ -353,8 +353,10 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        if (name == "zero")
-            return make<BasicValue>(tm[0], 0);
+        int cc = character_code(name);
+        
+        if (cc >= 0)
+            return make<BasicValue>(tm[0], cc);
         else if (name == "unicode")
             return make<UnicodeCharacterValue>();
         else {

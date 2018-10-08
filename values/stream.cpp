@@ -136,7 +136,16 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         Value *pivot;
         
         if (identifier) {
-            if (pseudo_only) {
+            // NOTE: this assumes that character initializers are uppercase!
+            if (fragment.size() > 0 && isupper(fragment[0])) {
+                pivot = STRING_TS.lookup_initializer(fragment, interpolation_scope);
+                
+                if (!pivot) {
+                    std::cerr << "Undefined interpolation constant " << fragment << "!\n";
+                    throw TYPE_ERROR;
+                }
+            }
+            else if (pseudo_only) {
                 if (fragment.size()) {
                     Expr *e = expr->kwargs[fragment].get();
                     

@@ -114,11 +114,6 @@ public:
         
         x64->op(LEA, RAX, Address(l, 0));
         return Storage(BREGISTER, RAX);
-        
-        //x64->runtime->incref(R10);  // This way we can return the same static string many times
-        //x64->op(PUSHQ, R10);
-        
-        //return Storage(BSTACK);
     }
 };
 
