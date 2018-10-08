@@ -11,13 +11,6 @@ void set_typespec(Value *value, TypeSpec ts) {
 }
 
 
-Value *peek_void_conversion_value(Value *v) {
-    VoidConversionValue *vcv = ptr_cast<VoidConversionValue>(v);
-    
-    return vcv ? vcv->orig.get() : v;
-}
-
-
 void role_value_be_static(RoleValue *rv) {
     rv->be_static();
 }

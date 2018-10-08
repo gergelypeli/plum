@@ -116,63 +116,79 @@ Value *make_initialization_by_value(std::string name, Value *v, CodeScope *state
 Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     std::vector<std::string> fragments = brace_split(text);
     
-    if (expr->args.size() > 0) {
-        std::cerr << "String interpolation must use keyword arguments only!\n";
-        throw TYPE_ERROR;
-    }
-
     // We must scope ourselves
-    CodeScope *code_scope = new CodeScope;
-    scope->add(code_scope);
+    CodeScope *interpolation_scope = new CodeScope;
+    scope->add(interpolation_scope);
     
     InterpolationValue *interpolation = new InterpolationValue;
     
     CodeScope *statement_scope = new CodeScope;
-    code_scope->add(statement_scope);
+    interpolation_scope->add(statement_scope);
     Value *cv = make_initialization_by_value("<interpolated>", new StringBufferValue(100), statement_scope);
-    Variable *interpolated_var = ptr_cast<Variable>(code_scope->contents.back().get());
+    Variable *interpolated_var = ptr_cast<Variable>(interpolation_scope->contents.back().get());
     interpolation->add_statement(cv);
 
-    for (auto &kv : expr->kwargs) {
-        CodeScope *statement_scope = new CodeScope;
-        code_scope->add(statement_scope);
-
-        std::string keyword = kv.first;
-        Expr *expr = kv.second.get();
-        Value *keyword_value = typize(expr, statement_scope, &ANY_TS);
-        
-        if (keyword_value->ts == VOID_TS) {
-            std::cerr << "Cannot interpolate Void {" << keyword << "}!\n";
-            throw TYPE_ERROR;
-        }
-        
-        Value *decl_value = make_initialization_by_value(keyword, keyword_value, statement_scope);
-        interpolation->add_statement(decl_value);
-    }
-
-    bool pseudo_only = (expr->kwargs.size() > 0);
+    bool pseudo_only = (expr->args.size() > 0 || expr->kwargs.size() > 0);
     bool identifier = false;
+    bool position = 0;
     
     for (auto &fragment : fragments) {
         Value *pivot;
         
         if (identifier) {
-            // For explicit keywords, we only look up in the innermost scope.
-            // For identifiers, we look up outer scopes, but we don't need to look
-            // in inner scopes, because that would need a pivot value, which we don't have.
-            
-            for (Scope *s = code_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
-                pivot = s->lookup(fragment, NULL, code_scope);
-        
-                if (pivot)
-                    break;
-                else if (pseudo_only)
-                    break;  // Look up only pseudo variables in this scope
+            if (pseudo_only) {
+                if (fragment.size()) {
+                    Expr *e = expr->kwargs[fragment].get();
+                    
+                    if (!e) {
+                        std::cerr << "No interpolation argument " << fragment << "!\n";
+                        throw TYPE_ERROR;
+                    }
+
+                    pivot = typize(e, interpolation_scope, &ANY_TS);
+
+                    if (!pivot) {
+                        std::cerr << "Undefined interpolation argument " << fragment << "!\n";
+                        throw TYPE_ERROR;
+                    }
+                }
+                else {
+                    Expr *e = expr->args[position].get();
+                    
+                    if (!e) {
+                        std::cerr << "No interpolation argument " << position << "!\n";
+                        throw TYPE_ERROR;
+                    }
+                    
+                    pivot = typize(e, interpolation_scope, &ANY_TS);
+
+                    if (!pivot) {
+                        std::cerr << "Undefined interpolation argument" << position << "!\n";
+                        throw TYPE_ERROR;
+                    }
+                    
+                    position += 1;
+                }
             }
+            else {
+                if (!fragment.size()) {
+                    std::cerr << "Invalid positional substring in interpolation!\n";
+                    throw TYPE_ERROR;
+                }
+                
+                // For identifiers, we look up outer scopes, but we don't need to look
+                // in inner scopes, because that would need a pivot value, which we don't have.
+                for (Scope *s = interpolation_scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
+                    pivot = s->lookup(fragment, NULL, interpolation_scope);
+        
+                    if (pivot)
+                        break;
+                }
             
-            if (!pivot) {
-                std::cerr << "Cannot interpolate undefined {" << fragment << "}!\n";
-                throw TYPE_ERROR;
+                if (!pivot) {
+                    std::cerr << "Undefined interpolation argument " << fragment << "!\n";
+                    throw TYPE_ERROR;
+                }
             }
         }
         else {
@@ -183,11 +199,11 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
         Value *streamify = NULL;
         
         if (typematch(STREAMIFIABLE_TS, pivot, match)) {
-            streamify = lookup_fake("streamify", pivot, code_scope, expr->token, NULL, interpolated_var);
+            streamify = lookup_fake("streamify", pivot, interpolation_scope, expr->token, NULL, interpolated_var);
         }
         else if (pivot->ts.rvalue()[0] == ref_type || pivot->ts.rvalue()[0] == ptr_type) {
             // Complimentary streamification of references and pointers
-            streamify = lookup_fake("<streamify>", pivot, code_scope, expr->token, NULL, interpolated_var);
+            streamify = lookup_fake("<streamify>", pivot, interpolation_scope, expr->token, NULL, interpolated_var);
         }
 
         if (!streamify) {
@@ -200,12 +216,12 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
     }
 
     TypeMatch match;  // kinda unnecessary
-    Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, code_scope, match);
-    ret = ret->lookup_inner("realloc", code_scope);  // FIXME: missing check, but at least no arguments
+    Value *ret = make<VariableValue>(interpolated_var, (Value *)NULL, interpolation_scope, match);
+    ret = ret->lookup_inner("realloc", interpolation_scope);  // FIXME: missing check, but at least no arguments
     interpolation->add_statement(ret);
 
-    Value *result = make<CodeScopeValue>(interpolation, code_scope);
-    code_scope->leave();
+    Value *result = make<CodeScopeValue>(interpolation, interpolation_scope);
+    interpolation_scope->leave();
     
     return result;
 }

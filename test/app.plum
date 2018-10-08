@@ -143,19 +143,19 @@ Greetable? :Class as:
         
         $ number = 1
         $ name = "The Greetable"
-        Std prints("I'm here as {x}." { x: $ name })
+        Std prints("I'm here as {}." { $ name })
         
     second_init? :Initializer as:
         $ init
         
     greet? :Function as:
-        Std prints("Hello, I'm {me}!" { me: $ name })
+        Std prints("Hello, I'm {}!" { $ name })
 
     ? :Finalizer as:
         Std prints("I'm outta here!")
 
     derived.base.base_method? :Function as:
-        Std prints("Greetable base_method, the base value is {x}." {x: $ derived base base_value})
+        Std prints("Greetable base_method, the base value is {}." {$ derived base base_value})
         $.derived base base_method
 
     number? Integer
@@ -288,7 +288,7 @@ Main? :Singleton as:
         false? Boolean = `false
         true? Boolean = `true
     
-        Std prints("Or truth table: {a} {b} {c} {d}" { a: false || false, b: false || true, c: true || false, d: true || true })
+        Std prints("Or truth table: {} {} {} {}" { false || false, false || true, true || false, true || true })
         Std prints("And truth table: {a} {b} {c} {d}" { a: false && false, b: false && true, c: true && false, d: true && true })
 
 

@@ -21,6 +21,10 @@ public:
 
         case SSEREGISTER_NOWHERE:
             break;
+        case SSEREGISTER_STACK:
+            x64->op(SUBQ, RSP, FLOAT_SIZE);
+            x64->op(MOVSD, Address(RSP, 0), s.sse);
+            break;
             
         case STACK_NOWHERE:
             x64->op(ADDQ, RSP, FLOAT_SIZE);
