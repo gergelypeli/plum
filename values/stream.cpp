@@ -130,10 +130,10 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
 
     bool pseudo_only = (expr->args.size() > 0 || expr->kwargs.size() > 0);
     bool identifier = false;
-    bool position = 0;
+    int position = 0;
     
     for (auto &fragment : fragments) {
-        Value *pivot;
+        Value *pivot = NULL;
         
         if (identifier) {
             // NOTE: this assumes that character initializers are uppercase!
@@ -163,7 +163,7 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
                 }
                 else {
                     Expr *e = expr->args[position].get();
-                    
+
                     if (!e) {
                         std::cerr << "No interpolation argument " << position << "!\n";
                         throw TYPE_ERROR;
@@ -175,7 +175,8 @@ Value *interpolate(std::string text, Expr *expr, Scope *scope) {
                         std::cerr << "Undefined interpolation argument" << position << "!\n";
                         throw TYPE_ERROR;
                     }
-                    
+
+                    // NOTE: in C++ 'bool += 1' is legal, and does not even generate a warning
                     position += 1;
                 }
             }
