@@ -67,16 +67,8 @@ public:
     virtual TypeSpec get_typespec(TypeMatch tm) {
         TypeSpec ts = typesubst(alloc_ts, tm);
         
-        if (as_what == AS_ARGUMENT && outer_scope == outer_scope->get_function_scope()->head_scope) {
-            if (ts[0] == lvalue_type)
-                return ts;
-            else if (ts[0] == ovalue_type)
-                return ts.reprefix(ovalue_type, lvalue_type);
-            else if (ts[0] == dvalue_type || ts[0] == code_type)
-                return ts;
-            else
-                return ts.lvalue();
-        }
+        if (ts[0] == ovalue_type)
+            ts = ts.unprefix(ovalue_type);
         
         return ts;
     }
