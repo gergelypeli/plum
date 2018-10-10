@@ -129,6 +129,11 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     Node &node = nodes[i];
     
     if (node.type == Node::OPEN) {
+        if (node.left) {
+            std::cerr << "Grouping has left argument!\n";
+            throw TUPLE_ERROR;
+        }
+        
         // Grouping operators are ignored from now on
         return tupleize(nodes, node.right);
     }
@@ -185,6 +190,11 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         return new Expr(Expr::UNSIGNED_NUMBER, node.token, node.text);
     }
     else if (node.type == Node::STRING) {
+        if (node.left || node.right) {
+            std::cerr << "String literal has arguments!\n";
+            throw TUPLE_ERROR;
+        }
+        
         return new Expr(Expr::STRING, node.token, node.text);
     }
     else {

@@ -22,11 +22,7 @@ Pair? :Record as:
     sable? :Implementation Streamifiable
 
     sable.streamify? :Function from: stream? String Lvalue as:
-        "(" streamifiable streamify(stream)
-        $ first streamifiable streamify(stream)
-        "," streamifiable streamify(stream)
-        $ second streamifiable streamify(stream)
-        ")" streamifiable streamify(stream)
+        stream += "({},{})" { $ first, $ second }
         
     lself.reset? :Function as:
         $ first = 0
@@ -289,7 +285,7 @@ Main? :Singleton as:
         true? Boolean = `true
     
         Std prints("Or truth table: {} {} {} {}" { false || false, false || true, true || false, true || true })
-        Std prints("And truth table: {a} {b} {c} {d}" { a: false && false, b: false && true, c: true && false, d: true && true })
+        Std prints("And truth table: {} {} {} {}" { false && false, false && true, true && false, true && true })
 
 
     test_floats? :Function as:
@@ -610,6 +606,12 @@ Main? :Singleton as:
 
         ss? String Array Ref = { "foo", "bar" }
         Std prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
+
+        dd? = ss + ss
+        Std prints("Doubled array has {}, {}, {}, {}" { dd[0], dd[1], dd[2], dd[3] })
+
+        dd += ss
+        Std prints("Tripled array has {}, {}, {}, {}, {}, {}" { dd[0], dd[1], dd[2], dd[3], dd[4], dd[5] })
 
         :for ss each: i? do:
             Std prints("Array element {i}" {})

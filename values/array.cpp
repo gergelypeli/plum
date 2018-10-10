@@ -103,7 +103,7 @@ public:
 
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     
-        x64->op(CALL, l);
+        x64->op(CALL, l);  // result array ref in RAX
         
         right->ts.store(rs, Storage(), x64);
         left->ts.store(ls, Storage(), x64);
@@ -125,24 +125,98 @@ public:
         
         x64->op(CALL, alloc_array);  // clobbers all
         
-        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));  // restored
-        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
-        
         x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
         
+        // copy left array
+        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));  // restored
         x64->op(LEA, RSI, Address(R10, ARRAY_ELEMS_OFFSET));
         x64->op(MOVQ, RCX, Address(R10, ARRAY_LENGTH_OFFSET));
         x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
-        x64->op(IMUL3Q, RCX, RCX, elem_size);
-        x64->op(REPMOVSB);
+        
+        // This is the raw bytes version
+        //x64->op(IMUL3Q, RCX, RCX, elem_size);
+        //x64->op(REPMOVSB);
+        
+        // And this is the general version
+        Label left_loop, left_end;
+        x64->op(CMPQ, RCX, 0);
+        x64->op(JE, left_end);
+        
+        x64->code_label(left_loop);
+        elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
+        x64->op(ADDQ, RSI, elem_size);
+        x64->op(ADDQ, RDI, elem_size);
+        x64->op(DECQ, RCX);
+        x64->op(JNE, left_loop);
+        x64->code_label(left_end);
 
+        // copy right array
+        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // restored
         x64->op(LEA, RSI, Address(R11, ARRAY_ELEMS_OFFSET));
         x64->op(MOVQ, RCX, Address(R11, ARRAY_LENGTH_OFFSET));
         x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
-        x64->op(IMUL3Q, RCX, RCX, elem_size);
-        x64->op(REPMOVSB);
+        
+        // This is the raw bytes version
+        //x64->op(IMUL3Q, RCX, RCX, elem_size);
+        //x64->op(REPMOVSB);
+
+        // And this is the general version
+        Label right_loop, right_end;
+        x64->op(CMPQ, RCX, 0);
+        x64->op(JE, right_end);
+        
+        x64->code_label(right_loop);
+        elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
+        x64->op(ADDQ, RSI, elem_size);
+        x64->op(ADDQ, RDI, elem_size);
+        x64->op(DECQ, RCX);
+        x64->op(JNE, right_loop);
+        x64->code_label(right_end);
         
         x64->op(RET);  // new array in RAX
+    }
+};
+
+
+class ArrayExtendValue: public GenericValue {
+public:
+    TypeSpec elem_ts;
+    
+    ArrayExtendValue(Value *l, TypeMatch &match)
+        :GenericValue(match[0], match[0], l) {
+        elem_ts = match[1];
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        left->precompile(preferred);
+        right->precompile(preferred);
+        return Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        // TODO: This is just a concatenation and an assignment, could be more optimal.
+        // TODO: this only works for arrays of basic types now, that can be just copied
+        Label l = x64->once->compile(ArrayConcatenationValue::compile_array_concatenation, elem_ts);
+
+        left->compile_and_store(x64, Storage(ALISTACK));
+        
+        x64->op(MOVQ, R10, Address(RSP, 0));
+        x64->op(PUSHQ, Address(R10, 0));  // reference without incref
+
+        right->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(CALL, l);  // result array ref in RAX
+        
+        right->ts.store(Storage(STACK), Storage(), x64);
+        x64->op(POPQ, R10);
+        x64->runtime->decref(R10);  // old value being assigned over
+
+        // Now mimic a ref assignment
+        x64->op(MOVQ, R10, RAX);  // new value
+        x64->op(POPQ, RAX);  // address of ref
+        x64->op(MOVQ, Address(RAX, 0), R10);
+        
+        return Storage(MEMORY, Address(RAX, 0));
     }
 };
 

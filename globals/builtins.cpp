@@ -715,6 +715,7 @@ void define_string() {
 
     is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REF_TS, INTEGER_TS, "length"));
     is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REF_TS, STRING_TS, "binary_plus", "chars"));
+    is->add(new RecordWrapperIdentifier("assign_plus", STRING_LVALUE_TS, CHARACTER_ARRAY_REF_LVALUE_TS, STRING_TS, "assign_plus", "chars"));
     is->add(new RecordWrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REF_TS, CHARACTER_TS, "index"));
     is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REF_LVALUE_TS, STRING_LVALUE_TS, "realloc"));
 
@@ -810,6 +811,7 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", ANY_ARRAY_REF_TS));  // needs Ref
     array_scope->add(new TemplateIdentifier<ArrayRefillValue>("refill", ANY_ARRAY_REF_LVALUE_TS));
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
+    array_scope->add(new TemplateIdentifier<ArrayExtendValue>("assign_plus", ANY_ARRAY_REF_LVALUE_TS));
     array_scope->add(new TemplateOperation<ArrayIndexValue>("index", ANY_ARRAY_PTR_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", ANY_ARRAY_REF_TS));
