@@ -284,7 +284,14 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
             
-            value = interpolate(s->text, expr, scope);
+            value = new InterpolationValue(s->text);
+
+            bool ok = value->check(expr->args, expr->kwargs, scope);
+        
+            if (!ok) {
+                std::cerr << "Interpolation problem for " << expr->token << "!\n";
+                throw TYPE_ERROR;
+            }
         }
         else {
             TypeSpec ts;

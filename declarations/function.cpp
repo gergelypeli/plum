@@ -22,6 +22,7 @@ public:
     FunctionProt prot;
     
     Role *associated_role;
+    Implementation *associated_implementation;
     Function *implemented_function;
 
     Label label;
@@ -178,6 +179,10 @@ public:
 
     virtual void set_associated_role(Role *ar) {
         associated_role = ar;
+    }
+
+    virtual void set_associated_implementation(Implementation *imp) {
+        associated_implementation = imp;
     }
     
     virtual void set_associated_lself(Lself *al) {

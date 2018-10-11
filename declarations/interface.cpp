@@ -249,6 +249,8 @@ public:
             return false;
         }
         
+        override->set_associated_implementation(this);
+        
         if (associated_lself)
             override->set_associated_lself(associated_lself);
         

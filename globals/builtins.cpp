@@ -488,10 +488,6 @@ void define_integers() {
     for (auto &item : integer_lvalue_operations)
         integer_metascope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
 
-    implement(integer_metascope, STREAMIFIABLE_TS, "streamifiable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
-    });
-    
     integer_metascope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
     integer_metascope->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
     
@@ -531,10 +527,6 @@ void define_float() {
 
     for (auto &item : float_lvalue_operations)
         float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
-    
-    implement(float_scope, STREAMIFIABLE_TS, "streamifiable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", FLOAT_TS)
-    });
     
     float_scope->add(new ImportedFloatFunction("log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
     float_scope->add(new ImportedFloatFunction("exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));
@@ -734,10 +726,6 @@ void define_string() {
     is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
     // String operations
-    implement(is, STREAMIFIABLE_TS, "streamifiable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", STRING_TS)
-    });
-
     is->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL, NULL));
 
     record_type->complete_type();
@@ -793,10 +781,6 @@ void define_option() {
 
     is->add(new TemplateOperation<OptionOperationValue>("assign other", ANY_OPTION_LVALUE_TS, ASSIGN));
     is->add(new TemplateOperation<OptionOperationValue>("compare", ANY_OPTION_TS, COMPARE));
-
-    implement(is, STREAMIFIABLE_TS, "streamifiable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_OPTION_TS)
-    });
 
     option_type->complete_type();
     is->leave();
@@ -1141,9 +1125,6 @@ RootScope *init_builtins() {
     Scope *char_scope = character_type->make_inner_scope(CHARACTER_TS);
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
     char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", CHARACTER_TS, COMPARE));
-    implement(char_scope, STREAMIFIABLE_TS, "streamifiable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", CHARACTER_TS)
-    });
     char_scope->leave();
     
     // Boolean operations
@@ -1153,27 +1134,18 @@ RootScope *init_builtins() {
     bool_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", BOOLEAN_TS));
     bool_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and", BOOLEAN_TS));
     bool_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", BOOLEAN_TS));
-    implement(bool_scope, STREAMIFIABLE_TS, "streamifiable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", BOOLEAN_TS)
-    });
     bool_scope->leave();
 
     // Enum operations
     Scope *enum_metascope = enumeration_metatype->make_inner_scope(ANY_TS);
     enum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    implement(enum_metascope, STREAMIFIABLE_TS, "streamifiable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
-    });
     enum_metascope->leave();
 
     // Treenum operations
     Scope *treenum_metascope = treenumeration_metatype->make_inner_scope(ANY_TS);
     treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
-    implement(treenum_metascope, STREAMIFIABLE_TS, "streamifiable", {
-        new TemplateIdentifier<GenericStreamificationValue>("streamify", ANY_TS)
-    });
     treenum_metascope->leave();
 
     // Record operations
@@ -1187,7 +1159,6 @@ RootScope *init_builtins() {
     ref_scope->add(new ReferenceOperation("assign other", ANYID_REF_LVALUE_TS, ASSIGN));
     ref_scope->add(new ReferenceOperation("is_equal", ANYID_REF_TS, EQUAL));
     ref_scope->add(new ReferenceOperation("not_equal", ANYID_REF_TS, NOT_EQUAL));
-    ref_scope->add(new TemplateIdentifier<GenericStreamificationValue>("<streamify>", ANYID_REF_TS));
     ref_scope->leave();
 
     typedef TemplateOperation<PointerOperationValue> PointerOperation;
@@ -1195,7 +1166,6 @@ RootScope *init_builtins() {
     ptr_scope->add(new PointerOperation("assign other", ANYID_PTR_LVALUE_TS, ASSIGN));
     ptr_scope->add(new PointerOperation("is_equal", ANYID_PTR_TS, EQUAL));
     ptr_scope->add(new PointerOperation("not_equal", ANYID_PTR_TS, NOT_EQUAL));
-    ptr_scope->add(new TemplateIdentifier<GenericStreamificationValue>("<streamify>", ANYID_PTR_TS));
     ptr_scope->leave();
 
     // Array operations

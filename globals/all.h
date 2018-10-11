@@ -426,6 +426,7 @@ public:
     Label sysv_logfunc_label, sysv_logreffunc_label, sysv_dump_label;
     Label sysv_die_label, sysv_dies_label, sysv_die_uncaught_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
+    Label sysv_streamify_pointer_label;
     
     Runtime(X64 *x, unsigned application_size);
 

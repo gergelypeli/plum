@@ -4,16 +4,19 @@ public:
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
+    Function *streamify_function;
     bool is_single;
 
     RecordType(std::string n, Metatypes param_metatypes)
         :Type(n, param_metatypes, record_metatype) {
         is_single = false;
+        streamify_function = NULL;
     }
 
     virtual bool complete_type() {
         bool has_custom_compare = false;
-        
+        Implementation *streamifiable_implementation = NULL;
+
         for (auto &c : inner_scope->contents) {
             Variable *v = ptr_cast<Variable>(c.get());
             
@@ -26,6 +29,14 @@ public:
             Identifier *i = ptr_cast<Identifier>(c.get());
             if (i && i->name == "compare")
                 has_custom_compare = true;
+                
+            Implementation *imp = ptr_cast<Implementation>(c.get());
+            if (imp && imp->interface_ts == STREAMIFIABLE_TS)
+                streamifiable_implementation = imp;
+                
+            Function *f = ptr_cast<Function>(c.get());
+            if (f && streamifiable_implementation && f->associated_implementation == streamifiable_implementation)
+                streamify_function = f;
         }
 
         if (!has_custom_compare)
@@ -193,6 +204,50 @@ public:
         }
         else
             throw INTERNAL_ERROR;
+    }
+
+    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+        if (streamify_function) {
+            // The pivot is on the stack as rvalue, and the stream as lvalue.
+            x64->op(CALL, streamify_function->get_label(x64));
+        }
+        else {
+            x64->op(PUSHQ, CHARACTER_LEFTBRACE);
+            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
+            CHARACTER_TS.streamify(false, x64);
+            x64->op(ADDQ, RSP, 16);
+            
+            bool did = false;
+            
+            for (auto v : member_variables) {
+                if (did) {
+                    x64->op(PUSHQ, CHARACTER_COMMA);
+                    x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
+                    CHARACTER_TS.streamify(false, x64);
+                    x64->op(ADDQ, RSP, 16);
+                }
+                
+                did = true;
+                
+                x64->op(LEA, RAX, Address(RSP, ADDRESS_SIZE));
+                
+                TypeSpec mts = v->get_typespec(tm);
+                Storage s = v->get_storage(tm, Storage(MEMORY, Address(RAX, 0)));
+                Storage t = Storage(STACK);
+                mts.store(s, t, x64);
+                x64->op(PUSHQ, Address(RSP, mts.measure_stack()));
+                
+                mts.streamify(true, x64);
+                
+                x64->op(ADDQ, RSP, ADDRESS_SIZE);
+                mts.store(t, Storage(), x64);
+            }
+            
+            x64->op(PUSHQ, CHARACTER_RIGHTBRACE);
+            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
+            CHARACTER_TS.streamify(false, x64);
+            x64->op(ADDQ, RSP, 16);
+        }
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {

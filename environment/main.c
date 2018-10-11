@@ -256,7 +256,7 @@ void streamify_float(double x, void **character_array_lvalue) {
 }
 
 
-void streamify_reference(Ref x, void **character_array_lvalue) {
+void streamify_pointer(Ref x, void **character_array_lvalue) {
     char byte_array[30];
     int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%p", x);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);

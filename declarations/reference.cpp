@@ -238,13 +238,10 @@ public:
     
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
         // We do this for reference types that don't implement Streamifiable
-        Label label;
-        x64->code_label_import(label, "streamify_reference");
-        
         x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
         x64->op(MOVQ, RSI, Address(RSP, 0));
         
-        x64->runtime->call_sysv(label);
+        x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
