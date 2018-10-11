@@ -91,6 +91,10 @@ public:
     virtual Value *lookup_inner(std::string name, Scope *scope) {
         return ts.lookup_inner(name, this, scope);
     }
+    
+    virtual void streamify(X64 *x64) {
+        return ts.streamify(false, x64);
+    }
 };
 
 

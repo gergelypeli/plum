@@ -19,7 +19,7 @@ Pair? :Record as:
     dump? :Function as:
         Std prints("Pair({x}, {y})" { x: $ first, y: $ second })
 
-    sable? :Implementation Streamifiable
+    sable? :Auto Streamifiable
 
     sable.streamify? :Function from: stream? String Lvalue as:
         stream += "({},{})" { $ first, $ second }
@@ -54,7 +54,7 @@ XCounter? :Record as:
         $ current = -1
         $ limit = n
         
-    lself.itor? :Implementation Integer Iterator
+    lself.itor? :Auto Integer Iterator
 
     lself.itor.next? :Function Integer may: Iterator_done_exception as:
         $ current += 1
@@ -64,7 +64,7 @@ XCounter? :Record as:
             
         :return $ current
         
-    ible? :Implementation Integer Iterable
+    ible? :Auto Integer Iterable
     
     ible.iter? :Function XCounter as:
         :return $
@@ -81,7 +81,7 @@ XStringiterator? :Record as:
         $ string = s
         $ index = -1
 
-    lself.itor? :Implementation Character Iterator
+    lself.itor? :Auto Character Iterator
     
     lself.itor.next? :Function Character may: Iterator_done_exception as:
         $ index += 1

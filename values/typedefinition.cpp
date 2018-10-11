@@ -201,15 +201,13 @@ public:
 
 class RoleDefinitionValue: public TypeDefinitionValue {
 public:
+    InheritAs inherit_as;
     std::unique_ptr<Value> value;
-    TypeSpec role_ts, pivot_ts;
-    //DataScope *original_scope;
-    //Role *role;
+    TypeSpec represented_ts, pivot_ts;
     
-    RoleDefinitionValue(Value *pivot, TypeMatch &tm)
+    RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
         :TypeDefinitionValue() {
-        //original_scope = NULL;
-        //role = NULL;
+        inherit_as = ia;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -222,49 +220,50 @@ public:
         Value *v = typize(args[0].get(), scope, NULL);
     
         if (!v->ts.is_meta()) {
-            std::cerr << "Class type name expected!\n";
+            std::cerr << "Type name expected!\n";
             return false;
         }
 
-        role_ts = ptr_cast<TypeValue>(v)->represented_ts;
-        ClassType *ct = ptr_cast<ClassType>(role_ts[0]);
+        represented_ts = ptr_cast<TypeValue>(v)->represented_ts;
         
-        if (!ct) {
-            std::cerr << "Class type name expected!\n";
+        if (!represented_ts.has_meta(class_metatype) && !represented_ts.has_meta(interface_metatype)) {
+            std::cerr << "Interface or class name expected!\n";
             return false;
         }
         
-        //original_scope = ct->get_inner_scope();
-
         pivot_ts = scope->pivot_type_hint();
         value.reset(v);
         
         return true;
     }
-    /*
-    virtual bool complete_definition() {
-        std::cerr << "Completing role " << role->name << " definition.\n";
-        
-        // The role's inner scope is filled by declarations, but they should be checked
-        return role->complete_role();
-    }
-    */
+
     virtual Declaration *declare(std::string name, ScopeType st) {
-        Role *role = new Role(name, pivot_ts, role_ts, false);
-        return role;
+        if (st == DATA_SCOPE) {
+            if (represented_ts.has_meta(class_metatype))
+                return new Role(name, pivot_ts, represented_ts, inherit_as);
+            else if (represented_ts.has_meta(interface_metatype))
+                return new Implementation(name, pivot_ts, represented_ts, inherit_as);
+            else
+                throw INTERNAL_ERROR;
+        }
+        else
+            return NULL;
     }
 };
 
 
-class BaseRoleDefinitionValue: public RoleDefinitionValue {
+class BaseDefinitionValue: public RoleDefinitionValue {
 public:
-    BaseRoleDefinitionValue(Value *pivot, TypeMatch &tm)
-        :RoleDefinitionValue(pivot, tm) {
+    BaseDefinitionValue(Value *pivot, TypeMatch &tm)
+        :RoleDefinitionValue(pivot, tm, AS_BASE) {
     }
+};
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        Role *role = new Role(name, pivot_ts, role_ts, true);
-        return role;
+
+class AutoDefinitionValue: public RoleDefinitionValue {
+public:
+    AutoDefinitionValue(Value *pivot, TypeMatch &tm)
+        :RoleDefinitionValue(pivot, tm, AS_AUTO) {
     }
 };
 
@@ -552,7 +551,7 @@ public:
     }
 };
 
-
+/*
 class ImplementationDefinitionValue: public TypeDefinitionValue {
 public:
     TypeSpec pivot_ts;
@@ -595,11 +594,11 @@ public:
             return NULL;
     }
 };
-
+*/
 
 class LselfDefinitionValue: public TypeDefinitionValue {
 public:
-    LselfDefinitionValue()
+    LselfDefinitionValue(Value *pivot, TypeMatch &tm)
         :TypeDefinitionValue() {
     }
 

@@ -154,20 +154,20 @@ public:
 };
 
 
-class ImplementationMetaType: public MetaType {
-public:
-    ImplementationMetaType(std::string name, Type *st)
-        :MetaType(name, st, make<ImplementationDefinitionValue>) {
-    }
-};
+//class ImplementationMetaType: public MetaType {
+//public:
+//    ImplementationMetaType(std::string name, Type *st)
+//        :MetaType(name, st, make<ImplementationDefinitionValue>) {
+//    }
+//};
 
 
-class LselfMetaType: public MetaType {
-public:
-    LselfMetaType(std::string name, Type *st)
-        :MetaType(name, st, make<LselfDefinitionValue>) {
-    }
-};
+//class LselfMetaType: public MetaType {
+//public:
+//    LselfMetaType(std::string name, Type *st)
+//        :MetaType(name, st, make<LselfDefinitionValue>) {
+//    }
+//};
 
 
 class ImportMetaType: public MetaType {

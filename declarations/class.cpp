@@ -303,19 +303,19 @@ public:
 class Role: public Allocable, public Associable {
 public:
     std::string prefix;
-    bool is_base;
+    InheritAs inherit_as;
     Role *original_role;
     int virtual_offset;
     std::vector<std::unique_ptr<Role>> shadow_roles;
     DataScope *virtual_scope;  // All shadow Role-s will point to the class scope
     FfwdVirtualEntry *fastforward_ve;
     
-    Role(std::string n, TypeSpec pts, TypeSpec ts, bool ib)
+    Role(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
         :Allocable(n, pts, ts) {
-        std::cerr << "Creating " << (ib ? "base " : "") << "role " << name << ".\n";
+        std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "role " << name << ".\n";
         
         prefix = name + ".";
-        is_base = ib;
+        inherit_as = ia;
         original_role = NULL;
         virtual_offset = -1;
         virtual_scope = NULL;
@@ -335,7 +335,7 @@ public:
         std::cerr << "Creating shadow role " << name << ".\n";
         
         prefix = name + ".";
-        is_base = false;
+        inherit_as = role->inherit_as;
         original_role = role;
         virtual_offset = -1;
         virtual_scope = NULL;
@@ -440,7 +440,7 @@ public:
             throw INTERNAL_ERROR;
             
         if (virtual_offset != -1) {
-            if (is_base)
+            if (inherit_as == AS_BASE)
                 return;
             else
                 throw INTERNAL_ERROR;
@@ -517,7 +517,7 @@ public:
     
     virtual void init_vt(TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
         // Base roles have a VT pointer overlapping the main class VT, don't overwrite
-        if (!is_base) {
+        if (inherit_as != AS_BASE) {
             x64->op(LEA, R10, Address(vt_label, virtual_offset * ADDRESS_SIZE));
             x64->op(MOVQ, self_addr + offset.concretize(tm) + CLASS_VT_OFFSET, R10);
         }

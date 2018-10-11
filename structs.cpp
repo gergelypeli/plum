@@ -114,3 +114,6 @@ struct ArgInfo {
 };
 
 
+enum InheritAs {
+    AS_ROLE, AS_AUTO, AS_BASE
+};

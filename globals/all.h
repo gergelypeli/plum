@@ -172,8 +172,8 @@ Type *record_metatype = NULL;
 Type *class_metatype = NULL;
 Type *singleton_metatype = NULL;
 Type *interface_metatype = NULL;
-Type *implementation_metatype = NULL;
-Type *lself_metatype = NULL;
+//Type *implementation_metatype = NULL;
+//Type *lself_metatype = NULL;
 
 Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;

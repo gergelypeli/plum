@@ -75,7 +75,7 @@ int role_get_virtual_offset(Role *r) {
 
 
 bool role_is_base(Role *r) {
-    return r->is_base;
+    return r->inherit_as == AS_BASE;
 }
 
 

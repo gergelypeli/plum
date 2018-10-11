@@ -48,11 +48,11 @@ void builtin_types(Scope *root_scope) {
     interface_metatype = new InterfaceMetaType("Interface", value_metatype);
     colon_scope->add(interface_metatype);
 
-    implementation_metatype = new ImplementationMetaType("Implementation", type_metatype);
-    colon_scope->add(implementation_metatype);
+    //implementation_metatype = new ImplementationMetaType("Implementation", type_metatype);
+    //colon_scope->add(implementation_metatype);
 
-    lself_metatype = new LselfMetaType("Lself", type_metatype);
-    colon_scope->add(lself_metatype);
+    //lself_metatype = new LselfMetaType("Lself", type_metatype);
+    //colon_scope->add(lself_metatype);
 
     colon_scope->add(new ImportMetaType("Import", type_metatype));
 
@@ -414,7 +414,7 @@ void builtin_types(Scope *root_scope) {
 
 void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
     TypeSpec implementor_ts = implementor_scope->pivot_type_hint();
-    Implementation *implementation = new Implementation(implementation_name, implementor_ts, interface_ts);
+    Implementation *implementation = new Implementation(implementation_name, implementor_ts, interface_ts, AS_AUTO);
     implementor_scope->add(implementation);
     
     for (Identifier *i : contents) {
@@ -1053,7 +1053,9 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer", NO_TS));
     colon_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>("Finalizer", NO_TS));
     colon_scope->add(new TemplateIdentifier<RoleDefinitionValue>("Role", NO_TS));
-    colon_scope->add(new TemplateIdentifier<BaseRoleDefinitionValue>("Base", NO_TS));
+    colon_scope->add(new TemplateIdentifier<BaseDefinitionValue>("Base", NO_TS));
+    colon_scope->add(new TemplateIdentifier<AutoDefinitionValue>("Auto", NO_TS));
+    colon_scope->add(new TemplateIdentifier<LselfDefinitionValue>("Lself", NO_TS));
 
     colon_type->complete_type();
     colon_scope->leave();

@@ -74,6 +74,7 @@ public:
 
 class Implementation: public Identifier, public Associable {
 public:
+    InheritAs inherit_as;
     TypeSpec interface_ts;
     std::string prefix;
     DataScope *implementor_scope;
@@ -82,10 +83,11 @@ public:
     std::set<std::string> missing_function_names;
     Lself *associated_lself;
 
-    Implementation(std::string name, TypeSpec pts, TypeSpec ifts)
+    Implementation(std::string name, TypeSpec pts, TypeSpec ifts, InheritAs ia)
         :Identifier(name, pts) {
         interface_ts = ifts;
         prefix = name + ".";
+        inherit_as = ia;
         implementor_scope = NULL;
         original_implementation = NULL;
         associated_lself = NULL;
@@ -105,6 +107,7 @@ public:
         :Identifier(p + oi->name, NO_TS) {
         interface_ts = oi->interface_ts;
         prefix = name + ".";
+        inherit_as = oi->inherit_as;
         implementor_scope = NULL;
         original_implementation = oi;
         
@@ -159,6 +162,9 @@ public:
     }
 
     virtual Value *find_implementation(TypeMatch &match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+        if (inherit_as == AS_ROLE)
+            return NULL;
+            
         if (associated_lself && !assume_lvalue)
             return NULL;
 
@@ -182,6 +188,49 @@ public:
             
             return NULL;
         }
+    }
+
+    // TODO: can this be merged with the above one?
+    virtual Implementation *find_streamifiable_implementation(TypeMatch &match) {
+        if (inherit_as == AS_ROLE)
+            return NULL;
+
+        if (associated_lself)
+            return NULL;
+
+        TypeSpec ifts = get_interface_ts(match);
+
+        if (ifts[0] == streamifiable_type) {
+            return this;
+        }
+        else {
+            TypeMatch iftm = ifts.match();
+            
+            for (auto &si : shadow_implementations) {
+                Implementation *i = si->find_streamifiable_implementation(iftm);
+                
+                if (i)
+                    return i;
+            }
+            
+            return NULL;
+        }
+    }
+
+    virtual void streamify(X64 *x64) {
+        if (interface_ts[0] != streamifiable_type)
+            throw INTERNAL_ERROR;
+            
+        for (auto &d : implementor_scope->contents) {
+            Function *f = ptr_cast<Function>(d.get());
+            
+            if (f && f->associated_implementation == this) {
+                x64->op(CALL, f->get_label(x64));
+                return;
+            }
+        }
+        
+        throw INTERNAL_ERROR;
     }
 
     virtual void set_associated_lself(Lself *l) {

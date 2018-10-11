@@ -97,6 +97,19 @@ public:
             ts = ts.lvalue();
     }
     
+    virtual void streamify(X64 *x64) {
+        TypeMatch tm = orig->ts.match();
+        Implementation *sable = implementation->find_streamifiable_implementation(tm);
+        
+        if (!sable) {
+            std::cerr << "Unstreamifiable implementation!\n";
+            throw TYPE_ERROR;  // TODO: return value?
+        }
+
+        // Allow the implementation do this as it likes
+        sable->streamify(x64);
+    }
+    
     virtual Value *lookup_inner(std::string name, Scope *scope) {
         //Scope *implementor_scope = implementation->outer_scope;
         ts = orig->ts;  // implementor_scope->pivot_type_hint();
