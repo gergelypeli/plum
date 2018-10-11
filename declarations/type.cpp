@@ -303,8 +303,8 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual Value *autoconv(TypeMatch tm, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        if (tm[0][0] == *target) {
+    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+        if (tm[0][0] == target) {
             ifts = tm[0];
             return orig;
         }

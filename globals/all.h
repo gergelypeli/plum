@@ -24,7 +24,7 @@ public:
     std::vector<VirtualEntry *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
-    Value *autoconv(iterator target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
+    Value *autoconv(Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
     StorageWhere where(AsWhat as_what);
     TypeSpec prefix(Type *t);
     TypeSpec unprefix(Type *t = NULL);
@@ -79,7 +79,7 @@ int role_get_virtual_offset(Role *r);
 bool role_is_base(Role *r);
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
 //bool descend_into_explicit_scope(std::string &name, Scope *&scope);
-Value *implementation_find(Implementation *imp, TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
+Value *implementation_find(Implementation *imp, TypeMatch &match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
 
 
 // TypeSpec operations

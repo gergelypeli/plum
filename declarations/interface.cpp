@@ -158,13 +158,13 @@ public:
         return typesubst(interface_ts, match);
     }
 
-    virtual Value *find_implementation(TypeMatch &match, TypeSpecIter target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+    virtual Value *find_implementation(TypeMatch &match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (associated_lself && !assume_lvalue)
             return NULL;
 
         ifts = get_interface_ts(match);   // pivot match
 
-        if (ifts[0] == *target) {
+        if (ifts[0] == target) {
             // Direct implementation
             //std::cerr << "Found direct implementation.\n";
             return make<ImplementationConversionValue>(this, orig, match);
