@@ -202,8 +202,9 @@ public:
 class RoleDefinitionValue: public TypeDefinitionValue {
 public:
     InheritAs inherit_as;
-    std::unique_ptr<Value> value;
-    TypeSpec represented_ts, pivot_ts;
+    TypeSpec pivot_ts;
+    TypeSpec inherited_ts;
+    TypeSpec implemented_ts;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
         :TypeDefinitionValue() {
@@ -211,38 +212,78 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() > 1 || kwargs.size() != 0) {
+        if (args.size() > 1 || kwargs.size() > 1) {
             std::cerr << "Whacky role definition!\n";
             return false;
         }
 
-        // TODO: check for Class definition scope!
-        Value *v = typize(args[0].get(), scope, NULL);
+        if (args.size() == 1) {
+            // Inheritance
+            
+            DataScope *ds = ptr_cast<DataScope>(scope);
+            if (!ds->is_virtual_scope()) {
+                std::cerr << "Inheritance is only allowed in Class scope!\n";
+                return false;
+            }
+            
+            Value *v = typize(args[0].get(), scope, NULL);
     
-        if (!v->ts.is_meta()) {
-            std::cerr << "Type name expected!\n";
-            return false;
+            if (!v->ts.is_meta()) {
+                std::cerr << "Inherited type name expected!\n";
+                return false;
+            }
+
+            inherited_ts = ptr_cast<TypeValue>(v)->represented_ts;
+        
+            if (!inherited_ts.has_meta(class_metatype)) {
+                std::cerr << "Inherited class name expected!\n";
+                return false;
+            }
+            
+            delete v;
         }
 
-        represented_ts = ptr_cast<TypeValue>(v)->represented_ts;
+        if (kwargs.size() == 1) {
+            // Implementation
+            
+            Value *v = typize(kwargs["as"].get(), scope, NULL);
+    
+            if (!v->ts.is_meta()) {
+                std::cerr << "Implemented type name expected!\n";
+                return false;
+            }
+
+            implemented_ts = ptr_cast<TypeValue>(v)->represented_ts;
         
-        if (!represented_ts.has_meta(class_metatype) && !represented_ts.has_meta(interface_metatype)) {
-            std::cerr << "Interface or class name expected!\n";
+            if (!implemented_ts.has_meta(interface_metatype)) {
+                std::cerr << "Implemented interface name expected!\n";
+                return false;
+            }
+            
+            delete v;
+        }
+        
+        if (inherited_ts != NO_TS && implemented_ts != NO_TS) {
+            std::cerr << "Oops, can't handle implementation and inheritance at once yet!\n";
+            return false;
+        }
+        
+        if (inherited_ts == NO_TS && implemented_ts == NO_TS) {
+            std::cerr << "Neither inherited nor implemented type specified!\n";
             return false;
         }
         
         pivot_ts = scope->pivot_type_hint();
-        value.reset(v);
         
         return true;
     }
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == DATA_SCOPE) {
-            if (represented_ts.has_meta(class_metatype))
-                return new Role(name, pivot_ts, represented_ts, inherit_as);
-            else if (represented_ts.has_meta(interface_metatype))
-                return new Implementation(name, pivot_ts, represented_ts, inherit_as);
+            if (inherited_ts != NO_TS)
+                return new Role(name, pivot_ts, inherited_ts, inherit_as);
+            else if (implemented_ts != NO_TS)
+                return new Implementation(name, pivot_ts, implemented_ts, inherit_as);
             else
                 throw INTERNAL_ERROR;
         }
