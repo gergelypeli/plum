@@ -86,7 +86,7 @@ public:
                 }
             }
             else {
-                pivot = make<StringLiteralValue>(fragment);
+                pivot = make<StringLiteralValue>(fragment)->lookup_inner("raw", scope);
             }
         
             components.push_back(std::unique_ptr<Value>(pivot));
@@ -121,7 +121,7 @@ public:
             x64->op(LEA, R10, Address(RSP, c->ts.measure_stack()));
             x64->op(PUSHQ, R10);
             
-            c->ts.streamify(false, x64);
+            c->streamify(x64);
             
             x64->op(ADDQ, RSP, ADDRESS_SIZE);
             c->ts.store(Storage(STACK), Storage(), x64);

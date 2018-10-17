@@ -235,6 +235,8 @@ public:
 
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (tm[0][0] == target) {
+            throw INTERNAL_ERROR;  // This probably can't be
+            /*
             ifts = tm[0];
             
             // Optimize out identity cast
@@ -250,8 +252,17 @@ public:
                 std::cerr << "Autoconverting a " << get_typespec(orig) << " to " << ts << ".\n";
                 return make<CastValue>(orig, ts);
             }
+            */
         }
         
+        for (auto mr : member_roles) {
+            Value *v = role_find(mr, tm, target, orig, ifts, assume_lvalue);
+            
+            if (v)
+                return v;
+        }
+        
+        /*
         if (base_role) {
             TypeSpec ts = base_role->get_typespec(tm);
             Value *v = ts.autoconv(target, orig, ifts, assume_lvalue);
@@ -259,6 +270,7 @@ public:
             if (v)
                 return v;
         }
+        */
         
         return HeapType::autoconv(tm, target, orig, ifts, assume_lvalue);
     }
@@ -309,6 +321,7 @@ public:
     std::vector<std::unique_ptr<Role>> shadow_roles;
     DataScope *virtual_scope;  // All shadow Role-s will point to the class scope
     FfwdVirtualEntry *fastforward_ve;
+    Lself *associated_lself;
     
     Role(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
         :Allocable(n, pts, ts) {
@@ -320,6 +333,7 @@ public:
         virtual_offset = -1;
         virtual_scope = NULL;
         fastforward_ve = NULL;
+        associated_lself = NULL;
 
         ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
         if (!ct)
@@ -340,6 +354,7 @@ public:
         virtual_offset = -1;
         virtual_scope = NULL;
         fastforward_ve = NULL;
+        associated_lself = NULL;
 
         for (auto &sr : role->shadow_roles) {
             shadow_roles.push_back(std::make_unique<Role>(prefix, sr.get()));
@@ -431,6 +446,35 @@ public:
         override->set_associated_role(this);
         
         return true;
+    }
+
+    virtual Value *find_role(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+        if (inherit_as == AS_ROLE)
+            return NULL;
+            
+        if (associated_lself && !assume_lvalue)
+            return NULL;
+
+        ifts = typesubst(alloc_ts, tm);  // pivot match
+
+        if (ifts[0] == target) {
+            // Direct implementation
+            //std::cerr << "Found direct implementation.\n";
+            return make<RoleValue>(this, orig, tm);
+        }
+        else if (inherit_as == AS_BASE) {
+            //std::cerr << "Trying indirect implementation with " << ifts << "\n";
+            TypeMatch iftm = ifts.match();
+            
+            for (auto &sr : shadow_roles) {
+                Value *v = sr->find_role(iftm, target, orig, ifts, assume_lvalue);
+                
+                if (v)
+                    return v;
+            }
+        }
+        
+        return NULL;
     }
 
     virtual void allocate() {

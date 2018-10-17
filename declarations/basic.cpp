@@ -305,26 +305,23 @@ public:
     }
 
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
-        Label cs_label = x64->once->compile(compile_streamification);
+        Label esc_label = x64->once->compile(compile_esc_streamification);
+        Label raw_label = x64->once->compile(compile_raw_streamification);
 
-        if (repr) {
-            x64->op(PUSHQ, CHARACTER_SINGLEQUOTE);
-            x64->op(PUSHQ, Address(RSP, 8));
-            x64->op(CALL, cs_label);
-            x64->op(ADDQ, RSP, 16);
-        }
+        x64->op(PUSHQ, CHARACTER_SINGLEQUOTE);
+        x64->op(PUSHQ, Address(RSP, 8));
+        x64->op(CALL, raw_label);
+        x64->op(ADDQ, RSP, 16);
 
-        x64->op(CALL, cs_label);  // clobbers all
+        x64->op(CALL, esc_label);  // clobbers all
 
-        if (repr) {
-            x64->op(PUSHQ, CHARACTER_SINGLEQUOTE);  // single quote
-            x64->op(PUSHQ, Address(RSP, 8));
-            x64->op(CALL, cs_label);
-            x64->op(ADDQ, RSP, 16);
-        }
+        x64->op(PUSHQ, CHARACTER_SINGLEQUOTE);
+        x64->op(PUSHQ, Address(RSP, 8));
+        x64->op(CALL, raw_label);
+        x64->op(ADDQ, RSP, 16);
     }
     
-    static void compile_streamification(Label label, X64 *x64) {
+    static void compile_esc_streamification(Label label, X64 *x64) {
         // RAX - target array, RCX - size, R10 - source character, R11 - alias
         Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
 
@@ -350,6 +347,10 @@ public:
         x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), 1);
 
         x64->op(RET);
+    }
+
+    static void compile_raw_streamification(Label label, X64 *x64) {
+        compile_esc_streamification(label, x64);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {

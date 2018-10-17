@@ -412,9 +412,9 @@ void builtin_types(Scope *root_scope) {
 }
 
 
-void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
+void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents, InheritAs ia = AS_AUTO) {
     TypeSpec implementor_ts = implementor_scope->pivot_type_hint();
-    Implementation *implementation = new Implementation(implementation_name, implementor_ts, interface_ts, AS_AUTO);
+    Implementation *implementation = new Implementation(implementation_name, implementor_ts, interface_ts, ia);
     implementor_scope->add(implementation);
     
     for (Identifier *i : contents) {
@@ -724,6 +724,9 @@ void define_string() {
     is->add(new RecordWrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
     is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
     is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
+
+    Implementation *raw_sable = new StringRawStreamifiableImplementation("raw", STRING_TS);
+    is->add(raw_sable);
 
     // String operations
     is->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL, NULL));

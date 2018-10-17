@@ -157,11 +157,11 @@ public:
         throw INTERNAL_ERROR;  // too late!
     }
 
-    virtual TypeSpec get_interface_ts(TypeMatch &match) {
+    virtual TypeSpec get_interface_ts(TypeMatch match) {
         return typesubst(interface_ts, match);
     }
 
-    virtual Value *find_implementation(TypeMatch &match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+    virtual Value *find_implementation(TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (inherit_as == AS_ROLE)
             return NULL;
             
@@ -175,7 +175,7 @@ public:
             //std::cerr << "Found direct implementation.\n";
             return make<ImplementationConversionValue>(this, orig, match);
         }
-        else {
+        else if (inherit_as == AS_BASE) {
             //std::cerr << "Trying indirect implementation with " << ifts << "\n";
             TypeMatch iftm = ifts.match();
             
@@ -185,13 +185,13 @@ public:
                 if (v)
                     return v;
             }
-            
-            return NULL;
         }
+        
+        return NULL;
     }
 
     // TODO: can this be merged with the above one?
-    virtual Implementation *find_streamifiable_implementation(TypeMatch &match) {
+    virtual Implementation *find_streamifiable_implementation(TypeMatch match) {
         if (inherit_as == AS_ROLE)
             return NULL;
 

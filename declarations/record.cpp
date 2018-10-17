@@ -425,27 +425,24 @@ public:
     }
 
     virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
-        // TODO: and escape everything if repr
+        // TODO: and escape everything!
+        Label ch_label = x64->once->compile(CharacterType::compile_raw_streamification);
+        Label st_label = x64->once->compile(compile_esc_streamification);
         
-        if (repr) {
-            x64->op(PUSHQ, 34);  // double quote
-            x64->op(PUSHQ, Address(RSP, 8));
-            x64->op(CALL, x64->once->compile(CharacterType::compile_streamification));
-            x64->op(ADDQ, RSP, 16);
-        }
+        x64->op(PUSHQ, CHARACTER_DOUBLEQUOTE);
+        x64->op(PUSHQ, Address(RSP, 8));
+        x64->op(CALL, ch_label);
+        x64->op(ADDQ, RSP, 16);
         
-        Label ss_label = x64->once->compile(compile_streamification);
-        x64->op(CALL, ss_label);  // clobbers all
+        x64->op(CALL, st_label);  // clobbers all
 
-        if (repr) {
-            x64->op(PUSHQ, 34);  // double quote
-            x64->op(PUSHQ, Address(RSP, 8));
-            x64->op(CALL, x64->once->compile(CharacterType::compile_streamification));
-            x64->op(ADDQ, RSP, 16);
-        }
+        x64->op(PUSHQ, CHARACTER_DOUBLEQUOTE);
+        x64->op(PUSHQ, Address(RSP, 8));
+        x64->op(CALL, ch_label);
+        x64->op(ADDQ, RSP, 16);
     }
 
-    static void compile_streamification(Label label, X64 *x64) {
+    static void compile_esc_streamification(Label label, X64 *x64) {
         // RAX - target array, RCX - size, R10 - source array, R11 - alias
         Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
         
@@ -477,6 +474,10 @@ public:
         x64->op(RET);
     }
 
+    static void compile_raw_streamification(Label label, X64 *x64) {
+        compile_esc_streamification(label, x64);
+    }
+
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
         if (n == "empty") {
             return make<StringLiteralValue>("");
@@ -504,6 +505,21 @@ public:
             
         std::cerr << "Can't match String as " << n << "!\n";
         return NULL;
+    }
+};
+
+
+class StringRawStreamifiableImplementation: public Implementation {
+public:
+    StringRawStreamifiableImplementation(std::string name, TypeSpec pts)
+        :Implementation(name, pts, STREAMIFIABLE_TS, AS_ROLE) {
+        // This is nasty
+        missing_function_names.clear();
+    }
+    
+    virtual void streamify(X64 *x64) {
+        Label raw_label = x64->once->compile(StringType::compile_raw_streamification);
+        x64->op(CALL, raw_label);  // clobbers all
     }
 };
 

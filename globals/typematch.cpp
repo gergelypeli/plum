@@ -113,7 +113,7 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     // being is equal to t, but with arbitrary type parameters, potentially
     // derived from the type parameters of s. Or NULL, if it can't be done.
     // May call itself recursively.
-    std::cerr << "Trying rolematch from " << s << " to " << t << ".\n";
+    std::cerr << "Trying autoconv from " << s << " to " << t << ".\n";
     Value *role = TypeSpec(s).autoconv(*t, value, ifts, assume_lvalue);
         
     if (role) {

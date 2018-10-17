@@ -78,8 +78,8 @@ Declaration *make_record_compare();
 int role_get_virtual_offset(Role *r);
 bool role_is_base(Role *r);
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
-//bool descend_into_explicit_scope(std::string &name, Scope *&scope);
-Value *implementation_find(Implementation *imp, TypeMatch &match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
+Value *role_find(Role *r, TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
+Value *implementation_find(Implementation *imp, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
 
 
 // TypeSpec operations
