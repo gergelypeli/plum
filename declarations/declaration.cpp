@@ -79,6 +79,18 @@ public:
     virtual bool check_associated(Declaration *decl) {
         throw INTERNAL_ERROR;
     }
+    
+    virtual bool is_autoconv() {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual bool is_baseconv() {
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+        throw INTERNAL_ERROR;
+    }
 };
 
 

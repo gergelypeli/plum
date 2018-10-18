@@ -309,13 +309,13 @@ public:
             return NULL;
 
         for (auto &d : inner_scope->contents) {
-            Implementation *imp = ptr_cast<Implementation>(d.get());
+            Associable *imp = ptr_cast<Associable>(d.get());
             
             if (imp) {
-                if (implementation_is_explicit(imp))
+                if (!imp->is_autoconv())
                     continue;
                     
-                Value *v = implementation_autoconv(imp, tm, target, orig, ifts, assume_lvalue);
+                Value *v = imp->autoconv(tm, target, orig, ifts, assume_lvalue);
                 
                 if (v)
                     return v;

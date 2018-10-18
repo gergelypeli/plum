@@ -64,7 +64,7 @@ public:
             if (r) {
                 member_roles.push_back(r);
                 
-                if (role_is_base(r)) {
+                if (ptr_cast<Associable>(r)->is_baseconv()) {
                     if (base_role) {
                         std::cerr << "Multiple base roles!\n";
                         return false;
@@ -235,10 +235,12 @@ public:
 
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         for (auto mr : member_roles) {
-            if (role_is_explicit(mr))
+            Associable *r = ptr_cast<Associable>(mr);
+            
+            if (!r->is_autoconv())
                 continue;
                 
-            Value *v = role_autoconv(mr, tm, target, orig, ifts, assume_lvalue);
+            Value *v = r->autoconv(tm, target, orig, ifts, assume_lvalue);
             
             if (v)
                 return v;
@@ -423,7 +425,15 @@ public:
         return true;
     }
 
-    virtual Value *autoconv_role(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+    virtual bool is_autoconv() {
+        return inherit_as != AS_ROLE;
+    }
+
+    virtual bool is_baseconv() {
+        return inherit_as == AS_BASE;
+    }
+
+    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (associated_lself && !assume_lvalue)
             return NULL;
 
@@ -440,7 +450,7 @@ public:
                 if (sr->inherit_as == AS_ROLE)
                     continue;
                     
-                Value *v = sr->autoconv_role(tm, target, orig, ifts, assume_lvalue);
+                Value *v = sr->autoconv(tm, target, orig, ifts, assume_lvalue);
                 
                 if (v)
                     return v;

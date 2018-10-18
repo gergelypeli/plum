@@ -74,33 +74,8 @@ int role_get_virtual_offset(Role *r) {
 }
 
 
-bool role_is_base(Role *r) {
-    return r->inherit_as == AS_BASE;
-}
-
-
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
     r->init_vt(tm, self_addr, vt_label, x64);
-}
-
-
-Value *role_autoconv(Role *r, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-    return r->autoconv_role(match, target, orig, ifts, assume_lvalue);
-}
-
-
-bool role_is_explicit(Role *r) {
-    return r->inherit_as == AS_ROLE;
-}
-
-
-Value *implementation_autoconv(Implementation *imp, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-    return imp->autoconv_implementation(match, target, orig, ifts, assume_lvalue);
-}
-
-
-bool implementation_is_explicit(Implementation *imp) {
-    return imp->inherit_as == AS_ROLE;
 }
 
 

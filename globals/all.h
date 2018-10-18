@@ -76,12 +76,7 @@ const char *typeidname(Value *v);
 // Declaration wrappers
 Declaration *make_record_compare();
 int role_get_virtual_offset(Role *r);
-bool role_is_base(Role *r);
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
-Value *role_autoconv(Role *r, TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
-bool role_is_explicit(Role *r);
-Value *implementation_autoconv(Implementation *imp, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
-bool implementation_is_explicit(Implementation *imp);
 
 // TypeSpec operations
 TypeSpec get_typespec(Value *value);

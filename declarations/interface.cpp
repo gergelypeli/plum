@@ -1,4 +1,5 @@
 
+
 class InterfaceType: public Type {
 public:
     std::vector<Function *> member_functions;
@@ -69,7 +70,6 @@ public:
     }
 
 };
-
 
 
 class Implementation: public Identifier, public Associable {
@@ -163,78 +163,6 @@ public:
         return typesubst(interface_ts, match);
     }
 
-    virtual Value *autoconv_implementation(TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        if (associated_lself && !assume_lvalue)
-            return NULL;
-
-        ifts = get_interface_ts(match);   // pivot match
-
-        if (ifts[0] == target) {
-            // Direct implementation
-            //std::cerr << "Found direct implementation.\n";
-            return make<ImplementationConversionValue>(this, orig);
-        }
-        else if (inherit_as == AS_BASE) {
-            //std::cerr << "Trying indirect implementation with " << ifts << "\n";
-            for (auto &si : shadow_implementations) {
-                if (si->inherit_as == AS_ROLE)
-                    continue;
-                    
-                Value *v = si->autoconv_implementation(match, target, orig, ifts, assume_lvalue);
-                
-                if (v)
-                    return v;
-            }
-        }
-        
-        return NULL;
-    }
-
-    // TODO: can this be merged with the above one?
-    virtual Implementation *autoconv_streamifiable_implementation(TypeMatch match) {
-        if (associated_lself)
-            return NULL;
-
-        TypeSpec ifts = get_interface_ts(match);
-
-        if (ifts[0] == streamifiable_type) {
-            return this;
-        }
-        else if (inherit_as == AS_BASE) {
-            for (auto &si : shadow_implementations) {
-                if (si->inherit_as == AS_ROLE)
-                    continue;
-                
-                Implementation *i = si->autoconv_streamifiable_implementation(match);
-                
-                if (i)
-                    return i;
-            }
-        }
-            
-        return NULL;
-    }
-
-    virtual void streamify(X64 *x64) {
-        if (interface_ts[0] != streamifiable_type)
-            throw INTERNAL_ERROR;
-            
-        for (auto &d : implementor_scope->contents) {
-            Function *f = ptr_cast<Function>(d.get());
-            
-            if (f && f->associated_implementation == this) {
-                x64->op(CALL, f->get_label(x64));
-                return;
-            }
-        }
-        
-        throw INTERNAL_ERROR;
-    }
-
-    virtual void set_associated_lself(Lself *l) {
-        associated_lself = l;
-    }
-
     virtual Associable *lookup_associable(std::string n) {
         if (n == name)
             return this;
@@ -304,6 +232,82 @@ public:
         return true;
     }
 
+    virtual bool is_autoconv() {
+        return inherit_as != AS_ROLE;
+    }
+
+    virtual Value *autoconv(TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+        if (associated_lself && !assume_lvalue)
+            return NULL;
+
+        ifts = get_interface_ts(match);   // pivot match
+
+        if (ifts[0] == target) {
+            // Direct implementation
+            //std::cerr << "Found direct implementation.\n";
+            return make<ImplementationConversionValue>(this, orig);
+        }
+        else if (inherit_as == AS_BASE) {
+            //std::cerr << "Trying indirect implementation with " << ifts << "\n";
+            for (auto &si : shadow_implementations) {
+                if (si->inherit_as == AS_ROLE)
+                    continue;
+                    
+                Value *v = si->autoconv(match, target, orig, ifts, assume_lvalue);
+                
+                if (v)
+                    return v;
+            }
+        }
+        
+        return NULL;
+    }
+
+    // TODO: can this be merged with the above one?
+    virtual Implementation *autoconv_streamifiable_implementation(TypeMatch match) {
+        if (associated_lself)
+            return NULL;
+
+        TypeSpec ifts = get_interface_ts(match);
+
+        if (ifts[0] == streamifiable_type) {
+            return this;
+        }
+        else if (inherit_as == AS_BASE) {
+            for (auto &si : shadow_implementations) {
+                if (si->inherit_as == AS_ROLE)
+                    continue;
+                
+                Implementation *i = si->autoconv_streamifiable_implementation(match);
+                
+                if (i)
+                    return i;
+            }
+        }
+            
+        return NULL;
+    }
+
+    virtual void streamify(X64 *x64) {
+        if (interface_ts[0] != streamifiable_type)
+            throw INTERNAL_ERROR;
+            
+        for (auto &d : implementor_scope->contents) {
+            Function *f = ptr_cast<Function>(d.get());
+            
+            if (f && f->associated_implementation == this) {
+                x64->op(CALL, f->get_label(x64));
+                return;
+            }
+        }
+        
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void set_associated_lself(Lself *l) {
+        associated_lself = l;
+    }
+
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
         return make<ImplementationConversionValue>(this, pivot);
     }
@@ -365,4 +369,9 @@ public:
         std::cerr << "This declaration can't be associated with Lself " << name << "!\n";
         return false;
     }
+
+    virtual bool is_autoconv() {
+        return false;
+    }
 };
+
