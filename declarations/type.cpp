@@ -304,11 +304,6 @@ public:
     }
     
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        if (tm[0][0] == target) {
-            ifts = tm[0];
-            return orig;
-        }
-
         Scope *inner_scope = get_inner_scope();
         if (!inner_scope)
             return NULL;
@@ -317,7 +312,10 @@ public:
             Implementation *imp = ptr_cast<Implementation>(d.get());
             
             if (imp) {
-                Value *v = implementation_find(imp, tm, target, orig, ifts, assume_lvalue);
+                if (implementation_is_explicit(imp))
+                    continue;
+                    
+                Value *v = implementation_autoconv(imp, tm, target, orig, ifts, assume_lvalue);
                 
                 if (v)
                     return v;

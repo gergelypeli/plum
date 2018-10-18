@@ -75,7 +75,7 @@ public:
 class Implementation: public Identifier, public Associable {
 public:
     InheritAs inherit_as;
-    TypeSpec interface_ts;
+    TypeSpec interface_ts;  // in the implementor's type parameters
     std::string prefix;
     DataScope *implementor_scope;
     Implementation *original_implementation;
@@ -96,23 +96,25 @@ public:
         if (!ift)
             throw INTERNAL_ERROR;
 
+        TypeMatch explicit_tm = interface_ts.match();
+
         for (auto &imp : ift->member_implementations)
-            shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp));
+            shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp, explicit_tm));
         
         for (auto &f : ift->member_functions)
             missing_function_names.insert(prefix + f->name);
     }
     
-    Implementation(std::string p, Implementation *oi)
+    Implementation(std::string p, Implementation *oi, TypeMatch explicit_tm)
         :Identifier(p + oi->name, NO_TS) {
-        interface_ts = oi->interface_ts;
+        interface_ts = typesubst(oi->interface_ts, explicit_tm);
         prefix = name + ".";
         inherit_as = oi->inherit_as;
         implementor_scope = NULL;
         original_implementation = oi;
         
         for (auto &imp : oi->shadow_implementations)
-            shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp.get()));
+            shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp.get(), explicit_tm));
 
         InterfaceType *ift = ptr_cast<InterfaceType>(interface_ts[0]);
         if (!ift)
@@ -161,10 +163,7 @@ public:
         return typesubst(interface_ts, match);
     }
 
-    virtual Value *find_implementation(TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        if (inherit_as == AS_ROLE)
-            return NULL;
-            
+    virtual Value *autoconv_implementation(TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (associated_lself && !assume_lvalue)
             return NULL;
 
@@ -173,14 +172,15 @@ public:
         if (ifts[0] == target) {
             // Direct implementation
             //std::cerr << "Found direct implementation.\n";
-            return make<ImplementationConversionValue>(this, orig, match);
+            return make<ImplementationConversionValue>(this, orig);
         }
         else if (inherit_as == AS_BASE) {
             //std::cerr << "Trying indirect implementation with " << ifts << "\n";
-            TypeMatch iftm = ifts.match();
-            
             for (auto &si : shadow_implementations) {
-                Value *v = si->find_implementation(iftm, target, orig, ifts, assume_lvalue);
+                if (si->inherit_as == AS_ROLE)
+                    continue;
+                    
+                Value *v = si->autoconv_implementation(match, target, orig, ifts, assume_lvalue);
                 
                 if (v)
                     return v;
@@ -191,10 +191,7 @@ public:
     }
 
     // TODO: can this be merged with the above one?
-    virtual Implementation *find_streamifiable_implementation(TypeMatch match) {
-        if (inherit_as == AS_ROLE)
-            return NULL;
-
+    virtual Implementation *autoconv_streamifiable_implementation(TypeMatch match) {
         if (associated_lself)
             return NULL;
 
@@ -203,18 +200,19 @@ public:
         if (ifts[0] == streamifiable_type) {
             return this;
         }
-        else {
-            TypeMatch iftm = ifts.match();
-            
+        else if (inherit_as == AS_BASE) {
             for (auto &si : shadow_implementations) {
-                Implementation *i = si->find_streamifiable_implementation(iftm);
+                if (si->inherit_as == AS_ROLE)
+                    continue;
+                
+                Implementation *i = si->autoconv_streamifiable_implementation(match);
                 
                 if (i)
                     return i;
             }
-            
-            return NULL;
         }
+            
+        return NULL;
     }
 
     virtual void streamify(X64 *x64) {
@@ -307,7 +305,7 @@ public:
     }
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
-        return make<ImplementationConversionValue>(this, pivot, match);
+        return make<ImplementationConversionValue>(this, pivot);
     }
 };
 

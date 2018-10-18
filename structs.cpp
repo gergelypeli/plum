@@ -50,6 +50,16 @@ int Allocation::concretize(TypeMatch tm) {
 }
 
 
+Allocation operator+(Allocation a, Allocation b) {
+    return Allocation(a.bytes + b.bytes, a.count1 + b.count1, a.count2 + b.count2, a.count3 + b.count3);
+}
+
+
+Allocation operator*(Allocation a, int c) {
+    return Allocation(a.bytes * c, a.count1 * c, a.count2 * c, a.count3 * c);
+}
+
+
 std::ostream &operator<<(std::ostream &os, const Allocation &a) {
     if (a.count1 || a.count2 || a.count3)
         os << "A(" << a.bytes << "," << a.count1 << "," << a.count2 << "," << a.count3 << ")";

@@ -492,7 +492,6 @@ public:
 
 class RoleValue: public Value {
 public:
-    TypeSpec matched_ts;
     Role *role;
     std::unique_ptr<Value> pivot;
     Register reg;
@@ -500,18 +499,12 @@ public:
     bool am_static;
     
     RoleValue(Role *r, Value *p, TypeMatch &tm)
-        :Value(NO_TS) {  // will be filled
-        matched_ts = typesubst(r->alloc_ts, tm);
-        ts = matched_ts.prefix(p->ts.rvalue()[0]);  // keep same Ref/Ptr
+        :Value(typesubst(r->alloc_ts, tm).prefix(p->ts.rvalue()[0])) {  // keep same Ref/Ptr
         role = r;
         pivot.reset(p);
         reg = NOREG;
         match = tm;
         am_static = false;
-    }
-    
-    virtual TypeSpec get_matched_ts() {
-        return matched_ts;
     }
     
     virtual void be_static() {

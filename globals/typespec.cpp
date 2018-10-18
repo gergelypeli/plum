@@ -143,7 +143,7 @@ StorageWhere TypeSpec::where(AsWhat as_what) {
 
 
 Allocation TypeSpec::measure() {
-    return at(0)->measure(match());
+    return (size() > 0 ? at(0)->measure(match()) : Allocation());
 }
 
 

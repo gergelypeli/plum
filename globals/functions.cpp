@@ -84,13 +84,23 @@ void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 
 }
 
 
-Value *role_find(Role *r, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-    return r->find_role(match, target, orig, ifts, assume_lvalue);
+Value *role_autoconv(Role *r, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+    return r->autoconv_role(match, target, orig, ifts, assume_lvalue);
 }
 
 
-Value *implementation_find(Implementation *imp, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-    return imp->find_implementation(match, target, orig, ifts, assume_lvalue);
+bool role_is_explicit(Role *r) {
+    return r->inherit_as == AS_ROLE;
+}
+
+
+Value *implementation_autoconv(Implementation *imp, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+    return imp->autoconv_implementation(match, target, orig, ifts, assume_lvalue);
+}
+
+
+bool implementation_is_explicit(Implementation *imp) {
+    return imp->inherit_as == AS_ROLE;
 }
 
 

@@ -78,9 +78,10 @@ Declaration *make_record_compare();
 int role_get_virtual_offset(Role *r);
 bool role_is_base(Role *r);
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
-Value *role_find(Role *r, TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
-Value *implementation_find(Implementation *imp, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
-
+Value *role_autoconv(Role *r, TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
+bool role_is_explicit(Role *r);
+Value *implementation_autoconv(Implementation *imp, TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
+bool implementation_is_explicit(Implementation *imp);
 
 // TypeSpec operations
 TypeSpec get_typespec(Value *value);
@@ -97,6 +98,7 @@ void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);
 // Check
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);
+Allocation allocsubst(Allocation a, TypeMatch &match);
 bool converts(TypeSpec sts, TypeSpec tts);
 bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos);
 bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);

@@ -29,6 +29,20 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
 }
 
 
+Allocation allocsubst(Allocation a, TypeMatch &match) {
+    Allocation size1 = match[1].measure();
+    Allocation size2 = match[2].measure();
+    Allocation size3 = match[3].measure();
+    
+    // Concretization always rounds size up, because unknown types are 8-bytes aligned
+    size1.bytes = stack_size(size1.bytes);
+    size2.bytes = stack_size(size2.bytes);
+    size3.bytes = stack_size(size3.bytes);
+    
+    return Allocation(a.bytes) + size1 * a.count1 + size2 * a.count2 + size3 * a.count3;
+}
+
+
 // *******
 extern bool matchlog;
 

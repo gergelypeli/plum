@@ -85,13 +85,11 @@ public:
 
 class ImplementationConversionValue: public Value {
 public:
-    TypeSpec matched_ts;
     Implementation *implementation;
     std::unique_ptr<Value> orig;
     
-    ImplementationConversionValue(Implementation *imt, Value *o, TypeMatch &tm)
+    ImplementationConversionValue(Implementation *imt, Value *o)
         :Value(o->ts) {
-        matched_ts = imt->get_interface_ts(tm);
         implementation = imt;
         orig.reset(o);
         
@@ -99,13 +97,9 @@ public:
         //    ts = ts.lvalue();
     }
     
-    virtual TypeSpec get_matched_ts() {
-        return matched_ts;
-    }
-    
     virtual void streamify(X64 *x64) {
         TypeMatch tm = orig->ts.match();
-        Implementation *sable = (matched_ts[0] == streamifiable_type ? implementation : implementation->find_streamifiable_implementation(tm));
+        Implementation *sable = implementation->autoconv_streamifiable_implementation(tm);
         
         if (!sable) {
             std::cerr << "Unstreamifiable implementation!\n";

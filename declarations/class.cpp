@@ -234,43 +234,15 @@ public:
     }
 
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        if (tm[0][0] == target) {
-            throw INTERNAL_ERROR;  // This probably can't be
-            /*
-            ifts = tm[0];
-            
-            // Optimize out identity cast
-            // TODO: maybe this never happens, because autoconv is never called then?
-            TypeSpec ts = get_typespec(orig).rvalue();
-            
-            if (ts[0] != ref_type && ts[0] != ptr_type)
-                throw INTERNAL_ERROR;
-                
-            if (ts[1] == this)
-                return orig;
-            else {
-                std::cerr << "Autoconverting a " << get_typespec(orig) << " to " << ts << ".\n";
-                return make<CastValue>(orig, ts);
-            }
-            */
-        }
-        
         for (auto mr : member_roles) {
-            Value *v = role_find(mr, tm, target, orig, ifts, assume_lvalue);
+            if (role_is_explicit(mr))
+                continue;
+                
+            Value *v = role_autoconv(mr, tm, target, orig, ifts, assume_lvalue);
             
             if (v)
                 return v;
         }
-        
-        /*
-        if (base_role) {
-            TypeSpec ts = base_role->get_typespec(tm);
-            Value *v = ts.autoconv(target, orig, ifts, assume_lvalue);
-            
-            if (v)
-                return v;
-        }
-        */
         
         return HeapType::autoconv(tm, target, orig, ifts, assume_lvalue);
     }
@@ -322,6 +294,7 @@ public:
     DataScope *virtual_scope;  // All shadow Role-s will point to the class scope
     FfwdVirtualEntry *fastforward_ve;
     Lself *associated_lself;
+    TypeMatch explicit_tm;
     
     Role(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
         :Allocable(n, pts, ts) {
@@ -334,18 +307,19 @@ public:
         virtual_scope = NULL;
         fastforward_ve = NULL;
         associated_lself = NULL;
+        explicit_tm = alloc_ts.match();
 
         ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
         if (!ct)
             throw INTERNAL_ERROR;
 
         for (auto &r : ct->member_roles) {
-            shadow_roles.push_back(std::make_unique<Role>(prefix, r));
+            shadow_roles.push_back(std::make_unique<Role>(prefix, r, explicit_tm));
         }
     }
 
-    Role(std::string p, Role *role)
-        :Allocable(p + role->name, NO_TS, role->alloc_ts) {
+    Role(std::string p, Role *role, TypeMatch etm)
+        :Allocable(p + role->name, NO_TS, typesubst(role->alloc_ts, etm)) {
         std::cerr << "Creating shadow role " << name << ".\n";
         
         prefix = name + ".";
@@ -355,9 +329,10 @@ public:
         virtual_scope = NULL;
         fastforward_ve = NULL;
         associated_lself = NULL;
+        explicit_tm = etm;
 
         for (auto &sr : role->shadow_roles) {
-            shadow_roles.push_back(std::make_unique<Role>(prefix, sr.get()));
+            shadow_roles.push_back(std::make_unique<Role>(prefix, sr.get(), etm));
         }
     }
 
@@ -448,10 +423,7 @@ public:
         return true;
     }
 
-    virtual Value *find_role(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        if (inherit_as == AS_ROLE)
-            return NULL;
-            
+    virtual Value *autoconv_role(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (associated_lself && !assume_lvalue)
             return NULL;
 
@@ -464,10 +436,11 @@ public:
         }
         else if (inherit_as == AS_BASE) {
             //std::cerr << "Trying indirect implementation with " << ifts << "\n";
-            TypeMatch iftm = ifts.match();
-            
             for (auto &sr : shadow_roles) {
-                Value *v = sr->find_role(iftm, target, orig, ifts, assume_lvalue);
+                if (sr->inherit_as == AS_ROLE)
+                    continue;
+                    
+                Value *v = sr->autoconv_role(tm, target, orig, ifts, assume_lvalue);
                 
                 if (v)
                     return v;
@@ -502,26 +475,11 @@ public:
         fastforward_ve = new FfwdVirtualEntry(offset);
         virtual_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
 
-        // Just in case we'll have parametrized classes
-        // Let the shadow roles express their offsets in terms of the implementor type
-        // parameters. The offsets they can grab from their original scopes are expressed
-        // in terms of our parameters, so calculate and pass the transformation matrix
-        // so thay can calculate the required size polynoms.
-        TypeMatch tm = alloc_ts.match();
-        Allocation size1 = (tm[1] != NO_TS ? tm[1].measure() : Allocation());
-        Allocation size2 = (tm[2] != NO_TS ? tm[2].measure() : Allocation());
-        Allocation size3 = (tm[3] != NO_TS ? tm[3].measure() : Allocation());
-
-        // Every concretization step rounds the concrete size up
-        size1.bytes = stack_size(size1.bytes);
-        size2.bytes = stack_size(size2.bytes);
-        size3.bytes = stack_size(size3.bytes);
-
         for (auto &sr : shadow_roles)
-            sr->relocate(size1, size2, size3, offset, virtual_offset);
+            sr->relocate(offset, virtual_offset);
     }
     
-    virtual void relocate(Allocation size1, Allocation size2, Allocation size3, Allocation explicit_offset, int explicit_virtual_offset) {
+    virtual void relocate(Allocation explicit_offset, int explicit_virtual_offset) {
         // Only called for shadow roles
 
         if (!original_role)
@@ -530,24 +488,16 @@ public:
         if (virtual_offset != -1)
             throw INTERNAL_ERROR;
         
-        // Offset within the explicit role, in terms of the role type parameters
-        Allocation o = original_role->offset;
-        
         // Offset within the current class, in terms of its type parameters
-        offset = Allocation(
-            o.bytes + o.count1 * size1.bytes  + o.count2 * size2.bytes  + o.count3 * size3.bytes  + explicit_offset.bytes,
-            0 +       o.count1 * size1.count1 + o.count2 * size2.count1 + o.count3 * size3.count1 + explicit_offset.count1,
-            0 +       o.count1 * size1.count2 + o.count2 * size2.count2 + o.count3 * size3.count2 + explicit_offset.count2,
-            0 +       o.count1 * size1.count3 + o.count2 * size2.count3 + o.count3 * size3.count3 + explicit_offset.count3
-        );
+        offset = explicit_offset + allocsubst(original_role->offset, explicit_tm);
             
-        virtual_offset = original_role->virtual_offset + explicit_virtual_offset;
+        virtual_offset = explicit_virtual_offset + original_role->virtual_offset;
         
         fastforward_ve = new FfwdVirtualEntry(offset);
         virtual_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
         
         for (auto &sr : shadow_roles)
-            sr->relocate(size1, size2, size3, explicit_offset, explicit_virtual_offset);
+            sr->relocate(explicit_offset, explicit_virtual_offset);
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
