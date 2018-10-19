@@ -503,6 +503,85 @@ public:
 };
 
 
+class ArrayContentsStreamifiableImplementation: public Implementation {
+public:
+    ArrayContentsStreamifiableImplementation(std::string name, TypeSpec pts)
+        :Implementation(name, pts, STREAMIFIABLE_TS, AS_ROLE) {
+        // This is nasty
+        missing_function_names.clear();
+    }
+    
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        TypeSpec elem_ts = tm[1];
+        std::cerr << "XXX Array contents: " << elem_ts << "\n";
+        Label label = x64->once->compile(compile_streamification, elem_ts);
+        x64->op(CALL, label);  // clobbers all
+    }
+    
+    static void compile_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
+        int elem_size = elem_ts.measure_elem();
+        Label ch_label = x64->once->compile(CharacterType::compile_raw_streamification);
+        Label loop, elem, end;
+
+        x64->code_label_local(label, "x_array_contents_streamify");
+        
+        // open
+        x64->op(PUSHQ, CHARACTER_LEFTBRACE);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
+        x64->op(CALL, ch_label);
+        x64->op(ADDQ, RSP, 16);
+        
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // Array Ref
+        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RCX, 0);
+        x64->op(JE, end);
+
+        x64->op(LEA, RAX, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(JMP, elem);  // skip separator
+
+        x64->code_label(loop);
+        
+        // separator
+        x64->op(PUSHQ, RAX);
+        x64->op(PUSHQ, RCX);
+        x64->op(PUSHQ, CHARACTER_COMMA);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE + 2 * ADDRESS_SIZE));
+        x64->op(CALL, ch_label);  // clobbers all
+        x64->op(ADDQ, RSP, 16);
+        x64->op(POPQ, RCX);
+        x64->op(POPQ, RAX);
+        
+        x64->code_label(elem);
+        x64->op(PUSHQ, RAX);
+        x64->op(PUSHQ, RCX);
+        x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE));  // stream alias
+        elem_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
+        x64->op(PUSHQ, RBX);
+        
+        elem_ts.streamify(false, x64);  // clobbers all
+        
+        x64->op(POPQ, RBX);
+        elem_ts.store(Storage(STACK), Storage(), x64);
+        x64->op(POPQ, RCX);
+        x64->op(POPQ, RAX);
+        
+        x64->op(ADDQ, RAX, elem_size);
+        x64->op(DECQ, RCX);
+        x64->op(JNE, loop);
+
+        x64->code_label(end);
+        
+        // close
+        x64->op(PUSHQ, CHARACTER_RIGHTBRACE);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
+        x64->op(CALL, ch_label);
+        x64->op(ADDQ, RSP, 16);
+
+        x64->op(RET);
+    }
+};
+
+
 class CircularrayType: public HeapType {
 public:
     CircularrayType(std::string name)

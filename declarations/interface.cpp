@@ -245,7 +245,7 @@ public:
         if (ifts[0] == target) {
             // Direct implementation
             //std::cerr << "Found direct implementation.\n";
-            return make<ImplementationConversionValue>(this, orig);
+            return make<ImplementationConversionValue>(this, orig, match);
         }
         else if (inherit_as == AS_BASE) {
             //std::cerr << "Trying indirect implementation with " << ifts << "\n";
@@ -288,7 +288,7 @@ public:
         return NULL;
     }
 
-    virtual void streamify(X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         if (interface_ts[0] != streamifiable_type)
             throw INTERNAL_ERROR;
             
@@ -309,7 +309,7 @@ public:
     }
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
-        return make<ImplementationConversionValue>(this, pivot);
+        return make<ImplementationConversionValue>(this, pivot, match);
     }
 };
 

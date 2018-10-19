@@ -85,11 +85,13 @@ public:
 
 class ImplementationConversionValue: public Value {
 public:
+    TypeMatch match;
     Implementation *implementation;
     std::unique_ptr<Value> orig;
     
-    ImplementationConversionValue(Implementation *imt, Value *o)
+    ImplementationConversionValue(Implementation *imt, Value *o, TypeMatch tm)
         :Value(o->ts) {
+        match = tm;  // the implementor type's match
         implementation = imt;
         orig.reset(o);
         
@@ -98,8 +100,7 @@ public:
     }
     
     virtual void streamify(X64 *x64) {
-        TypeMatch tm = orig->ts.match();
-        Implementation *sable = implementation->autoconv_streamifiable_implementation(tm);
+        Implementation *sable = implementation->autoconv_streamifiable_implementation(match);
         
         if (!sable) {
             std::cerr << "Unstreamifiable implementation!\n";
@@ -107,7 +108,7 @@ public:
         }
 
         // Allow the implementation do this as it likes
-        sable->streamify(x64);
+        sable->streamify(match, x64);
     }
     
     virtual Value *lookup_inner(std::string name, Scope *scope) {

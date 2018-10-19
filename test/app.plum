@@ -613,6 +613,8 @@ Main? :Singleton as:
         dd += ss
         Std prints("Tripled array has {}, {}, {}, {}, {}, {}" { dd[0], dd[1], dd[2], dd[3], dd[4], dd[5] })
 
+        Std prints("Array {} contents: {}" { ss, ss contents })
+
         :for ss each: i? do:
             Std prints("Array element {i}" {})
 

@@ -517,7 +517,7 @@ public:
         missing_function_names.clear();
     }
     
-    virtual void streamify(X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         Label raw_label = x64->once->compile(StringType::compile_raw_streamification);
         x64->op(CALL, raw_label);  // clobbers all
     }
