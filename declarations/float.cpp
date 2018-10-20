@@ -190,7 +190,7 @@ public:
         );
     }
     
-    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
         // SysV
         x64->op(MOVSD, XMM0, Address(RSP, ALIAS_SIZE));
         x64->op(MOVQ, RDI, Address(RSP, 0));

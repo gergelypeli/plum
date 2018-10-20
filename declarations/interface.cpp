@@ -314,6 +314,20 @@ public:
 };
 
 
+class AltStreamifiableImplementation: public Implementation {
+public:
+    AltStreamifiableImplementation(std::string name, TypeSpec pts)
+        :Implementation(name, pts, STREAMIFIABLE_TS, AS_ROLE) {
+        // This is a bit nasty
+        missing_function_names.clear();
+    }
+    
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        tm[0].streamify(true, x64);
+    }
+};
+
+
 class Lself: public Identifier, public Associable {
 public:
     std::string prefix;

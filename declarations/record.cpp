@@ -206,7 +206,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
         if (streamify_function) {
             // The pivot is on the stack as rvalue, and the stream as lvalue.
             x64->op(CALL, streamify_function->get_label(x64));
@@ -214,8 +214,8 @@ public:
         else {
             x64->op(PUSHQ, CHARACTER_LEFTBRACE);
             x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
-            CHARACTER_TS.streamify(false, x64);
-            x64->op(ADDQ, RSP, 16);
+            CHARACTER_TS.streamify(true, x64);
+            x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
             
             bool did = false;
             
@@ -223,8 +223,8 @@ public:
                 if (did) {
                     x64->op(PUSHQ, CHARACTER_COMMA);
                     x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
-                    CHARACTER_TS.streamify(false, x64);
-                    x64->op(ADDQ, RSP, 16);
+                    CHARACTER_TS.streamify(true, x64);
+                    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
                 }
                 
                 did = true;
@@ -237,7 +237,7 @@ public:
                 mts.store(s, t, x64);
                 x64->op(PUSHQ, Address(RSP, mts.measure_stack()));
                 
-                mts.streamify(true, x64);
+                mts.streamify(false, x64);
                 
                 x64->op(ADDQ, RSP, ADDRESS_SIZE);
                 mts.store(t, Storage(), x64);
@@ -245,8 +245,8 @@ public:
             
             x64->op(PUSHQ, CHARACTER_RIGHTBRACE);
             x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
-            CHARACTER_TS.streamify(false, x64);
-            x64->op(ADDQ, RSP, 16);
+            CHARACTER_TS.streamify(true, x64);
+            x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
         }
     }
 
@@ -424,22 +424,30 @@ public:
         x64->op(RET);
     }
 
-    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
         // TODO: and escape everything!
-        Label ch_label = x64->once->compile(CharacterType::compile_raw_streamification);
-        Label st_label = x64->once->compile(compile_esc_streamification);
         
-        x64->op(PUSHQ, CHARACTER_DOUBLEQUOTE);
-        x64->op(PUSHQ, Address(RSP, 8));
-        x64->op(CALL, ch_label);
-        x64->op(ADDQ, RSP, 16);
+        if (alt) {
+            // Unescaped and unquoted
+            Label st_label = x64->once->compile(compile_raw_streamification);
+            x64->op(CALL, st_label);  // clobbers all
+        }
+        else {
+            // Escaped and quoted
+            Label st_label = x64->once->compile(compile_esc_streamification);
         
-        x64->op(CALL, st_label);  // clobbers all
+            x64->op(PUSHQ, CHARACTER_DOUBLEQUOTE);
+            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
+            CHARACTER_TS.streamify(true, x64);
+            x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        
+            x64->op(CALL, st_label);  // clobbers all
 
-        x64->op(PUSHQ, CHARACTER_DOUBLEQUOTE);
-        x64->op(PUSHQ, Address(RSP, 8));
-        x64->op(CALL, ch_label);
-        x64->op(ADDQ, RSP, 16);
+            x64->op(PUSHQ, CHARACTER_DOUBLEQUOTE);
+            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
+            CHARACTER_TS.streamify(true, x64);
+            x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        }
     }
 
     static void compile_esc_streamification(Label label, X64 *x64) {
@@ -505,21 +513,6 @@ public:
             
         std::cerr << "Can't match String as " << n << "!\n";
         return NULL;
-    }
-};
-
-
-class StringRawStreamifiableImplementation: public Implementation {
-public:
-    StringRawStreamifiableImplementation(std::string name, TypeSpec pts)
-        :Implementation(name, pts, STREAMIFIABLE_TS, AS_ROLE) {
-        // This is nasty
-        missing_function_names.clear();
-    }
-    
-    virtual void streamify(TypeMatch tm, X64 *x64) {
-        Label raw_label = x64->once->compile(StringType::compile_raw_streamification);
-        x64->op(CALL, raw_label);  // clobbers all
     }
 };
 

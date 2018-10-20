@@ -39,7 +39,7 @@ public:
     void destroy(Storage s, X64 *x64);
     void equal(Storage s, Storage t, X64 *x64);
     void compare(Storage s, Storage t, X64 *x64);
-    void streamify(bool repr, X64 *x64);
+    void streamify(bool alt, X64 *x64);
     void borrow(Register reg, Unborrow *unborrow, X64 *x64);
     Value *lookup_initializer(std::string name, Scope *scope);
     Value *lookup_matcher(std::string name, Value *pivot, Scope *scope);

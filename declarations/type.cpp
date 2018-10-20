@@ -256,13 +256,14 @@ public:
     // NOTE: allowed to clobber STREAMIFY_CLOB, because it is mostly called
     // from interpolation, which is in Void context, so not much is lost. But
     // nested streamifications must take care!
-    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
         Label us_label = x64->runtime->data_heap_string(decode_utf8("<unstreamifiable>"));
+        
         x64->op(LEA, R10, Address(us_label, 0));
         x64->op(PUSHQ, R10);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
-        STRING_TS.streamify(false, x64);
-        x64->op(ADDQ, RSP, 16);
+        STRING_TS.streamify(true, x64);
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
     }
 
     virtual void borrow(TypeMatch tm, Register reg, Unborrow *unborrow, X64 *x64) {
@@ -418,8 +419,8 @@ public:
         tm[1].compare(s, t, x64);
     }
 
-    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
-        tm[1].streamify(repr, x64);
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        tm[1].streamify(alt, x64);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {

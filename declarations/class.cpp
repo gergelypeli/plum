@@ -532,6 +532,32 @@ public:
 };
 
 
+class ClassWrapperAltStreamifiableImplementation: public AltStreamifiableImplementation {
+public:
+    TypeSpec wrapped_ts;
+    
+    ClassWrapperAltStreamifiableImplementation(std::string name, TypeSpec pts, TypeSpec wts)
+        :AltStreamifiableImplementation(name, pts) {
+        wrapped_ts = wts;
+    }
+    
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        TypeSpec member_ts = typesubst(wrapped_ts, tm);
+        
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+        x64->op(MOVQ, RBX, Address(RSP, 0));
+        
+        member_ts.store(Storage(MEMORY, Address(RAX, CLASS_MEMBERS_OFFSET)), Storage(STACK), x64);
+        x64->op(PUSHQ, RBX);
+        
+        member_ts.streamify(true, x64);  // clobbers all
+        
+        x64->op(POPQ, RBX);
+        member_ts.store(Storage(STACK), Storage(), x64);
+    }
+};
+
+
 class StackType: public ClassType {
 public:
     StackType(std::string name)

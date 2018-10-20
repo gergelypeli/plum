@@ -633,6 +633,8 @@ Main? :Singleton as:
         Std prints("Pushed stack length: {x}" { x: st length })
         Std prints("Pushed stack has 2. elem: {x}" { x: st[2] })
 
+        Std prints("Stack {} contents: {}" { st, st contents })
+
         :for st each: x? do:
             Std prints("Stack has: {x}" {})
 

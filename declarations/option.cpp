@@ -182,7 +182,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
         int flag_size = get_flag_size(tm[1]);
         Label os_label = x64->once->compile(compile_streamification, tm[1]);
         Label ok;
@@ -199,7 +199,7 @@ public:
             x64->op(PUSHQ, R10);  // overwrite flag
         }
         
-        tm[1].streamify(true, x64);
+        tm[1].streamify(alt, x64);
         
         if (flag_size) {
             x64->op(POPQ, R10);

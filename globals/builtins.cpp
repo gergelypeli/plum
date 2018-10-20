@@ -725,7 +725,7 @@ void define_string() {
     is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
     is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
-    is->add(new StringRawStreamifiableImplementation("raw", STRING_TS));
+    is->add(new AltStreamifiableImplementation("raw", STRING_TS));
 
     // String operations
     is->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL, NULL));
@@ -814,7 +814,7 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REF_TS));
     array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REF_TS));
 
-    array_scope->add(new ArrayContentsStreamifiableImplementation("contents", ANY_ARRAY_REF_TS));
+    array_scope->add(new AltStreamifiableImplementation("contents", ANY_ARRAY_REF_TS));
     
     array_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
 
@@ -886,6 +886,8 @@ void define_stack() {
     implement(is, TypeSpec { iterable_type, same_type }, "iterable", {
         new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
     });
+
+    is->add(new ClassWrapperAltStreamifiableImplementation("contents", PIVOT, CAST));
 
     is->add(new ClassWrapperIdentifier("elements", PIVOT, CAST, "elements"));
     is->add(new ClassWrapperIdentifier("indexes", PIVOT, CAST, "indexes"));

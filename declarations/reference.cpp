@@ -236,12 +236,18 @@ public:
         x64->runtime->r10bcompar(true);
     }
     
-    virtual void streamify(TypeMatch tm, bool repr, X64 *x64) {
-        // We do this for reference types that don't implement Streamifiable
-        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-        x64->op(MOVQ, RSI, Address(RSP, 0));
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        if (alt) {
+            // Hope that the identity type implemented it somehow
+            tm[1].streamify(true, x64);
+        }
+        else {
+            // We do this for reference types that don't implement Streamifiable
+            x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+            x64->op(MOVQ, RSI, Address(RSP, 0));
         
-        x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
+            x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
+        }
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -500,27 +506,17 @@ public:
         //x64->log("finalized array");
         x64->op(RET);
     }
-};
 
-
-class ArrayContentsStreamifiableImplementation: public Implementation {
-public:
-    ArrayContentsStreamifiableImplementation(std::string name, TypeSpec pts)
-        :Implementation(name, pts, STREAMIFIABLE_TS, AS_ROLE) {
-        // This is nasty
-        missing_function_names.clear();
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        if (alt) {
+            TypeSpec elem_ts = tm[1];
+            Label label = x64->once->compile(compile_contents_streamification, elem_ts);
+            x64->op(CALL, label);  // clobbers all
+        }
     }
     
-    virtual void streamify(TypeMatch tm, X64 *x64) {
-        TypeSpec elem_ts = tm[1];
-        std::cerr << "XXX Array contents: " << elem_ts << "\n";
-        Label label = x64->once->compile(compile_streamification, elem_ts);
-        x64->op(CALL, label);  // clobbers all
-    }
-    
-    static void compile_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
+    static void compile_contents_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
         int elem_size = elem_ts.measure_elem();
-        Label ch_label = x64->once->compile(CharacterType::compile_raw_streamification);
         Label loop, elem, end;
 
         x64->code_label_local(label, "x_array_contents_streamify");
@@ -528,8 +524,8 @@ public:
         // open
         x64->op(PUSHQ, CHARACTER_LEFTBRACE);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
-        x64->op(CALL, ch_label);
-        x64->op(ADDQ, RSP, 16);
+        CHARACTER_TS.streamify(true, x64);  // clobbers all
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
         
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // Array Ref
         x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
@@ -546,8 +542,8 @@ public:
         x64->op(PUSHQ, RCX);
         x64->op(PUSHQ, CHARACTER_COMMA);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE + 2 * ADDRESS_SIZE));
-        x64->op(CALL, ch_label);  // clobbers all
-        x64->op(ADDQ, RSP, 16);
+        CHARACTER_TS.streamify(true, x64);  // clobbers all
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
         x64->op(POPQ, RCX);
         x64->op(POPQ, RAX);
         
@@ -574,8 +570,8 @@ public:
         // close
         x64->op(PUSHQ, CHARACTER_RIGHTBRACE);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
-        x64->op(CALL, ch_label);
-        x64->op(ADDQ, RSP, 16);
+        CHARACTER_TS.streamify(true, x64);  // clobbers all
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 
         x64->op(RET);
     }
