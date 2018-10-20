@@ -662,6 +662,16 @@ public:
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
     }
+
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        Label us_label = x64->runtime->data_heap_string(decode_utf8("U"));
+        
+        x64->op(LEA, R10, Address(us_label, 0));
+        x64->op(PUSHQ, R10);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
+        STRING_TS.streamify(true, x64);
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+    }
 };
 
 

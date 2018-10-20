@@ -700,7 +700,9 @@ Main? :Singleton as:
             rb add "D"
             rb add "B"
         
-        Std prints("After adding A, length is {l}" { l: rb length })
+        Std prints("After adding five, length is {l}" { l: rb length })
+        
+        Std prints("Rbtree {} contents: {}" { rb, rb contents })
     
         :for rb elements_by_age each: e? do:
             Std prints("Rbtree element by age: {e}" {})
@@ -731,6 +733,8 @@ Main? :Singleton as:
         :try
             st add "C"
             st add "D"
+
+        Std prints("Set {} contents: {}" { st, st contents })
     
         :for st elements_by_age each: e? do:
             Std prints("Set element: {e}" {})
@@ -741,7 +745,10 @@ Main? :Singleton as:
             mp add("D", "d")
         :try
             mp remove("C")
+
         Std prints("Map length is {x}" {x: mp length})
+
+        Std prints("Map {} contents: {}" { mp, mp contents })
     
         :for mp wrapped elements_by_order each: iv? do:
             Std prints("Map element: {x} => {y}" {x: iv index, y: iv value})

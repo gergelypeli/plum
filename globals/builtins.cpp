@@ -865,6 +865,8 @@ void define_rbtree() {
     rbtree_scope->add(new TemplateIdentifier<RbtreeElemByAgeIterValue>("elements_by_age", ANY_RBTREE_REF_TS));
     rbtree_scope->add(new TemplateIdentifier<RbtreeElemByOrderIterValue>("elements_by_order", ANY_RBTREE_REF_TS));
 
+    rbtree_scope->add(new AltStreamifiableImplementation("contents", ANY_RBTREE_REF_TS));
+
     rbtree_type->complete_type();
     rbtree_scope->leave();
 }
@@ -953,6 +955,8 @@ void define_set() {
     is->add(new ClassWrapperIdentifier("elements_by_age", PIVOT, CAST, "elements_by_age"));
     is->add(new ClassWrapperIdentifier("elements_by_order", PIVOT, CAST, "elements_by_order"));
 
+    is->add(new ClassWrapperAltStreamifiableImplementation("contents", PIVOT, CAST));
+
     class_type->complete_type();
     is->leave();
 }
@@ -972,6 +976,8 @@ void define_map() {
     is->add(new TemplateIdentifier<MapRemoveValue>("remove", PIVOT));
     is->add(new TemplateIdentifier<MapHasValue>("has", PIVOT));
     is->add(new TemplateIdentifier<MapIndexValue>("index", PIVOT));
+
+    is->add(new ClassWrapperAltStreamifiableImplementation("contents", PIVOT, CAST));
     
     class_type->complete_type();
     is->leave();
