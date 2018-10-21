@@ -1,10 +1,14 @@
 
 void builtin_types(Scope *root_scope) {
+
     // Phase 1: declare the hypertype
+
     metatype_hypertype = new HyperType;
     root_scope->add(metatype_hypertype);
 
+
     // Phase 2: declare the metatypes
+
     // Abstract metatypes can't be looked up, so their scope doesn't matter
     type_metatype = new TypeMetaType("<Type>", NULL);
     root_scope->add(type_metatype);
@@ -48,15 +52,11 @@ void builtin_types(Scope *root_scope) {
     interface_metatype = new InterfaceMetaType("Interface", value_metatype);
     colon_scope->add(interface_metatype);
 
-    //implementation_metatype = new ImplementationMetaType("Implementation", type_metatype);
-    //colon_scope->add(implementation_metatype);
-
-    //lself_metatype = new LselfMetaType("Lself", type_metatype);
-    //colon_scope->add(lself_metatype);
-
     colon_scope->add(new ImportMetaType("Import", type_metatype));
 
+
     // Phase 3: declare wildcard types, so subsequent types can have an inner scope
+
     any_type = new AnyType("<Any>", {}, value_metatype);
     root_scope->add(any_type);
 
@@ -93,7 +93,9 @@ void builtin_types(Scope *root_scope) {
     sameid3_type = new SameType("<Sameid3>", {}, identity_metatype);
     root_scope->add(sameid3_type);
 
+
     // Phase 4: declare special types
+
     unit_type = new UnitType("<Unit>");
     root_scope->add(unit_type);
 
@@ -130,13 +132,12 @@ void builtin_types(Scope *root_scope) {
     rvalue_type = new AttributeType("Rvalue", interface_metatype);
     root_scope->add(rvalue_type);
 
-    //role_type = new AttributeType("Role");
-    //root_scope->add(role_type);
-
     whatever_type = new WhateverType("<Whatever>");
     root_scope->add(whatever_type);
 
-    // Phase 5: declare regular types
+
+    // Phase 5: declare basic types
+
     boolean_type = new BooleanType("Boolean", 1);
     root_scope->add(boolean_type);
 
@@ -188,15 +189,21 @@ void builtin_types(Scope *root_scope) {
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
 
-    array_type = new ArrayType("Array");
-    root_scope->add(array_type);
+    string_type = new StringType("String");
+    root_scope->add(string_type);
 
-    circularray_type = new CircularrayType("Circularray");
-    root_scope->add(circularray_type);
+    option_type = new OptionType("Option");
+    root_scope->add(option_type);
 
-    rbtree_type = new RbtreeType("Rbtree");
-    root_scope->add(rbtree_type);
+    item_type = new ItemType("Item");
+    root_scope->add(item_type);
 
+    equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
+    root_scope->add(equalitymatcher_type);
+
+
+    // Phase 6: define interface and exception types
+    
     streamifiable_type = new InterfaceType("Streamifiable", {});
     root_scope->add(streamifiable_type);
 
@@ -206,44 +213,50 @@ void builtin_types(Scope *root_scope) {
     iterable_type = new InterfaceType("Iterable", { value_metatype });
     root_scope->add(iterable_type);
 
-    string_type = new StringType("String");
-    root_scope->add(string_type);
+    iterator_done_exception_type = make_treenum("Iterator_done_exception", "ITERATOR_DONE");
+    root_scope->add(iterator_done_exception_type);
+
+    container_full_exception_type = make_treenum("Container_full_exception", "CONTAINER_FULL");
+    root_scope->add(container_full_exception_type);
+
+    container_empty_exception_type = make_treenum("Container_empty_exception", "CONTAINER_EMPTY");
+    root_scope->add(container_empty_exception_type);
+
+    container_lent_exception_type = make_treenum("Container_lent_exception", "CONTAINER_LENT");
+    root_scope->add(container_lent_exception_type);
+
+    match_unmatched_exception_type = make_treenum("Match_unmatched_exception", "UNMATCHED");
+    root_scope->add(match_unmatched_exception_type);
+
+    lookup_exception_type = make_treenum("Lookup_exception", "NOT_FOUND");
+    root_scope->add(lookup_exception_type);
+
+    code_break_exception_type = make_treenum("<Code_break_exception>", "CODE_BREAK");
+    root_scope->add(code_break_exception_type);
+    
+    errno_exception_type = make_treenum("Errno_exception", errno_treenum_input);
+    root_scope->add(errno_exception_type);
+    
+
+    // Phase 7: define container and iterator types
+
+    array_type = new ArrayType("Array");
+    root_scope->add(array_type);
+
+    circularray_type = new CircularrayType("Circularray");
+    root_scope->add(circularray_type);
+
+    rbtree_type = new RbtreeType("Rbtree");
+    root_scope->add(rbtree_type);
 
     slice_type = new SliceType("Slice");
     root_scope->add(slice_type);
-
-    option_type = new OptionType("Option");
-    root_scope->add(option_type);
-
-    stack_type = new StackType("Stack");
-    root_scope->add(stack_type);
-
-    queue_type = new QueueType("Queue");
-    root_scope->add(queue_type);
-
-    set_type = new SetType("Set");
-    root_scope->add(set_type);
-
-    map_type = new MapType("Map", { value_metatype, value_metatype });
-    root_scope->add(map_type);
-
-    weakvaluemap_type = new WeakValueMapType("WeakValueMap", { value_metatype, identity_metatype });
-    root_scope->add(weakvaluemap_type);
-
-    weakindexmap_type = new WeakIndexMapType("WeakIndexMap", { identity_metatype, value_metatype });
-    root_scope->add(weakindexmap_type);
-    
-    weakset_type = new WeakSetType("WeakSet", { identity_metatype });
-    root_scope->add(weakset_type);
 
     countup_type = new RecordType("Countup", {});
     root_scope->add(countup_type);
 
     countdown_type = new RecordType("Countdown", {});
     root_scope->add(countdown_type);
-
-    item_type = new ItemType("Item");
-    root_scope->add(item_type);
 
     arrayelemiter_type = new RecordType("Arrayelem_iter", { value_metatype });
     root_scope->add(arrayelemiter_type);
@@ -278,32 +291,8 @@ void builtin_types(Scope *root_scope) {
     sliceitemiter_type = new RecordType("Sliceitem_iter", { value_metatype });
     root_scope->add(sliceitemiter_type);
 
-    equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
-    root_scope->add(equalitymatcher_type);
 
-    iterator_done_exception_type = make_treenum("Iterator_done_exception", "ITERATOR_DONE");
-    root_scope->add(iterator_done_exception_type);
-
-    container_full_exception_type = make_treenum("Container_full_exception", "CONTAINER_FULL");
-    root_scope->add(container_full_exception_type);
-
-    container_empty_exception_type = make_treenum("Container_empty_exception", "CONTAINER_EMPTY");
-    root_scope->add(container_empty_exception_type);
-
-    container_lent_exception_type = make_treenum("Container_lent_exception", "CONTAINER_LENT");
-    root_scope->add(container_lent_exception_type);
-
-    match_unmatched_exception_type = make_treenum("Match_unmatched_exception", "UNMATCHED");
-    root_scope->add(match_unmatched_exception_type);
-
-    lookup_exception_type = make_treenum("Lookup_exception", "NOT_FOUND");
-    root_scope->add(lookup_exception_type);
-
-    code_break_exception_type = make_treenum("<Code_break_exception>", "CODE_BREAK");
-    root_scope->add(code_break_exception_type);
-    
-    errno_exception_type = make_treenum("Errno_exception", errno_treenum_input);
-    root_scope->add(errno_exception_type);
+    // Define TS
     
     // NO_TS will contain no Type pointers
     HYPERTYPE_TS = { metatype_hypertype };
@@ -372,25 +361,8 @@ void builtin_types(Scope *root_scope) {
     BYTE_SLICE_TS = { slice_type, unsigned_integer8_type };
     ANY_OPTION_TS = { option_type, any_type };
     ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
-    ANY_STACK_REF_TS = { ref_type, stack_type, any_type };
-    ANY_QUEUE_REF_TS = { ref_type, queue_type, any_type };
-    ANY_SET_REF_TS = { ref_type, set_type, any_type };
-    ANY_ANY2_MAP_REF_TS = { ref_type, map_type, any_type, any2_type };
-    ANY_STACK_PTR_TS = { ptr_type, stack_type, any_type };
-    ANY_QUEUE_PTR_TS = { ptr_type, queue_type, any_type };
-    ANY_SET_PTR_TS = { ptr_type, set_type, any_type };
-    ANY_ANY2_MAP_PTR_TS = { ptr_type, map_type, any_type, any2_type };
-    ANY_ANYID2_WEAKVALUEMAP_PTR_TS = { ptr_type, weakvaluemap_type, any_type, anyid2_type };
-    SAME_SAMEID2_NOSYVALUE_MAP_TS = { map_type, same_type, nosyvalue_type, sameid2_type };
-    SAME_SAMEID2_NOSYVALUE_MAP_PTR_TS = { ptr_type, map_type, same_type, nosyvalue_type, sameid2_type };
     SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, nosyvalue_type, sameid2_type };
-    ANYID_ANY2_WEAKINDEXMAP_PTR_TS = { ptr_type, weakindexmap_type, anyid_type, any2_type };
-    SAMEID_NOSYVALUE_SAME2_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, same2_type };
-    SAMEID_NOSYVALUE_SAME2_MAP_TS = { map_type, nosyvalue_type, sameid_type, same2_type };
     SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, same2_type };
-    ANYID_WEAKSET_PTR_TS = { ptr_type, weakset_type, anyid_type };
-    SAMEID_NOSYVALUE_UNIT_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, unit_type };
-    SAMEID_NOSYVALUE_UNIT_MAP_TS = { map_type, nosyvalue_type, sameid_type, unit_type };
     SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, unit_type };
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
@@ -409,6 +381,51 @@ void builtin_types(Scope *root_scope) {
     SAME_SLICEINDEXITER_TS = { sliceindexiter_type, same_type };
     SAME_SLICEITEMITER_TS = { sliceitemiter_type, same_type };
     COLON_TS = { colon_type };
+}
+
+
+void wrapped_types(Scope *root_scope) {
+    stack_type = new StackType("Stack");
+    root_scope->add(stack_type);
+
+    queue_type = new QueueType("Queue");
+    root_scope->add(queue_type);
+
+    set_type = new SetType("Set");
+    root_scope->add(set_type);
+
+    map_type = new MapType("Map");
+    root_scope->add(map_type);
+
+    weakvaluemap_type = new WeakValueMapType("WeakValueMap");
+    root_scope->add(weakvaluemap_type);
+
+    weakindexmap_type = new WeakIndexMapType("WeakIndexMap");
+    root_scope->add(weakindexmap_type);
+    
+    weakset_type = new WeakSetType("WeakSet");
+    root_scope->add(weakset_type);
+
+    ANY_STACK_REF_TS = { ref_type, stack_type, any_type };
+    ANY_QUEUE_REF_TS = { ref_type, queue_type, any_type };
+    ANY_SET_REF_TS = { ref_type, set_type, any_type };
+    ANY_ANY2_MAP_REF_TS = { ref_type, map_type, any_type, any2_type };
+    ANY_STACK_PTR_TS = { ptr_type, stack_type, any_type };
+    ANY_QUEUE_PTR_TS = { ptr_type, queue_type, any_type };
+    ANY_SET_PTR_TS = { ptr_type, set_type, any_type };
+    ANY_ANY2_MAP_PTR_TS = { ptr_type, map_type, any_type, any2_type };
+    ANY_ANYID2_WEAKVALUEMAP_PTR_TS = { ptr_type, weakvaluemap_type, any_type, anyid2_type };
+    ANYID_WEAKSET_PTR_TS = { ptr_type, weakset_type, anyid_type };
+
+    SAME_SAMEID2_NOSYVALUE_MAP_TS = { map_type, same_type, nosyvalue_type, sameid2_type };
+    SAME_SAMEID2_NOSYVALUE_MAP_PTR_TS = { ptr_type, map_type, same_type, nosyvalue_type, sameid2_type };
+
+    ANYID_ANY2_WEAKINDEXMAP_PTR_TS = { ptr_type, weakindexmap_type, anyid_type, any2_type };
+    SAMEID_NOSYVALUE_SAME2_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, same2_type };
+    SAMEID_NOSYVALUE_SAME2_MAP_TS = { map_type, nosyvalue_type, sameid_type, same2_type };
+
+    SAMEID_NOSYVALUE_UNIT_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, unit_type };
+    SAMEID_NOSYVALUE_UNIT_MAP_TS = { map_type, nosyvalue_type, sameid_type, unit_type };
 }
 
 
@@ -889,7 +906,7 @@ void define_stack() {
         new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
     });
 
-    is->add(new ClassWrapperAltStreamifiableImplementation("contents", PIVOT, CAST));
+    is->add(new AltStreamifiableImplementation("contents", PIVOT));
 
     is->add(new ClassWrapperIdentifier("elements", PIVOT, CAST, "elements"));
     is->add(new ClassWrapperIdentifier("indexes", PIVOT, CAST, "indexes"));
@@ -955,7 +972,7 @@ void define_set() {
     is->add(new ClassWrapperIdentifier("elements_by_age", PIVOT, CAST, "elements_by_age"));
     is->add(new ClassWrapperIdentifier("elements_by_order", PIVOT, CAST, "elements_by_order"));
 
-    is->add(new ClassWrapperAltStreamifiableImplementation("contents", PIVOT, CAST));
+    is->add(new AltStreamifiableImplementation("contents", PIVOT));
 
     class_type->complete_type();
     is->leave();
@@ -977,7 +994,7 @@ void define_map() {
     is->add(new TemplateIdentifier<MapHasValue>("has", PIVOT));
     is->add(new TemplateIdentifier<MapIndexValue>("index", PIVOT));
 
-    is->add(new ClassWrapperAltStreamifiableImplementation("contents", PIVOT, CAST));
+    is->add(new AltStreamifiableImplementation("contents", PIVOT));
     
     class_type->complete_type();
     is->leave();
@@ -1112,6 +1129,7 @@ RootScope *init_builtins() {
     root_scope->set_name("<root>");
 
     builtin_types(root_scope);
+    wrapped_types(root_scope);
 
     define_interfaces();
 

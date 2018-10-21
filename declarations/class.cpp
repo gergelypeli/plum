@@ -532,6 +532,54 @@ public:
 };
 
 
+class WrappedClassType: public ClassType {
+public:
+    TypeSpec wrapped_ts;
+    
+    WrappedClassType(std::string name, Metatypes param_metatypes, TypeSpec wts)
+        :ClassType(name, param_metatypes) {
+        if (wts == NO_TS)
+            throw INTERNAL_ERROR;  // this can be a global initialization issue
+            
+        wrapped_ts = wts;
+    }
+    
+    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
+        TypeSpec member_ts = typesubst(wrapped_ts, tm);
+        Value *member_initializer = member_ts.lookup_initializer(name, scope);
+        
+        if (!member_initializer) {
+            std::cerr << "No " << this->name << " member initializer called " << name << "!\n";
+            return NULL;
+        }
+
+        TypeSpec self_ts = tm[0].prefix(ref_type);
+        Value *pivot = make<ClassPreinitializerValue>(self_ts);
+        
+        return make<ClassWrapperInitializerValue>(pivot, member_initializer);
+    }
+
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        if (alt) {
+            TypeSpec member_ts = typesubst(wrapped_ts, tm);
+        
+            x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+            x64->op(MOVQ, RBX, Address(RSP, 0));
+        
+            member_ts.store(Storage(MEMORY, Address(RAX, CLASS_MEMBERS_OFFSET)), Storage(STACK), x64);
+            x64->op(PUSHQ, RBX);
+        
+            member_ts.streamify(true, x64);  // clobbers all
+        
+            x64->op(POPQ, RBX);
+            member_ts.store(Storage(STACK), Storage(), x64);
+        }
+        else
+            ClassType::streamify(tm, alt, x64);
+    }
+};
+
+/*
 class ClassWrapperAltStreamifiableImplementation: public AltStreamifiableImplementation {
 public:
     TypeSpec wrapped_ts;
@@ -556,140 +604,59 @@ public:
         member_ts.store(Storage(STACK), Storage(), x64);
     }
 };
+*/
 
-
-class StackType: public ClassType {
+class StackType: public WrappedClassType {
 public:
     StackType(std::string name)
-        :ClassType(name, Metatypes { value_metatype }) {
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        TypeSpec ats = tm[0].unprefix(stack_type).prefix(array_type);
-        Value *array_initializer = ats.lookup_initializer(name, scope);
-        
-        if (!array_initializer) {
-            std::cerr << "No Stack initializer called " << name << "!\n";
-            return NULL;
-        }
-
-        TypeSpec rts = tm[0].prefix(ref_type);
-        
-        Value *pivot = make<ClassPreinitializerValue>(rts);
-        
-        return make<ClassWrapperInitializerValue>(pivot, array_initializer);
+        :WrappedClassType(name, { value_metatype }, SAME_ARRAY_REF_LVALUE_TS) {
     }
 };
 
 
-class QueueType: public ClassType {
+class QueueType: public WrappedClassType {
 public:
     QueueType(std::string name)
-        :ClassType(name, Metatypes { value_metatype }) {
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        TypeSpec cts = tm[0].unprefix(queue_type).prefix(circularray_type);
-        Value *carray_initializer = cts.lookup_initializer(name, scope);
-        
-        if (!carray_initializer) {
-            std::cerr << "No Queue initializer called " << name << "!\n";
-            return NULL;
-        }
-
-        TypeSpec rts = tm[0].prefix(ref_type);
-        
-        Value *pivot = make<ClassPreinitializerValue>(rts);
-        
-        return make<ClassWrapperInitializerValue>(pivot, carray_initializer);
+        :WrappedClassType(name, { value_metatype }, SAME_CIRCULARRAY_REF_LVALUE_TS) {
     }
 };
 
 
-class SetType: public ClassType {
+class SetType: public WrappedClassType {
 public:
     SetType(std::string name)
-        :ClassType(name, Metatypes { value_metatype }) {
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        TypeSpec tts = tm[0].unprefix(set_type).prefix(rbtree_type);
-        Value *tree_initializer = tts.lookup_initializer(name, scope);
-        
-        if (!tree_initializer) {
-            std::cerr << "No Set initializer called " << name << "!\n";
-            return NULL;
-        }
-
-        TypeSpec rts = tm[0].prefix(ref_type);
-        
-        Value *pivot = make<ClassPreinitializerValue>(rts);
-        
-        return make<ClassWrapperInitializerValue>(pivot, tree_initializer);
+        :WrappedClassType(name, { value_metatype }, SAME_RBTREE_REF_LVALUE_TS) {
     }
 };
 
 
-class MapType: public ClassType {
+class MapType: public WrappedClassType {
 public:
-    MapType(std::string name, Metatypes param_metatypes)
-        :ClassType(name, param_metatypes) {
-    }
-    
-    virtual Value *lookup_map_initializer(TypeSpec real_ts, TypeSpec key_ts, TypeSpec value_ts, std::string name, Scope *scope) {
-        TypeSpec tree_ts = TypeSpec(item_type, key_ts, value_ts).prefix(rbtree_type);
-        Value *tree_initializer = tree_ts.lookup_initializer(name, scope);
-        
-        if (!tree_initializer) {
-            std::cerr << "No " << this->name << " initializer called " << name << "!\n";
-            return NULL;
-        }
-
-        // This may be something non-Map, if subclasses call this.
-        TypeSpec rts = real_ts.prefix(ref_type);
-        
-        Value *pivot = make<ClassPreinitializerValue>(rts);
-        
-        return make<ClassWrapperInitializerValue>(pivot, tree_initializer);
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return lookup_map_initializer(tm[0], tm[1], tm[2], name, scope);
+    MapType(std::string name)
+        :WrappedClassType(name, { value_metatype, value_metatype }, SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS) {
     }
 };
 
 
-class WeakValueMapType: public MapType {
+class WeakValueMapType: public WrappedClassType {
 public:
-    WeakValueMapType(std::string name, Metatypes param_metatypes)
-        :MapType(name, param_metatypes) {
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return MapType::lookup_map_initializer(tm[0], tm[1], tm[2].prefix(nosyvalue_type), name, scope);
+    WeakValueMapType(std::string name)
+        :WrappedClassType(name, { value_metatype, identity_metatype }, SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS) {
     }
 };
 
 
-class WeakIndexMapType: public MapType {
+class WeakIndexMapType: public WrappedClassType {
 public:
-    WeakIndexMapType(std::string name, Metatypes param_metatypes)
-        :MapType(name, param_metatypes) {
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(nosyvalue_type), tm[2], name, scope);
+    WeakIndexMapType(std::string name)
+        :WrappedClassType(name, { identity_metatype, value_metatype }, SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS) {
     }
 };
 
 
-class WeakSetType: public MapType {
+class WeakSetType: public WrappedClassType {
 public:
-    WeakSetType(std::string name, Metatypes param_metatypes)
-        :MapType(name, param_metatypes) {
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return MapType::lookup_map_initializer(tm[0], tm[1].prefix(nosyvalue_type), UNIT_TS, name, scope);
+    WeakSetType(std::string name)
+        :WrappedClassType(name, { identity_metatype }, SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS) {
     }
 };

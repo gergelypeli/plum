@@ -237,17 +237,7 @@ public:
     }
     
     virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        if (alt) {
-            // Hope that the identity type implemented it somehow
-            tm[1].streamify(true, x64);
-        }
-        else {
-            // We do this for reference types that don't implement Streamifiable
-            x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-            x64->op(MOVQ, RSI, Address(RSP, 0));
-        
-            x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
-        }
+        tm[1].streamify(alt, x64);
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -395,6 +385,14 @@ public:
         std::cerr << "This is probably an error, shouldn't measure a heap type!\n";
         throw INTERNAL_ERROR;
     }
+    
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        // We do this for heap types that don't implement Streamifiable
+        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+        x64->op(MOVQ, RSI, Address(RSP, 0));
+    
+        x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
+    }
 };
 
 
@@ -513,6 +511,8 @@ public:
             Label label = x64->once->compile(compile_contents_streamification, elem_ts);
             x64->op(CALL, label);  // clobbers all
         }
+        else
+            HeapType::streamify(tm, alt, x64);
     }
     
     static void compile_contents_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
@@ -705,6 +705,8 @@ public:
             Label label = x64->once->compile(compile_contents_streamification, elem_ts);
             x64->op(CALL, label);  // clobbers all
         }
+        else
+            HeapType::streamify(tm, alt, x64);
     }
 
     static void compile_contents_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
