@@ -79,10 +79,12 @@ void container_preappend(int reservation_offset, int length_offset, Label grow_l
 class ContainerLengthValue: public GenericValue {
 public:
     Register reg;
+    TypeSpec heap_ts;
     
     ContainerLengthValue(Value *l, TypeMatch &match)
         :GenericValue(NO_TS, INTEGER_TS, l) {
         reg = NOREG;
+        heap_ts = match[0].unprefix(ptr_type);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -101,13 +103,13 @@ public:
 
         switch (ls.where) {
         case REGISTER:
-            x64->runtime->decref(ls.reg);  // FIXME: not nice!
+            heap_ts.decref(ls.reg, x64);  // FIXME: use after decref
             x64->op(MOVQ, ls.reg, Address(ls.reg, length_offset));
             return Storage(REGISTER, ls.reg);
         case STACK:
             x64->op(POPQ, RBX);
             x64->op(MOVQ, reg, Address(RBX, length_offset));
-            x64->runtime->decref(RBX);
+            heap_ts.decref(RBX, x64);
             return Storage(REGISTER, reg);
         case MEMORY:
             x64->op(MOVQ, reg, ls.address);
@@ -122,6 +124,7 @@ public:
 
 class ContainerIndexValue: public OptimizedOperationValue {
 public:
+    TypeSpec heap_ts;
     TypeSpec elem_ts;
     Unborrow *unborrow;
     
@@ -129,15 +132,15 @@ public:
         :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot,
         GPR_SUBSET, GPR_SUBSET
         ) {
+        heap_ts = match[0].unprefix(ptr_type);
         elem_ts = match[1];
-        //borrow = NULL;
         
         if (pivot->ts.rvalue()[0] != ptr_type)
             throw INTERNAL_ERROR;  // sanity check
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        unborrow = new Unborrow;
+        unborrow = new Unborrow(heap_ts);
         scope->add(unborrow);
         
         return OptimizedOperationValue::check(args, kwargs, scope);
@@ -178,7 +181,7 @@ public:
         case MEMORY:
             x64->op(MOVQ, auxls.reg, ls.address);  // reg may be the base of ls.address
             // Borrow Lvalue container
-            x64->runtime->incref(auxls.reg);
+            heap_ts.incref(auxls.reg, x64);
             x64->op(MOVQ, unborrow->get_address(), auxls.reg);
             
             fix_R10_index(auxls.reg, x64);
@@ -520,10 +523,12 @@ public:
 class ContainerPopValue: public ContainerShrinkableValue {
 public:
     TypeSpec elem_ts;
+    TypeSpec heap_ts;
     
     ContainerPopValue(Value *l, TypeMatch &match)
         :ContainerShrinkableValue(NO_TS, match[1], l) {
         elem_ts = match[1];
+        heap_ts = match[0].unprefix(ptr_type);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -553,13 +558,13 @@ public:
         // R10 contains the index of the newly removed element
         fix_R10_index(RAX, x64);
 
-        x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->runtime->decref(RAX);
-
-        x64->op(ADDQ, RAX, R10);
+        x64->op(IMUL3Q, RCX, R10, elem_size);
         
-        elem_ts.store(Storage(MEMORY, Address(RAX, elems_offset)), Storage(STACK), x64);
-        elem_ts.destroy(Storage(MEMORY, Address(RAX, elems_offset)), x64);
+        // TODO: optimize this move!
+        elem_ts.store(Storage(MEMORY, Address(RAX, RCX, elems_offset)), Storage(STACK), x64);
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, RCX, elems_offset)), x64);
+        
+        heap_ts.decref(RAX, x64);
         
         return Storage(STACK);
     }

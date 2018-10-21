@@ -252,13 +252,18 @@ Value *TypeSpec::lookup_inner(std::string name, Value *pivot, Scope *scope) {
 }
 
 
-//DataScope *TypeSpec::get_inner_scope() {
-//    return at(0)->get_inner_scope(match());
-//}
-
-
 void TypeSpec::init_vt(Address self_addr, Label vt_label, X64 *x64) {
     at(0)->init_vt(match(), self_addr, vt_label, x64);
+}
+
+
+void TypeSpec::incref(Register r, X64 *x64) {
+    at(0)->incref(match(), r, x64);
+}
+
+
+void TypeSpec::decref(Register r, X64 *x64) {
+    at(0)->decref(match(), r, x64);
 }
 
 

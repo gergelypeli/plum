@@ -254,16 +254,18 @@ public:
 // Extend the lifetime of Lvalue containers until the end of the innermost scope
 class Unborrow: public Declaration {
 public:
+    TypeSpec heap_ts;
     bool is_used;
     Allocation offset;
     
-    Unborrow()
+    Unborrow(TypeSpec hts)
         :Declaration() {
+        heap_ts = hts;
         is_used = false;
     }
     
     virtual void allocate() {
-        offset = outer_scope->reserve(Allocation(ADDRESS_SIZE));
+        offset = outer_scope->reserve(Allocation(REFERENCE_SIZE));
     }
 
     virtual Address get_address() {
@@ -277,7 +279,7 @@ public:
             
         //x64->runtime->log("Unborrowing.");
         x64->op(MOVQ, R10, get_address());
-        x64->runtime->decref(R10);
+        heap_ts.decref(R10, x64);
     }
 };
 

@@ -45,6 +45,8 @@ public:
     Value *lookup_matcher(std::string name, Value *pivot, Scope *scope);
     Value *lookup_inner(std::string name, Value *pivot, Scope *scope);
     void init_vt(Address self_addr, Label vt_label, X64 *x64);
+    void incref(Register r, X64 *x64);
+    void decref(Register r, X64 *x64);
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
@@ -302,6 +304,7 @@ TypeSpec ANY_CIRCULARRAY_PTR_TS;
 TypeSpec ANY_RBTREE_REF_TS;
 TypeSpec ANY_RBTREE_REF_LVALUE_TS;
 TypeSpec SAME_RBTREE_REF_LVALUE_TS;
+TypeSpec ANY_RBTREE_PTR_TS;
 TypeSpec SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
 TypeSpec VOID_CODE_TS;
 TypeSpec BOOLEAN_CODE_TS;

@@ -162,10 +162,12 @@ public:
 class RbtreeLengthValue: public GenericValue {
 public:
     Register reg;
+    TypeSpec heap_ts;
     
     RbtreeLengthValue(Value *l, TypeMatch &match)
         :GenericValue(NO_TS, INTEGER_TS, l) {
         reg = NOREG;
+        heap_ts = match[0].unprefix(ptr_type);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -184,7 +186,7 @@ public:
 
         switch (ls.where) {
         case REGISTER:
-            x64->runtime->decref(ls.reg);
+            heap_ts.decref(ls.reg, x64);  // FIXME: use after decref
             x64->op(MOVQ, ls.reg, Address(ls.reg, RBTREE_LENGTH_OFFSET));
             return Storage(REGISTER, ls.reg);
         case MEMORY:
@@ -682,7 +684,7 @@ public:
 
 class MapIndexValue: public Value {
 public:
-    TypeSpec key_ts, value_ts, item_ts, key_arg_ts;
+    TypeSpec key_ts, value_ts, item_ts, heap_ts, key_arg_ts;
     std::unique_ptr<Value> pivot, key, value;
     Unborrow *unborrow;
 
@@ -691,6 +693,7 @@ public:
         pivot.reset(l);
         key_ts = match[1];
         item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);  // TODO: Lvalue?
+        heap_ts = item_ts.prefix(rbtree_type);
         
         key_arg_ts = key_ts;
         unborrow = NULL;
@@ -702,7 +705,7 @@ public:
         }))
             return false;
             
-        unborrow = new Unborrow;
+        unborrow = new Unborrow(heap_ts);
         scope->add(unborrow);
         
         return true;
@@ -742,7 +745,7 @@ public:
         x64->code_label(ok);
 
         // Borrow Lvalue container
-        x64->runtime->incref(SELFX);
+        heap_ts.incref(SELFX, x64);
         x64->op(MOVQ, unborrow->get_address(), SELFX);
         
         return Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size));
@@ -779,7 +782,7 @@ static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) 
 }
 
 
-static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
+static void ptr_to_nosyvalue(TypeSpec item_ts, TypeSpec heap_ts, Address alias_addr, X64 *x64) {
     // Turn a Ptr into a NosyValue by replacing a pointer with a pointer+fcbaddr pair
     // on the stack. Clobbers all registers, except SELFX and KEYX.
     Label callback_label = x64->once->compile(compile_nosyvalue_callback, item_ts);
@@ -789,7 +792,7 @@ static void ptr_to_nosyvalue(TypeSpec item_ts, Address alias_addr, X64 *x64) {
     x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
     x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
 
-    x64->runtime->decref(RAX);  // FIXME: don't let the object die here!
+    heap_ts.decref(RAX, x64);  // FIXME: use after decref
     x64->op(PUSHQ, RAX);  // in NosyValue the object pointer is at the lower address...
     
     x64->op(PUSHQ, SELFX);  // promised to preserve these two
@@ -830,7 +833,8 @@ public:
 
     virtual void prevalue(Address alias_addr, X64 *x64) {
         // Must preserve SELFX and KEYX
-        ptr_to_nosyvalue(item_ts, alias_addr, x64);
+        TypeSpec heap_ts = value_ts.unprefix(nosyvalue_type);
+        ptr_to_nosyvalue(item_ts, heap_ts, alias_addr, x64);
     }
 };
 
@@ -882,7 +886,8 @@ public:
 
     virtual void prekey(Address alias_addr, X64 *x64) {
         // Must preserve SELFX and KEYX
-        ptr_to_nosyvalue(item_ts, alias_addr, x64);
+        TypeSpec heap_ts = key_ts.unprefix(nosyvalue_type);
+        ptr_to_nosyvalue(item_ts, heap_ts, alias_addr, x64);
     }
 };
 
@@ -936,7 +941,8 @@ public:
 
     virtual void prekey(Address alias_addr, X64 *x64) {
         // Must preserve SELFX and KEYX
-        ptr_to_nosyvalue(item_ts, alias_addr, x64);
+        TypeSpec heap_ts = key_ts.unprefix(nosyvalue_type);
+        ptr_to_nosyvalue(item_ts, heap_ts, alias_addr, x64);
     }
 };
 

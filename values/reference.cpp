@@ -17,8 +17,11 @@ public:
 
 class NosyObjectValue: public GenericValue {
 public:
+    TypeSpec heap_ts;
+
     NosyObjectValue(TypeSpec rts)
         :GenericValue(rts.unprefix(ref_type).reprefix(nosyobject_type, ptr_type), rts, NULL) {
+        heap_ts = rts.unprefix(ref_type);
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -52,7 +55,7 @@ public:
         x64->op(POPQ, RCX);
         x64->op(POPQ, RCX);  // object address
 
-        x64->runtime->decref(RCX);  // FIXME: this shouldn't finalize
+        heap_ts.decref(RCX, x64);  // FIXME: use after decref
         
         x64->op(MOVQ, Address(RDX, NOSYOBJECT_RAW_OFFSET), RCX);
         x64->op(MOVQ, Address(RDX, NOSYOBJECT_FCB_OFFSET), RAX);
@@ -80,8 +83,11 @@ public:
 
 class NosyObjectDeadMatcherValue: public GenericValue, public Raiser {
 public:
+    TypeSpec nosy_heap_ts;
+
     NosyObjectDeadMatcherValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, VOID_TS, p) {
+        nosy_heap_ts = match[0];
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -100,11 +106,12 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, R10);
-        x64->runtime->decref(R10);
-        x64->op(CMPQ, Address(R10, NOSYOBJECT_RAW_OFFSET), 0);
+        x64->op(MOVQ, R11, Address(R10, NOSYOBJECT_RAW_OFFSET));
+        nosy_heap_ts.decref(R10, x64);
+        x64->op(CMPQ, R11, 0);
         x64->op(JE, ok);
 
-        // popped        
+        // popped
         raise("UNMATCHED", x64);
                 
         x64->code_label(ok);
@@ -115,8 +122,13 @@ public:
 
 class NosyObjectLiveMatcherValue: public GenericValue, public Raiser {
 public:
+    TypeSpec nosy_heap_ts;
+    TypeSpec param_heap_ts;
+    
     NosyObjectLiveMatcherValue(Value *p, TypeMatch &match)
         :GenericValue(NO_TS, match[1].prefix(ptr_type), p) {
+        nosy_heap_ts = match[0];
+        param_heap_ts = match[1];
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -135,17 +147,17 @@ public:
         left->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, R10);
-        x64->runtime->decref(R10);
-        x64->op(CMPQ, Address(R10, NOSYOBJECT_RAW_OFFSET), 0);
+        x64->op(MOVQ, R11, Address(R10, NOSYOBJECT_RAW_OFFSET));
+        nosy_heap_ts.decref(R10, x64);
+        x64->op(CMPQ, R11, 0);
         x64->op(JNE, ok);
         
         // popped
         raise("UNMATCHED", x64);
                 
         x64->code_label(ok);
-        x64->op(MOVQ, R10, Address(R10, NOSYOBJECT_RAW_OFFSET));
-        x64->runtime->incref(R10);
-        x64->op(PUSHQ, R10);
+        param_heap_ts.incref(R11, x64);
+        x64->op(PUSHQ, R11);
         
         return Storage(STACK);
     }

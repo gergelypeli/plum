@@ -330,6 +330,14 @@ public:
         std::cerr << "Unvtinitable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
+
+    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
     
     virtual bool complete_type() {
         return true;

@@ -283,6 +283,24 @@ public:
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
         return make<ClassMatcherValue>(n, v);
     }
+    
+    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
+        x64->op(PUSHQ, r);
+        x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
+        x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+        x64->op(ADDQ, r, Address(RSP, 0));
+        x64->runtime->incref(r);
+        x64->op(POPQ, r);
+    }
+
+    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
+        x64->op(PUSHQ, r);
+        x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
+        x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+        x64->op(ADDQ, r, Address(RSP, 0));
+        x64->runtime->decref(r);
+        x64->op(POPQ, r);
+    }
 };
 
 

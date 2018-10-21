@@ -218,7 +218,7 @@ public:
             if (pts[0] == ref_type)
                 throw INTERNAL_ERROR;  // member variables are accessed by pointers only
             else if (pts[0] == ptr_type) {
-                unborrow = new Unborrow;  // may or may not be used
+                unborrow = new Unborrow(pts.unprefix(ptr_type));  // may or may not be used
                 scope->add(unborrow);
             }
                 
@@ -280,7 +280,7 @@ public:
                 else {
                     // Or do that for money
                     pts.store(s, Storage(REGISTER, reg), x64);
-                    pts.borrow(reg, unborrow, x64);
+                    x64->op(MOVQ, unborrow->get_address(), reg);
                 }
                 
                 s = Storage(MEMORY, Address(reg, 0));

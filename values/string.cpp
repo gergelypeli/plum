@@ -56,7 +56,8 @@ public:
 
     virtual Storage compile(X64 *x64) {
         x64->op(LEA, R10, Address(x64->runtime->empty_array_label, 0));
-        x64->runtime->incref(R10);
+        TypeSpec heap_ts = ts.reprefix(slice_type, array_type);
+        heap_ts.incref(R10, x64);
         
         x64->op(PUSHQ, 0);  // length
         x64->op(PUSHQ, 0);  // front
@@ -78,6 +79,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        TypeSpec heap_ts = ts.reprefix(slice_type, array_type);
         Storage rs = right->compile(x64);
         Register r;
         
@@ -91,7 +93,7 @@ public:
             break;
         case MEMORY:
             x64->op(MOVQ, R10, rs.address);
-            x64->runtime->incref(R10);
+            heap_ts.incref(R10, x64);
             r = R10;
             break;
         default:
@@ -113,11 +115,13 @@ public:
     std::unique_ptr<Value> front_value;
     std::unique_ptr<Value> length_value;
     Register reg;
+    TypeSpec heap_ts;
     
     ArraySliceValue(Value *pivot, TypeMatch &match)
         :Value(match[1].prefix(slice_type)) {
         
         array_value.reset(pivot);
+        heap_ts = match[1].prefix(array_type);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -160,7 +164,7 @@ public:
         x64->code_label(nok);
 
         // all popped
-        x64->runtime->decref(RAX);
+        heap_ts.decref(RAX, x64);
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
@@ -238,11 +242,13 @@ public:
 class SliceIndexValue: public GenericValue, public Raiser {
 public:
     TypeSpec elem_ts;
+    TypeSpec heap_ts;
     Unborrow *unborrow;
     
     SliceIndexValue(Value *pivot, TypeMatch &match)
         :GenericValue(INTEGER_TS, match[1].lvalue(), pivot) {
         elem_ts = match[1];
+        heap_ts = elem_ts.prefix(array_type);
         unborrow = NULL;
     }
 
@@ -251,7 +257,7 @@ public:
             return false;
         
         // Borrow only if not raising
-        unborrow = new Unborrow;
+        unborrow = new Unborrow(heap_ts);
         scope->add(unborrow);
         
         return GenericValue::check(args, kwargs, scope);
@@ -278,7 +284,7 @@ public:
         x64->op(JB, ok);
 
         // all popped
-        x64->runtime->decref(R10);
+        heap_ts.decref(R10, x64);
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);

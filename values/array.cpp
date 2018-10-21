@@ -181,10 +181,12 @@ public:
 class ArrayExtendValue: public GenericValue {
 public:
     TypeSpec elem_ts;
+    TypeSpec heap_ts;
     
     ArrayExtendValue(Value *l, TypeMatch &match)
         :GenericValue(match[0], match[0], l) {
         elem_ts = match[1];
+        heap_ts = elem_ts.prefix(array_type);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -209,7 +211,7 @@ public:
         
         right->ts.store(Storage(STACK), Storage(), x64);
         x64->op(POPQ, R10);
-        x64->runtime->decref(R10);  // old value being assigned over
+        heap_ts.decref(R10, x64);  // old value being assigned over
 
         // Now mimic a ref assignment
         x64->op(MOVQ, R10, RAX);  // new value
