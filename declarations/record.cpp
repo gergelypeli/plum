@@ -450,11 +450,11 @@ public:
         }
     }
 
-    static void compile_esc_streamification(Label label, X64 *x64) {
+    static void compile_raw_streamification(Label label, X64 *x64) {
         // RAX - target array, RCX - size, R10 - source array, R11 - alias
         Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
         
-        x64->code_label_local(label, "string_streamification");
+        x64->code_label_local(label, "string_raw_streamification");
         
         x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
@@ -482,8 +482,32 @@ public:
         x64->op(RET);
     }
 
-    static void compile_raw_streamification(Label label, X64 *x64) {
-        compile_esc_streamification(label, x64);
+    static void compile_esc_streamification(Label label, X64 *x64) {
+        // RAX - target array, RCX - size, R10 - source array, R11 - alias
+        Label char_esc_label = x64->once->compile(CharacterType::compile_esc_streamification);
+        Label loop, check;
+        
+        x64->code_label_local(label, "string_esc_streamification");
+        
+        x64->op(MOVQ, RCX, 0);
+        x64->op(JMP, check);
+        
+        x64->code_label(loop);
+        x64->op(PUSHQ, RCX);
+        x64->op(MOVW, R10W, Address(RAX, RCX, Address::SCALE_2, ARRAY_ELEMS_OFFSET));
+        x64->op(PUSHQ, R10);
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * 3));  // skip char, counter, retaddr
+        x64->op(CALL, char_esc_label);  // clobbers all
+        x64->op(ADDQ, RSP, ADDRESS_SIZE * 2);
+        x64->op(POPQ, RCX);
+        x64->op(INCQ, RCX);
+        
+        x64->code_label(check);
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
+        x64->op(CMPQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(JB, loop);
+        
+        x64->op(RET);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {

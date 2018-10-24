@@ -28,6 +28,8 @@ public:
                         std::cerr << "Undefined interpolation constant " << fragment << "!\n";
                         throw TYPE_ERROR;
                     }
+                    
+                    pivot = pivot->lookup_inner("raw", scope);
                 }
                 else if (pseudo_only) {
                     if (fragment.size()) {

@@ -271,7 +271,7 @@ public:
     void absolute_label(Label c, unsigned64 value, unsigned size = 0);
 
     void data_align(int bytes);
-    void data_blob(int bytes);
+    void data_blob(void *blob, int length);
     void data_byte(char x);
     void data_word(int16 x);
     void data_dword(int x);
@@ -573,9 +573,9 @@ void Asm64::data_align(int bytes) {
 }
 
 
-void Asm64::data_blob(int bytes) {
-    data.resize(data.size() + bytes);
-    memset(data.data() + data.size() - bytes, 0, bytes);
+void Asm64::data_blob(void *blob, int length) {
+    data.resize(data.size() + length);
+    memcpy(data.data() + data.size() - length, blob, length);
 }
 
 

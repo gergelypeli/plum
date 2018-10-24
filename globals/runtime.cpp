@@ -130,7 +130,8 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     std::cerr << "Application size is " << application_size << " bytes.\n";
     x64->data_align(16);
     x64->data_label(application_label);
-    x64->data_blob(application_size);
+    for (unsigned i = 0; i < application_size; i++)
+        x64->data_byte(0);
     
     x64->absolute_label(zero_label, 0);
 
