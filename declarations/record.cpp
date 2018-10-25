@@ -484,7 +484,7 @@ public:
 
     static void compile_esc_streamification(Label label, X64 *x64) {
         // RAX - target array, RCX - size, R10 - source array, R11 - alias
-        Label char_esc_label = x64->once->compile(CharacterType::compile_esc_streamification);
+        Label char_str_label = x64->once->compile(CharacterType::compile_str_streamification);
         Label loop, check;
         
         x64->code_label_local(label, "string_esc_streamification");
@@ -497,7 +497,7 @@ public:
         x64->op(MOVW, R10W, Address(RAX, RCX, Address::SCALE_2, ARRAY_ELEMS_OFFSET));
         x64->op(PUSHQ, R10);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * 3));  // skip char, counter, retaddr
-        x64->op(CALL, char_esc_label);  // clobbers all
+        x64->op(CALL, char_str_label);  // clobbers all
         x64->op(ADDQ, RSP, ADDRESS_SIZE * 2);
         x64->op(POPQ, RCX);
         x64->op(INCQ, RCX);

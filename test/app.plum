@@ -364,8 +364,8 @@ Main? :Singleton as:
         Std prints("XXXXX{a}YYYYY" {})
         Std prints("0{HT}8" {})
         Std prints("NUL: {NUL}" {})
-        wicked? = "{NUL}{HT}{ESC}{LB}{QU}{RB}{DEL}" {}
-        Std prints("Wicked {} characters: {} {} {} {} {} {} {}" { wicked length, wicked[0], wicked[1], wicked[2], wicked[3], wicked[4], wicked[5], wicked[6] })
+        wicked? = "{NUL}{HT}{ESC}{LB}{QU}{RB}{DEL}ő" {}
+        Std prints("Wicked {} characters: {} {} {} {} {} {} {} {}" { wicked length, wicked[0], wicked[1], wicked[2], wicked[3], wicked[4], wicked[5], wicked[6], wicked[7] })
         Std prints("Wicked {} long string: {}" { wicked length, wicked })
 
         Std prints("{six} and {seven}" { six: 6, seven: 7 })

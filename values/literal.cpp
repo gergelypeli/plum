@@ -26,7 +26,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         if (number < -2147483648 || number > 2147483647) {
-            x64->op(MOVABS, reg, number);
+            x64->op(MOVABSQ, reg, number);
             return Storage(REGISTER, reg);
         }
         else {

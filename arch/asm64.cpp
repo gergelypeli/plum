@@ -87,7 +87,7 @@ BinaryOp operator%(BinaryOp x, int y) { return (BinaryOp)((x & ~3) | (y & 3)); }
 
 
 enum MovabsOp {
-    MOVABS
+    MOVABSQ
 };
 
 
@@ -331,7 +331,6 @@ public:
     void op(BinaryOp opcode, Register x, HighByteRegister y);
     void op(BinaryOp opcode, Address x, Register y);
     void op(BinaryOp opcode, Register x, Address y);
-    //void op(BinaryOp opcode, Register x, Label y);
     void op(MovabsOp opcode, Register x, int64 y);  // 64-bit immediate capable
     void op(ShiftOp opcode, Register x, Register cl);
     void op(ShiftOp opcode, Address x, Register cl);
