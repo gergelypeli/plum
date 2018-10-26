@@ -117,6 +117,9 @@ void builtin_types(Scope *root_scope) {
     initializable_type = new InitializableType("<Initializable>");
     root_scope->add(initializable_type);
 
+    stringtemplate_type = new StringtemplateType("<Stringtemplate>");
+    root_scope->add(stringtemplate_type);
+
     lvalue_type = new AttributeType("Lvalue");
     root_scope->add(lvalue_type);
     
@@ -332,6 +335,7 @@ void builtin_types(Scope *root_scope) {
     SAMEID_NOSYOBJECT_REF_LVALUE_TS = { lvalue_type, ref_type, nosyobject_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     UNIT_UNINITIALIZED_TS = { uninitialized_type, unit_type };
+    STRINGTEMPLATE_TS = { stringtemplate_type };
     ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
     ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
     SAME_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, same_type };

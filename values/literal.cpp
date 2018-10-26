@@ -105,7 +105,6 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         return Regs(RAX);
-        //return Regs().add(RAX).add(RCX).add(RSI).add(RDI);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -114,6 +113,25 @@ public:
         
         x64->op(LEA, RAX, Address(l, 0));
         return Storage(BREGISTER, RAX);
+    }
+};
+
+
+class StringTemplateValue: public Value {
+public:
+    std::vector<std::string> fragments;
+    
+    StringTemplateValue(std::vector<std::string> f)
+        :Value(STRINGTEMPLATE_TS) {
+        fragments = f;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        throw INTERNAL_ERROR;
     }
 };
 

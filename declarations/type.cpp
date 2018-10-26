@@ -710,3 +710,10 @@ public:
     }
 };
 
+
+class StringtemplateType: public Type {
+public:
+    StringtemplateType(std::string name)
+        :Type(name, {}, value_metatype) {
+    }
+};

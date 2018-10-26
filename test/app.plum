@@ -339,7 +339,7 @@ Main? :Singleton as:
         s chars[3] = `unicode 592
         Std prints(s)
 
-        Std prints("s[3] is now '{c}'" { c: s[3] })
+        Std prints("s[3] is now {c}" { c: s[3] })
 
         z? = ""
         Std prints("Ez tök 대박")
@@ -362,9 +362,9 @@ Main? :Singleton as:
         Std prints((xx? = "hi") + xx)
     
         Std prints("XXXXX{a}YYYYY" {})
-        Std prints("0{HT}8" {})
-        Std prints("NUL: {NUL}" {})
-        wicked? = "{NUL}{HT}{ESC}{LB}{QU}{RB}{DEL}ő" {}
+        Std prints("0{HT}8")
+        Std prints("NUL: {NUL}")
+        wicked? = "{NUL}{HT}{ESC}{LB}{QU}{RB}{DEL}ő"
         Std prints("Wicked {} characters: {} {} {} {} {} {} {} {}" { wicked length, wicked[0], wicked[1], wicked[2], wicked[3], wicked[4], wicked[5], wicked[6], wicked[7] })
         Std prints("Wicked {} long string: {}" { wicked length, wicked })
 

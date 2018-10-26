@@ -1,17 +1,16 @@
 
 class InterpolationValue: public Value {
 public:
-    std::string pattern;
+    std::vector<std::string> fragments;
     std::unique_ptr<Value> buffer;
     std::vector<std::unique_ptr<Value>> components;
 
-    InterpolationValue(std::string p)
+    InterpolationValue(std::vector<std::string> f)
         :Value(STRING_TS) {
-        pattern = p;
+        fragments = f;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        std::vector<std::string> fragments = brace_split(pattern);
         bool pseudo_only = (args.size() > 0 || kwargs.size() > 0);
         bool identifier = false;
         int position = 0;
@@ -20,18 +19,7 @@ public:
             Value *pivot = NULL;
         
             if (identifier) {
-                // NOTE: this assumes that character initializers are uppercase!
-                if (fragment.size() > 0 && isupper(fragment[0])) {
-                    pivot = STRING_TS.lookup_initializer(fragment, scope);
-                
-                    if (!pivot) {
-                        std::cerr << "Undefined interpolation constant " << fragment << "!\n";
-                        throw TYPE_ERROR;
-                    }
-                    
-                    pivot = pivot->lookup_inner("raw", scope);
-                }
-                else if (pseudo_only) {
+                if (pseudo_only) {
                     if (fragment.size()) {
                         Expr *e = kwargs[fragment].get();
                     

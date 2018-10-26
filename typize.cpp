@@ -276,15 +276,15 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         //if (p)
         //    p->set_marker(marker);  // just in case
 
-        StringLiteralValue *s = ptr_cast<StringLiteralValue>(p);
+        StringTemplateValue *stv = ptr_cast<StringTemplateValue>(p);
         
-        if (s) {
+        if (stv) {
             if (name.size()) {
-                std::cerr << "No named initializers for string literals!\n";
+                std::cerr << "No named initializers for string templates!\n";
                 throw TYPE_ERROR;
             }
             
-            value = new InterpolationValue(s->text);
+            value = new InterpolationValue(stv->fragments);
 
             bool ok = value->check(expr->args, expr->kwargs, scope);
         
@@ -300,7 +300,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 if (p->ts.is_meta())
                     ts = ptr_cast<TypeValue>(p)->represented_ts;
                 else {
-                    std::cerr << "Initializer with nontype context!\n";
+                    std::cerr << "Initializer with nontype context: " << p->ts << "!\n";
                     throw TYPE_ERROR;
                 }
             }
@@ -437,7 +437,48 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
     }
     else if (expr->type == Expr::STRING) {
-        value = make<StringLiteralValue>(expr->text);
+        // FIXME: can't work with explicit type context yet, so nor with Character.
+        std::vector<std::string> in = brace_split(expr->text);
+        std::vector<std::string> out;
+        bool is_literal = true;
+        
+        for (auto &f : in) {
+            if (is_literal) {
+                if (out.size() % 2 == 0) {
+                    // Literal fragments are at even indexes only
+                    out.push_back(std::string());
+                }
+                
+                // May append to existing literal fragment
+                for (auto c : f)
+                    out.back().push_back(c);
+            }
+            else {
+                if (f.size() > 0 && isupper(f[0])) {
+                    // NOTE: currently all lookup returns an ASCII result
+                    int c = character_code(f);
+                    
+                    if (c < 0) {
+                        std::cerr << "Unknown interpolated character " << f << "!\n";
+                        throw TYPE_ERROR;
+                    }
+                    
+                    // Append to previous literal fragment
+                    out.back().push_back(c);
+                }
+                else {
+                    // Create identifier fragment
+                    out.push_back(f);
+                }
+            }
+            
+            is_literal = !is_literal;
+        }
+        
+        if (out.size() == 1)
+            value = make<StringLiteralValue>(out[0]);
+        else
+            value = make<StringTemplateValue>(out);
     }
     else {
         std::cerr << "Can't typize this now: " << expr->token << "!\n";

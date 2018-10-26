@@ -178,9 +178,9 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         if (*s == void_type)
             return true;
 
-        if (*s == uninitialized_type) {
-            if (matchlog) std::cerr << "No match, Uninitialized for Void!\n";
-            std::cerr << "Uninitialized value dropped on the floor!\n";
+        if (*s == uninitialized_type || *s == stringtemplate_type) {
+            if (matchlog) std::cerr << "No match, " << s << " for Void!\n";
+            std::cerr << s << " value dropped on the floor!\n";
             return false;
         }
 
