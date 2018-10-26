@@ -255,8 +255,8 @@ Main? :Singleton as:
         c = Integer :if a == b then: 100 else: 200
         Std prints("This should be 200: {c}" {})
 
-        d? = 6u8
-        d += 7u8
+        d? = Unteger8 6
+        d += 7
         d = d * d
     
         :if d != 0 then: Std prints("Yes, d is nonzero.")
@@ -364,6 +364,8 @@ Main? :Singleton as:
         Std prints("XXXXX{a}YYYYY" {})
         Std prints("0{HT}8")
         Std prints("NUL: {NUL}")
+        Std prints("A character: {}" { Character "ű" })
+        
         wicked? = "{NUL}{HT}{ESC}{LB}{QU}{RB}{DEL}ő"
         Std prints("Wicked {} characters: {} {} {} {} {} {} {} {}" { wicked length, wicked[0], wicked[1], wicked[2], wicked[3], wicked[4], wicked[5], wicked[6], wicked[7] })
         Std prints("Wicked {} long string: {}" { wicked length, wicked })

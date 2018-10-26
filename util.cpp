@@ -180,6 +180,47 @@ std::string character_name(int code) {
 }
 
 
+std::vector<std::string> interpolate_characters(std::vector<std::string> in) {
+    std::vector<std::string> out;
+    bool is_literal = true;
+    
+    for (auto &f : in) {
+        if (is_literal) {
+            if (out.size() % 2 == 0) {
+                // Literal fragments are at even indexes only
+                out.push_back(std::string());
+            }
+            
+            // May append to existing literal fragment
+            for (auto c : f)
+                out.back().push_back(c);
+        }
+        else {
+            if (f.size() > 0 && isupper(f[0])) {
+                // NOTE: currently all lookup returns an ASCII result
+                int c = character_code(f);
+                
+                if (c < 0) {
+                    std::cerr << "Unknown interpolated character " << f << "!\n";
+                    throw TYPE_ERROR;
+                }
+                
+                // Append to previous literal fragment
+                out.back().push_back(c);
+            }
+            else {
+                // Create identifier fragment
+                out.push_back(f);
+            }
+        }
+        
+        is_literal = !is_literal;
+    }
+
+    return out;
+}
+
+
 std::vector<unsigned16> decode_utf8(std::string text) {
     int bytelen = text.size();
     std::vector<unsigned16> characters;

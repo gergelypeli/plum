@@ -169,6 +169,42 @@ Value *lookup_switch(Scope *scope, Token token) {
 }
 
 
+TypeSpec initializer_ts(Value *p, TypeSpec *context, Token token) {
+    TypeSpec ts;
+    
+    if (p) {
+        TypeValue *tv = ptr_cast<TypeValue>(p);
+        
+        if (tv)
+            ts = tv->represented_ts;
+        else {
+            std::cerr << "Initializer with nontype context: " << token << "!\n";
+            throw TYPE_ERROR;
+        }
+    }
+    else if (context)
+        ts = *context;
+    else {
+        std::cerr << "Initializer without type context: " << token << "\n";
+        throw TYPE_ERROR;
+    }
+
+    // TODO: strip some prefixes
+    if (ts[0] == code_type)
+        ts = ts.unprefix(code_type);
+    else if (ts[0] == ovalue_type)
+        ts = ts.unprefix(ovalue_type);
+    
+    // We must have checked this.
+    if (!ts.has_meta(value_metatype) && !ts.has_meta(metatype_hypertype)) {
+        std::cerr << "Initializer with nonvalue type context: " << ts << " at " << token << "!\n";
+        throw TYPE_ERROR;
+    }
+    
+    return ts;
+}
+
+
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     // Sanity check, interface types can't be contexts, as they're not concrete types,
     // so they're useless for initializers, but would allow a multi-tailed control to
@@ -294,32 +330,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
         }
         else {
-            TypeSpec ts;
-            
-            if (p) {
-                if (p->ts.is_meta())
-                    ts = ptr_cast<TypeValue>(p)->represented_ts;
-                else {
-                    std::cerr << "Initializer with nontype context: " << p->ts << "!\n";
-                    throw TYPE_ERROR;
-                }
-            }
-            else if (context)
-                ts = *context;
-            else {
-                std::cerr << "Initializer without type context: " << expr->token << "\n";
-                throw TYPE_ERROR;
-            }
-
-            // TODO: strip some prefixes
-            if (ts[0] == code_type)
-                ts = ts.unprefix(code_type);
-            
-            // We must have checked this.
-            if (!ts.has_meta(value_metatype) && !ts.has_meta(metatype_hypertype)) {
-                std::cerr << "Initializer with nonvalue type context: " << ts << " at " << expr->token << "!\n";
-                throw TYPE_ERROR;
-            }
+            TypeSpec ts = initializer_ts(p, context, expr->token);
             
             if (name.size() == 0)
                 name = "{}";
@@ -366,119 +377,97 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
     }
     else if (expr->type == Expr::UNSIGNED_NUMBER || expr->type == Expr::NEGATIVE_NUMBER) {
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+
         bool is_negative = (expr->type == Expr::NEGATIVE_NUMBER);
         std::string text = expr->text;
-        bool is_float = false;
+        bool looks_float = false;
         
         for (unsigned i = 0; i < text.size(); i++) {
             char c = text[i];
             
             if (c == '.' || c == '+' || c == '-') {
-                is_float = true;
+                looks_float = true;
                 break;
             }
         }
         
-        if (is_float) {
+        TypeSpec *ctx = (context && *context != ANY_TS ? context : looks_float ? &FLOAT_TS : &INTEGER_TS);
+        TypeSpec value_ts = initializer_ts(p, ctx, expr->token);
+        Type *t = value_ts[0];
+        IntegerType *it = ptr_cast<IntegerType>(t);
+        
+        if (t == float_type) {
             double x = parse_float(text);
-            value = make<FloatValue>(FLOAT_TS, is_negative ? -x : x);
+            value = make<FloatValue>(value_ts, is_negative ? -x : x);
         }
-        else {
-            IntegerType *t = ptr_cast<IntegerType>(
-                desuffix(text, "s32") ? integer32_type :
-                desuffix(text, "s16") ? integer16_type :
-                desuffix(text, "s8") ? integer8_type :
-                desuffix(text, "u32") ? unsigned_integer32_type :
-                desuffix(text, "u16") ? unsigned_integer16_type :
-                desuffix(text, "u8") ? unsigned_integer8_type :
-                desuffix(text, "u") ? unsigned_integer_type :
-                integer_type
-            );
-        
-            if (context && *context != ANY_TS && t == integer_type) {
-                Type *x = (*context)[0];
-                x = (x == code_type || x == ovalue_type ? (*context)[1] : x);
-                t = ptr_cast<IntegerType>(x);
-        
-                if (!t) {
-                    std::cerr << "Literal number in a noninteger " << *context << " context: " << expr->token << "\n";
-                    throw TYPE_ERROR;
-                }
+        else if (it) {
+            if (looks_float) {
+                std::cerr << "Noninteger literal in a " << value_ts << " context: " << expr->token << "\n";
+                throw TYPE_ERROR;
             }
 
-        
             // parse the part without sign into a 64-bit unsigned
             unsigned64 x = parse_unsigned_integer(text);
 
-            if (t->is_unsigned) {
+            if (it->is_unsigned) {
                 if (
                     is_negative ||
-                    (t->size == 1 && x > 255) ||
-                    (t->size == 2 && x > 65535) ||
-                    (t->size == 4 && x > 4294967295)
+                    (it->size == 1 && x > 255) ||
+                    (it->size == 2 && x > 65535) ||
+                    (it->size == 4 && x > 4294967295)
                 ) {
-                    std::cerr << "Unsigned integer literal out of range: " << expr->token << "\n";
+                    std::cerr << "A " << value_ts << " literal out of range: " << expr->token << "\n";
                     throw TYPE_ERROR;
                 }
             }
             else {
                 if (
-                    (t->size == 1 && x > (is_negative ? 128 : 127)) ||
-                    (t->size == 2 && x > (is_negative ? 32768 : 32767)) ||
-                    (t->size == 4 && x > (is_negative ? 2147483648 : 2147483647)) ||
-                    (t->size == 8 && x > (is_negative ? 9223372036854775808U : 9223372036854775807U))
+                    (it->size == 1 && x > (is_negative ? 128 : 127)) ||
+                    (it->size == 2 && x > (is_negative ? 32768 : 32767)) ||
+                    (it->size == 4 && x > (is_negative ? 2147483648 : 2147483647)) ||
+                    (it->size == 8 && x > (is_negative ? 9223372036854775808U : 9223372036854775807U))
                 ) {
-                    std::cerr << "Signed integer literal out of range: " << expr->token << "\n";
+                    std::cerr << "A " << value_ts << " literal out of range: " << expr->token << "\n";
                     throw TYPE_ERROR;
                 }
             }
 
-            value = make<BasicValue>(TypeSpec { t }, is_negative ? -x : x);
+            value = make<BasicValue>(value_ts, is_negative ? -x : x);
+        }
+        else {
+            std::cerr << "Numeric literal in a " << value_ts << " context: " << expr->token << "\n";
+            throw TYPE_ERROR;
         }
     }
     else if (expr->type == Expr::STRING) {
-        // FIXME: can't work with explicit type context yet, so nor with Character.
-        std::vector<std::string> in = brace_split(expr->text);
-        std::vector<std::string> out;
-        bool is_literal = true;
+        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+
+        TypeSpec *ctx = (context && *context != ANY_TS ? context : &STRING_TS);
+        TypeSpec value_ts = initializer_ts(p, ctx, expr->token);
+
+        if (value_ts == STRING_TS) {
+            std::vector<std::string> fragments = interpolate_characters(brace_split(expr->text));
         
-        for (auto &f : in) {
-            if (is_literal) {
-                if (out.size() % 2 == 0) {
-                    // Literal fragments are at even indexes only
-                    out.push_back(std::string());
-                }
-                
-                // May append to existing literal fragment
-                for (auto c : f)
-                    out.back().push_back(c);
-            }
-            else {
-                if (f.size() > 0 && isupper(f[0])) {
-                    // NOTE: currently all lookup returns an ASCII result
-                    int c = character_code(f);
-                    
-                    if (c < 0) {
-                        std::cerr << "Unknown interpolated character " << f << "!\n";
-                        throw TYPE_ERROR;
-                    }
-                    
-                    // Append to previous literal fragment
-                    out.back().push_back(c);
-                }
-                else {
-                    // Create identifier fragment
-                    out.push_back(f);
-                }
+            if (fragments.size() == 1)
+                value = make<StringLiteralValue>(fragments[0]);
+            else
+                value = make<StringTemplateValue>(fragments);
+        }
+        else if (value_ts == CHARACTER_TS) {
+            std::vector<unsigned16> characters = decode_utf8(expr->text);
+            
+            if (characters.size() != 1) {
+                std::cerr << "Invalid Character literal at " << expr->token << "\n";
+                throw TYPE_ERROR;
             }
             
-            is_literal = !is_literal;
+            value = make<BasicValue>(value_ts, characters[0]);
         }
-        
-        if (out.size() == 1)
-            value = make<StringLiteralValue>(out[0]);
-        else
-            value = make<StringTemplateValue>(out);
+        else {
+            std::cerr << "Text literal in a " << value_ts << " context: " << expr->token << "\n";
+            throw TYPE_ERROR;
+        }
     }
     else {
         std::cerr << "Can't typize this now: " << expr->token << "!\n";

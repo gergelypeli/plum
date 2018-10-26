@@ -190,7 +190,7 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
         return new Expr(Expr::UNSIGNED_NUMBER, node.token, node.text);
     }
     else if (node.type == Node::STRING) {
-        if (node.left || node.right) {
+        if (node.right) {
             std::cerr << "String literal has arguments: " << node.token << "\n";
             throw TUPLE_ERROR;
         }
