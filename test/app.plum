@@ -336,7 +336,7 @@ Main? :Singleton as:
         s chars[3] = s[4]
         Std prints(s)
 
-        s chars[3] = `unicode 592
+        s chars[3] = `unicode(592)
         Std prints(s)
 
         Std prints("s[3] is now {c}" { c: s[3] })
@@ -670,8 +670,8 @@ Main? :Singleton as:
         Std prints("Have a Circularray of {x}" { x: ca length })
         ca1? String = :try ca shift
         Std prints("Shifted {x}, remained {y} and {z}." { x: ca1, y: ca[0], z: ca[1] })
-        :try ca unshift "foo"
-        :try ca unshift "foofoo"
+        :try ca unshift("foo")
+        :try ca unshift("foofoo")
         Std prints("Unshifted {x} and {y} to {z} and {w}" { x: ca[0], y: ca[1], z: ca[2], w: ca[3] })
         Std prints("Circularray length is {l}" { l: ca length })
 
@@ -680,28 +680,28 @@ Main? :Singleton as:
 
         qu? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
         :try qu shift
-        :try qu push "I"  # folds
-        :try qu push "J"  # grows
+        :try qu push("I")  # folds
+        :try qu push("J")  # grows
         :for qu items each: it? do:
             Std prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
         qv? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
         :try qv pop
-        :try qv unshift "$"  # folds
-        :try qv unshift "$$" # grows
+        :try qv unshift("$")  # folds
+        :try qv unshift("$$") # grows
         :for qv items each: it? do:
             Std prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
 
     test_rbtrees? :Function as:
-        rb? String Rbtree Ref = `reserved 8
+        rb? String Rbtree Ref = `reserved(8)
     
         :try
-            rb add "A"
-            rb add "C"
-            rb add "E"
-            rb add "D"
-            rb add "B"
+            rb add("A")
+            rb add("C")
+            rb add("E")
+            rb add("D")
+            rb add("B")
         
         Std prints("After adding five, length is {l}" { l: rb length })
         
@@ -713,29 +713,29 @@ Main? :Singleton as:
         :for rb elements_by_order each: e? do:
             Std prints("Rbtree element by order: {e}" {})
 
-        :if rb has "A" then:
+        :if rb has("A") then:
             Std prints("Rb has A, good.")
         
-        :if !! rb has "Z" then:
+        :if !! rb has("Z") then:
             Std prints("Rb has no Z, good")
     
         :try
-            rb remove "A"
-            rb remove "B"
-            rb remove "C"
-            rb remove "D"
-            rb remove "E"
+            rb remove("A")
+            rb remove("B")
+            rb remove("C")
+            rb remove("D")
+            rb remove("E")
         
         Std prints("After removing all, length is {l}" { l: rb length })
     
-        :if !! rb has "A" then:
+        :if !! rb has("A") then:
             Std prints("Rb has no A, good")
 
         st? String Set Ref = { "A", "B" }
     
         :try
-            st add "C"
-            st add "D"
+            st add("C")
+            st add("D")
 
         Std prints("Set {} contents: {}" { st, st contents })
     
@@ -760,7 +760,7 @@ Main? :Singleton as:
 
 
     test_options? :Function as:
-        op1? String Option = `some "XYZ"
+        op1? String Option = `some("XYZ")
         Std prints("This option is: {op1}" {})
     
         op2? String Option = `none
@@ -872,7 +872,7 @@ Main? :Singleton as:
     
 
     test_files? :Function as:
-        f? = fs.Path `at "test.mkdir"
+        f? = fs.Path `at("test.mkdir")
         Std prints("Path is at {x}" {x: f name})
     
         :try
@@ -882,7 +882,7 @@ Main? :Singleton as:
             f rmdir
 
         :try
-            fs.Path `at "/test.mkdir" mkdir(0o777)
+            fs.Path `at("/test.mkdir") mkdir(0o777)
             Std prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
         or:
             :is ~EACCES then:

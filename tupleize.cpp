@@ -191,7 +191,7 @@ Expr *tupleize(std::vector<Node> &nodes, int i) {
     }
     else if (node.type == Node::STRING) {
         if (node.left || node.right) {
-            std::cerr << "String literal has arguments!\n";
+            std::cerr << "String literal has arguments: " << node.token << "\n";
             throw TUPLE_ERROR;
         }
         

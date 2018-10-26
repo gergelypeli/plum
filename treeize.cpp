@@ -2,7 +2,7 @@
 // Stage 2
 
 enum Precedence {
-    BASE,
+    OPENING,
     SEPARATING, // comma must end controls: :if x then: y else: z, ...
     LABELING,   // must be lower than DECLARING: each: i?
     ASSIGNING,  // must be lower than DECLARING: x? Int = 8
@@ -15,14 +15,14 @@ enum Precedence {
     MULTIPLICATIVE,
     EXPONENTIAL,
     UNARY,
-    TEXTUAL,
-    LITERAL
+    REGULAR,
+    CLOSING
 };
 
 
 const char *print_precedence(Precedence p) {
     return (
-        p == BASE ? "BASE" :
+        p == OPENING ? "OPENING" :
         p == SEPARATING ? "SEPARATING" :
         p == LABELING ? "LABELING" :
         p == ASSIGNING ? "ASSIGNING" :
@@ -35,8 +35,8 @@ const char *print_precedence(Precedence p) {
         p == MULTIPLICATIVE ? "MULTIPLICATIVE" :
         p == EXPONENTIAL ? "EXPONENTIAL" :
         p == UNARY ? "UNARY" :
-        p == TEXTUAL ? "TEXTUAL" :
-        p == LITERAL ? "LITERAL" :
+        p == REGULAR ? "REGULAR" :
+        p == CLOSING ? "CLOSING" :
         "???"
     );
 }
@@ -195,34 +195,34 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         
         if (isdigit(c)) {
             type = Node::UNSIGNED_NUMBER;
-            back = LITERAL;
-            fore = LITERAL;
+            back = REGULAR;
+            fore = REGULAR;
             text = token.text;
         }
         else if (c == ':') {
             if (token.text.back() == ':') {
                 type = Node::EVAL;
-                back = TEXTUAL;
+                back = REGULAR;
                 fore = SEPARATING;
                 text = token.text.substr(1, token.text.size() - 2);
             }
             else {
                 type = Node::CONTROL;
-                back = TEXTUAL;
+                back = REGULAR;
                 fore = SEPARATING;
                 text = token.text.substr(1);
             }
         }
         else if (c == '`') {
             type = Node::INITIALIZER;
-            back = TEXTUAL;
-            fore = TEXTUAL;
+            back = REGULAR;
+            fore = REGULAR;
             text = token.text.substr(1);
         }
         else if (c == '~') {
             type = Node::MATCHER;
-            back = TEXTUAL;
-            fore = TEXTUAL;
+            back = COMPARING;
+            fore = COMPARING;
             text = token.text.substr(1);
         }
         else if (c == '?') {
@@ -246,15 +246,15 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
             else {
                 type = Node::IDENTIFIER;
-                back = TEXTUAL;
-                fore = TEXTUAL;
+                back = REGULAR;
+                fore = REGULAR;
                 text = token.text;
             }
         }
         else if (is_quote(c)) {
             type = Node::STRING;
-            back = LITERAL;
-            fore = LITERAL;
+            back = REGULAR;
+            fore = REGULAR;
             text = token.text.substr(1, token.text.length() - 2);
         }
         else if (c == ',') {
@@ -267,8 +267,8 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 parens.push_back(PAREN);
                 
                 type = Node::OPEN;
-                back = LITERAL;
-                fore = BASE;
+                back = CLOSING;
+                fore = OPENING;
             }
             else if (c == ')') {
                 if (parens.back() != PAREN) {
@@ -279,15 +279,15 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 parens.pop_back();
                 
                 type = Node::CLOSE;
-                back = BASE;
-                fore = LITERAL;
+                back = OPENING;
+                fore = CLOSING;
             }
             else if (c == '[') {
                 parens.push_back(BRACKET);
                 
                 type = Node::IDENTIFIER;
-                back = TEXTUAL;
-                fore = BASE;
+                back = REGULAR;
+                fore = OPENING;
                 text = "index";
             }
             else if (c == ']') {
@@ -299,15 +299,15 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 parens.pop_back();
                 
                 type = Node::CLOSE;
-                back = BASE;
-                fore = LITERAL;
+                back = OPENING;
+                fore = CLOSING;
             }
             else if (c == '{') {
                 parens.push_back(BRACE);
                 
                 type = Node::INITIALIZER;
-                back = TEXTUAL;
-                fore = BASE;
+                back = REGULAR;
+                fore = OPENING;
             }
             else if (c == '}') {
                 if (parens.back() != BRACE) {
@@ -318,8 +318,8 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 parens.pop_back();
                 
                 type = Node::CLOSE;
-                back = BASE;
-                fore = LITERAL;
+                back = OPENING;
+                fore = CLOSING;
             }
         }
         else if (c == ' ') {
@@ -327,8 +327,8 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 parens.push_back(BLOCK);
                 
                 type = Node::OPEN;
-                back = LITERAL;
-                fore = BASE;
+                back = CLOSING;
+                fore = OPENING;
             }
             else if (token.text == " dedent") {
                 if (parens.back() != BLOCK) {
@@ -339,8 +339,8 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 parens.pop_back();
                 
                 type = Node::CLOSE;
-                back = BASE;
-                fore = LITERAL;
+                back = OPENING;
+                fore = CLOSING;
             }
             else if (token.text == " separate") {
                 if (parens.back() != BLOCK && parens.back() != UNIT) {
@@ -417,12 +417,12 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             if (nodes[i].fore > back)  // || (nodes[i].precedence == back && !is_right_associative(back)))
                 continue;
             else if (nodes[i].fore == back) {
-                if (back != BASE)
+                if (back != OPENING)
                     continue;
 
                 // A group is closed. Insert the CLOSE node so that it becomes the last one,
                 // and the next operator won't traverse into the enclosed nodes.
-                nodes[i].fore = LITERAL;
+                nodes[i].fore = CLOSING;
             }
 
             // nodes[i] will be our parent, and we'll be its right child
