@@ -433,7 +433,7 @@ public:
     Runtime(X64 *x, unsigned application_size);
 
     void data_heap_header();
-    Label data_heap_string(std::vector<unsigned16> characters);
+    Label data_heap_string(std::ustring characters);
     
     void call_sysv(Label l);
     void call_sysv_got(Label got_l);

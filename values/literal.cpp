@@ -108,7 +108,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        std::vector<unsigned16> characters = decode_utf8(text);
+        std::ustring characters = decode_utf8(text);
         Label l = x64->runtime->data_heap_string(characters);
         
         x64->op(LEA, RAX, Address(l, 0));

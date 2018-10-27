@@ -455,7 +455,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 value = make<StringTemplateValue>(fragments);
         }
         else if (value_ts == CHARACTER_TS) {
-            std::vector<unsigned16> characters = decode_utf8(expr->text);
+            std::ustring characters = decode_utf8(expr->text);
             
             if (characters.size() != 1) {
                 std::cerr << "Invalid Character literal at " << expr->token << "\n";

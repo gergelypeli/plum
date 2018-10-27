@@ -1,4 +1,10 @@
 
+namespace std {
+    // We really can't work with a type system that cannot even define char16_t properly.
+    typedef std::basic_string<unsigned16> ustring;
+};
+
+
 // From https://stackoverflow.com/questions/874134/find-if-string-ends-with-another-string-in-c
 inline bool desuffix(std::string &value, std::string const &ending)
 {
@@ -221,16 +227,14 @@ std::vector<std::string> interpolate_characters(std::vector<std::string> in) {
 }
 
 
-std::vector<unsigned16> decode_utf8(std::string text) {
+std::ustring decode_utf8(std::string text) {
     int bytelen = text.size();
-    std::vector<unsigned16> characters;
-    characters.resize(bytelen);  // upper limit
+    unsigned16 characters[bytelen];
     
     int64 character_count, byte_count;
-    decode_utf8_buffer(text.data(), bytelen, characters.data(), characters.size(), &byte_count, &character_count);
+    decode_utf8_buffer(text.data(), bytelen, characters, bytelen, &byte_count, &character_count);
     
-    characters.resize(character_count);
-    return characters;
+    return std::ustring(characters, character_count);
 }
 
 

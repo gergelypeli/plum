@@ -180,7 +180,7 @@ void Runtime::data_heap_header() {
     x64->data_qword(0);  // padding, used to be weakrefcount
 }
 
-Label Runtime::data_heap_string(std::vector<unsigned16> characters) {
+Label Runtime::data_heap_string(std::ustring characters) {
     if (ARRAY_HEADER_SIZE != 16 || ARRAY_RESERVATION_OFFSET != 0 || ARRAY_LENGTH_OFFSET != 8)
         throw ASM_ERROR;
     
