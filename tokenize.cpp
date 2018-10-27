@@ -2,20 +2,20 @@
 // Stage 1
 
 struct Token {
-    std::string text;
+    std::ustring utext;
     int file_index;
     int row;  // one-based
     int column;  // zero-based
 
     Token() {
-        text = "";
+        //text = "";
         file_index = -1;
         row = -1;
         column = -1;
     }
     
-    Token(const std::string &t, int f, int r, int c) {
-        text = t;
+    Token(const std::ustring &ut, int f, int r, int c) {
+        utext = ut;
         file_index = f;
         row = r;
         column = c;
@@ -23,8 +23,13 @@ struct Token {
 };
 
 
+std::ustring INDENT_UTEXT = " indent";
+std::ustring DEDENT_UTEXT = " dedent";
+std::ustring SEPARATE_UTEXT = " separate";
+
+
 std::ostream &operator<<(std::ostream &os, const Token &token) {
-    os << token.row << ":" << (token.column + 1) << ":\"" << token.text << "\"";
+    os << token.row << ":" << (token.column + 1) << ":\"" << token.utext << "\"";
     return os;
 }
 
@@ -54,7 +59,7 @@ bool is_prefix(char c) {
 }
 
 
-std::vector<Token> tokenize(std::string buffer, int file_index) {
+std::vector<Token> tokenize(std::ustring buffer, int file_index) {
     std::vector<Token> tokens;
     int row_count = 1;
     int row_start = 0;
@@ -67,7 +72,7 @@ std::vector<Token> tokenize(std::string buffer, int file_index) {
         throw TOKEN_ERROR;
     }
     else {
-        tokens.push_back(Token(" indent", file_index, row_count, 0));
+        tokens.push_back(Token(INDENT_UTEXT, file_index, row_count, 0));
         indent++;
     }
     
@@ -96,24 +101,24 @@ std::vector<Token> tokenize(std::string buffer, int file_index) {
             int mod = n % 4;
             
             if (ind == indent && mod == 0) {
-                tokens.push_back(Token(" separate", file_index, row_count, 0));  // May be removed by subsequent label
+                tokens.push_back(Token(SEPARATE_UTEXT, file_index, row_count, 0));  // May be removed by subsequent label
                 continue;
             }
             else if (ind == indent && mod == 1) {
                 continue;
             }
             else if (ind == indent + 1 && mod == 0) {
-                tokens.push_back(Token(" indent", file_index, row_count, 0));
+                tokens.push_back(Token(INDENT_UTEXT, file_index, row_count, 0));
                 indent++;
                 continue;
             }
             else if (ind < indent && mod == 0) {
                 while (ind < indent) {
-                    tokens.push_back(Token(" dedent", file_index, row_count, 0));
+                    tokens.push_back(Token(DEDENT_UTEXT, file_index, row_count, 0));
                     indent--;
                 }
                 
-                tokens.push_back(Token(" separate", file_index, row_count, 0));  // May be removed by subsequent label
+                tokens.push_back(Token(SEPARATE_UTEXT, file_index, row_count, 0));  // May be removed by subsequent label
                 continue;
             }
 
@@ -159,7 +164,7 @@ std::vector<Token> tokenize(std::string buffer, int file_index) {
             } while (is_identifier(c));
 
             // Implicit line continuation on labels after logical line breaks
-            if (!prefix && c == ':' && tokens.back().text == " separate")
+            if (!prefix && c == ':' && tokens.back().utext == SEPARATE_UTEXT)
                 tokens.pop_back();
 
             if (c == ':') {
@@ -193,9 +198,6 @@ std::vector<Token> tokenize(std::string buffer, int file_index) {
             char quote = c;
             
             do {
-                if (c == '\\')
-                    i++;
-                    
                 i++;
                 c = buffer[i];
             } while (c != quote);
@@ -216,12 +218,12 @@ std::vector<Token> tokenize(std::string buffer, int file_index) {
         tokens.push_back(Token(buffer.substr(start, i - start), file_index, row_count, start - row_start));
     }
 
-    if (tokens.back().text == " separate")
+    if (tokens.back().utext == SEPARATE_UTEXT)
         tokens.pop_back();
 
     // Be nice, and don't complain if the last line is not terminated properly
     while (indent > 0) {
-        tokens.push_back(Token(" dedent", file_index, row_count, 0));
+        tokens.push_back(Token(DEDENT_UTEXT, file_index, row_count, 0));
         indent--;
     }
     

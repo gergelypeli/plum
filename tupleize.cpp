@@ -5,6 +5,7 @@ class Expr;
 typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
+
 class Expr {
 public:
     enum ExprType {
@@ -247,7 +248,7 @@ void print_expr_tree(Expr *e, int indent, const char *prefix) {
 
 
 // Further helper functions
-
+/*
 Expr *mkexpr(std::string name, Expr *left = NULL, Expr *right = NULL) {
     Expr *e = new Expr(Expr::IDENTIFIER, Token(), name);
     
@@ -328,3 +329,4 @@ Expr *mkinit(std::string name, Expr *arg = NULL) {
         
     return e;
 }
+*/

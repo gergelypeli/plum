@@ -1,37 +1,45 @@
 
 class InterpolationValue: public Value {
 public:
-    std::vector<std::string> fragments;
+    std::vector<std::ustring> fragments;
     std::unique_ptr<Value> buffer;
     std::vector<std::unique_ptr<Value>> components;
 
-    InterpolationValue(std::vector<std::string> f)
+    InterpolationValue(std::vector<std::ustring> f, Token t)
         :Value(STRING_TS) {
         fragments = f;
+        set_token(t);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         bool pseudo_only = (args.size() > 0 || kwargs.size() > 0);
-        bool identifier = false;
+        bool is_identifier = false;
         int position = 0;
     
         for (auto &fragment : fragments) {
             Value *pivot = NULL;
         
-            if (identifier) {
+            if (is_identifier) {
+                std::string kw = encode_ascii(fragment);
+                
+                if (kw.empty() && !fragment.empty()) {
+                    std::cerr << "Interpolation keyword not ASCII: " << token << "\n";
+                    return false;
+                }
+
                 if (pseudo_only) {
-                    if (fragment.size()) {
-                        Expr *e = kwargs[fragment].get();
+                    if (kw.size()) {
+                        Expr *e = kwargs[kw].get();
                     
                         if (!e) {
-                            std::cerr << "No interpolation argument " << fragment << "!\n";
+                            std::cerr << "No interpolation argument " << kw << "!\n";
                             throw TYPE_ERROR;
                         }
 
                         pivot = typize(e, scope, &ANY_TS);
 
                         if (!pivot) {
-                            std::cerr << "Undefined interpolation argument " << fragment << "!\n";
+                            std::cerr << "Undefined interpolation argument " << kw << "!\n";
                             throw TYPE_ERROR;
                         }
                     }
@@ -55,7 +63,7 @@ public:
                     }
                 }
                 else {
-                    if (!fragment.size()) {
+                    if (!kw.size()) {
                         std::cerr << "Invalid positional substring in interpolation!\n";
                         throw TYPE_ERROR;
                     }
@@ -63,14 +71,14 @@ public:
                     // For identifiers, we look up outer scopes, but we don't need to look
                     // in inner scopes, because that would need a pivot value, which we don't have.
                     for (Scope *s = scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
-                        pivot = s->lookup(fragment, NULL, scope);
+                        pivot = s->lookup(kw, NULL, scope);
         
                         if (pivot)
                             break;
                     }
             
                     if (!pivot) {
-                        std::cerr << "Undefined interpolation argument " << fragment << "!\n";
+                        std::cerr << "Undefined interpolation argument " << kw << "!\n";
                         throw TYPE_ERROR;
                     }
                 }
@@ -81,7 +89,7 @@ public:
         
             components.push_back(std::unique_ptr<Value>(pivot));
             
-            identifier = !identifier;
+            is_identifier = !is_identifier;
         }
         
         return true;

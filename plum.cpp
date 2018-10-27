@@ -71,7 +71,9 @@ Module *import(std::string module_name) {
     std::cerr << "Importing module " << display_name << " from " << file_name << "\n";
     std::string buffer = read_source(file_name);
     
-    std::vector<Token> tokens = tokenize(buffer, file_index);
+    std::ustring text = decode_utf8(buffer);
+    
+    std::vector<Token> tokens = tokenize(text, file_index);
     //for (auto &token : tokens)
     //    std::cerr << "Token: " << token.text << "\n";
     

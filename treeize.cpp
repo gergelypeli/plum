@@ -102,8 +102,8 @@ enum Paren {
 
 
 struct {
-    const char *token;
-    const char *text;
+    std::ustring token;
+    std::string text;
     Precedence precedence;
 } operators[] = {
     { "**",  "_exponent", EXPONENTIAL },  // TODO: do we need this?
@@ -147,7 +147,6 @@ struct {
     { "^=",  "assign_xor", ASSIGNING },
     { "<<=", "assign_shift_left", ASSIGNING },
     { ">>=", "assign_shift_right", ASSIGNING },
-    //{ "", "",  },
 };
 
 
@@ -181,7 +180,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
     std::vector<Node> nodes;
     std::vector<Paren> parens;
     
-    if (tokens.front().text != " indent") {
+    if (tokens.front().utext != INDENT_UTEXT) {
         std::cerr << "Onodes?\n";  // WTF?
         throw TREE_ERROR;
     }
@@ -189,41 +188,41 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
     for (auto token : tokens) {
         Node::NodeType type;
         Precedence back, fore;
-        std::string text;
+        std::string text;  // Non-ASCII characters were only accepted in string literals
         
-        char c = token.text[0];
+        unsigned16 c = token.utext[0];
         
         if (isdigit(c)) {
             type = Node::UNSIGNED_NUMBER;
             back = REGULAR;
             fore = REGULAR;
-            text = token.text;
+            text = encode_ascii(token.utext);
         }
         else if (c == ':') {
-            if (token.text.back() == ':') {
+            if (token.utext.back() == ':') {
                 type = Node::EVAL;
                 back = REGULAR;
                 fore = SEPARATING;
-                text = token.text.substr(1, token.text.size() - 2);
+                text = encode_ascii(token.utext.substr(1, token.utext.size() - 2));
             }
             else {
                 type = Node::CONTROL;
                 back = REGULAR;
                 fore = SEPARATING;
-                text = token.text.substr(1);
+                text = encode_ascii(token.utext.substr(1));
             }
         }
         else if (c == '`') {
             type = Node::INITIALIZER;
             back = REGULAR;
             fore = REGULAR;
-            text = token.text.substr(1);
+            text = encode_ascii(token.utext.substr(1));
         }
         else if (c == '~') {
             type = Node::MATCHER;
             back = COMPARING;
             fore = COMPARING;
-            text = token.text.substr(1);
+            text = encode_ascii(token.utext.substr(1));
         }
         else if (c == '?') {
             type = Node::DECLARATION;
@@ -232,30 +231,30 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             text = "";
         }
         else if (isalpha(c) || c == '_' || c == '$' || c == '.') {
-            if (token.text.back() == ':') {
+            if (token.utext.back() == ':') {
                 type = Node::LABEL;
                 back = LABELING;
                 fore = LABELING;
-                text = token.text.substr(0, token.text.length() - 1);
+                text = encode_ascii(token.utext.substr(0, token.utext.length() - 1));
             }
-            else if (token.text.back() == '?') {
+            else if (token.utext.back() == '?') {
                 type = Node::DECLARATION;
                 back = DECLARING;
                 fore = DECLARING;
-                text = token.text.substr(0, token.text.length() - 1);
+                text = encode_ascii(token.utext.substr(0, token.utext.length() - 1));
             }
             else {
                 type = Node::IDENTIFIER;
                 back = REGULAR;
                 fore = REGULAR;
-                text = token.text;
+                text = encode_ascii(token.utext);
             }
         }
         else if (is_quote(c)) {
             type = Node::STRING;
             back = REGULAR;
             fore = REGULAR;
-            text = token.text.substr(1, token.text.length() - 2);
+            text = "";  // token.utext.substr(1, token.utext.length() - 2);
         }
         else if (c == ',') {
             type = Node::SEPARATOR;
@@ -323,14 +322,14 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             }
         }
         else if (c == ' ') {
-            if (token.text == " indent") {
+            if (token.utext == INDENT_UTEXT) {
                 parens.push_back(BLOCK);
                 
                 type = Node::OPEN;
                 back = CLOSING;
                 fore = OPENING;
             }
-            else if (token.text == " dedent") {
+            else if (token.utext == DEDENT_UTEXT) {
                 if (parens.back() != BLOCK) {
                     std::cerr << "Unclosed grouping: " << token << "!\n";
                     throw TREE_ERROR;
@@ -342,7 +341,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 back = OPENING;
                 fore = CLOSING;
             }
-            else if (token.text == " separate") {
+            else if (token.utext == SEPARATE_UTEXT) {
                 if (parens.back() != BLOCK && parens.back() != UNIT) {
                     std::cerr << "Unclosed grouping: " << token << "!\n";
                     throw TREE_ERROR;
@@ -361,7 +360,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             type = Node::NONE;
             
             for (auto op : operators) {
-                if (op.token == token.text) {
+                if (op.token == token.utext) {
                     type = Node::IDENTIFIER;
                     bool dual = (op.precedence == ADDITIVE || op.precedence == MULTIPLICATIVE || op.precedence == EXPONENTIAL);
                     
@@ -409,7 +408,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         }
         
         int n = nodes.size();
-        //std::cerr << "Token " << token.text << " => " << n << "\n";
+        //std::cerr << "Token " << token.utext << " => " << n << "\n";
 
         nodes.push_back(Node(type, text, back, fore, token));
         

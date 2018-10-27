@@ -171,7 +171,12 @@ public:
                 return false;
             }
             
-            import_name = sl->text;
+            import_name = encode_ascii(sl->utext);
+            
+            if (import_name.size() == 0) {
+                std::cerr << "Function import name is not ASCII: " << import_expr->token << "\n";
+                return false;
+            }
         }
         
         if (deferred_body_expr && import_expr) {

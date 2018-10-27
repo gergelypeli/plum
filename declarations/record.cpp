@@ -524,7 +524,7 @@ public:
             if (cc >= 128)
                 throw INTERNAL_ERROR;
                 
-            return make<StringLiteralValue>(std::string(1, cc));
+            return make<StringLiteralValue>(std::ustring(1, cc));
         }
         
         std::cerr << "No String initializer " << n << "!\n";

@@ -96,11 +96,11 @@ public:
 
 class StringLiteralValue: public Value {
 public:
-    std::string text;
+    std::ustring utext;
     
-    StringLiteralValue(std::string t)
+    StringLiteralValue(std::ustring ut)
         :Value(STRING_TS) {
-        text = t;
+        utext = ut;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -108,8 +108,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        std::ustring characters = decode_utf8(text);
-        Label l = x64->runtime->data_heap_string(characters);
+        Label l = x64->runtime->data_heap_string(utext);
         
         x64->op(LEA, RAX, Address(l, 0));
         return Storage(BREGISTER, RAX);
@@ -119,9 +118,9 @@ public:
 
 class StringTemplateValue: public Value {
 public:
-    std::vector<std::string> fragments;
+    std::vector<std::ustring> fragments;
     
-    StringTemplateValue(std::vector<std::string> f)
+    StringTemplateValue(std::vector<std::ustring> f)
         :Value(STRINGTEMPLATE_TS) {
         fragments = f;
     }

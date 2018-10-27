@@ -1,7 +1,23 @@
 
 namespace std {
     // We really can't work with a type system that cannot even define char16_t properly.
-    typedef std::basic_string<unsigned16> ustring;
+    class ustring: public std::basic_string<unsigned16> {
+    public:
+        using basic_string::basic_string;
+        
+        ustring(const ustring &x)
+            :basic_string(x) {
+        }
+
+        ustring(const basic_string &x)
+            :basic_string(x) {
+        }
+        
+        ustring(const char *x) {
+            for (unsigned i = 0; x[i]; i++)
+                push_back(x[i]);
+        }
+    };
 };
 
 
@@ -61,8 +77,8 @@ unsigned elem_size(unsigned size) {
 }
 
 
-std::vector<std::string> brace_split(std::string s) {
-    std::vector<std::string> fragments;
+std::vector<std::ustring> brace_split(std::ustring s) {
+    std::vector<std::ustring> fragments;
     unsigned p = 0;
     bool inside = false;
     
@@ -186,15 +202,74 @@ std::string character_name(int code) {
 }
 
 
-std::vector<std::string> interpolate_characters(std::vector<std::string> in) {
-    std::vector<std::string> out;
+/*
+std::ustring u(const char *x) {
+    std::ustring out;
+    
+    for (unsigned i = 0; x[i]; i++)
+        out.push_back(x[i]);
+        
+    return out;
+}
+*/
+
+std::ustring decode_utf8(std::string text) {
+    int bytelen = text.size();
+    unsigned16 characters[bytelen];
+    
+    int64 character_count, byte_count;
+    decode_utf8_buffer(text.data(), bytelen, characters, bytelen, &byte_count, &character_count);
+    
+    return std::ustring(characters, character_count);
+}
+
+
+std::string encode_utf8(std::ustring text) {
+    int charlen = text.size();
+    char bytes[charlen * 3];
+    
+    int64 character_count, byte_count;
+    encode_utf8_buffer(text.data(), charlen, bytes, charlen * 3, &character_count, &byte_count);
+    
+    return std::string(bytes, byte_count);
+}
+
+
+std::ostream &operator<<(std::ostream &os, const std::ustring &x) {
+    int charlen = x.size();
+    char bytes[charlen * 3];
+    
+    int64 character_count, byte_count;
+    encode_utf8_buffer(x.data(), charlen, bytes, charlen * 3, &character_count, &byte_count);
+
+    os.write(bytes, byte_count);
+    return os;
+}
+
+
+std::string encode_ascii(std::ustring text) {
+    std::string out;
+    
+    for (unsigned16 c : text) {
+        if (c < 32 || c > 126)
+            return std::string();
+        
+        out.push_back(c);
+    }
+    
+    return out;
+}
+
+
+std::vector<std::ustring> interpolate_characters(std::vector<std::ustring> in) {
+    std::vector<std::ustring> out;
     bool is_literal = true;
     
     for (auto &f : in) {
         if (is_literal) {
             if (out.size() % 2 == 0) {
                 // Literal fragments are at even indexes only
-                out.push_back(std::string());
+                out.push_back(std::ustring());
             }
             
             // May append to existing literal fragment
@@ -204,7 +279,14 @@ std::vector<std::string> interpolate_characters(std::vector<std::string> in) {
         else {
             if (f.size() > 0 && isupper(f[0])) {
                 // NOTE: currently all lookup returns an ASCII result
-                int c = character_code(f);
+                std::string kw = encode_ascii(f);
+                
+                if (kw.empty()) {
+                    std::cerr << "Interpolation keyword not ASCII: " << f << "!\n";
+                    throw TYPE_ERROR;
+                }
+                
+                int c = character_code(kw);
                 
                 if (c < 0) {
                     std::cerr << "Unknown interpolated character " << f << "!\n";
@@ -225,18 +307,6 @@ std::vector<std::string> interpolate_characters(std::vector<std::string> in) {
 
     return out;
 }
-
-
-std::ustring decode_utf8(std::string text) {
-    int bytelen = text.size();
-    unsigned16 characters[bytelen];
-    
-    int64 character_count, byte_count;
-    decode_utf8_buffer(text.data(), bytelen, characters, bytelen, &byte_count, &character_count);
-    
-    return std::ustring(characters, character_count);
-}
-
 
 unsigned64 parse_unsigned_integer(std::string text) {
     unsigned base = 10;

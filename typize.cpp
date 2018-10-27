@@ -320,7 +320,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 throw TYPE_ERROR;
             }
             
-            value = new InterpolationValue(stv->fragments);
+            value = new InterpolationValue(stv->fragments, expr->token);
 
             bool ok = value->check(expr->args, expr->kwargs, scope);
         
@@ -441,13 +441,16 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
     }
     else if (expr->type == Expr::STRING) {
+        // String contents are not ASCII-fied, and left in the token only
+        std::ustring utext = expr->token.utext.substr(1, expr->token.utext.size() - 2);
+        
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
 
         TypeSpec *ctx = (context && *context != ANY_TS ? context : &STRING_TS);
         TypeSpec value_ts = initializer_ts(p, ctx, expr->token);
 
         if (value_ts == STRING_TS) {
-            std::vector<std::string> fragments = interpolate_characters(brace_split(expr->text));
+            std::vector<std::ustring> fragments = interpolate_characters(brace_split(utext));
         
             if (fragments.size() == 1)
                 value = make<StringLiteralValue>(fragments[0]);
@@ -455,14 +458,12 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 value = make<StringTemplateValue>(fragments);
         }
         else if (value_ts == CHARACTER_TS) {
-            std::ustring characters = decode_utf8(expr->text);
-            
-            if (characters.size() != 1) {
+            if (utext.size() != 1) {
                 std::cerr << "Invalid Character literal at " << expr->token << "\n";
                 throw TYPE_ERROR;
             }
             
-            value = make<BasicValue>(value_ts, characters[0]);
+            value = make<BasicValue>(value_ts, utext[0]);
         }
         else {
             std::cerr << "Text literal in a " << value_ts << " context: " << expr->token << "\n";
