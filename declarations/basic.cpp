@@ -473,6 +473,9 @@ public:
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
         int cc = character_code(name);
         
+        if (cc < 0)
+            cc = uni_code(name);
+            
         if (cc >= 0)
             return make<BasicValue>(tm[0], cc);
         else if (name == "unicode")

@@ -106,7 +106,7 @@ Decoder? :Class as:
                         
                 :fixed
             
-        :return `empty  # Workaround
+        :return ""  # Workaround
 
     get_lines? :Function String Stack Ref as:
         lines? String Stack Ref = `empty

@@ -202,16 +202,28 @@ std::string character_name(int code) {
 }
 
 
-/*
-std::ustring u(const char *x) {
-    std::ustring out;
-    
-    for (unsigned i = 0; x[i]; i++)
-        out.push_back(x[i]);
+int uni_code(std::string name) {
+    if (name.size() != 5)
+        return -1;
         
-    return out;
+    if (name[0] != 'U')
+        return -1;
+        
+    int code = 0;
+    
+    for (char c : { name[1], name[2], name[3], name[4] }) {
+        c = tolower(c);
+        int x = (c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1);
+        
+        if (x < 0)
+            return -1;
+        
+        code = code * 16 + x;
+    }
+    
+    return code;
 }
-*/
+
 
 std::ustring decode_utf8(std::string text) {
     int bytelen = text.size();
@@ -287,6 +299,9 @@ std::vector<std::ustring> interpolate_characters(std::vector<std::ustring> in) {
                 }
                 
                 int c = character_code(kw);
+                
+                if (c < 0)
+                    c = uni_code(kw);
                 
                 if (c < 0) {
                     std::cerr << "Unknown interpolated character " << f << "!\n";

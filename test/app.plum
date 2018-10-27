@@ -344,12 +344,12 @@ Main? :Singleton as:
         z? = ""
         Std prints("Ez tök 대박")
     
-        :if z == String `empty then: Std prints("z is empty")
+        :if z == String "" then: Std prints("z is empty")
     
         z = s
         Std printb(z encode_utf8)
 
-        :if z == `empty then: Std prints("ERROR z is still empty")
+        :if z == "" then: Std prints("ERROR z is still empty")
 
         :if z == "Szia!" then: Std prints("ERROR z is Szia!")
 
@@ -369,6 +369,8 @@ Main? :Singleton as:
         wicked? = "{NUL}{HT}{ESC}{LB}{QU}{RB}{DEL}ő"
         Std prints("Wicked {} characters: {} {} {} {} {} {} {} {}" { wicked length, wicked[0], wicked[1], wicked[2], wicked[3], wicked[4], wicked[5], wicked[6], wicked[7] })
         Std prints("Wicked {} long string: {}" { wicked length, wicked })
+
+        Std prints("Uni: {U263A} {}" { Character `U263b })
 
         Std prints("{six} and {seven}" { six: 6, seven: 7 })
 

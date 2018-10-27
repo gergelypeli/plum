@@ -511,22 +511,6 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
-        if (n == "empty") {
-            return make<StringLiteralValue>("");
-        }
-        
-        if (n == "CRLF") {
-            return make<StringLiteralValue>("\r\n");
-        }
-        
-        int cc = character_code(n);
-        if (cc >= 0) {
-            if (cc >= 128)
-                throw INTERNAL_ERROR;
-                
-            return make<StringLiteralValue>(std::ustring(1, cc));
-        }
-        
         std::cerr << "No String initializer " << n << "!\n";
         return NULL;
     }
