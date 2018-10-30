@@ -608,10 +608,10 @@ Main? :Singleton as:
 
 
     test_arrays? :Function as:
-        strings? String Array Ref = `empty
+        strings? String Array = `empty
         Std prints("Empty array length: {x}" { x: strings length })
 
-        ss? String Array Ref = { "foo", "bar" }
+        ss? String Array = { "foo", "bar" }
         Std prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
         dd? = ss + ss
@@ -620,7 +620,7 @@ Main? :Singleton as:
         dd += ss
         Std prints("Tripled array has {}, {}, {}, {}, {}, {}" { dd[0], dd[1], dd[2], dd[3], dd[4], dd[5] })
 
-        Std prints("Array {} contents: {}" { ss, ss contents })
+        Std prints("Array contents: {}" { ss })
 
         :for ss each: i? do:
             Std prints("Array element {i}" {})
@@ -633,14 +633,14 @@ Main? :Singleton as:
         ss_popped2? String = :try ss pop
         Std prints("Array popped {ss_popped2}" {})
 
-        st? String Stack Ref = `empty
+        st? String Array = `empty
         :try st push("foo")
         :try st push("bar")
         :try st push("baz")
         Std prints("Pushed stack length: {x}" { x: st length })
         Std prints("Pushed stack has 2. elem: {x}" { x: st[2] })
 
-        Std prints("Stack {} contents: {}" { st, st contents })
+        Std prints("Stack contents: {}" { st })
 
         :for st each: x? do:
             Std prints("Stack has: {x}" {})
@@ -651,7 +651,7 @@ Main? :Singleton as:
         Std prints("Popped baz as {baz}" {})
         Std prints("Popped stack length: {x}" { x: st length })
 
-        sl? String Array Ref = { "foo", "bar", "baz" }
+        sl? String Array = { "foo", "bar", "baz" }
 
         sl1? String Slice = `empty
         Std prints("Empty slice is {x} long" { x: sl1 length })
@@ -668,8 +668,8 @@ Main? :Singleton as:
             Std prints("Slice has: {x}" {})
             
 
-    test_circularrays? :Function as:
-        ca? String Circularray Ref = { "foo", "bar", "baz", "xxx" }
+    test_queues? :Function as:
+        ca? String Queue = { "foo", "bar", "baz", "xxx" }
         :try ca pop
         Std prints("Have a Circularray of {x}" { x: ca length })
         ca1? String = :try ca shift
@@ -682,14 +682,14 @@ Main? :Singleton as:
         :for ca items each: it? do:
             Std prints("Circularray items: {x} => {y}" {x: it index, y: it value})
 
-        qu? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
+        qu? String Queue = { "A", "B", "C", "D", "E", "F", "G", "H" }
         :try qu shift
         :try qu push("I")  # folds
         :try qu push("J")  # grows
         :for qu items each: it? do:
             Std prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
-        qv? String Queue Ref = { "A", "B", "C", "D", "E", "F", "G", "H" }
+        qv? String Queue = { "A", "B", "C", "D", "E", "F", "G", "H" }
         :try qv pop
         :try qv unshift("$")  # folds
         :try qv unshift("$$") # grows
@@ -895,7 +895,7 @@ Main? :Singleton as:
                 Std prints("MKDIR WEIRD EXCEPTION!")
 
         stdin? fs.File Ref = `stdin
-        b? Byte Array Ref = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+        b? Byte Array = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
         n? Integer = 0
     
         :try
@@ -931,7 +931,7 @@ Main? :Singleton as:
         $ test_multis
         $ test_controls
         $ test_arrays
-        $ test_circularrays
+        $ test_queues
         $ test_rbtrees
         $ test_options
         $ test_classes

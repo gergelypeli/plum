@@ -623,7 +623,7 @@ public:
     }
 };
 */
-
+/*
 class StackType: public WrappedClassType {
 public:
     StackType(std::string name)
@@ -638,7 +638,7 @@ public:
         :WrappedClassType(name, { value_metatype }, SAME_CIRCULARRAY_REF_LVALUE_TS) {
     }
 };
-
+*/
 
 class SetType: public WrappedClassType {
 public:

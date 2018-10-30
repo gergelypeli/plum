@@ -44,14 +44,14 @@ File? :Class as:
 
 File_reader? :Class as:
     file? File Ref
-    buffer? Byte Array Ref
+    buffer? Byte Array
     length? Integer
     
     new? :Initializer from:
         f? File Ref
     as:
         $ file = f
-        $ buffer = Byte Array Ref `all(0, 4096)
+        $ buffer = Byte Array `all(0, 4096)
         $ length = 0
         
     fill? :Function may: { EXHAUSTED } as:
@@ -108,8 +108,8 @@ Decoder? :Class as:
             
         :return ""  # Workaround
 
-    get_lines? :Function String Stack Ref as:
-        lines? String Stack Ref = `empty
+    get_lines? :Function String Array as:
+        lines? String Array = `empty
         
         :x:repeat on: `true do:
             :try

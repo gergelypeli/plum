@@ -243,8 +243,8 @@ void builtin_types(Scope *root_scope) {
 
     // Phase 7: define container and iterator types
 
-    array_type = new ArrayType("Array");
-    root_scope->add(array_type);
+    linearray_type = new LinearrayType("Linearray");
+    root_scope->add(linearray_type);
 
     circularray_type = new CircularrayType("Circularray");
     root_scope->add(circularray_type);
@@ -254,6 +254,12 @@ void builtin_types(Scope *root_scope) {
 
     slice_type = new SliceType("Slice");
     root_scope->add(slice_type);
+
+    array_type = new ArrayType("Array");
+    root_scope->add(array_type);
+
+    queue_type = new QueueType("Queue");
+    root_scope->add(queue_type);
 
     countup_type = new RecordType("Countup", {});
     root_scope->add(countup_type);
@@ -270,14 +276,14 @@ void builtin_types(Scope *root_scope) {
     arrayitemiter_type = new RecordType("Arrayitem_iter", { value_metatype });
     root_scope->add(arrayitemiter_type);
 
-    circularrayelemiter_type = new RecordType("Circularrayelem_iter", { value_metatype });
-    root_scope->add(circularrayelemiter_type);
+    queueelemiter_type = new RecordType("Queueelem_iter", { value_metatype });
+    root_scope->add(queueelemiter_type);
     
-    circularrayindexiter_type = new RecordType("Circularrayindex_iter", { value_metatype });
-    root_scope->add(circularrayindexiter_type);
+    queueindexiter_type = new RecordType("Queueindex_iter", { value_metatype });
+    root_scope->add(queueindexiter_type);
     
-    circularrayitemiter_type = new RecordType("Circularrayitem_iter", { value_metatype });
-    root_scope->add(circularrayitemiter_type);
+    queueitemiter_type = new RecordType("Queueitem_iter", { value_metatype });
+    root_scope->add(queueitemiter_type);
 
     rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", { value_metatype });
     root_scope->add(rbtreeelembyageiter_type);
@@ -318,12 +324,12 @@ void builtin_types(Scope *root_scope) {
     INTEGER_OVALUE_TS = { ovalue_type, integer_type };
     BOOLEAN_LVALUE_TS = { lvalue_type, boolean_type };
     UNSIGNED_INTEGER8_TS = { unsigned_integer8_type };
-    UNSIGNED_INTEGER8_ARRAY_REF_TS = { ref_type, array_type, unsigned_integer8_type };
+    UNSIGNED_INTEGER8_ARRAY_TS = { array_type, unsigned_integer8_type };
     UNTEGER_TS = { unsigned_integer_type };
     CHARACTER_TS = { character_type };
     CHARACTER_LVALUE_TS = { lvalue_type, character_type };
-    CHARACTER_ARRAY_REF_TS = { ref_type, array_type, character_type };
-    CHARACTER_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, character_type };
+    CHARACTER_ARRAY_TS = { array_type, character_type };
+    CHARACTER_ARRAY_LVALUE_TS = { lvalue_type, array_type, character_type };
     FLOAT_TS = { float_type };
     FLOAT_LVALUE_TS = { lvalue_type, float_type };
     ANYID_REF_TS = { ref_type, anyid_type };
@@ -336,14 +342,12 @@ void builtin_types(Scope *root_scope) {
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     UNIT_UNINITIALIZED_TS = { uninitialized_type, unit_type };
     STRINGTEMPLATE_TS = { stringtemplate_type };
-    ANY_ARRAY_REF_TS = { ref_type, array_type, any_type };
-    ANY_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, any_type };
-    SAME_ARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, array_type, same_type };
-    ANY_ARRAY_PTR_TS = { ptr_type, array_type, any_type };
-    ANY_CIRCULARRAY_REF_TS = { ref_type, circularray_type, any_type };
-    ANY_CIRCULARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, circularray_type, any_type };
+    ANY_ARRAY_TS = { array_type, any_type };
+    ANY_ARRAY_LVALUE_TS = { lvalue_type, array_type, any_type };
+    SAME_LINEARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, linearray_type, same_type };
+    ANY_QUEUE_TS = { queue_type, any_type };
+    ANY_QUEUE_LVALUE_TS = { lvalue_type, queue_type, any_type };
     SAME_CIRCULARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, circularray_type, same_type };
-    ANY_CIRCULARRAY_PTR_TS = { ptr_type, circularray_type, any_type };
     ANY_RBTREE_REF_TS = { ref_type, rbtree_type, any_type };
     ANY_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, any_type };
     SAME_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, same_type };
@@ -361,7 +365,7 @@ void builtin_types(Scope *root_scope) {
     SAME_ITERABLE_TS = { iterable_type, same_type };
     STRING_TS = { string_type };
     STRING_LVALUE_TS = { lvalue_type, string_type };
-    STRING_ARRAY_REF_TS = { ref_type, array_type, string_type };
+    STRING_ARRAY_TS = { array_type, string_type };
     ANY_SLICE_TS = { slice_type, any_type };
     BYTE_SLICE_TS = { slice_type, unsigned_integer8_type };
     ANY_OPTION_TS = { option_type, any_type };
@@ -377,9 +381,9 @@ void builtin_types(Scope *root_scope) {
     SAME_ARRAYELEMITER_TS = { arrayelemiter_type, same_type };
     SAME_ARRAYINDEXITER_TS = { arrayindexiter_type, same_type };
     SAME_ARRAYITEMITER_TS = { arrayitemiter_type, same_type };
-    SAME_CIRCULARRAYELEMITER_TS = { circularrayelemiter_type, same_type };
-    SAME_CIRCULARRAYINDEXITER_TS = { circularrayindexiter_type, same_type };
-    SAME_CIRCULARRAYITEMITER_TS = { circularrayitemiter_type, same_type };
+    SAME_QUEUEELEMITER_TS = { queueelemiter_type, same_type };
+    SAME_QUEUEINDEXITER_TS = { queueindexiter_type, same_type };
+    SAME_QUEUEITEMITER_TS = { queueitemiter_type, same_type };
     SAME_RBTREEELEMBYAGEITER_TS = { rbtreeelembyageiter_type, same_type };
     SAME_RBTREEELEMBYORDERITER_TS = { rbtreeelembyorderiter_type, same_type };
     SAME_SLICEELEMITER_TS = { sliceelemiter_type, same_type };
@@ -390,12 +394,6 @@ void builtin_types(Scope *root_scope) {
 
 
 void wrapped_types(Scope *root_scope) {
-    stack_type = new StackType("Stack");
-    root_scope->add(stack_type);
-
-    queue_type = new QueueType("Queue");
-    root_scope->add(queue_type);
-
     set_type = new SetType("Set");
     root_scope->add(set_type);
 
@@ -411,12 +409,12 @@ void wrapped_types(Scope *root_scope) {
     weakset_type = new WeakSetType("WeakSet");
     root_scope->add(weakset_type);
 
-    ANY_STACK_REF_TS = { ref_type, stack_type, any_type };
-    ANY_QUEUE_REF_TS = { ref_type, queue_type, any_type };
+    //ANY_ARRAY_TS = { array_type, any_type };
+    //ANY_QUEUE_TS = { queue_type, any_type };
     ANY_SET_REF_TS = { ref_type, set_type, any_type };
     ANY_ANY2_MAP_REF_TS = { ref_type, map_type, any_type, any2_type };
-    ANY_STACK_PTR_TS = { ptr_type, stack_type, any_type };
-    ANY_QUEUE_PTR_TS = { ptr_type, queue_type, any_type };
+    //ANY_STACK_PTR_TS = { ptr_type, stack_type, any_type };
+    //ANY_QUEUE_PTR_TS = { ptr_type, queue_type, any_type };
     ANY_SET_PTR_TS = { ptr_type, set_type, any_type };
     ANY_ANY2_MAP_PTR_TS = { ptr_type, map_type, any_type, any2_type };
     ANY_ANYID2_WEAKVALUEMAP_PTR_TS = { ptr_type, weakvaluemap_type, any_type, anyid2_type };
@@ -634,12 +632,12 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
 template <typename NextValue>
 void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
     TypeSpec PIVOT_TS = { iter_type, any_type };
-    TypeSpec SAME_ARRAY_PTR_LVALUE_TS = { lvalue_type, ptr_type, array_type, same_type };
+    TypeSpec SAME_ARRAY_LVALUE_TS = { lvalue_type, array_type, same_type };
     
     DataScope *aiis = iter_type->make_inner_scope(PIVOT_TS);
 
     // Order matters!
-    aiis->add(new Variable("container", PIVOT_TS, SAME_ARRAY_PTR_LVALUE_TS));
+    aiis->add(new Variable("container", PIVOT_TS, SAME_ARRAY_LVALUE_TS));
     aiis->add(new Variable("front", PIVOT_TS, INTEGER_LVALUE_TS));
     aiis->add(new Variable("length", PIVOT_TS, INTEGER_LVALUE_TS));
     aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
@@ -701,14 +699,14 @@ void define_iterators() {
     TypeSpec INTEGER_SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, integer_type, same_type };
 
     // Array Iterator operations
-    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, array_type, SAME_ITERATOR_TS);
-    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, array_type, INTEGER_ITERATOR_TS);
-    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, array_type, INTEGER_SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, linearray_type, SAME_ITERATOR_TS);
+    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, linearray_type, INTEGER_ITERATOR_TS);
+    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, linearray_type, INTEGER_SAME_ITEM_ITERATOR_TS);
 
     // Circularray Iterator operations
-    define_container_iterator<CircularrayNextElemValue>(circularrayelemiter_type, circularray_type, SAME_ITERATOR_TS);
-    define_container_iterator<CircularrayNextIndexValue>(circularrayindexiter_type, circularray_type, INTEGER_ITERATOR_TS);
-    define_container_iterator<CircularrayNextItemValue>(circularrayitemiter_type, circularray_type, INTEGER_SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<QueueNextElemValue>(queueelemiter_type, circularray_type, SAME_ITERATOR_TS);
+    define_container_iterator<QueueNextIndexValue>(queueindexiter_type, circularray_type, INTEGER_ITERATOR_TS);
+    define_container_iterator<QueueNextItemValue>(queueitemiter_type, circularray_type, INTEGER_SAME_ITEM_ITERATOR_TS);
 
     // Rbtree Iterator operations
     define_container_iterator<RbtreeNextElemByAgeValue>(rbtreeelembyageiter_type, rbtree_type, SAME_ITERATOR_TS);
@@ -725,13 +723,13 @@ void define_string() {
     RecordType *record_type = ptr_cast<RecordType>(string_type);
     DataScope *is = record_type->make_inner_scope(STRING_TS);
 
-    is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_REF_LVALUE_TS));
+    is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_LVALUE_TS));
 
-    is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_REF_TS, INTEGER_TS, "length"));
-    is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_REF_TS, STRING_TS, "binary_plus", "chars"));
-    is->add(new RecordWrapperIdentifier("assign_plus", STRING_LVALUE_TS, CHARACTER_ARRAY_REF_LVALUE_TS, STRING_TS, "assign_plus", "chars"));
-    is->add(new RecordWrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_REF_TS, CHARACTER_TS, "index"));
-    is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_REF_LVALUE_TS, STRING_LVALUE_TS, "realloc"));
+    is->add(new RecordWrapperIdentifier("length", STRING_TS, CHARACTER_ARRAY_TS, INTEGER_TS, "length"));
+    is->add(new RecordWrapperIdentifier("binary_plus", STRING_TS, CHARACTER_ARRAY_TS, STRING_TS, "binary_plus", "chars"));
+    is->add(new RecordWrapperIdentifier("assign_plus", STRING_LVALUE_TS, CHARACTER_ARRAY_LVALUE_TS, STRING_TS, "assign_plus", "chars"));
+    is->add(new RecordWrapperIdentifier("index", STRING_TS, CHARACTER_ARRAY_TS, CHARACTER_TS, "index"));
+    is->add(new RecordWrapperIdentifier("realloc", STRING_LVALUE_TS, CHARACTER_ARRAY_LVALUE_TS, STRING_LVALUE_TS, "realloc"));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", STRING_LVALUE_TS, ASSIGN));
 
@@ -740,17 +738,17 @@ void define_string() {
     is->add(new TemplateOperation<StringOperationValue>("compare", ANY_TS, COMPARE));
 
     implement(is, TypeSpec { iterable_type, character_type }, "iterable", {
-        new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
+        new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
     });
 
-    is->add(new RecordWrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
-    is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
-    is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_REF_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
+    is->add(new RecordWrapperIdentifier("elements", STRING_TS, CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    is->add(new RecordWrapperIdentifier("indexes", STRING_TS, CHARACTER_ARRAY_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
+    is->add(new RecordWrapperIdentifier("items", STRING_TS, CHARACTER_ARRAY_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
     is->add(new AltStreamifiableImplementation("raw", STRING_TS));
 
     // String operations
-    is->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_REF_TS }, NULL, NULL));
+    is->add(new SysvFunction("encode_utf8", "encode_utf8", STRING_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }, NULL, NULL));
 
     record_type->complete_type();
     is->leave();
@@ -758,12 +756,12 @@ void define_string() {
 
 
 void define_slice() {
-    TypeSpec SAME_ARRAY_PTR_LVALUE_TS = { lvalue_type, ptr_type, array_type, same_type };
+    TypeSpec SAME_ARRAY_LVALUE_TS = { lvalue_type, array_type, same_type };
     
     RecordType *record_type = ptr_cast<RecordType>(slice_type);
     DataScope *is = record_type->make_inner_scope(ANY_SLICE_TS);
 
-    is->add(new Variable("ptr", ANY_SLICE_TS, SAME_ARRAY_PTR_LVALUE_TS));
+    is->add(new Variable("array", ANY_SLICE_TS, SAME_ARRAY_LVALUE_TS));
     is->add(new Variable("front", ANY_SLICE_TS, INTEGER_LVALUE_TS));
     is->add(new Variable("length", ANY_SLICE_TS, INTEGER_LVALUE_TS));
 
@@ -812,64 +810,70 @@ void define_option() {
 
 
 void define_array() {
+    TypeSpec PIVOT_TS = ANY_ARRAY_TS;
+    TypeSpec PIVOT_LVALUE_TS = ANY_ARRAY_LVALUE_TS;
+    
     Scope *array_scope = array_type->get_inner_scope();
 
-    array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", ANY_ARRAY_PTR_TS));
-    array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_LVALUE_TS, TWEAK));
-    array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", ANY_ARRAY_REF_TS));  // needs Ref
-    array_scope->add(new TemplateIdentifier<ArrayRefillValue>("refill", ANY_ARRAY_REF_LVALUE_TS));
-    array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
-    array_scope->add(new TemplateIdentifier<ArrayExtendValue>("assign_plus", ANY_ARRAY_REF_LVALUE_TS));
-    array_scope->add(new TemplateOperation<ArrayIndexValue>("index", ANY_ARRAY_PTR_TS, TWEAK));
-    array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));
-    array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", ANY_ARRAY_REF_TS));
-    array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", ANY_ARRAY_PTR_TS));
-    array_scope->add(new TemplateIdentifier<ArrayAutogrowValue>("autogrow", ANY_ARRAY_REF_LVALUE_TS));
-    array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", ANY_ARRAY_PTR_TS));
+    array_scope->add(new Variable("linearray", PIVOT_TS, SAME_LINEARRAY_REF_LVALUE_TS));
+
+    array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", PIVOT_TS));
+    array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", PIVOT_LVALUE_TS, TWEAK));
+    array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", PIVOT_TS));  // needs Ref
+    array_scope->add(new TemplateIdentifier<ArrayRefillValue>("refill", PIVOT_LVALUE_TS));
+    array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", PIVOT_TS));
+    array_scope->add(new TemplateIdentifier<ArrayExtendValue>("assign_plus", PIVOT_LVALUE_TS));
+    array_scope->add(new TemplateOperation<ArrayIndexValue>("index", PIVOT_TS, TWEAK));
+    array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", PIVOT_TS));
+    array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", PIVOT_TS));
+    array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", PIVOT_TS));
+    //array_scope->add(new TemplateIdentifier<ArrayAutogrowValue>("autogrow", PIVOT_LVALUE_TS));
+    array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", PIVOT_TS));
     
     // Array iterable operations
     implement(array_scope, SAME_ITERABLE_TS, "iterable", {
-        new TemplateIdentifier<ArrayElemIterValue>("iter", ANY_ARRAY_REF_TS)
+        new TemplateIdentifier<ArrayElemIterValue>("iter", PIVOT_TS)
     });
 
-    array_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements", ANY_ARRAY_REF_TS));
-    array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", ANY_ARRAY_REF_TS));
-    array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", ANY_ARRAY_REF_TS));
+    array_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements", PIVOT_TS));
+    array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", PIVOT_TS));
+    array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", PIVOT_TS));
 
-    array_scope->add(new AltStreamifiableImplementation("contents", ANY_ARRAY_REF_TS));
+    //array_scope->add(new AltStreamifiableImplementation("contents", PIVOT_TS));
     
-    array_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_REF_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
+    array_scope->add(new SysvFunction("decode_utf8", "decode_utf8", UNSIGNED_INTEGER8_ARRAY_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
 
     array_type->complete_type();
     array_scope->leave();
 }
 
 
-void define_circularray() {
-    Scope *circularray_scope = circularray_type->get_inner_scope();
+void define_queue() {
+    TypeSpec PIVOT_TS = ANY_QUEUE_TS;
+    TypeSpec PIVOT_LVALUE_TS = ANY_QUEUE_LVALUE_TS;
+    Scope *queue_scope = queue_type->get_inner_scope();
 
-    circularray_scope->add(new TemplateIdentifier<CircularrayLengthValue>("length", ANY_CIRCULARRAY_PTR_TS));
-    //circularray_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", ANY_ARRAY_REF_TS, TWEAK));
-    //circularray_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", ANY_ARRAY_REF_TS));
-    circularray_scope->add(new TemplateOperation<CircularrayIndexValue>("index", ANY_CIRCULARRAY_PTR_TS, TWEAK));
-    //circularray_scope->add(new TemplateIdentifier<ArraySortValue>("sort", ANY_ARRAY_REF_TS));
-    circularray_scope->add(new TemplateIdentifier<CircularrayPushValue>("push", ANY_CIRCULARRAY_REF_TS));
-    circularray_scope->add(new TemplateIdentifier<CircularrayPopValue>("pop", ANY_CIRCULARRAY_PTR_TS));
-    circularray_scope->add(new TemplateIdentifier<CircularrayUnshiftValue>("unshift", ANY_CIRCULARRAY_REF_TS));
-    circularray_scope->add(new TemplateIdentifier<CircularrayShiftValue>("shift", ANY_CIRCULARRAY_PTR_TS));
-    circularray_scope->add(new TemplateIdentifier<CircularrayAutogrowValue>("autogrow", ANY_CIRCULARRAY_REF_LVALUE_TS));
+    queue_scope->add(new Variable("circularray", PIVOT_TS, SAME_CIRCULARRAY_REF_LVALUE_TS));
+
+    queue_scope->add(new TemplateIdentifier<QueueLengthValue>("length", PIVOT_TS));
+    queue_scope->add(new TemplateOperation<QueueIndexValue>("index", PIVOT_TS, TWEAK));
+    queue_scope->add(new TemplateIdentifier<QueuePushValue>("push", PIVOT_TS));
+    queue_scope->add(new TemplateIdentifier<QueuePopValue>("pop", PIVOT_TS));
+    queue_scope->add(new TemplateIdentifier<QueueUnshiftValue>("unshift", PIVOT_TS));
+    queue_scope->add(new TemplateIdentifier<QueueShiftValue>("shift", PIVOT_TS));
+    //queue_scope->add(new TemplateIdentifier<QueueAutogrowValue>("autogrow", PIVOT_LVALUE_TS));
     
-    // Circularray iterable operations
-    implement(circularray_scope, SAME_ITERABLE_TS, "iterable", {
-        new TemplateIdentifier<CircularrayElemIterValue>("iter", ANY_CIRCULARRAY_REF_TS)
+    // Queue iterable operations
+    implement(queue_scope, SAME_ITERABLE_TS, "iterable", {
+        new TemplateIdentifier<QueueElemIterValue>("iter", PIVOT_TS)
     });
 
-    circularray_scope->add(new TemplateIdentifier<CircularrayElemIterValue>("elements", ANY_CIRCULARRAY_REF_TS));
-    circularray_scope->add(new TemplateIdentifier<CircularrayIndexIterValue>("indexes", ANY_CIRCULARRAY_REF_TS));
-    circularray_scope->add(new TemplateIdentifier<CircularrayItemIterValue>("items", ANY_CIRCULARRAY_REF_TS));
+    queue_scope->add(new TemplateIdentifier<QueueElemIterValue>("elements", PIVOT_TS));
+    queue_scope->add(new TemplateIdentifier<QueueIndexIterValue>("indexes", PIVOT_TS));
+    queue_scope->add(new TemplateIdentifier<QueueItemIterValue>("items", PIVOT_TS));
 
-    circularray_type->complete_type();
-    circularray_scope->leave();
+    queue_type->complete_type();
+    queue_scope->leave();
 }
 
 
@@ -893,7 +897,7 @@ void define_rbtree() {
     rbtree_scope->leave();
 }
 
-
+/*
 void define_stack() {
     TypeSpec PIVOT = ANY_STACK_PTR_TS;
     TypeSpec CAST = SAME_ARRAY_REF_LVALUE_TS;
@@ -954,7 +958,7 @@ void define_queue() {
     class_type->complete_type();
     is->leave();
 }
-
+*/
 
 void define_set() {
     TypeSpec PIVOT = ANY_SET_PTR_TS;
@@ -1109,8 +1113,8 @@ void builtin_runtime(Scope *root_scope) {
     TSs FLOAT_TSS = { FLOAT_TS };
     TSs BOOLEAN_TSS = { BOOLEAN_TS };
     TSs UNSIGNED_INTEGER8_TSS = { UNSIGNED_INTEGER8_TS };
-    TSs UNSIGNED_INTEGER8_ARRAY_REF_TSS = { UNSIGNED_INTEGER8_ARRAY_REF_TS };
-    TSs CHARACTER_ARRAY_REF_TSS = { CHARACTER_ARRAY_REF_TS };
+    TSs UNSIGNED_INTEGER8_ARRAY_TSS = { UNSIGNED_INTEGER8_ARRAY_TS };
+    TSs CHARACTER_ARRAY_TSS = { CHARACTER_ARRAY_TS };
 
     Ss no_names = { };
     Ss value_names = { "value" };
@@ -1120,7 +1124,7 @@ void builtin_runtime(Scope *root_scope) {
     is->add(new SysvFunction("printi", "printi", STD_TS, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL, NULL));
     is->add(new SysvFunction("printc", "printc", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL, NULL));
     is->add(new SysvFunction("printd", "printd", STD_TS, GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("printb", "printb", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_REF_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("printb", "printb", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, NO_TSS, NULL, NULL));
     is->add(new SysvFunction("prints", "prints", STD_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL, NULL));
     is->add(new SysvFunction("printp", "printp", STD_TS, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL, NULL));  // needs Lvalue to avoid ref copy
 
@@ -1143,7 +1147,7 @@ RootScope *init_builtins() {
     
     define_iterators();
     
-    define_stack();
+    define_array();
     define_queue();
     define_set();
     define_map();
@@ -1204,12 +1208,6 @@ RootScope *init_builtins() {
     ptr_scope->add(new PointerOperation("is_equal", ANYID_PTR_TS, EQUAL));
     ptr_scope->add(new PointerOperation("not_equal", ANYID_PTR_TS, NOT_EQUAL));
     ptr_scope->leave();
-
-    // Array operations
-    define_array();
-    
-    // Circularray operations
-    define_circularray();
 
     // Rbtree operations
     define_rbtree();

@@ -15,9 +15,9 @@
 #include "utf8.h"
 #include "heap.h"
 
-#define ALENGTH(x) *(int64 *)((x) + ARRAY_LENGTH_OFFSET)
-#define ARESERVATION(x) *(int64 *)((x) + ARRAY_RESERVATION_OFFSET)
-#define AELEMENTS(x) ((x) + ARRAY_ELEMS_OFFSET)
+#define ALENGTH(x) *(int64 *)((x) + LINEARRAY_LENGTH_OFFSET)
+#define ARESERVATION(x) *(int64 *)((x) + LINEARRAY_RESERVATION_OFFSET)
+#define AELEMENTS(x) ((x) + LINEARRAY_ELEMS_OFFSET)
 
 #define HREFCOUNT(x) *(int64 *)((x) + HEAP_REFCOUNT_OFFSET)
 //#define HWEAKREFCOUNT(x) *(int64 *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
@@ -81,7 +81,7 @@ void *memrealloc(void *m, int64 size) {
 // Internal helpers
 
 void *allocate_basic_array(int64 length, int64 size) {
-    void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    void *array = memalloc(HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     
     HNEXT(array) = 0;
     HREFCOUNT(array) = 1;
@@ -99,7 +99,7 @@ void *allocate_basic_array(int64 length, int64 size) {
 
 void *allocate_string_array(int64 length) {
     int size = ADDRESS_SIZE;
-    void *array = memalloc(HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    void *array = memalloc(HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     
     HNEXT(array) = 0;
     HREFCOUNT(array) = 1;
@@ -126,7 +126,7 @@ void *reallocate_array(void *array, int64 length, int64 size) {
         abort();
     }
 
-    array = memrealloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + ARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    array = memrealloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     ARESERVATION(array) = length;
     return array;
 }

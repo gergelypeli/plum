@@ -1,7 +1,14 @@
 
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
     // FIXME: this won't work for ptr
-    return ts.rvalue().unprefix(ref_type).unprefix(container_type);
+    TypeSpec x = ts.rvalue();
+    
+    if (x[0] == ref_type)
+        x = x.unprefix(ref_type);  // FIXME: until Rbtree exists
+        
+    x = x.unprefix(container_type);
+    
+    return x;
 }
 
 
@@ -61,7 +68,7 @@ void container_grow(int reservation_offset, int min_reservation, Label realloc_l
     x64->op(CALL, realloc_label);  // clobbers all
 }
 
-
+/*
 void container_preappend(int reservation_offset, int length_offset, Label grow_label, X64 *x64) {
     // RAX - array, R10 - new addition
 
@@ -74,17 +81,38 @@ void container_preappend(int reservation_offset, int length_offset, Label grow_l
     
     x64->code_label(ok);
 }
+*/
+
+void container_preappend2(int reservation_offset, int length_offset, Label grow_label, Address alias_addr, X64 *x64) {
+    // R10 - new addition. Returns the Ref in RAX.
+    Label ok;
+    
+    x64->op(MOVQ, R11, alias_addr);  // Alias
+    x64->op(MOVQ, RAX, Address(R11, 0));  // Ref
+    x64->op(ADDQ, R10, Address(RAX, length_offset));
+    x64->op(CMPQ, R10, Address(RAX, reservation_offset));
+    x64->op(JBE, ok);
+
+    x64->op(CALL, grow_label);  // clobbers all
+    
+    x64->op(MOVQ, R11, alias_addr);  // Alias
+    x64->op(MOVQ, Address(R11, 0), RAX);  // Ref
+    
+    x64->code_label(ok);
+}
 
 
 class ContainerLengthValue: public GenericValue {
 public:
     Register reg;
     TypeSpec heap_ts;
+    int length_offset;
     
-    ContainerLengthValue(Value *l, TypeMatch &match)
+    ContainerLengthValue(Value *l, TypeMatch &match, TypeSpec hts, int lo)
         :GenericValue(NO_TS, INTEGER_TS, l) {
         reg = NOREG;
-        heap_ts = match[0].unprefix(ptr_type);
+        heap_ts = hts;
+        length_offset = lo;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -98,7 +126,7 @@ public:
         return clob;
     }
 
-    virtual Storage subcompile(int length_offset, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);
 
         switch (ls.where) {
@@ -127,16 +155,20 @@ public:
     TypeSpec heap_ts;
     TypeSpec elem_ts;
     Unborrow *unborrow;
+    int elems_offset;
     
-    ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match)
+    ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, TypeSpec hts, int eo)
         :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot,
         GPR_SUBSET, GPR_SUBSET
         ) {
-        heap_ts = match[0].unprefix(ptr_type);
+        heap_ts = hts;
+        //heap_ts = match[0].unprefix(ptr_type);
         elem_ts = match[1];
         
-        if (pivot->ts.rvalue()[0] != ptr_type)
-            throw INTERNAL_ERROR;  // sanity check
+        //f (pivot->ts.rvalue()[0] != ptr_type)
+        //    throw INTERNAL_ERROR;  // sanity check
+            
+        elems_offset = eo;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -149,7 +181,7 @@ public:
     virtual void fix_R10_index(Register r, X64 *x64) {
     }
 
-    virtual Storage subcompile(int elems_offset, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
     
         OptimizedOperationValue::subcompile(x64);
@@ -199,17 +231,19 @@ public:
 class ContainerEmptyValue: public GenericValue {
 public:
     TypeSpec elem_ts;
+    Once::TypedFunctionCompiler compile_alloc;
     
-    ContainerEmptyValue(TypeSpec ts)
+    ContainerEmptyValue(TypeSpec ts, Once::TypedFunctionCompiler ca)
         :GenericValue(NO_TS, ts, NULL) {
         elem_ts = container_elem_ts(ts);
+        compile_alloc = ca;
     }
 
     virtual Regs precompile(Regs preferred) {
         return Regs::all();
     }
 
-    virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
 
         x64->op(MOVQ, R10, 0);
@@ -223,10 +257,12 @@ public:
 class ContainerReservedValue: public GenericValue {
 public:
     TypeSpec elem_ts;
+    Once::TypedFunctionCompiler compile_alloc;
     
-    ContainerReservedValue(TypeSpec ts)
+    ContainerReservedValue(TypeSpec ts, Once::TypedFunctionCompiler ca)
         :GenericValue(INTEGER_TS, ts, NULL) {
         elem_ts = container_elem_ts(ts);
+        compile_alloc = ca;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -234,7 +270,7 @@ public:
         return Regs::all();
     }
 
-    virtual Storage subcompile(Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
 
         right->compile_and_store(x64, Storage(REGISTER, R10));  // FIXME: this may be illegal
@@ -251,10 +287,16 @@ public:
     std::unique_ptr<Value> fill_value;
     std::unique_ptr<Value> length_value;
     TypeSpec elem_ts;
+    int length_offset;
+    int elems_offset;
+    Once::TypedFunctionCompiler compile_alloc;
     
-    ContainerAllValue(TypeSpec ts)
+    ContainerAllValue(TypeSpec ts, int lo, int eo, Once::TypedFunctionCompiler ca)
         :Value(ts) {
         elem_ts = container_elem_ts(ts);
+        length_offset = lo;
+        elems_offset = eo;
+        compile_alloc = ca;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -275,7 +317,7 @@ public:
         return Regs::all();
     }
     
-    virtual Storage subcompile(int length_offset, int elems_offset, Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
         int elem_size = container_elem_size(elem_ts);
 
@@ -311,10 +353,16 @@ class ContainerInitializerValue: public Value {
 public:
     TypeSpec elem_ts;
     std::vector<std::unique_ptr<Value>> elems;
+    int length_offset;
+    int elems_offset;
+    Once::TypedFunctionCompiler compile_alloc;
 
-    ContainerInitializerValue(TypeSpec ts)
+    ContainerInitializerValue(TypeSpec ts, int lo, int eo, Once::TypedFunctionCompiler ca)
         :Value(ts) {
         elem_ts = container_elem_ts(ts);
+        length_offset = lo;
+        elems_offset = eo;
+        compile_alloc = ca;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -350,7 +398,7 @@ public:
         return Regs::all();
     }
 
-    virtual Storage subcompile(int length_offset, int elems_offset, Once::TypedFunctionCompiler compile_alloc, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
         int elem_size = container_elem_size(elem_ts);
         int stack_size = elem_ts.measure_stack();
@@ -376,9 +424,9 @@ public:
 };
 
 
-class ContainerAutogrowValue: public GenericValue, public Raiser {
+class XXXContainerAutogrowValue: public GenericValue, public Raiser {
 public:
-    ContainerAutogrowValue(Value *l, TypeMatch &match)
+    XXXContainerAutogrowValue(Value *l, TypeMatch &match)
         :GenericValue(NO_TS, l->ts, l) {
     }
     
@@ -430,7 +478,7 @@ public:
     }
 };
 
-
+/*
 class ContainerGrowableValue: public GenericValue, public Raiser {
 public:
     ContainerGrowableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
@@ -448,11 +496,11 @@ public:
         return GenericValue::check(args, kwargs, scope);
     }
 };
+*/
 
-
-class ContainerShrinkableValue: public GenericValue, public Raiser {
+class ContainerEmptiableValue: public GenericValue, public Raiser {
 public:
-    ContainerShrinkableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
+    ContainerEmptiableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
         :GenericValue(arg_ts, res_ts, pivot) {
     }
     
@@ -465,45 +513,44 @@ public:
 };
 
 
-class ContainerPushValue: public ContainerGrowableValue {
+class ContainerPushValue: public GenericValue {
 public:
     TypeSpec elem_ts;
+    int reservation_offset;
+    int length_offset;
+    int elems_offset;
+    Once::TypedFunctionCompiler compile_grow;
     
-    ContainerPushValue(Value *l, TypeMatch &match)
-        :ContainerGrowableValue(match[1], match[0], l) {
+    ContainerPushValue(Value *l, TypeMatch &match, int ro, int lo, int eo, Once::TypedFunctionCompiler cg)
+        :GenericValue(match[1], match[0], l) {
         elem_ts = match[1];
+        reservation_offset = ro;
+        length_offset = lo;
+        elems_offset = eo;
+        compile_grow = cg;
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | RAX | RCX;
+        left->precompile(preferred);
+        right->precompile(preferred);
+        return Regs::all();
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {
     }
 
-    virtual Storage subcompile(int reservation_offset, int length_offset, int elems_offset, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
         int stack_size = elem_ts.measure_stack();
+        Label grow_label = x64->once->compile(compile_grow, elem_ts);
     
-        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
-    
-        Label ok, end;
-        
-        x64->op(MOVQ, RAX, Address(RSP, stack_size));
-        x64->op(MOVQ, R10, Address(RAX, length_offset));
-        x64->op(CMPQ, R10, Address(RAX, reservation_offset));
-        x64->op(JNE, ok);
+        compile_and_store_both(x64, Storage(ALISTACK), Storage(STACK));
 
-        if (raising_dummy) {
-            elem_ts.store(Storage(STACK), Storage(), x64);
-            ts.store(Storage(STACK), Storage(), x64);
-            raise("CONTAINER_FULL", x64);
-        }
-        else
-            x64->runtime->die("Container full even if autogrowing!");
+        x64->op(MOVQ, R10, 1);
+        container_preappend2(reservation_offset, length_offset, grow_label, Address(RSP, stack_size), x64);
+        // RAX - Ref
         
-        x64->code_label(ok);
+        x64->op(MOVQ, R10, Address(RAX, length_offset));
         x64->op(INCQ, Address(RAX, length_offset));
 
         // R10 contains the index of the newly created element
@@ -514,21 +561,25 @@ public:
         
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, elems_offset)), x64);
         
-        x64->code_label(end);
-        return Storage(STACK);
+        return Storage(ALISTACK);
     }
 };
 
 
-class ContainerPopValue: public ContainerShrinkableValue {
+class ContainerPopValue: public ContainerEmptiableValue {
 public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;
+    int length_offset;
+    int elems_offset;
     
-    ContainerPopValue(Value *l, TypeMatch &match)
-        :ContainerShrinkableValue(NO_TS, match[1], l) {
+    ContainerPopValue(Value *l, TypeMatch &match, TypeSpec hts, int lo, int eo)
+        :ContainerEmptiableValue(NO_TS, match[1], l) {
         elem_ts = match[1];
-        heap_ts = match[0].unprefix(ptr_type);
+        //heap_ts = match[0].unprefix(ptr_type);
+        heap_ts = hts;
+        length_offset = lo;
+        elems_offset = eo;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -539,7 +590,7 @@ public:
     virtual void fix_R10_index(Register r, X64 *x64) {
     }
 
-    virtual Storage subcompile(int length_offset, int elems_offset, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
         Label ok;
         
@@ -564,7 +615,8 @@ public:
         elem_ts.store(Storage(MEMORY, Address(RAX, RCX, elems_offset)), Storage(STACK), x64);
         elem_ts.destroy(Storage(MEMORY, Address(RAX, RCX, elems_offset)), x64);
         
-        heap_ts.decref(RAX, x64);
+        left->ts.store(Storage(REGISTER, RAX), Storage(), x64);
+        //heap_ts.decref(RAX, x64);
         
         return Storage(STACK);
     }
@@ -594,11 +646,13 @@ public:
 class ContainerNextValue: public GenericValue, public Raiser {
 public:
     Regs clob;
+    int length_offset;
     bool is_down;
     TypeSpec elem_ts;
     
-    ContainerNextValue(TypeSpec ts, TypeSpec ets, Value *l, bool d)
+    ContainerNextValue(TypeSpec ts, TypeSpec ets, Value *l, int lo, bool d)
         :GenericValue(NO_TS, ts, l) {
+        length_offset = lo;
         is_down = d;
         elem_ts = ets;
     }
@@ -622,7 +676,7 @@ public:
         return clob;
     }
 
-    virtual Storage subcompile(int length_offset, X64 *x64) {
+    virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);  // iterator
         Register reg = (clob & ~ls.regs()).get_any();
         Label ok;

@@ -1,4 +1,11 @@
 
+void stream_preappend2(Address alias_addr, X64 *x64) {
+    Label grow_label = x64->once->compile(compile_array_grow, CHARACTER_TS);
+
+    container_preappend2(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, grow_label, alias_addr, x64);
+}
+
+
 class InterpolationValue: public Value {
 public:
     std::vector<std::ustring> fragments;
@@ -127,7 +134,7 @@ public:
 
         // shrink to fit
         x64->op(POPQ, RAX);
-        x64->op(MOVQ, R10, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(CALL, realloc_array);
 
         return Storage(REGISTER, RAX);

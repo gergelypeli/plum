@@ -181,7 +181,7 @@ void Runtime::data_heap_header() {
 }
 
 Label Runtime::data_heap_string(std::ustring characters) {
-    if (ARRAY_HEADER_SIZE != 16 || ARRAY_RESERVATION_OFFSET != 0 || ARRAY_LENGTH_OFFSET != 8)
+    if (LINEARRAY_HEADER_SIZE != 16 || LINEARRAY_RESERVATION_OFFSET != 0 || LINEARRAY_LENGTH_OFFSET != 8)
         throw ASM_ERROR;
     
     Label l;
@@ -421,12 +421,12 @@ void Runtime::compile_finalize_reference_array() {
     x64->op(JMP, fra_cond);
 
     x64->code_label(fra_loop);
-    x64->op(MOVQ, RBX, Address(RAX, RCX, Address::SCALE_8, ARRAY_ELEMS_OFFSET));
+    x64->op(MOVQ, RBX, Address(RAX, RCX, Address::SCALE_8, LINEARRAY_ELEMS_OFFSET));
     decref(RBX);
     x64->op(INCQ, RCX);
 
     x64->code_label(fra_cond);
-    x64->op(CMPQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+    x64->op(CMPQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
     x64->op(JB, fra_loop);
 
     x64->op(RET);

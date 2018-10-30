@@ -335,14 +335,14 @@ public:
         x64->op(CMPQ, RAX, R10);
         x64->op(JE, done);  // identical, must be equal, ZF as expected
         
-        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(CMPQ, RCX, Address(R10, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
         x64->op(JNE, done);  // different length, can't be equal, ZF as expected
         
         x64->op(PUSHQ, RSI);
         x64->op(PUSHQ, RDI);
-        x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(LEA, RDI, Address(R10, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RSI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RDI, Address(R10, LINEARRAY_ELEMS_OFFSET));
         x64->op(REPECMPSW);  // no flags set if RCX=0
         x64->op(POPQ, RDI);
         x64->op(POPQ, RSI);
@@ -391,8 +391,8 @@ public:
         x64->op(MOVQ, RDX, Address(RSP, 48));  // t
         
         x64->op(MOVB, R10B, 0);  // assume equality
-        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(CMPQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RCX, Address(RDX, LINEARRAY_LENGTH_OFFSET));
         x64->op(JE, begin);
         x64->op(JA, s_longer);
         
@@ -401,11 +401,11 @@ public:
 
         x64->code_label(s_longer);
         x64->op(MOVB, R10B, 1);  // s is longer, on common equality s is greater
-        x64->op(MOVQ, RCX, Address(RDX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RCX, Address(RDX, LINEARRAY_LENGTH_OFFSET));
         
         x64->code_label(begin);
-        x64->op(LEA, RSI, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(LEA, RDI, Address(RDX, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RSI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RDI, Address(RDX, LINEARRAY_ELEMS_OFFSET));
         x64->op(CMPB, R10B, R10B);  // only to initialize flags for equality
         x64->op(REPECMPSW);  // no flags set if RCX=0
         
@@ -452,29 +452,30 @@ public:
 
     static void compile_raw_streamification(Label label, X64 *x64) {
         // RAX - target array, RCX - size, R10 - source array, R11 - alias
-        Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
+        //Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
         
         x64->code_label_local(label, "string_raw_streamification");
         
-        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
+        //x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
         
-        x64->op(MOVQ, RAX, Address(R11, 0));
-        x64->op(MOVQ, R10, Address(R10, ARRAY_LENGTH_OFFSET));
+        //x64->op(MOVQ, RAX, Address(R11, 0));
+        x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
 
-        x64->op(CALL, preappend_array);  // clobbers all
+        //x64->op(CALL, preappend_array);  // clobbers all
+        stream_preappend2(Address(RSP, ADDRESS_SIZE), x64);
         
-        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
+        //x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
-        x64->op(MOVQ, Address(R11, 0), RAX);
+        //x64->op(MOVQ, Address(R11, 0), RAX);
 
-        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, ARRAY_LENGTH_OFFSET));  // Yes, added twice (CHARACTER_SIZE)
+        x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // Yes, added twice (CHARACTER_SIZE)
 
-        x64->op(LEA, RSI, Address(R10, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(R10, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
         x64->op(SHLQ, RCX, 1);
         
         x64->op(REPMOVSB);
@@ -494,7 +495,7 @@ public:
         
         x64->code_label(loop);
         x64->op(PUSHQ, RCX);
-        x64->op(MOVW, R10W, Address(RAX, RCX, Address::SCALE_2, ARRAY_ELEMS_OFFSET));
+        x64->op(MOVW, R10W, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET));
         x64->op(PUSHQ, R10);
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * 3));  // skip char, counter, retaddr
         x64->op(CALL, char_str_label);  // clobbers all
@@ -504,7 +505,7 @@ public:
         
         x64->code_label(check);
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
-        x64->op(CMPQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(JB, loop);
         
         x64->op(RET);

@@ -3,7 +3,7 @@
 class StringRegexpMatcherValue: public GenericValue, public Raiser {
 public:
     StringRegexpMatcherValue(Value *l, TypeMatch &match)
-        :GenericValue(STRING_TS, STRING_ARRAY_REF_TS, l) {
+        :GenericValue(STRING_TS, STRING_ARRAY_TS, l) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -56,7 +56,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         x64->op(LEA, R10, Address(x64->runtime->empty_array_label, 0));
-        TypeSpec heap_ts = ts.reprefix(slice_type, array_type);
+        TypeSpec heap_ts = ts.reprefix(slice_type, linearray_type);
         heap_ts.incref(R10, x64);
         
         x64->op(PUSHQ, 0);  // length
@@ -71,7 +71,7 @@ public:
 class SliceAllValue: public GenericValue {
 public:
     SliceAllValue(TypeMatch &match)
-        :GenericValue(match[1].prefix(array_type).prefix(ptr_type), match[1].prefix(slice_type), NULL) {
+        :GenericValue(match[1].prefix(array_type), match[1].prefix(slice_type), NULL) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -79,7 +79,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        TypeSpec heap_ts = ts.reprefix(slice_type, array_type);
+        TypeSpec heap_ts = ts.reprefix(slice_type, linearray_type);
         Storage rs = right->compile(x64);
         Register r;
         
@@ -100,7 +100,7 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        x64->op(PUSHQ, Address(r, ARRAY_LENGTH_OFFSET));  // length
+        x64->op(PUSHQ, Address(r, LINEARRAY_LENGTH_OFFSET));  // length
         x64->op(PUSHQ, 0);  // front
         x64->op(PUSHQ, r);  // ptr
         
@@ -121,7 +121,7 @@ public:
         :Value(match[1].prefix(slice_type)) {
         
         array_value.reset(pivot);
-        heap_ts = match[1].prefix(array_type);
+        heap_ts = match[1].prefix(linearray_type);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -151,7 +151,7 @@ public:
         x64->op(POPQ, RCX);  // length
         x64->op(POPQ, R10);  // front
         x64->op(POPQ, RAX);  // ptr
-        x64->op(MOVQ, RDX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         
         Label ok, nok;
         x64->op(CMPQ, R10, RDX);
@@ -248,7 +248,7 @@ public:
     SliceIndexValue(Value *pivot, TypeMatch &match)
         :GenericValue(INTEGER_TS, match[1].lvalue(), pivot) {
         elem_ts = match[1];
-        heap_ts = elem_ts.prefix(array_type);
+        heap_ts = elem_ts.prefix(linearray_type);
         unborrow = NULL;
     }
 
@@ -290,7 +290,7 @@ public:
         x64->code_label(ok);
         x64->op(ADDQ, RAX, RCX);
         x64->op(IMUL3Q, RAX, RAX, elem_size);
-        x64->op(LEA, RAX, Address(RAX, R10, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RAX, Address(RAX, R10, LINEARRAY_ELEMS_OFFSET));
 
         // Borrow Lvalue container
         x64->op(MOVQ, unborrow->get_address(), R10);
@@ -338,7 +338,7 @@ public:
         x64->op(JMP, check);
         
         x64->code_label(loop);
-        elem_ts.compare(Storage(MEMORY, Address(RAX, RDX, ARRAY_ELEMS_OFFSET)), Storage(MEMORY, Address(RSP, 0)), x64);
+        elem_ts.compare(Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), Storage(MEMORY, Address(RSP, 0)), x64);
         x64->op(JE, found);
 
         x64->op(INCQ, RCX);
@@ -478,7 +478,7 @@ public:
         
         x64->op(ADDQ, R10, ls.address + FRONT_OFFSET);
         x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, R10, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, r.reg, Address(r.reg, R10, LINEARRAY_ELEMS_OFFSET));
         
         return Storage(MEMORY, Address(r.reg, 0));
     }
@@ -518,7 +518,7 @@ public:
         
         x64->op(ADDQ, R10, ls.address + FRONT_OFFSET);
         x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, R10, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, r.reg, Address(r.reg, R10, LINEARRAY_ELEMS_OFFSET));
         
         Storage s = Storage(MEMORY, Address(r.reg, 0));
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));

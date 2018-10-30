@@ -7,13 +7,13 @@ int array_elem_size(TypeSpec elem_ts) {
 void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // R10 - reservation
     int elem_size = array_elem_size(elem_ts);
-    Label finalizer_label = elem_ts.prefix(array_type).get_finalizer_label(x64);
+    Label finalizer_label = elem_ts.prefix(linearray_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_array_alloc");
     
-    container_alloc(ARRAY_HEADER_SIZE, elem_size, ARRAY_RESERVATION_OFFSET, finalizer_label, x64);
+    container_alloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, finalizer_label, x64);
 
-    x64->op(MOVQ, Address(RAX, ARRAY_LENGTH_OFFSET), 0);
+    x64->op(MOVQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 0);
     
     x64->op(RET);
 }
@@ -25,7 +25,7 @@ void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
     x64->code_label_local(label, "x_array_realloc");
 
-    container_realloc(ARRAY_HEADER_SIZE, elem_size, ARRAY_RESERVATION_OFFSET, x64);
+    container_realloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, x64);
 
     x64->op(RET);
 }
@@ -39,12 +39,12 @@ void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->code_label_local(label, "x_array_grow");
     //x64->log("grow_array");
     
-    container_grow(ARRAY_RESERVATION_OFFSET, ARRAY_MINIMUM_RESERVATION, realloc_label, x64);
+    container_grow(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_MINIMUM_RESERVATION, realloc_label, x64);
     
     x64->op(RET);
 }
 
-
+/*
 void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new addition
     Label grow_label = x64->once->compile(compile_array_grow, elem_ts);
@@ -52,20 +52,17 @@ void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->code_label_local(label, "x_array_preappend");
     //x64->log("preappend_array");
     
-    container_preappend(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, grow_label, x64);
+    container_preappend(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, grow_label, x64);
 
     x64->op(RET);
 }
+*/
 
 
 class ArrayLengthValue: public ContainerLengthValue {
 public:
     ArrayLengthValue(Value *l, TypeMatch &match)
-        :ContainerLengthValue(l, match) {
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_LENGTH_OFFSET, x64);
+        :ContainerLengthValue(l, match, match[1].prefix(linearray_type), LINEARRAY_LENGTH_OFFSET) {
     }
 };
 
@@ -73,14 +70,70 @@ public:
 class ArrayIndexValue: public ContainerIndexValue {
 public:
     ArrayIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-        :ContainerIndexValue(o, pivot, match) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_ELEMS_OFFSET, x64);
+        :ContainerIndexValue(o, pivot, match, match[1].prefix(linearray_type), LINEARRAY_ELEMS_OFFSET) {
     }
 };
 
+
+class ArrayEmptyValue: public ContainerEmptyValue {
+public:
+    ArrayEmptyValue(TypeSpec ts)
+        :ContainerEmptyValue(ts, compile_array_alloc) {
+    }
+};
+
+
+class ArrayReservedValue: public ContainerReservedValue {
+public:
+    ArrayReservedValue(TypeSpec ts)
+        :ContainerReservedValue(ts, compile_array_alloc) {
+    }
+};
+
+
+class ArrayAllValue: public ContainerAllValue {
+public:
+    ArrayAllValue(TypeSpec ts)
+        :ContainerAllValue(ts, LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET, compile_array_alloc) {
+    }
+};
+
+
+class ArrayInitializerValue: public ContainerInitializerValue {
+public:
+    ArrayInitializerValue(TypeSpec ts)
+        :ContainerInitializerValue(ts, LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET, compile_array_alloc) {
+    }
+};
+
+
+class ArrayPushValue: public ContainerPushValue {
+public:
+    ArrayPushValue(Value *l, TypeMatch &match)
+        :ContainerPushValue(l, match, LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET, compile_array_grow) {
+    }
+};
+
+
+class ArrayPopValue: public ContainerPopValue {
+public:
+    ArrayPopValue(Value *l, TypeMatch &match)
+        :ContainerPopValue(l, match, match[1].prefix(linearray_type), LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET) {
+    }
+};
+
+/*
+class ArrayAutogrowValue: public ContainerAutogrowValue {
+public:
+    ArrayAutogrowValue(Value *l, TypeMatch &match)
+        :ContainerAutogrowValue(l, match) {
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return subcompile(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, compile_array_grow, x64);
+    }
+};
+*/
 
 class ArrayConcatenationValue: public GenericValue {
 public:
@@ -98,7 +151,6 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        // TODO: this only works for arrays of basic types now, that can be just copied
         Label l = x64->once->compile(compile_array_concatenation, elem_ts);
 
         compile_and_store_both(x64, Storage(STACK), Storage(STACK));
@@ -120,18 +172,18 @@ public:
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
         x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
         
-        x64->op(MOVQ, R10, Address(R10, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, R10, Address(R11, ARRAY_LENGTH_OFFSET));  // total length
+        x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, R10, Address(R11, LINEARRAY_LENGTH_OFFSET));  // total length
         
         x64->op(CALL, alloc_array);  // clobbers all
         
-        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
         
         // copy left array
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));  // restored
-        x64->op(LEA, RSI, Address(R10, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(R10, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
         
         // This is the raw bytes version
         //x64->op(IMUL3Q, RCX, RCX, elem_size);
@@ -152,9 +204,9 @@ public:
 
         // copy right array
         x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // restored
-        x64->op(LEA, RSI, Address(R11, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(R11, ARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(LEA, RSI, Address(R11, LINEARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(R11, LINEARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
         
         // This is the raw bytes version
         //x64->op(IMUL3Q, RCX, RCX, elem_size);
@@ -186,7 +238,7 @@ public:
     ArrayExtendValue(Value *l, TypeMatch &match)
         :GenericValue(match[0], match[0], l) {
         elem_ts = match[1];
-        heap_ts = elem_ts.prefix(array_type);
+        heap_ts = elem_ts.prefix(linearray_type);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -197,7 +249,6 @@ public:
 
     virtual Storage compile(X64 *x64) {
         // TODO: This is just a concatenation and an assignment, could be more optimal.
-        // TODO: this only works for arrays of basic types now, that can be just copied
         Label l = x64->once->compile(ArrayConcatenationValue::compile_array_concatenation, elem_ts);
 
         left->compile_and_store(x64, Storage(ALISTACK));
@@ -215,7 +266,7 @@ public:
 
         // Now mimic a ref assignment
         x64->op(MOVQ, R10, RAX);  // new value
-        x64->op(POPQ, RAX);  // address of ref
+        x64->op(POPQ, RAX);  // Alias
         x64->op(MOVQ, Address(RAX, 0), R10);
         
         return Storage(MEMORY, Address(RAX, 0));
@@ -251,7 +302,7 @@ public:
             left->compile_and_store(x64, Storage(ALISTACK));
             x64->op(MOVQ, R11, Address(RSP, 0));
             x64->op(MOVQ, RAX, Address(R11, 0));
-            x64->op(MOVQ, R10, Address(RAX, ARRAY_LENGTH_OFFSET));  // shrink to fit
+            x64->op(MOVQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // shrink to fit
         }
         
         x64->op(CALL, realloc_array);  // clobbers all
@@ -288,8 +339,8 @@ public:
         
         // RDI = base, RSI = nmemb, RDX = size, RCX = compar
         x64->op(MOVQ, R10, Address(RSP, 0));
-        x64->op(LEA, RDI, Address(R10, ARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RSI, Address(R10, ARRAY_LENGTH_OFFSET));
+        x64->op(LEA, RDI, Address(R10, LINEARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RSI, Address(R10, LINEARRAY_LENGTH_OFFSET));
         x64->op(MOVQ, RDX, elem_size);
         x64->op(LEA, RCX, Address(compar, 0));
         
@@ -350,11 +401,11 @@ public:
         Label ok, loop, check;
         
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));
-        x64->op(MOVQ, RCX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, Address(RSP, ADDRESS_SIZE));
         x64->op(JAE, ok);
         
-        x64->runtime->die("Array remove length out of bounds!");
+        x64->runtime->die("Array remove length out of bounds!");  // FIXME: raise instead
         
         // Destroy the first elements
         x64->code_label(ok);
@@ -364,22 +415,22 @@ public:
         x64->code_label(loop);
         x64->op(IMUL3Q, RDX, RCX, elem_size);
         
-        elem_ts.destroy(Storage(MEMORY, Address(RAX, RDX, ARRAY_ELEMS_OFFSET)), x64);
+        elem_ts.destroy(Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), x64);
         x64->op(INCQ, RCX);
         
         x64->code_label(check);
         x64->op(CMPQ, RCX, Address(RSP, ADDRESS_SIZE));
         x64->op(JB, loop);
 
-        x64->op(SUBQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(SUBQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
 
         // call memmove - RDI = dest, RSI = src, RDX = n
-        x64->op(LEA, RDI, Address(RAX, ARRAY_ELEMS_OFFSET));  // dest
+        x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));  // dest
         
         x64->op(IMUL3Q, RSI, RCX, elem_size);
         x64->op(ADDQ, RSI, RDI);  // src
         
-        x64->op(MOVQ, RDX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(IMUL3Q, RDX, RDX, elem_size);  // n
         
         x64->runtime->call_sysv_got(x64->once->import_got("memmove"));
@@ -435,8 +486,8 @@ public:
         x64->op(MOVQ, R11, Address(RSP, stack_size + INTEGER_SIZE));  // array alias
         x64->op(MOVQ, RAX, Address(R11, 0));  // array ref without incref
         
-        x64->op(ADDQ, R10, Address(RAX, ARRAY_LENGTH_OFFSET));
-        x64->op(CMPQ, R10, Address(RAX, ARRAY_RESERVATION_OFFSET));
+        x64->op(ADDQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+        x64->op(CMPQ, R10, Address(RAX, LINEARRAY_RESERVATION_OFFSET));
         x64->op(JBE, ok);
         
         // Need to reallocate
@@ -445,14 +496,14 @@ public:
         x64->op(MOVQ, Address(R11, 0), RAX);
         
         x64->code_label(ok);
-        x64->op(MOVQ, RDX, Address(RAX, ARRAY_LENGTH_OFFSET));
+        x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(IMUL3Q, RDX, RDX, elem_size);
         x64->op(POPQ, RCX);  // extra length
-        x64->op(ADDQ, Address(RAX, ARRAY_LENGTH_OFFSET), RCX);
+        x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
         x64->op(JMP, check);
         
         x64->code_label(loop);
-        elem_ts.create(Storage(MEMORY, Address(RSP, 0)), Storage(MEMORY, Address(RAX, RDX, ARRAY_ELEMS_OFFSET)), x64);
+        elem_ts.create(Storage(MEMORY, Address(RSP, 0)), Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), x64);
         x64->op(ADDQ, RDX, elem_size);
         x64->op(DECQ, RCX);
         
@@ -463,90 +514,6 @@ public:
         elem_ts.store(Storage(STACK), Storage(), x64);
         
         return Storage(ALISTACK);
-    }
-};
-
-
-class ArrayEmptyValue: public ContainerEmptyValue {
-public:
-    ArrayEmptyValue(TypeSpec ts)
-        :ContainerEmptyValue(ts) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(compile_array_alloc, x64);
-    }
-};
-
-
-class ArrayReservedValue: public ContainerReservedValue {
-public:
-    ArrayReservedValue(TypeSpec ts)
-        :ContainerReservedValue(ts) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(compile_array_alloc, x64);
-    }
-};
-
-
-class ArrayAllValue: public ContainerAllValue {
-public:
-    ArrayAllValue(TypeSpec ts)
-        :ContainerAllValue(ts) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, compile_array_alloc, x64);
-    }
-};
-
-
-class ArrayInitializerValue: public ContainerInitializerValue {
-public:
-    ArrayInitializerValue(TypeSpec ts)
-        :ContainerInitializerValue(ts) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, compile_array_alloc, x64);
-    }
-};
-
-
-class ArrayPushValue: public ContainerPushValue {
-public:
-    ArrayPushValue(Value *l, TypeMatch &match)
-        :ContainerPushValue(l, match) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, x64);
-    }
-};
-
-
-class ArrayPopValue: public ContainerPopValue {
-public:
-    ArrayPopValue(Value *l, TypeMatch &match)
-        :ContainerPopValue(l, match) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_LENGTH_OFFSET, ARRAY_ELEMS_OFFSET, x64);
-    }
-};
-
-
-class ArrayAutogrowValue: public ContainerAutogrowValue {
-public:
-    ArrayAutogrowValue(Value *l, TypeMatch &match)
-        :ContainerAutogrowValue(l, match) {
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return subcompile(ARRAY_RESERVATION_OFFSET, ARRAY_LENGTH_OFFSET, compile_array_grow, x64);
     }
 };
 
@@ -580,16 +547,16 @@ public:
 class ArrayNextElemValue: public ContainerNextValue {
 public:
     ArrayNextElemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(match[1], match[1], l, false) {
+        :ContainerNextValue(match[1], match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
     }
 
     virtual Storage compile(X64 *x64) {
         int elem_size = array_elem_size(elem_ts);
         
-        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
+        Storage r = ContainerNextValue::compile(x64);
         
         x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, R10, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, r.reg, Address(r.reg, R10, LINEARRAY_ELEMS_OFFSET));
         
         return Storage(MEMORY, Address(r.reg, 0));
     }
@@ -599,11 +566,11 @@ public:
 class ArrayNextIndexValue: public ContainerNextValue {
 public:
     ArrayNextIndexValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(INTEGER_TS, match[1], l, false) {
+        :ContainerNextValue(INTEGER_TS, match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
     }
     
     virtual Storage compile(X64 *x64) {
-        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
+        Storage r = ContainerNextValue::compile(x64);
         
         x64->op(MOVQ, r.reg, R10);
         
@@ -615,20 +582,20 @@ public:
 class ArrayNextItemValue: public ContainerNextValue {
 public:
     ArrayNextItemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, false) {
+        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
     }
 
     virtual Storage compile(X64 *x64) {
         int elem_size = array_elem_size(elem_ts);
         int item_stack_size = ts.measure_stack();
 
-        Storage r = subcompile(ARRAY_LENGTH_OFFSET, x64);
+        Storage r = ContainerNextValue::compile(x64);
 
         x64->op(SUBQ, RSP, item_stack_size);
         x64->op(MOVQ, Address(RSP, 0), R10);
         
         x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, R10, ARRAY_ELEMS_OFFSET));
+        x64->op(LEA, r.reg, Address(r.reg, R10, LINEARRAY_ELEMS_OFFSET));
         
         Storage s = Storage(MEMORY, Address(r.reg, 0));
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));

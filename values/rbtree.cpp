@@ -121,7 +121,7 @@ public:
 class RbtreeInitializerValue: public ContainerInitializerValue {
 public:
     RbtreeInitializerValue(TypeSpec ts)
-        :ContainerInitializerValue(ts) {
+        :ContainerInitializerValue(ts, 0, 0, NULL) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -236,12 +236,12 @@ public:
 };
 
 
-class RbtreeAddValue: public ContainerGrowableValue {
+class RbtreeAddValue: public GenericValue {
 public:
     TypeSpec elem_ts;
     
     RbtreeAddValue(Value *pivot, TypeMatch &match)
-        :ContainerGrowableValue(match[1], VOID_TS, pivot) {
+        :GenericValue(match[1], VOID_TS, pivot) {
         elem_ts = match[1];
     }
 
@@ -269,15 +269,7 @@ public:
         x64->op(CMPQ, KEYX, RBNODE_NIL);
         x64->op(JNE, ok);
         
-        // Non-autogrowing Rbtree-s only raise a CONTAINER_FULL exception, if the operation
-        // actually tried to increase the size, not when an existing node is updated.
-        if (raising_dummy) {
-            elem_ts.store(Storage(STACK), Storage(), x64);
-            left->ts.store(Storage(STACK), Storage(), x64);
-            raise("CONTAINER_FULL", x64);
-        }
-        else
-            x64->runtime->die("Rbtree full even if autogrowing!");
+        x64->runtime->die("Rbtree full!");
         
         x64->code_label(ok);
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), x64);
@@ -288,12 +280,12 @@ public:
 };
 
 
-class RbtreeRemoveValue: public ContainerShrinkableValue {
+class RbtreeRemoveValue: public ContainerEmptiableValue {
 public:
     TypeSpec elem_ts;
     
     RbtreeRemoveValue(Value *pivot, TypeMatch &match)
-        :ContainerShrinkableValue(match[1], VOID_TS, pivot) {
+        :ContainerEmptiableValue(match[1], VOID_TS, pivot) {
         elem_ts = match[1];
     }
 
@@ -324,10 +316,10 @@ public:
 };
 
 
-class RbtreeAutogrowValue: public ContainerAutogrowValue {
+class RbtreeAutogrowValue: public XXXContainerAutogrowValue {
 public:
     RbtreeAutogrowValue(Value *l, TypeMatch &match)
-        :ContainerAutogrowValue(l, match) {
+        :XXXContainerAutogrowValue(l, match) {
     }
     
     virtual Storage compile(X64 *x64) {

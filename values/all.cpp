@@ -9,7 +9,7 @@
 #include "iterator.cpp"
 #include "container.cpp"
 #include "array.cpp"
-#include "circularray.cpp"
+#include "queue.cpp"
 #include "rbtree.cpp"
 #include "string.cpp"
 #include "reference.cpp"

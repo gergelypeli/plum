@@ -1,5 +1,5 @@
 
-int circularray_elem_size(TypeSpec elem_ts) {
+int queue_elem_size(TypeSpec elem_ts) {
     return elem_ts.measure_elem();
 }
 
@@ -30,12 +30,12 @@ void fix_R10_index_underflow(Register r, X64 *x64) {
 }
 
 
-void compile_circularray_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_queue_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // R10 - reservation
-    int elem_size = circularray_elem_size(elem_ts);
+    int elem_size = queue_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(x64);
     
-    x64->code_label_local(label, "x_circularray_alloc");
+    x64->code_label_local(label, "x_queue_alloc");
     
     container_alloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, finalizer_label, x64);
 
@@ -46,11 +46,11 @@ void compile_circularray_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void compile_circularray_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_queue_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
-    int elem_size = circularray_elem_size(elem_ts);
+    int elem_size = queue_elem_size(elem_ts);
 
-    x64->code_label_local(label, "x_circularray_realloc");
+    x64->code_label_local(label, "x_queue_realloc");
     //x64->log("realloc_array");
     
     container_realloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, x64);
@@ -59,14 +59,14 @@ void compile_circularray_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void compile_circularray_grow(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_queue_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
     // RCX, RSI, RDI - clob
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
-    Label realloc_label = x64->once->compile(compile_circularray_realloc, elem_ts);
-    int elem_size = circularray_elem_size(elem_ts);
+    Label realloc_label = x64->once->compile(compile_queue_realloc, elem_ts);
+    int elem_size = queue_elem_size(elem_ts);
 
-    x64->code_label_local(label, "x_circularray_grow");
+    x64->code_label_local(label, "x_queue_grow");
     x64->runtime->log("grow_circularray");
     x64->op(PUSHQ, RCX);
     x64->op(PUSHQ, RSI);
@@ -132,106 +132,78 @@ void compile_circularray_grow(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-class CircularrayLengthValue: public ContainerLengthValue {
+class QueueLengthValue: public ContainerLengthValue {
 public:
-    CircularrayLengthValue(Value *l, TypeMatch &match)
-        :ContainerLengthValue(l, match) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+    QueueLengthValue(Value *l, TypeMatch &match)
+        :ContainerLengthValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET) {
     }
 };
 
 
-class CircularrayIndexValue: public ContainerIndexValue {
+class QueueIndexValue: public ContainerIndexValue {
 public:
-    CircularrayIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-        :ContainerIndexValue(o, pivot, match) {
+    QueueIndexValue(OperationType o, Value *pivot, TypeMatch &match)
+        :ContainerIndexValue(o, pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_ELEMS_OFFSET) {
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {
         fix_R10_index_overflow(r, x64);
     }
+};
 
-    virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_ELEMS_OFFSET, x64);
+
+class QueueEmptyValue: public ContainerEmptyValue {
+public:
+    QueueEmptyValue(TypeSpec ts)
+        :ContainerEmptyValue(ts, compile_queue_alloc) {
     }
 };
 
 
-class CircularrayEmptyValue: public ContainerEmptyValue {
+class QueueReservedValue: public ContainerReservedValue {
 public:
-    CircularrayEmptyValue(TypeSpec ts)
-        :ContainerEmptyValue(ts) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(compile_circularray_alloc, x64);
+    QueueReservedValue(TypeSpec ts)
+        :ContainerReservedValue(ts, compile_queue_alloc) {
     }
 };
 
 
-class CircularrayReservedValue: public ContainerReservedValue {
+class QueueInitializerValue: public ContainerInitializerValue {
 public:
-    CircularrayReservedValue(TypeSpec ts)
-        :ContainerReservedValue(ts) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(compile_circularray_alloc, x64);
+    QueueInitializerValue(TypeSpec ts)
+        :ContainerInitializerValue(ts, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_alloc) {
     }
 };
 
 
-class CircularrayInitializerValue: public ContainerInitializerValue {
+class QueuePushValue: public ContainerPushValue {
 public:
-    CircularrayInitializerValue(TypeSpec ts)
-        :ContainerInitializerValue(ts) {
-    }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_circularray_alloc, x64);
-    }
-};
-
-
-class CircularrayPushValue: public ContainerPushValue {
-public:
-    CircularrayPushValue(Value *l, TypeMatch &match)
-        :ContainerPushValue(l, match) {
+    QueuePushValue(Value *l, TypeMatch &match)
+        :ContainerPushValue(l, match, CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_grow) {
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {
         fix_R10_index_overflow(r, x64);
     }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, x64);
-    }
 };
 
 
-class CircularrayPopValue: public ContainerPopValue {
+class QueuePopValue: public ContainerPopValue {
 public:
-    CircularrayPopValue(Value *l, TypeMatch &match)
-        :ContainerPopValue(l, match) {
+    QueuePopValue(Value *l, TypeMatch &match)
+        :ContainerPopValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET) {
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {
         fix_R10_index_overflow(r, x64);
     }
-
-    virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, x64);
-    }
 };
 
 
-class CircularrayUnshiftValue: public CircularrayPushValue {
+class QueueUnshiftValue: public QueuePushValue {
 public:
-    CircularrayUnshiftValue(Value *l, TypeMatch &match)
-        :CircularrayPushValue(l, match) {
+    QueueUnshiftValue(Value *l, TypeMatch &match)
+        :QueuePushValue(l, match) {
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {
@@ -243,10 +215,10 @@ public:
 };
 
 
-class CircularrayShiftValue: public CircularrayPopValue {
+class QueueShiftValue: public QueuePopValue {
 public:
-    CircularrayShiftValue(Value *l, TypeMatch &match)
-        :CircularrayPopValue(l, match) {
+    QueueShiftValue(Value *l, TypeMatch &match)
+        :QueuePopValue(l, match) {
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {
@@ -257,55 +229,55 @@ public:
     }
 };
 
-
-class CircularrayAutogrowValue: public ContainerAutogrowValue {
+/*
+class QueueAutogrowValue: public ContainerAutogrowValue {
 public:
-    CircularrayAutogrowValue(Value *l, TypeMatch &match)
+    QueueAutogrowValue(Value *l, TypeMatch &match)
         :ContainerAutogrowValue(l, match) {
     }
     
     virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, compile_circularray_grow, x64);
+        return subcompile(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, compile_queue_grow, x64);
     }
 };
-
+*/
 
 // Iteration
 
-class CircularrayElemIterValue: public ContainerIterValue {
+class QueueElemIterValue: public ContainerIterValue {
 public:
-    CircularrayElemIterValue(Value *l, TypeMatch &match)
-        :ContainerIterValue(typesubst(SAME_CIRCULARRAYELEMITER_TS, match), l) {
+    QueueElemIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_QUEUEELEMITER_TS, match), l) {
     }
 };
 
 
-class CircularrayIndexIterValue: public ContainerIterValue {
+class QueueIndexIterValue: public ContainerIterValue {
 public:
-    CircularrayIndexIterValue(Value *l, TypeMatch &match)
-        :ContainerIterValue(typesubst(SAME_CIRCULARRAYINDEXITER_TS, match), l) {
+    QueueIndexIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_QUEUEINDEXITER_TS, match), l) {
     }
 };
 
 
-class CircularrayItemIterValue: public ContainerIterValue {
+class QueueItemIterValue: public ContainerIterValue {
 public:
-    CircularrayItemIterValue(Value *l, TypeMatch &match)
-        :ContainerIterValue(typesubst(SAME_CIRCULARRAYITEMITER_TS, match), l) {
+    QueueItemIterValue(Value *l, TypeMatch &match)
+        :ContainerIterValue(typesubst(SAME_QUEUEITEMITER_TS, match), l) {
     }
 };
 
 
-class CircularrayNextElemValue: public ContainerNextValue {
+class QueueNextElemValue: public ContainerNextValue {
 public:
-    CircularrayNextElemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(match[1], match[1], l, false) {
+    QueueNextElemValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(match[1], match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = circularray_elem_size(elem_ts);
+        int elem_size = queue_elem_size(elem_ts);
 
-        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+        Storage r = ContainerNextValue::compile(x64);
 
         fix_R10_index_overflow(r.reg, x64);
         
@@ -317,14 +289,14 @@ public:
 };
 
 
-class CircularrayNextIndexValue: public ContainerNextValue {
+class QueueNextIndexValue: public ContainerNextValue {
 public:
-    CircularrayNextIndexValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(INTEGER_TS, match[1], l, false) {
+    QueueNextIndexValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(INTEGER_TS, match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
     }
     
     virtual Storage compile(X64 *x64) {
-        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+        Storage r = ContainerNextValue::compile(x64);
         
         x64->op(MOVQ, r.reg, R10);
         
@@ -333,17 +305,17 @@ public:
 };
 
 
-class CircularrayNextItemValue: public ContainerNextValue {
+class QueueNextItemValue: public ContainerNextValue {
 public:
-    CircularrayNextItemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, false) {
+    QueueNextItemValue(Value *l, TypeMatch &match)
+        :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = circularray_elem_size(elem_ts);
+        int elem_size = queue_elem_size(elem_ts);
         int item_stack_size = ts.measure_stack();
 
-        Storage r = subcompile(CIRCULARRAY_LENGTH_OFFSET, x64);
+        Storage r = ContainerNextValue::compile(x64);
         
         x64->op(SUBQ, RSP, item_stack_size);
         x64->op(MOVQ, Address(RSP, 0), R10);
