@@ -183,11 +183,14 @@ void builtin_types(Scope *root_scope) {
     nosyobject_type = new NosyObjectType("<NosyObject>");
     root_scope->add(nosyobject_type);
 
-    weakref_type = new WeakrefType("Weakref");
-    root_scope->add(weakref_type);
-
     nosyvalue_type = new NosyValueType("<NosyValue>");
     root_scope->add(nosyvalue_type);
+
+    nosycontainer_type = new NosyContainerType("<NosyContainer>");
+    root_scope->add(nosycontainer_type);
+
+    weakref_type = new WeakrefType("Weakref");
+    root_scope->add(weakref_type);
 
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
@@ -285,11 +288,11 @@ void builtin_types(Scope *root_scope) {
     queueitemiter_type = new RecordType("Queueitem_iter", { value_metatype });
     root_scope->add(queueitemiter_type);
 
-    rbtreeelembyageiter_type = new RecordType("Rbtreeelembyage_iter", { value_metatype });
-    root_scope->add(rbtreeelembyageiter_type);
+    setelembyageiter_type = new RecordType("Setelembyage_iter", { value_metatype });
+    root_scope->add(setelembyageiter_type);
 
-    rbtreeelembyorderiter_type = new RecordType("Rbtreeelembyorder_iter", { value_metatype });
-    root_scope->add(rbtreeelembyorderiter_type);
+    setelembyorderiter_type = new RecordType("Setelembyorder_iter", { value_metatype });
+    root_scope->add(setelembyorderiter_type);
 
     sliceelemiter_type = new RecordType("Sliceelem_iter", { value_metatype });
     root_scope->add(sliceelemiter_type);
@@ -373,10 +376,15 @@ void builtin_types(Scope *root_scope) {
     SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, nosyvalue_type, sameid2_type };
     SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, same2_type };
     SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, unit_type };
+
+    SAMEID_NOSYVALUE_TS = { nosyvalue_type, sameid_type };
+    SAMEID_NOSYVALUE_SAME2_ITEM_TS = { item_type, nosyvalue_type, sameid_type, same2_type };
+    SAME_SAMEID2_NOSYVALUE_ITEM_TS = { item_type, same_type, nosyvalue_type, sameid2_type };
+
     COUNTUP_TS = { countup_type };
     COUNTDOWN_TS = { countdown_type };
     ANY_ANY2_ITEM_TS = { item_type, any_type, any2_type };
-    SAME_SAME2_ITEM_TS = { item_type, same_type };
+    SAME_SAME2_ITEM_TS = { item_type, same_type, same2_type };
     INTEGER_SAME_ITEM_TS = { item_type, integer_type, same_type };
     SAME_ARRAYELEMITER_TS = { arrayelemiter_type, same_type };
     SAME_ARRAYINDEXITER_TS = { arrayindexiter_type, same_type };
@@ -384,12 +392,16 @@ void builtin_types(Scope *root_scope) {
     SAME_QUEUEELEMITER_TS = { queueelemiter_type, same_type };
     SAME_QUEUEINDEXITER_TS = { queueindexiter_type, same_type };
     SAME_QUEUEITEMITER_TS = { queueitemiter_type, same_type };
-    SAME_RBTREEELEMBYAGEITER_TS = { rbtreeelembyageiter_type, same_type };
-    SAME_RBTREEELEMBYORDERITER_TS = { rbtreeelembyorderiter_type, same_type };
+    SAME_SETELEMBYAGEITER_TS = { setelembyageiter_type, same_type };
+    SAME_SETELEMBYORDERITER_TS = { setelembyorderiter_type, same_type };
     SAME_SLICEELEMITER_TS = { sliceelemiter_type, same_type };
     SAME_SLICEINDEXITER_TS = { sliceindexiter_type, same_type };
     SAME_SLICEITEMITER_TS = { sliceitemiter_type, same_type };
     COLON_TS = { colon_type };
+
+    SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_TS = { ref_type, rbtree_type, item_type, same_type, nosyvalue_type, sameid2_type };
+    SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_TS = { ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, same2_type };
+    SAMEID_NOSYVALUE_RBTREE_REF_TS = { ref_type, rbtree_type,  nosyvalue_type, sameid_type };
 }
 
 
@@ -411,24 +423,21 @@ void wrapped_types(Scope *root_scope) {
 
     //ANY_ARRAY_TS = { array_type, any_type };
     //ANY_QUEUE_TS = { queue_type, any_type };
-    ANY_SET_REF_TS = { ref_type, set_type, any_type };
-    ANY_ANY2_MAP_REF_TS = { ref_type, map_type, any_type, any2_type };
+    ANY_SET_TS = { set_type, any_type };
+    ANY_SET_LVALUE_TS = { lvalue_type, set_type, any_type };
+    ANY_ANY2_MAP_TS = { map_type, any_type, any2_type };
+    ANY_ANY2_MAP_LVALUE_TS = { lvalue_type, map_type, any_type, any2_type };
     //ANY_STACK_PTR_TS = { ptr_type, stack_type, any_type };
     //ANY_QUEUE_PTR_TS = { ptr_type, queue_type, any_type };
-    ANY_SET_PTR_TS = { ptr_type, set_type, any_type };
-    ANY_ANY2_MAP_PTR_TS = { ptr_type, map_type, any_type, any2_type };
-    ANY_ANYID2_WEAKVALUEMAP_PTR_TS = { ptr_type, weakvaluemap_type, any_type, anyid2_type };
-    ANYID_WEAKSET_PTR_TS = { ptr_type, weakset_type, anyid_type };
+    ANY_ANYID2_WEAKVALUEMAP_TS = { weakvaluemap_type, any_type, anyid2_type };
+    ANYID_WEAKSET_TS = { weakset_type, anyid_type };
 
-    SAME_SAMEID2_NOSYVALUE_MAP_TS = { map_type, same_type, nosyvalue_type, sameid2_type };
-    SAME_SAMEID2_NOSYVALUE_MAP_PTR_TS = { ptr_type, map_type, same_type, nosyvalue_type, sameid2_type };
+    //SAME_SAMEID2_NOSYVALUE_MAP_PTR_TS = { ptr_type, map_type, same_type, nosyvalue_type, sameid2_type };
 
-    ANYID_ANY2_WEAKINDEXMAP_PTR_TS = { ptr_type, weakindexmap_type, anyid_type, any2_type };
-    SAMEID_NOSYVALUE_SAME2_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, same2_type };
-    SAMEID_NOSYVALUE_SAME2_MAP_TS = { map_type, nosyvalue_type, sameid_type, same2_type };
+    ANYID_ANY2_WEAKINDEXMAP_TS = { weakindexmap_type, anyid_type, any2_type };
+    //SAMEID_NOSYVALUE_SAME2_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, same2_type };
 
-    SAMEID_NOSYVALUE_UNIT_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, unit_type };
-    SAMEID_NOSYVALUE_UNIT_MAP_TS = { map_type, nosyvalue_type, sameid_type, unit_type };
+    //SAMEID_NOSYVALUE_UNIT_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, unit_type };
 }
 
 
@@ -608,12 +617,12 @@ void define_interfaces() {
 template <typename NextValue>
 void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec interface_ts) {
     TypeSpec PIVOT_TS = { iter_type, any_type };
-    TypeSpec SAME_CONTAINER_REF_LVALUE_TS = { lvalue_type, ref_type, container_type, same_type };
+    TypeSpec SAME_CONTAINER_LVALUE_TS = { lvalue_type, container_type, same_type };
     
     DataScope *aiis = iter_type->make_inner_scope(PIVOT_TS);
 
     // Order matters!
-    aiis->add(new Variable("container", PIVOT_TS, SAME_CONTAINER_REF_LVALUE_TS));
+    aiis->add(new Variable("container", PIVOT_TS, SAME_CONTAINER_LVALUE_TS));
     aiis->add(new Variable("value", PIVOT_TS, INTEGER_LVALUE_TS));
 
     lself_implement(aiis, interface_ts, "iterator", {
@@ -699,18 +708,22 @@ void define_iterators() {
     TypeSpec INTEGER_SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, integer_type, same_type };
 
     // Array Iterator operations
-    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, linearray_type, SAME_ITERATOR_TS);
-    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, linearray_type, INTEGER_ITERATOR_TS);
-    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, linearray_type, INTEGER_SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, array_type, SAME_ITERATOR_TS);
+    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, array_type, INTEGER_ITERATOR_TS);
+    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, array_type, INTEGER_SAME_ITEM_ITERATOR_TS);
 
     // Circularray Iterator operations
-    define_container_iterator<QueueNextElemValue>(queueelemiter_type, circularray_type, SAME_ITERATOR_TS);
-    define_container_iterator<QueueNextIndexValue>(queueindexiter_type, circularray_type, INTEGER_ITERATOR_TS);
-    define_container_iterator<QueueNextItemValue>(queueitemiter_type, circularray_type, INTEGER_SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<QueueNextElemValue>(queueelemiter_type, queue_type, SAME_ITERATOR_TS);
+    define_container_iterator<QueueNextIndexValue>(queueindexiter_type, queue_type, INTEGER_ITERATOR_TS);
+    define_container_iterator<QueueNextItemValue>(queueitemiter_type, queue_type, INTEGER_SAME_ITEM_ITERATOR_TS);
+
+    // Set Iterator operations
+    define_container_iterator<RbtreeNextElemByAgeValue>(setelembyageiter_type, set_type, SAME_ITERATOR_TS);
+    define_container_iterator<RbtreeNextElemByOrderValue>(setelembyorderiter_type, set_type, SAME_ITERATOR_TS);
 
     // Rbtree Iterator operations
-    define_container_iterator<RbtreeNextElemByAgeValue>(rbtreeelembyageiter_type, rbtree_type, SAME_ITERATOR_TS);
-    define_container_iterator<RbtreeNextElemByOrderValue>(rbtreeelembyorderiter_type, rbtree_type, SAME_ITERATOR_TS);
+    //define_container_iterator<RbtreeNextElemByAgeValue>(rbtreeelembyageiter_type, rbtree_type, SAME_ITERATOR_TS);
+    //define_container_iterator<RbtreeNextElemByOrderValue>(rbtreeelembyorderiter_type, rbtree_type, SAME_ITERATOR_TS);
 
     // Slice Iterator operations
     define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ITERATOR_TS);
@@ -876,7 +889,7 @@ void define_queue() {
     queue_scope->leave();
 }
 
-
+/*
 void define_rbtree() {
     Scope *rbtree_scope = rbtree_type->get_inner_scope();
 
@@ -885,7 +898,7 @@ void define_rbtree() {
     rbtree_scope->add(new TemplateIdentifier<RbtreeHasValue>("has", ANY_RBTREE_REF_TS));
     rbtree_scope->add(new TemplateIdentifier<RbtreeAddValue>("add", ANY_RBTREE_REF_TS));
     rbtree_scope->add(new TemplateIdentifier<RbtreeRemoveValue>("remove", ANY_RBTREE_REF_TS));
-    rbtree_scope->add(new TemplateIdentifier<RbtreeAutogrowValue>("autogrow", ANY_RBTREE_REF_LVALUE_TS));
+    //rbtree_scope->add(new TemplateIdentifier<RbtreeAutogrowValue>("autogrow", ANY_RBTREE_REF_LVALUE_TS));
 
     // Rbtree iterable operations
     rbtree_scope->add(new TemplateIdentifier<RbtreeElemByAgeIterValue>("elements_by_age", ANY_RBTREE_REF_TS));
@@ -896,7 +909,7 @@ void define_rbtree() {
     rbtree_type->complete_type();
     rbtree_scope->leave();
 }
-
+*/
 /*
 void define_stack() {
     TypeSpec PIVOT = ANY_STACK_PTR_TS;
@@ -961,116 +974,117 @@ void define_queue() {
 */
 
 void define_set() {
-    TypeSpec PIVOT = ANY_SET_PTR_TS;
-    TypeSpec CAST = SAME_RBTREE_REF_LVALUE_TS;
+    TypeSpec PIVOT_TS = ANY_SET_TS;
+    TypeSpec PIVOT_LVALUE_TS = ANY_SET_LVALUE_TS;
+    TypeSpec MEMBER_TS = SAME_RBTREE_REF_LVALUE_TS;
     
-    ClassType *class_type = ptr_cast<ClassType>(set_type);
-    DataScope *is = class_type->make_inner_scope(PIVOT);
+    DataScope *is = set_type->make_inner_scope(PIVOT_TS);
 
-    is->add(new Variable("wrapped", PIVOT, CAST));
+    is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
 
-    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
-    is->add(new ClassWrapperIdentifier("has", PIVOT, CAST, "has"));
-    is->add(new ClassWrapperIdentifier("add", PIVOT, CAST, "add", true));
-    is->add(new ClassWrapperIdentifier("remove", PIVOT, CAST, "remove"));
+    is->add(new TemplateIdentifier<SetLengthValue>("length", PIVOT_TS));
+    is->add(new TemplateIdentifier<SetAddValue>("add", PIVOT_LVALUE_TS));
+    is->add(new TemplateIdentifier<SetRemoveValue>("remove", PIVOT_TS));
+    is->add(new TemplateIdentifier<SetHasValue>("has", PIVOT_TS));
+    
+    is->add(new TemplateIdentifier<SetElemByAgeIterValue>("elements_by_age", PIVOT_TS));
+    is->add(new TemplateIdentifier<SetElemByOrderIterValue>("elements_by_order", PIVOT_TS));
+    
+    /*
+    is->add(new CastWrapperIdentifier("length", PIVOT, CAST));
+    is->add(new CastWrapperIdentifier("has", PIVOT, CAST));
+    is->add(new CastWrapperIdentifier("add", PIVOT, CAST));
+    is->add(new CastWrapperIdentifier("remove", PIVOT, CAST));
 
-    //implement(is, TypeSpec { iterable_type, same_type }, "iterable", {
-    //    new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
-    //});
-
-    is->add(new ClassWrapperIdentifier("elements_by_age", PIVOT, CAST, "elements_by_age"));
-    is->add(new ClassWrapperIdentifier("elements_by_order", PIVOT, CAST, "elements_by_order"));
-
-    is->add(new AltStreamifiableImplementation("contents", PIVOT));
-
-    class_type->complete_type();
+    is->add(new CastWrapperIdentifier("elements_by_age", PIVOT, CAST));
+    is->add(new CastWrapperIdentifier("elements_by_order", PIVOT, CAST));
+    */
+    
+    set_type->complete_type();
     is->leave();
 }
 
 
 void define_map() {
-    TypeSpec PIVOT = ANY_ANY2_MAP_PTR_TS;
-    TypeSpec CAST = SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec PIVOT_TS = ANY_ANY2_MAP_TS;
+    TypeSpec PIVOT_LVALUE_TS = ANY_ANY2_MAP_LVALUE_TS;
+    TypeSpec MEMBER_TS = SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
-    ClassType *class_type = ptr_cast<ClassType>(map_type);
-    DataScope *is = class_type->make_inner_scope(PIVOT);
+    DataScope *is = map_type->make_inner_scope(PIVOT_TS);
 
-    is->add(new Variable("wrapped", PIVOT, CAST));
+    is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
     
-    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
-    is->add(new TemplateIdentifier<MapAddValue>("add", PIVOT));
-    is->add(new TemplateIdentifier<MapRemoveValue>("remove", PIVOT));
-    is->add(new TemplateIdentifier<MapHasValue>("has", PIVOT));
-    is->add(new TemplateIdentifier<MapIndexValue>("index", PIVOT));
+    is->add(new TemplateIdentifier<MapLengthValue>("length", PIVOT_TS));
+    is->add(new TemplateIdentifier<MapAddValue>("add", PIVOT_LVALUE_TS));
+    is->add(new TemplateIdentifier<MapRemoveValue>("remove", PIVOT_TS));
+    is->add(new TemplateIdentifier<MapHasValue>("has", PIVOT_TS));
+    is->add(new TemplateIdentifier<MapIndexValue>("index", PIVOT_TS));
 
-    is->add(new AltStreamifiableImplementation("contents", PIVOT));
+    //is->add(new AltStreamifiableImplementation("contents", PIVOT));
     
-    class_type->complete_type();
+    map_type->complete_type();
     is->leave();
 }
 
 
 void define_weakvaluemap() {
-    TypeSpec PIVOT = ANY_ANYID2_WEAKVALUEMAP_PTR_TS;
-    TypeSpec CAST = SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS;
-    
-    ClassType *class_type = ptr_cast<ClassType>(weakvaluemap_type);
-    DataScope *is = class_type->make_inner_scope(PIVOT);
+    TypeSpec PIVOT_TS = ANY_ANYID2_WEAKVALUEMAP_TS;
+    TypeSpec MEMBER_TS = SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS;
 
-    is->add(new Variable("wrapped", PIVOT, CAST));
+    DataScope *is = weakvaluemap_type->make_inner_scope(PIVOT_TS);
+
+    is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
     
-    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
-    is->add(new TemplateIdentifier<WeakValueMapAddValue>("add", PIVOT));
-    is->add(new TemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT));
-    is->add(new TemplateIdentifier<WeakValueMapHasValue>("has", PIVOT));
-    is->add(new TemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT));
+    is->add(new NosyTemplateIdentifier<WeakValueMapLengthValue>("length", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakValueMapAddValue>("add", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakValueMapHasValue>("has", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT_TS, MEMBER_TS));
 
     // Must not define iteration due to the volatility of this container
     
-    class_type->complete_type();
+    weakvaluemap_type->complete_type();
     is->leave();
 }
 
 
 void define_weakindexmap() {
-    TypeSpec PIVOT = ANYID_ANY2_WEAKINDEXMAP_PTR_TS;
-    TypeSpec CAST = SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec PIVOT_TS = ANYID_ANY2_WEAKINDEXMAP_TS;
+    TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
-    ClassType *class_type = ptr_cast<ClassType>(weakindexmap_type);
-    DataScope *is = class_type->make_inner_scope(PIVOT);
+    DataScope *is = weakindexmap_type->make_inner_scope(PIVOT_TS);
 
-    is->add(new Variable("wrapped", PIVOT, CAST));
+    is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
+
+    is->add(new NosyTemplateIdentifier<WeakIndexMapLengthValue>("length", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakIndexMapAddValue>("add", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakIndexMapHasValue>("has", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT_TS, MEMBER_TS));
     
-    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
-    is->add(new TemplateIdentifier<WeakIndexMapAddValue>("add", PIVOT));
-    is->add(new TemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT));
-    is->add(new TemplateIdentifier<WeakIndexMapHasValue>("has", PIVOT));
-    is->add(new TemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT));
-
     // Must not define iteration due to the volatility of this container
     
-    class_type->complete_type();
+    weakindexmap_type->complete_type();
     is->leave();
 }
 
 
 void define_weakset() {
-    TypeSpec PIVOT = ANYID_WEAKSET_PTR_TS;
-    TypeSpec CAST = SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec PIVOT_TS = ANYID_WEAKSET_TS;
+    TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
     
-    ClassType *class_type = ptr_cast<ClassType>(weakset_type);
-    DataScope *is = class_type->make_inner_scope(PIVOT);
+    DataScope *is = weakset_type->make_inner_scope(PIVOT_TS);
 
-    is->add(new Variable("wrapped", PIVOT, CAST));
+    is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
     
-    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
-    is->add(new TemplateIdentifier<WeakSetAddValue>("add", PIVOT));
-    is->add(new TemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT));
-    is->add(new TemplateIdentifier<WeakSetHasValue>("has", PIVOT));
+    is->add(new NosyTemplateIdentifier<WeakSetLengthValue>("length", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakSetAddValue>("add", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakSetHasValue>("has", PIVOT_TS, MEMBER_TS));
 
     // Must not define iteration due to the volatility of this container
     
-    class_type->complete_type();
+    weakset_type->complete_type();
     is->leave();
 }
 
@@ -1210,7 +1224,7 @@ RootScope *init_builtins() {
     ptr_scope->leave();
 
     // Rbtree operations
-    define_rbtree();
+    //define_rbtree();
     
     // Unpacking
     Scope *mls = multilvalue_type->make_inner_scope(MULTILVALUE_TS);

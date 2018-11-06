@@ -638,7 +638,7 @@ public:
         :WrappedClassType(name, { value_metatype }, SAME_CIRCULARRAY_REF_LVALUE_TS) {
     }
 };
-*/
+
 
 class SetType: public WrappedClassType {
 public:
@@ -678,3 +678,4 @@ public:
         :WrappedClassType(name, { identity_metatype }, SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS) {
     }
 };
+*/

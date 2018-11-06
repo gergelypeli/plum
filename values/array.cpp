@@ -102,7 +102,7 @@ public:
 class ArrayInitializerValue: public ContainerInitializerValue {
 public:
     ArrayInitializerValue(TypeSpec ts)
-        :ContainerInitializerValue(ts, LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET, compile_array_alloc) {
+        :ContainerInitializerValue(ts.unprefix(array_type), ts, LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET, compile_array_alloc) {
     }
 };
 

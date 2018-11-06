@@ -1,4 +1,5 @@
 
+
 int rbtree_elem_size(TypeSpec elem_ts) {
     return elem_ts.measure_stack() + RBNODE_HEADER_SIZE;
 }
@@ -52,29 +53,35 @@ void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-// Register usage:
-// ROOTX - index of current node
-// R10 - return of operation
-// THISX, THATX - child indexes
-// SELFX - address of the tree
-// KEYX - address of key (input), dark soul (output during removal)
+void rbtree_preappend2(TypeSpec elem_ts, Address alias_addr, X64 *x64) {
+    // R10 - new addition. Returns the Ref in RAX.
+    Label ok;
+    
+    x64->op(MOVQ, R11, alias_addr);  // Alias
+    x64->op(MOVQ, RAX, Address(R11, 0));  // Ref
+    x64->op(ADDQ, R10, Address(RAX, RBTREE_LENGTH_OFFSET));
+    x64->op(CMPQ, R10, Address(RAX, RBTREE_RESERVATION_OFFSET));
+    x64->op(JBE, ok);
 
-#define SELFX R8
-#define KEYX  R9
-#define ROOTX RBX
-#define THISX RCX
-#define THATX RDX
+    Label grow_label = x64->once->compile(compile_rbtree_grow, elem_ts);
+    x64->op(CALL, grow_label);  // clobbers all
+    
+    x64->op(MOVQ, R11, alias_addr);  // Alias
+    x64->op(MOVQ, Address(R11, 0), RAX);  // Ref
+    
+    x64->code_label(ok);
+}
 
-#include "rbtree_helpers.cpp"
 
+// Initializers
 
 class RbtreeEmptyValue: public GenericValue {
 public:
     TypeSpec elem_ts;
     
-    RbtreeEmptyValue(TypeSpec ts)
-        :GenericValue(NO_TS, ts, NULL) {
-        elem_ts = container_elem_ts(ts);
+    RbtreeEmptyValue(TypeSpec ets, TypeSpec rts)
+        :GenericValue(NO_TS, rts, NULL) {
+        elem_ts = ets;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -96,9 +103,9 @@ class RbtreeReservedValue: public GenericValue {
 public:
     TypeSpec elem_ts;
     
-    RbtreeReservedValue(TypeSpec ts)
-        :GenericValue(INTEGER_TS, ts, NULL) {
-        elem_ts = container_elem_ts(ts);
+    RbtreeReservedValue(TypeSpec ets, TypeSpec rts)
+        :GenericValue(INTEGER_TS, rts, NULL) {
+        elem_ts = ets;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -120,8 +127,8 @@ public:
 
 class RbtreeInitializerValue: public ContainerInitializerValue {
 public:
-    RbtreeInitializerValue(TypeSpec ts)
-        :ContainerInitializerValue(ts, 0, 0, NULL) {
+    RbtreeInitializerValue(TypeSpec ets, TypeSpec rts)
+        :ContainerInitializerValue(ets, rts, 0, 0, NULL) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -159,15 +166,17 @@ public:
 };
 
 
+// Methods
+
 class RbtreeLengthValue: public GenericValue {
 public:
     Register reg;
     TypeSpec heap_ts;
     
-    RbtreeLengthValue(Value *l, TypeMatch &match)
+    RbtreeLengthValue(Value *l, TypeSpec ets)
         :GenericValue(NO_TS, INTEGER_TS, l) {
         reg = NOREG;
-        heap_ts = match[0].unprefix(ptr_type);
+        heap_ts = ets.prefix(rbtree_type);
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -200,122 +209,312 @@ public:
 };
 
 
-class RbtreeHasValue: public GenericValue {
+class RbtreeAddValue: public Value {
 public:
-    TypeSpec elem_ts;
-    
-    RbtreeHasValue(Value *pivot, TypeMatch &match)
-        :GenericValue(match[1], BOOLEAN_TS, pivot) {
-        elem_ts = match[1];
+    TypeSpec elem_ts, elem_arg_ts;
+    std::unique_ptr<Value> pivot, elem;
+
+    RbtreeAddValue(Value *l, TypeSpec ets, TypeSpec eats)
+        :Value(VOID_TS) {
+        pivot.reset(l);
+        
+        elem_ts = ets;
+        elem_arg_ts = eats;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return check_arguments(args, kwargs, {
+            { "elem", &elem_arg_ts, scope, &elem }
+        });
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | SELFX | ROOTX | KEYX | COMPARE_CLOB;
+        Regs clob = pivot->precompile(preferred) | elem->precompile(preferred);
+        
+        // We build on this in WeakValueMap::precreate
+        // FIXME: ???
+        return clob | RBTREE_CLOB | COMPARE_CLOB;
+    }
+
+    virtual void preelem(Address alias_addr, X64 *x64) {
+        // To be overridden
+        // Must preserve SELFX and KEYX
     }
 
     virtual Storage compile(X64 *x64) {
-        int key_size = elem_ts.measure_stack();
-        Label has = x64->once->compile(compile_rbtree_has, elem_ts);
+        pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
+        elem->compile_and_store(x64, Storage(STACK));
         
-        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
-    
-        x64->op(MOVQ, KEYX, RSP);  // save key address for stack usage
-        x64->op(MOVQ, SELFX, Address(RSP, key_size));  // Rbtree without incref
+        //int elem_size = elem_ts.measure_stack();
+        int elem_arg_size = elem_arg_ts.measure_stack();
+        Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
+
+        x64->op(MOVQ, R10, 1);  // Growth
+        rbtree_preappend2(elem_ts, Address(RSP, elem_arg_size), x64);
+        x64->op(MOVQ, SELFX, RAX);  // TODO: not nice, maybe SELFX should be RAX?
+        
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, KEYX, Address(RSP, 0));
+        x64->op(CALL, add_label);
         
-        x64->op(CALL, has);
-        x64->op(CMPQ, KEYX, RBNODE_NIL);
-        x64->op(SETNE, AL);
-        
-        elem_ts.store(Storage(STACK), Storage(), x64);
-        left->ts.store(Storage(STACK), Storage(), x64);
-        
-        return Storage(REGISTER, AL);
-    }
-};
-
-
-class RbtreeAddValue: public GenericValue {
-public:
-    TypeSpec elem_ts;
-    
-    RbtreeAddValue(Value *pivot, TypeMatch &match)
-        :GenericValue(match[1], VOID_TS, pivot) {
-        elem_ts = match[1];
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | SELFX | ROOTX | KEYX | THISX | THATX | COMPARE_CLOB;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        int key_size = elem_ts.measure_stack();
-        Label add = x64->once->compile(compile_rbtree_add, elem_ts);
-        Label ok;
-        
-        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
-
-        x64->op(MOVQ, KEYX, RSP);  // save key address for stack usage
-        x64->op(MOVQ, SELFX, Address(RSP, key_size));  // Rbtree without incref
-        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-
-        x64->op(CALL, add);
-
         x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
         x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
-        
-        x64->op(CMPQ, KEYX, RBNODE_NIL);
-        x64->op(JNE, ok);
-        
-        x64->runtime->die("Rbtree full!");
-        
-        x64->code_label(ok);
-        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), x64);
-        left->ts.store(Storage(STACK), Storage(), x64);
+
+        Address alias_addr(RSP, elem_arg_size);
+        Address elem_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET);
+        preelem(alias_addr, x64);
+        elem_ts.create(Storage(STACK), Storage(MEMORY, elem_addr), x64);
+
+        pivot->ts.store(Storage(ALISTACK), Storage(), x64);
         
         return Storage();
     }
 };
 
 
-class RbtreeRemoveValue: public ContainerEmptiableValue {
+class RbtreeAddItemValue: public Value {
 public:
+    TypeSpec key_ts, value_ts, key_arg_ts, value_arg_ts;
     TypeSpec elem_ts;
-    
-    RbtreeRemoveValue(Value *pivot, TypeMatch &match)
-        :ContainerEmptiableValue(match[1], VOID_TS, pivot) {
-        elem_ts = match[1];
+    std::unique_ptr<Value> pivot, key, value;
+
+    RbtreeAddItemValue(Value *l, TypeSpec kts, TypeSpec vts, TypeSpec kats, TypeSpec vats)
+        :Value(VOID_TS) {
+        pivot.reset(l);
+            
+        key_ts = kts;
+        value_ts = vts;
+        key_arg_ts = kats;
+        value_arg_ts = vats;
+        
+        elem_ts = TypeSpec(item_type, key_ts, value_ts);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return check_arguments(args, kwargs, {
+            { "key", &key_arg_ts, scope, &key },
+            { "value", &value_arg_ts, scope, &value }
+        });
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
-        return clob | SELFX | ROOTX | KEYX | THISX | THATX | COMPARE_CLOB;
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred) | value->precompile(preferred);
+
+        // We build on this in WeakValueMap::precreate
+        return clob | RBTREE_CLOB | COMPARE_CLOB;
+    }
+
+    virtual void prekey(Address alias_addr, X64 *x64) {
+        // To be overridden
+        // Must preserve SELFX and KEYX
+    }
+
+    virtual void prevalue(Address alias_addr, X64 *x64) {
+        // To be overridden
+        // Must preserve SELFX and KEYX
     }
 
     virtual Storage compile(X64 *x64) {
-        int key_size = elem_ts.measure_stack();
-        Label remove = x64->once->compile(compile_rbtree_remove, elem_ts);
-        
-        compile_and_store_both(x64, Storage(STACK), Storage(STACK));
+        pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
+        key->compile_and_store(x64, Storage(STACK));
+        value->compile_and_store(x64, Storage(STACK));
 
-        x64->op(MOVQ, KEYX, RSP);  // save key address for stack usage
-        x64->op(MOVQ, SELFX, Address(RSP, key_size));  // Rbtree without incref
+        int key_size = key_ts.measure_stack();  // NOTE: as it's in an Item, it is rounded up
+        int key_arg_size = key_arg_ts.measure_stack();
+        int value_arg_size = value_arg_ts.measure_stack();
+        Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
+
+        x64->op(MOVQ, R10, 1);  // Growth
+        rbtree_preappend2(elem_ts, Address(RSP, key_arg_size + value_arg_size), x64);
+        x64->op(MOVQ, SELFX, RAX);  // TODO: not nice, maybe SELFX should be RAX?
+
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-
-        x64->op(CALL, remove);
-
-        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+        x64->op(LEA, KEYX, Address(RSP, value_arg_size));
+        x64->op(CALL, add_label);
         
-        elem_ts.store(Storage(STACK), Storage(), x64);
-        left->ts.store(Storage(STACK), Storage(), x64);
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+        x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
+
+        // NOTE: we use the fact that Item contains index first, and value second,
+        // and since they're parametric types, their sizes will be rounded up.
+        Address alias_addr1(RSP, key_arg_size + value_arg_size);
+        Address value_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
+        prevalue(alias_addr1, x64);
+        value_ts.create(Storage(STACK), Storage(MEMORY, value_addr), x64);
+        
+        Address alias_addr2(RSP, key_arg_size);
+        Address key_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET);
+        prekey(alias_addr2, x64);
+        key_ts.create(Storage(STACK), Storage(MEMORY, key_addr), x64);
+
+        pivot->ts.store(Storage(ALISTACK), Storage(), x64);
         
         return Storage();
     }
 };
 
 
+class RbtreeRemoveValue: public Value {
+public:
+    TypeSpec elem_ts, key_arg_ts;
+    std::unique_ptr<Value> pivot, key;
+
+    RbtreeRemoveValue(Value *l, TypeSpec ets, TypeSpec kats)
+        :Value(VOID_TS) {
+        pivot.reset(l);
+        
+        elem_ts = ets;
+        key_arg_ts = kats;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return check_arguments(args, kwargs, {
+            { "key", &key_arg_ts, scope, &key }
+        });
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        return clob | RBTREE_CLOB | COMPARE_CLOB;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        pivot->compile_and_store(x64, Storage(STACK));
+        key->compile_and_store(x64, Storage(STACK));
+
+        int key_arg_size = key_arg_ts.measure_stack();
+        Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
+
+        x64->op(MOVQ, SELFX, Address(RSP, key_arg_size));
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, KEYX, Address(RSP, 0));  // NOTE: only the index part is present of the Item
+        x64->op(CALL, remove_label);
+        
+        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+
+        key_arg_ts.store(Storage(STACK), Storage(), x64);
+        pivot->ts.store(Storage(STACK), Storage(), x64);
+        
+        return Storage();
+    }
+};
+
+
+class RbtreeHasValue: public Value {
+public:
+    TypeSpec elem_ts, key_arg_ts;
+    std::unique_ptr<Value> pivot, key, value;
+
+    RbtreeHasValue(Value *l, TypeSpec ets, TypeSpec kats)
+        :Value(BOOLEAN_TS) {
+        pivot.reset(l);
+
+        elem_ts = ets;
+        key_arg_ts = kats;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return check_arguments(args, kwargs, {
+            { "key", &key_arg_ts, scope, &key }
+        });
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        return clob | RBTREE_CLOB | COMPARE_CLOB;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        pivot->compile_and_store(x64, Storage(STACK));
+        key->compile_and_store(x64, Storage(STACK));
+        
+        int key_arg_size = key_arg_ts.measure_stack();
+        Label has_label = x64->once->compile(compile_rbtree_has, elem_ts);
+
+        x64->op(MOVQ, SELFX, Address(RSP, key_arg_size));
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, KEYX, Address(RSP, 0));
+        x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
+        
+        key_arg_ts.store(Storage(STACK), Storage(), x64);
+        pivot->ts.store(Storage(STACK), Storage(), x64);
+        
+        x64->op(CMPQ, KEYX, RBNODE_NIL);
+
+        return Storage(FLAGS, CC_NOT_EQUAL);
+    }
+};
+
+
+class RbtreeIndexValue: public Value {
+public:
+    TypeSpec key_ts, elem_ts, key_arg_ts, heap_ts;
+    std::unique_ptr<Value> pivot, key;
+    Unborrow *unborrow;
+
+    RbtreeIndexValue(Value *l, TypeSpec kts, TypeSpec ets, TypeSpec kats, TypeSpec vrts)
+        :Value(vrts) {
+        pivot.reset(l);
+
+        key_ts = kts;
+        elem_ts = ets;
+        key_arg_ts = kats;
+        
+        heap_ts = elem_ts.prefix(rbtree_type);
+        unborrow = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_arguments(args, kwargs, {
+            { "key", &key_arg_ts, scope, &key }
+        }))
+            return false;
+            
+        unborrow = new Unborrow(heap_ts);
+        scope->add(unborrow);
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        return clob | RBTREE_CLOB | COMPARE_CLOB;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        pivot->compile_and_store(x64, Storage(STACK));
+        key->compile_and_store(x64, Storage(STACK));
+
+        int key_size = key_ts.measure_stack();  // in an Item it's rounded up
+        int key_arg_size = key_arg_ts.measure_stack();
+        Label has_label = x64->once->compile(compile_rbtree_has, elem_ts);
+
+        x64->op(MOVQ, SELFX, Address(RSP, key_arg_size));
+        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        x64->op(LEA, KEYX, Address(RSP, 0));
+        x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
+        
+        key_arg_ts.store(Storage(STACK), Storage(), x64);
+        pivot->ts.store(Storage(STACK), Storage(), x64);
+
+        Label ok;
+        x64->op(CMPQ, KEYX, RBNODE_NIL);
+        x64->op(JNE, ok);
+
+        x64->runtime->die("Map missing!");  // FIXME: raise something
+
+        x64->code_label(ok);
+
+        // Borrow Lvalue container
+        heap_ts.incref(SELFX, x64);
+        x64->op(MOVQ, unborrow->get_address(), SELFX);
+        
+        Address value_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
+        return Storage(MEMORY, value_addr);
+    }
+};
+
+/*
 class RbtreeAutogrowValue: public XXXContainerAutogrowValue {
 public:
     RbtreeAutogrowValue(Value *l, TypeMatch &match)
@@ -326,14 +525,14 @@ public:
         return subcompile(RBTREE_RESERVATION_OFFSET, RBTREE_LENGTH_OFFSET, compile_rbtree_grow, x64);
     }
 };
-
+*/
 
 // Iteration
 
 class RbtreeElemByAgeIterValue: public SimpleRecordValue {
 public:
-    RbtreeElemByAgeIterValue(Value *l, TypeMatch &match)
-        :SimpleRecordValue(typesubst(SAME_RBTREEELEMBYAGEITER_TS, match), l) {
+    RbtreeElemByAgeIterValue(Value *l, TypeSpec iter_ts)
+        :SimpleRecordValue(iter_ts, l) {
     }
 
     virtual Storage compile(X64 *x64) {
@@ -416,8 +615,8 @@ public:
 
 class RbtreeElemByOrderIterValue: public ContainerIterValue {
 public:
-    RbtreeElemByOrderIterValue(Value *l, TypeMatch &match)
-        :ContainerIterValue(typesubst(SAME_RBTREEELEMBYORDERITER_TS, match), l) {
+    RbtreeElemByOrderIterValue(Value *l, TypeSpec iter_ts)
+        :ContainerIterValue(iter_ts, l) {
     }
 };
 
@@ -474,491 +673,3 @@ public:
     }
 };
 
-
-// Map and friends
-
-class MapAddValue: public Value {
-public:
-    Value *temp_l;
-    TypeSpec key_ts, value_ts, item_ts, key_arg_ts, value_arg_ts;
-    std::unique_ptr<Value> pivot, key, value;
-
-    MapAddValue(Value *l, TypeMatch &match)
-        :Value(VOID_TS) {
-        temp_l = l;
-        key_ts = match[1];
-        value_ts = match[2];
-        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
-        
-        // To help subclasses tweaking these
-        key_arg_ts = key_ts;
-        value_arg_ts = value_ts;
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        // Autogrow stuff
-        pivot.reset(temp_l->lookup_inner("wrapped", scope)->lookup_inner("autogrow", scope));
-
-        Args fake_args;
-        Kwargs fake_kwargs;
-        if (!pivot->check(fake_args, fake_kwargs, scope))
-            return false;
-
-        if (value_arg_ts == NO_TS)  // used in WeakSet
-            return check_arguments(args, kwargs, {
-                { "key", &key_arg_ts, scope, &key }
-            });
-        else
-            return check_arguments(args, kwargs, {
-                { "key", &key_arg_ts, scope, &key },
-                { "value", &value_arg_ts, scope, &value }
-            });
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
-        
-        if (value)
-            clob = clob | value->precompile(preferred);
-        
-        // We build on this in WeakValueMap::precreate
-        return clob | SELFX | ROOTX | KEYX | THISX | THATX | COMPARE_CLOB;
-    }
-
-    virtual void prekey(Address alias_addr, X64 *x64) {
-        // To be overridden
-        // Must preserve SELFX and KEYX
-    }
-
-    virtual void prevalue(Address alias_addr, X64 *x64) {
-        // To be overridden
-        // Must preserve SELFX and KEYX
-    }
-
-    virtual Storage compile(X64 *x64) {
-        pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
-        key->compile_and_store(x64, Storage(STACK));
-        
-        if (value)
-            value->compile_and_store(x64, Storage(STACK));
-
-        int key_size = key_ts.measure_stack();  // NOTE: as it's in an Item, it is rounded up
-        int key_stack_size = key_arg_ts.measure_stack();
-        int value_stack_size = value_arg_ts != NO_TS ? value_arg_ts.measure_stack() : 0;
-        
-        Label add_label = x64->once->compile(compile_rbtree_add, item_ts);
-
-        x64->op(MOVQ, R10, Address(RSP, key_stack_size + value_stack_size));
-        x64->op(MOVQ, SELFX, Address(R10, 0));
-
-        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-        x64->op(LEA, KEYX, Address(RSP, value_stack_size));
-
-        x64->op(CALL, add_label);
-        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
-        x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
-
-        // NOTE: we abuse the fact that Item contains index first, and value second,
-        // and since they're parametric types, their sizes will be rounded up.
-        if (value) {
-            prevalue(Address(RSP, key_stack_size + value_stack_size), x64);
-            value_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size)), x64);
-        }
-        
-        prekey(Address(RSP, key_stack_size), x64);
-        key_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), x64);
-
-        pivot->ts.store(Storage(ALISTACK), Storage(), x64);
-        
-        return Storage();
-    }
-};
-
-
-class MapRemoveValue: public Value {
-public:
-    TypeSpec key_ts, item_ts, key_arg_ts;
-    std::unique_ptr<Value> pivot, key;
-
-    MapRemoveValue(Value *l, TypeMatch &match)
-        :Value(VOID_TS) {
-        pivot.reset(l);
-        key_ts = match[1];
-        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
-        
-        key_arg_ts = key_ts;
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        return check_arguments(args, kwargs, {
-            { "key", &key_arg_ts, scope, &key }
-        });
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
-        return clob | SELFX | KEYX | ROOTX | THISX | THATX | COMPARE_CLOB;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        pivot->compile_and_store(x64, Storage(STACK));
-        key->compile_and_store(x64, Storage(STACK));
-
-        int key_stack_size = key_arg_ts.measure_stack();
-        
-        Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
-
-        x64->op(MOVQ, R10, Address(RSP, key_stack_size));
-        x64->op(MOVQ, SELFX, Address(R10, CLASS_MEMBERS_OFFSET));
-        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-        x64->op(LEA, KEYX, Address(RSP, 0));  // NOTE: only the index part is present of the Item
-
-        x64->op(CALL, remove_label);
-        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
-
-        key_arg_ts.store(Storage(STACK), Storage(), x64);
-        pivot->ts.store(Storage(STACK), Storage(), x64);
-        
-        return Storage();
-    }
-};
-
-
-class MapHasValue: public Value {
-public:
-    TypeSpec key_ts, value_ts, item_ts, key_arg_ts;
-    std::unique_ptr<Value> pivot, key, value;
-
-    MapHasValue(Value *l, TypeMatch &match)
-        :Value(BOOLEAN_TS) {
-        pivot.reset(l);
-        key_ts = match[1];
-        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);
-        
-        key_arg_ts = key_ts;
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        return check_arguments(args, kwargs, {
-            { "key", &key_arg_ts, scope, &key }
-        });
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
-        return clob | SELFX | KEYX | ROOTX | THISX | THATX | COMPARE_CLOB;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        int key_stack_size = key_arg_ts.measure_stack();
-        
-        pivot->compile_and_store(x64, Storage(STACK));
-        key->compile_and_store(x64, Storage(STACK));
-        
-        Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
-
-        x64->op(MOVQ, R10, Address(RSP, key_stack_size));
-        x64->op(MOVQ, SELFX, Address(R10, CLASS_MEMBERS_OFFSET));
-        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-        x64->op(LEA, KEYX, Address(RSP, 0));
-
-        x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
-        
-        key_arg_ts.store(Storage(STACK), Storage(), x64);
-        pivot->ts.store(Storage(STACK), Storage(), x64);
-        
-        x64->op(CMPQ, KEYX, RBNODE_NIL);
-
-        return Storage(FLAGS, CC_NOT_EQUAL);
-    }
-};
-
-
-class MapIndexValue: public Value {
-public:
-    TypeSpec key_ts, value_ts, item_ts, heap_ts, key_arg_ts;
-    std::unique_ptr<Value> pivot, key, value;
-    Unborrow *unborrow;
-
-    MapIndexValue(Value *l, TypeMatch &match)
-        :Value(match[2]) {
-        pivot.reset(l);
-        key_ts = match[1];
-        item_ts = match[0].unprefix(ptr_type).reprefix(map_type, item_type);  // TODO: Lvalue?
-        heap_ts = item_ts.prefix(rbtree_type);
-        
-        key_arg_ts = key_ts;
-        unborrow = NULL;
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_arguments(args, kwargs, {
-            { "key", &key_arg_ts, scope, &key }
-        }))
-            return false;
-            
-        unborrow = new Unborrow(heap_ts);
-        scope->add(unborrow);
-        
-        return true;
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
-        return clob | SELFX | KEYX | ROOTX | THISX | THATX | COMPARE_CLOB;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        int key_stack_size = key_arg_ts.measure_stack();
-        
-        pivot->compile_and_store(x64, Storage(STACK));
-        key->compile_and_store(x64, Storage(STACK));
-        
-        Label has_label = x64->once->compile(compile_rbtree_has, item_ts);
-
-        x64->op(MOVQ, R10, Address(RSP, key_stack_size));
-        x64->op(MOVQ, SELFX, Address(R10, CLASS_MEMBERS_OFFSET));
-        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-        x64->op(LEA, KEYX, Address(RSP, 0));
-
-        x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
-        
-        key_arg_ts.store(Storage(STACK), Storage(), x64);
-        pivot->ts.store(Storage(STACK), Storage(), x64);
-        
-        int key_size = key_ts.measure_stack();  // in an Item it's rounded up
-
-        Label ok;
-        x64->op(CMPQ, KEYX, RBNODE_NIL);
-        x64->op(JNE, ok);
-
-        x64->runtime->die("Map missing!");  // TODO
-
-        x64->code_label(ok);
-
-        // Borrow Lvalue container
-        heap_ts.incref(SELFX, x64);
-        x64->op(MOVQ, unborrow->get_address(), SELFX);
-        
-        return Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size));
-    }
-};
-
-
-// Weak map helpers
-
-static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) {
-    Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
-
-    std::stringstream ss;
-    ss << item_ts << " Nosyvalue callback";
-    x64->code_label_local(label, ss.str());
-    x64->runtime->log(ss.str());
-    
-    // arguments: fcb, payload1, payload2
-    // We may clobber all registers
-
-    x64->op(MOVQ, SELFX, Address(RSP, ADDRESS_SIZE * 2));  // payload1 arg (rbtree ref address)
-    x64->op(MOVQ, SELFX, Address(SELFX, 0));  // load current rbtree ref
-    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(MOVQ, KEYX, Address(RSP, ADDRESS_SIZE));  // payload2 arg (elem index)
-    x64->op(LEA, KEYX, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET));  // use the elem key
-
-    x64->op(CALL, remove_label);
-    x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
-    
-    // Removing an element automatically destroys the NosyValue within, which frees
-    // the pointed FCB as well.
-    
-    x64->op(RET);
-}
-
-
-static void ptr_to_nosyvalue(TypeSpec item_ts, TypeSpec heap_ts, Address alias_addr, X64 *x64) {
-    // Turn a Ptr into a NosyValue by replacing a pointer with a pointer+fcbaddr pair
-    // on the stack. Clobbers all registers, except SELFX and KEYX.
-    Label callback_label = x64->once->compile(compile_nosyvalue_callback, item_ts);
-    
-    x64->op(MOVQ, RAX, Address(RSP, 0));  // referred heap object
-    x64->op(LEA, R10, Address(callback_label, 0));  // callback
-    x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
-    x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
-
-    heap_ts.decref(RAX, x64);  // FIXME: use after decref
-    x64->op(PUSHQ, RAX);  // in NosyValue the object pointer is at the lower address...
-    
-    x64->op(PUSHQ, SELFX);  // promised to preserve these two
-    x64->op(PUSHQ, KEYX);
-    
-    x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, R10);
-    x64->op(PUSHQ, RCX);
-    x64->op(PUSHQ, RDX);
-    x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
-    x64->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
-    
-    x64->op(POPQ, KEYX);
-    x64->op(POPQ, SELFX);  // preserved
-    
-    x64->op(MOVQ, Address(RSP, ADDRESS_SIZE), RAX);  // .. and the fcb at the higher address
-}
-
-
-// WeakValueMap
-
-TypeMatch &wvmatch(TypeMatch &match) {
-    static TypeMatch tm;
-    tm[0] = typesubst(SAME_SAMEID2_NOSYVALUE_MAP_PTR_TS, match);
-    tm[1] = match[1];
-    tm[2] = match[2].prefix(nosyvalue_type);
-    tm[3] = NO_TS;
-    return tm;
-}
-
-
-class WeakValueMapAddValue: public MapAddValue {
-public:
-    WeakValueMapAddValue(Value *l, TypeMatch &match)
-        :MapAddValue(l, wvmatch(match)) {
-        value_arg_ts = value_ts.reprefix(nosyvalue_type, ptr_type);
-    }
-
-    virtual void prevalue(Address alias_addr, X64 *x64) {
-        // Must preserve SELFX and KEYX
-        TypeSpec heap_ts = value_ts.unprefix(nosyvalue_type);
-        ptr_to_nosyvalue(item_ts, heap_ts, alias_addr, x64);
-    }
-};
-
-
-class WeakValueMapRemoveValue: public MapRemoveValue {
-public:
-    WeakValueMapRemoveValue(Value *l, TypeMatch &match)
-        :MapRemoveValue(l, wvmatch(match)) {
-    }
-};
-
-
-class WeakValueMapHasValue: public MapHasValue {
-public:
-    WeakValueMapHasValue(Value *l, TypeMatch &match)
-        :MapHasValue(l, wvmatch(match)) {
-    }
-};
-
-
-class WeakValueMapIndexValue: public MapIndexValue {
-public:
-    WeakValueMapIndexValue(Value *l, TypeMatch &match)
-        :MapIndexValue(l, wvmatch(match)) {
-        // We must not return an Lvalue to this NosyValue!
-        ts = ts.reprefix(nosyvalue_type, ptr_type);
-    }
-};
-
-
-// WeakIndexMap
-
-TypeMatch &wimatch(TypeMatch &match) {
-    static TypeMatch tm;
-    tm[0] = typesubst(SAMEID_NOSYVALUE_SAME2_MAP_PTR_TS, match);
-    tm[1] = match[1].prefix(nosyvalue_type);
-    tm[2] = match[2];
-    tm[3] = NO_TS;
-    return tm;
-}
-
-
-class WeakIndexMapAddValue: public MapAddValue {
-public:
-    WeakIndexMapAddValue(Value *l, TypeMatch &match)
-        :MapAddValue(l, wimatch(match)) {
-        key_arg_ts = key_ts.reprefix(nosyvalue_type, ptr_type);
-    }
-
-    virtual void prekey(Address alias_addr, X64 *x64) {
-        // Must preserve SELFX and KEYX
-        TypeSpec heap_ts = key_ts.unprefix(nosyvalue_type);
-        ptr_to_nosyvalue(item_ts, heap_ts, alias_addr, x64);
-    }
-};
-
-
-class WeakIndexMapRemoveValue: public MapRemoveValue {
-public:
-    WeakIndexMapRemoveValue(Value *l, TypeMatch &match)
-        :MapRemoveValue(l, wimatch(match)) {
-        key_arg_ts = key_ts.reprefix(nosyvalue_type, ptr_type);
-    }
-};
-
-
-class WeakIndexMapHasValue: public MapHasValue {
-public:
-    WeakIndexMapHasValue(Value *l, TypeMatch &match)
-        :MapHasValue(l, wimatch(match)) {
-        key_arg_ts = key_ts.reprefix(nosyvalue_type, ptr_type);
-    }
-};
-
-
-class WeakIndexMapIndexValue: public MapIndexValue {
-public:
-    WeakIndexMapIndexValue(Value *l, TypeMatch &match)
-        :MapIndexValue(l, wimatch(match)) {
-        key_arg_ts = key_ts.reprefix(nosyvalue_type, ptr_type);
-    }
-};
-
-
-// WeakSet
-
-TypeMatch &wsmatch(TypeMatch &match) {
-    static TypeMatch tm;
-    tm[0] = typesubst(SAMEID_NOSYVALUE_UNIT_MAP_PTR_TS, match);
-    tm[1] = match[1].prefix(nosyvalue_type);
-    tm[2] = UNIT_TS;
-    tm[3] = NO_TS;
-    return tm;
-}
-
-
-class WeakSetAddValue: public MapAddValue {
-public:
-    WeakSetAddValue(Value *l, TypeMatch &match)
-        :MapAddValue(l, wsmatch(match)) {
-        key_arg_ts = key_ts.reprefix(nosyvalue_type, ptr_type);
-        value_arg_ts = NO_TS;  // special handling
-    }
-
-    virtual void prekey(Address alias_addr, X64 *x64) {
-        // Must preserve SELFX and KEYX
-        TypeSpec heap_ts = key_ts.unprefix(nosyvalue_type);
-        ptr_to_nosyvalue(item_ts, heap_ts, alias_addr, x64);
-    }
-};
-
-
-class WeakSetRemoveValue: public MapRemoveValue {
-public:
-    WeakSetRemoveValue(Value *l, TypeMatch &match)
-        :MapRemoveValue(l, wsmatch(match)) {
-        key_arg_ts = key_ts.reprefix(nosyvalue_type, ptr_type);
-    }
-};
-
-
-class WeakSetHasValue: public MapHasValue {
-public:
-    WeakSetHasValue(Value *l, TypeMatch &match)
-        :MapHasValue(l, wsmatch(match)) {
-        key_arg_ts = key_ts.reprefix(nosyvalue_type, ptr_type);
-    }
-};
-
-
-#undef SELFX
-#undef KEYX
-#undef ROOTX
-#undef THISX
-#undef THATX

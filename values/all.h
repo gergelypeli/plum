@@ -29,6 +29,8 @@ class InitializerEqualityMatcherValue;
 class IntegerDefinitionValue;
 class InterfaceDefinitionValue;
 class LselfDefinitionValue;
+class NosyContainerValue;
+class NosyContainerMemberValue;
 class OptionNoneMatcherValue;
 class OptionNoneValue;
 class OptionSomeMatcherValue;

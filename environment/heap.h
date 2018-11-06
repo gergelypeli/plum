@@ -57,6 +57,9 @@ const int NOSYOBJECT_SIZE = 16;
 const int NOSYOBJECT_RAW_OFFSET = 0;
 const int NOSYOBJECT_FCB_OFFSET = 8;
 
+const int NOSYCONTAINER_SIZE = 8;
+const int NOSYCONTAINER_MEMBER_OFFSET = 0;
+
 const int NOSYVALUE_SIZE = 16;
 const int NOSYVALUE_RAW_OFFSET = 0;  // order matters
 const int NOSYVALUE_FCB_OFFSET = 8;

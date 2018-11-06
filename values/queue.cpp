@@ -171,7 +171,7 @@ public:
 class QueueInitializerValue: public ContainerInitializerValue {
 public:
     QueueInitializerValue(TypeSpec ts)
-        :ContainerInitializerValue(ts, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_alloc) {
+        :ContainerInitializerValue(ts.unprefix(queue_type), ts, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_alloc) {
     }
 };
 

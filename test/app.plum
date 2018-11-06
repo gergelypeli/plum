@@ -698,7 +698,7 @@ Main? :Singleton as:
 
 
     test_rbtrees? :Function as:
-        rb? String Rbtree Ref = `reserved(8)
+        rb? String Set = `reserved(8)
     
         :try
             rb add("A")
@@ -709,7 +709,7 @@ Main? :Singleton as:
         
         Std prints("After adding five, length is {l}" { l: rb length })
         
-        Std prints("Rbtree {} contents: {}" { rb, rb contents })
+        Std prints("Rbtree contents: {}" { rb })
     
         :for rb elements_by_age each: e? do:
             Std prints("Rbtree element by age: {e}" {})
@@ -735,18 +735,18 @@ Main? :Singleton as:
         :if !! rb has("A") then:
             Std prints("Rb has no A, good")
 
-        st? String Set Ref = { "A", "B" }
+        st? String Set = { "A", "B" }
     
         :try
             st add("C")
             st add("D")
 
-        Std prints("Set {} contents: {}" { st, st contents })
+        Std prints("Set contents: {}" { st })
     
         :for st elements_by_age each: e? do:
             Std prints("Set element: {e}" {})
 
-        mp? (String, String) Map Ref = {{ "A", "a" }, { "B", "b" }}
+        mp? (String, String) Map = {{ "A", "a" }, { "B", "b" }}
         :try
             mp add("C", "c")
             mp add("D", "d")
@@ -755,10 +755,11 @@ Main? :Singleton as:
 
         Std prints("Map length is {x}" {x: mp length})
 
-        Std prints("Map {} contents: {}" { mp, mp contents })
+        Std prints("Map contents: {}" { mp })
     
-        :for mp wrapped elements_by_order each: iv? do:
-            Std prints("Map element: {x} => {y}" {x: iv index, y: iv value})
+        # FIXME
+        #:for mp wrapped elements_by_order each: iv? do:
+        #    Std prints("Map element: {x} => {y}" {x: iv index, y: iv value})
     
         Std prints("Map element at A is: {x}" {x: mp["A"]})
 
@@ -825,7 +826,7 @@ Main? :Singleton as:
         else:
             Std prints("WT is live.")
 
-        wvm? (String, Greetable) WeakValueMap Ref = `empty
+        wvm? (String, Greetable) WeakValueMap = `empty
         :try
             wvm add("x", gr)
             wvm add("y", gr)
@@ -834,14 +835,14 @@ Main? :Singleton as:
         wvm remove("y")
         Std prints("wvm length is {x}" {x: wvm length})
 
-        wim? (Greetable, String) WeakIndexMap Ref = `empty
+        wim? (Greetable, String) WeakIndexMap = `empty
         :try
             wim add(gr, "incorrect")
             wim add(gr, "correct")
         Std prints("wim stores for gr: {x}" {x: wim[gr]})
         Std prints("wim length is {x}" {x: wim length})
     
-        ws? Greetable WeakSet Ref = `empty
+        ws? Greetable WeakSet = `empty
         :try
             ws add(gr)
             ws add(gr)

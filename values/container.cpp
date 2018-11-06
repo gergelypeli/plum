@@ -357,9 +357,9 @@ public:
     int elems_offset;
     Once::TypedFunctionCompiler compile_alloc;
 
-    ContainerInitializerValue(TypeSpec ts, int lo, int eo, Once::TypedFunctionCompiler ca)
+    ContainerInitializerValue(TypeSpec ets, TypeSpec ts, int lo, int eo, Once::TypedFunctionCompiler ca)
         :Value(ts) {
-        elem_ts = container_elem_ts(ts);
+        elem_ts = ets;
         length_offset = lo;
         elems_offset = eo;
         compile_alloc = ca;

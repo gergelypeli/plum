@@ -162,3 +162,77 @@ public:
         return Storage(STACK);
     }
 };
+
+
+class NosyContainerValue: public Value {
+public:
+    std::unique_ptr<Value> member_value;
+
+    NosyContainerValue(Value *pivot, TypeSpec rts)
+        :Value(rts) {
+        member_value.reset(pivot);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return member_value->check(args, kwargs, scope);
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        member_value->precompile(preferred);
+        return Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Label finalizer_label = ts.unprefix(ref_type).get_finalizer_label(x64);
+        
+        member_value->compile_and_store(x64, Storage(STACK));  // object address
+        
+        x64->op(PUSHQ, NOSYCONTAINER_SIZE);
+        x64->op(LEA, R10, Address(finalizer_label, 0));
+        x64->op(PUSHQ, R10);
+        x64->runtime->heap_alloc();  // clobbers all
+        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+
+        x64->op(POPQ, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET));  // create member variable
+        
+        return Storage(REGISTER, RAX);
+    }
+};
+
+
+class NosyContainerMemberValue: public Value {
+public:
+    TypeSpec heap_ts;
+    std::unique_ptr<Value> pivot;
+    Unborrow *unborrow;
+
+    NosyContainerMemberValue(Value *p, TypeSpec member_ts, Scope *scope)
+        :Value(member_ts) {
+        pivot.reset(p);
+        heap_ts = member_ts.prefix(nosycontainer_type);
+        
+        unborrow = new Unborrow(heap_ts);
+        scope->add(unborrow);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return pivot->precompile(preferred) | Regs(RAX);
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = pivot->compile(x64);
+        
+        switch (s.where) {
+        case REGISTER:
+            x64->op(MOVQ, unborrow->get_address(), s.reg);
+            return Storage(MEMORY, Address(s.reg, NOSYCONTAINER_MEMBER_OFFSET));
+        case MEMORY:
+            x64->op(MOVQ, RAX, s.address);
+            heap_ts.incref(RAX, x64);
+            x64->op(MOVQ, unborrow->get_address(), RAX);
+            return Storage(MEMORY, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET));
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};
