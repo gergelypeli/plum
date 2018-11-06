@@ -561,34 +561,3 @@ public:
 };
 
 
-class WeakrefType: public RecordType {
-public:
-    WeakrefType(std::string n)
-        :RecordType(n, Metatypes { identity_metatype }) {
-    }
-
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
-        TypeSpec member_ts = tm[1].prefix(nosyobject_type).prefix(ref_type);
-        
-        Value *v = member_ts.lookup_initializer(n, s);
-        if (v) 
-            return make<RecordWrapperValue>(v, NO_TS, tm[0], "", "", s);
-        
-        std::cerr << "No Weakref initializer " << n << "!\n";
-        return NULL;
-    }
-    
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *p, Scope *s) {
-        TypeSpec member_ts = tm[1].prefix(nosyobject_type).prefix(ref_type);
-        p = make<RecordUnwrapValue>(member_ts, p);
-        
-        Value *v = member_ts.reprefix(ref_type, ptr_type).lookup_matcher(n, p, s);
-        if (v)
-            return v;
-        
-        std::cerr << "No Weakref matcher " << n << "!\n";
-        return NULL;
-    }
-};
-
-

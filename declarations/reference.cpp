@@ -277,47 +277,6 @@ public:
 };
 
 
-// This is a hack type to cooperate closely with Weak*Map
-// It contains a raw pointer first field, so it can disguise as a Ptr within Weak*Map, and
-// comparisons would work with the input Ptr-s. But it actually contains another
-// pointer to an FCB that gets triggered when the pointed object is finalized.
-class NosyValueType: public PointerType {
-public:
-    NosyValueType(std::string name)
-        :PointerType(name) {
-    }
-
-    virtual Allocation measure(TypeMatch tm) {
-        return Allocation(NOSYVALUE_SIZE);
-    }
-    
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        throw INTERNAL_ERROR;  // for safety, we'll handle everything manually
-    }
-
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        // The only known usage is storing a STACK argument into a Weak*Map entry
-        if (s.where != STACK || t.where != MEMORY)
-            throw INTERNAL_ERROR;
-
-        x64->op(POPQ, t.address + NOSYVALUE_RAW_OFFSET);
-        x64->op(POPQ, t.address + NOSYVALUE_FCB_OFFSET);
-    }
-
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
-        if (s.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
-        x64->op(MOVQ, R10, s.address + NOSYVALUE_FCB_OFFSET);  // s may be RSP based
-        x64->runtime->pusha();
-        x64->op(PUSHQ, R10);
-        x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
-        x64->op(ADDQ, RSP, ADDRESS_SIZE);
-        x64->runtime->popa();
-    }
-};
-
-
 class HeapType: public Type {
 public:
     HeapType(std::string name, Metatypes param_metatypes, Type *mt = NULL)
@@ -346,55 +305,4 @@ public:
     }
 };
 
-
-
-class NosyObjectType: public HeapType {
-public:
-    NosyObjectType(std::string name)
-        :HeapType(name, Metatypes { identity_metatype }) {
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        TypeSpec rts = tm[0].prefix(ref_type);
-        
-        if (name == "to")
-            return make<NosyObjectValue>(rts);
-
-        std::cerr << "No NosyObject initializer called " << name << "!\n";
-        return NULL;
-    }
-
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
-        if (n == "dead")
-            return make<NosyObjectDeadMatcherValue>(pivot, tm);
-        else if (n == "live")
-            return make<NosyObjectLiveMatcherValue>(pivot, tm);
-            
-        std::cerr << "Can't match NosyObject as " << n << "!\n";
-        return NULL;
-    }
-
-    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
-        return x64->once->compile(compile_finalizer, tm[0]);
-    }
-
-    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-        Label skip;
-
-        x64->code_label_local(label, "x_nosyobject_finalizer");
-        x64->runtime->log("Nosy object finalized.");
-
-        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
-        x64->op(MOVQ, RAX, Address(RAX, NOSYOBJECT_FCB_OFFSET));
-        x64->op(CMPQ, RAX, 0);
-        x64->op(JE, skip);
-        
-        x64->op(PUSHQ, RAX);
-        x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
-        x64->op(POPQ, RAX);
-        
-        x64->code_label(skip);
-        x64->op(RET);
-    }
-};
 

@@ -180,9 +180,6 @@ void builtin_types(Scope *root_scope) {
     ptr_type = new PointerType("Ptr");
     root_scope->add(ptr_type);
 
-    nosyobject_type = new NosyObjectType("<NosyObject>");
-    root_scope->add(nosyobject_type);
-
     nosyvalue_type = new NosyValueType("<NosyValue>");
     root_scope->add(nosyvalue_type);
 
@@ -341,7 +338,7 @@ void builtin_types(Scope *root_scope) {
     ANYID_PTR_LVALUE_TS = { lvalue_type, ptr_type, anyid_type };
     ANYID_WEAKREF_TS = { weakref_type, anyid_type };
     ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
-    SAMEID_NOSYOBJECT_REF_LVALUE_TS = { lvalue_type, ref_type, nosyobject_type, sameid_type };
+    SAMEID_NOSYVALUE_NOSYCONTAINER_REF_LVALUE_TS = { lvalue_type, ref_type, nosycontainer_type, nosyvalue_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     UNIT_UNINITIALIZED_TS = { uninitialized_type, unit_type };
     STRINGTEMPLATE_TS = { stringtemplate_type };
@@ -402,6 +399,7 @@ void builtin_types(Scope *root_scope) {
     SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_TS = { ref_type, rbtree_type, item_type, same_type, nosyvalue_type, sameid2_type };
     SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_TS = { ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, same2_type };
     SAMEID_NOSYVALUE_RBTREE_REF_TS = { ref_type, rbtree_type,  nosyvalue_type, sameid_type };
+
 }
 
 
@@ -801,7 +799,7 @@ void define_weakref() {
     RecordType *record_type = ptr_cast<RecordType>(weakref_type);
     DataScope *is = record_type->make_inner_scope(ANYID_WEAKREF_TS);
 
-    is->add(new Variable("nosyobject", ANYID_WEAKREF_TS, SAMEID_NOSYOBJECT_REF_LVALUE_TS));
+    is->add(new Variable("nosycontainer", ANYID_WEAKREF_TS, SAMEID_NOSYVALUE_NOSYCONTAINER_REF_LVALUE_TS));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", ANYID_WEAKREF_LVALUE_TS, ASSIGN));
     is->add(new TemplateOperation<RecordOperationValue>("compare", ANYID_WEAKREF_TS, COMPARE));

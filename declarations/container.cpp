@@ -362,43 +362,6 @@ public:
 
 // Nosy container based
 
-class NosyContainerType: public HeapType {
-public:
-    NosyContainerType(std::string name)
-        :HeapType(name, Metatypes { value_metatype }) {
-    }
-
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
-        TypeSpec member_ts = tm[1];
-        
-        Value *v = member_ts.lookup_initializer(n, scope);
-        
-        if (v)
-            return make<NosyContainerValue>(v, tm[0]);
-
-        std::cerr << "No " << tm[0] << " initializer called " << n << "!\n";
-        return NULL;
-    }
-    
-    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
-        return x64->once->compile(compile_finalizer, tm[1]);
-    }
-
-    static void compile_finalizer(Label label, TypeSpec member_ts, X64 *x64) {
-        Label skip;
-
-        x64->code_label_local(label, "x_nosycontainer_finalizer");
-        x64->runtime->log("Nosy container finalized.");
-
-        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
-        
-        member_ts.destroy(Storage(MEMORY, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET)), x64);
-        
-        x64->op(RET);
-    }
-};
-
-
 // Base class for Weak* containers, containing a Ref to a Nosycontainer, which contains a
 // container wrapper (likely a Set or Map).
 class WeakContainerType: public RecordType {
@@ -426,24 +389,8 @@ public:
             return NULL;
         }
         
-        TypeSpec ts = mts.prefix(nosycontainer_type).prefix(ref_type);
-        Value *ncv = make<NosyContainerValue>(member, ts);
-        
-        return make<RecordWrapperValue>(ncv, NO_TS, tm[0], "", "", s);
+        return make<WeakContainerValue>(member, mts, tm[0]);
     }
-    /*
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
-        TypeSpec ts = typesubst(member_ts, tm).prefix(nosycontainer_type).prefix(ref_type);
-        
-        Value *v = ts.lookup_initializer(n, s);
-        
-        if (v) 
-            return make<RecordWrapperValue>(v, NO_TS, tm[0], "", "", s);
-        
-        std::cerr << "No " << name << " initializer " << n << "!\n";
-        return NULL;
-    }
-    */
 };
 
 

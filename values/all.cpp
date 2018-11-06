@@ -21,6 +21,7 @@
 #include "typedefinition.cpp"
 #include "function.cpp"
 #include "option.cpp"
+#include "nosy.cpp"
 #include "float.cpp"
 
 // Register usage:

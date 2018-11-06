@@ -53,11 +53,6 @@ const int RBNODE_NIL = 0;
 const int RBNODE_RED_BIT = 1;
 const int RBNODE_BLACKEN_MASK = -2;
 
-const int NOSYOBJECT_SIZE = 16;
-const int NOSYOBJECT_RAW_OFFSET = 0;
-const int NOSYOBJECT_FCB_OFFSET = 8;
-
-const int NOSYCONTAINER_SIZE = 8;
 const int NOSYCONTAINER_MEMBER_OFFSET = 0;
 
 const int NOSYVALUE_SIZE = 16;

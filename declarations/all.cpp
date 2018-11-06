@@ -15,4 +15,5 @@
 #include "class.cpp"
 #include "option.cpp"
 #include "singleton.cpp"
+#include "nosy.cpp"
 #include "container.cpp"

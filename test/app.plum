@@ -816,6 +816,7 @@ Main? :Singleton as:
 
         wt? Greetable Weakref = `to(gr)
 
+        # Test for alive
         :is wt ~live then:
             Std prints("WT is live.")
         else:
@@ -860,6 +861,18 @@ Main? :Singleton as:
         Std prints("wvm length became {x}" {x: wvm length})
         Std prints("wim length became {x}" {x: wim length})
         Std prints("ws length became {x}" {x: ws length})
+
+        # Test for dead
+        :is wt ~live then:
+            Std prints("WT is LIVE!.")
+        else:
+            Std prints("WT is dead.")
+
+        :is wt ~dead then:
+            Std prints("WT is dead.")
+        else:
+            Std prints("WT IS LIVE!")
+
 
         # Must return this so that all local references can be destroyed before the
         # killer is finalized    

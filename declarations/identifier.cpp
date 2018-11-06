@@ -126,28 +126,6 @@ public:
     }
 };
 
-/*
-class CastWrapperIdentifier: public Identifier {
-public:
-    TypeSpec pivot_cast_ts;
-    
-    CastWrapperIdentifier(std::string n, TypeSpec pivot_ts, TypeSpec pcts),
-        :Identifier(n, pivot_ts) {
-        pivot_cast_ts = pcts;
-    }
-    
-    virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
-        if (!pivot)
-            throw INTERNAL_ERROR;
-        
-        TypeSpec pcts = typesubst(pivot_cast_ts, match);
-        
-        Value *v = make<CastValue>(pivot, pcts);
-        
-        return value_lookup_inner(v, name, scope);
-    }
-};
-*/
 
 class RecordWrapperIdentifier: public Identifier {
 public:
@@ -219,31 +197,6 @@ public:
         }
         
         return operation;
-    }
-};
-
-
-class DoubleWrapperIdentifier: public Identifier {
-public:
-    std::string identifier1, identifier2;
-    
-    DoubleWrapperIdentifier(std::string n, TypeSpec pivot_ts, std::string id1, std::string id2)
-        :Identifier(n, pivot_ts) {
-        identifier1 = id1;
-        identifier2 = id2;
-    }
-    
-    virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
-        Value *member1 = value_lookup_inner(pivot, identifier1, scope);
-        
-        if (member1) {
-            Value *member2 = value_lookup_inner(member1, identifier2, scope);
-            
-            if (member2)
-                return member2;
-        }
-        
-        throw INTERNAL_ERROR;
     }
 };
 
