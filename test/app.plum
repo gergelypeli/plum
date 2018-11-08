@@ -700,6 +700,10 @@ Main? :Singleton as:
         :for qv items each: it? do:
             Std prints("Queue items: {x} => {y}" { x: it index, y: it value })
 
+        cc? = qv
+        :try qv shift
+        Std prints("Queue length became {}, while copy still contains {} elems like {} and {}." { qv length, cc length, cc[0], cc[1] })
+
 
     test_rbtrees? :Function as:
         rb? String Set = `reserved(8)
@@ -766,6 +770,10 @@ Main? :Singleton as:
         #    Std prints("Map element: {x} => {y}" {x: iv index, y: iv value})
     
         Std prints("Map element at A is: {x}" {x: mp["A"]})
+
+        cc? = mp
+        :try mp add("C", "c")
+        Std prints("Map length became {}, while copy still contains {} elems like {} and {}." { mp length, cc length, cc["A"], cc["B"] })
 
 
     test_options? :Function as:

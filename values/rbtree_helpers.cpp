@@ -243,7 +243,6 @@ void compile_rbtree_allocate(Label label, X64 *x64) {
     x64->op(CMPQ, ROOTX, Address(SELFX, RBTREE_RESERVATION_OFFSET));
     x64->op(JE, no_reservation);
     
-    x64->op(INCQ, Address(SELFX, RBTREE_LENGTH_OFFSET));
     x64->op(IMUL2Q, ROOTX, R10);
     x64->op(ADDQ, ROOTX, RBTREE_HEADER_SIZE);
     x64->op(JMP, init);
@@ -271,6 +270,7 @@ void compile_rbtree_allocate(Label label, X64 *x64) {
     
     x64->code_label(end);
     x64->op(MOVQ, Address(SELFX, RBTREE_LAST_OFFSET), ROOTX);
+    x64->op(INCQ, Address(SELFX, RBTREE_LENGTH_OFFSET));
     x64->op(RET);
 }
 

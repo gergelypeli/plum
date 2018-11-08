@@ -18,12 +18,37 @@ public:
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        // The only known usage is storing a STACK argument into a Weak*Map entry
-        if (s.where != STACK || t.where != MEMORY)
-            throw INTERNAL_ERROR;
+        if (s.where == STACK && t.where == MEMORY) {
+            x64->op(POPQ, t.address + NOSYVALUE_RAW_OFFSET);
+            x64->op(POPQ, t.address + NOSYVALUE_FCB_OFFSET);
+        }
+        else if (s.where == MEMORY && t.where == MEMORY) {
+            // This needs support from the NosyContainer. Since we can't figure out
+            // the payload1 for the cloned FCB (which may have to point to the cloned
+            // container), we expect it in RDX, so the cloning function must put it there.
+            
+            x64->op(MOVQ, R10, s.address + NOSYVALUE_RAW_OFFSET);
+            x64->op(MOVQ, t.address + NOSYVALUE_RAW_OFFSET, R10);
+            x64->op(PUSHQ, R10);  // object address
 
-        x64->op(POPQ, t.address + NOSYVALUE_RAW_OFFSET);
-        x64->op(POPQ, t.address + NOSYVALUE_FCB_OFFSET);
+            x64->op(MOVQ, R11, s.address + NOSYVALUE_FCB_OFFSET);
+            x64->op(PUSHQ, Address(R11, FCB_CALLBACK_OFFSET));  // callback address, cloned
+            
+            x64->op(PUSHQ, RDX);  // nosy container address as payload1
+            
+            x64->op(PUSHQ, Address(R11, FCB_PAYLOAD2_OFFSET));  // payload2, cloned
+
+            // This is gonna be expensive
+            x64->runtime->pusha();
+            x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
+            x64->runtime->popa(true);  // leave RAX for now
+        
+            x64->op(MOVQ, R10, RAX);  // cloned FCB
+            x64->op(POPQ, RAX);  // finish the popa
+            x64->op(MOVQ, t.address + NOSYVALUE_FCB_OFFSET, R10);
+        }
+        else
+            throw INTERNAL_ERROR;
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {

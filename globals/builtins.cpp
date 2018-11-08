@@ -887,89 +887,6 @@ void define_queue() {
     queue_scope->leave();
 }
 
-/*
-void define_rbtree() {
-    Scope *rbtree_scope = rbtree_type->get_inner_scope();
-
-    rbtree_scope->add(new TemplateIdentifier<RbtreeLengthValue>("length", ANY_RBTREE_PTR_TS));
-    //array_scope->add(new TemplateOperation<ArrayItemValue>("index", ANY_ARRAY_REF_TS, TWEAK));
-    rbtree_scope->add(new TemplateIdentifier<RbtreeHasValue>("has", ANY_RBTREE_REF_TS));
-    rbtree_scope->add(new TemplateIdentifier<RbtreeAddValue>("add", ANY_RBTREE_REF_TS));
-    rbtree_scope->add(new TemplateIdentifier<RbtreeRemoveValue>("remove", ANY_RBTREE_REF_TS));
-    //rbtree_scope->add(new TemplateIdentifier<RbtreeAutogrowValue>("autogrow", ANY_RBTREE_REF_LVALUE_TS));
-
-    // Rbtree iterable operations
-    rbtree_scope->add(new TemplateIdentifier<RbtreeElemByAgeIterValue>("elements_by_age", ANY_RBTREE_REF_TS));
-    rbtree_scope->add(new TemplateIdentifier<RbtreeElemByOrderIterValue>("elements_by_order", ANY_RBTREE_REF_TS));
-
-    rbtree_scope->add(new AltStreamifiableImplementation("contents", ANY_RBTREE_REF_TS));
-
-    rbtree_type->complete_type();
-    rbtree_scope->leave();
-}
-*/
-/*
-void define_stack() {
-    TypeSpec PIVOT = ANY_STACK_PTR_TS;
-    TypeSpec CAST = SAME_ARRAY_REF_LVALUE_TS;
-    
-    ClassType *class_type = ptr_cast<ClassType>(stack_type);
-    DataScope *is = class_type->make_inner_scope(PIVOT);
-
-    is->add(new Variable("wrapped", PIVOT, CAST));
-
-    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
-    is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
-    is->add(new ClassWrapperIdentifier("realloc", PIVOT, CAST, "realloc"));
-
-    implement(is, TypeSpec { iterable_type, same_type }, "iterable", {
-        new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
-    });
-
-    is->add(new AltStreamifiableImplementation("contents", PIVOT));
-
-    is->add(new ClassWrapperIdentifier("elements", PIVOT, CAST, "elements"));
-    is->add(new ClassWrapperIdentifier("indexes", PIVOT, CAST, "indexes"));
-    is->add(new ClassWrapperIdentifier("items", PIVOT, CAST, "items"));
-
-    is->add(new ClassWrapperIdentifier("push", PIVOT, CAST, "push", true));
-    is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
-
-    class_type->complete_type();
-    is->leave();
-}
-
-
-void define_queue() {
-    TypeSpec PIVOT = ANY_QUEUE_PTR_TS;
-    TypeSpec CAST = SAME_CIRCULARRAY_REF_LVALUE_TS;
-    
-    ClassType *class_type = ptr_cast<ClassType>(queue_type);
-    DataScope *is = class_type->make_inner_scope(PIVOT);
-
-    is->add(new Variable("wrapped", PIVOT, CAST));
-
-    is->add(new ClassWrapperIdentifier("length", PIVOT, CAST, "length"));
-    is->add(new ClassWrapperIdentifier("index", PIVOT, CAST, "index"));
-    is->add(new ClassWrapperIdentifier("realloc", PIVOT, CAST, "realloc"));
-
-    implement(is, TypeSpec { iterable_type, same_type }, "iterable", {
-        new ClassWrapperIdentifier("iter", PIVOT, CAST, "elements")
-    });
-
-    is->add(new ClassWrapperIdentifier("elements", PIVOT, CAST, "elements"));
-    is->add(new ClassWrapperIdentifier("indexes", PIVOT, CAST, "indexes"));
-    is->add(new ClassWrapperIdentifier("items", PIVOT, CAST, "items"));
-
-    is->add(new ClassWrapperIdentifier("push", PIVOT, CAST, "push", true));
-    is->add(new ClassWrapperIdentifier("unshift", PIVOT, CAST, "unshift", true));
-    is->add(new ClassWrapperIdentifier("pop", PIVOT, CAST, "pop"));
-    is->add(new ClassWrapperIdentifier("shift", PIVOT, CAST, "shift"));
-
-    class_type->complete_type();
-    is->leave();
-}
-*/
 
 void define_set() {
     TypeSpec PIVOT_TS = ANY_SET_TS;
@@ -982,7 +899,7 @@ void define_set() {
 
     is->add(new TemplateIdentifier<SetLengthValue>("length", PIVOT_TS));
     is->add(new TemplateIdentifier<SetAddValue>("add", PIVOT_LVALUE_TS));
-    is->add(new TemplateIdentifier<SetRemoveValue>("remove", PIVOT_TS));
+    is->add(new TemplateIdentifier<SetRemoveValue>("remove", PIVOT_LVALUE_TS));
     is->add(new TemplateIdentifier<SetHasValue>("has", PIVOT_TS));
     
     is->add(new TemplateIdentifier<SetElemByAgeIterValue>("elements_by_age", PIVOT_TS));
@@ -1014,7 +931,7 @@ void define_map() {
     
     is->add(new TemplateIdentifier<MapLengthValue>("length", PIVOT_TS));
     is->add(new TemplateIdentifier<MapAddValue>("add", PIVOT_LVALUE_TS));
-    is->add(new TemplateIdentifier<MapRemoveValue>("remove", PIVOT_TS));
+    is->add(new TemplateIdentifier<MapRemoveValue>("remove", PIVOT_LVALUE_TS));
     is->add(new TemplateIdentifier<MapHasValue>("has", PIVOT_TS));
     is->add(new TemplateIdentifier<MapIndexValue>("index", PIVOT_TS));
 
@@ -1027,6 +944,7 @@ void define_map() {
 
 void define_weakvaluemap() {
     TypeSpec PIVOT_TS = ANY_ANYID2_WEAKVALUEMAP_TS;
+    TypeSpec PIVOT_LVALUE_TS = PIVOT_TS.lvalue();
     TypeSpec MEMBER_TS = SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS;
 
     DataScope *is = weakvaluemap_type->make_inner_scope(PIVOT_TS);
@@ -1034,8 +952,8 @@ void define_weakvaluemap() {
     is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
     
     is->add(new NosyTemplateIdentifier<WeakValueMapLengthValue>("length", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakValueMapAddValue>("add", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakValueMapAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
     is->add(new NosyTemplateIdentifier<WeakValueMapHasValue>("has", PIVOT_TS, MEMBER_TS));
     is->add(new NosyTemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT_TS, MEMBER_TS));
 
@@ -1048,6 +966,7 @@ void define_weakvaluemap() {
 
 void define_weakindexmap() {
     TypeSpec PIVOT_TS = ANYID_ANY2_WEAKINDEXMAP_TS;
+    TypeSpec PIVOT_LVALUE_TS = PIVOT_TS.lvalue();
     TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
     DataScope *is = weakindexmap_type->make_inner_scope(PIVOT_TS);
@@ -1055,8 +974,8 @@ void define_weakindexmap() {
     is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
 
     is->add(new NosyTemplateIdentifier<WeakIndexMapLengthValue>("length", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakIndexMapAddValue>("add", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakIndexMapAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
     is->add(new NosyTemplateIdentifier<WeakIndexMapHasValue>("has", PIVOT_TS, MEMBER_TS));
     is->add(new NosyTemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT_TS, MEMBER_TS));
     
@@ -1069,6 +988,7 @@ void define_weakindexmap() {
 
 void define_weakset() {
     TypeSpec PIVOT_TS = ANYID_WEAKSET_TS;
+    TypeSpec PIVOT_LVALUE_TS = PIVOT_TS.lvalue();
     TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
     
     DataScope *is = weakset_type->make_inner_scope(PIVOT_TS);
@@ -1076,8 +996,8 @@ void define_weakset() {
     is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
     
     is->add(new NosyTemplateIdentifier<WeakSetLengthValue>("length", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakSetAddValue>("add", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakSetAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosyTemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
     is->add(new NosyTemplateIdentifier<WeakSetHasValue>("has", PIVOT_TS, MEMBER_TS));
 
     // Must not define iteration due to the volatility of this container

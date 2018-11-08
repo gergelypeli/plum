@@ -141,6 +141,7 @@ void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     TypeSpec heap_ts = elem_ts.prefix(circularray_type);
     
     x64->code_label_local(label, "x_queue_clone");
+    x64->runtime->log("XXX queue clone");
     
     x64->op(PUSHQ, RAX);
     x64->op(MOVQ, R10, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
@@ -154,6 +155,7 @@ void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(JE, end);
 
     x64->op(MOVQ, RDX, Address(RBX, CIRCULARRAY_FRONT_OFFSET));
+    x64->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RDX);
     x64->op(IMUL3Q, R10, RDX, elem_size);
 
     x64->op(LEA, RSI, Address(RBX, R10, CIRCULARRAY_ELEMS_OFFSET));

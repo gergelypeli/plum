@@ -104,17 +104,18 @@ void container_preappend2(int reservation_offset, int length_offset, Label grow_
 
 void container_cow(Label clone_label, Address alias_addr, X64 *x64) {
     // No runtime arguments. Returns the Ref in RAX (not refcounted)
+    // NOTE: for NosyContainer-s we must load their address into RDX for NosyValue cloning!
     Label end;
     
-    x64->op(MOVQ, R11, alias_addr);
-    x64->op(MOVQ, RAX, Address(R11, 0));
+    x64->op(MOVQ, RDX, alias_addr);
+    x64->op(MOVQ, RAX, Address(RDX, 0));
     x64->runtime->oneref(RAX);
     x64->op(JE, end);
     
     x64->op(CALL, clone_label);  // clobbers all, replaces refcounted RAX
     
-    x64->op(MOVQ, R11, alias_addr);
-    x64->op(MOVQ, Address(R11, 0), RAX);
+    x64->op(MOVQ, RDX, alias_addr);
+    x64->op(MOVQ, Address(RDX, 0), RAX);
     
     x64->code_label(end);
 }

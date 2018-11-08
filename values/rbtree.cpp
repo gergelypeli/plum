@@ -73,6 +73,81 @@ void rbtree_preappend2(TypeSpec elem_ts, Address alias_addr, X64 *x64) {
 }
 
 
+void compile_rbtree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
+    // RAX - Rbtree Ref, RDX - optional NosyContainer address for NosyValue cloning
+    // Return a cloned Ref
+    Label end, vacancy_check, vacancy_loop, elem_check, elem_loop;
+    Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
+    TypeSpec heap_ts = elem_ts.prefix(rbtree_type);
+    
+    x64->code_label_local(label, "x_rbtree_clone");
+    x64->runtime->log("XXX rbtree clone");
+    
+    x64->op(PUSHQ, RAX);
+    x64->op(PUSHQ, RDX);
+    x64->op(MOVQ, R10, Address(RAX, RBTREE_RESERVATION_OFFSET));
+    x64->op(CALL, alloc_label);  // clobbers all
+    x64->op(POPQ, RDX);
+    x64->op(POPQ, RBX);  // orig
+    
+    x64->op(MOVQ, RCX, Address(RBX, RBTREE_LENGTH_OFFSET));
+    x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), RCX);
+
+    x64->op(CMPQ, RCX, 0);
+    x64->op(JE, end);
+
+    x64->op(MOVQ, RCX, Address(RBX, RBTREE_ROOT_OFFSET));
+    x64->op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RCX);
+    x64->op(MOVQ, RCX, Address(RBX, RBTREE_FIRST_OFFSET));
+    x64->op(MOVQ, Address(RAX, RBTREE_FIRST_OFFSET), RCX);
+    x64->op(MOVQ, RCX, Address(RBX, RBTREE_LAST_OFFSET));
+    x64->op(MOVQ, Address(RAX, RBTREE_LAST_OFFSET), RCX);
+    x64->op(MOVQ, RCX, Address(RBX, RBTREE_VACANT_OFFSET));
+    x64->op(MOVQ, Address(RAX, RBTREE_VACANT_OFFSET), RCX);
+    
+    // Clone vacancies
+    x64->op(JMP, vacancy_check);
+
+    x64->code_label(vacancy_loop);
+    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_NEXT_OFFSET));
+    x64->op(MOVQ, Address(RAX, RCX, RBNODE_NEXT_OFFSET), R10);
+    x64->op(MOVQ, RCX, R10);
+    
+    x64->code_label(vacancy_check);
+    x64->op(CMPQ, RCX, RBNODE_NIL);
+    x64->op(JNE, vacancy_loop);
+    
+    // Clone elems
+    x64->op(MOVQ, RCX, Address(RBX, RBTREE_FIRST_OFFSET));
+    x64->op(JMP, elem_check);
+    
+    x64->code_label(elem_loop);
+    // NOTE: we may contain NosyValue-s, which are nontrivial to clone. They need support
+    // from us to load the NosyContainer address into RDX.
+    elem_ts.create(Storage(MEMORY, Address(RBX, RCX, RBNODE_VALUE_OFFSET)), Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), x64);
+
+    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_LEFT_OFFSET));
+    x64->op(MOVQ, Address(RAX, RCX, RBNODE_LEFT_OFFSET), R10);
+    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_RIGHT_OFFSET));
+    x64->op(MOVQ, Address(RAX, RCX, RBNODE_RIGHT_OFFSET), R10);
+    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_PRED_OFFSET));
+    x64->op(MOVQ, Address(RAX, RCX, RBNODE_PRED_OFFSET), R10);
+    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_NEXT_OFFSET));
+    x64->op(MOVQ, Address(RAX, RCX, RBNODE_NEXT_OFFSET), R10);
+    x64->op(MOVQ, RCX, R10);
+    
+    x64->code_label(elem_check);
+    x64->op(CMPQ, RCX, RBNODE_NIL);
+    x64->op(JNE, elem_loop);
+
+    heap_ts.decref(RBX, x64);
+    
+    x64->code_label(end);
+    x64->op(RET);
+}
+
+
+
 // Initializers
 
 class RbtreeEmptyValue: public GenericValue {
@@ -245,9 +320,11 @@ public:
         pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
         elem->compile_and_store(x64, Storage(STACK));
         
-        //int elem_size = elem_ts.measure_stack();
         int elem_arg_size = elem_arg_ts.measure_stack();
+        Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
+
+        container_cow(clone_label, Address(RSP, elem_arg_size), x64);
 
         x64->op(MOVQ, R10, 1);  // Growth
         rbtree_preappend2(elem_ts, Address(RSP, elem_arg_size), x64);
@@ -322,7 +399,10 @@ public:
         int key_size = key_ts.measure_stack();  // NOTE: as it's in an Item, it is rounded up
         int key_arg_size = key_arg_ts.measure_stack();
         int value_arg_size = value_arg_ts.measure_stack();
+        Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
+
+        container_cow(clone_label, Address(RSP, key_arg_size + value_arg_size), x64);
 
         x64->op(MOVQ, R10, 1);  // Growth
         rbtree_preappend2(elem_ts, Address(RSP, key_arg_size + value_arg_size), x64);
@@ -379,13 +459,16 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        pivot->compile_and_store(x64, Storage(STACK));
+        pivot->compile_and_store(x64, Storage(ALISTACK));
         key->compile_and_store(x64, Storage(STACK));
 
         int key_arg_size = key_arg_ts.measure_stack();
+        Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
 
-        x64->op(MOVQ, SELFX, Address(RSP, key_arg_size));
+        container_cow(clone_label, Address(RSP, key_arg_size), x64);  // Leaves Ref in RAX
+
+        x64->op(MOVQ, SELFX, RAX);
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
         x64->op(LEA, KEYX, Address(RSP, 0));  // NOTE: only the index part is present of the Item
         x64->op(CALL, remove_label);
@@ -393,7 +476,7 @@ public:
         x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
 
         key_arg_ts.store(Storage(STACK), Storage(), x64);
-        pivot->ts.store(Storage(STACK), Storage(), x64);
+        pivot->ts.store(Storage(ALISTACK), Storage(), x64);
         
         return Storage();
     }
@@ -514,18 +597,6 @@ public:
     }
 };
 
-/*
-class RbtreeAutogrowValue: public XXXContainerAutogrowValue {
-public:
-    RbtreeAutogrowValue(Value *l, TypeMatch &match)
-        :XXXContainerAutogrowValue(l, match) {
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return subcompile(RBTREE_RESERVATION_OFFSET, RBTREE_LENGTH_OFFSET, compile_rbtree_grow, x64);
-    }
-};
-*/
 
 // Iteration
 
