@@ -1,12 +1,7 @@
 
-int array_elem_size(TypeSpec elem_ts) {
-    return elem_ts.measure_elem();
-}
-
-
 void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // R10 - reservation
-    int elem_size = array_elem_size(elem_ts);
+    int elem_size = elem_ts.measure_elem();
     Label finalizer_label = elem_ts.prefix(linearray_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, "x_array_alloc");
@@ -21,7 +16,7 @@ void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
-    int elem_size = array_elem_size(elem_ts);
+    int elem_size = elem_ts.measure_elem();
 
     x64->code_label_local(label, "x_array_realloc");
 
@@ -44,19 +39,45 @@ void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(RET);
 }
 
-/*
-void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - array, R10 - new addition
-    Label grow_label = x64->once->compile(compile_array_grow, elem_ts);
 
-    x64->code_label_local(label, "x_array_preappend");
-    //x64->log("preappend_array");
+void compile_array_clone(Label label, TypeSpec elem_ts, X64 *x64) {
+    // RAX - Linearray Ref
+    // Return a cloned Ref
+    Label loop, end;
+    Label alloc_label = x64->once->compile(compile_array_alloc, elem_ts);
+    int elem_size = elem_ts.measure_elem();
+    TypeSpec heap_ts = elem_ts.prefix(linearray_type);
     
-    container_preappend(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, grow_label, x64);
+    x64->code_label_local(label, "x_array_clone");
+    x64->runtime->log("XXX array clone");
+    
+    x64->op(PUSHQ, RAX);
+    x64->op(MOVQ, R10, Address(RAX, LINEARRAY_RESERVATION_OFFSET));
+    x64->op(CALL, alloc_label);  // clobbers all
+    
+    x64->op(POPQ, RBX);  // orig
+    x64->op(MOVQ, RCX, Address(RBX, LINEARRAY_LENGTH_OFFSET));
+    x64->op(MOVQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
 
+    // And this is the general version
+    x64->op(CMPQ, RCX, 0);
+    x64->op(JE, end);
+
+    x64->op(LEA, RSI, Address(RBX, LINEARRAY_ELEMS_OFFSET));
+    x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+    
+    x64->code_label(loop);
+    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
+    x64->op(ADDQ, RSI, elem_size);
+    x64->op(ADDQ, RDI, elem_size);
+    x64->op(DECQ, RCX);
+    x64->op(JNE, loop);
+
+    heap_ts.decref(RBX, x64);
+    
+    x64->code_label(end);
     x64->op(RET);
 }
-*/
 
 
 class ArrayLengthValue: public ContainerLengthValue {
@@ -110,7 +131,7 @@ public:
 class ArrayPushValue: public ContainerPushValue {
 public:
     ArrayPushValue(Value *l, TypeMatch &match)
-        :ContainerPushValue(l, match, LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET, compile_array_grow) {
+        :ContainerPushValue(l, match, LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET, compile_array_clone, compile_array_grow) {
     }
 };
 
@@ -118,7 +139,7 @@ public:
 class ArrayPopValue: public ContainerPopValue {
 public:
     ArrayPopValue(Value *l, TypeMatch &match)
-        :ContainerPopValue(l, match, match[1].prefix(linearray_type), LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET) {
+        :ContainerPopValue(l, match, match[1].prefix(linearray_type), LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET, compile_array_clone) {
     }
 };
 
@@ -167,7 +188,7 @@ public:
         // RAX - result, R10 - first, R11 - second
         x64->code_label_local(label, "x_array_concatenation");
         Label alloc_array = x64->once->compile(compile_array_alloc, elem_ts);
-        int elem_size = array_elem_size(elem_ts);
+        int elem_size = elem_ts.measure_elem();
         
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
         x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
@@ -331,7 +352,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = array_elem_size(elem_ts);
+        int elem_size = elem_ts.measure_elem();
         Label compar = x64->once->compile(compile_compar, elem_ts);
         Label done;
 
@@ -395,7 +416,7 @@ public:
     }
     
     static void compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
-        int elem_size = array_elem_size(elem_ts);
+        int elem_size = elem_ts.measure_elem();
 
         x64->code_label(label);
         Label ok, loop, check;
@@ -551,7 +572,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = array_elem_size(elem_ts);
+        int elem_size = elem_ts.measure_elem();
         
         Storage r = ContainerNextValue::compile(x64);
         
@@ -586,7 +607,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = array_elem_size(elem_ts);
+        int elem_size = elem_ts.measure_elem();
         int item_stack_size = ts.measure_stack();
 
         Storage r = ContainerNextValue::compile(x64);

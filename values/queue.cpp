@@ -132,6 +132,68 @@ void compile_queue_grow(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
+void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
+    // RAX - Circularray Ref
+    // Return a cloned Ref
+    Label loop, end, linear, linear2, loop2;
+    Label alloc_label = x64->once->compile(compile_queue_alloc, elem_ts);
+    int elem_size = elem_ts.measure_elem();
+    TypeSpec heap_ts = elem_ts.prefix(circularray_type);
+    
+    x64->code_label_local(label, "x_queue_clone");
+    
+    x64->op(PUSHQ, RAX);
+    x64->op(MOVQ, R10, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
+    x64->op(CALL, alloc_label);  // clobbers all
+    
+    x64->op(POPQ, RBX);  // orig
+    x64->op(MOVQ, RCX, Address(RBX, CIRCULARRAY_LENGTH_OFFSET));
+    x64->op(MOVQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET), RCX);
+
+    x64->op(CMPQ, RCX, 0);
+    x64->op(JE, end);
+
+    x64->op(MOVQ, RDX, Address(RBX, CIRCULARRAY_FRONT_OFFSET));
+    x64->op(IMUL3Q, R10, RDX, elem_size);
+
+    x64->op(LEA, RSI, Address(RBX, R10, CIRCULARRAY_ELEMS_OFFSET));
+    x64->op(LEA, RDI, Address(RAX, R10, CIRCULARRAY_ELEMS_OFFSET));
+    x64->op(ADDQ, RDX, RCX);  // theoretical end index
+    x64->op(SUBQ, RDX, Address(RBX, CIRCULARRAY_RESERVATION_OFFSET));  // wrapped length
+    x64->op(JLE, linear);
+    
+    x64->op(SUBQ, RCX, RDX);  // trim first loop (remains nonempty)
+    
+    x64->code_label(linear);
+    x64->code_label(loop);
+    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
+    x64->op(ADDQ, RSI, elem_size);
+    x64->op(ADDQ, RDI, elem_size);
+    x64->op(DECQ, RCX);
+    x64->op(JNE, loop);
+
+    x64->op(CMPQ, RDX, 0);
+    x64->op(JLE, linear2);
+    
+    x64->op(LEA, RSI, Address(RBX, CIRCULARRAY_ELEMS_OFFSET));
+    x64->op(LEA, RDI, Address(RAX, CIRCULARRAY_ELEMS_OFFSET));
+    x64->op(MOVQ, RCX, RDX);
+    
+    x64->code_label(loop2);
+    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
+    x64->op(ADDQ, RSI, elem_size);
+    x64->op(ADDQ, RDI, elem_size);
+    x64->op(DECQ, RCX);
+    x64->op(JNE, loop2);
+    
+    x64->code_label(linear2);
+    heap_ts.decref(RBX, x64);
+    
+    x64->code_label(end);
+    x64->op(RET);
+}
+
+
 class QueueLengthValue: public ContainerLengthValue {
 public:
     QueueLengthValue(Value *l, TypeMatch &match)
@@ -179,7 +241,7 @@ public:
 class QueuePushValue: public ContainerPushValue {
 public:
     QueuePushValue(Value *l, TypeMatch &match)
-        :ContainerPushValue(l, match, CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_grow) {
+        :ContainerPushValue(l, match, CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone, compile_queue_grow) {
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {
@@ -191,7 +253,7 @@ public:
 class QueuePopValue: public ContainerPopValue {
 public:
     QueuePopValue(Value *l, TypeMatch &match)
-        :ContainerPopValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET) {
+        :ContainerPopValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone) {
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {

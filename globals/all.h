@@ -448,6 +448,7 @@ public:
     
     void incref(Register reg);
     void decref(Register reg);
+    void oneref(Register reg);
     
     void heap_alloc();
     void heap_realloc();

@@ -505,6 +505,13 @@ void Runtime::decref(Register reg) {
     x64->op(CALL, decref_labels[reg]);
 }
 
+void Runtime::oneref(Register reg) {
+    if (reg == RSP || reg == RBP || reg == NOREG)
+        throw ASM_ERROR;
+
+    x64->op(CMPQ, Address(reg, HEAP_REFCOUNT_OFFSET), 1);
+}
+
 void Runtime::heap_alloc() {
     x64->op(CALL, heap_alloc_label);
 }

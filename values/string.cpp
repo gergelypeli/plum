@@ -327,7 +327,7 @@ public:
         right->compile_and_store(x64, Storage(STACK));
         
         Label loop, check, found;
-        int elem_size = array_elem_size(elem_ts);
+        int elem_size = elem_ts.measure_elem();
         int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, RAX, Address(RSP, stack_size));
@@ -438,7 +438,7 @@ public:
     }
 
     virtual Storage subcompile(X64 *x64) {
-        elem_size = array_elem_size(elem_ts);
+        elem_size = elem_ts.measure_elem();
         ls = left->compile(x64);  // iterator
         Register reg = (clob & ~ls.regs()).get_any();
         Label ok;

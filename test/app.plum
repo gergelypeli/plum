@@ -628,10 +628,14 @@ Main? :Singleton as:
         :for ss elements each: i? do:
             Std prints("Array element {i}" {})
 
+        cc? = ss
+
         ss_popped1? = :try ss pop
         Std prints("Array popped {ss_popped1}" {})
         ss_popped2? String = :try ss pop
         Std prints("Array popped {ss_popped2}" {})
+
+        Std prints("Array length became {}, while copy still contains {} elems {} and {}." { ss length, cc length, cc[0], cc[1] })
 
         st? String Array = `empty
         :try st push("foo")

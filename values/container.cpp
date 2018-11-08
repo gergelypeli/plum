@@ -102,6 +102,24 @@ void container_preappend2(int reservation_offset, int length_offset, Label grow_
 }
 
 
+void container_cow(Label clone_label, Address alias_addr, X64 *x64) {
+    // No runtime arguments. Returns the Ref in RAX (not refcounted)
+    Label end;
+    
+    x64->op(MOVQ, R11, alias_addr);
+    x64->op(MOVQ, RAX, Address(R11, 0));
+    x64->runtime->oneref(RAX);
+    x64->op(JE, end);
+    
+    x64->op(CALL, clone_label);  // clobbers all, replaces refcounted RAX
+    
+    x64->op(MOVQ, R11, alias_addr);
+    x64->op(MOVQ, Address(R11, 0), RAX);
+    
+    x64->code_label(end);
+}
+
+
 class ContainerLengthValue: public GenericValue {
 public:
     Register reg;
@@ -424,80 +442,6 @@ public:
 };
 
 
-class XXXContainerAutogrowValue: public GenericValue, public Raiser {
-public:
-    XXXContainerAutogrowValue(Value *l, TypeMatch &match)
-        :GenericValue(NO_TS, l->ts, l) {
-    }
-    
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(container_lent_exception_type, scope))
-            return false;
-
-        return GenericValue::check(args, kwargs, scope);
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        left->precompile(preferred);
-        return Regs::all();
-    }
-    
-    virtual Storage subcompile(int reservation_offset, int length_offset, Once::TypedFunctionCompiler compile_grow, X64 *x64) {
-        TypeSpec elem_ts = container_elem_ts(ts);
-        Label grow_label = x64->once->compile(compile_grow, elem_ts);
-        
-        left->compile_and_store(x64, Storage(ALISTACK));
-        
-        Label ok;
-        x64->op(MOVQ, R11, Address(RSP, 0));
-        x64->op(MOVQ, RAX, Address(R11, 0));
-        
-        Label unshared;
-        x64->runtime->check_unshared(RAX);
-        x64->op(JE, unshared);
-
-        x64->op(POPQ, R11);  // popped
-        raise("CONTAINER_LENT", x64);
-
-        x64->code_label(unshared);
-        x64->op(MOVQ, R10, Address(RAX, length_offset));
-        x64->op(CMPQ, R10, Address(RAX, reservation_offset));
-        x64->op(JB, ok);
-        
-        x64->op(INCQ, R10);
-        x64->op(CALL, grow_label);  // clobbers all
-        x64->op(MOVQ, R11, Address(RSP, 0));
-        x64->op(MOVQ, Address(R11, 0), RAX);  // technically not an assignment
-        
-        x64->code_label(ok);
-
-        // Since the value will be needed, return MEMORY, because ALISTACK-STACK store
-        // is not implemented directly.
-        x64->op(POPQ, RAX);
-        return Storage(MEMORY, Address(RAX, 0));
-    }
-};
-
-/*
-class ContainerGrowableValue: public GenericValue, public Raiser {
-public:
-    ContainerGrowableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
-        :GenericValue(arg_ts, res_ts, pivot) {
-    }
-    
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        // If we are operating on an autogrow, that can also raise an exception,
-        // but then we won't. Unfortunately this is a lame way to check this.
-        
-        if (!scope->get_try_scope()->get_exception_type())
-            if (!check_raise(container_full_exception_type, scope))
-                return false;
-        
-        return GenericValue::check(args, kwargs, scope);
-    }
-};
-*/
-
 class ContainerEmptiableValue: public GenericValue, public Raiser {
 public:
     ContainerEmptiableValue(TypeSpec arg_ts, TypeSpec res_ts, Value *pivot)
@@ -519,14 +463,15 @@ public:
     int reservation_offset;
     int length_offset;
     int elems_offset;
-    Once::TypedFunctionCompiler compile_grow;
+    Once::TypedFunctionCompiler compile_clone, compile_grow;
     
-    ContainerPushValue(Value *l, TypeMatch &match, int ro, int lo, int eo, Once::TypedFunctionCompiler cg)
+    ContainerPushValue(Value *l, TypeMatch &match, int ro, int lo, int eo, Once::TypedFunctionCompiler cc, Once::TypedFunctionCompiler cg)
         :GenericValue(match[1], match[0], l) {
         elem_ts = match[1];
         reservation_offset = ro;
         length_offset = lo;
         elems_offset = eo;
+        compile_clone = cc;
         compile_grow = cg;
     }
 
@@ -542,9 +487,12 @@ public:
     virtual Storage compile(X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
         int stack_size = elem_ts.measure_stack();
+        Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label grow_label = x64->once->compile(compile_grow, elem_ts);
     
         compile_and_store_both(x64, Storage(ALISTACK), Storage(STACK));
+
+        container_cow(clone_label, Address(RSP, stack_size), x64);
 
         x64->op(MOVQ, R10, 1);
         container_preappend2(reservation_offset, length_offset, grow_label, Address(RSP, stack_size), x64);
@@ -572,14 +520,15 @@ public:
     TypeSpec heap_ts;
     int length_offset;
     int elems_offset;
+    Once::TypedFunctionCompiler compile_clone;
     
-    ContainerPopValue(Value *l, TypeMatch &match, TypeSpec hts, int lo, int eo)
+    ContainerPopValue(Value *l, TypeMatch &match, TypeSpec hts, int lo, int eo, Once::TypedFunctionCompiler cc)
         :ContainerEmptiableValue(NO_TS, match[1], l) {
         elem_ts = match[1];
-        //heap_ts = match[0].unprefix(ptr_type);
         heap_ts = hts;
         length_offset = lo;
         elems_offset = eo;
+        compile_clone = cc;
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -592,14 +541,20 @@ public:
 
     virtual Storage compile(X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
+        Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label ok;
         
-        left->compile_and_store(x64, Storage(REGISTER, RAX));
+        left->compile_and_store(x64, Storage(ALISTACK));
+
+        container_cow(clone_label, Address(RSP, 0), x64);  // Leaves Ref in RAX
+        
+        // Get rid of pivot on the stack so we can just push the result
+        left->ts.store(Storage(ALISTACK), Storage(), x64);
         
         x64->op(CMPQ, Address(RAX, length_offset), 0);
         x64->op(JNE, ok);
 
-        // REGISTER arg
+        // popped pivot ALISTACK
         raise("CONTAINER_EMPTY", x64);
         
         x64->code_label(ok);
@@ -614,9 +569,6 @@ public:
         // TODO: optimize this move!
         elem_ts.store(Storage(MEMORY, Address(RAX, RCX, elems_offset)), Storage(STACK), x64);
         elem_ts.destroy(Storage(MEMORY, Address(RAX, RCX, elems_offset)), x64);
-        
-        left->ts.store(Storage(REGISTER, RAX), Storage(), x64);
-        //heap_ts.decref(RAX, x64);
         
         return Storage(STACK);
     }

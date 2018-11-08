@@ -836,8 +836,8 @@ void define_array() {
     array_scope->add(new TemplateIdentifier<ArrayExtendValue>("assign_plus", PIVOT_LVALUE_TS));
     array_scope->add(new TemplateOperation<ArrayIndexValue>("index", PIVOT_TS, TWEAK));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", PIVOT_TS));
-    array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", PIVOT_TS));
-    array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", PIVOT_TS));
+    array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", PIVOT_LVALUE_TS));
+    array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", PIVOT_LVALUE_TS));
     //array_scope->add(new TemplateIdentifier<ArrayAutogrowValue>("autogrow", PIVOT_LVALUE_TS));
     array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", PIVOT_TS));
     
@@ -868,10 +868,10 @@ void define_queue() {
 
     queue_scope->add(new TemplateIdentifier<QueueLengthValue>("length", PIVOT_TS));
     queue_scope->add(new TemplateOperation<QueueIndexValue>("index", PIVOT_TS, TWEAK));
-    queue_scope->add(new TemplateIdentifier<QueuePushValue>("push", PIVOT_TS));
-    queue_scope->add(new TemplateIdentifier<QueuePopValue>("pop", PIVOT_TS));
-    queue_scope->add(new TemplateIdentifier<QueueUnshiftValue>("unshift", PIVOT_TS));
-    queue_scope->add(new TemplateIdentifier<QueueShiftValue>("shift", PIVOT_TS));
+    queue_scope->add(new TemplateIdentifier<QueuePushValue>("push", PIVOT_LVALUE_TS));
+    queue_scope->add(new TemplateIdentifier<QueuePopValue>("pop", PIVOT_LVALUE_TS));
+    queue_scope->add(new TemplateIdentifier<QueueUnshiftValue>("unshift", PIVOT_LVALUE_TS));
+    queue_scope->add(new TemplateIdentifier<QueueShiftValue>("shift", PIVOT_LVALUE_TS));
     //queue_scope->add(new TemplateIdentifier<QueueAutogrowValue>("autogrow", PIVOT_LVALUE_TS));
     
     // Queue iterable operations
