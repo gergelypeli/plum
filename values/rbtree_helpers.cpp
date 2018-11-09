@@ -222,14 +222,14 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
 }
 
 
-void compile_rbtree_allocate(Label label, X64 *x64) {
-    x64->code_label_local(label, "_allocate");
+void compile_rbtree_occupy(Label label, X64 *x64) {
+    x64->code_label_local(label, "rbtree_occupy");
     // In: SELFX - tree, R10 - node size
     // Out: ROOTX - node or NIL
     // Clob: R10
     Label no_vacancy, no_reservation, init, no_last, end;
 
-    //x64->log("Rbtree allocate.");
+    //x64->log("Rbtree occupy.");
     x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_VACANT_OFFSET));
     x64->op(CMPQ, ROOTX, RBNODE_NIL);
     x64->op(JE, no_vacancy);
@@ -275,12 +275,12 @@ void compile_rbtree_allocate(Label label, X64 *x64) {
 }
 
 
-void compile_rbtree_deallocate(Label label, X64 *x64) {
-    x64->code_label_local(label, "_deallocate");
+void compile_rbtree_vacate(Label label, X64 *x64) {
+    x64->code_label_local(label, "rbtree_vacate");
     // In: SELFX - tree, ROOTX - node
     // Clob: R10, THISX
     Label no_prev, prev_ok, no_next, next_ok;
-    //x64->log("Rbtree deallocate.");
+    //x64->log("Rbtree vacate.");
     
     x64->op(MOVQ, R10, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET));
     x64->op(ANDQ, R10, ~RBNODE_RED_BIT);
@@ -364,7 +364,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     Label less, greater, no;
     Label left_fix = x64->once->compile(compile_rbtree_left_fix);
     Label right_fix = x64->once->compile(compile_rbtree_right_fix);
-    Label allocate = x64->once->compile(compile_rbtree_allocate);
+    Label occupy = x64->once->compile(compile_rbtree_occupy);
     int elem_size = elem_ts.measure_stack();
     int node_size = elem_size + RBNODE_HEADER_SIZE;
     
@@ -411,7 +411,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->code_label(no);
     //x64->runtime->log("Rbtree add missing.");
     x64->op(MOVQ, R10, node_size);
-    x64->op(CALL, allocate);  // from SELFX to ROOTX (may be NIL)
+    x64->op(CALL, occupy);  // from SELFX to ROOTX (may be NIL)
     x64->op(MOVQ, R10, ROOTX);
     x64->op(MOVQ, KEYX, ROOTX);
     x64->op(RET);
@@ -425,7 +425,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->code_label_local(label, "rbtree_remove");
     
     Label no, remove_left, remove_right;
-    Label deallocate = x64->once->compile(compile_rbtree_deallocate);
+    Label vacate = x64->once->compile(compile_rbtree_vacate);
     Label other_fix = x64->once->compile(compile_rbtree_other_fix);
     
     //x64->log("Rbtree remove.");
@@ -518,7 +518,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     //x64->log("Rbtree remove found left only.");
     elem_ts.destroy(vs, x64);
     x64->op(PUSHQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
-    x64->op(CALL, deallocate);  // At ROOTX
+    x64->op(CALL, vacate);  // At ROOTX
     x64->op(POPQ, R10);  // return the left child
     x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken
     x64->op(MOVQ, KEYX, 0);  // no dark soul
@@ -533,7 +533,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     //x64->log("Rbtree remove found right only.");
     elem_ts.destroy(vs, x64);
     x64->op(PUSHQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
-    x64->op(CALL, deallocate);  // At ROOTX
+    x64->op(CALL, vacate);  // At ROOTX
     x64->op(POPQ, R10);  // return the right child
     x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken
     x64->op(MOVQ, KEYX, 0);  // no dark soul
@@ -543,7 +543,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->code_label(no_children);
     //x64->log("Rbtree remove found leaf.");
     elem_ts.destroy(vs, x64);
-    x64->op(CALL, deallocate);
+    x64->op(CALL, vacate);
     x64->op(MOVQ, KEYX, 0);  // assume no dark soul
     x64->op(TESTQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
     x64->op(JNE, was_red);
