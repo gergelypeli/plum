@@ -26,9 +26,16 @@ public:
             // This needs support from the NosyContainer. Since we can't figure out
             // the payload1 for the cloned FCB (which may have to point to the cloned
             // container), we expect it in RDX, so the cloning function must put it there.
-            
+
+            if (s.address.base == RSP || t.address.base == RSP)
+                throw INTERNAL_ERROR;  // because of the pusha
+
             x64->op(MOVQ, R10, s.address + NOSYVALUE_RAW_OFFSET);
             x64->op(MOVQ, t.address + NOSYVALUE_RAW_OFFSET, R10);
+            
+            // TODO: This is a bit too expensive this way.
+            x64->runtime->pusha();
+            
             x64->op(PUSHQ, R10);  // object address
 
             x64->op(MOVQ, R11, s.address + NOSYVALUE_FCB_OFFSET);
@@ -38,13 +45,13 @@ public:
             
             x64->op(PUSHQ, Address(R11, FCB_PAYLOAD2_OFFSET));  // payload2, cloned
 
-            // This is gonna be expensive
-            x64->runtime->pusha();
             x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
-            x64->runtime->popa(true);  // leave RAX for now
-        
-            x64->op(MOVQ, R10, RAX);  // cloned FCB
-            x64->op(POPQ, RAX);  // finish the popa
+            x64->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
+            
+            x64->runtime->popa(true);  // must restore all before using t.address
+            x64->op(MOVQ, R10, RAX);  // save cloned FCB
+            x64->op(POPQ, RAX);  // complete the popa
+
             x64->op(MOVQ, t.address + NOSYVALUE_FCB_OFFSET, R10);
         }
         else

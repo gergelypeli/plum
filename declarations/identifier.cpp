@@ -120,7 +120,10 @@ public:
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // Convert the pivot to a NosyContainer before instantiating
         TypeSpec mts = typesubst(member_ts, match);
-        Value *pivot = make<NosyContainerMemberValue>(cpivot, mts, scope);
+        Value *pivot = (
+            pivot_ts[0] == lvalue_type ? make<NosyCowContainerMemberValue>(cpivot, mts, scope) :
+            make<NosyContainerMemberValue>(cpivot, mts, scope)
+        );
         
         return new T(pivot, match);
     }

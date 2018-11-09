@@ -845,8 +845,12 @@ Main? :Singleton as:
             wvm add("y", gr)
 
         wvm["y"] greet
+        
+        ccc? = wvm
+        
         wvm remove("y")
         Std prints("wvm length is {x}" {x: wvm length})
+        Std prints("ccc length is still {}" { ccc length })
 
         wim? (Greetable, String) WeakIndexMap = `empty
         :try
@@ -871,6 +875,7 @@ Main? :Singleton as:
         Std prints("Must have been killed.")
 
         Std prints("wvm length became {x}" {x: wvm length})
+        Std prints("ccc length became {x}" {x: ccc length})
         Std prints("wim length became {x}" {x: wim length})
         Std prints("ws length became {x}" {x: ws length})
 
@@ -884,7 +889,6 @@ Main? :Singleton as:
             Std prints("WT is dead.")
         else:
             Std prints("WT IS LIVE!")
-
 
         # Must return this so that all local references can be destroyed before the
         # killer is finalized    

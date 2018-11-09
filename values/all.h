@@ -30,6 +30,7 @@ class IntegerDefinitionValue;
 class InterfaceDefinitionValue;
 class LselfDefinitionValue;
 class NosyContainerMemberValue;
+class NosyCowContainerMemberValue;
 class OptionNoneMatcherValue;
 class OptionNoneValue;
 class OptionSomeMatcherValue;

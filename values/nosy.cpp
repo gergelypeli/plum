@@ -52,6 +52,69 @@ public:
 };
 
 
+class NosyCowContainerMemberValue: public Value {
+public:
+    TypeSpec heap_ts;
+    std::unique_ptr<Value> pivot;
+    Unborrow *unborrow;
+
+    NosyCowContainerMemberValue(Value *p, TypeSpec member_ts, Scope *scope)
+        :Value(member_ts) {
+        pivot.reset(p);
+        heap_ts = member_ts.prefix(nosycontainer_type);
+        
+        unborrow = new Unborrow(heap_ts);
+        scope->add(unborrow);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return pivot->precompile(preferred) | Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Label unshared;
+        Storage s = pivot->compile(x64);
+        
+        switch (s.where) {
+        case MEMORY:
+            x64->op(LEA, R11, s.address);
+            break;
+        case ALISTACK:
+            x64->op(POPQ, R11);
+            break;
+        case ALIAS:
+            x64->op(MOVQ, R11, s.address);
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+        
+        x64->op(MOVQ, RAX, Address(R11, 0));
+        x64->runtime->oneref(RAX);
+        x64->op(JE, unshared);
+
+        x64->runtime->log("XXX nosycontainer clone");
+        heap_ts.decref(RAX, x64);
+
+        x64->op(PUSHQ, R11);
+        alloc_nosycontainer(ts, x64);  // clobbers all
+        x64->op(POPQ, R11);
+        
+        x64->op(MOVQ, RBX, Address(R11, 0));
+        x64->op(MOVQ, Address(R11, 0), RAX);
+
+        // This just shares the Rbtree between Weak* instances, but it will be cloned
+        // in the parent Lvalue operation.
+        ts.create(Storage(MEMORY, Address(RBX, 0)), Storage(MEMORY, Address(RAX, 0)), x64);
+        
+        x64->code_label(unshared);
+        heap_ts.incref(RAX, x64);
+        x64->op(MOVQ, unborrow->get_address(), RAX);
+        return Storage(MEMORY, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET));
+    }
+};
+
+
 class WeakContainerValue: public Value {
 public:
     TypeSpec member_ts;
@@ -75,7 +138,7 @@ public:
     virtual Storage compile(X64 *x64) {
         member_value->compile_and_store(x64, Storage(STACK));
 
-        alloc_nosycontainer(member_ts, x64);
+        alloc_nosycontainer(member_ts, x64);  // clobbers all
 
         member_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET)), x64);
         
