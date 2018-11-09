@@ -283,7 +283,7 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
     // Fill .debug_abbrev
     // These 3 attributes are necessary to make gdb work
     abbrev.push_back(0x01);  // type 1
-    abbrev.push_back(0x11);  // compile unit
+    abbrev.push_back(0x11);  // compilation unit
     abbrev.push_back(0x01);  // has children (well, it doesn't really)
 
     abbrev.push_back(0x10);  // stmt list
@@ -311,7 +311,7 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
 
     Elf64_Addr info_to_abbr_rel_location = 6;
     
-    info.push_back(0x01);  // abbrev 1
+    info.push_back(0x01);  // abbrev 1 (compilation unit)
 
     // stmt list
     Elf64_Addr info_to_line_rel_location = info.size();
@@ -330,6 +330,8 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
         info.push_back(0x00);  // constant length filled below
 
     *(unsigned64 *)&info[info.size() - 8] = code.size();
+
+    info.push_back(0x00);  // abbrev 0 (end of children)
     
     // info vector may have been reallocated
     cuh = (CompilationUnitHeader *)&info[0];
