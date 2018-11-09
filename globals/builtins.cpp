@@ -340,7 +340,7 @@ void builtin_types(Scope *root_scope) {
     ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
     SAMEID_NOSYVALUE_NOSYCONTAINER_REF_LVALUE_TS = { lvalue_type, ref_type, nosycontainer_type, nosyvalue_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
-    UNIT_UNINITIALIZED_TS = { uninitialized_type, unit_type };
+    WHATEVER_UNINITIALIZED_TS = { uninitialized_type, whatever_type };
     STRINGTEMPLATE_TS = { stringtemplate_type };
     ANY_ARRAY_TS = { array_type, any_type };
     ANY_ARRAY_LVALUE_TS = { lvalue_type, array_type, any_type };

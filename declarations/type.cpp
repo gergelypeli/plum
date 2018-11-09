@@ -687,6 +687,8 @@ public:
 };
 
 
+// Mostly for expressions that don't return, but Whatever Uninitialized is also
+// used for bare declarations.
 class WhateverType: public Type {
 public:
     WhateverType(std::string name)
