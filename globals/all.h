@@ -15,6 +15,7 @@ public:
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
     TypeSpec(Type *t, TypeSpec &tm1, TypeSpec &tm2);
 
+    std::string symbolize();
     TypeMatch match();    
     Allocation measure();
     int measure_raw();
@@ -328,7 +329,7 @@ TypeSpec SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_TS;
 TypeSpec SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
 TypeSpec ANYID_WEAKSET_TS;
 TypeSpec SAMEID_NOSYVALUE_RBTREE_REF_TS;
-TypeSpec SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
+TypeSpec SAMEID_NOSYVALUE_RBTREE_REF_LVALUE_TS;
 
 TypeSpec SAMEID_NOSYVALUE_TS;
 TypeSpec SAMEID_NOSYVALUE_SAME2_ITEM_TS;

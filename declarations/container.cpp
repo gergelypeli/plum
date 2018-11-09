@@ -17,7 +17,7 @@ public:
         int elem_size = elem_ts.measure_elem();
         Label start, end, loop;
 
-        x64->code_label_local(label, "x_linearray_finalizer");
+        x64->code_label_local(label, elem_ts.symbolize() + "_linearray_finalizer");
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
 
         x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -73,7 +73,7 @@ public:
         int elem_size = elem_ts.measure_elem();
         Label loop, elem, end;
 
-        x64->code_label_local(label, "x_array_contents_streamify");
+        x64->code_label_local(label, elem_ts.symbolize() + "_array_contents_streamify");
         
         // open
         x64->op(PUSHQ, CHARACTER_LEFTBRACE);
@@ -150,7 +150,7 @@ public:
         int elem_size = elem_ts.measure_elem();
         Label start, end, loop, ok, ok1;
     
-        x64->code_label_local(label, "x_circularray_finalizer");
+        x64->code_label_local(label, elem_ts.symbolize() + "_circularray_finalizer");
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
     
         x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_LENGTH_OFFSET));
@@ -286,7 +286,7 @@ public:
         // TODO: massive copypaste from Array's
         Label loop, elem, end;
 
-        x64->code_label_local(label, "x_rbtree_contents_streamify");
+        x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_contents_streamify");
         
         // open
         x64->op(PUSHQ, CHARACTER_LEFTBRACE);

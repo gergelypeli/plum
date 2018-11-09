@@ -35,7 +35,7 @@ void compile_queue_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = queue_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(x64);
     
-    x64->code_label_local(label, "x_queue_alloc");
+    x64->code_label_local(label, elem_ts.symbolize() + "_queue_alloc");
     
     container_alloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, finalizer_label, x64);
 
@@ -50,7 +50,7 @@ void compile_queue_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
     int elem_size = queue_elem_size(elem_ts);
 
-    x64->code_label_local(label, "x_queue_realloc");
+    x64->code_label_local(label, elem_ts.symbolize() + "_queue_realloc");
     //x64->log("realloc_array");
     
     container_realloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, x64);
@@ -66,7 +66,7 @@ void compile_queue_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     Label realloc_label = x64->once->compile(compile_queue_realloc, elem_ts);
     int elem_size = queue_elem_size(elem_ts);
 
-    x64->code_label_local(label, "x_queue_grow");
+    x64->code_label_local(label, elem_ts.symbolize() + "_queue_grow");
     x64->runtime->log("grow_circularray");
     x64->op(PUSHQ, RCX);
     x64->op(PUSHQ, RSI);
@@ -140,7 +140,7 @@ void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = elem_ts.measure_elem();
     TypeSpec heap_ts = elem_ts.prefix(circularray_type);
     
-    x64->code_label_local(label, "x_queue_clone");
+    x64->code_label_local(label, elem_ts.symbolize() + "_queue_clone");
     x64->runtime->log("XXX queue clone");
     
     x64->op(PUSHQ, RAX);

@@ -92,7 +92,7 @@ public:
     static void compile_finalizer(Label label, TypeSpec member_ts, X64 *x64) {
         Label skip;
 
-        x64->code_label_local(label, "x_nosycontainer_finalizer");
+        x64->code_label_local(label, member_ts.symbolize() + "_nosycontainer_finalizer");
         x64->runtime->log("Nosy container finalized.");
 
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg

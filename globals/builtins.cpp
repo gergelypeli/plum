@@ -372,7 +372,7 @@ void builtin_types(Scope *root_scope) {
     ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
     SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, nosyvalue_type, sameid2_type };
     SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, same2_type };
-    SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, unit_type };
+    SAMEID_NOSYVALUE_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, nosyvalue_type, sameid_type };
 
     SAMEID_NOSYVALUE_TS = { nosyvalue_type, sameid_type };
     SAMEID_NOSYVALUE_SAME2_ITEM_TS = { item_type, nosyvalue_type, sameid_type, same2_type };
@@ -989,7 +989,7 @@ void define_weakindexmap() {
 void define_weakset() {
     TypeSpec PIVOT_TS = ANYID_WEAKSET_TS;
     TypeSpec PIVOT_LVALUE_TS = PIVOT_TS.lvalue();
-    TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_RBTREE_REF_LVALUE_TS;
     
     DataScope *is = weakset_type->make_inner_scope(PIVOT_TS);
 

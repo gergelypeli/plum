@@ -26,6 +26,20 @@ TypeSpec::TypeSpec(Type *t, TypeSpec &tm1, TypeSpec &tm2) {
 }
 
 
+std::string TypeSpec::symbolize() {
+    TypeMatch tm = match();
+    unsigned pc = at(0)->get_parameter_count();
+    std::stringstream ss;
+
+    for (unsigned i = 0; i < pc; i++)
+        ss << tm[i + 1].symbolize() << "_";
+    
+    ss << at(0)->get_fully_qualified_name();
+        
+    return ss.str();
+}
+
+
 TypeSpec TypeSpec::prefix(Type *t) {
     if (t->get_parameter_count() != 1) {
         std::cerr << "Can't prefix " << t->name << " with " << t->get_parameter_count() << " parameters to " << *this << "!\n";

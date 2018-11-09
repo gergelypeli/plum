@@ -342,6 +342,10 @@ public:
     virtual bool complete_type() {
         return true;
     }
+    
+    virtual std::string get_fully_qualified_name() {
+        return outer_scope->fully_qualify(name);
+    }
 };
 
 
