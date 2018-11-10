@@ -14,6 +14,28 @@ static void alloc_nosycontainer(TypeSpec member_ts, X64 *x64) {
 }
 
 
+void compile_nosycontainer_clone(Label label, TypeSpec member_ts, X64 *x64) {
+    // RAX - NosyContainer Ref
+    // Return a cloned Ref
+    TypeSpec heap_ts = member_ts.prefix(nosycontainer_type);
+    
+    x64->code_label_local(label, member_ts.symbolize() + "_nosycontainer_clone");
+    x64->runtime->log("XXX nosycontainer clone");
+    
+    x64->op(PUSHQ, RAX);
+    alloc_nosycontainer(member_ts, x64);  // clobbers all
+    x64->op(POPQ, RBX);
+
+    // This just shares the Rbtree between Weak* instances, but it will be cloned
+    // in the parent Lvalue operation.
+    member_ts.create(Storage(MEMORY, Address(RBX, 0)), Storage(MEMORY, Address(RAX, 0)), x64);
+
+    heap_ts.decref(RBX, x64);
+
+    x64->op(RET);
+}
+
+
 class NosyContainerMemberValue: public Value {
 public:
     TypeSpec heap_ts;
@@ -72,42 +94,14 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label unshared;
-        Storage s = pivot->compile(x64);
-        
-        switch (s.where) {
-        case MEMORY:
-            x64->op(LEA, R11, s.address);
-            break;
-        case ALISTACK:
-            x64->op(POPQ, R11);
-            break;
-        case ALIAS:
-            x64->op(MOVQ, R11, s.address);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        x64->op(MOVQ, RAX, Address(R11, 0));
-        x64->runtime->oneref(RAX);
-        x64->op(JE, unshared);
+        Label clone_label = x64->once->compile(compile_nosycontainer_clone, ts);
 
-        x64->runtime->log("XXX nosycontainer clone");
-        heap_ts.decref(RAX, x64);
+        pivot->compile_and_store(x64, Storage(ALISTACK));
 
-        x64->op(PUSHQ, R11);
-        alloc_nosycontainer(ts, x64);  // clobbers all
-        x64->op(POPQ, R11);
-        
-        x64->op(MOVQ, RBX, Address(R11, 0));
-        x64->op(MOVQ, Address(R11, 0), RAX);
+        container_cow(clone_label, Address(RSP, 0), x64);  // clobbers all, returns RAX
 
-        // This just shares the Rbtree between Weak* instances, but it will be cloned
-        // in the parent Lvalue operation.
-        ts.create(Storage(MEMORY, Address(RBX, 0)), Storage(MEMORY, Address(RAX, 0)), x64);
+        x64->op(ADDQ, RSP, ALIAS_SIZE);
         
-        x64->code_label(unshared);
         heap_ts.incref(RAX, x64);
         x64->op(MOVQ, unborrow->get_address(), RAX);
         return Storage(MEMORY, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET));

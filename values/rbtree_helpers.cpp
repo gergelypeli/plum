@@ -126,12 +126,12 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
 
     {
         x64->code_label_local(label, "rbtree_other_fix");
-        // SELFX - tree, ROOTX - node, R10 - child, KEYX - dark soul
-        // R10 - result, KEYX - dark soul
+        // SELFX - tree, ROOTX - node, R10 - child, R11 - dark soul
+        // R10 - result, R11 - dark soul
         // THISX, THATX - clob
         Label no_dark_soul, right, fixed;
         
-        x64->op(CMPQ, KEYX, 0);
+        x64->op(CMPQ, R11, 0);
         x64->op(JE, no_dark_soul);
         
         x64->op(CALL, redden_side);
@@ -202,19 +202,19 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
     
     {
         x64->code_label_local(materialize, "_materialize");
-        // SELFX - tree, ROOTX - node, KEYX - dark soul
-        // KEYX - dark soul
+        // SELFX - tree, ROOTX - node, R11 - dark soul
+        // R11 - dark soul
         Label end;
     
         //x64->log("Rbtree materialize.");
         x64->op(TESTQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
         x64->op(JE, end);
     
-        x64->op(CMPQ, KEYX, 0);
+        x64->op(CMPQ, R11, 0);
         x64->op(JE, end);
     
         x64->op(ANDQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);
-        x64->op(MOVQ, KEYX, 0);
+        x64->op(MOVQ, R11, 0);
     
         x64->code_label(end);
         x64->op(RET);
@@ -419,8 +419,8 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
-    // Expects SELFX - tree, ROOTX - index, KEYX - key / dark soul
-    // Returns R10 - new index
+    // Expects SELFX - tree, ROOTX - index, KEYX - key / key with destroyed value
+    // Returns R10 - new index, R11 - dark_soul
     // Clobbers THISX, THATX
     x64->code_label_local(label, "rbtree_remove");
     
@@ -517,11 +517,12 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     // A single red left child can be the replacement
     //x64->log("Rbtree remove found left only.");
     elem_ts.destroy(vs, x64);
+    x64->op(MOVQ, KEYX, ROOTX);
     x64->op(PUSHQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(CALL, vacate);  // At ROOTX
     x64->op(POPQ, R10);  // return the left child
     x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken
-    x64->op(MOVQ, KEYX, 0);  // no dark soul
+    x64->op(MOVQ, R11, 0);  // no dark soul
     x64->op(RET);
         
     x64->code_label(no_left);
@@ -532,24 +533,26 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     // A single red right child can be the replacement
     //x64->log("Rbtree remove found right only.");
     elem_ts.destroy(vs, x64);
+    x64->op(MOVQ, KEYX, ROOTX);
     x64->op(PUSHQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(CALL, vacate);  // At ROOTX
     x64->op(POPQ, R10);  // return the right child
     x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken
-    x64->op(MOVQ, KEYX, 0);  // no dark soul
+    x64->op(MOVQ, R11, 0);  // no dark soul
     x64->op(RET);
     
     // No children, just remove
     x64->code_label(no_children);
     //x64->log("Rbtree remove found leaf.");
     elem_ts.destroy(vs, x64);
+    x64->op(MOVQ, KEYX, ROOTX);
     x64->op(CALL, vacate);
-    x64->op(MOVQ, KEYX, 0);  // assume no dark soul
+    x64->op(MOVQ, R11, 0);  // assume no dark soul
     x64->op(TESTQ, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
     x64->op(JNE, was_red);
     
     //x64->log("Rbtree remove found leaf releasing dark soul.");
-    x64->op(MOVQ, KEYX, 1);  // well
+    x64->op(MOVQ, R11, 1);  // well
     
     x64->code_label(was_red);
     x64->op(MOVQ, R10, RBNODE_NIL);
@@ -584,8 +587,9 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     // Not found
     x64->code_label(no);
     //x64->log("Rbtree remove missing.");
+    x64->op(MOVQ, KEYX, RBNODE_NIL);
     x64->op(MOVQ, R10, RBNODE_NIL);
-    x64->op(MOVQ, KEYX, 0);  // no dark soul
+    x64->op(MOVQ, R11, 0);  // no dark soul
     x64->op(RET);
 }
 
