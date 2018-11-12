@@ -269,26 +269,33 @@ void Runtime::compile_finalize() {
     Label fcb_loop, fcb_cond;
     
     //log("Finalizing heap object.");
+    x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // pointer
+    x64->op(MOVQ, RAX, Address(RAX, HEAP_NEXT_OFFSET));  // FCB
     x64->op(JMP, fcb_cond);
 
     x64->code_label(fcb_loop);
-    log("Triggering prefinalizer callback.");
-    x64->op(PUSHQ, RBX);
-    x64->op(PUSHQ, Address(RBX, FCB_PAYLOAD1_OFFSET));  // TODO: why push these?
-    x64->op(PUSHQ, Address(RBX, FCB_PAYLOAD2_OFFSET));
+    log("Triggering finalizer callback.");
+    x64->op(PUSHQ, RAX);
 
-    // Finalizer callbacks may clobber everything, but must free this fcb, and potentially more
-    x64->op(CALL, Address(RBX, FCB_CALLBACK_OFFSET));
-    x64->op(ADDQ, RSP, 3 * ADDRESS_SIZE);
+    // Invoke FCB    
+    x64->op(PUSHQ, Address(RAX, FCB_PAYLOAD1_OFFSET));
+    x64->op(PUSHQ, Address(RAX, FCB_PAYLOAD2_OFFSET));
+    x64->op(CALL, Address(RAX, FCB_CALLBACK_OFFSET));  // clobbers all
+    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+
+    // Free FCB
+    x64->op(POPQ, RDI);
+    x64->op(PUSHQ, Address(RDI, FCB_NEXT_OFFSET));  // advance before free
+    call_sysv(sysv_memfree_label);  // clobbers all
+    x64->op(POPQ, RAX);
 
     x64->code_label(fcb_cond);
-    // Must check the beginning of the chain, as any number of FCB-s may have been removed
-    x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // pointer
-    x64->op(MOVQ, RBX, Address(RAX, HEAP_NEXT_OFFSET));
-    x64->op(CMPQ, RBX, FCB_NIL);
+    x64->op(CMPQ, RAX, FCB_NIL);
     x64->op(JNE, fcb_loop);
 
+    // Invoke finalizer
     //dump("finalizing");
+    x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // pointer
     x64->op(PUSHQ, RAX);
     x64->op(CALL, Address(RAX, HEAP_FINALIZER_OFFSET));  // finalizers may clobber everything
 
@@ -298,7 +305,6 @@ void Runtime::compile_finalize() {
 
     popa();
     x64->op(RET);
-
 }
 
 void Runtime::compile_heap_alloc() {
@@ -384,28 +390,52 @@ void Runtime::compile_fcb_alloc() {
 }
 
 void Runtime::compile_fcb_free() {
-    // fcb_free(fcb)
+    // fcb_free(pointer, callback, payload1, payload2)
     // Clobbers all registers
     
     x64->code_label_global(fcb_free_label, "fcb_free");
-    const int ARGS = ARGS_1;
+    Label check, loop, nope, no_next;
+    const int ARGS = ARGS_4;
 
-    x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // fcb
+    x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // object
+    x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // callback
+    x64->op(MOVQ, RCX, Address(RSP, ARGS + ARG_3));  // payload1
+    x64->op(MOVQ, RDX, Address(RSP, ARGS + ARG_4));  // payload2
+    
+    x64->op(MOVQ, RAX, Address(RAX, HEAP_NEXT_OFFSET));  // FCB
+    x64->op(JMP, check);
+
+    x64->code_label(loop);
+    x64->op(CMPQ, Address(RAX, FCB_CALLBACK_OFFSET), RBX);
+    x64->op(JNE, nope);
+    x64->op(CMPQ, Address(RAX, FCB_PAYLOAD1_OFFSET), RCX);
+    x64->op(JNE, nope);
+    x64->op(CMPQ, Address(RAX, FCB_PAYLOAD2_OFFSET), RDX);
+    x64->op(JNE, nope);
+    
+    // Found the FCB
     x64->op(MOVQ, RBX, Address(RAX, FCB_PREV_OFFSET));  // always valid
     x64->op(MOVQ, RCX, Address(RAX, FCB_NEXT_OFFSET));
     x64->op(MOVQ, Address(RBX, FCB_NEXT_OFFSET), RCX);
-    //dump("free_fcb RAX=fcb, RBX=prev, RCX=next");
-
-    Label no_next2;
     x64->op(CMPQ, RCX, FCB_NIL);
-    x64->op(JE, no_next2);
+    x64->op(JE, no_next);
     x64->op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RBX);
-    x64->code_label(no_next2);
+    x64->code_label(no_next);
 
     x64->op(MOVQ, RDI, RAX);
-    call_sysv(sysv_memfree_label);
+    call_sysv(sysv_memfree_label);  // clobbers all
 
     x64->op(RET);
+    
+    x64->code_label(nope);
+    x64->op(MOVQ, RAX, Address(RAX, FCB_NEXT_OFFSET));
+    
+    x64->code_label(check);
+    x64->op(CMPQ, RAX, FCB_NIL);
+    x64->op(JNE, loop);
+    
+    // Not found
+    die("FCB not found!");
 }
 
 void Runtime::compile_finalize_reference_array() {

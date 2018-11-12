@@ -1,5 +1,70 @@
 
-static void alloc_nosycontainer(TypeSpec member_ts, X64 *x64) {
+int rbtree_elem_nosy_offset(TypeSpec elem_ts) {
+    if (elem_ts[0] == nosyvalue_type)
+        return 0;
+    else if (elem_ts[0] == item_type) {
+        TypeMatch tm = elem_ts.match();
+        
+        if (tm[1][0] == nosyvalue_type)
+            return 0;
+        else if (tm[2][0] == nosyvalue_type)
+            return tm[1].measure_stack();
+        else
+            throw INTERNAL_ERROR;
+    }
+    else
+        throw INTERNAL_ERROR;
+}
+
+TypeSpec rbtree_elem_nosy_heap_ts(TypeSpec elem_ts) {
+    if (elem_ts[0] == nosyvalue_type)
+        return elem_ts.unprefix(nosyvalue_type);
+    else if (elem_ts[0] == item_type) {
+        TypeMatch tm = elem_ts.match();
+        
+        if (tm[1][0] == nosyvalue_type)
+            return tm[1].unprefix(nosyvalue_type);
+        else if (tm[2][0] == nosyvalue_type)
+            return tm[2].unprefix(nosyvalue_type);
+        else
+            throw INTERNAL_ERROR;
+    }
+    else
+        throw INTERNAL_ERROR;
+}
+
+void rbtree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64) {
+    // R10 - callback address, R11 - nosycontainer address
+    int noffset = rbtree_elem_nosy_offset(elem_ts);
+    Label elem_check, elem_loop;
+    
+    x64->op(MOVQ, RAX, Address(R11, 0));
+    x64->op(MOVQ, RCX, Address(RAX, RBTREE_FIRST_OFFSET));
+    x64->op(JMP, elem_check);
+    
+    x64->code_label(elem_loop);
+    x64->op(PUSHQ, Address(RAX, RCX, RBNODE_VALUE_OFFSET + noffset));  // object
+    x64->op(PUSHQ, R10);  // callback
+    x64->op(PUSHQ, R11);  // payload1
+    x64->op(PUSHQ, RCX);  // payload2
+    
+    x64->op(CALL, action_label);  // clobbers all, returns nothing
+    
+    x64->op(POPQ, RCX);
+    x64->op(POPQ, R11);
+    x64->op(POPQ, R10);
+    x64->op(POPQ, RAX);
+    
+    x64->op(MOVQ, RAX, Address(R11, 0));
+    x64->op(MOVQ, RCX, Address(RAX, RCX, RBNODE_NEXT_OFFSET));
+    
+    x64->code_label(elem_check);
+    x64->op(CMPQ, RCX, RBNODE_NIL);
+    x64->op(JNE, elem_loop);
+}
+
+
+void alloc_nosycontainer(TypeSpec member_ts, X64 *x64) {
     TypeSpec ts = member_ts.prefix(nosycontainer_type);
     Label finalizer_label = ts.get_finalizer_label(x64);
     int member_size = member_ts.measure_stack();  // type parameter
@@ -15,23 +80,54 @@ static void alloc_nosycontainer(TypeSpec member_ts, X64 *x64) {
 
 
 void compile_nosycontainer_clone(Label label, TypeSpec member_ts, X64 *x64) {
+    // This is only called for rbtree members, because Weakref does not clone
     // RAX - NosyContainer Ref
     // Return a cloned Ref
-    TypeSpec heap_ts = member_ts.prefix(nosycontainer_type);
+    TypeSpec container_heap_ts = member_ts.prefix(nosycontainer_type);
+    TypeSpec rbtree_heap_ts = member_ts.unprefix(ref_type);
+    TypeSpec elem_ts = rbtree_heap_ts.unprefix(rbtree_type);
+    
+    Label callback_label = x64->once->compile(compile_rbtree_nosy_callback, elem_ts);
+    Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
     
     x64->code_label_local(label, member_ts.symbolize() + "_nosycontainer_clone");
     x64->runtime->log("XXX nosycontainer clone");
+
+    x64->op(MOVQ, R10, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET));  // Rbtree ref
+    rbtree_heap_ts.incref(R10, x64);
+    x64->op(PUSHQ, R10);
     
-    x64->op(PUSHQ, RAX);
+    container_heap_ts.decref(RAX, x64);
+    
     alloc_nosycontainer(member_ts, x64);  // clobbers all
+    
+    x64->op(XCHGQ, RAX, Address(RSP, 0));  // push new nosy, pop old rbtree
+    
+    // Cloning the rbtree means that only the clone will be managed by FCB-s, so the
+    // original must be referred by an iterator that increased all refcounts to make
+    // sure they continue to point to valid objects until the end of the iteration.
+    x64->op(CALL, clone_label);
+    
     x64->op(POPQ, RBX);
+    member_ts.create(Storage(REGISTER, RAX), Storage(MEMORY, Address(RBX, NOSYCONTAINER_MEMBER_OFFSET)), x64);
+    x64->op(PUSHQ, RBX);
 
-    // This just shares the Rbtree between Weak* instances, but it will be cloned
-    // in the parent Lvalue operation.
-    member_ts.create(Storage(MEMORY, Address(RBX, 0)), Storage(MEMORY, Address(RAX, 0)), x64);
+    x64->op(LEA, R10, Address(callback_label, 0));
+    x64->op(LEA, R11, Address(RBX, NOSYCONTAINER_MEMBER_OFFSET));
+    rbtree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
+    
+    x64->op(POPQ, RAX);
+    x64->op(RET);
+}
 
-    heap_ts.decref(RBX, x64);
 
+void compile_weakref_nosy_callback(Label label, X64 *x64) {
+    x64->code_label_local(label, "weakref_nosy_callback");
+    x64->runtime->log("Weakref Nosy callback.");
+
+    x64->op(MOVQ, RCX, Address(RSP, ADDRESS_SIZE * 2));  // payload1 arg (nosy address)
+    x64->op(MOVQ, Address(RCX, NOSYCONTAINER_MEMBER_OFFSET + NOSYVALUE_RAW_OFFSET), 0);
+        
     x64->op(RET);
 }
 
@@ -136,6 +232,16 @@ public:
 
         member_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET)), x64);
         
+        // Must set up the FCB-s
+        TypeSpec elem_ts = member_ts.unprefix(ref_type).unprefix(rbtree_type);
+        Label callback_label = x64->once->compile(compile_rbtree_nosy_callback, elem_ts);
+        
+        x64->op(PUSHQ, RAX);
+        x64->op(LEA, R10, Address(callback_label, 0));
+        x64->op(LEA, R11, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET));
+        rbtree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
+        
+        x64->op(POPQ, RAX);
         return Storage(REGISTER, RAX);
     }
 };
@@ -165,7 +271,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Label callback_label = x64->once->compile(compile_callback);
+        Label callback_label = x64->once->compile(compile_weakref_nosy_callback);
         
         target->compile_and_store(x64, Storage(STACK));  // object address
         
@@ -177,34 +283,18 @@ public:
         
         x64->op(PUSHQ, 0);  // payload2
         
-        x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
+        x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all, returns nothing
         
         x64->op(POPQ, RBX);
         x64->op(POPQ, RBX);  // nosy address
         x64->op(POPQ, RCX);
         x64->op(POPQ, RCX);  // object address
 
-        heap_ts.decref(RCX, x64);  // FIXME: use after decref
-        
         x64->op(MOVQ, Address(RBX, NOSYCONTAINER_MEMBER_OFFSET + NOSYVALUE_RAW_OFFSET), RCX);
-        x64->op(MOVQ, Address(RBX, NOSYCONTAINER_MEMBER_OFFSET + NOSYVALUE_FCB_OFFSET), RAX);
+
+        heap_ts.decref(RCX, x64);
         
         return Storage(REGISTER, RBX);
-    }
-    
-    static void compile_callback(Label label, X64 *x64) {
-        x64->code_label_local(label, "weakref_callback");
-        x64->runtime->log("Weakref callback.");
-
-        x64->op(MOVQ, RCX, Address(RSP, ADDRESS_SIZE * 2));  // payload1 arg (nosy address)
-        x64->op(MOVQ, Address(RCX, NOSYCONTAINER_MEMBER_OFFSET + NOSYVALUE_RAW_OFFSET), 0);
-        x64->op(MOVQ, Address(RCX, NOSYCONTAINER_MEMBER_OFFSET + NOSYVALUE_FCB_OFFSET), 0);  // clear FCB address for the finalizer
-        
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * 3));  // fcb arg
-        x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
-        x64->op(ADDQ, RSP, ADDRESS_SIZE);
-        
-        x64->op(RET);
     }
 };
 

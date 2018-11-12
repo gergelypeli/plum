@@ -20,61 +20,17 @@ public:
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where == STACK && t.where == MEMORY) {
             x64->op(POPQ, t.address + NOSYVALUE_RAW_OFFSET);
-            x64->op(POPQ, t.address + NOSYVALUE_FCB_OFFSET);
         }
         else if (s.where == MEMORY && t.where == MEMORY) {
-            // This needs support from the NosyContainer. Since we can't figure out
-            // the payload1 for the cloned FCB (which may have to point to the cloned
-            // container), we expect it in RDX, so the cloning function must put it there.
-
-            if (s.address.base == RSP || t.address.base == RSP)
-                throw INTERNAL_ERROR;  // because of the pusha
-
             x64->op(MOVQ, R10, s.address + NOSYVALUE_RAW_OFFSET);
             x64->op(MOVQ, t.address + NOSYVALUE_RAW_OFFSET, R10);
-            
-            // TODO: This is a bit too expensive this way.
-            x64->runtime->pusha();
-            
-            x64->op(PUSHQ, R10);  // object address
-
-            x64->op(MOVQ, R11, s.address + NOSYVALUE_FCB_OFFSET);
-            x64->op(PUSHQ, Address(R11, FCB_CALLBACK_OFFSET));  // callback address, cloned
-            
-            x64->op(PUSHQ, RDX);  // nosy container address as payload1
-            
-            x64->op(PUSHQ, Address(R11, FCB_PAYLOAD2_OFFSET));  // payload2, cloned
-
-            x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
-            x64->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
-            
-            x64->runtime->popa(true);  // must restore all before using t.address
-            x64->op(MOVQ, R10, RAX);  // save cloned FCB
-            x64->op(POPQ, RAX);  // complete the popa
-
-            x64->op(MOVQ, t.address + NOSYVALUE_FCB_OFFSET, R10);
         }
         else
             throw INTERNAL_ERROR;
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
-        if (s.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
-        Label ok;
-            
-        x64->op(MOVQ, R10, s.address + NOSYVALUE_FCB_OFFSET);  // s may be RSP based
-        x64->op(CMPQ, R10, FCB_NIL);
-        x64->op(JE, ok);  // may happen with Weakref
-        
-        x64->runtime->pusha();
-        x64->op(PUSHQ, R10);
-        x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
-        x64->op(ADDQ, RSP, ADDRESS_SIZE);
-        x64->runtime->popa();
-        
-        x64->code_label(ok);
+        // Nothing to do
     }
 };
 
@@ -96,6 +52,46 @@ public:
         x64->runtime->log("Nosy container finalized.");
 
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
+        
+        // TODO: this case handling is not nice
+        if (member_ts[0] == ref_type && member_ts[1] == rbtree_type) {
+            TypeSpec elem_ts = member_ts.unprefix(ref_type).unprefix(rbtree_type);
+            Label callback_label = x64->once->compile(compile_rbtree_nosy_callback, elem_ts);
+            
+            x64->op(LEA, R10, Address(callback_label, 0));
+            x64->op(LEA, R11, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET));
+            rbtree_fcb_action(x64->runtime->fcb_free_label, elem_ts, x64);  // clobbers all
+            
+            // If an iterator is referring to this rbtree, it must have increased all
+            // reference counts to make sure they continue to point to a valid object.
+            // Once we destroy the Rbtree Ref, only iterator(s) will be the owner(s)
+            // of this rbtree.
+        }
+        else if (member_ts[0] == nosyvalue_type) {
+            Label callback_label = x64->once->compile(compile_weakref_nosy_callback);  // FIXME
+            Label ok;
+
+            // This object may have died already
+            x64->op(MOVQ, R10, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET + NOSYVALUE_RAW_OFFSET));  // object
+            x64->op(CMPQ, R10, 0);
+            x64->op(JE, ok);
+            
+            x64->op(PUSHQ, R10);  // object
+            x64->op(LEA, R10, Address(callback_label, 0));
+            x64->op(PUSHQ, R10);  // callback
+            x64->op(PUSHQ, RAX);  // payload1
+            x64->op(PUSHQ, 0);    // payload2
+            
+            x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
+
+            x64->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
+            
+            x64->code_label(ok);
+        }
+        else
+            throw INTERNAL_ERROR;
+
+        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
         
         member_ts.destroy(Storage(MEMORY, Address(RAX, NOSYCONTAINER_MEMBER_OFFSET)), x64);
         

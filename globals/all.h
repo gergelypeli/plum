@@ -93,6 +93,11 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x);
 //void compile_array_preappend(Label label, TypeSpec elem_ts, X64 *x64);
 void stream_preappend2(Address alias_addr, X64 *x64);
 
+// Nosy stuff
+void compile_rbtree_nosy_callback(Label label, TypeSpec elem_ts, X64 *x64);
+void compile_weakref_nosy_callback(Label label, X64 *x64);
+void rbtree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64);
+void compile_rbtree_clone(Label label, TypeSpec elem_ts, X64 *x64);
 
 // Check
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);

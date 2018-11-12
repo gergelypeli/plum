@@ -55,9 +55,8 @@ const int RBNODE_BLACKEN_MASK = -2;
 
 const int NOSYCONTAINER_MEMBER_OFFSET = 0;
 
-const int NOSYVALUE_SIZE = 16;
-const int NOSYVALUE_RAW_OFFSET = 0;  // order matters
-const int NOSYVALUE_FCB_OFFSET = 8;
+const int NOSYVALUE_SIZE = 8;
+const int NOSYVALUE_RAW_OFFSET = 0;
 
 const int ADDRESS_SIZE = 8;
 const int REFERENCE_SIZE = 8;

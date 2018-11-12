@@ -397,7 +397,7 @@ public:
 class WeakSetType: public WeakContainerType {
 public:
     WeakSetType(std::string name)
-        :WeakContainerType(name, { identity_metatype }, SAMEID_NOSYVALUE_RBTREE_REF_TS) {
+        :WeakContainerType(name, { identity_metatype }, SAMEID_NOSYVALUE_TS) {
     }
 };
 
@@ -405,7 +405,7 @@ public:
 class WeakIndexMapType: public WeakContainerType {
 public:
     WeakIndexMapType(std::string name)
-        :WeakContainerType(name, { identity_metatype, value_metatype }, SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_TS) {
+        :WeakContainerType(name, { identity_metatype, value_metatype }, SAMEID_NOSYVALUE_SAME2_ITEM_TS) {
     }
 };
 
@@ -413,6 +413,6 @@ public:
 class WeakValueMapType: public WeakContainerType {
 public:
     WeakValueMapType(std::string name)
-        :WeakContainerType(name, { value_metatype, identity_metatype }, SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_TS) {
+        :WeakContainerType(name, { value_metatype, identity_metatype }, SAME_SAMEID2_NOSYVALUE_ITEM_TS) {
     }
 };

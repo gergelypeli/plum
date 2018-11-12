@@ -306,14 +306,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred) | elem->precompile(preferred);
         
-        // We build on this in WeakValueMap::precreate
-        // FIXME: ???
         return clob | RBTREE_CLOB | COMPARE_CLOB;
-    }
-
-    virtual void preelem(Address alias_addr, X64 *x64) {
-        // To be overridden
-        // Must preserve SELFX and KEYX
     }
 
     virtual Storage compile(X64 *x64) {
@@ -339,11 +332,12 @@ public:
 
         Address alias_addr(RSP, elem_arg_size);
         Address elem_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET);
-        preelem(alias_addr, x64);
         elem_ts.create(Storage(STACK), Storage(MEMORY, elem_addr), x64);
 
-        pivot->ts.store(Storage(ALISTACK), Storage(), x64);
-        
+        //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
+        x64->op(POPQ, R11);
+
+        // Leaves R11/SELFX/KEYX point to the new elem, for subclasses
         return Storage();
     }
 };
@@ -377,18 +371,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred) | key->precompile(preferred) | value->precompile(preferred);
 
-        // We build on this in WeakValueMap::precreate
         return clob | RBTREE_CLOB | COMPARE_CLOB;
-    }
-
-    virtual void prekey(Address alias_addr, X64 *x64) {
-        // To be overridden
-        // Must preserve SELFX and KEYX
-    }
-
-    virtual void prevalue(Address alias_addr, X64 *x64) {
-        // To be overridden
-        // Must preserve SELFX and KEYX
     }
 
     virtual Storage compile(X64 *x64) {
@@ -419,16 +402,16 @@ public:
         // and since they're parametric types, their sizes will be rounded up.
         Address alias_addr1(RSP, key_arg_size + value_arg_size);
         Address value_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
-        prevalue(alias_addr1, x64);
         value_ts.create(Storage(STACK), Storage(MEMORY, value_addr), x64);
         
         Address alias_addr2(RSP, key_arg_size);
         Address key_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET);
-        prekey(alias_addr2, x64);
         key_ts.create(Storage(STACK), Storage(MEMORY, key_addr), x64);
 
-        pivot->ts.store(Storage(ALISTACK), Storage(), x64);
+        //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
+        x64->op(POPQ, R11);
         
+        // Leaves R11/SELFX/KEYX point to the new elem, for subclasses
         return Storage();
     }
 };
@@ -476,8 +459,11 @@ public:
         x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
 
         key_arg_ts.store(Storage(STACK), Storage(), x64);
-        pivot->ts.store(Storage(ALISTACK), Storage(), x64);
+
+        //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
+        x64->op(POPQ, R11);
         
+        // Leaves R11/SELFX/KEYX point to the new elem, for subclasses
         return Storage();
     }
 };

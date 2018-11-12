@@ -160,15 +160,16 @@ class MapElemByOrderIterValue: public RbtreeElemByOrderIterValue {
 
 // Weak map helpers
 
-static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) {
-    Label remove_label = x64->once->compile(compile_rbtree_remove, item_ts);
+void compile_rbtree_nosy_callback(Label label, TypeSpec elem_ts, X64 *x64) {
+    Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
 
+    x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_nosy_callback");
+    
     std::stringstream ss;
-    ss << item_ts << " Nosyvalue callback";
-    x64->code_label_local(label, ss.str());
+    ss << elem_ts << " Rbtree Nosyvalue callback";
     x64->runtime->log(ss.str());
     
-    // arguments: fcb, payload1, payload2
+    // arguments: payload1, payload2
     // We may clobber all registers
 
     x64->op(MOVQ, SELFX, Address(RSP, ADDRESS_SIZE * 2));  // payload1 arg (rbtree ref address)
@@ -180,40 +181,49 @@ static void compile_nosyvalue_callback(Label label, TypeSpec item_ts, X64 *x64) 
     x64->op(CALL, remove_label);
     x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
     
-    // Removing an element automatically destroys the NosyValue within, which frees
-    // the pointed FCB as well.
-    
     x64->op(RET);
 }
 
 
-static void ptr_to_nosyvalue(TypeSpec item_ts, TypeSpec heap_ts, Address alias_addr, X64 *x64) {
-    // Turn a Ptr into a NosyValue by replacing a pointer with a pointer+fcbaddr pair
-    // on the stack. Clobbers all registers, except SELFX and KEYX.
-    Label callback_label = x64->once->compile(compile_nosyvalue_callback, item_ts);
+void nosy_postadd(TypeSpec elem_ts, X64 *x64) {
+    // Add an FCB to the newly added rbtree elem, and decreases the reference count.
+    // R11 - alias of the Rbtree, aka the nosycontainer address
+    // SELFX/KEYX - points to the newly added elem
+    // Clobbers all registers.
+    Label callback_label = x64->once->compile(compile_rbtree_nosy_callback, elem_ts);
+    TypeSpec heap_ts = rbtree_elem_nosy_heap_ts(elem_ts);
+    int noffset = rbtree_elem_nosy_offset(elem_ts);
     
-    x64->op(MOVQ, RAX, Address(RSP, 0));  // referred heap object
-    x64->op(LEA, R10, Address(callback_label, 0));  // callback
-    x64->op(MOVQ, RCX, alias_addr);  // payload1, the rbtree ref address, RSP based
-    x64->op(MOVQ, RDX, KEYX);  // payload2, the rbnode index
+    x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
+    x64->op(LEA, R10, Address(callback_label, 0));
+    x64->op(PUSHQ, R10);  // callback
+    x64->op(PUSHQ, R11);  // payload1
+    x64->op(PUSHQ, KEYX);  // payload2
 
-    heap_ts.decref(RAX, x64);  // FIXME: use after decref, should unborrow instead
-    x64->op(PUSHQ, RAX);  // in NosyValue the object pointer is at the lower address...
-    
-    x64->op(PUSHQ, SELFX);  // promised to preserve these two
-    x64->op(PUSHQ, KEYX);
-    
-    x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, R10);
-    x64->op(PUSHQ, RCX);
-    x64->op(PUSHQ, RDX);
     x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
+    x64->op(ADDQ, RSP, 3 * ADDRESS_SIZE);
+    x64->op(POPQ, R10);  // object
+    
+    heap_ts.decref(R10, x64);
+}
+
+
+void nosy_postremove(TypeSpec elem_ts, X64 *x64) {
+    // Remove an FCB to the newly removed rbtree elem.
+    // R11 - alias of the Rbtree, aka the nosycontainer address
+    // SELFX/KEYX - points to the just removed elem
+    // Clobbers all registers.
+    Label callback_label = x64->once->compile(compile_rbtree_nosy_callback, elem_ts);
+    int noffset = rbtree_elem_nosy_offset(elem_ts);
+    
+    x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
+    x64->op(LEA, R10, Address(callback_label, 0));
+    x64->op(PUSHQ, R10);  // callback
+    x64->op(PUSHQ, R11);  // payload1
+    x64->op(PUSHQ, KEYX);  // payload2
+
+    x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
     x64->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
-    
-    x64->op(POPQ, KEYX);
-    x64->op(POPQ, SELFX);  // preserved
-    
-    x64->op(MOVQ, Address(RSP, ADDRESS_SIZE), RAX);  // .. and the fcb at the higher address
 }
 
 
@@ -250,16 +260,21 @@ public:
 
 class WeakValueMapAddValue: public RbtreeAddItemValue {
 public:
-    TypeSpec value_heap_ts;
-    
     WeakValueMapAddValue(Value *l, TypeMatch &tm)
         :RbtreeAddItemValue(l, tm[1], nosy_ts(tm[2]), tm[1], ptr_ts(tm[2])) {
-        value_heap_ts = tm[2];
     }
 
-    virtual void prevalue(Address alias_addr, X64 *x64) {
-        // Must preserve SELFX and KEYX
-        ptr_to_nosyvalue(elem_ts, value_heap_ts, alias_addr, x64);
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeAddItemValue::precompile(preferred) | Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = RbtreeAddItemValue::compile(x64);
+        
+        // Using the R11+SELFX+KEYX
+        nosy_postadd(elem_ts, x64);  // clobbers all
+        
+        return s;
     }
 };
 
@@ -268,6 +283,19 @@ class WeakValueMapRemoveValue: public RbtreeRemoveValue {
 public:
     WeakValueMapRemoveValue(Value *l, TypeMatch &tm)
         :RbtreeRemoveValue(l, wvm_elem_ts(tm), tm[1]) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeRemoveValue::precompile(preferred) | Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = RbtreeRemoveValue::compile(x64);
+        
+        // Using the R11+SELFX+KEYX
+        nosy_postremove(elem_ts, x64);  // clobbers all
+        
+        return s;
     }
 };
 
@@ -311,16 +339,21 @@ public:
 
 class WeakIndexMapAddValue: public RbtreeAddItemValue {
 public:
-    TypeSpec value_heap_ts;
-    
     WeakIndexMapAddValue(Value *l, TypeMatch &tm)
         :RbtreeAddItemValue(l, nosy_ts(tm[1]), tm[2], ptr_ts(tm[1]), tm[2]) {
-        value_heap_ts = tm[1];
     }
 
-    virtual void prekey(Address alias_addr, X64 *x64) {
-        // Must preserve SELFX and KEYX
-        ptr_to_nosyvalue(elem_ts, value_heap_ts, alias_addr, x64);
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeAddItemValue::precompile(preferred) | Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = RbtreeAddItemValue::compile(x64);
+        
+        // Using the R11+SELFX+KEYX
+        nosy_postadd(elem_ts, x64);  // clobbers all
+        
+        return s;
     }
 };
 
@@ -329,6 +362,19 @@ class WeakIndexMapRemoveValue: public RbtreeRemoveValue {
 public:
     WeakIndexMapRemoveValue(Value *l, TypeMatch &tm)
         :RbtreeRemoveValue(l, wim_elem_ts(tm), ptr_ts(tm[1])) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeRemoveValue::precompile(preferred) | Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = RbtreeRemoveValue::compile(x64);
+        
+        // Using the R11+SELFX+KEYX
+        nosy_postremove(elem_ts, x64);  // clobbers all
+        
+        return s;
     }
 };
 
@@ -371,16 +417,21 @@ public:
 
 class WeakSetAddValue: public RbtreeAddValue {
 public:
-    TypeSpec elem_heap_ts;
-    
     WeakSetAddValue(Value *l, TypeMatch &tm)
         :RbtreeAddValue(l, ws_elem_ts(tm), ptr_ts(tm[1])) {
-        elem_heap_ts = tm[1];
     }
 
-    virtual void preelem(Address alias_addr, X64 *x64) {
-        // Must preserve SELFX and KEYX
-        ptr_to_nosyvalue(elem_ts, elem_heap_ts, alias_addr, x64);
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeAddValue::precompile(preferred) | Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = RbtreeAddValue::compile(x64);
+        
+        // Using the R11+SELFX+KEYX
+        nosy_postadd(elem_ts, x64);  // clobbers all
+        
+        return s;
     }
 };
 
@@ -389,6 +440,19 @@ class WeakSetRemoveValue: public RbtreeRemoveValue {
 public:
     WeakSetRemoveValue(Value *l, TypeMatch &tm)
         :RbtreeRemoveValue(l, ws_elem_ts(tm), ptr_ts(tm[1])) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeRemoveValue::precompile(preferred) | Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = RbtreeRemoveValue::compile(x64);
+        
+        // Using the R11+SELFX+KEYX
+        nosy_postremove(elem_ts, x64);  // clobbers all
+        
+        return s;
     }
 };
 

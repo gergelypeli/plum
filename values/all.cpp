@@ -21,8 +21,8 @@
 #include "typedefinition.cpp"
 #include "function.cpp"
 #include "option.cpp"
-#include "nosy.cpp"
 #include "float.cpp"
+#include "nosy.cpp"
 
 // Register usage:
 // ROOTX - index of current node
@@ -47,3 +47,4 @@
 #undef ROOTX
 #undef THISX
 #undef THATX
+
