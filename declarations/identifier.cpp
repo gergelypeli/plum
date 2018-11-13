@@ -108,21 +108,22 @@ public:
 
 
 template <typename T>
-class NosyTemplateIdentifier: public Identifier {
+class NosytreeTemplateIdentifier: public Identifier {
 public:
     TypeSpec member_ts;
     
-    NosyTemplateIdentifier(std::string n, TypeSpec t, TypeSpec mts)
+    NosytreeTemplateIdentifier(std::string n, TypeSpec t, TypeSpec mts)
         :Identifier(n, t) {
         member_ts = mts.rvalue();
     }
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        // Convert the pivot to a NosyContainer before instantiating
+        // Take the Rbtree Ref from the Nosytree before instantiating
         TypeSpec mts = typesubst(member_ts, match);
+        
         Value *pivot = (
-            pivot_ts[0] == lvalue_type ? make<NosyCowContainerMemberValue>(cpivot, mts, scope) :
-            make<NosyContainerMemberValue>(cpivot, mts, scope)
+            pivot_ts[0] == lvalue_type ? make<NosytreeCowMemberValue>(cpivot, mts, scope) :
+            make<NosytreeMemberValue>(cpivot, mts, scope)
         );
         
         return new T(pivot, match);

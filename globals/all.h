@@ -94,8 +94,8 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x);
 void stream_preappend2(Address alias_addr, X64 *x64);
 
 // Nosy stuff
-void compile_rbtree_nosy_callback(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_weakref_nosy_callback(Label label, X64 *x64);
+void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64);
+//void compile_weakref_nosy_callback(Label label, X64 *x64);
 void rbtree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64);
 void compile_rbtree_clone(Label label, TypeSpec elem_ts, X64 *x64);
 
@@ -211,7 +211,8 @@ Type *float_type = NULL;
 Type *ref_type = NULL;
 Type *ptr_type = NULL;
 Type *nosyvalue_type = NULL;
-Type *nosycontainer_type = NULL;
+Type *nosytree_type = NULL;
+Type *nosyref_type = NULL;
 Type *weakref_type = NULL;
 Type *linearray_type = NULL;
 Type *circularray_type = NULL;
@@ -333,6 +334,9 @@ TypeSpec ANYID_ANY2_WEAKINDEXMAP_TS;
 TypeSpec SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_TS;
 TypeSpec SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
 TypeSpec ANYID_WEAKSET_TS;
+
+TypeSpec SAMEID_NOSYVALUE_LVALUE_TS;
+
 TypeSpec SAMEID_NOSYVALUE_RBTREE_REF_TS;
 TypeSpec SAMEID_NOSYVALUE_RBTREE_REF_LVALUE_TS;
 

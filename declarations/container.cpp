@@ -364,11 +364,11 @@ public:
 
 // Base class for Weak* containers, containing a Ref to a Nosycontainer, which contains a
 // container wrapper (likely a Set or Map).
-class WeakContainerType: public RecordType {
+class WeaktreeType: public RecordType {
 public:
     TypeSpec elem_ts;
     
-    WeakContainerType(std::string n, Metatypes param_metatypes, TypeSpec ets)
+    WeaktreeType(std::string n, Metatypes param_metatypes, TypeSpec ets)
         :RecordType(n, param_metatypes) {
         elem_ts = ets;
     }
@@ -389,30 +389,30 @@ public:
             return NULL;
         }
         
-        return make<WeakContainerValue>(member, mts, tm[0]);
+        return make<WeaktreeValue>(member, ets, tm[0]);
     }
 };
 
 
-class WeakSetType: public WeakContainerType {
+class WeakSetType: public WeaktreeType {
 public:
     WeakSetType(std::string name)
-        :WeakContainerType(name, { identity_metatype }, SAMEID_NOSYVALUE_TS) {
+        :WeaktreeType(name, { identity_metatype }, SAMEID_NOSYVALUE_TS) {
     }
 };
 
 
-class WeakIndexMapType: public WeakContainerType {
+class WeakIndexMapType: public WeaktreeType {
 public:
     WeakIndexMapType(std::string name)
-        :WeakContainerType(name, { identity_metatype, value_metatype }, SAMEID_NOSYVALUE_SAME2_ITEM_TS) {
+        :WeaktreeType(name, { identity_metatype, value_metatype }, SAMEID_NOSYVALUE_SAME2_ITEM_TS) {
     }
 };
 
 
-class WeakValueMapType: public WeakContainerType {
+class WeakValueMapType: public WeaktreeType {
 public:
     WeakValueMapType(std::string name)
-        :WeakContainerType(name, { value_metatype, identity_metatype }, SAME_SAMEID2_NOSYVALUE_ITEM_TS) {
+        :WeaktreeType(name, { value_metatype, identity_metatype }, SAME_SAMEID2_NOSYVALUE_ITEM_TS) {
     }
 };

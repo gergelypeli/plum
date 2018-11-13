@@ -160,13 +160,13 @@ class MapElemByOrderIterValue: public RbtreeElemByOrderIterValue {
 
 // Weak map helpers
 
-void compile_rbtree_nosy_callback(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64) {
     Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
 
-    x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_nosy_callback");
+    x64->code_label_local(label, elem_ts.symbolize() + "_nosytree_callback");
     
     std::stringstream ss;
-    ss << elem_ts << " Rbtree Nosyvalue callback";
+    ss << elem_ts << " Nosytree callback";
     x64->runtime->log(ss.str());
     
     // arguments: payload1, payload2
@@ -190,9 +190,9 @@ void nosy_postadd(TypeSpec elem_ts, X64 *x64) {
     // R11 - alias of the Rbtree, aka the nosycontainer address
     // SELFX/KEYX - points to the newly added elem
     // Clobbers all registers.
-    Label callback_label = x64->once->compile(compile_rbtree_nosy_callback, elem_ts);
-    TypeSpec heap_ts = rbtree_elem_nosy_heap_ts(elem_ts);
-    int noffset = rbtree_elem_nosy_offset(elem_ts);
+    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
+    TypeSpec heap_ts = nosyvalue_heap_ts(elem_ts);
+    int noffset = nosyvalue_offset(elem_ts);
     
     x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
     x64->op(LEA, R10, Address(callback_label, 0));
@@ -213,8 +213,8 @@ void nosy_postremove(TypeSpec elem_ts, X64 *x64) {
     // R11 - alias of the Rbtree, aka the nosycontainer address
     // SELFX/KEYX - points to the just removed elem
     // Clobbers all registers.
-    Label callback_label = x64->once->compile(compile_rbtree_nosy_callback, elem_ts);
-    int noffset = rbtree_elem_nosy_offset(elem_ts);
+    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
+    int noffset = nosyvalue_offset(elem_ts);
     
     x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
     x64->op(LEA, R10, Address(callback_label, 0));

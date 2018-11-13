@@ -53,10 +53,12 @@ const int RBNODE_NIL = 0;
 const int RBNODE_RED_BIT = 1;
 const int RBNODE_BLACKEN_MASK = -2;
 
-const int NOSYCONTAINER_MEMBER_OFFSET = 0;
-
 const int NOSYVALUE_SIZE = 8;
 const int NOSYVALUE_RAW_OFFSET = 0;
+
+const int NOSYTREE_MEMBER_OFFSET = 0;
+
+const int NOSYREF_MEMBER_OFFSET = 0;
 
 const int ADDRESS_SIZE = 8;
 const int REFERENCE_SIZE = 8;

@@ -183,8 +183,11 @@ void builtin_types(Scope *root_scope) {
     nosyvalue_type = new NosyValueType("<NosyValue>");
     root_scope->add(nosyvalue_type);
 
-    nosycontainer_type = new NosyContainerType("<NosyContainer>");
-    root_scope->add(nosycontainer_type);
+    nosytree_type = new NosytreeType("<Nosytree>");
+    root_scope->add(nosytree_type);
+
+    nosyref_type = new NosyrefType("<Nosyref>");
+    root_scope->add(nosyref_type);
 
     weakref_type = new WeakrefType("Weakref");
     root_scope->add(weakref_type);
@@ -338,7 +341,7 @@ void builtin_types(Scope *root_scope) {
     ANYID_PTR_LVALUE_TS = { lvalue_type, ptr_type, anyid_type };
     ANYID_WEAKREF_TS = { weakref_type, anyid_type };
     ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
-    SAMEID_NOSYVALUE_NOSYCONTAINER_REF_LVALUE_TS = { lvalue_type, ref_type, nosycontainer_type, nosyvalue_type, sameid_type };
+    //SAMEID_NOSYVALUE_NOSYCONTAINER_REF_LVALUE_TS = { lvalue_type, ref_type, nosycontainer_type, nosyvalue_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     WHATEVER_UNINITIALIZED_TS = { uninitialized_type, whatever_type };
     STRINGTEMPLATE_TS = { stringtemplate_type };
@@ -370,6 +373,9 @@ void builtin_types(Scope *root_scope) {
     BYTE_SLICE_TS = { slice_type, unsigned_integer8_type };
     ANY_OPTION_TS = { option_type, any_type };
     ANY_OPTION_LVALUE_TS = { lvalue_type, option_type, any_type };
+
+    SAMEID_NOSYVALUE_LVALUE_TS = { lvalue_type, nosyvalue_type, sameid_type };
+
     SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, nosyvalue_type, sameid2_type };
     SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, same2_type };
     SAMEID_NOSYVALUE_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, nosyvalue_type, sameid_type };
@@ -799,7 +805,10 @@ void define_weakref() {
     RecordType *record_type = ptr_cast<RecordType>(weakref_type);
     DataScope *is = record_type->make_inner_scope(ANYID_WEAKREF_TS);
 
-    is->add(new Variable("nosycontainer", ANYID_WEAKREF_TS, SAMEID_NOSYVALUE_NOSYCONTAINER_REF_LVALUE_TS));
+    TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_LVALUE_TS;
+    TypeSpec NOSY_TS = MEMBER_TS.rvalue().prefix(nosyref_type).prefix(ref_type);
+
+    is->add(new Variable("nosyref", ANYID_WEAKREF_TS, NOSY_TS));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", ANYID_WEAKREF_LVALUE_TS, ASSIGN));
     is->add(new TemplateOperation<RecordOperationValue>("compare", ANYID_WEAKREF_TS, COMPARE));
@@ -946,16 +955,17 @@ void define_weakvaluemap() {
     TypeSpec PIVOT_TS = ANY_ANYID2_WEAKVALUEMAP_TS;
     TypeSpec PIVOT_LVALUE_TS = PIVOT_TS.lvalue();
     TypeSpec MEMBER_TS = SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec NOSY_TS = MEMBER_TS.rvalue().prefix(nosytree_type).prefix(ref_type);
 
     DataScope *is = weakvaluemap_type->make_inner_scope(PIVOT_TS);
 
-    is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
+    is->add(new Variable("nosytree", PIVOT_TS, NOSY_TS));
     
-    is->add(new NosyTemplateIdentifier<WeakValueMapLengthValue>("length", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakValueMapAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakValueMapHasValue>("has", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakValueMapLengthValue>("length", PIVOT_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakValueMapAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakValueMapRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakValueMapHasValue>("has", PIVOT_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakValueMapIndexValue>("index", PIVOT_TS, MEMBER_TS));
 
     // Must not define iteration due to the volatility of this container
     
@@ -968,16 +978,17 @@ void define_weakindexmap() {
     TypeSpec PIVOT_TS = ANYID_ANY2_WEAKINDEXMAP_TS;
     TypeSpec PIVOT_LVALUE_TS = PIVOT_TS.lvalue();
     TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
+    TypeSpec NOSY_TS = MEMBER_TS.rvalue().prefix(nosytree_type).prefix(ref_type);
     
     DataScope *is = weakindexmap_type->make_inner_scope(PIVOT_TS);
 
-    is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
+    is->add(new Variable("nosytree", PIVOT_TS, NOSY_TS));
 
-    is->add(new NosyTemplateIdentifier<WeakIndexMapLengthValue>("length", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakIndexMapAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakIndexMapHasValue>("has", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakIndexMapLengthValue>("length", PIVOT_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakIndexMapAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakIndexMapRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakIndexMapHasValue>("has", PIVOT_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakIndexMapIndexValue>("index", PIVOT_TS, MEMBER_TS));
     
     // Must not define iteration due to the volatility of this container
     
@@ -990,15 +1001,16 @@ void define_weakset() {
     TypeSpec PIVOT_TS = ANYID_WEAKSET_TS;
     TypeSpec PIVOT_LVALUE_TS = PIVOT_TS.lvalue();
     TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_RBTREE_REF_LVALUE_TS;
+    TypeSpec NOSY_TS = MEMBER_TS.rvalue().prefix(nosytree_type).prefix(ref_type);
     
     DataScope *is = weakset_type->make_inner_scope(PIVOT_TS);
 
-    is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
+    is->add(new Variable("nosytree", PIVOT_TS, NOSY_TS));
     
-    is->add(new NosyTemplateIdentifier<WeakSetLengthValue>("length", PIVOT_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakSetAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
-    is->add(new NosyTemplateIdentifier<WeakSetHasValue>("has", PIVOT_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakSetLengthValue>("length", PIVOT_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakSetAddValue>("add", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakSetRemoveValue>("remove", PIVOT_LVALUE_TS, MEMBER_TS));
+    is->add(new NosytreeTemplateIdentifier<WeakSetHasValue>("has", PIVOT_TS, MEMBER_TS));
 
     // Must not define iteration due to the volatility of this container
     
