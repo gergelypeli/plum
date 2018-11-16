@@ -2,7 +2,18 @@
 // Stage 4
 
 bool is_typedefinition(Expr *expr) {
-    return expr->type == Expr::CONTROL && colon_scope->is_typedefinition(expr->text);
+    if (expr->type != Expr::DECLARATION)
+        return false;
+        
+    if (expr->args.size() != 1)
+        return false;
+        
+    Expr *e = expr->args[0].get();
+    
+    if (e->type != Expr::CONTROL)
+        return false;
+        
+    return colon_scope->is_typedefinition(e->text);
 }
 
 

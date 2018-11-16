@@ -188,8 +188,8 @@ public:
     virtual bool add_statement(Value *value, bool result = false) {
         statements.push_back(std::unique_ptr<Value>(value));
         
-        if (!value->complete_definition())
-            return false;
+        //if (!value->complete_definition())
+        //    return false;
         
         if (result)
             ts = value->ts;  // TODO: rip code_type

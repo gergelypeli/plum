@@ -208,6 +208,33 @@ public:
 };
 
 
+class LselfDefinitionValue: public TypeDefinitionValue {
+public:
+    LselfDefinitionValue(Value *pivot, TypeMatch &tm)
+        :TypeDefinitionValue() {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 0 || kwargs.size() != 0) {
+            std::cerr << "Whacky lself!\n";
+            return false;
+        }
+
+        return true;
+    }
+
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE) {
+            Declaration *d = new Lself(name, NO_TS);
+            scope->add(d);
+            return d;
+        }
+        else
+            return NULL;
+    }
+};
+
+
 class RoleDefinitionValue: public TypeDefinitionValue {
 public:
     InheritAs inherit_as;
@@ -409,13 +436,20 @@ public:
 class ScopedTypeDefinitionValue: public TypeDefinitionValue {
 public:
     Type *defined_type;
-    std::vector<Expr *> deferred_exprs;
-    std::unique_ptr<DataBlockValue> data_value;
-    TypeSpec inner_pivot_ts;
+    std::vector<Expr *> meta_exprs;
+    std::vector<Expr *> data_exprs;
+    std::unique_ptr<DataBlockValue> block_value;
 
     ScopedTypeDefinitionValue()
         :TypeDefinitionValue() {
         defined_type = NULL;
+    }
+
+    void defer(Expr *e) {
+        if (is_typedefinition(e))
+            meta_exprs.push_back(e);
+        else
+            data_exprs.push_back(e);
     }
 
     void defer_as(Kwargs &kwargs) {
@@ -425,33 +459,46 @@ public:
         if (as) {
             if (as->type == Expr::TUPLE)
                 for (auto &e : as->args)
-                    deferred_exprs.push_back(e.get());
+                    defer(e.get());
             else
-                deferred_exprs.push_back(as);
+                defer(as);
         }
+    }
+
+    virtual Type *define(Type *dt, TypeSpec pts, Scope *s) {
+        defined_type = dt;
+        s->add(defined_type);
+
+        defined_type->make_inner_scope(pts);
+        block_value.reset(new DataBlockValue(defined_type->get_inner_scope()));
+        
+        for (Expr *expr : meta_exprs)
+            if (!block_value->check_statement(expr))
+                return NULL;
+        
+        defined_type->get_inner_scope()->leave();
+        
+        return defined_type;
     }
 
     virtual bool complete_definition() {
         if (!defined_type)
             throw INTERNAL_ERROR;
 
-        if (inner_pivot_ts == NO_TS)
-            throw INTERNAL_ERROR;
-            
         std::cerr << "Completing definition of " << defined_type->name << ".\n";
+        defined_type->get_inner_scope()->enter();
 
-        defined_type->make_inner_scope(inner_pivot_ts);
-        data_value.reset(new DataBlockValue(defined_type->get_inner_scope()));
+        //data_value.reset(new DataBlockValue(defined_type->get_inner_scope()));
 
-        for (Expr *expr : deferred_exprs)
-            if (!data_value->check_statement(expr))
+        for (Expr *expr : data_exprs)
+            if (!block_value->check_statement(expr))
                 return false;
 
         // Must complete records/classes before compiling method bodies
         if (!defined_type->complete_type())
             return false;
             
-        if (!data_value->complete_definition())
+        if (!block_value->complete_definition())
             return false;
         
         std::cerr << "Completed definition of " << defined_type->name << ".\n";
@@ -461,11 +508,11 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return data_value->precompile(preferred);
+        return block_value->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
-        return data_value->compile(x64);
+        return block_value->compile(x64);
     }
 };
 
@@ -482,11 +529,6 @@ public:
             return false;
         }
 
-        defined_type = new RecordType("<anonymous>", Metatypes {});
-        inner_pivot_ts = { defined_type };
-
-        //defined_type->make_inner_scope(rts);
-        
         defer_as(kwargs);
             
         std::cerr << "Deferring record definition.\n";
@@ -495,9 +537,8 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
-            defined_type->set_name(name);
-            scope->add(defined_type);
-            return defined_type;
+            Type *t = new RecordType(name, Metatypes {});
+            return define(t, { t }, scope);
         }
         else
             return NULL;
@@ -517,11 +558,6 @@ public:
             return false;
         }
 
-        defined_type = new SingletonType("<anonymous>");
-        inner_pivot_ts = { defined_type };
-
-        //defined_type->make_inner_scope(sts);
-
         defer_as(kwargs);
             
         std::cerr << "Deferring singleton definition.\n";
@@ -530,9 +566,8 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == MODULE_SCOPE) {
-            defined_type->set_name(name);
-            scope->add(defined_type);
-            return defined_type;
+            Type *t = new SingletonType(name);
+            return define(t, { t }, scope);
         }
         else
             return NULL;
@@ -552,11 +587,6 @@ public:
             return false;
         }
 
-        defined_type = new ClassType("<anonymous>", Metatypes {});
-        inner_pivot_ts = { ptr_type, defined_type };
-
-        //defined_type->make_inner_scope(cts);
-
         defer_as(kwargs);
             
         std::cerr << "Deferring class definition.\n";
@@ -565,9 +595,8 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
-            defined_type->set_name(name);
-            scope->add(defined_type);
-            return defined_type;
+            Type *t = new ClassType(name, Metatypes {});
+            return define(t, { ptr_type, t }, scope);
         }
         else
             return NULL;
@@ -587,11 +616,6 @@ public:
             return false;
         }
 
-        defined_type = new InterfaceType("<anonymous>", Metatypes {});
-        inner_pivot_ts = ANY_TS;
-        
-        //defined_type->make_inner_scope(ANY_TS);
-
         defer_as(kwargs);
             
         std::cerr << "Deferring interface definition.\n";
@@ -600,80 +624,8 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
-            defined_type->set_name(name);
-            scope->add(defined_type);
-            return defined_type;
-        }
-        else
-            return NULL;
-    }
-};
-
-/*
-class ImplementationDefinitionValue: public TypeDefinitionValue {
-public:
-    TypeSpec pivot_ts;
-    TypeSpec interface_ts;
-    
-    ImplementationDefinitionValue()
-        :TypeDefinitionValue() {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() > 1) {
-            std::cerr << "Whacky implementation!\n";
-            return false;
-        }
-
-        Value *v = typize(args[0].get(), scope, NULL);
-        TypeMatch match;
-        
-        if (!v->ts.is_meta()) {
-            std::cerr << "Implementation needs an interface type name!\n";
-            return false;
-        }
-        
-        pivot_ts = scope->pivot_type_hint();
-        interface_ts = ptr_cast<TypeValue>(v)->represented_ts;  // NOTE: May still contain Some types
-        
-        if (!interface_ts.has_meta(interface_metatype)) {
-            std::cerr << "Implementation needs an interface type name!\n";
-            return false;
-        }
-
-        return true;
-    }
-
-    virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE) {
-            return new Implementation(name, pivot_ts, interface_ts);
-        }
-        else
-            return NULL;
-    }
-};
-*/
-
-class LselfDefinitionValue: public TypeDefinitionValue {
-public:
-    LselfDefinitionValue(Value *pivot, TypeMatch &tm)
-        :TypeDefinitionValue() {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky lself!\n";
-            return false;
-        }
-
-        return true;
-    }
-
-    virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE) {
-            Declaration *d = new Lself(name, NO_TS);
-            scope->add(d);
-            return d;
+            Type *t = new InterfaceType(name, Metatypes {});
+            return define(t, ANY_TS, scope);
         }
         else
             return NULL;

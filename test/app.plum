@@ -42,6 +42,15 @@ Pairs? :Singleton as:
     as:
         Std prints("A pair of ({x}, {y})" { x: p first, y: p second })
 
+
+Foo? :Record as:
+    hey? Bar.Baz
+    
+    
+Bar? :Record as:
+    Baz? :Record as:
+        ho? Integer
+    
     
 XCounter? :Record as:
     current? Integer
