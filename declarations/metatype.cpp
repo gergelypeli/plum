@@ -47,6 +47,10 @@ public:
             throw INTERNAL_ERROR;
         }
     }
+
+    virtual bool is_typedefinition(std::string n) {
+        return name == n;
+    }
 };
 
 

@@ -21,6 +21,19 @@ public:
             throw INTERNAL_ERROR;
             
         outer_scope = os;
+        
+        if (outer_scope) {
+            // The outer scope was obviously entered if we're added to it
+            outer_scope_entered();
+        }
+        else {
+            // The outer scope was obviously entered if we're removed from it
+            outer_scope_left();
+        }
+    }
+
+    virtual void outer_scope_entered() {
+        // Nothing to do here
     }
 
     virtual void outer_scope_left() {
@@ -36,6 +49,10 @@ public:
     }
 
     virtual bool is_transient() {
+        return false;
+    }
+    
+    virtual bool is_typedefinition(std::string n) {
         return false;
     }
     

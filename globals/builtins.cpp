@@ -525,6 +525,13 @@ void define_integers() {
     integer_metascope->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
     
     integer_metascope->leave();
+    
+    for (auto t : {
+        integer_type, integer32_type, integer16_type, integer8_type,
+        unsigned_integer_type, unsigned_integer32_type, unsigned_integer16_type, unsigned_integer8_type
+    }) {
+        t->make_inner_scope({ t })->leave();
+    }
 }
 
 
@@ -553,7 +560,7 @@ void define_float() {
         { "assign_slash", ASSIGN_DIVIDE },
     };
 
-    Scope *float_scope = float_type->get_inner_scope();
+    Scope *float_scope = float_type->make_inner_scope(FLOAT_TS);
 
     for (auto &item : float_rvalue_operations)
         float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_TS, item.operation));
@@ -833,7 +840,7 @@ void define_array() {
     TypeSpec PIVOT_TS = ANY_ARRAY_TS;
     TypeSpec PIVOT_LVALUE_TS = ANY_ARRAY_LVALUE_TS;
     
-    Scope *array_scope = array_type->get_inner_scope();
+    Scope *array_scope = array_type->make_inner_scope(ANY_ARRAY_TS);
 
     array_scope->add(new Variable("linearray", PIVOT_TS, SAME_LINEARRAY_REF_LVALUE_TS));
 
@@ -871,7 +878,7 @@ void define_array() {
 void define_queue() {
     TypeSpec PIVOT_TS = ANY_QUEUE_TS;
     TypeSpec PIVOT_LVALUE_TS = ANY_QUEUE_LVALUE_TS;
-    Scope *queue_scope = queue_type->get_inner_scope();
+    Scope *queue_scope = queue_type->make_inner_scope(ANY_QUEUE_TS);
 
     queue_scope->add(new Variable("circularray", PIVOT_TS, SAME_CIRCULARRAY_REF_LVALUE_TS));
 
@@ -1080,6 +1087,7 @@ void builtin_runtime(Scope *root_scope) {
 RootScope *init_builtins() {
     RootScope *root_scope = new RootScope;
     root_scope->set_name("<root>");
+    root_scope->enter();
 
     builtin_types(root_scope);
     wrapped_types(root_scope);

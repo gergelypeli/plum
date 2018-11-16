@@ -310,9 +310,13 @@ public:
     }
     
     virtual void escape_statement_variables() {
+        scope->enter();
+        
         for (int i = declarations.size() - 1; i >= 0 ; i--)
             if (declarations[i])
                 scope->remove(declarations[i]);
+                
+        scope->leave();
                 
         for (unsigned i = 0; i < declarations.size() ; i++)
             if (declarations[i])

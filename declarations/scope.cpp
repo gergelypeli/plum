@@ -17,7 +17,7 @@ public:
         type = st;
         size = Allocation { 0, 0, 0, 0 };
         is_allocated = false;
-        is_left = false;
+        is_left = true;
     }
     
     virtual void add(Declaration *decl) {
@@ -34,6 +34,11 @@ public:
     }
     
     virtual void remove(Declaration *decl) {
+        if (is_left) {
+            std::cerr << "Scope already left!\n";
+            throw INTERNAL_ERROR;
+        }
+
         if (contents.back().get() == decl) {
             contents.back().release();
             contents.pop_back();
@@ -46,10 +51,25 @@ public:
         }
     }
 
+    virtual void outer_scope_entered() {
+        if (!is_left) {
+            std::cerr << "Scope not left properly!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+
     virtual void outer_scope_left() {
         if (!is_left) {
             std::cerr << "Scope not left properly!\n";
             throw INTERNAL_ERROR;
+        }
+    }
+    
+    virtual void enter() {
+        is_left = false;
+        
+        for (unsigned i = 0; i < contents.size(); i++) {
+            contents[i]->outer_scope_entered();
         }
     }
     
@@ -129,6 +149,15 @@ public:
     
     virtual std::string fully_qualify(std::string n) {
         throw INTERNAL_ERROR;
+    }
+    
+    virtual bool is_typedefinition(std::string n) {
+        for (int i = contents.size() - 1; i >= 0; i--) {
+            if (contents[i]->is_typedefinition(n))
+                return true;
+        }
+        
+        return false;
     }
 };
 
@@ -356,6 +385,11 @@ public:
     ExportScope(NamedScope *ts)
         :Scope(EXPORT_SCOPE) {
         target_scope = ts;
+    }
+
+    virtual void outer_scope_entered() {
+        Scope::outer_scope_entered();
+        
         target_scope->push_scope(this);
     }
     

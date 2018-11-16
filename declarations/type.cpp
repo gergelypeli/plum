@@ -63,11 +63,18 @@ public:
         if (outer_scope)
             inner_scope->set_outer_scope(outer_scope);
             
+        inner_scope->enter();
+            
         return inner_scope.get();
     }
     
     virtual DataScope *get_inner_scope() {
         return inner_scope.get();
+    }
+
+    virtual void outer_scope_entered() {
+        if (inner_scope)
+            inner_scope->outer_scope_entered();
     }
 
     virtual void outer_scope_left() {

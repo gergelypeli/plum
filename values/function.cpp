@@ -40,8 +40,10 @@ public:
         
         // This is temporary, to allow lookups in the result/head scopes
         scope->add(fn_scope);
+        fn_scope->enter();
 
         Scope *rs = fn_scope->add_result_scope();
+        rs->enter();
         
         for (auto &arg : args) {
             Value *r = typize(arg.get(), rs);
@@ -68,6 +70,7 @@ public:
         rs->leave();
 
         Scope *ss = fn_scope->add_self_scope();
+        ss->enter();
         
         if (scope->type == DATA_SCOPE) {
             pivot_ts = scope->pivot_type_hint();
@@ -140,6 +143,8 @@ public:
         }
                 
         Scope *hs = fn_scope->add_head_scope();
+        hs->enter();
+        
         Expr *h = kwargs["from"].get();
         head.reset(new DataBlockValue(hs));
 
@@ -192,6 +197,7 @@ public:
         // TODO: warn for invalid keywords!
         
         // This was temporary
+        fn_scope->leave();
         scope->remove(fn_scope);
         
         return true;
@@ -199,7 +205,9 @@ public:
 
     virtual bool complete_definition() {
         std::cerr << "Completing definition of function body " << function->name << ".\n";
+        fn_scope->enter();
         CodeScope *bs = fn_scope->add_body_scope();
+        bs->enter();
 
         if (deferred_body_expr) {
             PartialInfo *pi = NULL;

@@ -1,6 +1,11 @@
 
 // Stage 4
 
+bool is_typedefinition(Expr *expr) {
+    return expr->type == Expr::CONTROL && colon_scope->is_typedefinition(expr->text);
+}
+
+
 Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     if (pivot && pivot->ts[0] == multi_type) {
         // Conversions from Multi to a scalar can only be attempted once (see typematch),

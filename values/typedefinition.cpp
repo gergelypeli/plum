@@ -108,7 +108,9 @@ public:
     
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
-            return new EnumerationType(name, keywords);
+            Type *t = new EnumerationType(name, keywords);
+            t->make_inner_scope({ t })->leave();
+            return t;
         }
         else
             return NULL;
@@ -191,7 +193,9 @@ public:
 
     virtual Declaration *declare(std::string name, ScopeType st) {
         if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
-            return new TreenumerationType(name, keywords, parents);
+            Type *t = new TreenumerationType(name, keywords, parents);
+            t->make_inner_scope({ t })->leave();
+            return t;
         }
         else
             return NULL;
@@ -350,6 +354,7 @@ public:
         ModuleScope *target_scope = scope->get_module_scope();
 
         import_scope = new ImportScope(source_scope, target_scope);
+        import_scope->enter();
         
         if (kwargs.size() == 1) {
             if (!kwargs["for"]) {
@@ -394,17 +399,12 @@ class ScopedTypeDefinitionValue: public TypeDefinitionValue {
 public:
     Type *defined_type;
     std::vector<Expr *> deferred_exprs;
-    DataScope *inner_scope;
     std::unique_ptr<DataBlockValue> data_value;
+    TypeSpec inner_pivot_ts;
 
     ScopedTypeDefinitionValue()
         :TypeDefinitionValue() {
         defined_type = NULL;
-        inner_scope = NULL;
-    }
-
-    void setup_inner(Type *t, TypeSpec pts) {
-        inner_scope = t->make_inner_scope(pts);
     }
 
     void defer_as(Kwargs &kwargs) {
@@ -421,12 +421,16 @@ public:
     }
 
     virtual bool complete_definition() {
-        if (!defined_type || !inner_scope)
+        if (!defined_type)
+            throw INTERNAL_ERROR;
+
+        if (inner_pivot_ts == NO_TS)
             throw INTERNAL_ERROR;
             
         std::cerr << "Completing definition of " << defined_type->name << ".\n";
 
-        data_value.reset(new DataBlockValue(inner_scope));
+        defined_type->make_inner_scope(inner_pivot_ts);
+        data_value.reset(new DataBlockValue(defined_type->get_inner_scope()));
 
         for (Expr *expr : deferred_exprs)
             if (!data_value->check_statement(expr))
@@ -440,7 +444,7 @@ public:
             return false;
         
         std::cerr << "Completed definition of " << defined_type->name << ".\n";
-        inner_scope->leave();
+        defined_type->get_inner_scope()->leave();
 
         return true;
     }
@@ -468,12 +472,10 @@ public:
         }
 
         defined_type = new RecordType("<anonymous>", Metatypes {});
-        TypeSpec rts = { defined_type };
+        inner_pivot_ts = { defined_type };
 
-        setup_inner(defined_type, rts);
+        //defined_type->make_inner_scope(rts);
         
-        //inner_scope->set_meta_scope(record_metatype->get_inner_scope());
-
         defer_as(kwargs);
             
         std::cerr << "Deferring record definition.\n";
@@ -504,9 +506,9 @@ public:
         }
 
         defined_type = new SingletonType("<anonymous>");
-        TypeSpec sts = { defined_type };
+        inner_pivot_ts = { defined_type };
 
-        setup_inner(defined_type, sts);
+        //defined_type->make_inner_scope(sts);
 
         defer_as(kwargs);
             
@@ -538,9 +540,9 @@ public:
         }
 
         defined_type = new ClassType("<anonymous>", Metatypes {});
-        TypeSpec cts = { ptr_type, defined_type };
+        inner_pivot_ts = { ptr_type, defined_type };
 
-        setup_inner(defined_type, cts);
+        //defined_type->make_inner_scope(cts);
 
         defer_as(kwargs);
             
@@ -572,9 +574,9 @@ public:
         }
 
         defined_type = new InterfaceType("<anonymous>", Metatypes {});
-
-        setup_inner(defined_type, ANY_TS);
-        //inner_scope->set_meta_scope(_metatype->get_inner_scope());
+        inner_pivot_ts = ANY_TS;
+        
+        //defined_type->make_inner_scope(ANY_TS);
 
         defer_as(kwargs);
             

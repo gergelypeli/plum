@@ -18,6 +18,7 @@ public:
     
     bool typize(Expr *expr_root) {
         bool ok = true;
+        module_scope->enter();
 
         if (expr_root->type == Expr::TUPLE) {
             for (auto &a : expr_root->args)

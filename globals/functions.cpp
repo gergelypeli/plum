@@ -85,7 +85,9 @@ std::string print_exception_type(TreenumerationType *t) {
 
 
 TreenumerationType *make_treenum(const char *name, const char *kw1) {
-    return new TreenumerationType(name, { "", kw1 }, { 0, 0 });
+    TreenumerationType *t = new TreenumerationType(name, { "", kw1 }, { 0, 0 });
+    t->make_inner_scope({ t })->leave();
+    return t;
 }
 
 
@@ -98,7 +100,9 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
         parents.push_back(x[i].p);
     }
 
-    return new TreenumerationType(name, keywords, parents);
+    TreenumerationType *t = new TreenumerationType(name, keywords, parents);
+    t->make_inner_scope({ t })->leave();
+    return t;
 }
 
 
@@ -106,7 +110,7 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
 
 // Checking
 
-void check_retros(unsigned i, CodeScope *code_scope, const std::vector<ArgInfo> &arg_infos) {
+CodeScope *check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &arg_infos) {
     // Grab all preceding Dvalue bar declarations, and put them in this scope.
     // Retro variables must only be accessible from the following Code argument's
     // scope, because their initialization is only guaranteed while that Code
@@ -130,10 +134,16 @@ void check_retros(unsigned i, CodeScope *code_scope, const std::vector<ArgInfo> 
         }
     }
 
+    CodeScope *code_scope = new CodeScope;
+    scope->add(code_scope);
+    code_scope->enter();
+
     for (auto var : retros) {
         std::cerr << "Moving retro variable " << var->name << " to code scope.\n";
         code_scope->add(var);
     }
+    
+    return code_scope;
 }
 
 
@@ -155,11 +165,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     CodeScope *code_scope = NULL;
     
     if (context && (*context)[0] == code_type) {
-        code_scope = new CodeScope;
-        
-        check_retros(i, code_scope, arg_infos);
-        
-        scope->add(code_scope);
+        code_scope = check_retros(i, scope, arg_infos);
     }
 
     TypeSpec *constructive_context = context;

@@ -44,7 +44,7 @@ class ArrayType: public RecordType {
 public:
     ArrayType(std::string name)
         :RecordType(name, Metatypes { value_metatype }) {
-        make_inner_scope(TypeSpec { this, any_type });
+        //make_inner_scope(TypeSpec { this, any_type });
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
@@ -192,7 +192,7 @@ class QueueType: public RecordType {
 public:
     QueueType(std::string name)
         :RecordType(name, { value_metatype }) {
-        make_inner_scope(TypeSpec { this, any_type });
+        //make_inner_scope(TypeSpec { this, any_type });
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
