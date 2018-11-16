@@ -27,25 +27,32 @@ public:
         return Storage();
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == ARGUMENT_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == ARGUMENT_SCOPE) {
             if (!represented_ts.has_meta(attribute_metatype) && !represented_ts.has_meta(value_metatype)) {
                 std::cerr << "Invalid type for argument declaration: " << represented_ts << "!\n";
                 return NULL;
             }
             
+            Declaration *d;
+            
             if (represented_ts[0] == code_type)
-                return new Evaluable(name, pivot_ts, represented_ts);
+                d = new Evaluable(name, pivot_ts, represented_ts);
             else
-                return new Variable(name, pivot_ts, represented_ts);
+                d = new Variable(name, pivot_ts, represented_ts);
+                
+            scope->add(d);
+            return d;
         }
-        else if (st == CODE_SCOPE || st == DATA_SCOPE) {
+        else if (scope->type == CODE_SCOPE || scope->type == DATA_SCOPE) {
             if (!represented_ts.has_meta(value_metatype)) {
                 std::cerr << "Invalid type for variable declaration: " << represented_ts << "!\n";
                 return NULL;
             }
 
-            return new Variable(name, pivot_ts, represented_ts.lvalue());
+            Declaration *d = new Variable(name, pivot_ts, represented_ts.lvalue());
+            scope->add(d);
+            return d;
         }
         else {
             std::cerr << "Variables must be declared in code or data scopes!\n";

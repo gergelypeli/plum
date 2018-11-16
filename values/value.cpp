@@ -51,24 +51,9 @@ public:
         ts.store(s, t, x64);
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == CODE_SCOPE) {
-            if (ts == VOID_TS) {
-                std::cerr << "Can't declare " << name << " as Void!\n";
-                return NULL;
-            }
-        
-            TypeSpec var_ts = (
-                ts[0]->upper_type == attribute_metatype ? ts.reprefix(ts[0], lvalue_type) :
-                ts.lvalue()
-            );
-        
-            return new Variable(name, NO_TS, var_ts);
-        }
-        else {
-            std::cerr << "Variables by value must be declared in code scopes!\n";
-            return NULL;
-        }
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        std::cerr << "Can't declare " << name << " with neither a type nor a metatype!\n";
+        return NULL;
     }
     
     virtual bool unpack(std::vector<TypeSpec> &tss) {

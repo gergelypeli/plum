@@ -364,15 +364,13 @@ public:
         
         value.reset(v);
 
-        decl = value->declare(name, scope->type);
+        decl = value->declare(name, scope);
         
         if (!decl) {
             std::cerr << "Invalid declaration: " << token << "!\n";
             return false;
         }
-
-        scope->add(decl);
-
+        
         auto i = name.rfind('.');
         
         if (i != std::string::npos) {

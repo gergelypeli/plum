@@ -69,9 +69,12 @@ public:
         return true;
     }
     
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE)
-            return new IntegerType(name, size, is_not_signed);
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
+            Declaration *d = new IntegerType(name, size, is_not_signed);
+            scope->add(d);
+            return d;
+        }
         else
             return NULL;
     }
@@ -106,10 +109,11 @@ public:
     }
 
     
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new EnumerationType(name, keywords);
             t->make_inner_scope({ t })->leave();
+            scope->add(t);
             return t;
         }
         else
@@ -191,10 +195,11 @@ public:
         return true;
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == FUNCTION_SCOPE) {
             Type *t = new TreenumerationType(name, keywords, parents);
             t->make_inner_scope({ t })->leave();
+            scope->add(t);
             return t;
         }
         else
@@ -282,14 +287,19 @@ public:
         return true;
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE) {
+            Declaration *d;
+            
             if (inherited_ts != NO_TS)
-                return new Role(name, pivot_ts, inherited_ts, inherit_as);
+                d = new Role(name, pivot_ts, inherited_ts, inherit_as);
             else if (implemented_ts != NO_TS)
-                return new Implementation(name, pivot_ts, implemented_ts, inherit_as);
+                d = new Implementation(name, pivot_ts, implemented_ts, inherit_as);
             else
                 throw INTERNAL_ERROR;
+                
+            scope->add(d);
+            return d;
         }
         else
             return NULL;
@@ -378,13 +388,14 @@ public:
         return true;
     }
     
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == MODULE_SCOPE || st == DATA_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == MODULE_SCOPE || scope->type == DATA_SCOPE) {
             if (name != "<anonymous>") {
                 std::cerr << "Import declaration must be anonymous!\n";
                 return NULL;
             }
             
+            scope->add(import_scope);
             return import_scope;
         }
         else {
@@ -482,9 +493,10 @@ public:
         return true;
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             defined_type->set_name(name);
+            scope->add(defined_type);
             return defined_type;
         }
         else
@@ -516,9 +528,10 @@ public:
         return true;
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == MODULE_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == MODULE_SCOPE) {
             defined_type->set_name(name);
+            scope->add(defined_type);
             return defined_type;
         }
         else
@@ -550,9 +563,10 @@ public:
         return true;
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             defined_type->set_name(name);
+            scope->add(defined_type);
             return defined_type;
         }
         else
@@ -584,9 +598,10 @@ public:
         return true;
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE || st == CODE_SCOPE || st == MODULE_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             defined_type->set_name(name);
+            scope->add(defined_type);
             return defined_type;
         }
         else
@@ -629,8 +644,8 @@ public:
         return true;
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE) {
             return new Implementation(name, pivot_ts, interface_ts);
         }
         else
@@ -654,9 +669,11 @@ public:
         return true;
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st == DATA_SCOPE) {
-            return new Lself(name, NO_TS);
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE) {
+            Declaration *d = new Lself(name, NO_TS);
+            scope->add(d);
+            return d;
         }
         else
             return NULL;

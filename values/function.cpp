@@ -120,9 +120,12 @@ public:
                 TreenumerationDefinitionValue *tdv = ptr_cast<TreenumerationDefinitionValue>(v);
                 
                 if (tdv) {
-                    Declaration *ed = tdv->declare("<may>", scope->type);
-                    t = ptr_cast<TreenumerationType>(ed);
-                    fn_scope->add(t);
+                    Declaration *d = tdv->declare("<may>", fn_scope);
+                    
+                    if (!d)
+                        throw INTERNAL_ERROR;
+                    
+                    t = ptr_cast<TreenumerationType>(d);
                 }
                 
                 TypeValue *tpv = ptr_cast<TypeValue>(v);
@@ -374,8 +377,8 @@ public:
         return fn_scope->body_scope;  // stop unwinding here, and start destroying scoped variables
     }
 
-    virtual Declaration *declare(std::string name, ScopeType st) {
-        if (st != DATA_SCOPE) {
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type != DATA_SCOPE) {
             std::cerr << "Functions must be declared in data scopes!\n";
             return NULL;
         }
@@ -445,6 +448,7 @@ public:
         else
             function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
 
+        scope->add(function);
         return function;
     }
 };
