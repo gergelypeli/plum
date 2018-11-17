@@ -27,8 +27,18 @@
 
 Root *root;
 bool matchlog;
-std::string local_path, global_path;
+std::string local_path, global_path, project_path;
 std::vector<std::string> source_file_names;
+
+
+std::string get_source_file_name(int index) {
+    std::string file_name = source_file_names[index];
+    
+    if (deprefix(file_name, project_path))
+        return file_name.substr(1);  // remove leading slash as well
+    else
+        return file_name;
+}
 
 
 std::string read_source(std::string file_name) {
@@ -140,19 +150,23 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // 'to/app.plum'
     if (!desuffix(input, ".plum")) {
         std::cerr << "Input file name must have a .plum suffix!\n";
         return 1;
     }
 
-    std::string cwd = get_working_path();
+    std::string cwd = get_working_path();  // '/path'
 
     if (input[0] == '/')
         local_path = input;
     else
-        local_path = cwd + "/" + input;
+        local_path = cwd + "/" + input;  // '/path/to/app'
         
-    global_path = local_path.substr(0, local_path.rfind('/'));  // TODO
+    // Used to shorten name of file names for printing
+    project_path = local_path.substr(0, local_path.rfind('/'));  // '/path/to'
+    
+    global_path = project_path;  // TODO: path to the global modules
 
     RootScope *root_scope = init_builtins();
     root = new Root(root_scope);

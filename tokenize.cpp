@@ -28,8 +28,10 @@ std::ustring DEDENT_UTEXT = " dedent";
 std::ustring SEPARATE_UTEXT = " separate";
 
 
+std::string get_source_file_name(int index);
+
 std::ostream &operator<<(std::ostream &os, const Token &token) {
-    os << token.row << ":" << (token.column + 1) << ":\"" << token.utext << "\"";
+    os << get_source_file_name(token.file_index) << ":" << token.row << ":" << token.column << ":\"" << token.utext << "\"";
     return os;
 }
 
