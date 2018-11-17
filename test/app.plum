@@ -45,11 +45,13 @@ Pairs? :Singleton as:
 
 Foo? :Record as:
     hey? Bar.Baz
-    
+    f? :Function as:
+        $ hey g
     
 Bar? :Record as:
     Baz? :Record as:
         ho? Integer
+        g? :Function as: :return
     
     
 XCounter? :Record as:

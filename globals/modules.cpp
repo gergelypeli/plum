@@ -38,7 +38,7 @@ public:
         
         std::cerr << "Module " << module_name << " has " << singleton_types.size() << " singletons.\n";
 
-        ok = ok && value_root->complete_definition();
+        ok = ok && value_root->define_data() && value_root->define_code();
     
         module_scope->leave();
 

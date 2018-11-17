@@ -148,9 +148,17 @@ public:
         return true;
     }
 
-    virtual bool complete_definition() {
+    virtual bool define_data() {
         for (unsigned i = 0; i < statements.size(); i++)
-            if (!statements[i]->complete_definition())
+            if (!statements[i]->define_data())
+                return false;
+                
+        return true;
+    }
+
+    virtual bool define_code() {
+        for (unsigned i = 0; i < statements.size(); i++)
+            if (!statements[i]->define_code())
                 return false;
                 
         return true;
@@ -187,9 +195,6 @@ public:
 
     virtual bool add_statement(Value *value, bool result = false) {
         statements.push_back(std::unique_ptr<Value>(value));
-        
-        //if (!value->complete_definition())
-        //    return false;
         
         if (result)
             ts = value->ts;  // TODO: rip code_type
@@ -388,14 +393,21 @@ public:
         return true;
     }
 
-    virtual bool complete_definition() {
+    virtual bool define_data() {
         if (!decl) {
             std::cerr << "Bare declaration was not fixed!\n";
             throw INTERNAL_ERROR;
         }
             
         if (value)
-            return value->complete_definition();
+            return value->define_data();
+        else
+            return true;
+    }
+
+    virtual bool define_code() {
+        if (value)
+            return value->define_code();
         else
             return true;
     }

@@ -206,7 +206,7 @@ public:
         return true;
     }
 
-    virtual bool complete_definition() {
+    virtual bool define_code() {
         std::cerr << "Completing definition of function body " << function->name << ".\n";
         fn_scope->enter();
         CodeScope *bs = fn_scope->add_body_scope();

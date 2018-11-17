@@ -481,14 +481,12 @@ public:
         return defined_type;
     }
 
-    virtual bool complete_definition() {
+    virtual bool define_data() {
         if (!defined_type)
             throw INTERNAL_ERROR;
 
         std::cerr << "Completing definition of " << defined_type->name << ".\n";
         defined_type->get_inner_scope()->enter();
-
-        //data_value.reset(new DataBlockValue(defined_type->get_inner_scope()));
 
         for (Expr *expr : data_exprs)
             if (!block_value->check_statement(expr))
@@ -498,13 +496,21 @@ public:
         if (!defined_type->complete_type())
             return false;
             
-        if (!block_value->complete_definition())
+        if (!block_value->define_data())
             return false;
         
         std::cerr << "Completed definition of " << defined_type->name << ".\n";
         defined_type->get_inner_scope()->leave();
 
         return true;
+    }
+
+    virtual bool define_code() {
+        defined_type->get_inner_scope()->enter();
+        bool ok = block_value->define_code();
+        defined_type->get_inner_scope()->leave();
+        
+        return ok;
     }
 
     virtual Regs precompile(Regs preferred) {

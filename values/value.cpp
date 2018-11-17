@@ -69,7 +69,11 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual bool complete_definition() {
+    virtual bool define_data() {
+        return true;
+    }
+
+    virtual bool define_code() {
         return true;
     }
     
