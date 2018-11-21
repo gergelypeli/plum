@@ -192,10 +192,10 @@ public:
             return false;
         }
 
-        if (!deferred_body_expr && !import_expr) {
-            std::cerr << "Must specify function body or import!\n";
-            return false;
-        }
+        //if (!deferred_body_expr && !import_expr) {
+        //    std::cerr << "Must specify function body or import!\n";
+        //    return false;
+        //}
         
         // TODO: warn for invalid keywords!
         
@@ -270,7 +270,7 @@ public:
             
             if (pi) {
                 if (!pi->is_complete()) {
-                    std::cerr << "Not all members initialized!\n";
+                    std::cerr << "Not all members initialized in " << token << "\n";
                     return false;
                 }
             }
@@ -292,9 +292,6 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        if (!body)
-            return Storage();
-
         if (!function) {
             std::cerr << "Nameless function!\n";
             throw INTERNAL_ERROR;
@@ -314,12 +311,22 @@ public:
         Storage self_storage = self_var ? self_var->get_local_storage() : Storage();
 
         std::string fqn = fn_scope->outer_scope->fully_qualify(function->name);
-        x64->code_label_local(function->get_label(x64), fqn);
             
         if (fqn == ".Main.start") {
             Label dummy;
             x64->code_label_global(dummy, "start");
         }
+        
+        if (import_name.size()) {
+            return Storage();
+        }
+        else if (!body) {
+            std::string msg = "Function " + fqn + " was not implemented";
+            x64->runtime->die(msg);
+            return Storage();
+        }
+        else
+            x64->code_label_local(function->get_label(x64), fqn);
         
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);

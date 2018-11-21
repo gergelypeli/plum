@@ -254,35 +254,10 @@ public:
         }
 
         if (args.size() == 1) {
-            // Inheritance
-            
-            DataScope *ds = ptr_cast<DataScope>(scope);
-            if (!ds->is_virtual_scope()) {
-                std::cerr << "Inheritance is only allowed in Class scope!\n";
-                return false;
-            }
-            
-            Value *v = typize(args[0].get(), scope, NULL);
-    
-            if (!v->ts.is_meta()) {
-                std::cerr << "Inherited type name expected!\n";
-                return false;
-            }
-
-            inherited_ts = ptr_cast<TypeValue>(v)->represented_ts;
-        
-            if (!inherited_ts.has_meta(class_metatype)) {
-                std::cerr << "Inherited class name expected!\n";
-                return false;
-            }
-            
-            delete v;
-        }
-
-        if (kwargs.size() == 1) {
             // Implementation
+            Expr *e = args[0].get();
             
-            Value *v = typize(kwargs["as"].get(), scope, NULL);
+            Value *v = typize(e, scope, NULL);
     
             if (!v->ts.is_meta()) {
                 std::cerr << "Implemented type name expected!\n";
@@ -293,6 +268,33 @@ public:
         
             if (!implemented_ts.has_meta(interface_metatype)) {
                 std::cerr << "Implemented interface name expected!\n";
+                return false;
+            }
+            
+            delete v;
+        }
+
+        if (kwargs.size() == 1) {
+            // Inheritance
+            Expr *e = kwargs["by"].get();
+            
+            DataScope *ds = ptr_cast<DataScope>(scope);
+            if (!ds->is_virtual_scope()) {
+                std::cerr << "Inheritance is only allowed in Class scope!\n";
+                return false;
+            }
+            
+            Value *v = typize(e, scope, NULL);
+    
+            if (!v->ts.is_meta()) {
+                std::cerr << "Inherited type name expected!\n";
+                return false;
+            }
+
+            inherited_ts = ptr_cast<TypeValue>(v)->represented_ts;
+        
+            if (!inherited_ts.has_meta(class_metatype)) {
+                std::cerr << "Inherited class name expected!\n";
                 return false;
             }
             

@@ -19,7 +19,7 @@ Pair? :Record as:
     dump? :Function as:
         Std prints("Pair({x}, {y})" { x: $ first, y: $ second })
 
-    sable? :Auto as: Streamifiable
+    sable? :Auto Streamifiable
 
     sable.streamify? :Function from: stream? String Lvalue as:
         stream += "({},{})" { $ first, $ second }
@@ -65,7 +65,7 @@ XCounter? :Record as:
         $ current = -1
         $ limit = n
         
-    lself.itor? :Auto as: Integer Iterator
+    lself.itor? :Auto Integer Iterator
 
     lself.itor.next? :Function Integer may: Iterator_done_exception as:
         $ current += 1
@@ -75,7 +75,7 @@ XCounter? :Record as:
             
         :return $ current
         
-    ible? :Auto as: Integer Iterable
+    ible? :Auto Integer Iterable
     
     ible.iter? :Function XCounter as:
         :return $
@@ -92,7 +92,7 @@ XStringiterator? :Record as:
         $ string = s
         $ index = -1
 
-    lself.itor? :Auto as: Character Iterator
+    lself.itor? :Auto Character Iterator
     
     lself.itor.next? :Function Character may: Iterator_done_exception as:
         $ index += 1
@@ -123,7 +123,7 @@ Base? :Class as:
 
 
 Derived? :Class as:
-    base? :Role Base
+    base? :Role by: Base
     derived_value? Integer
     
     derived_init? :Initializer as:
@@ -141,9 +141,15 @@ Derived? :Class as:
     ? :Finalizer as:
         Std prints("The derived is finalized.")
         
+        
+Property? :Interface as:
+    get? :Function Integer
+    
 
 Greetable? :Class as:
-    derived? :Role Derived
+    derived? :Role by: Derived
+    small? :Role Property
+    large? :Role Property
 
     init? :Initializer as:
         $.derived derived_init
@@ -165,8 +171,15 @@ Greetable? :Class as:
         Std prints("Greetable base_method, the base value is {}." {$ derived base base_value})
         $.derived base base_method
 
+    # Testing late declarations
     number? Integer
     name? String
+    
+    small.get? :Function Integer as:
+        :return 12
+        
+    large.get? :Function Integer as:
+        :return 120
 
 
 Single? :Singleton as:
@@ -813,6 +826,7 @@ Main? :Singleton as:
     test_classes? :Function Greetable Ref as:
         gr? Greetable Ref = `second_init
         gr greet
+        Std prints("Small is {} and large is {}" { gr small get, gr large get })
     
         gr2? = gr
         gr2 = gr

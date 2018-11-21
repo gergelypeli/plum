@@ -102,7 +102,8 @@ public:
         bool ok = m->typize(expr_root);
     
         if (!ok) {
-            std::cerr << "Error compiling module " << module_name << "!\n";
+            std::string display_name = (module_name.size() ? module_name : "<main>");
+            std::cerr << "Error compiling module " << display_name << "!\n";
             throw TYPE_ERROR;
         }
         
