@@ -4,6 +4,7 @@
 #include "identifier.cpp"
 #include "allocable.cpp"
 #include "function.cpp"
+#include "associable.cpp"
 #include "type.cpp"
 #include "metatype.cpp"
 

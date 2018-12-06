@@ -12,6 +12,10 @@ public:
         alloc_ts = ats;
     }
 
+    virtual bool is_abstract() {
+        return false;  // Interface implementations will override it
+    }
+
     virtual TypeSpec get_typespec(TypeMatch tm) {
         return typesubst(alloc_ts, tm);
     }
@@ -283,3 +287,51 @@ public:
     }
 };
 
+
+class VirtualEntry {
+public:
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+};
+
+
+class VtVirtualEntry: public VirtualEntry {
+public:
+    Allocable *allocable;
+    
+    VtVirtualEntry(Allocable *a) {
+        allocable = a;
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        if (allocable)
+            return allocable->get_typespec(tm).get_virtual_table_label(x64);
+        else
+            return x64->runtime->zero_label;
+    }
+};
+
+
+class FfwdVirtualEntry: public VirtualEntry {
+public:
+    Allocation offset;
+    
+    FfwdVirtualEntry(Allocation o) {
+        offset = o;
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        Label label;
+        x64->absolute_label(label, -offset.concretize(tm));  // forcing an int into an unsigned64...
+        return label;
+    }
+};
+
+
+class PartialInitializable {
+public:
+    virtual std::vector<std::string> get_member_names() {
+        throw INTERNAL_ERROR;
+    }
+};

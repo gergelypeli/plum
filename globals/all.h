@@ -18,6 +18,7 @@ public:
     std::string symbolize();
     TypeMatch match();    
     Allocation measure();
+    Allocation measure_identity();
     int measure_raw();
     int measure_elem();
     int measure_stack();
@@ -78,8 +79,10 @@ const char *typeidname(Value *v);
 
 // Declaration wrappers
 Declaration *make_record_compare();
-int role_get_virtual_offset(Role *r);
+int associable_get_virtual_offset(Associable *a);
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
+std::string function_get_name(Function *f);
+bool function_is_abstract(Function *f);
 
 // TypeSpec operations
 TypeSpec get_typespec(Value *value);
@@ -178,8 +181,6 @@ Type *record_metatype = NULL;
 Type *class_metatype = NULL;
 Type *singleton_metatype = NULL;
 Type *interface_metatype = NULL;
-//Type *implementation_metatype = NULL;
-//Type *lself_metatype = NULL;
 
 Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;

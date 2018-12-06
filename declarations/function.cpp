@@ -21,8 +21,7 @@ public:
     FunctionType type;
     FunctionProt prot;
     
-    Role *associated_role;
-    Implementation *associated_implementation;
+    Associable *associated;
     Function *implemented_function;
 
     Label label;
@@ -38,7 +37,7 @@ public:
         
         virtual_index = -1;  // for class methods only
         prot = NATIVE_FUNCTION;
-        associated_role = NULL;  // for overriding class methods only
+        associated = NULL;  // for overriding methods only
         implemented_function = NULL;
     }
 
@@ -54,18 +53,41 @@ public:
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // TODO: do this properly!
         
-        if (type == INTERFACE_FUNCTION) {
-            std::cerr << "Oops, interface function " << name << " was called instead of an implementation!\n";
-            throw INTERNAL_ERROR;
-        }
+        //if (type == INTERFACE_FUNCTION) {
+        //    std::cerr << "Oops, interface function " << name << " was called instead of an implementation!\n";
+        //    throw INTERNAL_ERROR;
+        //}
         
         return make<FunctionCallValue>(this, cpivot, match);
     }
 
+    virtual void get_parameters(TypeSpec &pts, TSs &rtss, TSs &atss, Ss &anames, TypeSpec ts, TypeMatch tm) {
+        if (type == INTERFACE_FUNCTION) {
+            if (pivot_ts == ANY_TS)
+                pts = ts.rvalue();
+            else if (pivot_ts == ANY_LVALUE_TS)
+                pts = ts;
+            else
+                pts = typesubst(pivot_ts, tm);
+        }
+        else
+            pts = typesubst(pivot_ts, tm);
+        
+        for (auto &rts : res_tss)
+            rtss.push_back(typesubst(rts, tm));
+        
+        for (auto &ats : arg_tss)
+            atss.push_back(typesubst(ats, tm));
+        
+        anames = arg_names;
+    }
+    /*
     virtual std::vector<TypeSpec> get_result_tss(TypeMatch &match) {
         std::vector<TypeSpec> tss;
+        
         for (auto &ts : res_tss)
             tss.push_back(typesubst(ts, match));
+            
         return tss;
     }
     
@@ -83,12 +105,13 @@ public:
     virtual std::vector<std::string> get_argument_names() {
         return arg_names;
     }
-
+    */
     virtual void allocate() {
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
+        bool needs_virtual_index = (ds && ((ds->is_virtual_scope() && type == GENERIC_FUNCTION) || ds->is_interface_scope()));
         
-        if (ds && ds->is_virtual_scope() && type == GENERIC_FUNCTION) {
-            if (!associated_role) {
+        if (needs_virtual_index) {
+            if (!associated) {
                 std::vector<VirtualEntry *> vt;
                 vt.push_back(this);
                 virtual_index = ds->virtual_reserve(vt);
@@ -97,7 +120,7 @@ public:
             else {
                 // Copying it is necessary, as overriding functions can only get it from each other
                 virtual_index = implemented_function->virtual_index;
-                int virtual_offset = role_get_virtual_offset(associated_role);
+                int virtual_offset = associable_get_virtual_offset(associated);
                 ds->set_virtual_entry(virtual_offset + virtual_index, this);
                 std::cerr << "Set virtual index " << virtual_offset << "+" << virtual_index << " for function " << name << ".\n";
             }
@@ -120,17 +143,18 @@ public:
         return label;
     }
     
-    virtual bool does_implement(std::string prefix, TypeMatch tm, Function *iff, TypeMatch iftm) {
+    virtual bool does_implement(TypeMatch tm, Function *iff, TypeMatch iftm) {
         // The pivot type is not checked, since it is likely to be different
+
+        TypeSpec int_pivot_ts, imp_pivot_ts;
+        TSs int_res_tss, imp_res_tss;
+        TSs int_arg_tss, imp_arg_tss;
+        Ss int_arg_names, imp_arg_names;
         
-        if (name != prefix + iff->name)
-            return false;
-    
+        iff->get_parameters(int_pivot_ts, int_res_tss, int_arg_tss, int_arg_names, WHATEVER_TS, iftm);
+        get_parameters(imp_pivot_ts, imp_res_tss, imp_arg_tss, imp_arg_names, WHATEVER_TS, tm);
+        
         // The interface arguments must be converted to the implementation arguments
-        TSs imp_arg_tss = get_argument_tss(tm);
-        TSs int_arg_tss = iff->get_argument_tss(iftm);
-        Ss imp_arg_names = get_argument_names();
-        Ss int_arg_names = iff->get_argument_names();
         
         if (imp_arg_tss.size() != int_arg_tss.size()) {
             std::cerr << "Mismatching implementation argument length!\n";
@@ -150,8 +174,6 @@ public:
         }
 
         // The implementation result must be converted to the interface results
-        TSs imp_res_tss = get_result_tss(tm);
-        TSs int_res_tss = iff->get_result_tss(iftm);
         
         if (imp_res_tss.size() != int_res_tss.size()) {
             std::cerr << "Mismatching implementation result length!\n";
@@ -177,14 +199,10 @@ public:
         return true;
     }
 
-    virtual void set_associated_role(Role *ar) {
-        associated_role = ar;
+    virtual void set_associated(Associable *a) {
+        associated = a;
     }
 
-    virtual void set_associated_implementation(Implementation *imp) {
-        associated_implementation = imp;
-    }
-    
     virtual void set_associated_lself(Lself *al) {
         Scope *ss = fn_scope->self_scope;
         if (ss->contents.size() != 1)

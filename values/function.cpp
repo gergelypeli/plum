@@ -35,7 +35,7 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         // For later
         outer_scope = scope;
-        
+
         fn_scope = new FunctionScope();
         
         // This is temporary, to allow lookups in the result/head scopes
@@ -166,7 +166,9 @@ public:
         hs->leave();
         
         deferred_body_expr = kwargs["as"].get();
-        std::cerr << "Deferring definition of function body.\n";
+        if (deferred_body_expr) {
+            std::cerr << "Deferring definition of function body.\n";
+        }
 
         Expr *import_expr = kwargs["import"].get();
 
@@ -223,41 +225,30 @@ public:
                 
                 if (pv) {
                     pi = pv->partial_info.get();
-                    ats = pv->alloc_ts.unprefix(partial_type);
+                    ats = pv->alloc_ts;
                 }
 
                 PartialSingletonVariable *ps = ptr_cast<PartialSingletonVariable>(d);
                 
                 if (ps) {
                     pi = ps->partial_info.get();
-                    ats = ps->alloc_ts.unprefix(partial_type);
+                    ats = ps->alloc_ts;
                 }
             }
 
             if (pi) {
                 // Must do this only after the class definition is completed
-                if (ats.has_meta(singleton_metatype)) {
-                    // Singleton initializer
-                    SingletonType *st = ptr_cast<SingletonType>(ats[0]);
-                    if (!st)
-                        throw INTERNAL_ERROR;
+                
+                if (ats[0] != partial_type)
+                    throw INTERNAL_ERROR;
                     
-                    pi->set_member_names(st->get_member_names());
-                }
-                else if (ats[0] == ptr_type) {
-                    ClassType *ct = ptr_cast<ClassType>(ats[1]);
-                    if (!ct)
-                        throw INTERNAL_ERROR;
-                    
-                    pi->set_member_names(ct->get_member_names());
-                }
-                else {
-                    RecordType *rt = ptr_cast<RecordType>(ats[0]);
-                    if (!rt)
-                        throw INTERNAL_ERROR;
-                    
-                    pi->set_member_names(rt->get_member_names());
-                }
+                Type *pit = (ats[1] == ptr_type ? ats[2] : ats[1]);
+                PartialInitializable *pible = ptr_cast<PartialInitializable>(pit);
+                
+                if (!pible)
+                    throw INTERNAL_ERROR;
+
+                pi->set_member_names(pible->get_member_names());
             }
         
             // The body is in a separate CodeScope, but instead of a dedicated CodeValue,
@@ -271,6 +262,7 @@ public:
             if (pi) {
                 if (!pi->is_complete()) {
                     std::cerr << "Not all members initialized in " << token << "\n";
+                    throw INTERNAL_ERROR;
                     return false;
                 }
             }
@@ -303,8 +295,8 @@ public:
         unsigned frame_size = fn_scope->get_frame_size();
         int associated_role_offset = 0;
         
-        if (function->associated_role) {
-            associated_role_offset = function->associated_role->offset.concretize(match);
+        if (function->associated) {
+            associated_role_offset = function->associated->offset.concretize(match);
             std::cerr << "Function body of " << function->name << " has associated role offset " << associated_role_offset << ".\n";
         }
         
@@ -388,6 +380,22 @@ public:
         if (scope->type != DATA_SCOPE) {
             std::cerr << "Functions must be declared in data scopes!\n";
             return NULL;
+        }
+
+        DataScope *ds = ptr_cast<DataScope>(scope);
+
+        if (ds->is_interface_scope()) {
+            if (type != GENERIC_FUNCTION) {
+                std::cerr << "Only generic functions can be defined in interfaces!\n";
+                return NULL;
+            }
+            
+            if (deferred_body_expr) {
+                std::cerr << "Interface functions can't have a body!\n";
+                return NULL;
+            }
+            
+            type = INTERFACE_FUNCTION;
         }
         
         if (type == FINALIZER_FUNCTION && name != "<anonymous>") {
@@ -502,16 +510,18 @@ public:
     bool is_static;
     Label static_label;
     
-        
     FunctionCallValue(Function *f, Value *p, TypeMatch &m)
         :Value(NO_TS) {
         function = f;
         pivot.reset(p);
 
+        function->get_parameters(pivot_ts, res_tss, arg_tss, arg_names, get_typespec(p), m);
+        /*
         pivot_ts = function->get_pivot_typespec(m);
         res_tss = function->get_result_tss(m);
         arg_tss = function->get_argument_tss(m);
         arg_names = function->get_argument_names();
+        */
         
         if (res_tss.size() == 0)
             ts = pivot_ts != NO_TS ? pivot_ts : VOID_TS;
@@ -659,7 +669,7 @@ public:
         x64->op(MOVQ, R10, Address(RSP, passed_size - POINTER_SIZE));  // self pointer
         x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));  // VMT pointer
         x64->op(CALL, Address(R10, vti * ADDRESS_SIZE));
-        std::cerr << "Will invoke virtual method of " << pts << " #" << vti << ".\n";
+        std::cerr << "Will invoke virtual method of " << pts << " #" << vti << " " << function->name << ".\n";
     }
     
     virtual Regs precompile(Regs preferred) {

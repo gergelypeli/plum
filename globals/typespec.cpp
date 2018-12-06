@@ -115,14 +115,12 @@ bool TypeSpec::has_meta(Type *mt) {
     if (size() == 0)
         return false;
         
-    Type *ms = at(0)->upper_type;
+    Type *ut = at(0)->upper_type;
     
-    while (ms && ms != mt) {
-        MetaType *meta = ptr_cast<MetaType>(ms);
-        ms = (meta ? meta->super_type : NULL);
-    }
-        
-    return ms == mt;
+    if (ut == metatype_hypertype)
+        return mt == metatype_hypertype;
+    
+    return ptr_cast<MetaType>(ut)->has_super(mt);
 }
 
 
@@ -138,6 +136,10 @@ bool TypeSpec::is_hyper() {
 
 TypeMatch TypeSpec::match() {
     TypeMatch fake_match;
+
+    if (size() == 0)
+        return fake_match;
+        
     fake_match[0] = *this;
     TypeSpecIter tsi(begin());
     tsi++;
@@ -158,6 +160,11 @@ StorageWhere TypeSpec::where(AsWhat as_what) {
 
 Allocation TypeSpec::measure() {
     return (size() > 0 ? at(0)->measure(match()) : Allocation());
+}
+
+
+Allocation TypeSpec::measure_identity() {
+    return (size() > 0 ? at(0)->measure_identity(match()) : Allocation());
 }
 
 

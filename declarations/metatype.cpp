@@ -51,6 +51,15 @@ public:
     virtual bool is_typedefinition(std::string n) {
         return name == n;
     }
+    
+    virtual bool has_super(Type *mt) {
+        if (mt == this)
+            return true;
+        else if (!super_type)
+            return false;
+        else
+            return ptr_cast<MetaType>(super_type)->has_super(mt);
+    }
 };
 
 
@@ -155,23 +164,15 @@ public:
     InterfaceMetaType(std::string name, Type *st)
         :MetaType(name, st, make<InterfaceDefinitionValue>) {
     }
+
+    virtual bool has_super(Type *mt) {
+        // A bit of a hack to allow interfaces be identity types
+        if (mt == identity_metatype)
+            return true;
+        else
+            return MetaType::has_super(mt);
+    }
 };
-
-
-//class ImplementationMetaType: public MetaType {
-//public:
-//    ImplementationMetaType(std::string name, Type *st)
-//        :MetaType(name, st, make<ImplementationDefinitionValue>) {
-//    }
-//};
-
-
-//class LselfMetaType: public MetaType {
-//public:
-//    LselfMetaType(std::string name, Type *st)
-//        :MetaType(name, st, make<LselfDefinitionValue>) {
-//    }
-//};
 
 
 class ImportMetaType: public MetaType {

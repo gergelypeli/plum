@@ -1,5 +1,5 @@
 
-class RecordType: public Type {
+class RecordType: public Type, public PartialInitializable {
 public:
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
@@ -22,8 +22,11 @@ public:
             
             if (v) {
                 member_variables.push_back(v);
-                member_tss.push_back(v->alloc_ts.rvalue());
-                member_names.push_back(v->name);
+                
+                if (!ptr_cast<InterfaceType>(v->alloc_ts[0])) {
+                    member_tss.push_back(v->alloc_ts.rvalue());
+                    member_names.push_back(v->name);
+                }
             }
             
             Identifier *i = ptr_cast<Identifier>(c.get());
@@ -31,11 +34,11 @@ public:
                 has_custom_compare = true;
                 
             Implementation *imp = ptr_cast<Implementation>(c.get());
-            if (imp && imp->interface_ts == STREAMIFIABLE_TS)
+            if (imp && imp->alloc_ts == STREAMIFIABLE_TS)
                 streamifiable_implementation = imp;
                 
             Function *f = ptr_cast<Function>(c.get());
-            if (f && streamifiable_implementation && f->associated_implementation == streamifiable_implementation)
+            if (f && streamifiable_implementation && f->associated == streamifiable_implementation)
                 streamify_function = f;
         }
 

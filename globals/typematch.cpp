@@ -10,6 +10,7 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
             
             if (match[mi] == NO_TS) {
                 std::cerr << "No matched Any type while substituting Same!\n";
+                std::cerr << tt << " - " << match << "\n";
                 throw INTERNAL_ERROR;
             }
             

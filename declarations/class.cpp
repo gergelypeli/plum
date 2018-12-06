@@ -1,46 +1,16 @@
 
-class VtVirtualEntry: public VirtualEntry {
-public:
-    Allocable *allocable;
-    
-    VtVirtualEntry(Allocable *a) {
-        allocable = a;
-    }
-    
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
-        if (allocable)
-            return allocable->get_typespec(tm).get_virtual_table_label(x64);
-        else
-            return x64->runtime->zero_label;
-    }
-};
 
-
-class FfwdVirtualEntry: public VirtualEntry {
-public:
-    Allocation offset;
-    
-    FfwdVirtualEntry(Allocation o) {
-        offset = o;
-    }
-    
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
-        Label label;
-        x64->absolute_label(label, -offset.concretize(tm));  // forcing an int into an unsigned64...
-        return label;
-    }
-};
-
-
-class ClassType: public HeapType {
+class ClassType: public HeapType, public Inheritable, public PartialInitializable {
 public:
     std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
-    std::vector<Role *> member_roles;
+    std::vector<Role *> member_roles;  // including abstract ones
+    std::vector<Function *> member_functions;
     Function *finalizer_function;
     Allocable *base_role;
     VtVirtualEntry *basevt_ve;
     FfwdVirtualEntry *fastforward_ve;
+    Implementation *base_implementation;
 
     ClassType(std::string name, Metatypes param_metatypes)
         :HeapType(name, param_metatypes, class_metatype) {
@@ -48,13 +18,14 @@ public:
         base_role = NULL;
         basevt_ve = NULL;
         fastforward_ve = NULL;
+        base_implementation = NULL;
     }
 
     virtual bool complete_type() {
         for (auto &c : inner_scope->contents) {
             Allocable *v = ptr_cast<Allocable>(c.get());
             
-            if (v) {
+            if (v && !v->is_abstract()) {
                 member_allocables.push_back(v);
                 member_names.push_back(v->name);
             }
@@ -70,7 +41,31 @@ public:
                         return false;
                     }
                 
+                    if (base_implementation) {
+                        std::cerr << "Sorry!\n";
+                        return false;
+                    }
+                
                     base_role = ptr_cast<Allocable>(r);
+                }
+            }
+
+            Implementation *i = ptr_cast<Implementation>(c.get());
+            
+            if (i) {
+                // FIXME: shouldn't happen anymore
+                throw INTERNAL_ERROR;
+                
+                if (ptr_cast<Associable>(i)->is_baseconv()) {
+                    if (base_implementation)
+                        throw INTERNAL_ERROR;
+
+                    if (base_role) {
+                        std::cerr << "Sorry!\n";
+                        return false;
+                    }
+                
+                    base_implementation = i;
                 }
             }
             
@@ -84,14 +79,26 @@ public:
                     
                 finalizer_function = f;
             }
+            
+            if (f && f->type == GENERIC_FUNCTION)
+                member_functions.push_back(f);
         }
         
         std::cerr << "Class " << name << " has " << member_allocables.size() << " member variables.\n";
         return true;
     }
 
+    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        for (auto &r : member_roles)
+            assocs.push_back(ptr_cast<Associable>(r));
+            
+        funcs = member_functions;
+    }
+
     virtual void allocate() {
         // Let the base be allocated first, then it will skip itself
+        // TODO: now we can only handle either a base role or a base implementation,
+        // because VT-s cannot yet grow in both directions.
 
         basevt_ve = new VtVirtualEntry(base_role);
         fastforward_ve = new FfwdVirtualEntry(Allocation(0));
@@ -110,12 +117,16 @@ public:
                 
             if (virtual_index + 1 != VT_FASTFORWARD_INDEX)
                 throw INTERNAL_ERROR;
+
+            // FIXME: must be handled like base_role
+            if (base_implementation)
+                base_implementation->allocate();
         }
         
         HeapType::allocate();
     }
 
-    virtual Allocation measure(TypeMatch tm) {
+    virtual Allocation measure_identity(TypeMatch tm) {
         return inner_scope->get_size(tm);
     }
 
@@ -200,13 +211,11 @@ public:
     
     static void compile_virtual_table(Label label, TypeSpec ts, X64 *x64) {
         std::vector<VirtualEntry *> vt = ts.get_virtual_table();
+        std::cerr << "XXX " << ts << " VT has " << vt.size() << " entries.\n";
         TypeMatch tm = ts.match();
 
         x64->data_align(8);
-        
-        std::stringstream ss;
-        ss << ts[0]->name << "_virtual_table";
-        x64->data_label_local(label, ss.str());
+        x64->data_label_local(label, ts.symbolize() + "_virtual_table");
 
         for (auto entry : vt) {
             Label l = entry->get_virtual_entry_label(tm, x64);
@@ -304,184 +313,51 @@ public:
 };
 
 
-class Role: public Allocable, public Associable {
+class Role: public Associable {
 public:
-    std::string prefix;
-    InheritAs inherit_as;
-    Role *original_role;
-    int virtual_offset;
-    std::vector<std::unique_ptr<Role>> shadow_roles;
-    DataScope *virtual_scope;  // All shadow Role-s will point to the class scope
-    FfwdVirtualEntry *fastforward_ve;
-    Lself *associated_lself;
-    TypeMatch explicit_tm;
-    
     Role(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
-        :Allocable(n, pts, ts) {
+        :Associable(n, pts, ts, ia) {
         std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "role " << name << ".\n";
         
-        prefix = name + ".";
-        inherit_as = ia;
-        original_role = NULL;
-        virtual_offset = -1;
-        virtual_scope = NULL;
-        fastforward_ve = NULL;
-        associated_lself = NULL;
-        explicit_tm = alloc_ts.match();
-
-        ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
-        if (!ct)
-            throw INTERNAL_ERROR;
-
-        for (auto &r : ct->member_roles) {
-            shadow_roles.push_back(std::make_unique<Role>(prefix, r, explicit_tm));
-        }
+        inherit();
+        //for (auto &r : ct->member_roles) {
+        //    shadow_roles.push_back(std::make_unique<Role>(prefix, r, explicit_tm));
+        //}
     }
 
-    Role(std::string p, Role *role, TypeMatch etm)
-        :Allocable(p + role->name, NO_TS, typesubst(role->alloc_ts, etm)) {
+    Role(std::string p, Associable *original, TypeMatch etm)
+        :Associable(p, original, etm) {
         std::cerr << "Creating shadow role " << name << ".\n";
-        
-        prefix = name + ".";
-        inherit_as = role->inherit_as;
-        original_role = role;
-        virtual_offset = -1;
-        virtual_scope = NULL;
-        fastforward_ve = NULL;
-        associated_lself = NULL;
-        explicit_tm = etm;
 
-        for (auto &sr : role->shadow_roles) {
-            shadow_roles.push_back(std::make_unique<Role>(prefix, sr.get(), etm));
-        }
+        inherit();
     }
 
-    virtual void set_virtual_scope(DataScope *vs) {
-        virtual_scope = vs;
-        
-        for (auto &sr : shadow_roles) {
-            sr->set_virtual_scope(vs);
-        }
+    virtual bool is_abstract() {
+        return ptr_cast<InterfaceType>(alloc_ts[0]) != NULL;
     }
-    
-    virtual void set_outer_scope(Scope *os) {
-        if (original_role)
-            throw INTERNAL_ERROR;
-            
-        DataScope *ds = ptr_cast<DataScope>(os);
-        if (!ds)
-            throw INTERNAL_ERROR;
-            
-        if (!ds->is_virtual_scope())
-            throw INTERNAL_ERROR;
-            
-        set_virtual_scope(ds);
+
+    virtual Associable *shadow(Associable *original) {
+        return new Role(prefix, original, explicit_tm);
     }
-    
+
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         //std::cerr << "XXX Role matched " << name << " with " << typeidname(cpivot) << "\n";
         return make<RoleValue>(this, cpivot, match);
     }
 
-    virtual Associable *lookup_associable(std::string n) {
-        if (n == name)
-            return this;
-        else if (has_prefix(n, prefix)) {
-            for (auto &sr : shadow_roles) {
-                Associable *a = sr->lookup_associable(n);
-                
-                if (a)
-                    return a;
-            }
-        }
-        
-        return NULL;
+    virtual Value *make_value(Value *orig, TypeMatch tm) {
+        return make<RoleValue>(this, orig, tm);
     }
 
-    virtual bool check_associated(Declaration *d) {
-        Function *override = ptr_cast<Function>(d);
-        if (!override) {
-            std::cerr << "This declaration can't be associated with role " << name << "!\n";
-            return false;
-        }
-        
-        Declaration *decl = NULL;
+    virtual Scope *get_target_inner_scope() {
         ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
-        std::string override_name = override->name;
-        
-        if (!deprefix(override_name, prefix))
-            throw INTERNAL_ERROR;
-        
-        for (auto &d : ct->inner_scope->contents) {
-            if (d->is_called(override_name)) {
-                decl = d.get();
-                break;
-            }
-        }
-        
-        if (!decl) {
-            std::cerr << "No function to override!\n";
-            return NULL;
-        }
-        
-        Function *original = ptr_cast<Function>(decl);
-        
-        if (!original) {
-            std::cerr << "Not a function to override!\n";
-            return false;
-        }
-
-        TypeMatch role_tm;  // assume parameterless outermost class, derive role parameters
-        //containing_role->compute_match(role_tm);
-
-        // this automatically sets original_function
-        if (!override->does_implement(prefix, TypeMatch(), original, role_tm))
-            return false;
-        
-        override->set_associated_role(this);
-        
-        return true;
-    }
-
-    virtual bool is_autoconv() {
-        return inherit_as != AS_ROLE;
-    }
-
-    virtual bool is_baseconv() {
-        return inherit_as == AS_BASE;
-    }
-
-    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        if (associated_lself && !assume_lvalue)
-            return NULL;
-
-        ifts = typesubst(alloc_ts, tm);  // pivot match
-
-        if (ifts[0] == target) {
-            // Direct implementation
-            //std::cerr << "Found direct implementation.\n";
-            return make<RoleValue>(this, orig, tm);
-        }
-        else if (inherit_as == AS_BASE) {
-            //std::cerr << "Trying indirect implementation with " << ifts << "\n";
-            for (auto &sr : shadow_roles) {
-                if (sr->inherit_as == AS_ROLE)
-                    continue;
-                    
-                Value *v = sr->autoconv(tm, target, orig, ifts, assume_lvalue);
-                
-                if (v)
-                    return v;
-            }
-        }
-        
-        return NULL;
+        return ct->inner_scope.get();
     }
 
     virtual void allocate() {
         // Only called for explicitly declared roles
         
-        if (original_role)
+        if (original_associable)
             throw INTERNAL_ERROR;
             
         if (virtual_offset != -1) {
@@ -494,42 +370,43 @@ public:
         Allocable::allocate();
         where = MEMORY;
         
-        Allocation size = alloc_ts.measure();
-        offset = virtual_scope->reserve(size);
+        Allocation size = alloc_ts.measure_identity();
+        offset = associating_scope->reserve(size);
             
         std::vector<VirtualEntry *> vt = alloc_ts.get_virtual_table();
-        virtual_offset = virtual_scope->virtual_reserve(vt);
+        virtual_offset = associating_scope->virtual_reserve(vt);
+        std::cerr << "Reserved new virtual index " << virtual_offset << " for role " << name << ".\n";
 
         fastforward_ve = new FfwdVirtualEntry(offset);
-        virtual_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
+        associating_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
 
-        for (auto &sr : shadow_roles)
+        for (auto &sr : shadow_associables)
             sr->relocate(offset, virtual_offset);
     }
     
     virtual void relocate(Allocation explicit_offset, int explicit_virtual_offset) {
         // Only called for shadow roles
 
-        if (!original_role)
+        if (!original_associable)
             throw INTERNAL_ERROR;
 
         if (virtual_offset != -1)
             throw INTERNAL_ERROR;
         
         // Offset within the current class, in terms of its type parameters
-        offset = explicit_offset + allocsubst(original_role->offset, explicit_tm);
+        offset = explicit_offset + allocsubst(original_associable->offset, explicit_tm);
             
-        virtual_offset = explicit_virtual_offset + original_role->virtual_offset;
+        virtual_offset = explicit_virtual_offset + original_associable->virtual_offset;
         
         fastforward_ve = new FfwdVirtualEntry(offset);
-        virtual_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
+        associating_scope->set_virtual_entry(virtual_offset + VT_FASTFORWARD_INDEX, fastforward_ve);
         
-        for (auto &sr : shadow_roles)
+        for (auto &sr : shadow_associables)
             sr->relocate(explicit_offset, explicit_virtual_offset);
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
-        if (original_role)
+        if (original_associable)
             throw INTERNAL_ERROR;
             
         TypeSpec ts = typesubst(alloc_ts, tm);
@@ -544,8 +421,8 @@ public:
             x64->op(MOVQ, self_addr + offset.concretize(tm) + CLASS_VT_OFFSET, R10);
         }
 
-        for (auto &sr : shadow_roles)
-            sr->init_vt(tm, self_addr, vt_label, x64);
+        for (auto &sr : shadow_associables)
+            ptr_cast<Role>(sr.get())->init_vt(tm, self_addr, vt_label, x64);
     }
 };
 
@@ -597,85 +474,3 @@ public:
     }
 };
 
-/*
-class ClassWrapperAltStreamifiableImplementation: public AltStreamifiableImplementation {
-public:
-    TypeSpec wrapped_ts;
-    
-    ClassWrapperAltStreamifiableImplementation(std::string name, TypeSpec pts, TypeSpec wts)
-        :AltStreamifiableImplementation(name, pts) {
-        wrapped_ts = wts;
-    }
-    
-    virtual void streamify(TypeMatch tm, X64 *x64) {
-        TypeSpec member_ts = typesubst(wrapped_ts, tm);
-        
-        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
-        x64->op(MOVQ, RBX, Address(RSP, 0));
-        
-        member_ts.store(Storage(MEMORY, Address(RAX, CLASS_MEMBERS_OFFSET)), Storage(STACK), x64);
-        x64->op(PUSHQ, RBX);
-        
-        member_ts.streamify(true, x64);  // clobbers all
-        
-        x64->op(POPQ, RBX);
-        member_ts.store(Storage(STACK), Storage(), x64);
-    }
-};
-*/
-/*
-class StackType: public WrappedClassType {
-public:
-    StackType(std::string name)
-        :WrappedClassType(name, { value_metatype }, SAME_ARRAY_REF_LVALUE_TS) {
-    }
-};
-
-
-class QueueType: public WrappedClassType {
-public:
-    QueueType(std::string name)
-        :WrappedClassType(name, { value_metatype }, SAME_CIRCULARRAY_REF_LVALUE_TS) {
-    }
-};
-
-
-class SetType: public WrappedClassType {
-public:
-    SetType(std::string name)
-        :WrappedClassType(name, { value_metatype }, SAME_RBTREE_REF_LVALUE_TS) {
-    }
-};
-
-
-class MapType: public WrappedClassType {
-public:
-    MapType(std::string name)
-        :WrappedClassType(name, { value_metatype, value_metatype }, SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS) {
-    }
-};
-
-
-class WeakValueMapType: public WrappedClassType {
-public:
-    WeakValueMapType(std::string name)
-        :WrappedClassType(name, { value_metatype, identity_metatype }, SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS) {
-    }
-};
-
-
-class WeakIndexMapType: public WrappedClassType {
-public:
-    WeakIndexMapType(std::string name)
-        :WrappedClassType(name, { identity_metatype, value_metatype }, SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS) {
-    }
-};
-
-
-class WeakSetType: public WrappedClassType {
-public:
-    WeakSetType(std::string name)
-        :WrappedClassType(name, { identity_metatype }, SAMEID_NOSYVALUE_UNIT_ITEM_RBTREE_REF_LVALUE_TS) {
-    }
-};
-*/

@@ -5,6 +5,7 @@ class VirtualEntry;
 // Declarations
 class Declaration;
 class Allocable;
+class Associable;
 class Variable;
 class Role;
 class PartialVariable;
@@ -16,6 +17,8 @@ class Unborrow;
 
 // Types
 class Type;
+class HyperType;
+class MetaType;
 class TreenumerationType;
 class ArrayType;
 class InterfaceType;

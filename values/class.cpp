@@ -12,7 +12,7 @@ public:
     virtual Storage compile(X64 *x64) {
         TypeSpec class_ts = ts.unprefix(initializable_type).unprefix(ptr_type);;
         Label finalizer_label = class_ts.get_finalizer_label(x64);
-        unsigned heap_size = class_ts.measure_raw();
+        unsigned heap_size = class_ts.measure_identity().concretize();
         
         x64->op(PUSHQ, heap_size);
         //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";

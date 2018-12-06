@@ -1,9 +1,9 @@
 
 
-class InterfaceType: public Type {
+class InterfaceType: public Type, public Inheritable {
 public:
     std::vector<Function *> member_functions;
-    std::vector<Implementation *> member_implementations;
+    std::vector<Associable *> member_associables;
     
     InterfaceType(std::string name, Metatypes param_metatypes)
         :Type(name, param_metatypes, interface_metatype) {
@@ -23,10 +23,10 @@ public:
             if (fs)
                 continue;
 
-            Implementation *imp = ptr_cast<Implementation>(c.get());
+            Associable *imp = ptr_cast<Associable>(c.get());
             
             if (imp) {
-                member_implementations.push_back(imp);
+                member_associables.push_back(imp);
                 continue;
             }
                 
@@ -39,8 +39,21 @@ public:
         return true;
     }
 
-    virtual Allocation measure(TypeMatch tm) {
-        return Allocation();
+    virtual DataScope *make_inner_scope(TypeSpec pts) {
+        DataScope *is = Type::make_inner_scope(pts);
+
+        is->be_interface_scope();
+        
+        return is;
+    }
+    
+    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        assocs = member_associables;
+        funcs = member_functions;
+    }
+
+    virtual Allocation measure_identity(TypeMatch tm) {
+        return Allocation(CLASS_HEADER_SIZE);
     }
 
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -69,33 +82,57 @@ public:
         );
     }
 
+    virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
+        return inner_scope->get_virtual_table();
+    }
+    
+    virtual void allocate() {
+        // FIXME: handle base, like class does
+
+        // These stay zeros for now
+        VirtualEntry *basevt_ve = new VtVirtualEntry(NULL);
+        VirtualEntry *fastforward_ve = new FfwdVirtualEntry(Allocation(0));
+        
+        std::vector<VirtualEntry *> vt = { basevt_ve, fastforward_ve };
+        int virtual_index = inner_scope->virtual_reserve(vt);
+            
+        if (virtual_index != VT_BASEVT_INDEX)
+            throw INTERNAL_ERROR;
+                
+        if (virtual_index + 1 != VT_FASTFORWARD_INDEX)
+            throw INTERNAL_ERROR;
+
+        Type::allocate();
+    }
+
+    // FIXME: copy-paste from ClassType
+    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
+        x64->op(PUSHQ, r);
+        x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
+        x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+        x64->op(ADDQ, r, Address(RSP, 0));
+        x64->runtime->incref(r);
+        x64->op(POPQ, r);
+    }
+
+    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
+        x64->op(PUSHQ, r);
+        x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
+        x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+        x64->op(ADDQ, r, Address(RSP, 0));
+        x64->runtime->decref(r);
+        x64->op(POPQ, r);
+    }
+
 };
 
 
-class Implementation: public Identifier, public Associable {
+class Implementation: public Associable {
 public:
-    InheritAs inherit_as;
-    TypeSpec interface_ts;  // in the implementor's type parameters
-    std::string prefix;
-    DataScope *implementor_scope;
-    Implementation *original_implementation;
-    std::vector<std::unique_ptr<Implementation>> shadow_implementations;
-    std::set<std::string> missing_function_names;
-    Lself *associated_lself;
-
     Implementation(std::string name, TypeSpec pts, TypeSpec ifts, InheritAs ia)
-        :Identifier(name, pts) {
-        interface_ts = ifts;
-        prefix = name + ".";
-        inherit_as = ia;
-        implementor_scope = NULL;
-        original_implementation = NULL;
-        associated_lself = NULL;
-        
-        InterfaceType *ift = ptr_cast<InterfaceType>(interface_ts[0]);
-        if (!ift)
-            throw INTERNAL_ERROR;
-
+        :Associable(name, pts, ifts, ia) {
+        inherit();
+        /*
         TypeMatch explicit_tm = interface_ts.match();
 
         for (auto &imp : ift->member_implementations)
@@ -103,56 +140,20 @@ public:
         
         for (auto &f : ift->member_functions)
             missing_function_names.insert(prefix + f->name);
+        */
     }
     
-    Implementation(std::string p, Implementation *oi, TypeMatch explicit_tm)
-        :Identifier(p + oi->name, NO_TS) {
-        interface_ts = typesubst(oi->interface_ts, explicit_tm);
-        prefix = name + ".";
-        inherit_as = oi->inherit_as;
-        implementor_scope = NULL;
-        original_implementation = oi;
-        
-        for (auto &imp : oi->shadow_implementations)
-            shadow_implementations.push_back(std::make_unique<Implementation>(prefix, imp.get(), explicit_tm));
-
-        InterfaceType *ift = ptr_cast<InterfaceType>(interface_ts[0]);
-        if (!ift)
-            throw INTERNAL_ERROR;
-            
-        for (auto &f : ift->member_functions)
-            missing_function_names.insert(prefix + f->name);
+    Implementation(std::string p, Associable *oi, TypeMatch explicit_tm)
+        :Associable(p, oi, explicit_tm) {
+        inherit();
     }
 
-    virtual void set_implementor(DataScope *is, TypeSpec ts) {
-        implementor_scope = is;
-        
-        for (auto &si : shadow_implementations) {
-            si->set_implementor(is, ts);
-        }
-    }
-    
-    virtual void set_outer_scope(Scope *os) {
-        if (original_implementation)
-            throw INTERNAL_ERROR;
-            
-        DataScope *ds = ptr_cast<DataScope>(os);
-        if (!ds)
-            throw INTERNAL_ERROR;
-            
-        set_implementor(ds, pivot_ts);
-        
-        Identifier::set_outer_scope(os);
+    virtual bool is_abstract() {
+        return true;
     }
 
-    virtual void outer_scope_left() {
-        for (auto &si : shadow_implementations)
-            si->outer_scope_left();
-        
-        if (missing_function_names.size() > 0) {
-            std::cerr << "Missing functions in implementation " << name << "!\n";
-            throw TYPE_ERROR;
-        }
+    virtual Associable *shadow(Associable *original) {
+        return new Implementation(prefix, original, explicit_tm);
     }
 
     virtual void set_name(std::string n) {
@@ -160,107 +161,16 @@ public:
     }
 
     virtual TypeSpec get_interface_ts(TypeMatch match) {
-        return typesubst(interface_ts, match);
+        return typesubst(alloc_ts, match);
     }
 
-    virtual Associable *lookup_associable(std::string n) {
-        if (n == name)
-            return this;
-        else if (has_prefix(n, prefix)) {
-            for (auto &si : shadow_implementations) {
-                Associable *a = si->lookup_associable(n);
-                
-                if (a)
-                    return a;
-            }
-        }
-        
-        return NULL;
+    virtual Scope *get_target_inner_scope() {
+        InterfaceType *ift = ptr_cast<InterfaceType>(alloc_ts[0]);
+        return ift->inner_scope.get();
     }
 
-    virtual bool check_associated(Declaration *decl) {
-        // NOTE: this is kinda weird, but correct.
-        // If a parametric type implements an interface with the same type parameter
-        // used, we can't concretize that here yet. So the fake_match, despite being
-        // a replacement, may still have Same types. When getting the argument types
-        // from the interface definition, the substitution will replace Same types
-        // with Same types. But the functions in the implementation will be similarly
-        // parametrized, so the comparison should compare Same to Same, and succeed.
-        
-        Identifier *id = ptr_cast<Identifier>(decl);
-        if (!id)
-            return false;
-        
-        if (missing_function_names.count(id->name) != 1) {
-            std::cerr << "Unknown member " << id->name << " in implementation " << name << "!\n";
-            std::cerr << missing_function_names << "\n";
-            return false;
-        }
-        
-        missing_function_names.erase(id->name);
-        
-        // TODO: We can only check the validity of Function-s
-        Function *override = ptr_cast<Function>(decl);
-        if (!override) {
-            //std::cerr << "This declaration can't be associated with implementation " << name << "!\n";
-            //return false;
-            return true;
-        }
-        
-        InterfaceType *interface_type = ptr_cast<InterfaceType>(interface_ts[0]);
-        TypeMatch iftm = interface_ts.match();
-        TypeMatch empty_match;
-        bool found = false;
-        
-        for (Function *iff : interface_type->member_functions) {
-            if (override->does_implement(prefix, empty_match, iff, iftm)) {
-                found = true;
-                break;
-            }
-        }
-        
-        if (!found) {
-            std::cerr << "Invalid implementation of function: " << interface_type->name << "." << override->name << "!\n";
-            return false;
-        }
-        
-        override->set_associated_implementation(this);
-        
-        if (associated_lself)
-            override->set_associated_lself(associated_lself);
-        
-        return true;
-    }
-
-    virtual bool is_autoconv() {
-        return inherit_as != AS_ROLE;
-    }
-
-    virtual Value *autoconv(TypeMatch match, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        if (associated_lself && !assume_lvalue)
-            return NULL;
-
-        ifts = get_interface_ts(match);   // pivot match
-
-        if (ifts[0] == target) {
-            // Direct implementation
-            //std::cerr << "Found direct implementation.\n";
-            return make<ImplementationConversionValue>(this, orig, match);
-        }
-        else if (inherit_as == AS_BASE) {
-            //std::cerr << "Trying indirect implementation with " << ifts << "\n";
-            for (auto &si : shadow_implementations) {
-                if (si->inherit_as == AS_ROLE)
-                    continue;
-                    
-                Value *v = si->autoconv(match, target, orig, ifts, assume_lvalue);
-                
-                if (v)
-                    return v;
-            }
-        }
-        
-        return NULL;
+    virtual Value *make_value(Value *orig, TypeMatch match) {
+        return make<ImplementationConversionValue>(this, orig, match);
     }
 
     // TODO: can this be merged with the above one?
@@ -274,10 +184,11 @@ public:
             return this;
         }
         else if (inherit_as == AS_BASE) {
-            for (auto &si : shadow_implementations) {
-                if (si->inherit_as == AS_ROLE)
+            for (auto &sa : shadow_associables) {
+                if (sa->inherit_as == AS_ROLE)
                     continue;
                 
+                Implementation *si = ptr_cast<Implementation>(sa.get());
                 Implementation *i = si->autoconv_streamifiable_implementation(match);
                 
                 if (i)
@@ -289,23 +200,19 @@ public:
     }
 
     virtual void streamify(TypeMatch tm, X64 *x64) {
-        if (interface_ts[0] != streamifiable_type)
+        if (alloc_ts[0] != streamifiable_type)
             throw INTERNAL_ERROR;
             
-        for (auto &d : implementor_scope->contents) {
+        for (auto &d : associating_scope->contents) {
             Function *f = ptr_cast<Function>(d.get());
             
-            if (f && f->associated_implementation == this) {
+            if (f && f->associated == this) {
                 x64->op(CALL, f->get_label(x64));
                 return;
             }
         }
         
         throw INTERNAL_ERROR;
-    }
-
-    virtual void set_associated_lself(Lself *l) {
-        associated_lself = l;
     }
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
@@ -318,8 +225,11 @@ class AltStreamifiableImplementation: public Implementation {
 public:
     AltStreamifiableImplementation(std::string name, TypeSpec pts)
         :Implementation(name, pts, STREAMIFIABLE_TS, AS_ROLE) {
-        // This is a bit nasty
-        missing_function_names.clear();
+    }
+    
+    virtual void check_full_implementation() {
+        // We pretend to implement the streamify function, because we implement
+        // streamification as a built-in feature.
     }
     
     virtual void streamify(TypeMatch tm, X64 *x64) {
@@ -328,16 +238,12 @@ public:
 };
 
 
-class Lself: public Identifier, public Associable {
+class Lself: public Associable {
 public:
-    std::string prefix;
-    DataScope *implementor_scope;
     std::vector<Implementation *> outer_implementations;
 
     Lself(std::string name, TypeSpec pts)
-        :Identifier(name, pts) {
-        prefix = name + ".";
-        implementor_scope = NULL;
+        :Associable(name, pts, NO_TS, AS_ROLE) {
     }
 
     virtual void set_outer_scope(Scope *os) {
@@ -345,13 +251,13 @@ public:
         if (!ds)
             throw INTERNAL_ERROR;
         
-        implementor_scope = ds;
+        associating_scope = ds;
     }
 
     virtual void set_name(std::string n) {
         throw INTERNAL_ERROR;  // too late!
     }
-
+    /*
     virtual Associable *lookup_associable(std::string n) {
         if (n == name)
             return this;
@@ -366,7 +272,7 @@ public:
         
         return NULL;
     }
-
+    */
     virtual bool check_associated(Declaration *decl) {
         Function *f = ptr_cast<Function>(decl);
         if (f) {
@@ -381,10 +287,6 @@ public:
         }
         
         std::cerr << "This declaration can't be associated with Lself " << name << "!\n";
-        return false;
-    }
-
-    virtual bool is_autoconv() {
         return false;
     }
 };

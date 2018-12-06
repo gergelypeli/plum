@@ -142,20 +142,39 @@ Derived? :Class as:
         Std prints("The derived is finalized.")
         
         
-Property? :Interface as:
+Intval? :Interface as:
     get? :Function Integer
+    
+
+Property? :Class as:
+    value? Integer
+    
+    init? :Initializer as:
+        $ value = 0
+        
+    get? :Function Integer as:
+        :return $ value
+        
+    set? :Function from:
+        x? Integer
+    as:
+        $ value = x
     
 
 Greetable? :Class as:
     derived? :Role by: Derived
-    small? :Role Property
-    large? :Role Property
+    small? :Role Intval
+    large? :Role Intval
+    left? :Role by: Property
+    right? :Role by: Property
 
     init? :Initializer as:
         $.derived derived_init
-        
+        $.left init
+        $.right init
         $ number = 1
         $ name = "The Greetable"
+        
         Std prints("I'm here as {}." { $ name })
         
     second_init? :Initializer as:
@@ -176,9 +195,11 @@ Greetable? :Class as:
     name? String
     
     small.get? :Function Integer as:
+        Std prints("Getting small...")
         :return 12
         
     large.get? :Function Integer as:
+        Std prints("Getting large...")
         :return 120
 
 
@@ -826,7 +847,12 @@ Main? :Singleton as:
     test_classes? :Function Greetable Ref as:
         gr? Greetable Ref = `second_init
         gr greet
+        
         Std prints("Small is {} and large is {}" { gr small get, gr large get })
+        
+        gr left set(13)
+        gr right set(14)
+        Std prints("Left is {} and right is {}" { gr left get, gr right get })
     
         gr2? = gr
         gr2 = gr

@@ -152,7 +152,7 @@ public:
             }
 
             if (!ts.has_meta(param_metatypes[i])) {
-                std::cerr << "Type " << name << " parameter " << i + 1 << " is not a " << param_metatypes[i]->name << " but " << ts << "!\n";
+                std::cerr << "Type " << name << " parameter " << i + 1 << " is not a " << ptr_cast<Type>(param_metatypes[i])->name << " but " << ts << "!\n";
                 return NULL;
             }
             
@@ -174,6 +174,11 @@ public:
 
     virtual Allocation measure(TypeMatch tm) {
         std::cerr << "Unmeasurable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Allocation measure_identity(TypeMatch tm) {
+        std::cerr << "Unmeasurableidenity type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 
@@ -730,3 +735,4 @@ public:
         :Type(name, {}, value_metatype) {
     }
 };
+

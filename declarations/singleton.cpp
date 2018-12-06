@@ -1,5 +1,5 @@
 
-class SingletonType: public Type {
+class SingletonType: public Type, public PartialInitializable {
 public:
     std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
@@ -20,7 +20,7 @@ public:
         for (auto &c : inner_scope->contents) {
             Allocable *v = ptr_cast<Allocable>(c.get());
             
-            if (v) {
+            if (v && !v->is_abstract()) {
                 member_allocables.push_back(v);
                 member_names.push_back(v->name);
             }

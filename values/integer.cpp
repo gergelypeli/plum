@@ -20,7 +20,9 @@ public:
         );
 
         if (operation != ASSIGN && operation != EQUAL && operation != NOT_EQUAL)
-            ptr_cast<BasicType>(match[0].rvalue()[0])->get_unsigned();
+            is_unsigned = ptr_cast<BasicType>(match[0].rvalue()[0])->get_unsigned();
+        else
+            is_unsigned = false;
     }
     
     virtual void exponentiation_by_squaring(X64 *x64, Register BASE, Register EXP, Register RES) {

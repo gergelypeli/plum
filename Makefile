@@ -1,7 +1,7 @@
 .PHONY: build clean
 SHELL      = /bin/zsh
 
-DECLS      = all declaration identifier scope type basic record reference interface class singleton option allocable function metatype float container nosy
+DECLS      = all declaration identifier scope type basic record reference interface class singleton option allocable function associable metatype float container nosy
 VALUES     = all value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset container option equality float nosy
 ARCHS      = ork asm64 storage basics
 GLOBALS    = all builtins builtins_errno typespec typematch functions runtime modules
@@ -14,6 +14,7 @@ CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnos
 MAIN       = plum.cpp
 BIN        = run/plum
 BINFLAGS   = 
+GCCLOG     = run/gcc.log
 CORE       = core.plum.*(N) core.app.*(N)
 
 PRECOMPIN  = precompiled.h
@@ -26,7 +27,7 @@ MAINOBJ    = run/main.o
 TESTBIN    = run/app
 TESTOBJ    = run/app.o
 TESTSRC    = test/app.plum
-#TESTLOG    = run/plum.log
+TESTLOG    = run/plum.log
 TESTLIBS   = -lpcre2-16 -lm
 
 exe: uncore $(BIN)
@@ -41,7 +42,7 @@ untest:
 
 $(BIN): $(SOURCES)
 	@clear
-	@set -o pipefail; $(COMPILE) -o $@ $(CFLAGS) $(MAIN) 2>&1 | head -n 30
+	@$(COMPILE) -o $@ $(CFLAGS) $(MAIN) > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false }
 
 $(PRECOMPOUT): $(PRECOMPIN)
 	@$(COMPILE) $(CFLAGS) -o $@ $<
@@ -53,7 +54,7 @@ $(MAINOBJ): $(MAINSRC) $(HEAPH)
 	@gcc $(CFLAGS) -c -o $(MAINOBJ) $(MAINSRC)
 
 $(TESTOBJ): $(TESTSRC) $(BIN)
-	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) # 2>&1 | tee $(TESTLOG)
+	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(TESTLOG) 2>&1 || { cat $(TESTLOG); false } && { cat $(TESTLOG) }
 
 clean:
 	@rm -f $(BIN) $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(PRECOMPOUT)

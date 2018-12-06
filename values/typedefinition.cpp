@@ -239,12 +239,13 @@ class RoleDefinitionValue: public TypeDefinitionValue {
 public:
     InheritAs inherit_as;
     TypeSpec pivot_ts;
-    TypeSpec inherited_ts;
-    TypeSpec implemented_ts;
+    TypeSpec role_ts;
+    bool is_virtual;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
         :TypeDefinitionValue() {
         inherit_as = ia;
+        is_virtual = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -253,7 +254,14 @@ public:
             return false;
         }
 
-        if (args.size() == 1) {
+        DataScope *ds = ptr_cast<DataScope>(scope);
+        is_virtual = ds->is_virtual_scope();
+
+        if (args.size() > 0 && kwargs.size() > 0) {
+            std::cerr << "Oops, can't handle implementation and inheritance at once yet!\n";
+            return false;
+        }
+        else if (args.size() == 1) {
             // Implementation
             Expr *e = args[0].get();
             
@@ -264,22 +272,20 @@ public:
                 return false;
             }
 
-            implemented_ts = ptr_cast<TypeValue>(v)->represented_ts;
+            role_ts = ptr_cast<TypeValue>(v)->represented_ts;
         
-            if (!implemented_ts.has_meta(interface_metatype)) {
+            if (!role_ts.has_meta(interface_metatype)) {
                 std::cerr << "Implemented interface name expected!\n";
                 return false;
             }
             
             delete v;
         }
-
-        if (kwargs.size() == 1) {
+        else if (kwargs.size() == 1) {
             // Inheritance
             Expr *e = kwargs["by"].get();
             
-            DataScope *ds = ptr_cast<DataScope>(scope);
-            if (!ds->is_virtual_scope()) {
+            if (!is_virtual) {
                 std::cerr << "Inheritance is only allowed in Class scope!\n";
                 return false;
             }
@@ -291,22 +297,16 @@ public:
                 return false;
             }
 
-            inherited_ts = ptr_cast<TypeValue>(v)->represented_ts;
+            role_ts = ptr_cast<TypeValue>(v)->represented_ts;
         
-            if (!inherited_ts.has_meta(class_metatype)) {
+            if (!role_ts.has_meta(class_metatype)) {
                 std::cerr << "Inherited class name expected!\n";
                 return false;
             }
             
             delete v;
         }
-        
-        if (inherited_ts != NO_TS && implemented_ts != NO_TS) {
-            std::cerr << "Oops, can't handle implementation and inheritance at once yet!\n";
-            return false;
-        }
-        
-        if (inherited_ts == NO_TS && implemented_ts == NO_TS) {
+        else {
             std::cerr << "Neither inherited nor implemented type specified!\n";
             return false;
         }
@@ -320,12 +320,10 @@ public:
         if (scope->type == DATA_SCOPE) {
             Declaration *d;
             
-            if (inherited_ts != NO_TS)
-                d = new Role(name, pivot_ts, inherited_ts, inherit_as);
-            else if (implemented_ts != NO_TS)
-                d = new Implementation(name, pivot_ts, implemented_ts, inherit_as);
+            if (is_virtual)
+                d = new Role(name, pivot_ts, role_ts, inherit_as);
             else
-                throw INTERNAL_ERROR;
+                d = new Implementation(name, pivot_ts, role_ts, inherit_as);
                 
             scope->add(d);
             return d;

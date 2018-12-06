@@ -155,7 +155,7 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
             char prefix = (is_prefix(c) ? c : '\0');
 
             // Allow middle colon as a shortcut for two colons
-            if (!prefix && buffer[i - 1] == ':') {
+            if (!prefix && i > 0 && buffer[i - 1] == ':') {
                 start -= 1;
                 prefix = ':';
             }

@@ -69,13 +69,23 @@ Declaration *make_record_compare() {
 }
 
 
-int role_get_virtual_offset(Role *r) {
-    return r->virtual_offset;
+int associable_get_virtual_offset(Associable *a) {
+    return a->virtual_offset;
 }
 
 
 void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
     r->init_vt(tm, self_addr, vt_label, x64);
+}
+
+
+std::string function_get_name(Function *f) {
+    return f->name;
+}
+
+
+bool function_is_abstract(Function *f) {
+    return f->type == INTERFACE_FUNCTION;
 }
 
 
