@@ -1,12 +1,53 @@
 
 
-class InterfaceType: public Type, public Inheritable {
+class InheritableType: public Type, public Inheritable {
+public:
+    InheritableType(std::string n, Metatypes pmts, MetaType *mt)
+        :Type(n, pmts, mt) {
+    }
+    
+    virtual Allocation measure(TypeMatch tm) {
+        std::cerr << "This is probably an error, shouldn't measure an inheritable type!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
+        Register q = (r == R10 ? R11 : R10);
+        
+        x64->op(MOVQ, q, Address(r, CLASS_VT_OFFSET));
+        x64->op(MOVQ, q, Address(q, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+        x64->op(ADDQ, q, r);
+        
+        x64->runtime->incref(q);
+    }
+
+    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
+        Register q = (r == R10 ? R11 : R10);
+        
+        x64->op(MOVQ, q, Address(r, CLASS_VT_OFFSET));
+        x64->op(MOVQ, q, Address(q, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+        x64->op(ADDQ, q, r);
+        
+        x64->runtime->decref(q);
+    }
+
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        // We do this for inheritable types that don't implement Streamifiable
+        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+        x64->op(MOVQ, RSI, Address(RSP, 0));
+    
+        x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
+    }
+};
+
+
+class InterfaceType: public InheritableType {
 public:
     std::vector<Function *> member_functions;
     std::vector<Associable *> member_associables;
     
     InterfaceType(std::string name, Metatypes param_metatypes)
-        :Type(name, param_metatypes, interface_metatype) {
+        :InheritableType(name, param_metatypes, interface_metatype) {
     }
 
     virtual bool complete_type() {
@@ -104,26 +145,6 @@ public:
 
         Type::allocate();
     }
-
-    // FIXME: copy-paste from ClassType
-    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
-        x64->op(PUSHQ, r);
-        x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
-        x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
-        x64->op(ADDQ, r, Address(RSP, 0));
-        x64->runtime->incref(r);
-        x64->op(POPQ, r);
-    }
-
-    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
-        x64->op(PUSHQ, r);
-        x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
-        x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
-        x64->op(ADDQ, r, Address(RSP, 0));
-        x64->runtime->decref(r);
-        x64->op(POPQ, r);
-    }
-
 };
 
 

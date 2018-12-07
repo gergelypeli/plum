@@ -1,6 +1,6 @@
 
 
-class ClassType: public HeapType, public Inheritable, public PartialInitializable {
+class ClassType: public InheritableType, public PartialInitializable {
 public:
     std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
@@ -13,7 +13,7 @@ public:
     Implementation *base_implementation;
 
     ClassType(std::string name, Metatypes param_metatypes)
-        :HeapType(name, param_metatypes, class_metatype) {
+        :InheritableType(name, param_metatypes, class_metatype) {
         finalizer_function = NULL;
         base_role = NULL;
         basevt_ve = NULL;
@@ -123,7 +123,7 @@ public:
                 base_implementation->allocate();
         }
         
-        HeapType::allocate();
+        InheritableType::allocate();
     }
 
     virtual Allocation measure_identity(TypeMatch tm) {
@@ -182,7 +182,7 @@ public:
     }
 
     virtual DataScope *make_inner_scope(TypeSpec pts) {
-        DataScope *is = HeapType::make_inner_scope(pts);
+        DataScope *is = InheritableType::make_inner_scope(pts);
 
         is->be_virtual_scope();
         
@@ -255,7 +255,7 @@ public:
                 return v;
         }
         
-        return HeapType::autoconv(tm, target, orig, ifts, assume_lvalue);
+        return InheritableType::autoconv(tm, target, orig, ifts, assume_lvalue);
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
@@ -267,7 +267,7 @@ public:
             n = n.substr(1);
         }
         
-        Value *value = HeapType::lookup_inner(tm, n, v, s);
+        Value *value = InheritableType::lookup_inner(tm, n, v, s);
         
         if (!value && base_role) {
             TypeSpec ts = base_role->get_typespec(tm);
@@ -291,24 +291,6 @@ public:
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
         return make<ClassMatcherValue>(n, v);
-    }
-    
-    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
-        x64->op(PUSHQ, r);
-        x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
-        x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
-        x64->op(ADDQ, r, Address(RSP, 0));
-        x64->runtime->incref(r);
-        x64->op(POPQ, r);
-    }
-
-    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
-        x64->op(PUSHQ, r);
-        x64->op(MOVQ, r, Address(r, CLASS_VT_OFFSET));
-        x64->op(MOVQ, r, Address(r, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
-        x64->op(ADDQ, r, Address(RSP, 0));
-        x64->runtime->decref(r);
-        x64->op(POPQ, r);
     }
 };
 

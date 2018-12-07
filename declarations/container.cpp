@@ -1,10 +1,39 @@
 
+class ContainerType: public Type {
+public:
+    ContainerType(std::string name, Metatypes param_metatypes)
+        :Type(name, param_metatypes, identity_metatype) {
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        std::cerr << "This is probably an error, shouldn't measure a container type!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
+        x64->runtime->incref(r);
+    }
+
+    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
+        x64->runtime->decref(r);
+    }
+
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        // We do this for identity types that don't implement Streamifiable
+        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+        x64->op(MOVQ, RSI, Address(RSP, 0));
+    
+        x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
+    }
+};
+
+
 // Linearray based
 
-class LinearrayType: public HeapType {
+class LinearrayType: public ContainerType {
 public:
     LinearrayType(std::string name)
-        :HeapType(name, Metatypes { value_metatype }) {
+        :ContainerType(name, Metatypes { value_metatype }) {
         //make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
@@ -134,10 +163,10 @@ public:
 
 // Circularray based
 
-class CircularrayType: public HeapType {
+class CircularrayType: public ContainerType {
 public:
     CircularrayType(std::string name)
-        :HeapType(name, Metatypes { value_metatype }) {
+        :ContainerType(name, Metatypes { value_metatype }) {
         //make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
 
@@ -213,10 +242,10 @@ public:
 
 // Rbtree based
 
-class RbtreeType: public HeapType {
+class RbtreeType: public ContainerType {
 public:
     RbtreeType(std::string name)
-        :HeapType(name, Metatypes { value_metatype }) {
+        :ContainerType(name, Metatypes { value_metatype }) {
         //make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
