@@ -279,7 +279,7 @@ public:
 
 class HeapType: public Type {
 public:
-    HeapType(std::string name, Metatypes param_metatypes, Type *mt = NULL)
+    HeapType(std::string name, Metatypes param_metatypes, MetaType *mt = NULL)
         :Type(name, param_metatypes, mt ? mt : identity_metatype) {
     }
 

@@ -1,16 +1,4 @@
 
-class HyperType: public Type {
-public:
-    HyperType()
-        :Type("", Metatypes { }, NULL) {
-    }
-    
-    virtual Value *match(std::string name, Value *pivot, Scope *scope) {
-        return NULL;
-    }
-};
-
-
 class MetaType: public Type {
 public:
     // Plain Type-s get their parameters in the form of pre-evaluated type names, and
@@ -18,13 +6,13 @@ public:
     // MetaTypes get their parameters in the form of keyword arguments to be evaluated
     // later, and produce types by declaring them to the resulting type.
 
-    Type *super_type;
+    std::vector<MetaType *> super_types;
     typedef Value *(*TypeDefinitionFactory)();
     TypeDefinitionFactory factory;
     
-    MetaType(std::string n, Type *st, TypeDefinitionFactory f)
+    MetaType(std::string n, std::vector<MetaType *> sts, TypeDefinitionFactory f)
         :Type(n, Metatypes { }, metatype_hypertype) {
-        super_type = st;
+        super_types = sts;
         factory = f;
     }
 
@@ -52,20 +40,22 @@ public:
         return name == n;
     }
     
-    virtual bool has_super(Type *mt) {
+    virtual bool has_super(MetaType *mt) {
         if (mt == this)
             return true;
-        else if (!super_type)
-            return false;
-        else
-            return ptr_cast<MetaType>(super_type)->has_super(mt);
+            
+        for (auto st : super_types)
+            if (st->has_super(mt))
+                return true;
+                
+        return false;
     }
 };
 
 
 class TypeMetaType: public MetaType {
 public:
-    TypeMetaType(std::string name, Type *st)
+    TypeMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, NULL) {
     }
 };
@@ -73,7 +63,7 @@ public:
 
 class ValueMetaType: public MetaType {
 public:
-    ValueMetaType(std::string name, Type *st)
+    ValueMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, NULL) {
     }
 };
@@ -81,7 +71,7 @@ public:
 
 class IdentityMetaType: public MetaType {
 public:
-    IdentityMetaType(std::string name, Type *st)
+    IdentityMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, NULL) {
     }
 };
@@ -89,7 +79,7 @@ public:
 
 class ModuleMetaType: public MetaType {
 public:
-    ModuleMetaType(std::string name, Type *st)
+    ModuleMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, NULL) {
     }
 };
@@ -97,7 +87,7 @@ public:
 
 class AttributeMetaType: public MetaType {
 public:
-    AttributeMetaType(std::string name, Type *st)
+    AttributeMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, NULL) {
     }
 };
@@ -105,7 +95,7 @@ public:
 
 class IntegerMetaType: public MetaType {
 public:
-    IntegerMetaType(std::string name, Type *st)
+    IntegerMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, make<IntegerDefinitionValue>) {
     }
 };
@@ -113,7 +103,7 @@ public:
 
 class EnumerationMetaType: public MetaType {
 public:
-    EnumerationMetaType(std::string name, Type *st)
+    EnumerationMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, make<EnumerationDefinitionValue>) {
     }
 };
@@ -121,7 +111,7 @@ public:
 
 class TreenumerationMetaType: public MetaType {
 public:
-    TreenumerationMetaType(std::string name, Type *st)
+    TreenumerationMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, make<TreenumerationDefinitionValue>) {
     }
 
@@ -137,7 +127,7 @@ public:
 
 class RecordMetaType: public MetaType {
 public:
-    RecordMetaType(std::string name, Type *st)
+    RecordMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, make<RecordDefinitionValue>) {
     }
 };
@@ -145,7 +135,7 @@ public:
 
 class ClassMetaType: public MetaType {
 public:
-    ClassMetaType(std::string name, Type *st)
+    ClassMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, make<ClassDefinitionValue>) {
     }
 };
@@ -153,7 +143,7 @@ public:
 
 class SingletonMetaType: public MetaType {
 public:
-    SingletonMetaType(std::string name, Type *st)
+    SingletonMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, make<SingletonDefinitionValue>) {
     }
 };
@@ -161,23 +151,15 @@ public:
 
 class InterfaceMetaType: public MetaType {
 public:
-    InterfaceMetaType(std::string name, Type *st)
+    InterfaceMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, make<InterfaceDefinitionValue>) {
-    }
-
-    virtual bool has_super(Type *mt) {
-        // A bit of a hack to allow interfaces be identity types
-        if (mt == identity_metatype)
-            return true;
-        else
-            return MetaType::has_super(mt);
     }
 };
 
 
 class ImportMetaType: public MetaType {
 public:
-    ImportMetaType(std::string name, Type *st)
+    ImportMetaType(std::string name, std::vector<MetaType *> st)
         :MetaType(name, st, make<ImportDefinitionValue>) {
     }
 };

@@ -3,30 +3,30 @@ void builtin_types(Scope *root_scope) {
 
     // Phase 1: declare the hypertype
 
-    metatype_hypertype = new HyperType;
+    metatype_hypertype = new MetaType("<Meta>", {}, NULL);
     root_scope->add(metatype_hypertype);
 
 
     // Phase 2: declare the metatypes
 
     // Abstract metatypes can't be looked up, so their scope doesn't matter
-    type_metatype = new TypeMetaType("<Type>", NULL);
+    type_metatype = new TypeMetaType("<Type>", {});
     root_scope->add(type_metatype);
 
-    value_metatype = new ValueMetaType("<Value>", type_metatype);
+    value_metatype = new ValueMetaType("<Value>", { type_metatype });
     root_scope->add(value_metatype);
 
-    identity_metatype = new IdentityMetaType("<Identity>", type_metatype);
+    identity_metatype = new IdentityMetaType("<Identity>", { type_metatype });
     root_scope->add(identity_metatype);
 
-    module_metatype = new ModuleMetaType("<Module>", type_metatype);
+    module_metatype = new ModuleMetaType("<Module>", { type_metatype });
     root_scope->add(module_metatype);
 
-    attribute_metatype = new AttributeMetaType("<Attribute>", type_metatype);
+    attribute_metatype = new AttributeMetaType("<Attribute>", { type_metatype });
     root_scope->add(attribute_metatype);
     
     // Here comes a bit of a twist
-    singleton_metatype = new SingletonMetaType("Singleton", type_metatype);
+    singleton_metatype = new SingletonMetaType("Singleton", { type_metatype });
     colon_type = new SingletonType("Colon");
     root_scope->add(colon_type);
     colon_scope = colon_type->make_inner_scope({ colon_type });
@@ -34,25 +34,25 @@ void builtin_types(Scope *root_scope) {
     // User accessible metatypes go into the colon scope
     colon_scope->add(singleton_metatype);
 
-    integer_metatype = new IntegerMetaType("Integer", value_metatype);
+    integer_metatype = new IntegerMetaType("Integer", { value_metatype });
     colon_scope->add(integer_metatype);
 
-    enumeration_metatype = new EnumerationMetaType("Enumeration", value_metatype);
+    enumeration_metatype = new EnumerationMetaType("Enumeration", { value_metatype });
     colon_scope->add(enumeration_metatype);
 
-    treenumeration_metatype = new TreenumerationMetaType("Treenumeration", value_metatype);
+    treenumeration_metatype = new TreenumerationMetaType("Treenumeration", { value_metatype });
     colon_scope->add(treenumeration_metatype);
 
-    record_metatype = new RecordMetaType("Record", value_metatype);
+    record_metatype = new RecordMetaType("Record", { value_metatype });
     colon_scope->add(record_metatype);
 
-    class_metatype = new ClassMetaType("Class", identity_metatype);
+    class_metatype = new ClassMetaType("Class", { identity_metatype });
     colon_scope->add(class_metatype);
 
-    interface_metatype = new InterfaceMetaType("Interface", value_metatype);
+    interface_metatype = new InterfaceMetaType("Interface", { value_metatype, identity_metatype });
     colon_scope->add(interface_metatype);
 
-    colon_scope->add(new ImportMetaType("Import", type_metatype));
+    colon_scope->add(new ImportMetaType("Import", { type_metatype }));
 
 
     // Phase 3: declare wildcard types, so subsequent types can have an inner scope

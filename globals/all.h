@@ -33,7 +33,7 @@ public:
     TypeSpec reprefix(Type *s, Type *t);
     TypeSpec rvalue();
     TypeSpec lvalue();
-    bool has_meta(Type *mt);
+    bool has_meta(MetaType *mt);
     bool is_meta();
     bool is_hyper();
     Storage store(Storage s, Storage t, X64 *x64);
@@ -153,9 +153,9 @@ Value *make(A a, B b, C c, D d, E e, F f) {
 // Builtins
 
 // Vizipok-csodapok!
-Type *metatype_hypertype = NULL;
+MetaType *metatype_hypertype = NULL;
 
-Type *type_metatype = NULL;
+MetaType *type_metatype = NULL;
 
 Type *any_type = NULL;
 Type *any2_type = NULL;
@@ -170,17 +170,17 @@ Type *sameid_type = NULL;
 Type *sameid2_type = NULL;
 Type *sameid3_type = NULL;
 
-Type *value_metatype = NULL;
-Type *identity_metatype = NULL;
-Type *module_metatype = NULL;
-Type *attribute_metatype = NULL;
-Type *enumeration_metatype = NULL;
-Type *treenumeration_metatype = NULL;
-Type *integer_metatype = NULL;
-Type *record_metatype = NULL;
-Type *class_metatype = NULL;
-Type *singleton_metatype = NULL;
-Type *interface_metatype = NULL;
+MetaType *value_metatype = NULL;
+MetaType *identity_metatype = NULL;
+MetaType *module_metatype = NULL;
+MetaType *attribute_metatype = NULL;
+MetaType *enumeration_metatype = NULL;
+MetaType *treenumeration_metatype = NULL;
+MetaType *integer_metatype = NULL;
+MetaType *record_metatype = NULL;
+MetaType *class_metatype = NULL;
+MetaType *singleton_metatype = NULL;
+MetaType *interface_metatype = NULL;
 
 Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;

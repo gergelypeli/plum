@@ -111,26 +111,21 @@ TypeSpec TypeSpec::lvalue() {
 }
 
 
-bool TypeSpec::has_meta(Type *mt) {
+bool TypeSpec::has_meta(MetaType *mt) {
     if (size() == 0)
         return false;
-        
-    Type *ut = at(0)->upper_type;
-    
-    if (ut == metatype_hypertype)
-        return mt == metatype_hypertype;
-    
-    return ptr_cast<MetaType>(ut)->has_super(mt);
+    else
+        return at(0)->meta_type->has_super(mt);
 }
 
 
 bool TypeSpec::is_meta() {
-    return at(0)->upper_type && !at(0)->upper_type->upper_type;
+    return at(0)->meta_type && !at(0)->meta_type->meta_type;
 }
 
 
 bool TypeSpec::is_hyper() {
-    return !at(0)->upper_type;
+    return !at(0)->meta_type;
 }
 
 

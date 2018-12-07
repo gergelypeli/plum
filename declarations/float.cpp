@@ -1,9 +1,8 @@
 
 class FloatType: public Type {
 public:
-    FloatType(std::string n, Type *mt = NULL)
+    FloatType(std::string n, MetaType *mt = NULL)
         :Type(n, {}, mt ? mt : value_metatype) {
-        //make_inner_scope(TypeSpec { this });
     }
     
     virtual Allocation measure(TypeMatch tm) {

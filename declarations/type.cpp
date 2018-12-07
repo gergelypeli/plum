@@ -3,7 +3,7 @@
 #define COMPARE_CLOB Regs()
 #define STREAMIFY_CLOB Regs::all()
 
-typedef std::vector<Type *> Metatypes;
+typedef std::vector<MetaType *> Metatypes;
 
 class Type: public Declaration {
 public:
@@ -11,13 +11,13 @@ public:
     std::string prefix;
     Metatypes param_metatypes;
     std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
-    Type *upper_type;
+    MetaType *meta_type;
     
-    Type(std::string n, Metatypes pmts, Type *ut) {
+    Type(std::string n, Metatypes pmts, MetaType *ut) {
         name = n;
         prefix = n + ".";
         param_metatypes = pmts;
-        upper_type = ut;
+        meta_type = ut;
         //inner_scope = NULL;
     }
     
@@ -55,7 +55,7 @@ public:
         inner_scope->set_pivot_type_hint(pts);
         inner_scope->set_name(name);
         
-        Scope *meta_scope = upper_type->get_inner_scope();
+        Scope *meta_scope = ptr_cast<Type>(meta_type)->get_inner_scope();
         
         if (meta_scope)
             inner_scope->set_meta_scope(meta_scope);
@@ -83,7 +83,7 @@ public:
     }
 
     virtual Value *matched(TypeSpec result_ts) {
-        return make<TypeValue>(upper_type, result_ts);
+        return make<TypeValue>(meta_type, result_ts);
     }
     
     virtual Value *match(std::string name, Value *pivot, Scope *scope) {
@@ -363,7 +363,7 @@ public:
 
 class AnyType: public Type {
 public:
-    AnyType(std::string name, Metatypes param_metatypes, Type *mt)
+    AnyType(std::string name, Metatypes param_metatypes, MetaType *mt)
         :Type(name, param_metatypes, mt) {
     }
 };
@@ -371,7 +371,7 @@ public:
 
 class SameType: public Type {
 public:
-    SameType(std::string name, Metatypes param_metatypes, Type *mt)
+    SameType(std::string name, Metatypes param_metatypes, MetaType *mt)
         :Type(name, param_metatypes, mt) {
     }
     
@@ -408,7 +408,7 @@ public:
 
 class AttributeType: public Type {
 public:
-    AttributeType(std::string n, Type *arg_metatype = value_metatype)
+    AttributeType(std::string n, MetaType *arg_metatype = value_metatype)
         :Type(n, Metatypes { arg_metatype }, attribute_metatype) {
     }
 

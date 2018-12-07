@@ -14,7 +14,7 @@ TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
                 throw INTERNAL_ERROR;
             }
             
-            if (!match[mi].has_meta((*tti)->upper_type)) {
+            if (!match[mi].has_meta((*tti)->meta_type)) {
                 std::cerr << "Wrong matched Any type while substituting Same!\n";
                 throw INTERNAL_ERROR;
             }
@@ -52,7 +52,7 @@ bool is_any(Type *t) {
 }
 
 
-bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, int mi, Type *metatype) {
+bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, int mi, MetaType *metatype) {
     if (!TypeSpec(s).has_meta(metatype)) {
         if (matchlog) std::cerr << "No match, type parameter not a " << metatype->name << "!\n";
         return false;

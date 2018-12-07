@@ -5,7 +5,7 @@ public:
     int os;
     bool is_unsigned;
 
-    BasicType(std::string n, unsigned s, bool iu, Type *mt = NULL)
+    BasicType(std::string n, unsigned s, bool iu, MetaType *mt = NULL)
         :Type(n, {}, mt ? mt : value_metatype) {
         size = s;
         os = (s == 1 ? 0 : s == 2 ? 1 : s == 4 ? 2 : s == 8 ? 3 : throw INTERNAL_ERROR);        
@@ -495,7 +495,7 @@ class EnumerationType: public BasicType {
 public:
     std::vector<std::string> keywords;
 
-    EnumerationType(std::string n, std::vector<std::string> kw, Type *mt = NULL)
+    EnumerationType(std::string n, std::vector<std::string> kw, MetaType *mt = NULL)
         :BasicType(n, 1, true, mt ? mt : enumeration_metatype) {  // TODO: different sizes based on the keyword count!
         keywords = kw;
     }
