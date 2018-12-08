@@ -85,7 +85,7 @@ std::string function_get_name(Function *f) {
 
 
 bool function_is_abstract(Function *f) {
-    return f->type == INTERFACE_FUNCTION;
+    return f->type == ABSTRACT_FUNCTION;
 }
 
 

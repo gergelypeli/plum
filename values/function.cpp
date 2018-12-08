@@ -384,7 +384,7 @@ public:
 
         DataScope *ds = ptr_cast<DataScope>(scope);
 
-        if (ds->is_interface_scope()) {
+        if (ds->is_abstract_scope()) {
             if (type != GENERIC_FUNCTION) {
                 std::cerr << "Only generic functions can be defined in interfaces!\n";
                 return NULL;
@@ -395,7 +395,7 @@ public:
                 return NULL;
             }
             
-            type = INTERFACE_FUNCTION;
+            type = ABSTRACT_FUNCTION;
         }
         
         if (type == FINALIZER_FUNCTION && name != "<anonymous>") {

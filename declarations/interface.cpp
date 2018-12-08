@@ -83,7 +83,8 @@ public:
     virtual DataScope *make_inner_scope(TypeSpec pts) {
         DataScope *is = Type::make_inner_scope(pts);
 
-        is->be_interface_scope();
+        is->be_virtual_scope();
+        is->be_abstract_scope();
         
         return is;
     }
@@ -134,14 +135,7 @@ public:
         VirtualEntry *basevt_ve = new VtVirtualEntry(NULL);
         VirtualEntry *fastforward_ve = new FfwdVirtualEntry(Allocation(0));
         
-        std::vector<VirtualEntry *> vt = { basevt_ve, fastforward_ve };
-        int virtual_index = inner_scope->virtual_reserve(vt);
-            
-        if (virtual_index != VT_BASEVT_INDEX)
-            throw INTERNAL_ERROR;
-                
-        if (virtual_index + 1 != VT_FASTFORWARD_INDEX)
-            throw INTERNAL_ERROR;
+        inner_scope->virtual_initialize(basevt_ve, fastforward_ve);
 
         Type::allocate();
     }

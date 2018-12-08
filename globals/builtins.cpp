@@ -581,7 +581,7 @@ void define_interfaces() {
     DataScope *sis = streamifiable_type->make_inner_scope(STREAMIFIABLE_TS);
     Function *sf = new Function("streamify",
         STREAMIFIABLE_TS,
-        INTERFACE_FUNCTION,
+        ABSTRACT_FUNCTION,
         TSs { STRING_LVALUE_TS },
         Ss { "stream" },
         TSs {},
@@ -596,7 +596,7 @@ void define_interfaces() {
     DataScope *jis = iterable_type->make_inner_scope(ANY_ITERABLE_TS);
     Function *xf = new Function("iter",
         ANY_ITERABLE_TS,
-        INTERFACE_FUNCTION,
+        ABSTRACT_FUNCTION,
         TSs {},
         Ss {},
         TSs { SAME_ITERATOR_RVALUE_TS },
@@ -611,7 +611,7 @@ void define_interfaces() {
     DataScope *iis = iterator_type->make_inner_scope(ANY_ITERATOR_TS);
     Function *nf = new Function("next",
         ANY_ITERATOR_TS,
-        INTERFACE_FUNCTION,
+        ABSTRACT_FUNCTION,
         TSs {},
         Ss {},
         TSs { SAME_TS },

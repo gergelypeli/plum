@@ -123,7 +123,7 @@ public:
         for (auto f : functions) {
             // There can be NULL-s here...
             
-            if (f && f->type == INTERFACE_FUNCTION) {
+            if (f && f->type == ABSTRACT_FUNCTION) {
                 std::cerr << "Unimplemented function " << f->name << " in " << name << "!\n";
                 throw TYPE_ERROR;
             }
@@ -157,7 +157,7 @@ public:
         
         // TODO: collect the Function*-s into a vector, update it with the overrides, and
         // let the shadows copy it for themselves. Record all association names to prevent
-        // duplicates. Finally check if we have any INTERFACE_FUNCTION left (for now we don't
+        // duplicates. Finally check if we have any ABSTRACT_FUNCTION left (for now we don't
         // allow abstract classes).
         
         if (associated_names.count(override_name)) {

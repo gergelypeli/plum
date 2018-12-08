@@ -240,12 +240,12 @@ public:
     InheritAs inherit_as;
     TypeSpec pivot_ts;
     TypeSpec role_ts;
-    bool is_virtual;
+    bool is_inheritable;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
         :TypeDefinitionValue() {
         inherit_as = ia;
-        is_virtual = false;
+        is_inheritable = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -255,7 +255,7 @@ public:
         }
 
         DataScope *ds = ptr_cast<DataScope>(scope);
-        is_virtual = ds->is_virtual_scope();
+        is_inheritable = ds->is_virtual_scope() && !ds->is_abstract_scope();
 
         if (args.size() > 0 && kwargs.size() > 0) {
             std::cerr << "Oops, can't handle implementation and inheritance at once yet!\n";
@@ -285,7 +285,7 @@ public:
             // Inheritance
             Expr *e = kwargs["by"].get();
             
-            if (!is_virtual) {
+            if (!is_inheritable) {
                 std::cerr << "Inheritance is only allowed in Class scope!\n";
                 return false;
             }
@@ -320,7 +320,7 @@ public:
         if (scope->type == DATA_SCOPE) {
             Declaration *d;
             
-            if (is_virtual)
+            if (is_inheritable)
                 d = new Role(name, pivot_ts, role_ts, inherit_as);
             else
                 d = new Implementation(name, pivot_ts, role_ts, inherit_as);

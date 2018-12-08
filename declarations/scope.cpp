@@ -235,13 +235,13 @@ public:
     TypeSpec pivot_ts;
     std::vector<VirtualEntry *> virtual_table;
     bool am_virtual_scope;
-    bool am_interface_scope;
+    bool am_abstract_scope;
     
     DataScope()
         :NamedScope(DATA_SCOPE) {
         pivot_ts = NO_TS;
         am_virtual_scope = false;
-        am_interface_scope = false;
+        am_abstract_scope = false;
     }
     
     virtual void be_virtual_scope() {
@@ -252,12 +252,12 @@ public:
         return am_virtual_scope;
     }
 
-    virtual void be_interface_scope() {
-        am_interface_scope = true;
+    virtual void be_abstract_scope() {
+        am_abstract_scope = true;
     }
     
-    virtual bool is_interface_scope() {
-        return am_interface_scope;
+    virtual bool is_abstract_scope() {
+        return am_abstract_scope;
     }
     
     virtual void set_pivot_type_hint(TypeSpec t) {
@@ -289,24 +289,32 @@ public:
         }
     }
 
-    virtual int virtual_reserve(std::vector<VirtualEntry *> vt) {
-        if (!am_virtual_scope && !am_interface_scope)
+    virtual void virtual_initialize(VirtualEntry *base_ve, VirtualEntry *ffwd_ve) {
+        if (!am_virtual_scope || !virtual_table.empty())
             throw INTERNAL_ERROR;
             
+        virtual_table.push_back(base_ve);
+        virtual_table.push_back(ffwd_ve);
+    }
+
+    virtual int virtual_reserve(std::vector<VirtualEntry *> vt) {
+        if (!am_virtual_scope || virtual_table.empty())
+            throw INTERNAL_ERROR;
+        
         int virtual_index = virtual_table.size();
         virtual_table.insert(virtual_table.end(), vt.begin(), vt.end());
         return virtual_index;
     }
 
     virtual std::vector<VirtualEntry *> get_virtual_table() {
-        if (!am_virtual_scope && !am_interface_scope)
+        if (!am_virtual_scope)
             throw INTERNAL_ERROR;
 
         return virtual_table;
     }
     
     virtual void set_virtual_entry(int i, VirtualEntry *entry) {
-        if (!am_virtual_scope && !am_interface_scope)
+        if (!am_virtual_scope)
             throw INTERNAL_ERROR;
 
         //std::cerr << "DataScope setting virtual entry " << i << ".\n";

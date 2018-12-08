@@ -1,6 +1,6 @@
 
 enum FunctionType {
-    GENERIC_FUNCTION, INTERFACE_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION
+    GENERIC_FUNCTION, ABSTRACT_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION
 };
 
 
@@ -53,7 +53,7 @@ public:
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // TODO: do this properly!
         
-        //if (type == INTERFACE_FUNCTION) {
+        //if (type == ABSTRACT_FUNCTION) {
         //    std::cerr << "Oops, interface function " << name << " was called instead of an implementation!\n";
         //    throw INTERNAL_ERROR;
         //}
@@ -62,7 +62,7 @@ public:
     }
 
     virtual void get_parameters(TypeSpec &pts, TSs &rtss, TSs &atss, Ss &anames, TypeSpec ts, TypeMatch tm) {
-        if (type == INTERFACE_FUNCTION) {
+        if (type == ABSTRACT_FUNCTION) {
             if (pivot_ts == ANY_TS)
                 pts = ts.rvalue();
             else if (pivot_ts == ANY_LVALUE_TS)
@@ -108,7 +108,7 @@ public:
     */
     virtual void allocate() {
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
-        bool needs_virtual_index = (ds && ((ds->is_virtual_scope() && type == GENERIC_FUNCTION) || ds->is_interface_scope()));
+        bool needs_virtual_index = (ds && ds->is_virtual_scope() && (type == GENERIC_FUNCTION || type == ABSTRACT_FUNCTION));
         
         if (needs_virtual_index) {
             if (!associated) {

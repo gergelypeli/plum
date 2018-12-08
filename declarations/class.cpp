@@ -109,15 +109,8 @@ public:
             inner_scope->set_virtual_entry(VT_FASTFORWARD_INDEX, fastforward_ve);
         }
         else {
-            std::vector<VirtualEntry *> vt = { basevt_ve, fastforward_ve };
-            int virtual_index = inner_scope->virtual_reserve(vt);
+            inner_scope->virtual_initialize(basevt_ve, fastforward_ve);
             
-            if (virtual_index != VT_BASEVT_INDEX)
-                throw INTERNAL_ERROR;
-                
-            if (virtual_index + 1 != VT_FASTFORWARD_INDEX)
-                throw INTERNAL_ERROR;
-
             // FIXME: must be handled like base_role
             if (base_implementation)
                 base_implementation->allocate();
