@@ -803,7 +803,7 @@ public:
                 // The initial role is a static cast, so we already have the virtual offset
                 // within it.
                 int vi = virtual_offset + function->virtual_index;
-                VirtualEntry *ve = r->alloc_ts.get_virtual_table()[vi];
+                VirtualEntry *ve = r->alloc_ts.get_virtual_table().get(vi);
                 static_label = ve->get_virtual_entry_label(r->alloc_ts.match(), x64);
                 is_static = true;
                 break;
@@ -867,7 +867,7 @@ public:
 
         if (function->prot == SYSV_FUNCTION)
             call_sysv(x64, passed_size);
-        else if (function->virtual_index >= 0 && !is_static)
+        else if (function->virtual_index != 0 && !is_static)
             call_virtual(x64, passed_size);
         else
             call_static(x64, passed_size);

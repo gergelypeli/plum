@@ -233,7 +233,7 @@ public:
 class DataScope: public NamedScope {
 public:
     TypeSpec pivot_ts;
-    std::vector<VirtualEntry *> virtual_table;
+    devector<VirtualEntry *> virtual_table;
     bool am_virtual_scope;
     bool am_abstract_scope;
     
@@ -293,20 +293,21 @@ public:
         if (!am_virtual_scope || !virtual_table.empty())
             throw INTERNAL_ERROR;
             
-        virtual_table.push_back(base_ve);
-        virtual_table.push_back(ffwd_ve);
+        virtual_table.append(base_ve);
+        virtual_table.append(ffwd_ve);
     }
 
-    virtual int virtual_reserve(std::vector<VirtualEntry *> vt) {
+    virtual int virtual_reserve(devector<VirtualEntry *> vt) {
         if (!am_virtual_scope || virtual_table.empty())
             throw INTERNAL_ERROR;
         
-        int virtual_index = virtual_table.size();
-        virtual_table.insert(virtual_table.end(), vt.begin(), vt.end());
-        return virtual_index;
+        if (am_abstract_scope)
+            return virtual_table.prextend(vt);
+        else
+            return virtual_table.extend(vt);
     }
 
-    virtual std::vector<VirtualEntry *> get_virtual_table() {
+    virtual devector<VirtualEntry *> get_virtual_table() {
         if (!am_virtual_scope)
             throw INTERNAL_ERROR;
 
@@ -318,7 +319,7 @@ public:
             throw INTERNAL_ERROR;
 
         //std::cerr << "DataScope setting virtual entry " << i << ".\n";
-        virtual_table.at(i) = entry;
+        virtual_table.set(i, entry);
     }
 };
 

@@ -124,7 +124,7 @@ public:
         );
     }
 
-    virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
+    virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return inner_scope->get_virtual_table();
     }
     

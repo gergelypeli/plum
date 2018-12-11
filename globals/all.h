@@ -23,7 +23,7 @@ public:
     int measure_elem();
     int measure_stack();
     int measure_where(StorageWhere where);
-    std::vector<VirtualEntry *> get_virtual_table();
+    devector<VirtualEntry *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
     Value *autoconv(Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);

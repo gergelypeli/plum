@@ -255,7 +255,7 @@ public:
         return tm[1].lookup_matcher(name, pivot, scope);
     }
 
-    virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
+    virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return tm[1].get_virtual_table();
     }
 

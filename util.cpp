@@ -21,6 +21,62 @@ namespace std {
 };
 
 
+template <typename T>
+class devector {
+public:
+    std::deque<T> deque;
+    int center;
+    
+    devector() {
+        center = 0;
+    }
+    
+    bool empty() const {
+        return deque.empty();
+    }
+    
+    int low() const {
+        return -center;
+    }
+    
+    int high() const {
+        return deque.size() - center;
+    }
+
+    int append(const T& x) {
+        deque.push_back(x);
+        return high() - 1;
+    }
+    
+    int prepend(const T& x) {
+        deque.push_front(x);
+        center += 1;
+        return low();
+    }
+    
+    int extend(const devector<T> &o) {
+        deque.insert(deque.end(), o.deque.begin(), o.deque.end());
+            
+        return high() - o.high();
+    }
+
+    int prextend(const devector<T> &o) {
+        deque.insert(deque.begin(), o.deque.begin(), o.deque.end());
+        center += o.deque.size();
+            
+        return low() - o.low();
+    }
+    
+    T get(int i) {
+        return deque.at(i + center);
+    }
+
+    void set(int i, const T &x) {
+        deque.at(i + center) = x;
+    }
+};
+
+
 // From https://stackoverflow.com/questions/874134/find-if-string-ends-with-another-string-in-c
 inline bool desuffix(std::string &value, std::string const &ending)
 {

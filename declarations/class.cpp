@@ -190,7 +190,7 @@ public:
         return member_names;
     }
 
-    virtual std::vector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
+    virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return inner_scope->get_virtual_table();
     }
 
@@ -203,16 +203,19 @@ public:
     }
     
     static void compile_virtual_table(Label label, TypeSpec ts, X64 *x64) {
-        std::vector<VirtualEntry *> vt = ts.get_virtual_table();
-        std::cerr << "XXX " << ts << " VT has " << vt.size() << " entries.\n";
+        devector<VirtualEntry *> vt = ts.get_virtual_table();
+        std::cerr << "XXX " << ts << " VT has " << vt.high() - vt.low() << " entries.\n";
         TypeMatch tm = ts.match();
 
         x64->data_align(8);
-        x64->data_label_local(label, ts.symbolize() + "_virtual_table");
 
-        for (auto entry : vt) {
-            Label l = entry->get_virtual_entry_label(tm, x64);
+        for (int i = vt.low(); i < vt.high(); i++) {
+            Label l = vt.get(i)->get_virtual_entry_label(tm, x64);
             //std::cerr << "Virtual entry of " << ts[0]->name << " is " << l.def_index << ".\n";
+
+            if (i == 0)
+                x64->data_label_local(label, ts.symbolize() + "_virtual_table");
+
             x64->data_reference(l);
         }
     }
@@ -348,7 +351,7 @@ public:
         Allocation size = alloc_ts.measure_identity();
         offset = associating_scope->reserve(size);
             
-        std::vector<VirtualEntry *> vt = alloc_ts.get_virtual_table();
+        devector<VirtualEntry *> vt = alloc_ts.get_virtual_table();
         virtual_offset = associating_scope->virtual_reserve(vt);
         std::cerr << "Reserved new virtual index " << virtual_offset << " for role " << name << ".\n";
 

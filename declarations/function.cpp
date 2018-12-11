@@ -35,7 +35,7 @@ public:
         exception_type = et;
         fn_scope = fs;
         
-        virtual_index = -1;  // for class methods only
+        virtual_index = 0;  // for class methods only
         prot = NATIVE_FUNCTION;
         associated = NULL;  // for overriding methods only
         implemented_function = NULL;
@@ -112,8 +112,8 @@ public:
         
         if (needs_virtual_index) {
             if (!associated) {
-                std::vector<VirtualEntry *> vt;
-                vt.push_back(this);
+                devector<VirtualEntry *> vt;
+                vt.append(this);
                 virtual_index = ds->virtual_reserve(vt);
                 std::cerr << "Reserved new virtual index " << virtual_index << " for function " << name << ".\n";
             }
