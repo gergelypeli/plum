@@ -5,32 +5,22 @@
 
 typedef std::vector<MetaType *> Metatypes;
 
-class Type: public Declaration {
+class Type: public Identifier {
 public:
-    std::string name;
     std::string prefix;
     Metatypes param_metatypes;
     std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
     MetaType *meta_type;
     
-    Type(std::string n, Metatypes pmts, MetaType *ut) {
-        name = n;
+    Type(std::string n, Metatypes pmts, MetaType *ut)
+        :Identifier(n, NO_TS) {
         prefix = n + ".";
         param_metatypes = pmts;
         meta_type = ut;
-        //inner_scope = NULL;
     }
     
     virtual unsigned get_parameter_count() {
         return param_metatypes.size();
-    }
-    
-    virtual void set_name(std::string n) {
-        name = n;
-        prefix = n + ".";
-        
-        if (inner_scope)
-            inner_scope->set_name(n);
     }
     
     virtual void set_outer_scope(Scope *os) {

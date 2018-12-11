@@ -289,11 +289,11 @@ public:
         }
     }
 
-    virtual void virtual_initialize(VirtualEntry *base_ve, VirtualEntry *ffwd_ve) {
+    virtual void virtual_initialize(VirtualEntry *role_ve, VirtualEntry *ffwd_ve) {
         if (!am_virtual_scope || !virtual_table.empty())
             throw INTERNAL_ERROR;
             
-        virtual_table.append(base_ve);
+        virtual_table.append(role_ve);
         virtual_table.append(ffwd_ve);
     }
 

@@ -8,7 +8,7 @@ public:
     std::vector<Function *> member_functions;
     Function *finalizer_function;
     Allocable *base_role;
-    VtVirtualEntry *basevt_ve;
+    RoleVirtualEntry *role_ve;
     FfwdVirtualEntry *fastforward_ve;
     Implementation *base_implementation;
 
@@ -16,7 +16,7 @@ public:
         :InheritableType(name, param_metatypes, class_metatype) {
         finalizer_function = NULL;
         base_role = NULL;
-        basevt_ve = NULL;
+        role_ve = NULL;
         fastforward_ve = NULL;
         base_implementation = NULL;
     }
@@ -100,16 +100,16 @@ public:
         // TODO: now we can only handle either a base role or a base implementation,
         // because VT-s cannot yet grow in both directions.
 
-        basevt_ve = new VtVirtualEntry(base_role);
+        role_ve = new RoleVirtualEntry(this, base_role);
         fastforward_ve = new FfwdVirtualEntry(Allocation(0));
         
         if (base_role) {
             base_role->allocate();
-            inner_scope->set_virtual_entry(VT_BASEVT_INDEX, basevt_ve);
+            inner_scope->set_virtual_entry(VT_BASEVT_INDEX, role_ve);
             inner_scope->set_virtual_entry(VT_FASTFORWARD_INDEX, fastforward_ve);
         }
         else {
-            inner_scope->virtual_initialize(basevt_ve, fastforward_ve);
+            inner_scope->virtual_initialize(role_ve, fastforward_ve);
             
             // FIXME: must be handled like base_role
             if (base_implementation)
@@ -204,14 +204,18 @@ public:
     
     static void compile_virtual_table(Label label, TypeSpec ts, X64 *x64) {
         devector<VirtualEntry *> vt = ts.get_virtual_table();
-        std::cerr << "XXX " << ts << " VT has " << vt.high() - vt.low() << " entries.\n";
         TypeMatch tm = ts.match();
 
         x64->data_align(8);
+        std::cerr << "Virtual table of " << ts << " has " << vt.high() - vt.low() << " entries.\n";
 
         for (int i = vt.low(); i < vt.high(); i++) {
+            VirtualEntry *ve = vt.get(i);
+            std::cerr << std::setw(8) << i << std::setw(0) << ": ";
+            ve->out_virtual_entry(std::cerr, tm);
+            std::cerr << "\n";
+            
             Label l = vt.get(i)->get_virtual_entry_label(tm, x64);
-            //std::cerr << "Virtual entry of " << ts[0]->name << " is " << l.def_index << ".\n";
 
             if (i == 0)
                 x64->data_label_local(label, ts.symbolize() + "_virtual_table");

@@ -132,10 +132,10 @@ public:
         // FIXME: handle base, like class does
 
         // These stay zeros for now
-        VirtualEntry *basevt_ve = new VtVirtualEntry(NULL);
+        VirtualEntry *rolevt_ve = new RoleVirtualEntry(this, NULL);
         VirtualEntry *fastforward_ve = new FfwdVirtualEntry(Allocation(0));
         
-        inner_scope->virtual_initialize(basevt_ve, fastforward_ve);
+        inner_scope->virtual_initialize(rolevt_ve, fastforward_ve);
 
         Type::allocate();
     }

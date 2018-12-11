@@ -8,7 +8,7 @@ public:
         name = n;
         pivot_ts = pts;
         
-        if (pts == VOID_TS)
+        if (pts.size() == 1 && pts[0] == void_type)
             throw INTERNAL_ERROR;  // should have used NO_TS probably
     }
 

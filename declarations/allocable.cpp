@@ -293,14 +293,20 @@ public:
     virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
         throw INTERNAL_ERROR;
     }
+    
+    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
+        throw INTERNAL_ERROR;
+    }
 };
 
 
-class VtVirtualEntry: public VirtualEntry {
+class RoleVirtualEntry: public VirtualEntry {
 public:
+    Identifier *type;
     Allocable *allocable;
     
-    VtVirtualEntry(Allocable *a) {
+    RoleVirtualEntry(Identifier *t, Allocable *a) {
+        type = t;
         allocable = a;
     }
     
@@ -309,6 +315,13 @@ public:
             return allocable->get_typespec(tm).get_virtual_table_label(x64);
         else
             return x64->runtime->zero_label;
+    }
+
+    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
+        if (allocable)
+            return os << "ROLE " << type->name << " (" << allocable->get_typespec(tm) << ")";
+        else
+            return os << "ROLE " << type->name;
     }
 };
 
@@ -325,6 +338,10 @@ public:
         Label label;
         x64->absolute_label(label, -offset.concretize(tm));  // forcing an int into an unsigned64...
         return label;
+    }
+
+    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
+        return os << "FFWD " << offset.concretize(tm);
     }
 };
 

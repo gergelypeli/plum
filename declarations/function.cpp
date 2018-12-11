@@ -81,31 +81,7 @@ public:
         
         anames = arg_names;
     }
-    /*
-    virtual std::vector<TypeSpec> get_result_tss(TypeMatch &match) {
-        std::vector<TypeSpec> tss;
-        
-        for (auto &ts : res_tss)
-            tss.push_back(typesubst(ts, match));
-            
-        return tss;
-    }
-    
-    virtual TypeSpec get_pivot_typespec(TypeMatch &match) {
-        return typesubst(pivot_ts, match);
-    }
-    
-    virtual std::vector<TypeSpec> get_argument_tss(TypeMatch &match) {
-        std::vector<TypeSpec> tss;
-        for (auto &ts : arg_tss)
-            tss.push_back(typesubst(ts, match));
-        return tss;
-    }
-    
-    virtual std::vector<std::string> get_argument_names() {
-        return arg_names;
-    }
-    */
+
     virtual void allocate() {
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
         bool needs_virtual_index = (ds && ds->is_virtual_scope() && (type == GENERIC_FUNCTION || type == ABSTRACT_FUNCTION));
@@ -137,6 +113,10 @@ public:
             
         //std::cerr << "Function entry " << name << ".\n";
         return get_label(x64);
+    }
+
+    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
+        return os << "FUNC " << name;
     }
     
     virtual Label get_label(X64 *x64) {
