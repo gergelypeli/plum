@@ -46,7 +46,7 @@ public:
     Value *lookup_initializer(std::string name, Scope *scope);
     Value *lookup_matcher(std::string name, Value *pivot, Scope *scope);
     Value *lookup_inner(std::string name, Value *pivot, Scope *scope);
-    void init_vt(Address self_addr, Label vt_label, X64 *x64);
+    void init_vt(Address self_addr, X64 *x64);
     void incref(Register r, X64 *x64);
     void decref(Register r, X64 *x64);
 };
@@ -79,8 +79,9 @@ const char *typeidname(Value *v);
 
 // Declaration wrappers
 Declaration *make_record_compare();
-int associable_get_virtual_offset(Associable *a);
-void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64);
+void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve);
+void role_init_vt(Role *r, TypeMatch tm, Address self_addr, X64 *x64);
+void role_compile_vt(Role *r, TypeMatch tm, std::string tname, X64 *x64);
 std::string function_get_name(Function *f);
 bool function_is_abstract(Function *f);
 

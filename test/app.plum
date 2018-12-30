@@ -133,7 +133,8 @@ Derived? :Class as:
         
     base.base_method? :Function as:
         Std prints("Derived base_method, the base value is {x}." {x: $ base base_value})
-        $.base base_method
+        #$.base base_method
+        $ .orig
         
     derived_method? :Function as:
         Std prints("Derived method, just for fun.")
@@ -188,7 +189,8 @@ Greetable? :Class as:
 
     derived.base.base_method? :Function as:
         Std prints("Greetable base_method, the base value is {}." {$ derived base base_value})
-        $.derived base base_method
+        #$.derived base base_method
+        $ .orig
 
     # Testing late declarations
     number? Integer

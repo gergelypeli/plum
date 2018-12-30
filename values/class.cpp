@@ -23,8 +23,7 @@ public:
         
         x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 
-        Label vt_label = class_ts.get_virtual_table_label(x64);
-        class_ts.init_vt(Address(RAX, 0), vt_label, x64);
+        class_ts.init_vt(Address(RAX, 0), x64);
         
         return Storage(REGISTER, RAX);
     }

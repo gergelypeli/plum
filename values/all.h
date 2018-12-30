@@ -49,6 +49,7 @@ class RecordPreinitializerValue;
 class RecordUnwrapValue;
 class RecordWrapperValue;
 class RoleValue;
+class SelfVariableValue;
 class SingletonDefinitionValue;
 class StringLiteralValue;
 class StringRegexpMatcherValue;

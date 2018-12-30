@@ -328,7 +328,7 @@ public:
         return NULL;    
     }
 
-    virtual void init_vt(TypeMatch tm, Address addr, Label vt_label, X64 *x64) {
+    virtual void init_vt(TypeMatch tm, Address addr, X64 *x64) {
         std::cerr << "Unvtinitable type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }

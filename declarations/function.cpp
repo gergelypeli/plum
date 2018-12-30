@@ -88,17 +88,16 @@ public:
         
         if (needs_virtual_index) {
             if (!associated) {
-                devector<VirtualEntry *> vt;
-                vt.append(this);
-                virtual_index = ds->virtual_reserve(vt);
+                //devector<VirtualEntry *> vt;
+                //vt.append(this);
+                virtual_index = ds->virtual_reserve(this);
                 std::cerr << "Reserved new virtual index " << virtual_index << " for function " << name << ".\n";
             }
             else {
                 // Copying it is necessary, as overriding functions can only get it from each other
                 virtual_index = implemented_function->virtual_index;
-                int virtual_offset = associable_get_virtual_offset(associated);
-                ds->set_virtual_entry(virtual_offset + virtual_index, this);
-                std::cerr << "Set virtual index " << virtual_offset << "+" << virtual_index << " for function " << name << ".\n";
+                associable_override_virtual_entry(associated, virtual_index, this);
+                std::cerr << "Set virtual index " << virtual_index << " for function " << name << ".\n";
             }
         }
         

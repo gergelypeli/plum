@@ -26,7 +26,7 @@ public:
             return NULL;
             
         TypeMatch match;
-        //std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
+        std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
             
         if (pivot_ts == NO_TS) {
             if (!pivot)

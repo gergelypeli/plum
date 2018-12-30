@@ -41,6 +41,10 @@ public:
         return get_storage(TypeMatch(), fn_storage);
     }
     
+    virtual devector<VirtualEntry *> get_virtual_table() {
+        throw INTERNAL_ERROR;
+    }
+
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         throw INTERNAL_ERROR;
     }
@@ -137,6 +141,21 @@ public:
         TypeSpec ts = typesubst(alloc_ts, tm);
         int o = offset.concretize(tm);
         ts.compare(s + o, t + o, x64);
+    }
+};
+
+
+class SelfVariable: public Variable {
+public:
+    std::unique_ptr<SelfInfo> self_info;
+    
+    SelfVariable(std::string name, TypeSpec pts, TypeSpec vts)
+        :Variable(name, pts, vts) {
+        self_info.reset(new SelfInfo);
+    }
+    
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
+        return make<SelfVariableValue>(this, cpivot, scope, match, self_info.get());
     }
 };
 

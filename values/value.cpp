@@ -328,6 +328,42 @@ public:
 };
 
 
+class SelfVariableValue: public VariableValue {
+public:
+    SelfInfo *self_info;
+    
+    SelfVariableValue(Variable *pv, Value *p, Scope *scope, TypeMatch &match, SelfInfo *si)
+        :VariableValue(pv, p, scope, match) {
+        self_info = si;
+    }
+    
+    virtual Value *lookup_inner(std::string name, Scope *scope) {
+        //std::cerr << "XXX self inner lookup " << name << "\n";
+        Identifier *i = self_info->get_special(name);
+        
+        if (i) {
+            // FIXME: this seems to be fairly special for calling base functions
+            //std::cerr << "XXX special\n";
+            Function *f = ptr_cast<Function>(i);  // The current function
+            Role *r = ptr_cast<Role>(f->associated);
+            TypeMatch tm = ts.match();
+            Value *rv = r->matched(this, scope, tm);
+            role_value_be_static(ptr_cast<RoleValue>(rv));
+            
+            Function *iff = f->implemented_function;
+            Value *v = iff->matched(rv, scope, tm);  // Must make sure it matches
+            //std::cerr << "XXX " << v << "\n";
+            if (!v)
+                throw INTERNAL_ERROR;
+
+            return v;
+        }
+    
+        return VariableValue::lookup_inner(name, scope);
+    }
+};
+
+
 class PartialVariableValue: public VariableValue {
 public:
     PartialInfo *partial_info;

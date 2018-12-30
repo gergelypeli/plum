@@ -12,7 +12,7 @@ public:
     std::string prefix;
     InheritAs inherit_as;
     Associable *original_associable;
-    int virtual_offset;
+    //int virtual_offset;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
@@ -27,7 +27,7 @@ public:
         prefix = name + ".";
         inherit_as = ia;
         original_associable = NULL;
-        virtual_offset = -1;
+        //virtual_offset = -1;
         associating_scope = NULL;
         fastforward_ve = NULL;
         associated_lself = NULL;
@@ -41,7 +41,7 @@ public:
         prefix = name + ".";
         inherit_as = original->inherit_as;
         original_associable = original;
-        virtual_offset = -1;
+        //virtual_offset = -1;
         associating_scope = NULL;
         fastforward_ve = NULL;
         associated_lself = NULL;
@@ -57,6 +57,10 @@ public:
     }
 
     virtual Value *make_value(Value *orig, TypeMatch tm) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
         throw INTERNAL_ERROR;
     }
 
@@ -259,9 +263,14 @@ public:
         associated_lself = l;
     }
 
-    virtual void relocate(Allocation explicit_offset, int explicit_virtual_offset) {
+    virtual void relocate(Allocation explicit_offset) {
         // For Role
+        throw INTERNAL_ERROR;
     }
-
+    
+    virtual void compile_vt(TypeMatch tm, std::string tname, X64 *x64) {
+        // For Role
+        throw INTERNAL_ERROR;
+    }
 };
 

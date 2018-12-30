@@ -67,7 +67,7 @@ public:
         return low() - o.low();
     }
     
-    T get(int i) {
+    T get(int i) const {
         return deque.at(i + center);
     }
 

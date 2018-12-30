@@ -100,7 +100,7 @@ public:
                     // as lvalue, so the members will also be lvalue-s. But not in classes,
                     // as an lvalue self would be awkward.
                     TypeSpec self_ts = pivot_ts;  // (pivot_ts[0] == ptr_type ? pivot_ts : pivot_ts.lvalue());
-                    self_var = new Variable("$", NO_TS, self_ts);
+                    self_var = new SelfVariable("$", NO_TS, self_ts);
                 }
                 
                 ss->add(self_var);
@@ -215,11 +215,19 @@ public:
         bs->enter();
 
         if (deferred_body_expr) {
+            // Must do these only after the class definition is completed
+            SelfInfo *si = NULL;
             PartialInfo *pi = NULL;
             TypeSpec ats;
             
             if (fn_scope->self_scope->contents.size() > 0) {
                 Declaration *d = fn_scope->self_scope->contents.back().get();
+
+                SelfVariable *sv = ptr_cast<SelfVariable>(d);
+                
+                if (sv) {
+                    si = sv->self_info.get();
+                }
                 
                 PartialVariable *pv = ptr_cast<PartialVariable>(d);
                 
@@ -236,9 +244,15 @@ public:
                 }
             }
 
-            if (pi) {
-                // Must do this only after the class definition is completed
+            if (si) {
+                Function *f = function->implemented_function;
                 
+                if (f && f->type == GENERIC_FUNCTION) {
+                    si->add_special(".orig", function);
+                }
+            }
+
+            if (pi) {
                 if (ats[0] != partial_type)
                     throw INTERNAL_ERROR;
                     
@@ -789,7 +803,7 @@ public:
         // We need the virtual offset of bar baz within the VT of foo.
         
         Value *p = pivot.get();
-        int virtual_offset = 0;
+        bool deep = false;  // TODO: the whole syntax will be changed, temporary hack
         
         while (true) {
             RoleValue *rv = ptr_cast<RoleValue>(p);
@@ -800,9 +814,12 @@ public:
             Role *r = rv->role;
             
             if (rv->is_static()) {
+                if (deep)
+                    throw TYPE_ERROR;
+                
                 // The initial role is a static cast, so we already have the virtual offset
                 // within it.
-                int vi = virtual_offset + function->virtual_index;
+                int vi = function->virtual_index;
                 VirtualEntry *ve = r->alloc_ts.get_virtual_table().get(vi);
                 static_label = ve->get_virtual_entry_label(r->alloc_ts.match(), x64);
                 is_static = true;
@@ -815,7 +832,7 @@ public:
                 // role selection is never collapsed, so we're still summing the relative
                 // offsets within it.
                     
-                virtual_offset += r->virtual_offset;
+                deep = true;
                 p = rv->pivot.get();
             }
         }

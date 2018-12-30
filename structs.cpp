@@ -110,6 +110,22 @@ struct PartialInfo {
 };
 
 
+struct SelfInfo {
+    std::map<std::string, Identifier *> specials;
+    
+    SelfInfo() {
+    }
+    
+    virtual void add_special(std::string n, Identifier *i) {
+        specials[n] = i;
+    }
+    
+    virtual Identifier *get_special(std::string n) {
+        return specials.count(n) ? specials[n] : NULL;
+    }
+};
+
+
 struct TreenumInput {
     const char *kw;
     unsigned p;

@@ -12,6 +12,20 @@ public:
     virtual Storage compile(X64 *) {
         return Storage();
     }
+    
+    virtual TypeSpec typize_typespec(Expr *expr, Scope *scope, MetaType *meta_type) {
+        Value *value = typize(expr, scope, NULL);
+    
+        if (!value->ts.is_meta())
+            return NO_TS;
+        
+        ts = ptr_cast<TypeValue>(value)->represented_ts;
+        
+        if (!ts.has_meta(meta_type))
+            return NO_TS;
+            
+        return ts;
+    }
 };
 
 
@@ -240,12 +254,12 @@ public:
     InheritAs inherit_as;
     TypeSpec pivot_ts;
     TypeSpec role_ts;
-    bool is_inheritable;
+    bool is_concrete;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
         :TypeDefinitionValue() {
         inherit_as = ia;
-        is_inheritable = false;
+        is_concrete = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -255,7 +269,7 @@ public:
         }
 
         DataScope *ds = ptr_cast<DataScope>(scope);
-        is_inheritable = ds->is_virtual_scope() && !ds->is_abstract_scope();
+        is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
 
         if (args.size() > 0 && kwargs.size() > 0) {
             std::cerr << "Oops, can't handle implementation and inheritance at once yet!\n";
@@ -285,7 +299,7 @@ public:
             // Inheritance
             Expr *e = kwargs["by"].get();
             
-            if (!is_inheritable) {
+            if (!is_concrete) {
                 std::cerr << "Inheritance is only allowed in Class scope!\n";
                 return false;
             }
@@ -320,7 +334,7 @@ public:
         if (scope->type == DATA_SCOPE) {
             Declaration *d;
             
-            if (is_inheritable)
+            if (is_concrete)
                 d = new Role(name, pivot_ts, role_ts, inherit_as);
             else
                 d = new Implementation(name, pivot_ts, role_ts, inherit_as);
@@ -583,16 +597,36 @@ public:
 
 class ClassDefinitionValue: public ScopedTypeDefinitionValue {
 public:
+    Expr *base_expr;
+    Expr *main_expr;
+    
     ClassDefinitionValue()
         :ScopedTypeDefinitionValue() {
+        base_expr = NULL;
+        main_expr = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (kwargs.size() != 1 || !kwargs["as"]) {
+        if (args.size() == 0)
+            main_expr = NULL;
+        else if (args.size() == 1) 
+            main_expr = args[0].get();
+        else {
             std::cerr << "Whacky class!\n";
             return false;
         }
 
+        base_expr = kwargs.count("by") ? kwargs["by"].get() : NULL;
+        
+        Expr *body_expr = kwargs.count("as") ? kwargs["as"].get() : NULL;
+
+        unsigned kwcount = (base_expr ? 1 : 0) + (body_expr ? 1 : 0);
+        
+        if (kwargs.size() > kwcount) {
+            std::cerr << "Whacky class!\n";
+            return false;
+        }
+        
         defer_as(kwargs);
             
         std::cerr << "Deferring class definition.\n";
@@ -606,6 +640,37 @@ public:
         }
         else
             return NULL;
+    }
+
+    virtual bool define_data() {
+        Scope *is = defined_type->get_inner_scope();
+        is->enter();
+
+        if (main_expr) {
+            TypeSpec main_ts = typize_typespec(main_expr, is, interface_metatype);
+        
+            if (main_ts == NO_TS) {
+                std::cerr << "Main interface name expected!\n";
+                return false;
+            }
+            
+            is->add(new Role("@", is->pivot_type_hint(), main_ts, AS_BASE));
+        }
+        
+        if (base_expr) {
+            TypeSpec base_ts = typize_typespec(base_expr, is, class_metatype);
+        
+            if (base_ts == NO_TS) {
+                std::cerr << "Base class name expected!\n";
+                return false;
+            }
+        }
+
+        // TODO
+        
+        is->leave();
+        
+        return ScopedTypeDefinitionValue::define_data();
     }
 };
 

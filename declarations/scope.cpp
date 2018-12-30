@@ -297,14 +297,14 @@ public:
         virtual_table.append(ffwd_ve);
     }
 
-    virtual int virtual_reserve(devector<VirtualEntry *> vt) {
+    virtual int virtual_reserve(VirtualEntry * ve) {
         if (!am_virtual_scope || virtual_table.empty())
             throw INTERNAL_ERROR;
         
         if (am_abstract_scope)
-            return virtual_table.prextend(vt);
+            return virtual_table.prepend(ve);
         else
-            return virtual_table.extend(vt);
+            return virtual_table.append(ve);
     }
 
     virtual devector<VirtualEntry *> get_virtual_table() {

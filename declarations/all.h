@@ -4,6 +4,7 @@ class VirtualEntry;
 
 // Declarations
 class Declaration;
+class Identifier;
 class Allocable;
 class Associable;
 class Variable;

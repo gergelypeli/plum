@@ -69,13 +69,18 @@ Declaration *make_record_compare() {
 }
 
 
-int associable_get_virtual_offset(Associable *a) {
-    return a->virtual_offset;
+void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve) {
+    a->override_virtual_entry(vi, ve);
 }
 
 
-void role_init_vt(Role *r, TypeMatch tm, Address self_addr, Label vt_label, X64 *x64) {
-    r->init_vt(tm, self_addr, vt_label, x64);
+void role_init_vt(Role *r, TypeMatch tm, Address self_addr, X64 *x64) {
+    r->init_vt(tm, self_addr, x64);
+}
+
+
+void role_compile_vt(Role *r, TypeMatch tm, std::string tname, X64 *x64) {
+    r->compile_vt(tm, tname, x64);
 }
 
 
