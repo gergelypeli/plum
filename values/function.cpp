@@ -96,10 +96,9 @@ public:
                     self_var = new PartialVariable("$", NO_TS, self_ts);
                 }
                 else {
-                    // Records have a rvalue pivot type, but the self argument must be treated
-                    // as lvalue, so the members will also be lvalue-s. But not in classes,
-                    // as an lvalue self would be awkward.
-                    TypeSpec self_ts = pivot_ts;  // (pivot_ts[0] == ptr_type ? pivot_ts : pivot_ts.lvalue());
+                    // Overriding functions have a different pivot type than the overridden
+                    // one, although they can be called on those as well.
+                    TypeSpec self_ts = pivot_ts;
                     self_var = new SelfVariable("$", NO_TS, self_ts);
                 }
                 
@@ -248,6 +247,7 @@ public:
                 Function *f = function->implemented_function;
                 
                 if (f && f->type == GENERIC_FUNCTION) {
+                    // Add $ .orig syntax for overriding an already implemented function
                     si->add_special(".orig", function);
                 }
             }

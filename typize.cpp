@@ -60,17 +60,6 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
         Scope *module_scope = scope->get_module_scope();
         value = module_scope->lookup(name, pivot, scope);
     }
-    else if (name[0] == '$' && name[1] == '.') {
-        // Static cast to role
-        FunctionScope *fs = scope->get_function_scope();
-        
-        if (fs) {
-            Value *self_value = fs->lookup("$", pivot, scope);
-            
-            if (self_value)
-                value = self_value->lookup_inner(name.substr(1), scope);
-        }
-    }
     else if (islower(name[0]) || name[0] == '$' || name[0] == '<') {
         // Local variable, look up in function body
         for (Scope *s = scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {

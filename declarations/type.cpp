@@ -486,11 +486,13 @@ public:
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         std::cerr << "Partial inner lookup " << n << ".\n";
+        
+        // Base initializers are looked up using "foo.", potentially "."
         bool dot = false;
         
-        if (n[0] == '.') {
+        if (n[n.size() - 1] == '.') {
             dot = true;
-            n = n.substr(1);
+            n = n.substr(0, n.size() - 1);
         }
         
         PartialInfo *pi = partial_variable_get_info(v);
@@ -504,19 +506,21 @@ public:
 
         if (!member) {
             // Consider initializer delegation before giving up
-            std::cerr << "Partial not found, considering initializer delegation.\n";
+            if (!dot) {
+                std::cerr << "Partial not found, considering initializer delegation.\n";
             
-            set_typespec(cast_value, tm[1].prefix(initializable_type));
-            member = value_lookup_inner(cast_value, n, s);
+                set_typespec(cast_value, tm[1].prefix(initializable_type));
+                member = value_lookup_inner(cast_value, n, s);
             
-            if (member) {
-                if (pi->is_dirty()) {
-                    std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
-                    return NULL;
-                }
+                if (member) {
+                    if (pi->is_dirty()) {
+                        std::cerr << "Can't delegate initialization of a dirty partial variable!\n";
+                        return NULL;
+                    }
                 
-                pi->be_complete();
-                return member;
+                    pi->be_complete();
+                    return member;
+                }
             }
             
             std::cerr << "Partial member " << n << " not found!\n";
@@ -524,7 +528,7 @@ public:
         }
         
         if (pi->is_uninitialized(n)) {
-            std::cerr << "Partial member " << n << " is uninitialized.\n";
+            //std::cerr << "Partial member " << n << " is uninitialized.\n";
             
             TypeSpec member_ts = get_typespec(member);
             //std::cerr << "Partial member " << n << " is " << member_ts << "\n";
@@ -532,19 +536,23 @@ public:
             if (ptr_cast<RoleValue>(member)) {
                 std::cerr << "Member role " << n << " is not yet initialized.\n";
                 
-                if (dot) {
-                    // Accessed with the $.foo syntax, allow
-                    set_typespec(member, member_ts.prefix(initializable_type));
-                    pi->be_initialized(n);
-                    return member;
-                }
-                else {
+                if (!dot) {
                     // Accessed with the $ foo syntax, reject
                     std::cerr << "Member role " << n << " is not yet initialized!\n";
                     return NULL;
                 }
+
+                // Accessed with the $ foo. syntax, allow
+                set_typespec(member, member_ts.prefix(initializable_type));
+                pi->be_initialized(n);
+                return member;
             }
             else {
+                if (dot) {
+                    std::cerr << "Member variable " << n << " has no base initializer!\n";
+                    return NULL;
+                }
+                
                 std::cerr << "Member variable " << n << " is not yet initialized.\n";
                 set_typespec(member, member_ts.reprefix(lvalue_type, uninitialized_type));
                 pi->be_initialized(n);
@@ -552,6 +560,11 @@ public:
             }
         }
         else if (pi->is_initialized(n)) {
+            if (dot) {
+                std::cerr << "Member " << n << " needs no base initializer!\n";
+                return NULL;
+            }
+            
             std::cerr << "Partial member " << n << " is initialized.\n";
             return member;
         }
@@ -560,10 +573,9 @@ public:
                 std::cerr << "Partial member " << n << " is not yet accessible!\n";
                 return NULL;
             }
-            else {
-                std::cerr << "Partial member " << n << " is accessible.\n";
-                return member;
-            }
+            
+            std::cerr << "Partial member " << n << " is accessible.\n";
+            return member;
         }
     }
 };

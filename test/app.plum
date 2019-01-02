@@ -127,7 +127,7 @@ Derived? :Class as:
     derived_value? Integer
     
     derived_init? :Initializer as:
-        $.base base_init
+        $ base.base_init
         $ derived_value = 1000
         Std prints("The derived is initialized.")
         
@@ -170,9 +170,9 @@ Greetable? :Class as:
     right? :Role by: Property
 
     init? :Initializer as:
-        $.derived derived_init
-        $.left init
-        $.right init
+        $ derived.derived_init
+        $ left.init
+        $ right.init
         $ number = 1
         $ name = "The Greetable"
         

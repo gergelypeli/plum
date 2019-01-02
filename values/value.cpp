@@ -375,6 +375,24 @@ public:
         // First, it's not assignable, second, it may already have an lvalue_type inside it
         ts = ts.rvalue();
     }
+
+    virtual Value *lookup_inner(std::string name, Scope *scope) {
+        //std::cerr << "XXX partial inner lookup " << name << "\n";
+        std::string::size_type dotpos = name.find('.');
+        
+        if (dotpos != std::string::npos) {
+            std::string role_name = name.substr(0, dotpos + 1);  // include trailing dot
+            std::string method_name = name.substr(dotpos + 1);   // just method name
+            
+            Value *role_value = VariableValue::lookup_inner(role_name, scope);
+            if (!role_value)
+                return NULL;
+                
+            return role_value->lookup_inner(method_name, scope);
+        }
+        
+        return VariableValue::lookup_inner(name, scope);
+    }
 };
 
 
