@@ -146,6 +146,8 @@ public:
             return false;
         }
         
+        Expr *expr = args[0].get();
+        
         // Must put potential declarations on the left after all others, like CreateValue
         for (unsigned i = 0; i < left->values.size(); i++)
             declarations.push_back(left->get_declaration(i));
@@ -154,7 +156,7 @@ public:
             if (declarations[i])
                 scope->remove(declarations[i]);
         
-        Value *value = typize(args[0].get(), scope);
+        Value *value = typize(expr, scope);
         TypeMatch match;
         
         if (!typematch(MULTI_TS, value, match)) {

@@ -263,23 +263,27 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() > 1 || kwargs.size() > 1) {
-            std::cerr << "Whacky role definition!\n";
+        DataScope *ds = ptr_cast<DataScope>(scope);
+        is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
+        Expr *int_expr = NULL, *imp_expr = NULL;
+
+        ExprInfos eis = {
+            { "", &int_expr },
+            { "by", &imp_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
+            std::cerr << "Whacky role!\n";
             return false;
         }
 
-        DataScope *ds = ptr_cast<DataScope>(scope);
-        is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
-
-        if (args.size() > 0 && kwargs.size() > 0) {
+        if (int_expr && imp_expr) {
             std::cerr << "Oops, can't handle implementation and inheritance at once yet!\n";
             return false;
         }
-        else if (args.size() == 1) {
+        else if (int_expr) {
             // Implementation
-            Expr *e = args[0].get();
-            
-            Value *v = typize(e, scope, NULL);
+            Value *v = typize(int_expr, scope, NULL);
     
             if (!v->ts.is_meta()) {
                 std::cerr << "Implemented type name expected!\n";
@@ -295,16 +299,14 @@ public:
             
             delete v;
         }
-        else if (kwargs.size() == 1) {
+        else if (imp_expr) {
             // Inheritance
-            Expr *e = kwargs["by"].get();
-            
             if (!is_concrete) {
                 std::cerr << "Inheritance is only allowed in Class scope!\n";
                 return false;
             }
             
-            Value *v = typize(e, scope, NULL);
+            Value *v = typize(imp_expr, scope, NULL);
     
             if (!v->ts.is_meta()) {
                 std::cerr << "Inherited type name expected!\n";
@@ -385,19 +387,24 @@ public:
     
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 1 || kwargs.size() > 1) {
+        Expr *name_expr = NULL, *for_expr = NULL;
+        
+        ExprInfos eis = {
+            { "", &name_expr },
+            { "for", &for_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
             std::cerr << "Whacky Import!\n";
             return false;
         }
-        
-        Expr *e = args[0].get();
-        
-        if (e->type != Expr::IDENTIFIER) {
+
+        if (!name_expr || name_expr->type != Expr::IDENTIFIER) {
             std::cerr << "Import expects an identifier for the module name!\n";
             return false;
         }
         
-        ModuleScope *source_scope = import_module(e->text, scope);
+        ModuleScope *source_scope = import_module(name_expr->text, scope);
         
         if (!source_scope)
             return false;
@@ -407,21 +414,15 @@ public:
         import_scope = new ImportScope(source_scope, target_scope);
         import_scope->enter();
         
-        if (kwargs.size() == 1) {
-            if (!kwargs["for"]) {
-                std::cerr << "Whacky Import!\n";
-                return false;
-            }
-            
-            Expr *f = kwargs["for"].get();
+        if (for_expr) {
             bool ok = true;
             
-            if (f->type == Expr::TUPLE) {
-                for (auto &x : f->args)
+            if (for_expr->type == Expr::TUPLE) {
+                for (auto &x : for_expr->args)
                     ok = ok && check_identifier(x.get());
             }
             else
-                ok = check_identifier(f);
+                ok = check_identifier(for_expr);
         }
         
         import_scope->leave();
@@ -466,16 +467,14 @@ public:
             data_exprs.push_back(e);
     }
 
-    void defer_as(Kwargs &kwargs) {
+    void defer_as(Expr *as_expr) {
         // Type bodies may refer to their own type name, so they must be deferred
-        Expr *as = kwargs["as"].get();
-        
-        if (as) {
-            if (as->type == Expr::TUPLE)
-                for (auto &e : as->args)
+        if (as_expr) {
+            if (as_expr->type == Expr::TUPLE)
+                for (auto &e : as_expr->args)
                     defer(e.get());
             else
-                defer(as);
+                defer(as_expr);
         }
     }
 
@@ -544,13 +543,19 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (kwargs.size() != 1 || !kwargs["as"]) {
+        Expr *as_expr = NULL;
+        
+        ExprInfos eis = {
+            { "as", &as_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
             std::cerr << "Whacky record!\n";
             return false;
         }
 
-        defer_as(kwargs);
-            
+        defer_as(as_expr);
+        
         std::cerr << "Deferring record definition.\n";
         return true;
     }
@@ -573,12 +578,18 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (kwargs.size() != 1 || !kwargs["as"]) {
+        Expr *as_expr = NULL;
+        
+        ExprInfos eis = {
+            { "as", &as_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
             std::cerr << "Whacky singleton!\n";
             return false;
         }
 
-        defer_as(kwargs);
+        defer_as(as_expr);
             
         std::cerr << "Deferring singleton definition.\n";
         return true;
@@ -607,27 +618,18 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() == 0)
-            main_expr = NULL;
-        else if (args.size() == 1) 
-            main_expr = args[0].get();
-        else {
-            std::cerr << "Whacky class!\n";
+        Expr *as_expr = NULL;
+        
+        ExprInfos eis = {
+            { "", &main_expr },
+            { "by", &base_expr },
+            { "as", &as_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis))
             return false;
-        }
-
-        base_expr = kwargs.count("by") ? kwargs["by"].get() : NULL;
         
-        Expr *body_expr = kwargs.count("as") ? kwargs["as"].get() : NULL;
-
-        unsigned kwcount = (base_expr ? 1 : 0) + (body_expr ? 1 : 0);
-        
-        if (kwargs.size() > kwcount) {
-            std::cerr << "Whacky class!\n";
-            return false;
-        }
-        
-        defer_as(kwargs);
+        defer_as(as_expr);
             
         std::cerr << "Deferring class definition.\n";
         return true;
@@ -682,12 +684,18 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 1) {
+        Expr *as_expr = NULL;
+        
+        ExprInfos eis = {
+            { "as", &as_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
             std::cerr << "Whacky interface!\n";
             return false;
         }
 
-        defer_as(kwargs);
+        defer_as(as_expr);
             
         std::cerr << "Deferring interface definition.\n";
         return true;

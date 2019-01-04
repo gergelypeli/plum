@@ -140,6 +140,12 @@ struct ArgInfo {
 };
 
 
+struct ExprInfo {
+    std::string name;
+    Expr **target;
+};
+
+
 enum InheritAs {
     AS_ROLE, AS_AUTO, AS_BASE
 };

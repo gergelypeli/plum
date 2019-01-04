@@ -3,6 +3,8 @@
 
 struct ArgInfo;
 typedef std::vector<ArgInfo> ArgInfos;
+struct ExprInfo;
+typedef std::vector<ExprInfo> ExprInfos;
 struct PartialInfo;
 struct TreenumInput;
 struct Allocation;

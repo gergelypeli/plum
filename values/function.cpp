@@ -108,11 +108,25 @@ public:
 
         ss->leave();
 
+        Args fake_args;
+        Expr *may_expr = NULL, *from_expr = NULL, *import_expr = NULL, *as_expr = NULL;
+        
+        ExprInfos eis = {
+            { "may", &may_expr },
+            { "from", &from_expr },
+            { "import", &import_expr },
+            { "as", &as_expr }
+        };
+        
+        if (!check_exprs(fake_args, kwargs, eis)) {
+            std::cerr << "Whacky function!\n";
+            return false;
+        }
+
         // TODO: why do we store this in the fn scope?
-        Expr *e = kwargs["may"].get();
-        if (e) {
+        if (may_expr) {
             TypeSpec TREENUMMETA_TS = { treenumeration_metatype };
-            Value *v = typize(e, fn_scope, &TREENUMMETA_TS);
+            Value *v = typize(may_expr, fn_scope, &TREENUMMETA_TS);
             
             if (v) {
                 TreenumerationType *t = NULL;
@@ -147,29 +161,26 @@ public:
         Scope *hs = fn_scope->add_head_scope();
         hs->enter();
         
-        Expr *h = kwargs["from"].get();
         head.reset(new DataBlockValue(hs));
 
-        if (h) {
-            if (h->type == Expr::TUPLE) {
-                for (auto &expr : h->args)
+        if (from_expr) {
+            if (from_expr->type == Expr::TUPLE) {
+                for (auto &expr : from_expr->args)
                     if (!head->check_statement(expr.get()))
                         return false;
             }
             else {
-                if (!head->check_statement(h))
+                if (!head->check_statement(from_expr))
                     return false;
             }
         }
         
         hs->leave();
         
-        deferred_body_expr = kwargs["as"].get();
-        if (deferred_body_expr) {
+        if (as_expr) {
             std::cerr << "Deferring definition of function body.\n";
+            deferred_body_expr = as_expr;
         }
-
-        Expr *import_expr = kwargs["import"].get();
 
         if (import_expr) {
             Value *i = typize(import_expr, scope, &STRING_TS);
@@ -197,8 +208,6 @@ public:
         //    std::cerr << "Must specify function body or import!\n";
         //    return false;
         //}
-        
-        // TODO: warn for invalid keywords!
         
         // This was temporary
         fn_scope->leave();

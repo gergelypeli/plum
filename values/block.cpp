@@ -210,10 +210,11 @@ public:
 
         if (args.size() > 0) {
             for (unsigned i = 0; i < args.size() - 1; i++) {
+                Expr *expr = args[i].get();
                 std::unique_ptr<Value> v;
                 
-                if (!check_argument(0, args[i].get(), { { "stmt", &VOID_CODE_TS, scope, &v } })) {
-                    std::cerr << "Statement error: " << args[i]->token << "\n";
+                if (!check_argument(0, expr, { { "stmt", &VOID_CODE_TS, scope, &v } })) {
+                    std::cerr << "Statement error: " << expr->token << "\n";
                     return false;
                 }
                 
@@ -223,10 +224,11 @@ public:
                     return false;
             }
             
+            Expr *expr = args.back().get();
             std::unique_ptr<Value> v;
         
-            if (!check_argument(0, args.back().get(), { { "stmt", context, scope, &v } })) {
-                std::cerr << "Statement error: " << args.back()->token << "\n";
+            if (!check_argument(0, expr, { { "stmt", context, scope, &v } })) {
+                std::cerr << "Statement error: " << expr->token << "\n";
                 return false;
             }
         
@@ -331,14 +333,20 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() > 1 || kwargs.size() != 0) {
+        Expr *expr = NULL;
+        
+        ExprInfos eis = {
+            { "", &expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
             std::cerr << "Whacky declaration!\n";
             return false;
         }
 
         std::cerr << "Trying to declare " << name << "\n";
 
-        if (args.size() == 0) {
+        if (!expr) {
             if (!context) {
                 // Must call fix_bare later to add the real declaration
                 ts = WHATEVER_UNINITIALIZED_TS;  // dummy type, just to be Uninitialized
@@ -360,7 +368,7 @@ public:
             return false;
         }
 
-        Value *v = typize(args[0].get(), scope, context);  // This is why arg shouldn't be a pivot
+        Value *v = typize(expr, scope, context);  // This is why arg shouldn't be a pivot
         
         if (!v->ts.is_meta() && !v->ts.is_hyper()) {
             std::cerr << "Not a type used for declaration, but a value of " << v->ts << "!\n";

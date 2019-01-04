@@ -286,3 +286,46 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
     
     return true;
 }
+
+
+bool check_exprs(Args &args, Kwargs &kwargs, const ExprInfos &expr_infos) {
+    if (args.size() > 1)
+        throw INTERNAL_ERROR;
+    else if (args.size() == 1) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < expr_infos.size(); j++) {
+            if (expr_infos[j].name == "") {
+                i = j;
+                break;
+            }
+        }
+
+        if (i == (unsigned)-1) {
+            std::cerr << "No positional argument allowed!\n";
+            return false;
+        }
+        
+        *expr_infos[i].target = args[0].get();
+    }
+
+    for (auto &kv : kwargs) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < expr_infos.size(); j++) {
+            if (expr_infos[j].name == kv.first) {
+                i = j;
+                break;
+            }
+        }
+            
+        if (i == (unsigned)-1) {
+            std::cerr << "No keyword argument named " << kv.first << "!\n";
+            return false;
+        }
+        
+        *expr_infos[i].target = kv.second.get();
+    }
+
+    return true;
+}

@@ -2,7 +2,7 @@
 
 static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch tm, Label label, std::string symbol, X64 *x64) {
     x64->data_align(8);
-    std::cerr << symbol << " has " << vt.high() - vt.low() << " entries.\n";
+    std::cerr << "    " << symbol << " (" << vt.high() - vt.low() << ")\n";
 
     for (int i = vt.low(); i < vt.high(); i++) {
         VirtualEntry *ve = vt.get(i);
@@ -206,6 +206,8 @@ public:
     }
     
     static void compile_vt(Label label, TypeSpec ts, X64 *x64) {
+        std::cerr << "Compiling virtual table for " << ts << "\n";
+        
         devector<VirtualEntry *> vt = ts.get_virtual_table();
         TypeMatch tm = ts.match();
         std::string symbol = ts.symbolize() + "_virtual_table";
