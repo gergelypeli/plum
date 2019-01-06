@@ -41,9 +41,9 @@ public:
         return get_storage(TypeMatch(), fn_storage);
     }
     
-    virtual devector<VirtualEntry *> get_virtual_table() {
-        throw INTERNAL_ERROR;
-    }
+    //virtual devector<VirtualEntry *> get_virtual_table() {
+    //    throw INTERNAL_ERROR;
+    //}
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         throw INTERNAL_ERROR;

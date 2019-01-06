@@ -34,6 +34,12 @@ public:
             else
                 return NULL;
         }
+
+        // Sanity check for development
+        DataScope *ds = ptr_cast<DataScope>(outer_scope);
+        Type *pts0 = get_typespec(pivot).rvalue()[0];
+        if (pivot_ts == ANY_TS && ds && ds->is_abstract_scope() && (pts0 != ref_type && pts0 != ptr_type))
+            throw INTERNAL_ERROR;
         
         if (pivot_ts.has_meta(record_metatype)) {
             // Identifiers in records may handle lvalue pivots differently than rvalues

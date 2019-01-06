@@ -460,6 +460,9 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
         
         if (!a->check_associated(i))
             throw INTERNAL_ERROR;
+            
+        if (i->pivot_ts != implementor_ts)
+            throw INTERNAL_ERROR;  // sanity check
         
         implementor_scope->add(i);
     }
@@ -641,7 +644,7 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
     });
     
     implement(aiis, SAME_ITERABLE_TS, "iterable", {
-        new Identity("iter", ANY_TS)
+        new Identity("iter", PIVOT_TS)
     });
     
     iter_type->complete_type();
@@ -667,7 +670,7 @@ void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
     });
 
     implement(aiis, SAME_ITERABLE_TS, "iterable", {
-        new Identity("iter", ANY_TS)
+        new Identity("iter", PIVOT_TS)
     });
     
     iter_type->complete_type();
@@ -699,7 +702,7 @@ void define_iterators() {
         });
 
         implement(cis, INTEGER_ITERABLE_TS, "iterable", {
-            new Identity("iter", ANY_TS)
+            new Identity("iter", COUNTER_TS)
         });
         
         counter_type->complete_type();
@@ -759,7 +762,7 @@ void define_string() {
 
     is->add(new TemplateOperation<StringOperationValue>("is_equal", STRING_TS, EQUAL));
     is->add(new TemplateOperation<StringOperationValue>("not_equal", STRING_TS, NOT_EQUAL));
-    is->add(new TemplateOperation<StringOperationValue>("compare", ANY_TS, COMPARE));
+    is->add(new TemplateOperation<StringOperationValue>("compare", STRING_TS, COMPARE));
 
     implement(is, TypeSpec { iterable_type, character_type }, "iterable", {
         new RecordWrapperIdentifier("iter", STRING_TS, CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")

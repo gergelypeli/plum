@@ -127,6 +127,20 @@ public:
     virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return inner_scope->get_virtual_table();
     }
+
+    virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
+        return x64->once->compile(compile_vt, tm[0]);
+    }
+
+    static void compile_vt(Label label, TypeSpec ts, X64 *x64) {
+        std::cerr << "Compiling virtual table for " << ts << "\n";
+        std::string symbol = ts.symbolize() + "_virtual_table";
+
+        // We only need this for dynamic type casts
+        x64->data_align(8);
+        x64->data_label_local(label, symbol);
+        x64->data_qword(0);
+    }
     
     virtual void allocate() {
         // FIXME: handle base, like class does
@@ -138,6 +152,10 @@ public:
         inner_scope->virtual_initialize(rolevt_ve, fastforward_ve);
 
         Type::allocate();
+    }
+    
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
+        return make<ClassMatcherValue>(n, v);
     }
 };
 

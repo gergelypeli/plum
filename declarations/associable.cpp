@@ -60,6 +60,10 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual devector<VirtualEntry *> get_virtual_table() {
+        throw INTERNAL_ERROR;
+    }
+
     virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
         throw INTERNAL_ERROR;
     }
@@ -239,12 +243,12 @@ public:
 
         if (ifts[0] == target) {
             // Direct implementation
-            //std::cerr << "Found direct implementation.\n";
+            std::cerr << "Found direct implementation " << name << ".\n";
             //return make<RoleValue>(this, orig, tm);
             return make_value(orig, tm);
         }
         else if (inherit_as == AS_BASE) {
-            //std::cerr << "Trying indirect implementation with " << ifts << "\n";
+            std::cerr << "Trying indirect implementation " << name << " with " << ifts << "\n";
             for (auto &sr : shadow_associables) {
                 if (sr->inherit_as == AS_ROLE)
                     continue;

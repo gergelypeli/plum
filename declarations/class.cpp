@@ -30,7 +30,7 @@ public:
     RoleVirtualEntry *role_ve;
     FfwdVirtualEntry *fastforward_ve;
     Allocable *base_role;
-    Allocable *base_interface;
+    Allocable *main_role;
 
     ClassType(std::string name, Metatypes param_metatypes)
         :InheritableType(name, param_metatypes, class_metatype) {
@@ -38,7 +38,7 @@ public:
         role_ve = NULL;
         fastforward_ve = NULL;
         base_role = NULL;
-        base_interface = NULL;
+        main_role = NULL;
     }
 
     virtual DataScope *make_inner_scope(TypeSpec pts) {
@@ -65,17 +65,15 @@ public:
                 Associable *s = ptr_cast<Associable>(r);
                 
                 if (s->is_baseconv()) {
-                    if (s->name == "") {
-                        // Base interface
-
-                        if (base_interface) {
-                            std::cerr << "Multiple base interfaces!\n";
-                            return false;
+                    if (s->name == "main") {
+                        if (main_role) {
+                            std::cerr << "Multiple main roles!\n";
+                            throw INTERNAL_ERROR;
                         }
                 
-                        base_interface = a;
+                        main_role = a;
                     }
-                    else {
+                    else if (s->name == "") {
                         if (base_role) {
                             std::cerr << "Multiple base roles!\n";
                             return false;
@@ -131,6 +129,7 @@ public:
                 base_implementation->allocate();
         */
 
+        // Function overrides in virtual tables only happen here
         InheritableType::allocate();
     }
 
@@ -328,8 +327,12 @@ public:
         return make<RoleValue>(this, orig, tm);
     }
 
+    virtual devector<VirtualEntry *> get_virtual_table() {
+        return vt;
+    }
+
     virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
-        vt.set(vi, ve);
+        vt.set(vi, ve);  // FIXME: not good for cloned VT entries!
     }
 
     virtual Scope *get_target_inner_scope() {
@@ -350,7 +353,7 @@ public:
         Allocation size = alloc_ts.measure_identity();
         offset = associating_scope->reserve(size);
         
-        if (inherit_as == AS_BASE) {
+        if (inherit_as == AS_BASE && name != "main") {
             // Sanity check
             if (offset.concretize() != 0)
                 throw INTERNAL_ERROR;
@@ -387,7 +390,7 @@ public:
         //virtual_offset = explicit_virtual_offset + original_associable->virtual_offset;
         
         // Virtual table will be allocated separately
-        vt = alloc_ts.get_virtual_table();
+        vt = original_associable->get_virtual_table();
         
         fastforward_ve = new FfwdVirtualEntry(offset);
         vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);

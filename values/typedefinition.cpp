@@ -494,12 +494,19 @@ public:
         return defined_type;
     }
 
+    virtual bool define_data_prehook() {
+        return true;
+    }
+
     virtual bool define_data() {
         if (!defined_type)
             throw INTERNAL_ERROR;
 
         std::cerr << "Completing definition of " << defined_type->name << ".\n";
         defined_type->get_inner_scope()->enter();
+
+        if (!define_data_prehook())
+            return false;
 
         for (Expr *expr : data_exprs)
             if (!block_value->check_statement(expr))
@@ -644,10 +651,9 @@ public:
             return NULL;
     }
 
-    virtual bool define_data() {
+    virtual bool define_data_prehook() {
         Scope *is = defined_type->get_inner_scope();
-        is->enter();
-
+        
         if (main_expr) {
             TypeSpec main_ts = typize_typespec(main_expr, is, interface_metatype);
         
@@ -656,7 +662,8 @@ public:
                 return false;
             }
             
-            is->add(new Role("@", is->pivot_type_hint(), main_ts, AS_BASE));
+            // Temporary name until @ becomes legal in identifiers
+            is->add(new Role("main", is->pivot_type_hint(), main_ts, AS_BASE));
         }
         
         if (base_expr) {
@@ -668,11 +675,7 @@ public:
             }
         }
 
-        // TODO
-        
-        is->leave();
-        
-        return ScopedTypeDefinitionValue::define_data();
+        return true;
     }
 };
 
@@ -704,7 +707,8 @@ public:
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new InterfaceType(name, Metatypes {});
-            return define(t, ANY_TS, scope);
+            TypeSpec pivot_ts = { ptr_type, t };
+            return define(t, pivot_ts, scope);
         }
         else
             return NULL;

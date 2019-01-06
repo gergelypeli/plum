@@ -109,10 +109,10 @@ public:
         }
         
         TypeSpec tts = ptr_cast<TypeValue>(tv)->represented_ts;
-        ClassType *ct = ptr_cast<ClassType>(tts[0]);
+        InterfaceType *ct = ptr_cast<InterfaceType>(tts[0]);
         
         if (!ct) {
-            std::cerr << "Class matcher is not a class name!\n";
+            std::cerr << "Class matcher is not an interface name!\n";
             return false;
         }
         

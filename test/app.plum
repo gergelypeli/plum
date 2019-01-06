@@ -103,7 +103,11 @@ XStringiterator? :Record as:
         :return $ string[$ index]
 
 
-Base? :Class as:
+Base? :Interface
+    #base_method? :Function
+    
+
+Basic_base? :Class Base as:
     Type? :Enumeration
         NICE, UGLY
         
@@ -122,8 +126,8 @@ Base? :Class as:
         Std prints("The base is finalized.")
 
 
-Derived? :Class as:
-    base? :Role by: Base
+Basic_derived? :Class as:
+    base? :Role by: Basic_base
     derived_value? Integer
     
     derived_init? :Initializer as:
@@ -161,9 +165,20 @@ Property? :Class as:
     as:
         $ value = x
     
+    
+Greetable? :Interface as:
+    greet? :Function
+    the_base_method? :Function
+    the_derived_method? :Function
 
-Greetable? :Class as:
-    derived? :Role by: Derived
+    #small? :Role Intval
+    #large? :Role Intval
+    #left? :Role by: Property
+    #right? :Role by: Property
+    
+
+Basic_greetable? :Class Greetable as:
+    derived? :Role by: Basic_derived
     small? :Role Intval
     large? :Role Intval
     left? :Role by: Property
@@ -181,7 +196,7 @@ Greetable? :Class as:
     second_init? :Initializer as:
         $ init
         
-    greet? :Function as:
+    main.greet? :Function as:
         Std prints("Hello, I'm {}!" { $ name })
 
     ? :Finalizer as:
@@ -191,6 +206,12 @@ Greetable? :Class as:
         Std prints("Greetable base_method, the base value is {}." {$ derived base base_value})
         #$.derived base base_method
         $ .orig
+
+    main.the_base_method? :Function as:
+        $ derived base base_method
+
+    main.the_derived_method? :Function as:
+        $ derived derived_method
 
     # Testing late declarations
     number? Integer
@@ -847,14 +868,14 @@ Main? :Singleton as:
             
 
     test_classes? :Function Greetable Ref as:
-        gr? Greetable Ref = `second_init
+        gr? Greetable Ref = Basic_greetable Ref `second_init
         gr greet
         
-        Std prints("Small is {} and large is {}" { gr small get, gr large get })
+        #Std prints("Small is {} and large is {}" { gr small get, gr large get })
         
-        gr left set(13)
-        gr right set(14)
-        Std prints("Left is {} and right is {}" { gr left get, gr right get })
+        #gr left set(13)
+        #gr right set(14)
+        #Std prints("Left is {} and right is {}" { gr left get, gr right get })
     
         gr2? = gr
         gr2 = gr
@@ -864,10 +885,10 @@ Main? :Singleton as:
 
         wgr = gr
 
-        gr derived derived_method
-        gr derived base base_method
+        gr the_derived_method
+        gr the_base_method
 
-        bs? = gr derived base
+        #bs? = gr derived base
         gr greet  # To make sure base refcount don't destroy the Greetable VT
 
         :is gr ~Greetable then:
@@ -876,8 +897,8 @@ Main? :Singleton as:
         :is gr ~Base then:
             Std prints("WAT, greetable is Base.")
 
-        :is bs ~Greetable then:
-            Std prints("WAT, base is Greetable.")
+        #:is bs ~Greetable then:
+        #    Std prints("WAT, base is Greetable.")
 
         wt? Greetable Weakref = `to(gr)
 
@@ -919,10 +940,10 @@ Main? :Singleton as:
         Std prints("ws stores gr: {x}" {x: ws has(gr)})
         Std prints("ws length is {x}" {x: ws length})
 
-        killer? Greetable Ref = `init
+        killer? Greetable Ref = Basic_greetable Ref `init
         Std prints("Now killing the previous instance...")
         wgr = killer
-        bs = killer derived base
+        #bs = killer derived base
         gr = killer
         gr2 = killer
         Std prints("Must have been killed.")
