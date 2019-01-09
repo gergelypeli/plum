@@ -360,7 +360,7 @@ public:
     }
 
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
-        return os << "FFWD " << offset.concretize(tm);
+        return os << "FFWD " << -offset.concretize(tm);
     }
 };
 

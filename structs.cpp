@@ -147,5 +147,5 @@ struct ExprInfo {
 
 
 enum InheritAs {
-    AS_ROLE, AS_AUTO, AS_BASE
+    AS_ROLE, AS_AUTO, AS_BASE, AS_MAIN
 };

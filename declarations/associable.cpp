@@ -1,7 +1,11 @@
 
 class Inheritable {
 public:
-    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+    virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
         throw INTERNAL_ERROR;
     }
 };
@@ -10,9 +14,10 @@ public:
 class Associable: public Allocable, public Inheritable {
 public:
     std::string prefix;
+    Inheritable *parent;
     InheritAs inherit_as;
     Associable *original_associable;
-    //int virtual_offset;
+    std::unique_ptr<Associable> shadow_base_associable, shadow_main_associable;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
@@ -25,6 +30,7 @@ public:
         :Allocable(n, pts, ts) {
         //std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "role " << name << ".\n";
         prefix = name + ".";
+        parent = NULL;
         inherit_as = ia;
         original_associable = NULL;
         //virtual_offset = -1;
@@ -39,6 +45,7 @@ public:
         std::cerr << "Creating shadow role " << name << ".\n";
         
         prefix = name + ".";
+        parent = NULL;
         inherit_as = original->inherit_as;
         original_associable = original;
         //virtual_offset = -1;
@@ -47,12 +54,12 @@ public:
         associated_lself = NULL;
         explicit_tm = etm;
     }
-    
-    virtual Associable *shadow(Associable *original) {
-        throw INTERNAL_ERROR;
+
+    virtual void set_parent(Inheritable *p) {
+        parent = p;
     }
 
-    virtual Scope *get_target_inner_scope() {
+    virtual Associable *shadow(Associable *original) {
         throw INTERNAL_ERROR;
     }
 
@@ -60,11 +67,7 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual devector<VirtualEntry *> get_virtual_table() {
-        throw INTERNAL_ERROR;
-    }
-
-    virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
+    virtual devector<VirtualEntry *> get_virtual_table_fragment() {
         throw INTERNAL_ERROR;
     }
 
@@ -80,15 +83,25 @@ public:
         if (!i)
             throw INTERNAL_ERROR;
 
+        Associable *main, *base;
         std::vector<Associable *> assocs;
         
-        i->get_heritage(assocs, functions);
+        i->get_heritage(main, base, assocs, functions);
+        
+        if (main)
+            shadow_main_associable.reset(shadow(main));
+            
+        if (base)
+            shadow_base_associable.reset(shadow(base));
         
         for (auto &a : assocs)
             shadow_associables.push_back(std::unique_ptr<Associable>(shadow(a)));
     }
 
-    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+    virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        mr = shadow_main_associable.get();
+        br = shadow_base_associable.get();
+
         for (auto &a : shadow_associables)
             assocs.push_back(a.get());
 
@@ -235,6 +248,10 @@ public:
         return inherit_as == AS_BASE;
     }
 
+    virtual bool is_mainconv() {
+        return inherit_as == AS_MAIN;
+    }
+
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         if (associated_lself && !assume_lvalue)
             return NULL;
@@ -274,6 +291,10 @@ public:
     
     virtual void compile_vt(TypeMatch tm, std::string tname, X64 *x64) {
         // For Role
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
         throw INTERNAL_ERROR;
     }
 };

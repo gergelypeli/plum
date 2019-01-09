@@ -89,7 +89,11 @@ public:
         return is;
     }
     
-    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+    virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        // TODO
+        mr = NULL;
+        br = NULL;
+        
         assocs = member_associables;
         funcs = member_functions;
     }
@@ -149,7 +153,11 @@ public:
         VirtualEntry *rolevt_ve = new RoleVirtualEntry(this, NULL);
         VirtualEntry *fastforward_ve = new FfwdVirtualEntry(Allocation(0));
         
-        inner_scope->virtual_initialize(rolevt_ve, fastforward_ve);
+        devector<VirtualEntry *> vt;
+        vt.append(rolevt_ve);
+        vt.append(fastforward_ve);
+                
+        inner_scope->virtual_initialize(vt);
 
         Type::allocate();
     }
@@ -195,11 +203,6 @@ public:
 
     virtual TypeSpec get_interface_ts(TypeMatch match) {
         return typesubst(alloc_ts, match);
-    }
-
-    virtual Scope *get_target_inner_scope() {
-        InterfaceType *ift = ptr_cast<InterfaceType>(alloc_ts[0]);
-        return ift->inner_scope.get();
     }
 
     virtual Value *make_value(Value *orig, TypeMatch match) {

@@ -24,13 +24,13 @@ class ClassType: public InheritableType, public PartialInitializable {
 public:
     std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
-    std::vector<Role *> member_roles;  // including abstract ones
     std::vector<Function *> member_functions;
     Function *finalizer_function;
     RoleVirtualEntry *role_ve;
     FfwdVirtualEntry *fastforward_ve;
-    Allocable *base_role;
-    Allocable *main_role;
+    Associable *base_role;
+    Associable *main_role;
+    std::vector<Associable *> regular_roles;
 
     ClassType(std::string name, Metatypes param_metatypes)
         :InheritableType(name, param_metatypes, class_metatype) {
@@ -58,29 +58,30 @@ public:
                 member_names.push_back(a->name);
             }
 
-            Role *r = ptr_cast<Role>(c.get());
+            Associable *s = ptr_cast<Associable>(c.get());
             
-            if (r) {
-                member_roles.push_back(r);
-                Associable *s = ptr_cast<Associable>(r);
+            if (s) {
+                //Associable *s = ptr_cast<Associable>(r);
+                s->set_parent(this);
                 
-                if (s->is_baseconv()) {
-                    if (s->name == "main") {
-                        if (main_role) {
-                            std::cerr << "Multiple main roles!\n";
-                            throw INTERNAL_ERROR;
-                        }
-                
-                        main_role = a;
+                if (s->is_mainconv()) {
+                    if (main_role) {
+                        std::cerr << "Multiple main roles!\n";
+                        throw INTERNAL_ERROR;
                     }
-                    else if (s->name == "") {
-                        if (base_role) {
-                            std::cerr << "Multiple base roles!\n";
-                            return false;
-                        }
                 
-                        base_role = a;
+                    main_role = s;
+                }
+                else if (s->is_baseconv()) {
+                    if (base_role) {
+                        std::cerr << "Multiple base roles!\n";
+                        return false;
                     }
+                
+                    base_role = s;
+                }
+                else {
+                    regular_roles.push_back(s);
                 }
             }
 
@@ -103,31 +104,52 @@ public:
         return true;
     }
 
-    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
-        for (auto &r : member_roles)
+    virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        mr = main_role;
+        br = base_role;
+        
+        for (auto &r : regular_roles)
             assocs.push_back(ptr_cast<Associable>(r));
             
         funcs = member_functions;
     }
 
     virtual void allocate() {
-        // Let the base be allocated first, then it will skip itself
+        devector<VirtualEntry *> vt;
 
         role_ve = new RoleVirtualEntry(this, base_role);
         fastforward_ve = new FfwdVirtualEntry(Allocation(0));
-        inner_scope->virtual_initialize(role_ve, fastforward_ve);
+        
+        if (base_role) {
+            // Even if we may have ripped the main from the base, the VT may still
+            // contain entries for some part of it!
+            vt = base_role->get_virtual_table_fragment();
 
-        if (!base_role) {
+            vt.set(VT_BASEVT_INDEX, role_ve);
+            vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+            
+            if (main_role)
+                throw INTERNAL_ERROR;  // TODO
+
+            // Will be part of allocables
+            //base_role->allocate();
+        }
+        else {
+            vt.append(role_ve);
+            vt.append(fastforward_ve);
+            
+            if (main_role) {
+                vt.prextend(main_role->get_virtual_table_fragment());
+                
+                //main_role->allocate();
+            }
+
             Allocation vt_offset = inner_scope->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer
             if (vt_offset.bytes != CLASS_VT_OFFSET)  // sanity check
                 throw INTERNAL_ERROR;
         }
-        
-        /*
-            // FIXME: must be handled like base_role
-            if (base_implementation)
-                base_implementation->allocate();
-        */
+
+        inner_scope->virtual_initialize(vt);
 
         // Function overrides in virtual tables only happen here
         InheritableType::allocate();
@@ -192,6 +214,10 @@ public:
         return member_names;
     }
 
+    virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
+        inner_scope->set_virtual_entry(vi, ve);
+    }
+
     virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return inner_scope->get_virtual_table();
     }
@@ -206,7 +232,8 @@ public:
     
     static void compile_vt(Label label, TypeSpec ts, X64 *x64) {
         std::cerr << "Compiling virtual table for " << ts << "\n";
-        
+
+        // Includes main and base, but not regular roles
         devector<VirtualEntry *> vt = ts.get_virtual_table();
         TypeMatch tm = ts.match();
         std::string symbol = ts.symbolize() + "_virtual_table";
@@ -215,8 +242,8 @@ public:
 
         ClassType *ct = ptr_cast<ClassType>(ts[0]);
 
-        for (auto &r : ct->member_roles)
-            role_compile_vt(r, tm, ts.symbolize(), x64);
+        for (auto &r : ct->regular_roles)
+            associable_compile_vt(r, tm, ts.symbolize(), x64);
     }
     
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
@@ -234,18 +261,32 @@ public:
         x64->op(MOVQ, self_addr + CLASS_VT_OFFSET, R10);
 
         // Roles compute their offsets in terms of the implementor class type parameters
-        for (auto &r : member_roles)
-            role_init_vt(r, tm, self_addr, x64);
+        for (auto &r : regular_roles)
+            associable_init_vt(r, tm, self_addr, x64);
     }
 
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        for (auto mr : member_roles) {
+        for (auto mr : regular_roles) {
             Associable *r = ptr_cast<Associable>(mr);
             
             if (!r->is_autoconv())
                 continue;
                 
             Value *v = r->autoconv(tm, target, orig, ifts, assume_lvalue);
+            
+            if (v)
+                return v;
+        }
+        
+        if (base_role) {
+            Value *v = base_role->autoconv(tm, target, orig, ifts, assume_lvalue);
+            
+            if (v)
+                return v;
+        }
+
+        if (main_role) {
+            Value *v = main_role->autoconv(tm, target, orig, ifts, assume_lvalue);
             
             if (v)
                 return v;
@@ -315,7 +356,9 @@ public:
     }
 
     virtual Associable *shadow(Associable *original) {
-        return new Role(prefix, original, explicit_tm);
+        Role *r = new Role(prefix, original, explicit_tm);
+        r->set_parent(this);
+        return r;
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
@@ -327,17 +370,20 @@ public:
         return make<RoleValue>(this, orig, tm);
     }
 
-    virtual devector<VirtualEntry *> get_virtual_table() {
-        return vt;
+    virtual devector<VirtualEntry *> get_virtual_table_fragment() {
+        if (inherit_as == AS_BASE || inherit_as == AS_MAIN)
+            return alloc_ts.get_virtual_table();  // FIXME: subst!
+        else
+            return vt;
     }
 
     virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
-        vt.set(vi, ve);  // FIXME: not good for cloned VT entries!
-    }
-
-    virtual Scope *get_target_inner_scope() {
-        ClassType *ct = ptr_cast<ClassType>(alloc_ts[0]);
-        return ct->inner_scope.get();
+        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+            // These roles don't store the VT
+            parent->override_virtual_entry(vi, ve);
+        }
+        else
+            vt.set(vi, ve);
     }
 
     virtual void allocate() {
@@ -346,31 +392,29 @@ public:
         if (original_associable)
             throw INTERNAL_ERROR;
             
-        Allocable::allocate();
+        Associable::allocate();
         where = MEMORY;
         
         // Data will be allocated in the class scope
         Allocation size = alloc_ts.measure_identity();
         offset = associating_scope->reserve(size);
         
-        if (inherit_as == AS_BASE && name != "main") {
-            // Sanity check
+        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             if (offset.concretize() != 0)
                 throw INTERNAL_ERROR;
         }
-            
-        // Virtual table will be allocated separately, except for bases
-        vt = alloc_ts.get_virtual_table();
-        
-        if (inherit_as == AS_BASE) {
-            // Clone base VT, it won't be compiled separately
-            for (int i = 2; i < vt.high(); i++)
-                associating_scope->virtual_reserve(vt.get(i));
-        }
         else {
+            vt = alloc_ts.get_virtual_table();
+        
             fastforward_ve = new FfwdVirtualEntry(offset);
             vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
         }
+
+        if (shadow_main_associable)
+            shadow_main_associable->relocate(offset);
+            
+        if (shadow_base_associable)
+            shadow_base_associable->relocate(offset);
 
         for (auto &sr : shadow_associables)
             sr->relocate(offset);
@@ -384,16 +428,25 @@ public:
 
         where = MEMORY;
         
+        // Shadow roles never allocate data, as the explicit role already did that
         // Offset within the current class, in terms of its type parameters
         offset = explicit_offset + allocsubst(original_associable->offset, explicit_tm);
             
-        //virtual_offset = explicit_virtual_offset + original_associable->virtual_offset;
-        
         // Virtual table will be allocated separately
-        vt = original_associable->get_virtual_table();
+        if (inherit_as == AS_BASE || inherit_as == AS_MAIN)
+            ; // Base and main already included in the parent role
+        else {
+            vt = original_associable->get_virtual_table_fragment();
         
-        fastforward_ve = new FfwdVirtualEntry(offset);
-        vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+            fastforward_ve = new FfwdVirtualEntry(offset);
+            vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+        }
+
+        if (shadow_main_associable)
+            shadow_main_associable->relocate(offset);
+            
+        if (shadow_base_associable)
+            shadow_base_associable->relocate(offset);
         
         for (auto &sr : shadow_associables)
             sr->relocate(explicit_offset);
@@ -409,8 +462,8 @@ public:
     }
 
     virtual void compile_vt(TypeMatch tm, std::string tname, X64 *x64) {
-        if (!original_associable && inherit_as == AS_BASE) {
-            std::cerr << "Skipping explicit base VT compilation.\n";
+        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+            throw INTERNAL_ERROR;
         }
         else {
             std::string symbol = tname + "." + name + "_virtual_table";
@@ -423,8 +476,8 @@ public:
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
         // Base roles have a VT pointer overlapping the main class VT, don't overwrite
-        if (!original_associable && inherit_as == AS_BASE) {
-            std::cerr << "Skipping explicit base VT initialization.\n";
+        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+            throw INTERNAL_ERROR;
         }
         else {
             x64->op(LEA, R10, Address(vt_label, 0));
@@ -432,7 +485,7 @@ public:
         }
 
         for (auto &sr : shadow_associables)
-            ptr_cast<Role>(sr.get())->init_vt(tm, self_addr, x64);
+            sr->init_vt(tm, self_addr, x64);
     }
 };
 

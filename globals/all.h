@@ -80,8 +80,8 @@ const char *typeidname(Value *v);
 // Declaration wrappers
 Declaration *make_record_compare();
 void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve);
-void role_init_vt(Role *r, TypeMatch tm, Address self_addr, X64 *x64);
-void role_compile_vt(Role *r, TypeMatch tm, std::string tname, X64 *x64);
+void associable_init_vt(Associable *r, TypeMatch tm, Address self_addr, X64 *x64);
+void associable_compile_vt(Associable *r, TypeMatch tm, std::string tname, X64 *x64);
 std::string function_get_name(Function *f);
 bool function_is_abstract(Function *f);
 

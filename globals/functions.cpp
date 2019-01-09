@@ -74,12 +74,12 @@ void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve) 
 }
 
 
-void role_init_vt(Role *r, TypeMatch tm, Address self_addr, X64 *x64) {
+void associable_init_vt(Associable *r, TypeMatch tm, Address self_addr, X64 *x64) {
     r->init_vt(tm, self_addr, x64);
 }
 
 
-void role_compile_vt(Role *r, TypeMatch tm, std::string tname, X64 *x64) {
+void associable_compile_vt(Associable *r, TypeMatch tm, std::string tname, X64 *x64) {
     r->compile_vt(tm, tname, x64);
 }
 
