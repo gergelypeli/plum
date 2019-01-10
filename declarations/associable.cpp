@@ -110,6 +110,12 @@ public:
 
     virtual void set_associating_scope(DataScope *as) {
         associating_scope = as;
+
+        if (shadow_main_associable)
+            shadow_main_associable->set_associating_scope(as);
+
+        if (shadow_base_associable)
+            shadow_base_associable->set_associating_scope(as);
         
         for (auto &sr : shadow_associables) {
             sr->set_associating_scope(as);
@@ -133,6 +139,12 @@ public:
     }
 
     virtual void outer_scope_left() {
+        if (shadow_main_associable)
+            shadow_main_associable->outer_scope_left();
+
+        if (shadow_base_associable)
+            shadow_base_associable->outer_scope_left();
+
         for (auto &si : shadow_associables)
             si->outer_scope_left();
         
@@ -241,7 +253,7 @@ public:
     }
 
     virtual bool is_autoconv() {
-        return inherit_as != AS_ROLE;
+        return inherit_as == AS_AUTO || inherit_as == AS_BASE;
     }
 
     virtual bool is_baseconv() {
@@ -265,15 +277,22 @@ public:
             return make_value(orig, tm);
         }
         else if (inherit_as == AS_BASE) {
-            std::cerr << "Trying indirect implementation " << name << " with " << ifts << "\n";
-            for (auto &sr : shadow_associables) {
-                if (sr->inherit_as == AS_ROLE)
-                    continue;
-                    
-                Value *v = sr->autoconv(tm, target, orig, ifts, assume_lvalue);
+            std::cerr << "Trying base role with " << ifts << "\n";
+            
+            if (shadow_base_associable) {
+                Value *v = shadow_base_associable->autoconv(tm, target, orig, ifts, assume_lvalue);
                 
                 if (v)
                     return v;
+            }
+            
+            for (auto &sr : shadow_associables) {
+                if (sr->inherit_as == AS_AUTO) {
+                    Value *v = sr->autoconv(tm, target, orig, ifts, assume_lvalue);
+                
+                    if (v)
+                        return v;
+                }
             }
         }
         

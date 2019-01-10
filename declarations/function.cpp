@@ -119,6 +119,9 @@ public:
     }
     
     virtual Label get_label(X64 *x64) {
+        if (type == ABSTRACT_FUNCTION)
+            throw INTERNAL_ERROR;
+            
         return label;
     }
     

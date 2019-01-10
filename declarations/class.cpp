@@ -115,37 +115,40 @@ public:
     }
 
     virtual void allocate() {
-        devector<VirtualEntry *> vt;
+        // We must allocate this, because the header is shared among
+        // the base, the main, and us.
+        Allocation size = (base_role ? base_role->alloc_ts.measure_identity() : CLASS_HEADER_SIZE);
+        Allocation offset = inner_scope->reserve(size);
+
+        if (offset.concretize() != 0)
+            throw INTERNAL_ERROR;
 
         role_ve = new RoleVirtualEntry(this, base_role);
         fastforward_ve = new FfwdVirtualEntry(Allocation(0));
+
+        devector<VirtualEntry *> vt;
+        vt.append(role_ve);
+        vt.append(fastforward_ve);
         
         if (base_role) {
             // Even if we may have ripped the main from the base, the VT may still
             // contain entries for some part of it!
-            vt = base_role->get_virtual_table_fragment();
-
-            vt.set(VT_BASEVT_INDEX, role_ve);
-            vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+            devector<VirtualEntry *> base_vt = base_role->get_virtual_table_fragment();
             
-            if (main_role)
-                throw INTERNAL_ERROR;  // TODO
-
-            // Will be part of allocables
-            //base_role->allocate();
-        }
-        else {
-            vt.append(role_ve);
-            vt.append(fastforward_ve);
-            
-            if (main_role) {
-                vt.prextend(main_role->get_virtual_table_fragment());
+            for (int i = 2; i < base_vt.high(); i++)
+                vt.append(base_vt.get(i));
                 
-                //main_role->allocate();
-            }
-
-            Allocation vt_offset = inner_scope->reserve(Allocation(CLASS_HEADER_SIZE));  // VT pointer
-            if (vt_offset.bytes != CLASS_VT_OFFSET)  // sanity check
+            if (base_vt.low() < 0)
+                throw INTERNAL_ERROR;  // FIXME
+        }
+        
+        if (main_role) {
+            devector<VirtualEntry *> main_vt = main_role->get_virtual_table_fragment();
+            
+            for (int i = -1; i >= main_vt.low(); i--)
+                vt.prepend(main_vt.get(i));
+                
+            if (main_vt.high() > 2)
                 throw INTERNAL_ERROR;
         }
 
@@ -396,14 +399,13 @@ public:
         where = MEMORY;
         
         // Data will be allocated in the class scope
-        Allocation size = alloc_ts.measure_identity();
-        offset = associating_scope->reserve(size);
-        
         if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
-            if (offset.concretize() != 0)
-                throw INTERNAL_ERROR;
+            // Since base and main roles share the header with the class, they can't
+            // reserve the data themselves, but the class does it for them.
         }
         else {
+            Allocation size = alloc_ts.measure_identity();
+            offset = associating_scope->reserve(size);
             vt = alloc_ts.get_virtual_table();
         
             fastforward_ve = new FfwdVirtualEntry(offset);

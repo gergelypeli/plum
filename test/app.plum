@@ -126,17 +126,17 @@ Basic_base? :Class Base as:
         Std prints("The base is finalized.")
 
 
-Basic_derived? :Class as:
-    base? :Role by: Basic_base
+Basic_derived? :Class by: Basic_base as:
+    #base? :Role by: Basic_base
     derived_value? Integer
     
     derived_init? :Initializer as:
-        $ base.base_init
+        $ .base_init
         $ derived_value = 1000
         Std prints("The derived is initialized.")
         
-    base.base_method? :Function as:
-        Std prints("Derived base_method, the base value is {x}." {x: $ base base_value})
+    .base_method? :Function as:
+        Std prints("Derived base_method, the base value is {x}." {x: $ base_value})
         #$.base base_method
         $ .orig
         
@@ -177,15 +177,15 @@ Greetable? :Interface as:
     #right? :Role by: Property
     
 
-Basic_greetable? :Class Greetable as:
-    derived? :Role by: Basic_derived
+Basic_greetable? :Class Greetable by: Basic_derived as:
+    #derived? :Role by: Basic_derived
     small? :Role Intval
     large? :Role Intval
     left? :Role by: Property
     right? :Role by: Property
 
     init? :Initializer as:
-        $ derived.derived_init
+        $ .derived_init
         $ left.init
         $ right.init
         $ number = 1
@@ -202,16 +202,16 @@ Basic_greetable? :Class Greetable as:
     ? :Finalizer as:
         Std prints("I'm outta here!")
 
-    derived.base.base_method? :Function as:
-        Std prints("Greetable base_method, the base value is {}." {$ derived base base_value})
+    .base_method? :Function as:
+        Std prints("Greetable base_method, the base value is {}." {$ base_value})
         #$.derived base base_method
         $ .orig
 
     main.the_base_method? :Function as:
-        $ derived base base_method
+        $ base_method
 
     main.the_derived_method? :Function as:
-        $ derived derived_method
+        $ derived_method
 
     # Testing late declarations
     number? Integer

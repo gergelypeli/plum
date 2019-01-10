@@ -663,7 +663,7 @@ public:
             }
             
             // Temporary name until @ becomes legal in identifiers
-            is->add(new Role("main", is->pivot_type_hint(), main_ts, AS_BASE));
+            is->add(new Role("main", is->pivot_type_hint(), main_ts, AS_MAIN));
         }
         
         if (base_expr) {
@@ -673,6 +673,8 @@ public:
                 std::cerr << "Base class name expected!\n";
                 return false;
             }
+
+            is->add(new Role("", is->pivot_type_hint(), base_ts, AS_BASE));
         }
 
         return true;
