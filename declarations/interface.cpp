@@ -206,7 +206,18 @@ public:
     }
 
     virtual Value *make_value(Value *orig, TypeMatch match) {
-        return make<ImplementationConversionValue>(this, orig, match);
+        // If the pivot is not a concrete type, but a Ptr to an interface, then this
+        // is accessing an abstract role via an interface pointer
+        TypeSpec ots = ::get_typespec(orig).rvalue();
+        
+        if (ots[0] == ptr_type && ots.unprefix(ptr_type).has_meta(interface_metatype))
+            return make<RoleValue>(this, orig, match);
+        else
+            return make<ImplementationConversionValue>(this, orig, match);
+    }
+
+    virtual devector<VirtualEntry *> get_virtual_table_fragment() {
+        return alloc_ts.get_virtual_table();  // FIXME: subst!
     }
 
     // TODO: can this be merged with the above one?
@@ -252,7 +263,18 @@ public:
     }
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
-        return make<ImplementationConversionValue>(this, pivot, match);
+        return make_value(pivot, match);
+    }
+    
+    virtual void allocate() {
+        Associable::allocate();
+        where = MEMORY;
+        
+        // Be role-like in interfaces
+        if (associating_scope->is_virtual_scope()) {
+            VirtualEntry *ve = new DataVirtualEntry(this);
+            virtual_index = associating_scope->virtual_reserve(ve);
+        }
     }
 };
 

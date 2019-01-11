@@ -820,7 +820,7 @@ public:
             if (!rv)
                 break;  // non-role, so no static cast used
                 
-            Role *r = rv->role;
+            Associable *r = rv->associable;
             
             if (rv->is_static()) {
                 if (deep)

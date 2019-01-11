@@ -83,6 +83,8 @@ public:
                 else {
                     regular_roles.push_back(s);
                 }
+                
+                s->check_full_implementation();
             }
 
             Function *f = ptr_cast<Function>(c.get());
@@ -245,6 +247,12 @@ public:
 
         ClassType *ct = ptr_cast<ClassType>(ts[0]);
 
+        if (ct->main_role)
+            associable_compile_vt(ct->main_role, tm, ts.symbolize(), x64);
+            
+        if (ct->base_role)
+            associable_compile_vt(ct->base_role, tm, ts.symbolize(), x64);
+
         for (auto &r : ct->regular_roles)
             associable_compile_vt(r, tm, ts.symbolize(), x64);
     }
@@ -264,6 +272,12 @@ public:
         x64->op(MOVQ, self_addr + CLASS_VT_OFFSET, R10);
 
         // Roles compute their offsets in terms of the implementor class type parameters
+        if (main_role)
+            associable_init_vt(main_role, tm, self_addr, x64);
+            
+        if (base_role)
+            associable_init_vt(base_role, tm, self_addr, x64);
+
         for (auto &r : regular_roles)
             associable_init_vt(r, tm, self_addr, x64);
     }
@@ -366,7 +380,7 @@ public:
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         //std::cerr << "XXX Role matched " << name << " with " << typeidname(cpivot) << "\n";
-        return make<RoleValue>(this, cpivot, match);
+        return make_value(cpivot, match);
     }
 
     virtual Value *make_value(Value *orig, TypeMatch tm) {
@@ -406,10 +420,14 @@ public:
         else {
             Allocation size = alloc_ts.measure_identity();
             offset = associating_scope->reserve(size);
+            
             vt = alloc_ts.get_virtual_table();
-        
             fastforward_ve = new FfwdVirtualEntry(offset);
             vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+            
+            // Add VT entry for our data offset into the class VT
+            VirtualEntry *ve = new DataVirtualEntry(this);
+            virtual_index = associating_scope->virtual_reserve(ve);
         }
 
         if (shadow_main_associable)
@@ -428,20 +446,27 @@ public:
         if (!original_associable)
             throw INTERNAL_ERROR;
 
+        Associable::allocate();
         where = MEMORY;
         
-        // Shadow roles never allocate data, as the explicit role already did that
-        // Offset within the current class, in terms of its type parameters
-        offset = explicit_offset + allocsubst(original_associable->offset, explicit_tm);
-            
         // Virtual table will be allocated separately
         if (inherit_as == AS_BASE || inherit_as == AS_MAIN)
             ; // Base and main already included in the parent role
         else {
+            // Shadow roles never allocate data, as the explicit role already did that
+            // Offset within the current class, in terms of its type parameters
+            if (original_associable->is_abstract())
+                offset = associating_scope->reserve(alloc_ts.measure_identity());
+            else
+                offset = explicit_offset + allocsubst(original_associable->offset, explicit_tm);
+            
             vt = original_associable->get_virtual_table_fragment();
-        
             fastforward_ve = new FfwdVirtualEntry(offset);
             vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+            
+            virtual_index = original_associable->virtual_index;
+            VirtualEntry *ve = new DataVirtualEntry(this);
+            parent->override_virtual_entry(virtual_index, ve);
         }
 
         if (shadow_main_associable)
@@ -465,12 +490,18 @@ public:
 
     virtual void compile_vt(TypeMatch tm, std::string tname, X64 *x64) {
         if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
-            throw INTERNAL_ERROR;
+            ;
         }
         else {
             std::string symbol = tname + "." + name + "_virtual_table";
             ::compile_virtual_table(vt, tm, vt_label, symbol, x64);
         }
+
+        if (shadow_main_associable)
+            associable_compile_vt(shadow_main_associable.get(), tm, tname, x64);
+            
+        if (shadow_base_associable)
+            associable_compile_vt(shadow_base_associable.get(), tm, tname, x64);
 
         for (auto &sr : shadow_associables)
             sr->compile_vt(tm, tname, x64);
@@ -479,12 +510,18 @@ public:
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
         // Base roles have a VT pointer overlapping the main class VT, don't overwrite
         if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
-            throw INTERNAL_ERROR;
+            ;
         }
         else {
             x64->op(LEA, R10, Address(vt_label, 0));
             x64->op(MOVQ, self_addr + offset.concretize(tm) + CLASS_VT_OFFSET, R10);
         }
+
+        if (shadow_main_associable)
+            associable_init_vt(shadow_main_associable.get(), tm, self_addr, x64);
+            
+        if (shadow_base_associable)
+            associable_init_vt(shadow_base_associable.get(), tm, self_addr, x64);
 
         for (auto &sr : shadow_associables)
             sr->init_vt(tm, self_addr, x64);

@@ -16,6 +16,7 @@ public:
     std::string prefix;
     Inheritable *parent;
     InheritAs inherit_as;
+    int virtual_index;  // of the entry that stores the data offset to the role
     Associable *original_associable;
     std::unique_ptr<Associable> shadow_base_associable, shadow_main_associable;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
@@ -32,6 +33,7 @@ public:
         prefix = name + ".";
         parent = NULL;
         inherit_as = ia;
+        virtual_index = 0;
         original_associable = NULL;
         //virtual_offset = -1;
         associating_scope = NULL;
@@ -47,6 +49,7 @@ public:
         prefix = name + ".";
         parent = NULL;
         inherit_as = original->inherit_as;
+        virtual_index = 0;
         original_associable = original;
         //virtual_offset = -1;
         associating_scope = NULL;
@@ -147,20 +150,27 @@ public:
 
         for (auto &si : shadow_associables)
             si->outer_scope_left();
-        
-        check_full_implementation();
     }
     
     virtual void check_full_implementation() {
         // TODO: this requires all inherited methods to be implemented
         for (auto f : functions) {
-            // There can be NULL-s here...
+            // There can be NULL-s here for methods implemented by non-function builtins
             
             if (f && f->type == ABSTRACT_FUNCTION) {
-                std::cerr << "Unimplemented function " << f->name << " in " << name << "!\n";
+                std::cerr << "Unimplemented function " << prefix + f->name << "!\n";
                 throw TYPE_ERROR;
             }
         }
+
+        if (shadow_main_associable)
+            shadow_main_associable->check_full_implementation();
+
+        if (shadow_base_associable)
+            shadow_base_associable->check_full_implementation();
+
+        for (auto &si : shadow_associables)
+            si->check_full_implementation();
     }
     
     virtual Associable *lookup_associable(std::string n) {
@@ -315,6 +325,32 @@ public:
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
         throw INTERNAL_ERROR;
+    }
+};
+
+
+class DataVirtualEntry: public VirtualEntry {
+public:
+    Associable *associable;
+    
+    DataVirtualEntry(Associable *a) {
+        associable = a;
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        // Can't create entry that points to an abstract role
+        if (associable->where == NOWHERE)
+            throw INTERNAL_ERROR;
+            
+        Allocation offset = associable->offset;
+        
+        Label label;
+        x64->absolute_label(label, offset.concretize(tm));  // forcing an int into an unsigned64...
+        return label;
+    }
+
+    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
+        return os << "DATA " << associable->name << " at " << associable->offset.concretize(tm);
     }
 };
 

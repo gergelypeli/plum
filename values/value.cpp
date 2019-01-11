@@ -535,15 +535,23 @@ public:
 
 class RoleValue: public Value {
 public:
-    Role *role;
+    Associable *associable;
     std::unique_ptr<Value> pivot;
     Register reg;
     TypeMatch match;
     bool am_static;
     
-    RoleValue(Role *r, Value *p, TypeMatch &tm)
-        :Value(typesubst(r->alloc_ts, tm).prefix(p->ts.rvalue()[0])) {  // keep same Ref/Ptr
-        role = r;
+    RoleValue(Associable *a, Value *p, TypeMatch &tm)
+        :Value(NO_TS) {
+        TypeSpec ats = typesubst(a->alloc_ts, tm);
+        TypeSpec pts = p->ts.rvalue();
+        
+        if (pts[0] != ptr_type && pts[0] != ref_type)
+            throw INTERNAL_ERROR;
+            
+        ts = ats.prefix(pts[0]);  // keep same Ref/Ptr
+
+        associable = a;
         pivot.reset(p);
         reg = NOREG;
         match = tm;
@@ -561,39 +569,72 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred);
             
-        if (role->where == NOWHERE)
+        if (associable->where == NOWHERE)
             throw INTERNAL_ERROR;
             
         return clob;
     }
     
     virtual Storage compile(X64 *x64) {
+        // The offset of the role can be determined in 3 ways:
+        //   * for BASE and MAIN roles it is constant 0
+        //   * for concrete roles, it is the offset they computed in allocate/relocate
+        //   * for abstract roles, it can be retrieved from the VT at its virtual index
+        
         Storage s = pivot->compile(x64);
-        int offset = role->offset.concretize(match);  // May step multiple roles
         
-        //std::cerr << "XXX RoleValue for " << role->name << " has offset " << offset << "\n";
+        if (associable->inherit_as == AS_BASE || associable->inherit_as == AS_MAIN)
+            return s;
+        else if (!associable->is_abstract()) {
+            int offset = associable->offset.concretize(match);  // May step multiple roles
         
-        switch (s.where) {
-        case REGISTER:
-            //x64->runtime->decweakref(s.reg);
-            x64->op(ADDQ, s.reg, offset);
-            //x64->runtime->incweakref(s.reg);
-            return s;
-        case STACK:
-            //x64->op(POPQ, R10);
-            //x64->runtime->decweakref(R10);
-            x64->op(ADDQ, Address(RSP, 0), offset);
-            //x64->runtime->incweakref(R10);
-            //x64->op(PUSHQ, R10);
-            return s;
-        case MEMORY:
-        case BMEMORY:
-            // TODO: optimize this incref thing
-            pivot->ts.store(s, Storage(STACK), x64);
-            x64->op(ADDQ, Address(RSP, 0), offset);
-            return Storage(STACK);
-        default:
-            throw INTERNAL_ERROR;
+            //std::cerr << "XXX RoleValue for " << role->name << " has offset " << offset << "\n";
+        
+            switch (s.where) {
+            case REGISTER:
+                x64->op(ADDQ, s.reg, offset);
+                return s;
+            case STACK:
+                x64->op(ADDQ, Address(RSP, 0), offset);
+                return s;
+            case MEMORY:
+            case BMEMORY:
+                // TODO: optimize this incref thing
+                pivot->ts.store(s, Storage(STACK), x64);
+                x64->op(ADDQ, Address(RSP, 0), offset);
+                return Storage(STACK);
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
+        else {
+            int virtual_index = associable->virtual_index;
+            if (virtual_index == 0)
+                throw INTERNAL_ERROR;
+                
+            switch (s.where) {
+            case REGISTER:
+                x64->op(MOVQ, R10, Address(s.reg, CLASS_VT_OFFSET));
+                x64->op(ADDQ, s.reg, Address(R10, virtual_index * ADDRESS_SIZE));
+                return s;
+            case STACK:
+                x64->op(MOVQ, R10, Address(RSP, 0));
+                x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));
+                x64->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
+                x64->op(ADDQ, Address(RSP, 0), R10);
+                return s;
+            case MEMORY:
+            case BMEMORY:
+                // TODO: optimize this incref thing
+                pivot->ts.store(s, Storage(STACK), x64);
+                x64->op(MOVQ, R10, Address(RSP, 0));
+                x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));
+                x64->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
+                x64->op(ADDQ, Address(RSP, 0), R10);
+                return Storage(STACK);
+            default:
+                throw INTERNAL_ERROR;
+            }
         }
     }
 };
