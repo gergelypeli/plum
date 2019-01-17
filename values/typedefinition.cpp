@@ -505,8 +505,10 @@ public:
         std::cerr << "Completing definition of " << defined_type->name << ".\n";
         defined_type->get_inner_scope()->enter();
 
-        if (!define_data_prehook())
+        if (!define_data_prehook()) {
+            defined_type->get_inner_scope()->leave();
             return false;
+        }
 
         for (Expr *expr : data_exprs)
             if (!block_value->check_statement(expr))
@@ -684,14 +686,18 @@ public:
 
 class InterfaceDefinitionValue: public ScopedTypeDefinitionValue {
 public:
+    Expr *base_expr;
+
     InterfaceDefinitionValue()
         :ScopedTypeDefinitionValue() {
+        base_expr = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         Expr *as_expr = NULL;
         
         ExprInfos eis = {
+            { "", &base_expr },
             { "as", &as_expr }
         };
         
@@ -703,6 +709,23 @@ public:
         defer_as(as_expr);
             
         std::cerr << "Deferring interface definition.\n";
+        return true;
+    }
+
+    virtual bool define_data_prehook() {
+        Scope *is = defined_type->get_inner_scope();
+        
+        if (base_expr) {
+            TypeSpec base_ts = typize_typespec(base_expr, is, interface_metatype);
+        
+            if (base_ts == NO_TS) {
+                std::cerr << "Base interface name expected!\n";
+                return false;
+            }
+
+            is->add(new Implementation("", is->pivot_type_hint(), base_ts, AS_BASE));
+        }
+
         return true;
     }
 

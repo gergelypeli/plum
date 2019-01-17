@@ -44,7 +44,7 @@ public:
 
     Associable(std::string p, Associable *original, TypeMatch etm)
         :Allocable(p + original->name, NO_TS, typesubst(original->alloc_ts, etm)) {
-        std::cerr << "Creating shadow role " << name << ".\n";
+        //std::cerr << "Creating shadow role " << name << ".\n";
         
         prefix = name + ".";
         parent = NULL;
@@ -80,8 +80,13 @@ public:
         
         Inheritable *i = original_associable;
         
-        if (!i)
+        if (!i) {
+            std::cerr << "Associable " << name << " inherits from type " << alloc_ts << "\n";
             i = ptr_cast<Inheritable>(alloc_ts[0]);
+        }
+        else {
+            std::cerr << "Associable " << name << " inherits from original " << original_associable->get_fully_qualified_name() << "\n";
+        }
             
         if (!i)
             throw INTERNAL_ERROR;
@@ -100,7 +105,7 @@ public:
         for (auto &a : assocs)
             shadow_associables.push_back(std::unique_ptr<Associable>(shadow(a)));
     }
-
+    
     virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
         mr = shadow_main_associable.get();
         br = shadow_base_associable.get();
@@ -109,6 +114,10 @@ public:
             assocs.push_back(a.get());
 
         funcs = functions;
+    }
+
+    virtual Associable *rip_main_role() {
+        return shadow_main_associable.release();
     }
 
     virtual void set_associating_scope(DataScope *as) {
@@ -325,6 +334,12 @@ public:
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
         throw INTERNAL_ERROR;
+    }
+    
+    virtual std::string get_fully_qualified_name() {
+        // TODO: this is currently used even when the outer scope-s are not all yet set up,
+        // so fully_qualify fails.
+        return associating_scope->name + "." + name;
     }
 };
 

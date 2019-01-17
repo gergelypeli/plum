@@ -103,8 +103,8 @@ XStringiterator? :Record as:
         :return $ string[$ index]
 
 
-Base? :Interface
-    #base_method? :Function
+Base? :Interface as:
+    the_base_method? :Function
     
 
 Basic_base? :Class Base as:
@@ -121,6 +121,9 @@ Basic_base? :Class Base as:
     
     base_method? :Function as:
         Std prints("The base value is {x}." {x: $ base_value})
+
+    main.the_base_method? :Function as:
+        $ base_method
         
     ? :Finalizer as:
         Std prints("The base is finalized.")
@@ -166,9 +169,9 @@ Property? :Class as:
         $ value = x
     
     
-Greetable? :Interface as:
+Greetable? :Interface Base as:
     greet? :Function
-    the_base_method? :Function
+    #the_base_method? :Function
     the_derived_method? :Function
 
     small? :Role Intval
@@ -207,8 +210,8 @@ Basic_greetable? :Class Greetable by: Basic_derived as:
         #$.derived base base_method
         $ .orig
 
-    main.the_base_method? :Function as:
-        $ base_method
+    #main.the_base_method? :Function as:
+    #    $ base_method
 
     main.the_derived_method? :Function as:
         $ derived_method

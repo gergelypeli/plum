@@ -93,9 +93,14 @@ public:
         // TODO
         mr = NULL;
         br = NULL;
-        
-        assocs = member_associables;
         funcs = member_functions;
+
+        for (auto a : member_associables) {
+            if (a->is_baseconv())
+                br = a;
+            else
+                assocs.push_back(a);
+        }
     }
 
     virtual Allocation measure_identity(TypeMatch tm) {
@@ -165,6 +170,25 @@ public:
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
         return make<ClassMatcherValue>(n, v);
     }
+
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
+        std::cerr << "Interface " << name << " inner lookup " << n << ".\n";
+        
+        Value *value = InheritableType::lookup_inner(tm, n, v, s);
+
+        if (!value) {
+            for (auto a : member_associables) {
+                if (a->is_baseconv()) {
+                    TypeSpec ts = a->get_typespec(tm);
+                    value = ts.lookup_inner(n, v, s);
+                    break;
+                }
+            }
+        }
+
+        return value;
+    }
+
 };
 
 
@@ -172,6 +196,8 @@ class Implementation: public Associable {
 public:
     Implementation(std::string name, TypeSpec pts, TypeSpec ifts, InheritAs ia)
         :Associable(name, pts, ifts, ia) {
+        std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "implementation " << name << "\n";
+
         inherit();
         /*
         TypeMatch explicit_tm = interface_ts.match();
@@ -186,6 +212,8 @@ public:
     
     Implementation(std::string p, Associable *oi, TypeMatch explicit_tm)
         :Associable(p, oi, explicit_tm) {
+        std::cerr << "Creating shadow implementation " << name << "\n";
+
         inherit();
     }
 

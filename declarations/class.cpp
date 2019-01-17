@@ -83,8 +83,10 @@ public:
                 else {
                     regular_roles.push_back(s);
                 }
-                
-                s->check_full_implementation();
+
+                // Can't check for full implementations here, because the main role
+                // may be partially replaced with an inherited one
+                //s->check_full_implementation();
             }
 
             Function *f = ptr_cast<Function>(c.get());
@@ -101,6 +103,70 @@ public:
             if (f && f->type == GENERIC_FUNCTION)
                 member_functions.push_back(f);
         }
+        
+        if (base_role) {
+            // Must transplant the base main role to either our main role, or to
+            // one of the base roles of our main role.
+            Associable *bm_role = base_role->rip_main_role();
+            Declaration *bm_decl = ptr_cast<Declaration>(bm_role);
+        
+            if (main_role) {
+                // Check if the new main role is derived from the old one
+                if (inner_scope->contents[0].get() != main_role)
+                    throw INTERNAL_ERROR;
+
+                std::cerr << "Checking explicit main role being derived from the base main role.\n";
+                
+                if (main_role->alloc_ts == bm_role->alloc_ts) {
+                    // Repeated main role type, replace with the inherited one
+                    std::cerr << "Yes, it's the same type.\n";
+                    
+                    inner_scope->contents[0].reset(bm_decl);
+                    main_role = bm_role;
+                }
+                else {
+                    // Derived main role type, check in the base role chain
+                    Associable *curr_role = main_role;
+                
+                    while (true) {
+                        //std::cerr << "XXX " << curr_role->alloc_ts << "\n";
+                        Associable *next_role = curr_role->shadow_base_associable.get();
+                        
+                        if (!next_role) {
+                            std::cerr << "Main role " << main_role->alloc_ts << " is not derived from " << bm_role->alloc_ts << "!\n";
+                            return false;
+                        }
+                        
+                        //std::cerr << "Let's see: " << next_role->alloc_ts << " vs " << bm_role->alloc_ts << "\n";
+                        
+                        if (next_role->alloc_ts == bm_role->alloc_ts) {
+                            // Found base, replace with the inherited one
+                            std::cerr << "Yes, subrole " << next_role->name << " will be replaced by inherited " << bm_role->name << "\n";
+                            curr_role->shadow_base_associable.reset(bm_role);
+                            break;
+                        }
+                            
+                        curr_role = next_role;
+                    }
+                }
+            }
+            else {
+                std::cerr << "Using implicit main role " << bm_role->name << "\n";
+                inner_scope->contents.insert(inner_scope->contents.begin(), std::unique_ptr<Declaration>(bm_decl));
+                main_role = bm_role;
+            }
+        }
+        
+        // Now we can check completeness
+        
+        if (base_role)
+            base_role->check_full_implementation();
+            
+        if (main_role)
+            main_role->check_full_implementation();
+            
+        for (auto r : regular_roles)
+            r->check_full_implementation();
         
         std::cerr << "Class " << name << " has " << member_allocables.size() << " member variables.\n";
         return true;
@@ -140,14 +206,16 @@ public:
             for (int i = 2; i < base_vt.high(); i++)
                 vt.append(base_vt.get(i));
                 
-            if (base_vt.low() < 0)
-                throw INTERNAL_ERROR;  // FIXME
+            // Clone inherited main role method implementations
+            for (int i = -1; i >= base_vt.low(); i--)
+                vt.prepend(base_vt.get(i));
         }
         
         if (main_role) {
             devector<VirtualEntry *> main_vt = main_role->get_virtual_table_fragment();
             
-            for (int i = -1; i >= main_vt.low(); i--)
+            // For extended main roles, add the extension part only
+            for (int i = vt.low() - 1; i >= main_vt.low(); i--)
                 vt.prepend(main_vt.get(i));
                 
             if (main_vt.high() > 2)
@@ -356,14 +424,14 @@ public:
 
     Role(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
         :Associable(n, pts, ts, ia) {
-        std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "role " << name << ".\n";
+        std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "role " << name << "\n";
         
         inherit();
     }
 
     Role(std::string p, Associable *original, TypeMatch etm)
         :Associable(p, original, etm) {
-        std::cerr << "Creating shadow role " << name << ".\n";
+        std::cerr << "Creating shadow role " << name << "\n";
 
         inherit();
     }
@@ -388,6 +456,7 @@ public:
     }
 
     virtual devector<VirtualEntry *> get_virtual_table_fragment() {
+        // Called on explicit roles only
         if (inherit_as == AS_BASE || inherit_as == AS_MAIN)
             return alloc_ts.get_virtual_table();  // FIXME: subst!
         else
@@ -405,9 +474,12 @@ public:
 
     virtual void allocate() {
         // Only called for explicitly declared roles
+        // Or overridden main roles, which are extended shadows
         
-        if (original_associable)
-            throw INTERNAL_ERROR;
+        if (original_associable) {
+            if (inherit_as != AS_MAIN)
+                throw INTERNAL_ERROR;
+        }
             
         Associable::allocate();
         where = MEMORY;
