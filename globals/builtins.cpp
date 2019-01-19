@@ -456,7 +456,7 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
         if (!a)
             throw INTERNAL_ERROR;
 
-        i->name = implementation_name + "." + i->name;  // TODO: ugly!
+        i->name = implementation_name + QUALIFIER_NAME + i->name;  // TODO: ugly!
         
         if (!a->check_associated(i))
             throw INTERNAL_ERROR;

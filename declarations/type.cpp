@@ -14,7 +14,7 @@ public:
     
     Type(std::string n, Metatypes pmts, MetaType *ut)
         :Identifier(n, NO_TS) {
-        prefix = n + ".";
+        prefix = n + QUALIFIER_NAME;
         param_metatypes = pmts;
         meta_type = ut;
     }

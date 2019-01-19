@@ -212,7 +212,7 @@ public:
     }
 
     virtual std::string fully_qualify(std::string n) {
-        return outer_scope->fully_qualify(name + "." + n);
+        return outer_scope->fully_qualify(name + QUALIFIER_NAME + n);
     }
     
     virtual void push_scope(Scope *s) {
@@ -437,7 +437,7 @@ public:
     ImportScope(ModuleScope *ss, ModuleScope *ts)
         :ExportScope(ts) {
         source_scope = ss;
-        prefix = source_scope->name + ".";
+        prefix = source_scope->name + QUALIFIER_NAME;
     }
     
     virtual void add(std::string id) {

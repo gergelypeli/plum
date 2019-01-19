@@ -493,7 +493,7 @@ public:
             ;
         }
         else {
-            std::string symbol = tname + "." + name + "_virtual_table";
+            std::string symbol = tname + QUALIFIER_NAME + name + "_virtual_table";
             ::compile_virtual_table(vt, tm, vt_label, symbol, x64);
         }
 

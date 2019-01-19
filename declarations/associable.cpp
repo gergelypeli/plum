@@ -13,6 +13,8 @@ public:
 
 const std::string MAIN_ROLE_NAME = "main";
 const std::string BASE_ROLE_NAME = "";
+const std::string QUALIFIER_NAME = ".";
+
 
 
 class Associable: public Allocable, public Inheritable {
@@ -32,7 +34,7 @@ public:
 
     Associable(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
         :Allocable(n, pts, ts) {
-        prefix = name + ".";
+        prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = ia;
         virtual_index = 0;
@@ -44,16 +46,9 @@ public:
         explicit_tm = alloc_ts.match();
     }
 
-    static std::string mkname(std::string prefix, std::string name) {
-        if (name == BASE_ROLE_NAME || name == MAIN_ROLE_NAME)
-            return name;
-        else
-            return prefix + name;
-    }
-
     Associable(std::string p, Associable *original, TypeMatch etm)
-        :Allocable(mkname(p, original->name), NO_TS, typesubst(original->alloc_ts, etm)) {
-        prefix = name + ".";
+        :Allocable(mkname(p, original), NO_TS, typesubst(original->alloc_ts, etm)) {
+        prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = original->inherit_as;
         virtual_index = 0;
@@ -63,6 +58,15 @@ public:
         fastforward_ve = NULL;
         associated_lself = NULL;
         explicit_tm = etm;
+    }
+
+    static std::string mkname(std::string prefix, Associable *original) {
+        if (original->inherit_as == AS_BASE)
+            return prefix.substr(0, prefix.size() - QUALIFIER_NAME.size());  // omit base suffix
+        else if (original->inherit_as == AS_MAIN)
+            return (prefix == BASE_ROLE_NAME + QUALIFIER_NAME ? original->name : prefix + original->name);
+        else
+            return prefix + original->name;
     }
 
     virtual void set_parent(Inheritable *p) {
@@ -200,7 +204,7 @@ public:
                     return a;
             }
         }
-        else if (n == MAIN_ROLE_NAME || has_prefix(n, MAIN_ROLE_NAME + ".")) {
+        else if (n == MAIN_ROLE_NAME || has_prefix(n, MAIN_ROLE_NAME + QUALIFIER_NAME)) {
             // TODO: this is a temporary hack
             if (has_base_role() || has_main_role()) {
                 Associable *a = get_head_role()->lookup_associable(n);
@@ -350,7 +354,7 @@ public:
     virtual std::string get_fully_qualified_name() {
         // TODO: this is currently used even when the outer scope-s are not all yet set up,
         // so fully_qualify fails.
-        return associating_scope->name + "." + name;
+        return associating_scope->name + QUALIFIER_NAME + name;
     }
 };
 
