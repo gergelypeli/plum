@@ -129,7 +129,11 @@ Basic_base? :Class Base as:
         Std prints("The base is finalized.")
 
 
-Basic_derived? :Class by: Basic_base as:
+Derived? :Interface Base as:
+    the_derived_method? :Function
+    
+
+Basic_derived? :Class Derived by: Basic_base as:
     #base? :Role by: Basic_base
     derived_value? Integer
     
@@ -145,6 +149,9 @@ Basic_derived? :Class by: Basic_base as:
         
     derived_method? :Function as:
         Std prints("Derived method, just for fun.")
+
+    main.the_derived_method? :Function as:
+        $ derived_method
         
     ? :Finalizer as:
         Std prints("The derived is finalized.")
@@ -169,10 +176,10 @@ Property? :Class as:
         $ value = x
     
     
-Greetable? :Interface Base as:
+Greetable? :Interface Derived as:
     greet? :Function
     #the_base_method? :Function
-    the_derived_method? :Function
+    #the_derived_method? :Function
 
     small? :Role Intval
     large? :Role Intval
@@ -213,8 +220,8 @@ Basic_greetable? :Class Greetable by: Basic_derived as:
     #main.the_base_method? :Function as:
     #    $ base_method
 
-    main.the_derived_method? :Function as:
-        $ derived_method
+    #main.the_derived_method? :Function as:
+    #    $ derived_method
 
     # Testing late declarations
     number? Integer

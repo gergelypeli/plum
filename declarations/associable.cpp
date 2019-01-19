@@ -1,7 +1,7 @@
 
 class Inheritable {
 public:
-    virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
         throw INTERNAL_ERROR;
     }
     
@@ -11,6 +11,10 @@ public:
 };
 
 
+const std::string MAIN_ROLE_NAME = "main";
+const std::string BASE_ROLE_NAME = "";
+
+
 class Associable: public Allocable, public Inheritable {
 public:
     std::string prefix;
@@ -18,7 +22,6 @@ public:
     InheritAs inherit_as;
     int virtual_index;  // of the entry that stores the data offset to the role
     Associable *original_associable;
-    std::unique_ptr<Associable> shadow_base_associable, shadow_main_associable;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
@@ -29,7 +32,6 @@ public:
 
     Associable(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
         :Allocable(n, pts, ts) {
-        //std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "role " << name << ".\n";
         prefix = name + ".";
         parent = NULL;
         inherit_as = ia;
@@ -42,10 +44,15 @@ public:
         explicit_tm = alloc_ts.match();
     }
 
+    static std::string mkname(std::string prefix, std::string name) {
+        if (name == BASE_ROLE_NAME || name == MAIN_ROLE_NAME)
+            return name;
+        else
+            return prefix + name;
+    }
+
     Associable(std::string p, Associable *original, TypeMatch etm)
-        :Allocable(p + original->name, NO_TS, typesubst(original->alloc_ts, etm)) {
-        //std::cerr << "Creating shadow role " << name << ".\n";
-        
+        :Allocable(mkname(p, original->name), NO_TS, typesubst(original->alloc_ts, etm)) {
         prefix = name + ".";
         parent = NULL;
         inherit_as = original->inherit_as;
@@ -62,7 +69,7 @@ public:
         parent = p;
     }
 
-    virtual Associable *shadow(Associable *original) {
+    virtual Associable *make_shadow(Associable *original) {
         throw INTERNAL_ERROR;
     }
 
@@ -91,44 +98,54 @@ public:
         if (!i)
             throw INTERNAL_ERROR;
 
-        Associable *main, *base;
         std::vector<Associable *> assocs;
         
-        i->get_heritage(main, base, assocs, functions);
+        i->get_heritage(assocs, functions);
         
-        if (main)
-            shadow_main_associable.reset(shadow(main));
-            
-        if (base)
-            shadow_base_associable.reset(shadow(base));
-        
-        for (auto &a : assocs)
-            shadow_associables.push_back(std::unique_ptr<Associable>(shadow(a)));
+        for (auto &a : assocs) {
+            Associable *s = make_shadow(a);
+            s->set_parent(this);
+            shadow_associables.push_back(std::unique_ptr<Associable>(s));
+        }
     }
     
-    virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
-        mr = shadow_main_associable.get();
-        br = shadow_base_associable.get();
-
+    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
         for (auto &a : shadow_associables)
             assocs.push_back(a.get());
 
         funcs = functions;
     }
 
-    virtual Associable *rip_main_role() {
-        return shadow_main_associable.release();
+    virtual bool has_base_role() {
+        return (shadow_associables.size() && shadow_associables[0]->is_baseconv());
+    }
+
+    virtual bool has_main_role() {
+        return (shadow_associables.size() && shadow_associables[0]->is_mainconv());
+    }
+    
+    virtual Associable *get_head_role() {
+        if (shadow_associables.empty())
+            throw INTERNAL_ERROR;
+            
+        return shadow_associables[0].get();
+    }
+    
+    virtual void set_head_role(Associable *a) {
+        if (shadow_associables.empty())
+            throw INTERNAL_ERROR;
+            
+        shadow_associables[0].reset(a);
+        a->set_parent(this);
+    }
+
+    virtual void insert_head_role(Associable *a) {
+        shadow_associables.insert(shadow_associables.begin(), std::unique_ptr<Associable>(a));
     }
 
     virtual void set_associating_scope(DataScope *as) {
         associating_scope = as;
 
-        if (shadow_main_associable)
-            shadow_main_associable->set_associating_scope(as);
-
-        if (shadow_base_associable)
-            shadow_base_associable->set_associating_scope(as);
-        
         for (auto &sr : shadow_associables) {
             sr->set_associating_scope(as);
         }
@@ -151,12 +168,6 @@ public:
     }
 
     virtual void outer_scope_left() {
-        if (shadow_main_associable)
-            shadow_main_associable->outer_scope_left();
-
-        if (shadow_base_associable)
-            shadow_base_associable->outer_scope_left();
-
         for (auto &si : shadow_associables)
             si->outer_scope_left();
     }
@@ -172,22 +183,27 @@ public:
             }
         }
 
-        if (shadow_main_associable)
-            shadow_main_associable->check_full_implementation();
-
-        if (shadow_base_associable)
-            shadow_base_associable->check_full_implementation();
-
         for (auto &si : shadow_associables)
             si->check_full_implementation();
     }
     
     virtual Associable *lookup_associable(std::string n) {
+        std::cerr << "XXX " << n << " in " << name << "\n";
+
         if (n == name)
             return this;
         else if (has_prefix(n, prefix)) {
             for (auto &sr : shadow_associables) {
                 Associable *a = sr->lookup_associable(n);
+                
+                if (a)
+                    return a;
+            }
+        }
+        else if (n == MAIN_ROLE_NAME || has_prefix(n, MAIN_ROLE_NAME + ".")) {
+            // TODO: this is a temporary hack
+            if (has_base_role() || has_main_role()) {
+                Associable *a = get_head_role()->lookup_associable(n);
                 
                 if (a)
                     return a;
@@ -272,7 +288,7 @@ public:
     }
 
     virtual bool is_autoconv() {
-        return inherit_as == AS_AUTO || inherit_as == AS_BASE;
+        return inherit_as == AS_AUTO || inherit_as == AS_BASE || inherit_as == AS_MAIN;
     }
 
     virtual bool is_baseconv() {
@@ -284,10 +300,12 @@ public:
     }
 
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+        ifts = typesubst(alloc_ts, tm);  // pivot match
+        std::cerr << "Checking autoconv from " << ifts << " to " << ptr_cast<Identifier>(target)->name << " " << this << "\n";
+
         if (associated_lself && !assume_lvalue)
             return NULL;
 
-        ifts = typesubst(alloc_ts, tm);  // pivot match
 
         if (ifts[0] == target) {
             // Direct implementation
@@ -298,15 +316,8 @@ public:
         else if (inherit_as == AS_BASE) {
             std::cerr << "Trying base role with " << ifts << "\n";
             
-            if (shadow_base_associable) {
-                Value *v = shadow_base_associable->autoconv(tm, target, orig, ifts, assume_lvalue);
-                
-                if (v)
-                    return v;
-            }
-            
             for (auto &sr : shadow_associables) {
-                if (sr->inherit_as == AS_AUTO) {
+                if (sr->is_autoconv()) {
                     Value *v = sr->autoconv(tm, target, orig, ifts, assume_lvalue);
                 
                     if (v)

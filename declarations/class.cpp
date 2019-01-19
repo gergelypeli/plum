@@ -20,6 +20,23 @@ static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch 
 }
 
 
+static void dump_associable(Associable *a, int indent) {
+    for (int i = 0; i < indent; i++)
+        std::cerr << "  ";
+        
+    std::cerr << "'" << a->name << "' (" << (
+        a->inherit_as == AS_BASE ? "BASE" :
+        a->inherit_as == AS_MAIN ? "MAIN" :
+        a->inherit_as == AS_ROLE ? "ROLE" :
+        a->inherit_as == AS_AUTO ? "AUTO" :
+        throw INTERNAL_ERROR
+    ) << ") " << a->alloc_ts << "\n";
+    
+    for (auto &x : a->shadow_associables)
+        dump_associable(x.get(), indent + 1);
+}
+
+
 class ClassType: public InheritableType, public PartialInitializable {
 public:
     std::vector<Allocable *> member_allocables;
@@ -28,17 +45,13 @@ public:
     Function *finalizer_function;
     RoleVirtualEntry *role_ve;
     FfwdVirtualEntry *fastforward_ve;
-    Associable *base_role;
-    Associable *main_role;
-    std::vector<Associable *> regular_roles;
+    std::vector<Associable *> roles;
 
     ClassType(std::string name, Metatypes param_metatypes)
         :InheritableType(name, param_metatypes, class_metatype) {
         finalizer_function = NULL;
         role_ve = NULL;
         fastforward_ve = NULL;
-        base_role = NULL;
-        main_role = NULL;
     }
 
     virtual DataScope *make_inner_scope(TypeSpec pts) {
@@ -65,28 +78,23 @@ public:
                 s->set_parent(this);
                 
                 if (s->is_mainconv()) {
-                    if (main_role) {
+                    if (roles.size()) {
                         std::cerr << "Multiple main roles!\n";
                         throw INTERNAL_ERROR;
                     }
-                
-                    main_role = s;
                 }
                 else if (s->is_baseconv()) {
-                    if (base_role) {
+                    if (roles.size()) {
                         std::cerr << "Multiple base roles!\n";
                         return false;
                     }
-                
-                    base_role = s;
-                }
-                else {
-                    regular_roles.push_back(s);
                 }
 
-                // Can't check for full implementations here, because the main role
-                // may be partially replaced with an inherited one
-                //s->check_full_implementation();
+                roles.push_back(s);
+
+                s->check_full_implementation();
+                
+                dump_associable(s, 1);
             }
 
             Function *f = ptr_cast<Function>(c.get());
@@ -104,87 +112,44 @@ public:
                 member_functions.push_back(f);
         }
         
-        if (base_role) {
-            // Must transplant the base main role to either our main role, or to
-            // one of the base roles of our main role.
-            Associable *bm_role = base_role->rip_main_role();
-            Declaration *bm_decl = ptr_cast<Declaration>(bm_role);
-        
-            if (main_role) {
-                // Check if the new main role is derived from the old one
-                if (inner_scope->contents[0].get() != main_role)
-                    throw INTERNAL_ERROR;
-
-                std::cerr << "Checking explicit main role being derived from the base main role.\n";
-                
-                if (main_role->alloc_ts == bm_role->alloc_ts) {
-                    // Repeated main role type, replace with the inherited one
-                    std::cerr << "Yes, it's the same type.\n";
-                    
-                    inner_scope->contents[0].reset(bm_decl);
-                    main_role = bm_role;
-                }
-                else {
-                    // Derived main role type, check in the base role chain
-                    Associable *curr_role = main_role;
-                
-                    while (true) {
-                        //std::cerr << "XXX " << curr_role->alloc_ts << "\n";
-                        Associable *next_role = curr_role->shadow_base_associable.get();
-                        
-                        if (!next_role) {
-                            std::cerr << "Main role " << main_role->alloc_ts << " is not derived from " << bm_role->alloc_ts << "!\n";
-                            return false;
-                        }
-                        
-                        //std::cerr << "Let's see: " << next_role->alloc_ts << " vs " << bm_role->alloc_ts << "\n";
-                        
-                        if (next_role->alloc_ts == bm_role->alloc_ts) {
-                            // Found base, replace with the inherited one
-                            std::cerr << "Yes, subrole " << next_role->name << " will be replaced by inherited " << bm_role->name << "\n";
-                            curr_role->shadow_base_associable.reset(bm_role);
-                            break;
-                        }
-                            
-                        curr_role = next_role;
-                    }
-                }
-            }
-            else {
-                std::cerr << "Using implicit main role " << bm_role->name << "\n";
-                inner_scope->contents.insert(inner_scope->contents.begin(), std::unique_ptr<Declaration>(bm_decl));
-                main_role = bm_role;
-            }
-        }
-        
-        // Now we can check completeness
-        
-        if (base_role)
-            base_role->check_full_implementation();
-            
-        if (main_role)
-            main_role->check_full_implementation();
-            
-        for (auto r : regular_roles)
-            r->check_full_implementation();
-        
         std::cerr << "Class " << name << " has " << member_allocables.size() << " member variables.\n";
+        
         return true;
     }
 
-    virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
-        mr = main_role;
-        br = base_role;
-        
-        for (auto &r : regular_roles)
+    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        for (auto &r : roles)
             assocs.push_back(ptr_cast<Associable>(r));
             
         funcs = member_functions;
     }
 
+    virtual Associable *get_base_role() {
+        return (roles.size() && roles[0]->is_baseconv() ? roles[0] : NULL);
+    }
+    
+    virtual Associable *get_main_role() {
+        if (roles.empty())
+            return NULL;
+        
+        Associable *role = roles[0];
+        
+        while (true) {
+            if (role->is_mainconv())
+                return role;
+            else if (role->is_baseconv())
+                role = role->shadow_associables[0].get();
+            else
+                return NULL;
+        }
+    }
+
     virtual void allocate() {
         // We must allocate this, because the header is shared among
         // the base, the main, and us.
+        Associable *base_role = get_base_role();
+        Associable *main_role = get_main_role();
+        
         Allocation size = (base_role ? base_role->alloc_ts.measure_identity() : CLASS_HEADER_SIZE);
         Allocation offset = inner_scope->reserve(size);
 
@@ -315,13 +280,7 @@ public:
 
         ClassType *ct = ptr_cast<ClassType>(ts[0]);
 
-        if (ct->main_role)
-            associable_compile_vt(ct->main_role, tm, ts.symbolize(), x64);
-            
-        if (ct->base_role)
-            associable_compile_vt(ct->base_role, tm, ts.symbolize(), x64);
-
-        for (auto &r : ct->regular_roles)
+        for (auto &r : ct->roles)
             associable_compile_vt(r, tm, ts.symbolize(), x64);
     }
     
@@ -340,18 +299,13 @@ public:
         x64->op(MOVQ, self_addr + CLASS_VT_OFFSET, R10);
 
         // Roles compute their offsets in terms of the implementor class type parameters
-        if (main_role)
-            associable_init_vt(main_role, tm, self_addr, x64);
-            
-        if (base_role)
-            associable_init_vt(base_role, tm, self_addr, x64);
-
-        for (auto &r : regular_roles)
+        for (auto &r : roles)
             associable_init_vt(r, tm, self_addr, x64);
     }
 
+    /*
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        for (auto mr : regular_roles) {
+        for (auto mr : roles) {
             Associable *r = ptr_cast<Associable>(mr);
             
             if (!r->is_autoconv())
@@ -363,23 +317,10 @@ public:
                 return v;
         }
         
-        if (base_role) {
-            Value *v = base_role->autoconv(tm, target, orig, ifts, assume_lvalue);
-            
-            if (v)
-                return v;
-        }
-
-        if (main_role) {
-            Value *v = main_role->autoconv(tm, target, orig, ifts, assume_lvalue);
-            
-            if (v)
-                return v;
-        }
-        
         return InheritableType::autoconv(tm, target, orig, ifts, assume_lvalue);
     }
-
+    */
+    
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         std::cerr << "Class " << name << " inner lookup " << n << ".\n";
         bool dot = false;
@@ -390,6 +331,7 @@ public:
         }
         
         Value *value = InheritableType::lookup_inner(tm, n, v, s);
+        Associable *base_role = get_base_role();
         
         if (!value && base_role) {
             TypeSpec ts = base_role->get_typespec(tm);
@@ -440,10 +382,8 @@ public:
         return ptr_cast<InterfaceType>(alloc_ts[0]) != NULL;
     }
 
-    virtual Associable *shadow(Associable *original) {
-        Role *r = new Role(prefix, original, explicit_tm);
-        r->set_parent(this);
-        return r;
+    virtual Associable *make_shadow(Associable *original) {
+        return new Role(prefix, original, explicit_tm);
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
@@ -474,11 +414,9 @@ public:
 
     virtual void allocate() {
         // Only called for explicitly declared roles
-        // Or overridden main roles, which are extended shadows
         
         if (original_associable) {
-            if (inherit_as != AS_MAIN)
-                throw INTERNAL_ERROR;
+            throw INTERNAL_ERROR;
         }
             
         Associable::allocate();
@@ -502,21 +440,17 @@ public:
             virtual_index = associating_scope->virtual_reserve(ve);
         }
 
-        if (shadow_main_associable)
-            shadow_main_associable->relocate(offset);
-            
-        if (shadow_base_associable)
-            shadow_base_associable->relocate(offset);
-
         for (auto &sr : shadow_associables)
             sr->relocate(offset);
     }
     
     virtual void relocate(Allocation explicit_offset) {
-        // Only called for shadow roles
+        // Only called for shadow roles, or explicit main roles
 
-        if (!original_associable)
-            throw INTERNAL_ERROR;
+        if (!original_associable) {
+            if (inherit_as != AS_MAIN)
+                throw INTERNAL_ERROR;
+        }
 
         Associable::allocate();
         where = MEMORY;
@@ -541,12 +475,6 @@ public:
             parent->override_virtual_entry(virtual_index, ve);
         }
 
-        if (shadow_main_associable)
-            shadow_main_associable->relocate(offset);
-            
-        if (shadow_base_associable)
-            shadow_base_associable->relocate(offset);
-        
         for (auto &sr : shadow_associables)
             sr->relocate(explicit_offset);
     }
@@ -569,12 +497,6 @@ public:
             ::compile_virtual_table(vt, tm, vt_label, symbol, x64);
         }
 
-        if (shadow_main_associable)
-            associable_compile_vt(shadow_main_associable.get(), tm, tname, x64);
-            
-        if (shadow_base_associable)
-            associable_compile_vt(shadow_base_associable.get(), tm, tname, x64);
-
         for (auto &sr : shadow_associables)
             sr->compile_vt(tm, tname, x64);
     }
@@ -588,12 +510,6 @@ public:
             x64->op(LEA, R10, Address(vt_label, 0));
             x64->op(MOVQ, self_addr + offset.concretize(tm) + CLASS_VT_OFFSET, R10);
         }
-
-        if (shadow_main_associable)
-            associable_init_vt(shadow_main_associable.get(), tm, self_addr, x64);
-            
-        if (shadow_base_associable)
-            associable_init_vt(shadow_base_associable.get(), tm, self_addr, x64);
 
         for (auto &sr : shadow_associables)
             sr->init_vt(tm, self_addr, x64);

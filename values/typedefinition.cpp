@@ -653,8 +653,64 @@ public:
             return NULL;
     }
 
+    virtual bool extend_main_role(Associable *base_role, Associable *main_role) {
+        // Find the topmost base role
+        while (base_role->has_base_role())
+            base_role = base_role->get_head_role();
+    
+        if (base_role->has_main_role()) {
+            // Inherited a main role
+            Associable *bm_role = base_role->shadow_associables[0].release();
+            
+            if (main_role->alloc_ts == bm_role->alloc_ts) {
+                // Repeated main role type, nothing to do, just put the old one back
+                std::cerr << "Explicit main role has the same type as the inherited one.\n";
+                base_role->set_head_role(bm_role);
+                delete main_role;
+                return true;
+            }
+            else {
+                // Derived main role type, check in the base role chain
+                Associable *curr_role = main_role;
+            
+                while (true) {
+                    //std::cerr << "XXX " << curr_role->alloc_ts << "\n";
+                    Associable *next_role = (curr_role->has_base_role() ? curr_role->get_head_role() : NULL);
+                    
+                    if (!next_role) {
+                        std::cerr << "Main role " << main_role->alloc_ts << " is not derived from " << bm_role->alloc_ts << "!\n";
+                        return false;
+                    }
+                    
+                    //std::cerr << "Let's see: " << next_role->alloc_ts << " vs " << bm_role->alloc_ts << "\n";
+                    
+                    if (next_role->alloc_ts == bm_role->alloc_ts) {
+                        // Found base, replace with the inherited one
+                        std::cerr << "Subrole " << next_role->name << " will be replaced by inherited " << bm_role->name << "\n";
+                        bm_role->inherit_as = AS_BASE;
+                        
+                        curr_role->set_head_role(bm_role);
+                        
+                        base_role->set_head_role(main_role);
+                        
+                        return true;
+                    }
+                        
+                    curr_role = next_role;
+                }
+            }
+        }
+        else {
+            // This is the first main role
+            std::cerr << "Adding initial main role\n";
+            base_role->insert_head_role(main_role);
+            return true;
+        }
+    }
+
     virtual bool define_data_prehook() {
         Scope *is = defined_type->get_inner_scope();
+        Associable *base_role = NULL, *main_role = NULL;
         
         if (main_expr) {
             TypeSpec main_ts = typize_typespec(main_expr, is, interface_metatype);
@@ -665,7 +721,7 @@ public:
             }
             
             // Temporary name until @ becomes legal in identifiers
-            is->add(new Role("main", is->pivot_type_hint(), main_ts, AS_MAIN));
+            main_role = new Role(MAIN_ROLE_NAME, is->pivot_type_hint(), main_ts, AS_MAIN);
         }
         
         if (base_expr) {
@@ -676,8 +732,19 @@ public:
                 return false;
             }
 
-            is->add(new Role("", is->pivot_type_hint(), base_ts, AS_BASE));
+            base_role = new Role(BASE_ROLE_NAME, is->pivot_type_hint(), base_ts, AS_BASE);
         }
+        
+        if (main_role && base_role) {
+            if (!extend_main_role(base_role, main_role))
+                return false;
+                
+            is->add(base_role);
+        }
+        else if (base_role)
+            is->add(base_role);
+        else if (main_role)
+            is->add(main_role);
 
         return true;
     }

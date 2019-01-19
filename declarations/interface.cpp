@@ -89,18 +89,9 @@ public:
         return is;
     }
     
-    virtual void get_heritage(Associable *&mr, Associable *&br, std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
-        // TODO
-        mr = NULL;
-        br = NULL;
+    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        assocs = member_associables;
         funcs = member_functions;
-
-        for (auto a : member_associables) {
-            if (a->is_baseconv())
-                br = a;
-            else
-                assocs.push_back(a);
-        }
     }
 
     virtual Allocation measure_identity(TypeMatch tm) {
@@ -221,7 +212,7 @@ public:
         return true;
     }
 
-    virtual Associable *shadow(Associable *original) {
+    virtual Associable *make_shadow(Associable *original) {
         return new Implementation(prefix, original, explicit_tm);
     }
 
@@ -303,6 +294,9 @@ public:
             VirtualEntry *ve = new DataVirtualEntry(this);
             virtual_index = associating_scope->virtual_reserve(ve);
         }
+        
+        for (auto &sr : shadow_associables)
+            sr->allocate();
     }
 };
 
