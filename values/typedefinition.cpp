@@ -1,4 +1,101 @@
 
+class RoleCreator {
+protected:
+    virtual bool extend_main_role(Associable *base_role, Associable *main_role) {
+        // Find the topmost base role
+        while (base_role->has_base_role())
+            base_role = base_role->get_head_role();
+    
+        if (base_role->has_main_role()) {
+            // Inherited a main role
+            Associable *bm_role = base_role->shadow_associables[0].release();
+            
+            if (main_role->alloc_ts == bm_role->alloc_ts) {
+                // Repeated main role type, nothing to do, just put the old one back
+                std::cerr << "Explicit main role has the same type as the inherited one.\n";
+                base_role->set_head_role(bm_role);
+                delete main_role;
+                return true;
+            }
+            else {
+                // Derived main role type, check in the base role chain
+                Associable *curr_role = main_role;
+            
+                while (true) {
+                    //std::cerr << "XXX " << curr_role->alloc_ts << "\n";
+                    Associable *next_role = (curr_role->has_base_role() ? curr_role->get_head_role() : NULL);
+                    
+                    if (!next_role) {
+                        std::cerr << "Main role " << main_role->alloc_ts << " is not derived from " << bm_role->alloc_ts << "!\n";
+                        return false;
+                    }
+                    
+                    //std::cerr << "Let's see: " << next_role->alloc_ts << " vs " << bm_role->alloc_ts << "\n";
+                    
+                    if (next_role->alloc_ts == bm_role->alloc_ts) {
+                        // Found base, replace with the inherited one
+                        std::cerr << "Subrole " << next_role->name << " will be replaced by inherited " << bm_role->name << "\n";
+                        bm_role->inherit_as = AS_BASE;
+                        
+                        curr_role->set_head_role(bm_role);
+                        
+                        base_role->set_head_role(main_role);
+                        
+                        return true;
+                    }
+                        
+                    curr_role = next_role;
+                }
+            }
+        }
+        else {
+            // This is the first main role
+            std::cerr << "Adding initial main role\n";
+            base_role->insert_head_role(main_role);
+            return true;
+        }
+    }
+
+    virtual Declaration *add_head_role(Scope *is, std::string name, TypeSpec main_ts, TypeSpec base_ts, InheritAs ia) {
+        Associable *base_role = NULL, *main_role = NULL;
+        bool is_explicit = (ia != AS_BASE);
+        
+        if (base_ts != NO_TS) {
+            std::string base_name = (is_explicit ? name : BASE_ROLE_NAME);
+            InheritAs base_as = (is_explicit ? ia : AS_BASE);
+            is_explicit = false;
+            base_role = new Role(base_name, is->pivot_type_hint(), base_ts, base_as);
+        }
+            
+        if (main_ts != NO_TS) {
+            std::string main_name = (is_explicit ? name : MAIN_ROLE_NAME);
+            InheritAs main_as = (is_explicit ? ia : AS_MAIN);
+            main_role = new Role(main_name, is->pivot_type_hint(), main_ts, main_as);
+        }
+
+        if (main_role && base_role) {
+            if (!extend_main_role(base_role, main_role))
+                return NULL;
+                
+            is->add(base_role);
+            return base_role;
+        }
+        else if (base_role) {
+            is->add(base_role);
+            return base_role;
+        }
+        else if (main_role) {
+            is->add(main_role);
+            return main_role;
+        }
+        else {
+            std::cerr << "Main or base role type expected!\n";
+            return NULL;
+        }
+    }
+};
+
+
 class TypeDefinitionValue: public Value {
 public:
     TypeDefinitionValue()
@@ -249,11 +346,10 @@ public:
 };
 
 
-class RoleDefinitionValue: public TypeDefinitionValue {
+class RoleDefinitionValue: public TypeDefinitionValue, public RoleCreator {
 public:
     InheritAs inherit_as;
-    TypeSpec pivot_ts;
-    TypeSpec role_ts;
+    TypeSpec implemented_ts, inherited_ts;
     bool is_concrete;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
@@ -265,11 +361,11 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         DataScope *ds = ptr_cast<DataScope>(scope);
         is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
-        Expr *int_expr = NULL, *imp_expr = NULL;
+        Expr *implemented_expr = NULL, *inherited_expr = NULL;
 
         ExprInfos eis = {
-            { "", &int_expr },
-            { "by", &imp_expr }
+            { "", &implemented_expr },
+            { "by", &inherited_expr }
         };
         
         if (!check_exprs(args, kwargs, eis)) {
@@ -277,72 +373,67 @@ public:
             return false;
         }
 
-        if (int_expr && imp_expr) {
-            std::cerr << "Oops, can't handle implementation and inheritance at once yet!\n";
-            return false;
-        }
-        else if (int_expr) {
+        if (implemented_expr) {
             // Implementation
-            Value *v = typize(int_expr, scope, NULL);
+            Value *v = typize(implemented_expr, scope, NULL);
     
             if (!v->ts.is_meta()) {
                 std::cerr << "Implemented type name expected!\n";
                 return false;
             }
 
-            role_ts = ptr_cast<TypeValue>(v)->represented_ts;
+            implemented_ts = ptr_cast<TypeValue>(v)->represented_ts;
         
-            if (!role_ts.has_meta(interface_metatype)) {
+            if (!implemented_ts.has_meta(interface_metatype)) {
                 std::cerr << "Implemented interface name expected!\n";
                 return false;
             }
             
             delete v;
         }
-        else if (imp_expr) {
+        
+        if (inherited_expr) {
             // Inheritance
             if (!is_concrete) {
                 std::cerr << "Inheritance is only allowed in Class scope!\n";
                 return false;
             }
             
-            Value *v = typize(imp_expr, scope, NULL);
+            Value *v = typize(inherited_expr, scope, NULL);
     
             if (!v->ts.is_meta()) {
                 std::cerr << "Inherited type name expected!\n";
                 return false;
             }
 
-            role_ts = ptr_cast<TypeValue>(v)->represented_ts;
+            inherited_ts = ptr_cast<TypeValue>(v)->represented_ts;
         
-            if (!role_ts.has_meta(class_metatype)) {
+            if (!inherited_ts.has_meta(class_metatype)) {
                 std::cerr << "Inherited class name expected!\n";
                 return false;
             }
             
             delete v;
         }
-        else {
+        
+        if (!implemented_expr && !inherited_expr) {
             std::cerr << "Neither inherited nor implemented type specified!\n";
             return false;
         }
-        
-        pivot_ts = scope->pivot_type_hint();
         
         return true;
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE) {
-            Declaration *d;
-            
             if (is_concrete)
-                d = new Role(name, pivot_ts, role_ts, inherit_as);
-            else
-                d = new Implementation(name, pivot_ts, role_ts, inherit_as);
-                
-            scope->add(d);
-            return d;
+                return add_head_role(scope, name, implemented_ts, inherited_ts, inherit_as);
+            else {
+                TypeSpec pivot_ts = scope->pivot_type_hint();
+                Declaration *d = new Implementation(name, pivot_ts, implemented_ts, inherit_as);
+                scope->add(d);
+                return d;
+            }
         }
         else
             return NULL;
@@ -615,7 +706,7 @@ public:
 };
 
 
-class ClassDefinitionValue: public ScopedTypeDefinitionValue {
+class ClassDefinitionValue: public ScopedTypeDefinitionValue, public RoleCreator {
 public:
     Expr *base_expr;
     Expr *main_expr;
@@ -653,100 +744,33 @@ public:
             return NULL;
     }
 
-    virtual bool extend_main_role(Associable *base_role, Associable *main_role) {
-        // Find the topmost base role
-        while (base_role->has_base_role())
-            base_role = base_role->get_head_role();
     
-        if (base_role->has_main_role()) {
-            // Inherited a main role
-            Associable *bm_role = base_role->shadow_associables[0].release();
-            
-            if (main_role->alloc_ts == bm_role->alloc_ts) {
-                // Repeated main role type, nothing to do, just put the old one back
-                std::cerr << "Explicit main role has the same type as the inherited one.\n";
-                base_role->set_head_role(bm_role);
-                delete main_role;
-                return true;
-            }
-            else {
-                // Derived main role type, check in the base role chain
-                Associable *curr_role = main_role;
-            
-                while (true) {
-                    //std::cerr << "XXX " << curr_role->alloc_ts << "\n";
-                    Associable *next_role = (curr_role->has_base_role() ? curr_role->get_head_role() : NULL);
-                    
-                    if (!next_role) {
-                        std::cerr << "Main role " << main_role->alloc_ts << " is not derived from " << bm_role->alloc_ts << "!\n";
-                        return false;
-                    }
-                    
-                    //std::cerr << "Let's see: " << next_role->alloc_ts << " vs " << bm_role->alloc_ts << "\n";
-                    
-                    if (next_role->alloc_ts == bm_role->alloc_ts) {
-                        // Found base, replace with the inherited one
-                        std::cerr << "Subrole " << next_role->name << " will be replaced by inherited " << bm_role->name << "\n";
-                        bm_role->inherit_as = AS_BASE;
-                        
-                        curr_role->set_head_role(bm_role);
-                        
-                        base_role->set_head_role(main_role);
-                        
-                        return true;
-                    }
-                        
-                    curr_role = next_role;
-                }
-            }
-        }
-        else {
-            // This is the first main role
-            std::cerr << "Adding initial main role\n";
-            base_role->insert_head_role(main_role);
-            return true;
-        }
-    }
-
     virtual bool define_data_prehook() {
         Scope *is = defined_type->get_inner_scope();
-        Associable *base_role = NULL, *main_role = NULL;
+        TypeSpec main_ts, base_ts;
         
         if (main_expr) {
-            TypeSpec main_ts = typize_typespec(main_expr, is, interface_metatype);
+            main_ts = typize_typespec(main_expr, is, interface_metatype);
         
             if (main_ts == NO_TS) {
                 std::cerr << "Main interface name expected!\n";
                 return false;
             }
-            
-            // Temporary name until @ becomes legal in identifiers
-            main_role = new Role(MAIN_ROLE_NAME, is->pivot_type_hint(), main_ts, AS_MAIN);
         }
         
         if (base_expr) {
-            TypeSpec base_ts = typize_typespec(base_expr, is, class_metatype);
+            base_ts = typize_typespec(base_expr, is, class_metatype);
         
             if (base_ts == NO_TS) {
                 std::cerr << "Base class name expected!\n";
                 return false;
             }
-
-            base_role = new Role(BASE_ROLE_NAME, is->pivot_type_hint(), base_ts, AS_BASE);
         }
-        
-        if (main_role && base_role) {
-            if (!extend_main_role(base_role, main_role))
-                return false;
-                
-            is->add(base_role);
-        }
-        else if (base_role)
-            is->add(base_role);
-        else if (main_role)
-            is->add(main_role);
 
-        return true;
+        if (base_expr || main_expr)
+            return add_head_role(is, "", main_ts, base_ts, AS_BASE);
+        else
+            return true;
     }
 };
 
