@@ -11,7 +11,7 @@ public:
 };
 
 
-const std::string MAIN_ROLE_NAME = "main";
+const std::string MAIN_ROLE_NAME = "@";
 const std::string BASE_ROLE_NAME = "";
 const std::string QUALIFIER_NAME = ".";
 

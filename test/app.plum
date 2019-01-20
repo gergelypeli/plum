@@ -122,7 +122,7 @@ Basic_base? :Class Base as:
     base_method? :Function as:
         Std prints("The base value is {x}." {x: $ base_value})
 
-    main.the_base_method? :Function as:
+    @.the_base_method? :Function as:
         $ base_method
         
     ? :Finalizer as:
@@ -150,7 +150,7 @@ Basic_derived? :Class Derived by: Basic_base as:
     derived_method? :Function as:
         Std prints("Derived method, just for fun.")
 
-    main.the_derived_method? :Function as:
+    @.the_derived_method? :Function as:
         $ derived_method
         
     ? :Finalizer as:
@@ -206,7 +206,7 @@ Basic_greetable? :Class Greetable by: Basic_derived as:
     second_init? :Initializer as:
         $ init
         
-    main.greet? :Function as:
+    @.greet? :Function as:
         Std prints("Hello, I'm {}!" { $ name })
 
     ? :Finalizer as:
@@ -227,11 +227,11 @@ Basic_greetable? :Class Greetable by: Basic_derived as:
     number? Integer
     name? String
     
-    main.small.get? :Function Integer as:
+    @.small.get? :Function Integer as:
         Std prints("Getting small...")
         :return 12
         
-    main.large.get? :Function Integer as:
+    @.large.get? :Function Integer as:
         Std prints("Getting large...")
         :return 120
 

@@ -52,12 +52,12 @@ bool is_quote(char c) {
 
 
 bool is_identifier(char c) {
-    return isalnum(c) || c == '_' || c == '.';
+    return isalnum(c) || c == '_' || c == '.' || c == '$' || c == '@';
 }
 
 
 bool is_prefix(char c) {
-    return c == ':' || c == '`' || c == '~' || c == '$';
+    return c == ':' || c == '`' || c == '~';
 }
 
 
