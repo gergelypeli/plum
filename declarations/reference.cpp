@@ -263,6 +263,10 @@ public:
         return tm[1].get_virtual_table_label(x64);
     }
 
+    virtual Label get_interface_table_label(TypeMatch tm, X64 *x64) {
+        return tm[1].get_interface_table_label(x64);
+    }
+
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
         return tm[1].autoconv(target, orig, ifts, assume_lvalue);
     }

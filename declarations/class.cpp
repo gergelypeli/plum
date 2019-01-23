@@ -37,20 +37,20 @@ static void dump_associable(Associable *a, int indent) {
 }
 
 
-class ClassType: public InheritableType, public PartialInitializable {
+class ClassType: public InheritableType, public PartialInitializable, public Autoconvertible {
 public:
     std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
     std::vector<Function *> member_functions;
     Function *finalizer_function;
-    RoleVirtualEntry *role_ve;
+    AutoconvVirtualEntry *autoconv_ve;
     FfwdVirtualEntry *fastforward_ve;
     std::vector<Associable *> roles;
 
     ClassType(std::string name, Metatypes param_metatypes)
         :InheritableType(name, param_metatypes, class_metatype) {
         finalizer_function = NULL;
-        role_ve = NULL;
+        autoconv_ve = NULL;
         fastforward_ve = NULL;
     }
 
@@ -156,11 +156,11 @@ public:
         if (offset.concretize() != 0)
             throw INTERNAL_ERROR;
 
-        role_ve = new RoleVirtualEntry(this, base_role);
+        autoconv_ve = new AutoconvVirtualEntry(this);
         fastforward_ve = new FfwdVirtualEntry(Allocation(0));
 
         devector<VirtualEntry *> vt;
-        vt.append(role_ve);
+        vt.append(autoconv_ve);
         vt.append(fastforward_ve);
         
         if (base_role) {
@@ -260,6 +260,44 @@ public:
         return inner_scope->get_virtual_table();
     }
 
+    virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm) {
+        std::vector<AutoconvEntry> act;
+
+        Associable *role = get_main_role();
+
+        while (role) {
+            act.push_back({ role->get_typespec(tm), role->offset.concretize(tm) });
+            role = (role->has_base_role() ? role->get_head_role() : NULL);
+        }
+        
+        return act;
+    }
+
+    virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64) {
+        return x64->once->compile(compile_act, tm[0]);
+    }
+    
+    static void compile_act(Label label, TypeSpec ts, X64 *x64) {
+        ClassType *ct = ptr_cast<ClassType>(ts[0]);
+        TypeMatch tm = ts.match();
+
+        std::vector<AutoconvEntry> act = ct->get_autoconv_table(tm);
+
+        x64->data_align(8);
+        x64->data_label(label);
+        
+        for (auto ace : act) {
+            x64->data_reference(ace.role_ts.get_interface_table_label(x64));
+            x64->data_qword(ace.role_offset);
+        }
+
+        // Sentry
+        x64->data_qword(0);
+        
+        for (auto &r : ct->roles)
+            r->compile_act(tm, x64);
+    }
+
     virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
         return x64->once->compile(compile_vt, tm[0]);
     }
@@ -267,7 +305,7 @@ public:
     virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
         return x64->once->compile(compile_finalizer, tm[0]);
     }
-    
+
     static void compile_vt(Label label, TypeSpec ts, X64 *x64) {
         std::cerr << "Compiling virtual table for " << ts << "\n";
 
@@ -283,7 +321,7 @@ public:
         for (auto &r : ct->roles)
             associable_compile_vt(r, tm, ts.symbolize(), x64);
     }
-    
+
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         x64->code_label_local(label, ts[0]->name + "_finalizer");  // FIXME: ambiguous name!
 
@@ -359,10 +397,11 @@ public:
 };
 
 
-class Role: public Associable {
+class Role: public Associable, public Autoconvertible {
 public:
     devector<VirtualEntry *> vt;
     Label vt_label;
+    Label act_label;
 
     Role(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
         :Associable(n, pts, ts, ia) {
@@ -432,7 +471,9 @@ public:
             offset = associating_scope->reserve(size);
             
             vt = alloc_ts.get_virtual_table();
-            fastforward_ve = new FfwdVirtualEntry(offset);
+            VirtualEntry *autoconv_ve = new AutoconvVirtualEntry(this);
+            vt.set(VT_AUTOCONV_INDEX, autoconv_ve);
+            VirtualEntry *fastforward_ve = new FfwdVirtualEntry(offset);
             vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
             
             // Add VT entry for our data offset into the class VT
@@ -467,7 +508,9 @@ public:
                 offset = explicit_offset + allocsubst(original_associable->offset, explicit_tm);
             
             vt = original_associable->get_virtual_table_fragment();
-            fastforward_ve = new FfwdVirtualEntry(offset);
+            VirtualEntry *autoconv_ve = new AutoconvVirtualEntry(this);
+            vt.set(VT_AUTOCONV_INDEX, autoconv_ve);
+            VirtualEntry *fastforward_ve = new FfwdVirtualEntry(offset);
             vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
             
             virtual_index = original_associable->virtual_index;
@@ -513,6 +556,50 @@ public:
 
         for (auto &sr : shadow_associables)
             sr->init_vt(tm, self_addr, x64);
+    }
+
+    virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm) {
+        std::vector<AutoconvEntry> act;
+
+        Associable *role = (has_main_role() ? get_head_role() : NULL);
+
+        while (role) {
+            act.push_back({ role->get_typespec(tm), role->offset.concretize(tm) });
+            role = (role->has_base_role() ? role->get_head_role() : NULL);
+        }
+        
+        return act;
+    }
+    
+    virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64) {
+        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+            throw INTERNAL_ERROR;
+        }
+        else
+            return act_label;
+    }
+
+    void compile_act(TypeMatch tm, X64 *x64) {
+        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+            // Compiled in the containing role
+        }
+        else {
+            std::vector<AutoconvEntry> act = get_autoconv_table(tm);
+            
+            x64->data_align(8);
+            x64->data_label(act_label);
+        
+            for (auto ace : act) {
+                x64->data_reference(ace.role_ts.get_interface_table_label(x64));
+                x64->data_qword(ace.role_offset);
+            }
+
+            // Sentry
+            x64->data_qword(0);
+        }
+        
+        for (auto &r : shadow_associables)
+            r->compile_act(tm, x64);
     }
 };
 

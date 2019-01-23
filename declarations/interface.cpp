@@ -127,7 +127,7 @@ public:
     virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
         return inner_scope->get_virtual_table();
     }
-
+    /*
     virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
         return x64->once->compile(compile_vt, tm[0]);
     }
@@ -141,18 +141,14 @@ public:
         x64->data_label_local(label, symbol);
         x64->data_qword(0);
     }
-    
+    */
     virtual void allocate() {
-        // FIXME: handle base, like class does
+        // This virtual table will only be used for cloning to other tables,
+        // not compiled into the executables.
 
-        // These stay zeros for now
-        VirtualEntry *rolevt_ve = new RoleVirtualEntry(this, NULL);
-        VirtualEntry *fastforward_ve = new FfwdVirtualEntry(Allocation(0));
-        
         devector<VirtualEntry *> vt;
-        vt.append(rolevt_ve);
-        vt.append(fastforward_ve);
-                
+        vt.append(NULL);
+        vt.append(NULL);
         inner_scope->virtual_initialize(vt);
 
         Type::allocate();
@@ -180,6 +176,19 @@ public:
         return value;
     }
 
+    virtual Label get_interface_table_label(TypeMatch tm, X64 *x64) {
+        return x64->once->compile(compile_ift, tm[0]);
+    }
+
+    static void compile_ift(Label label, TypeSpec ts, X64 *x64) {
+        std::cerr << "Compiling interface table for " << ts << "\n";
+        std::string symbol = ts.symbolize() + "_interface_table";
+
+        // We only need this for dynamic type casts
+        x64->data_align(8);
+        x64->data_label_local(label, symbol);
+        x64->data_qword(0);
+    }
 };
 
 

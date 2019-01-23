@@ -206,6 +206,11 @@ Label TypeSpec::get_virtual_table_label(X64 *x64) {
 }
 
 
+Label TypeSpec::get_interface_table_label(X64 *x64) {
+    return at(0)->get_interface_table_label(match(), x64);
+}
+
+
 Label TypeSpec::get_finalizer_label(X64 *x64) {
     return at(0)->get_finalizer_label(match(), x64);
 }

@@ -16,7 +16,6 @@ const std::string BASE_ROLE_NAME = "";
 const std::string QUALIFIER_NAME = ".";
 
 
-
 class Associable: public Allocable, public Inheritable {
 public:
     std::string prefix;
@@ -28,7 +27,7 @@ public:
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
     DataScope *associating_scope;
-    FfwdVirtualEntry *fastforward_ve;
+    //FfwdVirtualEntry *fastforward_ve;
     Lself *associated_lself;
     TypeMatch explicit_tm;
 
@@ -41,7 +40,7 @@ public:
         original_associable = NULL;
         //virtual_offset = -1;
         associating_scope = NULL;
-        fastforward_ve = NULL;
+        //fastforward_ve = NULL;
         associated_lself = NULL;
         explicit_tm = alloc_ts.match();
     }
@@ -55,7 +54,7 @@ public:
         original_associable = original;
         //virtual_offset = -1;
         associating_scope = NULL;
-        fastforward_ve = NULL;
+        //fastforward_ve = NULL;
         associated_lself = NULL;
         explicit_tm = etm;
     }
@@ -348,6 +347,11 @@ public:
     }
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual void compile_act(TypeMatch tm, X64 *x64) {
+        // For Role
         throw INTERNAL_ERROR;
     }
     

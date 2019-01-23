@@ -149,3 +149,9 @@ struct ExprInfo {
 enum InheritAs {
     AS_ROLE, AS_AUTO, AS_BASE, AS_MAIN
 };
+
+
+struct AutoconvEntry {
+    TypeSpec role_ts;
+    int role_offset;
+};

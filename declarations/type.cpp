@@ -297,6 +297,10 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual Label get_interface_table_label(TypeMatch tm, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+
     virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
         throw INTERNAL_ERROR;
     }

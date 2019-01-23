@@ -25,6 +25,7 @@ public:
     int measure_where(StorageWhere where);
     devector<VirtualEntry *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
+    Label get_interface_table_label(X64 *x64);
     Label get_finalizer_label(X64 *x64);
     Value *autoconv(Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue);
     StorageWhere where(AsWhat as_what);

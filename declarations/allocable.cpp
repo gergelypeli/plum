@@ -319,28 +319,44 @@ public:
 };
 
 
-class RoleVirtualEntry: public VirtualEntry {
+class Autoconvertible {
 public:
-    Identifier *type;
-    Allocable *allocable;
+    virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm) {
+        throw INTERNAL_ERROR;
+    }
+};
+
+
+class AutoconvVirtualEntry: public VirtualEntry {
+public:
+    Autoconvertible *autoconvertible;
     
-    RoleVirtualEntry(Identifier *t, Allocable *a) {
-        type = t;
-        allocable = a;
+    AutoconvVirtualEntry(Autoconvertible *a) {
+        autoconvertible = a;
     }
     
     virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
-        if (allocable)
-            return allocable->get_typespec(tm).get_virtual_table_label(x64);
-        else
-            return x64->runtime->zero_label;
+        return autoconvertible->get_autoconv_table_label(tm, x64);
     }
 
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
-        if (allocable)
-            return os << "ROLE " << type->name << " (" << allocable->get_typespec(tm) << ")";
+        // A bit overkill, just for debugging
+        std::vector<AutoconvEntry> act = autoconvertible->get_autoconv_table(tm);
+        
+        os << "CONV to";
+        
+        if (act.size()) {
+            for (auto ace : act)
+                os << " " << ace.role_ts;
+        }
         else
-            return os << "ROLE " << type->name;
+            os << " nothing";
+            
+        return os;
     }
 };
 
@@ -363,7 +379,6 @@ public:
         return os << "FFWD " << -offset.concretize(tm);
     }
 };
-
 
 class PartialInitializable {
 public:
