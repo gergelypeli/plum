@@ -32,6 +32,9 @@ std::vector<std::string> source_file_names;
 
 
 std::string get_source_file_name(int index) {
+    if (index == -1)
+        return "???";
+        
     std::string file_name = source_file_names[index];
     
     if (deprefix(file_name, project_path))

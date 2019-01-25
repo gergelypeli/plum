@@ -82,8 +82,9 @@ public:
     }
     
     unsigned get_size(TypeMatch tm) {
-        if (!is_allocated)
-            throw INTERNAL_ERROR;
+        allocate();
+        //if (!is_allocated)
+        //    throw INTERNAL_ERROR;
             
         return size.concretize(tm);
     }
@@ -133,6 +134,9 @@ public:
 
     virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
+        if (is_allocated)
+            return;
+        
         for (auto &content : contents)
             content->allocate();
             
@@ -275,6 +279,9 @@ public:
     }
 
     virtual void allocate() {
+        if (is_allocated)
+            return;
+    
         // Do two passes to first compute the size
         for (auto &d : contents) {
             if (!ptr_cast<Function>(d.get()))
@@ -360,6 +367,9 @@ public:
     }
 
     virtual void allocate() {
+        if (is_allocated)
+            return;
+            
         NamedScope::allocate();
         
         offset = outer_scope->reserve(size);
@@ -370,8 +380,9 @@ public:
     }
 
     virtual Storage get_global_storage() {
-        if (!is_allocated)
-            throw INTERNAL_ERROR;
+        allocate();
+        //if (!is_allocated)
+        //    throw INTERNAL_ERROR;
             
         return get_root_scope()->get_global_storage() + offset.concretize();
     }
@@ -387,6 +398,9 @@ public:
     }
 
     virtual void allocate() {
+        if (is_allocated)
+            return;
+            
         DataScope::allocate();
         
         offset = outer_scope->reserve(size);
@@ -397,8 +411,9 @@ public:
     }
 
     virtual Storage get_global_storage() {
-        if (!is_allocated)
-            throw INTERNAL_ERROR;
+        allocate();
+        //if (!is_allocated)
+        //    throw INTERNAL_ERROR;
             
         return get_module_scope()->get_global_storage() + offset.concretize();
     }
@@ -486,6 +501,9 @@ public:
     }
     
     virtual void allocate() {
+        if (is_allocated)
+            throw INTERNAL_ERROR;
+            
         offset = outer_scope->reserve(Allocation { 0, 0, 0, 0 });
         
         //std::cerr << "Allocating " << this << " persistent contents.\n";
@@ -642,6 +660,9 @@ public:
     }
 
     virtual void allocate() {
+        if (is_allocated)
+            throw INTERNAL_ERROR;
+            
         // Backward, because the last arguments align to [RBP+16]
         for (int i = contents.size() - 1; i >= 0; i--)
             contents[i]->allocate();
@@ -765,6 +786,9 @@ public:
     }
     
     virtual void allocate() {
+        if (is_allocated)
+            throw INTERNAL_ERROR;
+            
         // reserve return address and saved RBP
         head_scope->reserve(Allocation { ADDRESS_SIZE + ADDRESS_SIZE, 0, 0, 0 });
         head_scope->allocate();

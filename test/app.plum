@@ -3,322 +3,19 @@
 #2
 #wtf? 2
 
-Pair? :Record as:
-    first? Integer
-    second? Integer
-    lself? :Lself
+Test_integers? :Singleton as:
+    Myint? :Integer bytes: 8 is_unsigned: `false
 
-    new? :Initializer as:
-        $ first = 1
-        $ second = 2
+    Mybyte? :Integer bytes: 1 is_unsigned: `false
 
-    meth? :Function Integer as:
-        Std prints("Meth!")
-        :return $ first + $ second
-
-    dump? :Function as:
-        Std prints("Pair({x}, {y})" { x: $ first, y: $ second })
-
-    sable? :Auto Streamifiable
-
-    sable.streamify? :Function from: stream? String Lvalue as:
-        stream += "({},{})" { $ first, $ second }
-        
-    lself.reset? :Function as:
-        $ first = 0
-        $ second = 0
-
-
-Pairs? :Singleton as:        
-    make_pair? :Function Pair as:
-        p? Pair = {}
-        p first = 11
-        p second = 22
-        :return p
-
-
-    print_pair? :Function from:
-        p? Pair Ovalue
-    as:
-        Std prints("A pair of ({x}, {y})" { x: p first, y: p second })
-
-
-Foo? :Record as:
-    hey? Bar.Baz
-    f? :Function as:
-        $ hey g
-    
-Bar? :Record as:
-    Baz? :Record as:
-        ho? Integer
-        g? :Function as: :return
-    
-    
-XCounter? :Record as:
-    current? Integer
-    limit? Integer
-    lself? :Lself
-    
-    new? :Initializer from:
-        n? Integer
-    as:
-        $ current = -1
-        $ limit = n
-        
-    lself.itor? :Auto Integer Iterator
-
-    lself.itor.next? :Function Integer may: Iterator_done_exception as:
-        $ current += 1
-    
-        :if $ current == $ limit then:
-            :raise `ITERATOR_DONE
-            
-        :return $ current
-        
-    ible? :Auto Integer Iterable
-    
-    ible.iter? :Function XCounter as:
-        :return $
-
-
-XStringiterator? :Record as:
-    string? String
-    index? Integer
-    lself? :Lself
-    
-    new? :Initializer from:
-        s? String
-    as:
-        $ string = s
-        $ index = -1
-
-    lself.itor? :Auto Character Iterator
-    
-    lself.itor.next? :Function Character may: Iterator_done_exception as:
-        $ index += 1
-    
-        :if $ index == $ string length then:
-            :raise `ITERATOR_DONE
-
-        :return $ string[$ index]
-
-
-Base? :Interface as:
-    the_base_method? :Function
-    
-
-Basic_base? :Class Base as:
-    Type? :Enumeration
-        NICE, UGLY
-        
-    type? .Type
-    base_value? Integer
-    
-    base_init? :Initializer as:
-        $ type = `NICE
-        $ base_value = 100
-        Std prints("The base is initialized.")
-    
-    base_method? :Function as:
-        Std prints("The base value is {x}." {x: $ base_value})
-
-    @.the_base_method? :Function as:
-        $ base_method
-        
-    ? :Finalizer as:
-        Std prints("The base is finalized.")
-
-
-Derived? :Interface Base as:
-    the_derived_method? :Function
-    
-
-Basic_derived? :Class Derived by: Basic_base as:
-    #base? :Role by: Basic_base
-    derived_value? Integer
-    
-    derived_init? :Initializer as:
-        $ .base_init
-        $ derived_value = 1000
-        Std prints("The derived is initialized.")
-        
-    .base_method? :Function as:
-        Std prints("Derived base_method, the base value is {x}." {x: $ base_value})
-        #$.base base_method
-        $ .orig
-        
-    derived_method? :Function as:
-        Std prints("Derived method, just for fun.")
-
-    @.the_derived_method? :Function as:
-        $ derived_method
-        
-    ? :Finalizer as:
-        Std prints("The derived is finalized.")
-        
-        
-Intval? :Interface as:
-    get? :Function Integer
-    
-
-Property? :Class as:
-    value? Integer
-    
-    init? :Initializer as:
-        $ value = 0
-        
-    get? :Function Integer as:
-        :return $ value
-        
-    set? :Function from:
-        x? Integer
-    as:
-        $ value = x
-    
-    
-Greetable? :Interface Derived as:
-    greet? :Function
-    #the_base_method? :Function
-    #the_derived_method? :Function
-
-    small? :Role Intval
-    large? :Role Intval
-    #left? :Role by: Property
-    #right? :Role by: Property
-    
-
-Basic_greetable? :Class Greetable by: Basic_derived as:
-    #derived? :Role by: Basic_derived
-    #small? :Role Intval
-    #large? :Role Intval
-    left? :Role by: Property
-    right? :Role by: Property
-
-    init? :Initializer as:
-        $ .derived_init
-        $ left.init
-        $ right.init
-        $ number = 1
-        $ name = "The Greetable"
-        
-        Std prints("I'm here as {}." { $ name })
-        
-    second_init? :Initializer as:
-        $ init
-        
-    @.greet? :Function as:
-        Std prints("Hello, I'm {}!" { $ name })
-
-    ? :Finalizer as:
-        Std prints("I'm outta here!")
-
-    .base_method? :Function as:
-        Std prints("Greetable base_method, the base value is {}." {$ base_value})
-        #$.derived base base_method
-        $ .orig
-
-    #main.the_base_method? :Function as:
-    #    $ base_method
-
-    #main.the_derived_method? :Function as:
-    #    $ derived_method
-
-    # Testing late declarations
-    number? Integer
-    name? String
-    
-    @.small.get? :Function Integer as:
-        Std prints("Getting small...")
-        :return 12
-        
-    @.large.get? :Function Integer as:
-        Std prints("Getting large...")
-        :return 120
-
-
-Single? :Singleton as:
-    single_number? Integer
-    single_text? String
-    
-    init? :Initializer as:
-        Std prints("Initializing Single.")
-        $ single_number = 111
-        $ single_text = "NEEDS " + "CLEANUP"
-    
-    ? :Finalizer as:
-        Std prints("Finalizing Single.")
-    
-    single_function? :Function Integer as:
-        :return $ single_number
-
-
-Double? :Singleton as:
-    double_number? Integer
-    
-    init? :Initializer as:
-        Std prints("Initializing Double.")
-        $ double_number = 222
-    
-    ? :Finalizer as:
-        Std prints("Finalizing Double.")
-    
-    double_function? :Function Integer as:
-        :return $ double_number
-
-
-Util? :Singleton as:
     f? :Function Integer from:
         x? Integer
         y? Integer
     as:
         :return x * 2 + y * 3
 
-
-    g? :Function Integer from:
-        xxx? Integer Ovalue
-        yyy? Integer Ovalue
-    as:
-        :return xxx + yyy
-
-
-    triple? :Function (Integer, Integer, Integer) as:
-        :return (97, 98, 99)
-
-
-    nasty? :Function may: { SMALL_ERROR, BIG_ERROR } as:
-        :raise `SMALL_ERROR
-
-
-    twice? :Function from:
-        how? Integer Dvalue
-        what? Integer Code
-    as:
-        :try
-            sum? = what(1) + what(2)
-            Std prints("That was {sum}." {})
-        or:
-            Std prints("What failed!")
-
-
-    passthrough? :Function from: what? Integer Code as:
-        :try what or:
-            Std prints("Passthrough code is breaking.")
-            :fixed
-
-
-Main? :Singleton as:
-    restart? :Function as:
-        $ start  # check predeclarations
-
-
-    Myint? :Integer bytes: 8 is_unsigned: `false
-
-
-    Mybyte? :Integer bytes: 1 is_unsigned: `false
-
-
     test_integers? :Function as:
-        Std printi(Util f(1, 2))
+        Std printi($ f(1, 2))
     
         a? Integer = 0
         a = 2
@@ -366,6 +63,7 @@ Main? :Singleton as:
         Std prints("And truth table: {} {} {} {}" { false && false, false && true, true && false, true && true })
 
 
+Test_floats? :Singleton as:
     test_floats? :Function as:
         j? = -31.4e-01
         Std printd(j)
@@ -397,8 +95,9 @@ Main? :Singleton as:
         Std prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
 
         Std prints("e={e} log(10)={l} 1.5**2={m}" {e: 1.0 exp, l: 10.0 log, m: 1.5 ** 2.0})
-    
 
+
+Test_strings? :Singleton as:
     test_strings? :Function as:
         a? = 1
         Std prints("Hello!")
@@ -481,9 +180,9 @@ Main? :Singleton as:
                 :yield
 
 
+Test_enums? :Singleton as:
     Myenum? :Enumeration
         FOO, BAR, BAZ
-
 
     test_enums? :Function as:
         fbb? .Myenum = `BAR
@@ -492,14 +191,115 @@ Main? :Singleton as:
         Std prints("fbb is actually {f}!" { f: fbb })
 
 
-    test_ovalues? :Function as:
-        Std printi(Util g(100, 100))
-        Std printi(Util g(100))
-        Std printi(Util g)
+Test_ovalues? :Singleton as:
+    g? :Function Integer from:
+        xxx? Integer Ovalue
+        yyy? Integer Ovalue
+    as:
+        :return xxx + yyy
 
+    test_ovalues? :Function as:
+        Std printi($ g(100, 100))
+        Std printi($ g(100))
+        Std printi($ g)
+
+Pairs? :Singleton as:
+    make_pair? :Function Test_records.Pair as:
+        p? Test_records.Pair = {}
+        p first = 11
+        p second = 22
+        :return p
+
+    print_pair? :Function from:
+        p? Test_records.Pair Ovalue
+    as:
+        Std prints("A pair of ({x}, {y})" { x: p first, y: p second })
+
+Test_records? :Singleton as:
+    Pair? :Record as:
+        first? Integer
+        second? Integer
+        lself? :Lself
+
+        new? :Initializer as:
+            $ first = 1
+            $ second = 2
+
+        meth? :Function Integer as:
+            Std prints("Meth!")
+            :return $ first + $ second
+
+        dump? :Function as:
+            Std prints("Pair({x}, {y})" { x: $ first, y: $ second })
+
+        sable? :Auto Streamifiable
+
+        sable.streamify? :Function from: stream? String Lvalue as:
+            stream += "({},{})" { $ first, $ second }
+        
+        lself.reset? :Function as:
+            $ first = 0
+            $ second = 0
+
+    Foo? :Record as:
+        hey? Test_records.Bar.Baz
+        f? :Function as:
+            $ hey g
+    
+    Bar? :Record as:
+        Baz? :Record as:
+            ho? Integer
+            g? :Function as: :return
+    
+    XCounter? :Record as:
+        current? Integer
+        limit? Integer
+        lself? :Lself
+    
+        new? :Initializer from:
+            n? Integer
+        as:
+            $ current = -1
+            $ limit = n
+        
+        lself.itor? :Auto Integer Iterator
+
+        lself.itor.next? :Function Integer may: Iterator_done_exception as:
+            $ current += 1
+    
+            :if $ current == $ limit then:
+                :raise `ITERATOR_DONE
+            
+            :return $ current
+        
+        ible? :Auto Integer Iterable
+    
+        ible.iter? :Function Test_records.XCounter as:
+            :return $
+
+    XStringiterator? :Record as:
+        string? String
+        index? Integer
+        lself? :Lself
+    
+        new? :Initializer from:
+            s? String
+        as:
+            $ string = s
+            $ index = -1
+
+        lself.itor? :Auto Character Iterator
+    
+        lself.itor.next? :Function Character may: Iterator_done_exception as:
+            $ index += 1
+    
+            :if $ index == $ string length then:
+                :raise `ITERATOR_DONE
+
+            :return $ string[$ index]
 
     test_records? :Function as:
-        p? Pair = `new
+        p? .Pair = `new
 
         p first = 123
         p second = 456
@@ -509,7 +309,7 @@ Main? :Singleton as:
         p = Pairs make_pair
         Std printi(p second)
     
-        q? Pair = `new
+        q? .Pair = `new
         q first = 123
         q second = 456
         :if p == q then: Std prints("Equal tuples.") else: Std prints("Inequal tuples.")
@@ -518,49 +318,74 @@ Main? :Singleton as:
     
         p dump dump
     
-        r? Pair = `new
+        r? .Pair = `new
         r dump
     
-        Pair { second: 222 } dump
+        .Pair { second: 222 } dump
     
-        Std prints("Second is {x}" {x: Pair { second: 222 } second})
+        Std prints("Second is {x}" {x: .Pair { second: 222 } second})
 
         q first = 11
         Std prints("{p} and {q} compares as {c}" { p: p, q: q, c: p <=> q })
 
 
+Test_multis? :Singleton as:
+    triple? :Function (Integer, Integer, Integer) as:
+        :return (97, 98, 99)
+
     test_multis? :Function as:
         x1? Integer = 0
         x2? Integer = 0
         x3? Integer = 0
-        (x1, x2, x3) = Util triple
+        (x1, x2, x3) = $ triple
         Std prints("Triple returned {x1}, {x2}, {x3}." {})
     
-        (x2, x3) = Util triple
+        (x2, x3) = $ triple
         Std prints("Triple short returned {x2}, {x3}." {})
 
-        x3 = Util triple
+        x3 = $ triple
         Std prints("Triple scalarized to {x3}" {})
     
-        (y1? Integer, y2? Integer, y3? Integer) = Util triple
+        (y1? Integer, y2? Integer, y3? Integer) = $ triple
         Std prints("Triple initialized {y1}, {y2}, {y3}." {})
     
-        (y4? Integer, y5? Integer) = Util triple
+        (y4? Integer, y5? Integer) = $ triple
         Std prints("Triple short initialized {y4}, {y5}." {})
         
-        (z1?, z2?, z3?) = Util triple
+        (z1?, z2?, z3?) = $ triple
         Std prints("Triple bare initialized {z1}, {z2}, {z3}." {})
 
-        (z4?, z5?) = Util triple
+        (z4?, z5?) = $ triple
         Std prints("Triple bare short initialized {z4}, {z5}." {})
 
 
+Test_controls? :Singleton as:
     MyTree? :Treenumeration
         ONE { TEN, ELEVEN, TWELVE },
         TWO { TWENTY },
         THREE,
         FOUR
 
+    nasty? :Function may: { SMALL_ERROR, BIG_ERROR } as:
+        :raise `SMALL_ERROR
+
+    twice? :Function from:
+        how? Integer Dvalue
+        what? Integer Code
+    as:
+        :try
+            sum? = what(1) + what(2)
+            Std prints("That was {sum}." {})
+        or:
+            Std prints("What failed!")
+
+    passthrough? :Function from: what? Integer Code as:
+        :try what or:
+            Std prints("Passthrough code is breaking.")
+            :fixed
+
+    test? :Function as:
+        $ test_controls  # check predeclarations
 
     test_controls? :Function as:
         :repeat i? = 0 on: i < 3 by: i += 1 do:
@@ -604,7 +429,7 @@ Main? :Singleton as:
             :yield
 
         :try
-            Util nasty
+            $ nasty
         or:
             :is ~BIG_ERROR then:
                 Std prints("This was a big error!")
@@ -669,10 +494,10 @@ Main? :Singleton as:
         :if !! Boolean `true then:
             Std prints("Faker news!")
 
-        Util twice(how: h? what:this: (Std prints("You want {h}?" {}), :this h * 1000))
+        $ twice(how: h? what:this: (Std prints("You want {h}?" {}), :this h * 1000))
 
         :eval:
-            Util passthrough(what:this: (:eval, :this 0))
+            $ passthrough(what:this: (:eval, :this 0))
             Std prints("This shouldn't be printed!")
 
         :hihi:if `true then: x3 else:if `false then: x4
@@ -685,6 +510,7 @@ Main? :Singleton as:
         Std prints("Don't print this!")
 
 
+Test_arrays? :Singleton as:
     test_arrays? :Function as:
         strings? String Array = `empty
         Std prints("Empty array length: {x}" { x: strings length })
@@ -748,8 +574,9 @@ Main? :Singleton as:
 
         :for sl3 each: x? do:
             Std prints("Slice has: {x}" {})
-            
 
+
+Test_queues? :Singleton as:
     test_queues? :Function as:
         ca? String Queue = { "foo", "bar", "baz", "xxx" }
         :try ca pop
@@ -783,6 +610,7 @@ Main? :Singleton as:
         Std prints("Queue length became {}, while copy still contains {} elems like {} and {}." { qv length, cc length, cc[0], cc[1] })
 
 
+Test_rbtrees? :Singleton as:
     test_rbtrees? :Function as:
         rb? String Set = `reserved(8)
     
@@ -854,6 +682,7 @@ Main? :Singleton as:
         Std prints("Map length became {}, while copy still contains {} elems like {} and {}." { mp length, cc length, cc["A"], cc["B"] })
 
 
+Test_options? :Singleton as:
     test_options? :Function as:
         op1? String Option = `some("XYZ")
         Std prints("This option is: {op1}" {})
@@ -875,10 +704,143 @@ Main? :Singleton as:
             Std prints("IT CONTAINED NONE!")
         else:
             Std prints("It contained some.")
-            
 
-    test_classes? :Function Greetable Ref as:
-        gr? Greetable Ref = Basic_greetable Ref `second_init
+
+Test_classes? :Singleton as:
+    Base? :Interface as:
+        the_base_method? :Function
+    
+
+    Basic_base? :Class Test_classes.Base as:
+        Type? :Enumeration
+            NICE, UGLY
+        
+        type? .Type
+        base_value? Integer
+    
+        base_init? :Initializer as:
+            $ type = `NICE
+            $ base_value = 100
+            Std prints("The base is initialized.")
+    
+        base_method? :Function as:
+            Std prints("The base value is {x}." {x: $ base_value})
+
+        @.the_base_method? :Function as:
+            $ base_method
+        
+        ? :Finalizer as:
+            Std prints("The base is finalized.")
+
+
+    Derived? :Interface Test_classes.Base as:
+        the_derived_method? :Function
+    
+
+    Basic_derived? :Class Test_classes.Derived by: Test_classes.Basic_base as:
+        #base? :Role by: Basic_base
+        derived_value? Integer
+    
+        derived_init? :Initializer as:
+            $ .base_init
+            $ derived_value = 1000
+            Std prints("The derived is initialized.")
+        
+        .base_method? :Function as:
+            Std prints("Derived base_method, the base value is {x}." {x: $ base_value})
+            #$.base base_method
+            $ .orig
+        
+        derived_method? :Function as:
+            Std prints("Derived method, just for fun.")
+
+        @.the_derived_method? :Function as:
+            $ derived_method
+        
+        ? :Finalizer as:
+            Std prints("The derived is finalized.")
+        
+        
+    Intval? :Interface as:
+        get? :Function Integer
+    
+
+    Property? :Class as:
+        value? Integer
+    
+        init? :Initializer as:
+            $ value = 0
+        
+        get? :Function Integer as:
+            :return $ value
+        
+        set? :Function from:
+            x? Integer
+        as:
+            $ value = x
+    
+    
+    Greetable? :Interface Test_classes.Derived as:
+        greet? :Function
+        #the_base_method? :Function
+        #the_derived_method? :Function
+
+        small? :Role Test_classes.Intval
+        large? :Role Test_classes.Intval
+        #left? :Role by: Property
+        #right? :Role by: Property
+    
+
+    Basic_greetable? :Class Test_classes.Greetable by: Test_classes.Basic_derived as:
+        #derived? :Role by: Basic_derived
+        #small? :Role Intval
+        #large? :Role Intval
+        left? :Role by: Test_classes.Property
+        right? :Role by: Test_classes.Property
+
+        init? :Initializer as:
+            $ .derived_init
+            $ left.init
+            $ right.init
+            $ number = 1
+            $ name = "The Greetable"
+        
+            Std prints("I'm here as {}." { $ name })
+        
+        second_init? :Initializer as:
+            $ init
+        
+        @.greet? :Function as:
+            Std prints("Hello, I'm {}!" { $ name })
+
+        ? :Finalizer as:
+            Std prints("I'm outta here!")
+
+        .base_method? :Function as:
+            Std prints("Greetable base_method, the base value is {}." {$ base_value})
+            #$.derived base base_method
+            $ .orig
+
+        #main.the_base_method? :Function as:
+        #    $ base_method
+
+        #main.the_derived_method? :Function as:
+        #    $ derived_method
+
+        # Testing late declarations
+        number? Integer
+        name? String
+    
+        @.small.get? :Function Integer as:
+            Std prints("Getting small...")
+            :return 12
+        
+        @.large.get? :Function Integer as:
+            Std prints("Getting large...")
+            :return 120
+            
+    test_classes? :Function .Greetable Ref as:
+        gr? .Greetable Ref = .Basic_greetable Ref `second_init
         gr greet
         
         Std prints("Small is {} and large is {}" { gr small get, gr large get })
@@ -901,16 +863,16 @@ Main? :Singleton as:
         #bs? = gr derived base
         gr greet  # To make sure base refcount don't destroy the Greetable VT
 
-        :is gr ~Greetable then:
+        :is gr ~.Greetable then:
             Std prints("Huh, greetable is Greetable.")
 
-        :is gr ~Base then:
+        :is gr ~.Base then:
             Std prints("WAT, greetable is Base.")
 
         #:is bs ~Greetable then:
         #    Std prints("WAT, base is Greetable.")
 
-        wt? Greetable Weakref = `to(gr)
+        wt? .Greetable Weakref = `to(gr)
 
         # Test for alive
         :is wt ~live then:
@@ -923,7 +885,7 @@ Main? :Singleton as:
         else:
             Std prints("WT is live.")
 
-        wvm? (String, Greetable) WeakValueMap = `empty
+        wvm? (String, .Greetable) WeakValueMap = `empty
         :try
             wvm add("x", gr)
             wvm add("y", gr)
@@ -936,21 +898,21 @@ Main? :Singleton as:
         Std prints("wvm length is {x}" {x: wvm length})
         Std prints("ccc length is still {}" { ccc length })
 
-        wim? (Greetable, String) WeakIndexMap = `empty
+        wim? (.Greetable, String) WeakIndexMap = `empty
         :try
             wim add(gr, "incorrect")
             wim add(gr, "correct")
         Std prints("wim stores for gr: {x}" {x: wim[gr]})
         Std prints("wim length is {x}" {x: wim length})
     
-        ws? Greetable WeakSet = `empty
+        ws? .Greetable WeakSet = `empty
         :try
             ws add(gr)
             ws add(gr)
         Std prints("ws stores gr: {x}" {x: ws has(gr)})
         Std prints("ws length is {x}" {x: ws length})
 
-        killer? Greetable Ref = Basic_greetable Ref `init
+        killer? .Greetable Ref = .Basic_greetable Ref `init
         Std prints("Now killing the previous instance...")
         wgr = killer
         #bs = killer derived base
@@ -978,16 +940,44 @@ Main? :Singleton as:
         # killer is finalized    
         :return killer
 
+Single? :Singleton as:
+    single_number? Integer
+    single_text? String
 
+    init? :Initializer as:
+        Std prints("Initializing Single.")
+        $ single_number = 111
+        $ single_text = "NEEDS " + "CLEANUP"
+
+    ? :Finalizer as:
+        Std prints("Finalizing Single.")
+
+    single_function? :Function Integer as:
+        :return $ single_number
+
+Double? :Singleton as:
+    double_number? Integer
+
+    init? :Initializer as:
+        Std prints("Initializing Double.")
+        $ double_number = 222
+
+    ? :Finalizer as:
+        Std prints("Finalizing Double.")
+
+    double_function? :Function Integer as:
+        :return $ double_number
+
+Test_singletons? :Singleton as:
     test_singletons? :Function as:
         Std prints("Single value should be 111: {x}" {x: Single single_function})
         Std prints("Double value should be 222: {x}" {x: Double double_function})
 
 
+Test_files? :Singleton as:
     ? :Import fs
     ? :Import .sub for:
         Sub
-    
 
     test_files? :Function as:
         f? = fs.Path `at("test.mkdir")
@@ -1033,23 +1023,24 @@ Main? :Singleton as:
             
         .sub.Sub
         Sub
+    
 
-
+Main? :Singleton as:
     start? :Function as:
-        $ test_integers
-        $ test_floats
-        $ test_strings
-        $ test_enums
-        $ test_ovalues
-        $ test_records
-        $ test_multis
-        $ test_controls
-        $ test_arrays
-        $ test_queues
-        $ test_rbtrees
-        $ test_options
-        $ test_classes
-        $ test_singletons
-        $ test_files
+        Test_integers test_integers
+        Test_floats test_floats
+        Test_strings test_strings
+        Test_enums test_enums
+        Test_ovalues test_ovalues
+        Test_records test_records
+        Test_multis test_multis
+        Test_controls test_controls
+        Test_arrays test_arrays
+        Test_queues test_queues
+        Test_rbtrees test_rbtrees
+        Test_options test_options
+        Test_classes test_classes
+        Test_singletons test_singletons
+        Test_files test_files
         
         Std prints("Done.")
