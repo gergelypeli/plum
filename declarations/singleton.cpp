@@ -3,6 +3,7 @@ class SingletonType: public Type, public PartialInitializable {
 public:
     std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
+    std::vector<SingletonType *> member_singletons;
     Function *initializer_function;
     Function *finalizer_function;
 
@@ -43,6 +44,12 @@ public:
                 }
                     
                 finalizer_function = f;
+            }
+            
+            SingletonType *s = ptr_cast<SingletonType>(c.get());
+            
+            if (s) {
+                member_singletons.push_back(s);
             }
         }
         
@@ -99,5 +106,19 @@ public:
 
         x64->op(RET);
         return label;
+    }
+    
+    virtual void collect_initializer_labels(std::vector<Label> &labels, X64 *x64) {
+        labels.push_back(compile_initializer(x64));
+        
+        for (auto s : member_singletons)
+            s->collect_initializer_labels(labels, x64);
+    }
+    
+    virtual void collect_finalizer_labels(std::vector<Label> &labels, X64 *x64) {
+        for (auto s : member_singletons)  // FIXME: reverse
+            s->collect_finalizer_labels(labels, x64);
+
+        labels.push_back(compile_finalizer(x64));
     }
 };

@@ -1,6 +1,6 @@
 
 enum ScopeType {
-    ROOT_SCOPE, DATA_SCOPE, CODE_SCOPE, ARGUMENT_SCOPE, FUNCTION_SCOPE, MODULE_SCOPE, EXPORT_SCOPE
+    ROOT_SCOPE, DATA_SCOPE, CODE_SCOPE, ARGUMENT_SCOPE, FUNCTION_SCOPE, MODULE_SCOPE, EXPORT_SCOPE, SINGLETON_SCOPE
 };
 
 
@@ -241,8 +241,8 @@ public:
     bool am_virtual_scope;
     bool am_abstract_scope;
     
-    DataScope()
-        :NamedScope(DATA_SCOPE) {
+    DataScope(ScopeType st = DATA_SCOPE)
+        :NamedScope(st) {
         pivot_ts = NO_TS;
         am_virtual_scope = false;
         am_abstract_scope = false;
@@ -341,7 +341,7 @@ public:
     virtual RootScope *get_root_scope() {
         return this;
     }
-    
+
     virtual void set_application_label(Label al) {
         application_label = al;
     }
@@ -394,7 +394,7 @@ public:
     Allocation offset;
     
     SingletonScope()
-        :DataScope() {
+        :DataScope(SINGLETON_SCOPE) {
     }
 
     virtual void allocate() {
@@ -402,8 +402,9 @@ public:
             return;
             
         DataScope::allocate();
-        
-        offset = outer_scope->reserve(size);
+
+        if (size.concretize() != 0)  // For the Colon scope, which is not in any module scope
+            offset = get_module_scope()->reserve(size);
     }
 
     virtual SingletonScope *get_singleton_scope() {

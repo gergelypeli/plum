@@ -6,7 +6,7 @@ public:
     ModuleScope *module_scope;
     DataBlockValue *value_root;
     std::set<std::string> required_module_names;
-    std::vector<SingletonType *> singleton_types;
+    std::vector<SingletonType *> member_singletons;
     
     Module(std::string mn, RootScope *rs) {
         module_name = mn;
@@ -33,10 +33,10 @@ public:
             SingletonType *s = ptr_cast<SingletonType>(c.get());
             
             if (s)
-                singleton_types.push_back(s);
+                member_singletons.push_back(s);
         }
         
-        std::cerr << "Module " << module_name << " has " << singleton_types.size() << " singletons.\n";
+        std::cerr << "Module " << module_name << " has " << member_singletons.size() << " singletons.\n";
 
         ok = ok && value_root->define_data() && value_root->define_code();
     
@@ -46,13 +46,13 @@ public:
     }
 
     virtual void collect_initializer_labels(std::vector<Label> &labels, X64 *x64) {
-        for (SingletonType *s : singleton_types)
-            labels.push_back(s->compile_initializer(x64));
+        for (SingletonType *s : member_singletons)
+            s->collect_initializer_labels(labels, x64);
     }
 
     virtual void collect_finalizer_labels(std::vector<Label> &labels, X64 *x64) {
-        for (SingletonType *s : singleton_types)
-            labels.push_back(s->compile_finalizer(x64));
+        for (SingletonType *s : member_singletons)  // FIXME: reverse
+            s->collect_finalizer_labels(labels, x64);
     }
 };
 

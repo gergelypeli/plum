@@ -72,7 +72,7 @@ public:
         Scope *ss = fn_scope->add_self_scope();
         ss->enter();
         
-        if (scope->type == DATA_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == SINGLETON_SCOPE) {
             pivot_ts = scope->pivot_type_hint();
             
             if (pivot_ts.has_meta(singleton_metatype)) {
@@ -400,7 +400,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type != DATA_SCOPE) {
+        if (scope->type != DATA_SCOPE && scope->type != SINGLETON_SCOPE) {
             std::cerr << "Functions must be declared in data scopes!\n";
             return NULL;
         }

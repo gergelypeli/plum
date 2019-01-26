@@ -39,7 +39,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     else if (name[0] == '.' && isupper(name[1])) {
         // Local type, look up in enclosing data scope
         for (Scope *s = scope; s; s = s->outer_scope) {
-            if (s->type == DATA_SCOPE) {
+            if (s->type == DATA_SCOPE || s->type == SINGLETON_SCOPE) {
                 value = s->lookup(name.substr(1), pivot, scope);
                 break;
             }

@@ -181,7 +181,7 @@ public:
     }
     
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
             Declaration *d = new IntegerType(name, size, is_not_signed);
             scope->add(d);
             return d;
@@ -221,7 +221,7 @@ public:
 
     
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
             Type *t = new EnumerationType(name, keywords);
             t->make_inner_scope({ t })->leave();
             scope->add(t);
@@ -307,7 +307,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == FUNCTION_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == FUNCTION_SCOPE || scope->type == SINGLETON_SCOPE) {
             Type *t = new TreenumerationType(name, keywords, parents);
             t->make_inner_scope({ t })->leave();
             scope->add(t);
@@ -522,7 +522,7 @@ public:
     }
     
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == MODULE_SCOPE || scope->type == DATA_SCOPE) {
+        if (scope->type == MODULE_SCOPE || scope->type == DATA_SCOPE || scope->type == SINGLETON_SCOPE) {
             if (name != "<anonymous>") {
                 std::cerr << "Import declaration must be anonymous!\n";
                 return NULL;
@@ -661,7 +661,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
             Type *t = new RecordType(name, Metatypes {});
             return define(t, { t }, scope);
         }
@@ -696,7 +696,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == MODULE_SCOPE) {
+        if (scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
             Type *t = new SingletonType(name);
             return define(t, { t }, scope);
         }
@@ -736,7 +736,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
             Type *t = new ClassType(name, Metatypes {});
             return define(t, { ptr_type, t }, scope);
         }
@@ -821,7 +821,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
             Type *t = new InterfaceType(name, Metatypes {});
             TypeSpec pivot_ts = { ptr_type, t };
             return define(t, pivot_ts, scope);
