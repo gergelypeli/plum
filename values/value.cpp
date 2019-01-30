@@ -572,6 +572,14 @@ public:
         if (associable->where == NOWHERE)
             throw INTERNAL_ERROR;
             
+        // Get a working register just in case
+        if (clob.has_any())
+            reg = clob.get_any();
+        else {
+            reg = RAX;
+            clob = clob | reg;
+        }
+            
         return clob;
     }
     
@@ -586,7 +594,7 @@ public:
         if (associable->inherit_as == AS_BASE || associable->inherit_as == AS_MAIN)
             return s;
         else if (!associable->is_abstract()) {
-            int offset = associable->offset.concretize(match);  // May step multiple roles
+            int offset = associable->offset.concretize(match);
         
             //std::cerr << "XXX RoleValue for " << role->name << " has offset " << offset << "\n";
         
@@ -598,11 +606,13 @@ public:
                 x64->op(ADDQ, Address(RSP, 0), offset);
                 return s;
             case MEMORY:
+                pivot->ts.store(s, Storage(REGISTER, reg), x64);
+                x64->op(ADDQ, reg, offset);
+                return Storage(REGISTER, reg);
             case BMEMORY:
-                // TODO: optimize this incref thing
-                pivot->ts.store(s, Storage(STACK), x64);
-                x64->op(ADDQ, Address(RSP, 0), offset);
-                return Storage(STACK);
+                pivot->ts.store(s, Storage(BREGISTER, reg), x64);
+                x64->op(ADDQ, reg, offset);
+                return Storage(BREGISTER, reg);
             default:
                 throw INTERNAL_ERROR;
             }
@@ -624,14 +634,17 @@ public:
                 x64->op(ADDQ, Address(RSP, 0), R10);
                 return s;
             case MEMORY:
-            case BMEMORY:
-                // TODO: optimize this incref thing
-                pivot->ts.store(s, Storage(STACK), x64);
-                x64->op(MOVQ, R10, Address(RSP, 0));
-                x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));
+                pivot->ts.store(s, Storage(REGISTER, reg), x64);
+                x64->op(MOVQ, R10, Address(reg, CLASS_VT_OFFSET));
                 x64->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
-                x64->op(ADDQ, Address(RSP, 0), R10);
-                return Storage(STACK);
+                x64->op(ADDQ, reg, R10);
+                return Storage(REGISTER, reg);
+            case BMEMORY:
+                pivot->ts.store(s, Storage(BREGISTER, reg), x64);
+                x64->op(MOVQ, R10, Address(reg, CLASS_VT_OFFSET));
+                x64->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
+                x64->op(ADDQ, reg, R10);
+                return Storage(BREGISTER, reg);
             default:
                 throw INTERNAL_ERROR;
             }

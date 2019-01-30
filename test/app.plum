@@ -843,10 +843,6 @@ Test_classes? :Singleton as:
         gr? Greetable Ref = Basic_greetable Ref `second_init
         gr greet
         
-        gr small
-        
-        gr small get
-        
         Std prints("Small is {} and large is {}" { gr small get, gr large get })
         
         #gr left set(13)
