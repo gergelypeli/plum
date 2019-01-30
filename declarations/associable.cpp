@@ -341,7 +341,7 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual void compile_vt(TypeMatch tm, std::string tname, X64 *x64) {
+    virtual void compile_vt(TypeMatch tm, X64 *x64) {
         // For Role
         throw INTERNAL_ERROR;
     }
@@ -376,10 +376,10 @@ public:
         if (associable->where == NOWHERE)
             throw INTERNAL_ERROR;
             
-        Allocation offset = associable->offset;
+        int offset = associable->offset.concretize(tm);
         
         Label label;
-        x64->absolute_label(label, offset.concretize(tm));  // forcing an int into an unsigned64...
+        x64->absolute_label(label, offset);  // forcing an int into an unsigned64...
         return label;
     }
 

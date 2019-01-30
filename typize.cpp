@@ -36,19 +36,28 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
         std::cerr << "Looking up in Colon.\n";
         value = colon_scope->lookup(name, NULL, scope);
     }
-    else if (name[0] == '.' && isupper(name[1])) {
-        // Local type, look up in enclosing data scope
-        for (Scope *s = scope; s; s = s->outer_scope) {
-            if (s->type == DATA_SCOPE || s->type == SINGLETON_SCOPE) {
-                value = s->lookup(name.substr(1), pivot, scope);
-                break;
-            }
-        }
-    }
+    //else if (name[0] == '.' && isupper(name[1])) {
+    //    // Local type, look up in enclosing data scope
+    //    for (Scope *s = scope; s; s = s->outer_scope) {
+    //        if (s->type == DATA_SCOPE || s->type == SINGLETON_SCOPE) {
+    //            value = s->lookup(name.substr(1), pivot, scope);
+    //            break;
+    //        }
+    //    }
+    //}
     else if (isupper(name[0])) {
         // Global type, look up in module level
-        Scope *module_scope = scope->get_module_scope();
-        value = module_scope->lookup(name, pivot, scope);
+        //Scope *module_scope = scope->get_module_scope();
+        //value = module_scope->lookup(name, pivot, scope);
+        Scope *start = (scope->type == CODE_SCOPE || scope->type == ARGUMENT_SCOPE ? scope->get_function_scope()->outer_scope : scope);
+        
+        for (Scope *s = start; s; s = s->outer_scope) {
+            value = s->lookup(name, pivot, scope);
+        
+            if (value)
+                break;
+        }
+        
     }
     else if (pivot) {
         // Pivoted value
@@ -61,7 +70,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
         value = module_scope->lookup(name, pivot, scope);
     }
     else if (islower(name[0]) || name[0] == '$' || name[0] == '<') {
-        // Local variable, look up in function body
+        // Local variable, look up in function body and head
         for (Scope *s = scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
             value = s->lookup(name, pivot, scope);
         

@@ -1,8 +1,9 @@
 
 
 static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch tm, Label label, std::string symbol, X64 *x64) {
+    std::cerr << "    Virtual table for " << symbol << " (" << vt.high() - vt.low() << ")\n";
+
     x64->data_align(8);
-    std::cerr << "    " << symbol << " (" << vt.high() - vt.low() << ")\n";
 
     for (int i = vt.low(); i < vt.high(); i++) {
         VirtualEntry *ve = vt.get(i);
@@ -13,126 +14,49 @@ static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch 
         Label l = vt.get(i)->get_virtual_entry_label(tm, x64);
 
         if (i == 0)
-            x64->data_label_local(label, symbol);
+            x64->data_label_local(label, symbol + "_virtual_table");
 
         x64->data_reference(l);
     }
 }
 
 
-static void dump_associable(Associable *a, int indent) {
-    for (int i = 0; i < indent; i++)
-        std::cerr << "  ";
-        
-    std::cerr << "'" << a->name << "' (" << (
-        a->inherit_as == AS_BASE ? "BASE" :
-        a->inherit_as == AS_MAIN ? "MAIN" :
-        a->inherit_as == AS_ROLE ? "ROLE" :
-        a->inherit_as == AS_AUTO ? "AUTO" :
-        throw INTERNAL_ERROR
-    ) << ") " << a->alloc_ts << "\n";
-    
-    for (auto &x : a->shadow_associables)
-        dump_associable(x.get(), indent + 1);
+static void compile_autoconv_table(const std::vector<AutoconvEntry> &act, TypeMatch tm, Label label, std::string symbol, X64 *x64) {
+    std::cerr << "    Autoconv table for " << symbol << " (" << act.size() << ")\n";
+
+    x64->data_align(8);
+    x64->data_label_local(label, symbol + "_autoconv_table");
+
+    for (auto ace : act) {
+        x64->data_reference(ace.role_ts.get_interface_table_label(x64));
+        x64->data_qword(ace.role_offset);
+    }
+
+    // Sentry
+    x64->data_qword(0);
 }
 
 
-class ClassType: public InheritableType, public PartialInitializable, public Autoconvertible {
+class ClassType: public IdentityType, public Autoconvertible {
 public:
-    std::vector<Allocable *> member_allocables;
-    std::vector<std::string> member_names;
-    std::vector<Function *> member_functions;
-    Function *finalizer_function;
     AutoconvVirtualEntry *autoconv_ve;
     FfwdVirtualEntry *fastforward_ve;
-    std::vector<Associable *> roles;
 
     ClassType(std::string name, Metatypes param_metatypes)
-        :InheritableType(name, param_metatypes, class_metatype) {
-        finalizer_function = NULL;
+        :IdentityType(name, param_metatypes, class_metatype, false) {
         autoconv_ve = NULL;
         fastforward_ve = NULL;
     }
 
-    virtual DataScope *make_inner_scope(TypeSpec pts) {
-        DataScope *is = InheritableType::make_inner_scope(pts);
-
-        is->be_virtual_scope();
-        
-        return is;
-    }
-
-    virtual bool complete_type() {
-        for (auto &c : inner_scope->contents) {
-            Allocable *a = ptr_cast<Allocable>(c.get());
-            
-            if (a && !a->is_abstract()) {
-                member_allocables.push_back(a);
-                member_names.push_back(a->name);
-            }
-
-            Associable *s = ptr_cast<Associable>(c.get());
-            
-            if (s) {
-                //Associable *s = ptr_cast<Associable>(r);
-                s->set_parent(this);
-                
-                if (s->is_mainconv()) {
-                    if (roles.size()) {
-                        std::cerr << "Multiple main roles!\n";
-                        throw INTERNAL_ERROR;
-                    }
-                }
-                else if (s->is_baseconv()) {
-                    if (roles.size()) {
-                        std::cerr << "Multiple base roles!\n";
-                        return false;
-                    }
-                }
-
-                roles.push_back(s);
-
-                s->check_full_implementation();
-                
-                dump_associable(s, 1);
-            }
-
-            Function *f = ptr_cast<Function>(c.get());
-            
-            if (f && f->type == FINALIZER_FUNCTION) {
-                if (finalizer_function) {
-                    std::cerr << "Multiple finalizers!\n";
-                    return false;
-                }
-                    
-                finalizer_function = f;
-            }
-            
-            if (f && f->type == GENERIC_FUNCTION)
-                member_functions.push_back(f);
-        }
-        
-        std::cerr << "Class " << name << " has " << member_allocables.size() << " member variables.\n";
-        
-        return true;
-    }
-
-    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
-        for (auto &r : roles)
-            assocs.push_back(ptr_cast<Associable>(r));
-            
-        funcs = member_functions;
-    }
-
     virtual Associable *get_base_role() {
-        return (roles.size() && roles[0]->is_baseconv() ? roles[0] : NULL);
+        return (member_associables.size() && member_associables[0]->is_baseconv() ? member_associables[0] : NULL);
     }
     
     virtual Associable *get_main_role() {
-        if (roles.empty())
+        if (member_associables.empty())
             return NULL;
         
-        Associable *role = roles[0];
+        Associable *role = member_associables[0];
         
         while (true) {
             if (role->is_mainconv())
@@ -190,11 +114,7 @@ public:
         inner_scope->virtual_initialize(vt);
 
         // Function overrides in virtual tables only happen here
-        InheritableType::allocate();
-    }
-
-    virtual Allocation measure_identity(TypeMatch tm) {
-        return inner_scope->get_size(tm);
+        IdentityType::allocate();
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
@@ -248,18 +168,6 @@ public:
         return NULL;
     }
 
-    virtual std::vector<std::string> get_member_names() {
-        return member_names;
-    }
-
-    virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
-        inner_scope->set_virtual_entry(vi, ve);
-    }
-
-    virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
-        return inner_scope->get_virtual_table();
-    }
-
     virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm) {
         std::vector<AutoconvEntry> act;
 
@@ -280,23 +188,14 @@ public:
     static void compile_act(Label label, TypeSpec ts, X64 *x64) {
         ClassType *ct = ptr_cast<ClassType>(ts[0]);
         TypeMatch tm = ts.match();
+        std::string symbol = ts.symbolize();
 
-        std::vector<AutoconvEntry> act = ct->get_autoconv_table(tm);
-
-        x64->data_align(8);
-        x64->data_label(label);
+        ::compile_autoconv_table(ct->get_autoconv_table(tm), tm, label, symbol, x64);
         
-        for (auto ace : act) {
-            x64->data_reference(ace.role_ts.get_interface_table_label(x64));
-            x64->data_qword(ace.role_offset);
-        }
-
-        // Sentry
-        x64->data_qword(0);
-        
-        for (auto &r : ct->roles)
+        for (auto &r : ct->member_associables)
             r->compile_act(tm, x64);
     }
+
 
     virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
         return x64->once->compile(compile_vt, tm[0]);
@@ -312,14 +211,14 @@ public:
         // Includes main and base, but not regular roles
         devector<VirtualEntry *> vt = ts.get_virtual_table();
         TypeMatch tm = ts.match();
-        std::string symbol = ts.symbolize() + "_virtual_table";
+        std::string symbol = ts.symbolize();
         
         ::compile_virtual_table(vt, tm, label, symbol, x64);
 
         ClassType *ct = ptr_cast<ClassType>(ts[0]);
 
-        for (auto &r : ct->roles)
-            associable_compile_vt(r, tm, ts.symbolize(), x64);
+        for (auto &r : ct->member_associables)
+            r->compile_vt(tm, x64);
     }
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
@@ -337,28 +236,10 @@ public:
         x64->op(MOVQ, self_addr + CLASS_VT_OFFSET, R10);
 
         // Roles compute their offsets in terms of the implementor class type parameters
-        for (auto &r : roles)
-            associable_init_vt(r, tm, self_addr, x64);
+        for (auto &r : member_associables)
+            r->init_vt(tm, self_addr, x64);
     }
 
-    /*
-    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        for (auto mr : roles) {
-            Associable *r = ptr_cast<Associable>(mr);
-            
-            if (!r->is_autoconv())
-                continue;
-                
-            Value *v = r->autoconv(tm, target, orig, ifts, assume_lvalue);
-            
-            if (v)
-                return v;
-        }
-        
-        return InheritableType::autoconv(tm, target, orig, ifts, assume_lvalue);
-    }
-    */
-    
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         std::cerr << "Class " << name << " inner lookup " << n << ".\n";
         bool dot = false;
@@ -368,7 +249,7 @@ public:
             n = n.substr(1);
         }
         
-        Value *value = InheritableType::lookup_inner(tm, n, v, s);
+        Value *value = IdentityType::lookup_inner(tm, n, v, s);
         Associable *base_role = get_base_role();
         
         if (!value && base_role) {
@@ -389,10 +270,6 @@ public:
         }
                 
         return value;
-    }
-
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
-        return make<ClassMatcherValue>(n, v);
     }
 };
 
@@ -531,17 +408,17 @@ public:
         ts.destroy(s + o, x64);
     }
 
-    virtual void compile_vt(TypeMatch tm, std::string tname, X64 *x64) {
+    virtual void compile_vt(TypeMatch tm, X64 *x64) {
         if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             ;
         }
         else {
-            std::string symbol = tname + QUALIFIER_NAME + name + "_virtual_table";
+            std::string symbol = tm[0].symbolize() + QUALIFIER_NAME + name;
             ::compile_virtual_table(vt, tm, vt_label, symbol, x64);
         }
 
         for (auto &sr : shadow_associables)
-            sr->compile_vt(tm, tname, x64);
+            sr->compile_vt(tm, x64);
     }
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
@@ -584,18 +461,8 @@ public:
             // Compiled in the containing role
         }
         else {
-            std::vector<AutoconvEntry> act = get_autoconv_table(tm);
-            
-            x64->data_align(8);
-            x64->data_label(act_label);
-        
-            for (auto ace : act) {
-                x64->data_reference(ace.role_ts.get_interface_table_label(x64));
-                x64->data_qword(ace.role_offset);
-            }
-
-            // Sentry
-            x64->data_qword(0);
+            std::string symbol = tm[0].symbolize() + QUALIFIER_NAME + name;
+            ::compile_autoconv_table(get_autoconv_table(tm), tm, act_label, symbol, x64);
         }
         
         for (auto &r : shadow_associables)

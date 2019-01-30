@@ -84,6 +84,7 @@ public:
 };
 
 
+// TODO: rename to InterfaceMatcher, and validate name sooner!
 class ClassMatcherValue: public Value, public Raiser {
 public:
     std::string name;

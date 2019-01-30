@@ -36,7 +36,7 @@ Test_integers? :Singleton as:
     
         :if d != 0 then: Std prints("Yes, d is nonzero.")
 
-        myvar? .Myint = 0
+        myvar? Myint = 0
     
         e? = +5_000_000_000
         Std prints("Five billion is {e}" {})
@@ -53,7 +53,7 @@ Test_integers? :Singleton as:
         i? = 0b_0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100_1101_1110_1111_0000
         Std prints("Aaaaaaaaand finally {i}" {})
     
-        mybyte? .Mybyte = -128
+        mybyte? Mybyte = -128
         Std prints("Mybyte is {mybyte}" {})
     
         false? Boolean = `false
@@ -185,7 +185,7 @@ Test_enums? :Singleton as:
         FOO, BAR, BAZ
 
     test_enums? :Function as:
-        fbb? .Myenum = `BAR
+        fbb? Myenum = `BAR
         :if fbb == `FOO then: Std prints("fbb is FOO") else: Std prints("fbb is not FOO")
 
         Std prints("fbb is actually {f}!" { f: fbb })
@@ -299,7 +299,7 @@ Test_records? :Singleton as:
             :return $ string[$ index]
 
     test_records? :Function as:
-        p? .Pair = `new
+        p? Pair = `new
 
         p first = 123
         p second = 456
@@ -309,7 +309,7 @@ Test_records? :Singleton as:
         p = Pairs make_pair
         Std printi(p second)
     
-        q? .Pair = `new
+        q? Pair = `new
         q first = 123
         q second = 456
         :if p == q then: Std prints("Equal tuples.") else: Std prints("Inequal tuples.")
@@ -318,12 +318,12 @@ Test_records? :Singleton as:
     
         p dump dump
     
-        r? .Pair = `new
+        r? Pair = `new
         r dump
     
-        .Pair { second: 222 } dump
+        Pair { second: 222 } dump
     
-        Std prints("Second is {x}" {x: .Pair { second: 222 } second})
+        Std prints("Second is {x}" {x: Pair { second: 222 } second})
 
         q first = 11
         Std prints("{p} and {q} compares as {c}" { p: p, q: q, c: p <=> q })
@@ -393,7 +393,7 @@ Test_controls? :Singleton as:
 
         Std prints("Done.")
 
-        my_tree? .MyTree = `TWENTY
+        my_tree? MyTree = `TWENTY
         Std prints("This tree is {my_tree}." {})
     
         :switch my_tree do:
@@ -715,7 +715,7 @@ Test_classes? :Singleton as:
         Type? :Enumeration
             NICE, UGLY
         
-        type? .Type
+        type? Type
         base_value? Integer
     
         base_init? :Initializer as:
@@ -839,9 +839,13 @@ Test_classes? :Singleton as:
             Std prints("Getting large...")
             :return 120
             
-    test_classes? :Function .Greetable Ref as:
-        gr? .Greetable Ref = .Basic_greetable Ref `second_init
+    test_classes? :Function Greetable Ref as:
+        gr? Greetable Ref = Basic_greetable Ref `second_init
         gr greet
+        
+        gr small
+        
+        gr small get
         
         Std prints("Small is {} and large is {}" { gr small get, gr large get })
         
@@ -863,16 +867,16 @@ Test_classes? :Singleton as:
         #bs? = gr derived base
         gr greet  # To make sure base refcount don't destroy the Greetable VT
 
-        :is gr ~.Greetable then:
+        :is gr ~Greetable then:
             Std prints("Huh, greetable is Greetable.")
 
-        :is gr ~.Base then:
+        :is gr ~Base then:
             Std prints("WAT, greetable is Base.")
 
         #:is bs ~Greetable then:
         #    Std prints("WAT, base is Greetable.")
 
-        wt? .Greetable Weakref = `to(gr)
+        wt? Greetable Weakref = `to(gr)
 
         # Test for alive
         :is wt ~live then:
@@ -885,7 +889,7 @@ Test_classes? :Singleton as:
         else:
             Std prints("WT is live.")
 
-        wvm? (String, .Greetable) WeakValueMap = `empty
+        wvm? (String, Greetable) WeakValueMap = `empty
         :try
             wvm add("x", gr)
             wvm add("y", gr)
@@ -898,21 +902,21 @@ Test_classes? :Singleton as:
         Std prints("wvm length is {x}" {x: wvm length})
         Std prints("ccc length is still {}" { ccc length })
 
-        wim? (.Greetable, String) WeakIndexMap = `empty
+        wim? (Greetable, String) WeakIndexMap = `empty
         :try
             wim add(gr, "incorrect")
             wim add(gr, "correct")
         Std prints("wim stores for gr: {x}" {x: wim[gr]})
         Std prints("wim length is {x}" {x: wim length})
     
-        ws? .Greetable WeakSet = `empty
+        ws? Greetable WeakSet = `empty
         :try
             ws add(gr)
             ws add(gr)
         Std prints("ws stores gr: {x}" {x: ws has(gr)})
         Std prints("ws length is {x}" {x: ws length})
 
-        killer? .Greetable Ref = .Basic_greetable Ref `init
+        killer? Greetable Ref = Basic_greetable Ref `init
         Std prints("Now killing the previous instance...")
         wgr = killer
         #bs = killer derived base
