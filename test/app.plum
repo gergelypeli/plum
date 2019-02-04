@@ -833,17 +833,20 @@ Test_classes? :Singleton as:
             Std prints("Getting large...")
             :return 120
             
-        @.left.get? :Function Integer as:
-            :return $ left @ get
+        @.left? :Role of: left
+        @.right? :Role of: right
+        
+        #@.left.get? :Function Integer as:
+        #    :return $ left @ get
             
-        @.left.set? :Function from: x? Integer as:
-            $ left @ set(x)
+        #@.left.set? :Function from: x? Integer as:
+        #    $ left @ set(x)
 
-        @.right.get? :Function Integer as:
-            :return $ right @ get
+        #@.right.get? :Function Integer as:
+        #    :return $ right @ get
             
-        @.right.set? :Function from: x? Integer as:
-            $ right @ set(x)
+        #@.right.set? :Function from: x? Integer as:
+        #    $ right @ set(x)
             
     test_classes? :Function Greetable Ref as:
         gr? Greetable Ref = Basic_greetable Ref `second_init

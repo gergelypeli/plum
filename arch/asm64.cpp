@@ -696,7 +696,7 @@ void Asm64::code_reference(Label label, int offset) {
         throw ASM_ERROR;
     }
 
-    //if (label.def_index == 1027)
+    //if (label.def_index == 1347)
     //    abort();
 
     refs.push_back(Ref());

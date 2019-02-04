@@ -350,22 +350,25 @@ class RoleDefinitionValue: public TypeDefinitionValue, public RoleCreator {
 public:
     InheritAs inherit_as;
     TypeSpec implemented_ts, inherited_ts;
+    Associable *aliased_target;
     bool is_concrete;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
         :TypeDefinitionValue() {
         inherit_as = ia;
         is_concrete = false;
+        aliased_target = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         DataScope *ds = ptr_cast<DataScope>(scope);
         is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
-        Expr *implemented_expr = NULL, *inherited_expr = NULL;
+        Expr *implemented_expr = NULL, *inherited_expr = NULL, *aliased_expr = NULL;
 
         ExprInfos eis = {
             { "", &implemented_expr },
-            { "by", &inherited_expr }
+            { "by", &inherited_expr },
+            { "of", &aliased_expr }
         };
         
         if (!check_exprs(args, kwargs, eis)) {
@@ -416,9 +419,51 @@ public:
             delete v;
         }
         
-        if (!implemented_expr && !inherited_expr) {
-            std::cerr << "Neither inherited nor implemented type specified!\n";
-            return false;
+        if (aliased_expr) {
+            // Aliasing
+            
+            if (!is_concrete) {
+                std::cerr << "Aliasing is only allowed in Class scope!\n";
+                return false;
+            }
+            
+            if (aliased_expr->type != Expr::IDENTIFIER) {
+                std::cerr << "Aliased role identifier expected!\n";
+                return false;
+            }
+            
+            std::string name = aliased_expr->text;
+            
+            for (auto &d : ds->contents) {
+                Associable *able = ptr_cast<Associable>(d.get());
+            
+                if (able) {
+                    Associable *a = able->lookup_associable(name);
+                
+                    if (a) {
+                        aliased_target = a;
+                        break;
+                    }
+                }
+            }
+
+            if (!aliased_target) {
+                std::cerr << "Unknown aliased role!\n";
+                return false;
+            }
+        }
+        
+        if (aliased_expr) {
+            if (implemented_expr || inherited_expr) {
+                std::cerr << "Whacky role aliasing!\n";
+                return false;
+            }
+        }
+        else {
+            if (!implemented_expr && !inherited_expr) {
+                std::cerr << "Neither inherited nor implemented type specified!\n";
+                return false;
+            }
         }
         
         return true;
@@ -426,7 +471,12 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE) {
-            if (is_concrete)
+            if (aliased_target) {
+                Declaration *d = new Aliasing(name, aliased_target);
+                scope->add(d);
+                return d;
+            }
+            else if (is_concrete)
                 return add_head_role(scope, name, implemented_ts, inherited_ts, inherit_as);
             else {
                 TypeSpec pivot_ts = scope->pivot_type_hint();

@@ -8,6 +8,7 @@ static void dump_associable(Associable *a, int indent) {
         a->inherit_as == AS_MAIN ? "MAIN" :
         a->inherit_as == AS_ROLE ? "ROLE" :
         a->inherit_as == AS_AUTO ? "AUTO" :
+        a->inherit_as == AS_ALIAS ? "ALIAS" :
         throw INTERNAL_ERROR
     ) << ") " << a->alloc_ts << "\n";
     

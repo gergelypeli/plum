@@ -313,13 +313,17 @@ public:
 
     virtual devector<VirtualEntry *> get_virtual_table_fragment() {
         // Called on explicit roles only
-        if (inherit_as == AS_BASE || inherit_as == AS_MAIN)
+        if (inherit_as == AS_ALIAS)
+            throw INTERNAL_ERROR;
+        else if (inherit_as == AS_BASE || inherit_as == AS_MAIN)
             return alloc_ts.get_virtual_table();  // FIXME: subst!
         else
             return vt;
     }
 
     virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
+        if (inherit_as == AS_ALIAS)
+            throw INTERNAL_ERROR;
         if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             // These roles don't store the VT
             parent->override_virtual_entry(vi, ve);
@@ -344,14 +348,19 @@ public:
             // reserve the data themselves, but the class does it for them.
         }
         else {
-            Allocation size = alloc_ts.measure_identity();
-            offset = associating_scope->reserve(size);
+            if (inherit_as == AS_ALIAS) {
+                // No need to set offset, the aliased will be used
+            }
+            else {
+                Allocation size = alloc_ts.measure_identity();
+                offset = associating_scope->reserve(size);
             
-            vt = alloc_ts.get_virtual_table();
-            VirtualEntry *autoconv_ve = new AutoconvVirtualEntry(this);
-            vt.set(VT_AUTOCONV_INDEX, autoconv_ve);
-            VirtualEntry *fastforward_ve = new FfwdVirtualEntry(offset);
-            vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+                vt = alloc_ts.get_virtual_table();
+                VirtualEntry *autoconv_ve = new AutoconvVirtualEntry(this);
+                vt.set(VT_AUTOCONV_INDEX, autoconv_ve);
+                VirtualEntry *fastforward_ve = new FfwdVirtualEntry(offset);
+                vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+            }
             
             // Add VT entry for our data offset into the class VT
             VirtualEntry *ve = new DataVirtualEntry(this);
@@ -379,16 +388,22 @@ public:
         else {
             // Shadow roles never allocate data, as the explicit role already did that
             // Offset within the current class, in terms of its type parameters
-            if (original_associable->is_abstract())
-                offset = associating_scope->reserve(alloc_ts.measure_identity());
-            else
-                offset = explicit_offset + allocsubst(original_associable->offset, explicit_tm);
             
-            vt = original_associable->get_virtual_table_fragment();
-            VirtualEntry *autoconv_ve = new AutoconvVirtualEntry(this);
-            vt.set(VT_AUTOCONV_INDEX, autoconv_ve);
-            VirtualEntry *fastforward_ve = new FfwdVirtualEntry(offset);
-            vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+            if (inherit_as == AS_ALIAS) {
+                // No need to set offset, the aliased will be used
+            }
+            else {
+                if (original_associable->is_abstract())
+                    offset = associating_scope->reserve(alloc_ts.measure_identity());
+                else
+                    offset = explicit_offset + allocsubst(original_associable->offset, explicit_tm);
+            
+                vt = original_associable->get_virtual_table_fragment();
+                VirtualEntry *autoconv_ve = new AutoconvVirtualEntry(this);
+                vt.set(VT_AUTOCONV_INDEX, autoconv_ve);
+                VirtualEntry *fastforward_ve = new FfwdVirtualEntry(offset);
+                vt.set(VT_FASTFORWARD_INDEX, fastforward_ve);
+            }
             
             virtual_index = original_associable->virtual_index;
             VirtualEntry *ve = new DataVirtualEntry(this);
@@ -409,7 +424,9 @@ public:
     }
 
     virtual void compile_vt(TypeMatch tm, X64 *x64) {
-        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+        if (inherit_as == AS_ALIAS)
+            ;  // vt_label is unused
+        else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             ;
         }
         else {
@@ -422,9 +439,11 @@ public:
     }
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
-        // Base roles have a VT pointer overlapping the main class VT, don't overwrite
-        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
-            ;
+        if (inherit_as == AS_ALIAS) {
+            ;  // Aliases are initialized when the aliased role is initialized
+        }
+        else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+            ;  // Base roles have a VT pointer overlapping the main class VT, don't overwrite
         }
         else {
             x64->op(LEA, R10, Address(vt_label, 0));
@@ -436,6 +455,9 @@ public:
     }
 
     virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm) {
+        if (inherit_as == AS_ALIAS)
+            throw INTERNAL_ERROR;
+            
         std::vector<AutoconvEntry> act;
 
         Associable *role = (has_main_role() ? get_head_role() : NULL);
@@ -449,7 +471,9 @@ public:
     }
     
     virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64) {
-        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+        if (inherit_as == AS_ALIAS)
+            throw INTERNAL_ERROR;
+        else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             throw INTERNAL_ERROR;
         }
         else
@@ -457,7 +481,10 @@ public:
     }
 
     void compile_act(TypeMatch tm, X64 *x64) {
-        if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+        if (inherit_as == AS_ALIAS) {
+            // act_label is unused
+        }
+        else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             // Compiled in the containing role
         }
         else {

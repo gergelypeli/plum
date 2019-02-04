@@ -25,14 +25,19 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual Storage get_storage(TypeMatch tm, Storage s) {
+    virtual int get_offset(TypeMatch tm) {
+        // NOTE: will be overridden in aliased roles
         if (where == NOWHERE)
             throw INTERNAL_ERROR;
+            
+        return offset.concretize(tm);
+    }
 
+    virtual Storage get_storage(TypeMatch tm, Storage s) {
         if (s.where != MEMORY)
             throw INTERNAL_ERROR;  // all variable containers must use MEMORY
         
-        return Storage(where, s.address + offset.concretize(tm));
+        return Storage(where, s.address + get_offset(tm));
     }
 
     virtual Storage get_local_storage() {
@@ -41,10 +46,6 @@ public:
         return get_storage(TypeMatch(), fn_storage);
     }
     
-    //virtual devector<VirtualEntry *> get_virtual_table() {
-    //    throw INTERNAL_ERROR;
-    //}
-
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         throw INTERNAL_ERROR;
     }

@@ -1,4 +1,15 @@
 
+class Aliasing: public Identifier {
+public:
+    Associable *target;
+    
+    Aliasing(std::string n, Associable *t)
+        :Identifier(n, NO_TS) {
+        target = t;
+    }
+};
+
+
 class Inheritable {
 public:
     virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
@@ -23,11 +34,11 @@ public:
     InheritAs inherit_as;
     int virtual_index;  // of the entry that stores the data offset to the role
     Associable *original_associable;
+    Associable *aliased_associable;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
     DataScope *associating_scope;
-    //FfwdVirtualEntry *fastforward_ve;
     Lself *associated_lself;
     TypeMatch explicit_tm;
 
@@ -38,9 +49,8 @@ public:
         inherit_as = ia;
         virtual_index = 0;
         original_associable = NULL;
-        //virtual_offset = -1;
+        aliased_associable = NULL;
         associating_scope = NULL;
-        //fastforward_ve = NULL;
         associated_lself = NULL;
         explicit_tm = alloc_ts.match();
     }
@@ -52,9 +62,8 @@ public:
         inherit_as = original->inherit_as;
         virtual_index = 0;
         original_associable = original;
-        //virtual_offset = -1;
+        aliased_associable = original->aliased_associable;
         associating_scope = NULL;
-        //fastforward_ve = NULL;
         associated_lself = NULL;
         explicit_tm = etm;
     }
@@ -117,6 +126,26 @@ public:
             assocs.push_back(a.get());
 
         funcs = functions;
+    }
+
+    virtual bool alias(Associable *aa) {
+        if (aliased_associable)
+            throw INTERNAL_ERROR;
+            
+        inherit_as = AS_ALIAS;
+        aliased_associable = aa;
+        
+        functions.clear();
+        shadow_associables.clear();
+        
+        return true;  // TODO: check for dirty methods to abort compilation
+    }
+
+    virtual int get_offset(TypeMatch tm) {
+        if (aliased_associable)
+            return aliased_associable->get_offset(tm);
+        else
+            return Allocable::get_offset(tm);
     }
 
     virtual bool has_base_role() {
@@ -191,7 +220,7 @@ public:
     }
     
     virtual Associable *lookup_associable(std::string n) {
-        std::cerr << "XXX " << n << " in " << name << "\n";
+        //std::cerr << "XXX " << n << " in " << name << "\n";
 
         if (n == name)
             return this;
@@ -225,7 +254,20 @@ public:
         
         if (!deprefix(override_name, prefix))
             throw INTERNAL_ERROR;
+
+        Aliasing *aliasing = ptr_cast<Aliasing>(d);
         
+        if (aliasing) {
+            for (unsigned i = 0; i < shadow_associables.size(); i++) {
+                if (override_name == unqualify(shadow_associables[i]->name)) {
+                    return shadow_associables[i]->alias(aliasing->target);
+                }
+            }
+            
+            std::cerr << "No aliasing role!\n";
+            return false;
+        }
+
         // TODO: collect the Function*-s into a vector, update it with the overrides, and
         // let the shadows copy it for themselves. Record all association names to prevent
         // duplicates. Finally check if we have any ABSTRACT_FUNCTION left (for now we don't
@@ -376,7 +418,7 @@ public:
         if (associable->where == NOWHERE)
             throw INTERNAL_ERROR;
             
-        int offset = associable->offset.concretize(tm);
+        int offset = associable->get_offset(tm);
         
         Label label;
         x64->absolute_label(label, offset);  // forcing an int into an unsigned64...
@@ -384,7 +426,7 @@ public:
     }
 
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
-        return os << "DATA " << associable->name << " at " << associable->offset.concretize(tm);
+        return os << "DATA " << associable->name << " at " << associable->get_offset(tm);
     }
 };
 

@@ -117,6 +117,16 @@ inline bool has_prefix(std::string &value, std::string const &beginning)
 }
 
 
+inline std::string unqualify(std::string name) {
+    auto i = name.rfind('.');
+        
+    if (i != std::string::npos)
+        return name.substr(i + 1);
+    else
+        return name;
+}
+
+
 std::string get_working_path() {
    char temp[4096];  // No fucking standard, also see http://insanecoding.blogspot.com/2007/11/pathmax-simply-isnt.html
    return ( getcwd(temp, 4096) ? std::string( temp ) : std::string("") );
