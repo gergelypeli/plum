@@ -162,7 +162,45 @@ public:
     }
 
     virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        // We do this for inheritable types that don't implement Streamifiable
+        // NOTE: unlike with Implementation, we cannot just delegate the job to an
+        // Associable, because we may have a direct Streamifiable Ptr pivot.
+        
+        // The pivot is on the stack as rvalue, and the stream as lvalue.
+        int method_vi = ptr_cast<Function>(ptr_cast<Type>(streamifiable_type)->get_inner_scope()->contents[0].get())->virtual_index;
+        
+        if (this == ptr_cast<IdentityType>(streamifiable_type)) {
+            // Streamifiable role pivot, invoke method directly
+            x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
+            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // sable VT
+            x64->op(CALL, Address(R11, method_vi * ADDRESS_SIZE));  // select method
+            return;
+        }
+        
+        // Try autoconv
+        Associable *streamifiable_associable = NULL;
+            
+        for (auto a : member_associables) {
+            std::cerr << "XXXX" << a->name << "\n";
+            
+            streamifiable_associable = a->autoconv_streamifiable(tm);
+                
+            if (streamifiable_associable)
+                break;
+        }
+
+        if (streamifiable_associable) {
+            int role_vi = streamifiable_associable->virtual_index;
+
+            x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
+            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // VT
+            x64->op(ADDQ, R10, Address(R11, role_vi * ADDRESS_SIZE));  // select role
+            x64->op(MOVQ, Address(RSP, ALIAS_SIZE), R10);  // technically illegal
+            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // sable VT
+            x64->op(CALL, Address(R11, method_vi * ADDRESS_SIZE));  // select method
+            return;
+        }
+        
+        // We do this for identity types that don't implement Streamifiable
         x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
         x64->op(MOVQ, RSI, Address(RSP, 0));
     
@@ -289,9 +327,9 @@ public:
         throw INTERNAL_ERROR;  // too late!
     }
 
-    virtual TypeSpec get_interface_ts(TypeMatch match) {
-        return typesubst(alloc_ts, match);
-    }
+    //virtual TypeSpec get_interface_ts(TypeMatch match) {
+    //    return typesubst(alloc_ts, match);
+    //}
 
     virtual Value *make_value(Value *orig, TypeMatch match) {
         // If the pivot is not a concrete type, but a Ptr to an interface, then this
@@ -307,34 +345,9 @@ public:
     virtual devector<VirtualEntry *> get_virtual_table_fragment() {
         return alloc_ts.get_virtual_table();  // FIXME: subst!
     }
-
-    // TODO: can this be merged with the above one?
-    virtual Implementation *autoconv_streamifiable_implementation(TypeMatch match) {
-        if (associated_lself)
-            return NULL;
-
-        TypeSpec ifts = get_interface_ts(match);
-
-        if (ifts[0] == streamifiable_type) {
-            return this;
-        }
-        else if (inherit_as == AS_BASE) {
-            for (auto &sa : shadow_associables) {
-                if (sa->inherit_as == AS_ROLE)
-                    continue;
-                
-                Implementation *si = ptr_cast<Implementation>(sa.get());
-                Implementation *i = si->autoconv_streamifiable_implementation(match);
-                
-                if (i)
-                    return i;
-            }
-        }
-            
-        return NULL;
-    }
-
+    
     virtual void streamify(TypeMatch tm, X64 *x64) {
+        // This allows complete built-in implementations of Streamifiable
         if (alloc_ts[0] != streamifiable_type)
             throw INTERNAL_ERROR;
             
@@ -349,7 +362,7 @@ public:
         
         throw INTERNAL_ERROR;
     }
-
+    
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
         return make_value(pivot, match);
     }

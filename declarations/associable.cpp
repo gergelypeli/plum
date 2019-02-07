@@ -351,7 +351,6 @@ public:
         if (associated_lself && !assume_lvalue)
             return NULL;
 
-
         if (ifts[0] == target) {
             // Direct implementation
             std::cerr << "Found direct implementation " << name << ".\n";
@@ -376,6 +375,37 @@ public:
 
     virtual void set_associated_lself(Lself *l) {
         associated_lself = l;
+    }
+
+    virtual Associable *autoconv_streamifiable(TypeMatch match) {
+        if (associated_lself)
+            return NULL;
+
+        TypeSpec ifts = get_typespec(match);
+
+        if (ifts[0] == ptr_cast<Type>(streamifiable_type)) {
+            return this;
+        }
+        else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
+            for (auto &sa : shadow_associables) {
+                std::cerr << "XXXX " << sa->name << "\n";
+                
+                if (!sa->is_autoconv())
+                    continue;
+                
+                Associable *i = sa->autoconv_streamifiable(match);
+                
+                if (i)
+                    return i;
+            }
+        }
+            
+        return NULL;
+    }
+
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        // Allow roles implement Streamifiable flexibly
+        throw INTERNAL_ERROR;
     }
 
     virtual void relocate(Allocation explicit_offset) {

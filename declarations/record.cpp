@@ -34,7 +34,7 @@ public:
                 has_custom_compare = true;
                 
             Implementation *imp = ptr_cast<Implementation>(c.get());
-            if (imp && imp->alloc_ts == STREAMIFIABLE_TS)
+            if (imp && imp->is_autoconv() && imp->alloc_ts == STREAMIFIABLE_TS)
                 streamifiable_implementation = imp;
                 
             Function *f = ptr_cast<Function>(c.get());

@@ -107,7 +107,7 @@ public:
     }
     
     virtual void streamify(X64 *x64) {
-        Implementation *sable = implementation->autoconv_streamifiable_implementation(match);
+        Associable *sable = implementation->autoconv_streamifiable(match);
         
         if (!sable) {
             std::cerr << "Unstreamifiable implementation!\n";
