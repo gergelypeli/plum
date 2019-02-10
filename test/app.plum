@@ -953,12 +953,16 @@ Test_functors? :Singleton as:
             x? Integer
             
     test_functors? :Function as:
-        square? = :functor Adjuster to:
+        exp? = 2
+        
+        square? = :functor Adjuster with:
+            exponent? = exp
+        to:
             Integer
         from:
             x? Integer
         do:
-            :return x * x
+            :return x ** $ exponent
             
         Std prints("The square of 7 is {}" { square do(7) })
 

@@ -85,7 +85,7 @@ public:
             }
             break;
         case MEMORY:
-            x64->op(MOVQ % os, R10, rs.reg);
+            x64->op(MOVQ % os, R10, rs.address);
             rs = Storage(REGISTER, R10);
             break;
         default:

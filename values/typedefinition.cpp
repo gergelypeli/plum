@@ -900,7 +900,7 @@ public:
         cpiv = NULL;
     }
     
-    virtual bool check_with(Expr *e, CodeScope *cs) {
+    virtual bool check_with(Expr *e, CodeScope *cs, DataScope *is) {
         Value *v = typize(e, cs, NULL);
         if (!v)
             return false;
@@ -913,9 +913,8 @@ public:
         if (!dv)
             return false;
             
-        Variable *var = dv->var;
-        if (!var)
-            return false;
+        Variable *var = new Variable(dv->var->name, is->pivot_type_hint(), dv->var->alloc_ts);
+        is->add(var);
             
         with_vars.push_back(var);
         with_values.push_back(cv->right.release());
@@ -947,7 +946,7 @@ public:
         
         TypeSpec pivot_ts = { ptr_type, ct };
         ct->make_inner_scope(pivot_ts);
-        Scope *is = ct->get_inner_scope();
+        DataScope *is = ct->get_inner_scope();
         
         // Add main role
         TypeSpec main_ts = typize_typespec(main_expr, scope, interface_metatype);
@@ -965,26 +964,23 @@ public:
         // Typize the with block, using a temporary code scope to collect state variables
         CodeScope *cs = new CodeScope;
         scope->add(cs);
+        cs->be_taken();  // we're taking care of killing it
+        cs->enter();
         
         if (with_expr == NULL)
             ;  // Okay not to have state variables
         else if (with_expr->type == Expr::TUPLE) {
             for (auto &e : with_expr->args) {
-                if (!check_with(e.get(), cs))
+                if (!check_with(e.get(), cs, is))
                     return false;
             }
         }
         else {
-            if (!check_with(with_expr, cs))
+            if (!check_with(with_expr, cs, is))
                 return false;
         }
         
-        // Clone variables to the class inner scope
-        for (auto var : with_vars) {
-            Variable *v = new Variable(var->name, pivot_ts, var->alloc_ts);
-            is->add(v);
-        }
-        
+        cs->leave();
         scope->remove(cs);
         
         Args fake_args;
