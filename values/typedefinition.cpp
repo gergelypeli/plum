@@ -880,3 +880,176 @@ public:
             return NULL;
     }
 };
+
+
+// TODO: this is not strictly a type definition
+
+class FunctorDefinitionValue: public TypeDefinitionValue {
+public:
+    std::vector<Value *> with_values;
+    std::vector<Variable *> with_vars;
+    
+    Value *fdv;
+    Value *cpiv;
+    TypeMatch match;
+    
+    FunctorDefinitionValue(Value *p, TypeMatch tm)
+        :TypeDefinitionValue() {
+        match = tm;
+        fdv = NULL;
+        cpiv = NULL;
+    }
+    
+    virtual bool check_with(Expr *e, CodeScope *cs) {
+        Value *v = typize(e, cs, NULL);
+        if (!v)
+            return false;
+            
+        CreateValue *cv = ptr_cast<CreateValue>(v);
+        if (!cv)
+            return false;
+            
+        DeclarationValue *dv = ptr_cast<DeclarationValue>(cv->left.get());
+        if (!dv)
+            return false;
+            
+        Variable *var = dv->var;
+        if (!var)
+            return false;
+            
+        with_vars.push_back(var);
+        with_values.push_back(cv->right.release());
+        
+        delete v;
+        
+        return true;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        Expr *main_expr = NULL, *with_expr = NULL, *to_expr = NULL, *from_expr = NULL, *do_expr = NULL;
+        
+        ExprInfos eis = {
+            { "", &main_expr },
+            { "with", &with_expr },
+            { "to", &to_expr },
+            { "from", &from_expr },
+            { "do", &do_expr },  // TODO: raise?
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
+            std::cerr << "Whacky functor!\n";
+            return false;
+        }
+
+        // Create Class
+        ClassType *ct = new ClassType("<functor>", {});
+        scope->get_data_scope()->add(ct);
+        
+        TypeSpec pivot_ts = { ptr_type, ct };
+        ct->make_inner_scope(pivot_ts);
+        Scope *is = ct->get_inner_scope();
+        
+        // Add main role
+        TypeSpec main_ts = typize_typespec(main_expr, scope, interface_metatype);
+        
+        if (main_ts == NO_TS) {
+            std::cerr << "Functor interface name expected!\n";
+            return false;
+        }
+
+        ts = main_ts.prefix(ref_type);
+
+        Associable *main_role = new Role(MAIN_ROLE_NAME, pivot_ts, main_ts, AS_MAIN);
+        is->add(main_role);
+        
+        // Typize the with block, using a temporary code scope to collect state variables
+        CodeScope *cs = new CodeScope;
+        scope->add(cs);
+        
+        if (with_expr == NULL)
+            ;  // Okay not to have state variables
+        else if (with_expr->type == Expr::TUPLE) {
+            for (auto &e : with_expr->args) {
+                if (!check_with(e.get(), cs))
+                    return false;
+            }
+        }
+        else {
+            if (!check_with(with_expr, cs))
+                return false;
+        }
+        
+        // Clone variables to the class inner scope
+        for (auto var : with_vars) {
+            Variable *v = new Variable(var->name, pivot_ts, var->alloc_ts);
+            is->add(v);
+        }
+        
+        scope->remove(cs);
+        
+        Args fake_args;
+        fake_args.push_back(std::unique_ptr<Expr>(to_expr));
+        Kwargs fake_kwargs;
+        fake_kwargs["from"] = std::unique_ptr<Expr>(from_expr);
+        fake_kwargs["as"] = std::unique_ptr<Expr>(do_expr);
+        
+        fdv = make<FunctionDefinitionValue>((Value *)NULL, match);
+        
+        if (!fdv->check(fake_args, fake_kwargs, is))
+            return false;
+            
+        fake_args[0].release();
+        fake_kwargs["from"].release();
+        fake_kwargs["as"].release();
+            
+        Declaration *decl = fdv->declare(MAIN_ROLE_NAME + QUALIFIER_NAME + "do", is);
+        
+        main_role->check_associated(decl);
+
+        ct->complete_type();
+
+        fdv->define_code();
+
+        cpiv = new ClassPreinitializerValue({ ref_type, ct });
+
+        is->leave();
+        
+        return true;
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        for (auto wv : with_values)
+            wv->precompile(preferred);
+            
+        fdv->precompile(preferred);
+        
+        return Regs::all();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        // TODO: compile functions using Once?
+        Label skip;
+        
+        x64->op(JMP, skip);
+        
+        fdv->compile(x64);
+        
+        x64->code_label(skip);
+        
+        Storage ps = cpiv->compile(x64);
+        
+        if (ps.where != REGISTER)
+            throw INTERNAL_ERROR;
+            
+        Storage cs = Storage(MEMORY, Address(ps.reg, 0));
+        
+        // FIXME: handle exceptions!
+        for (unsigned i = 0; i < with_vars.size(); i++) {
+            Storage s = with_values[i]->compile(x64);
+            Storage t = with_vars[i]->get_storage(match, cs);
+            with_vars[i]->alloc_ts.create(s, t, x64);
+        }
+        
+        return ps;
+    }
+};

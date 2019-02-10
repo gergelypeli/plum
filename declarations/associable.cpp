@@ -388,8 +388,6 @@ public:
         }
         else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             for (auto &sa : shadow_associables) {
-                std::cerr << "XXXX " << sa->name << "\n";
-                
                 if (!sa->is_autoconv())
                     continue;
                 

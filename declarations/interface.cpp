@@ -180,8 +180,6 @@ public:
         Associable *streamifiable_associable = NULL;
             
         for (auto a : member_associables) {
-            std::cerr << "XXXX" << a->name << "\n";
-            
             streamifiable_associable = a->autoconv_streamifiable(tm);
                 
             if (streamifiable_associable)

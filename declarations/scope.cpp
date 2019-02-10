@@ -104,6 +104,10 @@ public:
         return NULL;
     }
     
+    virtual DataScope *get_data_scope() {
+        return outer_scope->get_data_scope();
+    }
+    
     virtual FunctionScope *get_function_scope() {
         return outer_scope->get_function_scope();
     }
@@ -262,6 +266,10 @@ public:
     
     virtual bool is_abstract_scope() {
         return am_abstract_scope;
+    }
+
+    virtual DataScope *get_data_scope() {
+        return this;
     }
     
     virtual void set_pivot_type_hint(TypeSpec t) {

@@ -1039,6 +1039,8 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<IsValue>("is", NO_TS));
     colon_scope->add(new TemplateOperation<FunctionReturnValue>("return", NO_TS, TWEAK));
 
+    colon_scope->add(new TemplateIdentifier<FunctorDefinitionValue>("functor", NO_TS));
+
     colon_scope->add(new TemplateIdentifier<PtrCastValue>("ptr", NO_TS));
 
     colon_scope->add(new TemplateIdentifier<FunctionDefinitionValue>("Function", NO_TS));

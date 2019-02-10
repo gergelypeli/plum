@@ -19,6 +19,7 @@ class EvaluableValue;
 class FloatFunctionValue;
 class FloatValue;
 class FunctionCallValue;
+class FunctionDefinitionValue;
 class FunctionReturnValue;
 class GenericValue;
 class GenericStreamificationValue;

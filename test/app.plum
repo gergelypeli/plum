@@ -947,6 +947,21 @@ Test_classes? :Singleton as:
         :return killer
 
 
+Test_functors? :Singleton as:
+    Adjuster? :Interface as:
+        do? :Function Integer from:
+            x? Integer
+            
+    test_functors? :Function as:
+        square? = :functor Adjuster to:
+            Integer
+        from:
+            x? Integer
+        do:
+            :return x * x
+            
+        Std prints("The square of 7 is {}" { square do(7) })
+
 Test_singletons? :Singleton as:
     Single? :Singleton as:
         single_number? Integer
@@ -1047,6 +1062,7 @@ Main? :Singleton as:
         Test_rbtrees test_rbtrees
         Test_options test_options
         Test_classes test_classes
+        Test_functors test_functors
         Test_singletons test_singletons
         Test_files test_files
         
