@@ -653,7 +653,7 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == MODULE_SCOPE || scope->type == DATA_SCOPE) {
-            gvar = new GlobalVariable(name, main_ts, class_ts);
+            gvar = new GlobalVariable(name, main_ts.prefix(ptr_type), class_ts);
             scope->add(gvar);
             return gvar;
         }

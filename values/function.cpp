@@ -724,7 +724,7 @@ public:
         Storage t;
         StorageWhere where = arg_ts.where(AS_ARGUMENT);
         
-        if (where != NOWHERE) {
+        if (where != NOWHERE) {  // happens for singleton pivots
             where = stacked(where);
             t = Storage(where);
         }

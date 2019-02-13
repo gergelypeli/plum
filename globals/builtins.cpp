@@ -1079,11 +1079,6 @@ void builtin_colon(Scope *root_scope) {
 
 
 void builtin_runtime(Scope *root_scope) {
-    SingletonType *st = new SingletonType("Std");
-    root_scope->add(st);
-    
-    TypeSpec STD_TS = { st };
-
     TSs NO_TSS = { };
     TSs INTEGER_TSS = { INTEGER_TS };
     TSs FLOAT_TSS = { FLOAT_TS };
@@ -1095,7 +1090,13 @@ void builtin_runtime(Scope *root_scope) {
     Ss no_names = { };
     Ss value_names = { "value" };
 
-    Scope *is = st->make_inner_scope(STD_TS);
+    Type *std_type = new UnitType("<Std>");
+    root_scope->add(std_type);
+    TypeSpec STD_TS = { std_type };
+    Scope *is = std_type->make_inner_scope(STD_TS);
+    
+    Declaration *std = new GlobalNamespace("Std", STD_TS);
+    root_scope->add(std);
 
     is->add(new SysvFunction("printi", "printi", STD_TS, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL, NULL));
     is->add(new SysvFunction("printc", "printc", STD_TS, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL, NULL));
@@ -1104,7 +1105,7 @@ void builtin_runtime(Scope *root_scope) {
     is->add(new SysvFunction("prints", "prints", STD_TS, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL, NULL));
     is->add(new SysvFunction("printp", "printp", STD_TS, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL, NULL));  // needs Lvalue to avoid ref copy
 
-    st->complete_type();
+    std_type->complete_type();
     is->leave();
 }
 

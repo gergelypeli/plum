@@ -182,7 +182,7 @@ public:
     Function *initializer_function;
     
     GlobalVariable(std::string n, TypeSpec mts, TypeSpec cts)
-        :Variable(n, NO_TS, mts.prefix(ptr_type)) {
+        :Variable(n, NO_TS, mts) {
         class_ts = cts;
         initializer_function = NULL;
     }
@@ -208,7 +208,7 @@ public:
     }
 
     // No initializers are accessible from the language, done by the runtime itself
-    Label compile_initializer(X64 *x64) {
+    virtual Label compile_initializer(X64 *x64) {
         Label label;
         x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
 
@@ -221,39 +221,63 @@ public:
             throw INTERNAL_ERROR;
 
         alloc_ts.store(s, Storage(STACK), x64);
-        //x64->op(PUSHQ, s.reg);
         x64->op(CALL, function_get_label(initializer_function, x64));
-        //x64->op(POPQ, t.address);
         alloc_ts.create(Storage(STACK), t, x64);
 
         x64->op(RET);
         return label;
     }
 
-    Label compile_finalizer(X64 *x64) {
+    virtual Label compile_finalizer(X64 *x64) {
         Label label;
         x64->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
 
         Storage s = get_local_storage();
         
         alloc_ts.destroy(s, x64);
-        //x64->op(PUSHQ, s.address);  // borrow
-        //x64->op(CALL, class_ts.get_finalizer_label(x64));
-        //x64->op(ADDQ, RSP, ADDRESS_SIZE);
 
-        //x64->op(MOVQ, s.address, PTR_NULL);
         x64->op(RET);
         
         return label;
     }
-    
-    //virtual void collect_initializer_labels(std::vector<Label> &labels, X64 *x64) {
-    //    labels.push_back(compile_initializer(x64));
-    //}
-    
-    //virtual void collect_finalizer_labels(std::vector<Label> &labels, X64 *x64) {
-    //    labels.push_back(compile_finalizer(x64));
-    //}
+};
+
+
+// This is a mutant global variable, used with Unit subtypes that won't be passed
+// as pivot arguments, useful for grouping built-in functions in a namespace.
+class GlobalNamespace: public GlobalVariable {
+public:
+    GlobalNamespace(std::string n, TypeSpec mts)
+        :GlobalVariable(n, mts, NO_TS) {
+    }
+
+    virtual void allocate() {
+        where = MEMORY;
+    }
+
+    virtual Storage get_local_storage() {
+        return Storage();  // TODO: anything uses this?
+    }
+
+    virtual Label compile_initializer(X64 *x64) {
+        Label label;
+        x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
+
+        if (initializer_function)
+            x64->op(CALL, function_get_label(initializer_function, x64));
+
+        x64->op(RET);
+        return label;
+    }
+
+    virtual Label compile_finalizer(X64 *x64) {
+        Label label;
+        x64->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
+
+        x64->op(RET);
+        
+        return label;
+    }
 };
 
 
