@@ -123,7 +123,7 @@ public:
         :Value(VOID_TS) {
         scope = s;
         
-        if (s->type != DATA_SCOPE && s->type != ARGUMENT_SCOPE && s->type != MODULE_SCOPE && s->type != SINGLETON_SCOPE)
+        if (s->type != DATA_SCOPE && s->type != ARGUMENT_SCOPE && s->type != MODULE_SCOPE)
             throw INTERNAL_ERROR;
     }
 

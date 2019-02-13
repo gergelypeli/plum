@@ -1,4 +1,23 @@
 
+Storage preinitialize_class(TypeSpec class_ts, X64 *x64) {
+    Label finalizer_label = class_ts.get_finalizer_label(x64);
+    unsigned heap_size = class_ts.measure_identity().concretize();
+    
+    x64->op(PUSHQ, heap_size);
+    //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
+    x64->op(LEA, R10, Address(finalizer_label, 0));
+    x64->op(PUSHQ, R10);
+    
+    x64->runtime->heap_alloc();  // clobbers all
+    
+    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+
+    class_ts.init_vt(Address(RAX, 0), x64);
+    
+    return Storage(REGISTER, RAX);
+}
+
+
 class ClassPreinitializerValue: public Value {
 public:
     ClassPreinitializerValue(TypeSpec rts)
@@ -11,21 +30,8 @@ public:
     
     virtual Storage compile(X64 *x64) {
         TypeSpec class_ts = ts.unprefix(initializable_type).unprefix(ptr_type);;
-        Label finalizer_label = class_ts.get_finalizer_label(x64);
-        unsigned heap_size = class_ts.measure_identity().concretize();
         
-        x64->op(PUSHQ, heap_size);
-        //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
-        x64->op(LEA, R10, Address(finalizer_label, 0));
-        x64->op(PUSHQ, R10);
-        
-        x64->runtime->heap_alloc();  // clobbers all
-        
-        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
-
-        class_ts.init_vt(Address(RAX, 0), x64);
-        
-        return Storage(REGISTER, RAX);
+        return preinitialize_class(class_ts, x64);
     }
 };
 

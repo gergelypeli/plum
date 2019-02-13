@@ -1,4 +1,6 @@
-Sub? :Singleton as:
+Sub_interface? :Interface
+
+Sub_implementation? :Class Sub_interface as:
     sub_value? Integer
     
     init? :Initializer as:
@@ -7,3 +9,5 @@ Sub? :Singleton as:
 
     ? :Finalizer as:
         Std prints("Finalizing Sub.")
+
+Sub? :Global Sub_interface by: Sub_implementation

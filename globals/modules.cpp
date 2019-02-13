@@ -6,7 +6,7 @@ public:
     ModuleScope *module_scope;
     DataBlockValue *value_root;
     std::set<std::string> required_module_names;
-    std::vector<SingletonType *> member_singletons;
+    //std::vector<GlobalVariable *> member_globals;
     
     Module(std::string mn, RootScope *rs) {
         module_name = mn;
@@ -29,14 +29,14 @@ public:
         }
         
         // Must complete the type first
-        for (auto &c : module_scope->contents) {
-            SingletonType *s = ptr_cast<SingletonType>(c.get());
-            
-            if (s)
-                member_singletons.push_back(s);
-        }
+        //for (auto &c : module_scope->contents) {
+        //    GlobalVariable *g = ptr_cast<GlobalVariable>(c.get());
+        //    
+        //    if (g)
+        //        member_globals.push_back(g);
+        //}
         
-        std::cerr << "Module " << module_name << " has " << member_singletons.size() << " singletons.\n";
+        //std::cerr << "Module " << module_name << " has " << member_globals.size() << " globals.\n";
 
         ok = ok && value_root->define_data() && value_root->define_code();
     
@@ -44,16 +44,26 @@ public:
 
         return ok;
     }
-
+    /*
     virtual void collect_initializer_labels(std::vector<Label> &labels, X64 *x64) {
-        for (SingletonType *s : member_singletons)
-            s->collect_initializer_labels(labels, x64);
+        for (GlobalVariable *g : member_globals)
+            g->collect_initializer_labels(labels, x64);
     }
 
     virtual void collect_finalizer_labels(std::vector<Label> &labels, X64 *x64) {
-        for (SingletonType *s : member_singletons)  // FIXME: reverse
-            s->collect_finalizer_labels(labels, x64);
+        for (GlobalVariable *g : member_globals)
+            g->collect_finalizer_labels(labels, x64);
     }
+    
+    virtual GlobalVariable *get_main_global() {
+        for (GlobalVariable *g : member_globals) {
+            if (g->is_called("Main") && g->outer_scope == module_scope)
+                return g;
+        }
+        
+        return NULL;
+    }
+    */
 };
 
 
@@ -131,19 +141,46 @@ public:
         
         return root_scope->size.concretize();
     }
-    
+
     void compile_modules(X64 *x64) {
         root_scope->set_application_label(x64->runtime->application_label);
     
-        std::vector<Label> initializer_labels, finalizer_labels;
-
         for (Module *m : modules_in_order) {
             m->value_root->precompile(Regs::all());
             m->value_root->compile(x64);
 
-            m->collect_initializer_labels(initializer_labels, x64);
-            m->collect_finalizer_labels(finalizer_labels, x64);
+            //m->collect_initializer_labels(initializer_labels, x64);
+            //m->collect_finalizer_labels(finalizer_labels, x64);
         }
+
+        Module *main_module = modules_in_order.back();
+        std::vector<GlobalVariable *> global_variables = root_scope->list_global_variables();
+        GlobalVariable *main_global = NULL;
+        std::vector<Label> initializer_labels, finalizer_labels;
+        
+        for (auto g : global_variables) {
+            if (g->is_called("Main") && g->outer_scope == main_module->module_scope)
+                main_global = g;
+                
+            initializer_labels.push_back(g->compile_initializer(x64));
+            finalizer_labels.push_back(g->compile_finalizer(x64));
+        }
+    
+        if (!main_global) {
+            std::cerr << "Missing .Main global variable!\n";
+            throw TYPE_ERROR;
+        }
+
+        Label start;
+        Storage main_storage = main_global->get_local_storage();
+        x64->code_label_global(start, "start");
+        
+        x64->op(MOVQ, R10, main_storage.address);
+        x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));
+        x64->op(PUSHQ, R10);
+        x64->op(CALL, Address(R11, -1 * ADDRESS_SIZE));  // call Application.start
+        x64->op(ADDQ, RSP, ADDRESS_SIZE);
+        x64->op(RET);
 
         Label init_count, init_ptrs, fin_count, fin_ptrs;
         x64->data_label_global(init_count, "initializer_count");

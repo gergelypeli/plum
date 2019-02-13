@@ -1,9 +1,9 @@
 # First example
 
-#2
-#wtf? 2
 
-Test_integers? :Singleton as:
+App? :Class Application as:
+
+#Test_integers? :Class Test as:
     Myint? :Integer bytes: 8 is_unsigned: `false
 
     Mybyte? :Integer bytes: 1 is_unsigned: `false
@@ -63,7 +63,7 @@ Test_integers? :Singleton as:
         Std prints("And truth table: {} {} {} {}" { false && false, false && true, true && false, true && true })
 
 
-Test_floats? :Singleton as:
+#Test_floats? :Singleton as:
     test_floats? :Function as:
         j? = -31.4e-01
         Std printd(j)
@@ -97,7 +97,7 @@ Test_floats? :Singleton as:
         Std prints("e={e} log(10)={l} 1.5**2={m}" {e: 1.0 exp, l: 10.0 log, m: 1.5 ** 2.0})
 
 
-Test_strings? :Singleton as:
+#Test_strings? :Singleton as:
     test_strings? :Function as:
         a? = 1
         Std prints("Hello!")
@@ -180,7 +180,7 @@ Test_strings? :Singleton as:
                 :yield
 
 
-Test_enums? :Singleton as:
+#Test_enums? :Singleton as:
     Myenum? :Enumeration
         FOO, BAR, BAZ
 
@@ -191,7 +191,7 @@ Test_enums? :Singleton as:
         Std prints("fbb is actually {f}!" { f: fbb })
 
 
-Test_ovalues? :Singleton as:
+#Test_ovalues? :Singleton as:
     g? :Function Integer from:
         xxx? Integer Ovalue
         yyy? Integer Ovalue
@@ -203,19 +203,30 @@ Test_ovalues? :Singleton as:
         Std printi($ g(100))
         Std printi($ g)
 
-Pairs? :Singleton as:
-    make_pair? :Function Test_records.Pair as:
-        p? Test_records.Pair = {}
-        p first = 11
-        p second = 22
-        :return p
 
-    print_pair? :Function from:
-        p? Test_records.Pair Ovalue
-    as:
-        Std prints("A pair of ({x}, {y})" { x: p first, y: p second })
+    Pairs_interface? :Interface as:
+        make_pair? :Function Pair
+        print_pair? :Function from:
+            p? Pair Ovalue
+        
+    Pairs_implementation? :Class Pairs_interface as:
+        init? :Initializer as:
+            Std prints("Initializing Pairs")
+        
+        @.make_pair? :Function Pair as:
+            p? Pair = {}
+            p first = 11
+            p second = 22
+            :return p
 
-Test_records? :Singleton as:
+        @.print_pair? :Function from:
+            p? Pair Ovalue
+        as:
+            Std prints("A pair of ({x}, {y})" { x: p first, y: p second })
+
+    Pairs? :Global Pairs_interface by: Pairs_implementation
+
+#Test_records? :Singleton as:
     Pair? :Record as:
         first? Integer
         second? Integer
@@ -242,7 +253,7 @@ Test_records? :Singleton as:
             $ second = 0
 
     Foo? :Record as:
-        hey? Test_records.Bar.Baz
+        hey? Bar.Baz
         f? :Function as:
             $ hey g
     
@@ -274,7 +285,7 @@ Test_records? :Singleton as:
         
         ible? :Auto Integer Iterable
     
-        ible.iter? :Function Test_records.XCounter as:
+        ible.iter? :Function XCounter as:
             :return $
 
     XStringiterator? :Record as:
@@ -329,7 +340,7 @@ Test_records? :Singleton as:
         Std prints("{p} and {q} compares as {c}" { p: p, q: q, c: p <=> q })
 
 
-Test_multis? :Singleton as:
+#Test_multis? :Singleton as:
     triple? :Function (Integer, Integer, Integer) as:
         :return (97, 98, 99)
 
@@ -359,7 +370,7 @@ Test_multis? :Singleton as:
         Std prints("Triple bare short initialized {z4}, {z5}." {})
 
 
-Test_controls? :Singleton as:
+#Test_controls? :Singleton as:
     MyTree? :Treenumeration
         ONE { TEN, ELEVEN, TWELVE },
         TWO { TWENTY },
@@ -510,7 +521,7 @@ Test_controls? :Singleton as:
         Std prints("Don't print this!")
 
 
-Test_arrays? :Singleton as:
+#Test_arrays? :Singleton as:
     test_arrays? :Function as:
         strings? String Array = `empty
         Std prints("Empty array length: {x}" { x: strings length })
@@ -576,7 +587,7 @@ Test_arrays? :Singleton as:
             Std prints("Slice has: {x}" {})
 
 
-Test_queues? :Singleton as:
+#Test_queues? :Singleton as:
     test_queues? :Function as:
         ca? String Queue = { "foo", "bar", "baz", "xxx" }
         :try ca pop
@@ -610,7 +621,7 @@ Test_queues? :Singleton as:
         Std prints("Queue length became {}, while copy still contains {} elems like {} and {}." { qv length, cc length, cc[0], cc[1] })
 
 
-Test_rbtrees? :Singleton as:
+#Test_rbtrees? :Singleton as:
     test_rbtrees? :Function as:
         rb? String Set = `reserved(8)
     
@@ -682,7 +693,7 @@ Test_rbtrees? :Singleton as:
         Std prints("Map length became {}, while copy still contains {} elems like {} and {}." { mp length, cc length, cc["A"], cc["B"] })
 
 
-Test_options? :Singleton as:
+#Test_options? :Singleton as:
     test_options? :Function as:
         op1? String Option = `some("XYZ")
         Std prints("This option is: {op1}" {})
@@ -706,12 +717,12 @@ Test_options? :Singleton as:
             Std prints("It contained some.")
 
 
-Test_classes? :Singleton as:
+#Test_classes? :Singleton as:
     Base? :Interface as:
         the_base_method? :Function
     
 
-    Basic_base? :Class Test_classes.Base as:
+    Basic_base? :Class Base as:
         Type? :Enumeration
             NICE, UGLY
         
@@ -733,11 +744,11 @@ Test_classes? :Singleton as:
             Std prints("The base is finalized.")
 
 
-    Derived? :Interface Test_classes.Base as:
+    Derived? :Interface Base as:
         the_derived_method? :Function
     
 
-    Basic_derived? :Class Test_classes.Derived by: Test_classes.Basic_base as:
+    Basic_derived? :Class Derived by: Basic_base as:
         #base? :Role by: Basic_base
         derived_value? Integer
     
@@ -786,21 +797,21 @@ Test_classes? :Singleton as:
             $ value = x
     
     
-    Greetable? :Interface Test_classes.Derived as:
+    Greetable? :Interface Derived as:
         greet? :Function
 
-        small? :Role Test_classes.Intval
-        large? :Role Test_classes.Intval
+        small? :Role Intval
+        large? :Role Intval
 
-        left? :Role Test_classes.Property
-        right? :Role Test_classes.Property
+        left? :Role Property
+        right? :Role Property
 
         sable? :Auto Streamifiable
         
 
-    Basic_greetable? :Class Test_classes.Greetable by: Test_classes.Basic_derived as:
-        left? :Role by: Test_classes.Basic_property
-        right? :Role by: Test_classes.Basic_property
+    Basic_greetable? :Class Greetable by: Basic_derived as:
+        left? :Role by: Basic_property
+        right? :Role by: Basic_property
 
         @.sable.streamify? :Function from: stream? String Lvalue as:
             stream += "Basic_greetable({})" { $ name }
@@ -947,7 +958,7 @@ Test_classes? :Singleton as:
         :return killer
 
 
-Test_functors? :Singleton as:
+#Test_functors? :Singleton as:
     Adjuster? :Interface as:
         do? :Function Integer from:
             x? Integer
@@ -966,8 +977,15 @@ Test_functors? :Singleton as:
             
         Std prints("The square of 7 is {}" { square do(7) })
 
-Test_singletons? :Singleton as:
-    Single? :Singleton as:
+#Test_singletons? :Singleton as:
+
+    Single_interface? :Interface as:
+        single_function? :Function Integer
+        
+    Double_interface? :Interface as:
+        double_function? :Function Integer
+    
+    Single_implementation? :Class Single_interface as:
         single_number? Integer
         single_text? String
 
@@ -979,10 +997,10 @@ Test_singletons? :Singleton as:
         ? :Finalizer as:
             Std prints("Finalizing Single.")
 
-        single_function? :Function Integer as:
+        @.single_function? :Function Integer as:
             :return $ single_number
 
-    Double? :Singleton as:
+    Double_implementation? :Class Double_interface as:
         double_number? Integer
 
         init? :Initializer as:
@@ -992,15 +1010,19 @@ Test_singletons? :Singleton as:
         ? :Finalizer as:
             Std prints("Finalizing Double.")
 
-        double_function? :Function Integer as:
+        @.double_function? :Function Integer as:
             :return $ double_number
 
+    Single? :Global Single_interface by: Single_implementation
+
+    Double? :Global Double_interface by: Double_implementation
+
     test_singletons? :Function as:
-        Std prints("Single value should be 111: {x}" {x: Test_singletons.Single single_function})
-        Std prints("Double value should be 222: {x}" {x: Test_singletons.Double double_function})
+        Std prints("Single value should be 111: {x}" {x: Single single_function})
+        Std prints("Double value should be 222: {x}" {x: Double double_function})
 
 
-Test_files? :Singleton as:
+#Test_files? :Singleton as:
     ? :Import fs
     ? :Import .sub for:
         Sub
@@ -1051,23 +1073,28 @@ Test_files? :Singleton as:
         Sub
     
 
-Main? :Singleton as:
-    start? :Function as:
-        Test_integers test_integers
-        Test_floats test_floats
-        Test_strings test_strings
-        Test_enums test_enums
-        Test_ovalues test_ovalues
-        Test_records test_records
-        Test_multis test_multis
-        Test_controls test_controls
-        Test_arrays test_arrays
-        Test_queues test_queues
-        Test_rbtrees test_rbtrees
-        Test_options test_options
-        Test_classes test_classes
-        Test_functors test_functors
-        Test_singletons test_singletons
-        Test_files test_files
+#Main? :Singleton as:
+    init? :Initializer
+
+    @.start? :Function as:
+        $ test_integers
+        $ test_floats
+        $ test_strings
+        $ test_enums
+        $ test_ovalues
+        $ test_records
+        $ test_multis
+        $ test_controls
+        $ test_arrays
+        $ test_queues
+        $ test_rbtrees
+        $ test_options
+        $ test_classes
+        $ test_functors
+        $ test_singletons
+        $ test_files
         
         Std prints("Done.")
+
+
+Main? :Global Application by: App

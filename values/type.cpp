@@ -15,7 +15,9 @@ public:
             return false;
         }
 
-        pivot_ts = scope->pivot_type_hint();
+        if (scope->type == ARGUMENT_SCOPE || scope->type == CODE_SCOPE || scope->type == DATA_SCOPE)
+            pivot_ts = scope->pivot_type_hint();
+            
         return true;
     }
     
@@ -44,7 +46,7 @@ public:
             scope->add(d);
             return d;
         }
-        else if (scope->type == CODE_SCOPE || scope->type == DATA_SCOPE || scope->type == SINGLETON_SCOPE) {
+        else if (scope->type == CODE_SCOPE || scope->type == DATA_SCOPE) {
             if (!represented_ts.has_meta(value_metatype)) {
                 std::cerr << "Invalid type for variable declaration: " << represented_ts << "!\n";
                 return NULL;

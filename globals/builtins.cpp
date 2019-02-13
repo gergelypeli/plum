@@ -219,6 +219,9 @@ void builtin_types(Scope *root_scope) {
     iterable_type = new InterfaceType("Iterable", { value_metatype });
     root_scope->add(iterable_type);
 
+    application_type = new InterfaceType("Application", {});
+    root_scope->add(application_type);
+
     iterator_done_exception_type = make_treenum("Iterator_done_exception", "ITERATOR_DONE");
     root_scope->add(iterator_done_exception_type);
 
@@ -625,6 +628,22 @@ void define_interfaces() {
     //implement(iis, SAME_ITERABLE_TS, "iterable", {});
     iterator_type->complete_type();
     iis->leave();
+    
+    // Application interface
+    TypeSpec apts = { ptr_type, application_type };
+    DataScope *ais = application_type->make_inner_scope(apts);
+    Function *tf = new Function("start",
+        apts,
+        ABSTRACT_FUNCTION,
+        TSs {},
+        Ss {},
+        TSs {},
+        NULL,
+        NULL
+    );
+    ais->add(tf);
+    application_type->complete_type();
+    ais->leave();
 }
 
 
@@ -1050,6 +1069,7 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<BaseDefinitionValue>("Base", NO_TS));
     colon_scope->add(new TemplateIdentifier<AutoDefinitionValue>("Auto", NO_TS));
     colon_scope->add(new TemplateIdentifier<LselfDefinitionValue>("Lself", NO_TS));
+    colon_scope->add(new TemplateIdentifier<GlobalDefinitionValue>("Global", NO_TS));
 
     colon_type->complete_type();
     colon_scope->leave();

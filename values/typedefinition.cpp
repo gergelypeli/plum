@@ -116,12 +116,12 @@ public:
         if (!value->ts.is_meta())
             return NO_TS;
         
-        ts = ptr_cast<TypeValue>(value)->represented_ts;
+        TypeSpec rts = ptr_cast<TypeValue>(value)->represented_ts;
         
-        if (!ts.has_meta(meta_type))
+        if (!rts.has_meta(meta_type))
             return NO_TS;
             
-        return ts;
+        return rts;
     }
 };
 
@@ -181,7 +181,7 @@ public:
     }
     
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Declaration *d = new IntegerType(name, size, is_not_signed);
             scope->add(d);
             return d;
@@ -221,7 +221,7 @@ public:
 
     
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new EnumerationType(name, keywords);
             t->make_inner_scope({ t })->leave();
             scope->add(t);
@@ -307,7 +307,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == FUNCTION_SCOPE || scope->type == SINGLETON_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == FUNCTION_SCOPE) {
             Type *t = new TreenumerationType(name, keywords, parents);
             t->make_inner_scope({ t })->leave();
             scope->add(t);
@@ -572,7 +572,7 @@ public:
     }
     
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == MODULE_SCOPE || scope->type == DATA_SCOPE || scope->type == SINGLETON_SCOPE) {
+        if (scope->type == MODULE_SCOPE || scope->type == DATA_SCOPE) {
             if (name != "<anonymous>") {
                 std::cerr << "Import declaration must be anonymous!\n";
                 return NULL;
@@ -585,6 +585,80 @@ public:
             std::cerr << "Import declaration must be in an data scope!\n";
             return NULL;
         }
+    }
+};
+
+
+class GlobalDefinitionValue: public TypeDefinitionValue {
+public:
+    TypeSpec main_ts, class_ts;
+    GlobalVariable *gvar;
+    
+    GlobalDefinitionValue(Value *null, TypeMatch &tm)
+        :TypeDefinitionValue() {
+        gvar = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        Expr *main_expr = NULL, *class_expr = NULL;
+        
+        ExprInfos eis = {
+            { "", &main_expr },
+            { "by", &class_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
+            std::cerr << "Whacky global!\n";
+            return false;
+        }
+
+        if (!main_expr || !class_expr) {
+            std::cerr << "Global declaration needs an interface and a class type!\n";
+            return false;
+        }
+
+        main_ts = typize_typespec(main_expr, scope, interface_metatype);
+        if (main_ts == NO_TS)
+            return false;
+            
+        class_ts = typize_typespec(class_expr, scope, class_metatype);
+        if (class_ts == NO_TS)
+            return false;
+            
+        return true;
+    }
+
+    virtual bool define_data() {
+        // Runs after declare
+        // TODO: maybe allow selecting the initializer?
+        Function *initializer_function = NULL;
+        Scope *is = ptr_cast<ClassType>(class_ts[0])->get_inner_scope();
+        
+        for (auto &d : is->contents) {
+            Function *f = ptr_cast<Function>(d.get());
+            
+            if (f && f->type == INITIALIZER_FUNCTION)
+                initializer_function = f;
+        }
+        
+        if (!initializer_function) {
+            std::cerr << "No initializer in global variable class!\n";
+            return false;
+        }
+        
+        gvar->set_initializer_function(initializer_function);
+        
+        return true;
+    }
+
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == MODULE_SCOPE || scope->type == DATA_SCOPE) {
+            gvar = new GlobalVariable(name, main_ts, class_ts);
+            scope->add(gvar);
+            return gvar;
+        }
+        else
+            return NULL;
     }
 };
 
@@ -711,7 +785,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new RecordType(name, Metatypes {});
             return define(t, { t }, scope);
         }
@@ -720,7 +794,7 @@ public:
     }
 };
 
-
+/*
 class SingletonDefinitionValue: public ScopedTypeDefinitionValue {
 public:
     SingletonDefinitionValue()
@@ -754,7 +828,7 @@ public:
             return NULL;
     }
 };
-
+*/
 
 class ClassDefinitionValue: public ScopedTypeDefinitionValue, public RoleCreator {
 public:
@@ -786,7 +860,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new ClassType(name, Metatypes {});
             return define(t, { ptr_type, t }, scope);
         }
@@ -871,7 +945,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new InterfaceType(name, Metatypes {});
             TypeSpec pivot_ts = { ptr_type, t };
             return define(t, pivot_ts, scope);
@@ -886,18 +960,18 @@ public:
 
 class FunctorDefinitionValue: public TypeDefinitionValue {
 public:
+    ClassType *class_type;
     std::vector<Value *> with_values;
     std::vector<Variable *> with_vars;
     
     Value *fdv;
-    Value *cpiv;
     TypeMatch match;
     
     FunctorDefinitionValue(Value *p, TypeMatch tm)
         :TypeDefinitionValue() {
         match = tm;
         fdv = NULL;
-        cpiv = NULL;
+        class_type = NULL;
     }
     
     virtual bool check_with(Expr *e, CodeScope *cs, DataScope *is) {
@@ -941,12 +1015,12 @@ public:
         }
 
         // Create Class
-        ClassType *ct = new ClassType("<functor>", {});
-        scope->get_data_scope()->add(ct);
+        class_type = new ClassType("<functor>", {});
+        scope->get_data_scope()->add(class_type);
         
-        TypeSpec pivot_ts = { ptr_type, ct };
-        ct->make_inner_scope(pivot_ts);
-        DataScope *is = ct->get_inner_scope();
+        TypeSpec pivot_ts = { ptr_type, class_type };
+        class_type->make_inner_scope(pivot_ts);
+        DataScope *is = class_type->get_inner_scope();
         
         // Add main role
         TypeSpec main_ts = typize_typespec(main_expr, scope, interface_metatype);
@@ -1002,11 +1076,9 @@ public:
         
         main_role->check_associated(decl);
 
-        ct->complete_type();
+        class_type->complete_type();
 
         fdv->define_code();
-
-        cpiv = new ClassPreinitializerValue({ ref_type, ct });
 
         is->leave();
         
@@ -1032,7 +1104,7 @@ public:
         
         x64->code_label(skip);
         
-        Storage ps = cpiv->compile(x64);
+        Storage ps = preinitialize_class({ class_type }, x64);
         
         if (ps.where != REGISTER)
             throw INTERNAL_ERROR;

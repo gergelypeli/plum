@@ -176,6 +176,87 @@ public:
 };
 
 
+class GlobalVariable: public Variable {
+public:
+    TypeSpec class_ts;  // TODO: allow overriding this
+    Function *initializer_function;
+    
+    GlobalVariable(std::string n, TypeSpec mts, TypeSpec cts)
+        :Variable(n, NO_TS, mts.prefix(ptr_type)) {
+        class_ts = cts;
+        initializer_function = NULL;
+    }
+
+    virtual void set_initializer_function(Function *f) {
+        initializer_function = f;
+    }
+
+    virtual TypeSpec get_class_ts() {
+        return class_ts;
+    }
+
+    virtual void allocate() {
+        Variable::allocate();
+        
+        // Allocation happens with ordered modules
+        outer_scope->get_root_scope()->register_global_variable(this);
+    }
+
+    virtual Storage get_local_storage() {  // TODO: shall we call it get_global_storage?
+        Storage module_storage = outer_scope->get_module_scope()->get_global_storage();
+        return get_storage(TypeMatch(), module_storage);
+    }
+
+    // No initializers are accessible from the language, done by the runtime itself
+    Label compile_initializer(X64 *x64) {
+        Label label;
+        x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
+
+        Storage s = preinitialize_class(class_ts, x64);
+        if (s.where != REGISTER)
+            throw INTERNAL_ERROR;
+
+        Storage t = get_local_storage();
+        if (t.where != MEMORY)
+            throw INTERNAL_ERROR;
+
+        alloc_ts.store(s, Storage(STACK), x64);
+        //x64->op(PUSHQ, s.reg);
+        x64->op(CALL, function_get_label(initializer_function, x64));
+        //x64->op(POPQ, t.address);
+        alloc_ts.create(Storage(STACK), t, x64);
+
+        x64->op(RET);
+        return label;
+    }
+
+    Label compile_finalizer(X64 *x64) {
+        Label label;
+        x64->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
+
+        Storage s = get_local_storage();
+        
+        alloc_ts.destroy(s, x64);
+        //x64->op(PUSHQ, s.address);  // borrow
+        //x64->op(CALL, class_ts.get_finalizer_label(x64));
+        //x64->op(ADDQ, RSP, ADDRESS_SIZE);
+
+        //x64->op(MOVQ, s.address, PTR_NULL);
+        x64->op(RET);
+        
+        return label;
+    }
+    
+    //virtual void collect_initializer_labels(std::vector<Label> &labels, X64 *x64) {
+    //    labels.push_back(compile_initializer(x64));
+    //}
+    
+    //virtual void collect_finalizer_labels(std::vector<Label> &labels, X64 *x64) {
+    //    labels.push_back(compile_finalizer(x64));
+    //}
+};
+
+
 class RetroVariable: public Variable {
 public:
     RetroVariable(std::string name, TypeSpec pts, TypeSpec vts)
@@ -228,7 +309,7 @@ public:
     }
 };
 
-
+/*
 class SingletonVariable: public Variable {
 public:
     //SingletonScope *singleton_scope;
@@ -273,7 +354,7 @@ public:
         return make<PartialVariableValue>(this, cpivot, scope, match, partial_info.get());
     }
 };
-
+*/
 
 // Extend the lifetime of Lvalue containers until the end of the innermost scope
 class Unborrow: public Declaration {

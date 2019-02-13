@@ -124,9 +124,9 @@ public:
         return outer_scope->get_eval_scope();
     }
 
-    virtual SingletonScope *get_singleton_scope() {
-        return outer_scope->get_singleton_scope();
-    }
+    //virtual SingletonScope *get_singleton_scope() {
+    //    return outer_scope->get_singleton_scope();
+    //}
 
     virtual ModuleScope *get_module_scope() {
         return outer_scope->get_module_scope();
@@ -341,6 +341,7 @@ public:
 class RootScope: public NamedScope {
 public:
     Label application_label;
+    std::vector<GlobalVariable *> global_variables;
     
     RootScope()
         :NamedScope(ROOT_SCOPE) {
@@ -360,6 +361,14 @@ public:
 
     virtual std::string fully_qualify(std::string n) {
         return n;
+    }
+    
+    virtual void register_global_variable(GlobalVariable *g) {
+        global_variables.push_back(g);
+    }
+    
+    virtual std::vector<GlobalVariable *> list_global_variables() {
+        return global_variables;
     }
 };
 

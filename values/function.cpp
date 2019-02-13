@@ -11,7 +11,7 @@ public:
     bool may_be_aborted;
     TypeSpec pivot_ts;
     Variable *self_var;
-    SingletonVariable *ston_var;
+    //SingletonVariable *ston_var;
     TypeMatch match;
     Scope *outer_scope;
 
@@ -27,7 +27,7 @@ public:
         deferred_body_expr = NULL;
         may_be_aborted = false;
         self_var = NULL;
-        ston_var = NULL;
+        //ston_var = NULL;
         fn_scope = NULL;
         outer_scope = NULL;
     }
@@ -72,9 +72,10 @@ public:
         Scope *ss = fn_scope->add_self_scope();
         ss->enter();
         
-        if (scope->type == DATA_SCOPE || scope->type == SINGLETON_SCOPE) {
+        if (scope->type == DATA_SCOPE) {
             pivot_ts = scope->pivot_type_hint();
             
+            /*
             if (pivot_ts.has_meta(singleton_metatype)) {
                 // Singleton method
                 
@@ -89,7 +90,8 @@ public:
                 
                 ss->add(ston_var);
             }
-            else if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
+            */
+            if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
                     TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
@@ -244,12 +246,12 @@ public:
                     ats = pv->alloc_ts;
                 }
 
-                PartialSingletonVariable *ps = ptr_cast<PartialSingletonVariable>(d);
+                //PartialSingletonVariable *ps = ptr_cast<PartialSingletonVariable>(d);
                 
-                if (ps) {
-                    pi = ps->partial_info.get();
-                    ats = ps->alloc_ts;
-                }
+                //if (ps) {
+                //    pi = ps->partial_info.get();
+                //    ats = ps->alloc_ts;
+                //}
             }
 
             if (si) {
@@ -335,13 +337,21 @@ public:
         if (import_name.size()) {
             return Storage();
         }
-        else if (!body) {
-            std::string msg = "Function " + fqn + " was not implemented";
+        else if (function->type == ABSTRACT_FUNCTION) {
+            std::string msg = "Abstract function " + fqn + " was called";
             x64->runtime->die(msg);
             return Storage();
         }
-        else
+        else if (!body) {
+            if (function->type != INITIALIZER_FUNCTION && function->type != FINALIZER_FUNCTION)
+                throw INTERNAL_ERROR;
+                
             x64->code_label_local(function->get_label(x64), fqn);
+            x64->op(RET);
+            return Storage();
+        }
+        
+        x64->code_label_local(function->get_label(x64), fqn);
         
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
@@ -400,7 +410,7 @@ public:
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type != DATA_SCOPE && scope->type != SINGLETON_SCOPE) {
+        if (scope->type != DATA_SCOPE) {
             std::cerr << "Functions must be declared in data scopes!\n";
             return NULL;
         }

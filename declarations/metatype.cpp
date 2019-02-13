@@ -144,7 +144,7 @@ public:
 class SingletonMetaType: public MetaType {
 public:
     SingletonMetaType(std::string name, std::vector<MetaType *> st)
-        :MetaType(name, st, make<SingletonDefinitionValue>) {
+        :MetaType(name, st, NULL /*make<SingletonDefinitionValue>*/) {
     }
 };
 

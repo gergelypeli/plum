@@ -84,6 +84,11 @@ bool function_is_abstract(Function *f) {
 }
 
 
+Label function_get_label(Function *f, X64 *x64) {
+    return f->get_label(x64);
+}
+
+
 std::string print_exception_type(TreenumerationType *t) {
     return t ? t->name : "-";
 }

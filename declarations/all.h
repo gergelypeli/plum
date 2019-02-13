@@ -10,6 +10,7 @@ class Associable;
 class Variable;
 class Role;
 class PartialVariable;
+class GlobalVariable;
 class Evaluable;
 class Function;
 class ImportedFloatFunction;

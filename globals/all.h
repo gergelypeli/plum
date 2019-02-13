@@ -82,6 +82,7 @@ Declaration *make_record_compare();
 void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve);
 std::string function_get_name(Function *f);
 bool function_is_abstract(Function *f);
+Label function_get_label(Function *f, X64 *x64);
 
 // TypeSpec operations
 TypeSpec get_typespec(Value *value);
@@ -110,6 +111,8 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos);
 bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos);
 bool check_exprs(Args &args, Kwargs &kwargs, const ExprInfos &expr_infos);
 
+// TODO
+Storage preinitialize_class(TypeSpec class_ts, X64 *x64);
 
 // Makers
 template <typename T>
@@ -260,7 +263,7 @@ TreenumerationType *errno_exception_type = NULL;
 InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;
 InterfaceType *iterable_type = NULL;
-
+InterfaceType *application_type = NULL;
 
 TypeSpec HYPERTYPE_TS;
 TypeSpec NO_TS;
