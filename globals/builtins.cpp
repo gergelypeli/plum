@@ -25,13 +25,13 @@ void builtin_types(Scope *root_scope) {
     attribute_metatype = new AttributeMetaType("<Attribute>", { type_metatype });
     root_scope->add(attribute_metatype);
     
-    // Here comes a bit of a twist
-    singleton_metatype = new SingletonMetaType("Singleton", { type_metatype });
-    colon_type = new SingletonType("Colon");
+    // Here comes a bit of a twist (UnitType needed value_metatype)
+    colon_type = new UnitType("Colon");
     root_scope->add(colon_type);
     colon_scope = colon_type->make_inner_scope({ colon_type });
-    
+
     // User accessible metatypes go into the colon scope
+    singleton_metatype = new SingletonMetaType("Singleton", { type_metatype });
     colon_scope->add(singleton_metatype);
 
     integer_metatype = new IntegerMetaType("Integer", { value_metatype });
