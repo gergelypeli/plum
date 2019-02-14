@@ -124,10 +124,6 @@ public:
         return outer_scope->get_eval_scope();
     }
 
-    //virtual SingletonScope *get_singleton_scope() {
-    //    return outer_scope->get_singleton_scope();
-    //}
-
     virtual ModuleScope *get_module_scope() {
         return outer_scope->get_module_scope();
     }
@@ -402,38 +398,6 @@ public:
         //    throw INTERNAL_ERROR;
             
         return get_root_scope()->get_global_storage() + offset.concretize();
-    }
-};
-
-
-class SingletonScope: public DataScope {
-public:
-    Allocation offset;
-    
-    SingletonScope()
-        :DataScope(SINGLETON_SCOPE) {
-    }
-
-    virtual void allocate() {
-        if (is_allocated)
-            return;
-            
-        DataScope::allocate();
-
-        if (size.concretize() != 0)  // For the Colon scope, which is not in any module scope
-            offset = get_module_scope()->reserve(size);
-    }
-
-    virtual SingletonScope *get_singleton_scope() {
-        return this;
-    }
-
-    virtual Storage get_global_storage() {
-        allocate();
-        //if (!is_allocated)
-        //    throw INTERNAL_ERROR;
-            
-        return get_module_scope()->get_global_storage() + offset.concretize();
     }
 };
 

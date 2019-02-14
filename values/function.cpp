@@ -11,7 +11,6 @@ public:
     bool may_be_aborted;
     TypeSpec pivot_ts;
     Variable *self_var;
-    //SingletonVariable *ston_var;
     TypeMatch match;
     Scope *outer_scope;
 
@@ -75,22 +74,6 @@ public:
         if (scope->type == DATA_SCOPE) {
             pivot_ts = scope->pivot_type_hint();
             
-            /*
-            if (pivot_ts.has_meta(singleton_metatype)) {
-                // Singleton method
-                
-                if (type == INITIALIZER_FUNCTION) {
-                    pivot_ts = pivot_ts.prefix(initializable_type);  // called by the runtime only
-                    TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
-                    ston_var = new PartialSingletonVariable("$", self_ts);
-                }
-                else {
-                    ston_var = new SingletonVariable("$", pivot_ts);
-                }
-                
-                ss->add(ston_var);
-            }
-            */
             if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
@@ -245,13 +228,6 @@ public:
                     pi = pv->partial_info.get();
                     ats = pv->alloc_ts;
                 }
-
-                //PartialSingletonVariable *ps = ptr_cast<PartialSingletonVariable>(d);
-                
-                //if (ps) {
-                //    pi = ps->partial_info.get();
-                //    ats = ps->alloc_ts;
-                //}
             }
 
             if (si) {

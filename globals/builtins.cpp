@@ -31,9 +31,6 @@ void builtin_types(Scope *root_scope) {
     colon_scope = colon_type->make_inner_scope({ colon_type });
 
     // User accessible metatypes go into the colon scope
-    singleton_metatype = new SingletonMetaType("Singleton", { type_metatype });
-    colon_scope->add(singleton_metatype);
-
     integer_metatype = new IntegerMetaType("Integer", { value_metatype });
     colon_scope->add(integer_metatype);
 

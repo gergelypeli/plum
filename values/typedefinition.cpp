@@ -794,41 +794,6 @@ public:
     }
 };
 
-/*
-class SingletonDefinitionValue: public ScopedTypeDefinitionValue {
-public:
-    SingletonDefinitionValue()
-        :ScopedTypeDefinitionValue() {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *as_expr = NULL;
-        
-        ExprInfos eis = {
-            { "as", &as_expr }
-        };
-        
-        if (!check_exprs(args, kwargs, eis)) {
-            std::cerr << "Whacky singleton!\n";
-            return false;
-        }
-
-        defer_as(as_expr);
-            
-        std::cerr << "Deferring singleton definition.\n";
-        return true;
-    }
-
-    virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == MODULE_SCOPE || scope->type == SINGLETON_SCOPE) {
-            Type *t = new SingletonType(name);
-            return define(t, { t }, scope);
-        }
-        else
-            return NULL;
-    }
-};
-*/
 
 class ClassDefinitionValue: public ScopedTypeDefinitionValue, public RoleCreator {
 public:

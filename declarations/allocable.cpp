@@ -333,52 +333,6 @@ public:
     }
 };
 
-/*
-class SingletonVariable: public Variable {
-public:
-    //SingletonScope *singleton_scope;
-    //Label application_label;
-    
-    SingletonVariable(std::string n, TypeSpec mts)
-        :Variable(n, NO_TS, mts) {
-        //singleton_scope = ss;
-    }
-
-    virtual void allocate() {
-        // This is just an alias, we don't allocate actual data here
-        where = MEMORY;
-    }
-
-    //virtual void set_application_label(Label al) {
-    //    application_label = al;
-    //}
-
-    virtual Storage get_storage(TypeMatch tm, Storage s) {
-        throw INTERNAL_ERROR;  // not contained in anything else
-    }
-
-    virtual Storage get_local_storage() {
-        return outer_scope->get_singleton_scope()->get_global_storage();
-        //int offset = singleton_scope->offset.concretize();
-        //return Storage(MEMORY, Address(application_label, offset));
-    }
-};
-
-
-class PartialSingletonVariable: public SingletonVariable {
-public:
-    std::unique_ptr<PartialInfo> partial_info;
-
-    PartialSingletonVariable(std::string name, TypeSpec mts)
-        :SingletonVariable(name, mts) {
-        partial_info.reset(new PartialInfo);
-    }
-
-    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        return make<PartialVariableValue>(this, cpivot, scope, match, partial_info.get());
-    }
-};
-*/
 
 // Extend the lifetime of Lvalue containers until the end of the innermost scope
 class Unborrow: public Declaration {
