@@ -377,7 +377,10 @@ App? :Class Application as:
         THREE,
         FOUR
 
-    nasty? :Function may: { SMALL_ERROR, BIG_ERROR } as:
+    Nasty_errors? :Treenumeration
+        SMALL_ERROR, BIG_ERROR
+
+    nasty? :Function may: Nasty_errors as:
         :raise `SMALL_ERROR
 
     twice? :Function from:

@@ -14,6 +14,9 @@ public:
     
     Type(std::string n, Metatypes pmts, MetaType *ut)
         :Identifier(n, NO_TS) {
+        if (pmts.size() > 3)
+            throw INTERNAL_ERROR;  // current limitation
+            
         prefix = n + QUALIFIER_NAME;
         param_metatypes = pmts;
         meta_type = ut;
@@ -33,15 +36,41 @@ public:
             inner_scope->set_outer_scope(os);
     }
 
-    virtual DataScope *make_inner_scope() {
-        return new DataScope;
+    virtual TypeSpec make_pivot_type_hint() {
+        TypeSpec ts = { this };
+        
+        if (param_metatypes.size()) {
+            if (!value_metatype || !identity_metatype || !any_type || !anyid_type)
+                throw INTERNAL_ERROR;  // sanity check for initialization
+        
+            Type *any[] = { any_type, any2_type, any3_type };
+            Type *anyid[] = { anyid_type, anyid2_type, anyid3_type };
+        
+            for (unsigned i = 0; i < param_metatypes.size(); i++) {
+                MetaType *mt = param_metatypes[i];
+            
+                if (mt == value_metatype)
+                    ts.push_back(any[i]);
+                else if (mt == identity_metatype)
+                    ts.push_back(anyid[i]);
+                else
+                    throw INTERNAL_ERROR;
+            }
+        }
+        
+        return ts;
     }
-    
+
     virtual DataScope *make_inner_scope(TypeSpec pts) {
         if (inner_scope)
             throw INTERNAL_ERROR;
             
-        inner_scope.reset(make_inner_scope());
+        if (pts != make_pivot_type_hint()) {
+            std::cerr << "XXX oops: " << pts << " != " << make_pivot_type_hint() << "\n";
+            throw INTERNAL_ERROR;
+        }
+            
+        inner_scope.reset(new DataScope);
         inner_scope->set_pivot_type_hint(pts);
         inner_scope->set_name(name);
         
@@ -346,6 +375,69 @@ public:
     
     virtual std::string get_fully_qualified_name() {
         return outer_scope->fully_qualify(name);
+    }
+};
+
+
+class MetaType: public Type {
+public:
+    // Plain Type-s get their parameters in the form of pre-evaluated type names, and
+    // produce variables by declaring them to those types.
+    // MetaTypes get their parameters in the form of keyword arguments to be evaluated
+    // later, and produce types by declaring them to the resulting type.
+
+    std::vector<MetaType *> super_types;
+    typedef Value *(*TypeDefinitionFactory)();
+    TypeDefinitionFactory factory;
+    
+    MetaType(std::string n, std::vector<MetaType *> sts, TypeDefinitionFactory f)
+        :Type(n, Metatypes { }, metatype_hypertype) {
+        // the metatype of metatype_hypertype is NULL, because it's not set when instantiated
+        super_types = sts;
+        factory = f;
+    }
+
+    virtual TypeSpec make_pivot_type_hint() {
+        // Some metatypes contain useful operations
+        if (super_types.size() == 1 && super_types[0] == value_metatype && value_metatype)
+            return ANY_TS;
+            
+        throw INTERNAL_ERROR;  // to catch unusual cases
+    }
+
+    virtual Value *match(std::string name, Value *pivot, Scope *scope) {
+        if (name != this->name)
+            return NULL;
+            
+        if (pivot)
+            return NULL;
+            
+        if (!factory)
+            throw INTERNAL_ERROR;
+            
+        return factory();
+    }
+    
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (s.where != NOWHERE || t.where != NOWHERE) {
+            std::cerr << "Invalid metatype store from " << s << " to " << t << "!\n";
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual bool is_typedefinition(std::string n) {
+        return name == n;
+    }
+    
+    virtual bool has_super(MetaType *mt) {
+        if (mt == this)
+            return true;
+            
+        for (auto st : super_types)
+            if (st->has_super(mt))
+                return true;
+                
+        return false;
     }
 };
 

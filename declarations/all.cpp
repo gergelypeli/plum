@@ -6,7 +6,6 @@
 #include "function.cpp"
 #include "associable.cpp"
 #include "type.cpp"
-#include "metatype.cpp"
 
 #include "interface.cpp"
 #include "basic.cpp"

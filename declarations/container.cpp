@@ -34,7 +34,6 @@ class LinearrayType: public ContainerType {
 public:
     LinearrayType(std::string name)
         :ContainerType(name, Metatypes { value_metatype }) {
-        //make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
     virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
@@ -73,7 +72,6 @@ class ArrayType: public RecordType {
 public:
     ArrayType(std::string name)
         :RecordType(name, Metatypes { value_metatype }) {
-        //make_inner_scope(TypeSpec { this, any_type });
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
@@ -167,7 +165,6 @@ class CircularrayType: public ContainerType {
 public:
     CircularrayType(std::string name)
         :ContainerType(name, Metatypes { value_metatype }) {
-        //make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
 
     virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {
@@ -221,7 +218,6 @@ class QueueType: public RecordType {
 public:
     QueueType(std::string name)
         :RecordType(name, { value_metatype }) {
-        //make_inner_scope(TypeSpec { this, any_type });
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
@@ -246,7 +242,6 @@ class RbtreeType: public ContainerType {
 public:
     RbtreeType(std::string name)
         :ContainerType(name, Metatypes { value_metatype }) {
-        //make_inner_scope(TypeSpec { ref_type, this, any_type });
     }
     
     virtual Label get_finalizer_label(TypeMatch tm, X64 *x64) {

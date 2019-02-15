@@ -1,4 +1,7 @@
 
+Stream_errors? :Treenumeration
+    EXHAUSTED
+
 Path? :Record as:
     name? String
 
@@ -54,7 +57,7 @@ File_reader? :Class as:
         $ buffer = Byte Array `all(0, 4096)
         $ length = 0
         
-    fill? :Function may: { EXHAUSTED } as:
+    fill? :Function may: Stream_errors as:
         :if $ length == $ buffer length then:
             $ buffer refill(0, 4096)
             
@@ -84,7 +87,7 @@ Decoder? :Class as:
     as:
         $ reader = r
         
-    get_line? :Function String may: { EXHAUSTED } as:
+    get_line? :Function String may: Stream_errors as:
         :repeat on: `true do:
             s? = $ reader peek
             

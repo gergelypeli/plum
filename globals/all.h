@@ -182,6 +182,7 @@ MetaType *record_metatype = NULL;
 MetaType *class_metatype = NULL;
 MetaType *singleton_metatype = NULL;
 MetaType *interface_metatype = NULL;
+MetaType *import_metatype = NULL;
 
 Type *ovalue_type = NULL;
 Type *lvalue_type = NULL;

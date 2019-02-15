@@ -34,6 +34,10 @@ public:
         finalizer_function = NULL;
     }
 
+    virtual TypeSpec make_pivot_type_hint() {
+        return Type::make_pivot_type_hint().prefix(ptr_type);
+    }
+
     virtual DataScope *make_inner_scope(TypeSpec pts) {
         DataScope *is = Type::make_inner_scope(pts);
 

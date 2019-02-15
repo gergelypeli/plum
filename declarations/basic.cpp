@@ -271,7 +271,6 @@ class BooleanType: public BasicType {
 public:
     BooleanType(std::string n, unsigned s)
         :BasicType(n, s, true) {
-        //make_inner_scope(TypeSpec { this });
     }
 
     virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
@@ -301,7 +300,6 @@ class CharacterType: public BasicType {
 public:
     CharacterType(std::string n, unsigned s)
         :BasicType(n, s, true) {
-        //make_inner_scope(TypeSpec { this });
     }
 
     virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {

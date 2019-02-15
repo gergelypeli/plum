@@ -10,46 +10,47 @@ void builtin_types(Scope *root_scope) {
     // Phase 2: declare the metatypes
 
     // Abstract metatypes can't be looked up, so their scope doesn't matter
-    type_metatype = new TypeMetaType("<Type>", {});
+    type_metatype = new MetaType("<Type>", {}, NULL);
     root_scope->add(type_metatype);
 
-    value_metatype = new ValueMetaType("<Value>", { type_metatype });
+    value_metatype = new MetaType("<Value>", { type_metatype }, NULL);
     root_scope->add(value_metatype);
 
-    identity_metatype = new IdentityMetaType("<Identity>", { type_metatype });
+    identity_metatype = new MetaType("<Identity>", { type_metatype }, NULL);
     root_scope->add(identity_metatype);
 
-    module_metatype = new ModuleMetaType("<Module>", { type_metatype });
+    module_metatype = new MetaType("<Module>", { type_metatype }, NULL);
     root_scope->add(module_metatype);
 
-    attribute_metatype = new AttributeMetaType("<Attribute>", { type_metatype });
+    attribute_metatype = new MetaType("<Attribute>", { type_metatype }, NULL);
     root_scope->add(attribute_metatype);
     
     // Here comes a bit of a twist (UnitType needed value_metatype)
-    colon_type = new UnitType("Colon");
+    colon_type = new UnitType("Colon");  // NOTE: Unit is a value type
     root_scope->add(colon_type);
     colon_scope = colon_type->make_inner_scope({ colon_type });
 
     // User accessible metatypes go into the colon scope
-    integer_metatype = new IntegerMetaType("Integer", { value_metatype });
+    integer_metatype = new MetaType("Integer", { value_metatype }, make<IntegerDefinitionValue>);
     colon_scope->add(integer_metatype);
 
-    enumeration_metatype = new EnumerationMetaType("Enumeration", { value_metatype });
+    enumeration_metatype = new MetaType("Enumeration", { value_metatype }, make<EnumerationDefinitionValue>);
     colon_scope->add(enumeration_metatype);
 
-    treenumeration_metatype = new TreenumerationMetaType("Treenumeration", { value_metatype });
+    treenumeration_metatype = new MetaType("Treenumeration", { value_metatype }, make<TreenumerationDefinitionValue>);
     colon_scope->add(treenumeration_metatype);
 
-    record_metatype = new RecordMetaType("Record", { value_metatype });
+    record_metatype = new MetaType("Record", { value_metatype }, make<RecordDefinitionValue>);
     colon_scope->add(record_metatype);
 
-    class_metatype = new ClassMetaType("Class", { identity_metatype });
+    class_metatype = new MetaType("Class", { identity_metatype }, make<ClassDefinitionValue>);
     colon_scope->add(class_metatype);
 
-    interface_metatype = new InterfaceMetaType("Interface", { value_metatype, identity_metatype });
+    interface_metatype = new MetaType("Interface", { value_metatype, identity_metatype }, make<InterfaceDefinitionValue>);
     colon_scope->add(interface_metatype);
 
-    colon_scope->add(new ImportMetaType("Import", { type_metatype }));
+    import_metatype = new MetaType("Import", { type_metatype }, make<ImportDefinitionValue>);
+    colon_scope->add(import_metatype);
 
 
     // Phase 3: declare wildcard types, so subsequent types can have an inner scope
@@ -581,9 +582,10 @@ void define_float() {
 
 void define_interfaces() {
     // Streamifiable interface
-    DataScope *sis = streamifiable_type->make_inner_scope(STREAMIFIABLE_TS);
+    TypeSpec spts = STREAMIFIABLE_TS.prefix(ptr_type);
+    DataScope *sis = streamifiable_type->make_inner_scope(spts);
     Function *sf = new Function("streamify",
-        STREAMIFIABLE_TS,
+        spts,
         ABSTRACT_FUNCTION,
         TSs { STRING_LVALUE_TS },
         Ss { "stream" },
@@ -596,9 +598,10 @@ void define_interfaces() {
     sis->leave();
     
     // Iterable interface
-    DataScope *jis = iterable_type->make_inner_scope(ANY_ITERABLE_TS);
+    TypeSpec jpts = ANY_ITERABLE_TS.prefix(ptr_type);
+    DataScope *jis = iterable_type->make_inner_scope(jpts);
     Function *xf = new Function("iter",
-        ANY_ITERABLE_TS,
+        jpts,
         ABSTRACT_FUNCTION,
         TSs {},
         Ss {},
@@ -611,9 +614,10 @@ void define_interfaces() {
     jis->leave();
 
     // Iterator interface
-    DataScope *iis = iterator_type->make_inner_scope(ANY_ITERATOR_TS);
+    TypeSpec ipts = ANY_ITERATOR_TS.prefix(ptr_type);
+    DataScope *iis = iterator_type->make_inner_scope(ipts);
     Function *nf = new Function("next",
-        ANY_ITERATOR_TS,
+        ipts,
         ABSTRACT_FUNCTION,
         TSs {},
         Ss {},
@@ -1165,7 +1169,7 @@ RootScope *init_builtins() {
     treenum_metascope->leave();
 
     // Record operations
-    Scope *record_metascope = record_metatype->make_inner_scope(ANY_LVALUE_TS);
+    Scope *record_metascope = record_metatype->make_inner_scope(ANY_TS);
     record_metascope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     record_metascope->leave();
 
