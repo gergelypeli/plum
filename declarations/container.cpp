@@ -370,16 +370,16 @@ public:
 
 class SetType: public TreelikeType {
 public:
-    SetType(std::string name)
-        :TreelikeType(name, { value_metatype }, SAME_TS) {
+    SetType(std::string name)  // Must not use TS constants in constructor
+        :TreelikeType(name, { value_metatype }, { same_type }) {
     }
 };
 
 
 class MapType: public TreelikeType {
 public:
-    MapType(std::string name)
-        :TreelikeType(name, { value_metatype, value_metatype }, SAME_SAME2_ITEM_TS) {
+    MapType(std::string name)  // Must not use TS constants in constructor
+        :TreelikeType(name, { value_metatype, value_metatype }, { item_type, same_type, same2_type }) {
     }
 };
 
@@ -420,23 +420,23 @@ public:
 
 class WeakSetType: public WeaktreeType {
 public:
-    WeakSetType(std::string name)
-        :WeaktreeType(name, { identity_metatype }, SAMEID_NOSYVALUE_TS) {
+    WeakSetType(std::string name)  // Must not use TS constants in constructor
+        :WeaktreeType(name, { identity_metatype }, { nosyvalue_type, sameid_type }) {
     }
 };
 
 
 class WeakIndexMapType: public WeaktreeType {
 public:
-    WeakIndexMapType(std::string name)
-        :WeaktreeType(name, { identity_metatype, value_metatype }, SAMEID_NOSYVALUE_SAME2_ITEM_TS) {
+    WeakIndexMapType(std::string name)  // Must not use TS constants in constructor
+        :WeaktreeType(name, { identity_metatype, value_metatype }, { item_type, nosyvalue_type, sameid_type, same2_type }) {
     }
 };
 
 
 class WeakValueMapType: public WeaktreeType {
 public:
-    WeakValueMapType(std::string name)
-        :WeaktreeType(name, { value_metatype, identity_metatype }, SAME_SAMEID2_NOSYVALUE_ITEM_TS) {
+    WeakValueMapType(std::string name)  // Must not use TS constants in constructor
+        :WeaktreeType(name, { value_metatype, identity_metatype }, { item_type, same_type, nosyvalue_type, sameid2_type }) {
     }
 };

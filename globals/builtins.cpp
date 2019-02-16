@@ -7,9 +7,8 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(metatype_hypertype);
 
 
-    // Phase 2: declare the metatypes
-
-    // Abstract metatypes can't be looked up, so their scope doesn't matter
+    // Phase 2: declare the abstract metatypes, their scope does not matter
+    
     type_metatype = new MetaType("<Type>", {}, NULL);
     root_scope->add(type_metatype);
 
@@ -24,37 +23,10 @@ void builtin_types(Scope *root_scope) {
 
     attribute_metatype = new MetaType("<Attribute>", { type_metatype }, NULL);
     root_scope->add(attribute_metatype);
+
+
+    // Phase 3: declare the wildcard types, needed for the regular metatypes
     
-    // Here comes a bit of a twist (UnitType needed value_metatype)
-    colon_type = new UnitType("Colon");  // NOTE: Unit is a value type
-    root_scope->add(colon_type);
-    colon_scope = colon_type->make_inner_scope({ colon_type });
-
-    // User accessible metatypes go into the colon scope
-    integer_metatype = new MetaType("Integer", { value_metatype }, make<IntegerDefinitionValue>);
-    colon_scope->add(integer_metatype);
-
-    enumeration_metatype = new MetaType("Enumeration", { value_metatype }, make<EnumerationDefinitionValue>);
-    colon_scope->add(enumeration_metatype);
-
-    treenumeration_metatype = new MetaType("Treenumeration", { value_metatype }, make<TreenumerationDefinitionValue>);
-    colon_scope->add(treenumeration_metatype);
-
-    record_metatype = new MetaType("Record", { value_metatype }, make<RecordDefinitionValue>);
-    colon_scope->add(record_metatype);
-
-    class_metatype = new MetaType("Class", { identity_metatype }, make<ClassDefinitionValue>);
-    colon_scope->add(class_metatype);
-
-    interface_metatype = new MetaType("Interface", { value_metatype, identity_metatype }, make<InterfaceDefinitionValue>);
-    colon_scope->add(interface_metatype);
-
-    import_metatype = new MetaType("Import", { type_metatype }, make<ImportDefinitionValue>);
-    colon_scope->add(import_metatype);
-
-
-    // Phase 3: declare wildcard types, so subsequent types can have an inner scope
-
     any_type = new AnyType("<Any>", {}, value_metatype);
     root_scope->add(any_type);
 
@@ -92,10 +64,38 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(sameid3_type);
 
 
-    // Phase 4: declare special types
+    // Phase 4: declare Colon type, which needs value_metatype, and needed for the colon scope
+    
+    colon_type = new UnitType("Colon");
+    root_scope->add(colon_type);
+    colon_scope = colon_type->make_inner_scope({ colon_type });
 
-    unit_type = new UnitType("<Unit>");
-    root_scope->add(unit_type);
+
+    // Phase 5: declare regular metatypes, need the wildcard types and the colon scope
+    
+    integer_metatype = new MetaType("Integer", { value_metatype }, make<IntegerDefinitionValue>);
+    colon_scope->add(integer_metatype);
+
+    enumeration_metatype = new MetaType("Enumeration", { value_metatype }, make<EnumerationDefinitionValue>);
+    colon_scope->add(enumeration_metatype);
+
+    treenumeration_metatype = new MetaType("Treenumeration", { value_metatype }, make<TreenumerationDefinitionValue>);
+    colon_scope->add(treenumeration_metatype);
+
+    record_metatype = new MetaType("Record", { value_metatype }, make<RecordDefinitionValue>);
+    colon_scope->add(record_metatype);
+
+    class_metatype = new MetaType("Class", { identity_metatype }, make<ClassDefinitionValue>);
+    colon_scope->add(class_metatype);
+
+    interface_metatype = new MetaType("Interface", { value_metatype, identity_metatype }, make<InterfaceDefinitionValue>);
+    colon_scope->add(interface_metatype);
+
+    import_metatype = new MetaType("Import", { type_metatype }, make<ImportDefinitionValue>);
+    colon_scope->add(import_metatype);
+
+
+    // Phase 6: declare internally used types
 
     void_type = new VoidType("<Void>");
     root_scope->add(void_type);
@@ -118,6 +118,24 @@ void builtin_types(Scope *root_scope) {
     stringtemplate_type = new StringtemplateType("<Stringtemplate>");
     root_scope->add(stringtemplate_type);
 
+    nosyvalue_type = new NosyValueType("<NosyValue>");
+    root_scope->add(nosyvalue_type);
+
+    nosytree_type = new NosytreeType("<Nosytree>");
+    root_scope->add(nosytree_type);
+
+    nosyref_type = new NosyrefType("<Nosyref>");
+    root_scope->add(nosyref_type);
+
+    partial_type = new PartialType("<Partial>");
+    root_scope->add(partial_type);
+
+    equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
+    root_scope->add(equalitymatcher_type);
+
+
+    // Phase 7: declare special types
+
     lvalue_type = new AttributeType("Lvalue");
     root_scope->add(lvalue_type);
     
@@ -133,11 +151,14 @@ void builtin_types(Scope *root_scope) {
     rvalue_type = new AttributeType("Rvalue", interface_metatype);
     root_scope->add(rvalue_type);
 
-    whatever_type = new WhateverType("<Whatever>");
+    whatever_type = new WhateverType("Whatever");
     root_scope->add(whatever_type);
 
+    unit_type = new UnitType("Unit");
+    root_scope->add(unit_type);
 
-    // Phase 5: declare basic types
+
+    // Phase 8: declare basic types
 
     boolean_type = new BooleanType("Boolean", 1);
     root_scope->add(boolean_type);
@@ -178,20 +199,8 @@ void builtin_types(Scope *root_scope) {
     ptr_type = new PointerType("Ptr");
     root_scope->add(ptr_type);
 
-    nosyvalue_type = new NosyValueType("<NosyValue>");
-    root_scope->add(nosyvalue_type);
-
-    nosytree_type = new NosytreeType("<Nosytree>");
-    root_scope->add(nosytree_type);
-
-    nosyref_type = new NosyrefType("<Nosyref>");
-    root_scope->add(nosyref_type);
-
     weakref_type = new WeakrefType("Weakref");
     root_scope->add(weakref_type);
-
-    partial_type = new PartialType("<Partial>");
-    root_scope->add(partial_type);
 
     string_type = new StringType("String");
     root_scope->add(string_type);
@@ -202,11 +211,8 @@ void builtin_types(Scope *root_scope) {
     item_type = new ItemType("Item");
     root_scope->add(item_type);
 
-    equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
-    root_scope->add(equalitymatcher_type);
 
-
-    // Phase 6: define interface and exception types
+    // Phase 9: define interface and exception types
     
     streamifiable_type = new InterfaceType("Streamifiable", {});
     root_scope->add(streamifiable_type);
@@ -245,7 +251,7 @@ void builtin_types(Scope *root_scope) {
     root_scope->add(errno_exception_type);
     
 
-    // Phase 7: define container and iterator types
+    // Phase 10: define container and iterator types
 
     linearray_type = new LinearrayType("Linearray");
     root_scope->add(linearray_type);
@@ -304,6 +310,21 @@ void builtin_types(Scope *root_scope) {
     sliceitemiter_type = new RecordType("Sliceitem_iter", { value_metatype });
     root_scope->add(sliceitemiter_type);
 
+    set_type = new SetType("Set");
+    root_scope->add(set_type);
+
+    map_type = new MapType("Map");
+    root_scope->add(map_type);
+
+    weakvaluemap_type = new WeakValueMapType("WeakValueMap");
+    root_scope->add(weakvaluemap_type);
+
+    weakindexmap_type = new WeakIndexMapType("WeakIndexMap");
+    root_scope->add(weakindexmap_type);
+    
+    weakset_type = new WeakSetType("WeakSet");
+    root_scope->add(weakset_type);
+
 
     // Define TS
     
@@ -342,7 +363,6 @@ void builtin_types(Scope *root_scope) {
     ANYID_PTR_LVALUE_TS = { lvalue_type, ptr_type, anyid_type };
     ANYID_WEAKREF_TS = { weakref_type, anyid_type };
     ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
-    //SAMEID_NOSYVALUE_NOSYCONTAINER_REF_LVALUE_TS = { lvalue_type, ref_type, nosycontainer_type, nosyvalue_type, sameid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
     WHATEVER_UNINITIALIZED_TS = { uninitialized_type, whatever_type };
     STRINGTEMPLATE_TS = { stringtemplate_type };
@@ -407,42 +427,13 @@ void builtin_types(Scope *root_scope) {
     SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_TS = { ref_type, rbtree_type, item_type, nosyvalue_type, sameid_type, same2_type };
     SAMEID_NOSYVALUE_RBTREE_REF_TS = { ref_type, rbtree_type,  nosyvalue_type, sameid_type };
 
-}
-
-
-void wrapped_types(Scope *root_scope) {
-    set_type = new SetType("Set");
-    root_scope->add(set_type);
-
-    map_type = new MapType("Map");
-    root_scope->add(map_type);
-
-    weakvaluemap_type = new WeakValueMapType("WeakValueMap");
-    root_scope->add(weakvaluemap_type);
-
-    weakindexmap_type = new WeakIndexMapType("WeakIndexMap");
-    root_scope->add(weakindexmap_type);
-    
-    weakset_type = new WeakSetType("WeakSet");
-    root_scope->add(weakset_type);
-
-    //ANY_ARRAY_TS = { array_type, any_type };
-    //ANY_QUEUE_TS = { queue_type, any_type };
     ANY_SET_TS = { set_type, any_type };
     ANY_SET_LVALUE_TS = { lvalue_type, set_type, any_type };
     ANY_ANY2_MAP_TS = { map_type, any_type, any2_type };
     ANY_ANY2_MAP_LVALUE_TS = { lvalue_type, map_type, any_type, any2_type };
-    //ANY_STACK_PTR_TS = { ptr_type, stack_type, any_type };
-    //ANY_QUEUE_PTR_TS = { ptr_type, queue_type, any_type };
     ANY_ANYID2_WEAKVALUEMAP_TS = { weakvaluemap_type, any_type, anyid2_type };
     ANYID_WEAKSET_TS = { weakset_type, anyid_type };
-
-    //SAME_SAMEID2_NOSYVALUE_MAP_PTR_TS = { ptr_type, map_type, same_type, nosyvalue_type, sameid2_type };
-
     ANYID_ANY2_WEAKINDEXMAP_TS = { weakindexmap_type, anyid_type, any2_type };
-    //SAMEID_NOSYVALUE_SAME2_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, same2_type };
-
-    //SAMEID_NOSYVALUE_UNIT_MAP_PTR_TS = { ptr_type, map_type, nosyvalue_type, sameid_type, unit_type };
 }
 
 
@@ -1117,7 +1108,6 @@ RootScope *init_builtins() {
     root_scope->enter();
 
     builtin_types(root_scope);
-    wrapped_types(root_scope);
 
     define_interfaces();
 
