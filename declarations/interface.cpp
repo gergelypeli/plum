@@ -38,8 +38,8 @@ public:
         return Type::make_pivot_type_hint().prefix(ptr_type);
     }
 
-    virtual DataScope *make_inner_scope(TypeSpec pts) {
-        DataScope *is = Type::make_inner_scope(pts);
+    virtual DataScope *make_inner_scope() {
+        DataScope *is = Type::make_inner_scope();
 
         is->be_virtual_scope();
         

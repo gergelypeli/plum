@@ -68,7 +68,7 @@ void builtin_types(Scope *root_scope) {
     
     colon_type = new UnitType("Colon");
     root_scope->add(colon_type);
-    colon_scope = colon_type->make_inner_scope({ colon_type });
+    colon_scope = colon_type->make_inner_scope();
 
 
     // Phase 5: declare regular metatypes, need the wildcard types and the colon scope
@@ -508,7 +508,7 @@ void define_integers() {
         { "assign_shift_right", ASSIGN_SHIFT_RIGHT }
     };
 
-    Scope *integer_metascope = integer_metatype->make_inner_scope(ANY_TS);
+    Scope *integer_metascope = integer_metatype->make_inner_scope();
     
     for (auto &item : integer_rvalue_operations)
         integer_metascope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_TS, item.operation));
@@ -525,7 +525,7 @@ void define_integers() {
         integer_type, integer32_type, integer16_type, integer8_type,
         unsigned_integer_type, unsigned_integer32_type, unsigned_integer16_type, unsigned_integer8_type
     }) {
-        t->make_inner_scope({ t })->leave();
+        t->make_inner_scope()->leave();
     }
 }
 
@@ -555,7 +555,7 @@ void define_float() {
         { "assign_slash", ASSIGN_DIVIDE },
     };
 
-    Scope *float_scope = float_type->make_inner_scope(FLOAT_TS);
+    Scope *float_scope = float_type->make_inner_scope();
 
     for (auto &item : float_rvalue_operations)
         float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_TS, item.operation));
@@ -574,7 +574,7 @@ void define_float() {
 void define_interfaces() {
     // Streamifiable interface
     TypeSpec spts = STREAMIFIABLE_TS.prefix(ptr_type);
-    DataScope *sis = streamifiable_type->make_inner_scope(spts);
+    DataScope *sis = streamifiable_type->make_inner_scope();
     Function *sf = new Function("streamify",
         spts,
         ABSTRACT_FUNCTION,
@@ -590,7 +590,7 @@ void define_interfaces() {
     
     // Iterable interface
     TypeSpec jpts = ANY_ITERABLE_TS.prefix(ptr_type);
-    DataScope *jis = iterable_type->make_inner_scope(jpts);
+    DataScope *jis = iterable_type->make_inner_scope();
     Function *xf = new Function("iter",
         jpts,
         ABSTRACT_FUNCTION,
@@ -606,7 +606,7 @@ void define_interfaces() {
 
     // Iterator interface
     TypeSpec ipts = ANY_ITERATOR_TS.prefix(ptr_type);
-    DataScope *iis = iterator_type->make_inner_scope(ipts);
+    DataScope *iis = iterator_type->make_inner_scope();
     Function *nf = new Function("next",
         ipts,
         ABSTRACT_FUNCTION,
@@ -623,7 +623,7 @@ void define_interfaces() {
     
     // Application interface
     TypeSpec apts = { ptr_type, application_type };
-    DataScope *ais = application_type->make_inner_scope(apts);
+    DataScope *ais = application_type->make_inner_scope();
     Function *tf = new Function("start",
         apts,
         ABSTRACT_FUNCTION,
@@ -644,7 +644,7 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
     TypeSpec PIVOT_TS = { iter_type, any_type };
     TypeSpec SAME_CONTAINER_LVALUE_TS = { lvalue_type, container_type, same_type };
     
-    DataScope *aiis = iter_type->make_inner_scope(PIVOT_TS);
+    DataScope *aiis = iter_type->make_inner_scope();
 
     // Order matters!
     aiis->add(new Variable("container", PIVOT_TS, SAME_CONTAINER_LVALUE_TS));
@@ -668,7 +668,7 @@ void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
     TypeSpec PIVOT_TS = { iter_type, any_type };
     TypeSpec SAME_ARRAY_LVALUE_TS = { lvalue_type, array_type, same_type };
     
-    DataScope *aiis = iter_type->make_inner_scope(PIVOT_TS);
+    DataScope *aiis = iter_type->make_inner_scope();
 
     // Order matters!
     aiis->add(new Variable("container", PIVOT_TS, SAME_ARRAY_LVALUE_TS));
@@ -695,7 +695,7 @@ void define_iterators() {
         RecordType *counter_type = ptr_cast<RecordType>(is_down ? countdown_type : countup_type);
         TypeSpec COUNTER_TS = { counter_type };
     
-        DataScope *cis = counter_type->make_inner_scope(COUNTER_TS);
+        DataScope *cis = counter_type->make_inner_scope();
     
         cis->add(new Variable("limit", COUNTER_TS, INTEGER_LVALUE_TS));  // Order matters!
         cis->add(new Variable("value", COUNTER_TS, INTEGER_LVALUE_TS));
@@ -722,7 +722,7 @@ void define_iterators() {
 
     // Item type for itemized iteration
     RecordType *item_type = ptr_cast<RecordType>(::item_type);
-    DataScope *itis = item_type->make_inner_scope(ANY_ANY2_ITEM_TS);
+    DataScope *itis = item_type->make_inner_scope();
 
     itis->add(new Variable("index", ANY_ANY2_ITEM_TS, SAME_LVALUE_TS));  // Order matters!
     itis->add(new Variable("value", ANY_ANY2_ITEM_TS, SAME2_LVALUE_TS));
@@ -759,7 +759,7 @@ void define_iterators() {
 
 void define_string() {
     RecordType *record_type = ptr_cast<RecordType>(string_type);
-    DataScope *is = record_type->make_inner_scope(STRING_TS);
+    DataScope *is = record_type->make_inner_scope();
 
     is->add(new Variable("chars", STRING_TS, CHARACTER_ARRAY_LVALUE_TS));
 
@@ -797,7 +797,7 @@ void define_slice() {
     TypeSpec SAME_ARRAY_LVALUE_TS = { lvalue_type, array_type, same_type };
     
     RecordType *record_type = ptr_cast<RecordType>(slice_type);
-    DataScope *is = record_type->make_inner_scope(ANY_SLICE_TS);
+    DataScope *is = record_type->make_inner_scope();
 
     is->add(new Variable("array", ANY_SLICE_TS, SAME_ARRAY_LVALUE_TS));
     is->add(new Variable("front", ANY_SLICE_TS, INTEGER_LVALUE_TS));
@@ -824,7 +824,7 @@ void define_slice() {
 
 void define_weakref() {
     RecordType *record_type = ptr_cast<RecordType>(weakref_type);
-    DataScope *is = record_type->make_inner_scope(ANYID_WEAKREF_TS);
+    DataScope *is = record_type->make_inner_scope();
 
     TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_LVALUE_TS;
     TypeSpec NOSY_TS = MEMBER_TS.rvalue().prefix(nosyref_type).prefix(ref_type);
@@ -840,7 +840,7 @@ void define_weakref() {
 
 
 void define_option() {
-    DataScope *is = option_type->make_inner_scope(ANY_OPTION_TS);
+    DataScope *is = option_type->make_inner_scope();
 
     is->add(new TemplateOperation<OptionOperationValue>("assign other", ANY_OPTION_LVALUE_TS, ASSIGN));
     is->add(new TemplateOperation<OptionOperationValue>("compare", ANY_OPTION_TS, COMPARE));
@@ -854,7 +854,7 @@ void define_array() {
     TypeSpec PIVOT_TS = ANY_ARRAY_TS;
     TypeSpec PIVOT_LVALUE_TS = ANY_ARRAY_LVALUE_TS;
     
-    Scope *array_scope = array_type->make_inner_scope(ANY_ARRAY_TS);
+    Scope *array_scope = array_type->make_inner_scope();
 
     array_scope->add(new Variable("linearray", PIVOT_TS, SAME_LINEARRAY_REF_LVALUE_TS));
 
@@ -892,7 +892,7 @@ void define_array() {
 void define_queue() {
     TypeSpec PIVOT_TS = ANY_QUEUE_TS;
     TypeSpec PIVOT_LVALUE_TS = ANY_QUEUE_LVALUE_TS;
-    Scope *queue_scope = queue_type->make_inner_scope(ANY_QUEUE_TS);
+    Scope *queue_scope = queue_type->make_inner_scope();
 
     queue_scope->add(new Variable("circularray", PIVOT_TS, SAME_CIRCULARRAY_REF_LVALUE_TS));
 
@@ -923,7 +923,7 @@ void define_set() {
     TypeSpec PIVOT_LVALUE_TS = ANY_SET_LVALUE_TS;
     TypeSpec MEMBER_TS = SAME_RBTREE_REF_LVALUE_TS;
     
-    DataScope *is = set_type->make_inner_scope(PIVOT_TS);
+    DataScope *is = set_type->make_inner_scope();
 
     is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
 
@@ -955,7 +955,7 @@ void define_map() {
     TypeSpec PIVOT_LVALUE_TS = ANY_ANY2_MAP_LVALUE_TS;
     TypeSpec MEMBER_TS = SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
-    DataScope *is = map_type->make_inner_scope(PIVOT_TS);
+    DataScope *is = map_type->make_inner_scope();
 
     is->add(new Variable("rbtree", PIVOT_TS, MEMBER_TS));
     
@@ -978,7 +978,7 @@ void define_weakvaluemap() {
     TypeSpec MEMBER_TS = SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_LVALUE_TS;
     TypeSpec NOSY_TS = MEMBER_TS.rvalue().prefix(nosytree_type).prefix(ref_type);
 
-    DataScope *is = weakvaluemap_type->make_inner_scope(PIVOT_TS);
+    DataScope *is = weakvaluemap_type->make_inner_scope();
 
     is->add(new Variable("nosytree", PIVOT_TS, NOSY_TS));
     
@@ -1001,7 +1001,7 @@ void define_weakindexmap() {
     TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     TypeSpec NOSY_TS = MEMBER_TS.rvalue().prefix(nosytree_type).prefix(ref_type);
     
-    DataScope *is = weakindexmap_type->make_inner_scope(PIVOT_TS);
+    DataScope *is = weakindexmap_type->make_inner_scope();
 
     is->add(new Variable("nosytree", PIVOT_TS, NOSY_TS));
 
@@ -1024,7 +1024,7 @@ void define_weakset() {
     TypeSpec MEMBER_TS = SAMEID_NOSYVALUE_RBTREE_REF_LVALUE_TS;
     TypeSpec NOSY_TS = MEMBER_TS.rvalue().prefix(nosytree_type).prefix(ref_type);
     
-    DataScope *is = weakset_type->make_inner_scope(PIVOT_TS);
+    DataScope *is = weakset_type->make_inner_scope();
 
     is->add(new Variable("nosytree", PIVOT_TS, NOSY_TS));
     
@@ -1085,7 +1085,7 @@ void builtin_runtime(Scope *root_scope) {
     Type *std_type = new UnitType("<Std>");
     root_scope->add(std_type);
     TypeSpec STD_TS = { std_type };
-    Scope *is = std_type->make_inner_scope(STD_TS);
+    Scope *is = std_type->make_inner_scope();
     
     Declaration *std = new GlobalNamespace("Std", STD_TS);
     root_scope->add(std);
@@ -1132,13 +1132,13 @@ RootScope *init_builtins() {
     define_float();
         
     // Character operations
-    Scope *char_scope = character_type->make_inner_scope(CHARACTER_TS);
+    Scope *char_scope = character_type->make_inner_scope();
     char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", CHARACTER_LVALUE_TS, ASSIGN));
     char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", CHARACTER_TS, COMPARE));
     char_scope->leave();
     
     // Boolean operations
-    Scope *bool_scope = boolean_type->make_inner_scope(BOOLEAN_TS);
+    Scope *bool_scope = boolean_type->make_inner_scope();
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", BOOLEAN_LVALUE_TS, ASSIGN));
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("compare", BOOLEAN_TS, COMPARE));
     bool_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", BOOLEAN_TS));
@@ -1147,32 +1147,32 @@ RootScope *init_builtins() {
     bool_scope->leave();
 
     // Enum operations
-    Scope *enum_metascope = enumeration_metatype->make_inner_scope(ANY_TS);
+    Scope *enum_metascope = enumeration_metatype->make_inner_scope();
     enum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     enum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     enum_metascope->leave();
 
     // Treenum operations
-    Scope *treenum_metascope = treenumeration_metatype->make_inner_scope(ANY_TS);
+    Scope *treenum_metascope = treenumeration_metatype->make_inner_scope();
     treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", ANY_TS, EQUAL));
     treenum_metascope->leave();
 
     // Record operations
-    Scope *record_metascope = record_metatype->make_inner_scope(ANY_TS);
+    Scope *record_metascope = record_metatype->make_inner_scope();
     record_metascope->add(new TemplateOperation<RecordOperationValue>("assign other", ANY_LVALUE_TS, ASSIGN));
     record_metascope->leave();
 
     // Reference operations
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
-    Scope *ref_scope = ref_type->make_inner_scope(ANYID_REF_TS);
+    Scope *ref_scope = ref_type->make_inner_scope();
     ref_scope->add(new ReferenceOperation("assign other", ANYID_REF_LVALUE_TS, ASSIGN));
     ref_scope->add(new ReferenceOperation("is_equal", ANYID_REF_TS, EQUAL));
     ref_scope->add(new ReferenceOperation("not_equal", ANYID_REF_TS, NOT_EQUAL));
     ref_scope->leave();
 
     typedef TemplateOperation<PointerOperationValue> PointerOperation;
-    Scope *ptr_scope = ptr_type->make_inner_scope(ANYID_PTR_TS);
+    Scope *ptr_scope = ptr_type->make_inner_scope();
     ptr_scope->add(new PointerOperation("assign other", ANYID_PTR_LVALUE_TS, ASSIGN));
     ptr_scope->add(new PointerOperation("is_equal", ANYID_PTR_TS, EQUAL));
     ptr_scope->add(new PointerOperation("not_equal", ANYID_PTR_TS, NOT_EQUAL));
@@ -1182,12 +1182,12 @@ RootScope *init_builtins() {
     //define_rbtree();
     
     // Unpacking
-    Scope *mls = multilvalue_type->make_inner_scope(MULTILVALUE_TS);
+    Scope *mls = multilvalue_type->make_inner_scope();
     mls->add(new TemplateIdentifier<UnpackingValue>("assign other", MULTILVALUE_TS));
     mls->leave();
 
     // Initializing
-    Scope *uns = uninitialized_type->make_inner_scope(ANY_UNINITIALIZED_TS);
+    Scope *uns = uninitialized_type->make_inner_scope();
     uns->add(new TemplateIdentifier<CreateValue>("assign other", ANY_UNINITIALIZED_TS));
     uns->leave();
     

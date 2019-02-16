@@ -61,17 +61,15 @@ public:
         return ts;
     }
 
-    virtual DataScope *make_inner_scope(TypeSpec pts) {
+    virtual DataScope *make_inner_scope() {
+        // This method must be called explicitly after the constructor, because it
+        // may be customized by subclasses
+        
         if (inner_scope)
             throw INTERNAL_ERROR;
             
-        if (pts != make_pivot_type_hint()) {
-            std::cerr << "XXX oops: " << pts << " != " << make_pivot_type_hint() << "\n";
-            throw INTERNAL_ERROR;
-        }
-            
         inner_scope.reset(new DataScope);
-        inner_scope->set_pivot_type_hint(pts);
+        inner_scope->set_pivot_type_hint(make_pivot_type_hint());
         inner_scope->set_name(name);
         
         Scope *meta_scope = ptr_cast<Type>(meta_type)->get_inner_scope();

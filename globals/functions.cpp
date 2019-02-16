@@ -96,7 +96,7 @@ std::string print_exception_type(TreenumerationType *t) {
 
 TreenumerationType *make_treenum(const char *name, const char *kw1) {
     TreenumerationType *t = new TreenumerationType(name, { "", kw1 }, { 0, 0 });
-    t->make_inner_scope({ t })->leave();
+    t->make_inner_scope()->leave();
     return t;
 }
 
@@ -111,7 +111,7 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
     }
 
     TreenumerationType *t = new TreenumerationType(name, keywords, parents);
-    t->make_inner_scope({ t })->leave();
+    t->make_inner_scope()->leave();
     return t;
 }
 

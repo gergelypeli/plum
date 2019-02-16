@@ -223,7 +223,7 @@ public:
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new EnumerationType(name, keywords);
-            t->make_inner_scope({ t })->leave();
+            t->make_inner_scope()->leave();
             scope->add(t);
             return t;
         }
@@ -309,7 +309,7 @@ public:
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE || scope->type == FUNCTION_SCOPE) {
             Type *t = new TreenumerationType(name, keywords, parents);
-            t->make_inner_scope({ t })->leave();
+            t->make_inner_scope()->leave();
             scope->add(t);
             return t;
         }
@@ -693,11 +693,11 @@ public:
         }
     }
 
-    virtual Type *define(Type *dt, TypeSpec pts, Scope *s) {
+    virtual Type *define(Type *dt, Scope *s) {
         defined_type = dt;
         s->add(defined_type);
 
-        defined_type->make_inner_scope(pts);
+        defined_type->make_inner_scope();
         block_value.reset(new DataBlockValue(defined_type->get_inner_scope()));
         
         for (Expr *expr : meta_exprs)
@@ -787,7 +787,7 @@ public:
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new RecordType(name, Metatypes {});
-            return define(t, { t }, scope);
+            return define(t, scope);
         }
         else
             return NULL;
@@ -827,7 +827,7 @@ public:
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new ClassType(name, Metatypes {});
-            return define(t, { ptr_type, t }, scope);
+            return define(t, scope);
         }
         else
             return NULL;
@@ -912,8 +912,7 @@ public:
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new InterfaceType(name, Metatypes {});
-            TypeSpec pivot_ts = { ptr_type, t };
-            return define(t, pivot_ts, scope);
+            return define(t, scope);
         }
         else
             return NULL;
@@ -984,7 +983,7 @@ public:
         scope->get_data_scope()->add(class_type);
         
         TypeSpec pivot_ts = { ptr_type, class_type };
-        class_type->make_inner_scope(pivot_ts);
+        class_type->make_inner_scope();
         DataScope *is = class_type->get_inner_scope();
         
         // Add main role
