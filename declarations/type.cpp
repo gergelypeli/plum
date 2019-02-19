@@ -103,6 +103,82 @@ public:
         return make<TypeValue>(meta_type, result_ts);
     }
     
+    virtual Declaration *find(std::string n) {
+        if (n == name)
+            return this;
+        else if (deprefix(n, prefix)) {
+            //std::cerr << "Entering explicit scope " << prefix << "\n";
+                
+            Scope *s = get_inner_scope();
+                
+            if (s)
+                return s->find(n);
+        }
+
+        return NULL;
+    }
+
+    virtual Value *found(TypeMatch tm, Value *pivot, Scope *scope) {
+        // FIXME: this must not return NULL on errors
+        
+        TSs tss;
+        unsigned pc = get_parameter_count();
+            
+        if (pc == 0) {
+            if (pivot)
+                return NULL;
+        }
+        else if (pc == 1) {
+            if (!pivot)
+                return NULL;
+            
+            TypeSpec t = get_typespec(pivot);
+            
+            if (!t.is_meta()) {
+                std::cerr << "Invalid type parameter type: " << t << "\n";
+                return NULL;
+            }
+            
+            tss.push_back(type_value_represented_ts(pivot));
+        }
+        else {
+            TypeMatch match;
+            
+            if (!typematch(MULTITYPE_TS, pivot, match)) {
+                std::cerr << "Type " << name << " needs type parameters!\n";
+                return NULL;
+            }
+                
+            if (!unpack_value(pivot, tss))
+                throw INTERNAL_ERROR;
+
+            if (tss.size() != pc) {
+                std::cerr << "Type " << name << " needs " << pc << " parameters!\n";
+                return NULL;
+            }
+        }
+
+        TypeSpec result_ts = { this };
+        
+        for (unsigned i = 0; i < pc; i++) {
+            TypeSpec &ts = tss[i];
+            
+            if (ts.is_meta()) {
+                std::cerr << "Data type parameters must be data types!\n";
+                return NULL;
+            }
+
+            if (!ts.has_meta(param_metatypes[i])) {
+                std::cerr << "Type " << name << " parameter " << i + 1 << " is not a " << ptr_cast<Type>(param_metatypes[i])->name << " but " << ts << "!\n";
+                return NULL;
+            }
+            
+            result_ts.insert(result_ts.end(), ts.begin(), ts.end());
+        }
+
+        return matched(result_ts);
+    }
+    
     virtual Value *match(std::string name, Value *pivot, Scope *scope) {
         //std::cerr << "Matching " << name << " to type " << this->name << "\n";
         
@@ -310,7 +386,11 @@ public:
         
         if (scope) {
             //std::cerr << "Type inner lookup in " << name << ".\n";
-            return scope->lookup(n, v, s);
+            Declaration *d = scope->find(n);
+            
+            if (d)
+                return d->found(tm, v, s);
+            //return scope->lookup(n, v, s);
         }
         
         return NULL;
@@ -401,6 +481,18 @@ public:
             return ANY_TS;
             
         throw INTERNAL_ERROR;  // to catch unusual cases
+    }
+
+    virtual Value *found(TypeMatch tm, Value *pivot, Scope *scope) {
+        // FIXME: shouldn't return NULL
+        
+        if (pivot)
+            return NULL;
+            
+        if (!factory)
+            throw INTERNAL_ERROR;
+            
+        return factory();
     }
 
     virtual Value *match(std::string name, Value *pivot, Scope *scope) {

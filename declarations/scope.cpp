@@ -91,7 +91,7 @@ public:
     
     virtual Value *lookup(std::string name, Value *pivot, Scope *scope) {
         //std::cerr << "Scope lookup among " << contents.size() << " declarations.\n";
-        
+
         for (int i = contents.size() - 1; i >= 0; i--) {
             Value *v = contents[i]->match(name, pivot, scope);
             
@@ -99,6 +99,19 @@ public:
                 //std::cerr << "XXX: " << name << " " << get_typespec(pivot) << " => " << get_typespec(v) << "\n";
                 return v;
             }
+        }
+
+        return NULL;
+    }
+
+    virtual Declaration *find(std::string name) {
+        //std::cerr << "Scope lookup among " << contents.size() << " declarations.\n";
+        
+        for (int i = contents.size() - 1; i >= 0; i--) {
+            Declaration *d = contents[i]->find(name);
+            
+            if (d)
+                return d;
         }
 
         return NULL;
@@ -200,6 +213,25 @@ public:
             value = meta_scope->lookup(name, pivot, scope);
                 
         return value;
+    }
+
+    virtual Declaration *find(std::string name) {
+        for (int i = export_scopes.size() - 1; i >= 0; i--) {
+            std::cerr << "Finding in export scope #" << i << "\n";
+            Declaration *d = export_scopes[i]->find(name);
+            
+            if (d)
+                return d;
+        }
+            
+        Declaration *d = Scope::find(name);
+        if (d)
+            return d;
+            
+        if (meta_scope)
+            d = meta_scope->find(name);
+                
+        return d;
     }
     
     virtual Allocation reserve(Allocation s) {
@@ -449,6 +481,18 @@ public:
             
         if (identifiers.count(name) > 0)
             return source_scope->lookup(name, pivot, scope);
+            
+        return NULL;
+    }
+
+    virtual Declaration *find(std::string name) {
+        if (deprefix(name, prefix)) {
+            std::cerr << "Finding deprefixed identifier " << prefix << name << "\n";
+            return source_scope->find(name);
+        }
+            
+        if (identifiers.count(name) > 0)
+            return source_scope->find(name);
             
         return NULL;
     }
@@ -754,6 +798,20 @@ public:
         v = self_scope ? self_scope->lookup(name, pivot, scope) : NULL;
         if (v)
             return v;
+
+        return NULL;
+    }
+
+    virtual Declaration *find(std::string name) {
+        Declaration *d = NULL;
+        
+        d = head_scope ? head_scope->find(name) : NULL;
+        if (d)
+            return d;
+        
+        d = self_scope ? self_scope->find(name) : NULL;
+        if (d)
+            return d;
 
         return NULL;
     }

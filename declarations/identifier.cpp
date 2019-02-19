@@ -12,8 +12,12 @@ public:
             throw INTERNAL_ERROR;  // should have used NO_TS probably
     }
 
-    virtual bool is_called(std::string n) {
-        return n == name;
+    virtual Declaration *find(std::string n) {
+        return (n == name ? this : NULL);
+    }
+
+    virtual Value *found(TypeMatch tm, Value *pivot, Scope *scope) {
+        return matched(pivot, scope, tm);
     }
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
@@ -36,6 +40,7 @@ public:
         }
 
         // Sanity check for development
+        /*
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
         Type *pts0 = get_typespec(pivot).rvalue()[0];
         if (pivot_ts == ANY_TS && ds && ds->is_abstract_scope() && (pts0 != ref_type && pts0 != ptr_type))
@@ -46,6 +51,7 @@ public:
             if (typematch(pivot_ts.lvalue(), pivot, match))
                 return matched(pivot, scope, match);
         }
+        */
         
         if (typematch(pivot_ts, pivot, match))
             return matched(pivot, scope, match);

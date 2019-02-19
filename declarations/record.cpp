@@ -269,11 +269,15 @@ public:
             // Named initializer
             Value *pre = make<RecordPreinitializerValue>(tm[0]);
 
-            Value *value = inner_scope->lookup(n, pre, scope);
+            Declaration *d = inner_scope->find(n);
+            
+            if (d) {
+                Value *value = d->found(tm, pre, scope);
 
-            // FIXME: check if the method is Void!
-            if (value)
+                // FIXME: check if the method is Void!
+                //if (value)
                 return make<RecordPostinitializerValue>(value);
+            }
             
             std::cerr << "Can't initialize record as " << n << "!\n";
             return NULL;

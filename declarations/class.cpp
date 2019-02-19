@@ -153,9 +153,12 @@ public:
             
             Value *preinit = make<ClassPreinitializerValue>(rts);
 
-            Value *value = inner_scope->lookup(name, preinit, scope);
+            //Value *value = inner_scope->lookup(name, preinit, scope);
+            Declaration *d = inner_scope->find(name);
 
-            if (value) {
+            if (d) {
+                Value *value = d->found(tm, preinit, scope);
+                
                 if (is_initializer_function_call(value))
                     return make<ClassPostinitializerValue>(value);
                         
