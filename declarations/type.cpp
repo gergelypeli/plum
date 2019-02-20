@@ -388,8 +388,15 @@ public:
             //std::cerr << "Type inner lookup in " << name << ".\n";
             Declaration *d = scope->find(n);
             
-            if (d)
-                return d->found(tm, v, s);
+            if (d) {
+                // Must perform a typematch, because it may cast the pivot argument
+                // (and will for Ref to Ptr conversions).
+                TypeMatch match;
+                if (!typematch(scope->pivot_type_hint(), v, match))
+                    throw INTERNAL_ERROR;
+                
+                return d->found(match, v, s);
+            }
             //return scope->lookup(n, v, s);
         }
         
@@ -672,6 +679,7 @@ public:
         bool dot = false;
         
         if (n[n.size() - 1] == '.') {
+            // Chop trailing dot, but remember it
             dot = true;
             n = n.substr(0, n.size() - 1);
         }

@@ -26,8 +26,10 @@ public:
     }
     
     virtual Value *match(std::string n, Value *pivot, Scope *scope) {
-        if (n != name)
+        if (n != name) {
+            //std::cerr << "Nope, this is " << name << " not " << n << "\n";
             return NULL;
+        }
             
         TypeMatch match;
         std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";

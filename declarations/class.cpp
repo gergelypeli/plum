@@ -48,6 +48,14 @@ public:
         fastforward_ve = NULL;
     }
 
+    virtual bool complete_type() {
+        if (!IdentityType::complete_type())
+            return false;
+            
+        transplant_initializers(inner_scope.get(), member_initializers);
+        return true;
+    }
+
     virtual Associable *get_base_role() {
         return (member_associables.size() && member_associables[0]->is_baseconv() ? member_associables[0] : NULL);
     }
@@ -115,6 +123,9 @@ public:
 
         // Function overrides in virtual tables only happen here
         IdentityType::allocate();
+
+        // Ah, and this        
+        initializer_scope->allocate();
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
@@ -154,7 +165,7 @@ public:
             Value *preinit = make<ClassPreinitializerValue>(rts);
 
             //Value *value = inner_scope->lookup(name, preinit, scope);
-            Declaration *d = inner_scope->find(name);
+            Declaration *d = initializer_scope->find(name);
 
             if (d) {
                 Value *value = d->found(tm, preinit, scope);
@@ -244,14 +255,14 @@ public:
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
-        std::cerr << "Class " << name << " inner lookup " << n << ".\n";
-        bool dot = false;
-        
-        if (n[0] == '.') {
-            dot = true;
-            n = n.substr(1);
+        if (get_typespec(v)[0] == initializable_type) {
+            // Base role initialization, takes a pivot argument
+            std::cerr << "Class " << name << " initializer lookup " << n << ".\n";
+            
+            return initializer_scope->lookup(n, v, s);
         }
         
+        std::cerr << "Class " << name << " inner lookup " << n << ".\n";
         Value *value = IdentityType::lookup_inner(tm, n, v, s);
         Associable *base_role = get_base_role();
         
@@ -260,18 +271,6 @@ public:
             value = ts.lookup_inner(n, v, s);
         }
 
-        if (dot && value) {
-            RoleValue *role_value = ptr_cast<RoleValue>(value);
-                
-            if (role_value) {
-                role_value_be_static(role_value);
-            }
-            else {
-                std::cerr << "Static cast can only be used on roles!\n";
-                value = NULL;
-            }
-        }
-                
         return value;
     }
 };

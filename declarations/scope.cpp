@@ -50,6 +50,22 @@ public:
             throw INTERNAL_ERROR;
         }
     }
+    
+    virtual void remove_internal(Declaration *d) {
+        // FUCKME: no way to find elements in an unique_ptr vector
+        //auto it = std::find(contents.begin(), contents.end(), d);
+        
+        for (unsigned i = 0; i < contents.size(); i++) {
+            if (contents[i].get() == d) {
+                contents[i].release();
+                d->set_outer_scope(NULL);
+                contents.erase(contents.begin() + i);
+                return;
+            }
+        }
+        
+        throw INTERNAL_ERROR;
+    }
 
     virtual void outer_scope_entered() {
         if (!is_left) {
@@ -90,7 +106,7 @@ public:
     }
     
     virtual Value *lookup(std::string name, Value *pivot, Scope *scope) {
-        //std::cerr << "Scope lookup among " << contents.size() << " declarations.\n";
+        //std::cerr << "Scope lookup for " << name << " among " << contents.size() << " declarations.\n";
 
         for (int i = contents.size() - 1; i >= 0; i--) {
             Value *v = contents[i]->match(name, pivot, scope);

@@ -61,7 +61,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     }
     else if (pivot) {
         // Pivoted value
-        std::cerr << "Looking up in inner scope.\n";
+        std::cerr << "Looking up in pivot scope.\n";
         value = pivot->lookup_inner(name, scope);
     }
     else if ((name[0] == '.' && islower(name[1])) || (islower(name[0]) && name.find(".") != std::string::npos)) {

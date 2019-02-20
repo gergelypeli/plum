@@ -392,7 +392,7 @@ public:
         }
 
         DataScope *ds = ptr_cast<DataScope>(scope);
-
+        
         if (ds->is_abstract_scope()) {
             if (type != GENERIC_FUNCTION) {
                 std::cerr << "Only generic functions can be defined in interfaces!\n";

@@ -24,6 +24,7 @@ public:
     
     std::vector<Function *> member_functions;
     std::vector<Associable *> member_associables;
+    std::vector<Declaration *> member_initializers;
 
     bool is_abstract;
     Function *finalizer_function;
@@ -108,6 +109,8 @@ public:
                     std::cerr << "Initializer in abstract type!\n";
                     return false;
                 }
+
+                member_initializers.push_back(f);
             }
 
             if (f && (f->type == GENERIC_FUNCTION || f->type == ABSTRACT_FUNCTION))

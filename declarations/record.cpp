@@ -4,6 +4,7 @@ public:
     std::vector<Variable *> member_variables;
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
+    std::vector<Declaration *> member_initializers;
     Function *streamify_function;
     bool is_single;
 
@@ -40,6 +41,9 @@ public:
             Function *f = ptr_cast<Function>(c.get());
             if (f && streamifiable_implementation && f->associated == streamifiable_implementation)
                 streamify_function = f;
+                
+            if (f && f->type == INITIALIZER_FUNCTION)
+                member_initializers.push_back(f);
         }
 
         if (!has_custom_compare)
@@ -48,8 +52,16 @@ public:
         if (member_variables.size() == 1)
             is_single = true;
         
+        transplant_initializers(inner_scope.get(), member_initializers);
+        
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
         return true;
+    }
+
+    virtual void allocate() {
+        Type::allocate();
+        
+        initializer_scope->allocate();
     }
     
     virtual Allocation measure(TypeMatch tm) {
@@ -269,7 +281,7 @@ public:
             // Named initializer
             Value *pre = make<RecordPreinitializerValue>(tm[0]);
 
-            Declaration *d = inner_scope->find(n);
+            Declaration *d = initializer_scope->find(n);
             
             if (d) {
                 Value *value = d->found(tm, pre, scope);

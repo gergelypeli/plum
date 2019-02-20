@@ -632,14 +632,10 @@ public:
         // Runs after declare
         // TODO: maybe allow selecting the initializer?
         Function *initializer_function = NULL;
-        Scope *is = ptr_cast<ClassType>(class_ts[0])->get_inner_scope();
-        
-        for (auto &d : is->contents) {
-            Function *f = ptr_cast<Function>(d.get());
-            
-            if (f && f->type == INITIALIZER_FUNCTION)
-                initializer_function = f;
-        }
+        Scope *izs = ptr_cast<ClassType>(class_ts[0])->get_initializer_scope();
+
+        if (izs->contents.size())
+            initializer_function = ptr_cast<Function>(izs->contents[0].get());
         
         if (!initializer_function) {
             std::cerr << "No initializer in global variable class!\n";

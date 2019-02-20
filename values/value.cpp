@@ -80,7 +80,7 @@ public:
     virtual Value *lookup_inner(std::string name, Scope *scope) {
         return ts.lookup_inner(name, this, scope);
     }
-    
+
     virtual void streamify(X64 *x64) {
         return ts.streamify(false, x64);
     }
@@ -381,13 +381,17 @@ public:
         std::string::size_type dotpos = name.find('.');
         
         if (dotpos != std::string::npos) {
+            // Handle lookup of base initializers in the form of "role.init"
             std::string role_name = name.substr(0, dotpos + 1);  // include trailing dot
             std::string method_name = name.substr(dotpos + 1);   // just method name
             
             Value *role_value = VariableValue::lookup_inner(role_name, scope);
             if (!role_value)
                 return NULL;
-                
+
+            // This is a lookup of an initializer, but this time we need to supply
+            // a pivot value, so the inner lookup mechanism is used, and ClassType will
+            // get it right.
             return role_value->lookup_inner(method_name, scope);
         }
         
@@ -565,7 +569,7 @@ public:
     virtual bool is_static() {
         return am_static;
     }
-    
+
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred);
             
