@@ -195,6 +195,10 @@ public:
         return class_ts;
     }
 
+    virtual bool is_called(std::string n) {
+        return n == name;
+    }
+
     virtual void allocate() {
         Variable::allocate();
         

@@ -159,7 +159,7 @@ public:
         std::vector<Label> initializer_labels, finalizer_labels;
         
         for (auto g : global_variables) {
-            if (g->find("Main") && g->outer_scope == main_module->module_scope)
+            if (g->is_called("Main") && g->outer_scope == main_module->module_scope)
                 main_global = g;
                 
             initializer_labels.push_back(g->compile_initializer(x64));

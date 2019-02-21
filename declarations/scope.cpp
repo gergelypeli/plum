@@ -11,6 +11,7 @@ public:
     bool is_allocated;  // for sanity checks
     bool is_left;
     ScopeType type;
+    TypeSpec pivot_ts;
     
     Scope(ScopeType st)
         :Declaration() {
@@ -111,28 +112,13 @@ public:
         for (int i = contents.size() - 1; i >= 0; i--) {
             Value *v = contents[i]->match(name, pivot, scope);
             
-            if (v) {
-                //std::cerr << "XXX: " << name << " " << get_typespec(pivot) << " => " << get_typespec(v) << "\n";
+            if (v)
                 return v;
-            }
         }
 
         return NULL;
     }
 
-    virtual Declaration *find(std::string name) {
-        //std::cerr << "Scope lookup among " << contents.size() << " declarations.\n";
-        
-        for (int i = contents.size() - 1; i >= 0; i--) {
-            Declaration *d = contents[i]->find(name);
-            
-            if (d)
-                return d;
-        }
-
-        return NULL;
-    }
-    
     virtual DataScope *get_data_scope() {
         return outer_scope->get_data_scope();
     }
@@ -231,25 +217,6 @@ public:
         return value;
     }
 
-    virtual Declaration *find(std::string name) {
-        for (int i = export_scopes.size() - 1; i >= 0; i--) {
-            std::cerr << "Finding in export scope #" << i << "\n";
-            Declaration *d = export_scopes[i]->find(name);
-            
-            if (d)
-                return d;
-        }
-            
-        Declaration *d = Scope::find(name);
-        if (d)
-            return d;
-            
-        if (meta_scope)
-            d = meta_scope->find(name);
-                
-        return d;
-    }
-    
     virtual Allocation reserve(Allocation s) {
         // Variables allocate nonzero bytes
         Allocation pos = size;
@@ -284,14 +251,12 @@ public:
 
 class DataScope: public NamedScope {
 public:
-    TypeSpec pivot_ts;
     devector<VirtualEntry *> virtual_table;
     bool am_virtual_scope;
     bool am_abstract_scope;
     
     DataScope(ScopeType st = DATA_SCOPE)
         :NamedScope(st) {
-        pivot_ts = NO_TS;
         am_virtual_scope = false;
         am_abstract_scope = false;
     }
@@ -497,18 +462,6 @@ public:
             
         if (identifiers.count(name) > 0)
             return source_scope->lookup(name, pivot, scope);
-            
-        return NULL;
-    }
-
-    virtual Declaration *find(std::string name) {
-        if (deprefix(name, prefix)) {
-            std::cerr << "Finding deprefixed identifier " << prefix << name << "\n";
-            return source_scope->find(name);
-        }
-            
-        if (identifiers.count(name) > 0)
-            return source_scope->find(name);
             
         return NULL;
     }
@@ -818,20 +771,6 @@ public:
         return NULL;
     }
 
-    virtual Declaration *find(std::string name) {
-        Declaration *d = NULL;
-        
-        d = head_scope ? head_scope->find(name) : NULL;
-        if (d)
-            return d;
-        
-        d = self_scope ? self_scope->find(name) : NULL;
-        if (d)
-            return d;
-
-        return NULL;
-    }
-    
     virtual Allocation reserve(Allocation s) {
         size.bytes += stack_size(s.bytes);
         size.count1 += s.count1;

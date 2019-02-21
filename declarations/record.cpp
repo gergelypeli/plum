@@ -281,13 +281,10 @@ public:
             // Named initializer
             Value *pre = make<RecordPreinitializerValue>(tm[0]);
 
-            Declaration *d = initializer_scope->find(n);
+            Value *value = initializer_scope->lookup(n, pre, scope);
             
-            if (d) {
-                Value *value = d->found(tm, pre, scope);
-
+            if (value) {
                 // FIXME: check if the method is Void!
-                //if (value)
                 return make<RecordPostinitializerValue>(value);
             }
             

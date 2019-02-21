@@ -40,14 +40,6 @@ public:
         // Nothing to do here
     }
 
-    virtual Declaration *find(std::string name) {
-        return NULL;
-    }
-
-    virtual Value *found(TypeMatch tm, Value *pivot, Scope *scope) {
-        throw INTERNAL_ERROR;
-    }
-
     virtual Value *match(std::string name, Value *pivot, Scope *scope) {
         return NULL;
     }

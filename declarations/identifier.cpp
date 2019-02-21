@@ -12,14 +12,6 @@ public:
             throw INTERNAL_ERROR;  // should have used NO_TS probably
     }
 
-    virtual Declaration *find(std::string n) {
-        return (n == name ? this : NULL);
-    }
-
-    virtual Value *found(TypeMatch tm, Value *pivot, Scope *scope) {
-        return matched(pivot, scope, tm);
-    }
-
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
         std::cerr << "Unmatchable identifier!\n";
         throw INTERNAL_ERROR;
