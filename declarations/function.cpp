@@ -22,6 +22,7 @@ public:
     FunctionProt prot;
     
     Associable *associated;
+    Lself *associated_lself;
     Function *implemented_function;
 
     Label label;
@@ -38,6 +39,7 @@ public:
         virtual_index = 0;  // for class methods only
         prot = NATIVE_FUNCTION;
         associated = NULL;  // for overriding methods only
+        associated_lself = NULL;
         implemented_function = NULL;
     }
 
@@ -48,6 +50,12 @@ public:
         // Some built-in interface functions may have no fn scope now
         if (fn_scope)
             fn_scope->set_outer_scope(os);
+    }
+
+    virtual TypeSpec get_pivot_ts() {
+        TypeSpec pts = Identifier::get_pivot_ts();
+        
+        return associated_lself ? pts.lvalue() : pts;
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
@@ -62,7 +70,10 @@ public:
     }
 
     virtual void get_parameters(TypeSpec &pts, TSs &rtss, TSs &atss, Ss &anames, TypeSpec ts, TypeMatch tm) {
+        TypeSpec pivot_ts = get_pivot_ts();
+        
         if (type == ABSTRACT_FUNCTION) {
+            // FIXME: don't interface methods all have a Ptr pivot now?
             if (pivot_ts == ANY_TS)
                 pts = ts.rvalue();
             else if (pivot_ts == ANY_LVALUE_TS)
@@ -194,7 +205,8 @@ public:
         if (!self_var)
             throw INTERNAL_ERROR;
             
-        pivot_ts = pivot_ts.lvalue();
+        associated_lself = al;
+        //pivot_ts = pivot_ts.lvalue();
         self_var->alloc_ts = self_var->alloc_ts.lvalue();
     }
 };

@@ -64,8 +64,8 @@ const char *typeidname(Value *v) {
 
 // Declaration operations
 
-Declaration *make_record_compare() {
-    return new TemplateOperation<RecordOperationValue>("compare", ANY_TS, COMPARE);
+Declaration *make_record_compare(TypeSpec pts) {
+    return new TemplateOperation<RecordOperationValue>("compare", pts, COMPARE);
 }
 
 

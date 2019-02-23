@@ -2,14 +2,33 @@
 class Identifier: public Declaration {
 public:
     std::string name;
-    TypeSpec pivot_ts;
+    TypeSpec old_pivot_ts;
+    bool lvalue_hack;
 
     Identifier(std::string n, TypeSpec pts) {
         name = n;
-        pivot_ts = pts;
+        old_pivot_ts = pts;
+        lvalue_hack = (pts.size() && pts[0] == lvalue_type);
         
         if (pts.size() == 1 && pts[0] == void_type)
             throw INTERNAL_ERROR;  // should have used NO_TS probably
+    }
+
+    virtual TypeSpec get_pivot_ts() {
+        DataScope *ds = ptr_cast<DataScope>(outer_scope);
+        
+        if (!ds)
+            return NO_TS;
+            
+        TypeSpec ts = ds->pivot_type_hint();
+        
+        if (lvalue_hack)
+            ts = ts.lvalue();
+            
+        if (ts != old_pivot_ts)
+            std::cerr << "QQQ " << name << " " << ts << " != " << old_pivot_ts << "\n";
+            
+        return old_pivot_ts;
     }
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
@@ -22,9 +41,17 @@ public:
             //std::cerr << "Nope, this is " << name << " not " << n << "\n";
             return NULL;
         }
-            
-        TypeMatch match;
+
+        TypeSpec pivot_ts = get_pivot_ts();
+        
+        if (pivot_ts != old_pivot_ts) {
+            std::cerr << "XXX " << pivot_ts << " != " << old_pivot_ts << "\n";
+            throw INTERNAL_ERROR;
+        }
+        
         std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
+
+        TypeMatch match;
             
         if (pivot_ts == NO_TS) {
             if (!pivot)
@@ -126,6 +153,7 @@ public:
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // Take the Rbtree Ref from the Nosytree before instantiating
         TypeSpec mts = typesubst(member_ts, match);
+        TypeSpec pivot_ts = get_pivot_ts();
         
         Value *pivot = (
             pivot_ts[0] == lvalue_type ? make<NosytreeCowMemberValue>(cpivot, mts, scope) :

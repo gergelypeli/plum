@@ -191,6 +191,15 @@ public:
         initializer_function = f;
     }
 
+    virtual TypeSpec get_pivot_ts() {
+        TypeSpec ts = NO_TS;
+
+        if (ts != old_pivot_ts)
+            std::cerr << "QQQ " << name << " " << ts << " != " << old_pivot_ts << "\n";
+        
+        return ts;
+    }
+
     virtual TypeSpec get_class_ts() {
         return class_ts;
     }

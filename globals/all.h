@@ -78,7 +78,7 @@ bool value_check(Value *v, Args &a, Kwargs &k, Scope *s);
 const char *typeidname(Value *v);
 
 // Declaration wrappers
-Declaration *make_record_compare();
+Declaration *make_record_compare(TypeSpec pts);
 void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve);
 std::string function_get_name(Function *f);
 bool function_is_abstract(Function *f);

@@ -415,6 +415,29 @@ public:
 };
 
 
+class ExtensionScope: public DataScope {
+public:
+    DataScope *target_scope;
+    
+    ExtensionScope(DataScope *ts)
+        :DataScope() {
+        target_scope = ts;
+    }
+
+    virtual void outer_scope_entered() {
+        DataScope::outer_scope_entered();
+        
+        target_scope->push_scope(this);
+    }
+    
+    virtual void outer_scope_left() {
+        DataScope::outer_scope_left();
+        
+        target_scope->pop_scope(this);
+    }
+};
+
+
 class ExportScope: public Scope {
 public:
     NamedScope *target_scope;

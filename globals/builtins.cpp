@@ -66,7 +66,7 @@ void builtin_types(Scope *root_scope) {
 
     // Phase 4: declare Colon type, which needs value_metatype, and needed for the colon scope
     
-    colon_type = new UnitType("Colon");
+    colon_type = new ColonType("Colon");
     root_scope->add(colon_type);
     colon_scope = colon_type->make_inner_scope();
 
@@ -453,10 +453,12 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
         if (!a->check_associated(i))
             throw INTERNAL_ERROR;
             
-        if (i->pivot_ts != implementor_ts)
-            throw INTERNAL_ERROR;  // sanity check
-        
         implementor_scope->add(i);
+
+        if (i->get_pivot_ts() != implementor_ts) {
+            std::cerr << "XXXX " << i->get_pivot_ts() << " != " << implementor_ts << "\n";
+            throw INTERNAL_ERROR;  // sanity check
+        }
     }
 }
 
@@ -516,9 +518,6 @@ void define_integers() {
     for (auto &item : integer_lvalue_operations)
         integer_metascope->add(new TemplateOperation<IntegerOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
 
-    integer_metascope->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
-    integer_metascope->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
-    
     integer_metascope->leave();
     
     for (auto t : {
@@ -527,6 +526,12 @@ void define_integers() {
     }) {
         t->make_inner_scope()->leave();
     }
+    
+    Scope *integer_is = integer_type->get_inner_scope();
+    integer_is->enter();
+    integer_is->add(new TemplateIdentifier<CountupValue>("countup", INTEGER_TS));
+    integer_is->add(new TemplateIdentifier<CountdownValue>("countdown", INTEGER_TS));
+    integer_is->leave();
 }
 
 
@@ -558,10 +563,10 @@ void define_float() {
     Scope *float_scope = float_type->make_inner_scope();
 
     for (auto &item : float_rvalue_operations)
-        float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_TS, item.operation));
+        float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, FLOAT_TS, item.operation));
 
     for (auto &item : float_lvalue_operations)
-        float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, ANY_LVALUE_TS, item.operation));
+        float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, FLOAT_LVALUE_TS, item.operation));
     
     float_scope->add(new ImportedFloatFunction("log", "log", FLOAT_TS, NO_TS, FLOAT_TS));
     float_scope->add(new ImportedFloatFunction("exp", "exp", FLOAT_TS, NO_TS, FLOAT_TS));
@@ -793,7 +798,7 @@ void define_string() {
 }
 
 
-void define_slice() {
+void define_slice(RootScope *root_scope) {
     TypeSpec SAME_ARRAY_LVALUE_TS = { lvalue_type, array_type, same_type };
     
     RecordType *record_type = ptr_cast<RecordType>(slice_type);
@@ -815,10 +820,15 @@ void define_slice() {
     is->add(new TemplateIdentifier<SliceIndexIterValue>("indexes", ANY_SLICE_TS));
     is->add(new TemplateIdentifier<SliceItemIterValue>("items", ANY_SLICE_TS));
 
-    is->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
-    
     record_type->complete_type();
     is->leave();
+
+    ExtensionScope *es = new ExtensionScope(is);
+    root_scope->add(es);
+    es->set_pivot_type_hint(BYTE_SLICE_TS);
+    es->enter();
+    es->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
+    es->leave();
 }
 
 
@@ -1112,7 +1122,7 @@ RootScope *init_builtins() {
     define_interfaces();
 
     define_string();
-    define_slice();
+    define_slice(root_scope);
     
     define_iterators();
     

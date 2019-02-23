@@ -69,8 +69,11 @@ public:
             throw INTERNAL_ERROR;
             
         inner_scope.reset(new DataScope);
-        inner_scope->set_pivot_type_hint(make_pivot_type_hint());
         inner_scope->set_name(name);
+        
+        TypeSpec pivot_ts = make_pivot_type_hint();
+        if (pivot_ts != NO_TS)
+            inner_scope->set_pivot_type_hint(pivot_ts);
         
         Scope *meta_scope = ptr_cast<Type>(meta_type)->get_inner_scope();
         
@@ -791,6 +794,18 @@ public:
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE));
         STRING_TS.streamify(true, x64);
         x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+    }
+};
+
+
+class ColonType: public UnitType {
+public:
+    ColonType(std::string name)
+        :UnitType(name) {
+    }
+    
+    virtual TypeSpec make_pivot_type_hint() {
+        return NO_TS;
     }
 };
 
