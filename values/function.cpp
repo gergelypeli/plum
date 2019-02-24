@@ -62,7 +62,7 @@ public:
             results.push_back(std::unique_ptr<Value>(r));
 
             // Add internal result variable
-            Variable *decl = new Variable("<result>", NO_TS, var_ts);
+            Variable *decl = new Variable("<result>", var_ts);
             rs->add(decl);
         }
 
@@ -78,13 +78,13 @@ public:
                 if (type == INITIALIZER_FUNCTION) {
                     pivot_ts = pivot_ts.prefix(initializable_type);
                     TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
-                    self_var = new PartialVariable("$", NO_TS, self_ts);
+                    self_var = new PartialVariable("$", self_ts);
                 }
                 else {
                     // Overriding functions have a different pivot type than the overridden
                     // one, although they can be called on those as well.
                     TypeSpec self_ts = pivot_ts;
-                    self_var = new SelfVariable("$", NO_TS, self_ts);
+                    self_var = new SelfVariable("$", self_ts);
                 }
                 
                 ss->add(self_var);
@@ -468,9 +468,9 @@ public:
         std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
         
         if (import_name.size())
-            function = new SysvFunction(import_name, name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
+            function = new SysvFunction(import_name, name, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
         else
-            function = new Function(name, pivot_ts, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
+            function = new Function(name, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
 
         scope->add(function);
         return function;

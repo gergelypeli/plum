@@ -231,7 +231,7 @@ public:
         if (ts.where(AS_VALUE) == STACK) {
             // Add the variable after the EvalScope, so it can survive the finalization
             // of the scope, and can be left uninitialized until the successful completion.
-            yield_var = new Variable("<" + yield_name + ">", NO_TS, ts);
+            yield_var = new Variable("<" + yield_name + ">", ts);
             scope->add(yield_var);
         }
         
@@ -403,7 +403,7 @@ public:
         // TODO: this should be a "local variable", to be destroyed once we're done
         // instead of letting the enclosing scope destroy it.
         TypeSpec its = iterator->ts.lvalue();
-        iterator_var = new Variable("<iterator>", NO_TS, its);
+        iterator_var = new Variable("<iterator>", its);
         scope->add(iterator_var);
 
         next_try_scope = new TryScope;
@@ -542,7 +542,7 @@ public:
         eval_scope->add(switch_scope);
         switch_scope->enter();
         
-        switch_var = new Variable(switch_scope->get_variable_name(), NO_TS, value->ts);
+        switch_var = new Variable(switch_scope->get_variable_name(), value->ts);
         switch_scope->add(switch_var);
         
         ArgInfos infos = {
@@ -887,7 +887,7 @@ public:
         
         if (et) {
             TypeSpec ets = { et };
-            switch_var = new Variable(switch_scope->get_variable_name(), NO_TS, ets);
+            switch_var = new Variable(switch_scope->get_variable_name(), ets);
             switch_scope->add(switch_var);
         }
 

@@ -16,7 +16,7 @@ public:
     std::unique_ptr<DataScope> lvalue_scope;
     
     Type(std::string n, Metatypes pmts, MetaType *ut)
-        :Identifier(n, NO_TS) {
+        :Identifier(n) {
         if (pmts.size() > 3)
             throw INTERNAL_ERROR;  // current limitation
             

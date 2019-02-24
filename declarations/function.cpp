@@ -27,8 +27,8 @@ public:
 
     Label label;
     
-    Function(std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
-        :Identifier(n, pts) {
+    Function(std::string n, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
+        :Identifier(n) {
         type = ft;
         arg_tss = ats;
         arg_names = ans;
@@ -216,8 +216,8 @@ class SysvFunction: public Function {
 public:
     std::string import_name;
     
-    SysvFunction(std::string in, std::string n, TypeSpec pts, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
-        :Function(n, pts, ft, ats, ans, rts, et, fs) {
+    SysvFunction(std::string in, std::string n, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
+        :Function(n, ft, ats, ans, rts, et, fs) {
         import_name = in;
         prot = SYSV_FUNCTION;
     }
@@ -234,8 +234,8 @@ public:
     TypeSpec arg_ts;
     TypeSpec res_ts;
     
-    ImportedFloatFunction(std::string in, std::string n, TypeSpec pts, TypeSpec ats, TypeSpec rts)
-        :Identifier(n, pts) {
+    ImportedFloatFunction(std::string in, std::string n, TypeSpec ats, TypeSpec rts)
+        :Identifier(n) {
         import_name = in;
         arg_ts = ats;
         res_ts = rts;

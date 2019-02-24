@@ -305,7 +305,7 @@ public:
 
     virtual void fix_bare(TypeSpec var_ts, Scope *scope) {
         // This must be called after/instead of check
-        var = new Variable(name, scope->get_pivot_ts(), var_ts.lvalue());
+        var = new Variable(name, var_ts.lvalue());
         decl = var;
         
         scope->add(decl);
@@ -356,7 +356,7 @@ public:
             if ((*context)[0] == dvalue_type) {
                 ts = *context;
                 TypeSpec var_ts = ts.reprefix(dvalue_type, lvalue_type);
-                var = new RetroVariable(name, NO_TS, var_ts);
+                var = new RetroVariable(name, var_ts);
             
                 decl = var;
                 scope->add(decl);

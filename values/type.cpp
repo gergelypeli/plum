@@ -39,9 +39,9 @@ public:
             Declaration *d;
             
             if (represented_ts[0] == code_type)
-                d = new Evaluable(name, pivot_ts, represented_ts);
+                d = new Evaluable(name, represented_ts);
             else
-                d = new Variable(name, pivot_ts, represented_ts);
+                d = new Variable(name, represented_ts);
                 
             scope->add(d);
             return d;
@@ -52,7 +52,7 @@ public:
                 return NULL;
             }
 
-            Declaration *d = new Variable(name, pivot_ts, represented_ts.lvalue());
+            Declaration *d = new Variable(name, represented_ts.lvalue());
             scope->add(d);
             return d;
         }

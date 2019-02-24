@@ -2,16 +2,9 @@
 class Identifier: public Declaration {
 public:
     std::string name;
-    TypeSpec old_pivot_ts;
-    //bool lvalue_hack;
 
-    Identifier(std::string n, TypeSpec pts) {
+    Identifier(std::string n) {
         name = n;
-        old_pivot_ts = pts;
-        //lvalue_hack = (pts.size() && pts[0] == lvalue_type);
-        
-        if (pts.size() == 1 && pts[0] == void_type)
-            throw INTERNAL_ERROR;  // should have used NO_TS probably
     }
 
     virtual TypeSpec get_pivot_ts() {
@@ -22,13 +15,7 @@ public:
             
         TypeSpec ts = ds->get_pivot_ts();
         
-        //if (lvalue_hack)
-        //    ts = ts.lvalue();
-            
-        if (ts != old_pivot_ts)
-            std::cerr << "QQQ " << name << " " << ts << " != " << old_pivot_ts << "\n";
-            
-        return old_pivot_ts;
+        return ts;
     }
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
@@ -43,11 +30,6 @@ public:
         }
 
         TypeSpec pivot_ts = get_pivot_ts();
-        
-        if (pivot_ts != old_pivot_ts) {
-            std::cerr << "XXX " << pivot_ts << " != " << old_pivot_ts << "\n";
-            throw INTERNAL_ERROR;
-        }
         
         std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
 
@@ -86,8 +68,8 @@ public:
 
 class Identity: public Identifier {
 public:
-    Identity(std::string name, TypeSpec pts)
-        :Identifier(name, pts) {
+    Identity(std::string name)
+        :Identifier(name) {
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
@@ -100,8 +82,8 @@ class Cast: public Identifier {
 public:
     TypeSpec cast_ts;
     
-    Cast(std::string name, TypeSpec pts, TypeSpec cts)
-        :Identifier(name, pts) {
+    Cast(std::string name, TypeSpec cts)
+        :Identifier(name) {
         cast_ts = cts;
     }
 
@@ -116,8 +98,8 @@ class TemplateOperation: public Identifier {
 public:
     OperationType operation;
 
-    TemplateOperation(std::string n, TypeSpec t, OperationType o)
-        :Identifier(n, t) {
+    TemplateOperation(std::string n, OperationType o)
+        :Identifier(n) {
         operation = o;
     }
     
@@ -130,8 +112,8 @@ public:
 template <typename T>
 class TemplateIdentifier: public Identifier {
 public:
-    TemplateIdentifier(std::string n, TypeSpec t)
-        :Identifier(n, t) {
+    TemplateIdentifier(std::string n)
+        :Identifier(n) {
     }
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
@@ -145,8 +127,8 @@ class NosytreeTemplateIdentifier: public Identifier {
 public:
     TypeSpec member_ts;
     
-    NosytreeTemplateIdentifier(std::string n, TypeSpec t, TypeSpec mts)
-        :Identifier(n, t) {
+    NosytreeTemplateIdentifier(std::string n, TypeSpec mts)
+        :Identifier(n) {
         member_ts = mts.rvalue();
     }
     
@@ -172,11 +154,8 @@ public:
     std::string operation_name;
     std::string arg_operation_name;
     
-    RecordWrapperIdentifier(std::string n,
-        TypeSpec pivot_ts, TypeSpec pcts,
-        TypeSpec rts, std::string on,
-        std::string aon = "")
-        :Identifier(n, pivot_ts) {
+    RecordWrapperIdentifier(std::string n, TypeSpec pcts, TypeSpec rts, std::string on, std::string aon = "")
+        :Identifier(n) {
         result_ts = rts;
         pivot_cast_ts = pcts;
         operation_name = on;
@@ -203,8 +182,8 @@ public:
     std::string operation_name;
     bool autogrow;
     
-    ClassWrapperIdentifier(std::string n, TypeSpec pivot_ts, TypeSpec pcts, std::string on, bool ag = false)
-        :Identifier(n, pivot_ts) {
+    ClassWrapperIdentifier(std::string n, TypeSpec pcts, std::string on, bool ag = false)
+        :Identifier(n) {
         pivot_cast_ts = pcts;
         operation_name = on;
         autogrow = ag;
@@ -244,7 +223,7 @@ public:
     YieldableValue *yieldable_value;
     
     Yield(std::string n, YieldableValue *yv)
-        :Identifier(n, NO_TS) {
+        :Identifier(n) {
         yieldable_value = yv;
     }
     

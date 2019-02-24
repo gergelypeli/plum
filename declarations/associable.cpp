@@ -4,7 +4,7 @@ public:
     Associable *target;
     
     Aliasing(std::string n, Associable *t)
-        :Identifier(n, NO_TS) {
+        :Identifier(n) {
         target = t;
     }
 };
@@ -42,8 +42,8 @@ public:
     Lself *associated_lself;
     TypeMatch explicit_tm;
 
-    Associable(std::string n, TypeSpec pts, TypeSpec ts, InheritAs ia)
-        :Allocable(n, pts, ts) {
+    Associable(std::string n, TypeSpec ts, InheritAs ia)
+        :Allocable(n, ts) {
         prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = ia;
@@ -56,7 +56,7 @@ public:
     }
 
     Associable(std::string p, Associable *original, TypeMatch etm)
-        :Allocable(mkname(p, original), NO_TS, typesubst(original->alloc_ts, etm)) {
+        :Allocable(mkname(p, original), typesubst(original->alloc_ts, etm)) {
         prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = original->inherit_as;

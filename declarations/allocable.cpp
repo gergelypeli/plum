@@ -6,8 +6,8 @@ public:
     Allocation offset;
     StorageWhere where;
     
-    Allocable(std::string name, TypeSpec pts, TypeSpec ats)
-        :Identifier(name, pts) {
+    Allocable(std::string name, TypeSpec ats)
+        :Identifier(name) {
         where = NOWHERE;
         alloc_ts = ats;
     }
@@ -56,14 +56,14 @@ class Variable: public Allocable {
 public:
     AsWhat as_what;
     
-    Variable(std::string name, TypeSpec pts, TypeSpec vts)
-        :Allocable(name, pts, vts) {
+    Variable(std::string name, TypeSpec vts)
+        :Allocable(name, vts) {
         if (vts == NO_TS)
             throw INTERNAL_ERROR;
             
         as_what = AS_VARIABLE;
         
-        std::cerr << "Variable " << pts << " " << name << " is " << vts << ".\n";
+        //std::cerr << "Variable " << pts << " " << name << " is " << vts << ".\n";
     }
 
     virtual void set_outer_scope(Scope *os) {
@@ -150,8 +150,8 @@ class SelfVariable: public Variable {
 public:
     std::unique_ptr<SelfInfo> self_info;
     
-    SelfVariable(std::string name, TypeSpec pts, TypeSpec vts)
-        :Variable(name, pts, vts) {
+    SelfVariable(std::string name, TypeSpec vts)
+        :Variable(name, vts) {
         self_info.reset(new SelfInfo);
     }
     
@@ -165,8 +165,8 @@ class PartialVariable: public Variable {
 public:
     std::unique_ptr<PartialInfo> partial_info;
 
-    PartialVariable(std::string name, TypeSpec pts, TypeSpec vts)
-        :Variable(name, pts, vts) {
+    PartialVariable(std::string name, TypeSpec vts)
+        :Variable(name, vts) {
         partial_info.reset(new PartialInfo);
     }
 
@@ -182,7 +182,7 @@ public:
     Function *initializer_function;
     
     GlobalVariable(std::string n, TypeSpec mts, TypeSpec cts)
-        :Variable(n, NO_TS, mts) {
+        :Variable(n, mts) {
         class_ts = cts;
         initializer_function = NULL;
     }
@@ -192,12 +192,7 @@ public:
     }
 
     virtual TypeSpec get_pivot_ts() {
-        TypeSpec ts = NO_TS;
-
-        if (ts != old_pivot_ts)
-            std::cerr << "QQQ " << name << " " << ts << " != " << old_pivot_ts << "\n";
-        
-        return ts;
+        return NO_TS;
     }
 
     virtual TypeSpec get_class_ts() {
@@ -296,8 +291,8 @@ public:
 
 class RetroVariable: public Variable {
 public:
-    RetroVariable(std::string name, TypeSpec pts, TypeSpec vts)
-        :Variable(name, pts, vts) {
+    RetroVariable(std::string name, TypeSpec vts)
+        :Variable(name, vts) {
     }
 
     virtual void finalize(X64 *x64) {
@@ -310,8 +305,8 @@ class Evaluable: public Allocable {
 public:
     std::vector<Variable *> arg_variables;
     
-    Evaluable(std::string name, TypeSpec pts, TypeSpec vts)
-        :Allocable(name, pts, vts) {
+    Evaluable(std::string name, TypeSpec vts)
+        :Allocable(name, vts) {
     }
 
     virtual void set_outer_scope(Scope *os) {

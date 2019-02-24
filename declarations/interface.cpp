@@ -306,8 +306,8 @@ public:
 
 class Implementation: public Associable {
 public:
-    Implementation(std::string name, TypeSpec pts, TypeSpec ifts, InheritAs ia)
-        :Associable(name, pts, ifts, ia) {
+    Implementation(std::string name, TypeSpec ifts, InheritAs ia)
+        :Associable(name, ifts, ia) {
         std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "implementation " << name << "\n";
 
         inherit();
@@ -390,8 +390,8 @@ public:
 
 class AltStreamifiableImplementation: public Implementation {
 public:
-    AltStreamifiableImplementation(std::string name, TypeSpec pts)
-        :Implementation(name, pts, STREAMIFIABLE_TS, AS_ROLE) {
+    AltStreamifiableImplementation(std::string name)
+        :Implementation(name, STREAMIFIABLE_TS, AS_ROLE) {
     }
     
     virtual void check_full_implementation() {
@@ -409,8 +409,8 @@ class Lself: public Associable {
 public:
     std::vector<Implementation *> outer_implementations;
 
-    Lself(std::string name, TypeSpec pts)
-        :Associable(name, pts, NO_TS, AS_ROLE) {
+    Lself(std::string name)
+        :Associable(name, NO_TS, AS_ROLE) {
     }
 
     virtual void set_outer_scope(Scope *os) {
