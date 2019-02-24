@@ -47,7 +47,7 @@ public:
         }
 
         if (!has_custom_compare)
-            inner_scope->add(make_record_compare(inner_scope->pivot_type_hint()));
+            inner_scope->add(make_record_compare(inner_scope->get_pivot_ts()));
         
         if (member_variables.size() == 1)
             is_single = true;

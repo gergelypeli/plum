@@ -16,7 +16,7 @@ public:
         }
 
         if (scope->type == ARGUMENT_SCOPE || scope->type == CODE_SCOPE || scope->type == DATA_SCOPE)
-            pivot_ts = scope->pivot_type_hint();
+            pivot_ts = scope->get_pivot_ts();
             
         return true;
     }
@@ -122,7 +122,7 @@ public:
     
     virtual Value *lookup_inner(std::string name, Scope *scope) {
         //Scope *implementor_scope = implementation->outer_scope;
-        ts = orig->ts;  // implementor_scope->pivot_type_hint();
+        ts = orig->ts;  // implementor_scope->get_pivot_ts();
         std::string implementing_name = implementation->prefix + name;
         
         // In the case of nested interfaces (such as Iterable in Iterator) the ts

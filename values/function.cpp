@@ -72,7 +72,7 @@ public:
         ss->enter();
         
         if (scope->type == DATA_SCOPE) {
-            pivot_ts = scope->pivot_type_hint();
+            pivot_ts = scope->get_pivot_ts();
             
             if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
                 if (type == INITIALIZER_FUNCTION) {

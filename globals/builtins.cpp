@@ -438,7 +438,7 @@ void builtin_types(Scope *root_scope) {
 
 
 void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents, InheritAs ia = AS_AUTO) {
-    TypeSpec implementor_ts = implementor_scope->pivot_type_hint();
+    TypeSpec implementor_ts = implementor_scope->get_pivot_ts();
     Implementation *implementation = new Implementation(implementation_name, implementor_ts, interface_ts, ia);
     implementor_scope->add(implementation);
     
@@ -825,7 +825,7 @@ void define_slice(RootScope *root_scope) {
 
     ExtensionScope *es = new ExtensionScope(is);
     root_scope->add(es);
-    es->set_pivot_type_hint(BYTE_SLICE_TS);
+    es->set_pivot_ts(BYTE_SLICE_TS);
     es->enter();
     es->add(new SysvFunction("decode_utf8_slice", "decode_utf8", BYTE_SLICE_TS, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
     es->leave();

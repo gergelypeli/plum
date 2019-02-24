@@ -20,7 +20,7 @@ public:
         if (!ds)
             return NO_TS;
             
-        TypeSpec ts = ds->pivot_type_hint();
+        TypeSpec ts = ds->get_pivot_ts();
         
         if (lvalue_hack)
             ts = ts.lvalue();

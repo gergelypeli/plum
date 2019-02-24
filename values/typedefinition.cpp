@@ -64,13 +64,13 @@ protected:
             std::string base_name = (is_explicit ? name : BASE_ROLE_NAME);
             InheritAs base_as = (is_explicit ? ia : AS_BASE);
             is_explicit = false;
-            base_role = new Role(base_name, is->pivot_type_hint(), base_ts, base_as);
+            base_role = new Role(base_name, is->get_pivot_ts(), base_ts, base_as);
         }
             
         if (main_ts != NO_TS) {
             std::string main_name = (is_explicit ? name : MAIN_ROLE_NAME);
             InheritAs main_as = (is_explicit ? ia : AS_MAIN);
-            main_role = new Role(main_name, is->pivot_type_hint(), main_ts, main_as);
+            main_role = new Role(main_name, is->get_pivot_ts(), main_ts, main_as);
         }
 
         if (main_role && base_role) {
@@ -479,7 +479,7 @@ public:
             else if (is_concrete)
                 return add_head_role(scope, name, implemented_ts, inherited_ts, inherit_as);
             else {
-                TypeSpec pivot_ts = scope->pivot_type_hint();
+                TypeSpec pivot_ts = scope->get_pivot_ts();
                 Declaration *d = new Implementation(name, pivot_ts, implemented_ts, inherit_as);
                 scope->add(d);
                 return d;
@@ -899,7 +899,7 @@ public:
                 return false;
             }
 
-            is->add(new Implementation("", is->pivot_type_hint(), base_ts, AS_BASE));
+            is->add(new Implementation("", is->get_pivot_ts(), base_ts, AS_BASE));
         }
 
         return true;
@@ -947,7 +947,7 @@ public:
         if (!dv)
             return false;
             
-        Variable *var = new Variable(dv->var->name, is->pivot_type_hint(), dv->var->alloc_ts);
+        Variable *var = new Variable(dv->var->name, is->get_pivot_ts(), dv->var->alloc_ts);
         is->add(var);
             
         with_vars.push_back(var);

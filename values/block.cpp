@@ -305,7 +305,7 @@ public:
 
     virtual void fix_bare(TypeSpec var_ts, Scope *scope) {
         // This must be called after/instead of check
-        var = new Variable(name, scope->pivot_type_hint(), var_ts.lvalue());
+        var = new Variable(name, scope->get_pivot_ts(), var_ts.lvalue());
         decl = var;
         
         scope->add(decl);

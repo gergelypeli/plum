@@ -37,7 +37,7 @@ public:
             inner_scope->set_outer_scope(os);
     }
 
-    virtual TypeSpec make_pivot_type_hint() {
+    virtual TypeSpec make_pivot_ts() {
         TypeSpec ts = { this };
         
         if (param_metatypes.size()) {
@@ -75,10 +75,10 @@ public:
         inner_scope->set_name(name);
         initializer_scope->set_name(name);
         
-        TypeSpec pivot_ts = make_pivot_type_hint();
+        TypeSpec pivot_ts = make_pivot_ts();
         if (pivot_ts != NO_TS) {
-            inner_scope->set_pivot_type_hint(pivot_ts);
-            initializer_scope->set_pivot_type_hint(pivot_ts.prefix(initializable_type));
+            inner_scope->set_pivot_ts(pivot_ts);
+            initializer_scope->set_pivot_ts(pivot_ts.prefix(initializable_type));
         }
         
         Scope *meta_scope = ptr_cast<Type>(meta_type)->get_inner_scope();
@@ -421,7 +421,7 @@ public:
         factory = f;
     }
 
-    virtual TypeSpec make_pivot_type_hint() {
+    virtual TypeSpec make_pivot_ts() {
         // Some metatypes contain useful operations
         if (super_types.size() == 1 && super_types[0] == value_metatype && value_metatype)
             return ANY_TS;
@@ -827,7 +827,7 @@ public:
         :UnitType(name) {
     }
     
-    virtual TypeSpec make_pivot_type_hint() {
+    virtual TypeSpec make_pivot_ts() {
         return NO_TS;
     }
 };

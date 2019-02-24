@@ -20,6 +20,17 @@ public:
         is_allocated = false;
         is_left = true;
     }
+
+    virtual void set_pivot_ts(TypeSpec t) {
+        if (t == VOID_TS || t == NO_TS)
+            throw INTERNAL_ERROR;
+            
+        pivot_ts = t;
+    }
+
+    virtual TypeSpec get_pivot_ts() {
+        return pivot_ts;
+    }
     
     virtual void add(Declaration *decl) {
         if (!decl)
@@ -162,10 +173,6 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual TypeSpec pivot_type_hint() {
-        throw INTERNAL_ERROR;
-    }
-    
     virtual std::string fully_qualify(std::string n) {
         throw INTERNAL_ERROR;
     }
@@ -281,20 +288,6 @@ public:
         return this;
     }
     
-    virtual void set_pivot_type_hint(TypeSpec t) {
-        if (t == VOID_TS || t == NO_TS)
-            throw INTERNAL_ERROR;
-            
-        pivot_ts = t;
-    }
-
-    virtual TypeSpec pivot_type_hint() {
-        //if (pivot_ts == NO_TS)
-        //    throw INTERNAL_ERROR;
-            
-        return pivot_ts;
-    }
-
     virtual void allocate() {
         if (is_allocated)
             return;
@@ -565,7 +558,7 @@ public:
         };
     }
     
-    virtual TypeSpec pivot_type_hint() {
+    virtual TypeSpec get_pivot_ts() {
         return NO_TS;
     }
 
@@ -700,7 +693,7 @@ public:
         return offset;
     }
 
-    virtual TypeSpec pivot_type_hint() {
+    virtual TypeSpec get_pivot_ts() {
         return NO_TS;
     }
 };
@@ -775,7 +768,7 @@ public:
         return result_alias_storage;
     }
 
-    virtual TypeSpec pivot_type_hint() {
+    virtual TypeSpec get_pivot_ts() {
         // This is used when looking up explicit exception type names
         return NO_TS;
     }
