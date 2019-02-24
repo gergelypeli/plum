@@ -9,9 +9,11 @@ class Type: public Identifier {
 public:
     std::string prefix;
     Metatypes param_metatypes;
-    std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
-    std::unique_ptr<DataScope> initializer_scope;
     MetaType *meta_type;
+    
+    std::unique_ptr<DataScope> initializer_scope;
+    std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
+    std::unique_ptr<DataScope> lvalue_scope;
     
     Type(std::string n, Metatypes pmts, MetaType *ut)
         :Identifier(n, NO_TS) {
@@ -33,8 +35,14 @@ public:
         
         Declaration::set_outer_scope(os);
 
+        if (initializer_scope)
+            initializer_scope->set_outer_scope(os);
+            
         if (inner_scope)
             inner_scope->set_outer_scope(os);
+            
+        if (lvalue_scope)
+            lvalue_scope->set_outer_scope(os);
     }
 
     virtual TypeSpec make_pivot_ts() {
@@ -68,32 +76,64 @@ public:
         
         if (inner_scope)
             throw INTERNAL_ERROR;
-            
+        
         inner_scope.reset(new DataScope);
-        initializer_scope.reset(new DataScope);
-
         inner_scope->set_name(name);
-        initializer_scope->set_name(name);
         
         TypeSpec pivot_ts = make_pivot_ts();
-        if (pivot_ts != NO_TS) {
+        if (pivot_ts != NO_TS)
             inner_scope->set_pivot_ts(pivot_ts);
-            initializer_scope->set_pivot_ts(pivot_ts.prefix(initializable_type));
-        }
         
         Scope *meta_scope = ptr_cast<Type>(meta_type)->get_inner_scope();
-        
         if (meta_scope)
             inner_scope->set_meta_scope(meta_scope);
-        
-        if (outer_scope) {
+
+        if (outer_scope)
             inner_scope->set_outer_scope(outer_scope);
-            initializer_scope->set_outer_scope(outer_scope);
-        }
-            
+
         inner_scope->enter();
-            
+        
         return inner_scope.get();
+    }
+    
+    virtual DataScope *make_initializer_scope() {
+        if (!inner_scope || initializer_scope)
+            throw INTERNAL_ERROR;
+        
+        initializer_scope.reset(new DataScope);
+        initializer_scope->set_name(name);
+
+        TypeSpec pivot_ts = make_pivot_ts();
+        if (pivot_ts != NO_TS)
+            initializer_scope->set_pivot_ts(pivot_ts.prefix(initializable_type));
+
+        if (outer_scope)
+            initializer_scope->set_outer_scope(outer_scope);
+
+        initializer_scope->enter();
+
+        return initializer_scope.get();
+    }
+    
+    virtual DataScope *make_lvalue_scope() {
+        if (!inner_scope || lvalue_scope)
+            throw INTERNAL_ERROR;
+        
+        lvalue_scope.reset(new DataScope);
+        lvalue_scope->set_name(name);
+
+        TypeSpec pivot_ts = make_pivot_ts();
+        if (pivot_ts != NO_TS)
+            lvalue_scope->set_pivot_ts(pivot_ts.prefix(lvalue_type));
+
+        if (outer_scope)
+            lvalue_scope->set_outer_scope(outer_scope);
+
+        inner_scope->push_scope(lvalue_scope.get());
+
+        lvalue_scope->enter();
+
+        return lvalue_scope.get();
     }
     
     virtual void transplant_initializers(std::vector<Declaration *> inits) {
@@ -107,12 +147,16 @@ public:
         initializer_scope->leave();
     }
 
+    virtual DataScope *get_initializer_scope() {
+        return initializer_scope.get();
+    }
+
     virtual DataScope *get_inner_scope() {
         return inner_scope.get();
     }
 
-    virtual DataScope *get_initializer_scope() {
-        return initializer_scope.get();
+    virtual DataScope *get_lvalue_scope() {
+        return lvalue_scope.get();
     }
 
     virtual void outer_scope_entered() {
@@ -206,8 +250,14 @@ public:
     }
 
     virtual void allocate() {
+        if (initializer_scope)
+            initializer_scope->allocate();
+            
         if (inner_scope)
             inner_scope->allocate();
+            
+        if (lvalue_scope)
+            lvalue_scope->allocate();
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {

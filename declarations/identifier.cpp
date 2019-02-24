@@ -3,12 +3,12 @@ class Identifier: public Declaration {
 public:
     std::string name;
     TypeSpec old_pivot_ts;
-    bool lvalue_hack;
+    //bool lvalue_hack;
 
     Identifier(std::string n, TypeSpec pts) {
         name = n;
         old_pivot_ts = pts;
-        lvalue_hack = (pts.size() && pts[0] == lvalue_type);
+        //lvalue_hack = (pts.size() && pts[0] == lvalue_type);
         
         if (pts.size() == 1 && pts[0] == void_type)
             throw INTERNAL_ERROR;  // should have used NO_TS probably
@@ -22,8 +22,8 @@ public:
             
         TypeSpec ts = ds->get_pivot_ts();
         
-        if (lvalue_hack)
-            ts = ts.lvalue();
+        //if (lvalue_hack)
+        //    ts = ts.lvalue();
             
         if (ts != old_pivot_ts)
             std::cerr << "QQQ " << name << " " << ts << " != " << old_pivot_ts << "\n";

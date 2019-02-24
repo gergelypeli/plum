@@ -694,6 +694,9 @@ public:
         s->add(defined_type);
 
         defined_type->make_inner_scope();
+        defined_type->make_initializer_scope();
+        defined_type->make_lvalue_scope();
+        
         block_value.reset(new DataBlockValue(defined_type->get_inner_scope()));
         
         for (Expr *expr : meta_exprs)

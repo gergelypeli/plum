@@ -52,18 +52,13 @@ public:
         if (member_variables.size() == 1)
             is_single = true;
         
-        transplant_initializers(member_initializers);
+        if (initializer_scope)
+            transplant_initializers(member_initializers);
         
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
         return true;
     }
 
-    virtual void allocate() {
-        Type::allocate();
-        
-        initializer_scope->allocate();
-    }
-    
     virtual Allocation measure(TypeMatch tm) {
         if (is_single)
             return typesubst(member_tss[0], tm).measure();

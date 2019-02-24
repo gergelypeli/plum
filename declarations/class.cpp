@@ -52,7 +52,9 @@ public:
         if (!IdentityType::complete_type())
             return false;
             
-        transplant_initializers(member_initializers);
+        if (initializer_scope)
+            transplant_initializers(member_initializers);
+            
         return true;
     }
 
@@ -123,9 +125,6 @@ public:
 
         // Function overrides in virtual tables only happen here
         IdentityType::allocate();
-
-        // Ah, and this        
-        initializer_scope->allocate();
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
