@@ -10,6 +10,7 @@ public:
     std::string prefix;
     Metatypes param_metatypes;
     std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
+    std::unique_ptr<DataScope> initializer_scope;
     MetaType *meta_type;
     
     Type(std::string n, Metatypes pmts, MetaType *ut)
@@ -69,27 +70,49 @@ public:
             throw INTERNAL_ERROR;
             
         inner_scope.reset(new DataScope);
+        initializer_scope.reset(new DataScope);
+
         inner_scope->set_name(name);
+        initializer_scope->set_name(name);
         
         TypeSpec pivot_ts = make_pivot_type_hint();
-        if (pivot_ts != NO_TS)
+        if (pivot_ts != NO_TS) {
             inner_scope->set_pivot_type_hint(pivot_ts);
+            initializer_scope->set_pivot_type_hint(pivot_ts.prefix(initializable_type));
+        }
         
         Scope *meta_scope = ptr_cast<Type>(meta_type)->get_inner_scope();
         
         if (meta_scope)
             inner_scope->set_meta_scope(meta_scope);
         
-        if (outer_scope)
+        if (outer_scope) {
             inner_scope->set_outer_scope(outer_scope);
+            initializer_scope->set_outer_scope(outer_scope);
+        }
             
         inner_scope->enter();
             
         return inner_scope.get();
     }
     
+    virtual void transplant_initializers(std::vector<Declaration *> inits) {
+        initializer_scope->enter();
+    
+        for (auto d : inits) {
+            inner_scope->remove_internal(d);
+            initializer_scope->add(d);
+        }
+
+        initializer_scope->leave();
+    }
+
     virtual DataScope *get_inner_scope() {
         return inner_scope.get();
+    }
+
+    virtual DataScope *get_initializer_scope() {
+        return initializer_scope.get();
     }
 
     virtual void outer_scope_entered() {

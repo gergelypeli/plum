@@ -52,7 +52,7 @@ public:
         if (!IdentityType::complete_type())
             return false;
             
-        transplant_initializers(inner_scope.get(), member_initializers);
+        transplant_initializers(member_initializers);
         return true;
     }
 

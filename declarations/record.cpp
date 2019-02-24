@@ -52,7 +52,7 @@ public:
         if (member_variables.size() == 1)
             is_single = true;
         
-        transplant_initializers(inner_scope.get(), member_initializers);
+        transplant_initializers(member_initializers);
         
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
         return true;

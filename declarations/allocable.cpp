@@ -455,29 +455,6 @@ public:
 
 class PartialInitializable {
 public:
-    std::unique_ptr<DataScope> initializer_scope;
-
-    virtual DataScope *get_initializer_scope() {
-        return initializer_scope.get();
-    }
-    
-    virtual void transplant_initializers(DataScope *is, std::vector<Declaration *> inits) {
-        TypeSpec pts = is->pivot_type_hint();
-        
-        initializer_scope.reset(new DataScope);
-        initializer_scope->set_pivot_type_hint(pts.prefix(initializable_type));
-        initializer_scope->set_name(is->name);
-        initializer_scope->set_outer_scope(is->outer_scope);
-        initializer_scope->enter();
-    
-        for (auto d : inits) {
-            is->remove_internal(d);
-            initializer_scope->add(d);
-        }
-
-        initializer_scope->leave();
-    }
-    
     virtual std::vector<std::string> get_member_names() {
         throw INTERNAL_ERROR;
     }
