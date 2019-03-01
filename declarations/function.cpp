@@ -8,8 +8,11 @@ enum FunctionProt {
     NATIVE_FUNCTION, SYSV_FUNCTION
 };
 
+
+VirtualEntry *make_method_virtual_entry(Function *f);
+
     
-class Function: public Identifier, public VirtualEntry {
+class Function: public Identifier {
 public:
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
@@ -98,35 +101,22 @@ public:
         bool needs_virtual_index = (ds && ds->is_virtual_scope() && (type == GENERIC_FUNCTION || type == ABSTRACT_FUNCTION));
         
         if (needs_virtual_index) {
+            VirtualEntry *mve = make_method_virtual_entry(this);
+            
             if (!associated) {
-                //devector<VirtualEntry *> vt;
-                //vt.append(this);
-                virtual_index = ds->virtual_reserve(this);
+                virtual_index = ds->virtual_reserve(mve);
                 std::cerr << "Reserved new virtual index " << virtual_index << " for function " << name << ".\n";
             }
             else {
                 // Copying it is necessary, as overriding functions can only get it from each other
                 virtual_index = implemented_function->virtual_index;
-                associable_override_virtual_entry(associated, virtual_index, this);
+                associable_override_virtual_entry(associated, virtual_index, mve);
                 std::cerr << "Set virtual index " << virtual_index << " for function " << name << ".\n";
             }
         }
         
         if (fn_scope)
             fn_scope->allocate();
-    }
-    
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
-        // We're not yet ready to compile templated functions
-        if (tm[1] != NO_TS)
-            throw INTERNAL_ERROR;
-            
-        //std::cerr << "Function entry " << name << ".\n";
-        return get_label(x64);
-    }
-
-    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
-        return os << "FUNC " << name;
     }
     
     virtual Label get_label(X64 *x64) {
@@ -245,3 +235,31 @@ public:
         return make<FloatFunctionValue>(this, cpivot, match);
     }
 };
+
+
+class MethodVirtualEntry: public VirtualEntry {
+public:
+    Function *function;
+    
+    MethodVirtualEntry(Function *f) {
+        function = f;
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        // We're not yet ready to compile templated functions
+        if (tm[1] != NO_TS)
+            throw INTERNAL_ERROR;
+            
+        //std::cerr << "Function entry " << name << ".\n";
+        return function->get_label(x64);
+    }
+
+    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
+        return os << "FUNC " << function->name;
+    }
+};
+
+
+VirtualEntry *make_method_virtual_entry(Function *f) {
+    return new MethodVirtualEntry(f);
+}
