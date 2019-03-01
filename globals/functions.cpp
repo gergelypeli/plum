@@ -79,11 +79,6 @@ std::string function_get_name(Function *f) {
 }
 
 
-bool function_is_abstract(Function *f) {
-    return f->type == ABSTRACT_FUNCTION;
-}
-
-
 Label function_get_label(Function *f, X64 *x64) {
     return f->get_label(x64);
 }

@@ -313,7 +313,7 @@ public:
         if (import_name.size()) {
             return Storage();
         }
-        else if (function->type == ABSTRACT_FUNCTION) {
+        else if (function->is_abstract()) {
             std::string msg = "Abstract function " + fqn + " was called";
             x64->runtime->die(msg);
             return Storage();
@@ -394,7 +394,7 @@ public:
         DataScope *ds = ptr_cast<DataScope>(scope);
         
         if (ds->is_abstract_scope()) {
-            if (type != GENERIC_FUNCTION) {
+            if (type != GENERIC_FUNCTION && type != LVALUE_FUNCTION) {
                 std::cerr << "Only generic functions can be defined in interfaces!\n";
                 return NULL;
             }
@@ -403,8 +403,6 @@ public:
                 std::cerr << "Interface functions can't have a body!\n";
                 return NULL;
             }
-            
-            type = ABSTRACT_FUNCTION;
         }
         
         if (type == FINALIZER_FUNCTION && name != "<anonymous>") {
@@ -492,6 +490,15 @@ public:
     FinalizerDefinitionValue(Value *r, TypeMatch &match)
         :FunctionDefinitionValue(r, match) {
         type = FINALIZER_FUNCTION;
+    }
+};
+
+
+class ProcedureDefinitionValue: public FunctionDefinitionValue {
+public:
+    ProcedureDefinitionValue(Value *r, TypeMatch &match)
+        :FunctionDefinitionValue(r, match) {
+        type = LVALUE_FUNCTION;
     }
 };
 

@@ -81,7 +81,6 @@ const char *typeidname(Value *v);
 Declaration *make_record_compare();
 void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve);
 std::string function_get_name(Function *f);
-bool function_is_abstract(Function *f);
 Label function_get_label(Function *f, X64 *x64);
 
 // TypeSpec operations

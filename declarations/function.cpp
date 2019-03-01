@@ -1,6 +1,6 @@
 
 enum FunctionType {
-    GENERIC_FUNCTION, ABSTRACT_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION
+    GENERIC_FUNCTION, LVALUE_FUNCTION, INITIALIZER_FUNCTION, FINALIZER_FUNCTION
 };
 
 
@@ -19,7 +19,7 @@ public:
     std::vector<TypeSpec> res_tss;
     TreenumerationType *exception_type;
     FunctionScope *fn_scope;
-    
+
     int virtual_index;
     FunctionType type;
     FunctionProt prot;
@@ -46,6 +46,12 @@ public:
         implemented_function = NULL;
     }
 
+    virtual bool is_abstract() {
+        DataScope *ds = ptr_cast<DataScope>(outer_scope);
+        
+        return ds && ds->is_abstract_scope();
+    }
+
     virtual void set_outer_scope(Scope *os) {
         // Abuse here, too
         Identifier::set_outer_scope(os);
@@ -62,25 +68,22 @@ public:
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        // TODO: do this properly!
-        
-        //if (type == ABSTRACT_FUNCTION) {
-        //    std::cerr << "Oops, interface function " << name << " was called instead of an implementation!\n";
-        //    throw INTERNAL_ERROR;
-        //}
-        
         return make<FunctionCallValue>(this, cpivot, match);
     }
 
     virtual void get_parameters(TypeSpec &pts, TSs &rtss, TSs &atss, Ss &anames, TypeSpec ts, TypeMatch tm) {
         TypeSpec pivot_ts = get_pivot_ts();
         
-        if (type == ABSTRACT_FUNCTION) {
+        if (is_abstract()) {
             // FIXME: don't interface methods all have a Ptr pivot now?
-            if (pivot_ts == ANY_TS)
+            if (pivot_ts == ANY_TS) {
+                throw INTERNAL_ERROR;
                 pts = ts.rvalue();
-            else if (pivot_ts == ANY_LVALUE_TS)
+            }
+            else if (pivot_ts == ANY_LVALUE_TS) {
+                throw INTERNAL_ERROR;
                 pts = ts;
+            }
             else
                 pts = typesubst(pivot_ts, tm);
         }
@@ -98,7 +101,7 @@ public:
 
     virtual void allocate() {
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
-        bool needs_virtual_index = (ds && ds->is_virtual_scope() && (type == GENERIC_FUNCTION || type == ABSTRACT_FUNCTION));
+        bool needs_virtual_index = (ds && ds->is_virtual_scope() && type == GENERIC_FUNCTION);
         
         if (needs_virtual_index) {
             VirtualEntry *mve = make_method_virtual_entry(this);
@@ -120,7 +123,7 @@ public:
     }
     
     virtual Label get_label(X64 *x64) {
-        if (type == ABSTRACT_FUNCTION)
+        if (is_abstract())
             throw INTERNAL_ERROR;
             
         return label;

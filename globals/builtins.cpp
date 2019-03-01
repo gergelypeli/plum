@@ -589,7 +589,7 @@ void define_interfaces() {
     TypeSpec spts = STREAMIFIABLE_TS.prefix(ptr_type);
     DataScope *sis = streamifiable_type->make_inner_scope();
     Function *sf = new Function("streamify",
-        ABSTRACT_FUNCTION,
+        GENERIC_FUNCTION,
         TSs { STRING_LVALUE_TS },
         Ss { "stream" },
         TSs {},
@@ -604,7 +604,7 @@ void define_interfaces() {
     TypeSpec jpts = ANY_ITERABLE_TS.prefix(ptr_type);
     DataScope *jis = iterable_type->make_inner_scope();
     Function *xf = new Function("iter",
-        ABSTRACT_FUNCTION,
+        GENERIC_FUNCTION,
         TSs {},
         Ss {},
         TSs { SAME_ITERATOR_RVALUE_TS },
@@ -619,7 +619,7 @@ void define_interfaces() {
     TypeSpec ipts = ANY_ITERATOR_TS.prefix(ptr_type);
     DataScope *iis = iterator_type->make_inner_scope();
     Function *nf = new Function("next",
-        ABSTRACT_FUNCTION,
+        LVALUE_FUNCTION,
         TSs {},
         Ss {},
         TSs { SAME_TS },
@@ -635,7 +635,7 @@ void define_interfaces() {
     TypeSpec apts = { ptr_type, application_type };
     DataScope *ais = application_type->make_inner_scope();
     Function *tf = new Function("start",
-        ABSTRACT_FUNCTION,
+        GENERIC_FUNCTION,
         TSs {},
         Ss {},
         TSs {},

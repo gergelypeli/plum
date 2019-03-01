@@ -113,7 +113,7 @@ public:
                 member_initializers.push_back(f);
             }
 
-            if (f && (f->type == GENERIC_FUNCTION || f->type == ABSTRACT_FUNCTION))
+            if (f && (f->type == GENERIC_FUNCTION || f->type == LVALUE_FUNCTION))
                 member_functions.push_back(f);
         }
 
