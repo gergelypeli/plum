@@ -29,7 +29,7 @@ class ImportDefinitionValue;
 class InitializerEqualityMatcherValue;
 class IntegerDefinitionValue;
 class InterfaceDefinitionValue;
-class LselfDefinitionValue;
+//class LselfDefinitionValue;
 class NosytreeMemberValue;
 class NosytreeCowMemberValue;
 class OptionNoneMatcherValue;

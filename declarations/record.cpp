@@ -5,6 +5,7 @@ public:
     std::vector<TypeSpec> member_tss;  // rvalues, for the initializer arguments
     std::vector<std::string> member_names;
     std::vector<Declaration *> member_initializers;
+    std::vector<Declaration *> member_procedures;
     Function *streamify_function;
     bool is_single;
 
@@ -44,6 +45,9 @@ public:
                 
             if (f && f->type == INITIALIZER_FUNCTION)
                 member_initializers.push_back(f);
+
+            if (f && f->type == LVALUE_FUNCTION)
+                member_procedures.push_back(f);
         }
 
         if (!has_custom_compare)
@@ -54,6 +58,9 @@ public:
         
         if (initializer_scope)
             transplant_initializers(member_initializers);
+
+        if (lvalue_scope)
+            transplant_procedures(member_procedures);
         
         std::cerr << "Record " << name << " has " << member_variables.size() << " member variables.\n";
         return true;

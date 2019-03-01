@@ -462,14 +462,14 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
     }
 }
 
-
+/*
 void lself_implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
     Lself *lself = new Lself("lself");
     implementor_scope->add(lself);
     
     implement(implementor_scope, interface_ts, "lself." + implementation_name, contents);
 }
-
+*/
 
 void define_integers() {
     struct {
@@ -659,7 +659,7 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
     aiis->add(new Variable("container", SAME_CONTAINER_LVALUE_TS));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    lself_implement(aiis, interface_ts, "iterator", {
+    implement(aiis, interface_ts, "iterator", {
         new TemplateIdentifier<NextValue>("next"),
     });
     
@@ -685,7 +685,7 @@ void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
     aiis->add(new Variable("length", INTEGER_LVALUE_TS));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    lself_implement(aiis, interface_ts, "iterator", {
+    implement(aiis, interface_ts, "iterator", {
         new TemplateIdentifier<NextValue>("next")
     });
 
@@ -717,7 +717,7 @@ void define_iterators() {
             next_fn = new TemplateIdentifier<CountdownNextValue>("next");
         }
 
-        lself_implement(cis, INTEGER_ITERATOR_TS, "iter", {
+        implement(cis, INTEGER_ITERATOR_TS, "iter", {
             next_fn,
         });
 
@@ -1099,12 +1099,13 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<PtrCastValue>("ptr"));
 
     colon_scope->add(new TemplateIdentifier<FunctionDefinitionValue>("Function"));
+    colon_scope->add(new TemplateIdentifier<ProcedureDefinitionValue>("Procedure"));
     colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer"));
     colon_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>("Finalizer"));
     colon_scope->add(new TemplateIdentifier<RoleDefinitionValue>("Role"));
     colon_scope->add(new TemplateIdentifier<BaseDefinitionValue>("Base"));
     colon_scope->add(new TemplateIdentifier<AutoDefinitionValue>("Auto"));
-    colon_scope->add(new TemplateIdentifier<LselfDefinitionValue>("Lself"));
+    //colon_scope->add(new TemplateIdentifier<LselfDefinitionValue>("Lself"));
     colon_scope->add(new TemplateIdentifier<GlobalDefinitionValue>("Global"));
 
     colon_type->complete_type();

@@ -147,6 +147,17 @@ public:
         initializer_scope->leave();
     }
 
+    virtual void transplant_procedures(std::vector<Declaration *> procs) {
+        lvalue_scope->enter();
+    
+        for (auto d : procs) {
+            inner_scope->remove_internal(d);
+            lvalue_scope->add(d);
+        }
+
+        lvalue_scope->leave();
+    }
+
     virtual DataScope *get_initializer_scope() {
         return initializer_scope.get();
     }

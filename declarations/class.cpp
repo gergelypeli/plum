@@ -54,6 +54,9 @@ public:
             
         if (initializer_scope)
             transplant_initializers(member_initializers);
+
+        if (lvalue_scope)
+            transplant_procedures(member_procedures);
             
         return true;
     }

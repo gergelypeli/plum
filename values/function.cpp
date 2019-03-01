@@ -9,7 +9,7 @@ public:
     FunctionScope *fn_scope;
     Expr *deferred_body_expr;
     bool may_be_aborted;
-    TypeSpec pivot_ts;
+    //TypeSpec pivot_ts;
     Variable *self_var;
     TypeMatch match;
     Scope *outer_scope;
@@ -72,19 +72,19 @@ public:
         ss->enter();
         
         if (scope->type == DATA_SCOPE) {
-            pivot_ts = scope->get_pivot_ts();
+            TypeSpec pivot_ts = scope->get_pivot_ts();
             
             if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
                 if (type == INITIALIZER_FUNCTION) {
-                    pivot_ts = pivot_ts.prefix(initializable_type);
-                    TypeSpec self_ts = pivot_ts.reprefix(initializable_type, partial_type);
-                    self_var = new PartialVariable("$", self_ts);
+                    self_var = new PartialVariable("$", pivot_ts.prefix(partial_type));
+                }
+                else if (type == LVALUE_FUNCTION) {
+                    self_var = new SelfVariable("$", pivot_ts.lvalue());
                 }
                 else {
                     // Overriding functions have a different pivot type than the overridden
                     // one, although they can be called on those as well.
-                    TypeSpec self_ts = pivot_ts;
-                    self_var = new SelfVariable("$", self_ts);
+                    self_var = new SelfVariable("$", pivot_ts);
                 }
                 
                 ss->add(self_var);
@@ -463,7 +463,7 @@ public:
         if (has_code_arg)
             fn_scope->make_forwarded_exception_storage();
         
-        std::cerr << "Making function " << pivot_ts << " " << name << ".\n";
+        std::cerr << "Making function " << name << ".\n";
         
         if (import_name.size())
             function = new SysvFunction(import_name, name, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
@@ -532,12 +532,6 @@ public:
         pivot.reset(p);
 
         function->get_parameters(pivot_ts, res_tss, arg_tss, arg_names, get_typespec(p), m);
-        /*
-        pivot_ts = function->get_pivot_typespec(m);
-        res_tss = function->get_result_tss(m);
-        arg_tss = function->get_argument_tss(m);
-        arg_names = function->get_argument_names();
-        */
         
         if (res_tss.size() == 0)
             ts = pivot_ts != NO_TS ? pivot_ts : VOID_TS;

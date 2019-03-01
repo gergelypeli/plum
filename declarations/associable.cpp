@@ -39,7 +39,7 @@ public:
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
     DataScope *associating_scope;
-    Lself *associated_lself;
+    //Lself *associated_lself;
     TypeMatch explicit_tm;
 
     Associable(std::string n, TypeSpec ts, InheritAs ia)
@@ -51,7 +51,7 @@ public:
         original_associable = NULL;
         aliased_associable = NULL;
         associating_scope = NULL;
-        associated_lself = NULL;
+        //associated_lself = NULL;
         explicit_tm = alloc_ts.match();
     }
 
@@ -64,7 +64,7 @@ public:
         original_associable = original;
         aliased_associable = original->aliased_associable;
         associating_scope = NULL;
-        associated_lself = NULL;
+        //associated_lself = NULL;
         explicit_tm = etm;
     }
 
@@ -321,8 +321,8 @@ public:
         
             override->set_associated(this);
         
-            if (associated_lself)
-                override->set_associated_lself(associated_lself);
+            //if (associated_lself)
+            //    override->set_associated_lself(associated_lself);
         }
 
         // Unfortunately, this sets the entry to NULL for non-function overrides.
@@ -347,8 +347,8 @@ public:
         ifts = typesubst(alloc_ts, tm);  // pivot match
         std::cerr << "Checking autoconv from " << ifts << " to " << ptr_cast<Identifier>(target)->name << " " << this << "\n";
 
-        if (associated_lself && !assume_lvalue)
-            return NULL;
+        //if (associated_lself && !assume_lvalue)
+        //    return NULL;
 
         if (ifts[0] == target) {
             // Direct implementation
@@ -372,13 +372,13 @@ public:
         return NULL;
     }
 
-    virtual void set_associated_lself(Lself *l) {
-        associated_lself = l;
-    }
+    //virtual void set_associated_lself(Lself *l) {
+    //    associated_lself = l;
+    //}
 
     virtual Associable *autoconv_streamifiable(TypeMatch match) {
-        if (associated_lself)
-            return NULL;
+        //if (associated_lself)
+        //    return NULL;
 
         TypeSpec ifts = get_typespec(match);
 

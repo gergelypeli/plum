@@ -25,6 +25,7 @@ public:
     std::vector<Function *> member_functions;
     std::vector<Associable *> member_associables;
     std::vector<Declaration *> member_initializers;
+    std::vector<Declaration *> member_procedures;
 
     bool is_abstract;
     Function *finalizer_function;
@@ -112,6 +113,9 @@ public:
 
                 member_initializers.push_back(f);
             }
+
+            if (f && f->type == LVALUE_FUNCTION)
+                member_procedures.push_back(f);  // for transplanting only
 
             if (f && (f->type == GENERIC_FUNCTION || f->type == LVALUE_FUNCTION))
                 member_functions.push_back(f);
@@ -404,7 +408,7 @@ public:
     }
 };
 
-
+/*
 class Lself: public Associable {
 public:
     std::vector<Implementation *> outer_implementations;
@@ -442,4 +446,4 @@ public:
         return false;
     }
 };
-
+*/

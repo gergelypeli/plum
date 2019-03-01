@@ -318,7 +318,7 @@ public:
     }
 };
 
-
+/*
 class LselfDefinitionValue: public TypeDefinitionValue {
 public:
     LselfDefinitionValue(Value *pivot, TypeMatch &tm)
@@ -344,7 +344,7 @@ public:
             return NULL;
     }
 };
-
+*/
 
 class RoleDefinitionValue: public TypeDefinitionValue, public RoleCreator {
 public:

@@ -230,7 +230,7 @@ App? :Class Application as:
     Pair? :Record as:
         first? Integer
         second? Integer
-        lself? :Lself
+        #lself? :Lself
 
         new? :Initializer as:
             $ first = 1
@@ -248,7 +248,7 @@ App? :Class Application as:
         sable.streamify? :Function from: stream? String Lvalue as:
             stream += "({},{})" { $ first, $ second }
         
-        lself.reset? :Function as:
+        reset? :Procedure as:
             $ first = 0
             $ second = 0
 
@@ -265,7 +265,7 @@ App? :Class Application as:
     XCounter? :Record as:
         current? Integer
         limit? Integer
-        lself? :Lself
+        #lself? :Lself
     
         new? :Initializer from:
             n? Integer
@@ -273,9 +273,9 @@ App? :Class Application as:
             $ current = -1
             $ limit = n
         
-        lself.itor? :Auto Integer Iterator
+        itor? :Auto Integer Iterator
 
-        lself.itor.next? :Function Integer may: Iterator_done_exception as:
+        itor.next? :Procedure Integer may: Iterator_done_exception as:
             $ current += 1
     
             :if $ current == $ limit then:
@@ -291,7 +291,7 @@ App? :Class Application as:
     XStringiterator? :Record as:
         string? String
         index? Integer
-        lself? :Lself
+        #lself? :Lself
     
         new? :Initializer from:
             s? String
@@ -299,9 +299,9 @@ App? :Class Application as:
             $ string = s
             $ index = -1
 
-        lself.itor? :Auto Character Iterator
+        itor? :Auto Character Iterator
     
-        lself.itor.next? :Function Character may: Iterator_done_exception as:
+        itor.next? :Procedure Character may: Iterator_done_exception as:
             $ index += 1
     
             :if $ index == $ string length then:

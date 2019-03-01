@@ -25,7 +25,7 @@ public:
     FunctionProt prot;
     
     Associable *associated;
-    Lself *associated_lself;
+    //Lself *associated_lself;
     Function *implemented_function;
 
     Label label;
@@ -42,7 +42,7 @@ public:
         virtual_index = 0;  // for class methods only
         prot = NATIVE_FUNCTION;
         associated = NULL;  // for overriding methods only
-        associated_lself = NULL;
+        //associated_lself = NULL;
         implemented_function = NULL;
     }
 
@@ -60,13 +60,17 @@ public:
         if (fn_scope)
             fn_scope->set_outer_scope(os);
     }
-
+    /*
     virtual TypeSpec get_pivot_ts() {
         TypeSpec pts = Identifier::get_pivot_ts();
         
-        return associated_lself ? pts.lvalue() : pts;
+        // FIXME: temporary hack until lvalue scoped
+        return (
+            type == LVALUE_FUNCTION ? pts.lvalue() :  
+            pts
+        );
     }
-
+    */
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<FunctionCallValue>(this, cpivot, match);
     }
@@ -130,7 +134,10 @@ public:
     }
     
     virtual bool does_implement(TypeMatch tm, Function *iff, TypeMatch iftm) {
-        // The pivot type is not checked, since it is likely to be different
+        if (iff->type == GENERIC_FUNCTION && type == LVALUE_FUNCTION) {
+            std::cerr << "Mismatching implementation procedure for function!\n";
+            return false;
+        }
 
         TypeSpec int_pivot_ts, imp_pivot_ts;
         TSs int_res_tss, imp_res_tss;
@@ -188,7 +195,7 @@ public:
     virtual void set_associated(Associable *a) {
         associated = a;
     }
-
+    /*
     virtual void set_associated_lself(Lself *al) {
         Scope *ss = fn_scope->self_scope;
         if (ss->contents.size() != 1)
@@ -202,6 +209,7 @@ public:
         //pivot_ts = pivot_ts.lvalue();
         self_var->alloc_ts = self_var->alloc_ts.lvalue();
     }
+    */
 };
 
 
