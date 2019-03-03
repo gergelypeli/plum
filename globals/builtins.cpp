@@ -148,8 +148,8 @@ void builtin_types(Scope *root_scope) {
     code_type = new AttributeType("Code");
     root_scope->add(code_type);
 
-    rvalue_type = new AttributeType("Rvalue", interface_metatype);
-    root_scope->add(rvalue_type);
+    //rvalue_type = new AttributeType("Rvalue", interface_metatype);
+    //root_scope->add(rvalue_type);
 
     whatever_type = new WhateverType("Whatever");
     root_scope->add(whatever_type);
@@ -382,7 +382,7 @@ void builtin_types(Scope *root_scope) {
     STREAMIFIABLE_TS = { streamifiable_type };
     ANY_ITERATOR_TS = { iterator_type, any_type };
     SAME_ITERATOR_TS = { iterator_type, same_type };
-    SAME_ITERATOR_RVALUE_TS = { rvalue_type, iterator_type, same_type };
+    //SAME_ITERATOR_RVALUE_TS = { rvalue_type, iterator_type, same_type };
     INTEGER_ITERATOR_TS = { iterator_type, integer_type };
     INTEGER_ITERABLE_TS = { iterable_type, integer_type };
     ANY_ITERABLE_TS = { iterable_type, any_type };
@@ -607,7 +607,7 @@ void define_interfaces() {
         GENERIC_FUNCTION,
         TSs {},
         Ss {},
-        TSs { SAME_ITERATOR_RVALUE_TS },
+        TSs { SAME_ITERATOR_TS },
         NULL,
         NULL
     );

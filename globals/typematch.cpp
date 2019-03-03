@@ -121,7 +121,7 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
 }
 
 
-bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool assume_lvalue) {
+bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value) {
     TypeSpec ifts;
     
     // Return a role of v with an unprefixed type of s, with the front type
@@ -129,7 +129,7 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
     // derived from the type parameters of s. Or NULL, if it can't be done.
     // May call itself recursively.
     std::cerr << "Trying autoconv from " << s << " to " << t << ".\n";
-    Value *role = TypeSpec(s).autoconv(*t, value, ifts, assume_lvalue);
+    Value *role = TypeSpec(s).autoconv(*t, value, ifts);
         
     if (role) {
         value = role;
@@ -143,7 +143,7 @@ bool match_regular_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 }
 
 
-bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool require_lvalue, bool assume_lvalue) {
+bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool require_lvalue) {
     if (*s == ref_type || *s == ptr_type || *t == ref_type || *t == ptr_type) {
         if (*s == *t) {
             match[0].push_back(*t);
@@ -189,13 +189,13 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         return true;
     }
     
-    bool ok = match_regular_type(s, t, match, value, assume_lvalue);
+    bool ok = match_regular_type(s, t, match, value);
     
     return ok;
 }
 
 
-bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool require_lvalue, bool assume_lvalue) {
+bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool require_lvalue) {
     // Allow any_type match references
     
     if (is_any(*t)) {
@@ -227,7 +227,7 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         }
         
         // Match Multi to Multi
-        return match_special_type(s, t, match, value, require_lvalue, assume_lvalue);
+        return match_special_type(s, t, match, value, require_lvalue);
     }
     else {
         if (*s == multilvalue_type || *s == multitype_type) {
@@ -257,11 +257,11 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
             if (matchlog) std::cerr << "Unpacking Multi to " << ss << ".\n";
             value = make<ScalarConversionValue>(value);
 
-            return match_special_type(s, t, match, value, require_lvalue, assume_lvalue);
+            return match_special_type(s, t, match, value, require_lvalue);
         }
 
         // Match scalar to scalar
-        return match_special_type(s, t, match, value, require_lvalue, assume_lvalue);
+        return match_special_type(s, t, match, value, require_lvalue);
     }
 }
 
@@ -286,22 +286,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         if (*s == void_type || *t == void_type)
             throw INTERNAL_ERROR;
         
-        return match_anymulti_type(s, t, match, value, true, true);
-    }
-    else if (*t == rvalue_type) {
-        // Only happens for interfaces
-        if (!value) {
-            if (matchlog) std::cerr << "No match, nothing for Rvalue!\n";
-            return false;
-        }
-        
-        match[0].push_back(*t);
-        t++;
-
-        if (*s == void_type || *t == void_type)
-            throw INTERNAL_ERROR;
-        
-        return match_anymulti_type(s, t, match, value, false, true);
+        return match_anymulti_type(s, t, match, value, true);
     }
     else if (*t == code_type) {  // evalue
         match[0].push_back(*t);
@@ -326,7 +311,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        if (!match_anymulti_type(s, t, match, value, false, false))
+        if (!match_anymulti_type(s, t, match, value, false))
             return false;
 
         return true;
@@ -343,7 +328,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_anymulti_type(s, t, match, value, false, false);
+        return match_anymulti_type(s, t, match, value, false);
     }
     else if (*t == uninitialized_type) {
         // This is a special case, Uninitialized only occurs with Any.
@@ -376,7 +361,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_anymulti_type(s, t, match, value, false, false);
+        return match_anymulti_type(s, t, match, value, false);
     }
 }
 

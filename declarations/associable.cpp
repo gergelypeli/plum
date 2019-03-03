@@ -343,17 +343,13 @@ public:
         return inherit_as == AS_MAIN;
     }
 
-    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
         ifts = typesubst(alloc_ts, tm);  // pivot match
         std::cerr << "Checking autoconv from " << ifts << " to " << ptr_cast<Identifier>(target)->name << " " << this << "\n";
-
-        //if (associated_lself && !assume_lvalue)
-        //    return NULL;
 
         if (ifts[0] == target) {
             // Direct implementation
             std::cerr << "Found direct implementation " << name << ".\n";
-            //return make<RoleValue>(this, orig, tm);
             return make_value(orig, tm);
         }
         else if (inherit_as == AS_BASE) {
@@ -361,7 +357,7 @@ public:
             
             for (auto &sr : shadow_associables) {
                 if (sr->is_autoconv()) {
-                    Value *v = sr->autoconv(tm, target, orig, ifts, assume_lvalue);
+                    Value *v = sr->autoconv(tm, target, orig, ifts);
                 
                     if (v)
                         return v;

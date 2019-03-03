@@ -419,7 +419,7 @@ public:
         throw INTERNAL_ERROR;
     }
     
-    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
+    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
         Scope *inner_scope = get_inner_scope();
         if (!inner_scope)
             return NULL;
@@ -431,7 +431,7 @@ public:
                 if (!imp->is_autoconv())
                     continue;
                     
-                Value *v = imp->autoconv(tm, target, orig, ifts, assume_lvalue);
+                Value *v = imp->autoconv(tm, target, orig, ifts);
                 
                 if (v)
                     return v;

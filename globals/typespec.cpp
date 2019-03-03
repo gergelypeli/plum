@@ -216,8 +216,8 @@ Label TypeSpec::get_finalizer_label(X64 *x64) {
 }
 
 
-Value *TypeSpec::autoconv(Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-    return at(0)->autoconv(match(), target, orig, ifts, assume_lvalue);
+Value *TypeSpec::autoconv(Type *target, Value *orig, TypeSpec &ifts) {
+    return at(0)->autoconv(match(), target, orig, ifts);
 }
 
 

@@ -267,8 +267,8 @@ public:
         return tm[1].get_interface_table_label(x64);
     }
 
-    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts, bool assume_lvalue) {
-        return tm[1].autoconv(target, orig, ifts, assume_lvalue);
+    virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
+        return tm[1].autoconv(target, orig, ifts);
     }
 };
 
