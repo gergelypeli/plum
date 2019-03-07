@@ -30,6 +30,8 @@ const int CLASS_HEADER_SIZE = 8;
 const int CLASS_VT_OFFSET = 0;
 const int CLASS_MEMBERS_OFFSET = 8;
 
+const int VT_HEADER_LOW_INDEX = 0;
+const int VT_HEADER_HIGH_INDEX = 2;
 const int VT_AUTOCONV_INDEX = 0;
 const int VT_FASTFORWARD_INDEX = 1;
 

@@ -798,7 +798,15 @@ App? :Class Application as:
             x? Integer
         as:
             $ value = x
-    
+
+    Patch? :Class as:
+        patched? :Role require: Basic_derived
+        
+        init? :Initializer as:
+            Std prints("Patch initialized.")
+        
+        patched.derived_method? :Function as:
+            Std prints("Patched derived method, for even more fun.")
     
     Greetable? :Interface Derived as:
         greet? :Function
@@ -810,7 +818,6 @@ App? :Class Application as:
         right? :Role Property
 
         sable? :Auto Streamifiable
-        
 
     Basic_greetable? :Class Greetable by: Basic_derived as:
         left? :Role by: Basic_property
@@ -823,6 +830,7 @@ App? :Class Application as:
             $ .derived_init
             $ left.init
             $ right.init
+            $ patch.init
             $ number = 1
             $ name = "The Greetable"
         
@@ -855,6 +863,9 @@ App? :Class Application as:
             
         @.left? :Role of: left
         @.right? :Role of: right
+
+        patch? :Role by: Patch
+        #patch.patched? :Role of: # Base?
         
     test_classes? :Function Greetable Ref as:
         gr? Greetable Ref = Basic_greetable Ref `second_init

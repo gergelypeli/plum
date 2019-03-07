@@ -8,7 +8,6 @@ static void dump_associable(Associable *a, int indent) {
         a->inherit_as == AS_MAIN ? "MAIN" :
         a->inherit_as == AS_ROLE ? "ROLE" :
         a->inherit_as == AS_AUTO ? "AUTO" :
-        a->inherit_as == AS_ALIAS ? "ALIAS" :
         throw INTERNAL_ERROR
     ) << ") " << a->alloc_ts << "\n";
     
@@ -145,6 +144,11 @@ public:
     }
 
     virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
+        std::cerr << "Identity VT override " << get_fully_qualified_name() << " #" << vi << "\n";
+        
+        if (vi >= VT_HEADER_LOW_INDEX && vi < VT_HEADER_HIGH_INDEX)
+            throw INTERNAL_ERROR;
+            
         inner_scope->set_virtual_entry(vi, ve);
     }
 

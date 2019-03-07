@@ -7,6 +7,10 @@ public:
         name = n;
     }
 
+    virtual std::string get_fully_qualified_name() {
+        return outer_scope->fully_qualify(name);
+    }
+
     virtual TypeSpec get_pivot_ts() {
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
         

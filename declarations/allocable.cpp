@@ -13,7 +13,7 @@ public:
     }
 
     virtual bool is_abstract() {
-        return false;  // Interface implementations will override it
+        return false;  // Interface implementations will override it. And others.
     }
 
     virtual TypeSpec get_typespec(TypeMatch tm) {

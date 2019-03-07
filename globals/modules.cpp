@@ -28,42 +28,12 @@ public:
             ok = value_root->check_statement(expr_root);
         }
         
-        // Must complete the type first
-        //for (auto &c : module_scope->contents) {
-        //    GlobalVariable *g = ptr_cast<GlobalVariable>(c.get());
-        //    
-        //    if (g)
-        //        member_globals.push_back(g);
-        //}
-        
-        //std::cerr << "Module " << module_name << " has " << member_globals.size() << " globals.\n";
-
         ok = ok && value_root->define_data() && value_root->define_code();
     
         module_scope->leave();
 
         return ok;
     }
-    /*
-    virtual void collect_initializer_labels(std::vector<Label> &labels, X64 *x64) {
-        for (GlobalVariable *g : member_globals)
-            g->collect_initializer_labels(labels, x64);
-    }
-
-    virtual void collect_finalizer_labels(std::vector<Label> &labels, X64 *x64) {
-        for (GlobalVariable *g : member_globals)
-            g->collect_finalizer_labels(labels, x64);
-    }
-    
-    virtual GlobalVariable *get_main_global() {
-        for (GlobalVariable *g : member_globals) {
-            if (g->is_called("Main") && g->outer_scope == module_scope)
-                return g;
-        }
-        
-        return NULL;
-    }
-    */
 };
 
 

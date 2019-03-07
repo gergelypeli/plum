@@ -405,6 +405,11 @@ public:
             
         return get_root_scope()->get_global_storage() + offset.concretize();
     }
+
+    virtual std::string fully_qualify(std::string n) {
+        // Modules are not yet added to the root scope during typization, so no outer_scope
+        return name + QUALIFIER_NAME + n;
+    }
 };
 
 

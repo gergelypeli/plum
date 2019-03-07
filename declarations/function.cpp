@@ -266,7 +266,7 @@ public:
     }
 
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
-        return os << "FUNC " << function->name;
+        return os << "FUNC " << function->get_fully_qualified_name();
     }
 };
 

@@ -56,7 +56,7 @@ protected:
         }
     }
 
-    virtual Declaration *add_head_role(Scope *is, std::string name, TypeSpec main_ts, TypeSpec base_ts, InheritAs ia) {
+    virtual Associable *add_head_role(Scope *is, std::string name, TypeSpec main_ts, TypeSpec base_ts, InheritAs ia) {
         Associable *base_role = NULL, *main_role = NULL;
         bool is_explicit = (ia != AS_BASE);
         
@@ -349,7 +349,7 @@ public:
 class RoleDefinitionValue: public TypeDefinitionValue, public RoleCreator {
 public:
     InheritAs inherit_as;
-    TypeSpec implemented_ts, inherited_ts;
+    TypeSpec implemented_ts, inherited_ts, required_ts;
     Associable *aliased_target;
     bool is_concrete;
     
@@ -363,12 +363,13 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         DataScope *ds = ptr_cast<DataScope>(scope);
         is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
-        Expr *implemented_expr = NULL, *inherited_expr = NULL, *aliased_expr = NULL;
+        Expr *implemented_expr = NULL, *inherited_expr = NULL, *aliased_expr = NULL, *required_expr = NULL;
 
         ExprInfos eis = {
             { "", &implemented_expr },
             { "by", &inherited_expr },
-            { "of", &aliased_expr }
+            { "of", &aliased_expr },
+            { "require", &required_expr }
         };
         
         if (!check_exprs(args, kwargs, eis)) {
@@ -376,6 +377,25 @@ public:
             return false;
         }
 
+        if (aliased_expr) {
+            if (implemented_expr || inherited_expr || required_expr) {
+                std::cerr << "Whacky role aliasing!\n";
+                return false;
+            }
+        }
+        else if (required_expr) {
+            if (implemented_expr || inherited_expr) {
+                std::cerr << "Whacky role requiring!\n";
+                return false;
+            }
+        }
+        else {
+            if (!implemented_expr && !inherited_expr) {
+                std::cerr << "Neither inherited nor implemented type specified!\n";
+                return false;
+            }
+        }
+        
         if (implemented_expr) {
             // Implementation
             Value *v = typize(implemented_expr, scope, NULL);
@@ -418,6 +438,31 @@ public:
             
             delete v;
         }
+
+        if (required_expr) {
+            // Require
+            
+            if (!is_concrete) {
+                std::cerr << "Require is only allowed in Class scope!\n";
+                return false;
+            }
+            
+            Value *v = typize(required_expr, scope, NULL);
+    
+            if (!v->ts.is_meta()) {
+                std::cerr << "Required type name expected!\n";
+                return false;
+            }
+
+            required_ts = ptr_cast<TypeValue>(v)->represented_ts;
+        
+            if (!required_ts.has_meta(class_metatype)) {
+                std::cerr << "Required class name expected!\n";
+                return false;
+            }
+            
+            delete v;
+        }
         
         if (aliased_expr) {
             // Aliasing
@@ -453,19 +498,6 @@ public:
             }
         }
         
-        if (aliased_expr) {
-            if (implemented_expr || inherited_expr) {
-                std::cerr << "Whacky role aliasing!\n";
-                return false;
-            }
-        }
-        else {
-            if (!implemented_expr && !inherited_expr) {
-                std::cerr << "Neither inherited nor implemented type specified!\n";
-                return false;
-            }
-        }
-        
         return true;
     }
 
@@ -476,8 +508,15 @@ public:
                 scope->add(d);
                 return d;
             }
-            else if (is_concrete)
-                return add_head_role(scope, name, implemented_ts, inherited_ts, inherit_as);
+            else if (is_concrete) {
+                if (required_ts != NO_TS) {
+                    Associable *a = add_head_role(scope, name, NO_TS, required_ts, inherit_as);
+                    a->be_patch();
+                    return a;
+                }
+                else
+                    return add_head_role(scope, name, implemented_ts, inherited_ts, inherit_as);
+            }
             else {
                 Declaration *d = new Implementation(name, implemented_ts, inherit_as);
                 scope->add(d);

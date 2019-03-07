@@ -35,11 +35,12 @@ public:
     int virtual_index;  // of the entry that stores the data offset to the role
     Associable *original_associable;
     Associable *aliased_associable;
+    bool am_patch;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
+    std::vector<Function *> unpatched_functions;
     std::set<std::string> associated_names;
     DataScope *associating_scope;
-    //Lself *associated_lself;
     TypeMatch explicit_tm;
 
     Associable(std::string n, TypeSpec ts, InheritAs ia)
@@ -50,8 +51,8 @@ public:
         virtual_index = 0;
         original_associable = NULL;
         aliased_associable = NULL;
+        am_patch = false;
         associating_scope = NULL;
-        //associated_lself = NULL;
         explicit_tm = alloc_ts.match();
     }
 
@@ -63,8 +64,9 @@ public:
         virtual_index = 0;
         original_associable = original;
         aliased_associable = original->aliased_associable;
+        am_patch = original->am_patch;
+        unpatched_functions = original->unpatched_functions;
         associating_scope = NULL;
-        //associated_lself = NULL;
         explicit_tm = etm;
     }
 
@@ -95,7 +97,7 @@ public:
 
     virtual void inherit() {
         // Can't be called from this class constructor, because it needs an
-        // overridden virtual function 'shadow'.
+        // overridden virtual function make_shadow.
         
         Inheritable *i = original_associable;
         
@@ -129,21 +131,54 @@ public:
     }
 
     virtual bool alias(Associable *aa) {
-        if (aliased_associable)
+        if (!aa || aliased_associable)
             throw INTERNAL_ERROR;
             
-        inherit_as = AS_ALIAS;
         aliased_associable = aa;
         
         functions.clear();
-        shadow_associables.clear();
         
-        return true;  // TODO: check for dirty methods to abort compilation
+        for (unsigned i = 0; i < shadow_associables.size(); i++)
+            shadow_associables[i]->alias(aa->shadow_associables[i].get());
+        
+        return true;  // TODO: check for dirty methods to abort compilation (or patch them?)
+    }
+
+    virtual bool be_patch() {
+        am_patch = true;
+
+        // Make a backup to track changes
+        unpatched_functions = functions;
+        
+        for (unsigned i = 0; i < shadow_associables.size(); i++)
+            shadow_associables[i]->be_patch();
+        
+        return true;
+    }
+
+    virtual void patch(Associable *pa) {
+        if (!am_patch)
+            throw INTERNAL_ERROR;
+        
+        aliased_associable = pa;
+        
+        for (unsigned i = 0; i < functions.size(); i++) {
+            if (functions[i] != unpatched_functions[i]) {
+                std::cerr << "Patching function " << pa->get_fully_qualified_name() << " #" << i << " from " << get_fully_qualified_name() << "\n";
+                std::cerr << "Patching function " << pa->functions[i]->get_fully_qualified_name() << " with " << functions[i]->get_fully_qualified_name() << "\n";
+                pa->functions[i] = functions[i];
+            }
+        }
+        
+        for (unsigned i = 0; i < shadow_associables.size(); i++)
+            shadow_associables[i]->patch(pa->shadow_associables[i].get());
     }
 
     virtual int get_offset(TypeMatch tm) {
         if (aliased_associable)
             return aliased_associable->get_offset(tm);
+        else if (am_patch)
+            throw INTERNAL_ERROR;
         else
             return Allocable::get_offset(tm);
     }
@@ -203,7 +238,12 @@ public:
         for (auto &si : shadow_associables)
             si->outer_scope_left();
     }
-    
+
+    virtual Associable *get_explicit_associable() {
+        Associable *pa = ptr_cast<Associable>(parent);
+        return (pa ? pa->get_explicit_associable() : this);
+    }
+
     virtual void check_full_implementation() {
         // TODO: this requires all inherited methods to be implemented
         for (auto f : functions) {
@@ -211,6 +251,17 @@ public:
             
             if (f && f->is_abstract()) {
                 std::cerr << "Unimplemented function " << prefix + f->name << "!\n";
+                throw TYPE_ERROR;
+            }
+        }
+
+        if (am_patch && !aliased_associable) {
+            // This may be a problem, unless this is the patching class itself
+            Associable *ea = get_explicit_associable();
+        
+            if (!ea->am_patch) {
+                // Inherited from the patching role without aliasing the patch
+                std::cerr << "Unaliased patch role " << name << "!\n";
                 throw TYPE_ERROR;
             }
         }
@@ -421,6 +472,9 @@ public:
     }
     
     virtual std::string get_fully_qualified_name() {
+        if (outer_scope)
+            return Allocable::get_fully_qualified_name();
+            
         // TODO: this is currently used even when the outer scope-s are not all yet set up,
         // so fully_qualify fails.
         return associating_scope->name + QUALIFIER_NAME + name;
