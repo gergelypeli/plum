@@ -1,11 +1,11 @@
 
-class Aliasing: public Identifier {
+class Provision: public Identifier {
 public:
-    Associable *target;
+    Associable *provider_associable;
     
-    Aliasing(std::string n, Associable *t)
+    Provision(std::string n, Associable *pa)
         :Identifier(n) {
-        target = t;
+        provider_associable = pa;
     }
 };
 
@@ -34,8 +34,8 @@ public:
     InheritAs inherit_as;
     int virtual_index;  // of the entry that stores the data offset to the role
     Associable *original_associable;
-    Associable *aliased_associable;
-    bool am_patch;
+    Associable *provider_associable;
+    bool am_requiring;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
@@ -49,8 +49,8 @@ public:
         inherit_as = ia;
         virtual_index = 0;
         original_associable = NULL;
-        aliased_associable = NULL;
-        am_patch = false;
+        provider_associable = NULL;
+        am_requiring = false;
         associating_scope = NULL;
         explicit_tm = alloc_ts.match();
     }
@@ -62,8 +62,8 @@ public:
         inherit_as = original->inherit_as;
         virtual_index = 0;
         original_associable = original;
-        aliased_associable = original->aliased_associable;
-        am_patch = original->am_patch;
+        provider_associable = original->provider_associable;
+        am_requiring = original->am_requiring;
         associating_scope = NULL;
         explicit_tm = etm;
     }
@@ -128,43 +128,30 @@ public:
         funcs = functions;
     }
 
-    virtual bool alias(Associable *aa) {
-        if (!aa || aliased_associable)
+    virtual void require() {
+        if (am_requiring)
             throw INTERNAL_ERROR;
-            
-        aliased_associable = aa;
-        
-        functions.clear();
-        
+    
+        am_requiring = true;
+
         for (unsigned i = 0; i < shadow_associables.size(); i++)
-            shadow_associables[i]->alias(aa->shadow_associables[i].get());
-        
-        return true;  // TODO: check for dirty methods to abort compilation (or patch them?)
+            shadow_associables[i]->require();
     }
 
-    virtual bool be_patch() {
-        am_patch = true;
-
-        for (unsigned i = 0; i < shadow_associables.size(); i++)
-            shadow_associables[i]->be_patch();
-        
-        return true;
-    }
-
-    virtual void patch(Associable *pa) {
-        if (!am_patch)
+    virtual void provision(Associable *pa) {
+        if (!is_abstract() || provider_associable || !pa)
             throw INTERNAL_ERROR;
         
-        aliased_associable = pa;
+        provider_associable = pa;
 
         for (unsigned i = 0; i < shadow_associables.size(); i++)
-            shadow_associables[i]->patch(pa->shadow_associables[i].get());
+            shadow_associables[i]->provision(pa->shadow_associables[i].get());
     }
 
     virtual int get_offset(TypeMatch tm) {
-        if (aliased_associable)
-            return aliased_associable->get_offset(tm);
-        else if (am_patch)
+        if (provider_associable)
+            return provider_associable->get_offset(tm);
+        else if (am_requiring)
             throw INTERNAL_ERROR;
         else
             return Allocable::get_offset(tm);
@@ -236,17 +223,17 @@ public:
         for (auto f : functions) {
             // There can be NULL-s here for methods implemented by non-function builtins
             
-            if (f && f->is_abstract()) {
+            if (f && f->is_abstract() && !provider_associable) {
                 std::cerr << "Unimplemented function " << prefix + f->name << "!\n";
                 throw TYPE_ERROR;
             }
         }
 
-        if (am_patch && !aliased_associable) {
+        if (am_requiring && !provider_associable) {
             // This may be a problem, unless this is the patching class itself
             Associable *ea = get_explicit_associable();
         
-            if (!ea->am_patch) {
+            if (!ea->am_requiring) {
                 // Inherited from the patching role without aliasing the patch
                 std::cerr << "Unaliased patch role " << name << "!\n";
                 throw TYPE_ERROR;
@@ -293,16 +280,20 @@ public:
         if (!deprefix(override_name, prefix))
             throw INTERNAL_ERROR;
 
-        Aliasing *aliasing = ptr_cast<Aliasing>(d);
+        if (override_name.find(QUALIFIER_NAME) != std::string::npos)
+            throw INTERNAL_ERROR;  // this role must be the exact role for d
+
+        Provision *provision = ptr_cast<Provision>(d);
         
-        if (aliasing) {
+        if (provision) {
             for (unsigned i = 0; i < shadow_associables.size(); i++) {
                 if (override_name == unqualify(shadow_associables[i]->name)) {
-                    return shadow_associables[i]->alias(aliasing->target);
+                    shadow_associables[i]->provision(provision->provider_associable);
+                    return true;
                 }
             }
             
-            std::cerr << "No aliasing role!\n";
+            std::cerr << "No role " << id->name << " to provision!\n";
             return false;
         }
 

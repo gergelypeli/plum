@@ -297,7 +297,7 @@ public:
     }
 
     virtual bool is_abstract() {
-        return ptr_cast<InterfaceType>(alloc_ts[0]) != NULL || am_patch;
+        return ptr_cast<InterfaceType>(alloc_ts[0]) != NULL || am_requiring;
     }
 
     virtual Associable *make_shadow(Associable *original) {
@@ -315,7 +315,7 @@ public:
 
     virtual devector<VirtualEntry *> get_virtual_table_fragment() {
         // Called on explicit roles only
-        if (aliased_associable)
+        if (provider_associable)
             throw INTERNAL_ERROR;
         else if (inherit_as == AS_BASE || inherit_as == AS_MAIN)
             return alloc_ts.get_virtual_table();  // FIXME: subst!
@@ -324,7 +324,7 @@ public:
     }
 
     virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
-        if (aliased_associable)
+        if (provider_associable)
             throw INTERNAL_ERROR;
         if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             // These roles don't store the VT
@@ -362,16 +362,16 @@ public:
         if (!br)
             throw TYPE_ERROR;
     
-        std::cerr << "Auto-patching base " << br->name << " with " << name << "\n";
-        patch(br);
+        std::cerr << "Auto-provisioning " << name << " with base " << br->name << "\n";
+        provision(br);
     }
 
     virtual void check_full_implementation() {
-        if (am_patch && !aliased_associable) {
+        if (am_requiring && !provider_associable) {
             // This may be a problem, unless this is the patching class itself
             Associable *ea = get_explicit_associable();
         
-            if (!ea->am_patch)
+            if (!ea->am_requiring)
                 patch_base();
         }
             
@@ -394,7 +394,7 @@ public:
             // reserve the data themselves, but the class does it for them.
         }
         else {
-            if (aliased_associable) {
+            if (provider_associable) {
                 // No need to set offset, the aliased will be used
             }
             else {
@@ -435,10 +435,10 @@ public:
             // Shadow roles never allocate data, as the explicit role already did that
             // Offset within the current class, in terms of its type parameters
             
-            if (aliased_associable) {
+            if (provider_associable) {
                 // No need to set offset, the aliased will be used
                 
-                if (am_patch) {
+                if (am_requiring) {
                     // Patch aliased virtual table
                     devector<VirtualEntry *> ovt = original_associable->get_virtual_table_fragment();
                     
@@ -446,7 +446,7 @@ public:
                         if (functions[i]->associated == original_associable) {
                             // This function was patched in the original role
                             int vi = functions[i]->virtual_index;
-                            Associable *pa = aliased_associable;
+                            Associable *pa = provider_associable;
                             std::cerr << "Patching VT " << pa->get_fully_qualified_name() << " #" << vi << " from " << get_fully_qualified_name() << "\n";
                             pa->override_virtual_entry(vi, ovt.get(vi));
                         }
@@ -485,7 +485,7 @@ public:
     }
 
     virtual void compile_vt(TypeMatch tm, X64 *x64) {
-        if (aliased_associable)
+        if (provider_associable)
             ;  // vt_label is unused
         else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             ;
@@ -500,7 +500,7 @@ public:
     }
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
-        if (aliased_associable) {
+        if (provider_associable) {
             ;  // Aliases are initialized when the aliased role is initialized
         }
         else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
@@ -516,7 +516,7 @@ public:
     }
 
     virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm) {
-        if (aliased_associable)
+        if (provider_associable)
             throw INTERNAL_ERROR;
             
         std::vector<AutoconvEntry> act;
@@ -532,7 +532,7 @@ public:
     }
     
     virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64) {
-        if (aliased_associable)
+        if (provider_associable)
             throw INTERNAL_ERROR;
         else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
             throw INTERNAL_ERROR;
@@ -542,7 +542,7 @@ public:
     }
 
     void compile_act(TypeMatch tm, X64 *x64) {
-        if (aliased_associable) {
+        if (provider_associable) {
             // act_label is unused
         }
         else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {

@@ -350,25 +350,25 @@ class RoleDefinitionValue: public TypeDefinitionValue, public RoleCreator {
 public:
     InheritAs inherit_as;
     TypeSpec implemented_ts, inherited_ts, required_ts;
-    Associable *aliased_target;
+    Associable *provider_associable;
     bool is_concrete;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
         :TypeDefinitionValue() {
         inherit_as = ia;
         is_concrete = false;
-        aliased_target = NULL;
+        provider_associable = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         DataScope *ds = ptr_cast<DataScope>(scope);
         is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
-        Expr *implemented_expr = NULL, *inherited_expr = NULL, *aliased_expr = NULL, *required_expr = NULL;
+        Expr *implemented_expr = NULL, *inherited_expr = NULL, *provider_expr = NULL, *required_expr = NULL;
 
         ExprInfos eis = {
             { "", &implemented_expr },
             { "by", &inherited_expr },
-            { "of", &aliased_expr },
+            { "of", &provider_expr },
             { "require", &required_expr }
         };
         
@@ -377,7 +377,7 @@ public:
             return false;
         }
 
-        if (aliased_expr) {
+        if (provider_expr) {
             if (implemented_expr || inherited_expr || required_expr) {
                 std::cerr << "Whacky role aliasing!\n";
                 return false;
@@ -464,7 +464,7 @@ public:
             delete v;
         }
         
-        if (aliased_expr) {
+        if (provider_expr) {
             // Aliasing
             
             if (!is_concrete) {
@@ -472,12 +472,12 @@ public:
                 return false;
             }
             
-            if (aliased_expr->type != Expr::IDENTIFIER) {
+            if (provider_expr->type != Expr::IDENTIFIER) {
                 std::cerr << "Aliased role identifier expected!\n";
                 return false;
             }
             
-            std::string name = aliased_expr->text;
+            std::string name = provider_expr->text;
             
             for (auto &d : ds->contents) {
                 Associable *able = ptr_cast<Associable>(d.get());
@@ -486,14 +486,14 @@ public:
                     Associable *a = able->lookup_associable(name);
                 
                     if (a) {
-                        aliased_target = a;
+                        provider_associable = a;
                         break;
                     }
                 }
             }
 
-            if (!aliased_target) {
-                std::cerr << "Unknown aliased role!\n";
+            if (!provider_associable) {
+                std::cerr << "Unknown provider role!\n";
                 return false;
             }
         }
@@ -503,15 +503,15 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE) {
-            if (aliased_target) {
-                Declaration *d = new Aliasing(name, aliased_target);
+            if (provider_associable) {
+                Declaration *d = new Provision(name, provider_associable);
                 scope->add(d);
                 return d;
             }
             else if (is_concrete) {
                 if (required_ts != NO_TS) {
                     Associable *a = add_head_role(scope, name, NO_TS, required_ts, inherit_as);
-                    a->be_patch();
+                    a->require();
                     return a;
                 }
                 else
