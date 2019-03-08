@@ -957,6 +957,68 @@ public:
 };
 
 
+class ImplementationDefinitionValue: public TypeDefinitionValue {
+public:
+    InheritAs inherit_as;
+    TypeSpec interface_ts;
+    bool is_concrete;
+    
+    ImplementationDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_AUTO)
+        :TypeDefinitionValue() {
+        inherit_as = ia;
+        is_concrete = false;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        DataScope *ds = ptr_cast<DataScope>(scope);
+        is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
+        Expr *interface_expr = NULL;
+
+        ExprInfos eis = {
+            { "", &interface_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
+            std::cerr << "Whacky implementation!\n";
+            return false;
+        }
+
+        if (interface_expr) {
+            // Implementation
+            Value *v = typize(interface_expr, scope, NULL);
+    
+            if (!v->ts.is_meta()) {
+                std::cerr << "Implemented type name expected!\n";
+                return false;
+            }
+
+            interface_ts = ptr_cast<TypeValue>(v)->represented_ts;
+        
+            if (!interface_ts.has_meta(interface_metatype)) {
+                std::cerr << "Implemented interface name expected!\n";
+                return false;
+            }
+            
+            delete v;
+        }
+        else
+            return false;
+        
+        return true;
+    }
+
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE) {
+            Declaration *d = new Implementation(name, interface_ts, inherit_as);
+            scope->add(d);
+            return d;
+        }
+        else
+            return NULL;
+    }
+};
+
+
 // TODO: this is not strictly a type definition
 
 class FunctorDefinitionValue: public TypeDefinitionValue {

@@ -243,7 +243,7 @@ App? :Class Application as:
         dump? :Function as:
             Std prints("Pair({x}, {y})" { x: $ first, y: $ second })
 
-        sable? :Auto Streamifiable
+        sable? :Implementation Streamifiable
 
         sable.streamify? :Function from: stream? String Lvalue as:
             stream += "({},{})" { $ first, $ second }
@@ -273,7 +273,7 @@ App? :Class Application as:
             $ current = -1
             $ limit = n
         
-        itor? :Auto Integer Iterator
+        itor? :Implementation Integer Iterator
 
         itor.next? :Procedure Integer may: Iterator_done_exception as:
             $ current += 1
@@ -283,7 +283,7 @@ App? :Class Application as:
             
             :return $ current
         
-        ible? :Auto Integer Iterable
+        ible? :Implementation Integer Iterable
     
         ible.iter? :Function XCounter as:
             :return $
@@ -299,7 +299,7 @@ App? :Class Application as:
             $ string = s
             $ index = -1
 
-        itor? :Auto Character Iterator
+        itor? :Implementation Character Iterator
     
         itor.next? :Procedure Character may: Iterator_done_exception as:
             $ index += 1
@@ -752,7 +752,6 @@ App? :Class Application as:
     
 
     Basic_derived? :Class Derived by: Basic_base as:
-        #base? :Role by: Basic_base
         derived_value? Integer
     
         derived_init? :Initializer as:
@@ -817,7 +816,7 @@ App? :Class Application as:
         left? :Role Property
         right? :Role Property
 
-        sable? :Auto Streamifiable
+        sable? :Implementation Streamifiable
 
     Basic_greetable? :Class Greetable by: Basic_derived as:
         left? :Role by: Basic_property
