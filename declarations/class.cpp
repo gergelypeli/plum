@@ -443,8 +443,9 @@ public:
                     devector<VirtualEntry *> ovt = original_associable->get_virtual_table_fragment();
                     
                     for (unsigned i = 0; i < functions.size(); i++) {
-                        if (functions[i] != unpatched_functions[i]) {
-                            int vi = i + VT_HEADER_HIGH_INDEX;
+                        if (functions[i]->associated == original_associable) {
+                            // This function was patched in the original role
+                            int vi = functions[i]->virtual_index;
                             Associable *pa = aliased_associable;
                             std::cerr << "Patching VT " << pa->get_fully_qualified_name() << " #" << vi << " from " << get_fully_qualified_name() << "\n";
                             pa->override_virtual_entry(vi, ovt.get(vi));

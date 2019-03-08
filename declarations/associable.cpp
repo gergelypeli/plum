@@ -38,7 +38,6 @@ public:
     bool am_patch;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
-    std::vector<Function *> unpatched_functions;
     std::set<std::string> associated_names;
     DataScope *associating_scope;
     TypeMatch explicit_tm;
@@ -65,7 +64,6 @@ public:
         original_associable = original;
         aliased_associable = original->aliased_associable;
         am_patch = original->am_patch;
-        unpatched_functions = original->unpatched_functions;
         associating_scope = NULL;
         explicit_tm = etm;
     }
@@ -147,9 +145,6 @@ public:
     virtual bool be_patch() {
         am_patch = true;
 
-        // Make a backup to track changes
-        unpatched_functions = functions;
-        
         for (unsigned i = 0; i < shadow_associables.size(); i++)
             shadow_associables[i]->be_patch();
         
@@ -161,15 +156,7 @@ public:
             throw INTERNAL_ERROR;
         
         aliased_associable = pa;
-        
-        for (unsigned i = 0; i < functions.size(); i++) {
-            if (functions[i] != unpatched_functions[i]) {
-                std::cerr << "Patching function " << pa->get_fully_qualified_name() << " #" << i << " from " << get_fully_qualified_name() << "\n";
-                std::cerr << "Patching function " << pa->functions[i]->get_fully_qualified_name() << " with " << functions[i]->get_fully_qualified_name() << "\n";
-                pa->functions[i] = functions[i];
-            }
-        }
-        
+
         for (unsigned i = 0; i < shadow_associables.size(); i++)
             shadow_associables[i]->patch(pa->shadow_associables[i].get());
     }
