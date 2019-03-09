@@ -282,7 +282,7 @@ public:
     }
 
     virtual Allocation measure_identity(TypeMatch tm) {
-        std::cerr << "Unmeasurableidenity type: " << name << "!\n";
+        std::cerr << "Unmeasurableidentity type: " << name << "!\n";
         throw INTERNAL_ERROR;
     }
 

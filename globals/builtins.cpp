@@ -85,10 +85,13 @@ void builtin_types(Scope *root_scope) {
     record_metatype = new MetaType("Record", { value_metatype }, make<RecordDefinitionValue>);
     colon_scope->add(record_metatype);
 
+    abstract_metatype = new MetaType("Abstract", { identity_metatype }, make<AbstractDefinitionValue>);
+    colon_scope->add(abstract_metatype);
+
     class_metatype = new MetaType("Class", { identity_metatype }, make<ClassDefinitionValue>);
     colon_scope->add(class_metatype);
 
-    interface_metatype = new MetaType("Interface", { value_metatype, identity_metatype }, make<InterfaceDefinitionValue>);
+    interface_metatype = new MetaType("Interface", { value_metatype }, make<InterfaceDefinitionValue>);
     colon_scope->add(interface_metatype);
 
     import_metatype = new MetaType("Import", { type_metatype }, make<ImportDefinitionValue>);
@@ -223,7 +226,7 @@ void builtin_types(Scope *root_scope) {
     iterable_type = new InterfaceType("Iterable", { value_metatype });
     root_scope->add(iterable_type);
 
-    application_type = new InterfaceType("Application", {});
+    application_type = new AbstractType("Application", {});
     root_scope->add(application_type);
 
     iterator_done_exception_type = make_treenum("Iterator_done_exception", "ITERATOR_DONE");
@@ -586,7 +589,7 @@ void define_float() {
 
 void define_interfaces() {
     // Streamifiable interface
-    TypeSpec spts = STREAMIFIABLE_TS.prefix(ptr_type);
+    TypeSpec spts = STREAMIFIABLE_TS;
     DataScope *sis = streamifiable_type->make_inner_scope();
     Function *sf = new Function("streamify",
         GENERIC_FUNCTION,
@@ -601,7 +604,7 @@ void define_interfaces() {
     sis->leave();
     
     // Iterable interface
-    TypeSpec jpts = ANY_ITERABLE_TS.prefix(ptr_type);
+    TypeSpec jpts = ANY_ITERABLE_TS;
     DataScope *jis = iterable_type->make_inner_scope();
     Function *xf = new Function("iter",
         GENERIC_FUNCTION,
@@ -616,7 +619,7 @@ void define_interfaces() {
     jis->leave();
 
     // Iterator interface
-    TypeSpec ipts = ANY_ITERATOR_TS.prefix(ptr_type);
+    TypeSpec ipts = ANY_ITERATOR_TS;
     DataScope *iis = iterator_type->make_inner_scope();
     Function *nf = new Function("next",
         LVALUE_FUNCTION,
@@ -631,7 +634,7 @@ void define_interfaces() {
     iterator_type->complete_type();
     iis->leave();
     
-    // Application interface
+    // Application abstract
     TypeSpec apts = { ptr_type, application_type };
     DataScope *ais = application_type->make_inner_scope();
     Function *tf = new Function("start",

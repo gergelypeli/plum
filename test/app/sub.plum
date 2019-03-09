@@ -1,4 +1,4 @@
-Sub_interface? :Interface
+Sub_interface? :Abstract
 
 Sub_implementation? :Class Sub_interface as:
     sub_value? Integer

@@ -407,8 +407,8 @@ public:
 
             implemented_ts = ptr_cast<TypeValue>(v)->represented_ts;
         
-            if (!implemented_ts.has_meta(interface_metatype)) {
-                std::cerr << "Implemented interface name expected!\n";
+            if (!implemented_ts.has_meta(abstract_metatype)) {
+                std::cerr << "Implemented abstract name expected!\n";
                 return false;
             }
             
@@ -508,20 +508,13 @@ public:
                 scope->add(d);
                 return d;
             }
-            else if (is_concrete) {
-                if (required_ts != NO_TS) {
-                    Associable *a = add_head_role(scope, name, NO_TS, required_ts, inherit_as);
-                    a->require();
-                    return a;
-                }
-                else
-                    return add_head_role(scope, name, implemented_ts, inherited_ts, inherit_as);
+            else if (required_ts != NO_TS) {
+                Associable *a = add_head_role(scope, name, NO_TS, required_ts, inherit_as);
+                a->require();
+                return a;
             }
-            else {
-                Declaration *d = new Implementation(name, implemented_ts, inherit_as);
-                scope->add(d);
-                return d;
-            }
+            else
+                return add_head_role(scope, name, implemented_ts, inherited_ts, inherit_as);
         }
         else
             return NULL;
@@ -655,7 +648,7 @@ public:
             return false;
         }
 
-        main_ts = typize_typespec(main_expr, scope, interface_metatype);
+        main_ts = typize_typespec(main_expr, scope, abstract_metatype);
         if (main_ts == NO_TS)
             return false;
             
@@ -832,6 +825,62 @@ public:
 };
 
 
+class AbstractDefinitionValue: public ScopedTypeDefinitionValue {
+public:
+    Expr *base_expr;
+
+    AbstractDefinitionValue()
+        :ScopedTypeDefinitionValue() {
+        base_expr = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        Expr *as_expr = NULL;
+        
+        ExprInfos eis = {
+            { "", &base_expr },
+            { "as", &as_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
+            std::cerr << "Whacky abstract!\n";
+            return false;
+        }
+
+        defer_as(as_expr);
+            
+        std::cerr << "Deferring abstract definition.\n";
+        return true;
+    }
+
+    virtual bool define_data_prehook() {
+        Scope *is = defined_type->get_inner_scope();
+        
+        if (base_expr) {
+            TypeSpec base_ts = typize_typespec(base_expr, is, abstract_metatype);
+        
+            if (base_ts == NO_TS) {
+                std::cerr << "Base abstract name expected!\n";
+                return false;
+            }
+
+            is->add(new Role("", base_ts, AS_BASE));
+        }
+
+        return true;
+    }
+
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
+            Type *t = new AbstractType(name, Metatypes {});
+            return define(t, scope);
+        }
+        else
+            return NULL;
+    }
+};
+
+
 class ClassDefinitionValue: public ScopedTypeDefinitionValue, public RoleCreator {
 public:
     Expr *base_expr;
@@ -876,10 +925,10 @@ public:
         TypeSpec main_ts, base_ts;
         
         if (main_expr) {
-            main_ts = typize_typespec(main_expr, is, interface_metatype);
+            main_ts = typize_typespec(main_expr, is, abstract_metatype);
         
             if (main_ts == NO_TS) {
-                std::cerr << "Main interface name expected!\n";
+                std::cerr << "Main abstract name expected!\n";
                 return false;
             }
         }
@@ -901,6 +950,7 @@ public:
 };
 
 
+// TODO: allow users define Interfaces?
 class InterfaceDefinitionValue: public ScopedTypeDefinitionValue {
 public:
     Expr *base_expr;
@@ -1086,10 +1136,10 @@ public:
         DataScope *is = class_type->get_inner_scope();
         
         // Add main role
-        TypeSpec main_ts = typize_typespec(main_expr, scope, interface_metatype);
+        TypeSpec main_ts = typize_typespec(main_expr, scope, abstract_metatype);
         
         if (main_ts == NO_TS) {
-            std::cerr << "Functor interface name expected!\n";
+            std::cerr << "Functor abstract name expected!\n";
             return false;
         }
 

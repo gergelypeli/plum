@@ -37,27 +37,112 @@ static void compile_autoconv_table(const std::vector<AutoconvEntry> &act, TypeMa
 }
 
 
-class ClassType: public IdentityType, public Autoconvertible {
+class IdentityType: public Type, public Inheritable, public PartialInitializable {
 public:
-    AutoconvVirtualEntry *autoconv_ve;
-    FfwdVirtualEntry *fastforward_ve;
+    std::vector<Allocable *> member_allocables;
+    std::vector<std::string> member_names;
+    
+    std::vector<Function *> member_functions;
+    std::vector<Associable *> member_associables;
+    std::vector<Declaration *> member_initializers;
+    std::vector<Declaration *> member_procedures;
 
-    ClassType(std::string name, Metatypes param_metatypes)
-        :IdentityType(name, param_metatypes, class_metatype, false) {
-        autoconv_ve = NULL;
-        fastforward_ve = NULL;
+    bool is_abstract;
+    Function *finalizer_function;
+
+    IdentityType(std::string n, Metatypes pmts, MetaType *mt, bool ia)
+        :Type(n, pmts, mt) {
+        is_abstract = ia;
+        finalizer_function = NULL;
+    }
+
+    virtual TypeSpec make_pivot_ts() {
+        return Type::make_pivot_ts().prefix(ptr_type);
+    }
+
+    virtual DataScope *make_inner_scope() {
+        DataScope *is = Type::make_inner_scope();
+
+        is->be_virtual_scope();
+        
+        if (is_abstract)
+            is->be_abstract_scope();
+        
+        return is;
     }
 
     virtual bool complete_type() {
-        if (!IdentityType::complete_type())
-            return false;
-            
-        if (initializer_scope)
-            transplant_initializers(member_initializers);
+        for (auto &c : inner_scope->contents) {
+            Allocable *a = ptr_cast<Allocable>(c.get());
 
-        if (lvalue_scope)
-            transplant_procedures(member_procedures);
-            
+            if (a && !a->is_abstract()) {
+                member_allocables.push_back(a);
+                member_names.push_back(a->name);
+            }
+
+            Associable *s = ptr_cast<Associable>(c.get());
+
+            if (s) {
+                s->set_parent(this);
+
+                if (s->is_mainconv()) {
+                    if (member_associables.size()) {
+                        std::cerr << "Multiple main roles!\n";
+                        throw INTERNAL_ERROR;
+                    }
+                    
+                    if (is_abstract)
+                        throw INTERNAL_ERROR;
+                }
+                else if (s->is_baseconv()) {
+                    if (member_associables.size()) {
+                        std::cerr << "Multiple base roles!\n";
+                        return false;
+                    }
+                }
+
+                member_associables.push_back(s);
+
+                if (!is_abstract)
+                    s->check_full_implementation();
+
+                dump_associable(s, 1);
+            }
+
+            Function *f = ptr_cast<Function>(c.get());
+
+            if (f && f->type == FINALIZER_FUNCTION) {
+                if (is_abstract) {
+                    std::cerr << "Finalizer in abstract type!\n";
+                    return false;
+                }
+                
+                if (finalizer_function) {
+                    std::cerr << "Multiple finalizers!\n";
+                    return false;
+                }
+
+                finalizer_function = f;
+            }
+
+            if (f && f->type == INITIALIZER_FUNCTION) {
+                if (is_abstract) {
+                    std::cerr << "Initializer in abstract type!\n";
+                    return false;
+                }
+
+                member_initializers.push_back(f);
+            }
+
+            if (f && f->type == LVALUE_FUNCTION)
+                member_procedures.push_back(f);  // for transplanting only
+
+            if (f && (f->type == GENERIC_FUNCTION || f->type == LVALUE_FUNCTION))
+                member_functions.push_back(f);
+        }
+
+        std::cerr << "Class " << name << " has " << member_allocables.size() << " member variables.\n";
+
         return true;
     }
 
@@ -74,11 +159,33 @@ public:
         while (true) {
             if (role->is_mainconv())
                 return role;
-            else if (role->is_baseconv())
+            else if (role->is_baseconv() && role->shadow_associables.size())
                 role = role->shadow_associables[0].get();
             else
                 return NULL;
         }
+    }
+
+    virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs) {
+        assocs = member_associables;
+        funcs = member_functions;
+    }
+    
+    virtual Allocation measure(TypeMatch tm) {
+        std::cerr << "This is probably an error, shouldn't measure an identity type!\n";
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Allocation measure_identity(TypeMatch tm) {
+        return inner_scope->get_size(tm);
+    }
+
+    virtual std::vector<std::string> get_member_names() {
+        return member_names;
+    }
+
+    virtual devector<VirtualEntry *> allocate_vt() {
+        throw INTERNAL_ERROR;
     }
 
     virtual void allocate() {
@@ -93,12 +200,7 @@ public:
         if (offset.concretize() != 0)
             throw INTERNAL_ERROR;
 
-        autoconv_ve = new AutoconvVirtualEntry(this);
-        fastforward_ve = new FfwdVirtualEntry(Allocation(0));
-
-        devector<VirtualEntry *> vt;
-        vt.append(autoconv_ve);
-        vt.append(fastforward_ve);
+        devector<VirtualEntry *> vt = allocate_vt();
         
         if (base_role) {
             // Even if we may have ripped the main from the base, the VT may still
@@ -127,7 +229,163 @@ public:
         inner_scope->virtual_initialize(vt);
 
         // Function overrides in virtual tables only happen here
-        IdentityType::allocate();
+        Type::allocate();
+    }
+
+    virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
+        std::cerr << "Identity VT override " << get_fully_qualified_name() << " #" << vi << "\n";
+        
+        if (vi >= VT_HEADER_LOW_INDEX && vi < VT_HEADER_HIGH_INDEX)
+            throw INTERNAL_ERROR;
+            
+        inner_scope->set_virtual_entry(vi, ve);
+    }
+
+    virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm) {
+        return inner_scope->get_virtual_table();
+    }
+
+    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
+        Register q = (r == R10 ? R11 : R10);
+        
+        x64->op(MOVQ, q, Address(r, CLASS_VT_OFFSET));
+        x64->op(MOVQ, q, Address(q, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+        x64->op(ADDQ, q, r);
+        
+        x64->runtime->incref(q);
+    }
+
+    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
+        Register q = (r == R10 ? R11 : R10);
+        
+        x64->op(MOVQ, q, Address(r, CLASS_VT_OFFSET));
+        x64->op(MOVQ, q, Address(q, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+        x64->op(ADDQ, q, r);
+        
+        x64->runtime->decref(q);
+    }
+
+    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+        // NOTE: unlike with Implementation, we cannot just delegate the job to an
+        // Associable, because we may have a direct Streamifiable Ptr pivot.
+        
+        // The pivot is on the stack as rvalue, and the stream as lvalue.
+        //int method_vi = ptr_cast<Function>(ptr_cast<Type>(streamifiable_type)->get_inner_scope()->contents[0].get())->virtual_index;
+        /*
+        if (this == ptr_cast<AbstractType>(streamifiable_type)) {
+            // Streamifiable role pivot, invoke method directly
+            x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
+            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // sable VT
+            x64->op(CALL, Address(R11, method_vi * ADDRESS_SIZE));  // select method
+            return;
+        }
+        */
+        // Try autoconv
+        Associable *streamifiable_associable = NULL;
+            
+        for (auto a : member_associables) {
+            streamifiable_associable = a->autoconv_streamifiable(tm);
+                
+            if (streamifiable_associable)
+                break;
+        }
+
+        if (streamifiable_associable) {
+            streamifiable_associable->streamify(tm, x64);
+            /*
+            int role_vi = streamifiable_associable->virtual_index;
+
+            x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
+            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // VT
+            x64->op(ADDQ, R10, Address(R11, role_vi * ADDRESS_SIZE));  // select role
+            x64->op(MOVQ, Address(RSP, ALIAS_SIZE), R10);  // technically illegal
+            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // sable VT
+            x64->op(CALL, Address(R11, method_vi * ADDRESS_SIZE));  // select method
+            */
+            return;
+        }
+        
+        // We do this for identity types that don't implement Streamifiable
+        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+        x64->op(MOVQ, RSI, Address(RSP, 0));
+    
+        x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
+    }
+
+    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
+        return make<ClassMatcherValue>(n, v);
+    }
+
+    virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
+        std::cerr << "Identity " << name << " inner lookup " << n << ".\n";
+        Value *value = Type::lookup_inner(tm, n, v, s);
+        Associable *base_role = get_base_role();
+        
+        if (!value && base_role) {
+            std::cerr << "Not found, looking up in base role.\n";
+            TypeSpec ts = base_role->get_typespec(tm);
+            value = ts.lookup_inner(n, v, s);
+        }
+
+        return value;
+    }
+};
+
+
+class AbstractType: public IdentityType {
+public:
+    AbstractType(std::string name, Metatypes param_metatypes)
+        :IdentityType(name, param_metatypes, abstract_metatype, true) {
+    }
+
+    virtual devector<VirtualEntry *> allocate_vt() {
+        devector<VirtualEntry *> vt;
+
+        // Abstracts are not supposed to compile their own VT
+        vt.append(NULL);
+        vt.append(NULL);
+
+        return vt;
+    }
+
+    virtual Label get_interface_table_label(TypeMatch tm, X64 *x64) {
+        return x64->once->compile(compile_ift, tm[0]);
+    }
+
+    static void compile_ift(Label label, TypeSpec ts, X64 *x64) {
+        std::cerr << "Compiling interface table for " << ts << "\n";
+        std::string symbol = ts.symbolize() + "_interface_table";
+
+        // We only need this for dynamic type casts
+        x64->data_align(8);
+        x64->data_label_local(label, symbol);
+        x64->data_qword(0);
+    }
+};
+
+
+class ClassType: public IdentityType, public Autoconvertible {
+public:
+    AutoconvVirtualEntry *autoconv_ve;
+    FfwdVirtualEntry *fastforward_ve;
+
+    ClassType(std::string name, Metatypes param_metatypes)
+        :IdentityType(name, param_metatypes, class_metatype, false) {
+        autoconv_ve = NULL;
+        fastforward_ve = NULL;
+    }
+
+    virtual bool complete_type() {
+        if (!IdentityType::complete_type())
+            return false;
+            
+        if (initializer_scope)
+            transplant_initializers(member_initializers);
+
+        if (lvalue_scope)
+            transplant_procedures(member_procedures);
+            
+        return true;
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
@@ -182,6 +440,17 @@ public:
         return NULL;
     }
 
+    virtual devector<VirtualEntry *> allocate_vt() {
+        autoconv_ve = new AutoconvVirtualEntry(this);
+        fastforward_ve = new FfwdVirtualEntry(Allocation(0));
+
+        devector<VirtualEntry *> vt;
+        vt.append(autoconv_ve);
+        vt.append(fastforward_ve);
+        
+        return vt;
+    }
+
     virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm) {
         std::vector<AutoconvEntry> act;
 
@@ -209,7 +478,6 @@ public:
         for (auto &r : ct->member_associables)
             r->compile_act(tm, x64);
     }
-
 
     virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64) {
         return x64->once->compile(compile_vt, tm[0]);
@@ -262,16 +530,7 @@ public:
             return initializer_scope->lookup(n, v, s);
         }
         
-        std::cerr << "Class " << name << " inner lookup " << n << ".\n";
-        Value *value = IdentityType::lookup_inner(tm, n, v, s);
-        Associable *base_role = get_base_role();
-        
-        if (!value && base_role) {
-            TypeSpec ts = base_role->get_typespec(tm);
-            value = ts.lookup_inner(n, v, s);
-        }
-
-        return value;
+        return IdentityType::lookup_inner(tm, n, v, s);
     }
 };
 
@@ -297,11 +556,11 @@ public:
     }
 
     virtual bool is_abstract() {
-        return ptr_cast<InterfaceType>(alloc_ts[0]) != NULL || am_requiring;
+        return ptr_cast<AbstractType>(alloc_ts[0]) != NULL || am_requiring;
     }
 
-    virtual Associable *make_shadow(Associable *original) {
-        return new Role(prefix, original, explicit_tm);
+    virtual Associable *make_shadow(std::string prefix, TypeMatch explicit_tm) {
+        return new Role(prefix, this, explicit_tm);
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {

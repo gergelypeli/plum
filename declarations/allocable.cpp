@@ -384,6 +384,9 @@ public:
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
         throw INTERNAL_ERROR;
     }
+    
+    virtual ~VirtualEntry() {
+    }
 };
 
 

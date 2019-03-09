@@ -178,6 +178,7 @@ MetaType *enumeration_metatype = NULL;
 MetaType *treenumeration_metatype = NULL;
 MetaType *integer_metatype = NULL;
 MetaType *record_metatype = NULL;
+MetaType *abstract_metatype = NULL;
 MetaType *class_metatype = NULL;
 MetaType *singleton_metatype = NULL;
 MetaType *interface_metatype = NULL;
@@ -263,7 +264,7 @@ TreenumerationType *errno_exception_type = NULL;
 InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;
 InterfaceType *iterable_type = NULL;
-InterfaceType *application_type = NULL;
+AbstractType *application_type = NULL;
 
 TypeSpec HYPERTYPE_TS;
 TypeSpec NO_TS;

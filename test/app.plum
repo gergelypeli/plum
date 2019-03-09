@@ -204,7 +204,7 @@ App? :Class Application as:
         Std printi($ g)
 
 
-    Pairs_interface? :Interface as:
+    Pairs_interface? :Abstract as:
         make_pair? :Function Pair
         print_pair? :Function from:
             p? Pair Ovalue
@@ -721,7 +721,7 @@ App? :Class Application as:
 
 
 #Test_classes? :Singleton as:
-    Base? :Interface as:
+    Base? :Abstract as:
         the_base_method? :Function
     
 
@@ -747,7 +747,7 @@ App? :Class Application as:
             Std prints("The base is finalized.")
 
 
-    Derived? :Interface Base as:
+    Derived? :Abstract Base as:
         the_derived_method? :Function
     
 
@@ -774,11 +774,11 @@ App? :Class Application as:
             Std prints("The derived is finalized.")
         
         
-    Intval? :Interface as:
+    Intval? :Abstract as:
         get? :Function Integer
     
 
-    Property? :Interface as:
+    Property? :Abstract as:
         get? :Function Integer
         set? :Function from:
             x? Integer
@@ -807,7 +807,7 @@ App? :Class Application as:
         patched.derived_method? :Function as:
             Std prints("Patched derived method, for even more fun.")
     
-    Greetable? :Interface Derived as:
+    Greetable? :Abstract Derived as:
         greet? :Function
 
         small? :Role Intval
@@ -972,7 +972,7 @@ App? :Class Application as:
 
 
 #Test_functors? :Singleton as:
-    Adjuster? :Interface as:
+    Adjuster? :Abstract as:
         do? :Function Integer from:
             x? Integer
             
@@ -992,10 +992,10 @@ App? :Class Application as:
 
 #Test_singletons? :Singleton as:
 
-    Single_interface? :Interface as:
+    Single_interface? :Abstract as:
         single_function? :Function Integer
         
-    Double_interface? :Interface as:
+    Double_interface? :Abstract as:
         double_function? :Function Integer
     
     Single_implementation? :Class Single_interface as:

@@ -90,7 +90,7 @@ public:
 };
 
 
-// TODO: rename to InterfaceMatcher, and validate name sooner!
+// TODO: rename to AbstractMatcher, and validate name sooner!
 class ClassMatcherValue: public Value, public Raiser {
 public:
     std::string name;
@@ -116,10 +116,10 @@ public:
         }
         
         TypeSpec tts = ptr_cast<TypeValue>(tv)->represented_ts;
-        InterfaceType *ct = ptr_cast<InterfaceType>(tts[0]);
+        AbstractType *ct = ptr_cast<AbstractType>(tts[0]);
         
         if (!ct) {
-            std::cerr << "Class matcher is not an interface name!\n";
+            std::cerr << "Class matcher is not an abstract name!\n";
             return false;
         }
         

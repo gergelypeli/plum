@@ -19,14 +19,12 @@ class Unborrow;
 
 // Types
 class Type;
-class HyperType;
 class MetaType;
 class TreenumerationType;
 class ArrayType;
 class InterfaceType;
+class AbstractType;
 class Implementation;
-class Lself;
-class HeapType;
 
 // Scopes
 class Scope;

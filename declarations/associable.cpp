@@ -81,7 +81,7 @@ public:
         parent = p;
     }
 
-    virtual Associable *make_shadow(Associable *original) {
+    virtual Associable *make_shadow(std::string prefix, TypeMatch explicit_tm) {
         throw INTERNAL_ERROR;
     }
 
@@ -115,7 +115,7 @@ public:
         i->get_heritage(assocs, functions);
         
         for (auto &a : assocs) {
-            Associable *s = make_shadow(a);
+            Associable *s = a->make_shadow(prefix, explicit_tm);
             s->set_parent(this);
             shadow_associables.push_back(std::unique_ptr<Associable>(s));
         }
@@ -437,16 +437,16 @@ public:
     
     virtual void compile_vt(TypeMatch tm, X64 *x64) {
         // For Role
-        throw INTERNAL_ERROR;
+        //throw INTERNAL_ERROR;
     }
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
-        throw INTERNAL_ERROR;
+        //throw INTERNAL_ERROR;
     }
 
     virtual void compile_act(TypeMatch tm, X64 *x64) {
         // For Role
-        throw INTERNAL_ERROR;
+        //throw INTERNAL_ERROR;
     }
     
     virtual std::string get_fully_qualified_name() {
