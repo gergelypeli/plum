@@ -39,7 +39,7 @@ public:
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
-    DataScope *associating_scope;
+    //DataScope *associating_scope;
     TypeMatch explicit_tm;
 
     Associable(std::string n, TypeSpec ts, InheritAs ia)
@@ -51,7 +51,7 @@ public:
         original_associable = NULL;
         provider_associable = NULL;
         am_requiring = false;
-        associating_scope = NULL;
+        //associating_scope = NULL;
         explicit_tm = alloc_ts.match();
     }
 
@@ -64,7 +64,7 @@ public:
         original_associable = original;
         provider_associable = original->provider_associable;
         am_requiring = original->am_requiring;
-        associating_scope = NULL;
+        //associating_scope = NULL;
         explicit_tm = etm;
     }
 
@@ -104,7 +104,7 @@ public:
             i = ptr_cast<Inheritable>(alloc_ts[0]);
         }
         else {
-            std::cerr << "Associable " << name << " inherits from original " << original_associable->get_fully_qualified_name() << "\n";
+            std::cerr << "Associable " << name << " inherits from original " << original_associable->name << "\n";
         }
             
         if (!i)
@@ -184,28 +184,19 @@ public:
         shadow_associables.insert(shadow_associables.begin(), std::unique_ptr<Associable>(a));
     }
 
-    virtual void set_associating_scope(DataScope *as) {
-        associating_scope = as;
+    //virtual void set_associating_scope(DataScope *as) {
+    //    associating_scope = as;
 
-        for (auto &sr : shadow_associables) {
-            sr->set_associating_scope(as);
-        }
-    }
+    //    for (auto &sr : shadow_associables) {
+    //        sr->set_associating_scope(as);
+    //    }
+    //}
     
     virtual void set_outer_scope(Scope *os) {
-        if (original_associable)
-            throw INTERNAL_ERROR;
-            
-        DataScope *ds = ptr_cast<DataScope>(os);
-        if (!ds)
-            throw INTERNAL_ERROR;
-            
-        //if (!ds->is_virtual_scope())
-        //    throw INTERNAL_ERROR;
-
         Allocable::set_outer_scope(os);
-        
-        set_associating_scope(ds);
+
+        for (auto &sr : shadow_associables)
+            sr->set_outer_scope(os);
     }
 
     virtual void outer_scope_left() {
@@ -437,26 +428,28 @@ public:
     
     virtual void compile_vt(TypeMatch tm, X64 *x64) {
         // For Role
-        //throw INTERNAL_ERROR;
+        throw INTERNAL_ERROR;
     }
     
     virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
-        //throw INTERNAL_ERROR;
+        throw INTERNAL_ERROR;
     }
 
     virtual void compile_act(TypeMatch tm, X64 *x64) {
         // For Role
-        //throw INTERNAL_ERROR;
+        throw INTERNAL_ERROR;
     }
-    
+    /*
     virtual std::string get_fully_qualified_name() {
         if (outer_scope)
             return Allocable::get_fully_qualified_name();
             
         // TODO: this is currently used even when the outer scope-s are not all yet set up,
         // so fully_qualify fails.
+        throw INTERNAL_ERROR;
         return associating_scope->name + QUALIFIER_NAME + name;
     }
+    */
 };
 
 
@@ -484,4 +477,21 @@ public:
         return os << "DATA " << associable->name << " at " << associable->get_offset(tm);
     }
 };
+
+
+static void dump_associable(Associable *a, int indent) {
+    for (int i = 0; i < indent; i++)
+        std::cerr << "  ";
+        
+    std::cerr << "'" << a->name << "' (" << (
+        a->inherit_as == AS_BASE ? "BASE" :
+        a->inherit_as == AS_MAIN ? "MAIN" :
+        a->inherit_as == AS_ROLE ? "ROLE" :
+        a->inherit_as == AS_AUTO ? "AUTO" :
+        throw INTERNAL_ERROR
+    ) << ") " << a->alloc_ts << "\n";
+    
+    for (auto &x : a->shadow_associables)
+        dump_associable(x.get(), indent + 1);
+}
 

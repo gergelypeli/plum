@@ -132,7 +132,7 @@ public:
         //std::cerr << "Looking up implementation " << ts << " " << implementing_name << "\n";
         //Value *value = implementor_scope->lookup(implementing_name, this, scope);
         
-        Value *value = implementation->associating_scope->lookup(implementing_name, this, scope);
+        Value *value = implementation->outer_scope->lookup(implementing_name, this, scope);
 
         if (!value)
             std::cerr << "Oops, missing implementation " << implementing_name << "?\n";

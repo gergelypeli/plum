@@ -918,7 +918,6 @@ public:
         else
             return NULL;
     }
-
     
     virtual bool define_data_prehook() {
         Scope *is = defined_type->get_inner_scope();

@@ -653,6 +653,8 @@ public:
             // reserve the data themselves, but the class does it for them.
         }
         else {
+            DataScope *associating_scope = ptr_cast<DataScope>(outer_scope);
+            
             if (provider_associable) {
                 // No need to set offset, the aliased will be used
             }
@@ -693,6 +695,7 @@ public:
         else {
             // Shadow roles never allocate data, as the explicit role already did that
             // Offset within the current class, in terms of its type parameters
+            DataScope *associating_scope = ptr_cast<DataScope>(outer_scope);
             
             if (provider_associable) {
                 // No need to set offset, the aliased will be used
