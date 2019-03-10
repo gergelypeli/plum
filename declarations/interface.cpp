@@ -9,6 +9,14 @@ public:
         :Type(name, param_metatypes, interface_metatype) {
     }
 
+    virtual DataScope *make_inner_scope() {
+        DataScope *is = Type::make_inner_scope();
+
+        is->be_abstract_scope();
+        
+        return is;
+    }
+
     virtual bool complete_type() {
         for (auto &c : inner_scope->contents) {
             Associable *s = ptr_cast<Associable>(c.get());
@@ -89,27 +97,7 @@ public:
             throw INTERNAL_ERROR
         );
     }
-    /*
-    virtual void allocate() {
-        // This will only be used for role implementations, as the inner scope size only
-        // contributes to measure_identity.
-        Allocation size = CLASS_HEADER_SIZE;
-        Allocation offset = inner_scope->reserve(size);
 
-        if (offset.concretize() != 0)
-            throw INTERNAL_ERROR;
-
-        // This virtual table will only be used for cloning to other tables,
-        // not compiled into the executables.
-
-        devector<VirtualEntry *> vt;
-        vt.append(NULL);
-        vt.append(NULL);
-        inner_scope->virtual_initialize(vt);
-
-        Type::allocate();
-    }
-    */
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         std::cerr << "Interface " << name << " inner lookup " << n << ".\n";
         
@@ -127,32 +115,14 @@ public:
 
         return value;
     }
-    /*
-    virtual Label get_interface_table_label(TypeMatch tm, X64 *x64) {
-        return x64->once->compile(compile_ift, tm[0]);
-    }
-
-    static void compile_ift(Label label, TypeSpec ts, X64 *x64) {
-        std::cerr << "Compiling interface table for " << ts << "\n";
-        std::string symbol = ts.symbolize() + "_interface_table";
-
-        // We only need this for dynamic type casts
-        x64->data_align(8);
-        x64->data_label_local(label, symbol);
-        x64->data_qword(0);
-    }
-    */
 };
 
 
 class Implementation: public Associable {
 public:
-    int virtual_offset;  // If implemented in an identity type
-
     Implementation(std::string name, TypeSpec ifts, InheritAs ia)
         :Associable(name, ifts, ia) {
         std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "implementation " << name << "\n";
-        virtual_offset = 0;
 
         inherit();
     }
@@ -172,14 +142,25 @@ public:
         return new Implementation(prefix, this, explicit_tm);
     }
 
-    virtual void set_name(std::string n) {
-        throw INTERNAL_ERROR;  // too late!
+    virtual void set_outer_scope(Scope *os) {
+        Associable::set_outer_scope(os);
+        
+        DataScope *ds = ptr_cast<DataScope>(os);
+        
+        if (ds && ds->is_virtual_scope() && ds->is_abstract_scope()) {
+            // Must add some dummy functions to allocate virtual indexes, even if
+            // these methods will remain abstract
+            
+            for (unsigned i = 0; i < functions.size(); i++) {
+                Function *f = functions[i]->clone_abstract(prefix);
+                ds->add(f);
+                
+                if (!check_associated(f))
+                    throw INTERNAL_ERROR;
+            }
+        }
     }
-
-    //virtual TypeSpec get_interface_ts(TypeMatch match) {
-    //    return typesubst(alloc_ts, match);
-    //}
-
+    
     virtual Value *make_value(Value *orig, TypeMatch match) {
         // If the pivot is not a concrete type, but a Ptr to an interface, then this
         // is accessing an abstract role via an interface pointer
@@ -191,78 +172,40 @@ public:
             return make<ImplementationConversionValue>(this, orig, match);
     }
 
-    //virtual devector<VirtualEntry *> get_virtual_table_fragment() {
-        //return devector<VirtualEntry *>();
-        //return alloc_ts.get_virtual_table();  // FIXME: subst!
-    //}
-    
     virtual void streamify(TypeMatch tm, X64 *x64) {
         // This allows complete built-in implementations of Streamifiable
         if (alloc_ts[0] != streamifiable_type)
             throw INTERNAL_ERROR;
 
         std::cerr << "XXX streamify " << get_fully_qualified_name() << "\n";
-            
-        for (auto &d : outer_scope->contents) {
-            Function *f = ptr_cast<Function>(d.get());
-            
-            if (f && f->associated == this) {
-                x64->op(CALL, f->get_label(x64));
-                return;
-            }
-        }
         
-        if (virtual_offset) {
+        if (functions.size() != 1)
+            throw INTERNAL_ERROR;
+            
+        Function *sf = functions[0];
+        
+        if (sf->virtual_index == 0) {
+            // Implementation in a value type
+            x64->op(CALL, sf->get_label(x64));
+        }
+        else {
             // Implementation in an identity type
             
             x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
-            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // sable VT
-            x64->op(CALL, Address(R11, virtual_offset * ADDRESS_SIZE));  // select method
-            return;
+            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // VT
+            x64->op(CALL, Address(R11, sf->virtual_index * ADDRESS_SIZE));  // select method
         }
-        
-        throw INTERNAL_ERROR;
     }
     
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
         return make_value(pivot, match);
     }
-    
-    virtual void allocate() {
-        Associable::allocate();
-        where = MEMORY;
-        DataScope *associating_scope = ptr_cast<DataScope>(outer_scope);
-        
-        // Allocate VT entries in abstracts
-        if (associating_scope->is_virtual_scope()) {
-            for (unsigned i = 0; i < functions.size(); i++) {
-                int vi = associating_scope->virtual_reserve(NULL);
-                if (!vi)
-                    throw INTERNAL_ERROR;
-            
-                if (!virtual_offset)
-                    virtual_offset = vi;
-            }
-            
-            //VirtualEntry *ve = new DataVirtualEntry(this);
-            //virtual_index = associating_scope->virtual_reserve(ve);
-        }
-        
-        for (auto &sr : shadow_associables)
-            sr->allocate();
-    }
 
     virtual void relocate(Allocation explicit_offset) {
-        // If implemented in an identity type
-        
-        if (!original_associable)
-            throw INTERNAL_ERROR;
-            
-        virtual_offset = ptr_cast<Implementation>(original_associable)->virtual_offset;
     }
 
     virtual void override_virtual_entry(int vi, VirtualEntry *ve) {
-        parent->override_virtual_entry(vi + virtual_offset, ve);
+        parent->override_virtual_entry(vi, ve);
     }
     
     virtual void compile_vt(TypeMatch tm, X64 *x64) {

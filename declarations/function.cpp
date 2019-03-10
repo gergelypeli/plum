@@ -25,7 +25,6 @@ public:
     FunctionProt prot;
     
     Associable *associated;
-    //Lself *associated_lself;
     Function *implemented_function;
 
     Label label;
@@ -42,8 +41,16 @@ public:
         virtual_index = 0;  // for class methods only
         prot = NATIVE_FUNCTION;
         associated = NULL;  // for overriding methods only
-        //associated_lself = NULL;
         implemented_function = NULL;
+    }
+
+    Function *clone_abstract(std::string prefix) {
+        // Used in Implementation inside an Abstract only, to get a virtual index
+        // while staying abstract
+        if (!is_abstract())
+            throw INTERNAL_ERROR;
+            
+        return new Function(prefix + name, type, arg_tss, arg_names, res_tss, exception_type, NULL);
     }
 
     virtual bool is_abstract() {
@@ -60,17 +67,7 @@ public:
         if (fn_scope)
             fn_scope->set_outer_scope(os);
     }
-    /*
-    virtual TypeSpec get_pivot_ts() {
-        TypeSpec pts = Identifier::get_pivot_ts();
-        
-        // FIXME: temporary hack until lvalue scoped
-        return (
-            type == LVALUE_FUNCTION ? pts.lvalue() :  
-            pts
-        );
-    }
-    */
+
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<FunctionCallValue>(this, cpivot, match);
     }
@@ -113,6 +110,13 @@ public:
             if (!associated) {
                 virtual_index = ds->virtual_reserve(mve);
                 std::cerr << "Reserved new virtual index " << virtual_index << " for function " << name << ".\n";
+            }
+            else if (implemented_function->virtual_index == 0) {
+                // Implemented an interface function in an abstract/class.
+                // This also means that such functions will get the indexes in the
+                // implementation order, not in the interface order, but that's fine.
+                virtual_index = ds->virtual_reserve(mve);
+                std::cerr << "Reserved new abstract virtual index " << virtual_index << " for function " << name << ".\n";
             }
             else {
                 // Copying it is necessary, as overriding functions can only get it from each other

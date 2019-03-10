@@ -284,7 +284,7 @@ public:
         
         def_index = ++last_def_index;
         
-        //if (def_index == 1051)
+        //if (def_index == 112)
         //    abort();
     }
     

@@ -1010,17 +1010,13 @@ class ImplementationDefinitionValue: public TypeDefinitionValue {
 public:
     InheritAs inherit_as;
     TypeSpec interface_ts;
-    bool is_concrete;
     
     ImplementationDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_AUTO)
         :TypeDefinitionValue() {
         inherit_as = ia;
-        is_concrete = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        DataScope *ds = ptr_cast<DataScope>(scope);
-        is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
         Expr *interface_expr = NULL;
 
         ExprInfos eis = {

@@ -213,8 +213,12 @@ public:
         // TODO: this requires all inherited methods to be implemented
         for (auto f : functions) {
             // There can be NULL-s here for methods implemented by non-function builtins
+            // Only the initial abstract declarations mean that a function was left
+            // unimplemented. An associated abstract function is only used internally
+            // in Implementations inside Abstracts, and those are associated, so are
+            // not part of the Abstract itself.
             
-            if (f && f->is_abstract() && !provider_associable) {
+            if (f && f->is_abstract() && !f->associated && !provider_associable) {
                 std::cerr << "Unimplemented function " << prefix + f->name << "!\n";
                 throw TYPE_ERROR;
             }
@@ -340,9 +344,6 @@ public:
                 return false;
         
             override->set_associated(this);
-        
-            //if (associated_lself)
-            //    override->set_associated_lself(associated_lself);
         }
 
         // Unfortunately, this sets the entry to NULL for non-function overrides.
