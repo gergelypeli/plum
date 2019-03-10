@@ -318,57 +318,27 @@ public:
     }
 };
 
-/*
-class LselfDefinitionValue: public TypeDefinitionValue {
-public:
-    LselfDefinitionValue(Value *pivot, TypeMatch &tm)
-        :TypeDefinitionValue() {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky lself!\n";
-            return false;
-        }
-
-        return true;
-    }
-
-    virtual Declaration *declare(std::string name, Scope *scope) {
-        if (scope->type == DATA_SCOPE) {
-            Declaration *d = new Lself(name);
-            scope->add(d);
-            return d;
-        }
-        else
-            return NULL;
-    }
-};
-*/
 
 class RoleDefinitionValue: public TypeDefinitionValue, public RoleCreator {
 public:
     InheritAs inherit_as;
     TypeSpec implemented_ts, inherited_ts, required_ts;
-    Associable *provider_associable;
     bool is_concrete;
     
     RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia = AS_ROLE)
         :TypeDefinitionValue() {
         inherit_as = ia;
         is_concrete = false;
-        provider_associable = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         DataScope *ds = ptr_cast<DataScope>(scope);
         is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
-        Expr *implemented_expr = NULL, *inherited_expr = NULL, *provider_expr = NULL, *required_expr = NULL;
+        Expr *implemented_expr = NULL, *inherited_expr = NULL, *required_expr = NULL;
 
         ExprInfos eis = {
             { "", &implemented_expr },
             { "by", &inherited_expr },
-            { "of", &provider_expr },
             { "require", &required_expr }
         };
         
@@ -377,13 +347,7 @@ public:
             return false;
         }
 
-        if (provider_expr) {
-            if (implemented_expr || inherited_expr || required_expr) {
-                std::cerr << "Whacky role aliasing!\n";
-                return false;
-            }
-        }
-        else if (required_expr) {
+        if (required_expr) {
             if (implemented_expr || inherited_expr) {
                 std::cerr << "Whacky role requiring!\n";
                 return false;
@@ -464,51 +428,12 @@ public:
             delete v;
         }
         
-        if (provider_expr) {
-            // Aliasing
-            
-            if (!is_concrete) {
-                std::cerr << "Aliasing is only allowed in Class scope!\n";
-                return false;
-            }
-            
-            if (provider_expr->type != Expr::IDENTIFIER) {
-                std::cerr << "Aliased role identifier expected!\n";
-                return false;
-            }
-            
-            std::string name = provider_expr->text;
-            
-            for (auto &d : ds->contents) {
-                Associable *able = ptr_cast<Associable>(d.get());
-            
-                if (able) {
-                    Associable *a = able->lookup_associable(name);
-                
-                    if (a) {
-                        provider_associable = a;
-                        break;
-                    }
-                }
-            }
-
-            if (!provider_associable) {
-                std::cerr << "Unknown provider role!\n";
-                return false;
-            }
-        }
-        
         return true;
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE) {
-            if (provider_associable) {
-                Declaration *d = new Provision(name, provider_associable);
-                scope->add(d);
-                return d;
-            }
-            else if (required_ts != NO_TS) {
+            if (required_ts != NO_TS) {
                 Associable *a = add_head_role(scope, name, NO_TS, required_ts, inherit_as);
                 a->require();
                 return a;
@@ -534,6 +459,80 @@ class AutoDefinitionValue: public RoleDefinitionValue {
 public:
     AutoDefinitionValue(Value *pivot, TypeMatch &tm)
         :RoleDefinitionValue(pivot, tm, AS_AUTO) {
+    }
+};
+
+
+class ProvideDefinitionValue: public TypeDefinitionValue {
+public:
+    Associable *provider_associable;
+    
+    ProvideDefinitionValue(Value *pivot, TypeMatch &tm)
+        :TypeDefinitionValue() {
+        provider_associable = NULL;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        DataScope *ds = ptr_cast<DataScope>(scope);
+        Expr *provider_expr = NULL;
+
+        ExprInfos eis = {
+            { "", &provider_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
+            std::cerr << "Whacky provide!\n";
+            return false;
+        }
+
+        if (provider_expr) {
+            if (provider_expr->type != Expr::IDENTIFIER) {
+                std::cerr << "Provided role identifier expected!\n";
+                return false;
+            }
+            
+            std::string name = provider_expr->text;
+            
+            for (auto &d : ds->contents) {
+                Associable *able = ptr_cast<Associable>(d.get());
+            
+                if (able) {
+                    Associable *a = able->lookup_associable(name);
+                
+                    if (a) {
+                        provider_associable = a;
+                        break;
+                    }
+                }
+            }
+
+            if (!provider_associable) {
+                std::cerr << "Unknown provided role!\n";
+                return false;
+            }
+        }
+        else {
+            // Use the base role as provider
+            // Not nice, but we'll dig into the inner scope to find the base role
+            provider_associable = ptr_cast<Associable>(scope->contents[0].get());
+
+            if (!provider_associable || !provider_associable->is_baseconv()) {
+                std::cerr << "No base role to provide!\n";
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE) {
+            Declaration *d = new Provision(name, provider_associable);
+            scope->add(d);
+            return d;
+        }
+        else
+            return NULL;
     }
 };
 

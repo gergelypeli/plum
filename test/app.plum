@@ -860,11 +860,11 @@ App? :Class Application as:
             Std prints("Getting large...")
             :return 120
             
-        @.left? :Role of: left
-        @.right? :Role of: right
+        @.left? :Provide left
+        @.right? :Provide right
 
         patch? :Role by: Patch
-        #patch.patched? :Role of: # Base?
+        patch.patched? :Provide
         
     test_classes? :Function Greetable Ref as:
         gr? Greetable Ref = Basic_greetable Ref `second_init

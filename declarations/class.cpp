@@ -593,48 +593,46 @@ public:
             vt.set(vi, ve);
     }
 
-    virtual void patch_base() {
-        // Auto-patch the base role with this shadow patch role
-        
-        Inheritable *i = parent;
-        
-        while (ptr_cast<Associable>(i))
-            i = ptr_cast<Associable>(i)->parent;
-            
-        ClassType *ct = ptr_cast<ClassType>(i);
-        if (!ct)
+    virtual bool check_provisioning(std::string override_name, Associable *provider_associable) {
+        if (!provider_associable)
             throw INTERNAL_ERROR;
             
-        Associable *br = ct->get_base_role();
+        // Find the provisioned role
+        Associable *requirer_associable = NULL;
         
-        while (br) {
-            std::cerr << "XXX " << br->alloc_ts << " <=> " << alloc_ts << "\n";
-            if (br->alloc_ts == alloc_ts)
+        for (auto &sa : shadow_associables) {
+            if (override_name == unqualify(sa->name)) {
+                requirer_associable = sa.get();
                 break;
-                
-            if (br->has_base_role())
-                br = br->get_head_role();
-            else
-                br = NULL;
+            }
         }
         
-        if (!br)
-            throw TYPE_ERROR;
-    
-        std::cerr << "Auto-provisioning " << name << " with base " << br->name << "\n";
-        provision(br);
-    }
+        if (!requirer_associable) {
+            std::cerr << "No role " << override_name << " to provision!\n";
+            return false;
+        }
+        
+        // Make sure the provider provides the required role
+        // Don't alter provider_associable, because base/main roles will have a fixed
+        // offset of 0, and would be useless to find the real offset.
+        Associable *a = provider_associable;
+        
+        while (true) {
+            //std::cerr << "XXX " << a->alloc_ts << " <=> " << requirer_associable->alloc_ts << "\n";
 
-    virtual void check_full_implementation() {
-        if (am_requiring && !provider_associable) {
-            // This may be a problem, unless this is the patching class itself
-            Associable *ea = get_explicit_associable();
-        
-            if (!ea->am_requiring)
-                patch_base();
-        }
+            if (a->alloc_ts == requirer_associable->alloc_ts)
+                break;
             
-        Associable::check_full_implementation();
+            if (a->has_base_role() || a->has_main_role())
+                a = a->get_head_role();
+            else {
+                std::cerr << "Provider role is not " << requirer_associable->alloc_ts << "!\n";
+                return false;
+            }
+        }
+
+        requirer_associable->provision(provider_associable);
+        return true;
     }
 
     virtual void allocate() {

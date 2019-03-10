@@ -1108,6 +1108,7 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<RoleDefinitionValue>("Role"));
     colon_scope->add(new TemplateIdentifier<BaseDefinitionValue>("Base"));
     colon_scope->add(new TemplateIdentifier<AutoDefinitionValue>("Auto"));
+    colon_scope->add(new TemplateIdentifier<ProvideDefinitionValue>("Provide"));
     colon_scope->add(new TemplateIdentifier<ImplementationDefinitionValue>("Implementation"));
     colon_scope->add(new TemplateIdentifier<GlobalDefinitionValue>("Global"));
 

@@ -149,8 +149,11 @@ public:
     }
 
     virtual int get_offset(TypeMatch tm) {
-        if (provider_associable)
-            return provider_associable->get_offset(tm);
+        if (provider_associable) {
+            int o = provider_associable->get_offset(tm);
+            //std::cerr << "XXX role offset " << name << " provided " << o << "\n";
+            return o;
+        }
         else if (am_requiring)
             throw INTERNAL_ERROR;
         else
@@ -164,11 +167,11 @@ public:
     virtual bool has_main_role() {
         return (shadow_associables.size() && shadow_associables[0]->is_mainconv());
     }
-    
+
     virtual Associable *get_head_role() {
         if (shadow_associables.empty())
             throw INTERNAL_ERROR;
-            
+
         return shadow_associables[0].get();
     }
     
@@ -184,14 +187,6 @@ public:
         shadow_associables.insert(shadow_associables.begin(), std::unique_ptr<Associable>(a));
     }
 
-    //virtual void set_associating_scope(DataScope *as) {
-    //    associating_scope = as;
-
-    //    for (auto &sr : shadow_associables) {
-    //        sr->set_associating_scope(as);
-    //    }
-    //}
-    
     virtual void set_outer_scope(Scope *os) {
         Allocable::set_outer_scope(os);
 
@@ -265,6 +260,11 @@ public:
         return NULL;
     }
 
+    virtual bool check_provisioning(std::string override_name, Associable *provider_associable) {
+        // Only Role should do this
+        throw INTERNAL_ERROR;
+    }
+    
     virtual bool check_associated(Declaration *d) {
         Identifier *id = ptr_cast<Identifier>(d);
         if (!id)
@@ -281,15 +281,7 @@ public:
         Provision *provision = ptr_cast<Provision>(d);
         
         if (provision) {
-            for (unsigned i = 0; i < shadow_associables.size(); i++) {
-                if (override_name == unqualify(shadow_associables[i]->name)) {
-                    shadow_associables[i]->provision(provision->provider_associable);
-                    return true;
-                }
-            }
-            
-            std::cerr << "No role " << id->name << " to provision!\n";
-            return false;
+            return check_provisioning(override_name, provision->provider_associable);
         }
 
         // TODO: collect the Function*-s into a vector, update it with the overrides, and
