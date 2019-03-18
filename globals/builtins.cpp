@@ -440,9 +440,9 @@ void builtin_types(Scope *root_scope) {
 }
 
 
-void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents, InheritAs ia = AS_AUTO) {
+void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
     TypeSpec implementor_ts = implementor_scope->get_pivot_ts();
-    Implementation *implementation = new Implementation(implementation_name, interface_ts, ia);
+    Implementation *implementation = new Implementation(implementation_name, interface_ts, AS_ROLE);
     implementor_scope->add(implementation);
     
     for (Identifier *i : contents) {
@@ -1105,9 +1105,9 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<ProcedureDefinitionValue>("Procedure"));
     colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer"));
     colon_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>("Finalizer"));
-    colon_scope->add(new TemplateIdentifier<RoleDefinitionValue>("Role"));
-    colon_scope->add(new TemplateIdentifier<BaseDefinitionValue>("Base"));
-    colon_scope->add(new TemplateIdentifier<AutoDefinitionValue>("Auto"));
+    colon_scope->add(new TemplateIdentifier<PlainRoleDefinitionValue>("Role"));
+    colon_scope->add(new TemplateIdentifier<AutoRoleDefinitionValue>("Auto"));
+    colon_scope->add(new TemplateIdentifier<RequireRoleDefinitionValue>("Require"));
     colon_scope->add(new TemplateIdentifier<ProvideDefinitionValue>("Provide"));
     colon_scope->add(new TemplateIdentifier<ImplementationDefinitionValue>("Implementation"));
     colon_scope->add(new TemplateIdentifier<GlobalDefinitionValue>("Global"));

@@ -32,26 +32,28 @@ public:
     std::string prefix;
     Inheritable *parent;
     InheritAs inherit_as;
+    bool am_autoconv;
+    bool am_requiring;
+    
     int virtual_index;  // of the entry that stores the data offset to the role
     Associable *original_associable;
     Associable *provider_associable;
-    bool am_requiring;
     std::vector<std::unique_ptr<Associable>> shadow_associables;
     std::vector<Function *> functions;
     std::set<std::string> associated_names;
-    //DataScope *associating_scope;
     TypeMatch explicit_tm;
 
-    Associable(std::string n, TypeSpec ts, InheritAs ia)
+    Associable(std::string n, TypeSpec ts, InheritAs ia, bool ama, bool amr)
         :Allocable(n, ts) {
         prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = ia;
+        am_autoconv = ama;
+        am_requiring = amr;
+        
         virtual_index = 0;
         original_associable = NULL;
         provider_associable = NULL;
-        am_requiring = false;
-        //associating_scope = NULL;
         explicit_tm = alloc_ts.match();
     }
 
@@ -60,11 +62,11 @@ public:
         prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = original->inherit_as;
+        am_autoconv = original->am_autoconv;
+        am_requiring = original->am_requiring;
         virtual_index = 0;
         original_associable = original;
         provider_associable = original->provider_associable;
-        am_requiring = original->am_requiring;
-        //associating_scope = NULL;
         explicit_tm = etm;
     }
 
@@ -128,16 +130,6 @@ public:
         funcs = functions;
     }
 
-    virtual void require() {
-        if (am_requiring)
-            throw INTERNAL_ERROR;
-    
-        am_requiring = true;
-
-        for (unsigned i = 0; i < shadow_associables.size(); i++)
-            shadow_associables[i]->require();
-    }
-
     virtual void provision(Associable *pa) {
         if (!is_abstract() || provider_associable || !pa)
             throw INTERNAL_ERROR;
@@ -154,7 +146,7 @@ public:
             //std::cerr << "XXX role offset " << name << " provided " << o << "\n";
             return o;
         }
-        else if (am_requiring)
+        else if (is_requiring() || is_in_requiring())
             throw INTERNAL_ERROR;
         else
             return Allocable::get_offset(tm);
@@ -199,11 +191,6 @@ public:
             si->outer_scope_left();
     }
 
-    virtual Associable *get_explicit_associable() {
-        Associable *pa = ptr_cast<Associable>(parent);
-        return (pa ? pa->get_explicit_associable() : this);
-    }
-
     virtual void check_full_implementation() {
         // TODO: this requires all inherited methods to be implemented
         for (auto f : functions) {
@@ -219,13 +206,17 @@ public:
             }
         }
 
-        if (am_requiring && !provider_associable) {
-            // This may be a problem, unless this is the patching class itself
-            Associable *ea = get_explicit_associable();
-        
-            if (!ea->am_requiring) {
-                // Inherited from the patching role without aliasing the patch
-                std::cerr << "Unaliased patch role " << name << "!\n";
+        if (is_requiring() && !provider_associable) {
+            if (!original_associable) {
+                // Allow the explicit required role go without provisioned, obviously.
+            }
+            else if (ptr_cast<AbstractType>(alloc_ts[0]) != NULL) {
+                // Inherited required abstract role, but all of its methods are
+                // implemented. Allow it.
+            }
+            else {
+                // Required class, but unprovided, make it an error.
+                std::cerr << "Unprovided required role " << name << "!\n";
                 throw TYPE_ERROR;
             }
         }
@@ -283,7 +274,7 @@ public:
         if (provision) {
             return check_provisioning(override_name, provision->provider_associable);
         }
-
+        
         // TODO: collect the Function*-s into a vector, update it with the overrides, and
         // let the shadows copy it for themselves. Record all association names to prevent
         // duplicates.
@@ -344,8 +335,18 @@ public:
         return true;
     }
 
+    virtual bool is_requiring() {
+        return am_requiring;
+    }
+
+    virtual bool is_in_requiring() {
+        Associable *a = ptr_cast<Associable>(parent);
+        
+        return (a ? a->is_requiring() || a->is_in_requiring() : false);
+    }
+
     virtual bool is_autoconv() {
-        return inherit_as == AS_AUTO || inherit_as == AS_BASE || inherit_as == AS_MAIN;
+        return am_autoconv;
     }
 
     virtual bool is_baseconv() {
@@ -473,14 +474,19 @@ public:
 
 
 static void dump_associable(Associable *a, int indent) {
+    // FIXME: method!
+    
     for (int i = 0; i < indent; i++)
         std::cerr << "  ";
         
     std::cerr << "'" << a->name << "' (" << (
+        a->is_requiring() ? "required " : ""
+    ) << (
+        a->is_autoconv() ? "autoconv " : ""
+    ) << (
         a->inherit_as == AS_BASE ? "BASE" :
         a->inherit_as == AS_MAIN ? "MAIN" :
         a->inherit_as == AS_ROLE ? "ROLE" :
-        a->inherit_as == AS_AUTO ? "AUTO" :
         throw INTERNAL_ERROR
     ) << ") " << a->alloc_ts << "\n";
     

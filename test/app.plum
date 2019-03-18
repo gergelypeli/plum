@@ -799,7 +799,7 @@ App? :Class Application as:
             $ value = x
 
     Patch? :Class as:
-        patched? :Role require: Basic_derived
+        patched? :Require by: Basic_derived
         
         init? :Initializer as:
             Std prints("Patch initialized.")

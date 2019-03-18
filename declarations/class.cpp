@@ -541,9 +541,9 @@ public:
     Label vt_label;
     Label act_label;
 
-    Role(std::string n, TypeSpec ts, InheritAs ia)
-        :Associable(n, ts, ia) {
-        std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_AUTO ? "auto " : "") << "role " << name << "\n";
+    Role(std::string n, TypeSpec ts, InheritAs ia, bool ama, bool amr)
+        :Associable(n, ts, ia, ama, amr) {
+        std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_MAIN ? "main " : "") << "role " << name << "\n";
         
         inherit();
     }
@@ -556,7 +556,7 @@ public:
     }
 
     virtual bool is_abstract() {
-        return ptr_cast<AbstractType>(alloc_ts[0]) != NULL || am_requiring;
+        return ptr_cast<AbstractType>(alloc_ts[0]) != NULL || is_requiring() || is_in_requiring();
     }
 
     virtual Associable *make_shadow(std::string prefix, TypeMatch explicit_tm) {
@@ -698,18 +698,16 @@ public:
             if (provider_associable) {
                 // No need to set offset, the aliased will be used
                 
-                if (am_requiring) {
-                    // Patch aliased virtual table
-                    devector<VirtualEntry *> ovt = original_associable->get_virtual_table_fragment();
-                    
-                    for (unsigned i = 0; i < functions.size(); i++) {
-                        if (functions[i]->associated == original_associable) {
-                            // This function was patched in the original role
-                            int vi = functions[i]->virtual_index;
-                            Associable *pa = provider_associable;
-                            std::cerr << "Patching VT " << pa->get_fully_qualified_name() << " #" << vi << " from " << get_fully_qualified_name() << "\n";
-                            pa->override_virtual_entry(vi, ovt.get(vi));
-                        }
+                // Patch aliased virtual table
+                devector<VirtualEntry *> ovt = original_associable->get_virtual_table_fragment();
+                
+                for (unsigned i = 0; i < functions.size(); i++) {
+                    if (functions[i]->associated == original_associable) {
+                        // This function was patched in the original role
+                        int vi = functions[i]->virtual_index;
+                        Associable *pa = provider_associable;
+                        std::cerr << "Patching VT " << pa->get_fully_qualified_name() << " #" << vi << " from " << get_fully_qualified_name() << "\n";
+                        pa->override_virtual_entry(vi, ovt.get(vi));
                     }
                 }
             }
