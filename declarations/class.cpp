@@ -541,8 +541,8 @@ public:
     Label vt_label;
     Label act_label;
 
-    Role(std::string n, TypeSpec ts, InheritAs ia, bool ama, bool amr)
-        :Associable(n, ts, ia, ama, amr) {
+    Role(std::string n, TypeSpec ts, InheritAs ia, bool ama)
+        :Associable(n, ts, ia, ama) {
         std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_MAIN ? "main " : "") << "role " << name << "\n";
         
         inherit();

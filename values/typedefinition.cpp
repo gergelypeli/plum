@@ -56,24 +56,24 @@ protected:
         }
     }
 
-    virtual Associable *add_head_role(Scope *is, std::string name, TypeSpec main_ts, TypeSpec base_ts, InheritAs ia, bool isa, bool isr) {
+    virtual Associable *add_head_role(Scope *is, std::string name, TypeSpec main_ts, TypeSpec base_ts, InheritAs ia, bool isa) {
         Associable *base_role = NULL, *main_role = NULL;
         bool is_explicit = (ia != AS_BASE);
         
         if (base_ts != NO_TS) {
             if (is_explicit)
-                base_role = new Role(name, base_ts, ia, isa, isr);
+                base_role = new Role(name, base_ts, ia, isa);
             else
-                base_role = new Role(BASE_ROLE_NAME, base_ts, AS_BASE, true, false);
+                base_role = new Role(BASE_ROLE_NAME, base_ts, AS_BASE, true);
                 
             is_explicit = false;
         }
             
         if (main_ts != NO_TS) {
             if (is_explicit)
-                main_role = new Role(name, main_ts, ia, isa, isr);
+                main_role = new Role(name, main_ts, ia, isa);
             else
-                main_role = new Role(MAIN_ROLE_NAME, main_ts, AS_MAIN, true, false);
+                main_role = new Role(MAIN_ROLE_NAME, main_ts, AS_MAIN, true);
         }
 
         if (main_role && base_role) {
@@ -325,15 +325,15 @@ public:
 class RoleDefinitionValue: public TypeDefinitionValue, public RoleCreator {
 public:
     TypeSpec implemented_ts, inherited_ts, required_ts;
+    InheritAs inherit_as;
     bool is_concrete;
     bool is_autoconv;
-    bool is_requiring;
     
-    RoleDefinitionValue(Value *pivot, TypeMatch &tm, bool ia, bool ir)
+    RoleDefinitionValue(Value *pivot, TypeMatch &tm, InheritAs ia, bool isa)
         :TypeDefinitionValue() {
+        inherit_as = ia;
         is_concrete = false;
-        is_autoconv = ia;
-        is_requiring = ir;
+        is_autoconv = isa;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -356,7 +356,7 @@ public:
             return false;
         }
         
-        if (is_requiring && implemented_expr && inherited_expr) {
+        if (inherit_as == AS_REQUIRE && implemented_expr && inherited_expr) {
             std::cerr << "Required role must be either an Abstract or a Class!\n";
             return false;
         }
@@ -409,7 +409,7 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE) {
-            return add_head_role(scope, name, implemented_ts, inherited_ts, AS_ROLE, is_autoconv, is_requiring);
+            return add_head_role(scope, name, implemented_ts, inherited_ts, inherit_as, is_autoconv);
         }
         else
             return NULL;
@@ -420,7 +420,7 @@ public:
 class PlainRoleDefinitionValue: public RoleDefinitionValue {
 public:
     PlainRoleDefinitionValue(Value *pivot, TypeMatch &tm)
-        :RoleDefinitionValue(pivot, tm, false, false) {
+        :RoleDefinitionValue(pivot, tm, AS_ROLE, false) {
     }
 };
 
@@ -428,7 +428,7 @@ public:
 class AutoRoleDefinitionValue: public RoleDefinitionValue {
 public:
     AutoRoleDefinitionValue(Value *pivot, TypeMatch &tm)
-        :RoleDefinitionValue(pivot, tm, true, false) {
+        :RoleDefinitionValue(pivot, tm, AS_ROLE, true) {
     }
 };
 
@@ -436,7 +436,7 @@ public:
 class RequireRoleDefinitionValue: public RoleDefinitionValue {
 public:
     RequireRoleDefinitionValue(Value *pivot, TypeMatch &tm)
-        :RoleDefinitionValue(pivot, tm, false, true) {
+        :RoleDefinitionValue(pivot, tm, AS_REQUIRE, false) {
     }
 };
 
@@ -841,7 +841,7 @@ public:
                 return false;
             }
 
-            is->add(new Role("", base_ts, AS_BASE, true, false));
+            is->add(new Role("", base_ts, AS_BASE, true));
         }
 
         return true;
@@ -919,7 +919,7 @@ public:
         }
 
         if (base_expr || main_expr)
-            return add_head_role(is, "", main_ts, base_ts, AS_BASE, true, false);
+            return add_head_role(is, "", main_ts, base_ts, AS_BASE, true);
         else
             return true;
     }
@@ -1115,7 +1115,7 @@ public:
 
         ts = main_ts.prefix(ref_type);
 
-        Associable *main_role = new Role(MAIN_ROLE_NAME, main_ts, AS_MAIN, true, false);
+        Associable *main_role = new Role(MAIN_ROLE_NAME, main_ts, AS_MAIN, true);
         is->add(main_role);
         
         // Typize the with block, using a temporary code scope to collect state variables

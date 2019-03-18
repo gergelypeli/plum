@@ -121,7 +121,7 @@ public:
 class Implementation: public Associable {
 public:
     Implementation(std::string name, TypeSpec ifts, InheritAs ia)
-        :Associable(name, ifts, ia, true, false) {
+        :Associable(name, ifts, ia, true) {
         std::cerr << "Creating implementation " << name << "\n";
 
         inherit();

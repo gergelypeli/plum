@@ -33,7 +33,6 @@ public:
     Inheritable *parent;
     InheritAs inherit_as;
     bool am_autoconv;
-    bool am_requiring;
     
     int virtual_index;  // of the entry that stores the data offset to the role
     Associable *original_associable;
@@ -43,13 +42,12 @@ public:
     std::set<std::string> associated_names;
     TypeMatch explicit_tm;
 
-    Associable(std::string n, TypeSpec ts, InheritAs ia, bool ama, bool amr)
+    Associable(std::string n, TypeSpec ts, InheritAs ia, bool ama)
         :Allocable(n, ts) {
         prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = ia;
         am_autoconv = ama;
-        am_requiring = amr;
         
         virtual_index = 0;
         original_associable = NULL;
@@ -63,7 +61,6 @@ public:
         parent = NULL;
         inherit_as = original->inherit_as;
         am_autoconv = original->am_autoconv;
-        am_requiring = original->am_requiring;
         virtual_index = 0;
         original_associable = original;
         provider_associable = original->provider_associable;
@@ -336,7 +333,7 @@ public:
     }
 
     virtual bool is_requiring() {
-        return am_requiring;
+        return inherit_as == AS_REQUIRE;
     }
 
     virtual bool is_in_requiring() {
@@ -480,13 +477,12 @@ static void dump_associable(Associable *a, int indent) {
         std::cerr << "  ";
         
     std::cerr << "'" << a->name << "' (" << (
-        a->is_requiring() ? "required " : ""
-    ) << (
-        a->is_autoconv() ? "autoconv " : ""
+        a->is_autoconv() ? "auto " : ""
     ) << (
         a->inherit_as == AS_BASE ? "BASE" :
         a->inherit_as == AS_MAIN ? "MAIN" :
         a->inherit_as == AS_ROLE ? "ROLE" :
+        a->inherit_as == AS_REQUIRE ? "REQUIRE" :
         throw INTERNAL_ERROR
     ) << ") " << a->alloc_ts << "\n";
     
