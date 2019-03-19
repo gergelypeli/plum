@@ -1,6 +1,12 @@
 
 
 static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch tm, Label label, std::string symbol, X64 *x64) {
+    // Allow entries to compile some stuff if necessary
+    for (int i = vt.low(); i < vt.high(); i++) {
+        VirtualEntry *ve = vt.get(i);
+        ve->compile(tm, x64);
+    }
+
     std::cerr << "    Virtual table for " << symbol << " (" << vt.high() - vt.low() << ")\n";
 
     x64->data_align(8);
@@ -191,6 +197,7 @@ public:
     virtual void allocate() {
         // We must allocate this, because the header is shared among
         // the base, the main, and us.
+        std::cerr << "Identity allocate " << get_fully_qualified_name() << "\n";
         Associable *base_role = get_base_role();
         Associable *main_role = get_main_role();
         
@@ -457,7 +464,7 @@ public:
         Associable *role = get_main_role();
 
         while (role) {
-            act.push_back({ role->get_typespec(tm), role->offset.concretize(tm) });
+            act.push_back({ role->get_typespec(tm), role->get_offset(tm) });
             role = (role->has_base_role() ? role->get_head_role() : NULL);
         }
         
@@ -637,6 +644,7 @@ public:
 
     virtual void allocate() {
         // Only called for explicitly declared roles
+        std::cerr << " Role allocate " << get_fully_qualified_name() << "\n";
         
         if (original_associable) {
             throw INTERNAL_ERROR;
@@ -678,6 +686,7 @@ public:
     
     virtual void relocate(Allocation explicit_offset) {
         // Only called for shadow roles, or explicit main roles
+        std::cerr << "  Role relocate " << get_fully_qualified_name() << "\n";
 
         if (!original_associable) {
             if (inherit_as != AS_MAIN)
@@ -692,22 +701,45 @@ public:
             ; // Base and main already included in the parent role
         else {
             // Shadow roles never allocate data, as the explicit role already did that
-            // Offset within the current class, in terms of its type parameters
             DataScope *associating_scope = ptr_cast<DataScope>(outer_scope);
             
             if (provider_associable) {
-                // No need to set offset, the aliased will be used
+                // No need to set offset, the provided will be used
                 
-                // Patch aliased virtual table
+                // Patch provider virtual table
+                // The patching method doesn't know the patching role's offset from the
+                // patched role's offset, so cannot compile in the defference to adjust.
+                // Instead we must load the offset into R11 in a method trampoline,
+                // and the method will use the runtime value.
                 devector<VirtualEntry *> ovt = original_associable->get_virtual_table_fragment();
                 
                 for (unsigned i = 0; i < functions.size(); i++) {
-                    if (functions[i]->associated == original_associable) {
+                    //if (functions[i]->associated == original_associable) {
                         // This function was patched in the original role
+                        // FIXME: maybe it can be patched in a derived class as well...
+                    Associable *a = functions[i]->associated;
+                    
+                    // FIXME: let's hope this is a sensible check...
+                    if (a && (a->is_requiring() || a->is_in_requiring())) {
+                        // This function was patched
+                        // Find the role that corresponds to the class of the patching method.
+                        // Step up as many roles as necessary to step back in originals.
+                        Associable *up = this;
+                        Associable *orig = this;
+                        
+                        while (orig != a) {
+                            orig = orig->original_associable;
+                            up = ptr_cast<Associable>(up->parent);
+                        }
+                        
+                        int patching_offset = up->get_offset(explicit_tm);
+                        int provider_offset = provider_associable->get_offset(explicit_tm);
+                        int diff = provider_offset - patching_offset;
+                        VirtualEntry *ve = new PatchMethodVirtualEntry(functions[i], diff);
+                        
                         int vi = functions[i]->virtual_index;
-                        Associable *pa = provider_associable;
-                        std::cerr << "Patching VT " << pa->get_fully_qualified_name() << " #" << vi << " from " << get_fully_qualified_name() << "\n";
-                        pa->override_virtual_entry(vi, ovt.get(vi));
+                        std::cerr << "Patching VT " << provider_associable->get_fully_qualified_name() << " #" << vi << " from " << get_fully_qualified_name() << "\n";
+                        provider_associable->override_virtual_entry(vi, ve);
                     }
                 }
             }
@@ -715,7 +747,7 @@ public:
                 if (original_associable->is_abstract())
                     offset = associating_scope->reserve(alloc_ts.measure_identity());
                 else
-                    offset = explicit_offset + allocsubst(original_associable->offset, explicit_tm);
+                    offset = explicit_offset + original_associable->subst_offset(explicit_tm);
             
                 vt = original_associable->get_virtual_table_fragment();
                 VirtualEntry *autoconv_ve = new AutoconvVirtualEntry(this);
@@ -782,7 +814,7 @@ public:
         Associable *role = (has_main_role() ? get_head_role() : NULL);
 
         while (role) {
-            act.push_back({ role->get_typespec(tm), role->offset.concretize(tm) });
+            act.push_back({ role->get_typespec(tm), role->get_offset(tm) });
             role = (role->has_base_role() ? role->get_head_role() : NULL);
         }
         

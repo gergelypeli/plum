@@ -201,7 +201,17 @@ public:
         return make_value(pivot, match);
     }
 
+    virtual void allocate() {
+        std::cerr << " Implementation allocate " << get_fully_qualified_name() << "\n";
+
+        // Implementations cannot be grabbed by their identifier, so they never have an offset
+        // within the implementor type, so leave the offset as zero.
+        where = MEMORY;
+    }
+
     virtual void relocate(Allocation explicit_offset) {
+        std::cerr << " Implementation relocate " << get_fully_qualified_name() << "\n";
+        where = MEMORY;
     }
 
     virtual void override_virtual_entry(int vi, VirtualEntry *ve) {

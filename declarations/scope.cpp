@@ -715,6 +715,7 @@ public:
     TreenumerationType *exception_type;
     Storage forwarded_exception_storage;
     Storage result_alias_storage;
+    Storage associated_offset_storage;
 
     FunctionScope()
         :Scope(FUNCTION_SCOPE) {
@@ -773,6 +774,14 @@ public:
         return result_alias_storage;
     }
 
+    void make_associated_offset_storage() {
+        associated_offset_storage.where = MEMORY;
+    }
+    
+    Storage get_associated_offset_storage() {
+        return associated_offset_storage;
+    }
+
     virtual TypeSpec get_pivot_ts() {
         // This is used when looking up explicit exception type names
         return NO_TS;
@@ -826,6 +835,11 @@ public:
         if (forwarded_exception_storage.where == MEMORY) {
             Allocation a = body_scope->reserve(Allocation { INTEGER_SIZE, 0, 0, 0 });
             forwarded_exception_storage.address = Address(RBP, a.concretize());
+        }
+
+        if (associated_offset_storage.where == MEMORY) {
+            Allocation a = body_scope->reserve(Allocation { ADDRESS_SIZE, 0, 0, 0 });
+            associated_offset_storage.address = Address(RBP, a.concretize());
         }
         
         body_scope->allocate();

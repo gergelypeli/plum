@@ -74,6 +74,11 @@ void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve) 
 }
 
 
+bool associable_is_or_is_in_requiring(Associable *a) {
+    return a && (a->is_requiring() || a->is_in_requiring());
+}
+
+
 std::string function_get_name(Function *f) {
     return f->name;
 }

@@ -149,6 +149,17 @@ public:
             return Allocable::get_offset(tm);
     }
 
+    virtual Allocation subst_offset(TypeMatch tm) {
+        if (provider_associable) {
+            Allocation a = provider_associable->subst_offset(tm);
+            return a;
+        }
+        else if (is_requiring() || is_in_requiring())
+            throw INTERNAL_ERROR;
+        else
+            return allocsubst(offset, tm);
+    }
+
     virtual bool has_base_role() {
         return (shadow_associables.size() && shadow_associables[0]->is_baseconv());
     }
@@ -430,17 +441,6 @@ public:
         // For Role
         throw INTERNAL_ERROR;
     }
-    /*
-    virtual std::string get_fully_qualified_name() {
-        if (outer_scope)
-            return Allocable::get_fully_qualified_name();
-            
-        // TODO: this is currently used even when the outer scope-s are not all yet set up,
-        // so fully_qualify fails.
-        throw INTERNAL_ERROR;
-        return associating_scope->name + QUALIFIER_NAME + name;
-    }
-    */
 };
 
 

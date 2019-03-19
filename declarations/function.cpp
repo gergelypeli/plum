@@ -124,6 +124,9 @@ public:
                 associable_override_virtual_entry(associated, virtual_index, mve);
                 std::cerr << "Set virtual index " << virtual_index << " for function " << name << ".\n";
             }
+
+            if (associable_is_or_is_in_requiring(associated))
+                fn_scope->make_associated_offset_storage();
         }
         
         if (fn_scope)
@@ -199,21 +202,6 @@ public:
     virtual void set_associated(Associable *a) {
         associated = a;
     }
-    /*
-    virtual void set_associated_lself(Lself *al) {
-        Scope *ss = fn_scope->self_scope;
-        if (ss->contents.size() != 1)
-            throw INTERNAL_ERROR;
-            
-        Variable *self_var = ptr_cast<Variable>(ss->contents[0].get());
-        if (!self_var)
-            throw INTERNAL_ERROR;
-            
-        associated_lself = al;
-        //pivot_ts = pivot_ts.lvalue();
-        self_var->alloc_ts = self_var->alloc_ts.lvalue();
-    }
-    */
 };
 
 
@@ -278,3 +266,37 @@ public:
 VirtualEntry *make_method_virtual_entry(Function *f) {
     return new MethodVirtualEntry(f);
 }
+
+
+class PatchMethodVirtualEntry: public VirtualEntry {
+public:
+    Label trampoline_label;
+    Function *function;
+    int offset;
+    
+    PatchMethodVirtualEntry(Function *f, int o) {
+        function = f;
+        offset = o;
+    }
+    
+    virtual void compile(TypeMatch tm, X64 *x64) {
+        x64->code_label(trampoline_label);
+        //x64->runtime->log("TRAMPOLINE!");
+        x64->op(MOVQ, R11, offset);
+        x64->op(JMP, function->get_label(x64));
+    }
+    
+    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+        // We're not yet ready to compile templated functions
+        if (tm[1] != NO_TS)
+            throw INTERNAL_ERROR;
+            
+        //std::cerr << "Function entry " << name << ".\n";
+        return trampoline_label;
+    }
+
+    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
+        return os << "FUNC " << function->get_fully_qualified_name() << " (" << offset << ")";
+    }
+};
+

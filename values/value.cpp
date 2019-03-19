@@ -598,7 +598,7 @@ public:
         if (associable->inherit_as == AS_BASE || associable->inherit_as == AS_MAIN)
             return s;
         else if (!associable->is_abstract()) {
-            int offset = associable->offset.concretize(match);
+            int offset = associable->get_offset(match);
         
             //std::cerr << "XXX RoleValue for " << role->name << " has offset " << offset << "\n";
         

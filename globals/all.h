@@ -80,6 +80,7 @@ const char *typeidname(Value *v);
 // Declaration wrappers
 Declaration *make_record_compare();
 void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve);
+bool associable_is_or_is_in_requiring(Associable *a);
 std::string function_get_name(Function *f);
 Label function_get_label(Function *f, X64 *x64);
 

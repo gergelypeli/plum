@@ -799,13 +799,15 @@ App? :Class Application as:
             $ value = x
 
     Patch? :Class as:
+        fun? String
         patched? :Require by: Basic_derived
         
         init? :Initializer as:
+            $ fun = "FUN"
             Std prints("Patch initialized.")
         
         patched.derived_method? :Function as:
-            Std prints("Patched derived method, for even more fun.")
+            Std prints("Patched derived method, for even more {}." { $ fun })
     
     Greetable? :Abstract Derived as:
         greet? :Function

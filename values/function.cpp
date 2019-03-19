@@ -293,14 +293,22 @@ public:
         if (exception_type_value)
             exception_type_value->compile(x64);  // to compile treenum definitions
 
-        unsigned frame_size = fn_scope->get_frame_size();
         int associated_role_offset = 0;
+        Associable *assoc = function->associated;
         
-        if (function->associated) {
-            associated_role_offset = function->associated->offset.concretize(match);
-            std::cerr << "Function body of " << function->name << " has associated role offset " << associated_role_offset << ".\n";
+        if (assoc) {
+            if (assoc->is_requiring() || assoc->is_in_requiring()) {
+                // Offset if unknown until runtime, will be put by a trampoline into R11,
+                // we must store it for ourselves.
+                std::cerr << "Function body of " << function->name << " has dynamic associated role offset.\n";
+            }
+            else {
+                associated_role_offset = assoc->get_offset(match);
+                std::cerr << "Function body of " << function->name << " has associated role offset " << associated_role_offset << ".\n";
+            }
         }
         
+        unsigned frame_size = fn_scope->get_frame_size();
         Storage self_storage = self_var ? self_var->get_local_storage() : Storage();
 
         std::string fqn = fn_scope->outer_scope->fully_qualify(function->name);
@@ -344,7 +352,12 @@ public:
             x64->op(MOVQ, fes.address, NO_EXCEPTION);
         
         // Overriding functions get the self argument point to the role data area
-        if (associated_role_offset)
+        Storage aos = fn_scope->get_associated_offset_storage();
+        if (aos.where == MEMORY) {
+            x64->op(MOVQ, aos.address, R11);
+            x64->op(SUBQ, self_storage.address, R11);
+        }
+        else if (associated_role_offset)
             x64->op(SUBQ, self_storage.address, associated_role_offset);
         
         x64->unwind->push(this);
@@ -365,7 +378,11 @@ public:
         }
 
         // If the caller reuses the self pointer, it must continue pointing to the role data
-        if (associated_role_offset)
+        if (aos.where == MEMORY) {
+            x64->op(MOVQ, R11, aos.address);
+            x64->op(ADDQ, self_storage.address, R11);
+        }
+        else if (associated_role_offset)
             x64->op(ADDQ, self_storage.address, associated_role_offset);
         
         x64->op(ADDQ, RSP, frame_size);
@@ -462,7 +479,7 @@ public:
 
         if (has_code_arg)
             fn_scope->make_forwarded_exception_storage();
-        
+            
         std::cerr << "Making function " << name << ".\n";
         
         if (import_name.size())

@@ -377,6 +377,9 @@ public:
 
 class VirtualEntry {
 public:
+    virtual void compile(TypeMatch tm, X64 *x64) {
+    }
+    
     virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
         throw INTERNAL_ERROR;
     }
