@@ -16,6 +16,7 @@ BIN        = run/plum
 BINFLAGS   = 
 GCCLOG     = run/gcc.log
 CORE       = core.plum.*(N) core.app.*(N)
+BINLOG     = run/plum.log
 
 PRECOMPIN  = precompiled.h
 PRECOMPOUT = precompiled.h.gch
@@ -27,12 +28,16 @@ MAINOBJ    = run/main.o
 TESTBIN    = run/app
 TESTOBJ    = run/app.o
 TESTSRC    = test/app.plum
-TESTLOG    = run/plum.log
 TESTLIBS   = -lpcre2-16 -lm
+TESTINPUT  = test/input.sh
+TESTLOG    = run/app.log
+TESTREFLOG = test/ref.log
 
 exe: uncore $(BIN)
 
 test: uncore untest $(TESTBIN)
+	@$(TESTINPUT) | $(TESTBIN) 2>&1 | tee $(TESTLOG)
+	@diff -u $(TESTREFLOG) $(TESTLOG)
 
 uncore:
 	@rm -f $(CORE)
@@ -54,7 +59,7 @@ $(MAINOBJ): $(MAINSRC) $(HEAPH)
 	@gcc $(CFLAGS) -c -o $(MAINOBJ) $(MAINSRC)
 
 $(TESTOBJ): $(TESTSRC) $(BIN)
-	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(TESTLOG) 2>&1 || { cat $(TESTLOG); false } && { cat $(TESTLOG) }
+	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(BINLOG) 2>&1 || { cat $(BINLOG); false } && { cat $(BINLOG) }
 
 clean:
 	@rm -f $(BIN) $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(PRECOMPOUT)
