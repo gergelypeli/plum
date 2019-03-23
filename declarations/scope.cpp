@@ -169,6 +169,10 @@ public:
         is_allocated = true;
     }
 
+    virtual Storage get_local_storage() {
+        throw INTERNAL_ERROR;
+    }
+
     virtual Allocation reserve(Allocation size) {
         throw INTERNAL_ERROR;
     }
@@ -357,7 +361,7 @@ public:
         application_label = al;
     }
     
-    virtual Storage get_global_storage() {
+    virtual Storage get_local_storage() {
         return Storage(MEMORY, Address(application_label, 0));
     }
 
@@ -398,12 +402,12 @@ public:
         return this;
     }
 
-    virtual Storage get_global_storage() {
+    virtual Storage get_local_storage() {
         allocate();
         //if (!is_allocated)
         //    throw INTERNAL_ERROR;
             
-        return get_root_scope()->get_global_storage() + offset.concretize();
+        return get_root_scope()->get_local_storage() + offset.concretize();
     }
 
     virtual std::string fully_qualify(std::string n) {
@@ -563,6 +567,10 @@ public:
         };
     }
     
+    virtual Storage get_local_storage() {
+        return outer_scope->get_local_storage();
+    }
+    
     virtual TypeSpec get_pivot_ts() {
         return NO_TS;
     }
@@ -696,6 +704,10 @@ public:
         
         //std::cerr << "Now size is " << size << " bytes.\n";
         return offset;
+    }
+
+    virtual Storage get_local_storage() {
+        return outer_scope->get_local_storage();
     }
 
     virtual TypeSpec get_pivot_ts() {
@@ -845,6 +857,10 @@ public:
         body_scope->allocate();
         
         is_allocated = true;
+    }
+
+    virtual Storage get_local_storage() {
+        return Storage(MEMORY, Address(RBP, 0));
     }
     
     virtual unsigned get_frame_size() {

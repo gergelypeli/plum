@@ -1089,7 +1089,8 @@ App? :Class Application as:
     
 
 #Main? :Singleton as:
-    init? :Initializer
+    init? :Initializer as:
+        Std prints("App init.")
 
     @.start? :Function as:
         $ test_integers

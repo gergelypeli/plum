@@ -19,6 +19,10 @@ public:
     virtual TypeSpec get_typespec(TypeMatch tm) {
         return typesubst(alloc_ts, tm);
     }
+
+    virtual Scope *get_allocation_scope() {
+        return outer_scope;
+    }
     
     virtual void allocate() {
         if (where != NOWHERE)
@@ -42,8 +46,8 @@ public:
 
     virtual Storage get_local_storage() {
         // Without pivot as a function local variable
-        Storage fn_storage(MEMORY, Address(RBP, 0));
-        return get_storage(TypeMatch(), fn_storage);
+        //Storage fn_storage(MEMORY, Address(RBP, 0));
+        return get_storage(TypeMatch(), get_allocation_scope()->get_local_storage());
     }
     
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
@@ -101,7 +105,7 @@ public:
         //if (a.count1 || a.count2 || a.count3)
         //    std::cerr << "Hohoho, allocating variable " << name << " with size " << a << ".\n";
         
-        offset = outer_scope->reserve(a);
+        offset = get_allocation_scope()->reserve(a);
         //std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
     }
     
@@ -203,6 +207,14 @@ public:
         return n == name;
     }
 
+    virtual bool is_abstract() {
+        return true;  // No explicit initialization by its enclosing type
+    }
+
+    virtual Scope *get_allocation_scope() {
+        return outer_scope->get_module_scope();
+    }
+
     virtual void allocate() {
         Variable::allocate();
         
@@ -210,10 +222,10 @@ public:
         outer_scope->get_root_scope()->register_global_variable(this);
     }
 
-    virtual Storage get_local_storage() {  // TODO: shall we call it get_global_storage?
-        Storage module_storage = outer_scope->get_module_scope()->get_global_storage();
-        return get_storage(TypeMatch(), module_storage);
-    }
+    //virtual Storage get_local_storage() {  // TODO: shall we call it get_global_storage?
+    //    Storage module_storage = outer_scope->get_module_scope()->get_global_storage();
+    //    return get_storage(TypeMatch(), module_storage);
+    //}
 
     // No initializers are accessible from the language, done by the runtime itself
     virtual Label compile_initializer(X64 *x64) {
