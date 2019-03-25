@@ -272,21 +272,7 @@ public:
         x64->runtime->decref(q);
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        // NOTE: unlike with Implementation, we cannot just delegate the job to an
-        // Associable, because we may have a direct Streamifiable Ptr pivot.
-        
-        // The pivot is on the stack as rvalue, and the stream as lvalue.
-        //int method_vi = ptr_cast<Function>(ptr_cast<Type>(streamifiable_type)->get_inner_scope()->contents[0].get())->virtual_index;
-        /*
-        if (this == ptr_cast<AbstractType>(streamifiable_type)) {
-            // Streamifiable role pivot, invoke method directly
-            x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
-            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // sable VT
-            x64->op(CALL, Address(R11, method_vi * ADDRESS_SIZE));  // select method
-            return;
-        }
-        */
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         // Try autoconv
         Associable *streamifiable_associable = NULL;
             
@@ -299,16 +285,6 @@ public:
 
         if (streamifiable_associable) {
             streamifiable_associable->streamify(tm, x64);
-            /*
-            int role_vi = streamifiable_associable->virtual_index;
-
-            x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
-            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // VT
-            x64->op(ADDQ, R10, Address(R11, role_vi * ADDRESS_SIZE));  // select role
-            x64->op(MOVQ, Address(RSP, ALIAS_SIZE), R10);  // technically illegal
-            x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // sable VT
-            x64->op(CALL, Address(R11, method_vi * ADDRESS_SIZE));  // select method
-            */
             return;
         }
         

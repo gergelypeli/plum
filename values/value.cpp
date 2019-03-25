@@ -82,7 +82,7 @@ public:
     }
 
     virtual void streamify(X64 *x64) {
-        return ts.streamify(false, x64);
+        return ts.streamify(x64);
     }
 };
 

@@ -223,7 +223,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         if (streamify_function) {
             // The pivot is on the stack as rvalue, and the stream as lvalue.
             x64->op(CALL, streamify_function->get_label(x64));
@@ -247,7 +247,7 @@ public:
                 mts.store(s, t, x64);
                 x64->op(PUSHQ, Address(RSP, mts.measure_stack()));
                 
-                mts.streamify(false, x64);
+                mts.streamify(x64);
                 
                 x64->op(ADDQ, RSP, ADDRESS_SIZE);
                 mts.store(t, Storage(), x64);
@@ -432,51 +432,15 @@ public:
         x64->op(RET);
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        // TODO: and escape everything!
-        
-        if (alt) {
-            // Unescaped and unquoted
-            Label st_label = x64->once->compile(compile_raw_streamification);
-            x64->op(CALL, st_label);  // clobbers all
-        }
-        else {
-            // Escaped and quoted
-            Label st_label = x64->once->compile(compile_esc_streamification);
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        // Escaped and quoted
+        Label st_label = x64->once->compile(compile_esc_streamification);
 
-            streamify_ascii("\"", Address(RSP, 0), x64);
+        streamify_ascii("\"", Address(RSP, 0), x64);
         
-            x64->op(CALL, st_label);  // clobbers all
+        x64->op(CALL, st_label);  // clobbers all
 
-            streamify_ascii("\"", Address(RSP, 0), x64);
-        }
-    }
-
-    static void compile_raw_streamification(Label label, X64 *x64) {
-        // RAX - target array, RCX - size, R10 - source array, R11 - alias
-        
-        x64->code_label_local(label, "string_raw_streamification");
-        
-        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
-        
-        x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
-
-        stream_preappend2(Address(RSP, ADDRESS_SIZE), x64);
-        
-        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
-
-        x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // Yes, added twice (CHARACTER_SIZE)
-
-        x64->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
-        x64->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
-        x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
-        x64->op(SHLQ, RCX, 1);
-        
-        x64->op(REPMOVSB);
-        
-        x64->op(RET);
+        streamify_ascii("\"", Address(RSP, 0), x64);
     }
 
     static void compile_esc_streamification(Label label, X64 *x64) {

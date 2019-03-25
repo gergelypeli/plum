@@ -229,10 +229,13 @@ public:
 };
 
 
-class AltStreamifiableImplementation: public Implementation {
+class RawStreamifiableImplementation: public Implementation {
 public:
-    AltStreamifiableImplementation(std::string name)
+    Once::FunctionCompiler compile_streamification;
+    
+    RawStreamifiableImplementation(std::string name, Once::FunctionCompiler cs)
         :Implementation(name, STREAMIFIABLE_TS, AS_ROLE) {
+        compile_streamification = cs;
     }
     
     virtual void check_full_implementation() {
@@ -241,6 +244,64 @@ public:
     }
     
     virtual void streamify(TypeMatch tm, X64 *x64) {
-        tm[0].streamify(true, x64);
+        Label st_label = x64->once->compile(compile_streamification);
+        x64->op(CALL, st_label);
+    }
+};
+
+
+class StringRawStreamifiableImplementation: public RawStreamifiableImplementation {
+public:
+    StringRawStreamifiableImplementation(std::string name)
+        :RawStreamifiableImplementation(name, compile_raw_streamification) {
+    }
+
+    static void compile_raw_streamification(Label label, X64 *x64) {
+        // RAX - target array, RCX - size, R10 - source array, R11 - alias
+        
+        x64->code_label_local(label, "string_raw_streamification");
+        
+        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
+        
+        x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
+
+        stream_preappend2(Address(RSP, ADDRESS_SIZE), x64);
+        
+        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
+
+        x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // Yes, added twice (CHARACTER_SIZE)
+
+        x64->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
+        x64->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
+        x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
+        x64->op(SHLQ, RCX, 1);
+        
+        x64->op(REPMOVSB);
+        
+        x64->op(RET);
+    }
+};
+
+
+class CharacterRawStreamifiableImplementation: public RawStreamifiableImplementation {
+public:
+    CharacterRawStreamifiableImplementation(std::string name)
+        :RawStreamifiableImplementation(name, compile_raw_streamification) {
+    }
+
+    static void compile_raw_streamification(Label label, X64 *x64) {
+        x64->code_label_local(label, "character_raw_streamification");
+
+        x64->op(MOVQ, R10, 1);
+        stream_preappend2(Address(RSP, ADDRESS_SIZE), x64);
+
+        x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+        x64->op(MOVW, R10W, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
+        x64->op(MOVW, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET), R10W);  // stream end
+        x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 1);
+
+        x64->op(RET);
     }
 };

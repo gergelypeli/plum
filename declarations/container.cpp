@@ -18,8 +18,8 @@ public:
         x64->runtime->decref(r);
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        // We do this for identity types that don't implement Streamifiable
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        // We do this for container types that don't implement Streamifiable
         x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
         x64->op(MOVQ, RSI, Address(RSP, 0));
     
@@ -90,7 +90,7 @@ public:
         return NULL;
     }
     
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         TypeSpec elem_ts = tm[1];
         Label label = x64->once->compile(compile_contents_streamification, elem_ts);
         x64->op(CALL, label);  // clobbers all
@@ -131,7 +131,7 @@ public:
         elem_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
         x64->op(PUSHQ, RBX);
         
-        elem_ts.streamify(false, x64);  // clobbers all
+        elem_ts.streamify(x64);  // clobbers all
         
         x64->op(POPQ, RBX);
         elem_ts.store(Storage(STACK), Storage(), x64);
@@ -293,7 +293,7 @@ public:
         }
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         TypeSpec ets = typesubst(elem_ts, tm);
         Label label = x64->once->compile(compile_contents_streamification, ets);
         x64->op(CALL, label);  // clobbers all
@@ -333,7 +333,7 @@ public:
         elem_ts.store(Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), Storage(STACK), x64);
         x64->op(PUSHQ, RBX);
         
-        elem_ts.streamify(false, x64);  // clobbers all
+        elem_ts.streamify(x64);  // clobbers all
         
         x64->op(POPQ, RBX);
         elem_ts.store(Storage(STACK), Storage(), x64);

@@ -182,7 +182,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         Label os_label = x64->once->compile(compile_streamification, tm[1]);
         
         x64->op(CALL, os_label);
@@ -217,7 +217,7 @@ public:
         // Skip the flag, but copy the stream alias, too
         x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
         
-        some_ts.streamify(false, x64);
+        some_ts.streamify(x64);
         
         x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
         
@@ -529,7 +529,7 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         Label os_label = x64->once->compile(compile_streamification, tm[0]);
         
         x64->op(CALL, os_label);
@@ -561,7 +561,7 @@ public:
             // Skip the flag, but copy the stream alias, too
             x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
             
-            ut->tss[i].streamify(false, x64);  // TODO: hm, alt?
+            ut->tss[i].streamify(x64);
             
             x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
             x64->op(JMP, end);

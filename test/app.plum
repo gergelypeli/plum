@@ -137,11 +137,13 @@ App? :Class Application as:
             Std prints(zz)
     
         Std prints((xx? = "hi") + xx)
+
+        Std prints("A string as {} and {}" { "raw" raw, "cooked" })
+        Std prints("A character as raw {} and cooked {}" { Character "ű" raw, Character "ű" })
     
         Std prints("XXXXX{a}YYYYY" {})
         Std prints("0{HT}8")
         Std prints("NUL: {NUL}")
-        Std prints("A character: {}" { Character "ű" })
         
         wicked? = "{NUL}{HT}{ESC}{LB}{QU}{RB}{DEL}ő"
         Std prints("Wicked {} characters: {} {} {} {} {} {} {} {}" { wicked length, wicked[0], wicked[1], wicked[2], wicked[3], wicked[4], wicked[5], wicked[6], wicked[7] })

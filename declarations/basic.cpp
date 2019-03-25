@@ -224,7 +224,7 @@ public:
         :BasicType(n, s, iu, integer_metatype) {
     }
     
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         // SysV
         Label label;
         
@@ -273,7 +273,7 @@ public:
         :BasicType(n, s, true) {
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         // SysV
         x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
         x64->op(MOVQ, RSI, Address(RSP, 0));
@@ -302,17 +302,10 @@ public:
         :BasicType(n, s, true) {
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        if (alt) {
-            // Raw unquoted
-            Label raw_label = x64->once->compile(compile_raw_streamification);
-            x64->op(CALL, raw_label);  // clobbers all
-        }
-        else {
-            // Escaped quoted
-            Label esc_label = x64->once->compile(compile_esc_streamification);
-            x64->op(CALL, esc_label);  // clobbers all
-        }
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        // Escaped quoted
+        Label esc_label = x64->once->compile(compile_esc_streamification);
+        x64->op(CALL, esc_label);  // clobbers all
     }
 
     static void insert_pre_streamification(X64 *x64) {
@@ -373,16 +366,6 @@ public:
 
         x64->code_label(del_label);
         x64->op(MOVABSQ, R10, 'D' | 'E' << 16 | (unsigned64)'L' << 32);
-        x64->op(RET);
-    }
-
-    static void compile_raw_streamification(Label label, X64 *x64) {
-        x64->code_label_local(label, "character_raw_streamification");
-
-        insert_pre_streamification(x64);
-
-        x64->op(MOVW, Address(RBX, 0), R10W);
-        x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 1);
         x64->op(RET);
     }
 
@@ -485,7 +468,7 @@ public:
         keywords = kw;
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         Label es_label = x64->once->compile(compile_streamification);
 
         x64->op(LEA, RBX, Address(get_stringifications_label(x64), 0));  // table start

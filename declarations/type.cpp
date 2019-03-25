@@ -372,7 +372,7 @@ public:
     // NOTE: allowed to clobber STREAMIFY_CLOB, because it is mostly called
     // from interpolation, which is in Void context, so not much is lost. But
     // nested streamifications must take care!
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         streamify_ascii("<unstreamifiable>", Address(RSP, 0), x64);
     }
 
@@ -599,8 +599,8 @@ public:
         tm[1].compare(s, t, x64);
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        tm[1].streamify(alt, x64);
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        tm[1].streamify(x64);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
@@ -860,7 +860,7 @@ public:
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         streamify_ascii("U", Address(RSP, 0), x64);
     }
 };

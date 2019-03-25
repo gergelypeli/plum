@@ -222,8 +222,8 @@ public:
         x64->runtime->r10bcompar(true);
     }
     
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        tm[1].streamify(alt, x64);
+    virtual void streamify(TypeMatch tm, X64 *x64) {
+        tm[1].streamify(x64);
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -300,7 +300,7 @@ public:
         x64->runtime->decref(r);
     }
 
-    virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
+    virtual void streamify(TypeMatch tm, X64 *x64) {
         // We do this for heap types that don't implement Streamifiable
         x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
         x64->op(MOVQ, RSI, Address(RSP, 0));

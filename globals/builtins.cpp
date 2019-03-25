@@ -772,6 +772,22 @@ void define_iterators() {
 }
 
 
+void define_character() {
+    Scope *char_scope = character_type->make_inner_scope();
+
+    char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", COMPARE));
+    char_scope->add(new CharacterRawStreamifiableImplementation("raw"));
+
+    char_scope->leave();
+
+    Scope *char_lscope = character_type->make_lvalue_scope();
+    
+    char_lscope->add(new TemplateOperation<IntegerOperationValue>("assign other", ASSIGN));
+
+    char_lscope->leave();
+}
+
+
 void define_string() {
     RecordType *record_type = ptr_cast<RecordType>(string_type);
     DataScope *is = record_type->make_inner_scope();
@@ -794,7 +810,7 @@ void define_string() {
     is->add(new RecordWrapperIdentifier("indexes", CHARACTER_ARRAY_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
     is->add(new RecordWrapperIdentifier("items", CHARACTER_ARRAY_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
-    is->add(new AltStreamifiableImplementation("raw"));
+    is->add(new StringRawStreamifiableImplementation("raw"));
 
     // String operations
     is->add(new SysvFunction("encode_utf8", "encode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }, NULL, NULL));
@@ -1163,6 +1179,7 @@ RootScope *init_builtins() {
 
     define_interfaces();
 
+    define_character();
     define_string();
     define_slice(root_scope);
     
@@ -1183,15 +1200,6 @@ RootScope *init_builtins() {
     define_integers();
     define_float();
         
-    // Character operations
-    Scope *char_scope = character_type->make_inner_scope();
-    char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", COMPARE));
-    char_scope->leave();
-
-    Scope *char_lscope = character_type->make_lvalue_scope();
-    char_lscope->add(new TemplateOperation<IntegerOperationValue>("assign other", ASSIGN));
-    char_lscope->leave();
-    
     // Boolean operations
     Scope *bool_scope = boolean_type->make_inner_scope();
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("compare", COMPARE));

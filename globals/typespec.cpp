@@ -248,8 +248,8 @@ void TypeSpec::compare(Storage s, Storage t, X64 *x64) {
 }
 
 
-void TypeSpec::streamify(bool alt, X64 *x64) {
-    at(0)->streamify(match(), alt, x64);
+void TypeSpec::streamify(X64 *x64) {
+    at(0)->streamify(match(), x64);
 }
 
 
