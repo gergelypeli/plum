@@ -198,7 +198,6 @@ public:
 class EnumerationDefinitionValue: public TypeDefinitionValue {
 public:
     std::vector<std::string> keywords;
-    Label stringifications_label;
 
     EnumerationDefinitionValue()
         :TypeDefinitionValue() {
@@ -794,6 +793,42 @@ public:
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
             Type *t = new RecordType(name, Metatypes {});
+            return define(t, scope);
+        }
+        else
+            return NULL;
+    }
+};
+
+
+
+class UnionDefinitionValue: public ScopedTypeDefinitionValue {
+public:
+    UnionDefinitionValue()
+        :ScopedTypeDefinitionValue() {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        Expr *as_expr = NULL;
+        
+        ExprInfos eis = {
+            { "as", &as_expr }
+        };
+        
+        if (!check_exprs(args, kwargs, eis)) {
+            std::cerr << "Whacky union!\n";
+            return false;
+        }
+
+        defer_as(as_expr);
+        
+        std::cerr << "Deferring union definition.\n";
+        return true;
+    }
+
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        if (scope->type == DATA_SCOPE || scope->type == CODE_SCOPE || scope->type == MODULE_SCOPE) {
+            Type *t = new UnionType(name);
             return define(t, scope);
         }
         else

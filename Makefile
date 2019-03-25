@@ -37,7 +37,7 @@ exe: uncore $(BIN)
 
 test: uncore untest $(TESTBIN)
 	@$(TESTINPUT) | $(TESTBIN) 2>&1 | tee $(TESTLOG)
-	@diff -u $(TESTREFLOG) $(TESTLOG)
+	@diff -ua $(TESTREFLOG) $(TESTLOG)
 
 uncore:
 	@rm -f $(CORE)

@@ -720,6 +720,37 @@ App? :Class Application as:
             Std prints("It contained some.")
 
 
+    Alphanumeric? :Union as:
+        alpha? String
+        numeric? Float
+
+    test_unions? :Function as:
+        a? Alphanumeric = `alpha("Alpha")
+        b? Alphanumeric = `numeric(3.14)
+        
+        Std prints("Alpha is {} and numeric is {}." { a, b })
+
+        :is val? = a ~alpha then:
+            Std prints("Alpha contained {}." { val })
+        else:
+            Std prints("Alpha IS NOT ALPHA!")
+
+        :is a ~numeric then:
+            Std prints("Alpha IS NUMERIC!")
+        else:
+            Std prints("Alpha is not numeric.")
+
+        :is val? = b ~numeric then:
+            Std prints("Numeric contained {}." { val })
+        else:
+            Std prints("Numeric IS NOT NUMERIC!")
+
+        :is b ~alpha then:
+            Std prints("Numeric IS ALPHA!")
+        else:
+            Std prints("Numeric is not alpha.")
+
+
 #Test_classes? :Singleton as:
     Base? :Abstract as:
         the_base_method? :Function
@@ -1105,6 +1136,7 @@ App? :Class Application as:
         $ test_queues
         $ test_rbtrees
         $ test_options
+        $ test_unions
         $ test_classes
         $ test_functors
         $ test_singletons

@@ -179,6 +179,7 @@ MetaType *enumeration_metatype = NULL;
 MetaType *treenumeration_metatype = NULL;
 MetaType *integer_metatype = NULL;
 MetaType *record_metatype = NULL;
+MetaType *union_metatype = NULL;
 MetaType *abstract_metatype = NULL;
 MetaType *class_metatype = NULL;
 MetaType *singleton_metatype = NULL;

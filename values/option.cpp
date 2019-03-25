@@ -155,3 +155,95 @@ public:
         }
     }
 };
+
+
+
+class UnionValue: public Value {
+public:
+    TypeSpec arg_ts;
+    int tag_index;
+    std::unique_ptr<Value> value;
+    
+    UnionValue(TypeSpec ts, TypeSpec ats, int ti)
+        :Value(ts) {
+        arg_ts = ats;
+        tag_index = ti;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return check_arguments(args, kwargs, {{ "value", &arg_ts, scope, &value }});
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        unsigned flag_size = UnionType::get_flag_size();
+        unsigned full_size = ts.measure_stack();
+        unsigned arg_size = arg_ts.measure_stack();
+        unsigned pad_count = (full_size - flag_size - arg_size) / ADDRESS_SIZE;
+        
+        for (unsigned i = 0; i < pad_count; i++)
+            x64->op(PUSHQ, 0);
+            
+        value->compile_and_store(x64, Storage(STACK));
+        
+        x64->op(PUSHQ, tag_index);
+            
+        return Storage(STACK);
+    }
+};
+
+
+class UnionMatcherValue: public GenericValue, public Raiser {
+public:
+    TypeSpec union_ts;
+    int tag_index;
+    
+    UnionMatcherValue(Value *p, TypeSpec uts, TypeSpec rts, int ti)
+        :GenericValue(NO_TS, rts, p) {
+        union_ts = uts;
+        tag_index = ti;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(match_unmatched_exception_type, scope))
+            return false;
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage ls = left->compile(x64);
+        Label ok;
+            
+        switch (ls.where) {
+        case STACK:
+            x64->op(CMPQ, Address(RSP, 0), tag_index);
+            x64->op(JE, ok);
+
+            left->ts.store(ls, Storage(), x64);
+            raise("UNMATCHED", x64);
+
+            x64->code_label(ok);
+            x64->op(ADDQ, RSP, ADDRESS_SIZE);
+                
+            return Storage(STACK);
+        case MEMORY:
+            x64->op(CMPQ, ls.address, tag_index);
+            x64->op(JE, ok);
+            
+            raise("UNMATCHED", x64);
+            
+            x64->code_label(ok);
+            return Storage(MEMORY, ls.address + ADDRESS_SIZE);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+};

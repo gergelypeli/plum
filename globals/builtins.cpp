@@ -85,6 +85,9 @@ void builtin_types(Scope *root_scope) {
     record_metatype = new MetaType("Record", { value_metatype }, make<RecordDefinitionValue>);
     colon_scope->add(record_metatype);
 
+    union_metatype = new MetaType("Union", { }, make<UnionDefinitionValue>);
+    colon_scope->add(union_metatype);
+
     abstract_metatype = new MetaType("Abstract", { identity_metatype }, make<AbstractDefinitionValue>);
     colon_scope->add(abstract_metatype);
 
