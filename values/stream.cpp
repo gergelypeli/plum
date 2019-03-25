@@ -6,6 +6,34 @@ void stream_preappend2(Address alias_addr, X64 *x64) {
 }
 
 
+void streamify_ascii(std::string s, Address alias_addr, X64 *x64) {
+    // stack - stream alias, s - ASCII string constant
+    
+    unsigned n = s.size();
+    
+    x64->op(MOVQ, R10, n);
+
+    stream_preappend2(alias_addr, x64);
+    
+    x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    Address tail_address = Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET);
+
+    for (unsigned i = 0; i + 1 < n; i += 2) {
+        int dw = (s[i] | (s[i + 1] << 16));
+
+        x64->op(MOVD, tail_address + i * CHARACTER_SIZE, dw);
+    }
+    
+    if (n % 2) {
+        int dw = s[n - 1];
+        
+        x64->op(MOVW, tail_address + (n - 1) * CHARACTER_SIZE, dw);
+    }
+    
+    x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), n);
+}
+
+
 class InterpolationValue: public Value {
 public:
     std::vector<std::ustring> fragments;

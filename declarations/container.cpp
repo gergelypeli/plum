@@ -103,10 +103,7 @@ public:
         x64->code_label_local(label, elem_ts.symbolize() + "_array_contents_streamify");
         
         // open
-        x64->op(PUSHQ, CHARACTER_LEFTBRACE);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
-        CHARACTER_TS.streamify(true, x64);  // clobbers all
-        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        streamify_ascii("{", Address(RSP, ADDRESS_SIZE), x64);  // clobbers all
         
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // Array Ref
         x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -121,10 +118,9 @@ public:
         // separator
         x64->op(PUSHQ, RAX);
         x64->op(PUSHQ, RCX);
-        x64->op(PUSHQ, CHARACTER_COMMA);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE + 2 * ADDRESS_SIZE));
-        CHARACTER_TS.streamify(true, x64);  // clobbers all
-        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        
+        streamify_ascii(",", Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE), x64);
+
         x64->op(POPQ, RCX);
         x64->op(POPQ, RAX);
         
@@ -149,10 +145,7 @@ public:
         x64->code_label(end);
         
         // close
-        x64->op(PUSHQ, CHARACTER_RIGHTBRACE);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
-        CHARACTER_TS.streamify(true, x64);  // clobbers all
-        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        streamify_ascii("}", Address(RSP, ADDRESS_SIZE), x64);  // clobbers all
 
         x64->op(RET);
     }
@@ -313,10 +306,7 @@ public:
         x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_contents_streamify");
         
         // open
-        x64->op(PUSHQ, CHARACTER_LEFTBRACE);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
-        CHARACTER_TS.streamify(true, x64);  // clobbers all
-        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        streamify_ascii("{", Address(RSP, ADDRESS_SIZE), x64);
         
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // Rbtree Ref
         x64->op(MOVQ, RCX, Address(RAX, RBTREE_FIRST_OFFSET));
@@ -330,10 +320,9 @@ public:
         // separator
         x64->op(PUSHQ, RAX);
         x64->op(PUSHQ, RCX);
-        x64->op(PUSHQ, CHARACTER_COMMA);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE + 2 * ADDRESS_SIZE));
-        CHARACTER_TS.streamify(true, x64);  // clobbers all
-        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+
+        streamify_ascii(",", Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE), x64);
+        
         x64->op(POPQ, RCX);
         x64->op(POPQ, RAX);
         
@@ -358,10 +347,7 @@ public:
         x64->code_label(end);
         
         // close
-        x64->op(PUSHQ, CHARACTER_RIGHTBRACE);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
-        CHARACTER_TS.streamify(true, x64);  // clobbers all
-        x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+        streamify_ascii("}", Address(RSP, ADDRESS_SIZE), x64);
 
         x64->op(RET);
     }

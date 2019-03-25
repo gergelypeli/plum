@@ -316,19 +316,6 @@ public:
     }
 
     static void insert_pre_streamification(X64 *x64) {
-        // RAX - target array, RCX - size, R10 - source character, R11 - alias
-        //Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
-
-        //x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-
-        //x64->op(MOVQ, RAX, Address(R11, 0));
-        //x64->op(MOVQ, R10, 5);  // worst case will be five character escapes
-        
-        //x64->op(CALL, preappend_array);  // clobbers all
-        
-        //x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-        //x64->op(MOVQ, Address(R11, 0), RAX);  // R11 no longer needed
-        
         x64->op(MOVQ, R10, 5);  // worst case will be five character escapes
         stream_preappend2(Address(RSP, ADDRESS_SIZE), x64);
 

@@ -211,8 +211,6 @@ public:
     }
     
     static void compile_streamification(Label label, TypeSpec some_ts, X64 *x64) {
-        Label none_label = x64->runtime->data_heap_string(decode_utf8("`none"));
-        Label some_label = x64->runtime->data_heap_string(decode_utf8("`some "));
         Label some, ok;
         
         x64->code_label_local(label, "option_streamification");
@@ -221,19 +219,14 @@ public:
         x64->op(JNE, some);
         
         // `none
-        x64->op(LEA, R10, Address(none_label, 0));
+        streamify_ascii("`none", Address(RSP, ADDRESS_SIZE), x64);
         x64->op(JMP, ok);
         
         // `some
         x64->code_label(some);
-        x64->op(LEA, R10, Address(some_label, 0));
+        streamify_ascii("`some ", Address(RSP, ADDRESS_SIZE), x64);
         
         x64->code_label(ok);
-        
-        x64->op(PUSHQ, R10);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));
-        STRING_TS.streamify(true, x64);
-        x64->op(ADDQ, RSP, 16);
         
         x64->op(RET);
     }
@@ -557,19 +550,12 @@ public:
 
         for (unsigned i = 0; i < ut->tss.size(); i++) {
             Label skip;
-            Label tag_label = x64->runtime->data_heap_string(decode_utf8("`" + ut->tags[i] + " "));
             
             x64->op(CMPQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE), i);
             x64->op(JNE, skip);
             
             // Streamify the tag first
-            x64->op(LEA, R10, Address(tag_label, 0));
-            x64->op(PUSHQ, R10);  // String (borrowed ref)
-            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE + ADDRESS_SIZE));  // stream alias
-            
-            STRING_TS.streamify(true, x64);
-            
-            x64->op(ADDQ, RSP, ADDRESS_SIZE + ADDRESS_SIZE);
+            streamify_ascii("`" + ut->tags[i] + " ", Address(RSP, ADDRESS_SIZE), x64);
             
             // Then the field. Make a borrowed copy of the value in the stack.
             for (unsigned j = 0; j < copy_count; j++) {
