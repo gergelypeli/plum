@@ -183,37 +183,15 @@ public:
     }
 
     virtual void streamify(TypeMatch tm, bool alt, X64 *x64) {
-        int flag_size = get_flag_size(tm[1]);
         Label os_label = x64->once->compile(compile_streamification, tm[1]);
-        Label ok;
         
         x64->op(CALL, os_label);
-        
-        // also streamify the some value
-        x64->op(CMPQ, Address(RSP, ALIAS_SIZE), OPTION_FLAG_NONE);
-        x64->op(JE, ok);
-        
-        if (flag_size) {
-            x64->op(POPQ, R10);  // stream alias
-            x64->op(ADDQ, RSP, 8);
-            x64->op(PUSHQ, R10);  // overwrite flag
-        }
-        
-        tm[1].streamify(alt, x64);
-        
-        if (flag_size) {
-            x64->op(POPQ, R10);
-            x64->op(PUSHQ, 1);
-            x64->op(PUSHQ, R10);
-        }
-        
-        x64->code_label(ok);
     }
     
     static void compile_streamification(Label label, TypeSpec some_ts, X64 *x64) {
         Label some, ok;
         
-        x64->code_label_local(label, "option_streamification");
+        x64->code_label_local(label, some_ts.symbolize() + "_option_streamification");
 
         x64->op(CMPQ, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE), OPTION_FLAG_NONE);
         x64->op(JNE, some);
@@ -225,6 +203,23 @@ public:
         // `some
         x64->code_label(some);
         streamify_ascii("`some ", Address(RSP, ADDRESS_SIZE), x64);
+
+        unsigned some_size = some_ts.measure_stack();
+        unsigned copy_count = some_size / ADDRESS_SIZE;
+        unsigned flag_count = get_flag_size(some_ts) / ADDRESS_SIZE;
+
+        // Make a borrowed copy of the value in the stack.
+        for (unsigned j = 0; j < copy_count; j++) {
+            // skip ret address, alias, flag
+            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 + flag_count - 1)));
+        }
+        
+        // Skip the flag, but copy the stream alias, too
+        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
+        
+        some_ts.streamify(false, x64);
+        
+        x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
         
         x64->code_label(ok);
         
