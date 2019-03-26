@@ -438,14 +438,29 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
 
             // parse the part without sign into a 64-bit unsigned
-            unsigned64 x = parse_unsigned_integer(text);
+            // Our parser works on character arrays
+            int64 character_length = text.size();
+            unsigned16 characters[character_length];
+            
+            for (unsigned i = 0; i < character_length; i++)
+                characters[i] = text[i];
+                
+            unsigned64 result;
+            int64 character_count;
+
+            bool ok = parse_unteger(characters, character_length, &result, &character_count);
+            
+            if (!ok || character_count < character_length) {
+                std::cerr << "Invalid integer literal '" << text << "' at " << expr->token << "!\n";
+                throw TYPE_ERROR;
+            }
 
             if (it->is_unsigned) {
                 if (
                     is_negative ||
-                    (it->size == 1 && x > 255) ||
-                    (it->size == 2 && x > 65535) ||
-                    (it->size == 4 && x > 4294967295)
+                    (it->size == 1 && result > 255) ||
+                    (it->size == 2 && result > 65535) ||
+                    (it->size == 4 && result > 4294967295)
                 ) {
                     std::cerr << "A " << value_ts << " literal out of range: " << expr->token << "\n";
                     throw TYPE_ERROR;
@@ -453,17 +468,17 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
             else {
                 if (
-                    (it->size == 1 && x > (is_negative ? 128 : 127)) ||
-                    (it->size == 2 && x > (is_negative ? 32768 : 32767)) ||
-                    (it->size == 4 && x > (is_negative ? 2147483648 : 2147483647)) ||
-                    (it->size == 8 && x > (is_negative ? 9223372036854775808U : 9223372036854775807U))
+                    (it->size == 1 && result > (is_negative ? 128 : 127)) ||
+                    (it->size == 2 && result > (is_negative ? 32768 : 32767)) ||
+                    (it->size == 4 && result > (is_negative ? 2147483648 : 2147483647)) ||
+                    (it->size == 8 && result > (is_negative ? 9223372036854775808U : 9223372036854775807U))
                 ) {
                     std::cerr << "A " << value_ts << " literal out of range: " << expr->token << "\n";
                     throw TYPE_ERROR;
                 }
             }
 
-            value = make<BasicValue>(value_ts, is_negative ? -x : x);
+            value = make<BasicValue>(value_ts, is_negative ? -result : result);
         }
         else {
             std::cerr << "Numeric literal in a " << value_ts << " context: " << expr->token << "\n";
