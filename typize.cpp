@@ -412,8 +412,24 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         IntegerType *it = ptr_cast<IntegerType>(t);
         
         if (t == float_type) {
-            double x = parse_float(text);
-            value = make<FloatValue>(value_ts, is_negative ? -x : x);
+            // Our parser works on character arrays
+            int64 character_length = text.size();
+            unsigned16 characters[character_length];
+            
+            for (unsigned i = 0; i < character_length; i++)
+                characters[i] = text[i];
+                
+            double result;
+            int64 character_count;
+            
+            bool ok = parse_float(characters, character_length, &result, &character_count);
+            
+            if (!ok || character_count < character_length) {
+                std::cerr << "Invalid float literal '" << text << "' at " << expr->token << "!\n";
+                throw TYPE_ERROR;
+            }
+                
+            value = make<FloatValue>(value_ts, is_negative ? -result : result);
         }
         else if (it) {
             if (looks_float) {

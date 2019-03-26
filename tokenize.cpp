@@ -136,8 +136,8 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
             continue;
         }
         else if (isdigit(c)) {  // .1 is not a valid floating point constant
-            // For the sake of floating point numbers, include a plus or minus sign following
-            // a letter E if that was the first letter in the token.
+            // For the sake of floating point numbers, accept a plus or minus sign following
+            // a letter {e,E} if that was the first letter in the token.
             int letter_count = 0;
             
             do {

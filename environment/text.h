@@ -1,5 +1,5 @@
 
-void decode_utf8_buffer(const char *bytes, int64 byte_length, unsigned16 *characters, int64 character_length, int64 *byte_count, int64 *character_count) {
+bool decode_utf8_buffer(const char *bytes, int64 byte_length, unsigned16 *characters, int64 character_length, int64 *byte_count, int64 *character_count) {
     const char *bytes_start = bytes;
     const char *bytes_end = bytes + byte_length;
     
@@ -17,12 +17,12 @@ void decode_utf8_buffer(const char *bytes, int64 byte_length, unsigned16 *charac
                 break;
                 
             if ((bytes[1] & 0xC0) != 0x80)
-                break;
+                return false;
                 
             characters[0] = ((bytes[0] & 0x1F) << 6) | (bytes[1] & 0x3F);
             
             if (characters[0] < 0x80)
-                break;
+                return false;
             
             bytes += 2;
             characters += 1;
@@ -32,12 +32,12 @@ void decode_utf8_buffer(const char *bytes, int64 byte_length, unsigned16 *charac
                 break;
                 
             if ((bytes[1] & 0xC0) != 0x80 || (bytes[2] & 0xC0) != 0x80)
-                break;
+                return false;
                 
             characters[0] = ((bytes[0] & 0x0F) << 12) | ((bytes[1] & 0x3F) << 6) | (bytes[2] & 0x3F);
             
             if (characters[0] < 0x800)
-                break;
+                return false;
             
             bytes += 3;
             characters += 1;
@@ -54,10 +54,11 @@ void decode_utf8_buffer(const char *bytes, int64 byte_length, unsigned16 *charac
     
     *byte_count = bytes - bytes_start;
     *character_count = characters - characters_start;
+    return true;
 }
 
 
-void encode_utf8_buffer(const unsigned16 *characters, int64 character_length, char *bytes, int64 byte_length, int64 *character_count, int64 *byte_count) {
+bool encode_utf8_buffer(const unsigned16 *characters, int64 character_length, char *bytes, int64 byte_length, int64 *character_count, int64 *byte_count) {
     const unsigned16 *characters_start = characters;
     const unsigned16 *characters_end = characters + character_length;
 
@@ -96,4 +97,90 @@ void encode_utf8_buffer(const unsigned16 *characters, int64 character_length, ch
 
     *character_count = characters - characters_start;
     *byte_count = bytes - bytes_start;
+    return true;
+}
+
+
+bool parse_float(const unsigned16 *characters, int64 character_length, double *result, int64 *character_count) {
+    double value = 0;
+    int exponent = 0;
+    bool seen_dot = false;
+    unsigned i;
+    
+    for (i = 0; i < character_length; i++) {
+        unsigned16 c = characters[i];
+        
+        if (c == '_')
+            continue;
+        else if (c == '.') {
+            if (seen_dot) {
+                return false;
+            }
+            
+            seen_dot = true;
+            continue;
+        }
+        else if (c >= '0' && c <= '9') {
+            value = 10 * value + (c - '0');
+            
+            if (seen_dot)
+                exponent -= 1;
+                
+            continue;
+        }
+        else if (c == 'e' || c == 'E') {
+            i += 1;
+            
+            if (i == character_length) {
+                return false;
+            }
+            
+            bool is_negative;
+            
+            if (characters[i] == '-') {
+                is_negative = true;
+                i += 1;
+            }
+            else if (characters[i] == '+') {
+                is_negative = false;
+                i += 1;
+            }
+            else {
+                is_negative = false;
+            }
+            
+            if (i == character_length) {
+                return false;
+            }
+            
+            unsigned e = 0;
+            
+            while (i < character_length) {
+                c = characters[i];
+                
+                if (c >= '0' && c <= '9')
+                    e = e * 10 + c - '0';
+                else
+                    break;
+                
+                if (e > 308) {
+                    return false;
+                }
+                
+                i += 1;
+            }
+            
+            if (is_negative)
+                exponent -= e;
+            else
+                exponent += e;
+        }
+        else {
+            break;
+        }
+    }
+    
+    *character_count = i;
+    *result = value * pow(10.0, exponent);
+    return true;
 }

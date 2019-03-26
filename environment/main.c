@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <locale.h>
 #include <math.h>
@@ -12,7 +13,7 @@
 #include <pcre2.h>
 
 #include "typedefs.h"
-#include "utf8.h"
+#include "text.h"
 #include "heap.h"
 
 #define ALENGTH(x) *(int64 *)((x) + LINEARRAY_LENGTH_OFFSET)

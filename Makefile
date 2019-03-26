@@ -6,7 +6,7 @@ VALUES     = all value literal function boolean integer array reference type typ
 ARCHS      = ork asm64 storage basics
 GLOBALS    = all builtins builtins_errno typespec typematch functions runtime modules
 MODULES    = tokenize treeize tupleize typize util structs plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%)
-HEADERS    = all globals/all declarations/all values/all environment/heap environment/typedefs environment/utf8
+HEADERS    = all globals/all declarations/all values/all environment/heap environment/typedefs environment/text
 SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always

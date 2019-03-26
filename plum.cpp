@@ -1,7 +1,7 @@
 #include "precompiled.h"
 
 #include "environment/typedefs.h"
-#include "environment/utf8.h"
+#include "environment/text.h"
 #include "environment/heap.h"
 
 #include "arch/ork.cpp"
