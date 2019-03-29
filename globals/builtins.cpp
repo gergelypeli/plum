@@ -1172,6 +1172,7 @@ void builtin_runtime(Scope *root_scope) {
     is->add(new SysvFunction("Std__parse_identifier", "parse_identifier", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, parse_exception_type));
     is->add(new SysvFunction("Std__parse_integer", "parse_integer", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { INTEGER_TS }, parse_exception_type));
     is->add(new SysvFunction("Std__parse_float", "parse_float", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { FLOAT_TS }, parse_exception_type));
+    is->add(new SysvFunction("Std__parse_jstring", "parse_jstring", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, parse_exception_type));
 
     std_type->complete_type();
     is->leave();

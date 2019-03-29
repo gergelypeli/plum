@@ -1073,7 +1073,7 @@ App? :Class Application as:
     ? :Import json
 
     test_json? :Function as:
-        parser? json.Parser Ref = json.String_parser Ref `from("  id  123  0.314e1  ")
+        parser? json.Parser Ref = json.String_parser Ref `from("  id  123  0.314e1  {QU}hello\\bell\u0151{QU}  ")
         
         parser parse_lws
         id? = :try parser parse_identifier
@@ -1081,8 +1081,10 @@ App? :Class Application as:
         int? = :try parser parse_integer
         parser parse_lws
         flo? = :try parser parse_float
+        parser parse_lws
+        str? = :try parser parse_jstring
         
-        Std prints("Parsed identifier {} integer {} float {}" { id, int, flo })
+        Std prints("Parsed identifier {} integer {} float {} string {}" { id, int, flo, str })
 
 
 #Test_files? :Singleton as:

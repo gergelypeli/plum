@@ -8,6 +8,7 @@ Parser? :Abstract as:
     parse_identifier? :Function String may: Parse_error
     parse_integer? :Function Integer may: Parse_error
     parse_float? :Function Float may: Parse_error
+    parse_jstring? :Function String may: Parse_error
     
     
 String_parser? :Class Parser as:
@@ -36,5 +37,11 @@ String_parser? :Class Parser as:
     @.parse_float? :Function Float may: Parse_error as:
         :try
             :return Std parse_float($ input, $ position)
+        or:
+            :raise `PARSE_ERROR
+
+    @.parse_jstring? :Function String may: Parse_error as:
+        :try
+            :return Std parse_jstring($ input, $ position)
         or:
             :raise `PARSE_ERROR

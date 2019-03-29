@@ -478,7 +478,7 @@ MaybeInteger Std__parse_integer(Ref character_array, int64 *position_lvalue) {
         unsigned16 c = chr(character_array, position);
         
         if (c == '+') {
-            *position_lvalue += 1;
+            position += 1;
         }
         else if (c == '-') {
             is_negative = true;
@@ -516,6 +516,140 @@ MaybeFloat Std__parse_float(Ref character_array, int64 *position_lvalue) {
     *position_lvalue = position + character_count;
     
     return YES_FLOAT(result);
+}
+
+
+static int xdigit(char c) {
+    return
+        c >= 'A' && c <= 'F' ? c - 'A' + 10 :
+        c >= 'a' && c <= 'f' ? c - 'a' + 10 :
+        c - '0';
+}
+
+
+MaybeInteger Std__parse_jstring(Ref character_array, int64 *position_lvalue) {
+    int64 position = *position_lvalue;
+    
+    if (position < ALENGTH(character_array)) {
+        unsigned16 c = chr(character_array, position);
+        
+        if (c == '"') {
+            position += 1;
+        }
+        else
+            return NOT_INTEGER(1);
+    }
+    else
+        return NOT_INTEGER(1);
+
+    // First pass: determine result length
+    bool seen_close = false;
+    int64 start = position;
+    int64 length = 0;
+    
+    while (position < ALENGTH(character_array)) {
+        unsigned16 c = chr(character_array, position);
+
+        if (c == '"') {
+            seen_close = true;
+            break;
+        }
+        else if (c == '\\') {
+            position += 1;
+            
+            if (position < ALENGTH(character_array)) {
+                unsigned16 d = chr(character_array, position);
+                
+                switch (d) {
+                case '"': case '/': case '\\': case 'b': case 'f': case 'n': case 'r': case 't':
+                    position += 1;
+                    length += 1;
+                    break;
+                case 'u':
+                    if (position + 4 < ALENGTH(character_array)) {
+                        if (
+                            isxdigit(chr(character_array, position + 1)) &&
+                            isxdigit(chr(character_array, position + 2)) &&
+                            isxdigit(chr(character_array, position + 3)) &&
+                            isxdigit(chr(character_array, position + 4))
+                        ) {
+                            position += 5;
+                            length += 1;
+                        }
+                        else
+                            return NOT_INTEGER(1);
+                    }
+                    else
+                        return NOT_INTEGER(1);
+                    break;
+                default:
+                    return NOT_INTEGER(1);
+                }
+            }
+            else
+                return NOT_INTEGER(1);
+        }
+        else {
+            position += 1;
+            length += 1;
+        }
+    }
+
+    if (!seen_close)
+        return NOT_INTEGER(1);
+
+    Ref result_array = allocate_basic_array(length, 2);
+    ALENGTH(result_array) = length;
+    unsigned16 *characters = AELEMENTS(result_array);
+    
+    position = start;
+    int64 count = 0;
+    
+    while (count < length) {
+        unsigned16 c = chr(character_array, position);
+        unsigned16 character;
+        
+        if (c == '\\') {
+            position += 1;
+            unsigned16 d = chr(character_array, position);
+            
+            if (d != 'u') {
+                character = (
+                    d == 'b' ? '\b' :
+                    d == 'f' ? '\f' :
+                    d == 'n' ? '\n' :
+                    d == 'r' ? '\r' :
+                    d == 't' ? '\t' :
+                    d
+                );
+                
+                position += 1;
+            }
+            else {
+                character =
+                    xdigit(chr(character_array, position + 1)) << 12 |
+                    xdigit(chr(character_array, position + 2)) << 8 |
+                    xdigit(chr(character_array, position + 3)) << 4 |
+                    xdigit(chr(character_array, position + 4)) << 0;
+            
+                position += 5;
+            }
+        }
+        else {
+            position += 1;
+            character = c;
+        }
+        
+        characters[count] = character;
+        count += 1;
+    }
+    
+    position += 1;  // skip closing quote
+    
+    //fprintf(stderr, "XXX parsed integer of %lld\n", is_negative ? -result : result);
+    *position_lvalue = position;
+    
+    return YES_INTEGER(result_array);
 }
 
 
