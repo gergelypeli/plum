@@ -1070,6 +1070,21 @@ App? :Class Application as:
         Std prints("Double value should be 222: {x}" {x: Double double_function})
 
 
+    ? :Import json
+
+    test_json? :Function as:
+        parser? json.Parser Ref = json.String_parser Ref `from("  id  123  0.314e1  ")
+        
+        parser parse_lws
+        id? = :try parser parse_identifier
+        parser parse_lws
+        int? = :try parser parse_integer
+        parser parse_lws
+        flo? = :try parser parse_float
+        
+        Std prints("Parsed identifier {} integer {} float {}" { id, int, flo })
+
+
 #Test_files? :Singleton as:
     ? :Import fs
     ? :Import .sub for:
@@ -1142,6 +1157,7 @@ App? :Class Application as:
         $ test_classes
         $ test_functors
         $ test_singletons
+        $ test_json
         $ test_files
         
         Std prints("Done.")

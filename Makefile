@@ -6,8 +6,9 @@ VALUES     = all value literal function boolean integer array reference type typ
 ARCHS      = ork asm64 storage basics
 GLOBALS    = all builtins builtins_errno typespec typematch functions runtime modules
 MODULES    = tokenize treeize tupleize typize util structs plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%)
-HEADERS    = all globals/all declarations/all values/all environment/heap environment/typedefs environment/text
-SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h)
+HEADERS    = all globals/all declarations/all values/all
+ENVHEADERS = heap typedefs text
+SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h) $(ENVHEADERS:%=environment/%.h)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
@@ -21,7 +22,7 @@ BINLOG     = run/plum.log
 PRECOMPIN  = precompiled.h
 PRECOMPOUT = precompiled.h.gch
 
-HEAPH      = environment/heap.h
+MAINDEPS   = $(ENVHEADERS:%=environment/%.h)
 MAINSRC    = environment/main.c
 MAINOBJ    = run/main.o
 
@@ -55,7 +56,7 @@ $(PRECOMPOUT): $(PRECOMPIN)
 $(TESTBIN): $(MAINOBJ) $(TESTOBJ)
 	@gcc $(CFLAGS) -o $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(TESTLIBS)
 
-$(MAINOBJ): $(MAINSRC) $(HEAPH)
+$(MAINOBJ): $(MAINSRC) $(MAINDEPS)
 	@gcc $(CFLAGS) -c -o $(MAINOBJ) $(MAINSRC)
 
 $(TESTOBJ): $(TESTSRC) $(BIN)

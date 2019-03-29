@@ -255,6 +255,9 @@ void builtin_types(Scope *root_scope) {
     
     errno_exception_type = make_treenum("Errno_exception", errno_treenum_input);
     root_scope->add(errno_exception_type);
+
+    parse_exception_type = make_treenum("Parse_exception", "PARSE_ERROR");
+    root_scope->add(parse_exception_type);
     
 
     // Phase 10: define container and iterator types
@@ -813,7 +816,7 @@ void define_string() {
     is->add(new StringRawStreamifiableImplementation("raw"));
 
     // String operations
-    is->add(new SysvFunction("encode_utf8", "encode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }, NULL, NULL));
+    is->add(new SysvFunction("encode_utf8", "encode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }));
 
     DataScope *ls = record_type->make_lvalue_scope();
 
@@ -856,7 +859,7 @@ void define_slice(RootScope *root_scope) {
     root_scope->add(es);
     es->set_pivot_ts(BYTE_SLICE_TS);
     es->enter();
-    es->add(new SysvFunction("decode_utf8_slice", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
+    es->add(new SysvFunction("decode_utf8_slice", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
     es->leave();
 }
 
@@ -939,7 +942,7 @@ void define_array(RootScope *root_scope) {
     root_scope->add(es);
     es->set_pivot_ts(UNSIGNED_INTEGER8_ARRAY_TS);
     es->enter();
-    es->add(new SysvFunction("decode_utf8", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }, NULL, NULL));
+    es->add(new SysvFunction("decode_utf8", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
     es->leave();
 }
 
@@ -1158,15 +1161,17 @@ void builtin_runtime(Scope *root_scope) {
     Declaration *std = new GlobalNamespace("Std", STD_TS);
     root_scope->add(std);
 
-    is->add(new SysvFunction("Std__printi", "printi", GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("Std__printc", "printc", GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("Std__printd", "printd", GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("Std__printb", "printb", GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("Std__prints", "prints", GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("Std__printp", "printp", GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL, NULL));  // needs Lvalue to avoid ref copy
+    is->add(new SysvFunction("Std__printi", "printi", GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__printc", "printc", GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__printd", "printd", GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__printb", "printb", GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__prints", "prints", GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__printp", "printp", GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS));  // needs Lvalue to avoid ref copy
 
-    is->add(new SysvFunction("Std__parse_lws", "parse_lws", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("Std__parse_identifier", "parse_identifier", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, NULL, NULL));
+    is->add(new SysvFunction("Std__parse_lws", "parse_lws", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, NO_TSS));
+    is->add(new SysvFunction("Std__parse_identifier", "parse_identifier", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, parse_exception_type));
+    is->add(new SysvFunction("Std__parse_integer", "parse_integer", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { INTEGER_TS }, parse_exception_type));
+    is->add(new SysvFunction("Std__parse_float", "parse_float", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { FLOAT_TS }, parse_exception_type));
 
     std_type->complete_type();
     is->leave();

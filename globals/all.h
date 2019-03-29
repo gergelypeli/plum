@@ -262,6 +262,7 @@ TreenumerationType *match_unmatched_exception_type = NULL;
 TreenumerationType *lookup_exception_type = NULL;
 TreenumerationType *code_break_exception_type = NULL;
 TreenumerationType *errno_exception_type = NULL;
+TreenumerationType *parse_exception_type = NULL;
 
 InterfaceType *streamifiable_type = NULL;
 InterfaceType *iterator_type = NULL;

@@ -20,6 +20,10 @@ public:
 
         case SSEREGISTER_NOWHERE:
             break;
+        case SSEREGISTER_SSEREGISTER:
+            if (s.sse != t.sse)
+                x64->op(MOVSD, t.sse, s.sse);
+            break;
         case SSEREGISTER_STACK:
             x64->op(SUBQ, RSP, FLOAT_SIZE);
             x64->op(MOVSD, Address(RSP, 0), s.sse);

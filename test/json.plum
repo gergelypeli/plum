@@ -1,0 +1,40 @@
+
+Parse_error? :Treenumeration
+    PARSE_ERROR
+
+
+Parser? :Abstract as:
+    parse_lws? :Function
+    parse_identifier? :Function String may: Parse_error
+    parse_integer? :Function Integer may: Parse_error
+    parse_float? :Function Float may: Parse_error
+    
+    
+String_parser? :Class Parser as:
+    input? String
+    position? Integer
+    
+    from? :Initializer from: i? String as:
+        $ input = i
+        $ position = 0
+        
+    @.parse_lws? :Function as:
+        Std parse_lws($ input, $ position)
+        
+    @.parse_identifier? :Function String may: Parse_error as:
+        :try
+            :return Std parse_identifier($ input, $ position)
+        or:
+            :raise `PARSE_ERROR
+
+    @.parse_integer? :Function Integer may: Parse_error as:
+        :try
+            :return Std parse_integer($ input, $ position)
+        or:
+            :raise `PARSE_ERROR
+
+    @.parse_float? :Function Float may: Parse_error as:
+        :try
+            :return Std parse_float($ input, $ position)
+        or:
+            :raise `PARSE_ERROR

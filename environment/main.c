@@ -413,6 +413,112 @@ void Std__printp(void **x) {
 }
 
 
+static unsigned16 chr(Ref character_array, int64 index) {
+    return *(unsigned16 *)(AELEMENTS(character_array) + CHARACTER_SIZE * index);
+}
+
+
+void Std__parse_lws(Ref character_array, int64 *position_lvalue) {
+    while (*position_lvalue < ALENGTH(character_array)) {
+        unsigned16 c = chr(character_array, *position_lvalue);
+        
+        if (c != ' ' && c != '\t')
+            return;
+            
+        *position_lvalue += 1;
+    }
+}
+
+
+MaybeInteger Std__parse_identifier(Ref character_array, int64 *position_lvalue) {
+    int64 position = *position_lvalue;
+    int64 start = position;
+    
+    if (position < ALENGTH(character_array)) {
+        unsigned16 c = chr(character_array, position);
+        
+        if (!isalpha(c) && c != '_')
+            return NOT_INTEGER(1);  // PARSE_ERROR
+            
+        position += 1;
+    }
+    else
+        return NOT_INTEGER(1);  // PARSE_ERROR
+
+    while (position < ALENGTH(character_array)) {
+        unsigned16 c = chr(character_array, position);
+        
+        if (!isalnum(c) && c != '_')
+            break;
+            
+        position += 1;
+    }
+    
+    int length = position - start;
+    Ref result_array = allocate_basic_array(length, 2);
+    ALENGTH(result_array) = length;
+    unsigned16 *characters = AELEMENTS(result_array);
+    
+    for (int i = 0; i < length; i++)
+        characters[i] = chr(character_array, start + i);
+
+    //fprintf(stderr, "parsed identifier of %d\n", length);
+    
+    *position_lvalue = position;
+    
+    return YES_INTEGER(result_array);
+}
+
+
+MaybeInteger Std__parse_integer(Ref character_array, int64 *position_lvalue) {
+    int64 position = *position_lvalue;
+    bool is_negative = false;
+    
+    if (position < ALENGTH(character_array)) {
+        unsigned16 c = chr(character_array, position);
+        
+        if (c == '+') {
+            *position_lvalue += 1;
+        }
+        else if (c == '-') {
+            is_negative = true;
+            position += 1;
+        }
+    }
+
+    unsigned64 result;
+    int64 character_count;
+    
+    //fprintf(stderr, "XXX parsing integer\n");
+    bool ok = parse_unteger(AELEMENTS(character_array) + CHARACTER_SIZE * position, ALENGTH(character_array) - position, &result, &character_count);
+
+    if (!ok)
+        return NOT_INTEGER(1);
+        
+    //fprintf(stderr, "XXX parsed integer of %lld\n", is_negative ? -result : result);
+    *position_lvalue = position + character_count;
+    
+    return YES_INTEGER(is_negative ? -result : result);
+}
+
+
+MaybeFloat Std__parse_float(Ref character_array, int64 *position_lvalue) {
+    int64 position = *position_lvalue;
+    
+    double result;
+    int64 character_count;
+    
+    bool ok = parse_float(AELEMENTS(character_array) + CHARACTER_SIZE * position, ALENGTH(character_array) - position, &result, &character_count);
+
+    if (!ok)
+        return NOT_FLOAT(1);
+
+    *position_lvalue = position + character_count;
+    
+    return YES_FLOAT(result);
+}
+
+
 void *decode_utf8(Ref byte_array) {
     if (!byte_array)
         return NULL;

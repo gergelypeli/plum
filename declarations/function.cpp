@@ -209,7 +209,7 @@ class SysvFunction: public Function {
 public:
     std::string import_name;
     
-    SysvFunction(std::string in, std::string n, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
+    SysvFunction(std::string in, std::string n, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et = NULL, FunctionScope *fs = NULL)
         :Function(n, ft, ats, ans, rts, et, fs) {
         import_name = in;
         prot = SYSV_FUNCTION;

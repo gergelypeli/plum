@@ -105,6 +105,7 @@ bool parse_float(const unsigned16 *characters, int64 character_length, double *r
     double value = 0;
     int exponent = 0;
     bool seen_dot = false;
+    bool seen_digit = false;
     unsigned i;
     
     for (i = 0; i < character_length; i++) {
@@ -121,6 +122,7 @@ bool parse_float(const unsigned16 *characters, int64 character_length, double *r
             continue;
         }
         else if (c >= '0' && c <= '9') {
+            seen_digit = true;
             value = 10 * value + (c - '0');
             
             if (seen_dot)
@@ -180,6 +182,9 @@ bool parse_float(const unsigned16 *characters, int64 character_length, double *r
         }
     }
     
+    if (!seen_digit)
+        return false;
+    
     *character_count = i;
     *result = value * pow(10.0, exponent);
     return true;
@@ -215,6 +220,7 @@ bool parse_unteger(const unsigned16 *characters, int64 character_length, unsigne
     const unsigned64 limit_digit = (0UL - 1) % base;
     unsigned64 value = 0;
     unsigned i;
+    bool seen_digit = false;
     
     for (i = start; i < character_length; i++) {
         unsigned16 c = characters[i];
@@ -237,8 +243,12 @@ bool parse_unteger(const unsigned16 *characters, int64 character_length, unsigne
             return false;
         }
             
+        seen_digit = true;
         value = value * base + digit;
     }
+    
+    if (!seen_digit)
+        return false;
     
     *character_count = i;
     *result = value;
