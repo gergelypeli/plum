@@ -629,6 +629,16 @@ public:
             throw INTERNAL_ERROR;
         }
         
+        if (res_tss.size() > 1) {
+            std::cerr << "Oops, too many results from a SysV function!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        if (res_total > 0) {
+            std::cerr << "Oops, not a simple result from a SysV function!\n";
+            throw INTERNAL_ERROR;
+        }
+        
         Register regs[] = { RDI, RSI, RDX, RCX, R8, R9 };
         SseRegister sses[] = { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
         unsigned reg_index = 0;
@@ -657,16 +667,30 @@ public:
 
         //x64->runtime->dump("Returned from SysV.");
 
-        switch (res_total) {
-        case 0:
-            break;  // We return simple values in RAX and XMM0 like SysV.
-        case ADDRESS_SIZE:
-            x64->op(MOVQ, Address(RSP, passed_size), RAX);  // simple records, like String
+        // We return simple values in RAX and XMM0 like SysV.
+        // But exceptions are always in RAX, so it may need a fix.
+        StorageWhere simple_where = (res_tss.size() ? res_tss[0].where(AS_VALUE) : NOWHERE);
+
+        switch (simple_where) {
+        case NOWHERE:
+            if (function->exception_type) {
+                x64->op(MOVQ, RDX, RAX);
+            }
+            break;
+        case REGISTER:
+            if (function->exception_type) {
+                x64->op(XCHGQ, RDX, RAX);
+            }
+            break;
+        case SSEREGISTER:
+            if (function->exception_type) {
+                x64->op(MOVQ, RDX, RAX);
+            }
             break;
         default:
             throw INTERNAL_ERROR;
         }
-        
+
         // Raised exception in RDX.
         if (function->exception_type)
             x64->op(CMPQ, RDX, NO_EXCEPTION);

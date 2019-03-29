@@ -153,9 +153,7 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         if (is_single) {
-            // Make sure pivot arguments are still passed as ALIAS
-            if (as_what == AS_VALUE)
-                return typesubst(member_tss[0], tm).where(as_what);
+            return typesubst(member_tss[0], tm).where(as_what);
         }
 
         return (

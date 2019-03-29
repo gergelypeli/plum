@@ -1158,12 +1158,15 @@ void builtin_runtime(Scope *root_scope) {
     Declaration *std = new GlobalNamespace("Std", STD_TS);
     root_scope->add(std);
 
-    is->add(new SysvFunction("printi", "printi", GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("printc", "printc", GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("printd", "printd", GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("printb", "printb", GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("prints", "prints", GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL, NULL));
-    is->add(new SysvFunction("printp", "printp", GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL, NULL));  // needs Lvalue to avoid ref copy
+    is->add(new SysvFunction("Std__printi", "printi", GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("Std__printc", "printc", GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("Std__printd", "printd", GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("Std__printb", "printb", GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("Std__prints", "prints", GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("Std__printp", "printp", GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS, NULL, NULL));  // needs Lvalue to avoid ref copy
+
+    is->add(new SysvFunction("Std__parse_lws", "parse_lws", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, NO_TSS, NULL, NULL));
+    is->add(new SysvFunction("Std__parse_identifier", "parse_identifier", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, NULL, NULL));
 
     std_type->complete_type();
     is->leave();

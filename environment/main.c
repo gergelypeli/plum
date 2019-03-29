@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <ctype.h>
 #include <locale.h>
 #include <math.h>
 #include <sys/stat.h>
@@ -21,7 +22,6 @@
 #define AELEMENTS(x) ((x) + LINEARRAY_ELEMS_OFFSET)
 
 #define HREFCOUNT(x) *(int64 *)((x) + HEAP_REFCOUNT_OFFSET)
-//#define HWEAKREFCOUNT(x) *(int64 *)((x) + HEAP_WEAKREFCOUNT_OFFSET)
 #define HFINALIZER(x) *(int64 *)((x) + HEAP_FINALIZER_OFFSET)
 #define HNEXT(x) *(int64 *)((x) + HEAP_NEXT_OFFSET)
 
@@ -32,7 +32,7 @@
 #define SLENGTH(x) ((x)->length)
 
 typedef void *Ref;
-typedef void *Alias;
+
 typedef struct {
     void *ptr;
     int64 front;
@@ -40,12 +40,31 @@ typedef struct {
 } *Slice;
 
 typedef struct {
-    int64 valued;  // returned in RAX
-    int64 raised;  // returned in RDX
-} Varied;
+    int64 exception;  // RAX
+} Maybe;
 
-#define VALUED(x) ((Varied) { (int64)(x), NO_EXCEPTION })
-#define RAISED(x) ((Varied) { 0, (x) + ERRNO_TREENUM_OFFSET })
+typedef struct {
+    int64 exception;  // RAX
+    int64 value;      // RDX
+} MaybeInteger;
+
+typedef struct {
+    int64 exception;  // RAX
+    double value;     // XMM0
+} MaybeFloat;
+
+
+#define EXCNO(e) ((e) + ERRNO_TREENUM_OFFSET)
+
+#define YES() ((Maybe) { NO_EXCEPTION })
+#define NOT(x) ((Maybe) { (x) })
+
+#define YES_INTEGER(x) ((MaybeInteger) { NO_EXCEPTION, (int64)(x) })
+#define NOT_INTEGER(x) ((MaybeInteger) { (x), (int64)0 })
+
+#define YES_FLOAT(x) ((MaybeFloat) { NO_EXCEPTION, (double)(x) })
+#define NOT_FLOAT(x) ((MaybeFloat) { (x), (double)0.0 })
+
 
 extern void empty_function();
 extern void finalize_reference_array();
@@ -345,27 +364,22 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
 
 // Library functions
 
-void printi(int64 a) {
+void Std__printi(int64 a) {
     printf("%lld\n", a);
 }
 
 
-void printc(unsigned16 a) {
+void Std__printc(unsigned16 a) {
     printf("%c\n", a);
 }
 
 
-void printd(double a) {
+void Std__printd(double a) {
     printf("%g\n", a);
 }
 
 
-void printz(const char *s) {
-    printf("%s\n", s);
-}
-
-
-void prints(void *s) {
+void Std__prints(void *s) {
     if (s) {
         int64 character_length = ALENGTH(s);
         char bytes[character_length * 3 + 1];
@@ -381,7 +395,7 @@ void prints(void *s) {
 }
 
 
-void printb(void *s) {
+void Std__printb(void *s) {
     if (s) {
         int64 byte_count = ALENGTH(s);
         char *bytes = AELEMENTS(s);
@@ -393,7 +407,7 @@ void printb(void *s) {
 }
 
 
-void printp(void **x) {
+void Std__printp(void **x) {
     // This function uses an Lvalue, so invalid pointers can be passed
     printf("%p\n", *x);
 }
@@ -456,7 +470,7 @@ void *decode_utf8_slice(Slice byte_slice) {
 }
 
 
-Varied fs__Path__mkdir(Ref name_array /*Alias path_alias*/, int64 mode) {
+Maybe fs__Path__mkdir(Ref name_array /*Alias path_alias*/, int64 mode) {
     //void *name_array = RECORDMEMBER(path_alias, Ref);
     int64 character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
@@ -471,11 +485,11 @@ Varied fs__Path__mkdir(Ref name_array /*Alias path_alias*/, int64 mode) {
 
     fprintf(stderr, "mkdir ret %d\n", er);
     
-    return rc == -1 ? RAISED(er) : VALUED(0);
+    return rc == -1 ? NOT(EXCNO(er)) : YES();
 }
 
 
-Varied fs__Path__rmdir(Ref name_array /*Alias path_alias*/) {
+Maybe fs__Path__rmdir(Ref name_array /*Alias path_alias*/) {
     //void *name_array = RECORDMEMBER(path_alias, Ref);
     int64 character_length = ALENGTH(name_array);
     char bytes[character_length * 3 + 1];
@@ -489,11 +503,11 @@ Varied fs__Path__rmdir(Ref name_array /*Alias path_alias*/) {
     int er = errno;
     
     fprintf(stderr, "rmdir ret %d\n", er);
-    return rc == -1 ? RAISED(er) : VALUED(0);
+    return rc == -1 ? NOT(EXCNO(er)) : YES();
 }
 
 
-Varied fs__File__read(Ref file_ref, Slice buffer_slice) {
+MaybeInteger fs__File__read(Ref file_ref, Slice buffer_slice) {
     int fd = CLASSMEMBER(file_ref, int);
     int64 buffer_length = SLENGTH(buffer_slice);
     char *buffer_elements = SELEMENTS(buffer_slice, 1);
@@ -503,11 +517,11 @@ Varied fs__File__read(Ref file_ref, Slice buffer_slice) {
     
     fprintf(stderr, "read from %d returned %d\n", fd, rc);
     
-    return rc == -1 ? RAISED(er) : VALUED(rc);
+    return rc == -1 ? NOT_INTEGER(EXCNO(er)) : YES_INTEGER(rc);
 }
 
 
-Varied reader_get(Ref reader_ref, int64 length) {
+MaybeInteger reader_get(Ref reader_ref, int64 length) {
     int fd = CLASSMEMBER(reader_ref, int);
     void *byte_array = allocate_basic_array(length, 1);
     int64 buffer_length = length;
@@ -520,17 +534,17 @@ Varied reader_get(Ref reader_ref, int64 length) {
     
     if (rc == -1) {
         free_basic_array(byte_array);
-        return RAISED(er);
+        return NOT_INTEGER(EXCNO(er));
     }
 
     byte_array = reallocate_array(byte_array, rc, 1);
     ALENGTH(byte_array) = rc;
     
-    return VALUED(byte_array);
+    return YES_INTEGER(byte_array);
 }
 
 
-Varied reader_get_all(Ref reader_ref) {
+MaybeInteger reader_get_all(Ref reader_ref) {
     int length = 4096;
     int fd = CLASSMEMBER(reader_ref, int);
     void *byte_array = allocate_basic_array(length, 1);
@@ -550,7 +564,7 @@ Varied reader_get_all(Ref reader_ref) {
             
         if (rc == -1) {
             free_basic_array(byte_array);
-            return RAISED(er);
+            return NOT_INTEGER(EXCNO(er));
         }
         
         read_length += rc;
@@ -565,7 +579,7 @@ Varied reader_get_all(Ref reader_ref) {
     byte_array = reallocate_array(byte_array, read_length, 1);
     ALENGTH(byte_array) = read_length;
 
-    return VALUED(byte_array);
+    return YES_INTEGER(byte_array);
 }
 
 
@@ -602,4 +616,6 @@ int main() {
         
     if (refcount_balance)
         printf("Oops, the refcount balance is %lld!\n", refcount_balance);
+        
+    return 0;
 }
