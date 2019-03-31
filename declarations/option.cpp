@@ -202,27 +202,33 @@ public:
         
         // `some
         x64->code_label(some);
-        streamify_ascii("`some ", Address(RSP, ADDRESS_SIZE), x64);
+        streamify_ascii("`some", Address(RSP, ADDRESS_SIZE), x64);
+        
+        if (some_ts != UNIT_TS) {
+            // Okay, just for the sake of correctness
+            streamify_ascii("(", Address(RSP, ADDRESS_SIZE), x64);
 
-        unsigned some_size = some_ts.measure_stack();
-        unsigned copy_count = some_size / ADDRESS_SIZE;
-        unsigned flag_count = get_flag_size(some_ts) / ADDRESS_SIZE;
+            unsigned some_size = some_ts.measure_stack();
+            unsigned copy_count = some_size / ADDRESS_SIZE;
+            unsigned flag_count = get_flag_size(some_ts) / ADDRESS_SIZE;
 
-        // Make a borrowed copy of the value in the stack.
-        for (unsigned j = 0; j < copy_count; j++) {
-            // skip ret address, alias, flag
-            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 + flag_count - 1)));
+            // Make a borrowed copy of the value in the stack.
+            for (unsigned j = 0; j < copy_count; j++) {
+                // skip ret address, alias, flag
+                x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 + flag_count - 1)));
+            }
+        
+            // Skip the flag, but copy the stream alias, too
+            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
+        
+            some_ts.streamify(x64);
+        
+            x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
+
+            streamify_ascii(")", Address(RSP, ADDRESS_SIZE), x64);
         }
         
-        // Skip the flag, but copy the stream alias, too
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
-        
-        some_ts.streamify(x64);
-        
-        x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
-        
         x64->code_label(ok);
-        
         x64->op(RET);
     }
 
@@ -550,20 +556,27 @@ public:
             x64->op(JNE, skip);
             
             // Streamify the tag first
-            streamify_ascii("`" + ut->tags[i] + " ", Address(RSP, ADDRESS_SIZE), x64);
+            streamify_ascii("`" + ut->tags[i], Address(RSP, ADDRESS_SIZE), x64);
             
-            // Then the field. Make a borrowed copy of the value in the stack.
-            for (unsigned j = 0; j < copy_count; j++) {
-                // skip ret address, alias, flag
-                x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 3 - 1)));
+            if (ut->tss[i] != UNIT_TS) {
+                streamify_ascii("(", Address(RSP, ADDRESS_SIZE), x64);
+            
+                // Then the field. Make a borrowed copy of the value in the stack.
+                for (unsigned j = 0; j < copy_count; j++) {
+                    // skip ret address, alias, flag
+                    x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 3 - 1)));
+                }
+            
+                // Skip the flag, but copy the stream alias, too
+                x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
+            
+                ut->tss[i].streamify(x64);
+            
+                x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
+
+                streamify_ascii(")", Address(RSP, ADDRESS_SIZE), x64);
             }
             
-            // Skip the flag, but copy the stream alias, too
-            x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
-            
-            ut->tss[i].streamify(x64);
-            
-            x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
             x64->op(JMP, end);
             
             x64->code_label(skip);
