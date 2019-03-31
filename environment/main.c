@@ -431,11 +431,11 @@ static unsigned16 chr(Ref character_array, int64 index) {
 }
 
 
-void Std__parse_lws(Ref character_array, int64 *position_lvalue) {
+void Std__parse_ws(Ref character_array, int64 *position_lvalue) {
     while (*position_lvalue < ALENGTH(character_array)) {
         unsigned16 c = chr(character_array, *position_lvalue);
         
-        if (c != ' ' && c != '\t')
+        if (!isspace(c))
             return;
             
         *position_lvalue += 1;

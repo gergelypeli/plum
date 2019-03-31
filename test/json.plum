@@ -9,18 +9,11 @@ Value? :Union as:
     numeric? Float
     string? String
     array? Value Array
+    object? (String, Value) Map
 
 
 Parser? :Abstract as:
-    peek_character? :Function Character
-    parse_character? :Function Character
-    parse_lws? :Function
-    parse_identifier? :Function String may: Parse_error
-    parse_integer? :Function Integer may: Parse_error
-    parse_float? :Function Float may: Parse_error
-    parse_jstring? :Function String may: Parse_error
     parse_value? :Function Value may: Parse_error
-    parse_array? :Function Value Array may: Parse_error
 
     
 String_parser? :Class Parser as:
@@ -31,48 +24,47 @@ String_parser? :Class Parser as:
         $ input = i
         $ position = 0
         
-    @.peek_character? :Function Character as:
+    peek_character? :Function Character as:
         :return $ input[$ position]
         
-    @.parse_character? :Function Character as:
+    parse_character? :Function Character as:
         c? = $ input[$ position]
         $ position += 1
         :return c
     
-    @.parse_lws? :Function as:
-        Std parse_lws($ input, $ position)
+    parse_ws? :Function as:
+        Std parse_ws($ input, $ position)
         
-    @.parse_identifier? :Function String may: Parse_error as:
+    parse_identifier? :Function String may: Parse_error as:
         :try
             :return Std parse_identifier($ input, $ position)
         or:
             :raise `PARSE_ERROR
 
-    @.parse_integer? :Function Integer may: Parse_error as:
+    parse_integer? :Function Integer may: Parse_error as:
         :try
             :return Std parse_integer($ input, $ position)
         or:
             :raise `PARSE_ERROR
 
-    @.parse_float? :Function Float may: Parse_error as:
+    parse_float? :Function Float may: Parse_error as:
         :try
             :return Std parse_float($ input, $ position)
         or:
             :raise `PARSE_ERROR
 
-    @.parse_jstring? :Function String may: Parse_error as:
+    parse_string? :Function String may: Parse_error as:
         :try
             :return Std parse_jstring($ input, $ position)
         or:
             :raise `PARSE_ERROR
 
-
-    @.parse_array? :Function Value Array may: Parse_error as:
-        $ @ parse_character
-        $ @ parse_lws
+    parse_array? :Function Value Array may: Parse_error as:
+        $ parse_character
+        $ parse_ws
         
-        :if $ @ peek_character == "]" then:
-            $ @ parse_character
+        :if $ peek_character == "]" then:
+            $ parse_character
             :return {}
         
         a? Value Array = {}
@@ -81,33 +73,77 @@ String_parser? :Class Parser as:
             x? = :try $ @ parse_value
             a push(x)
             
-            $ @ parse_lws
-            c? = :try $ @ parse_character
+            $ parse_ws
+            c? = :try $ parse_character
             
             :if c == "]" then:
                 :return a
             else:if c != "," then:
                 :raise `PARSE_ERROR
                 
-            $ @ parse_lws
+            $ parse_ws
             
         :raise `PARSE_ERROR  # stupid fix for :repeat
 
+    parse_object? :Function (String, Value) Map may: Parse_error as:
+        $ parse_character
+        $ parse_ws
+        
+        :if $ peek_character == "}" then:
+            $ parse_character
+            :return {}
+        
+        m? (String, Value) Map = {}
+        
+        :repeat on: `true do:
+            key? = :try $ parse_string
+            
+            $ parse_ws
+            c? = :try $ parse_character
+            
+            :if c != ":" then:
+                :raise `PARSE_ERROR
+                
+            $ parse_ws
+            
+            value? = :try $ @ parse_value
+            m add(key, value)
+            
+            $ parse_ws
+            c = :try $ parse_character
+            
+            :if c == "}" then:
+                :return m
+            else:if c != "," then:
+                :raise `PARSE_ERROR
+                
+            $ parse_ws
+            
+        :raise `PARSE_ERROR  # stupid fix for :repeat
 
     @.parse_value? :Function Value may: Parse_error as:
-        $ @ parse_lws
+        $ parse_ws
         
-        c? = $ @ peek_character
+        c? = $ peek_character
 
         :if c is_alpha then:
-            :try $ @ parse_identifier
-            :return Value `null
+            id? = :try $ parse_identifier
+            
+            :if id == "null" then:
+                :return `null
+            else:if id == "false" then:
+                :return `boolean(`false)
+            else:if id == "true" then:
+                :return `boolean(`true)
+            else:
+                :raise `PARSE_ERROR
         else:if c is_digit || c == "+" || c == "-" then:
-            :return Value `numeric(:try $ @ parse_float)
+            :return `numeric(:try $ parse_float)
         else:if c == `QU then:
-            :return Value `string(:try $ @ parse_jstring)
+            :return `string(:try $ parse_string)
         else:if c == "[" then:
-            :return Value `array(:try $ @ parse_array)
+            :return `array(:try $ parse_array)
+        else:if c == "{" then:
+            :return `object(:try $ parse_object)
         else:
-            :return Value `null
-        
+            :raise `PARSE_ERROR
