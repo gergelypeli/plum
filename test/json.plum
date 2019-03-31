@@ -3,13 +3,25 @@ Parse_error? :Treenumeration
     PARSE_ERROR
 
 
+Value? :Union as:
+    null? Unit
+    boolean? Boolean
+    numeric? Float
+    string? String
+    array? Value Array
+
+
 Parser? :Abstract as:
+    peek_character? :Function Character
+    parse_character? :Function Character
     parse_lws? :Function
     parse_identifier? :Function String may: Parse_error
     parse_integer? :Function Integer may: Parse_error
     parse_float? :Function Float may: Parse_error
     parse_jstring? :Function String may: Parse_error
-    
+    parse_value? :Function Value may: Parse_error
+    parse_array? :Function Value Array may: Parse_error
+
     
 String_parser? :Class Parser as:
     input? String
@@ -19,6 +31,14 @@ String_parser? :Class Parser as:
         $ input = i
         $ position = 0
         
+    @.peek_character? :Function Character as:
+        :return $ input[$ position]
+        
+    @.parse_character? :Function Character as:
+        c? = $ input[$ position]
+        $ position += 1
+        :return c
+    
     @.parse_lws? :Function as:
         Std parse_lws($ input, $ position)
         
@@ -45,3 +65,49 @@ String_parser? :Class Parser as:
             :return Std parse_jstring($ input, $ position)
         or:
             :raise `PARSE_ERROR
+
+
+    @.parse_array? :Function Value Array may: Parse_error as:
+        $ @ parse_character
+        $ @ parse_lws
+        
+        :if $ @ peek_character == "]" then:
+            $ @ parse_character
+            :return {}
+        
+        a? Value Array = {}
+        
+        :repeat on: `true do:
+            x? = :try $ @ parse_value
+            a push(x)
+            
+            $ @ parse_lws
+            c? = :try $ @ parse_character
+            
+            :if c == "]" then:
+                :return a
+            else:if c != "," then:
+                :raise `PARSE_ERROR
+                
+            $ @ parse_lws
+            
+        :raise `PARSE_ERROR  # stupid fix for :repeat
+
+
+    @.parse_value? :Function Value may: Parse_error as:
+        $ @ parse_lws
+        
+        c? = $ @ peek_character
+
+        :if c is_alpha then:
+            :try $ @ parse_identifier
+            :return Value `null
+        else:if c is_digit || c == "+" || c == "-" then:
+            :return Value `numeric(:try $ @ parse_float)
+        else:if c == `QU then:
+            :return Value `string(:try $ @ parse_jstring)
+        else:if c == "[" then:
+            :return Value `array(:try $ @ parse_array)
+        else:
+            :return Value `null
+        

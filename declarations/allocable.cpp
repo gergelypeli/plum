@@ -97,6 +97,7 @@ public:
         where = alloc_ts.where(as_what);
             
         Allocation a = (
+            where == NOWHERE ? Allocation() :
             where == MEMORY ? alloc_ts.measure() :
             where == ALIAS ? Allocation(ALIAS_SIZE) :
             throw INTERNAL_ERROR

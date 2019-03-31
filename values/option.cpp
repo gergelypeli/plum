@@ -175,7 +175,10 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return value->precompile(preferred);
+        if (value)
+            return value->precompile(preferred);
+        else
+            return Regs();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -187,7 +190,8 @@ public:
         for (unsigned i = 0; i < pad_count; i++)
             x64->op(PUSHQ, 0);
             
-        value->compile_and_store(x64, Storage(STACK));
+        if (value)
+            value->compile_and_store(x64, Storage(STACK));
         
         x64->op(PUSHQ, tag_index);
             

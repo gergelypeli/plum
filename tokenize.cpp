@@ -165,6 +165,11 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
                 c = buffer[i];
             } while (is_identifier(c));
 
+            if (prefix && i == start + 1) {
+                std::cerr << "Missing identifier of control token!\n";
+                throw TOKEN_ERROR;
+            }
+
             // Implicit line continuation on labels after logical line breaks
             if (!prefix && c == ':' && tokens.back().utext == SEPARATE_UTEXT)
                 tokens.pop_back();

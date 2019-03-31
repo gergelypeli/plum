@@ -268,7 +268,7 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
             if (arg_infos[i].context) {
                 TypeSpec &ts = *arg_infos[i].context;
             
-                if (ts[0] != ovalue_type && !(ts[0] == code_type && ts[1] == void_type)) {
+                if (ts[0] != ovalue_type && !(ts[0] == code_type && ts[1] == void_type) && ts[0] != unit_type) {
                     std::cerr << "Missing mandatory argument " << arg_infos[i].name << "!\n";
                     return false;
                 }

@@ -781,6 +781,18 @@ void define_character() {
     char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", COMPARE));
     char_scope->add(new CharacterRawStreamifiableImplementation("raw"));
 
+    char_scope->add(new SysvFunction("Character__is_alnum", "is_alnum", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_alpha", "is_alpha", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_ascii", "is_ascii", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_blank", "is_blank", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_cntrl", "is_cntrl", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_digit", "is_digit", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_lower", "is_lower", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_punct", "is_punct", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_space", "is_space", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_upper", "is_upper", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_xdigit", "is_xdigit", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+
     char_scope->leave();
 
     Scope *char_lscope = character_type->make_lvalue_scope();

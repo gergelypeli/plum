@@ -854,7 +854,9 @@ public:
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-        // Moving 0 bits is easy
+    }
+
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {

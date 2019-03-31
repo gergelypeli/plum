@@ -170,8 +170,10 @@ public:
             throw INTERNAL_ERROR;
         }
 
-        // TODO: we need a function to get the recommended storage for this type!
-        Storage s = ts != VOID_TS ? Storage(REGISTER, reg) : Storage();
+        // FIXME: we need a function to get the recommended storage for this type!
+        Storage s;
+        if (ts != VOID_TS && ts != WHATEVER_TS)
+            s = Storage(REGISTER, reg);
 
         if (then_branch) {
             then_branch->compile_and_store(x64, s);

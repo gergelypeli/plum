@@ -364,6 +364,19 @@ void *string_regexp_match(void *subject_array, void *pattern_array) {
 
 // Library functions
 
+bool Character__is_alnum(unsigned16 c) { return isalnum(c); }
+bool Character__is_alpha(unsigned16 c) { return isalpha(c); }
+bool Character__is_ascii(unsigned16 c) { return isascii(c); }
+bool Character__is_blank(unsigned16 c) { return isblank(c); }
+bool Character__is_cntrl(unsigned16 c) { return iscntrl(c); }
+bool Character__is_digit(unsigned16 c) { return isdigit(c); }
+bool Character__is_lower(unsigned16 c) { return islower(c); }
+bool Character__is_punct(unsigned16 c) { return ispunct(c); }
+bool Character__is_space(unsigned16 c) { return isspace(c); }
+bool Character__is_upper(unsigned16 c) { return isupper(c); }
+bool Character__is_xdigit(unsigned16 c) { return isxdigit(c); }
+
+
 void Std__printi(int64 a) {
     printf("%lld\n", a);
 }
