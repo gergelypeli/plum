@@ -102,91 +102,91 @@ bool encode_utf8_buffer(const unsigned16 *characters, int64 character_length, ch
 
 
 bool parse_float(const unsigned16 *characters, int64 character_length, double *result, int64 *character_count) {
-    double value = 0;
-    int exponent = 0;
-    bool seen_dot = false;
     bool seen_digit = false;
-    unsigned i;
+    bool seen_dot = false;
+    char buffer[2048];  // Up to 1075 significant digits may be processed
+    unsigned i = 0, j = 0;
+
+    if (0 < character_length && (characters[0] == '+' || characters[0] == '-')) {
+        buffer[j++] = characters[i++];
+    }
     
-    for (i = 0; i < character_length; i++) {
+    for (; i < character_length && j < sizeof(buffer); i++) {
         unsigned16 c = characters[i];
         
         if (c == '_')
             continue;
         else if (c == '.') {
-            if (seen_dot) {
+            if (!seen_digit || seen_dot) {
                 return false;
             }
             
             seen_dot = true;
+            buffer[j++] = c;
             continue;
         }
         else if (c >= '0' && c <= '9') {
             seen_digit = true;
-            value = 10 * value + (c - '0');
-            
-            if (seen_dot)
-                exponent -= 1;
-                
+            buffer[j++] = c;
             continue;
         }
         else if (c == 'e' || c == 'E') {
+            if (!seen_digit)
+                return false;
+                
+            buffer[j++] = c;
             i += 1;
-            
+
             if (i == character_length) {
                 return false;
             }
             
-            bool is_negative;
+            c = characters[i];
             
-            if (characters[i] == '-') {
-                is_negative = true;
+            if (c == '-' || c == '+') {
+                buffer[j++] = c;
                 i += 1;
-            }
-            else if (characters[i] == '+') {
-                is_negative = false;
-                i += 1;
-            }
-            else {
-                is_negative = false;
-            }
             
-            if (i == character_length) {
-                return false;
-            }
-            
-            unsigned e = 0;
-            
-            while (i < character_length) {
-                c = characters[i];
-                
-                if (c >= '0' && c <= '9')
-                    e = e * 10 + c - '0';
-                else
-                    break;
-                
-                if (e > 308) {
+                if (i == character_length || j == sizeof(buffer)) {
                     return false;
                 }
-                
-                i += 1;
             }
             
-            if (is_negative)
-                exponent -= e;
-            else
-                exponent += e;
+            seen_digit = false;
+            
+            for (; i < character_length && j < sizeof(buffer); i++) {
+                c = characters[i];
+                
+                if (c >= '0' && c <= '9') {
+                    seen_digit = true;
+                    buffer[j++] = c;
+                }
+                else
+                    break;
+            }
         }
         else {
             break;
         }
     }
     
-    if (!seen_digit)
+    if (!seen_digit || j == sizeof(buffer))
         return false;
     
+    buffer[j] = '\0';
+    char *endptr = NULL;
+    
+    //fprintf(stderr, "XXX: '%s'\n", buffer);
+    
+    // Must be using the C locale
+    double value = strtod(buffer, &endptr);
+    
+    if (endptr != buffer + j)
+        return false;
+        
     *character_count = i;
-    *result = value * pow(10.0, exponent);
+    *result = value;
+    
     return true;
 }
 

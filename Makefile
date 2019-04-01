@@ -26,6 +26,9 @@ MAINDEPS   = $(ENVHEADERS:%=environment/%.h)
 MAINSRC    = environment/main.c
 MAINOBJ    = run/main.o
 
+FPCONVOBJ  = run/fpconv.o
+FPCONVSRC  = environment/fpconv/fpconv.c
+
 TESTBIN    = run/app
 TESTOBJ    = run/app.o
 TESTSRC    = test/app.plum
@@ -53,11 +56,14 @@ $(BIN): $(SOURCES)
 $(PRECOMPOUT): $(PRECOMPIN)
 	@$(COMPILE) $(CFLAGS) -o $@ $<
 
-$(TESTBIN): $(MAINOBJ) $(TESTOBJ)
-	@gcc $(CFLAGS) -o $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(TESTLIBS)
+$(TESTBIN): $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ)
+	@gcc $(CFLAGS) -o $(TESTBIN) $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ) $(TESTLIBS)
 
 $(MAINOBJ): $(MAINSRC) $(MAINDEPS)
 	@gcc $(CFLAGS) -c -o $(MAINOBJ) $(MAINSRC)
+
+$(FPCONVOBJ):
+	@gcc $(CFLAGS) -c -o $(FPCONVOBJ) $(FPCONVSRC)
 
 $(TESTOBJ): $(TESTSRC) $(BIN)
 	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(BINLOG) 2>&1 || { cat $(BINLOG); false } && { cat $(BINLOG) }

@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
-#include <locale.h>
 #include <math.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -16,6 +15,7 @@
 #include "typedefs.h"
 #include "text.h"
 #include "heap.h"
+#include "fpconv/fpconv.h"
 
 #define ALENGTH(x) *(int64 *)((x) + LINEARRAY_LENGTH_OFFSET)
 #define ARESERVATION(x) *(int64 *)((x) + LINEARRAY_RESERVATION_OFFSET)
@@ -71,7 +71,6 @@ extern void finalize_reference_array();
 extern int64 refcount_balance;
 
 static int allocation_count = 0;
-static locale_t unfucked_locale;
 
 
 // Memory management
@@ -269,9 +268,9 @@ void streamify_boolean(unsigned char x, void **character_array_lvalue) {
 
 void streamify_float(double x, void **character_array_lvalue) {
     char byte_array[30];
-    locale_t xxx = uselocale(unfucked_locale);
-    int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%g", x);
-    uselocale(xxx);
+    // Use a round-trippable decimal representation which is also the shortest possible
+    // in 99.8% of the cases (Grisu2 algorithm by night-shift)
+    int64 byte_length = fpconv_dtoa(x, byte_array);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
@@ -846,7 +845,9 @@ extern void (*finalizer_pointers[])();
 
 
 int main() {
-    unfucked_locale = newlocale(LC_NUMERIC_MASK, "C", NULL);
+    // Must be using the C locale during the execution of the whole program,
+    // setlocale is not allowed anywhere.
+    
     setlinebuf(stdout);
     setlinebuf(stderr);
     
@@ -861,8 +862,6 @@ int main() {
         //fprintf(stderr, "Running initializer %d...\n", i);
         finalizer_pointers[i]();
     }
-
-    freelocale(unfucked_locale);
 
     if (allocation_count)
         printf("Oops, the allocation count is %d!\n", allocation_count);
