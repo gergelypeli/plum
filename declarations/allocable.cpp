@@ -10,6 +10,9 @@ public:
         :Identifier(name) {
         where = NOWHERE;
         alloc_ts = ats;
+        
+        if (alloc_ts == NO_TS)
+            throw INTERNAL_ERROR;
     }
 
     virtual bool is_abstract() {

@@ -166,8 +166,10 @@ public:
         // is accessing an abstract role via an interface pointer
         TypeSpec ots = ::get_typespec(orig).rvalue();
         
-        if (ots[0] == ptr_type && ots.unprefix(ptr_type).has_meta(interface_metatype))
-            return make<RoleValue>(this, orig, match);
+        if (ots[0] == ptr_type && ots.unprefix(ptr_type).has_meta(interface_metatype)) {
+            throw INTERNAL_ERROR;  // FIXME: this should be obsolete now
+            //return make<RoleValue>(this, orig, match);
+        }
         else
             return make<ImplementationConversionValue>(this, orig, match);
     }

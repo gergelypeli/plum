@@ -367,7 +367,7 @@ public:
 
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
         ifts = typesubst(alloc_ts, tm);  // pivot match
-        std::cerr << "Checking autoconv from " << ifts << " to " << ptr_cast<Identifier>(target)->name << " " << this << "\n";
+        std::cerr << "Checking autoconv from " << ifts << " to " << ptr_cast<Identifier>(target)->name << "\n";
 
         if (ifts[0] == target) {
             // Direct implementation
