@@ -35,13 +35,13 @@ TESTSRC    = test/app.plum
 TESTLIBS   = -lpcre2-16 -lm
 TESTINPUT  = test/input.sh
 TESTLOG    = run/app.log
-TESTREFLOG = test/ref.log
+TESTLOGOK  = test/app.log.ok
 
 exe: uncore $(BIN)
 
 test: uncore untest $(TESTBIN)
 	@$(TESTINPUT) | $(TESTBIN) 2>&1 | tee $(TESTLOG)
-	@diff -ua $(TESTREFLOG) $(TESTLOG)
+	@diff -ua $(TESTLOGOK) $(TESTLOG)
 
 uncore:
 	@rm -f $(CORE)
