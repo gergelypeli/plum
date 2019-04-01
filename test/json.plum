@@ -137,7 +137,7 @@ String_parser? :Class Parser as:
                 :return `boolean(`true)
             else:
                 :raise `PARSE_ERROR
-        else:if c is_digit || c == "+" || c == "-" then:
+        else:if c is_digit || c == "-" then:
             :return `numeric(:try $ parse_float)
         else:if c == `QU then:
             :return `string(:try $ parse_string)
