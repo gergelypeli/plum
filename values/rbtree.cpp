@@ -610,10 +610,10 @@ public:
     bool is_down;
     TypeSpec elem_ts;
 
-    RbtreeNextElemByAgeValue(Value *l, TypeMatch &match)
-        :GenericValue(NO_TS, match[1], l) {
+    RbtreeNextElemByAgeValue(Value *l, TypeSpec ets)
+        :GenericValue(NO_TS, ets, l) {
         is_down = false;  // TODO: get as argument for backward iteration!
-        elem_ts = match[1];
+        elem_ts = ets;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -683,9 +683,9 @@ public:
     Regs clob;
     TypeSpec elem_ts;
 
-    RbtreeNextElemByOrderValue(Value *l, TypeMatch &match)
-        :GenericValue(NO_TS, match[1], l) {
-        elem_ts = match[1];
+    RbtreeNextElemByOrderValue(Value *l, TypeSpec ets)
+        :GenericValue(NO_TS, ets, l) {
+        elem_ts = ets;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

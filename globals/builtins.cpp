@@ -262,13 +262,13 @@ void builtin_types(Scope *root_scope) {
 
     // Phase 10: define container and iterator types
 
-    linearray_type = new LinearrayType("Linearray");
+    linearray_type = new LinearrayType("<Linearray>");
     root_scope->add(linearray_type);
 
-    circularray_type = new CircularrayType("Circularray");
+    circularray_type = new CircularrayType("<Circularray>");
     root_scope->add(circularray_type);
 
-    rbtree_type = new RbtreeType("Rbtree");
+    rbtree_type = new RbtreeType("<Rbtree>");
     root_scope->add(rbtree_type);
 
     slice_type = new SliceType("Slice");
@@ -309,6 +309,12 @@ void builtin_types(Scope *root_scope) {
 
     setelembyorderiter_type = new RecordType("Setelembyorder_iter", { value_metatype });
     root_scope->add(setelembyorderiter_type);
+
+    mapitembyageiter_type = new RecordType("Mapitembyage_iter", { value_metatype, value_metatype });
+    root_scope->add(mapitembyageiter_type);
+
+    mapitembyorderiter_type = new RecordType("Mapitembyorder_iter", { value_metatype, value_metatype });
+    root_scope->add(mapitembyorderiter_type);
 
     sliceelemiter_type = new RecordType("Sliceelem_iter", { value_metatype });
     root_scope->add(sliceelemiter_type);
@@ -377,9 +383,11 @@ void builtin_types(Scope *root_scope) {
     STRINGTEMPLATE_TS = { stringtemplate_type };
     ANY_ARRAY_TS = { array_type, any_type };
     ANY_ARRAY_LVALUE_TS = { lvalue_type, array_type, any_type };
+    SAME_ARRAY_TS = { array_type, same_type };
     SAME_LINEARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, linearray_type, same_type };
     ANY_QUEUE_TS = { queue_type, any_type };
     ANY_QUEUE_LVALUE_TS = { lvalue_type, queue_type, any_type };
+    SAME_QUEUE_TS = { queue_type, same_type };
     SAME_CIRCULARRAY_REF_LVALUE_TS = { lvalue_type, ref_type, circularray_type, same_type };
     ANY_RBTREE_REF_TS = { ref_type, rbtree_type, any_type };
     ANY_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, any_type };
@@ -391,7 +399,7 @@ void builtin_types(Scope *root_scope) {
     STREAMIFIABLE_TS = { streamifiable_type };
     ANY_ITERATOR_TS = { iterator_type, any_type };
     SAME_ITERATOR_TS = { iterator_type, same_type };
-    //SAME_ITERATOR_RVALUE_TS = { rvalue_type, iterator_type, same_type };
+    SAME_SAME2_ITEM_ITERATOR_TS = { iterator_type, item_type, same_type, same2_type };
     INTEGER_ITERATOR_TS = { iterator_type, integer_type };
     INTEGER_ITERABLE_TS = { iterable_type, integer_type };
     ANY_ITERABLE_TS = { iterable_type, any_type };
@@ -427,6 +435,8 @@ void builtin_types(Scope *root_scope) {
     SAME_QUEUEITEMITER_TS = { queueitemiter_type, same_type };
     SAME_SETELEMBYAGEITER_TS = { setelembyageiter_type, same_type };
     SAME_SETELEMBYORDERITER_TS = { setelembyorderiter_type, same_type };
+    SAME_SAME2_MAPITEMBYAGEITER_TS = { mapitembyageiter_type, same_type, same2_type };
+    SAME_SAME2_MAPITEMBYORDERITER_TS = { mapitembyorderiter_type, same_type, same2_type };
     SAME_SLICEELEMITER_TS = { sliceelemiter_type, same_type };
     SAME_SLICEINDEXITER_TS = { sliceindexiter_type, same_type };
     SAME_SLICEITEMITER_TS = { sliceitemiter_type, same_type };
@@ -438,8 +448,10 @@ void builtin_types(Scope *root_scope) {
 
     ANY_SET_TS = { set_type, any_type };
     ANY_SET_LVALUE_TS = { lvalue_type, set_type, any_type };
+    SAME_SET_TS = { set_type, same_type };
     ANY_ANY2_MAP_TS = { map_type, any_type, any2_type };
     ANY_ANY2_MAP_LVALUE_TS = { lvalue_type, map_type, any_type, any2_type };
+    SAME_SAME2_MAP_TS = { map_type, same_type, same2_type };
     ANY_ANYID2_WEAKVALUEMAP_TS = { weakvaluemap_type, any_type, anyid2_type };
     ANYID_WEAKSET_TS = { weakset_type, anyid_type };
     ANYID_ANY2_WEAKINDEXMAP_TS = { weakindexmap_type, anyid_type, any2_type };
@@ -448,6 +460,8 @@ void builtin_types(Scope *root_scope) {
 
 void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
     TypeSpec implementor_ts = implementor_scope->get_pivot_ts();
+    std::cerr << "XXX built-in implementing " << implementor_ts << " " << implementation_name << " as " << interface_ts << "\n";
+    
     Implementation *implementation = new Implementation(implementation_name, interface_ts, AS_ROLE);
     implementor_scope->add(implementation);
     
@@ -658,21 +672,21 @@ void define_interfaces() {
 
 
 template <typename NextValue>
-void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec interface_ts) {
-    TypeSpec PIVOT_TS = { iter_type, any_type };
-    TypeSpec SAME_CONTAINER_LVALUE_TS = { lvalue_type, container_type, same_type };
+void define_container_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec value_ts) {
+    //TypeSpec PIVOT_TS = { iter_type, any_type };
+    //TypeSpec SAME_CONTAINER_LVALUE_TS = { lvalue_type, container_type, same_type };
     
     DataScope *aiis = iter_type->make_inner_scope();
 
     // Order matters!
-    aiis->add(new Variable("container", SAME_CONTAINER_LVALUE_TS));
+    aiis->add(new Variable("container", container_ts.lvalue()));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    implement(aiis, interface_ts, "iterator", {
+    implement(aiis, value_ts.prefix(iterator_type), "iterator", {
         new TemplateIdentifier<NextValue>("next"),
     });
     
-    implement(aiis, SAME_ITERABLE_TS, "iterable", {
+    implement(aiis, value_ts.prefix(iterable_type), "iterable", {
         new Identity("iter")
     });
     
@@ -682,23 +696,23 @@ void define_container_iterator(Type *iter_type, Type *container_type, TypeSpec i
 
 
 template <typename NextValue>
-void define_slice_iterator(Type *iter_type, TypeSpec interface_ts) {
-    TypeSpec PIVOT_TS = { iter_type, any_type };
-    TypeSpec SAME_ARRAY_LVALUE_TS = { lvalue_type, array_type, same_type };
+void define_slice_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec value_ts) {
+    //TypeSpec PIVOT_TS = { iter_type, any_type };
+    //TypeSpec SAME_ARRAY_LVALUE_TS = { lvalue_type, array_type, same_type };
     
     DataScope *aiis = iter_type->make_inner_scope();
 
     // Order matters!
-    aiis->add(new Variable("container", SAME_ARRAY_LVALUE_TS));
+    aiis->add(new Variable("container", container_ts.lvalue()));
     aiis->add(new Variable("front", INTEGER_LVALUE_TS));
     aiis->add(new Variable("length", INTEGER_LVALUE_TS));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    implement(aiis, interface_ts, "iterator", {
+    implement(aiis, value_ts.prefix(iterator_type), "iterator", {
         new TemplateIdentifier<NextValue>("next")
     });
 
-    implement(aiis, SAME_ITERABLE_TS, "iterable", {
+    implement(aiis, value_ts.prefix(iterable_type), "iterable", {
         new Identity("iter")
     });
     
@@ -751,27 +765,27 @@ void define_iterators() {
     TypeSpec INTEGER_SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, integer_type, same_type };
 
     // Array Iterator operations
-    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, array_type, SAME_ITERATOR_TS);
-    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, array_type, INTEGER_ITERATOR_TS);
-    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, array_type, INTEGER_SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, SAME_ARRAY_TS, SAME_TS);
+    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, SAME_ARRAY_TS, INTEGER_TS);
+    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_ITEM_TS);
 
     // Circularray Iterator operations
-    define_container_iterator<QueueNextElemValue>(queueelemiter_type, queue_type, SAME_ITERATOR_TS);
-    define_container_iterator<QueueNextIndexValue>(queueindexiter_type, queue_type, INTEGER_ITERATOR_TS);
-    define_container_iterator<QueueNextItemValue>(queueitemiter_type, queue_type, INTEGER_SAME_ITEM_ITERATOR_TS);
+    define_container_iterator<QueueNextElemValue>(queueelemiter_type, SAME_QUEUE_TS, SAME_TS);
+    define_container_iterator<QueueNextIndexValue>(queueindexiter_type, SAME_QUEUE_TS, INTEGER_TS);
+    define_container_iterator<QueueNextItemValue>(queueitemiter_type, SAME_QUEUE_TS, INTEGER_SAME_ITEM_TS);
 
     // Set Iterator operations
-    define_container_iterator<RbtreeNextElemByAgeValue>(setelembyageiter_type, set_type, SAME_ITERATOR_TS);
-    define_container_iterator<RbtreeNextElemByOrderValue>(setelembyorderiter_type, set_type, SAME_ITERATOR_TS);
+    define_container_iterator<SetNextElemByAgeValue>(setelembyageiter_type, SAME_SET_TS, SAME_TS);
+    define_container_iterator<SetNextElemByOrderValue>(setelembyorderiter_type, SAME_SET_TS, SAME_TS);
 
-    // Rbtree Iterator operations
-    //define_container_iterator<RbtreeNextElemByAgeValue>(rbtreeelembyageiter_type, rbtree_type, SAME_ITERATOR_TS);
-    //define_container_iterator<RbtreeNextElemByOrderValue>(rbtreeelembyorderiter_type, rbtree_type, SAME_ITERATOR_TS);
+    // Map Iterator operations
+    define_container_iterator<MapNextItemByAgeValue>(mapitembyageiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_ITEM_TS);
+    define_container_iterator<MapNextItemByOrderValue>(mapitembyorderiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_ITEM_TS);
 
     // Slice Iterator operations
-    define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ITERATOR_TS);
-    define_slice_iterator<SliceNextIndexValue>(sliceindexiter_type, INTEGER_ITERATOR_TS);
-    define_slice_iterator<SliceNextItemValue>(sliceitemiter_type, INTEGER_SAME_ITEM_ITERATOR_TS);
+    define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ARRAY_TS, SAME_TS);
+    define_slice_iterator<SliceNextIndexValue>(sliceindexiter_type, SAME_ARRAY_TS, INTEGER_TS);
+    define_slice_iterator<SliceNextItemValue>(sliceitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_ITEM_TS);
 }
 
 
@@ -1029,6 +1043,11 @@ void define_map() {
     is->add(new TemplateIdentifier<MapHasValue>("has"));
     is->add(new TemplateIdentifier<MapIndexValue>("index"));
 
+    // TODO: implement iterable interface?
+
+    is->add(new TemplateIdentifier<MapItemByAgeIterValue>("items_by_age"));
+    is->add(new TemplateIdentifier<MapItemByOrderIterValue>("items_by_order"));
+
     TypeSpec PIVOT_LVALUE_TS = ANY_ANY2_MAP_LVALUE_TS;
     DataScope *ls = map_type->make_lvalue_scope();
     
@@ -1185,6 +1204,8 @@ void builtin_runtime(Scope *root_scope) {
     is->add(new SysvFunction("Std__parse_integer", "parse_integer", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { INTEGER_TS }, parse_exception_type));
     is->add(new SysvFunction("Std__parse_float", "parse_float", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { FLOAT_TS }, parse_exception_type));
     is->add(new SysvFunction("Std__parse_jstring", "parse_jstring", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, parse_exception_type));
+
+    is->add(new SysvFunction("Std__print_jstring", "print_jstring", GENERIC_FUNCTION, TSs { STRING_TS, STRING_LVALUE_TS }, { "str", "stream" }, {}));
 
     std_type->complete_type();
     is->leave();

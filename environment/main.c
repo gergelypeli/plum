@@ -665,6 +665,10 @@ MaybeInteger Std__parse_jstring(Ref character_array, int64 *position_lvalue) {
 }
 
 
+void Std__print_jstring(Ref character_array, Ref *stream) {
+}
+
+
 void *decode_utf8(Ref byte_array) {
     if (!byte_array)
         return NULL;

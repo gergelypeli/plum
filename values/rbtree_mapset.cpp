@@ -73,6 +73,23 @@ public:
 };
 
 
+class SetNextElemByAgeValue: public RbtreeNextElemByAgeValue {
+public:
+    SetNextElemByAgeValue(Value *l, TypeMatch &tm)
+        :RbtreeNextElemByAgeValue(l, tm[1]) {
+    }
+};
+
+
+class SetNextElemByOrderValue: public RbtreeNextElemByOrderValue {
+public:
+    SetNextElemByOrderValue(Value *l, TypeMatch &tm)
+        :RbtreeNextElemByOrderValue(l, tm[1]) {
+    }
+};
+
+
+
 // Map
 
 TypeSpec map_elem_ts(TypeMatch &tm) {
@@ -143,19 +160,37 @@ public:
     }
 };
 
-/*
-class MapElemByAgeIterValue: public RbtreeElemByAgeIterValue {
-    MapElemByAgeIterValue(Value *l, TypeMatch &tm)
-        :RbtreeElemByAgeIterValue(Value *l, tm[1]) {
+
+class MapItemByAgeIterValue: public RbtreeElemByAgeIterValue {
+public:
+    MapItemByAgeIterValue(Value *l, TypeMatch &tm)
+        :RbtreeElemByAgeIterValue(l, TypeSpec(mapitembyageiter_type, tm[1], tm[2])) {
     }
 };
 
-class MapElemByOrderIterValue: public RbtreeElemByOrderIterValue {
-    MapElemByOrderIterValue(Value *l, TypeMatch &tm)
-        :RbtreeElemByOrderIterValue(Value *l, tm[1]) {
+class MapItemByOrderIterValue: public RbtreeElemByOrderIterValue {
+public:
+    MapItemByOrderIterValue(Value *l, TypeMatch &tm)
+        :RbtreeElemByOrderIterValue(l, TypeSpec(mapitembyorderiter_type, tm[1], tm[2])) {
     }
 };
-*/
+
+
+class MapNextItemByAgeValue: public RbtreeNextElemByAgeValue {
+public:
+    MapNextItemByAgeValue(Value *l, TypeMatch &tm)
+        :RbtreeNextElemByAgeValue(l, TypeSpec(item_type, tm[1], tm[2])) {
+    }
+};
+
+
+class MapNextItemByOrderValue: public RbtreeNextElemByOrderValue {
+public:
+    MapNextItemByOrderValue(Value *l, TypeMatch &tm)
+        :RbtreeNextElemByOrderValue(l, TypeSpec(item_type, tm[1], tm[2])) {
+    }
+};
+
 
 
 // Weak map helpers
