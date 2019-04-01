@@ -156,15 +156,23 @@ void free_basic_array(void *array) {
 }
 
 
-void *append_decode_utf8(void *character_array, char *bytes, int64 byte_length) {
+void *preappend(void *character_array, int64 append_length) {
     int64 character_length = ALENGTH(character_array);
     int64 character_reserve = ARESERVATION(character_array);
     
-    if (character_reserve - character_length < byte_length)
-        character_array = reallocate_array(character_array, character_length + byte_length, 2);
+    if (character_reserve - character_length < append_length)
+        character_array = reallocate_array(character_array, character_length + append_length, 2);
+
+    return character_array;
+}
+
+
+void *append_decode_utf8(void *character_array, char *bytes, int64 byte_length) {
+    character_array = preappend(character_array, byte_length);  // upper limit
         
     unsigned16 *characters = AELEMENTS(character_array);
-    int64 available_length = ARESERVATION(character_array) - ALENGTH(character_array);
+    int64 character_length = ALENGTH(character_array);
+    int64 available_length = ARESERVATION(character_array) - character_length;
     
     int64 byte_count, character_count;
     decode_utf8_buffer(bytes, byte_length, characters + character_length, available_length, &byte_count, &character_count);
@@ -610,6 +618,7 @@ MaybeInteger Std__parse_jstring(Ref character_array, int64 *position_lvalue) {
     if (!seen_close)
         return NOT_INTEGER(1);
 
+    // Second pass: do the conversion
     Ref result_array = allocate_basic_array(length, 2);
     ALENGTH(result_array) = length;
     unsigned16 *characters = AELEMENTS(result_array);
@@ -665,7 +674,73 @@ MaybeInteger Std__parse_jstring(Ref character_array, int64 *position_lvalue) {
 }
 
 
-void Std__print_jstring(Ref character_array, Ref *stream) {
+static char digitx(unsigned16 x) {
+    return x >= 10 ? 'A' + x - 10 : '0' + x;
+}
+
+
+void Std__print_jstring(Ref character_array, Ref *stream_lvalue) {
+    // First pass: determine result length
+    int64 length = 2;  // quotes
+    int64 position = 0;
+    
+    while (position < ALENGTH(character_array)) {
+        unsigned16 c = chr(character_array, position);
+
+        if (c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') {
+            length += 2;
+        }
+        else if (iscntrl(c)) {
+            length += 6;
+        }
+        else {
+            length += 1;
+        }
+        
+        position += 1;
+    }
+        
+    // Second pass: do the conversion
+    Ref stream = preappend(*stream_lvalue, length);
+    int64 count = ALENGTH(stream);
+    ALENGTH(stream) += length;
+    unsigned16 *characters = AELEMENTS(stream);
+    position = 0;
+    
+    characters[count++] = '"';
+    
+    while (position < ALENGTH(character_array)) {
+        unsigned16 c = chr(character_array, position);
+
+        if (c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') {
+            characters[count++] = '\\';
+            characters[count++] = (
+                c == '\b' ? 'b' :
+                c == '\f' ? 'f' :
+                c == '\n' ? 'n' :
+                c == '\r' ? 'r' :
+                c == '\t' ? 't' :
+                c
+            );
+        }
+        else if (iscntrl(c)) {
+            characters[count++] = '\\';
+            characters[count++] = 'u';
+            characters[count++] = digitx((c >> 12) & 0x000f);
+            characters[count++] = digitx((c >>  8) & 0x000f);
+            characters[count++] = digitx((c >>  4) & 0x000f);
+            characters[count++] = digitx((c >>  0) & 0x000f);
+        }
+        else {
+            characters[count++] = c;
+        }
+
+        position += 1;
+    }
+
+    characters[count++] = '"';
+    
+    *stream_lvalue = stream;
 }
 
 

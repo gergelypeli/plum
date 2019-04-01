@@ -688,8 +688,8 @@ App? :Class Application as:
         Std prints("Map contents: {}" { mp })
     
         # FIXME
-        #:for mp wrapped elements_by_order each: iv? do:
-        #    Std prints("Map element: {x} => {y}" {x: iv index, y: iv value})
+        :for mp items_by_order each: iv? do:
+            Std prints("Map item: {x} => {y}" {x: iv index, y: iv value})
     
         Std prints("Map element at A is: {x}" {x: mp["A"]})
 
@@ -1073,10 +1073,15 @@ App? :Class Application as:
     ? :Import json
 
     test_json? :Function as:
-        real? json.Parser Ref = json.String_parser Ref `from(" {LB} {QU}low{QU} :[ 1.2, 3.4 ], {QU}high{QU}: [ 5.6, 7.8 ],{QU}weird{QU}:[null,false,true] {RB} ")
-        value? = :try real parse_value
+        decoder? json.Parser Ref = json.String_parser Ref `from(" {LB} {QU}low{QU} :[ 1.2, 3.4 ], {QU}high{QU}: [ 5.6, 7.8 ],{QU}weird\\\u0007{QU}:[null,false,true] {RB} ")
+        value? = :try decoder parse
+
+        Std prints("The decoded value is {}" { value })
         
-        Std prints("The value is {}" { value })
+        encoder? json.Printer Ref = json.String_printer Ref `from(value)
+        result? = :try encoder print
+        
+        Std prints("The encoded string is {}" { result })
 
 
 #Test_files? :Singleton as:

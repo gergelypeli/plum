@@ -13,7 +13,7 @@ Value? :Union as:
 
 
 Parser? :Abstract as:
-    parse_value? :Function Value may: Parse_error
+    parse? :Function Value may: Parse_error
 
     
 String_parser? :Class Parser as:
@@ -70,7 +70,7 @@ String_parser? :Class Parser as:
         a? Value Array = {}
         
         :repeat on: `true do:
-            x? = :try $ @ parse_value
+            x? = :try $ parse_value
             a push(x)
             
             $ parse_ws
@@ -106,7 +106,7 @@ String_parser? :Class Parser as:
                 
             $ parse_ws
             
-            value? = :try $ @ parse_value
+            value? = :try $ parse_value
             m add(key, value)
             
             $ parse_ws
@@ -121,7 +121,7 @@ String_parser? :Class Parser as:
             
         :raise `PARSE_ERROR  # stupid fix for :repeat
 
-    @.parse_value? :Function Value may: Parse_error as:
+    parse_value? :Function Value may: Parse_error as:
         $ parse_ws
         
         c? = $ peek_character
@@ -146,4 +146,106 @@ String_parser? :Class Parser as:
         else:if c == "{" then:
             :return `object(:try $ parse_object)
         else:
+            :raise `PARSE_ERROR
+
+    @.parse? :Function Value may: Parse_error as:
+        :try
+            :return $ parse_value
+        or:
+            :raise `PARSE_ERROR
+
+
+Printer? :Abstract as:
+    print? :Function String may: Parse_error
+
+    
+String_printer? :Class Printer as:
+    input? Value
+    stream? String
+    
+    from? :Initializer from: v? Value as:
+        $ input = v
+        $ stream = ""
+        
+    print_character? :Function from: c? Character as:
+        $ stream += "{}" { c raw }
+    
+    print_identifier? :Function from: s? String as:
+        $ stream += s
+
+    print_integer? :Function from: i? Integer as:
+        $ stream += "{}" { i }
+
+    print_float? :Function from: f? Float may: Parse_error as:
+        $ stream += "{}" { f }
+
+    print_string? :Function from: s? String may: Parse_error as:
+        Std print_jstring(s, $ stream)
+
+    print_array? :Function from: a? Value Array may: Parse_error as:
+        $ print_character("[")
+        tail? Boolean = `false
+    
+        :for a each: v? do:
+            :if tail then:
+                $ stream += ","
+            else:
+                tail = `true
+                
+            :try $ print_value(v)
+            
+        $ print_character("]")
+
+    print_object? :Function from: m? (String, Value) Map may: Parse_error as:
+        $ print_character(`LB)
+        tail? Boolean = `false
+    
+        :for m items_by_age each: iv? do:
+            :if tail then:
+                $ stream += ","
+            else:
+                tail = `true
+                
+            :try $ print_string(iv index)
+            
+            $ print_character(":")
+            
+            :try $ print_value(iv value)
+            
+        $ print_character(`RB)
+
+    print_value? :Function from: v? Value may: Parse_error as:
+        :switch v do:
+            :is ~null then:
+                $ print_identifier("null")
+                :yield
+                
+            :is b? = ~boolean then:
+                :if b then:
+                    $ print_identifier("true")
+                else:
+                    $ print_identifier("false")
+                :yield
+            
+            :is s? = ~string then:
+                :try $ print_string(s)
+                :yield
+                
+            :is n? = ~numeric then:
+                :try $ print_float(n)
+                :yield
+                
+            :is a? = ~array then:
+                :try $ print_array(a)
+                :yield
+                
+            :is m? = ~object then:
+                :try $ print_object(m)
+                :yield
+
+    @.print? :Function String may: Parse_error as:
+        :try
+            $ print_value($ input)
+            :return $ stream
+        or:
             :raise `PARSE_ERROR
