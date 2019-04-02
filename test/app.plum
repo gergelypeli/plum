@@ -668,34 +668,53 @@ App? :Class Application as:
         st? String Set = { "A", "B" }
     
         :try
-            st add("C")
             st add("D")
+            st add("C")
+        :try
+            st remove("B")
 
+        Std prints("Set length is {x}" {x: st length})
         Std prints("Set contents: {}" { st })
+
+        :for st each: e? do:
+            Std prints("Set element: {e}" {})
     
         :for st elements_by_age each: e? do:
-            Std prints("Set element: {e}" {})
+            Std prints("Set element by age: {e}" {})
+
+        :for st elements_by_order each: e? do:
+            Std prints("Set element by order: {e}" {})
 
         mp? (String, String) Map = {{ "A", "a" }, { "B", "b" }}
         :try
-            mp add("C", "c")
             mp add("D", "d")
+            mp add("C", "c")
         :try
-            mp remove("C")
+            mp remove("B")
 
         Std prints("Map length is {x}" {x: mp length})
-
         Std prints("Map contents: {}" { mp })
     
-        # FIXME
+        :for mp each: index? do:
+            Std prints("Map index: {}" { index })
+
+        :for mp indexes_by_age each: index? do:
+            Std prints("Map index by age: {}" { index })
+
+        :for mp indexes_by_order each: index? do:
+            Std prints("Map index by order: {}" { index })
+
+        :for mp items_by_age each: iv? do:
+            Std prints("Map item by age: {x} => {y}" {x: iv index, y: iv value})
+    
         :for mp items_by_order each: iv? do:
-            Std prints("Map item: {x} => {y}" {x: iv index, y: iv value})
+            Std prints("Map item by order: {x} => {y}" {x: iv index, y: iv value})
     
         Std prints("Map element at A is: {x}" {x: mp["A"]})
 
         cc? = mp
-        :try mp add("C", "c")
-        Std prints("Map length became {}, while copy still contains {} elems like {} and {}." { mp length, cc length, cc["A"], cc["B"] })
+        :try mp add("B", "b")
+        Std prints("Map length became {}, while copy still contains {} elems." { mp length, cc length })
 
 
 #Test_options? :Singleton as:

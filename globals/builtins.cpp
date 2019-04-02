@@ -316,6 +316,12 @@ void builtin_types(Scope *root_scope) {
     mapitembyorderiter_type = new RecordType("Mapitembyorder_iter", { value_metatype, value_metatype });
     root_scope->add(mapitembyorderiter_type);
 
+    mapindexbyageiter_type = new RecordType("Mapindexbyage_iter", { value_metatype, value_metatype });
+    root_scope->add(mapindexbyageiter_type);
+
+    mapindexbyorderiter_type = new RecordType("Mapindexbyorder_iter", { value_metatype, value_metatype });
+    root_scope->add(mapindexbyorderiter_type);
+
     sliceelemiter_type = new RecordType("Sliceelem_iter", { value_metatype });
     root_scope->add(sliceelemiter_type);
     
@@ -437,6 +443,8 @@ void builtin_types(Scope *root_scope) {
     SAME_SETELEMBYORDERITER_TS = { setelembyorderiter_type, same_type };
     SAME_SAME2_MAPITEMBYAGEITER_TS = { mapitembyageiter_type, same_type, same2_type };
     SAME_SAME2_MAPITEMBYORDERITER_TS = { mapitembyorderiter_type, same_type, same2_type };
+    SAME_SAME2_MAPINDEXBYAGEITER_TS = { mapindexbyageiter_type, same_type, same2_type };
+    SAME_SAME2_MAPINDEXBYORDERITER_TS = { mapindexbyorderiter_type, same_type, same2_type };
     SAME_SLICEELEMITER_TS = { sliceelemiter_type, same_type };
     SAME_SLICEINDEXITER_TS = { sliceindexiter_type, same_type };
     SAME_SLICEITEMITER_TS = { sliceitemiter_type, same_type };
@@ -781,6 +789,8 @@ void define_iterators() {
     // Map Iterator operations
     define_container_iterator<MapNextItemByAgeValue>(mapitembyageiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_ITEM_TS);
     define_container_iterator<MapNextItemByOrderValue>(mapitembyorderiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_ITEM_TS);
+    define_container_iterator<MapNextIndexByAgeValue>(mapindexbyageiter_type, SAME_SAME2_MAP_TS, SAME_TS);
+    define_container_iterator<MapNextIndexByOrderValue>(mapindexbyorderiter_type, SAME_SAME2_MAP_TS, SAME_TS);
 
     // Slice Iterator operations
     define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ARRAY_TS, SAME_TS);
@@ -1015,6 +1025,11 @@ void define_set() {
 
     is->add(new TemplateIdentifier<SetLengthValue>("length"));
     is->add(new TemplateIdentifier<SetHasValue>("has"));
+
+    // Iteration
+    implement(is, SAME_ITERABLE_TS, "iterable", {
+        new TemplateIdentifier<SetElemByAgeIterValue>("iter")
+    });
     
     is->add(new TemplateIdentifier<SetElemByAgeIterValue>("elements_by_age"));
     is->add(new TemplateIdentifier<SetElemByOrderIterValue>("elements_by_order"));
@@ -1043,10 +1058,16 @@ void define_map() {
     is->add(new TemplateIdentifier<MapHasValue>("has"));
     is->add(new TemplateIdentifier<MapIndexValue>("index"));
 
-    // TODO: implement iterable interface?
+    // Iteration
+    implement(is, SAME_ITERABLE_TS, "iterable", {
+        new TemplateIdentifier<MapIndexByAgeIterValue>("iter")
+    });
 
     is->add(new TemplateIdentifier<MapItemByAgeIterValue>("items_by_age"));
     is->add(new TemplateIdentifier<MapItemByOrderIterValue>("items_by_order"));
+
+    is->add(new TemplateIdentifier<MapIndexByAgeIterValue>("indexes_by_age"));
+    is->add(new TemplateIdentifier<MapIndexByOrderIterValue>("indexes_by_order"));
 
     TypeSpec PIVOT_LVALUE_TS = ANY_ANY2_MAP_LVALUE_TS;
     DataScope *ls = map_type->make_lvalue_scope();

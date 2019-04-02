@@ -176,6 +176,21 @@ public:
 };
 
 
+class MapIndexByAgeIterValue: public RbtreeElemByAgeIterValue {
+public:
+    MapIndexByAgeIterValue(Value *l, TypeMatch &tm)
+        :RbtreeElemByAgeIterValue(l, TypeSpec(mapindexbyageiter_type, tm[1], tm[2])) {
+    }
+};
+
+class MapIndexByOrderIterValue: public RbtreeElemByOrderIterValue {
+public:
+    MapIndexByOrderIterValue(Value *l, TypeMatch &tm)
+        :RbtreeElemByOrderIterValue(l, TypeSpec(mapindexbyorderiter_type, tm[1], tm[2])) {
+    }
+};
+
+
 class MapNextItemByAgeValue: public RbtreeNextElemByAgeValue {
 public:
     MapNextItemByAgeValue(Value *l, TypeMatch &tm)
@@ -188,6 +203,22 @@ class MapNextItemByOrderValue: public RbtreeNextElemByOrderValue {
 public:
     MapNextItemByOrderValue(Value *l, TypeMatch &tm)
         :RbtreeNextElemByOrderValue(l, TypeSpec(item_type, tm[1], tm[2])) {
+    }
+};
+
+
+class MapNextIndexByAgeValue: public RbtreeNextElemByAgeValue {
+public:
+    MapNextIndexByAgeValue(Value *l, TypeMatch &tm)
+        :RbtreeNextElemByAgeValue(l, tm[1]) {  // NOTE: the index comes first in Item
+    }
+};
+
+
+class MapNextIndexByOrderValue: public RbtreeNextElemByOrderValue {
+public:
+    MapNextIndexByOrderValue(Value *l, TypeMatch &tm)
+        :RbtreeNextElemByOrderValue(l, tm[1]) {  // NOTE: the index comes first in Item
     }
 };
 

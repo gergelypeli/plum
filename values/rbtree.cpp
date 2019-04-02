@@ -608,12 +608,10 @@ class RbtreeNextElemByAgeValue: public GenericValue, public Raiser {
 public:
     Regs clob;
     bool is_down;
-    TypeSpec elem_ts;
 
-    RbtreeNextElemByAgeValue(Value *l, TypeSpec ets)
-        :GenericValue(NO_TS, ets, l) {
+    RbtreeNextElemByAgeValue(Value *l, TypeSpec ts)
+        :GenericValue(NO_TS, ts, l) {
         is_down = false;  // TODO: get as argument for backward iteration!
-        elem_ts = ets;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -681,11 +679,9 @@ public:
 class RbtreeNextElemByOrderValue: public GenericValue, public Raiser {
 public:
     Regs clob;
-    TypeSpec elem_ts;
 
-    RbtreeNextElemByOrderValue(Value *l, TypeSpec ets)
-        :GenericValue(NO_TS, ets, l) {
-        elem_ts = ets;
+    RbtreeNextElemByOrderValue(Value *l, TypeSpec ts)
+        :GenericValue(NO_TS, ts, l) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
