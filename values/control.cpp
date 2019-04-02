@@ -652,6 +652,7 @@ public:
         
         if (!et) {
             // Treat match as a value, and do an implicit equality matching
+            // FIXME: this is stupid
             
             if (!switch_scope) {
                 std::cerr << "Implicit equality matching can only be used in :is inside :switch!\n";

@@ -55,6 +55,7 @@ class StringRegexpMatcherValue;
 class SliceEmptyValue;
 class SliceAllValue;
 class TreenumerationDefinitionValue;
+class TreenumerationAnyMatcherValue;
 class TreenumerationMatcherValue;
 class TypeValue;
 class UnicodeCharacterValue;

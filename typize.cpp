@@ -388,7 +388,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             throw TYPE_ERROR;
         }
         
-        std::cerr << "Using matcher " << p->ts << " `" << name << ".\n";
+        std::cerr << "Using matcher " << p->ts << " ~" << name << ".\n";
     }
     else if (expr->type == Expr::UNSIGNED_NUMBER || expr->type == Expr::NEGATIVE_NUMBER) {
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;

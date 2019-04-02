@@ -589,6 +589,9 @@ public:
             if (keywords[i] == n)
                 return make<TreenumerationMatcherValue>(i, pivot);
         
+        if (n == "any")
+            return make<TreenumerationAnyMatcherValue>(pivot);
+        
         return NULL;
     }
     

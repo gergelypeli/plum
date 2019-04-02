@@ -412,6 +412,11 @@ App? :Class Application as:
         my_tree? MyTree = `TWENTY
         Std prints("This tree is {my_tree}." {})
     
+        :is x? = my_tree ~any then:
+            Std prints("Fortunately, {} is any." { x })
+        else:
+            Std prints("OOPS, TWENTY IS NOT ANY!")
+    
         :switch my_tree do:
             :is ~TWO then:
                 Std prints("Two-something.")

@@ -140,10 +140,9 @@ public:
 class TreenumerationMatcherValue: public GenericValue, public Raiser {
 public:
     int index;
-    Register reg;
     
     TreenumerationMatcherValue(int i, Value *p)
-        :GenericValue(NO_TS, VOID_TS, p) {
+        :GenericValue(NO_TS, p->ts.rvalue(), p) {
         index = i;
     }
 
@@ -155,9 +154,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred);
-        reg = clob.has_any() ? clob.get_any() : AL;
-        return clob | reg;
+        return left->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
@@ -169,34 +166,62 @@ public:
         
         switch (ls.where) {
         case CONSTANT:
-            x64->op(MOVB, reg, ls.value);
+            x64->op(MOVQ, R11, ls.value);
             break;
         case REGISTER:
-            reg = ls.reg;
+            x64->op(MOVZXBQ, R11, ls.reg);
+            break;
+        case STACK:
+            x64->op(MOVZXBQ, R11, Address(RSP, 0));
             break;
         case MEMORY:
-            x64->op(MOVB, reg, ls.address);
+            x64->op(MOVZXBQ, R11, ls.address);
             break;
         default:
             throw INTERNAL_ERROR;
         }
         
+        // R11 always contains one byte of nonzero data, so we can use it for addressing
         x64->op(LEA, R10, Address(parents_label, 0));
         
         x64->code_label(loop);
-        x64->op(CMPB, reg, index);
+        x64->op(CMPQ, R11, index);
         x64->op(JE, match);
         
-        x64->op(ANDQ, reg, 255);
-        x64->op(MOVB, reg, Address(R10, reg, 0));
+        x64->op(MOVB, R11B, Address(R10, R11, 0));
         
-        x64->op(CMPB, reg, 0);
+        x64->op(CMPQ, R11, 0);
         x64->op(JNE, loop);
         
         raise("UNMATCHED", x64);
         
         x64->code_label(match);
         
-        return Storage();
+        return ls;
+    }
+};
+
+
+// FIXME: Raiser is only needed as long as :is is stupid enough to think that non-raising
+// expressions are equality matchers.
+class TreenumerationAnyMatcherValue: public GenericValue, public Raiser {
+public:
+    TreenumerationAnyMatcherValue(Value *p)
+        :GenericValue(NO_TS, p->ts.rvalue(), p) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(match_unmatched_exception_type, scope))
+            return false;
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        return left->compile(x64);
     }
 };
