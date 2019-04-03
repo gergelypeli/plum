@@ -32,6 +32,8 @@ public:
         case STACK_NOWHERE:
             x64->op(ADDQ, RSP, FLOAT_SIZE);
             break;
+        case STACK_STACK:
+            break;
             
         case MEMORY_NOWHERE:
             break;
@@ -46,7 +48,7 @@ public:
             x64->op(MOVQ, t.address, R10);
             break;
         default:
-            throw INTERNAL_ERROR;
+            Type::store(tm, s, t, x64);
         }
     }
 

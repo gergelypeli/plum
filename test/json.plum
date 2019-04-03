@@ -218,30 +218,24 @@ String_printer? :Class Printer as:
         :switch v do:
             :is ~null then:
                 $ print_identifier("null")
-                :yield
                 
             :is b? = ~boolean then:
                 :if b then:
                     $ print_identifier("true")
                 else:
                     $ print_identifier("false")
-                :yield
             
             :is s? = ~string then:
                 :try $ print_string(s)
-                :yield
                 
             :is n? = ~numeric then:
                 :try $ print_float(n)
-                :yield
                 
             :is a? = ~array then:
                 :try $ print_array(a)
-                :yield
                 
             :is m? = ~object then:
                 :try $ print_object(m)
-                :yield
 
     @.print? :Function String may: Parse_error as:
         :try

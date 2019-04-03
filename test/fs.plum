@@ -106,8 +106,6 @@ Decoder? :Class as:
                         string? = s decode_utf8
                         $ reader grab(s length)
                         :return string
-                        
-                :fixed
             
         :return ""  # Workaround
 

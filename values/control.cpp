@@ -56,6 +56,21 @@ public:
         
         return check_arguments(fake_args, kwargs, arg_infos);
     }
+
+    virtual Storage get_context_storage() {
+        switch (context_ts.where(AS_VALUE)) {
+        case NOWHERE:
+            return Storage();
+        case REGISTER:
+            return Storage(REGISTER, RAX);
+        case SSEREGISTER:
+            return Storage(SSEREGISTER, XMM0);
+        case STACK:
+            return Storage(STACK);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
 };
 
 
@@ -171,9 +186,9 @@ public:
         }
 
         // FIXME: we need a function to get the recommended storage for this type!
-        Storage s;
-        if (ts != VOID_TS && ts != WHATEVER_TS)
-            s = Storage(REGISTER, reg);
+        Storage s = get_context_storage();
+        //if (ts != VOID_TS && ts != WHATEVER_TS)
+        //    s = Storage(REGISTER, reg);
 
         if (then_branch) {
             then_branch->compile_and_store(x64, s);
@@ -515,14 +530,14 @@ public:
 
 
 
-class SwitchValue: public YieldableValue {
+class SwitchValue: public ControlValue {
 public:
     std::unique_ptr<Value> value, body;
     SwitchScope *switch_scope;
     Variable *switch_var;
     
     SwitchValue(Value *v, TypeMatch &m)
-        :YieldableValue("switch", "yield") {
+        :ControlValue("switch") {
         switch_scope = NULL;
         switch_var = NULL;
     }
@@ -537,11 +552,11 @@ public:
         }
         
         // Insert variable before the body to keep the finalization order
-        if (!setup_yieldable(scope))
-            return false;
+        //if (!setup_yieldable(scope))
+        //    return false;
             
         switch_scope = new SwitchScope;
-        eval_scope->add(switch_scope);
+        scope->add(switch_scope);
         switch_scope->enter();
         
         switch_var = new Variable(switch_scope->get_variable_name(), value->ts);
@@ -556,8 +571,8 @@ public:
 
         switch_scope->be_taken();
         switch_scope->leave();
-        eval_scope->be_taken();
-        eval_scope->leave();
+        //eval_scope->be_taken();
+        //eval_scope->leave();
 
         return true;
     }
@@ -585,24 +600,27 @@ public:
         x64->unwind->pop(this);
 
         // Normal control flow dies here
-        x64->runtime->die("Switch assertion failed!");
+        //x64->runtime->die("Switch assertion failed!");
 
         switch_scope->finalize_contents(x64);
-        eval_scope->finalize_contents(x64);
+        //eval_scope->finalize_contents(x64);
         
         Label live;
+
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        x64->op(JE, live);
         
-        if (actually_yielded) {
-            x64->op(CMPQ, RDX, get_yield_exception_value());
-            x64->op(JE, live);  // dropped
-        }
+        //if (actually_yielded) {
+        //    x64->op(CMPQ, RDX, get_yield_exception_value());
+        //    x64->op(JE, live);  // dropped
+        //}
 
         // Otherwise must have raised something
-        x64->unwind->initiate(eval_scope, x64);
+        x64->unwind->initiate(switch_scope, x64);
 
         x64->code_label(live);
 
-        return get_yield_storage();
+        return Storage();  // get_yield_storage();
     }
     
     virtual Scope *unwind(X64 *x64) {
@@ -629,6 +647,11 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (context_ts != VOID_TS && context_ts != WHATEVER_TS) {
+            std::cerr << "Sorry, :is currently can't yield values: " << context_ts << "!\n";
+            return false;
+        }
+
         then_scope = new CodeScope;
         scope->add(then_scope);
         then_scope->enter();
@@ -839,7 +862,7 @@ public:
 };
 
 
-class TryValue: public YieldableValue {
+class TryValue: public ControlValue {
 public:
     std::unique_ptr<Value> body, handler;
     TryScope *try_scope;
@@ -848,7 +871,7 @@ public:
     bool handling;
     
     TryValue(Value *v, TypeMatch &m)
-        :YieldableValue("try", "fixed") {
+        :ControlValue("try") {
         try_scope = NULL;
         switch_var = NULL;
         switch_scope = NULL;
@@ -857,6 +880,11 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (context_ts != VOID_TS && context_ts != WHATEVER_TS && kwargs.size() > 0) {
+            std::cerr << "Sorry, :try currently can't yield values!\n";
+            return false;
+        }
+        
         try_scope = new TryScope;
         scope->add(try_scope);
         try_scope->enter();
@@ -876,14 +904,16 @@ public:
         if (kwargs.size() == 0)
             context_ts = body->ts.rvalue();
 
+        ts = context_ts;
+
         try_scope->be_taken();
         try_scope->leave();
         
-        if (!setup_yieldable(scope))
-            return false;
+        //if (!setup_yieldable(scope))
+        //    return false;
 
         switch_scope = new SwitchScope;
-        eval_scope->add(switch_scope);
+        scope->add(switch_scope);
         switch_scope->enter();
 
         Type *et = try_scope->get_exception_type();
@@ -903,8 +933,8 @@ public:
 
         switch_scope->be_taken();
         switch_scope->leave();
-        eval_scope->be_taken();
-        eval_scope->leave();
+        //eval_scope->be_taken();
+        //eval_scope->leave();
 
         return true;
     }
@@ -924,7 +954,10 @@ public:
         Storage s = body->compile(x64);
         x64->unwind->pop(this);
 
-        store_yield(s, x64);
+        // FIXME:
+        Storage t = get_context_storage();
+        ts.store(s, t, x64);
+        //XXX store_yield(s, x64);
 
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         try_scope->finalize_contents(x64);  // exceptions from body jump here
@@ -949,32 +982,20 @@ public:
             handler->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
 
-        // Normal execution will die here
-        TreenumerationType *et = try_scope->get_exception_type();
-        if (et) {
-            x64->op(MOVQ, R10, switch_var->get_local_storage().address);
-            x64->op(LEA, R11, Address(et->get_stringifications_label(x64), 0));
-            x64->op(MOVQ, RDI, Address(R11, R10, Address::SCALE_8, 0));  // treenum name
-            x64->op(MOVQ, RSI, token.row);
-            x64->runtime->call_sysv(x64->runtime->sysv_die_uncaught_label);
-            x64->op(UD2);
-        }
-            
         switch_scope->finalize_contents(x64);
-        eval_scope->finalize_contents(x64);
+        //eval_scope->finalize_contents(x64);
         
-        if (actually_yielded) {
-            x64->op(CMPQ, RDX, get_yield_exception_value());
-            x64->op(JE, live);  // dropped
-        }
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        x64->op(JE, live);  // dropped
 
         // reraise exceptions from the handler, or yields from anywhere
         x64->code_label(unwind);
-        x64->unwind->initiate(eval_scope, x64);
+        x64->unwind->initiate(switch_scope, x64);
 
         x64->code_label(live);
         
-        return get_yield_storage();
+        return t;
+        //return get_yield_storage();
     }
     
     virtual Scope *unwind(X64 *x64) {

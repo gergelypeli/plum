@@ -179,7 +179,7 @@ App? :Class Application as:
         :switch "foo" do:
             :is ~re ".*" then:
                 Std prints("Regexp matched in switch.")
-                :yield
+                #:yield
 
 
 #Test_enums? :Singleton as:
@@ -398,7 +398,7 @@ App? :Class Application as:
     passthrough? :Function from: what? Integer Code as:
         :try what or:
             Std prints("Passthrough code is breaking.")
-            :fixed
+            #:fixed
 
     test? :Function as:
         $ test_controls  # check predeclarations
@@ -444,10 +444,10 @@ App? :Class Application as:
 
             :is ~TWENTY then:
                 Std prints("Twenty.")
-                :yield
+                #:yield
             
             Std prints("Not any.")
-            :yield
+            #:yield
 
         :try
             $ nasty
@@ -457,9 +457,9 @@ App? :Class Application as:
             
             :is ~SMALL_ERROR then:
                 Std prints("This was a small error!")
-                :fixed
+                #:fixed
             
-            Std prints("Too bad!")
+            #Std prints("Too bad!")
 
         # Only for testing uncaught exceptions!
         #:try
@@ -497,7 +497,7 @@ App? :Class Application as:
         :lol:
             100 + :lol
     
-        x3 = :switch 1 do: :yield 44
+        x3 = :kkk: :kkk 44
     
         Std prints("Let's hope that {x3} == 44." {})
     
@@ -1127,8 +1127,8 @@ App? :Class Application as:
             fs.Path `at("/test.mkdir") mkdir(0o777)
             Std prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
         or:
-            :is ~EACCES then:
-                :fixed
+            :is e? = ~EACCES then:
+                Std prints("Got {} as expected." { e })
             else:
                 Std prints("MKDIR WEIRD EXCEPTION!")
 
