@@ -58,6 +58,9 @@ public:
     }
 
     virtual Storage get_context_storage() {
+        if (context_ts == ANY_TS)
+            throw INTERNAL_ERROR;
+            
         switch (context_ts.where(AS_VALUE)) {
         case NOWHERE:
             return Storage();
@@ -647,11 +650,6 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (context_ts != VOID_TS && context_ts != WHATEVER_TS) {
-            std::cerr << "Sorry, :is currently can't yield values: " << context_ts << "!\n";
-            return false;
-        }
-
         then_scope = new CodeScope;
         scope->add(then_scope);
         then_scope->enter();
@@ -705,9 +703,12 @@ public:
         // This is a TransparentTryScope with no inner declarations, needs no finalization
         match_try_scope->leave();
 
+        ts = context_ts;
+        TypeSpec arg_ts = ts.prefix(code_type);
+
         ArgInfos infos = {
-            { "then", &VOID_CODE_TS, then_scope, &then_branch },
-            { "else", &VOID_CODE_TS, scope, &else_branch },
+            { "then", &arg_ts, then_scope, &then_branch },
+            { "else", &arg_ts, scope, &else_branch },
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -744,8 +745,10 @@ public:
 
         //x64->op(MOVQ, matched_addr, 1);
 
+        Storage t = get_context_storage();
+
         if (then_branch)
-            then_branch->compile_and_store(x64, Storage());
+            then_branch->compile_and_store(x64, t);
         
         x64->unwind->pop(this);
         
@@ -766,11 +769,11 @@ public:
         x64->code_label(else_label);
         
         if (else_branch)
-            else_branch->compile_and_store(x64, Storage());
+            else_branch->compile_and_store(x64, t);
             
         x64->code_label(end);
         
-        return Storage();
+        return t;
     }
     
     virtual Scope *unwind(X64 *x64) {
@@ -880,27 +883,17 @@ public:
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (context_ts != VOID_TS && context_ts != WHATEVER_TS && kwargs.size() > 0) {
-            std::cerr << "Sorry, :try currently can't yield values!\n";
-            return false;
-        }
-        
         try_scope = new TryScope;
         scope->add(try_scope);
         try_scope->enter();
 
+        TypeSpec arg_ts = context_ts.prefix(code_type);
+        
+        if (!check_args(args, { "body", &arg_ts, try_scope, &body }))
+            return false;
+        
         // Allow a :try without error handling to return the body type even without
         // the context explicitly set, to make :try in a declaration simpler.
-        if (context_ts == ANY_TS && kwargs.size() > 0) {
-            std::cerr << "A :try in Any context can't have multiple tails: " << token << "\n";
-            return false;
-        }
-        
-        TypeSpec ctx_ts = (context_ts[0] == code_type ? context_ts : context_ts.prefix(code_type));
-        
-        if (!check_args(args, { "body", &ctx_ts, try_scope, &body }))
-            return false;
-        
         if (kwargs.size() == 0)
             context_ts = body->ts.rvalue();
 
@@ -924,12 +917,17 @@ public:
             switch_scope->add(switch_var);
         }
 
-        ArgInfos infos = {
-            { "or", &VOID_CODE_TS, switch_scope, &handler }
-        };
+        if (kwargs.size() > 0) {
+            // Let the or branch be optional, even if an concrete type is expected from it,
+            // because the default handler dies anyway.
+            
+            ArgInfos infos = {
+                { "or", &arg_ts, switch_scope, &handler }
+            };
         
-        if (!check_kwargs(kwargs, infos))
-            return false;
+            if (!check_kwargs(kwargs, infos))
+                return false;
+        }
 
         switch_scope->be_taken();
         switch_scope->leave();
@@ -969,18 +967,32 @@ public:
         x64->op(JL, unwind);  // reraise yields from body
         
         // Caught exception, prepare for handling
-        if (switch_var) {
-            Storage switch_storage = switch_var->get_local_storage();
-            x64->op(MOVQ, switch_storage.address, RDX);
+
+        if (handler) {
+            if (switch_var) {
+                Storage switch_storage = switch_var->get_local_storage();
+                x64->op(MOVQ, switch_storage.address, RDX);
+            }
+            // dropped RDX
+            
+            x64->unwind->push(this);
+            handling = true;
+            handler->compile_and_store(x64, t);
+            x64->unwind->pop(this);
         }
-
-        // dropped RDX
-
-        x64->unwind->push(this);
-        handling = true;
-        if (handler)
-            handler->compile_and_store(x64, Storage());
-        x64->unwind->pop(this);
+        else {
+            // Normal execution will die here
+            TreenumerationType *et = try_scope->get_exception_type();
+            
+            if (et) {
+                x64->op(MOVQ, R10, switch_var->get_local_storage().address);
+                x64->op(LEA, R11, Address(et->get_stringifications_label(x64), 0));
+                x64->op(MOVQ, RDI, Address(R11, R10, Address::SCALE_8, 0));  // treenum name
+                x64->op(MOVQ, RSI, token.row);
+                x64->runtime->call_sysv(x64->runtime->sysv_die_uncaught_label);
+                x64->op(UD2);
+            }
+        }
 
         switch_scope->finalize_contents(x64);
         //eval_scope->finalize_contents(x64);
