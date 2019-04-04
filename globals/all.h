@@ -81,6 +81,7 @@ const char *typeidname(Value *v);
 Declaration *make_record_compare();
 void associable_override_virtual_entry(Associable *a, int vi, VirtualEntry *ve);
 bool associable_is_or_is_in_requiring(Associable *a);
+std::string treenumeration_get_name(TreenumerationType *t);
 std::string function_get_name(Function *f);
 Label function_get_label(Function *f, X64 *x64);
 
@@ -442,6 +443,7 @@ public:
     
     Label application_label;
     Label zero_label, float_zero_label, float_minus_zero_label, refcount_balance_label;
+    Label die_unmatched_message_label;
     Label heap_alloc_label, heap_realloc_label;
     Label fcb_alloc_label, fcb_free_label;
     Label empty_function_label, empty_array_label;

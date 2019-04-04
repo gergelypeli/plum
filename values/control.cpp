@@ -755,21 +755,49 @@ public:
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         then_scope->finalize_contents(x64);
         
-        // Take care of the unmatched case
+        // If the match raised UNMATCHED, proceed with the else branch
         x64->op(CMPQ, RDX, CAUGHT_UNMATCHED_EXCEPTION);
-        x64->op(JE, else_label);  // dropped
+        x64->op(JE, else_label);
         
-        // Take care of the matched but raised case
+        // If the then branch raised UNMATCHED, proceed with unwinding
         x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, end);  // proceed
+        x64->op(JE, end);
         
-        // The then branch raised something, unwind
         x64->unwind->initiate(then_scope, x64);
         
         x64->code_label(else_label);
         
         if (else_branch)
             else_branch->compile_and_store(x64, t);
+        else if (match_try_scope->has_implicit_matcher()) {
+            // If an implicit matcher was used (within a :switch or :try), then die
+            SwitchScope *ss = match_try_scope->get_switch_scope();
+            Variable *sv = ss->get_variable();
+            Label clone_label = x64->once->compile(compile_array_clone, CHARACTER_TS);
+
+            std::stringstream msg;
+            msg << "Fatal unmatched value at " << token << ": ";
+
+            Label message_label = x64->runtime->data_heap_string(decode_utf8(msg.str()));
+
+            x64->op(LEA, RAX, Address(message_label, 0));
+            x64->runtime->incref(RAX);
+            x64->op(CALL, clone_label);
+            x64->op(PUSHQ, RAX);  // Pseudo-variable serving as the message stream
+
+            sv->alloc_ts.store(sv->get_local_storage(), Storage(STACK), x64);
+            x64->op(LEA, R11, Address(RSP, sv->alloc_ts.measure_stack()));
+            x64->op(PUSHQ, R11);
+            
+            sv->alloc_ts.streamify(x64);
+            
+            x64->op(POPQ, R11);
+            sv->alloc_ts.store(Storage(STACK), Storage(), x64);
+            
+            x64->op(POPQ, RAX);
+            x64->runtime->dies(RAX);
+            x64->op(UD2);
+        }
             
         x64->code_label(end);
         
@@ -777,9 +805,14 @@ public:
     }
     
     virtual Scope *unwind(X64 *x64) {
-        if (matching)
-            x64->op(MOVQ, RDX, CAUGHT_UNMATCHED_EXCEPTION);  // replace UNMATCHED from the match
-
+        if (matching) {
+            // We need to be able to tell apart an UNMATCHED exception raised in the match
+            // clause (to swallow it and proceed with the else branch), and an UNMATCHED
+            // raised in the then branch (to let it unwind the stack), so we're replacing the
+            // former with a custom yield code.
+            x64->op(MOVQ, RDX, CAUGHT_UNMATCHED_EXCEPTION);
+        }
+        
         return then_scope;
     }
 };

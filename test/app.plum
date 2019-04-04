@@ -179,7 +179,6 @@ App? :Class Application as:
         :switch "foo" do:
             :is ~re ".*" then:
                 Std prints("Regexp matched in switch.")
-                #:yield
 
 
 #Test_enums? :Singleton as:
@@ -398,7 +397,6 @@ App? :Class Application as:
     passthrough? :Function from: what? Integer Code as:
         :try what or:
             Std prints("Passthrough code is breaking.")
-            #:fixed
 
     test? :Function as:
         $ test_controls  # check predeclarations
@@ -444,22 +442,19 @@ App? :Class Application as:
 
             :is ~TWENTY then:
                 Std prints("Twenty.")
-                #:yield
             
             Std prints("Not any.")
-            #:yield
 
         :try
             $ nasty
         or:
             :is ~BIG_ERROR then:
-                Std prints("This was a big error!")
+                Std prints("THIS WAS A BIG ERROR!")
+            else:
+                Std prints("This was not a big error.")
             
             :is ~SMALL_ERROR then:
-                Std prints("This was a small error!")
-                #:fixed
-            
-            #Std prints("Too bad!")
+                Std prints("This was a small error.")
 
         # Only for testing uncaught exceptions!
         #:try

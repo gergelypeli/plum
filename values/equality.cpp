@@ -95,7 +95,7 @@ public:
         if (!check_raise(match_unmatched_exception_type, scope))
             return false;
 
-        switch_var_value.reset(lookup_switch(scope, token));
+        switch_var_value.reset(lookup_switch_variable(scope, token));
             
         if (args.size() != 0 || kwargs.size() != 0)
             return false;
@@ -151,7 +151,7 @@ public:
         if (!check_raise(match_unmatched_exception_type, scope))
             return false;
             
-        switch_var_value.reset(lookup_switch(scope, token));
+        switch_var_value.reset(lookup_switch_variable(scope, token));
             
         return initializer_value->check(args, kwargs, scope);
     }
@@ -204,7 +204,7 @@ public:
         if (!check_raise(match_unmatched_exception_type, scope))
             return false;
 
-        switch_var_value.reset(lookup_switch(scope, token));
+        switch_var_value.reset(lookup_switch_variable(scope, token));
             
         if (kwargs.size() != 0)
             return false;

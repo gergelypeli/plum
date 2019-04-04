@@ -91,10 +91,16 @@ class Raiser {
 public:
     RaisingDummy *raising_dummy;
     TreenumerationType *raised_type;
+    bool am_implicit_matcher;
     
     Raiser() {
         raising_dummy = NULL;
         raised_type = NULL;
+        am_implicit_matcher = false;
+    }
+    
+    void be_implicit_matcher() {
+        am_implicit_matcher = true;
     }
     
     virtual void make_raising_dummy(Scope *scope) {
@@ -110,8 +116,7 @@ public:
             return false;
         }
         
-        if (!try_scope->set_exception_type(exception_type)) {
-            std::cerr << "Exception " << exception_type->name << " is not the caught one!\n";
+        if (!try_scope->set_exception_type(exception_type, am_implicit_matcher)) {
             return false;
         }
         

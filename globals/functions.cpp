@@ -79,6 +79,11 @@ bool associable_is_or_is_in_requiring(Associable *a) {
 }
 
 
+std::string treenumeration_get_name(TreenumerationType *t) {
+    return t->name;
+}
+
+
 std::string function_get_name(Function *f) {
     return f->name;
 }

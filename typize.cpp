@@ -165,7 +165,7 @@ Value *lookup_fake(std::string name, Value *pivot, Scope *scope, Token token, Ty
 }
 
 
-Value *lookup_switch(Scope *scope, Token token) {
+Value *lookup_switch_variable(Scope *scope, Token token) {
     SwitchScope *ss = scope->get_switch_scope();
     
     if (!ss) {
@@ -370,9 +370,14 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     else if (expr->type == Expr::MATCHER) {
         std::string name = expr->text;
         Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        bool is_implicit = false;
 
-        if (!p)
-            p = lookup_switch(scope, expr->token);
+        if (!p) {
+            // Enclosing :is controls will need to see if their condition has implicit
+            // matchers, because then their else branch must default to die.
+            is_implicit = true;
+            p = lookup_switch_variable(scope, expr->token);
+        }
 
         value = p->ts.lookup_matcher(name, p, scope);
     
@@ -380,6 +385,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             std::cerr << "No matcher " << p->ts << " ~" << name << "!\n";
             throw TYPE_ERROR;
         }
+
+        if (is_implicit)
+            ptr_cast<Raiser>(value)->be_implicit_matcher();
 
         bool ok = value->check(expr->args, expr->kwargs, scope);
     

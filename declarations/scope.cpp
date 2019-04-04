@@ -614,26 +614,44 @@ public:
 class TryScope: public CodeScope {
 public:
     TreenumerationType *exception_type;
+    bool have_implicit_matcher;
 
     TryScope()
         :CodeScope() {
         exception_type = NULL;
+        have_implicit_matcher = false;
     }
 
     TryScope *get_try_scope() {
         return this;
     }
     
-    bool set_exception_type(TreenumerationType *et) {
-        if (exception_type && exception_type != et)
+    bool set_exception_type(TreenumerationType *et, bool is_implicit_matcher) {
+        if (!exception_type) {
+            exception_type = et;
+            have_implicit_matcher = is_implicit_matcher;
+            return true;
+        }
+        
+        if (exception_type != et) {
+            std::cerr << "Different exception types raised: " << treenumeration_get_name(exception_type) << " and " << treenumeration_get_name(et) << "!\n";
             return false;
+        }
+        
+        if (have_implicit_matcher != is_implicit_matcher) {
+            std::cerr << "Mixed implicit and explicit matchers!\n";
+            return false;
+        }
             
-        exception_type = et;
         return true;
     }
     
     TreenumerationType *get_exception_type() {
         return exception_type;
+    }
+    
+    bool has_implicit_matcher() {
+        return have_implicit_matcher;
     }
 };
 

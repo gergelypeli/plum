@@ -151,6 +151,8 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     x64->data_qword(0);  // reservation
     x64->data_qword(0);  // length
 
+    die_unmatched_message_label = data_heap_string(decode_utf8("Fatal unmatched value: "));
+
     x64->code_label_import(sysv_memalloc_label, "memalloc");
     x64->code_label_import(sysv_memfree_label, "memfree");
     x64->code_label_import(sysv_memrealloc_label, "memrealloc");
