@@ -347,7 +347,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             TypeSpec ts = initializer_ts(p, context, expr->token);
             
             if (name.size() == 0)
-                name = "{}";
+                name = "{";
             
             value = ts.lookup_initializer(name, scope);
             
@@ -378,6 +378,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             is_implicit = true;
             p = lookup_switch_variable(scope, expr->token);
         }
+
+        if (name == "")
+            throw INTERNAL_ERROR;
 
         value = p->ts.lookup_matcher(name, p, scope);
     

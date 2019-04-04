@@ -219,10 +219,20 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             text = encode_ascii(token.utext.substr(1));
         }
         else if (c == '~') {
-            type = Node::MATCHER;
-            back = COMPARING;
-            fore = COMPARING;
-            text = encode_ascii(token.utext.substr(1));
+            if (token.utext[1] == '{') {
+                parens.push_back(BRACE);
+                
+                type = Node::MATCHER;
+                back = COMPARING;
+                fore = OPENING;
+                text = "{";
+            }
+            else {
+                type = Node::MATCHER;
+                back = COMPARING;
+                fore = COMPARING;
+                text = encode_ascii(token.utext.substr(1));
+            }
         }
         else if (c == '?') {
             type = Node::DECLARATION;

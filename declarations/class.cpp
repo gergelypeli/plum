@@ -296,7 +296,10 @@ public:
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
-        return make<ClassMatcherValue>(n, v);
+        if (n.size() > 0 && isupper(n[0]))
+            return make<ClassMatcherValue>(n, v);
+        
+        return Type::lookup_matcher(tm, n, v, s);
     }
 
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
@@ -397,7 +400,7 @@ public:
         // put in the local scope, so there will be no pivot for it to derive any
         // type parameters from. 
         
-        if (name == "{}") {
+        if (name == "{") {
             std::cerr << "Classes can't be initialized anonymously!\n";
             return NULL;
         }

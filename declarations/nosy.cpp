@@ -74,7 +74,6 @@ public:
         else if (n == "live")
             return make<WeakrefLiveMatcherValue>(p, tm);
 
-        std::cerr << "No Weakref matcher " << n << "!\n";
-        return NULL;
+        return RecordType::lookup_matcher(tm, n, p, s);
     }
 };

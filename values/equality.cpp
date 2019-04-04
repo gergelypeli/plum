@@ -81,7 +81,7 @@ public:
     }
 };
 
-
+/*
 class ImplicitEqualityMatcherValue: public Value, public Raiser {
 public:
     std::unique_ptr<Value> switch_var_value, value;
@@ -189,30 +189,29 @@ public:
         return Storage();
     }
 };
-
+*/
 
 class BulkEqualityMatcherValue: public Value, public Raiser {
 public:
-    std::unique_ptr<Value> switch_var_value;
+    std::unique_ptr<Value> pivot_value;
     std::vector<std::unique_ptr<Value>> values;
     
-    BulkEqualityMatcherValue()
-        :Value(VOID_TS) {
+    BulkEqualityMatcherValue(Value *p)
+        :Value(p->ts.rvalue()) {
+        pivot_value.reset(p);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (!check_raise(match_unmatched_exception_type, scope))
             return false;
 
-        switch_var_value.reset(lookup_switch_variable(scope, token));
-            
         if (kwargs.size() != 0)
             return false;
             
-        TypeSpec ts = switch_var_value->ts.rvalue();
+        TypeSpec arg_ts = pivot_value->ts.rvalue();
             
         for (auto &a : args) {
-            Value *v = typize(a.get(), scope, &ts);
+            Value *v = typize(a.get(), scope, &arg_ts);
             
             values.push_back(std::unique_ptr<Value>(v));
         }
@@ -221,7 +220,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = switch_var_value->precompile(preferred);
+        Regs clob = pivot_value->precompile(preferred);
         
         for (auto &v : values)
             clob = clob | v->precompile(preferred);
@@ -231,33 +230,38 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label equal;
+        Storage ps = pivot_value->compile(x64);
         
-        Storage ss = switch_var_value->compile(x64);
-        if (ss.where != MEMORY)
-            throw INTERNAL_ERROR;
+        // The switch variables are read only, no need to push a copy
+        if (!am_implicit_matcher) {
+            pivot_value->ts.store(ps, Storage(STACK), x64);
+            ps = Storage(STACK);
+        }
             
         for (auto &v : values) {
             int pop = 0;
             Storage vs = v->compile(x64);
             
             if (vs.where == STACK) {
+                // NOTE: we use that destroy does not change values
                 vs = Storage(MEMORY, Address(RSP, 0));
                 v->ts.destroy(vs, x64);
                 pop = v->ts.measure_stack();
             }
             
-            switch_var_value->ts.equal(ss, vs, x64);
+            pivot_value->ts.equal(ps, vs, x64);
             
             if (pop)
-                x64->op(LEA, RSP, Address(RSP, pop));
+                x64->op(LEA, RSP, Address(RSP, pop));  // preserve flags
             
             x64->op(JE, equal);
         }
         
-        // popped
+        pivot_value->ts.store(ps, Storage(), x64);
         raise("UNMATCHED", x64);
         
         x64->code_label(equal);
-        return Storage();
+        
+        return ps;
     }
 };

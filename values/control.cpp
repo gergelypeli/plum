@@ -659,18 +659,18 @@ public:
         match_try_scope->enter();
 
         TypeSpec match_ts = VOID_TS;
-        SwitchScope *switch_scope = scope->get_switch_scope();
+        //SwitchScope *switch_scope = scope->get_switch_scope();
     
-        if (switch_scope) {
-            Variable *switch_var = switch_scope->get_variable();
-            match_ts = switch_var->alloc_ts.rvalue().prefix(equalitymatcher_type);
-        }
+        //if (switch_scope) {
+        //    Variable *switch_var = switch_scope->get_variable();
+        //    match_ts = switch_var->alloc_ts.rvalue().prefix(equalitymatcher_type);
+        //}
         
         if (!check_args(args, { "match", &match_ts, match_try_scope, &match }))
             return false;
 
         Type *et = match_try_scope->get_exception_type();
-        
+        /*
         if (!et) {
             // Treat match as a value, and do an implicit equality matching
             // FIXME: this is stupid
@@ -690,7 +690,7 @@ public:
                 
             et = match_try_scope->get_exception_type();
         }
-        
+        */
         if (et != match_unmatched_exception_type) {
             std::cerr << "This :is match raises " << et->name << " exception!\n";
             return false;
@@ -796,7 +796,6 @@ public:
             
             x64->op(POPQ, RAX);
             x64->runtime->dies(RAX);
-            x64->op(UD2);
         }
             
         x64->code_label(end);

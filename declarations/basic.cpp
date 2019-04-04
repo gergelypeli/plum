@@ -592,7 +592,7 @@ public:
         if (n == "any")
             return make<TreenumerationAnyMatcherValue>(pivot);
         
-        return NULL;
+        return EnumerationType::lookup_matcher(tm, n, pivot, scope);
     }
     
     //DataScope *get_inner_scope() {

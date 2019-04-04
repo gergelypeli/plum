@@ -191,8 +191,8 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     Value *v = typize(e, code_scope ? code_scope : scope, constructive_context);
     
     // Hack for omitting strict checking in :is controls
-    if (context && (*context)[0] == equalitymatcher_type)
-        context = NULL;
+    //if (context && (*context)[0] == equalitymatcher_type)
+    //    context = NULL;
 
     TypeMatch match;
     

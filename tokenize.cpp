@@ -151,6 +151,10 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
                 ((c == '+' || c == '-') && (buffer[i - 1] == 'e' || buffer[i - 1] == 'E') && letter_count == 1)
             );
         }
+        else if (c == '~' && buffer[i + 1] == '{') {
+            // Bulk equality matcher token, handle specially
+            i += 2;
+        }
         else if (is_identifier(c) || is_prefix(c)) {  // except numeric and "?=", handled above
             char prefix = (is_prefix(c) ? c : '\0');
 

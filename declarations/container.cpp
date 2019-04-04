@@ -83,7 +83,7 @@ public:
             return make<ArrayReservedValue>(ts);
         else if (name == "all")
             return make<ArrayAllValue>(ts);
-        else if (name == "{}")
+        else if (name == "{")
             return make<ArrayInitializerValue>(ts);
 
         std::cerr << "No Array initializer called " << name << "!\n";
@@ -220,7 +220,7 @@ public:
             return make<QueueEmptyValue>(ts);
         else if (name == "reserved")
             return make<QueueReservedValue>(ts);
-        else if (name == "{}")
+        else if (name == "{")
             return make<QueueInitializerValue>(ts);
 
         std::cerr << "No Queue initializer called " << name << "!\n";
@@ -285,7 +285,7 @@ public:
             return make<RbtreeEmptyValue>(ets, tm[0]);
         else if (name == "reserved")
             return make<RbtreeReservedValue>(ets, tm[0]);
-        else if (name == "{}")
+        else if (name == "{")
             return make<RbtreeInitializerValue>(ets, tm[0]);
         else {
             std::cerr << "No " << this->name << " initializer called " << name << "!\n";
@@ -392,7 +392,7 @@ public:
             member = make<RbtreeEmptyValue>(ets, mts);
         else if (n == "reserved")
             member = make<RbtreeReservedValue>(ets, mts);
-        else if (n == "{}")
+        else if (n == "{")
             member = make<RbtreeInitializerValue>(ets, mts);
         else {
             std::cerr << "No " << name << " initializer called " << n << "!\n";

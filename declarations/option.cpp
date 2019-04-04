@@ -233,7 +233,7 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
-        if (n == "{}") {
+        if (n == "{") {
             // Anonymous initializers rejected
             return NULL;
         }
@@ -256,8 +256,7 @@ public:
         else if (n == "some")
             return make<OptionSomeMatcherValue>(pivot, tm);
             
-        std::cerr << "Can't match Option as " << n << "!\n";
-        return NULL;
+        return Type::lookup_matcher(tm, n, pivot, s);
     }
 };
 
@@ -589,7 +588,7 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
-        if (n == "{}") {
+        if (n == "{") {
             // Anonymous initializers rejected
             return NULL;
         }
@@ -612,7 +611,6 @@ public:
                 return make<UnionMatcherValue>(pivot, tm[0], tss[i], i);
         }
 
-        std::cerr << "Can't match Union as " << n << "!\n";
-        return NULL;
+        return Type::lookup_matcher(tm, n, pivot, s);
     }
 };

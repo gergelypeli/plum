@@ -253,7 +253,7 @@ Type *mapindexbyorderiter_type = NULL;
 Type *sliceelemiter_type = NULL;
 Type *sliceindexiter_type = NULL;
 Type *sliceitemiter_type = NULL;
-Type *equalitymatcher_type = NULL;
+//Type *equalitymatcher_type = NULL;
 
 Type *colon_type = NULL;
 DataScope *colon_scope = NULL;

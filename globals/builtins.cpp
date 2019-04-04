@@ -136,8 +136,8 @@ void builtin_types(Scope *root_scope) {
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
 
-    equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
-    root_scope->add(equalitymatcher_type);
+    //equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
+    //root_scope->add(equalitymatcher_type);
 
 
     // Phase 7: declare special types

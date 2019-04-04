@@ -382,6 +382,9 @@ public:
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
+        if (n == "{")
+            return make<BulkEqualityMatcherValue>(pivot);
+
         std::cerr << "No matcher " << name << " ~" << n << "!\n";
         throw INTERNAL_ERROR;
     }
@@ -786,7 +789,7 @@ public:
     }
 };
 
-
+/*
 class EqualitymatcherType: public Type {
 public:
     // To be used only as type context in the :is control
@@ -812,7 +815,7 @@ public:
         }
     }
 };
-
+*/
 
 class MultiType: public Type {
 public:

@@ -419,25 +419,21 @@ App? :Class Application as:
             :is ~TWO then:
                 Std prints("Two-something.")
 
-            :is `TWENTY then:
-                Std prints("Implicitly twenty.")
-
-            :is my_tree then:
-                Std prints("Implicitly itself.")
-
-            :is {} then:
+            :is ~{} then:
                 Std prints("IN THE EMPTY SET!")
+            else:
+                Std prints("Not in the empty set.")
             
-            :is { `TWENTY } then:
+            :is ~{ `TWENTY } then:
                 Std prints("Single twenty.")
             
-            :is { my_tree } then:
+            :is ~{ my_tree } then:
                 Std prints("Single itself.")
             
-            :is { `ONE, `TWENTY, `FOUR } then:
+            :is ~{ `ONE, `TWENTY, `FOUR } then:
                 Std prints("Multi twenty.")
             
-            :is { `ONE, my_tree, `FOUR } then:
+            :is ~{ `ONE, my_tree, `FOUR } then:
                 Std prints("Multi itself.")
 
             :is ~TWENTY then:

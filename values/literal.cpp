@@ -143,6 +143,9 @@ public:
     
     TreenumerationMatcherValue(int i, Value *p)
         :GenericValue(NO_TS, p->ts.rvalue(), p) {
+        if (i == 0)
+            throw INTERNAL_ERROR;
+            
         index = i;
     }
 

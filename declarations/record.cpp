@@ -263,7 +263,7 @@ public:
         // put in the local scope, so there will be no pivot for it to derive any
         // type parameters from. 
 
-        if (n == "{}") {
+        if (n == "{") {
             // Anonymous initializer
             return make<RecordInitializerValue>(tm);
         }
@@ -283,11 +283,6 @@ public:
         }
     }
 
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
-        std::cerr << "No Record matchers yet!\n";
-        throw INTERNAL_ERROR;
-    }
-    
     virtual std::vector<TypeSpec> get_member_tss(TypeMatch &match) {
         std::vector<TypeSpec> tss;
         
@@ -478,8 +473,7 @@ public:
         if (n == "re")
             return make<StringRegexpMatcherValue>(pivot, tm);
             
-        std::cerr << "Can't match String as " << n << "!\n";
-        return NULL;
+        return RecordType::lookup_matcher(tm, n, pivot, scope);
     }
 };
 
@@ -497,11 +491,6 @@ public:
             return make<SliceAllValue>(tm);
         
         std::cerr << "No Slice initializer " << n << "!\n";
-        return NULL;
-    }
-
-    virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope) {
-        std::cerr << "Can't match Slice as " << n << "!\n";
         return NULL;
     }
 };
