@@ -12,19 +12,19 @@ Path? :Record as:
 
     mkdir? :Function from:
         mode? Integer
-    may:
+    raise:
         Errno_exception
     import:
         "fs__Path__mkdir"
 
-    rmdir? :Function may:
+    rmdir? :Function raise:
         Errno_exception
     import:
         "fs__Path__rmdir"
 
 
 Istream? :Abstract as:
-    read? :Function Integer from: buffer? Byte Slice may: Errno_exception
+    read? :Function Integer from: buffer? Byte Slice raise: Errno_exception
 
 
 File_istream? :Class Istream as:
@@ -43,14 +43,14 @@ File_istream? :Class Istream as:
         Integer
     from:
         buffer? Byte Slice
-    may:
+    raise:
         Errno_exception
     import:
         "fs__File__read"
 
 
 Reader? :Abstract as:
-    fill? :Function may: Stream_errors
+    fill? :Function raise: Stream_errors
     peek? :Function Byte Slice
     grab? :Function from: length? Integer
     
@@ -67,7 +67,7 @@ File_reader? :Class Reader as:
         $ buffer = Byte Array `all(0, 4096)
         $ length = 0
         
-    @.fill? :Function may: Stream_errors as:
+    @.fill? :Function raise: Stream_errors as:
         :if $ length == $ buffer length then:
             $ buffer refill(0, 4096)
             
@@ -90,7 +90,7 @@ File_reader? :Class Reader as:
 
 
 Decoder? :Abstract as:
-    get_line? :Function String may: Stream_errors
+    get_line? :Function String raise: Stream_errors
     get_lines? :Function String Array
 
     
@@ -102,7 +102,7 @@ File_decoder? :Class Decoder as:
     as:
         $ reader = r
         
-    @.get_line? :Function String may: Stream_errors as:
+    @.get_line? :Function String raise: Stream_errors as:
         :repeat on: `true do:
             s? = $ reader peek
             
@@ -111,10 +111,10 @@ File_decoder? :Class Decoder as:
                 string? = s slice(0, i) decode_utf8
                 $ reader grab(i + 1)
                 :return string
-            or:
+            fix:
                 :try
                     $ reader fill
-                or:
+                fix:
                     :if s length == 0 then:
                         :raise `EXHAUSTED
                     else:
@@ -131,7 +131,7 @@ File_decoder? :Class Decoder as:
             :try
                 s? = $ @ get_line
                 :try lines push(s)
-            or:
+            fix:
                 :x
 
         :return lines

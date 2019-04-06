@@ -94,11 +94,11 @@ public:
         ss->leave();
 
         Args fake_args;
-        Expr *may_expr = NULL, *from_expr = NULL, *import_expr = NULL, *as_expr = NULL;
+        Expr *raise_expr = NULL, *from_expr = NULL, *import_expr = NULL, *as_expr = NULL;
         
         ExprInfos eis = {
-            { "may", &may_expr },
             { "from", &from_expr },
+            { "raise", &raise_expr },
             { "import", &import_expr },
             { "as", &as_expr }
         };
@@ -109,16 +109,16 @@ public:
         }
 
         // TODO: why do we store this in the fn scope?
-        if (may_expr) {
+        if (raise_expr) {
             TypeSpec TREENUMMETA_TS = { treenumeration_metatype };
-            Value *v = typize(may_expr, fn_scope, &TREENUMMETA_TS);
+            Value *v = typize(raise_expr, fn_scope, &TREENUMMETA_TS);
             
             if (v) {
                 TreenumerationType *t = NULL;
                 TreenumerationDefinitionValue *tdv = ptr_cast<TreenumerationDefinitionValue>(v);
                 
                 if (tdv) {
-                    Declaration *d = tdv->declare("<may>", fn_scope);
+                    Declaration *d = tdv->declare("<raise>", fn_scope);
                     
                     if (!d)
                         throw INTERNAL_ERROR;

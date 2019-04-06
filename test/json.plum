@@ -13,7 +13,7 @@ Value? :Union as:
 
 
 Parser? :Abstract as:
-    parse? :Function Value may: Parse_error
+    parse? :Function Value raise: Parse_error
 
     
 String_parser? :Class Parser as:
@@ -35,31 +35,31 @@ String_parser? :Class Parser as:
     parse_ws? :Function as:
         Std parse_ws($ input, $ position)
         
-    parse_identifier? :Function String may: Parse_error as:
+    parse_identifier? :Function String raise: Parse_error as:
         :try
             :return Std parse_identifier($ input, $ position)
-        or:
+        fix:
             :raise `PARSE_ERROR
 
-    parse_integer? :Function Integer may: Parse_error as:
+    parse_integer? :Function Integer raise: Parse_error as:
         :try
             :return Std parse_integer($ input, $ position)
-        or:
+        fix:
             :raise `PARSE_ERROR
 
-    parse_float? :Function Float may: Parse_error as:
+    parse_float? :Function Float raise: Parse_error as:
         :try
             :return Std parse_float($ input, $ position)
-        or:
+        fix:
             :raise `PARSE_ERROR
 
-    parse_string? :Function String may: Parse_error as:
+    parse_string? :Function String raise: Parse_error as:
         :try
             :return Std parse_jstring($ input, $ position)
-        or:
+        fix:
             :raise `PARSE_ERROR
 
-    parse_array? :Function Value Array may: Parse_error as:
+    parse_array? :Function Value Array raise: Parse_error as:
         $ parse_character
         $ parse_ws
         
@@ -85,7 +85,7 @@ String_parser? :Class Parser as:
             
         :raise `PARSE_ERROR  # stupid fix for :repeat
 
-    parse_object? :Function (String, Value) Map may: Parse_error as:
+    parse_object? :Function (String, Value) Map raise: Parse_error as:
         $ parse_character
         $ parse_ws
         
@@ -121,7 +121,7 @@ String_parser? :Class Parser as:
             
         :raise `PARSE_ERROR  # stupid fix for :repeat
 
-    parse_value? :Function Value may: Parse_error as:
+    parse_value? :Function Value raise: Parse_error as:
         $ parse_ws
         
         c? = $ peek_character
@@ -148,15 +148,15 @@ String_parser? :Class Parser as:
         else:
             :raise `PARSE_ERROR
 
-    @.parse? :Function Value may: Parse_error as:
+    @.parse? :Function Value raise: Parse_error as:
         :try
             :return $ parse_value
-        or:
+        fix:
             :raise `PARSE_ERROR
 
 
 Printer? :Abstract as:
-    print? :Function String may: Parse_error
+    print? :Function String raise: Parse_error
 
     
 String_printer? :Class Printer as:
@@ -176,13 +176,13 @@ String_printer? :Class Printer as:
     print_integer? :Function from: i? Integer as:
         $ stream += "{}" { i }
 
-    print_float? :Function from: f? Float may: Parse_error as:
+    print_float? :Function from: f? Float raise: Parse_error as:
         $ stream += "{}" { f }
 
-    print_string? :Function from: s? String may: Parse_error as:
+    print_string? :Function from: s? String raise: Parse_error as:
         Std print_jstring(s, $ stream)
 
-    print_array? :Function from: a? Value Array may: Parse_error as:
+    print_array? :Function from: a? Value Array raise: Parse_error as:
         $ print_character("[")
         tail? Boolean = `false
     
@@ -196,7 +196,7 @@ String_printer? :Class Printer as:
             
         $ print_character("]")
 
-    print_object? :Function from: m? (String, Value) Map may: Parse_error as:
+    print_object? :Function from: m? (String, Value) Map raise: Parse_error as:
         $ print_character(`LB)
         tail? Boolean = `false
     
@@ -214,7 +214,7 @@ String_printer? :Class Printer as:
             
         $ print_character(`RB)
 
-    print_value? :Function from: v? Value may: Parse_error as:
+    print_value? :Function from: v? Value raise: Parse_error as:
         :switch v do:
             :is ~null then:
                 $ print_identifier("null")
@@ -232,9 +232,9 @@ String_printer? :Class Printer as:
             else:is m? = ~object then:
                 :try $ print_object(m)
 
-    @.print? :Function String may: Parse_error as:
+    @.print? :Function String raise: Parse_error as:
         :try
             $ print_value($ input)
             :return $ stream
-        or:
+        fix:
             :raise `PARSE_ERROR

@@ -954,7 +954,7 @@ public:
             // because the default handler dies anyway.
             
             ArgInfos infos = {
-                { "or", &arg_ts, switch_scope, &handler }
+                { "fix", &arg_ts, switch_scope, &handler }
             };
         
             if (!check_kwargs(kwargs, infos))

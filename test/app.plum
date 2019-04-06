@@ -276,7 +276,7 @@ App? :Class Application as:
         
         itor? :Implementation Integer Iterator
 
-        itor.next? :Procedure Integer may: Iterator_done_exception as:
+        itor.next? :Procedure Integer raise: Iterator_done_exception as:
             $ current += 1
     
             :if $ current == $ limit then:
@@ -302,7 +302,7 @@ App? :Class Application as:
 
         itor? :Implementation Character Iterator
     
-        itor.next? :Procedure Character may: Iterator_done_exception as:
+        itor.next? :Procedure Character raise: Iterator_done_exception as:
             $ index += 1
     
             :if $ index == $ string length then:
@@ -381,7 +381,7 @@ App? :Class Application as:
     Nasty_errors? :Treenumeration
         SMALL_ERROR, BIG_ERROR
 
-    nasty? :Function may: Nasty_errors as:
+    nasty? :Function raise: Nasty_errors as:
         :raise `SMALL_ERROR
 
     twice? :Function from:
@@ -391,11 +391,11 @@ App? :Class Application as:
         :try
             sum? = what(1) + what(2)
             Std prints("That was {sum}." {})
-        or:
+        fix:
             Std prints("What failed!")
 
     passthrough? :Function from: what? Integer Code as:
-        :try what or:
+        :try what fix:
             Std prints("Passthrough code is breaking.")
 
     test? :Function as:
@@ -443,7 +443,7 @@ App? :Class Application as:
 
         :try
             $ nasty
-        or:
+        fix:
             :is ~BIG_ERROR then:
                 Std prints("THIS WAS A BIG ERROR!")
             else:
@@ -1117,7 +1117,7 @@ App? :Class Application as:
         :try
             fs.Path `at("/test.mkdir") mkdir(0o777)
             Std prints("MKDIR UNEXPECTEDLY SUCCEEDED!")
-        or:
+        fix:
             :is e? = ~EACCES then:
                 Std prints("Got {} as expected." { e })
             else:
