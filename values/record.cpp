@@ -183,7 +183,8 @@ public:
     virtual Storage compile(X64 *x64) {
         //ts.create(Storage(), Storage(STACK), x64);
         x64->op(SUBQ, RSP, ts.measure_stack());
-        return Storage(STACK);
+        x64->op(PUSHQ, RSP);
+        return Storage(ALISTACK);
         //return Storage(MEMORY, Address(RSP, 0));
     }
 };
@@ -209,10 +210,12 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage s = value->compile(x64);
         
-        if (s.where != STACK)
+        // Returning an ALISTACK is kinda optimized out, so it will be popped into a MEMORY,
+        // so we don't need to pop it ourselves
+        if (s.where != MEMORY)
             throw INTERNAL_ERROR;
         
-        return s;
+        return Storage(STACK);
     }
 };
 

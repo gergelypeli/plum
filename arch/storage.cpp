@@ -29,7 +29,12 @@ enum StorageWhere {
 
 
 StorageWhere stacked(StorageWhere w) {
-    return (w == MEMORY ? STACK : w == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+    return (
+        w == NOWHERE ? NOWHERE :
+        w == MEMORY ? STACK :
+        w == ALIAS ? ALISTACK :
+        throw INTERNAL_ERROR
+    );
 }
 
 

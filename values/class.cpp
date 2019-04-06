@@ -40,8 +40,8 @@ class ClassPostinitializerValue: public Value {
 public:
     std::unique_ptr<Value> pivot;
 
-    ClassPostinitializerValue(Value *p)
-        :Value(p->ts.unprefix(initializable_type).reprefix(ptr_type, ref_type)) {
+    ClassPostinitializerValue(TypeSpec mts, Value *p)
+        :Value(mts) {
         pivot.reset(p);
     }
 

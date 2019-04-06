@@ -917,7 +917,7 @@ App? :Class Application as:
         patch.patched? :Provide
         
     test_classes? :Function Greetable Ref as:
-        gr? Greetable Ref = Basic_greetable Ref `second_init
+        gr? Greetable Ref = Basic_greetable `second_init
         gr greet
 
         Std prints("Streamifying: {}" { gr sable })
@@ -992,7 +992,7 @@ App? :Class Application as:
         Std prints("ws stores gr: {x}" {x: ws has(gr)})
         Std prints("ws length is {x}" {x: ws length})
 
-        killer? Greetable Ref = Basic_greetable Ref `init
+        killer? Greetable Ref = Basic_greetable `init
         Std prints("Now killing the previous instance...")
         wgr = killer
         #bs = killer derived base
@@ -1088,12 +1088,12 @@ App? :Class Application as:
     ? :Import json
 
     test_json? :Function as:
-        decoder? json.Parser Ref = json.String_parser Ref `from(" {LB} {QU}low{QU} :[ 1.2, 3.4 ], {QU}high{QU}: [ 5.6, 7.8 ],{QU}weird\\\u0007{QU}:[null,false,true] {RB} ")
+        decoder? json.Parser Ref = json.String_parser `from(" {LB} {QU}low{QU} :[ 1.2, 3.4 ], {QU}high{QU}: [ 5.6, 7.8 ],{QU}weird\\\u0007{QU}:[null,false,true] {RB} ")
         value? = :try decoder parse
 
         Std prints("The decoded value is {}" { value })
         
-        encoder? json.Printer Ref = json.String_printer Ref `from(value)
+        encoder? json.Printer Ref = json.String_printer `from(value)
         result? = :try encoder print
         
         Std prints("The encoded string is {}" { result })
@@ -1123,7 +1123,7 @@ App? :Class Application as:
             else:
                 Std prints("MKDIR WEIRD EXCEPTION!")
 
-        stdin? fs.File Ref = `stdin
+        stdin? fs.Istream Ref = fs.File_istream `stdin
         b? Byte Array = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
         n? Integer = 0
     
@@ -1132,8 +1132,8 @@ App? :Class Application as:
         
         Std prints("Read {n} bytes from stdin." {})
     
-        fr? = fs.File_reader Ref `new(stdin)
-        dc? = fs.Decoder Ref `new(fr)
+        fr? = fs.File_reader `new(stdin)
+        dc? = fs.File_decoder `new(fr)
 
         Std prints("Say something!")
         s? = :try dc get_line

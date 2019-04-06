@@ -210,7 +210,7 @@ TypeSpec initializer_ts(Value *p, TypeSpec *context, Token token) {
         ts = ts.unprefix(ovalue_type);
     
     // We must have checked this.
-    if (!ts.has_meta(value_metatype) && !ts.has_meta(metatype_hypertype)) {
+    if (!p && !ts.has_meta(value_metatype) && !ts.has_meta(metatype_hypertype)) {
         std::cerr << "Initializer with nonvalue type context: " << ts << " at " << token << "!\n";
         throw TYPE_ERROR;
     }

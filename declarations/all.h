@@ -13,6 +13,7 @@ class PartialVariable;
 class GlobalVariable;
 class Evaluable;
 class Function;
+class SysvFunction;
 class ImportedFloatFunction;
 class ClassType;
 class Unborrow;

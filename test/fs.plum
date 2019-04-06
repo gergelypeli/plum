@@ -23,7 +23,11 @@ Path? :Record as:
         "fs__Path__rmdir"
 
 
-File? :Class as:
+Istream? :Abstract as:
+    read? :Function Integer from: buffer? Byte Slice may: Errno_exception
+
+
+File_istream? :Class Istream as:
     fd? Integer32
     
     on? :Initializer from:
@@ -35,7 +39,7 @@ File? :Class as:
     as:
         $ fd = 0
         
-    read? :Function
+    @.read? :Function
         Integer
     from:
         buffer? Byte Slice
@@ -45,49 +49,60 @@ File? :Class as:
         "fs__File__read"
 
 
-File_reader? :Class as:
-    file? File Ref
+Reader? :Abstract as:
+    fill? :Function may: Stream_errors
+    peek? :Function Byte Slice
+    grab? :Function from: length? Integer
+    
+
+File_reader? :Class Reader as:
+    istream? Istream Ref
     buffer? Byte Array
     length? Integer
     
     new? :Initializer from:
-        f? File Ref
+        f? Istream Ref
     as:
-        $ file = f
+        $ istream = f
         $ buffer = Byte Array `all(0, 4096)
         $ length = 0
         
-    fill? :Function may: Stream_errors as:
+    @.fill? :Function may: Stream_errors as:
         :if $ length == $ buffer length then:
             $ buffer refill(0, 4096)
             
         rest? = :try $ buffer slice($ length, $ buffer length - $ length)
-        readed? = :try $ file read(rest)
+        readed? = :try $ istream read(rest)
         
         :if readed == 0 then:
             :raise `EXHAUSTED
         else:
             $ length += readed
 
-    peek? :Function Byte Slice as:
+    @.peek? :Function Byte Slice as:
         :return :try $ buffer slice(0, $ length)
         
-    grab? :Function from:
+    @.grab? :Function from:
         length? Integer
     as:
         $ buffer remove(length)
         $ length -= length  # TODO
+
+
+Decoder? :Abstract as:
+    get_line? :Function String may: Stream_errors
+    get_lines? :Function String Array
+
     
-    
-Decoder? :Class as:
-    reader? File_reader Ref
+File_decoder? :Class Decoder as:
+    reader? Reader Ref
     
     new? :Initializer from:
-        r? File_reader Ref
+        r? Reader Ref
     as:
         $ reader = r
         
-    get_line? :Function String may: Stream_errors as:
+    @.get_line? :Function String may: Stream_errors as:
         :repeat on: `true do:
             s? = $ reader peek
             
@@ -109,12 +124,12 @@ Decoder? :Class as:
             
         :return ""  # Workaround
 
-    get_lines? :Function String Array as:
+    @.get_lines? :Function String Array as:
         lines? String Array = `empty
         
         :x:repeat on: `true do:
             :try
-                s? = $ get_line
+                s? = $ @ get_line
                 :try lines push(s)
             or:
                 :x

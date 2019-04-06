@@ -31,6 +31,11 @@ Label Once::compile(TypedFunctionCompiler tfc, TypeSpec ts) {
 }
 
 
+Label Once::wrap(SysvFunction *f) {
+    return wrap_labels[f];
+}
+
+
 Label Once::import(std::string name) {
     return import_labels[name];
 }
@@ -68,6 +73,13 @@ void Once::for_all(X64 *x64) {
         }
     }
     
+    for (auto &kv : wrap_labels) {
+        SysvFunction *f = kv.first;
+        Label label = kv.second;
+
+        f->wrap(label, x64);
+    }
+
     for (auto &kv : import_labels) {
         std::string name = kv.first;
         Label label = kv.second;

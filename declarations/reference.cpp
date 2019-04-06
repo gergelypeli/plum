@@ -248,7 +248,7 @@ public:
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
-        return tm[1].lookup_initializer(name, scope);
+        return NULL;
     }
 
     virtual Value *lookup_matcher(TypeMatch tm, std::string name, Value *pivot, Scope *scope) {

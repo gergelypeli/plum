@@ -75,21 +75,7 @@ public:
     virtual void get_parameters(TypeSpec &pts, TSs &rtss, TSs &atss, Ss &anames, TypeSpec ts, TypeMatch tm) {
         TypeSpec pivot_ts = get_pivot_ts();
         
-        if (is_abstract()) {
-            // FIXME: don't interface methods all have a Ptr pivot now?
-            if (pivot_ts == ANY_TS) {
-                throw INTERNAL_ERROR;
-                pts = ts.rvalue();
-            }
-            else if (pivot_ts == ANY_LVALUE_TS) {
-                throw INTERNAL_ERROR;
-                pts = ts;
-            }
-            else
-                pts = typesubst(pivot_ts, tm);
-        }
-        else
-            pts = typesubst(pivot_ts, tm);
+        pts = typesubst(pivot_ts, tm);
         
         for (auto &rts : res_tss)
             rtss.push_back(typesubst(rts, tm));
@@ -216,7 +202,107 @@ public:
     }
 
     virtual Label get_label(X64 *x64) {
-        return x64->once->import_got(import_name);
+        return x64->once->wrap(this);
+    }
+
+    virtual void wrap(Label label, X64 *x64) {
+        std::vector<TypeSpec> pushed_tss;
+        std::vector<unsigned> pushed_sizes;
+
+        TypeSpec pivot_ts = get_pivot_ts();
+        
+        if (pivot_ts != NO_TS && pivot_ts != VOID_TS) {  // FIXME
+            pushed_tss.push_back(pivot_ts);
+            pushed_sizes.push_back(pivot_ts.measure_where(stacked(pivot_ts.where(AS_ARGUMENT))));
+        }
+        
+        for (auto &ats : arg_tss) {
+            pushed_tss.push_back(ats);
+            pushed_sizes.push_back(ats.measure_where(stacked(ats.where(AS_ARGUMENT))));
+        }
+        
+        unsigned passed_size = 0;
+        for (unsigned &s : pushed_sizes)
+            passed_size += s;
+
+        if (arg_tss.size() > 5) {
+            std::cerr << "Oops, too many arguments to a SysV function!\n";
+            throw INTERNAL_ERROR;
+        }
+        
+        if (res_tss.size() > 1) {
+            std::cerr << "Oops, too many results from a SysV function!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        if (res_tss.size() == 1) {
+            StorageWhere simple_where = res_tss[0].where(AS_VALUE);
+            
+            if (simple_where != REGISTER && simple_where != SSEREGISTER) {
+                std::cerr << "Oops, not a simple result from a SysV function!\n";
+                throw INTERNAL_ERROR;
+            }
+        }
+
+        x64->code_label_local(label, name + "__sysv_wrapper");
+
+        Register regs[] = { RDI, RSI, RDX, RCX, R8, R9 };
+        SseRegister sses[] = { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
+        unsigned reg_index = 0;
+        unsigned sse_index = 0;
+        
+        unsigned stack_offset = passed_size + ADDRESS_SIZE;  // extra return address
+
+        for (unsigned i = 0; i < pushed_tss.size(); i++) {
+            // Must move raw values so it doesn't count as a copy
+            stack_offset -= pushed_sizes[i];
+            
+            StorageWhere pushed_where = pushed_tss[i].where(AS_VALUE);
+            
+            if (pushed_where == NOWHERE)
+                ;  // happens for singleton pivots
+            else if (pushed_where == SSEREGISTER)
+                x64->op(MOVSD, sses[sse_index++], Address(RSP, stack_offset));
+            else if (pushed_sizes[i] == ADDRESS_SIZE)
+                x64->op(MOVQ, regs[reg_index++], Address(RSP, stack_offset));
+            else
+                x64->op(LEA, regs[reg_index++], Address(RSP, stack_offset));
+        }
+        
+        Label got_label = x64->once->import_got(import_name);
+        x64->runtime->call_sysv_got(got_label);
+
+        //x64->runtime->dump("Returned from SysV.");
+
+        // We return simple values in RAX and XMM0 like SysV.
+        // But exceptions are always in RAX, so it may need a fix.
+        StorageWhere simple_where = (res_tss.size() ? res_tss[0].where(AS_VALUE) : NOWHERE);
+
+        switch (simple_where) {
+        case NOWHERE:
+            if (exception_type) {
+                x64->op(MOVQ, RDX, RAX);
+            }
+            break;
+        case REGISTER:
+            if (exception_type) {
+                x64->op(XCHGQ, RDX, RAX);
+            }
+            break;
+        case SSEREGISTER:
+            if (exception_type) {
+                x64->op(MOVQ, RDX, RAX);
+            }
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+
+        // Raised exception in RDX.
+        if (exception_type)
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            
+        x64->op(RET);
     }
 };
 

@@ -406,19 +406,22 @@ public:
         }
         else {
             // Named initializer
+            Associable *main_role = get_main_role();
+            
+            if (!main_role) {
+                std::cerr << "Can't instantiate class without main role: " << name << "!\n";
+                return NULL;
+            }
+            
             TypeSpec rts = tm[0].prefix(ref_type);
+            TypeSpec mts = main_role->alloc_ts.prefix(ref_type);
             
             Value *preinit = make<ClassPreinitializerValue>(rts);
 
-            //Value *value = inner_scope->lookup(name, preinit, scope);
             Value *value = initializer_scope->lookup(name, preinit, scope);
 
             if (value) {
-                if (is_initializer_function_call(value))
-                    return make<ClassPostinitializerValue>(value);
-                        
-                std::cerr << "Can't initialize class with non-initializer " << name << "!\n";
-                return NULL;
+                return make<ClassPostinitializerValue>(mts, value);
             }
         }
         

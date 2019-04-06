@@ -532,7 +532,6 @@ public:
     std::vector<TypeSpec> pushed_tss;
     std::vector<Storage> pushed_storages;
     std::vector<unsigned> pushed_sizes;
-    bool pushed_pivots;
     
     TypeSpec pivot_ts;
     std::vector<TypeSpec> arg_tss;
@@ -560,7 +559,6 @@ public:
         res_total = 0;
         has_code_arg = false;
         is_static = false;
-        pushed_pivots = false;
         
         if (pivot_ts.has_meta(module_metatype)) {
             // Module pivots are only symbolic, they are not pushed or popped.
@@ -622,7 +620,7 @@ public:
 
         return true;
     }
-
+    /*
     virtual void call_sysv(X64 *x64, unsigned passed_size) {
         if (arg_tss.size() > 5) {
             std::cerr << "Oops, too many arguments to a SysV function!\n";
@@ -645,9 +643,9 @@ public:
         unsigned sse_index = 0;
         
         // For pushed pivots, ignore the pushed value, only use the pushed alias
-        unsigned stack_offset = passed_size - (pushed_pivots ? pushed_sizes[0] : 0);  // reverse argument order for SysV!
+        unsigned stack_offset = passed_size;  // reverse argument order for SysV!
 
-        for (unsigned i = (pushed_pivots ? 1 : 0); i < pushed_tss.size(); i++) {
+        for (unsigned i = 0; i < pushed_tss.size(); i++) {
             // Must move raw values so it doesn't count as a copy
             stack_offset -= pushed_sizes[i];
             
@@ -662,8 +660,9 @@ public:
             else
                 x64->op(LEA, regs[reg_index++], Address(RSP, stack_offset));
         }
-        
-        x64->runtime->call_sysv_got(function->get_label(x64));
+
+        SysvFunction *sysv_function = ptr_cast<SysvFunction>(function);
+        x64->runtime->call_sysv_got(sysv_function->get_got_label(x64));
 
         //x64->runtime->dump("Returned from SysV.");
 
@@ -695,7 +694,7 @@ public:
         if (function->exception_type)
             x64->op(CMPQ, RDX, NO_EXCEPTION);
     }
-    
+    */
     virtual void call_static(X64 *x64, unsigned passed_size) {
         if (res_total)
             x64->op(LEA, RAX, Address(RSP, passed_size));
@@ -747,31 +746,15 @@ public:
             t = Storage(where);
         }
 
-        if (s.where == STACK && t.where == ALISTACK) {
-            // This is possible with record pivot arguments, handle it specially
-            x64->op(PUSHQ, RSP);
-            
-            pushed_tss.push_back(arg_ts);
-            pushed_storages.push_back(s);
-            pushed_sizes.push_back(arg_ts.measure_where(STACK));
-            
-            pushed_tss.push_back(arg_ts);
-            pushed_storages.push_back(t);
-            pushed_sizes.push_back(arg_ts.measure_where(ALISTACK));
-            
-            pushed_pivots = true;
-        }
-        else {
-            // Borrow pivot reference, if possible
-            if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
-                t.where = BSTACK;
-            
-            arg_ts.store(s, t, x64);
-            
-            pushed_tss.push_back(arg_ts);
-            pushed_storages.push_back(t);  // For unwinding
-            pushed_sizes.push_back(arg_ts.measure_where(where));
-        }
+        // Borrow pivot reference, if possible
+        if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
+            t.where = BSTACK;
+        
+        arg_ts.store(s, t, x64);
+        
+        pushed_tss.push_back(arg_ts);
+        pushed_storages.push_back(t);  // For unwinding
+        pushed_sizes.push_back(arg_ts.measure_where(where));
     }
     
     virtual void push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
@@ -919,9 +902,9 @@ public:
         for (unsigned &s : pushed_sizes)
             passed_size += s;
 
-        if (function->prot == SYSV_FUNCTION)
-            call_sysv(x64, passed_size);
-        else if (function->virtual_index != 0 && !is_static)
+        //if (function->prot == SYSV_FUNCTION)
+        //    call_sysv(x64, passed_size);
+        if (function->virtual_index != 0 && !is_static)
             call_virtual(x64, passed_size);
         else
             call_static(x64, passed_size);
@@ -943,18 +926,13 @@ public:
             pop_arg(x64);
             
         if (pivot_ts.size()) {
-            if (pushed_storages.size() == 2) {
-                // A record pivot argument was handled specially, remove the second ALISTACK
-                pop_arg(x64);
-            }
-            
             if (is_void) {
                 // Return pivot argument
                 
                 Storage s = pushed_storages[0];
             
                 if (s.where == ALISTACK) {
-                    // Returninig ALISTACK is a bit evil, as the caller would need to
+                    // Returning ALISTACK is a bit evil, as the caller would need to
                     // allocate a register to do anything meaningful with it, so do that here
                     Storage t = Storage(MEMORY, Address(reg, 0));
                     s = pushed_tss[0].store(s, t, x64);
