@@ -595,16 +595,27 @@ public:
 
 class SwitchScope: public CodeScope {
 public:
+    Variable *switch_variable;
+
+    SwitchScope()
+        :CodeScope() {
+        switch_variable = NULL;
+    }
+
+    void set_switch_variable(Variable *sv) {
+        if (switch_variable || contents.size())
+            throw INTERNAL_ERROR;
+            
+        add(ptr_cast<Declaration>(sv));
+        switch_variable = sv;
+    }
+
+    Variable *get_variable() {
+        return switch_variable;
+    }
+
     SwitchScope *get_switch_scope() {
         return this;
-    }
-    
-    const char *get_variable_name() {
-        return "<switched>";
-    }
-    
-    Variable *get_variable() {
-        return ptr_cast<Variable>(contents[0].get());
     }
 };
 

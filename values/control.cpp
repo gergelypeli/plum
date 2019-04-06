@@ -561,9 +561,9 @@ public:
         switch_scope = new SwitchScope;
         scope->add(switch_scope);
         switch_scope->enter();
-        
-        switch_var = new Variable(switch_scope->get_variable_name(), value->ts);
-        switch_scope->add(switch_var);
+
+        switch_var = new Variable("<switch>", value->ts);
+        switch_scope->set_switch_variable(switch_var);
         
         ArgInfos infos = {
             { "do", &VOID_CODE_TS, switch_scope, &body }
@@ -945,8 +945,8 @@ public:
         
         if (et) {
             TypeSpec ets = { et };
-            switch_var = new Variable(switch_scope->get_variable_name(), ets);
-            switch_scope->add(switch_var);
+            switch_var = new Variable("<raised>", ets);
+            switch_scope->set_switch_variable(switch_var);
         }
 
         if (kwargs.size() > 0) {
