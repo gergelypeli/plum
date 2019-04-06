@@ -73,28 +73,30 @@ App? :Class Application as:
     
         x? = 1.1
         y? = 2.2
-        Std prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+        Std prints("Comparisons of {x} and {y}: cmp == != < > <= >= {z} {eq} {ne} {lt} {gt} {le} {ge}" {x: x, y: y, z: x<=>y, eq: x==y, ne: x!=y, lt: x<y, gt: x>y, le: x<=y, ge: x>=y})
 
         y = x
-        Std prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+        Std prints("Comparisons of {x} and {y}: cmp == != < > <= >= {z} {eq} {ne} {lt} {gt} {le} {ge}" {x: x, y: y, z: x<=>y, eq: x==y, ne: x!=y, lt: x<y, gt: x>y, le: x<=y, ge: x>=y})
     
         y = `nan
-        Std prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+        Std prints("Comparisons of {x} and {y}: cmp == != < > <= >= {z} {eq} {ne} {lt} {gt} {le} {ge}" {x: x, y: y, z: x<=>y, eq: x==y, ne: x!=y, lt: x<y, gt: x>y, le: x<=y, ge: x>=y})
 
         x = `nan    
-        Std prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+        Std prints("Comparisons of {x} and {y}: cmp == != < > <= >= {z} {eq} {ne} {lt} {gt} {le} {ge}" {x: x, y: y, z: x<=>y, eq: x==y, ne: x!=y, lt: x<y, gt: x>y, le: x<=y, ge: x>=y})
 
         y = `pinf
-        Std prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+        Std prints("Comparisons of {x} and {y}: cmp == != < > <= >= {z} {eq} {ne} {lt} {gt} {le} {ge}" {x: x, y: y, z: x<=>y, eq: x==y, ne: x!=y, lt: x<y, gt: x>y, le: x<=y, ge: x>=y})
 
         x = `ninf
-        Std prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+        Std prints("Comparisons of {x} and {y}: cmp == != < > <= >= {z} {eq} {ne} {lt} {gt} {le} {ge}" {x: x, y: y, z: x<=>y, eq: x==y, ne: x!=y, lt: x<y, gt: x>y, le: x<=y, ge: x>=y})
 
         x = 0.0
         y = -0.0
-        Std prints("Comparisons of {x} and {y}: cmp == < > <= >= {z} {a} {b} {c} {d} {e}" {x: x, y: y, z: x<=>y, a: x==y, b: x<y, c: x>y, d: x<=y, e: x>=y})
+        Std prints("Comparisons of {x} and {y}: cmp == != < > <= >= {z} {eq} {ne} {lt} {gt} {le} {ge}" {x: x, y: y, z: x<=>y, eq: x==y, ne: x!=y, lt: x<y, gt: x>y, le: x<=y, ge: x>=y})
 
         Std prints("e={e} log(10)={l} 1.5**2={m}" {e: 1.0 exp, l: 10.0 log, m: 1.5 ** 2.0})
+
+        Std prints("is_nan 0.0 `pinf `nan: {x} {y} {z}" { x: 0.0 is_nan, y: (Float `pinf) is_nan, z: (Float `nan) is_nan })
 
 
 #Test_strings? :Singleton as:

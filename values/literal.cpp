@@ -205,18 +205,13 @@ public:
 };
 
 
-// FIXME: Raiser is only needed as long as :is is stupid enough to think that non-raising
-// expressions are equality matchers.
-class TreenumerationAnyMatcherValue: public GenericValue, public Raiser {
+class TreenumerationAnyMatcherValue: public GenericValue {
 public:
     TreenumerationAnyMatcherValue(Value *p)
         :GenericValue(NO_TS, p->ts.rvalue(), p) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(match_unmatched_exception_type, scope))
-            return false;
-        
         return GenericValue::check(args, kwargs, scope);
     }
 

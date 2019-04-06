@@ -691,7 +691,7 @@ public:
             et = match_try_scope->get_exception_type();
         }
         */
-        if (et != match_unmatched_exception_type) {
+        if (et && et != match_unmatched_exception_type) {
             std::cerr << "This :is match raises " << et->name << " exception!\n";
             return false;
         }

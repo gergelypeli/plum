@@ -600,6 +600,8 @@ void define_float() {
     for (auto &item : float_rvalue_operations)
         float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, item.operation));
 
+    float_scope->add(new TemplateIdentifier<FloatIsnanValue>("is_nan"));
+
     float_scope->add(new ImportedFloatFunction("log", "log", NO_TS, FLOAT_TS));
     float_scope->add(new ImportedFloatFunction("exp", "exp", NO_TS, FLOAT_TS));
     float_scope->add(new ImportedFloatFunction("pow", "binary_exponent", FLOAT_TS, FLOAT_TS));

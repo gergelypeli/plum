@@ -276,9 +276,22 @@ void streamify_boolean(unsigned char x, void **character_array_lvalue) {
 
 void streamify_float(double x, void **character_array_lvalue) {
     char byte_array[30];
-    // Use a round-trippable decimal representation which is also the shortest possible
-    // in 99.8% of the cases (Grisu2 algorithm by night-shift)
-    int64 byte_length = fpconv_dtoa(x, byte_array);
+    int64 byte_length;
+    
+    if (isnan(x)) {
+        strcpy(byte_array, "`nan");
+        byte_length = 4;
+    }
+    else if (isinf(x)) {
+        strcpy(byte_array, x > 0.0 ? "`pinf" : "`ninf");
+        byte_length = 5;
+    }
+    else {
+        // Use a round-trippable decimal representation which is also the shortest possible
+        // in 99.8% of the cases (Grisu2 algorithm by night-shift)
+        byte_length = fpconv_dtoa(x, byte_array);
+    }
+    
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 

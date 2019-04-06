@@ -64,33 +64,38 @@ public:
         // greater => -
         // Since we need to avoid false positives for unordered results, we must
         // check our conditions together with parity before coming to any conclusion.
-        // TODO: NaN != NaN is currently false for us. Shall it be true?
+        // A NaN makes most comparisons false, except inequality, which becomes true.
+        // The parity flag is set on unordered comparison. So normally it is required
+        // to be cleared, but for inequality it is sufficient to be set.
 
+        BitSetOp setnp = (cc != CC_NOT_EQUAL ? SETNP : SETP);
+        BinaryOp andb = (cc != CC_NOT_EQUAL ? ANDB : ORB);
+        
         switch (ls.where * rs.where) {
         case SSEREGISTER_SSEREGISTER:
             x64->op(COMISD, ls.sse, rs.sse);
-            x64->op(SETNP, R11B);
+            x64->op(setnp, R11B);
             x64->op(bitset(cc), R10B);
-            x64->op(ANDB, R10B, R11B);
+            x64->op(andb, R10B, R11B);
             return Storage(FLAGS, CC_NOT_EQUAL);
         case SSEREGISTER_MEMORY:
             x64->op(COMISD, ls.sse, rs.address);
-            x64->op(SETNP, R11B);
+            x64->op(setnp, R11B);
             x64->op(bitset(cc), R10B);
-            x64->op(ANDB, R10B, R11B);
+            x64->op(andb, R10B, R11B);
             return Storage(FLAGS, CC_NOT_EQUAL);
         case MEMORY_SSEREGISTER:
             x64->op(COMISD, rs.sse, ls.address);  // swapped arguments
-            x64->op(SETNP, R11B);
+            x64->op(setnp, R11B);
             x64->op(bitset(swapped(cc)), R10B);
-            x64->op(ANDB, R10B, R11B);
+            x64->op(andb, R10B, R11B);
             return Storage(FLAGS, CC_NOT_EQUAL);
         case MEMORY_MEMORY:
             x64->op(MOVSD, auxls.sse, ls.address);
             x64->op(COMISD, auxls.sse, rs.address);
-            x64->op(SETNP, R11B);
+            x64->op(setnp, R11B);
             x64->op(bitset(cc), R10B);
-            x64->op(ANDB, R10B, R11B);
+            x64->op(andb, R10B, R11B);
             return Storage(FLAGS, CC_NOT_EQUAL);
         default:
             throw INTERNAL_ERROR;
@@ -203,5 +208,37 @@ public:
         x64->runtime->call_sysv_got(x64->once->import_got(import_name));
         
         return Storage(SSEREGISTER, XMM0);
+    }
+};
+
+
+class FloatIsnanValue: public GenericValue {
+public:
+    FloatIsnanValue(Value *p, TypeMatch &tm)
+        :GenericValue(NO_TS, BOOLEAN_TS, p) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return GenericValue::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return left->precompile(preferred) | Regs(XMM0);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        ls = left->compile(x64);
+
+        switch (ls.where) {
+        case SSEREGISTER:
+            x64->op(COMISD, ls.sse, ls.sse);
+            return Storage(FLAGS, CC_PARITY);
+        case MEMORY:
+            x64->op(MOVSD, XMM0, ls.address);
+            x64->op(COMISD, XMM0, XMM0);
+            return Storage(FLAGS, CC_PARITY);
+        default:
+            throw INTERNAL_ERROR;
+        }
     }
 };
