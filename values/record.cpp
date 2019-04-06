@@ -99,7 +99,7 @@ public:
         :Value(tm[0]) {
         record_type = ptr_cast<RecordType>(ts[0]);
         member_tss = record_type->get_member_tss(tm);
-        member_names = record_type->get_member_names();
+        member_names = record_type->get_partial_initializable_names();
         match = tm;
         
         std::cerr << "Record " << record_type->name << " initialization with members: " << member_tss << ".\n";

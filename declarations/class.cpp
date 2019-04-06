@@ -43,7 +43,7 @@ static void compile_autoconv_table(const std::vector<AutoconvEntry> &act, TypeMa
 }
 
 
-class IdentityType: public Type, public Inheritable, public PartialInitializable {
+class IdentityType: public Type, public Inheritable {
 public:
     std::vector<Allocable *> member_allocables;
     std::vector<std::string> member_names;
@@ -184,10 +184,6 @@ public:
 
     virtual Allocation measure_identity(TypeMatch tm) {
         return inner_scope->get_size(tm);
-    }
-
-    virtual std::vector<std::string> get_member_names() {
-        return member_names;
     }
 
     virtual devector<VirtualEntry *> allocate_vt() {
@@ -350,7 +346,7 @@ public:
 };
 
 
-class ClassType: public IdentityType, public Autoconvertible {
+class ClassType: public IdentityType, public Autoconvertible, public PartialInitializable {
 public:
     AutoconvVirtualEntry *autoconv_ve;
     FfwdVirtualEntry *fastforward_ve;
@@ -372,6 +368,10 @@ public:
             transplant_procedures(member_procedures);
             
         return true;
+    }
+
+    virtual std::vector<std::string> get_partial_initializable_names() {
+        return member_names;
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {

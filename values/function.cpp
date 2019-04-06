@@ -249,7 +249,7 @@ public:
                 if (!pible)
                     throw INTERNAL_ERROR;
 
-                pi->set_member_names(pible->get_member_names());
+                pi->set_member_names(pible->get_partial_initializable_names());
             }
         
             // The body is in a separate CodeScope, but instead of a dedicated CodeValue,

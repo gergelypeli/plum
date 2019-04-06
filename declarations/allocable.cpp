@@ -472,7 +472,7 @@ public:
 
 class PartialInitializable {
 public:
-    virtual std::vector<std::string> get_member_names() {
+    virtual std::vector<std::string> get_partial_initializable_names() {
         throw INTERNAL_ERROR;
     }
 };
