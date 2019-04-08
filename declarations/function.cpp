@@ -244,14 +244,19 @@ public:
             }
         }
 
-        x64->code_label_local(label, name + "__sysv_wrapper");
+        x64->code_label_local(label, get_fully_qualified_name() + "__sysv_wrapper");
+
+        // Create a proper stack frame for debugging
+        x64->op(PUSHQ, RBP);
+        x64->op(MOVQ, RBP, RSP);
 
         Register regs[] = { RDI, RSI, RDX, RCX, R8, R9 };
         SseRegister sses[] = { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
         unsigned reg_index = 0;
         unsigned sse_index = 0;
         
-        unsigned stack_offset = passed_size + ADDRESS_SIZE;  // extra return address
+        // Account for the return address and the saved RBP
+        unsigned stack_offset = passed_size + 2 * ADDRESS_SIZE;
 
         for (unsigned i = 0; i < pushed_tss.size(); i++) {
             // Must move raw values so it doesn't count as a copy
@@ -262,11 +267,11 @@ public:
             if (pushed_where == NOWHERE)
                 ;  // happens for singleton pivots
             else if (pushed_where == SSEREGISTER)
-                x64->op(MOVSD, sses[sse_index++], Address(RSP, stack_offset));
+                x64->op(MOVSD, sses[sse_index++], Address(RBP, stack_offset));
             else if (pushed_sizes[i] == ADDRESS_SIZE)
-                x64->op(MOVQ, regs[reg_index++], Address(RSP, stack_offset));
+                x64->op(MOVQ, regs[reg_index++], Address(RBP, stack_offset));
             else
-                x64->op(LEA, regs[reg_index++], Address(RSP, stack_offset));
+                x64->op(LEA, regs[reg_index++], Address(RBP, stack_offset));
         }
         
         Label got_label = x64->once->import_got(import_name);
@@ -301,7 +306,8 @@ public:
         // Raised exception in RDX.
         if (exception_type)
             x64->op(CMPQ, RDX, NO_EXCEPTION);
-            
+
+        x64->op(POPQ, RBP);
         x64->op(RET);
     }
 };

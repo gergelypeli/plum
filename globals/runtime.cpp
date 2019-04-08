@@ -216,26 +216,29 @@ void Runtime::call_sysv(Label l) {
     // calling a SysV function. Of course, it only works if all arguments are passed
     // and returned in registers. Not using this risks that the called SysV code uses
     // an SSE instruction with alignment requirement on the stack, and crashes with GP.
+    // Use the callee-saved RBX to save the old RSP, leave RBP as the frame pointer.
 
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RBP, RSP);
+    x64->op(PUSHQ, RBX);
+    x64->op(MOVQ, RBX, RSP);
     x64->op(ANDQ, RSP, -16);
     
     x64->op(CALL, l);
     
-    x64->op(MOVQ, RSP, RBP);
-    x64->op(POPQ, RBP);
+    x64->op(MOVQ, RSP, RBX);
+    x64->op(POPQ, RBX);
 }
 
 void Runtime::call_sysv_got(Label got_l) {
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RBP, RSP);
+    // As above
+    
+    x64->op(PUSHQ, RBX);
+    x64->op(MOVQ, RBX, RSP);
     x64->op(ANDQ, RSP, -16);
     
     x64->op(CALL, Address(got_l, 0));
     
-    x64->op(MOVQ, RSP, RBP);
-    x64->op(POPQ, RBP);
+    x64->op(MOVQ, RSP, RBX);
+    x64->op(POPQ, RBX);
 }
 
 int Runtime::pusha(bool except_rax) {

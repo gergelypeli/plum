@@ -141,15 +141,24 @@ public:
             throw TYPE_ERROR;
         }
 
+        // Generate entry point: invoke the .Main.@.start virtual method.
+        // That's the only method of the Main global variable in the main module,
+        // which implements the Application abstract.
         Label start;
         Storage main_storage = main_global->get_local_storage();
         x64->code_label_global(start, "start");
-        
+
+        // Be nice to debuggers
+        x64->op(PUSHQ, RBP);
+        x64->op(MOVQ, RBP, RSP);
+                
         x64->op(MOVQ, R10, main_storage.address);
         x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));
         x64->op(PUSHQ, R10);
         x64->op(CALL, Address(R11, -1 * ADDRESS_SIZE));  // call Application.start
         x64->op(ADDQ, RSP, ADDRESS_SIZE);
+        
+        x64->op(POPQ, RBP);
         x64->op(RET);
 
         Label init_count, init_ptrs, fin_count, fin_ptrs;

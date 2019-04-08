@@ -313,11 +313,6 @@ public:
 
         std::string fqn = fn_scope->outer_scope->fully_qualify(function->name);
             
-        if (fqn == ".Main.start") {
-            Label dummy;
-            x64->code_label_global(dummy, "start");
-        }
-        
         if (import_name.size()) {
             return Storage();
         }
