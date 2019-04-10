@@ -506,7 +506,7 @@ public:
         x64->op(MOVQ, fes.address, RDX);
         x64->op(MOVQ, RDX, code_break_exception_type->get_keyword_index("CODE_BREAK"));
         x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
-
+        
         x64->code_label(noex);
 
         x64->unwind->pop(this);

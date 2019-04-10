@@ -202,7 +202,7 @@ public:
     }
 
     virtual Label get_label(X64 *x64) {
-        return x64->once->wrap(this);
+        return x64->once->sysv_wrapper(this);
     }
 
     virtual void wrap(Label label, X64 *x64) {

@@ -227,8 +227,11 @@ public:
         x64->op(JBE, ok);
         
         x64->code_label(nok);
+        
+        int old_stack_usage = x64->mark_stack_accounting();
         ts.store(Storage(STACK), Storage(), x64);  // pop Slice
         raise("NOT_FOUND", x64);
+        x64->rewind_stack_accounting(old_stack_usage);
         
         x64->code_label(ok);
         x64->op(ADDQ, Address(RSP, ADDRESS_SIZE), R10);  // adjust front
@@ -348,9 +351,11 @@ public:
         x64->op(CMPQ, RCX, Address(RSP, stack_size + ADDRESS_SIZE + INTEGER_SIZE));  // length
         x64->op(JB, loop);
 
+        int old_stack_usage = x64->mark_stack_accounting();
         elem_ts.store(Storage(STACK), Storage(), x64);
         slice_ts.store(Storage(STACK), Storage(), x64);
         raise("NOT_FOUND", x64);
+        x64->rewind_stack_accounting(old_stack_usage);
 
         x64->code_label(found);
         elem_ts.store(Storage(STACK), Storage(), x64);

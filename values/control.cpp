@@ -74,6 +74,22 @@ public:
             throw INTERNAL_ERROR;
         }
     }
+    
+    virtual Storage nonsense_result(X64 *x64) {
+        // NOTE: this is not very nice. Even if a control is known not to return, it needs to
+        // fake it does, because we'll generate code to process the result. This mean
+        // returning some believable Storage, and the corresponding stack accounting.
+        // However, this is an extreme case that nobody will use in real life,
+        // eg: 100 + :return
+        
+        if (context_ts == VOID_TS || context_ts == WHATEVER_TS) {
+            return Storage();
+        }
+        else {
+            x64->op(SUBQ, RSP, context_ts.measure_stack());
+            return Storage(STACK);
+        }
+    }
 };
 
 
@@ -891,8 +907,7 @@ public:
         
         x64->unwind->initiate(dummy, x64);
 
-        // Since we're Whatever, must deceive our parent with a believable Storage.
-        return (context_ts != VOID_TS ? Storage(STACK) : Storage());
+        return nonsense_result(x64);
     }
 };
 
@@ -993,12 +1008,16 @@ public:
         try_scope->finalize_contents(x64);  // exceptions from body jump here
         
         // The body may throw an exception
-        Label live, unwind;
+        Label live, handle;
         x64->op(CMPQ, RDX, NO_EXCEPTION);
         x64->op(JE, live);
-        x64->op(JL, unwind);  // reraise yields from body
+        x64->op(JG, handle);
+        
+        // reraise yields from body
+        x64->unwind->initiate(try_scope, x64);
         
         // Caught exception, prepare for handling
+        x64->code_label(handle);
 
         if (handler) {
             if (switch_var) {
@@ -1032,8 +1051,7 @@ public:
         x64->op(CMPQ, RDX, NO_EXCEPTION);
         x64->op(JE, live);  // dropped
 
-        // reraise exceptions from the handler, or yields from anywhere
-        x64->code_label(unwind);
+        // reraise exceptions and yields from the handler
         x64->unwind->initiate(switch_scope, x64);
 
         x64->code_label(live);
@@ -1168,8 +1186,8 @@ public:
         yieldable_value->actually_yield();  // disallow optimizing handling out
         x64->op(MOVQ, RDX, yieldable_value->get_yield_exception_value());
         x64->unwind->initiate(dummy, x64);
+
+        return nonsense_result(x64);
         
-        // Since we're Whatever, must deceive our parent with a believable Storage.
-        return (context_ts != VOID_TS ? Storage(STACK) : Storage());
     }
 };

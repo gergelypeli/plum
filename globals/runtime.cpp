@@ -31,8 +31,13 @@ Label Once::compile(TypedFunctionCompiler tfc, TypeSpec ts) {
 }
 
 
-Label Once::wrap(SysvFunction *f) {
-    return wrap_labels[f];
+Label Once::sysv_wrapper(SysvFunction *f) {
+    return sysv_wrapper_labels[f];
+}
+
+
+void Once::functor_definition(Value *fdv) {
+    functor_definitions.insert(fdv);
 }
 
 
@@ -73,11 +78,15 @@ void Once::for_all(X64 *x64) {
         }
     }
     
-    for (auto &kv : wrap_labels) {
+    for (auto &kv : sysv_wrapper_labels) {
         SysvFunction *f = kv.first;
         Label label = kv.second;
 
         f->wrap(label, x64);
+    }
+
+    for (auto &fdv : functor_definitions) {
+        fdv->compile(x64);
     }
 
     for (auto &kv : import_labels) {
@@ -118,6 +127,8 @@ void Unwind::pop(Value *v) {
 
 
 void Unwind::initiate(Declaration *last, X64 *x64) {
+    int old_stack_usage = x64->mark_stack_accounting();
+
     for (int i = stack.size() - 1; i >= 0; i--) {
         Scope *s = stack[i]->unwind(x64);
         
@@ -126,6 +137,8 @@ void Unwind::initiate(Declaration *last, X64 *x64) {
                 throw INTERNAL_ERROR;
                 
             last->jump_to_finalization(x64);
+            x64->rewind_stack_accounting(old_stack_usage);
+            
             return;
         }
     }
@@ -218,6 +231,8 @@ void Runtime::call_sysv(Label l) {
     // an SSE instruction with alignment requirement on the stack, and crashes with GP.
     // Use the callee-saved RBX to save the old RSP, leave RBP as the frame pointer.
 
+    bool old = x64->pause_stack_accounting();
+
     x64->op(PUSHQ, RBX);
     x64->op(MOVQ, RBX, RSP);
     x64->op(ANDQ, RSP, -16);
@@ -226,10 +241,16 @@ void Runtime::call_sysv(Label l) {
     
     x64->op(MOVQ, RSP, RBX);
     x64->op(POPQ, RBX);
+    
+    x64->unpause_stack_accounting(old);
+    x64->adjust_stack_usage(24);
+    x64->adjust_stack_usage(-24);
 }
 
 void Runtime::call_sysv_got(Label got_l) {
     // As above
+
+    bool old = x64->pause_stack_accounting();
     
     x64->op(PUSHQ, RBX);
     x64->op(MOVQ, RBX, RSP);
@@ -239,6 +260,10 @@ void Runtime::call_sysv_got(Label got_l) {
     
     x64->op(MOVQ, RSP, RBX);
     x64->op(POPQ, RBX);
+
+    x64->unpause_stack_accounting(old);
+    x64->adjust_stack_usage(24);
+    x64->adjust_stack_usage(-24);
 }
 
 int Runtime::pusha(bool except_rax) {

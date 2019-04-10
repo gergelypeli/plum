@@ -81,115 +81,6 @@ public:
     }
 };
 
-/*
-class ImplicitEqualityMatcherValue: public Value, public Raiser {
-public:
-    std::unique_ptr<Value> switch_var_value, value;
-    
-    ImplicitEqualityMatcherValue(Value *v)
-        :Value(VOID_TS) {
-        value.reset(v);
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(match_unmatched_exception_type, scope))
-            return false;
-
-        switch_var_value.reset(lookup_switch_variable(scope, token));
-            
-        if (args.size() != 0 || kwargs.size() != 0)
-            return false;
-
-        return true;
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return switch_var_value->precompile(preferred) | value->precompile(preferred) | EQUAL_CLOB;
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Label equal;
-        int pop = 0;
-        
-        Storage ss = switch_var_value->compile(x64);
-        if (ss.where != MEMORY)
-            throw INTERNAL_ERROR;
-
-        Storage vs = value->compile(x64);
-        if (vs.where == STACK) {
-            vs = Storage(MEMORY, Address(RSP, 0));
-            value->ts.destroy(vs, x64);
-            pop = value->ts.measure_stack();
-        }
-        
-        value->ts.equal(ss, vs, x64);
-        
-        if (pop)
-            x64->op(LEA, RSP, Address(RSP, pop));
-        
-        x64->op(JE, equal);
-
-        // popped        
-        raise("UNMATCHED", x64);
-        
-        x64->code_label(equal);
-        return Storage();
-    }
-};
-
-
-class InitializerEqualityMatcherValue: public Value, public Raiser {
-public:
-    std::unique_ptr<Value> switch_var_value, initializer_value;
-    
-    InitializerEqualityMatcherValue(Value *iv)
-        :Value(VOID_TS) {
-        initializer_value.reset(iv);
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(match_unmatched_exception_type, scope))
-            return false;
-            
-        switch_var_value.reset(lookup_switch_variable(scope, token));
-            
-        return initializer_value->check(args, kwargs, scope);
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return switch_var_value->precompile(preferred) | initializer_value->precompile(preferred) | EQUAL_CLOB;
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Label equal;
-        int pop = 0;
-        
-        Storage ss = switch_var_value->compile(x64);
-        if (ss.where != MEMORY)
-            throw INTERNAL_ERROR;
-        
-        Storage is = initializer_value->compile(x64);
-        if (is.where == STACK) {
-            is = Storage(MEMORY, Address(RSP, 0));
-            initializer_value->ts.destroy(is, x64);
-            pop = initializer_value->ts.measure_stack();
-        }
-        
-        switch_var_value->ts.equal(ss, is, x64);
-
-        if (pop)
-            x64->op(LEA, RSP, Address(RSP, pop));
-        
-        x64->op(JE, equal);
-
-        // popped        
-        raise("UNMATCHED", x64);
-        
-        x64->code_label(equal);
-        return Storage();
-    }
-};
-*/
 
 class BulkEqualityMatcherValue: public Value, public Raiser {
 public:
@@ -256,9 +147,11 @@ public:
             
             x64->op(JE, equal);
         }
-        
+
+        int old_stack_usage = x64->mark_stack_accounting();
         pivot_value->ts.store(ps, Storage(), x64);
         raise("UNMATCHED", x64);
+        x64->rewind_stack_accounting(old_stack_usage);
         
         x64->code_label(equal);
         

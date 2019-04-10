@@ -1213,14 +1213,8 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        // TODO: compile functions using Once?
-        Label skip;
-        
-        x64->op(JMP, skip);
-        
-        fdv->compile(x64);
-        
-        x64->code_label(skip);
+        // Compile the body later, so it does not get inserted here
+        x64->once->functor_definition(fdv);
         
         Storage ps = preinitialize_class({ class_type }, x64);
         

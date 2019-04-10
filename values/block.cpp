@@ -264,7 +264,9 @@ public:
             x64->code_line_info(token.file_index, token.row);
             
             statements[i]->compile_and_store(x64, Storage());
+
             x64->op(NOP);  // For readability
+            std::cerr << "XXX statement\n";
         }
 
         Token &token = statements.back()->token;

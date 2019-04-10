@@ -404,7 +404,8 @@ public:
     std::set<FunctionCompiler> function_compiler_todo;
     std::set<FunctionCompilerTuple> typed_function_compiler_todo;
 
-    std::map<SysvFunction *, Label> wrap_labels;
+    std::map<SysvFunction *, Label> sysv_wrapper_labels;
+    std::set<Value *> functor_definitions;
 
     std::map<std::string, Label> import_labels;
     std::map<std::string, Label> import_got_labels;
@@ -412,7 +413,8 @@ public:
     Label compile(FunctionCompiler fc);
     Label compile(TypedFunctionCompiler tfc, TypeSpec ts);
     
-    Label wrap(SysvFunction *f);
+    Label sysv_wrapper(SysvFunction *f);
+    void functor_definition(Value *v);
     
     Label import(std::string name);
     Label import_got(std::string name);
