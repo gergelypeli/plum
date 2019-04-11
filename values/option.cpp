@@ -132,10 +132,10 @@ public:
             x64->op(CMPQ, Address(RSP, 0), OPTION_FLAG_NONE);
             x64->op(JNE, ok);
 
-            int old_stack_usage = x64->mark_stack_accounting();
+            int old_stack_usage = x64->accounting->mark();
             left->ts.store(ls, Storage(), x64);
             raise("UNMATCHED", x64);
-            x64->rewind_stack_accounting(old_stack_usage);
+            x64->accounting->rewind(old_stack_usage);
 
             x64->code_label(ok);
             if (flag_size == ADDRESS_SIZE)
@@ -234,10 +234,10 @@ public:
             x64->op(CMPQ, Address(RSP, 0), tag_index);
             x64->op(JE, ok);
 
-            int old_stack_usage = x64->mark_stack_accounting();
+            int old_stack_usage = x64->accounting->mark();
             left->ts.store(ls, Storage(), x64);
             raise("UNMATCHED", x64);
-            x64->rewind_stack_accounting(old_stack_usage);
+            x64->accounting->rewind(old_stack_usage);
 
             x64->code_label(ok);
             x64->op(ADDQ, RSP, ADDRESS_SIZE);

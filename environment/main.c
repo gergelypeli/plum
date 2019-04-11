@@ -935,7 +935,6 @@ extern void (*initializer_pointers[])();
 extern int64 finalizer_count;
 extern void (*finalizer_pointers[])();
 
-
 int main() {
     // Must be using the C locale during the execution of the whole program,
     // setlocale is not allowed anywhere.

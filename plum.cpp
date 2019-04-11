@@ -180,12 +180,8 @@ int main(int argc, char **argv) {
     // Allocate builtins and modules
     unsigned application_size = root->allocate_modules();
     
-    X64 *x64 = new X64();
+    X64 *x64 = new X64(application_size);
     x64->init("mymodule");
-
-    x64->unwind = new Unwind();
-    x64->once = new Once();
-    x64->runtime = new Runtime(x64, application_size);
 
     root->compile_modules(x64);
     

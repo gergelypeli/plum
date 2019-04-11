@@ -433,6 +433,27 @@ public:
 };
 
 
+class Accounting {
+public:
+    bool am_on;
+    int current_stack_usage, highest_stack_usage;
+
+    Accounting();
+    
+    void start();
+    int stop();
+    
+    bool pause();
+    void unpause(bool old_on);
+    
+    int mark();
+    void rewind(int old_stack_usage);
+
+    bool is_on();
+    void adjust_stack_usage(int mod);
+};
+
+
 class Runtime {
 public:
     const int ARGS_1 = 16;
@@ -505,12 +526,24 @@ class X64: public Asm64 {
 public:
     Once *once;
     Unwind *unwind;
+    Accounting *accounting;
+
     Runtime *runtime;
     
-    X64()
+    X64(int application_size)
         :Asm64() {
-        once = NULL;
-        unwind = NULL;
-        runtime = NULL;
+        once = new Once;
+        unwind = new Unwind;
+        accounting = new Accounting;
+        
+        runtime = new Runtime(this, application_size);
+    }
+    
+    virtual bool is_accounting() {
+        return accounting->is_on();
+    }
+    
+    virtual void adjust_stack_usage(int mod) {
+        accounting->adjust_stack_usage(mod);
     }
 };

@@ -148,10 +148,10 @@ public:
             x64->op(JE, equal);
         }
 
-        int old_stack_usage = x64->mark_stack_accounting();
+        int old_stack_usage = x64->accounting->mark();
         pivot_value->ts.store(ps, Storage(), x64);
         raise("UNMATCHED", x64);
-        x64->rewind_stack_accounting(old_stack_usage);
+        x64->accounting->rewind(old_stack_usage);
         
         x64->code_label(equal);
         

@@ -167,11 +167,11 @@ public:
         
         x64->code_label(not_matched);
         
-        int old_stack_usage = x64->mark_stack_accounting();
+        int old_stack_usage = x64->accounting->mark();
         x64->op(ADDQ, RSP, ADDRESS_SIZE);
         ts.store(Storage(STACK), Storage(), x64);
         raise("UNMATCHED", x64);
-        x64->rewind_stack_accounting(old_stack_usage);
+        x64->accounting->rewind(old_stack_usage);
         
         x64->code_label(matched);
         x64->op(MOVQ, R11, Address(R10, ADDRESS_SIZE));  // role offset

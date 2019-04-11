@@ -336,7 +336,7 @@ public:
         x64->op(MOVQ, RBP, RSP);
         x64->op(SUBQ, RSP, frame_size);
         
-        x64->start_stack_accounting();
+        x64->accounting->start();
         
         // If the result is nonsimple, we'll return it at the given location pointed by RAX
         Storage ras = fn_scope->get_result_alias_storage();
@@ -382,7 +382,7 @@ public:
         else if (associated_role_offset)
             x64->op(ADDQ, self_storage.address, associated_role_offset);
 
-        int stack_usage = x64->stop_stack_accounting();
+        int stack_usage = x64->accounting->stop();
         std::cerr << "XXX function " << function->get_fully_qualified_name() << " stack usage is " << stack_usage << " bytes\n";
         
         x64->op(ADDQ, RSP, frame_size);

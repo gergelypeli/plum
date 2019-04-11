@@ -127,7 +127,7 @@ void Unwind::pop(Value *v) {
 
 
 void Unwind::initiate(Declaration *last, X64 *x64) {
-    int old_stack_usage = x64->mark_stack_accounting();
+    int old_stack_usage = x64->accounting->mark();
 
     for (int i = stack.size() - 1; i >= 0; i--) {
         Scope *s = stack[i]->unwind(x64);
@@ -137,7 +137,7 @@ void Unwind::initiate(Declaration *last, X64 *x64) {
                 throw INTERNAL_ERROR;
                 
             last->jump_to_finalization(x64);
-            x64->rewind_stack_accounting(old_stack_usage);
+            x64->accounting->rewind(old_stack_usage);
             
             return;
         }
@@ -145,6 +145,83 @@ void Unwind::initiate(Declaration *last, X64 *x64) {
     
     throw INTERNAL_ERROR;
 }
+
+
+
+// Stack accounting
+
+Accounting::Accounting() {
+    am_on = false;
+}
+
+
+void Accounting::start() {
+    if (am_on)
+        throw ASM_ERROR;
+        
+    am_on = true;
+    current_stack_usage = 0;
+    highest_stack_usage = 0;
+
+    //std::cerr << "XXX stack usage start\n";
+}
+
+
+int Accounting::stop() {
+    if (!am_on)
+        throw ASM_ERROR;
+        
+    if (current_stack_usage != 0)
+        throw ASM_ERROR;
+        
+    am_on = false;
+    //std::cerr << "XXX stack usage highest " << highest_stack_usage << "\n";
+
+    return highest_stack_usage;
+}
+
+
+bool Accounting::pause() {
+    bool old_on = am_on;
+    am_on = false;
+    return old_on;
+}
+
+
+void Accounting::unpause(bool old_on) {
+    am_on = old_on;
+}
+
+
+int Accounting::mark() {
+    return current_stack_usage;
+}
+
+
+void Accounting::rewind(int old_stack_usage) {
+    if (old_stack_usage > highest_stack_usage)
+        throw ASM_ERROR;
+        
+    current_stack_usage = old_stack_usage;
+}
+
+
+bool Accounting::is_on() {
+    return am_on;
+}
+
+
+void Accounting::adjust_stack_usage(int mod) {
+    current_stack_usage += mod;
+    //std::cerr << "XXX stack usage " << mod << " => " << current_stack_usage << "\n";
+    
+    if (current_stack_usage < 0)
+        throw ASM_ERROR;
+    
+    if (current_stack_usage > highest_stack_usage)
+        highest_stack_usage = current_stack_usage;
+}
+
 
 
 // Runtime
@@ -231,7 +308,7 @@ void Runtime::call_sysv(Label l) {
     // an SSE instruction with alignment requirement on the stack, and crashes with GP.
     // Use the callee-saved RBX to save the old RSP, leave RBP as the frame pointer.
 
-    bool old = x64->pause_stack_accounting();
+    bool old = x64->accounting->pause();
 
     x64->op(PUSHQ, RBX);
     x64->op(MOVQ, RBX, RSP);
@@ -242,7 +319,7 @@ void Runtime::call_sysv(Label l) {
     x64->op(MOVQ, RSP, RBX);
     x64->op(POPQ, RBX);
     
-    x64->unpause_stack_accounting(old);
+    x64->accounting->unpause(old);
     x64->adjust_stack_usage(24);
     x64->adjust_stack_usage(-24);
 }
@@ -250,7 +327,7 @@ void Runtime::call_sysv(Label l) {
 void Runtime::call_sysv_got(Label got_l) {
     // As above
 
-    bool old = x64->pause_stack_accounting();
+    bool old = x64->accounting->pause();
     
     x64->op(PUSHQ, RBX);
     x64->op(MOVQ, RBX, RSP);
@@ -261,7 +338,7 @@ void Runtime::call_sysv_got(Label got_l) {
     x64->op(MOVQ, RSP, RBX);
     x64->op(POPQ, RBX);
 
-    x64->unpause_stack_accounting(old);
+    x64->accounting->unpause(old);
     x64->adjust_stack_usage(24);
     x64->adjust_stack_usage(-24);
 }
