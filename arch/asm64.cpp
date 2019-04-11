@@ -201,10 +201,6 @@ enum GprSsememOp {
 };
 
 
-class Once;
-class Unwind;
-class Runtime;
-
 class Asm64 {
 public:
     enum Def_type {
@@ -340,7 +336,6 @@ public:
     void op(ExchangeOp opcode, Address x, Register y);
     void op(ExchangeOp opcode, Register x, Address y);
     void op(StackOp opcode, int x);
-    void op(StackOp opcode, Label c, int offset = 0);
     void op(StackOp opcode, Register x);
     void op(StackOp opcode, Address x);
     void op(MemoryOp opcode, Address x);

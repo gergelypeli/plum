@@ -939,10 +939,12 @@ public:
         if (!check_args(args, { "body", &arg_ts, try_scope, &body }))
             return false;
         
-        // Allow a :try without error handling to return the body type even without
-        // the context explicitly set, to make :try in a declaration simpler.
-        if (kwargs.size() == 0)
+        // Allow a :try without type context, but with a concrete body type return the
+        // same type, and also expect the same from the fix branch
+        if (context_ts == ANY_TS) {
             context_ts = body->ts.rvalue();
+            arg_ts = context_ts.prefix(code_type);
+        }
 
         ts = context_ts;
 
@@ -965,7 +967,7 @@ public:
         }
 
         if (kwargs.size() > 0) {
-            // Let the or branch be optional, even if an concrete type is expected from it,
+            // Let the fix branch be optional, even if an concrete type is expected from it,
             // because the default handler dies anyway.
             
             ArgInfos infos = {
@@ -1018,14 +1020,14 @@ public:
         
         // Caught exception, prepare for handling
         x64->code_label(handle);
+        
+        if (switch_var) {
+            Storage switch_storage = switch_var->get_local_storage();
+            x64->op(MOVQ, switch_storage.address, RDX);
+        }
+        // dropped RDX
 
         if (handler) {
-            if (switch_var) {
-                Storage switch_storage = switch_var->get_local_storage();
-                x64->op(MOVQ, switch_storage.address, RDX);
-            }
-            // dropped RDX
-            
             x64->unwind->push(this);
             handling = true;
             handler->compile_and_store(x64, t);
@@ -1045,6 +1047,7 @@ public:
             }
         }
 
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
         switch_scope->finalize_contents(x64);
         //eval_scope->finalize_contents(x64);
         

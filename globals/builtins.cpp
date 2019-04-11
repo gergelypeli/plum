@@ -1230,6 +1230,8 @@ void builtin_runtime(Scope *root_scope) {
 
     is->add(new SysvFunction("Std__print_jstring", "print_jstring", GENERIC_FUNCTION, TSs { STRING_TS, STRING_LVALUE_TS }, { "str", "stream" }, {}));
 
+    is->add(new TemplateIdentifier<FrameNameValue>("frame_name"));
+
     std_type->complete_type();
     is->leave();
 }

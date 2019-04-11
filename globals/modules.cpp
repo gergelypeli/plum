@@ -152,6 +152,9 @@ public:
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
                 
+        // Let the backtracing stop at this frame
+        x64->op(MOVQ, Address(x64->runtime->start_frame_label, 0), RBP);
+                
         x64->op(MOVQ, R10, main_storage.address);
         x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));
         x64->op(PUSHQ, R10);

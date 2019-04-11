@@ -310,7 +310,6 @@ public:
         
         unsigned frame_size = fn_scope->get_frame_size();
         Storage self_storage = self_var ? self_var->get_local_storage() : Storage();
-
         std::string fqn = fn_scope->outer_scope->fully_qualify(function->name);
             
         if (import_name.size()) {
@@ -330,7 +329,9 @@ public:
             return Storage();
         }
         
-        x64->code_label_local(function->get_label(x64), fqn);
+        Label start_label = function->get_label(x64);
+        Label end_label;
+        x64->code_label_local(start_label, fqn);
         
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
@@ -393,6 +394,10 @@ public:
         x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
         x64->op(POPQ, RBP);
         x64->op(RET);
+
+        x64->code_label(end_label);
+        
+        x64->runtime->add_func_info(fqn, start_label, end_label);
         
         return Storage();
     }
@@ -1093,5 +1098,47 @@ public:
             result_vars[i]->alloc_ts.destroy(var_storages[i], x64);
             
         return NULL;
+    }
+};
+
+
+class FrameNameValue: public Value, public Raiser {
+public:
+    std::unique_ptr<Value> value;
+    
+    FrameNameValue(Value *, TypeMatch)
+        :Value(STRING_TS) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(lookup_exception_type, scope))
+            return false;
+            
+        return check_arguments(args, kwargs, { { "up", &INTEGER_TS, scope, &value } });
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        return value->precompile(preferred) | Regs::all();
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label ok;
+        
+        value->compile_and_store(x64, Storage(STACK));
+
+        x64->op(CALL, x64->runtime->lookup_frame_info_label);
+
+        x64->op(ADDQ, RSP, INTEGER_SIZE);
+        
+        x64->op(CMPQ, RAX, 0);
+        x64->op(JNE, ok);
+        
+        raise("NOT_FOUND", x64);
+        
+        x64->code_label(ok);
+        x64->op(MOVQ, RAX, Address(RAX, 2 * ADDRESS_SIZE));  // frame name String
+        x64->runtime->incref(RAX);
+        
+        return Storage(REGISTER, RAX);
     }
 };

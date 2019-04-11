@@ -185,8 +185,7 @@ int main(int argc, char **argv) {
 
     root->compile_modules(x64);
     
-    x64->once->for_all(x64);
-    x64->done(output, source_file_names);
+    x64->finish(output, source_file_names);
     
     std::cerr << "Done.\n";
     return 0;

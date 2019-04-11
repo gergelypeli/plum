@@ -246,6 +246,9 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     x64->data_qword(0);  // reservation
     x64->data_qword(0);  // length
 
+    x64->data_label(start_frame_label);
+    x64->data_qword(0);
+
     die_unmatched_message_label = data_heap_string(decode_utf8("Fatal unmatched value: "));
 
     x64->code_label_import(sysv_memalloc_label, "memalloc");
@@ -334,6 +337,28 @@ void Runtime::call_sysv_got(Label got_l) {
     x64->accounting->unpause(old);
     x64->adjust_stack_usage(24);
     x64->adjust_stack_usage(-24);
+}
+
+void Runtime::add_func_info(std::string name, Label start, Label end) {
+    func_infos.push_back({ name, start, end, Label() });
+}
+
+void Runtime::compile_func_infos(X64 *x64) {
+    x64->data_label(func_infos_length_label);
+    x64->data_qword(func_infos.size());
+    
+    for (auto &fi : func_infos) {
+        fi.name_label = x64->runtime->data_heap_string(decode_utf8(fi.name));
+    }
+    
+    x64->data_align(8);
+    x64->data_label_global(func_infos_label, "func_infos");
+    
+    for (auto &fi : func_infos) {
+        x64->data_reference(fi.start_label);
+        x64->data_reference(fi.end_label);
+        x64->data_reference(fi.name_label);
+    }
 }
 
 int Runtime::pusha(bool except_rax) {
@@ -616,6 +641,58 @@ void Runtime::compile_incref_decref() {
     }
 }
 
+void Runtime::compile_lookup_frame_info() {
+    // lookup_frame_info(up_count)
+    // result - RAX = pointer to the frame info structure, or NULL
+    // clobbers all registers
+    
+    Label fi_label = func_infos_label;
+    Label fil_label = func_infos_length_label;
+    Label lookup, up, end, loop, skip;
+    
+    x64->code_label_global(lookup_frame_info_label, "lookup_frame_info");
+    x64->op(PUSHQ, RBP);
+    x64->op(MOVQ, RCX, Address(RSP, 2 * ADDRESS_SIZE));
+    
+    x64->op(MOVQ, RAX, 0);
+    x64->op(MOVQ, RBX, RSP);
+    x64->op(CMPQ, RCX, 0);
+    x64->op(JE, lookup);
+    
+    x64->code_label(up);
+    x64->op(MOVQ, RBX, Address(RBX, 0));
+    x64->op(CMPQ, RBX, Address(start_frame_label, 0));  // Hit the top frame
+    x64->op(JE, end);
+    x64->op(DECQ, RCX);
+    x64->op(JNE, up);
+    
+    x64->code_label(lookup);
+    x64->op(MOVQ, RBX, Address(RBX, ADDRESS_SIZE));  // caller RIP
+    x64->op(LEA, RAX, Address(fi_label, 0));
+    x64->op(MOVQ, RCX, Address(fil_label, 0));
+    
+    x64->code_label(loop);
+    x64->op(CMPQ, RBX, Address(RAX, 0));
+    x64->op(JB, skip);
+    x64->op(CMPQ, RBX, Address(RAX, ADDRESS_SIZE));
+    x64->op(JAE, skip);
+    
+    // Found the frame
+    x64->op(JMP, end);
+    
+    x64->code_label(skip);
+    x64->op(ADDQ, RAX, 3 * ADDRESS_SIZE);
+    x64->op(DECQ, RCX);
+    x64->op(JNE, loop);
+    
+    // Not found
+    x64->op(MOVQ, RAX, 0);
+    
+    x64->code_label(end);
+    x64->op(POPQ, RBP);
+    x64->op(RET);
+}
+
 void Runtime::init_memory_management() {
     x64->data_align(ADDRESS_SIZE);
     x64->data_label_global(refcount_balance_label, "refcount_balance");
@@ -631,6 +708,7 @@ void Runtime::init_memory_management() {
     compile_fcb_alloc();
     compile_fcb_free();
     compile_finalize_reference_array();
+    compile_lookup_frame_info();
 }
 
 void Runtime::incref(Register reg) {

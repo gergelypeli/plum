@@ -266,7 +266,7 @@ public:
             statements[i]->compile_and_store(x64, Storage());
 
             x64->op(NOP);  // For readability
-            std::cerr << "XXX statement\n";
+            //std::cerr << "XXX statement\n";
         }
 
         Token &token = statements.back()->token;

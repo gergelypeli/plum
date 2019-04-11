@@ -494,11 +494,13 @@ public:
     
     Label application_label;
     Label zero_label, float_zero_label, float_minus_zero_label, refcount_balance_label;
-    Label die_unmatched_message_label;
+    Label die_unmatched_message_label, start_frame_label;
+    
     Label heap_alloc_label, heap_realloc_label;
     Label fcb_alloc_label, fcb_free_label;
     Label empty_function_label, empty_array_label;
     Label finalize_label, finalize_reference_array_label;
+    Label lookup_frame_info_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Label sysv_memalloc_label, sysv_memfree_label, sysv_memrealloc_label;
@@ -506,6 +508,16 @@ public:
     Label sysv_die_label, sysv_dies_label, sysv_die_uncaught_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
     Label sysv_streamify_pointer_label;
+
+    struct FuncInfo {
+        std::string name;
+        Label start_label;
+        Label end_label;
+        Label name_label;
+    };
+
+    Label func_infos_label, func_infos_length_label;
+    std::vector<FuncInfo> func_infos;
     
     Runtime(X64 *x, unsigned application_size);
 
@@ -514,6 +526,9 @@ public:
     
     void call_sysv(Label l);
     void call_sysv_got(Label got_l);
+
+    void add_func_info(std::string name, Label start, Label end);
+    void compile_func_infos(X64 *x64);
     
     int pusha(bool except_rax = false);
     void popa(bool except_rax = false);
@@ -524,6 +539,7 @@ public:
     void compile_fcb_alloc();
     void compile_fcb_free();
     void compile_finalize_reference_array();
+    void compile_lookup_frame_info();
     
     void init_memory_management();
     
@@ -560,7 +576,15 @@ public:
         unwind = new Unwind;
         accounting = new Accounting;
         
+        // Needs Accounting
         runtime = new Runtime(this, application_size);
+    }
+    
+    void finish(std::string output, std::vector<std::string> source_file_names) {
+        once->for_all(this);
+        runtime->compile_func_infos(this);
+        
+        done(output, source_file_names);
     }
     
     virtual bool is_accounting() {

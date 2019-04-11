@@ -1101,6 +1101,12 @@ App? :Class Application as:
         Std prints("The encoded string is {}" { result })
 
 
+    test_backtrace? :Function as:
+        Std prints("This function is called {}" { :try Std frame_name(0) })
+        Std prints("And the caller's name is {}" { :try Std frame_name(1) })
+        Std prints("And above that is {}" { :try Std frame_name(2) fix: "?" })
+        
+
 #Test_files? :Singleton as:
     ? :Import fs
     ? :Import .sub for:
@@ -1174,6 +1180,7 @@ App? :Class Application as:
         $ test_functors
         $ test_singletons
         $ test_json
+        $ test_backtrace
         $ test_files
         
         Std prints("Done.")
