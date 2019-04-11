@@ -3,110 +3,103 @@
 // Once
 
 Label Once::compile(FunctionCompiler fc) {
-    int before = function_compiler_labels.size();
-    Label label = function_compiler_labels[fc];
-    int after = function_compiler_labels.size();
-    
-    if (after != before) {
-        function_compiler_todo.insert(fc);
-        //std::cerr << "Will compile once " << (void *)fc << " as " << label.def_index << ".\n";
-    }
-    
-    return label;
+    return function_compilers.add(fc);
 }
 
 
 Label Once::compile(TypedFunctionCompiler tfc, TypeSpec ts) {
-    int before = typed_function_compiler_labels.size();
-    FunctionCompilerTuple t = make_pair(tfc, ts);
-    Label label = typed_function_compiler_labels[t];
-    int after = typed_function_compiler_labels.size();
-    
-    if (after != before) {
-        typed_function_compiler_todo.insert(t);
-        //std::cerr << "Will compile once " << (void *)tfc << " " << ts << " as " << label.def_index << ".\n";
-    }
-    
-    return label;
+    return typed_function_compilers.add(make_pair(tfc, ts));
 }
 
 
 Label Once::sysv_wrapper(SysvFunction *f) {
-    return sysv_wrapper_labels[f];
+    return sysv_wrappers.add(f);
 }
 
 
-void Once::functor_definition(Value *fdv) {
-    functor_definitions.insert(fdv);
+Label Once::functor_definition(Value *v) {
+    return functor_definitions.add(v);
 }
 
 
 Label Once::import(std::string name) {
-    return import_labels[name];
+    return imports.add(name);
 }
 
 
 Label Once::import_got(std::string name) {
-    return import_got_labels[name];
+    return import_gots.add(name);
 }
 
 
 void Once::for_all(X64 *x64) {
-    // NOTE: once functions may ask to once compile other functions.
+    // NOTE: once-functions may ask to once-compile other functions, so we must keep
+    // on checking until no new compilations are requested.
     
-    while (typed_function_compiler_todo.size() || function_compiler_todo.size()) {
-        while (typed_function_compiler_todo.size()) {
-            FunctionCompilerTuple t = *typed_function_compiler_todo.begin();
-            typed_function_compiler_todo.erase(typed_function_compiler_todo.begin());
-        
-            TypedFunctionCompiler tfc = t.first;
-            TypeSpec ts = t.second;
-            Label label = typed_function_compiler_labels[t];
+    bool was_dirty = true;
     
-            //std::cerr << "Now compiling " << (void *)tfc << " " << ts << " as " << label.def_index << ".\n";
-            tfc(label, ts, x64);
-        }
-
-        while (function_compiler_todo.size()) {
-            FunctionCompiler fc = *function_compiler_todo.begin();
-            function_compiler_todo.erase(function_compiler_todo.begin());
+    while (was_dirty) {
+        was_dirty = false;
         
-            Label label = function_compiler_labels[fc];
-
-            //std::cerr << "Now compiling " << (void *)fc << " as " << label.def_index << ".\n";
+        while (function_compilers.is_dirty()) {
+            auto kv = function_compilers.take();
+            FunctionCompiler fc = kv.first;
+            Label label = kv.second;
+            
             fc(label, x64);
+            was_dirty = true;
         }
-    }
-    
-    for (auto &kv : sysv_wrapper_labels) {
-        SysvFunction *f = kv.first;
-        Label label = kv.second;
-
-        f->wrap(label, x64);
-    }
-
-    for (auto &fdv : functor_definitions) {
-        fdv->compile(x64);
-    }
-
-    for (auto &kv : import_labels) {
-        std::string name = kv.first;
-        Label label = kv.second;
-
-        // symbol points to the function start in the code segment
-        x64->code_label_import(label, name);
-    }
-
-    for (auto &kv : import_got_labels) {
-        std::string name = kv.first;
-        Label label = kv.second;
         
-        Label shared_label;
-        x64->code_label_import(shared_label, name);
+        while (typed_function_compilers.is_dirty()) {
+            auto kv = typed_function_compilers.take();
+            TypedFunctionCompiler tfc = kv.first.first;
+            TypeSpec ts = kv.first.second;
+            Label label = kv.second;
+            
+            tfc(label, ts, x64);
+            was_dirty = true;
+        }
         
-        // symbol points to the function address in the data segment
-        x64->data_label_local(label, name + "@GOT");
-        x64->data_reference(shared_label);
+        while (sysv_wrappers.is_dirty()) {
+            auto kv = sysv_wrappers.take();
+            SysvFunction *f = kv.first;
+            Label label = kv.second;
+
+            f->wrap(label, x64);
+            was_dirty = true;
+        }
+        
+        while (functor_definitions.is_dirty()) {
+            auto kv = functor_definitions.take();
+            Value *v = kv.first;
+
+            v->compile(x64);
+            was_dirty = true;
+        }
+        
+        while (imports.is_dirty()) {
+            auto kv = imports.take();
+            std::string name = kv.first;
+            Label label = kv.second;
+
+            // symbol points to the function start in the code segment
+            x64->code_label_import(label, name);
+            was_dirty = true;
+        }
+
+        while (import_gots.is_dirty()) {
+            auto kv = import_gots.take();
+            std::string name = kv.first;
+            Label label = kv.second;
+        
+            Label shared_label;
+            x64->code_label_import(shared_label, name);
+        
+            // symbol points to the function address in the data segment
+            x64->data_label_local(label, name + "@GOT");
+            x64->data_reference(shared_label);
+            was_dirty = true;
+        }
     }
 }
 

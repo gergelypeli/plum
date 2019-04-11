@@ -392,29 +392,53 @@ TypeSpec COLON_TS;
 extern TreenumInput errno_treenum_input[];
 
 
+
 class Once {
 public:
     typedef void (*FunctionCompiler)(Label, X64 *);
     typedef void (*TypedFunctionCompiler)(Label, TypeSpec, X64 *);
     typedef std::pair<TypedFunctionCompiler, TypeSpec> FunctionCompilerTuple;
 
-    std::map<FunctionCompiler, Label> function_compiler_labels;
-    std::map<FunctionCompilerTuple, Label> typed_function_compiler_labels;
+    template<typename KeyType>
+    struct LabelStore {
+        std::map<KeyType, Label> labels;
+        std::set<KeyType> todos;
     
-    std::set<FunctionCompiler> function_compiler_todo;
-    std::set<FunctionCompilerTuple> typed_function_compiler_todo;
+        Label add(KeyType key) {
+            int before = labels.size();
+            Label label = labels[key];
+            int after = labels.size();
+    
+            if (after != before)
+                todos.insert(key);
+            
+            return label;
+        }
+    
+        bool is_dirty() {
+            return !todos.empty();
+        }
+    
+        typename decltype(labels)::value_type take() {
+            KeyType key = *todos.begin();
+            todos.erase(todos.begin());
+        
+            return *labels.find(key);
+        }
+    };
 
-    std::map<SysvFunction *, Label> sysv_wrapper_labels;
-    std::set<Value *> functor_definitions;
-
-    std::map<std::string, Label> import_labels;
-    std::map<std::string, Label> import_got_labels;
+    LabelStore<FunctionCompiler> function_compilers;
+    LabelStore<FunctionCompilerTuple> typed_function_compilers;
+    LabelStore<SysvFunction *> sysv_wrappers;
+    LabelStore<Value *> functor_definitions;
+    LabelStore<std::string> imports;
+    LabelStore<std::string> import_gots;
     
     Label compile(FunctionCompiler fc);
     Label compile(TypedFunctionCompiler tfc, TypeSpec ts);
     
     Label sysv_wrapper(SysvFunction *f);
-    void functor_definition(Value *v);
+    Label functor_definition(Value *v);
     
     Label import(std::string name);
     Label import_got(std::string name);
