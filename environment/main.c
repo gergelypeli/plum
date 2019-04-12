@@ -6,6 +6,7 @@
 #include <math.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -83,6 +84,14 @@ void *memalloc(int64 size) {
 }
 
 
+void *memaligned_alloc(int64 alignment, int64 size) {
+    allocation_count += 1;
+    void *x = aligned_alloc(alignment, size);
+    //fprintf(stderr, " -- aligned_alloc %p %lld\n", x, size);
+    return x;
+}
+
+
 void memfree(void *m) {
     allocation_count -= 1;
     //fprintf(stderr, " -- free %p\n", m);
@@ -93,6 +102,13 @@ void memfree(void *m) {
 void *memrealloc(void *m, int64 size) {
     void *x = realloc(m, size);
     //fprintf(stderr, " -- realloc %p %lld %p\n", m, size, x);
+    return x;
+}
+
+
+int memmprotect(void *m, int64 size, int64 prot) {
+    int x = mprotect(m, size, prot);
+    //fprintf(stderr, " -- mprotect %p %lld %p\n", m, size, x);
     return x;
 }
 
@@ -930,10 +946,6 @@ MaybeInteger reader_get_all(Ref reader_ref) {
 // Entry point
 
 extern void start();
-extern int64 initializer_count;
-extern void (*initializer_pointers[])();
-extern int64 finalizer_count;
-extern void (*finalizer_pointers[])();
 
 int main() {
     // Must be using the C locale during the execution of the whole program,
@@ -942,17 +954,7 @@ int main() {
     setlinebuf(stdout);
     setlinebuf(stderr);
     
-    for (int i = 0; i < initializer_count; i++) {
-        //fprintf(stderr, "Running initializer %d...\n", i);
-        initializer_pointers[i]();
-    }
-
     start();
-
-    for (int i = finalizer_count - 1; i >= 0; i--) {
-        //fprintf(stderr, "Running initializer %d...\n", i);
-        finalizer_pointers[i]();
-    }
 
     if (allocation_count)
         printf("Oops, the allocation count is %d!\n", allocation_count);

@@ -252,8 +252,10 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     die_unmatched_message_label = data_heap_string(decode_utf8("Fatal unmatched value: "));
 
     x64->code_label_import(sysv_memalloc_label, "memalloc");
+    x64->code_label_import(sysv_memaligned_alloc_label, "memaligned_alloc");
     x64->code_label_import(sysv_memfree_label, "memfree");
     x64->code_label_import(sysv_memrealloc_label, "memrealloc");
+    x64->code_label_import(sysv_memmprotect_label, "memmprotect");
     
     x64->code_label_import(sysv_logfunc_label, "logfunc");  // bah...
     x64->code_label_import(sysv_logreffunc_label, "logreffunc");
@@ -298,17 +300,16 @@ Label Runtime::data_heap_string(std::ustring characters) {
 }
 
 void Runtime::call_sysv(Label l) {
-    // This is a lame solution to make sure the stack is 16-bytes aligned just before
-    // calling a SysV function. Of course, it only works if all arguments are passed
-    // and returned in registers. Not using this risks that the called SysV code uses
-    // an SSE instruction with alignment requirement on the stack, and crashes with GP.
+    // This only works if all arguments are passed in register, because we're switching
+    // stacks. The main stack pointer must have been saved aligned, so it won't cause
+    // a problem here.
     // Use the callee-saved RBX to save the old RSP, leave RBP as the frame pointer.
 
     bool old = x64->accounting->pause();
 
     x64->op(PUSHQ, RBX);
     x64->op(MOVQ, RBX, RSP);
-    x64->op(ANDQ, RSP, -16);
+    x64->op(MOVQ, RSP, Address(start_frame_label, 0));
     
     x64->op(CALL, l);
     
@@ -327,7 +328,7 @@ void Runtime::call_sysv_got(Label got_l) {
     
     x64->op(PUSHQ, RBX);
     x64->op(MOVQ, RBX, RSP);
-    x64->op(ANDQ, RSP, -16);
+    x64->op(MOVQ, RSP, Address(start_frame_label, 0));
     
     x64->op(CALL, Address(got_l, 0));
     
