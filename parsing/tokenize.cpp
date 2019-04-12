@@ -1,39 +1,9 @@
 
 // Stage 1
 
-struct Token {
-    std::ustring utext;
-    int file_index;
-    int row;  // one-based
-    int column;  // zero-based
-
-    Token() {
-        //text = "";
-        file_index = -1;
-        row = -1;
-        column = -1;
-    }
-    
-    Token(const std::ustring &ut, int f, int r, int c) {
-        utext = ut;
-        file_index = f;
-        row = r;
-        column = c;
-    }
-};
-
-
 std::ustring INDENT_UTEXT = " indent";
 std::ustring DEDENT_UTEXT = " dedent";
 std::ustring SEPARATE_UTEXT = " separate";
-
-
-std::string get_source_file_name(int index);
-
-std::ostream &operator<<(std::ostream &os, const Token &token) {
-    os << get_source_file_name(token.file_index) << ":" << token.row << ":" << token.column << ":\"" << token.utext << "\"";
-    return os;
-}
 
 
 bool is_paren(char c) {

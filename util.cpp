@@ -393,18 +393,6 @@ std::string encode_utf8(std::ustring text) {
 }
 
 
-std::ostream &operator<<(std::ostream &os, const std::ustring &x) {
-    int charlen = x.size();
-    char bytes[charlen * 3];
-    
-    int64 character_count, byte_count;
-    encode_utf8_buffer(x.data(), charlen, bytes, charlen * 3, &character_count, &byte_count);
-
-    os.write(bytes, byte_count);
-    return os;
-}
-
-
 std::string encode_ascii(std::ustring text) {
     std::string out;
     
