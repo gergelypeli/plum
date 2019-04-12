@@ -353,13 +353,14 @@ public:
             Role *r = ptr_cast<Role>(f->associated);
             TypeMatch tm = ts.match();
             Value *rv = r->matched(this, scope, tm);
-            role_value_be_static(ptr_cast<RoleValue>(rv));
             
             Function *iff = f->implemented_function;
             Value *v = iff->matched(rv, scope, tm);  // Must make sure it matches
             //std::cerr << "XXX " << v << "\n";
             if (!v)
                 throw INTERNAL_ERROR;
+                
+            function_call_be_static(v, r);
 
             return v;
         }
@@ -548,7 +549,6 @@ public:
     std::unique_ptr<Value> pivot;
     Register reg;
     TypeMatch match;
-    bool am_static;
     
     RoleValue(Associable *a, Value *p, TypeMatch &tm)
         :Value(NO_TS) {
@@ -564,17 +564,8 @@ public:
         pivot.reset(p);
         reg = NOREG;
         match = tm;
-        am_static = false;
     }
     
-    virtual void be_static() {
-        am_static = true;
-    }
-    
-    virtual bool is_static() {
-        return am_static;
-    }
-
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred);
             

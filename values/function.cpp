@@ -544,8 +544,7 @@ public:
     std::vector<std::string> arg_names;
     
     bool has_code_arg;
-    bool is_static;
-    Label static_label;
+    Associable *static_role;
     
     FunctionCallValue(Function *f, Value *p, TypeMatch &m)
         :Value(NO_TS) {
@@ -563,12 +562,16 @@ public:
             
         res_total = 0;
         has_code_arg = false;
-        is_static = false;
+        static_role = NULL;
         
         if (pivot_ts.has_meta(module_metatype)) {
             // Module pivots are only symbolic, they are not pushed or popped.
             pivot_ts = {};
         }
+    }
+
+    virtual void be_static(Associable *sr) {
+        static_role = sr;
     }
 
     virtual bool unpack(std::vector<TypeSpec> &tss) {
@@ -625,86 +628,23 @@ public:
 
         return true;
     }
-    /*
-    virtual void call_sysv(X64 *x64, unsigned passed_size) {
-        if (arg_tss.size() > 5) {
-            std::cerr << "Oops, too many arguments to a SysV function!\n";
-            throw INTERNAL_ERROR;
-        }
-        
-        if (res_tss.size() > 1) {
-            std::cerr << "Oops, too many results from a SysV function!\n";
-            throw INTERNAL_ERROR;
-        }
 
-        if (res_total > 0) {
-            std::cerr << "Oops, not a simple result from a SysV function!\n";
-            throw INTERNAL_ERROR;
-        }
-        
-        Register regs[] = { RDI, RSI, RDX, RCX, R8, R9 };
-        SseRegister sses[] = { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
-        unsigned reg_index = 0;
-        unsigned sse_index = 0;
-        
-        // For pushed pivots, ignore the pushed value, only use the pushed alias
-        unsigned stack_offset = passed_size;  // reverse argument order for SysV!
-
-        for (unsigned i = 0; i < pushed_tss.size(); i++) {
-            // Must move raw values so it doesn't count as a copy
-            stack_offset -= pushed_sizes[i];
-            
-            StorageWhere pushed_where = pushed_tss[i].where(AS_VALUE);
-            
-            if (pushed_where == NOWHERE)
-                ;  // happens for singleton pivots
-            else if (pushed_where == SSEREGISTER)
-                x64->op(MOVSD, sses[sse_index++], Address(RSP, stack_offset));
-            else if (pushed_sizes[i] == ADDRESS_SIZE)
-                x64->op(MOVQ, regs[reg_index++], Address(RSP, stack_offset));
-            else
-                x64->op(LEA, regs[reg_index++], Address(RSP, stack_offset));
-        }
-
-        SysvFunction *sysv_function = ptr_cast<SysvFunction>(function);
-        x64->runtime->call_sysv_got(sysv_function->get_got_label(x64));
-
-        //x64->runtime->dump("Returned from SysV.");
-
-        // We return simple values in RAX and XMM0 like SysV.
-        // But exceptions are always in RAX, so it may need a fix.
-        StorageWhere simple_where = (res_tss.size() ? res_tss[0].where(AS_VALUE) : NOWHERE);
-
-        switch (simple_where) {
-        case NOWHERE:
-            if (function->exception_type) {
-                x64->op(MOVQ, RDX, RAX);
-            }
-            break;
-        case REGISTER:
-            if (function->exception_type) {
-                x64->op(XCHGQ, RDX, RAX);
-            }
-            break;
-        case SSEREGISTER:
-            if (function->exception_type) {
-                x64->op(MOVQ, RDX, RAX);
-            }
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-
-        // Raised exception in RDX.
-        if (function->exception_type)
-            x64->op(CMPQ, RDX, NO_EXCEPTION);
-    }
-    */
     virtual void call_static(X64 *x64, unsigned passed_size) {
         if (res_total)
             x64->op(LEA, RAX, Address(RSP, passed_size));
+
+        Label label;
+        
+        if (static_role) {
+            int vi = function->virtual_index;
+            TypeSpec static_ts = static_role->alloc_ts;
+            VirtualEntry *ve = static_ts.get_virtual_table().get(vi);
+            label = ve->get_virtual_entry_label(static_ts.match(), x64);
+        }
+        else
+            label = function->get_label(x64);
             
-        x64->op(CALL, (is_static ? static_label : function->get_label(x64)));
+        x64->op(CALL, label);
     }
 
     virtual void call_virtual(X64 *x64, unsigned passed_size) {
@@ -823,46 +763,6 @@ public:
         }
     }
 
-    virtual void check_static_cast(X64 *x64) {
-        // Figure out if the pivot is in the form of $.foo bar baz
-        // We need the virtual offset of bar baz within the VT of foo.
-        
-        Value *p = pivot.get();
-        bool deep = false;  // TODO: the whole syntax will be changed, temporary hack
-        
-        while (true) {
-            RoleValue *rv = ptr_cast<RoleValue>(p);
-            
-            if (!rv)
-                break;  // non-role, so no static cast used
-                
-            Associable *r = rv->associable;
-            
-            if (rv->is_static()) {
-                if (deep)
-                    throw TYPE_ERROR;
-                
-                // The initial role is a static cast, so we already have the virtual offset
-                // within it.
-                int vi = function->virtual_index;
-                VirtualEntry *ve = r->alloc_ts.get_virtual_table().get(vi);
-                static_label = ve->get_virtual_entry_label(r->alloc_ts.match(), x64);
-                is_static = true;
-                break;
-            }
-            else {
-                // If role selections were collapsed, the role refers a shadow role,
-                // whose virtual offset is the absolute offset computed by summing all
-                // outer role offsets, so we can use it in a single step. The static
-                // role selection is never collapsed, so we're still summing the relative
-                // offsets within it.
-                    
-                deep = true;
-                p = rv->pivot.get();
-            }
-        }
-    }
-
     virtual Storage compile(X64 *x64) {
         //std::cerr << "Compiling call of " << function->name << "...\n";
         bool is_void = (res_tss.size() == 0);
@@ -896,8 +796,6 @@ public:
         if (pivot_ts.size()) {
             push_pivot(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
-            
-            check_static_cast(x64);
         }
         
         for (unsigned i = 0; i < values.size(); i++)
@@ -907,9 +805,7 @@ public:
         for (unsigned &s : pushed_sizes)
             passed_size += s;
 
-        //if (function->prot == SYSV_FUNCTION)
-        //    call_sysv(x64, passed_size);
-        if (function->virtual_index != 0 && !is_static)
+        if (function->virtual_index != 0 && !static_role)
             call_virtual(x64, passed_size);
         else
             call_static(x64, passed_size);

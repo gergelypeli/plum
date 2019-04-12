@@ -11,8 +11,8 @@ void set_typespec(Value *value, TypeSpec ts) {
 }
 
 
-void role_value_be_static(RoleValue *rv) {
-    rv->be_static();
+void function_call_be_static(Value *v, Associable *sr) {
+    ptr_cast<FunctionCallValue>(v)->be_static(sr);
 }
 
 
