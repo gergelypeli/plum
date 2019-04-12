@@ -9,20 +9,29 @@
 #include "arch/asm64.cpp"
 #include "arch/storage.cpp"
 
+#include "util.h"
+
+#include "declarations/all.h"
+#include "values/all.h"
+#include "globals/all.h"
+#include "parsing/all.h"
+
+// Top
+ModuleScope *lookup_module(std::string required_name, Scope *scope);
+ModuleScope *import_module(std::string required_name, Scope *scope);
+
+
 #include "util.cpp"
 
-#include "tokenize.cpp"
-#include "treeize.cpp"
-#include "tupleize.cpp"
-
-#include "all.h"
-#include "structs.cpp"
+#include "parsing/tokenize.cpp"
+#include "parsing/treeize.cpp"
+#include "parsing/tupleize.cpp"
 
 #include "declarations/all.cpp"
 #include "values/all.cpp"
 #include "globals/all.cpp"
 
-#include "typize.cpp"
+#include "parsing/typize.cpp"
 
 
 Root *root;
