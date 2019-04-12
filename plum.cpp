@@ -33,6 +33,7 @@
 #include "values/all.h"
 #include "globals/all.h"
 #include "parsing/all.h"
+ModuleScope *import_module(std::string required_name, Scope *scope);
 
 // Stuff gets done here
 #include "util.cpp"
@@ -41,8 +42,17 @@
 #include "globals/all.cpp"
 #include "parsing/all.cpp"
 
-
 bool matchlog;
+Root *root;
+
+
+ModuleScope *import_module(std::string required_name, Scope *scope) {
+    return root->import_relative(required_name, scope);
+}
+
+std::string get_source_file_display_name(int index) {
+    return root->get_source_file_name(index);
+}
 
 
 int main(int argc, char **argv) {
@@ -82,21 +92,13 @@ int main(int argc, char **argv) {
     }
 
     std::string cwd = get_working_path();  // '/path'
-
-    if (input[0] == '/')
-        local_path = input;
-    else
-        local_path = cwd + "/" + input;  // '/path/to/app'
-        
-    // Used to shorten name of file names for printing
-    project_path = local_path.substr(0, local_path.rfind('/'));  // '/path/to'
-    
-    global_path = project_path;  // TODO: path to the global modules
+    std::string local_path = (input[0] == '/' ? input : cwd + "/" + input);  // '/path/to/app'
+    std::string global_path = local_path.substr(0, local_path.rfind('/'));  // '/path/to'
 
     RootScope *root_scope = init_builtins();
-    root = new Root(root_scope);
+    root = new Root(root_scope, local_path, global_path);
     
-    import("");
+    root->import_absolute("");
     root->order_modules("");
     
     // Allocate builtins and modules
@@ -107,7 +109,7 @@ int main(int argc, char **argv) {
 
     root->compile_modules(x64);
     
-    x64->finish(output, source_file_names);
+    x64->finish(output, root->source_file_names);
     
     std::cerr << "Done.\n";
     return 0;
