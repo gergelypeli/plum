@@ -537,6 +537,7 @@ public:
     std::vector<TypeSpec> pushed_tss;
     std::vector<Storage> pushed_storages;
     std::vector<unsigned> pushed_sizes;
+    std::vector<bool> pushed_rbpfixes;
     
     TypeSpec pivot_ts;
     std::vector<TypeSpec> arg_tss;
@@ -695,11 +696,27 @@ public:
         if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
             t.where = BSTACK;
         
-        arg_ts.store(s, t, x64);
+        bool rbpfix = false;
+        
+        if (t.where == ALISTACK && s.where == MEMORY && (s.address.base == RBP || s.address.base == RSP)) {
+            // Pushing a stack relative address onto the stack is becoming illegal.
+            // Unless this is done in the last step before invoking a function, when
+            // all subsequent arguments were evaluated (potentially moving the stack).
+            // So only store the RBP-relative offset onto the stack, and remember to add
+            // the current RBP value to them just before invoking the function.
+            
+            x64->op(LEA, R10, s.address);
+            x64->op(SUBQ, R10, RBP);
+            x64->op(PUSHQ, R10);
+            rbpfix = true;
+        }
+        else
+            arg_ts.store(s, t, x64);
         
         pushed_tss.push_back(arg_ts);
         pushed_storages.push_back(t);  // For unwinding
         pushed_sizes.push_back(arg_ts.measure_where(where));
+        pushed_rbpfixes.push_back(rbpfix);
     }
     
     virtual void push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
@@ -720,10 +737,12 @@ public:
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(Storage(STACK));
             pushed_sizes.push_back(ADDRESS_SIZE);
+            pushed_rbpfixes.push_back(false);
         }
         else {
             StorageWhere where = stacked(arg_ts.where(AS_ARGUMENT));
             Storage t(where);
+            bool rbpfix = false;
 
             if (arg_value) {
                 // Specified argument
@@ -733,7 +752,15 @@ public:
                 if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
                     t.where = BSTACK;
 
-                arg_ts.store(s, t, x64);
+                // See above
+                if (t.where == ALISTACK && s.where == MEMORY && (s.address.base == RBP || s.address.base == RSP)) {
+                    x64->op(LEA, R10, s.address);
+                    x64->op(SUBQ, R10, RBP);
+                    x64->op(PUSHQ, R10);
+                    rbpfix = true;
+                }
+                else
+                    arg_ts.store(s, t, x64);
             }
             else {
                 // Optional argument initialized to default value
@@ -743,6 +770,7 @@ public:
             pushed_tss.push_back(arg_ts);
             pushed_storages.push_back(t);  // For unwinding
             pushed_sizes.push_back(arg_ts.measure_where(where));
+            pushed_rbpfixes.push_back(rbpfix);
         }
     }
 
@@ -804,6 +832,17 @@ public:
         unsigned passed_size = 0;
         for (unsigned &s : pushed_sizes)
             passed_size += s;
+
+        int rbpfix_offset = passed_size;
+        
+        for (unsigned i = 0; i < pushed_rbpfixes.size(); i++) {
+            rbpfix_offset -= pushed_sizes[i];
+            
+            if (pushed_rbpfixes[i]) {
+                std::cerr << "XXX rbpfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
+                x64->op(ADDQ, Address(RSP, rbpfix_offset), RBP);
+            }
+        }
 
         if (function->virtual_index != 0 && !static_role)
             call_virtual(x64, passed_size);

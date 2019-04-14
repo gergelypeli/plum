@@ -92,6 +92,7 @@ public:
             throw INTERNAL_ERROR;
 
         if (ls.regs() & rclob) {
+            // a clobberable ls must be a dynamic address, may be stored as ALISTACK
             ls = left->ts.store(ls, Storage(ALISTACK), x64);
         }
         
@@ -102,6 +103,7 @@ public:
         bool need_alipop = false;
         
         if (ls.where == ALISTACK) {
+            // Surely a dynamic address
             Register r = (clob & ~rs.regs()).get_any();
             
             if (rs.where == STACK) {
@@ -402,14 +404,14 @@ public:
                     // We got a dynamic address clobbered by the right side
                     
                     if (auxls.where == MEMORY) {
-                        // Save to another register  FIXME: really need a mstore method!
-                        // Then we could just initialize auxls to ALISTACK,
-                        // and spill without thinking.
+                        // It's possible to store the address into an unclobbered register.
+                        // There's no MEMORY_MEMORY store that just converts addresses,
+                        // so do a LEA here directly.
                         x64->op(LEA, auxls.address.base, ls.address);
                         ls = auxls;
                     }
                     else {
-                        // Spill address to stack
+                        // Spill dynamic address to stack
                         ls = left->ts.store(ls, Storage(ALISTACK), x64);
                     }
                 }
