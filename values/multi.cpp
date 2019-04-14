@@ -216,6 +216,8 @@ public:
     virtual Storage compile(X64 *x64) {
         left->compile(x64);
 
+        // A MultiLvalue only stores dynamic addresses as ALIAS on the stack,
+        // static addresses are kept as MEMORY, so we're safe.
         std::vector<Storage> left_storages = left->get_storages();
         std::vector<unsigned> left_sizes;
         
@@ -235,7 +237,7 @@ public:
         int right_total = 0;
         
         for (auto &right_ts : right_tss) {
-            StorageWhere where = stacked(right_ts.where(AS_ARGUMENT));  // always STACK?
+            StorageWhere where = stacked(right_ts.where(AS_ARGUMENT));  // TODO: always STACK?
             right_storages.push_back(Storage(where));
             int size = right_ts.measure_where(where);
             right_sizes.push_back(size);
@@ -248,9 +250,6 @@ public:
         for (int i = right_tss.size() - 1; i >= 0; i--) {
             Storage s, t;
 
-            // Order of these two matters, because we must first load an RSP relative address,
-            // then the right may pop an ALISTACK, which moves RSP.
-            
             switch (i < left_count ? left_storages[i].where : NOWHERE) {
             case NOWHERE:
                 t = Storage();
@@ -269,10 +268,6 @@ public:
             switch (right_storages[i].where) {
             case STACK:
                 s = right_storages[i];
-                break;
-            case ALISTACK:  // TODO: is this still possible?
-                x64->op(POPQ, RCX);
-                s = Storage(MEMORY, Address(RCX, 0));
                 break;
             default:
                 throw INTERNAL_ERROR;
@@ -298,7 +293,8 @@ public:
         if (offset != left_total)
             throw INTERNAL_ERROR;
             
-        // Drop potential ALISTACK-s
+        // Drop potential ALIAS-es from the MultiLvalue.
+        // The type itself does not know the number of such items, so we had to compute it.
         x64->op(ADDQ, RSP, left_total);
             
         return Storage();
@@ -355,7 +351,7 @@ public:
         for (int i = tss.size() - 1; i >= 0; i--) {
             TypeSpec ts = tss[i];
             StorageWhere where = ts.where(AS_ARGUMENT);
-            where = (where == MEMORY ? STACK : where == ALIAS ? ALISTACK : throw INTERNAL_ERROR);
+            where = (where == MEMORY ? STACK : where == NOWHERE ? NOWHERE : throw INTERNAL_ERROR);
             Storage s(where);
             
             if (i > 0) {
