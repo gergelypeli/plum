@@ -1,4 +1,30 @@
 
+void load_ref(Register reg, Register tmp, Storage ref_storage, X64 *x64) {
+    if (ref_storage.where == MEMORY) {
+        x64->op(MOVQ, reg, ref_storage.address);
+    }
+    else if (ref_storage.where == ALIAS) {
+        x64->op(MOVQ, tmp, ref_storage.address);
+        x64->op(MOVQ, reg, Address(tmp, 0));
+    }
+    else
+        throw INTERNAL_ERROR;
+}
+
+
+void store_ref(Register reg, Register tmp, Storage ref_storage, X64 *x64) {
+    if (ref_storage.where == MEMORY) {
+        x64->op(MOVQ, ref_storage.address, reg);
+    }
+    else if (ref_storage.where == ALIAS) {
+        x64->op(MOVQ, tmp, ref_storage.address);
+        x64->op(MOVQ, Address(tmp, 0), reg);
+    }
+    else
+        throw INTERNAL_ERROR;
+}
+
+
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
     // FIXME: this won't work for ptr
     TypeSpec x = ts.rvalue();
@@ -83,39 +109,36 @@ void container_preappend(int reservation_offset, int length_offset, Label grow_l
 }
 */
 
-void container_preappend2(int reservation_offset, int length_offset, Label grow_label, Address alias_addr, X64 *x64) {
+void container_preappend2(int reservation_offset, int length_offset, Label grow_label, Storage ref_storage, X64 *x64) {
     // R10 - new addition. Returns the Ref in RAX.
     Label ok;
-    
-    x64->op(MOVQ, R11, alias_addr);  // Alias
-    x64->op(MOVQ, RAX, Address(R11, 0));  // Ref
+
+    load_ref(RAX, R11, ref_storage, x64);
+
     x64->op(ADDQ, R10, Address(RAX, length_offset));
     x64->op(CMPQ, R10, Address(RAX, reservation_offset));
     x64->op(JBE, ok);
 
     x64->op(CALL, grow_label);  // clobbers all
-    
-    x64->op(MOVQ, R11, alias_addr);  // Alias
-    x64->op(MOVQ, Address(R11, 0), RAX);  // Ref
+
+    store_ref(RAX, R11, ref_storage, x64);
     
     x64->code_label(ok);
 }
 
 
-void container_cow(Label clone_label, Address alias_addr, X64 *x64) {
+void container_cow(Label clone_label, Storage ref_storage, X64 *x64) {
     // No runtime arguments. Returns the Ref in RAX (not refcounted)
-    // NOTE: for NosyContainer-s we must load their address into RDX for NosyValue cloning!
     Label end;
     
-    x64->op(MOVQ, RDX, alias_addr);
-    x64->op(MOVQ, RAX, Address(RDX, 0));
+    load_ref(RAX, R11, ref_storage, x64);
+
     x64->runtime->oneref(RAX);
     x64->op(JE, end);
     
     x64->op(CALL, clone_label);  // clobbers all, replaces refcounted RAX
-    
-    x64->op(MOVQ, RDX, alias_addr);
-    x64->op(MOVQ, Address(RDX, 0), RAX);
+
+    store_ref(RAX, R11, ref_storage, x64);
     
     x64->code_label(end);
 }
@@ -458,7 +481,7 @@ public:
 };
 
 
-class ContainerPushValue: public GenericValue {
+class ContainerPushValue: public GenericValue, public Aliaser {
 public:
     TypeSpec elem_ts;
     int reservation_offset;
@@ -476,6 +499,12 @@ public:
         compile_grow = cg;
     }
 
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        check_alias(scope);
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+    
     virtual Regs precompile(Regs preferred) {
         left->precompile(preferred);
         right->precompile(preferred);
@@ -487,16 +516,18 @@ public:
 
     virtual Storage compile(X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
-        int stack_size = elem_ts.measure_stack();
+        //int stack_size = elem_ts.measure_stack();
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label grow_label = x64->once->compile(compile_grow, elem_ts);
-    
-        compile_and_store_both(x64, Storage(ALISTACK), Storage(STACK));
 
-        container_cow(clone_label, Address(RSP, stack_size), x64);
+        ls = left->compile_and_alias(x64, get_alias());
+        right->compile_and_store(x64, Storage(STACK));
+        //compile_and_store_both(x64, Storage(ALISTACK), Storage(STACK));
+
+        container_cow(clone_label, ls, x64);
 
         x64->op(MOVQ, R10, 1);
-        container_preappend2(reservation_offset, length_offset, grow_label, Address(RSP, stack_size), x64);
+        container_preappend2(reservation_offset, length_offset, grow_label, ls, x64);
         // RAX - Ref
         
         x64->op(MOVQ, R10, Address(RAX, length_offset));
@@ -510,12 +541,12 @@ public:
         
         elem_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, elems_offset)), x64);
         
-        return Storage(ALISTACK);
+        return ls;
     }
 };
 
 
-class ContainerPopValue: public ContainerEmptiableValue {
+class ContainerPopValue: public ContainerEmptiableValue, public Aliaser {
 public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;
@@ -532,6 +563,12 @@ public:
         compile_clone = cc;
     }
 
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        check_alias(scope);
+        
+        return GenericValue::check(args, kwargs, scope);
+    }
+
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred);
         return clob | RAX | RCX;
@@ -545,17 +582,17 @@ public:
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label ok;
         
-        left->compile_and_store(x64, Storage(ALISTACK));
+        ls = left->compile_and_alias(x64, get_alias());
 
-        container_cow(clone_label, Address(RSP, 0), x64);  // Leaves Ref in RAX
+        container_cow(clone_label, ls, x64);  // Leaves Ref in RAX
         
-        // Get rid of pivot on the stack so we can just push the result
-        left->ts.store(Storage(ALISTACK), Storage(), x64);
+        // Get rid of pivot (technically, it must be a nop now)
+        left->ts.store(ls, Storage(), x64);
         
         x64->op(CMPQ, Address(RAX, length_offset), 0);
         x64->op(JNE, ok);
 
-        // popped pivot ALISTACK
+        // popped pivot
         raise("CONTAINER_EMPTY", x64);
         
         x64->code_label(ok);

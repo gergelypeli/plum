@@ -51,6 +51,10 @@ public:
         ts.store(s, t, x64);
     }
 
+    virtual Storage compile_and_alias(X64 *x64, TemporaryAlias *ta) {
+        return ta->process(compile(x64), x64);
+    }
+
     virtual Declaration *declare(std::string name, Scope *scope) {
         std::cerr << "Can't declare " << name << " with neither a type nor a metatype!\n";
         return NULL;
@@ -135,6 +139,26 @@ public:
         
         x64->op(MOVQ, RDX, raised_type->get_keyword_index(keyword));
         x64->unwind->initiate(raising_dummy, x64);
+    }
+};
+
+
+class Aliaser {
+public:
+    TemporaryAlias *temporary_alias;
+    
+    Aliaser() {
+        temporary_alias = NULL;
+    }
+    
+    bool check_alias(Scope *scope) {
+        temporary_alias = new TemporaryAlias;
+        scope->add(temporary_alias);
+        return true;
+    }
+
+    TemporaryAlias *get_alias() {
+        return temporary_alias;
     }
 };
 

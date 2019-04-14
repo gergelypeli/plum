@@ -470,9 +470,69 @@ public:
     }
 };
 
+
 class PartialInitializable {
 public:
     virtual std::vector<std::string> get_partial_initializable_names() {
         throw INTERNAL_ERROR;
+    }
+};
+
+
+class TemporaryAlias: public Declaration {
+public:
+    Allocation offset;
+
+    TemporaryAlias()
+        :Declaration() {
+    }
+    
+    virtual void allocate() {
+        offset = outer_scope->reserve(ALIAS_SIZE);
+    }
+    
+    virtual Storage get_local_storage() {
+        Storage ls = outer_scope->get_local_storage();
+        
+        if (ls.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        return Storage(ALIAS, ls.address + offset.concretize());
+    }
+    
+    virtual Storage process(Storage s, X64 *x64) {
+        Storage ts = get_local_storage();
+        
+        if (s.where == MEMORY) {
+            if (s.address.base == RBP) {
+                if (s.address.index != NOREG)
+                    throw INTERNAL_ERROR;
+                
+                // Stack-local addresses are handled in compile time
+                return s;
+            }
+            else if (s.address.base == RSP) {
+                // RecordPreinitializer and FunctionCall can handle this, but they can
+                // store RBP-relative values and fix later, while we can't.
+                throw INTERNAL_ERROR;
+            }
+            else {
+                // Dynamic addresses will be stored, and used as an alias
+                x64->op(LEA, R10, s.address);
+                x64->op(MOVQ, ts.address, R10);
+                
+                return ts;
+            }
+        }
+        else if (s.where == ALIAS) {
+            if (s.address.base == RBP && s.address.index == NOREG) {
+                // Stack-local addresses are handled in compile time
+                return s;
+            }
+            else
+                throw INTERNAL_ERROR;
+        }
+        else
+            throw INTERNAL_ERROR;
     }
 };

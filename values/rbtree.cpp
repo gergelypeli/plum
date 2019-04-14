@@ -1,5 +1,4 @@
 
-
 int rbtree_elem_size(TypeSpec elem_ts) {
     return elem_ts.measure_stack() + RBNODE_HEADER_SIZE;
 }
@@ -53,12 +52,12 @@ void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void rbtree_preappend2(TypeSpec elem_ts, Address alias_addr, X64 *x64) {
+void rbtree_preappend2(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     // R10 - new addition. Returns the Ref in RAX.
     Label ok;
+
+    load_ref(RAX, R11, ref_storage, x64);
     
-    x64->op(MOVQ, R11, alias_addr);  // Alias
-    x64->op(MOVQ, RAX, Address(R11, 0));  // Ref
     x64->op(ADDQ, R10, Address(RAX, RBTREE_LENGTH_OFFSET));
     x64->op(CMPQ, R10, Address(RAX, RBTREE_RESERVATION_OFFSET));
     x64->op(JBE, ok);
@@ -66,15 +65,14 @@ void rbtree_preappend2(TypeSpec elem_ts, Address alias_addr, X64 *x64) {
     Label grow_label = x64->once->compile(compile_rbtree_grow, elem_ts);
     x64->op(CALL, grow_label);  // clobbers all
     
-    x64->op(MOVQ, R11, alias_addr);  // Alias
-    x64->op(MOVQ, Address(R11, 0), RAX);  // Ref
+    store_ref(RAX, R11, ref_storage, x64);
     
     x64->code_label(ok);
 }
 
 
 void compile_rbtree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - Rbtree Ref, RDX - optional NosyContainer address for NosyValue cloning
+    // RAX - Rbtree Ref
     // Return a cloned Ref
     Label end, vacancy_check, vacancy_loop, elem_check, elem_loop;
     Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
@@ -122,8 +120,6 @@ void compile_rbtree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(JMP, elem_check);
     
     x64->code_label(elem_loop);
-    // NOTE: we may contain NosyValue-s, which are nontrivial to clone. They need support
-    // from us to load the NosyContainer address into RDX.
     elem_ts.create(Storage(MEMORY, Address(RBX, RCX, RBNODE_VALUE_OFFSET)), Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), x64);
 
     x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_LEFT_OFFSET));
@@ -284,7 +280,7 @@ public:
 };
 
 
-class RbtreeAddValue: public Value {
+class RbtreeAddValue: public Value, public Aliaser {
 public:
     TypeSpec elem_ts, elem_arg_ts;
     std::unique_ptr<Value> pivot, elem;
@@ -298,6 +294,8 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        check_alias(scope);
+        
         return check_arguments(args, kwargs, {
             { "elem", &elem_arg_ts, scope, &elem }
         });
@@ -310,17 +308,18 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
+        Storage ps = pivot->compile_and_alias(x64, get_alias());
+        //pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
         elem->compile_and_store(x64, Storage(STACK));
         
         int elem_arg_size = elem_arg_ts.measure_stack();
         Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
 
-        container_cow(clone_label, Address(RSP, elem_arg_size), x64);
+        container_cow(clone_label, ps, x64);
 
         x64->op(MOVQ, R10, 1);  // Growth
-        rbtree_preappend2(elem_ts, Address(RSP, elem_arg_size), x64);
+        rbtree_preappend2(elem_ts, ps, x64);
         x64->op(MOVQ, SELFX, RAX);  // TODO: not nice, maybe SELFX should be RAX?
         
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
@@ -335,15 +334,15 @@ public:
         elem_ts.create(Storage(STACK), Storage(MEMORY, elem_addr), x64);
 
         //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
-        x64->op(POPQ, R11);
+        //x64->op(POPQ, R11);
 
-        // Leaves R11/SELFX/KEYX point to the new elem, for subclasses
-        return Storage();
+        // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
+        return ps;
     }
 };
 
 
-class RbtreeAddItemValue: public Value {
+class RbtreeAddItemValue: public Value, public Aliaser {
 public:
     TypeSpec key_ts, value_ts, key_arg_ts, value_arg_ts;
     TypeSpec elem_ts;
@@ -362,6 +361,8 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        check_alias(scope);
+        
         return check_arguments(args, kwargs, {
             { "key", &key_arg_ts, scope, &key },
             { "value", &value_arg_ts, scope, &value }
@@ -375,7 +376,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
+        Storage ps = pivot->compile_and_alias(x64, get_alias());
         key->compile_and_store(x64, Storage(STACK));
         value->compile_and_store(x64, Storage(STACK));
 
@@ -385,10 +386,10 @@ public:
         Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
 
-        container_cow(clone_label, Address(RSP, key_arg_size + value_arg_size), x64);
+        container_cow(clone_label, ps, x64);
 
         x64->op(MOVQ, R10, 1);  // Growth
-        rbtree_preappend2(elem_ts, Address(RSP, key_arg_size + value_arg_size), x64);
+        rbtree_preappend2(elem_ts, ps, x64);
         x64->op(MOVQ, SELFX, RAX);  // TODO: not nice, maybe SELFX should be RAX?
 
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
@@ -409,15 +410,15 @@ public:
         key_ts.create(Storage(STACK), Storage(MEMORY, key_addr), x64);
 
         //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
-        x64->op(POPQ, R11);
+        //x64->op(POPQ, R11);
         
-        // Leaves R11/SELFX/KEYX point to the new elem, for subclasses
-        return Storage();
+        // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
+        return ps;
     }
 };
 
 
-class RbtreeRemoveValue: public Value {
+class RbtreeRemoveValue: public Value, public Aliaser {
 public:
     TypeSpec elem_ts, key_arg_ts;
     std::unique_ptr<Value> pivot, key;
@@ -431,6 +432,8 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        check_alias(scope);
+        
         return check_arguments(args, kwargs, {
             { "key", &key_arg_ts, scope, &key }
         });
@@ -442,14 +445,14 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        pivot->compile_and_store(x64, Storage(ALISTACK));
+        Storage ps = pivot->compile_and_alias(x64, get_alias());
         key->compile_and_store(x64, Storage(STACK));
 
-        int key_arg_size = key_arg_ts.measure_stack();
+        //int key_arg_size = key_arg_ts.measure_stack();
         Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
 
-        container_cow(clone_label, Address(RSP, key_arg_size), x64);  // Leaves Ref in RAX
+        container_cow(clone_label, ps, x64);  // Leaves Ref in RAX
 
         x64->op(MOVQ, SELFX, RAX);
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
@@ -461,10 +464,10 @@ public:
         key_arg_ts.store(Storage(STACK), Storage(), x64);
 
         //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
-        x64->op(POPQ, R11);
+        //x64->op(POPQ, R11);
         
-        // Leaves R11/SELFX/KEYX point to the new elem, for subclasses
-        return Storage();
+        // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
+        return ps;
     }
 };
 

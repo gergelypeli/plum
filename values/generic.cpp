@@ -9,19 +9,19 @@ public:
         :Value(rt) {
         arg_ts = at;
         left.reset(l);
-    }
 
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        std::cerr << "Generic check.\n";
-        ArgInfos x;
-        
         if (arg_ts == VOID_TS) {
             std::cerr << "Void used as generic argument type, probably should be NO_TS!\n";
             throw INTERNAL_ERROR;
         }
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        //std::cerr << "Generic check.\n";
+        ArgInfos x;
         
         if (arg_ts != NO_TS) {
-            std::cerr << "Generic argument " << arg_ts << ".\n";
+            //std::cerr << "Generic argument " << arg_ts << ".\n";
             x.push_back({ "arg", &arg_ts, scope, &right });
         }
             

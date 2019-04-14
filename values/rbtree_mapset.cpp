@@ -251,14 +251,22 @@ void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void nosy_postadd(TypeSpec elem_ts, X64 *x64) {
+void nosy_postadd(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     // Add an FCB to the newly added rbtree elem, and decreases the reference count.
-    // R11 - alias of the Rbtree, aka the nosycontainer address
+    // ref_storage - the storage of the rbtree ref
     // SELFX/KEYX - points to the newly added elem
     // Clobbers all registers.
     Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
     TypeSpec heap_ts = nosyvalue_heap_ts(elem_ts);
     int noffset = nosyvalue_offset(elem_ts);
+    
+    // This is the storage of the rbtree ref as the operation's pivot value returned.
+    // As it was an Lvalue pivot, it is either MEMORY[RBP+x] or ALIAS[RBP+x].
+    // The rbtree ref of a nosy structure is on the heap, so it must be the second one.
+    if (ref_storage.where != ALIAS)
+        throw INTERNAL_ERROR;
+        
+    x64->op(MOVQ, R11, ref_storage.address);
     
     x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
     x64->op(LEA, R10, Address(callback_label, 0));
@@ -274,13 +282,19 @@ void nosy_postadd(TypeSpec elem_ts, X64 *x64) {
 }
 
 
-void nosy_postremove(TypeSpec elem_ts, X64 *x64) {
+void nosy_postremove(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     // Remove an FCB to the newly removed rbtree elem.
-    // R11 - alias of the Rbtree, aka the nosycontainer address
+    // ref_storage - the storage of the rbtree ref
     // SELFX/KEYX - points to the just removed elem
     // Clobbers all registers.
     Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
     int noffset = nosyvalue_offset(elem_ts);
+
+    // See above
+    if (ref_storage.where != ALIAS)
+        throw INTERNAL_ERROR;
+        
+    x64->op(MOVQ, R11, ref_storage.address);
     
     x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
     x64->op(LEA, R10, Address(callback_label, 0));
@@ -335,12 +349,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Storage s = RbtreeAddItemValue::compile(x64);
+        Storage ps = RbtreeAddItemValue::compile(x64);
         
-        // Using the R11+SELFX+KEYX
-        nosy_postadd(elem_ts, x64);  // clobbers all
+        // Using the ps+SELFX+KEYX
+        nosy_postadd(elem_ts, ps, x64);  // clobbers all
         
-        return s;
+        return ps;
     }
 };
 
@@ -356,12 +370,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Storage s = RbtreeRemoveValue::compile(x64);
+        Storage ps = RbtreeRemoveValue::compile(x64);
         
-        // Using the R11+SELFX+KEYX
-        nosy_postremove(elem_ts, x64);  // clobbers all
+        // Using the ps+SELFX+KEYX
+        nosy_postremove(elem_ts, ps, x64);  // clobbers all
         
-        return s;
+        return ps;
     }
 };
 
@@ -414,12 +428,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Storage s = RbtreeAddItemValue::compile(x64);
+        Storage ps = RbtreeAddItemValue::compile(x64);
+
+        // Using the ps+SELFX+KEYX
+        nosy_postadd(elem_ts, ps, x64);  // clobbers all
         
-        // Using the R11+SELFX+KEYX
-        nosy_postadd(elem_ts, x64);  // clobbers all
-        
-        return s;
+        return ps;
     }
 };
 
@@ -435,12 +449,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Storage s = RbtreeRemoveValue::compile(x64);
+        Storage ps = RbtreeRemoveValue::compile(x64);
         
-        // Using the R11+SELFX+KEYX
-        nosy_postremove(elem_ts, x64);  // clobbers all
+        // Using the ps+SELFX+KEYX
+        nosy_postremove(elem_ts, ps, x64);  // clobbers all
         
-        return s;
+        return ps;
     }
 };
 
@@ -492,12 +506,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Storage s = RbtreeAddValue::compile(x64);
+        Storage ps = RbtreeAddValue::compile(x64);
         
-        // Using the R11+SELFX+KEYX
-        nosy_postadd(elem_ts, x64);  // clobbers all
+        // Using the ps+SELFX+KEYX
+        nosy_postadd(elem_ts, ps, x64);  // clobbers all
         
-        return s;
+        return ps;
     }
 };
 
@@ -513,12 +527,12 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        Storage s = RbtreeRemoveValue::compile(x64);
+        Storage ps = RbtreeRemoveValue::compile(x64);
         
-        // Using the R11+SELFX+KEYX
-        nosy_postremove(elem_ts, x64);  // clobbers all
+        // Using the ps+SELFX+KEYX
+        nosy_postremove(elem_ts, ps, x64);  // clobbers all
         
-        return s;
+        return ps;
     }
 };
 

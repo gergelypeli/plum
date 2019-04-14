@@ -94,8 +94,8 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x);
 
 
 // Streamification
-void stream_preappend2(Address alias_addr, X64 *x64);
-void streamify_ascii(std::string s, Address alias_addr, X64 *x64);
+void stream_preappend2(Storage ref_storage, X64 *x64);
+void streamify_ascii(std::string s, Storage ref_storage, X64 *x64);
 
 // Nosy stuff
 void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64);

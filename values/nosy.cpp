@@ -186,7 +186,7 @@ public:
 };
 
 
-class NosytreeCowMemberValue: public Value {
+class NosytreeCowMemberValue: public Value, public Aliaser {
 public:
     TypeSpec heap_ts;
     std::unique_ptr<Value> pivot;
@@ -201,6 +201,12 @@ public:
         scope->add(unborrow);
     }
 
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        check_alias(scope);
+        
+        return Value::check(args, kwargs, scope);
+    }
+
     virtual Regs precompile(Regs preferred) {
         return pivot->precompile(preferred) | Regs::all();
     }
@@ -209,11 +215,11 @@ public:
         TypeSpec elem_ts = ts.unprefix(ref_type).unprefix(rbtree_type);
         Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
 
-        pivot->compile_and_store(x64, Storage(ALISTACK));
+        Storage ps = pivot->compile_and_alias(x64, get_alias());
 
-        container_cow(clone_label, Address(RSP, 0), x64);  // clobbers all, returns RAX
+        container_cow(clone_label, ps, x64);  // clobbers all, returns RAX
 
-        x64->op(ADDQ, RSP, ALIAS_SIZE);
+        //x64->op(ADDQ, RSP, ALIAS_SIZE);
         
         heap_ts.incref(RAX, x64);
         x64->op(MOVQ, unborrow->get_address(), RAX);

@@ -1,19 +1,19 @@
 
-void stream_preappend2(Address alias_addr, X64 *x64) {
+void stream_preappend2(Storage ref_storage, X64 *x64) {
     Label grow_label = x64->once->compile(compile_array_grow, CHARACTER_TS);
 
-    container_preappend2(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, grow_label, alias_addr, x64);
+    container_preappend2(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, grow_label, ref_storage, x64);
 }
 
 
-void streamify_ascii(std::string s, Address alias_addr, X64 *x64) {
-    // stack - stream alias, s - ASCII string constant
+void streamify_ascii(std::string s, Storage ref_storage, X64 *x64) {
+    // stack - stream alias (FIXME: ?), s - ASCII string constant
     
     unsigned n = s.size();
     
     x64->op(MOVQ, R10, n);
 
-    stream_preappend2(alias_addr, x64);
+    stream_preappend2(ref_storage, x64);
     
     x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
     Address tail_address = Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET);
