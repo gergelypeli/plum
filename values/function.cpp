@@ -537,7 +537,7 @@ public:
     std::vector<TypeSpec> pushed_tss;
     std::vector<Storage> pushed_storages;
     std::vector<unsigned> pushed_sizes;
-    std::vector<bool> pushed_rbpfixes;
+    std::vector<Storage> pushed_stackfixes;
     
     TypeSpec pivot_ts;
     std::vector<TypeSpec> arg_tss;
@@ -682,44 +682,11 @@ public:
         return Regs::all();  // assume everything is clobbered
     }
 
-    virtual void push_pivot(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
-        Storage s = arg_value->compile(x64);
-        Storage t;
-        StorageWhere where = arg_ts.where(AS_ARGUMENT);
-        
-        if (where != NOWHERE) {  // happens for singleton pivots
-            where = stacked(where);
-            t = Storage(where);
-        }
-
-        // Borrow pivot reference, if possible
-        if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
-            t.where = BSTACK;
-        
-        bool rbpfix = false;
-        
-        if (t.where == ALISTACK && s.where == MEMORY && (s.address.base == RBP || s.address.base == RSP)) {
-            // Pushing a stack relative address onto the stack is becoming illegal.
-            // Unless this is done in the last step before invoking a function, when
-            // all subsequent arguments were evaluated (potentially moving the stack).
-            // So only store the RBP-relative offset onto the stack, and remember to add
-            // the current RBP value to them just before invoking the function.
-            
-            x64->op(LEA, R10, s.address);
-            x64->op(SUBQ, R10, RBP);
-            x64->op(PUSHQ, R10);
-            rbpfix = true;
-        }
-        else
-            arg_ts.store(s, t, x64);
-        
-        pushed_tss.push_back(arg_ts);
-        pushed_storages.push_back(t);  // For unwinding
-        pushed_sizes.push_back(arg_ts.measure_where(where));
-        pushed_rbpfixes.push_back(rbpfix);
-    }
-    
     virtual void push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+        Storage t;
+        unsigned size;
+        Storage stackfix;
+        
         if (arg_ts[0] == code_type) {
             CodeScopeValue *csv = ptr_cast<CodeScopeValue>(arg_value);
             if (!csv)
@@ -734,15 +701,18 @@ public:
             x64->op(LEA, R10, Address(begin, 0));
             x64->op(PUSHQ, R10);
             
-            pushed_tss.push_back(arg_ts);
-            pushed_storages.push_back(Storage(STACK));
-            pushed_sizes.push_back(ADDRESS_SIZE);
-            pushed_rbpfixes.push_back(false);
+            t = Storage(STACK);
+            size = ADDRESS_SIZE;
         }
         else {
-            StorageWhere where = stacked(arg_ts.where(AS_ARGUMENT));
-            Storage t(where);
-            bool rbpfix = false;
+            StorageWhere where = arg_ts.where(AS_ARGUMENT);
+        
+            if (where != NOWHERE) {  // happens for singleton pivots
+                where = stacked(where);
+                t = Storage(where);
+            }
+
+            size = arg_ts.measure_where(where);
 
             if (arg_value) {
                 // Specified argument
@@ -752,12 +722,31 @@ public:
                 if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
                     t.where = BSTACK;
 
-                // See above
-                if (t.where == ALISTACK && s.where == MEMORY && (s.address.base == RBP || s.address.base == RSP)) {
-                    x64->op(LEA, R10, s.address);
-                    x64->op(SUBQ, R10, RBP);
-                    x64->op(PUSHQ, R10);
-                    rbpfix = true;
+                // Pushing a stack relative address onto the stack is becoming illegal.
+                // Unless this is done in the last step before invoking a function, when
+                // all subsequent arguments were evaluated (potentially moving the stack).
+                // So only store the RBP-relative offset onto the stack, and remember to add
+                // the current RBP value to them just before invoking the function.
+                if (t.where == ALISTACK) {
+                    if (s.where == MEMORY && s.address.base == RBP) {
+                        // Will add RBP
+                        x64->op(PUSHQ, s.address.offset);
+                        stackfix = s;
+                    }
+                    else if (s.where == MEMORY && s.address.base == RSP) {
+                        // Will add RBP
+                        x64->op(LEA, R10, s.address);
+                        x64->op(SUBQ, R10, RBP);
+                        x64->op(PUSHQ, R10);
+                        stackfix = s;
+                    }
+                    else if (s.where == ALIAS) {
+                        // Will copy ALIAS
+                        x64->op(PUSHQ, 0);
+                        stackfix = s;
+                    }
+                    else
+                        arg_ts.store(s, t, x64);
                 }
                 else
                     arg_ts.store(s, t, x64);
@@ -766,12 +755,12 @@ public:
                 // Optional argument initialized to default value
                 arg_ts.store(Storage(), t, x64);
             }
-
-            pushed_tss.push_back(arg_ts);
-            pushed_storages.push_back(t);  // For unwinding
-            pushed_sizes.push_back(arg_ts.measure_where(where));
-            pushed_rbpfixes.push_back(rbpfix);
         }
+
+        pushed_tss.push_back(arg_ts);
+        pushed_storages.push_back(t);  // For unwinding
+        pushed_sizes.push_back(size);
+        pushed_stackfixes.push_back(stackfix);
     }
 
     virtual void pop_arg(X64 *x64) {
@@ -822,7 +811,7 @@ public:
         x64->unwind->push(this);
         
         if (pivot_ts.size()) {
-            push_pivot(pivot_ts, pivot.get(), x64);
+            push_arg(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
         
@@ -833,14 +822,20 @@ public:
         for (unsigned &s : pushed_sizes)
             passed_size += s;
 
-        int rbpfix_offset = passed_size;
+        int stackfix_offset = passed_size;
         
-        for (unsigned i = 0; i < pushed_rbpfixes.size(); i++) {
-            rbpfix_offset -= pushed_sizes[i];
+        for (unsigned i = 0; i < pushed_stackfixes.size(); i++) {
+            stackfix_offset -= pushed_sizes[i];
+            Storage sf = pushed_stackfixes[i];
             
-            if (pushed_rbpfixes[i]) {
-                std::cerr << "XXX rbpfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
-                x64->op(ADDQ, Address(RSP, rbpfix_offset), RBP);
+            if (sf.where == MEMORY) {
+                std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
+                x64->op(ADDQ, Address(RSP, stackfix_offset), RBP);
+            }
+            else if (sf.where == ALIAS) {
+                std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
+                x64->op(MOVQ, R10, sf.address);
+                x64->op(MOVQ, Address(RSP, stackfix_offset), R10);
             }
         }
 
