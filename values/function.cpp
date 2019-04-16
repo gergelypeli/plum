@@ -283,6 +283,26 @@ public:
             
         return Regs();
     }
+
+    virtual void fix_arg(Declaration *d, X64 *x64) {
+        // RSI - old stack bottom, RDI - old stack top, RDX - relocation difference
+        // RBP points to the relocated stack frame
+        Allocable *a = ptr_cast<Allocable>(d);
+        Storage s = a->get_local_storage();
+        
+        if (s.where == ALIAS) {
+            Label skip;
+            
+            x64->op(CMPQ, s.address, RSI);
+            x64->op(JB, skip);
+            x64->op(CMPQ, s.address, RDI);
+            x64->op(JAE, skip);
+            x64->op(ADDQ, s.address, RDX);
+            x64->code_label(skip);
+            
+            x64->runtime->log("Fixed argument " + a->name + " of " + function->get_fully_qualified_name());
+        }
+    }
     
     virtual Storage compile(X64 *x64) {
         if (!function) {
@@ -396,6 +416,19 @@ public:
         x64->op(RET);
 
         x64->code_label(end_label);
+        
+        // Generate fixup at end_label.
+        // RSI - old stack bottom, RDI - old stack top, RDX - relocation difference
+        // RBP points to the relocated stack frame
+        x64->runtime->log("Fixing arguments of " + function->get_fully_qualified_name());
+        
+        for (auto &d : fn_scope->self_scope->contents)
+            fix_arg(d.get(), x64);
+            
+        for (auto &d : fn_scope->head_scope->contents)
+            fix_arg(d.get(), x64);
+        
+        x64->op(RET);
         
         x64->runtime->add_func_info(fqn, start_label, end_label);
         
@@ -1031,44 +1064,3 @@ public:
     }
 };
 
-
-class FrameNameValue: public Value, public Raiser {
-public:
-    std::unique_ptr<Value> value;
-    
-    FrameNameValue(Value *, TypeMatch)
-        :Value(STRING_TS) {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (!check_raise(lookup_exception_type, scope))
-            return false;
-            
-        return check_arguments(args, kwargs, { { "up", &INTEGER_TS, scope, &value } });
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        return value->precompile(preferred) | Regs::all();
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Label ok;
-        
-        value->compile_and_store(x64, Storage(STACK));
-
-        x64->op(CALL, x64->runtime->lookup_frame_info_label);
-
-        x64->op(ADDQ, RSP, INTEGER_SIZE);
-        
-        x64->op(CMPQ, RAX, 0);
-        x64->op(JNE, ok);
-        
-        raise("NOT_FOUND", x64);
-        
-        x64->code_label(ok);
-        x64->op(MOVQ, RAX, Address(RAX, 2 * ADDRESS_SIZE));  // frame name String
-        x64->runtime->incref(RAX);
-        
-        return Storage(REGISTER, RAX);
-    }
-};

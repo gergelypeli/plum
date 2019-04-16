@@ -113,6 +113,12 @@ int memmprotect(void *m, int64 size, int64 prot) {
 }
 
 
+void *memmemcpy(void *dst, void *src, size_t n) {
+    //fprintf(stderr, " -- memcpy %p %p %ld\n", dst, src, n);
+    return memcpy(dst, src, n);
+}
+
+
 // Internal helpers
 
 void *allocate_basic_array(int64 length, int64 size) {

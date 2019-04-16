@@ -2,7 +2,7 @@
 SHELL      = /bin/zsh
 
 DECLS      = all declaration identifier scope type basic record reference interface class option allocable function associable float container nosy
-VALUES     = all value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset container option equality float nosy
+VALUES     = all value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset container option equality float nosy debug
 ARCHS      = ork asm64 storage basics
 PARSING    = all tokenize treeize tupleize typize
 GLOBALS    = all builtins builtins_errno typespec typematch functions runtime modules

@@ -489,21 +489,26 @@ public:
     const int ARG_2 = -16;
     const int ARG_3 = -24;
     const int ARG_4 = -32;
-    
+
+    const int PAGE_SIZE = 4096;
+    const int INITIAL_STACK_SIZE = PAGE_SIZE * 2;
+    const int PROT_NONE = 0;
+    const int PROT_RW = 3;
+
     X64 *x64;
     
     Label application_label;
     Label zero_label, float_zero_label, float_minus_zero_label, refcount_balance_label;
-    Label die_unmatched_message_label, start_frame_label;
+    Label die_unmatched_message_label, start_frame_label, task_stack_address_label, task_stack_size_label;
     
     Label heap_alloc_label, heap_realloc_label;
     Label fcb_alloc_label, fcb_free_label;
     Label empty_function_label, empty_array_label;
     Label finalize_label, finalize_reference_array_label;
-    Label lookup_frame_info_label;
+    Label lookup_frame_info_label, caller_frame_info_label, fix_stack_label, double_stack_label;
     std::vector<Label> incref_labels, decref_labels;
 
-    Label sysv_memalloc_label, sysv_memaligned_alloc_label, sysv_memfree_label, sysv_memrealloc_label, sysv_memmprotect_label;
+    Label sysv_memalloc_label, sysv_memaligned_alloc_label, sysv_memfree_label, sysv_memrealloc_label, sysv_memmprotect_label,  sysv_memmemcpy_label;
     Label sysv_logfunc_label, sysv_logreffunc_label, sysv_dump_label;
     Label sysv_die_label, sysv_dies_label, sysv_die_uncaught_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
@@ -540,8 +545,13 @@ public:
     void compile_fcb_free();
     void compile_finalize_reference_array();
     void compile_lookup_frame_info();
+    void compile_caller_frame_info();
+    void compile_fix_stack();
+    void compile_double_stack();
     
     void init_memory_management();
+    
+    void compile_start(Storage main_storage, std::vector<Label> ils, std::vector<Label> fls);
     
     void incref(Register reg);
     void decref(Register reg);

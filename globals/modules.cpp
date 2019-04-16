@@ -229,69 +229,8 @@ public:
         // Generate entry point: invoke the .Main.@.start virtual method.
         // That's the only method of the Main global variable in the main module,
         // which implements the Application abstract.
-        Label start;
         Storage main_storage = main_global->get_local_storage();
-        int page_size = 4096;
-        int stack_size = page_size * 2;
-        int prot_none = 0;
-        int prot_rw = 3;
         
-        x64->code_label_global(start, "start");
-
-        // Be nice to debuggers and set up a stack frame.
-        // NOTE: the stack frame must point at its older value and next to the return address,
-        // so it has to be on the old stack. We won't need one on the new stack.
-        // NOTE: Don't use Runtime::call_sys, that works on task stacks only! And
-        // this frame is guaranteed to be aligned.
-        x64->op(PUSHQ, RBP);
-        x64->op(MOVQ, RBP, RSP);
-
-        // Create the initial task stack with a guard page at the bottom
-        x64->op(MOVQ, RDI, page_size);
-        x64->op(MOVQ, RSI, stack_size);
-        x64->op(CALL, x64->runtime->sysv_memaligned_alloc_label);
-        
-        x64->op(MOVQ, RBX, RAX);
-        
-        x64->op(MOVQ, RDI, RAX);
-        x64->op(MOVQ, RSI, page_size);
-        x64->op(MOVQ, RDX, prot_none);
-        x64->op(CALL, x64->runtime->sysv_memmprotect_label);
-        
-        // Switch to the new stack
-        x64->op(MOVQ, Address(x64->runtime->start_frame_label, 0), RSP);
-        x64->op(LEA, RSP, Address(RBX, stack_size));
-
-        // Invoke global initializers
-        for (Label l : initializer_labels)
-            x64->op(CALL, l);
-
-        // Into the new world
-        x64->op(MOVQ, R10, main_storage.address);
-        x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));
-        x64->op(PUSHQ, R10);
-        x64->op(CALL, Address(R11, -1 * ADDRESS_SIZE));
-        x64->op(ADDQ, RSP, ADDRESS_SIZE);
-
-        // Invoke global finalizers
-        for (unsigned i = finalizer_labels.size(); i--;)
-            x64->op(CALL, finalizer_labels[i]);
-        
-        // Switch back
-        x64->op(LEA, RBX, Address(RSP, -stack_size));
-        x64->op(MOVQ, RSP, Address(x64->runtime->start_frame_label, 0));
-        
-        // Drop the task stack
-        x64->op(MOVQ, RDI, RBX);
-        x64->op(MOVQ, RSI, page_size);
-        x64->op(MOVQ, RDX, prot_rw);
-        x64->op(CALL, x64->runtime->sysv_memmprotect_label);
-        
-        x64->op(MOVQ, RDI, RBX);
-        x64->op(CALL, x64->runtime->sysv_memfree_label);
-        
-        x64->op(POPQ, RBP);
-        x64->op(RET);
+        x64->runtime->compile_start(main_storage, initializer_labels, finalizer_labels);
     }
 };
-

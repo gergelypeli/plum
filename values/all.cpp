@@ -23,6 +23,7 @@
 #include "option.cpp"
 #include "float.cpp"
 #include "nosy.cpp"
+#include "debug.cpp"
 
 // Register usage:
 // ROOTX - index of current node

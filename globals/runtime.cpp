@@ -248,6 +248,12 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
 
     x64->data_label(start_frame_label);
     x64->data_qword(0);
+    
+    x64->data_label(task_stack_address_label);
+    x64->data_qword(0);
+
+    x64->data_label(task_stack_size_label);
+    x64->data_qword(0);
 
     die_unmatched_message_label = data_heap_string(decode_utf8("Fatal unmatched value: "));
 
@@ -266,6 +272,7 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     
     x64->code_label_import(sysv_sort_label, "sort");
     x64->code_label_import(sysv_string_regexp_match_label, "string_regexp_match");
+    x64->code_label_import(sysv_memmemcpy_label, "memmemcpy");
     x64->code_label_import(sysv_streamify_pointer_label, "streamify_pointer");
 
     init_memory_management();
@@ -643,46 +650,28 @@ void Runtime::compile_incref_decref() {
 }
 
 void Runtime::compile_lookup_frame_info() {
-    // lookup_frame_info(up_count)
+    // lookup_frame_info(rip)
     // result - RAX = pointer to the frame info structure, or NULL
-    // clobbers all registers
-    
-    Label fi_label = func_infos_label;
-    Label fil_label = func_infos_length_label;
-    Label lookup, up, end, loop, skip;
+    // clobbers RAX, RBX, RCX
     
     x64->code_label_global(lookup_frame_info_label, "lookup_frame_info");
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RCX, Address(RSP, 2 * ADDRESS_SIZE));
-    
-    x64->op(MOVQ, RAX, 0);
-    x64->op(MOVQ, RBX, RSP);
-    x64->op(CMPQ, RCX, 0);
-    x64->op(JE, lookup);
-    
-    x64->code_label(up);
-    x64->op(MOVQ, RBX, Address(RBX, 0));
-    x64->op(CMPQ, RBX, Address(start_frame_label, 0));  // Hit the top frame
-    x64->op(JE, end);
-    x64->op(DECQ, RCX);
-    x64->op(JNE, up);
-    
-    x64->code_label(lookup);
-    x64->op(MOVQ, RBX, Address(RBX, ADDRESS_SIZE));  // caller RIP
-    x64->op(LEA, RAX, Address(fi_label, 0));
-    x64->op(MOVQ, RCX, Address(fil_label, 0));
+    Label loop, skip, end;
+
+    x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));
+    x64->op(LEA, RAX, Address(func_infos_label, 0));
+    x64->op(MOVQ, RCX, Address(func_infos_length_label, 0));
     
     x64->code_label(loop);
-    x64->op(CMPQ, RBX, Address(RAX, 0));
+    x64->op(CMPQ, RBX, Address(RAX, FRAME_INFO_START_OFFSET));
     x64->op(JB, skip);
-    x64->op(CMPQ, RBX, Address(RAX, ADDRESS_SIZE));
+    x64->op(CMPQ, RBX, Address(RAX, FRAME_INFO_END_OFFSET));
     x64->op(JAE, skip);
     
     // Found the frame
     x64->op(JMP, end);
     
     x64->code_label(skip);
-    x64->op(ADDQ, RAX, 3 * ADDRESS_SIZE);
+    x64->op(ADDQ, RAX, FRAME_INFO_SIZE);
     x64->op(DECQ, RCX);
     x64->op(JNE, loop);
     
@@ -690,6 +679,150 @@ void Runtime::compile_lookup_frame_info() {
     x64->op(MOVQ, RAX, 0);
     
     x64->code_label(end);
+    x64->op(RET);
+}
+
+void Runtime::compile_caller_frame_info() {
+    // caller_frame_info(up_count)
+    // result - RAX = pointer to the frame info structure, or NULL
+    // clobbers RAX, RBX, RCX
+    
+    Label up, lookup, nope, end;
+    
+    x64->code_label_global(caller_frame_info_label, "caller_frame_info");
+    x64->op(PUSHQ, RBP);
+    x64->op(MOVQ, RCX, Address(RSP, 2 * ADDRESS_SIZE));
+    
+    x64->op(MOVQ, RBX, RSP);
+    x64->op(CMPQ, RCX, 0);
+    x64->op(JE, lookup);
+    
+    x64->code_label(up);
+    x64->op(MOVQ, RBX, Address(RBX, 0));
+    x64->op(CMPQ, RBX, Address(start_frame_label, 0));  // Hit the top frame
+    x64->op(JE, nope);
+    x64->op(DECQ, RCX);
+    x64->op(JNE, up);
+    
+    x64->code_label(lookup);
+    x64->op(PUSHQ, Address(RBX, ADDRESS_SIZE));  // caller RIP
+    x64->op(CALL, lookup_frame_info_label);
+    x64->op(ADDQ, RSP, ADDRESS_SIZE);
+    x64->op(JMP, end);
+    
+    x64->code_label(nope);
+    x64->op(MOVQ, RAX, 0);
+    
+    x64->code_label(end);
+    x64->op(POPQ, RBP);
+    x64->op(RET);
+}
+
+void Runtime::compile_fix_stack() {
+    // fix_stack(old_bottom, old_top, relocation)
+    // clobbers all registers
+    // must be run on the new stack, with relocated RBP and RSP
+    // must be called from a helper function with a proper frame, so the current [RBP + 8]
+    // points to the first app function that needs fixing.
+    
+    x64->code_label_global(fix_stack_label, "fix_stack");
+    x64->op(PUSHQ, RBP);  // just saving, the caller must have a proper frame
+    
+    x64->op(MOVQ, RSI, Address(RSP, 4 * ADDRESS_SIZE));  // old_bottom
+    x64->op(MOVQ, RDI, Address(RSP, 3 * ADDRESS_SIZE));  // old_top
+    x64->op(MOVQ, RDX, Address(RSP, 2 * ADDRESS_SIZE));  // relocation
+
+    Label loop, end;
+    x64->code_label(loop);
+    
+    // find caller info
+    x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
+    x64->op(CALL, lookup_frame_info_label);
+    x64->op(ADDQ, RSP, ADDRESS_SIZE);
+    
+    // up to caller frame
+    x64->op(MOVQ, RBX, Address(RBP, 0));
+    x64->op(CMPQ, RBX, Address(start_frame_label, 0));
+    x64->op(JE, end);
+    
+    x64->op(ADDQ, RBX, RDX);
+    x64->op(MOVQ, Address(RBP, 0), RBX);
+    x64->op(MOVQ, RBP, RBX);
+    
+    // invoke fix
+    x64->op(CALL, Address(RAX, FRAME_INFO_END_OFFSET));
+    
+    x64->op(JMP, loop);
+    
+    x64->code_label(end);
+    x64->op(POPQ, RBP);
+    x64->op(RET);
+}
+
+void Runtime::compile_double_stack() {
+    // This function is invoked on the task stack
+    // clobbers all registers
+    // must use a stack frame for the stack fix code
+    
+    x64->code_label_global(double_stack_label, "double_stack");
+    x64->op(PUSHQ, RBP);
+    x64->op(MOVQ, RBP, RSP);
+
+    // Allocate new stack    
+    x64->op(MOVQ, RDI, PAGE_SIZE);
+    x64->op(MOVQ, RSI, Address(task_stack_size_label, 0));
+    x64->op(SHLQ, RSI, 2);
+    call_sysv(sysv_memaligned_alloc_label);
+    
+    // Compute relocation offset of the stack tops (RBX is callee saved)
+    x64->op(MOVQ, RBX, RAX);
+    x64->op(ADDQ, RBX, Address(task_stack_size_label, 0));
+    x64->op(SUBQ, RBX, Address(task_stack_address_label, 0));
+    
+    x64->op(MOVQ, RDI, RAX);
+    x64->op(MOVQ, RSI, PAGE_SIZE);
+    x64->op(MOVQ, RDX, PROT_NONE);
+    call_sysv(sysv_memmprotect_label);
+
+    // Copy stack contents to the upper half of the new stack (skipping the guard page)
+    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
+    x64->op(ADDQ, RDI, RBX);
+    x64->op(ADDQ, RDI, PAGE_SIZE);
+    x64->op(MOVQ, RSI, Address(task_stack_address_label, 0));
+    x64->op(ADDQ, RSI, PAGE_SIZE);
+    x64->op(MOVQ, RDX, Address(task_stack_size_label, 0));
+    x64->op(SUBQ, RDX, PAGE_SIZE);
+    call_sysv(sysv_memmemcpy_label);
+
+    // Switch stacks
+    x64->op(ADDQ, RSP, RBX);
+    x64->op(ADDQ, RBP, RBX);
+
+    // Drop old stack
+    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
+    x64->op(MOVQ, RSI, PAGE_SIZE);
+    x64->op(MOVQ, RDX, PROT_RW);
+    call_sysv(sysv_memmprotect_label);
+    
+    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
+    call_sysv(sysv_memfree_label);
+
+    // Fix new stack
+    x64->op(MOVQ, R10, Address(task_stack_address_label, 0));
+    x64->op(PUSHQ, R10);  // old_bottom
+    x64->op(ADDQ, R10, Address(task_stack_size_label, 0));
+    x64->op(PUSHQ, R10);  // old_top
+    x64->op(PUSHQ, RBX);  // relocation offset
+    x64->op(CALL, fix_stack_label);
+    x64->op(POPQ, RBX);
+    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+    
+    // Update info
+    x64->op(SUBQ, RBX, Address(task_stack_size_label, 0));
+    x64->op(ADDQ, Address(task_stack_address_label, 0), RBX);
+    x64->op(SHLQ, Address(task_stack_size_label, 0), 1);
+    
+    // That should be it
     x64->op(POPQ, RBP);
     x64->op(RET);
 }
@@ -710,6 +843,72 @@ void Runtime::init_memory_management() {
     compile_fcb_free();
     compile_finalize_reference_array();
     compile_lookup_frame_info();
+    compile_caller_frame_info();
+    compile_fix_stack();
+    compile_double_stack();
+}
+
+void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer_labels, std::vector<Label> finalizer_labels) {
+    // Invoked from Root after gathering the necessary pieces
+    Label start;
+    x64->code_label_global(start, "start");
+
+    // Be nice to debuggers and set up a stack frame.
+    // NOTE: the RBP must point at its older value and next to the return address,
+    // so it has to be on the system stack. We won't need one on the task stack.
+    // NOTE: Don't use Runtime::call_sys, that works on task stacks only! And
+    // this frame is guaranteed to be aligned.
+    x64->op(PUSHQ, RBP);
+    x64->op(MOVQ, RBP, RSP);
+
+    // Create the initial task stack with a guard page at the bottom
+    x64->op(MOVQ, RDI, PAGE_SIZE);
+    x64->op(MOVQ, RSI, INITIAL_STACK_SIZE);
+    x64->op(CALL, sysv_memaligned_alloc_label);
+    
+    x64->op(MOVQ, Address(task_stack_address_label, 0), RAX);
+    x64->op(MOVQ, Address(task_stack_size_label, 0), INITIAL_STACK_SIZE);
+    
+    x64->op(MOVQ, RDI, RAX);
+    x64->op(MOVQ, RSI, PAGE_SIZE);
+    x64->op(MOVQ, RDX, PROT_NONE);
+    x64->op(CALL, sysv_memmprotect_label);
+    
+    // Switch to the new stack
+    x64->op(MOVQ, Address(start_frame_label, 0), RSP);  // aligned
+    x64->op(MOVQ, RBX, Address(task_stack_address_label, 0));
+    x64->op(ADDQ, RBX, Address(task_stack_size_label, 0));
+    x64->op(MOVQ, RSP, RBX);  // should be a single step
+
+    // Invoke global initializers
+    for (Label l : initializer_labels)
+        x64->op(CALL, l);
+
+    // Into the new world
+    x64->op(MOVQ, R10, main_storage.address);
+    x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));
+    x64->op(PUSHQ, R10);
+    x64->op(CALL, Address(R11, -1 * ADDRESS_SIZE));
+    x64->op(ADDQ, RSP, ADDRESS_SIZE);
+
+    // Invoke global finalizers
+    for (unsigned i = finalizer_labels.size(); i--;)
+        x64->op(CALL, finalizer_labels[i]);
+    
+    // Switch back
+    x64->op(MOVQ, RSP, Address(start_frame_label, 0));  // should be a single step
+    
+    // Drop the task stack
+    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
+    x64->op(MOVQ, RSI, PAGE_SIZE);
+    x64->op(MOVQ, RDX, PROT_RW);
+    x64->op(CALL, sysv_memmprotect_label);
+    
+    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
+    x64->op(CALL, sysv_memfree_label);
+    
+    x64->op(POPQ, RBP);
+    x64->op(RET);
 }
 
 void Runtime::incref(Register reg) {

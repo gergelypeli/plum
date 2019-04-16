@@ -62,6 +62,11 @@ const int NOSYTREE_MEMBER_OFFSET = 0;
 
 const int NOSYREF_MEMBER_OFFSET = 0;
 
+const int FRAME_INFO_SIZE = 24;
+const int FRAME_INFO_START_OFFSET = 0;
+const int FRAME_INFO_END_OFFSET = 8;
+const int FRAME_INFO_NAME_OFFSET = 16;
+
 const int ADDRESS_SIZE = 8;
 const int REFERENCE_SIZE = 8;
 const int POINTER_SIZE = 8;
