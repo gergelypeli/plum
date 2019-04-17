@@ -51,9 +51,6 @@ $(BIN): $(SOURCES)
 	@clear
 	@$(COMPILE) -o $@ $(CFLAGS) $(MAIN) > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false }
 
-$(PRECOMPOUT): $(PRECOMPIN)
-	@$(COMPILE) $(CFLAGS) -o $@ $<
-
 $(TESTBIN): $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ)
 	@gcc $(CFLAGS) -o $(TESTBIN) $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ) $(TESTLIBS)
 
@@ -67,4 +64,4 @@ $(TESTOBJ): $(TESTSRC) $(BIN)
 	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(BINLOG) 2>&1 || { cat $(BINLOG); false } && { cat $(BINLOG) }
 
 clean:
-	@rm -f $(BIN) $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(PRECOMPOUT)
+	@rm -f $(BIN) $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(FPCONVOBJ) run/*.log
