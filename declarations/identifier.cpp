@@ -146,6 +146,12 @@ public:
             make<NosytreeMemberValue>(cpivot, mts, scope)
         );
         
+        Args fake_args;
+        Kwargs fake_kwargs;
+
+        if (!value_check(pivot, fake_args, fake_kwargs, scope))
+            throw INTERNAL_ERROR;
+        
         return new T(pivot, match);
     }
 };

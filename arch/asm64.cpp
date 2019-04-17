@@ -1352,12 +1352,7 @@ void Asm64::op(StackOp opcode, Address x) {
         if (is_accounting())
             adjust_stack_usage(-8);
             
-        // Now this is fucked up. POPQ with an RSP based address computes the address
-        // *after* it incremented RSP! Seriously. We're hacking it here so the rest of
-        // the code can use sane addressing.
-        if (x.base == RSP)
-            x.offset -= 8;
-        
+        // NOTE: POP with an RSP based address uses the RSP value after the pop!
         code_op(0x8F, OPSIZE_DEFAULT, SLASH_0, x);
     }
     else

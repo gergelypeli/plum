@@ -286,7 +286,7 @@ public:
     std::unique_ptr<Value> pivot, elem;
 
     RbtreeAddValue(Value *l, TypeSpec ets, TypeSpec eats)
-        :Value(VOID_TS) {
+        :Value(l->ts) {
         pivot.reset(l);
         
         elem_ts = ets;
@@ -349,7 +349,7 @@ public:
     std::unique_ptr<Value> pivot, key, value;
 
     RbtreeAddItemValue(Value *l, TypeSpec kts, TypeSpec vts, TypeSpec kats, TypeSpec vats)
-        :Value(VOID_TS) {
+        :Value(l->ts) {
         pivot.reset(l);
             
         key_ts = kts;
@@ -424,7 +424,7 @@ public:
     std::unique_ptr<Value> pivot, key;
 
     RbtreeRemoveValue(Value *l, TypeSpec ets, TypeSpec kats)
-        :Value(VOID_TS) {
+        :Value(l->ts) {
         pivot.reset(l);
         
         elem_ts = ets;

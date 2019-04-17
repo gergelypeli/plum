@@ -566,7 +566,7 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         check_alias(scope);
         
-        return GenericValue::check(args, kwargs, scope);
+        return ContainerEmptiableValue::check(args, kwargs, scope);
     }
 
     virtual Regs precompile(Regs preferred) {

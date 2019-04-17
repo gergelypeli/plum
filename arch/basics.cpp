@@ -284,7 +284,8 @@ public:
         
         def_index = ++last_def_index;
         
-        //if (def_index == 112)
+        // If an undefined label is referenced, catch its creation here
+        //if (def_index == 3841)
         //    abort();
     }
     
