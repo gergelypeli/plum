@@ -245,9 +245,11 @@ public:
                 mts.store(s, t, x64);
                 x64->op(PUSHQ, Address(RSP, mts.measure_stack()));
                 
+                // Invoking a custom streamification may relocate the stack, so the
+                // passed stream alias may be fixed, must propagate it upwards.
                 mts.streamify(x64);
                 
-                x64->op(ADDQ, RSP, ADDRESS_SIZE);
+                x64->op(POPQ, Address(RSP, mts.measure_stack()));
                 mts.store(t, Storage(), x64);
             }
 

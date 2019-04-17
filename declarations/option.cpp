@@ -221,9 +221,12 @@ public:
             // Skip the flag, but copy the stream alias, too
             x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
         
+            // Invoking a custom streamification may relocate the stack, so the
+            // passed stream alias may be fixed, must propagate it upwards.
             some_ts.streamify(x64);
-        
-            x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
+
+            x64->op(POPQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
+            x64->op(ADDQ, RSP, ADDRESS_SIZE * copy_count);
 
             streamify_ascii(")", Address(RSP, ADDRESS_SIZE), x64);
         }
@@ -569,9 +572,12 @@ public:
                 // Skip the flag, but copy the stream alias, too
                 x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
             
+                // Invoking a custom streamification may relocate the stack, so the
+                // passed stream alias may be fixed, must propagate it upwards.
                 ut->tss[i].streamify(x64);
             
-                x64->op(ADDQ, RSP, ADDRESS_SIZE * (copy_count + 1));
+                x64->op(POPQ, Address(RSP, ADDRESS_SIZE * (copy_count + 2 - 1)));
+                x64->op(ADDQ, RSP, ADDRESS_SIZE * copy_count);
 
                 streamify_ascii(")", Address(RSP, ADDRESS_SIZE), x64);
             }
