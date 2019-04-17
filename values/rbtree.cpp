@@ -309,7 +309,6 @@ public:
 
     virtual Storage compile(X64 *x64) {
         Storage ps = pivot->compile_and_alias(x64, get_alias());
-        //pivot->compile_and_store(x64, Storage(ALISTACK));  // Push the address of the rbtree ref
         elem->compile_and_store(x64, Storage(STACK));
         
         int elem_arg_size = elem_arg_ts.measure_stack();
@@ -332,9 +331,6 @@ public:
         Address alias_addr(RSP, elem_arg_size);
         Address elem_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET);
         elem_ts.create(Storage(STACK), Storage(MEMORY, elem_addr), x64);
-
-        //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
-        //x64->op(POPQ, R11);
 
         // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
         return ps;
@@ -409,9 +405,6 @@ public:
         Address key_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET);
         key_ts.create(Storage(STACK), Storage(MEMORY, key_addr), x64);
 
-        //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
-        //x64->op(POPQ, R11);
-        
         // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
         return ps;
     }
@@ -448,7 +441,6 @@ public:
         Storage ps = pivot->compile_and_alias(x64, get_alias());
         key->compile_and_store(x64, Storage(STACK));
 
-        //int key_arg_size = key_arg_ts.measure_stack();
         Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
 
@@ -463,9 +455,6 @@ public:
 
         key_arg_ts.store(Storage(STACK), Storage(), x64);
 
-        //pivot->ts.store(Storage(ALISTACK), Storage(), x64);
-        //x64->op(POPQ, R11);
-        
         // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
         return ps;
     }
@@ -679,7 +668,7 @@ public:
 };
 
 
-class RbtreeNextElemByOrderValue: public GenericValue, public Raiser {
+class RbtreeNextElemByOrderValue: public GenericValue, public Raiser, public Aliaser {
 public:
     Regs clob;
 
@@ -688,6 +677,8 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        check_alias(scope);
+        
         if (!check_arguments(args, kwargs, {}))
             return false;
 
@@ -707,22 +698,39 @@ public:
         Label next_label = x64->once->compile(compile_rbtree_next);
         Label ok;
 
-        left->compile_and_store(x64, Storage(ALISTACK));  // iterator
+        ls = left->compile_and_alias(x64, get_alias());
 
-        x64->op(MOVQ, RCX, Address(RSP, 0));
-        x64->op(MOVQ, RAX, Address(RCX, REFERENCE_SIZE));  // it
-        x64->op(MOVQ, SELFX, Address(RCX, 0)); // tree reference without incref
-
+        if (ls.where == MEMORY) {
+            x64->op(MOVQ, SELFX, ls.address);
+            x64->op(MOVQ, RAX, ls.address + REFERENCE_SIZE);
+        }
+        else if (ls.where == ALIAS) {
+            x64->op(MOVQ, R11, ls.address);
+            x64->op(MOVQ, SELFX, Address(R11, 0));
+            x64->op(MOVQ, RAX, Address(R11, REFERENCE_SIZE));
+        }
+        else
+            throw INTERNAL_ERROR;
+            
         x64->op(CALL, next_label);
         
-        x64->op(POPQ, RCX);  // ALISTACK popped
         x64->op(CMPQ, RAX, 0);
         x64->op(JNE, ok);
 
         raise("ITERATOR_DONE", x64);
         
         x64->code_label(ok);
-        x64->op(MOVQ, Address(RCX, REFERENCE_SIZE), RAX);  // save it
+
+        // Save new iterator position
+        if (ls.where == MEMORY) {
+            x64->op(MOVQ, ls.address + REFERENCE_SIZE, RAX);
+        }
+        else if (ls.where == ALIAS) {
+            x64->op(MOVQ, R11, ls.address);
+            x64->op(MOVQ, Address(R11, REFERENCE_SIZE), RAX);
+        }
+        
+        // Return new item address
         x64->op(LEA, RAX, Address(SELFX, R10, RBNODE_VALUE_OFFSET));
 
         return Storage(MEMORY, Address(RAX, 0));

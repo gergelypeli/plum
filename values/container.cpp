@@ -516,13 +516,11 @@ public:
 
     virtual Storage compile(X64 *x64) {
         int elem_size = container_elem_size(elem_ts);
-        //int stack_size = elem_ts.measure_stack();
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label grow_label = x64->once->compile(compile_grow, elem_ts);
 
         ls = left->compile_and_alias(x64, get_alias());
         right->compile_and_store(x64, Storage(STACK));
-        //compile_and_store_both(x64, Storage(ALISTACK), Storage(STACK));
 
         container_cow(clone_label, ls, x64);
 

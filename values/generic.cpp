@@ -67,7 +67,7 @@ public:
     static TypeSpec op_ret_ts(OperationType o, TypeMatch &match) {
         return o == COMPARE ? INTEGER_TS : is_comparison(o) ? BOOLEAN_TS : match[0];
     }
-    
+
     virtual Regs precompile(Regs preferred) {
         rclob = right ? right->precompile() : Regs();
         
@@ -87,34 +87,38 @@ public:
 
     virtual Storage assign_create(X64 *x64) {
         ls = left->compile(x64);
-
-        if (ls.where != MEMORY)
+        
+        if (ls.where != MEMORY && ls.where != ALIAS)
             throw INTERNAL_ERROR;
 
+        bool spilled_left_memory = false;
+
         if (ls.regs() & rclob) {
-            // a clobberable ls must be a dynamic address, may be stored as ALISTACK
-            ls = left->ts.store(ls, Storage(ALISTACK), x64);
+            // a clobberable ls must be a MEMORY with a dynamic address
+            spilled_left_memory = true;
+            x64->op(LEA, R10, ls.address);
+            x64->op(PUSHQ, R10);
         }
-        
+
         x64->unwind->push(this);
         rs = right->compile(x64);
         x64->unwind->pop(this);
-        
-        bool need_alipop = false;
-        
-        if (ls.where == ALISTACK) {
-            // Surely a dynamic address
-            Register r = (clob & ~rs.regs()).get_any();
-            
-            if (rs.where == STACK) {
-                x64->op(MOVQ, r, Address(RSP, right->ts.measure_stack()));
-                need_alipop = true;
+
+        if (ls.where == MEMORY) {
+            if (spilled_left_memory) {
+                // Surely a dynamic address
+                Register r = (clob & ~rs.regs()).get_any();
+
+                if (rs.where == STACK) {
+                    x64->op(MOVQ, r, Address(RSP, right->ts.measure_stack()));
+                }
+                else {
+                    x64->op(POPQ, r);
+                    spilled_left_memory = false;
+                }
+
+                ls = Storage(MEMORY, Address(r, 0));
             }
-            else {
-                x64->op(POPQ, r);
-            }
-            
-            ls = Storage(MEMORY, Address(r, 0));
         }
         else if (ls.where == ALIAS) {
             Register r = (clob & ~rs.regs()).get_any();
@@ -129,7 +133,7 @@ public:
         else
             throw INTERNAL_ERROR;
         
-        if (need_alipop)
+        if (spilled_left_memory)
             x64->op(ADDQ, RSP, ADDRESS_SIZE);
         
         return ls;
@@ -394,6 +398,8 @@ public:
     virtual void subcompile(X64 *x64) {
         ls = left->compile(x64);
 
+        bool spilled_left_memory = false;
+
         // Put the left value in a safe place
         if (is_left_lvalue) {
             // Address handling
@@ -412,7 +418,9 @@ public:
                     }
                     else {
                         // Spill dynamic address to stack
-                        ls = left->ts.store(ls, Storage(ALISTACK), x64);
+                        spilled_left_memory = true;
+                        x64->op(LEA, R10, ls.address);
+                        x64->op(PUSHQ, R10);
                     }
                 }
                 break;
@@ -570,6 +578,14 @@ public:
                 throw INTERNAL_ERROR;
             break;
         case MEMORY:
+            if (spilled_left_memory) {
+                if (auxls.where == MEMORY) {
+                    x64->op(POPQ, auxls.address.base);
+                    ls = auxls;
+                }
+                else
+                    throw INTERNAL_ERROR;
+            }
             break;
         case ALISTACK:
             if (auxls.where == MEMORY) {
