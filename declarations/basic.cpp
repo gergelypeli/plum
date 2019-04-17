@@ -226,13 +226,10 @@ public:
     
     virtual void streamify(TypeMatch tm, X64 *x64) {
         // SysV
-        Label label;
         Address value_addr(RSP, ALIAS_SIZE);
         Address alias_addr(RSP, 0);
         
         if (is_unsigned) {
-            x64->code_label_import(label, "streamify_unteger");
-            
             if (size == 1)
                 x64->op(MOVZXBQ, RDI, value_addr);
             else if (size == 2)
@@ -243,10 +240,11 @@ public:
                 x64->op(MOVQ, RDI, value_addr);
             else
                 throw INTERNAL_ERROR;
+
+            x64->op(MOVQ, RSI, alias_addr);
+            x64->runtime->call_sysv(x64->runtime->sysv_streamify_unteger_label);
         }
         else {
-            x64->code_label_import(label, "streamify_integer");
-
             if (size == 1)
                 x64->op(MOVSXBQ, RDI, value_addr);
             else if (size == 2)
@@ -257,10 +255,10 @@ public:
                 x64->op(MOVQ, RDI, value_addr);
             else
                 throw INTERNAL_ERROR;
+
+            x64->op(MOVQ, RSI, alias_addr);
+            x64->runtime->call_sysv(x64->runtime->sysv_streamify_integer_label);
         }
-        
-        x64->op(MOVQ, RSI, alias_addr);
-        x64->runtime->call_sysv(label);
     }
 };
 
@@ -278,10 +276,7 @@ public:
 
         x64->op(MOVQ, RDI, value_addr);
         x64->op(MOVQ, RSI, alias_addr);
-        
-        Label label;
-        x64->code_label_import(label, "streamify_boolean");
-        x64->runtime->call_sysv(label);
+        x64->runtime->call_sysv(x64->runtime->sysv_streamify_boolean_label);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {

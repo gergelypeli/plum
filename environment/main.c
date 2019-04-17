@@ -76,7 +76,7 @@ static int allocation_count = 0;
 
 // Memory management
 
-void *memalloc(int64 size) {
+void *C__malloc(int64 size) {
     allocation_count += 1;
     void *x = malloc(size);
     //fprintf(stderr, " -- malloc %p %lld\n", x, size);
@@ -84,7 +84,7 @@ void *memalloc(int64 size) {
 }
 
 
-void *memaligned_alloc(int64 alignment, int64 size) {
+void *C__aligned_alloc(int64 alignment, int64 size) {
     allocation_count += 1;
     void *x = aligned_alloc(alignment, size);
     //fprintf(stderr, " -- aligned_alloc %p %lld\n", x, size);
@@ -92,28 +92,28 @@ void *memaligned_alloc(int64 alignment, int64 size) {
 }
 
 
-void memfree(void *m) {
+void C__free(void *m) {
     allocation_count -= 1;
     //fprintf(stderr, " -- free %p\n", m);
     free(m);
 }
 
 
-void *memrealloc(void *m, int64 size) {
+void *C__realloc(void *m, int64 size) {
     void *x = realloc(m, size);
     //fprintf(stderr, " -- realloc %p %lld %p\n", m, size, x);
     return x;
 }
 
 
-int memmprotect(void *m, int64 size, int64 prot) {
+int C__mprotect(void *m, int64 size, int64 prot) {
     int x = mprotect(m, size, prot);
     //fprintf(stderr, " -- mprotect %p %lld %p\n", m, size, x);
     return x;
 }
 
 
-void *memmemcpy(void *dst, void *src, size_t n) {
+void *C__memcpy(void *dst, void *src, size_t n) {
     //fprintf(stderr, " -- memcpy %p %p %ld\n", dst, src, n);
     return memcpy(dst, src, n);
 }
@@ -122,7 +122,7 @@ void *memmemcpy(void *dst, void *src, size_t n) {
 // Internal helpers
 
 void *allocate_basic_array(int64 length, int64 size) {
-    void *array = memalloc(HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    void *array = C__malloc(HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     
     HNEXT(array) = 0;
     HREFCOUNT(array) = 1;
@@ -140,7 +140,7 @@ void *allocate_basic_array(int64 length, int64 size) {
 
 void *allocate_string_array(int64 length) {
     int size = ADDRESS_SIZE;
-    void *array = memalloc(HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    void *array = C__malloc(HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     
     HNEXT(array) = 0;
     HREFCOUNT(array) = 1;
@@ -167,14 +167,14 @@ void *reallocate_array(void *array, int64 length, int64 size) {
         abort();
     }
 
-    array = memrealloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
+    array = C__realloc(array + HEAP_HEADER_OFFSET, HEAP_HEADER_SIZE + LINEARRAY_HEADER_SIZE + length * size) - HEAP_HEADER_OFFSET;
     ARESERVATION(array) = length;
     return array;
 }
 
 
 void free_basic_array(void *array) {
-    memfree(array + HEAP_HEADER_OFFSET);
+    C__free(array + HEAP_HEADER_OFFSET);
 }
 
 
@@ -214,19 +214,19 @@ void lvalue_append_decode_utf8(void **character_array_lvalue, char *byte_array, 
 // Exported helpers
 
 
-void logfunc(const char *message) {
+void C__log(const char *message) {
     fprintf(stderr, "LOG: %s\n", message);
 }
 
 
-void logreffunc(const char *message, unsigned64 ptr) {
+void C__logref(const char *message, unsigned64 ptr) {
     fprintf(stderr, "LOGREF: %s %016llx %lld\n", message, ptr, HREFCOUNT(ptr));
 }
 
 
 struct R { unsigned64 r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rsp, rdx, rcx, rbx, rax, rflags; };
 
-void dump(const char *message, struct R *r) {
+void C__dump(const char *message, struct R *r) {
     fprintf(stderr, "DUMP: %s [%c%c%c%c%c%c]\n", message,
         (r->rflags & 1 ?    'C' : 'c'),
         (r->rflags & 4 ?    'P' : 'p'),
@@ -243,13 +243,13 @@ void dump(const char *message, struct R *r) {
 }
 
 
-void die(const char *message) {
+void C__die(const char *message) {
     fprintf(stderr, "Can't go on like this... %s\n", message);
     abort();
 }
 
 
-void dies(void *s) {
+void C__dies(void *s) {
     int64 character_length = ALENGTH(s);
     char bytes[character_length * 3 + 1];
     
@@ -262,7 +262,7 @@ void dies(void *s) {
 }
 
 
-void die_uncaught(Ref name, int64 row) {
+void C__die_uncaught(Ref name, int64 row) {
     int64 character_length = ALENGTH(name);
     char bytes[character_length * 3 + 1];
         
@@ -275,28 +275,28 @@ void die_uncaught(Ref name, int64 row) {
 }
 
 
-void streamify_integer(int64 x, void **character_array_lvalue) {
+void C__streamify_integer(int64 x, void **character_array_lvalue) {
     char byte_array[30];
     int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%lld", x);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
-void streamify_unteger(unsigned64 x, void **character_array_lvalue) {
+void C__streamify_unteger(unsigned64 x, void **character_array_lvalue) {
     char byte_array[30];
     int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%llu", x);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
-void streamify_boolean(unsigned char x, void **character_array_lvalue) {
+void C__streamify_boolean(unsigned char x, void **character_array_lvalue) {
     char *byte_array = (x ? "`true" : "`false");
     int64 byte_length = strlen(byte_array);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
-void streamify_float(double x, void **character_array_lvalue) {
+void C__streamify_float(double x, void **character_array_lvalue) {
     char byte_array[30];
     int64 byte_length;
     
@@ -318,19 +318,19 @@ void streamify_float(double x, void **character_array_lvalue) {
 }
 
 
-void streamify_pointer(Ref x, void **character_array_lvalue) {
+void C__streamify_pointer(Ref x, void **character_array_lvalue) {
     char byte_array[30];
     int64 byte_length = snprintf(byte_array, sizeof(byte_array), "%p", x);
     lvalue_append_decode_utf8(character_array_lvalue, byte_array, byte_length);
 }
 
 
-void sort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *)) {
+void C__sort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *)) {
     qsort(base, nmemb, size, compar);
 }
 
 
-void *string_regexp_match(void *subject_array, void *pattern_array) {
+void *C__string_regexp_match(void *subject_array, void *pattern_array) {
     //fprintf(stderr, "PCRE2 match begins.\n");
     //prints(subject_array);
     //prints(pattern_array);
@@ -779,7 +779,7 @@ void Std__print_jstring(Ref character_array, Ref *stream_lvalue) {
 }
 
 
-void *decode_utf8(Ref byte_array) {
+void *C__decode_utf8(Ref byte_array) {
     if (!byte_array)
         return NULL;
 
@@ -797,7 +797,7 @@ void *decode_utf8(Ref byte_array) {
 }
 
 
-void *encode_utf8(Ref character_array) {  //(Alias string_alias) {
+void *C__encode_utf8(Ref character_array) {  //(Alias string_alias) {
     //void *character_array = *(void **)string_alias;
     //if (!character_array)
     //    return NULL;
@@ -817,7 +817,7 @@ void *encode_utf8(Ref character_array) {  //(Alias string_alias) {
 }
 
 
-void *decode_utf8_slice(Slice byte_slice) {
+void *C__decode_utf8_slice(Slice byte_slice) {
     int64 byte_length = SLENGTH(byte_slice);
     char *bytes = SELEMENTS(byte_slice, 1);
 
@@ -887,7 +887,7 @@ MaybeInteger fs__File__read(Ref file_ref, Slice buffer_slice) {
 }
 
 
-MaybeInteger reader_get(Ref reader_ref, int64 length) {
+MaybeInteger C__reader_get(Ref reader_ref, int64 length) {
     int fd = CLASSMEMBER(reader_ref, int);
     void *byte_array = allocate_basic_array(length, 1);
     int64 buffer_length = length;
@@ -910,7 +910,7 @@ MaybeInteger reader_get(Ref reader_ref, int64 length) {
 }
 
 
-MaybeInteger reader_get_all(Ref reader_ref) {
+MaybeInteger C__reader_get_all(Ref reader_ref) {
     int length = 4096;
     int fd = CLASSMEMBER(reader_ref, int);
     void *byte_array = allocate_basic_array(length, 1);

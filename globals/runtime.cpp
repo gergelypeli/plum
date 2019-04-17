@@ -221,8 +221,8 @@ void Accounting::adjust_stack_usage(int mod) {
 
 Runtime::Runtime(X64 *x, unsigned application_size) {
     x64 = x;
-    
     std::cerr << "Application size is " << application_size << " bytes.\n";
+    
     x64->data_align(16);
     x64->data_label(application_label);
     for (unsigned i = 0; i < application_size; i++)
@@ -257,24 +257,28 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
 
     die_unmatched_message_label = data_heap_string(decode_utf8("Fatal unmatched value: "));
 
-    x64->code_label_import(sysv_memalloc_label, "memalloc");
-    x64->code_label_import(sysv_memaligned_alloc_label, "memaligned_alloc");
-    x64->code_label_import(sysv_memfree_label, "memfree");
-    x64->code_label_import(sysv_memrealloc_label, "memrealloc");
-    x64->code_label_import(sysv_memmprotect_label, "memmprotect");
+    x64->code_label_import(sysv_malloc_label, "C__malloc");
+    x64->code_label_import(sysv_aligned_alloc_label, "C__aligned_alloc");
+    x64->code_label_import(sysv_free_label, "C__free");
+    x64->code_label_import(sysv_realloc_label, "C__realloc");
+    x64->code_label_import(sysv_mprotect_label, "C__mprotect");
+    x64->code_label_import(sysv_memcpy_label, "C__memcpy");
     
-    x64->code_label_import(sysv_logfunc_label, "logfunc");  // bah...
-    x64->code_label_import(sysv_logreffunc_label, "logreffunc");
-    x64->code_label_import(sysv_dump_label, "dump");
-    x64->code_label_import(sysv_die_label, "die");
-    x64->code_label_import(sysv_dies_label, "dies");
-    x64->code_label_import(sysv_die_uncaught_label, "die_uncaught");
+    x64->code_label_import(sysv_log_label, "C__log");
+    x64->code_label_import(sysv_logref_label, "C__logref");
+    x64->code_label_import(sysv_dump_label, "C__dump");
+    x64->code_label_import(sysv_die_label, "C__die");
+    x64->code_label_import(sysv_dies_label, "C__dies");
+    x64->code_label_import(sysv_die_uncaught_label, "C__die_uncaught");
     
-    x64->code_label_import(sysv_sort_label, "sort");
-    x64->code_label_import(sysv_string_regexp_match_label, "string_regexp_match");
-    x64->code_label_import(sysv_memmemcpy_label, "memmemcpy");
-    x64->code_label_import(sysv_streamify_pointer_label, "streamify_pointer");
-    x64->code_label_import(sysv_streamify_float_label, "streamify_float");
+    x64->code_label_import(sysv_sort_label, "C__sort");
+    x64->code_label_import(sysv_string_regexp_match_label, "C__string_regexp_match");
+    
+    x64->code_label_import(sysv_streamify_integer_label, "C__streamify_integer");
+    x64->code_label_import(sysv_streamify_unteger_label, "C__streamify_unteger");
+    x64->code_label_import(sysv_streamify_boolean_label, "C__streamify_boolean");
+    x64->code_label_import(sysv_streamify_float_label, "C__streamify_float");
+    x64->code_label_import(sysv_streamify_pointer_label, "C__streamify_pointer");
 
     init_memory_management();
 }
@@ -432,7 +436,7 @@ void Runtime::compile_finalize() {
     // Free FCB
     x64->op(POPQ, RDI);
     x64->op(PUSHQ, Address(RDI, FCB_NEXT_OFFSET));  // advance before free
-    call_sysv(sysv_memfree_label);  // clobbers all
+    call_sysv(sysv_free_label);  // clobbers all
     x64->op(POPQ, RAX);
 
     x64->code_label(fcb_cond);
@@ -447,7 +451,7 @@ void Runtime::compile_finalize() {
 
     x64->op(POPQ, RDI);
     x64->op(SUBQ, RDI, HEAP_HEADER_SIZE);
-    call_sysv(sysv_memfree_label);  // will probably clobber everything
+    call_sysv(sysv_free_label);  // will probably clobber everything
 
     popa();
     x64->op(RET);
@@ -462,7 +466,7 @@ void Runtime::compile_heap_alloc() {
     
     x64->op(MOVQ, RDI, Address(RSP, ARGS + ARG_1));  // size arg
     x64->op(ADDQ, RDI, HEAP_HEADER_SIZE);
-    call_sysv(sysv_memalloc_label);
+    call_sysv(sysv_malloc_label);
     
     x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
     x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // finalizer arg
@@ -495,7 +499,7 @@ void Runtime::compile_heap_realloc() {
     x64->op(SUBQ, RDI, HEAP_HEADER_SIZE);
     x64->op(MOVQ, RSI, Address(RSP, ARGS + ARG_2));  // new_size arg
     x64->op(ADDQ, RSI, HEAP_HEADER_SIZE);
-    call_sysv(sysv_memrealloc_label);
+    call_sysv(sysv_realloc_label);
     
     x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
     x64->op(RET);
@@ -509,7 +513,7 @@ void Runtime::compile_fcb_alloc() {
     const int ARGS = ARGS_4;
 
     x64->op(MOVQ, RDI, FCB_SIZE);
-    call_sysv(sysv_memalloc_label);
+    call_sysv(sysv_malloc_label);
     
     x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // callback arg
     x64->op(MOVQ, Address(RAX, FCB_CALLBACK_OFFSET), RBX);
@@ -569,7 +573,7 @@ void Runtime::compile_fcb_free() {
     x64->code_label(no_next);
 
     x64->op(MOVQ, RDI, RAX);
-    call_sysv(sysv_memfree_label);  // clobbers all
+    call_sysv(sysv_free_label);  // clobbers all
 
     x64->op(RET);
     
@@ -773,7 +777,7 @@ void Runtime::compile_double_stack() {
     x64->op(MOVQ, RDI, PAGE_SIZE);
     x64->op(MOVQ, RSI, Address(task_stack_size_label, 0));
     x64->op(SHLQ, RSI, 2);
-    call_sysv(sysv_memaligned_alloc_label);
+    call_sysv(sysv_aligned_alloc_label);
     
     // Compute relocation offset of the stack tops (RBX is callee saved)
     x64->op(MOVQ, RBX, RAX);
@@ -783,7 +787,7 @@ void Runtime::compile_double_stack() {
     x64->op(MOVQ, RDI, RAX);
     x64->op(MOVQ, RSI, PAGE_SIZE);
     x64->op(MOVQ, RDX, PROT_NONE);
-    call_sysv(sysv_memmprotect_label);
+    call_sysv(sysv_mprotect_label);
 
     // Copy stack contents to the upper half of the new stack (skipping the guard page)
     x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
@@ -793,7 +797,7 @@ void Runtime::compile_double_stack() {
     x64->op(ADDQ, RSI, PAGE_SIZE);
     x64->op(MOVQ, RDX, Address(task_stack_size_label, 0));
     x64->op(SUBQ, RDX, PAGE_SIZE);
-    call_sysv(sysv_memmemcpy_label);
+    call_sysv(sysv_memcpy_label);
 
     // Switch stacks
     x64->op(ADDQ, RSP, RBX);
@@ -803,10 +807,10 @@ void Runtime::compile_double_stack() {
     x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
     x64->op(MOVQ, RSI, PAGE_SIZE);
     x64->op(MOVQ, RDX, PROT_RW);
-    call_sysv(sysv_memmprotect_label);
+    call_sysv(sysv_mprotect_label);
     
     x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
-    call_sysv(sysv_memfree_label);
+    call_sysv(sysv_free_label);
 
     // Fix new stack
     x64->op(MOVQ, R10, Address(task_stack_address_label, 0));
@@ -865,7 +869,7 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     // Create the initial task stack with a guard page at the bottom
     x64->op(MOVQ, RDI, PAGE_SIZE);
     x64->op(MOVQ, RSI, INITIAL_STACK_SIZE);
-    x64->op(CALL, sysv_memaligned_alloc_label);
+    x64->op(CALL, sysv_aligned_alloc_label);
     
     x64->op(MOVQ, Address(task_stack_address_label, 0), RAX);
     x64->op(MOVQ, Address(task_stack_size_label, 0), INITIAL_STACK_SIZE);
@@ -873,7 +877,7 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     x64->op(MOVQ, RDI, RAX);
     x64->op(MOVQ, RSI, PAGE_SIZE);
     x64->op(MOVQ, RDX, PROT_NONE);
-    x64->op(CALL, sysv_memmprotect_label);
+    x64->op(CALL, sysv_mprotect_label);
     
     // Switch to the new stack
     x64->op(MOVQ, Address(start_frame_label, 0), RSP);  // aligned
@@ -903,10 +907,10 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
     x64->op(MOVQ, RSI, PAGE_SIZE);
     x64->op(MOVQ, RDX, PROT_RW);
-    x64->op(CALL, sysv_memmprotect_label);
+    x64->op(CALL, sysv_mprotect_label);
     
     x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
-    x64->op(CALL, sysv_memfree_label);
+    x64->op(CALL, sysv_free_label);
     
     x64->op(POPQ, RBP);
     x64->op(RET);
@@ -992,7 +996,7 @@ void Runtime::log(std::string message) {
 
     pusha();
     x64->op(LEA, RDI, Address(message_label, 0));
-    call_sysv(sysv_logfunc_label);
+    call_sysv(sysv_log_label);
     popa();
 }
 
@@ -1005,7 +1009,7 @@ void Runtime::logref(std::string message, Register r) {
     pusha();
     x64->op(MOVQ, RSI, r);
     x64->op(LEA, RDI, Address(message_label, 0));
-    call_sysv(sysv_logreffunc_label);
+    call_sysv(sysv_logref_label);
     popa();
     x64->op(POPFQ);
 }

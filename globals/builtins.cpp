@@ -854,7 +854,7 @@ void define_string() {
     is->add(new StringRawStreamifiableImplementation("raw"));
 
     // String operations
-    is->add(new SysvFunction("encode_utf8", "encode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }));
+    is->add(new SysvFunction("C__encode_utf8", "encode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }));
 
     DataScope *ls = record_type->make_lvalue_scope();
 
@@ -897,7 +897,7 @@ void define_slice(RootScope *root_scope) {
     root_scope->add(es);
     es->set_pivot_ts(BYTE_SLICE_TS);
     es->enter();
-    es->add(new SysvFunction("decode_utf8_slice", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
+    es->add(new SysvFunction("C__decode_utf8_slice", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
     es->leave();
 }
 
@@ -980,7 +980,7 @@ void define_array(RootScope *root_scope) {
     root_scope->add(es);
     es->set_pivot_ts(UNSIGNED_INTEGER8_ARRAY_TS);
     es->enter();
-    es->add(new SysvFunction("decode_utf8", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
+    es->add(new SysvFunction("C__decode_utf8", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
     es->leave();
 }
 

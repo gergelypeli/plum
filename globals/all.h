@@ -508,10 +508,11 @@ public:
     Label lookup_frame_info_label, caller_frame_info_label, fix_stack_label, double_stack_label;
     std::vector<Label> incref_labels, decref_labels;
 
-    Label sysv_memalloc_label, sysv_memaligned_alloc_label, sysv_memfree_label, sysv_memrealloc_label, sysv_memmprotect_label,  sysv_memmemcpy_label;
-    Label sysv_logfunc_label, sysv_logreffunc_label, sysv_dump_label;
+    Label sysv_malloc_label, sysv_aligned_alloc_label, sysv_free_label, sysv_realloc_label, sysv_mprotect_label,  sysv_memcpy_label;
+    Label sysv_log_label, sysv_logref_label, sysv_dump_label;
     Label sysv_die_label, sysv_dies_label, sysv_die_uncaught_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
+    Label sysv_streamify_integer_label, sysv_streamify_unteger_label, sysv_streamify_boolean_label;
     Label sysv_streamify_pointer_label, sysv_streamify_float_label;
 
     struct FuncInfo {
