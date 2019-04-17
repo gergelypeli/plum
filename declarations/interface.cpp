@@ -192,7 +192,6 @@ public:
         }
         else {
             // Implementation in an identity type
-            
             x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
             x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // VT
             x64->op(CALL, Address(R11, sf->virtual_index * ADDRESS_SIZE));  // select method
@@ -260,16 +259,18 @@ public:
 
     static void compile_raw_streamification(Label label, X64 *x64) {
         // RAX - target array, RCX - size, R10 - source array, R11 - alias
+        Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
+        Address alias_addr(RSP, RIP_SIZE);
         
         x64->code_label_local(label, "string_raw_streamification");
         
-        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
+        x64->op(MOVQ, R10, value_addr);  // reference to the string
         
         x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
 
-        stream_preappend2(Address(RSP, ADDRESS_SIZE), x64);
+        stream_preappend2(alias_addr, x64);
         
-        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));
+        x64->op(MOVQ, R10, value_addr);
 
         x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
         x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -294,13 +295,16 @@ public:
     }
 
     static void compile_raw_streamification(Label label, X64 *x64) {
+        Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
+        Address alias_addr(RSP, RIP_SIZE);
+
         x64->code_label_local(label, "character_raw_streamification");
 
         x64->op(MOVQ, R10, 1);
-        stream_preappend2(Address(RSP, ADDRESS_SIZE), x64);
+        stream_preappend2(alias_addr, x64);
 
         x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-        x64->op(MOVW, R10W, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
+        x64->op(MOVW, R10W, value_addr);  // the character
         x64->op(MOVW, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET), R10W);  // stream end
         x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 1);
 

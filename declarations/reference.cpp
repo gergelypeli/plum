@@ -302,8 +302,11 @@ public:
 
     virtual void streamify(TypeMatch tm, X64 *x64) {
         // We do this for heap types that don't implement Streamifiable
-        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-        x64->op(MOVQ, RSI, Address(RSP, 0));
+        Address value_addr(RSP, ALIAS_SIZE);
+        Address alias_addr(RSP, 0);
+
+        x64->op(MOVQ, RDI, value_addr);
+        x64->op(MOVQ, RSI, alias_addr);
     
         x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
     }

@@ -20,8 +20,11 @@ public:
 
     virtual void streamify(TypeMatch tm, X64 *x64) {
         // We do this for container types that don't implement Streamifiable
-        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-        x64->op(MOVQ, RSI, Address(RSP, 0));
+        Address value_addr(RSP, ALIAS_SIZE);
+        Address alias_addr(RSP, 0);
+
+        x64->op(MOVQ, RDI, value_addr);
+        x64->op(MOVQ, RSI, alias_addr);
     
         x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
     }
@@ -93,19 +96,22 @@ public:
     virtual void streamify(TypeMatch tm, X64 *x64) {
         TypeSpec elem_ts = tm[1];
         Label label = x64->once->compile(compile_contents_streamification, elem_ts);
+
         x64->op(CALL, label);  // clobbers all
     }
     
     static void compile_contents_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
         int elem_size = elem_ts.measure_elem();
         Label loop, elem, end;
+        Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
+        Address alias_addr(RSP, RIP_SIZE);
 
         x64->code_label_local(label, elem_ts.symbolize() + "_array_contents_streamify");
         
         // open
-        streamify_ascii("{", Address(RSP, ADDRESS_SIZE), x64);  // clobbers all
+        streamify_ascii("{", alias_addr, x64);  // clobbers all
         
-        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // Array Ref
+        x64->op(MOVQ, RAX, value_addr);  // Array Ref
         x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(CMPQ, RCX, 0);
         x64->op(JE, end);
@@ -119,7 +125,7 @@ public:
         x64->op(PUSHQ, RAX);
         x64->op(PUSHQ, RCX);
         
-        streamify_ascii(",", Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE), x64);
+        streamify_ascii(",", alias_addr + 2 * ADDRESS_SIZE, x64);
 
         x64->op(POPQ, RCX);
         x64->op(POPQ, RAX);
@@ -127,7 +133,7 @@ public:
         x64->code_label(elem);
         x64->op(PUSHQ, RAX);
         x64->op(PUSHQ, RCX);
-        x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE));  // stream alias
+        x64->op(MOVQ, RBX, alias_addr + 2 * ADDRESS_SIZE);  // stream alias
         elem_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
         x64->op(PUSHQ, RBX);
         
@@ -137,7 +143,7 @@ public:
         
         x64->op(POPQ, RBX);
         elem_ts.store(Storage(STACK), Storage(), x64);
-        x64->op(MOVQ, Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE), RBX);  // stream alias
+        x64->op(MOVQ, alias_addr + 2 * ADDRESS_SIZE, RBX);  // stream alias
         x64->op(POPQ, RCX);
         x64->op(POPQ, RAX);
         
@@ -148,7 +154,7 @@ public:
         x64->code_label(end);
         
         // close
-        streamify_ascii("}", Address(RSP, ADDRESS_SIZE), x64);  // clobbers all
+        streamify_ascii("}", alias_addr, x64);  // clobbers all
 
         x64->op(RET);
     }
@@ -299,19 +305,22 @@ public:
     virtual void streamify(TypeMatch tm, X64 *x64) {
         TypeSpec ets = typesubst(elem_ts, tm);
         Label label = x64->once->compile(compile_contents_streamification, ets);
+
         x64->op(CALL, label);  // clobbers all
     }
 
     static void compile_contents_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
         // TODO: massive copypaste from Array's
         Label loop, elem, end;
+        Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
+        Address alias_addr(RSP, RIP_SIZE);
 
         x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_contents_streamify");
         
         // open
-        streamify_ascii("{", Address(RSP, ADDRESS_SIZE), x64);
+        streamify_ascii("{", alias_addr, x64);
         
-        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // Rbtree Ref
+        x64->op(MOVQ, RAX, value_addr);  // Rbtree Ref
         x64->op(MOVQ, RCX, Address(RAX, RBTREE_FIRST_OFFSET));
         x64->op(CMPQ, RCX, RBNODE_NIL);
         x64->op(JE, end);
@@ -324,7 +333,7 @@ public:
         x64->op(PUSHQ, RAX);
         x64->op(PUSHQ, RCX);
 
-        streamify_ascii(",", Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE), x64);
+        streamify_ascii(",", alias_addr + 2 * ADDRESS_SIZE, x64);
         
         x64->op(POPQ, RCX);
         x64->op(POPQ, RAX);
@@ -332,7 +341,7 @@ public:
         x64->code_label(elem);
         x64->op(PUSHQ, RAX);
         x64->op(PUSHQ, RCX);
-        x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE));  // stream alias
+        x64->op(MOVQ, RBX, alias_addr + 2 * ADDRESS_SIZE);  // stream alias
         elem_ts.store(Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), Storage(STACK), x64);
         x64->op(PUSHQ, RBX);
         
@@ -342,7 +351,7 @@ public:
         
         x64->op(POPQ, RBX);
         elem_ts.store(Storage(STACK), Storage(), x64);
-        x64->op(MOVQ, Address(RSP, ADDRESS_SIZE + 2 * ADDRESS_SIZE), RBX);  // stream alias
+        x64->op(MOVQ, alias_addr + 2 * ADDRESS_SIZE, RBX);  // stream alias
         x64->op(POPQ, RCX);
         x64->op(POPQ, RAX);
         
@@ -353,7 +362,7 @@ public:
         x64->code_label(end);
         
         // close
-        streamify_ascii("}", Address(RSP, ADDRESS_SIZE), x64);
+        streamify_ascii("}", alias_addr, x64);
 
         x64->op(RET);
     }

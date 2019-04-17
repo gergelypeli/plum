@@ -274,6 +274,7 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     x64->code_label_import(sysv_string_regexp_match_label, "string_regexp_match");
     x64->code_label_import(sysv_memmemcpy_label, "memmemcpy");
     x64->code_label_import(sysv_streamify_pointer_label, "streamify_pointer");
+    x64->code_label_import(sysv_streamify_float_label, "streamify_float");
 
     init_memory_management();
 }

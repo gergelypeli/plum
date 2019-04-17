@@ -227,17 +227,20 @@ public:
             x64->op(CALL, streamify_function->get_label(x64));
         }
         else {
-            streamify_ascii("{", Address(RSP, 0), x64);
+            Address value_addr(RSP, ALIAS_SIZE);
+            Address alias_addr(RSP, 0);
+            
+            streamify_ascii("{", alias_addr, x64);
             
             bool did = false;
             
             for (auto v : member_variables) {
                 if (did)
-                    streamify_ascii(",", Address(RSP, 0), x64);
+                    streamify_ascii(",", alias_addr, x64);
                 
                 did = true;
                 
-                x64->op(LEA, RAX, Address(RSP, ADDRESS_SIZE));
+                x64->op(LEA, RAX, value_addr);
                 
                 TypeSpec mts = v->get_typespec(tm);
                 Storage s = v->get_storage(tm, Storage(MEMORY, Address(RAX, 0)));
@@ -253,7 +256,7 @@ public:
                 mts.store(t, Storage(), x64);
             }
 
-            streamify_ascii("}", Address(RSP, 0), x64);
+            streamify_ascii("}", alias_addr, x64);
         }
     }
 
@@ -429,19 +432,22 @@ public:
 
     virtual void streamify(TypeMatch tm, X64 *x64) {
         // Escaped and quoted
+        Address alias_addr(RSP, 0);
         Label st_label = x64->once->compile(compile_esc_streamification);
 
-        streamify_ascii("\"", Address(RSP, 0), x64);
+        streamify_ascii("\"", alias_addr, x64);
         
         x64->op(CALL, st_label);  // clobbers all
 
-        streamify_ascii("\"", Address(RSP, 0), x64);
+        streamify_ascii("\"", alias_addr, x64);
     }
 
     static void compile_esc_streamification(Label label, X64 *x64) {
         // RAX - target array, RCX - size, R10 - source array, R11 - alias
         Label char_str_label = x64->once->compile(CharacterType::compile_str_streamification);
         Label loop, check;
+        Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
+        Address alias_addr(RSP, RIP_SIZE);
         
         x64->code_label_local(label, "string_esc_streamification");
         
@@ -452,14 +458,14 @@ public:
         x64->op(PUSHQ, RCX);
         x64->op(MOVW, R10W, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET));
         x64->op(PUSHQ, R10);
-        x64->op(PUSHQ, Address(RSP, ADDRESS_SIZE * 3));  // skip char, counter, retaddr
+        x64->op(PUSHQ, alias_addr + 2 * ADDRESS_SIZE);  // skip char, counter, retaddr
         x64->op(CALL, char_str_label);  // clobbers all
         x64->op(ADDQ, RSP, ADDRESS_SIZE * 2);
         x64->op(POPQ, RCX);
         x64->op(INCQ, RCX);
         
         x64->code_label(check);
-        x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // reference to the string
+        x64->op(MOVQ, RAX, value_addr);  // reference to the string
         x64->op(CMPQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(JB, loop);
         

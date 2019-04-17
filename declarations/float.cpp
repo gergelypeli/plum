@@ -196,13 +196,14 @@ public:
     }
     
     virtual void streamify(TypeMatch tm, X64 *x64) {
+        Address value_addr(RSP, ALIAS_SIZE);
+        Address alias_addr(RSP, 0);
+
         // SysV
-        x64->op(MOVSD, XMM0, Address(RSP, ALIAS_SIZE));
-        x64->op(MOVQ, RDI, Address(RSP, 0));
+        x64->op(MOVSD, XMM0, value_addr);
+        x64->op(MOVQ, RDI, alias_addr);
         
-        Label label;
-        x64->code_label_import(label, "streamify_float");
-        x64->runtime->call_sysv(label);
+        x64->runtime->call_sysv(x64->runtime->sysv_streamify_float_label);
     }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {

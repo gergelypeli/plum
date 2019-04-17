@@ -227,18 +227,20 @@ public:
     virtual void streamify(TypeMatch tm, X64 *x64) {
         // SysV
         Label label;
+        Address value_addr(RSP, ALIAS_SIZE);
+        Address alias_addr(RSP, 0);
         
         if (is_unsigned) {
             x64->code_label_import(label, "streamify_unteger");
             
             if (size == 1)
-                x64->op(MOVZXBQ, RDI, Address(RSP, ALIAS_SIZE));
+                x64->op(MOVZXBQ, RDI, value_addr);
             else if (size == 2)
-                x64->op(MOVZXWQ, RDI, Address(RSP, ALIAS_SIZE));
+                x64->op(MOVZXWQ, RDI, value_addr);
             else if (size == 4)
-                x64->op(MOVZXDQ, RDI, Address(RSP, ALIAS_SIZE));
+                x64->op(MOVZXDQ, RDI, value_addr);
             else if (size == 8)
-                x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+                x64->op(MOVQ, RDI, value_addr);
             else
                 throw INTERNAL_ERROR;
         }
@@ -246,24 +248,20 @@ public:
             x64->code_label_import(label, "streamify_integer");
 
             if (size == 1)
-                x64->op(MOVSXBQ, RDI, Address(RSP, ALIAS_SIZE));
+                x64->op(MOVSXBQ, RDI, value_addr);
             else if (size == 2)
-                x64->op(MOVSXWQ, RDI, Address(RSP, ALIAS_SIZE));
+                x64->op(MOVSXWQ, RDI, value_addr);
             else if (size == 4)
-                x64->op(MOVSXDQ, RDI, Address(RSP, ALIAS_SIZE));
+                x64->op(MOVSXDQ, RDI, value_addr);
             else if (size == 8)
-                x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
+                x64->op(MOVQ, RDI, value_addr);
             else
                 throw INTERNAL_ERROR;
         }
         
-        x64->op(MOVQ, RSI, Address(RSP, 0));
+        x64->op(MOVQ, RSI, alias_addr);
         x64->runtime->call_sysv(label);
     }
-
-    //DataScope *get_inner_scope() {
-    //    return integer_metatype->get_inner_scope();
-    //}
 };
 
 
@@ -275,8 +273,11 @@ public:
 
     virtual void streamify(TypeMatch tm, X64 *x64) {
         // SysV
-        x64->op(MOVQ, RDI, Address(RSP, ALIAS_SIZE));
-        x64->op(MOVQ, RSI, Address(RSP, 0));
+        Address value_addr(RSP, ALIAS_SIZE);
+        Address alias_addr(RSP, 0);
+
+        x64->op(MOVQ, RDI, value_addr);
+        x64->op(MOVQ, RSI, alias_addr);
         
         Label label;
         x64->code_label_import(label, "streamify_boolean");
@@ -309,10 +310,13 @@ public:
     }
 
     static void insert_pre_streamification(X64 *x64) {
-        x64->op(MOVQ, R10, 5);  // worst case will be five character escapes
-        stream_preappend2(Address(RSP, ADDRESS_SIZE), x64);
+        Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
+        Address alias_addr(RSP, RIP_SIZE);
 
-        x64->op(MOVZXWQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the character
+        x64->op(MOVQ, R10, 5);  // worst case will be five character escapes
+        stream_preappend2(alias_addr, x64);
+
+        x64->op(MOVZXWQ, R10, value_addr);
         x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(LEA, RBX, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET));  // stream end
 
@@ -476,13 +480,13 @@ public:
     }
     
     static void compile_streamification(Label label, X64 *x64) {
-        // RAX - target array, RBX - table start, RCX - size, R10 - source enum, R11 - alias
-        //Label preappend_array = x64->once->compile(compile_array_preappend, CHARACTER_TS);
+        // RAX - target array, RBX - table start, RCX - size, R10 - source enum
+        Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
+        Address alias_addr(RSP, RIP_SIZE);
 
         x64->code_label_local(label, "enum_streamification");
 
-        x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-        x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + ALIAS_SIZE));  // the enum
+        x64->op(MOVQ, R10, value_addr);  // the enum
 
         // Find the string for this enum value
         x64->op(ANDQ, R10, 0xFF);
@@ -490,15 +494,11 @@ public:
             
         x64->op(PUSHQ, R10);  // save enum string
             
-        //x64->op(MOVQ, RAX, Address(R11, 0));
         x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
 
-        //x64->op(CALL, preappend_array);  // clobbers all
-        stream_preappend2(Address(RSP, ADDRESS_SIZE * 2), x64);
+        stream_preappend2(alias_addr + ADDRESS_SIZE, x64);
         
         x64->op(POPQ, R10);  // enum string
-        //x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // alias to the stream reference
-        //x64->op(MOVQ, Address(R11, 0), RAX);  // R11 no longer needed
 
         x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
         x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));

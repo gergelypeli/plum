@@ -373,7 +373,9 @@ public:
     // from interpolation, which is in Void context, so not much is lost. But
     // nested streamifications must take care!
     virtual void streamify(TypeMatch tm, X64 *x64) {
-        streamify_ascii("<unstreamifiable>", Address(RSP, 0), x64);
+        Address alias_addr(RSP, 0);
+        
+        streamify_ascii("<unstreamifiable>", alias_addr, x64);
     }
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
@@ -866,7 +868,9 @@ public:
     }
 
     virtual void streamify(TypeMatch tm, X64 *x64) {
-        streamify_ascii("U", Address(RSP, 0), x64);
+        Address alias_addr(RSP, 0);
+
+        streamify_ascii("U", alias_addr, x64);
     }
 };
 
