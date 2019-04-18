@@ -209,9 +209,7 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage s = value->compile(x64);
         
-        // Returning an ALISTACK is kinda optimized out, so it will be popped into a MEMORY,
-        // so we don't need to pop it ourselves
-        if (s.where != MEMORY)
+        if (s.where != MEMORY || s.address.base != RSP || s.address.index != NOREG || s.address.offset != 0)
             throw INTERNAL_ERROR;
         
         return Storage(STACK);

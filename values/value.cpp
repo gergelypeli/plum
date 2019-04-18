@@ -435,11 +435,13 @@ public:
     Evaluable *evaluable;
     std::vector<std::unique_ptr<Value>> arg_values;
     std::vector<Storage> arg_storages;
+    unsigned result_stack_size;
     FunctionScope *fn_scope;
     
     EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
         :Value(typesubst(e->alloc_ts, tm).unprefix(code_type)) {
         evaluable = e;
+        result_stack_size = 0;
         
         if (p)
             throw INTERNAL_ERROR;
@@ -487,6 +489,18 @@ public:
             
         return Regs::all();
     }
+
+    virtual void destroy_arguments(X64 *x64) {
+        // Must use RBX to load the ALIAS-es to, because RAX is a valid result storage
+        
+        for (int i = arg_storages.size() - 1; i >= 0; i--) {
+            Storage x = arg_storages[i];
+            x64->op(MOVQ, RBX, x.address);
+            Storage t(MEMORY, Address(RBX, 0));
+            
+            evaluable->arg_variables[i]->alloc_ts.destroy(t, x64);
+        }
+    }
     
     virtual Storage compile(X64 *x64) {
         x64->unwind->push(this);
@@ -505,11 +519,21 @@ public:
             
             evaluable->arg_variables[i]->alloc_ts.create(s, t, x64);
         }
-    
+
         Storage es = evaluable->get_local_storage();
+
+        StorageWhere where = ts.where(AS_VALUE);
+        Storage t = (
+            where == NOWHERE ? Storage() :
+            where == REGISTER ? Storage(REGISTER, RAX) :
+            where == SSEREGISTER ? Storage(SSEREGISTER, XMM0) :
+            Storage(STACK)
+        );
         
-        if (ts != VOID_TS)
-            x64->op(SUBQ, RSP, ts.measure_stack());
+        if (t.where == STACK) {
+            result_stack_size = ts.measure_stack();
+            x64->op(SUBQ, RSP, result_stack_size);
+        }
             
         x64->op(MOVQ, R10, es.address);  // Needs RBP
         x64->op(PUSHQ, RBP);
@@ -532,35 +556,19 @@ public:
         x64->op(MOVQ, RDX, code_break_exception_type->get_keyword_index("CODE_BREAK"));
         x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
         
-        x64->code_label(noex);
-
         x64->unwind->pop(this);
-
-        // FIXME: these must be destroyed even if the body raises an exception!
-        for (int i = arg_storages.size() - 1; i >= 0; i--) {
-            Storage x = arg_storages[i];
-            Register reg = RAX;
-            x64->op(MOVQ, reg, x.address);
-            Storage t(MEMORY, Address(reg, 0));
-            
-            evaluable->arg_variables[i]->alloc_ts.destroy(t, x64);
-        }
         
-        return ts == VOID_TS ? Storage() : Storage(STACK);
+        x64->code_label(noex);
+        destroy_arguments(x64);
+        
+        return t;
     }
 
     virtual Scope *unwind(X64 *x64) {
-        for (int i = arg_storages.size() - 1; i >= 0; i--) {
-            Storage x = arg_storages[i];
-            Register reg = RAX;
-            x64->op(MOVQ, reg, x.address);
-            Storage t(MEMORY, Address(reg, 0));
-            
-            evaluable->arg_variables[i]->alloc_ts.destroy(t, x64);
-        }
+        destroy_arguments(x64);
         
-        if (ts != VOID_TS)
-            x64->op(ADDQ, RSP, ts.measure_stack());
+        if (result_stack_size)
+            x64->op(ADDQ, RSP, result_stack_size);
             
         return NULL;
     }

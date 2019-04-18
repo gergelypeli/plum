@@ -571,8 +571,10 @@ public:
     std::vector<Storage> pushed_storages;
     std::vector<unsigned> pushed_sizes;
     std::vector<Storage> pushed_stackfixes;
-    
+
     TypeSpec pivot_ts;
+    Storage pivot_alias_storage;
+    
     std::vector<TypeSpec> arg_tss;
     std::vector<TypeSpec> res_tss;
     std::vector<std::string> arg_names;
@@ -728,7 +730,10 @@ public:
             Label begin, skip;
             x64->op(JMP, skip);
 
-            csv->compile_evaluable(begin, x64);
+            x64->code_label(begin);
+            csv->be_evalue();
+            csv->compile(x64);
+            x64->op(RET);  // ZF set if no exceptions, otherwise RDX contains it
             
             x64->code_label(skip);
             x64->op(LEA, R10, Address(begin, 0));
@@ -761,6 +766,10 @@ public:
                 // So only store the RBP-relative offset onto the stack, and remember to add
                 // the current RBP value to them just before invoking the function.
                 if (t.where == ALISTACK) {
+                    // Necessary to return the original storage in void functions
+                    if (arg_value == pivot.get())
+                        pivot_alias_storage = s;
+                
                     if (s.where == MEMORY && s.address.base == RBP) {
                         // Will add RBP
                         x64->op(PUSHQ, s.address.offset);
@@ -798,14 +807,15 @@ public:
 
     virtual void pop_arg(X64 *x64) {
         TypeSpec arg_ts = pushed_tss.back();
-        pushed_tss.pop_back();
-        
         Storage s = pushed_storages.back();
+
+        pushed_tss.pop_back();
         pushed_storages.pop_back();
-        
         pushed_sizes.pop_back();
+        pushed_stackfixes.pop_back();
         
         if (arg_ts[0] == code_type) {
+            // TODO: code_type should take care of itself!
             x64->op(ADDQ, RSP, ADDRESS_SIZE);
         }
         else {
@@ -895,15 +905,26 @@ public:
             
         if (pivot_ts.size()) {
             if (is_void) {
-                // Return pivot argument
+                // Return pivot argument (an ALIAS must be returned as received)
                 
                 Storage s = pushed_storages[0];
             
                 if (s.where == ALISTACK) {
-                    // Returning ALISTACK is a bit evil, as the caller would need to
-                    // allocate a register to do anything meaningful with it, so do that here
-                    Storage t = Storage(MEMORY, Address(reg, 0));
-                    s = pushed_tss[0].store(s, t, x64);
+                    // A general register can only be used to store heap addresses.
+                    // If the pivot was specified using a stack relative address, we need
+                    // to return it as we got it.
+                    s = pivot_alias_storage;
+                    
+                    if (s.where == MEMORY) {
+                        if (s.address.base == RBP || s.address.base == RSP)
+                            x64->op(ADDQ, RSP, ADDRESS_SIZE);
+                        else {
+                            x64->op(POPQ, RAX);
+                            s = Storage(MEMORY, Address(RAX, 0));
+                        }
+                    }
+                    else if (s.where == ALIAS)
+                        x64->op(ADDQ, RSP, ADDRESS_SIZE);
                 }
             
                 return s;
@@ -929,8 +950,12 @@ public:
 
     virtual Scope *unwind(X64 *x64) {
         //std::cerr << "Unwinding function call " << function->name << " would wipe " << pushed_tss.size() << " arguments.\n";
-        for (int i = pushed_tss.size() - 1; i >= 0; i--)
-            pushed_tss[i].store(pushed_storages[i], Storage(), x64);
+        for (int i = pushed_tss.size() - 1; i >= 0; i--) {
+            if (pushed_tss[i][0] == code_type)
+                x64->op(ADDQ, RSP, ADDRESS_SIZE);
+            else
+                pushed_tss[i].store(pushed_storages[i], Storage(), x64);
+        }
         
         // This area is uninitialized
         if (res_total)

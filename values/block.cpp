@@ -4,6 +4,7 @@ public:
     std::unique_ptr<Value> value;
     CodeScope *code_scope;
     bool may_be_aborted;
+    bool am_evalue;
     Storage save_storage;
 
     CodeScopeValue(Value *v, CodeScope *s)
@@ -13,6 +14,11 @@ public:
         code_scope = s;
         code_scope->be_taken();
         may_be_aborted = false;
+        am_evalue = false;
+    }
+
+    void be_evalue() {
+        am_evalue = true;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -20,22 +26,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = value->precompile(preferred);
-        
-        if (value->ts != VOID_TS) {
-            switch (value->ts.where(AS_VALUE)) {
-            case REGISTER:
-                save_storage = Storage(REGISTER, RAX);
-                break;
-            case SSEREGISTER:
-                save_storage = Storage(SSEREGISTER, XMM0);
-                break;
-            default:
-                save_storage = Storage(STACK);
-            }
-        }
-        
-        return clob | save_storage.regs();
+        return value->precompile(preferred) | Regs(RAX) | Regs(XMM0);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -45,62 +36,47 @@ public:
         Storage s = value->compile(x64);
         x64->unwind->pop(this);
         
-        // Can't let the result be passed as a MEMORY storage, because it may
-        // point to a local variable that we're about to destroy. So grab that
-        // value while we can. This actually happens for interpolations.
-        if (s.where == MEMORY)
-            s = value->ts.store(s, save_storage, x64);
-
+        // NOTE: don't return a MEMORY storage, that may point to a variable we're
+        // about to destroy!
+        StorageWhere where = value->ts.where(AS_VALUE);
+        Storage t = (
+            where == NOWHERE ? Storage() :
+            where == REGISTER ? Storage(REGISTER, RAX) :
+            where == SSEREGISTER ? Storage(SSEREGISTER, XMM0) :
+            Storage(STACK)
+        );
+        
+        if (am_evalue && t.where == STACK) {
+            // Storing STACK values in an evalue is tricky, because we have return address
+            // and a saved RBP on the stack, too. Treat the return location as a variable.
+            
+            int offset = (s.where == STACK ? value->ts.measure_stack() : 0);
+            Storage x = Storage(MEMORY, Address(RSP, RIP_SIZE + ADDRESS_SIZE + offset));
+            value->ts.create(s, x, x64);
+        }
+        else
+            value->ts.store(s, t, x64);
+        
         if (may_be_aborted)
             x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         code_scope->finalize_contents(x64);
 
         if (may_be_aborted) {
-            Label ok;
             x64->op(CMPQ, RDX, NO_EXCEPTION);
-            x64->op(JE, ok);
+            
+            if (!am_evalue) {
+                // An evalue would just return the exception to its evaluator
+                Label ok;
+                x64->op(JE, ok);
     
-            x64->unwind->initiate(code_scope, x64);
+                x64->unwind->initiate(code_scope, x64);
 
-            x64->code_label(ok);
+                x64->code_label(ok);
+            }
         }
             
-        return s;
-    }
-
-    virtual void compile_evaluable(Label label, X64 *x64) {
-        x64->code_label(label);
-        
-        x64->unwind->push(this);
-        Storage s = value->compile(x64);
-        x64->unwind->pop(this);
-        
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-
-        // Move the result to the caller's stack frame (skip return address and old RBP)        
-        Storage t = Storage(MEMORY, Address(RSP, 2 * ADDRESS_SIZE));
-        
-        switch (s.where) {
-        case NOWHERE:
-            break;
-        case CONSTANT:
-        case FLAGS:
-        case REGISTER:
-        case MEMORY:
-            ts.create(s, t, x64);
-            break;
-        case STACK:
-            ts.create(s, t + ts.measure_stack(), x64);
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-
-        code_scope->finalize_contents(x64);
-
-        x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
-        x64->op(RET);
+        return t;
     }
     
     virtual Scope *unwind(X64 *x64) {
