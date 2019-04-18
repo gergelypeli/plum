@@ -434,7 +434,7 @@ class EvaluableValue: public Value, public Raiser {
 public:
     Evaluable *evaluable;
     std::vector<std::unique_ptr<Value>> arg_values;
-    std::vector<Storage> arg_storages;
+    std::vector<StorageWhere> arg_wheres;
     unsigned result_stack_size;
     FunctionScope *fn_scope;
     
@@ -493,10 +493,10 @@ public:
     virtual void destroy_arguments(X64 *x64) {
         // Must use RBX to load the ALIAS-es to, because RAX is a valid result storage
         
-        for (int i = arg_storages.size() - 1; i >= 0; i--) {
-            Storage x = arg_storages[i];
+        for (int i = arg_wheres.size() - 1; i >= 0; i--) {
+            Storage x = evaluable->arg_variables[i]->get_local_storage();
             x64->op(MOVQ, RBX, x.address);
-            Storage t(MEMORY, Address(RBX, 0));
+            Storage t(arg_wheres[i], Address(RBX, 0));
             
             evaluable->arg_variables[i]->alloc_ts.destroy(t, x64);
         }
@@ -513,9 +513,11 @@ public:
             if (x.where != ALIAS)
                 throw INTERNAL_ERROR;
                 
-            arg_storages.push_back(x);
+            StorageWhere where = (s.where == BMEMORY ? BMEMORY : MEMORY);
+            arg_wheres.push_back(where);
+            
             x64->op(MOVQ, reg, x.address);
-            Storage t(MEMORY, Address(reg, 0));
+            Storage t(where, Address(reg, 0));
             
             evaluable->arg_variables[i]->alloc_ts.create(s, t, x64);
         }

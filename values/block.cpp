@@ -333,7 +333,7 @@ public:
 
             if ((*context)[0] == dvalue_type) {
                 ts = *context;
-                TypeSpec var_ts = ts.reprefix(dvalue_type, lvalue_type);
+                TypeSpec var_ts = ts.unprefix(dvalue_type);
                 var = new RetroVariable(name, var_ts);
             
                 decl = var;

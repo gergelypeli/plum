@@ -175,6 +175,10 @@ public:
             tm[1].incref(R10, x64);
             x64->op(MOVQ, t.address, R10);
             return;
+        case BMEMORY_BMEMORY:
+            x64->op(MOVQ, R10, s.address);
+            x64->op(MOVQ, t.address, R10);
+            return;
         default:
             throw INTERNAL_ERROR;
         }
@@ -184,6 +188,8 @@ public:
         if (s.where == MEMORY) {
             x64->op(MOVQ, R10, s.address);
             tm[1].decref(R10, x64);
+        }
+        else if (s.where == BMEMORY) {
         }
         else
             throw INTERNAL_ERROR;
