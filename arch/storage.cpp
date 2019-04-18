@@ -15,7 +15,7 @@ enum StorageWhere {
     STACK = 5,
     // The value is at the specified address
     MEMORY = 6,
-    // The address of the value is on the top of the stack
+    // The address of the value is on the top of the stack (function argument only!)
     ALISTACK = 7,
     // The address of the value is ate the specified address (always RBP based)
     ALIAS = 8,

@@ -354,7 +354,7 @@ public:
     virtual Storage pick_auxrs(RegSubset rss) {
         // Since the code can be more optimal if we don't load the right argument
         // into registers before actually executing the operation, we may leave it
-        // in memory in many cases, only have to load stuff from ALISTACK and ALIAS.
+        // in memory in many cases, only have to load stuff from ALIAS.
 
         if (rss == GPR_SUBSET || rss == PTR_SUBSET) {
             Register r = (~(ls.regs() | auxls.regs())).get_any();
@@ -424,9 +424,6 @@ public:
                     }
                 }
                 break;
-            case ALISTACK:
-                // Already on stack, fine
-                break;
             case ALIAS:
                 // Aliases are at static addresses, can't be clobbered.
                 // And they never change, so we don't have to load them just to be sure.
@@ -482,24 +479,6 @@ public:
                     ls = left->ts.store(ls, Storage(STACK), x64);
                 }
                 break;
-            case ALISTACK: {
-                // The address itself may be safe, but the value may be not.
-                // Store is only defined from ALISTACK to MEMORY, so do this manually.
-
-                Register tmpr = clob.get_any();
-                x64->op(POPQ, tmpr);
-                ls = Storage(MEMORY, Address(tmpr, 0));
-                
-                if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
-                    // We already know a register that won't be clobbered, save value there
-                    ls = left->ts.store(ls, auxls, x64);
-                }
-                else {
-                    // Nothing is sure, push the value onto the stack
-                    ls = left->ts.store(ls, Storage(STACK), x64);
-                }
-                }
-                break;
             case ALIAS: {
                 // The address itself may be safe, but the value may be not.
                 // Store is only defined from ALIAS to MEMORY, so do this manually.
@@ -550,9 +529,6 @@ public:
             break;
         case MEMORY:
             break;
-        case ALISTACK:
-            rs = right->ts.store(rs, pick_auxrs(PTR_SUBSET), x64);
-            break;
         case ALIAS:
             rs = right->ts.store(rs, pick_auxrs(PTR_SUBSET), x64);
             break;
@@ -586,13 +562,6 @@ public:
                 else
                     throw INTERNAL_ERROR;
             }
-            break;
-        case ALISTACK:
-            if (auxls.where == MEMORY) {
-                ls = left->ts.store(ls, auxls, x64);
-            }
-            else
-                throw INTERNAL_ERROR;
             break;
         case ALIAS:
             if (auxls.where == MEMORY) {

@@ -299,42 +299,14 @@ public:
             x64->op(LEA, R10, s.address);
             x64->op(PUSHQ, R10);
             return;
-        case MEMORY_ALIAS:
-            x64->op(LEA, R10, s.address);
-            x64->op(MOVQ, t.address, R10);
-            return;
             
         case ALISTACK_NOWHERE:
             x64->op(ADDQ, RSP, ALIAS_SIZE);
             return;
-        case ALISTACK_MEMORY:
-            if (t.address.base == NOREG || t.address.base == RBP || t.address.base == RSP || t.address.index != NOREG || t.address.offset != 0)
-                throw INTERNAL_ERROR;
-                
-            x64->op(POPQ, t.address.base);
-            return;
-        case ALISTACK_ALISTACK:
-            return;
-        case ALISTACK_ALIAS:
-            x64->op(POPQ, t.address);
-            return;
             
         case ALIAS_NOWHERE:
             return;
-        case ALIAS_MEMORY:
-            if (t.address.base == NOREG || t.address.base == RBP || t.address.base == RSP || t.address.index != NOREG || t.address.offset != 0)
-                throw INTERNAL_ERROR;
-                
-            x64->op(MOVQ, t.address.base, s.address);
-            return;
-        case ALIAS_ALISTACK:
-            x64->op(PUSHQ, s.address);
-            return;
-        case ALIAS_ALIAS:
-            x64->op(MOVQ, R10, s.address);
-            x64->op(MOVQ, t.address, R10);
-            return;
-            
+
         default:
             std::cerr << "Unstorable type: " << name << " from " << s << " to " << t << "!\n";
             throw INTERNAL_ERROR;
