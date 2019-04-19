@@ -499,6 +499,16 @@ public:
     AnyType(std::string name, Metatypes param_metatypes, MetaType *mt)
         :Type(name, param_metatypes, mt) {
     }
+    
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        // Needed for unalias hinting only
+        
+        return (
+            as_what == AS_ARGUMENT ? MEMORY :
+            as_what == AS_LVALUE_ARGUMENT ? ALIAS :
+            throw INTERNAL_ERROR
+        );
+    }
 };
 
 
@@ -730,6 +740,14 @@ public:
     UninitializedType(std::string name)
         :Type(name, Metatypes { value_metatype }, type_metatype) {
     }
+
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        // This method is needed for probing if rvalue hinting is applicable
+        if (as_what == AS_ARGUMENT)
+            as_what = AS_LVALUE_ARGUMENT;
+            
+        return tm[1].where(as_what);
+    }
 };
 
 
@@ -795,6 +813,19 @@ class MultiType: public Type {
 public:
     MultiType(std::string name)
         :Type(name, {}, type_metatype) {
+    }
+
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        // Needed for unalias hinting only
+        
+        if (as_what == AS_ARGUMENT && this == multilvalue_type)
+            as_what = AS_LVALUE_ARGUMENT;
+        
+        return (
+            as_what == AS_ARGUMENT ? MEMORY :
+            as_what == AS_LVALUE_ARGUMENT ? ALIAS :
+            throw INTERNAL_ERROR
+        );
     }
 };
 

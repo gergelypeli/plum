@@ -783,8 +783,8 @@ public:
                         stackfix = s;
                     }
                     else if (s.where == ALIAS) {
-                        // Will copy ALIAS
-                        x64->op(PUSHQ, 0);
+                        // Will add ALIAS address
+                        x64->op(PUSHQ, s.value);
                         stackfix = s;
                     }
                     else
@@ -878,7 +878,7 @@ public:
             else if (sf.where == ALIAS) {
                 std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
                 x64->op(MOVQ, R10, sf.address);
-                x64->op(MOVQ, Address(RSP, stackfix_offset), R10);
+                x64->op(ADDQ, Address(RSP, stackfix_offset), R10);
             }
         }
 

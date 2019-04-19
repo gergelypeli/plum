@@ -263,7 +263,7 @@ void nosy_postadd(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     // This is the storage of the rbtree ref as the operation's pivot value returned.
     // As it was an Lvalue pivot, it is either MEMORY[RBP+x] or ALIAS[RBP+x].
     // The rbtree ref of a nosy structure is on the heap, so it must be the second one.
-    if (ref_storage.where != ALIAS)
+    if (ref_storage.where != ALIAS || ref_storage.value != 0)
         throw INTERNAL_ERROR;
         
     x64->op(MOVQ, R11, ref_storage.address);
@@ -291,7 +291,7 @@ void nosy_postremove(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     int noffset = nosyvalue_offset(elem_ts);
 
     // See above
-    if (ref_storage.where != ALIAS)
+    if (ref_storage.where != ALIAS || ref_storage.value != 0)
         throw INTERNAL_ERROR;
         
     x64->op(MOVQ, R11, ref_storage.address);

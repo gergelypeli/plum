@@ -700,14 +700,15 @@ public:
 
         ls = left->compile_and_alias(x64, get_alias());
 
+        // Load the ref to SELFX, and the index to RAX
         if (ls.where == MEMORY) {
             x64->op(MOVQ, SELFX, ls.address);
             x64->op(MOVQ, RAX, ls.address + REFERENCE_SIZE);
         }
         else if (ls.where == ALIAS) {
             x64->op(MOVQ, R11, ls.address);
-            x64->op(MOVQ, SELFX, Address(R11, 0));
-            x64->op(MOVQ, RAX, Address(R11, REFERENCE_SIZE));
+            x64->op(MOVQ, SELFX, Address(R11, ls.value));
+            x64->op(MOVQ, RAX, Address(R11, ls.value + REFERENCE_SIZE));
         }
         else
             throw INTERNAL_ERROR;
@@ -727,7 +728,7 @@ public:
         }
         else if (ls.where == ALIAS) {
             x64->op(MOVQ, R11, ls.address);
-            x64->op(MOVQ, Address(R11, REFERENCE_SIZE), RAX);
+            x64->op(MOVQ, Address(R11, ls.value + REFERENCE_SIZE), RAX);
         }
         
         // Return new item address

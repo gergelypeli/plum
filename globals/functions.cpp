@@ -57,6 +57,11 @@ bool value_check(Value *v, Args &a, Kwargs &k, Scope *s) {
 }
 
 
+void value_hint_unalias(Value *v) {
+    v->hint_unalias();
+}
+
+
 const char *typeidname(Value *v) {
     return typeid(*v).name();
 }
@@ -205,6 +210,9 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
 
         return false;
     }
+
+    if (context && (*context).where(AS_ARGUMENT) != ALIAS)
+        v->hint_unalias();
 
     if (code_scope) {
         v = make<CodeScopeValue>(v, code_scope);

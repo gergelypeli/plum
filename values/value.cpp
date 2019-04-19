@@ -31,6 +31,12 @@ public:
         return check_arguments(args, kwargs, ArgInfos());
     }
     
+    virtual void hint_unalias() {
+        // This method mostly exists to let a VariableValue with ALIAS storage
+        // allocate a register, and load the address into it, so the parent expression
+        // doesn't have to bother with it.
+    }
+    
     virtual Regs precompile(Regs) {
         std::cerr << "This Value shouldn't have been precompiled!\n";
         throw INTERNAL_ERROR;
@@ -217,6 +223,7 @@ public:
     TypeSpec pts;
     bool is_rvalue_record;
     bool is_single_record;
+    bool is_unalias_hinted;
     Unborrow *unborrow;
     
     VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
@@ -227,6 +234,7 @@ public:
         match = tm;
         is_rvalue_record = false;
         is_single_record = false;
+        is_unalias_hinted = false;
         unborrow = NULL;
         
         if (pivot) {
@@ -253,6 +261,10 @@ public:
         }
     }
     
+    virtual void hint_unalias() {
+        is_unalias_hinted = true;
+    }
+    
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot ? pivot->precompile(preferred) : Regs();
             
@@ -263,13 +275,13 @@ public:
             if (variable->where == ALIAS)
                 throw INTERNAL_ERROR;
                 
-            if (pts[0] == ptr_type) {
+            if (pts[0] == ptr_type || is_unalias_hinted) {
                 reg = preferred.get_any();
                 clob = clob | reg;
             }
         }
         else {
-            if (variable->where == ALIAS) {
+            if (variable->where == ALIAS && is_unalias_hinted) {
                 reg = preferred.get_any();
                 //std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
                 clob = clob | reg;
@@ -295,11 +307,13 @@ public:
                     // We can borrow a reference to the container for free
                     pts.store(s, Storage(BREGISTER, reg), x64);
                 }
-                else {
+                else if (s.where == MEMORY) {
                     // Or do that for money
                     pts.store(s, Storage(REGISTER, reg), x64);
                     x64->op(MOVQ, unborrow->get_address(), reg);
                 }
+                else
+                    throw INTERNAL_ERROR;
                 
                 s = Storage(MEMORY, Address(reg, 0));
             }
@@ -329,7 +343,7 @@ public:
 
             }
             
-            if (s.where != MEMORY)
+            if (s.where != MEMORY && s.where != ALIAS)
                 throw INTERNAL_ERROR;
             
             t = variable->get_storage(match, s);
@@ -337,11 +351,6 @@ public:
         else {
             t = variable->get_local_storage();
 
-            if (t.where == ALIAS) {
-                x64->op(MOVQ, reg, t.address);
-                t = Storage(MEMORY, Address(reg, 0));
-            }
-            
             if (variable->name == "$" && ts[0] == ptr_type) {
                 // Try borrowing on the self argument, guaranteed not to change
                 if (t.where != MEMORY)
@@ -350,6 +359,11 @@ public:
                 // Let the parent borrow this instead of making a reference copy
                 t.where = BMEMORY;
             }
+        }
+
+        if (t.where == ALIAS && is_unalias_hinted) {
+            x64->op(MOVQ, reg, t.address);
+            t = Storage(MEMORY, Address(reg, t.value));
         }
         
         return t;    
@@ -496,7 +510,7 @@ public:
         for (int i = arg_wheres.size() - 1; i >= 0; i--) {
             Storage x = evaluable->arg_variables[i]->get_local_storage();
             x64->op(MOVQ, RBX, x.address);
-            Storage t(arg_wheres[i], Address(RBX, 0));
+            Storage t(arg_wheres[i], Address(RBX, x.value));
             
             evaluable->arg_variables[i]->alloc_ts.destroy(t, x64);
         }
@@ -517,7 +531,7 @@ public:
             arg_wheres.push_back(where);
             
             x64->op(MOVQ, reg, x.address);
-            Storage t(where, Address(reg, 0));
+            Storage t(where, Address(reg, x.value));
             
             evaluable->arg_variables[i]->alloc_ts.create(s, t, x64);
         }

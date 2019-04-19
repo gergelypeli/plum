@@ -7,7 +7,7 @@
 
 void stream_preappend2(Address alias_addr, X64 *x64) {
     Label grow_label = x64->once->compile(compile_array_grow, CHARACTER_TS);
-    Storage ref_storage(ALIAS, alias_addr);
+    Storage ref_storage(ALIAS, alias_addr, 0);
 
     container_preappend2(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, grow_label, ref_storage, x64);
 }

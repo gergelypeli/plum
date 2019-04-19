@@ -123,7 +123,7 @@ public:
         else if (ls.where == ALIAS) {
             Register r = (clob & ~rs.regs()).get_any();
             x64->op(MOVQ, r, ls.address);
-            ls = Storage(MEMORY, Address(r, 0));
+            ls = Storage(MEMORY, Address(r, ls.value));
         }
 
         if (operation == ASSIGN)
@@ -485,7 +485,7 @@ public:
 
                 Register tmpr = clob.get_any();
                 x64->op(MOVQ, tmpr, ls.address);
-                ls = Storage(MEMORY, Address(tmpr, 0));
+                ls = Storage(MEMORY, Address(tmpr, ls.value));
                 
                 if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
                     // We already know a register that won't be clobbered, save value there
@@ -529,8 +529,11 @@ public:
             break;
         case MEMORY:
             break;
-        case ALIAS:
-            rs = right->ts.store(rs, pick_auxrs(PTR_SUBSET), x64);
+        case ALIAS: {
+            Storage auxrs = pick_auxrs(PTR_SUBSET);  // MEMORY with 0 offset
+            x64->op(MOVQ, auxrs.address.base, rs.address);
+            rs = auxrs + rs.value;
+        }
             break;
         default:
             throw INTERNAL_ERROR;
@@ -565,7 +568,8 @@ public:
             break;
         case ALIAS:
             if (auxls.where == MEMORY) {
-                ls = left->ts.store(ls, auxls, x64);
+                x64->op(MOVQ, auxls.address.base, ls.address);
+                ls = auxls + ls.value;
             }
             else
                 throw INTERNAL_ERROR;

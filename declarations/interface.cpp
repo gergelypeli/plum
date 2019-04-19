@@ -94,6 +94,8 @@ public:
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         return (
             as_what == AS_VARIABLE ? MEMORY :
+            as_what == AS_ARGUMENT ? MEMORY :  // for unalias hinting
+            as_what == AS_LVALUE_ARGUMENT ? ALIAS :  // for unalias hinting
             throw INTERNAL_ERROR
         );
     }

@@ -75,6 +75,7 @@ TypeSpec type_value_represented_ts(Value *v);
 void function_call_be_static(Value *v, Associable *sr);
 Value *value_lookup_inner(Value *value, std::string name, Scope *scope);
 bool value_check(Value *v, Args &a, Kwargs &k, Scope *s);
+void value_hint_unalias(Value *v);
 const char *typeidname(Value *v);
 
 // Declaration wrappers

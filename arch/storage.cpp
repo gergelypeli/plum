@@ -120,13 +120,27 @@ struct Storage {
     }
 
     Storage(StorageWhere w, Address a) {
-        if (w != MEMORY && w != ALIAS && w != BMEMORY) {
+        if (w != MEMORY && w != BMEMORY) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
         }
 
         where = w;
         value = 0;
+        cc = CC_NONE;
+        reg = NOREG;
+        sse = NOSSE;
+        address = a;
+    }
+
+    Storage(StorageWhere w, Address a, int v) {
+        if (w != ALIAS) {
+            std::cerr << "Wrong Storage!\n";
+            throw INTERNAL_ERROR;
+        }
+
+        where = w;
+        value = v;
         cc = CC_NONE;
         reg = NOREG;
         sse = NOSSE;
@@ -200,7 +214,7 @@ std::ostream &operator<<(std::ostream &os, const Storage &s) {
     else if (s.where == ALISTACK)
         os << "ALISTACK";
     else if (s.where == ALIAS)
-        os << "ALIAS(" << s.address << ")";
+        os << "ALIAS(" << s.address << "+" << s.value << ")";
     else if (s.where == BREGISTER)
         os << "BREGISTER(" << s.reg << ")";
     else if (s.where == BSTACK)

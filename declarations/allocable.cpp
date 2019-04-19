@@ -41,10 +41,24 @@ public:
     }
 
     virtual Storage get_storage(TypeMatch tm, Storage s) {
-        if (s.where != MEMORY)
-            throw INTERNAL_ERROR;  // all variable containers must use MEMORY
+        int o = get_offset(tm);
         
-        return Storage(where, s.address + get_offset(tm));
+        if (s.where == MEMORY) {
+            if (where == MEMORY)
+                return Storage(where, s.address + o);
+            else if (where == ALIAS)
+                return Storage(where, s.address + o, 0);
+            else
+                throw INTERNAL_ERROR;
+        }
+        else if (s.where == ALIAS) {
+            if (where == MEMORY)
+                return Storage(ALIAS, s.address, s.value + o);
+            else
+                throw INTERNAL_ERROR;
+        }
+        else
+            throw INTERNAL_ERROR;  // all variable containers must use MEMORY or ALIAS
     }
 
     virtual Storage get_local_storage() {
@@ -353,7 +367,7 @@ public:
         Allocable::allocate();
         
         where = ALIAS;
-        offset = outer_scope->reserve(Allocation(ADDRESS_SIZE));
+        offset = outer_scope->reserve(Allocation(ALIAS_SIZE));
     }
 };
 
@@ -497,7 +511,7 @@ public:
         if (ls.where != MEMORY)
             throw INTERNAL_ERROR;
             
-        return Storage(ALIAS, ls.address + offset.concretize());
+        return Storage(ALIAS, ls.address + offset.concretize(), 0);
     }
     
     virtual Storage process(Storage s, X64 *x64) {
@@ -517,7 +531,7 @@ public:
                 throw INTERNAL_ERROR;
             }
             else {
-                // Dynamic addresses will be stored, and used as an alias
+                // Dynamic addresses will be stored, and used as an ALIAS
                 x64->op(LEA, R10, s.address);
                 x64->op(MOVQ, ts.address, R10);
                 

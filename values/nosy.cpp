@@ -219,8 +219,6 @@ public:
 
         container_cow(clone_label, ps, x64);  // clobbers all, returns RAX
 
-        //x64->op(ADDQ, RSP, ALIAS_SIZE);
-        
         heap_ts.incref(RAX, x64);
         x64->op(MOVQ, unborrow->get_address(), RAX);
         return Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET));

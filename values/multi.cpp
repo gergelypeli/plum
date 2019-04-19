@@ -92,11 +92,16 @@ public:
         x64->unwind->push(this);
 
         for (unsigned i = 0; i < values.size(); i++) {
-            // Since lvalues, these will be MEMORY
+            // Since lvalues, these will be MEMORY or ALIAS
             Storage s = values[i]->compile(x64);
+            if (s.where != MEMORY && s.where != ALIAS)
+                throw INTERNAL_ERROR;
 
-            if (s.regs().has_any()) {  // that is, non-RBP
+            if (s.regs().has_any()) {  // that is, non-RBP MEMORY
                 StorageWhere where = stacked(tss[i].where(AS_ARGUMENT));
+                if (where != ALISTACK)
+                    throw INTERNAL_ERROR;
+                
                 Storage t(where);
                 values[i]->ts.store(s, t, x64);
                 storages.push_back(t);
@@ -216,16 +221,22 @@ public:
     virtual Storage compile(X64 *x64) {
         left->compile(x64);
 
-        // A MultiLvalue only stores dynamic addresses as ALIAS on the stack,
-        // static addresses are kept as MEMORY, so we're safe.
+        // A MultiLvalue only stores dynamic addresses as ALISTACK,
+        // static addresses are kept as MEMORY or ALIAS, so we're safe for stack relocations.
         std::vector<Storage> left_storages = left->get_storages();
         std::vector<unsigned> left_sizes;
         
         for (auto &left_storage : left_storages) {
             StorageWhere where = left_storage.where;
-            int size = (where == MEMORY ? 0 : where == ALIAS ? ALIAS_SIZE : throw INTERNAL_ERROR);
-            left_sizes.push_back(size);
-            left_total += size;
+            if (where == MEMORY || where == ALIAS) {
+                left_sizes.push_back(0);
+            }
+            else if (where == ALISTACK) {
+                left_sizes.push_back(ALIAS_SIZE);
+                left_total += ALIAS_SIZE;
+            }
+            else
+                throw INTERNAL_ERROR;
         }
         
         x64->unwind->push(this);
@@ -257,9 +268,13 @@ public:
             case MEMORY:
                 t = left_storages[i];
                 break;
-            case ALIAS:
+            case ALISTACK:
                 x64->op(MOVQ, RAX, Address(RSP, offset));
                 t = Storage(MEMORY, Address(RAX, 0));
+                break;
+            case ALIAS:
+                x64->op(MOVQ, RAX, left_storages[i].address);
+                t = Storage(MEMORY, Address(RAX, left_storages[i].value));
                 break;
             default:
                 throw INTERNAL_ERROR;

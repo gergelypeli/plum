@@ -5,7 +5,7 @@ void load_ref(Register reg, Register tmp, Storage ref_storage, X64 *x64) {
     }
     else if (ref_storage.where == ALIAS) {
         x64->op(MOVQ, tmp, ref_storage.address);
-        x64->op(MOVQ, reg, Address(tmp, 0));
+        x64->op(MOVQ, reg, Address(tmp, ref_storage.value));
     }
     else
         throw INTERNAL_ERROR;
@@ -18,7 +18,7 @@ void store_ref(Register reg, Register tmp, Storage ref_storage, X64 *x64) {
     }
     else if (ref_storage.where == ALIAS) {
         x64->op(MOVQ, tmp, ref_storage.address);
-        x64->op(MOVQ, Address(tmp, 0), reg);
+        x64->op(MOVQ, Address(tmp, ref_storage.value), reg);
     }
     else
         throw INTERNAL_ERROR;

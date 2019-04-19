@@ -60,8 +60,12 @@ public:
         }
         */
         
-        if (typematch(pivot_ts, pivot, match))
+        if (typematch(pivot_ts, pivot, match)) {
+            if (pivot_ts.where(AS_ARGUMENT) != ALIAS)
+                value_hint_unalias(pivot);
+
             return matched(pivot, scope, match);
+        }
         else {
             //std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";
             return NULL;
