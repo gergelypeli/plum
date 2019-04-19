@@ -177,6 +177,10 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual void rollback(Allocation checkpoint) {
+        throw INTERNAL_ERROR;
+    }
+
     virtual std::string fully_qualify(std::string n) {
         throw INTERNAL_ERROR;
     }
@@ -505,10 +509,6 @@ public:
         is_taken = false;
     }
 
-    virtual bool is_transient() {
-        return true;
-    }
-    
     virtual void be_taken() {
         is_taken = true;
     }
@@ -519,53 +519,30 @@ public:
 
         Scope::leave();
     }
-    
+
+    virtual Allocation reserve(Allocation s) {
+        return outer_scope->reserve(s);
+    }
+
+    virtual void rollback(Allocation checkpoint) {
+        return outer_scope->rollback(checkpoint);
+    }
+
     virtual void allocate() {
         if (is_allocated)
             throw INTERNAL_ERROR;
             
-        offset = outer_scope->reserve(Allocation { 0, 0, 0, 0 });
-        
-        //std::cerr << "Allocating " << this << " persistent contents.\n";
-        for (auto &d : contents)
-            if (!d->is_transient())
-                d->allocate();
-                
-        size.bytes = stack_size(size.bytes);
-        Allocation min_size = size;
-        Allocation max_size = size;
+        Allocation checkpoint = outer_scope->reserve(Allocation { 0, 0, 0, 0 });
 
-        //std::cerr << "Allocating " << this << " transient contents.\n";
         for (auto &d : contents)
-            if (d->is_transient()) {
-                d->allocate();
-                
-                max_size.bytes = std::max(max_size.bytes, size.bytes);
-                max_size.count1 = std::max(max_size.count1, size.count1);
-                max_size.count2 = std::max(max_size.count2, size.count2);
-                max_size.count3 = std::max(max_size.count3, size.count3);
-                
-                size = min_size;
-            }
+            d->allocate();
         
+        outer_scope->rollback(checkpoint);
+
         //std::cerr << "Allocated " << this << " total " << min_size << " / " << max_size << " bytes.\n";
-        outer_scope->reserve(max_size);
         is_allocated = true;
     }
 
-    virtual Allocation reserve(Allocation s) {
-        size.bytes += stack_size(s.bytes);  // Simple strategy
-        size.count1 += s.count1;
-        size.count2 += s.count2;
-        size.count3 += s.count3;
-        
-        return Allocation {
-            offset.bytes - size.bytes,
-            offset.count1 - size.count1,
-            offset.count2 - size.count2,
-            offset.count3 - size.count3
-        };
-    }
     
     virtual Storage get_local_storage() {
         return outer_scope->get_local_storage();
@@ -757,6 +734,7 @@ public:
     Storage forwarded_exception_storage;
     Storage result_alias_storage;
     Storage associated_offset_storage;
+    Allocation current_size;
 
     FunctionScope()
         :Scope(FUNCTION_SCOPE) {
@@ -843,12 +821,24 @@ public:
     }
 
     virtual Allocation reserve(Allocation s) {
-        size.bytes += stack_size(s.bytes);
-        size.count1 += s.count1;
-        size.count2 += s.count2;
-        size.count3 += s.count3;
+        current_size.bytes += stack_size(s.bytes);
+        current_size.count1 += s.count1;
+        current_size.count2 += s.count2;
+        current_size.count3 += s.count3;
         
-        return Allocation { -size.bytes, -size.count1, -size.count2, -size.count3 };
+        size.bytes = std::max(size.bytes, current_size.bytes);
+        size.count1 = std::max(size.count1, current_size.count1);
+        size.count2 = std::max(size.count2, current_size.count2);
+        size.count3 = std::max(size.count3, current_size.count3);
+        
+        return Allocation { -current_size.bytes, -current_size.count1, -current_size.count2, -current_size.count3 };
+    }
+    
+    virtual void rollback(Allocation checkpoint) {
+        current_size.bytes = -checkpoint.bytes;
+        current_size.count1 = -checkpoint.count1;
+        current_size.count2 = -checkpoint.count2;
+        current_size.count3 = -checkpoint.count3;
     }
     
     virtual void allocate() {
@@ -869,17 +859,17 @@ public:
         //std::cerr << "Function head is " << head_scope->size - 16 << "bytes, self is " << self_scope->size - head_scope->size << " bytes, result is " << result_scope->size - self_scope->size << " bytes.\n";
 
         if (result_alias_storage.where == MEMORY) {
-            Allocation a = body_scope->reserve(Allocation { ALIAS_SIZE, 0, 0, 0 });
+            Allocation a = reserve(Allocation { ALIAS_SIZE, 0, 0, 0 });
             result_alias_storage.address = Address(RBP, a.concretize());
         }
         
         if (forwarded_exception_storage.where == MEMORY) {
-            Allocation a = body_scope->reserve(Allocation { INTEGER_SIZE, 0, 0, 0 });
+            Allocation a = reserve(Allocation { INTEGER_SIZE, 0, 0, 0 });
             forwarded_exception_storage.address = Address(RBP, a.concretize());
         }
 
         if (associated_offset_storage.where == MEMORY) {
-            Allocation a = body_scope->reserve(Allocation { ADDRESS_SIZE, 0, 0, 0 });
+            Allocation a = reserve(Allocation { ADDRESS_SIZE, 0, 0, 0 });
             associated_offset_storage.address = Address(RBP, a.concretize());
         }
         

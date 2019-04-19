@@ -44,10 +44,6 @@ public:
         return NULL;
     }
 
-    virtual bool is_transient() {
-        return false;
-    }
-    
     virtual bool is_typedefinition(std::string n) {
         return false;
     }
@@ -75,10 +71,6 @@ class RaisingDummy: public Declaration {
 public:
     RaisingDummy()
         :Declaration() {
-    }
-
-    virtual bool is_transient() {
-        return true;  // So that transparent try scopes keep it inside
     }
 };
 
