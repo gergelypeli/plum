@@ -285,37 +285,3 @@ public:
         :ReferenceType(name) {
     }
 };
-
-
-class HeapType: public Type {
-public:
-    HeapType(std::string name, Metatypes param_metatypes, MetaType *mt = NULL)
-        :Type(name, param_metatypes, mt ? mt : identity_metatype) {
-    }
-
-    virtual Allocation measure(TypeMatch tm) {
-        std::cerr << "This is probably an error, shouldn't measure a heap type!\n";
-        throw INTERNAL_ERROR;
-    }
-
-    virtual void incref(TypeMatch tm, Register r, X64 *x64) {
-        x64->runtime->incref(r);
-    }
-
-    virtual void decref(TypeMatch tm, Register r, X64 *x64) {
-        x64->runtime->decref(r);
-    }
-
-    virtual void streamify(TypeMatch tm, X64 *x64) {
-        // We do this for heap types that don't implement Streamifiable
-        Address value_addr(RSP, ALIAS_SIZE);
-        Address alias_addr(RSP, 0);
-
-        x64->op(MOVQ, RDI, value_addr);
-        x64->op(MOVQ, RSI, alias_addr);
-    
-        x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
-    }
-};
-
-

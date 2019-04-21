@@ -38,18 +38,18 @@ public:
 };
 
 
-class NosytreeType: public HeapType {
+class NosytreeType: public ContainerType {
 public:
     NosytreeType(std::string name)
-        :HeapType(name, Metatypes { value_metatype }) {
+        :ContainerType(name, Metatypes { value_metatype }) {
     }
 };
 
 
-class NosyrefType: public HeapType {
+class NosyrefType: public ContainerType {
 public:
     NosyrefType(std::string name)
-        :HeapType(name, Metatypes { value_metatype }) {
+        :ContainerType(name, Metatypes { value_metatype }) {
     }
 };
 
