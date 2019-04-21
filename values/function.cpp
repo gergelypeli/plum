@@ -633,7 +633,7 @@ public:
             infos.push_back(ArgInfo { arg_names[i].c_str(), &arg_tss[i], scope, &values[i] });
         }
 
-        bool ok = check_arguments(args, kwargs, infos);
+        bool ok = check_arguments(args, kwargs, infos, true);
         if (!ok)
             return false;
         
@@ -727,12 +727,27 @@ public:
             if (!csv)
                 throw INTERNAL_ERROR;
             
+            RetroScope *rs = ptr_cast<RetroScope>(csv->code_scope);
+            if (!rs)
+                throw INTERNAL_ERROR;
+            
             Label begin, skip;
             x64->op(JMP, skip);
 
             x64->code_label(begin);
-            csv->be_evalue();
+            // Create an artificial stack frame at the location that RetroScope has allocated
+            int retro_offset = rs->get_frame_offset();
+            
+            x64->op(MOVQ, R10, Address(RBP, 0));  // get our own frame back
+            x64->op(POPQ, Address(R10, retro_offset + ADDRESS_SIZE));
+            x64->op(MOVQ, Address(R10, retro_offset), RBP);
+            x64->op(LEA, RBP, Address(R10, retro_offset));
+            
             csv->compile(x64);
+            
+            x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
+            x64->op(MOVQ, RBP, Address(RBP, 0));
+            
             x64->op(RET);  // ZF set if no exceptions, otherwise RDX contains it
             
             x64->code_label(skip);

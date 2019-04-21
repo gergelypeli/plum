@@ -35,6 +35,7 @@ class ModuleScope;
 class SwitchScope;
 class TryScope;
 class EvalScope;
+class RetroScope;
 class FunctionScope;
 class ExportScope;
 class RootScope;

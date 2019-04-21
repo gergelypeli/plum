@@ -130,7 +130,7 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
 
 // Checking
 
-CodeScope *check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &arg_infos) {
+CodeScope *check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &arg_infos, bool is_function_call) {
     // Grab all preceding Dvalue bar declarations, and put them in this scope.
     // Retro variables must only be accessible from the following Code argument's
     // scope, because their initialization is only guaranteed while that Code
@@ -154,7 +154,7 @@ CodeScope *check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &ar
         }
     }
 
-    CodeScope *code_scope = new CodeScope;
+    CodeScope *code_scope = (is_function_call ? new RetroScope : new CodeScope);
     scope->add(code_scope);
     code_scope->enter();
 
@@ -167,7 +167,7 @@ CodeScope *check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &ar
 }
 
 
-bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) {
+bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, bool is_function_call) {
     if (i >= arg_infos.size()) {
         std::cerr << "Too many arguments!\n";
         return false;
@@ -185,7 +185,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
     CodeScope *code_scope = NULL;
     
     if (context && (*context)[0] == code_type) {
-        code_scope = check_retros(i, scope, arg_infos);
+        code_scope = check_retros(i, scope, arg_infos, is_function_call);
     }
 
     TypeSpec *constructive_context = context;
@@ -224,7 +224,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos) 
 }
 
 
-bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
+bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos, bool is_function_call) {
     //std::cerr << "Checking arguments: ";
     
     //for (auto &ai : arg_infos)
@@ -274,7 +274,7 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
 
     for (unsigned i = 0; i < n; i++) {
         if (exprs[i]) {
-            if (!check_argument(i, exprs[i], arg_infos))
+            if (!check_argument(i, exprs[i], arg_infos, is_function_call))
                 return false;
         }
         else {

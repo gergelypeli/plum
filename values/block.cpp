@@ -4,7 +4,6 @@ public:
     std::unique_ptr<Value> value;
     CodeScope *code_scope;
     bool may_be_aborted;
-    bool am_evalue;
     Storage save_storage;
 
     CodeScopeValue(Value *v, CodeScope *s)
@@ -14,11 +13,6 @@ public:
         code_scope = s;
         code_scope->be_taken();
         may_be_aborted = false;
-        am_evalue = false;
-    }
-
-    void be_evalue() {
-        am_evalue = true;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -45,16 +39,18 @@ public:
             where == SSEREGISTER ? Storage(SSEREGISTER, XMM0) :
             Storage(STACK)
         );
+
+        bool is_retro = (ptr_cast<RetroScope>(code_scope) != NULL);
         
-        if (am_evalue && t.where == STACK) {
+        //if (am_evalue && t.where == STACK) {
             // Storing STACK values in an evalue is tricky, because we have return address
             // and a saved RBP on the stack, too. Treat the return location as a variable.
             
-            int offset = (s.where == STACK ? value->ts.measure_stack() : 0);
-            Storage x = Storage(MEMORY, Address(RSP, RIP_SIZE + ADDRESS_SIZE + offset));
-            value->ts.create(s, x, x64);
-        }
-        else
+        //    int offset = (s.where == STACK ? value->ts.measure_stack() : 0);
+        //    Storage x = Storage(MEMORY, Address(RSP, RIP_SIZE + ADDRESS_SIZE + offset));
+        //    value->ts.create(s, x, x64);
+        //}
+        //else
             value->ts.store(s, t, x64);
         
         if (may_be_aborted)
@@ -65,8 +61,8 @@ public:
         if (may_be_aborted) {
             x64->op(CMPQ, RDX, NO_EXCEPTION);
             
-            if (!am_evalue) {
-                // An evalue would just return the exception to its evaluator
+            if (!is_retro) {
+                // A retro scope would just return the exception to its evaluator
                 Label ok;
                 x64->op(JE, ok);
     

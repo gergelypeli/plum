@@ -150,6 +150,10 @@ public:
         return outer_scope->get_eval_scope();
     }
 
+    virtual RetroScope *get_retro_scope() {
+        return outer_scope->get_retro_scope();
+    }
+
     virtual ModuleScope *get_module_scope() {
         return outer_scope->get_module_scope();
     }
@@ -570,6 +574,32 @@ public:
 
 
 
+class RetroScope: public CodeScope {
+public:
+    Allocation header_offset;
+    
+    RetroScope()
+        :CodeScope() {
+    }
+
+    virtual RetroScope *get_retro_scope() {
+        return this;
+    }
+
+    virtual void allocate() {
+        header_offset = outer_scope->reserve(Allocation { RIP_SIZE + ADDRESS_SIZE });
+        
+        CodeScope::allocate();
+    }
+    
+    int get_frame_offset() {
+        return header_offset.concretize();
+    }
+};
+
+
+
+
 class SwitchScope: public CodeScope {
 public:
     Variable *switch_variable;
@@ -899,6 +929,10 @@ public:
     }
 
     virtual EvalScope *get_eval_scope() {
+        return NULL;
+    }
+
+    virtual RetroScope *get_retro_scope() {
         return NULL;
     }
     

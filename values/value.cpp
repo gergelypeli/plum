@@ -22,9 +22,9 @@ public:
         // Generally we don't need it, only in controls
     }
 
-    bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos) {
+    bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos, bool is_function_call = false) {
         // FIXME: shouldn't this be a proper method?
-        return ::check_arguments(args, kwargs, arg_infos);
+        return ::check_arguments(args, kwargs, arg_infos, is_function_call);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -217,6 +217,7 @@ public:
 class VariableValue: public Value {
 public:
     Variable *variable;
+    RetroScope *retro_scope;
     std::unique_ptr<Value> pivot;
     Register reg;
     TypeMatch match;
@@ -258,6 +259,11 @@ public:
                     ts = ts.rvalue();
                 }
             }
+            
+            retro_scope = NULL;
+        }
+        else {
+            retro_scope = scope->get_retro_scope();
         }
     }
     
@@ -350,6 +356,17 @@ public:
         }
         else {
             t = variable->get_local_storage();
+
+            if (retro_scope) {
+                int retro_offset = retro_scope->get_frame_offset();
+                
+                if (t.where == NOWHERE)
+                    ;
+                else if (t.where == MEMORY || t.where == BMEMORY || t.where == ALIAS)
+                    t.address.offset -= retro_offset;
+                else
+                    throw INTERNAL_ERROR;
+            }
 
             if (variable->name == "$" && ts[0] == ptr_type) {
                 // Try borrowing on the self argument, guaranteed not to change
@@ -550,14 +567,8 @@ public:
             result_stack_size = ts.measure_stack();
             x64->op(SUBQ, RSP, result_stack_size);
         }
-            
-        x64->op(MOVQ, R10, es.address);  // Needs RBP
-        x64->op(PUSHQ, RBP);
-        x64->op(MOVQ, RBP, Address(RBP, 0));  // Restore caller RBP
-        
-        x64->op(CALL, R10);
-        
-        x64->op(POPQ, RBP);
+
+        x64->op(CALL, es.address);
 
         // This is like with function calls
         Label noex;
