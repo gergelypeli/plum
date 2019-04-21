@@ -404,6 +404,8 @@ App? :Class Application as:
         $ test_controls  # check predeclarations
 
     test_controls? :Function as:
+        :pass
+
         :repeat i? = 0 on: i < 3 by: i += 1 do:
             Std prints("something")
 

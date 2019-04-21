@@ -1172,6 +1172,7 @@ void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateIdentifier<TryValue>("try"));
     colon_scope->add(new TemplateIdentifier<IsValue>("is"));
     colon_scope->add(new TemplateOperation<FunctionReturnValue>("return", TWEAK));
+    colon_scope->add(new TemplateIdentifier<PassValue>("pass"));
 
     colon_scope->add(new TemplateIdentifier<FunctorDefinitionValue>("functor"));
 

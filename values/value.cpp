@@ -169,6 +169,22 @@ public:
 };
 
 
+class PassValue: public Value {
+public:
+    PassValue(Value *p, TypeMatch tm)
+        :Value(VOID_TS) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return Regs();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return Storage();
+    }
+};
+
+
 class CastValue: public Value {
 public:
     std::unique_ptr<Value> pivot;
