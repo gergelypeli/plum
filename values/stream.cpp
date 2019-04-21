@@ -52,7 +52,6 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        bool pseudo_only = (args.size() > 0 || kwargs.size() > 0);
         bool is_identifier = false;
         int position = 0;
     
@@ -67,60 +66,38 @@ public:
                     return false;
                 }
 
-                if (pseudo_only) {
-                    if (kw.size()) {
-                        Expr *e = kwargs[kw].get();
-                    
-                        if (!e) {
-                            std::cerr << "No interpolation argument " << kw << "!\n";
-                            throw TYPE_ERROR;
-                        }
-
-                        pivot = typize(e, scope, &ANY_TS);
-
-                        if (!pivot) {
-                            std::cerr << "Undefined interpolation argument " << kw << "!\n";
-                            throw TYPE_ERROR;
-                        }
-                    }
-                    else {
-                        Expr *e = args[position].get();
-
-                        if (!e) {
-                            std::cerr << "No interpolation argument " << position << "!\n";
-                            throw TYPE_ERROR;
-                        }
-                    
-                        pivot = typize(e, scope, &ANY_TS);
-
-                        if (!pivot) {
-                            std::cerr << "Undefined interpolation argument" << position << "!\n";
-                            throw TYPE_ERROR;
-                        }
-
-                        // NOTE: in C++ 'bool += 1' is legal, and does not even generate a warning
-                        position += 1;
-                    }
-                }
-                else {
-                    if (!kw.size()) {
-                        std::cerr << "Invalid positional substring in interpolation!\n";
+                if (kw.size()) {
+                    Expr *e = kwargs[kw].get();
+                
+                    if (!e) {
+                        std::cerr << "No interpolation argument " << kw << "!\n";
                         throw TYPE_ERROR;
                     }
-                
-                    // For identifiers, we look up outer scopes, but we don't need to look
-                    // in inner scopes, because that would need a pivot value, which we don't have.
-                    for (Scope *s = scope; s && (s->type == CODE_SCOPE || s->type == FUNCTION_SCOPE); s = s->outer_scope) {
-                        pivot = s->lookup(kw, NULL, scope);
-        
-                        if (pivot)
-                            break;
-                    }
-            
+
+                    pivot = typize(e, scope, &ANY_TS);
+
                     if (!pivot) {
                         std::cerr << "Undefined interpolation argument " << kw << "!\n";
                         throw TYPE_ERROR;
                     }
+                }
+                else {
+                    Expr *e = args[position].get();
+
+                    if (!e) {
+                        std::cerr << "No interpolation argument " << position << "!\n";
+                        throw TYPE_ERROR;
+                    }
+                
+                    pivot = typize(e, scope, &ANY_TS);
+
+                    if (!pivot) {
+                        std::cerr << "Undefined interpolation argument" << position << "!\n";
+                        throw TYPE_ERROR;
+                    }
+
+                    // NOTE: in C++ 'bool += 1' is legal, and does not even generate a warning
+                    position += 1;
                 }
             }
             else {

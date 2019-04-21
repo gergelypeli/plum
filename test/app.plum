@@ -28,7 +28,7 @@ App? :Class Application as:
     
         c? Integer = 0
         c = Integer :if a == b then: 100 else: 200
-        Std prints("This should be 200: {c}" {})
+        Std prints("This should be 200: {}" { c })
 
         d? = Unteger8 6
         d += 7
@@ -39,22 +39,22 @@ App? :Class Application as:
         myvar? Myint = 0
     
         e? = +5_000_000_000
-        Std prints("Five billion is {e}" {})
+        Std prints("Five billion is {}" { e })
     
         f? = 0x_1234_5678_9abc_def0
-        Std prints("A big hex number is {f}" {})
+        Std prints("A big hex number is {}" { f })
     
         g? = 1_311_768_467_463_790_320
-        Std prints("The same in English {g}" {})
+        Std prints("The same in English {}" { g })
 
         h? = 0o110_642_547_423_257_157_360
-        Std prints("Again in octal base {h}" {})
+        Std prints("Again in octal base {}" { h })
     
         i? = 0b_0001_0010_0011_0100_0101_0110_0111_1000_1001_1010_1011_1100_1101_1110_1111_0000
-        Std prints("Aaaaaaaaand finally {i}" {})
+        Std prints("Aaaaaaaaand finally {}" { i })
     
         mybyte? Mybyte = -128
-        Std prints("Mybyte is {mybyte}" {})
+        Std prints("Mybyte is {}" { mybyte })
     
         false? Boolean = `false
         true? Boolean = `true
@@ -67,7 +67,7 @@ App? :Class Application as:
     test_floats? :Function as:
         j? = -31.4e-01
         Std printd(j)
-        Std prints("Streamified as {j}" {})
+        Std prints("Streamified as {}" { j })
 
         Std prints("Result is 160: {x}" {x: 100.0 + 2.0 * 3.0 / 0.1 })
     
@@ -143,7 +143,7 @@ App? :Class Application as:
         Std prints("A string as {} and {}" { "raw" raw, "cooked" })
         Std prints("A character as raw {} and cooked {}" { Character "ű" raw, Character "ű" })
     
-        Std prints("XXXXX{a}YYYYY" {})
+        Std prints("XXXXX{}YYYYY" { a })
         Std prints("0{HT}8")
         Std prints("NUL: {NUL}")
         
@@ -159,9 +159,9 @@ App? :Class Application as:
         Std prints("aba is less than ab: {c}" { c: "aba" < "ab" })
 
         chars? = "BFADCE"
-        Std prints("Unsorted: {chars}" {})
+        Std prints("Unsorted: {}" { chars })
         chars chars sort
-        Std prints("Sorted:   {chars}" {})
+        Std prints("Sorted:   {}" { chars })
 
         :is "foo" ~re ".*" then:
             Std prints("Regexp matched.")
@@ -352,25 +352,25 @@ App? :Class Application as:
         x2? Integer = 0
         x3? Integer = 0
         (x1, x2, x3) = $ triple
-        Std prints("Triple returned {x1}, {x2}, {x3}." {})
+        Std prints("Triple returned {}, {}, {}." { x1, x2, x3 })
     
         (x2, x3) = $ triple
-        Std prints("Triple short returned {x2}, {x3}." {})
+        Std prints("Triple short returned {}, {}." { x2, x3 })
 
         x3 = $ triple
-        Std prints("Triple scalarized to {x3}" {})
+        Std prints("Triple scalarized to {}" { x3 })
     
         (y1? Integer, y2? Integer, y3? Integer) = $ triple
-        Std prints("Triple initialized {y1}, {y2}, {y3}." {})
+        Std prints("Triple initialized {}, {}, {}." { y1, y2, y3 })
     
         (y4? Integer, y5? Integer) = $ triple
-        Std prints("Triple short initialized {y4}, {y5}." {})
+        Std prints("Triple short initialized {}, {}." { y4, y5 })
         
         (z1?, z2?, z3?) = $ triple
-        Std prints("Triple bare initialized {z1}, {z2}, {z3}." {})
+        Std prints("Triple bare initialized {}, {}, {}." { z1, z2, z3 })
 
         (z4?, z5?) = $ triple
-        Std prints("Triple bare short initialized {z4}, {z5}." {})
+        Std prints("Triple bare short initialized {}, {}." { z4, z5 })
 
 
 #Test_controls? :Singleton as:
@@ -392,7 +392,7 @@ App? :Class Application as:
     as:
         :try
             sum? = what(1) + what(2)
-            Std prints("That was {sum}." {})
+            Std prints("That was {}." { sum })
         fix:
             Std prints("What failed!")
 
@@ -412,7 +412,7 @@ App? :Class Application as:
         Std prints("Done.")
 
         my_tree? MyTree = `TWENTY
-        Std prints("This tree is {my_tree}." {})
+        Std prints("This tree is {}." { my_tree })
     
         :is x? = my_tree ~any then:
             Std prints("Fortunately, {} is any." { x })
@@ -461,23 +461,23 @@ App? :Class Application as:
         #    Util nasty
 
         :for 3 countup each: c? do:
-            Std prints("Counting up: {c}" {})
+            Std prints("Counting up: {}" { c })
 
         :for 3 countdown each: c? do:
-            Std prints("Counting down: {c}" {})
+            Std prints("Counting down: {}" { c })
 
         :for "Abc" each: c? do:
-            Std prints("Iterating elems: {c}" {})
+            Std prints("Iterating elems: {}" { c })
 
         :for "Abc" indexes each: i? do:
-            Std prints("Iterating indexes: {i}" {})
+            Std prints("Iterating indexes: {}" { i })
         
         :for "Abc" items each: it? do:
             Std prints("Iterating items: {i} => {e}" {i: it index, e: it value})
 
         ait? = "Abc" elements
         :for ait each: c? do:
-            Std prints("Iterating elems again: {c}" {})
+            Std prints("Iterating elems again: {}" { c })
     
         x3? Integer = 0
         x3 = :lol:
@@ -486,7 +486,7 @@ App? :Class Application as:
             Std prints("Don't print this!")
             :lol 44
         
-        Std prints("Let's hope that {x3} == 33." {})
+        Std prints("Let's hope that {} == 33." { x3 })
     
         # Must survive adding an Integer to a Whatever
         :lol:
@@ -494,15 +494,15 @@ App? :Class Application as:
     
         x3 = :kkk: :kkk 44
     
-        Std prints("Let's hope that {x3} == 44." {})
+        Std prints("Let's hope that {} == 44." { x3 })
     
         x3 = :try 55
 
-        Std prints("Let's hope that {x3} == 55." {})
+        Std prints("Let's hope that {} == 55." { x3 })
     
         x4? Integer = :try 66
 
-        Std prints("Let's hope that {x4} == 66." {})
+        Std prints("Let's hope that {} == 66." { x4 })
     
         :if Boolean `false > `true then:
             Std prints("Fake news!")
@@ -510,7 +510,7 @@ App? :Class Application as:
         :if !! Boolean `true then:
             Std prints("Faker news!")
 
-        $ twice(how: h? what:this: (Std prints("You want {h}?" {}), :this h * 1000))
+        $ twice(how: h? what:this: (Std prints("You want {}?" { h }), :this h * 1000))
 
         :eval:
             $ passthrough(what:this: (:eval, :this 0))
@@ -543,17 +543,17 @@ App? :Class Application as:
         Std prints("Array contents: {}" { ss })
 
         :for ss each: i? do:
-            Std prints("Array element {i}" {})
+            Std prints("Array element {}" { i })
 
         :for ss elements each: i? do:
-            Std prints("Array element {i}" {})
+            Std prints("Array element {}" { i })
 
         cc? = ss
 
         ss_popped1? = :try ss pop
-        Std prints("Array popped {ss_popped1}" {})
+        Std prints("Array popped {}" { ss_popped1 })
         ss_popped2? String = :try ss pop
-        Std prints("Array popped {ss_popped2}" {})
+        Std prints("Array popped {}" { ss_popped2 })
 
         Std prints("Array length became {}, while copy still contains {} elems {} and {}." { ss length, cc length, cc[0], cc[1] })
 
@@ -567,12 +567,12 @@ App? :Class Application as:
         Std prints("Stack contents: {}" { st })
 
         :for st each: x? do:
-            Std prints("Stack has: {x}" {})
+            Std prints("Stack has: {}" { x })
 
         baz? String = :try st pop
         :try st pop
         :try st pop
-        Std prints("Popped baz as {baz}" {})
+        Std prints("Popped baz as {}" { baz })
         Std prints("Popped stack length: {x}" { x: st length })
 
         sl? String Array = { "foo", "bar", "baz" }
@@ -589,7 +589,7 @@ App? :Class Application as:
         Std prints("And contains {x}" { x: :try sl3[0] })
 
         :for sl3 each: x? do:
-            Std prints("Slice has: {x}" {})
+            Std prints("Slice has: {}" { x })
 
 
 #Test_queues? :Singleton as:
@@ -642,10 +642,10 @@ App? :Class Application as:
         Std prints("Rbtree contents: {}" { rb })
     
         :for rb elements_by_age each: e? do:
-            Std prints("Rbtree element by age: {e}" {})
+            Std prints("Rbtree element by age: {}" { e })
 
         :for rb elements_by_order each: e? do:
-            Std prints("Rbtree element by order: {e}" {})
+            Std prints("Rbtree element by order: {}" { e })
 
         :if rb has("A") then:
             Std prints("Rb has A, good.")
@@ -677,13 +677,13 @@ App? :Class Application as:
         Std prints("Set contents: {}" { st })
 
         :for st each: e? do:
-            Std prints("Set element: {e}" {})
+            Std prints("Set element: {}" { e })
     
         :for st elements_by_age each: e? do:
-            Std prints("Set element by age: {e}" {})
+            Std prints("Set element by age: {}" { e })
 
         :for st elements_by_order each: e? do:
-            Std prints("Set element by order: {e}" {})
+            Std prints("Set element by order: {}" { e })
 
         mp? (String, String) Map = {{ "A", "a" }, { "B", "b" }}
         :try
@@ -720,18 +720,18 @@ App? :Class Application as:
 #Test_options? :Singleton as:
     test_options? :Function as:
         op1? String Option = `some("XYZ")
-        Std prints("This option is: {op1}" {})
+        Std prints("This option is: {}" { op1 })
     
         op2? String Option = `none
-        Std prints("That option is: {op2}" {})
+        Std prints("That option is: {}" { op2 })
     
         op2 = op1
-        Std prints("And became: {op2}" {})
+        Std prints("And became: {}" { op2 })
         Std prints("So they're now equal: {x}" {x: op1 == op2})
         #Std prints("Is it none? {x} Is it some? {y}" {x: op1 is none, y: op1 is some})
     
         :is op1s? = op1 ~some then:
-            Std prints("It contained some {op1s}." {})
+            Std prints("It contained some {}." { op1s })
         else:
             Std prints("IT CONTAINED NONE!")
 
@@ -1152,14 +1152,14 @@ App? :Class Application as:
         :try
             n = stdin read(:try b slice(0, 10))
         
-        Std prints("Read {n} bytes from stdin." {})
+        Std prints("Read {} bytes from stdin." { n })
     
         fr? = fs.File_reader `new(stdin)
         dc? = fs.File_decoder `new(fr)
 
         Std prints("Say something!")
         s? = :try dc get_line
-        Std prints("So, {s}?" {})
+        Std prints("So, {}?" { s })
     
         Std prints("All your lines are belong to us!")
         lines? = dc get_lines
