@@ -723,38 +723,8 @@ public:
         Storage stackfix;
         
         if (arg_ts[0] == code_type) {
-            CodeScopeValue *csv = ptr_cast<CodeScopeValue>(arg_value);
-            if (!csv)
-                throw INTERNAL_ERROR;
-            
-            RetroScope *rs = ptr_cast<RetroScope>(csv->code_scope);
-            if (!rs)
-                throw INTERNAL_ERROR;
-            
-            Label begin, skip;
-            x64->op(JMP, skip);
-
-            x64->code_label(begin);
-            // Create an artificial stack frame at the location that RetroScope has allocated
-            int retro_offset = rs->get_frame_offset();
-            
-            x64->op(MOVQ, R10, Address(RBP, 0));  // get our own frame back
-            x64->op(POPQ, Address(R10, retro_offset + ADDRESS_SIZE));
-            x64->op(MOVQ, Address(R10, retro_offset), RBP);
-            x64->op(LEA, RBP, Address(R10, retro_offset));
-            
-            csv->compile(x64);
-            
-            x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
-            x64->op(MOVQ, RBP, Address(RBP, 0));
-            
-            x64->op(RET);  // ZF set if no exceptions, otherwise RDX contains it
-            
-            x64->code_label(skip);
-            x64->op(LEA, R10, Address(begin, 0));
-            x64->op(PUSHQ, R10);
-            
-            t = Storage(STACK);
+            // arg_value is a RetroScopeValue
+            t = arg_value->compile(x64);
             size = ADDRESS_SIZE;
         }
         else {

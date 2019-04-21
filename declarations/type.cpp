@@ -558,7 +558,7 @@ public:
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         if (as_what == AS_ARGUMENT && (this == lvalue_type || this == dvalue_type))
             as_what = AS_LVALUE_ARGUMENT;
-            
+
         return tm[1].where(as_what);
     }
 

@@ -130,7 +130,7 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
 
 // Checking
 
-CodeScope *check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &arg_infos, bool is_function_call) {
+void check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &arg_infos, CodeScope *code_scope) {
     // Grab all preceding Dvalue bar declarations, and put them in this scope.
     // Retro variables must only be accessible from the following Code argument's
     // scope, because their initialization is only guaranteed while that Code
@@ -154,7 +154,6 @@ CodeScope *check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &ar
         }
     }
 
-    CodeScope *code_scope = (is_function_call ? new RetroScope : new CodeScope);
     scope->add(code_scope);
     code_scope->enter();
 
@@ -162,8 +161,6 @@ CodeScope *check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &ar
         std::cerr << "Moving retro variable " << var->name << " to code scope.\n";
         code_scope->add(var);
     }
-    
-    return code_scope;
 }
 
 
@@ -185,7 +182,8 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
     CodeScope *code_scope = NULL;
     
     if (context && (*context)[0] == code_type) {
-        code_scope = check_retros(i, scope, arg_infos, is_function_call);
+        code_scope = (is_function_call ? new RetroScope : new CodeScope);
+        check_retros(i, scope, arg_infos, code_scope);
     }
 
     TypeSpec *constructive_context = context;
@@ -215,7 +213,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
         v->hint_unalias();
 
     if (code_scope) {
-        v = make<CodeScopeValue>(v, code_scope);
+        v = (is_function_call ? make<RetroScopeValue>(v, code_scope) : make<CodeScopeValue>(v, code_scope));
         code_scope->leave();
     }
 

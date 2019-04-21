@@ -23,6 +23,15 @@ public:
         return value->precompile(preferred) | Regs(RAX) | Regs(XMM0);
     }
 
+    virtual void compile_epilogue(X64 *x64) {
+        Label ok;
+        x64->op(JE, ok);
+    
+        x64->unwind->initiate(code_scope, x64);
+        
+        x64->code_label(ok);
+    }
+
     virtual Storage compile(X64 *x64) {
         x64->code_line_info(token.file_index, token.row);
 
@@ -40,18 +49,7 @@ public:
             Storage(STACK)
         );
 
-        bool is_retro = (ptr_cast<RetroScope>(code_scope) != NULL);
-        
-        //if (am_evalue && t.where == STACK) {
-            // Storing STACK values in an evalue is tricky, because we have return address
-            // and a saved RBP on the stack, too. Treat the return location as a variable.
-            
-        //    int offset = (s.where == STACK ? value->ts.measure_stack() : 0);
-        //    Storage x = Storage(MEMORY, Address(RSP, RIP_SIZE + ADDRESS_SIZE + offset));
-        //    value->ts.create(s, x, x64);
-        //}
-        //else
-            value->ts.store(s, t, x64);
+        value->ts.store(s, t, x64);
         
         if (may_be_aborted)
             x64->op(MOVQ, RDX, NO_EXCEPTION);
@@ -60,16 +58,7 @@ public:
 
         if (may_be_aborted) {
             x64->op(CMPQ, RDX, NO_EXCEPTION);
-            
-            if (!is_retro) {
-                // A retro scope would just return the exception to its evaluator
-                Label ok;
-                x64->op(JE, ok);
-    
-                x64->unwind->initiate(code_scope, x64);
-
-                x64->code_label(ok);
-            }
+            compile_epilogue(x64);
         }
             
         return t;
@@ -84,6 +73,53 @@ public:
         value->escape_statement_variables();
     }
 };
+
+
+class RetroScopeValue: public CodeScopeValue {
+public:
+    RetroScopeValue(Value *v, CodeScope *s)
+        :CodeScopeValue(v, s) {
+    }
+    
+    virtual void compile_epilogue(X64 *x64) {
+        // Empty, exceptions will be returned to the evaluator
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        RetroScope *rs = ptr_cast<RetroScope>(code_scope);
+        if (!rs)
+            throw INTERNAL_ERROR;
+
+        int retro_offset = rs->get_frame_offset();
+        Label begin, skip;
+        
+        x64->op(JMP, skip);
+
+        x64->code_label(begin);
+        
+        // Create an artificial stack frame at the location that RetroScope has allocated
+        x64->op(MOVQ, R10, Address(RBP, 0));  // get our own frame back
+        x64->op(POPQ, Address(R10, retro_offset + ADDRESS_SIZE));
+        x64->op(MOVQ, Address(R10, retro_offset), RBP);
+        x64->op(LEA, RBP, Address(R10, retro_offset));
+        
+        CodeScopeValue::compile(x64);  // ZF set if no exceptions, otherwise RDX contains it
+        
+        x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
+        x64->op(MOVQ, RBP, Address(RBP, 0));
+        
+        x64->op(RET);
+
+        // Return a pointer to our code        
+        x64->code_label(skip);
+        x64->op(LEA, R10, Address(begin, 0));
+        x64->op(PUSHQ, R10);
+
+        return Storage(STACK);
+    }
+};
+
+
 
 
 class DataBlockValue: public Value {
