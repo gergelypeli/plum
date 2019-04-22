@@ -230,6 +230,15 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     x64->data_label(task_stack_size_label);
     x64->data_qword(0);
 
+    x64->data_label_global(allocation_count_label, "allocation_count");
+    x64->data_qword(0);
+
+    x64->data_label_global(refcount_balance_label, "refcount_balance");
+    x64->data_qword(0);
+
+    x64->code_label_global(empty_function_label, "empty_function");
+    x64->op(RET);
+
     die_unmatched_message_label = data_heap_string(decode_utf8("Fatal unmatched value: "));
 
     x64->code_label_import(sysv_malloc_label, "C__malloc");
@@ -256,7 +265,19 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     x64->code_label_import(sysv_streamify_float_label, "C__streamify_float");
     x64->code_label_import(sysv_streamify_pointer_label, "C__streamify_pointer");
 
-    init_memory_management();
+    compile_incref_decref();
+    compile_finalize();
+    compile_heap_alloc();
+    compile_heap_realloc();
+    compile_fcb_alloc();
+    compile_fcb_free();
+    compile_finalize_reference_array();
+    compile_lookup_source_info();
+    compile_lookup_call_info();
+    compile_lookup_frame_info();
+    compile_caller_frame_info();
+    compile_fix_stack();
+    compile_double_stack();
 }
 
 void Runtime::data_heap_header() {
@@ -915,29 +936,6 @@ void Runtime::compile_double_stack() {
     // That should be it
     x64->op(POPQ, RBP);
     x64->op(RET);
-}
-
-void Runtime::init_memory_management() {
-    x64->data_align(ADDRESS_SIZE);
-    x64->data_label_global(refcount_balance_label, "refcount_balance");
-    x64->data_qword(0);
-
-    x64->code_label_global(empty_function_label, "empty_function");
-    x64->op(RET);
-
-    compile_incref_decref();
-    compile_finalize();
-    compile_heap_alloc();
-    compile_heap_realloc();
-    compile_fcb_alloc();
-    compile_fcb_free();
-    compile_finalize_reference_array();
-    compile_lookup_source_info();
-    compile_lookup_call_info();
-    compile_lookup_frame_info();
-    compile_caller_frame_info();
-    compile_fix_stack();
-    compile_double_stack();
 }
 
 void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer_labels, std::vector<Label> finalizer_labels) {

@@ -70,8 +70,7 @@ typedef struct {
 extern void empty_function();
 extern void finalize_reference_array();
 extern int64 refcount_balance;
-
-static int allocation_count = 0;
+extern int64 allocation_count;
 
 
 // Memory management
@@ -969,7 +968,7 @@ int main() {
     start();
 
     if (allocation_count)
-        printf("Oops, the allocation count is %d!\n", allocation_count);
+        printf("Oops, the allocation count is %lld!\n", allocation_count);
         
     if (refcount_balance)
         printf("Oops, the refcount balance is %lld!\n", refcount_balance);

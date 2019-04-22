@@ -501,7 +501,8 @@ public:
     X64 *x64;
     
     Label code_start_label, data_start_label, application_label;
-    Label zero_label, float_zero_label, float_minus_zero_label, refcount_balance_label;
+    Label zero_label, float_zero_label, float_minus_zero_label;
+    Label allocation_count_label, refcount_balance_label;
     Label die_unmatched_message_label, start_frame_label, task_stack_address_label, task_stack_size_label;
     
     Label heap_alloc_label, heap_realloc_label;
@@ -565,8 +566,6 @@ public:
     void compile_caller_frame_info();
     void compile_fix_stack();
     void compile_double_stack();
-    
-    void init_memory_management();
     
     void compile_start(Storage main_storage, std::vector<Label> ils, std::vector<Label> fls);
     
