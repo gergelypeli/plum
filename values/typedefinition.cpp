@@ -1076,7 +1076,7 @@ public:
 
 // TODO: this is not strictly a type definition
 
-class FunctorDefinitionValue: public TypeDefinitionValue {
+class FunctorDefinitionValue: public TypeDefinitionValue, public Deferrable {
 public:
     ClassType *class_type;
     std::vector<Value *> with_values;
@@ -1211,10 +1211,14 @@ public:
         
         return Regs::all();
     }
+
+    virtual void deferred_compile(Label label, X64 *x64) {
+        fdv->compile(x64);
+    }
     
     virtual Storage compile(X64 *x64) {
         // Compile the body later, so it does not get inserted here
-        x64->once->functor_definition(fdv);
+        x64->once->compile(this);
         
         Storage ps = preinitialize_class({ class_type }, x64);
         

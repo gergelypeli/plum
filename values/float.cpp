@@ -163,11 +163,11 @@ public:
 class FloatFunctionValue: public GenericValue {
 public:
     Regs rclob;
-    std::string import_name;
+    ImportedFloatFunction *function;
     
     FloatFunctionValue(ImportedFloatFunction *f, Value *l, TypeMatch &match)
         :GenericValue(f->arg_ts, f->res_ts, l) {
-        import_name = f->import_name;
+        function = f;
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -205,7 +205,7 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        x64->runtime->call_sysv_got(x64->once->import_got(import_name));
+        x64->runtime->call_sysv_got(function->get_label(x64));
         
         return Storage(SSEREGISTER, XMM0);
     }

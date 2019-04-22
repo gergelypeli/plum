@@ -119,6 +119,12 @@ void *C__memcpy(void *dst, void *src, size_t n) {
 }
 
 
+void *C__memmove(void *dst, void *src, size_t n) {
+    //fprintf(stderr, " -- memmove %p %p %ld\n", dst, src, n);
+    return memmove(dst, src, n);
+}
+
+
 // Internal helpers
 
 void *allocate_basic_array(int64 length, int64 size) {

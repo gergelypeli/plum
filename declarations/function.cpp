@@ -191,7 +191,7 @@ public:
 };
 
 
-class SysvFunction: public Function {
+class SysvFunction: public Function, public Deferrable {
 public:
     std::string import_name;
     
@@ -202,10 +202,10 @@ public:
     }
 
     virtual Label get_label(X64 *x64) {
-        return x64->once->sysv_wrapper(this);
+        return x64->once->compile(this);
     }
 
-    virtual void wrap(Label label, X64 *x64) {
+    virtual void deferred_compile(Label label, X64 *x64) {
         std::vector<TypeSpec> pushed_tss;
         std::vector<unsigned> pushed_sizes;
 
@@ -328,6 +328,10 @@ public:
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         return make<FloatFunctionValue>(this, cpivot, match);
+    }
+    
+    virtual Label get_label(X64 *x64) {
+        return x64->once->import_got(import_name);
     }
 };
 

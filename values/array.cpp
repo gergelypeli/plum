@@ -478,7 +478,7 @@ public:
         x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
         x64->op(IMUL3Q, RDX, RDX, elem_size);  // n
         
-        x64->runtime->call_sysv_got(x64->once->import_got("memmove"));
+        x64->runtime->call_sysv(x64->runtime->sysv_memmove_label);
 
         x64->op(RET);
     }

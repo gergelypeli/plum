@@ -12,18 +12,8 @@ Label Once::compile(TypedFunctionCompiler tfc, TypeSpec ts) {
 }
 
 
-Label Once::sysv_wrapper(SysvFunction *f) {
-    return sysv_wrappers.add(f);
-}
-
-
-Label Once::functor_definition(Value *v) {
-    return functor_definitions.add(v);
-}
-
-
-Label Once::import(std::string name) {
-    return imports.add(name);
+Label Once::compile(Deferrable *d) {
+    return deferrables.add(d);
 }
 
 
@@ -60,33 +50,15 @@ void Once::for_all(X64 *x64) {
             was_dirty = true;
         }
         
-        while (sysv_wrappers.is_dirty()) {
-            auto kv = sysv_wrappers.take();
-            SysvFunction *f = kv.first;
+        while (deferrables.is_dirty()) {
+            auto kv = deferrables.take();
+            Deferrable *d = kv.first;
             Label label = kv.second;
 
-            f->wrap(label, x64);
+            d->deferred_compile(label, x64);
             was_dirty = true;
         }
         
-        while (functor_definitions.is_dirty()) {
-            auto kv = functor_definitions.take();
-            Value *v = kv.first;
-
-            v->compile(x64);
-            was_dirty = true;
-        }
-        
-        while (imports.is_dirty()) {
-            auto kv = imports.take();
-            std::string name = kv.first;
-            Label label = kv.second;
-
-            // symbol points to the function start in the code segment
-            x64->code_label_import(label, name);
-            was_dirty = true;
-        }
-
         while (import_gots.is_dirty()) {
             auto kv = import_gots.take();
             std::string name = kv.first;
@@ -263,6 +235,7 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     x64->code_label_import(sysv_realloc_label, "C__realloc");
     x64->code_label_import(sysv_mprotect_label, "C__mprotect");
     x64->code_label_import(sysv_memcpy_label, "C__memcpy");
+    x64->code_label_import(sysv_memmove_label, "C__memmove");
     
     x64->code_label_import(sysv_log_label, "C__log");
     x64->code_label_import(sysv_logref_label, "C__logref");

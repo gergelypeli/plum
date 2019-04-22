@@ -393,6 +393,13 @@ TypeSpec COLON_TS;
 extern TreenumInput errno_treenum_input[];
 
 
+class Deferrable {
+public:
+    virtual void deferred_compile(Label label, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+};
+
 
 class Once {
 public:
@@ -430,18 +437,13 @@ public:
 
     LabelStore<FunctionCompiler> function_compilers;
     LabelStore<FunctionCompilerTuple> typed_function_compilers;
-    LabelStore<SysvFunction *> sysv_wrappers;
-    LabelStore<Value *> functor_definitions;
-    LabelStore<std::string> imports;
+    LabelStore<Deferrable *> deferrables;
     LabelStore<std::string> import_gots;
     
     Label compile(FunctionCompiler fc);
     Label compile(TypedFunctionCompiler tfc, TypeSpec ts);
+    Label compile(Deferrable *d);
     
-    Label sysv_wrapper(SysvFunction *f);
-    Label functor_definition(Value *v);
-    
-    Label import(std::string name);
     Label import_got(std::string name);
 
     void for_all(X64 *x64);
@@ -509,7 +511,7 @@ public:
     Label lookup_frame_info_label, caller_frame_info_label, fix_stack_label, double_stack_label;
     std::vector<Label> incref_labels, decref_labels;
 
-    Label sysv_malloc_label, sysv_aligned_alloc_label, sysv_free_label, sysv_realloc_label, sysv_mprotect_label,  sysv_memcpy_label;
+    Label sysv_malloc_label, sysv_aligned_alloc_label, sysv_free_label, sysv_realloc_label, sysv_mprotect_label,  sysv_memcpy_label, sysv_memmove_label;
     Label sysv_log_label, sysv_logref_label, sysv_dump_label;
     Label sysv_die_label, sysv_dies_label, sysv_die_uncaught_label;
     Label sysv_sort_label, sysv_string_regexp_match_label;
