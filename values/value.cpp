@@ -142,7 +142,8 @@ public:
             std::cerr << "Oops, a Raiser::check_raise was not called somewhere!\n";
             throw INTERNAL_ERROR;
         }
-        
+
+        //x64->runtime->log("XXX raising " + keyword);
         x64->op(MOVQ, RDX, raised_type->get_keyword_index(keyword));
         x64->unwind->initiate(raising_dummy, x64);
     }

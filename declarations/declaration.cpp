@@ -73,11 +73,3 @@ public:
     }
 };
 
-
-class RaisingDummy: public Declaration {
-public:
-    RaisingDummy()
-        :Declaration() {
-    }
-};
-

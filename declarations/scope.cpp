@@ -162,6 +162,10 @@ public:
         return outer_scope->get_root_scope();
     }
 
+    virtual void be_unwindable() {
+        throw INTERNAL_ERROR;  // only for CodeScope and friends
+    }
+
     virtual void allocate() {
         // TODO: this may not be correct for all kind of scopes
         if (is_allocated)
@@ -501,20 +505,46 @@ public:
 };
 
 
+class RaisingDummy: public Declaration {
+public:
+    RaisingDummy()
+        :Declaration() {
+    }
+
+    virtual void set_outer_scope(Scope *os) {
+        Declaration::set_outer_scope(os);
+        
+        outer_scope->be_unwindable();
+    }
+};
+
+
 class CodeScope: public Scope {
 public:
     Allocation offset;
     bool contents_finalized;  // for sanity check
     bool is_taken;  // too
+    bool am_unwindable;  // for optimizing out checks
     
     CodeScope()
         :Scope(CODE_SCOPE) {
         contents_finalized = false;
         is_taken = false;
+        am_unwindable = false;
     }
 
     virtual void be_taken() {
         is_taken = true;
+    }
+
+    virtual void be_unwindable() {
+        am_unwindable = true;
+        
+        outer_scope->be_unwindable();
+    }
+    
+    virtual bool is_unwindable() {
+        return am_unwindable;
     }
 
     virtual void leave() {
@@ -936,6 +966,10 @@ public:
 
     virtual RetroScope *get_retro_scope() {
         return NULL;
+    }
+    
+    virtual void be_unwindable() {
+        // Finish the notification here
     }
     
     virtual std::vector<Variable *> get_result_variables() {

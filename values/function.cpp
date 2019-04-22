@@ -8,8 +8,6 @@ public:
     std::unique_ptr<Value> exception_type_value;
     FunctionScope *fn_scope;
     Expr *deferred_body_expr;
-    bool may_be_aborted;
-    //TypeSpec pivot_ts;
     Variable *self_var;
     TypeMatch match;
     Scope *outer_scope;
@@ -24,9 +22,7 @@ public:
         type = GENERIC_FUNCTION;
         function = NULL;
         deferred_body_expr = NULL;
-        may_be_aborted = false;
         self_var = NULL;
-        //ston_var = NULL;
         fn_scope = NULL;
         outer_scope = NULL;
     }
@@ -375,11 +371,13 @@ public:
         x64->unwind->pop(this);
         
         x64->op(NOP);
+
+        // This is mandatory, as the epilogue checks for it anyway
         x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         fn_scope->body_scope->finalize_contents(x64);
         
-        if (may_be_aborted) {
+        if (fn_scope->body_scope->is_unwindable()) {
             Label ok, caught;
             x64->op(CMPQ, RDX, RETURN_EXCEPTION);
             x64->op(JE, caught);
@@ -438,7 +436,6 @@ public:
     }
 
     virtual Scope *unwind(X64 *x64) {
-        may_be_aborted = true;
         return fn_scope->body_scope;  // stop unwinding here, and start destroying scoped variables
     }
 

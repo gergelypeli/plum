@@ -235,14 +235,12 @@ public:
     std::string yield_name;
     EvalScope *eval_scope;
     Variable *yield_var;
-    bool actually_yielded;
     
     YieldableValue(std::string n, std::string yn)
         :ControlValue(n) {
         yield_name = yn;
         eval_scope = NULL;
         yield_var = NULL;
-        actually_yielded = false;
     }
 
     virtual std::string get_yield_label() {
@@ -278,10 +276,6 @@ public:
         EvalScope *es = eval_scope->outer_scope->get_eval_scope();
         
         return (es ? es->get_yieldable_value()->get_yield_exception_value() : RETURN_EXCEPTION) - 1;
-    }
-
-    virtual void actually_yield() {
-        actually_yielded = true;
     }
 
     virtual Storage get_yield_storage() {
@@ -518,9 +512,9 @@ public:
         Storage ns = next->compile(x64);
         x64->unwind->pop(this);
         
+        // Finalize after storing, so the return value won't be lost
         next->ts.create(ns, es, x64);  // create the each variable
 
-        // Finalize after storing, so the return value won't be lost
         // On exception we jump here, so the each variable won't be created
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         next_try_scope->finalize_contents(x64);
@@ -570,10 +564,6 @@ public:
             return false;
         }
         
-        // Insert variable before the body to keep the finalization order
-        //if (!setup_yieldable(scope))
-        //    return false;
-            
         switch_scope = new SwitchScope;
         scope->add(switch_scope);
         switch_scope->enter();
@@ -590,8 +580,6 @@ public:
 
         switch_scope->be_taken();
         switch_scope->leave();
-        //eval_scope->be_taken();
-        //eval_scope->leave();
 
         return true;
     }
@@ -620,7 +608,7 @@ public:
 
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         switch_scope->finalize_contents(x64);
-        //x64->runtime->log("XXX switch finalized");
+
         Label live;
         x64->op(CMPQ, RDX, NO_EXCEPTION);
         x64->op(JE, live);
@@ -824,6 +812,9 @@ public:
 };
 
 
+// This class is not a subclass of Raiser, because that is for incoming exceptions
+// that must be in try scopes, while this is for outgoing exceptions that must not be
+// in try scopes.
 class RaiseValue: public ControlValue {
 public:
     Declaration *dummy;
@@ -1103,23 +1094,25 @@ public:
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
 
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
+        if (eval_scope->is_unwindable())
+            x64->op(MOVQ, RDX, NO_EXCEPTION);
+            
         eval_scope->finalize_contents(x64);  // exceptions from body jump here
 
-        Label ok;
+        if (eval_scope->is_unwindable()) {
+            Label ok;
         
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, ok);
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            x64->op(JE, ok);
         
-        if (actually_yielded) {
             x64->op(CMPQ, RDX, get_yield_exception_value());
             x64->op(JE, ok);  // dropped
-        }
 
-        // reraise other exceptions
-        x64->unwind->initiate(eval_scope, x64);
+            // reraise other exceptions
+            x64->unwind->initiate(eval_scope, x64);
         
-        x64->code_label(ok);
+            x64->code_label(ok);
+        }
         
         return get_yield_storage();
     }
@@ -1161,11 +1154,6 @@ public:
         if (!check_kwargs(kwargs, infos))
             return false;
 
-        // Disallow optimizing out the handling in the yieldable.
-        // This must not be in the compile method, because this compilation may be
-        // deferred, and the eval compiled earlier would not be notified.
-        yieldable_value->actually_yield();
-        
         return true;
     }
     

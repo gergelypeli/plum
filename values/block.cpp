@@ -3,7 +3,6 @@ class CodeScopeValue: public Value {
 public:
     std::unique_ptr<Value> value;
     CodeScope *code_scope;
-    bool may_be_aborted;
     Storage save_storage;
 
     CodeScopeValue(Value *v, CodeScope *s)
@@ -12,7 +11,6 @@ public:
         set_token(v->token);
         code_scope = s;
         code_scope->be_taken();
-        may_be_aborted = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -23,16 +21,7 @@ public:
         return value->precompile(preferred) | Regs(RAX) | Regs(XMM0);
     }
 
-    virtual void compile_epilogue(X64 *x64) {
-        Label ok;
-        x64->op(JE, ok);
-    
-        x64->unwind->initiate(code_scope, x64);
-        
-        x64->code_label(ok);
-    }
-
-    virtual Storage compile(X64 *x64) {
+    virtual Storage compile_body(X64 *x64) {
         x64->code_line_info(token.file_index, token.row);
 
         x64->unwind->push(this);
@@ -51,21 +40,32 @@ public:
 
         value->ts.store(s, t, x64);
         
-        if (may_be_aborted)
+        return t;
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Storage t = compile_body(x64);
+    
+        if (code_scope->is_unwindable())
             x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         code_scope->finalize_contents(x64);
 
-        if (may_be_aborted) {
+        if (code_scope->is_unwindable()) {
             x64->op(CMPQ, RDX, NO_EXCEPTION);
-            compile_epilogue(x64);
+
+            Label ok;
+            x64->op(JE, ok);
+    
+            x64->unwind->initiate(code_scope, x64);
+        
+            x64->code_label(ok);
         }
-            
+
         return t;
     }
     
     virtual Scope *unwind(X64 *x64) {
-        may_be_aborted = true;
         return code_scope;  // stop unwinding here, and start destroying scoped variables
     }
     
@@ -79,10 +79,6 @@ class RetroScopeValue: public CodeScopeValue, public Deferrable {
 public:
     RetroScopeValue(Value *v, CodeScope *s)
         :CodeScopeValue(v, s) {
-    }
-    
-    virtual void compile_epilogue(X64 *x64) {
-        // Empty, exceptions will be returned to the evaluator
     }
     
     virtual void deferred_compile(Label label, X64 *x64) {
@@ -99,8 +95,14 @@ public:
         x64->op(POPQ, Address(R10, retro_offset + ADDRESS_SIZE));
         x64->op(MOVQ, Address(R10, retro_offset), RBP);
         x64->op(LEA, RBP, Address(R10, retro_offset));
+
+        compile_body(x64);
         
-        CodeScopeValue::compile(x64);  // ZF set if no exceptions, otherwise RDX contains it
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
+
+        code_scope->finalize_contents(x64);
+
+        x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
 
         x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
         x64->op(MOVQ, RBP, Address(RBP, 0));
@@ -136,16 +138,8 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label label = x64->once->compile(this);
-        /*
-        Label label, skip;
-        
-        x64->op(JMP, skip);
-        
-        deferred_compile(label, x64);
-        
-        x64->code_label(skip);
-        */
-        // Return a pointer to our code        
+
+        // Return a pointer to our code
         x64->op(LEA, R10, Address(label, 0));
         x64->op(PUSHQ, R10);
 
