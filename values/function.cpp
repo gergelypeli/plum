@@ -291,15 +291,7 @@ public:
         Storage s = a->get_local_storage();
         
         if (s.where == ALIAS || s.where == RETRO) {
-            Label skip;
-            
-            x64->op(CMPQ, s.address, RSI);
-            x64->op(JB, skip);
-            x64->op(CMPQ, s.address, RDI);
-            x64->op(JAE, skip);
-            x64->op(ADDQ, s.address, RDX);
-            x64->code_label(skip);
-            
+            x64->runtime->fix_address(s.address);
             x64->runtime->log("Fixed argument " + a->name + " of " + function->get_fully_qualified_name());
         }
     }
@@ -388,10 +380,20 @@ public:
         fn_scope->body_scope->finalize_contents(x64);
         
         if (may_be_aborted) {
-            Label ok;
+            Label ok, caught;
             x64->op(CMPQ, RDX, RETURN_EXCEPTION);
-            x64->op(JNE, ok);
+            x64->op(JE, caught);
+            
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            x64->op(JAE, ok);
+            
+            // Negative values mean yields, but that would be completely bogus.
+            // Check this for debugging.
+            x64->runtime->die("Unhandled yield in the function body!");
+            
+            x64->code_label(caught);
             x64->op(MOVQ, RDX, NO_EXCEPTION);  // caught
+            
             x64->code_label(ok);
         }
 

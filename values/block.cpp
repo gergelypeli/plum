@@ -75,7 +75,7 @@ public:
 };
 
 
-class RetroScopeValue: public CodeScopeValue {
+class RetroScopeValue: public CodeScopeValue, public Deferrable {
 public:
     RetroScopeValue(Value *v, CodeScope *s)
         :CodeScopeValue(v, s) {
@@ -85,17 +85,14 @@ public:
         // Empty, exceptions will be returned to the evaluator
     }
     
-    virtual Storage compile(X64 *x64) {
+    virtual void deferred_compile(Label label, X64 *x64) {
         RetroScope *rs = ptr_cast<RetroScope>(code_scope);
         if (!rs)
             throw INTERNAL_ERROR;
 
         int retro_offset = rs->get_frame_offset();
-        Label begin, skip;
-        
-        x64->op(JMP, skip);
 
-        x64->code_label(begin);
+        x64->code_label(label);
         
         // Create an artificial stack frame at the location that RetroScope has allocated
         x64->op(MOVQ, R10, Address(RBP, 0));  // get our own frame back
@@ -104,15 +101,52 @@ public:
         x64->op(LEA, RBP, Address(R10, retro_offset));
         
         CodeScopeValue::compile(x64);  // ZF set if no exceptions, otherwise RDX contains it
-        
+
         x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
         x64->op(MOVQ, RBP, Address(RBP, 0));
         
         x64->op(RET);
-
-        // Return a pointer to our code        
+        
+        // Generate fixup code for the preceding ALIAS storage retro variables, they're
+        // allocated in the middle of the function's stack frame, so there's no one else
+        // to take care of them. Fortunately they were moved into this code scope by
+        // check_retros, so it's easy to find them.
+        Label fix;
+        x64->code_label(fix);
+        x64->runtime->log("Fixing retro arguments of a retro block.");
+        
+        for (auto &d : code_scope->contents) {
+            RetroVariable *rv = ptr_cast<RetroVariable>(d.get());
+            
+            if (!rv)
+                break;
+                
+            Storage s = rv->get_local_storage();
+            
+            if (s.where == ALIAS) {
+                x64->runtime->fix_address(s.address + (-retro_offset));
+                x64->runtime->log("Fixed retro argument " + rv->name + " of a retro block.");
+            }
+        }
+        
+        x64->op(RET);
+        
+        x64->runtime->add_func_info("<retro>", label, fix);
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        Label label = x64->once->compile(this);
+        /*
+        Label label, skip;
+        
+        x64->op(JMP, skip);
+        
+        deferred_compile(label, x64);
+        
         x64->code_label(skip);
-        x64->op(LEA, R10, Address(begin, 0));
+        */
+        // Return a pointer to our code        
+        x64->op(LEA, R10, Address(label, 0));
         x64->op(PUSHQ, R10);
 
         return Storage(STACK);

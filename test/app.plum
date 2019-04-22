@@ -181,6 +181,8 @@ App? :Class Application as:
         :switch "foo" do:
             :is ~re ".*" then:
                 Std prints("Regexp matched in switch.")
+                
+        Std prints("That was it for strings.")
 
 
 #Test_enums? :Singleton as:
@@ -513,7 +515,7 @@ App? :Class Application as:
         $ twice(how: h? what:this: (Std prints("You want {}?" { h }), :this h * 1000))
 
         :eval:
-            $ passthrough(what:this: (:eval, :this 0))
+            $ passthrough(what:this: (Std prints("Let's break."), :eval, :this 0))
             Std prints("This shouldn't be printed!")
 
         :hihi:if `true then: x3 else:if `false then: x4

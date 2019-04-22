@@ -580,6 +580,8 @@ public:
     
     RetroScope()
         :CodeScope() {
+        // This scope will be compiled out of order, so let's defuse this sanity check
+        contents_finalized = true;
     }
 
     virtual RetroScope *get_retro_scope() {

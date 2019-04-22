@@ -618,28 +618,19 @@ public:
         
         x64->unwind->pop(this);
 
-        // Normal control flow dies here
-        //x64->runtime->die("Switch assertion failed!");
-
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
         switch_scope->finalize_contents(x64);
-        //eval_scope->finalize_contents(x64);
-        
+        //x64->runtime->log("XXX switch finalized");
         Label live;
-
         x64->op(CMPQ, RDX, NO_EXCEPTION);
         x64->op(JE, live);
-        
-        //if (actually_yielded) {
-        //    x64->op(CMPQ, RDX, get_yield_exception_value());
-        //    x64->op(JE, live);  // dropped
-        //}
 
         // Otherwise must have raised something
         x64->unwind->initiate(switch_scope, x64);
 
         x64->code_label(live);
 
-        return Storage();  // get_yield_storage();
+        return Storage();
     }
     
     virtual Scope *unwind(X64 *x64) {
@@ -1125,7 +1116,7 @@ public:
             x64->op(JE, ok);  // dropped
         }
 
-        // reraise other exceptions        
+        // reraise other exceptions
         x64->unwind->initiate(eval_scope, x64);
         
         x64->code_label(ok);
@@ -1169,6 +1160,11 @@ public:
         
         if (!check_kwargs(kwargs, infos))
             return false;
+
+        // Disallow optimizing out the handling in the yieldable.
+        // This must not be in the compile method, because this compilation may be
+        // deferred, and the eval compiled earlier would not be notified.
+        yieldable_value->actually_yield();
         
         return true;
     }
@@ -1186,11 +1182,9 @@ public:
             yieldable_value->store_yield(s, x64);
         }
         
-        yieldable_value->actually_yield();  // disallow optimizing handling out
         x64->op(MOVQ, RDX, yieldable_value->get_yield_exception_value());
         x64->unwind->initiate(dummy, x64);
 
         return nonsense_result(x64);
-        
     }
 };

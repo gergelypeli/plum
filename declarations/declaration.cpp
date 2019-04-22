@@ -6,10 +6,12 @@ public:
     Scope *outer_scope;
     Label finalization_label;
     bool need_finalization_label;
+    bool is_finalized;  // sanity check
     
     Declaration() {
         outer_scope = NULL;
         need_finalization_label = false;
+        is_finalized = false;
     }
 
     virtual ~Declaration() {
@@ -52,8 +54,13 @@ public:
     }
     
     virtual void finalize(X64 *x64) {
+        if (is_finalized)
+            throw INTERNAL_ERROR;
+            
         if (need_finalization_label)
             x64->code_label(finalization_label);
+            
+        is_finalized = true;
     }
     
     virtual void jump_to_finalization(X64 *x64) {

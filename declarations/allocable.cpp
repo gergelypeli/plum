@@ -341,7 +341,7 @@ public:
 
 class Evaluable: public Allocable {
 public:
-    std::vector<Variable *> arg_variables;
+    std::vector<Variable *> dvalue_variables;
     
     Evaluable(std::string name, TypeSpec vts)
         :Allocable(name, vts) {
@@ -350,21 +350,26 @@ public:
     virtual void set_outer_scope(Scope *os) {
         Allocable::set_outer_scope(os);
         
-        std::vector<Variable *> avs;
+        // Collect the preceding Dvalue arguments for convenience
+        std::vector<Variable *> dvs;
         
         for (unsigned i = os->contents.size() - 1; i != (unsigned)-1; i--) {
             Variable *av = ptr_cast<Variable>(os->contents[i].get());
             
             if (av && av->alloc_ts[0] == dvalue_type)
-                avs.push_back(av);
+                dvs.push_back(av);
             else
                 break;
         }
         
-        while (avs.size()) {
-            arg_variables.push_back(avs.back());
-            avs.pop_back();
+        while (dvs.size()) {
+            dvalue_variables.push_back(dvs.back());
+            dvs.pop_back();
         }
+    }
+
+    virtual std::vector<Variable *> get_dvalue_variables() {
+        return dvalue_variables;
     }
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {

@@ -696,6 +696,18 @@ void Runtime::compile_caller_frame_info() {
     x64->op(RET);
 }
 
+void Runtime::fix_address(Address address) {
+    Label skip;
+    
+    x64->op(CMPQ, address, RSI);
+    x64->op(JB, skip);
+    x64->op(CMPQ, address, RDI);
+    x64->op(JAE, skip);
+    x64->op(ADDQ, address, RDX);
+    
+    x64->code_label(skip);
+}
+
 void Runtime::compile_fix_stack() {
     // fix_stack(old_bottom, old_top, relocation)
     // clobbers all registers
@@ -967,10 +979,14 @@ void Runtime::log(std::string message) {
     x64->data_label(message_label);
     x64->data_zstring(message);
 
+    x64->op(PUSHFQ);
     pusha();
+    
     x64->op(LEA, RDI, Address(message_label, 0));
     call_sysv(sysv_log_label);
+    
     popa();
+    x64->op(POPFQ);
 }
 
 void Runtime::logref(std::string message, Register r) {
@@ -980,9 +996,11 @@ void Runtime::logref(std::string message, Register r) {
 
     x64->op(PUSHFQ);
     pusha();
+    
     x64->op(MOVQ, RSI, r);
     x64->op(LEA, RDI, Address(message_label, 0));
     call_sysv(sysv_logref_label);
+    
     popa();
     x64->op(POPFQ);
 }

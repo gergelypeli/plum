@@ -567,6 +567,7 @@ public:
 
     void r10bcompar(bool is_unsigned);
     void copy(Address s, Address t, int size);
+    void fix_address(Address address);
     
     void log(std::string message);
     void logref(std::string message, Register r);

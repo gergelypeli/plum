@@ -480,6 +480,7 @@ public:
 class EvaluableValue: public Value, public Raiser {
 public:
     Evaluable *evaluable;
+    std::vector<Variable *> dvalue_variables;
     std::vector<std::unique_ptr<Value>> arg_values;
     std::vector<StorageWhere> retro_wheres;
     unsigned result_stack_size;
@@ -488,6 +489,8 @@ public:
     EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
         :Value(typesubst(e->alloc_ts, tm).unprefix(code_type)) {
         evaluable = e;
+        
+        dvalue_variables = e->get_dvalue_variables();
         result_stack_size = 0;
         
         if (p)
@@ -498,14 +501,14 @@ public:
         ArgInfos infos;
         TSs arg_tss;
         
-        arg_tss.reserve(evaluable->arg_variables.size());  // prevent reallocations
-        arg_values.reserve(evaluable->arg_variables.size());  // prevent reallocations
+        arg_tss.reserve(dvalue_variables.size());  // prevent reallocations
+        arg_values.reserve(dvalue_variables.size());  // prevent reallocations
                 
-        for (auto v : evaluable->arg_variables) {
+        for (auto v : dvalue_variables) {
             arg_values.push_back(NULL);
             
             // Must keep these, as we hold a pointer to each
-            arg_tss.push_back(v->alloc_ts.unprefix(dvalue_type));
+            arg_tss.push_back(v->get_typespec(TypeMatch()).unprefix(dvalue_type));
             
             infos.push_back(ArgInfo {
                 v->name.c_str(),
@@ -538,12 +541,12 @@ public:
     }
 
     virtual void destroy_arguments(X64 *x64) {
-        for (int i = retro_wheres.size() - 1; i >= 0; i--) {
-            StorageWhere retro_where = retro_wheres[i];
-            Variable *dvalue_var = evaluable->arg_variables[i];
+        for (int i = dvalue_variables.size() - 1; i >= 0; i--) {
+            Variable *dvalue_var = dvalue_variables[i];
             Storage dvalue_storage = dvalue_var->get_local_storage();
             TypeSpec dvalue_ts = dvalue_var->get_typespec(TypeMatch());
             TypeSpec retro_ts = dvalue_ts.unprefix(dvalue_type);
+            StorageWhere retro_where = retro_wheres[i];
 
             // Must use RBX to load the ALIAS-es to, because RAX is a valid result storage
             Register reg = RBX;
@@ -569,7 +572,7 @@ public:
         for (unsigned i = 0; i < arg_values.size(); i++) {
             Storage s = arg_values[i]->compile(x64);
             
-            Variable *dvalue_var = evaluable->arg_variables[i];
+            Variable *dvalue_var = dvalue_variables[i];
             Storage dvalue_storage = dvalue_var->get_local_storage();
             TypeSpec dvalue_ts = dvalue_var->get_typespec(TypeMatch());
             TypeSpec retro_ts = dvalue_ts.unprefix(dvalue_type);
