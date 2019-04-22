@@ -242,7 +242,7 @@ void C__dump(const char *message, struct R *r) {
     );
     fprintf(stderr, "              ____    ____          ____    ____          ____    ____          ____    ____\n");
     fprintf(stderr, "      RAX=%016llx  RBX=%016llx  RCX=%016llx  RDX=%016llx\n", r->rax, r->rbx, r->rcx, r->rdx);
-    fprintf(stderr, "      RSP=%016llx  RBP=%016llx  RSI=%016llx  RDI=%016llx\n", r->rsp + 32, r->rbp, r->rsi, r->rdi);
+    fprintf(stderr, "      RSP=%016llx  RBP=%016llx  RSI=%016llx  RDI=%016llx\n", r->rsp, r->rbp, r->rsi, r->rdi);
     fprintf(stderr, "      R8 =%016llx  R9 =%016llx  R10=%016llx  R11=%016llx\n", r->r8, r->r9, r->r10, r->r11);
     fprintf(stderr, "      R12=%016llx  R13=%016llx  R14=%016llx  R15=%016llx\n", r->r12, r->r13, r->r14, r->r15);
 }

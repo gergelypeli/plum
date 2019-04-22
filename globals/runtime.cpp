@@ -278,6 +278,8 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     compile_caller_frame_info();
     compile_fix_stack();
     compile_double_stack();
+    
+    compile_logging();
 }
 
 void Runtime::data_heap_header() {
@@ -1001,6 +1003,61 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     x64->op(RET);
 }
 
+void Runtime::compile_logging() {
+    // We want to preserve all registers, but also keep calling these functions the simplest.
+    // Since we can't push the string address directly onto the stack, we push its
+    // relative location in the data segment, and convert it to absolute address here.
+    x64->code_label(log_label);
+    x64->op(PUSHFQ);
+    int offset = pusha();
+    
+    x64->op(LEA, RDI, Address(data_start_label, 0));
+    x64->op(ADDQ, RDI, Address(RSP, offset + ADDRESS_SIZE + RIP_SIZE));
+    
+    call_sysv(sysv_log_label);
+    
+    popa();
+    x64->op(POPFQ);
+    x64->op(RET);
+
+    // As above
+    x64->code_label(logref_label);
+    x64->op(PUSHFQ);
+    offset = pusha();
+    
+    x64->op(LEA, RDI, Address(data_start_label, 0));
+    x64->op(ADDQ, RDI, Address(RSP, offset + 2 * ADDRESS_SIZE + RIP_SIZE));
+    x64->op(MOVQ, RSI, Address(RSP, offset + ADDRESS_SIZE + RIP_SIZE));
+    
+    call_sysv(sysv_logref_label);
+    
+    popa();
+    x64->op(POPFQ);
+    x64->op(RET);
+    
+    // As above
+    x64->code_label(dump_label);
+    x64->op(PUSHFQ);
+
+    // NOTE: we'll adjust the saved RSP to its original value (STR+RIP+RFLAGS+RAX+RBX+RCX+RDX)
+    for (Register r : { RAX, RBX, RCX, RDX, RSP, RBP, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 })
+        x64->op(PUSHQ, r);
+
+    x64->op(ADDQ, Address(RSP, 11 * ADDRESS_SIZE), 5 * ADDRESS_SIZE + RIP_SIZE + ADDRESS_SIZE);
+    x64->op(LEA, RDI, Address(data_start_label, 0));
+    x64->op(ADDQ, RDI, Address(RSP, 17 * ADDRESS_SIZE + RIP_SIZE));
+    x64->op(MOVQ, RSI, RSP);
+    
+    call_sysv(sysv_dump_label);
+
+    // NOTE: we don't pop the adjusted RSP
+    for (Register r : { R15, R14, R13, R12, R11, R10, R9, R8, RDI, RSI, RBP, RDX, RDX, RCX, RBX, RAX })
+        x64->op(POPQ, r);
+        
+    x64->op(POPFQ);
+    x64->op(RET);
+}
+
 void Runtime::incref(Register reg) {
     if (reg == RSP || reg == RBP || reg == NOREG)
         throw ASM_ERROR;
@@ -1075,54 +1132,31 @@ void Runtime::copy(Address s, Address t, int size) {
 
 
 void Runtime::log(std::string message) {
-    Label message_label;
-    x64->data_label(message_label);
+    int message_offset = x64->data.size();
     x64->data_zstring(message);
 
-    x64->op(PUSHFQ);
-    pusha();
-    
-    x64->op(LEA, RDI, Address(message_label, 0));
-    call_sysv(sysv_log_label);
-    
-    popa();
-    x64->op(POPFQ);
+    x64->op(PUSHQ, message_offset);
+    x64->op(CALL, log_label);
+    x64->op(LEA, RSP, Address(RSP, ADDRESS_SIZE));
 }
 
 void Runtime::logref(std::string message, Register r) {
-    Label message_label;
-    x64->data_label(message_label);
+    int message_offset = x64->data.size();
     x64->data_zstring(message);
 
-    x64->op(PUSHFQ);
-    pusha();
-    
-    x64->op(MOVQ, RSI, r);
-    x64->op(LEA, RDI, Address(message_label, 0));
-    call_sysv(sysv_logref_label);
-    
-    popa();
-    x64->op(POPFQ);
+    x64->op(PUSHQ, message_offset);
+    x64->op(PUSHQ, r);
+    x64->op(CALL, logref_label);
+    x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));
 }
 
 void Runtime::dump(std::string message) {
-    Label message_label;
-    x64->data_label(message_label);
+    int message_offset = x64->data.size();
     x64->data_zstring(message);
 
-    x64->op(PUSHFQ);
-
-    for (Register r : { RAX, RBX, RCX, RDX, RSP, RBP, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 })
-        x64->op(PUSHQ, r);
-    
-    x64->op(LEA, RDI, Address(message_label, 0));
-    x64->op(MOVQ, RSI, RSP);
-    call_sysv(sysv_dump_label);
-
-    for (Register r : { R15, R14, R13, R12, R11, R10, R9, R8, RDI, RSI, RBP, RDX, RDX, RCX, RBX, RAX })
-        x64->op(POPQ, r);
-        
-    x64->op(POPFQ);
+    x64->op(PUSHQ, message_offset);
+    x64->op(CALL, dump_label);
+    x64->op(LEA, RSP, Address(RSP, ADDRESS_SIZE));
 }
 
 

@@ -511,6 +511,7 @@ public:
     Label finalize_label, finalize_reference_array_label;
     Label lookup_source_info_label, lookup_call_info_label, lookup_frame_info_label, caller_frame_info_label;
     Label fix_stack_label, double_stack_label;
+    Label log_label, logref_label, dump_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Label sysv_malloc_label, sysv_aligned_alloc_label, sysv_free_label, sysv_realloc_label, sysv_mprotect_label,  sysv_memcpy_label, sysv_memmove_label;
@@ -566,6 +567,7 @@ public:
     void compile_caller_frame_info();
     void compile_fix_stack();
     void compile_double_stack();
+    void compile_logging();
     
     void compile_start(Storage main_storage, std::vector<Label> ils, std::vector<Label> fls);
     
