@@ -55,6 +55,8 @@ public:
         // Used to shorten name of file names for printing
         project_path = local_path.substr(0, local_path.rfind('/'));  // '/path/to'
 
+        // Such things always come handy
+        source_file_names.push_back("<unknown>");
     }
 
     std::string get_source_file_name(int index) {

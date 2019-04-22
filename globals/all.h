@@ -500,7 +500,7 @@ public:
 
     X64 *x64;
     
-    Label application_label;
+    Label code_start_label, data_start_label, application_label;
     Label zero_label, float_zero_label, float_minus_zero_label, refcount_balance_label;
     Label die_unmatched_message_label, start_frame_label, task_stack_address_label, task_stack_size_label;
     
@@ -508,7 +508,8 @@ public:
     Label fcb_alloc_label, fcb_free_label;
     Label empty_function_label, empty_array_label;
     Label finalize_label, finalize_reference_array_label;
-    Label lookup_frame_info_label, caller_frame_info_label, fix_stack_label, double_stack_label;
+    Label lookup_source_info_label, lookup_call_info_label, lookup_frame_info_label, caller_frame_info_label;
+    Label fix_stack_label, double_stack_label;
     std::vector<Label> incref_labels, decref_labels;
 
     Label sysv_malloc_label, sysv_aligned_alloc_label, sysv_free_label, sysv_realloc_label, sysv_mprotect_label,  sysv_memcpy_label, sysv_memmove_label;
@@ -525,9 +526,14 @@ public:
         Label name_label;
     };
 
+    Label source_infos_label, source_infos_length_label;
+
     Label func_infos_label, func_infos_length_label;
     std::vector<FuncInfo> func_infos;
     
+    Label call_infos_label, call_infos_length_label;
+    std::vector<LineInfo> call_infos;
+
     Runtime(X64 *x, unsigned application_size);
 
     void data_heap_header();
@@ -536,8 +542,13 @@ public:
     void call_sysv(Label l);
     void call_sysv_got(Label got_l);
 
+    void compile_source_infos(std::vector<std::string> source_file_names);
+
     void add_func_info(std::string name, Label start, Label end);
-    void compile_func_infos(X64 *x64);
+    void compile_func_infos();
+
+    void add_call_info(int source_file_index, int line_number);
+    void compile_call_infos();
     
     int pusha(bool except_rax = false);
     void popa(bool except_rax = false);
@@ -548,6 +559,8 @@ public:
     void compile_fcb_alloc();
     void compile_fcb_free();
     void compile_finalize_reference_array();
+    void compile_lookup_source_info();
+    void compile_lookup_call_info();
     void compile_lookup_frame_info();
     void compile_caller_frame_info();
     void compile_fix_stack();
@@ -597,7 +610,10 @@ public:
     
     void finish(std::string output, std::vector<std::string> source_file_names) {
         once->for_all(this);
-        runtime->compile_func_infos(this);
+        
+        runtime->compile_source_infos(source_file_names);
+        runtime->compile_func_infos();
+        runtime->compile_call_infos();
         
         done(output, source_file_names);
     }

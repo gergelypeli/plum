@@ -193,8 +193,11 @@ void Accounting::adjust_stack_usage(int mod) {
 
 Runtime::Runtime(X64 *x, unsigned application_size) {
     x64 = x;
-    std::cerr << "Application size is " << application_size << " bytes.\n";
     
+    x64->code_label_global(code_start_label, "code_start");
+    x64->data_label_global(data_start_label, "data_start");
+    
+    std::cerr << "Application size is " << application_size << " bytes.\n";
     x64->data_align(16);
     x64->data_label(application_label);
     for (unsigned i = 0; i < application_size; i++)
@@ -325,11 +328,29 @@ void Runtime::call_sysv_got(Label got_l) {
     x64->adjust_stack_usage(-24);
 }
 
+void Runtime::compile_source_infos(std::vector<std::string> source_file_names) {
+    x64->data_label(source_infos_length_label);
+    x64->data_qword(source_file_names.size());
+    
+    std::vector<Label> labels;
+
+    for (auto &source_file_name : source_file_names) {
+        labels.push_back(data_heap_string(decode_utf8(source_file_name)));
+    }
+    
+    x64->data_align(8);
+    x64->data_label_global(source_infos_label, "source_infos");
+    
+    for (auto &label : labels) {
+        x64->data_reference(label);
+    }
+}
+
 void Runtime::add_func_info(std::string name, Label start, Label end) {
     func_infos.push_back({ name, start, end, Label() });
 }
 
-void Runtime::compile_func_infos(X64 *x64) {
+void Runtime::compile_func_infos() {
     x64->data_label(func_infos_length_label);
     x64->data_qword(func_infos.size());
     
@@ -344,6 +365,24 @@ void Runtime::compile_func_infos(X64 *x64) {
         x64->data_reference(fi.start_label);
         x64->data_reference(fi.end_label);
         x64->data_reference(fi.name_label);
+    }
+}
+
+void Runtime::add_call_info(int file_index, int line_number) {
+    call_infos.push_back(LineInfo { (int)x64->code.size(), file_index, line_number });
+}
+
+void Runtime::compile_call_infos() {
+    x64->data_label(call_infos_length_label);
+    x64->data_qword(call_infos.size());
+    
+    x64->data_align(8);
+    x64->data_label_global(call_infos_label, "call_infos");
+    
+    for (auto &ci : call_infos) {
+        x64->data_dword(ci.address);
+        x64->data_word(ci.file_index);
+        x64->data_word(ci.line_number);
     }
 }
 
@@ -627,6 +666,59 @@ void Runtime::compile_incref_decref() {
     }
 }
 
+void Runtime::compile_lookup_source_info() {
+    // lookup_source_info(source_file_index)
+    // result - RAX = String name
+    // clobbers RAX, RBX, RCX
+    
+    x64->code_label_global(lookup_source_info_label, "lookup_source_info");
+    Label found;
+
+    x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));  // index
+    x64->op(LEA, RAX, Address(source_infos_label, 0));
+    x64->op(MOVQ, RCX, Address(source_infos_length_label, 0));
+    
+    x64->op(CMPD, RBX, RCX);
+    x64->op(JB, found);
+    
+    x64->op(MOVQ, RBX, 0);
+    
+    x64->code_label(found);
+    x64->op(MOVQ, RAX, Address(RAX, RBX, Address::SCALE_8, 0));
+    incref(RAX);
+
+    x64->op(RET);
+}
+
+void Runtime::compile_lookup_call_info() {
+    // lookup_call_info(rip)
+    // result - RAX = pointer to the call info structure, or NULL
+    // clobbers RAX, RBX, RCX
+    
+    x64->code_label_global(lookup_call_info_label, "lookup_call_info");
+    Label loop, skip, end;
+
+    x64->op(LEA, RBX, Address(code_start_label, 0));
+    x64->op(NEGQ, RBX);
+    x64->op(ADDQ, RBX, Address(RSP, ADDRESS_SIZE));  // relative RIP within the code segment
+    x64->op(LEA, RAX, Address(call_infos_label, 0));
+    x64->op(MOVQ, RCX, Address(call_infos_length_label, 0));
+    
+    x64->code_label(loop);
+    x64->op(CMPD, EBX, Address(RAX, 0));
+    x64->op(JE, end);
+    
+    x64->op(ADDQ, RAX, 8);
+    x64->op(DECQ, RCX);
+    x64->op(JNE, loop);
+    
+    // Not found
+    x64->op(MOVQ, RAX, 0);
+    
+    x64->code_label(end);
+    x64->op(RET);
+}
+
 void Runtime::compile_lookup_frame_info() {
     // lookup_frame_info(rip)
     // result - RAX = pointer to the frame info structure, or NULL
@@ -663,6 +755,7 @@ void Runtime::compile_lookup_frame_info() {
 void Runtime::compile_caller_frame_info() {
     // caller_frame_info(up_count)
     // result - RAX = pointer to the frame info structure, or NULL
+    //          RBX = pointer to the call info structure, or NULL
     // clobbers RAX, RBX, RCX
     
     Label up, lookup, nope, end;
@@ -683,13 +776,20 @@ void Runtime::compile_caller_frame_info() {
     x64->op(JNE, up);
     
     x64->code_label(lookup);
+    x64->op(PUSHQ, 0);
     x64->op(PUSHQ, Address(RBX, ADDRESS_SIZE));  // caller RIP
+
+    x64->op(CALL, lookup_call_info_label);
+    x64->op(MOVQ, Address(RSP, ADDRESS_SIZE), RAX);
     x64->op(CALL, lookup_frame_info_label);
+    
     x64->op(ADDQ, RSP, ADDRESS_SIZE);
+    x64->op(POPQ, RBX);
     x64->op(JMP, end);
     
     x64->code_label(nope);
     x64->op(MOVQ, RAX, 0);
+    x64->op(MOVQ, RBX, 0);
     
     x64->code_label(end);
     x64->op(POPQ, RBP);
@@ -832,6 +932,8 @@ void Runtime::init_memory_management() {
     compile_fcb_alloc();
     compile_fcb_free();
     compile_finalize_reference_array();
+    compile_lookup_source_info();
+    compile_lookup_call_info();
     compile_lookup_frame_info();
     compile_caller_frame_info();
     compile_fix_stack();

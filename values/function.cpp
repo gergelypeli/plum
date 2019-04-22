@@ -892,6 +892,9 @@ public:
         else
             call_static(x64, passed_size);
 
+        // This must be generated at exactly the return address following the CALL
+        x64->runtime->add_call_info(token.file_index, token.row);
+
         if (function->exception_type || has_code_arg) {
             Label noex;
             
