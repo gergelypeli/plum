@@ -290,7 +290,7 @@ public:
         Allocable *a = ptr_cast<Allocable>(d);
         Storage s = a->get_local_storage();
         
-        if (s.where == ALIAS) {
+        if (s.where == ALIAS || s.where == RETRO) {
             Label skip;
             
             x64->op(CMPQ, s.address, RSI);
@@ -727,6 +727,24 @@ public:
             t = arg_value->compile(x64);
             size = ADDRESS_SIZE;
         }
+        else if (arg_ts[0] == dvalue_type) {
+            // arg_value is a DeclarationValue with a retro variable.
+            // Must pass its address, even if it means passing the address of an ALIAS.
+            // So this is another unnamed level of indirection.
+            Storage s = arg_value->compile(x64);
+            
+            if (s.where != MEMORY && s.where != ALIAS)
+                throw INTERNAL_ERROR;
+                
+            if (s.address.base != RBP)
+                throw INTERNAL_ERROR;
+                
+            x64->op(LEA, R10, s.address);
+            x64->op(PUSHQ, R10);
+            
+            // The storage is whatever
+            size = ADDRESS_SIZE;
+        }
         else {
             StorageWhere where = arg_ts.where(AS_ARGUMENT);
         
@@ -801,6 +819,9 @@ public:
         
         if (arg_ts[0] == code_type) {
             // TODO: code_type should take care of itself!
+            x64->op(ADDQ, RSP, ADDRESS_SIZE);
+        }
+        else if (arg_ts[0] == dvalue_type) {
             x64->op(ADDQ, RSP, ADDRESS_SIZE);
         }
         else {

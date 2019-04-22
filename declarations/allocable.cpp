@@ -48,6 +48,8 @@ public:
                 return Storage(where, s.address + o);
             else if (where == ALIAS)
                 return Storage(where, s.address + o, 0);
+            else if (where == RETRO)
+                return Storage(where, s.address + o);
             else
                 throw INTERNAL_ERROR;
         }
@@ -63,7 +65,6 @@ public:
 
     virtual Storage get_local_storage() {
         // Without pivot as a function local variable
-        //Storage fn_storage(MEMORY, Address(RBP, 0));
         return get_storage(TypeMatch(), get_allocation_scope()->get_local_storage());
     }
     
@@ -90,8 +91,12 @@ public:
     virtual void set_outer_scope(Scope *os) {
         Allocable::set_outer_scope(os);
         
-        if (os && os->type == ARGUMENT_SCOPE)
-            as_what = AS_ARGUMENT;  // (name == "$" ? AS_PIVOT_ARGUMENT : AS_ARGUMENT);
+        if (os && os->type == ARGUMENT_SCOPE) {
+            if (as_what != AS_VARIABLE)
+                throw INTERNAL_ERROR;
+                
+            as_what = AS_ARGUMENT;
+        }
     }
     
     virtual TypeSpec get_typespec(TypeMatch tm) {
@@ -110,13 +115,14 @@ public:
     
     virtual void allocate() {
         Allocable::allocate();
-            
+        
         where = alloc_ts.where(as_what);
             
         Allocation a = (
             where == NOWHERE ? Allocation() :
             where == MEMORY ? alloc_ts.measure() :
             where == ALIAS ? Allocation(ALIAS_SIZE) :
+            where == RETRO ? Allocation(ADDRESS_SIZE) :
             throw INTERNAL_ERROR
         );
         
@@ -323,6 +329,8 @@ class RetroVariable: public Variable {
 public:
     RetroVariable(std::string name, TypeSpec vts)
         :Variable(name, vts) {
+        // These are actually arguments
+        as_what = AS_ARGUMENT;
     }
 
     virtual void finalize(X64 *x64) {

@@ -481,7 +481,7 @@ class EvaluableValue: public Value, public Raiser {
 public:
     Evaluable *evaluable;
     std::vector<std::unique_ptr<Value>> arg_values;
-    std::vector<StorageWhere> arg_wheres;
+    std::vector<StorageWhere> retro_wheres;
     unsigned result_stack_size;
     FunctionScope *fn_scope;
     
@@ -538,14 +538,28 @@ public:
     }
 
     virtual void destroy_arguments(X64 *x64) {
-        // Must use RBX to load the ALIAS-es to, because RAX is a valid result storage
-        
-        for (int i = arg_wheres.size() - 1; i >= 0; i--) {
-            Storage x = evaluable->arg_variables[i]->get_local_storage();
-            x64->op(MOVQ, RBX, x.address);
-            Storage t(arg_wheres[i], Address(RBX, x.value));
-            
-            evaluable->arg_variables[i]->alloc_ts.destroy(t, x64);
+        for (int i = retro_wheres.size() - 1; i >= 0; i--) {
+            StorageWhere retro_where = retro_wheres[i];
+            Variable *dvalue_var = evaluable->arg_variables[i];
+            Storage dvalue_storage = dvalue_var->get_local_storage();
+            TypeSpec dvalue_ts = dvalue_var->get_typespec(TypeMatch());
+            TypeSpec retro_ts = dvalue_ts.unprefix(dvalue_type);
+
+            // Must use RBX to load the ALIAS-es to, because RAX is a valid result storage
+            Register reg = RBX;
+            x64->op(MOVQ, reg, dvalue_storage.address);
+
+            if (retro_where == MEMORY || retro_where == BMEMORY) {
+                // rvalue retro, destroy value
+
+                Storage t(retro_where, Address(reg, 0));
+                retro_ts.destroy(t, x64);
+            }
+            else if (retro_where == ALIAS) {
+                // lvalue retro, no need to clear address
+            }
+            else
+                throw INTERNAL_ERROR;
         }
     }
     
@@ -554,19 +568,45 @@ public:
         
         for (unsigned i = 0; i < arg_values.size(); i++) {
             Storage s = arg_values[i]->compile(x64);
+            
+            Variable *dvalue_var = evaluable->arg_variables[i];
+            Storage dvalue_storage = dvalue_var->get_local_storage();
+            TypeSpec dvalue_ts = dvalue_var->get_typespec(TypeMatch());
+            TypeSpec retro_ts = dvalue_ts.unprefix(dvalue_type);
+            StorageWhere retro_where = retro_ts.where(AS_ARGUMENT);
+
             Register reg = (Regs::all() & ~s.regs()).get_any();
+            x64->op(MOVQ, reg, dvalue_storage.address);
             
-            Storage x = evaluable->arg_variables[i]->get_local_storage();
-            if (x.where != ALIAS)
-                throw INTERNAL_ERROR;
+            if (retro_where == MEMORY) {
+                // rvalue retro, initialize the value
+                if (s.where == BMEMORY)
+                    retro_where = BMEMORY;  // allow borrowing
+                    
+                Storage t(retro_where, Address(reg, 0));
+                retro_ts.create(s, t, x64);
+            }
+            else if (retro_where == ALIAS) {
+                // lvalue retro, initialize the address
                 
-            StorageWhere where = (s.where == BMEMORY ? BMEMORY : MEMORY);
-            arg_wheres.push_back(where);
-            
-            x64->op(MOVQ, reg, x.address);
-            Storage t(where, Address(reg, x.value));
-            
-            evaluable->arg_variables[i]->alloc_ts.create(s, t, x64);
+                if (s.where == MEMORY || s.where == BMEMORY) {
+                    x64->op(LEA, R10, s.address);
+                }
+                else if (s.where == ALIAS) {
+                    x64->op(MOVQ, R10, s.address);
+                    
+                    if (s.value)
+                        x64->op(ADDQ, R10, s.value);
+                }
+                else
+                    throw INTERNAL_ERROR;
+
+                x64->op(MOVQ, Address(reg, 0), R10);
+            }
+            else
+                throw INTERNAL_ERROR;
+
+            retro_wheres.push_back(retro_where);
         }
 
         Storage es = evaluable->get_local_storage();
