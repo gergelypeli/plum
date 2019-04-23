@@ -1116,15 +1116,16 @@ App? :Class Application as:
         Std prints("And the caller's name is {}" { :try Std frame_name(1) })
         Std prints("And above that is {}" { :try Std frame_name(2) fix: "?" })
         
+        # These outputs wander around, so it's better not to print them without a reason
+        (name?, file?, line?) = :try Std frame_stuff(0)
+        Std prints("This stuff is {}" { name, file, line })
+
+        (name, file, line) = :try Std frame_stuff(1)
+        Std prints("That stuff is {}" { name, file, line })
+
         :try
-            (name?, file?, line?) = Std frame_stuff(0)
-            Std prints("This stuff is {} file {} line {}" { name, file, line })
-
-            (name, file, line) = Std frame_stuff(1)
-            Std prints("That stuff is {} file {} line {}" { name, file, line })
-
             (name, file, line) = Std frame_stuff(2)  # must fail
-            Std prints("No stuff as {} file {} line {}" { name, file, line })
+            Std prints("No stuff as {}" { name, file, line })
         fix:
             :pass
         

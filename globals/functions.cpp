@@ -179,13 +179,16 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
         return false;
     }
 
+    // The argument type being Code or Multicode requests a code scope around the value
     CodeScope *code_scope = NULL;
+    Type *ct0 = (context ? (*context)[0] : NULL);
     
-    if (context && (*context)[0] == code_type) {
+    if (ct0 == code_type || ct0 == multicode_type) {
         code_scope = (is_function_call ? new RetroScope : new CodeScope);
         check_retros(i, scope, arg_infos, code_scope);
     }
 
+    // The argument type being an Interface can't be a context for initializers
     TypeSpec *constructive_context = context;
     
     if (context && (*context).rvalue().has_meta(interface_metatype))
@@ -193,10 +196,6 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
 
     Value *v = typize(e, code_scope ? code_scope : scope, constructive_context);
     
-    // Hack for omitting strict checking in :is controls
-    //if (context && (*context)[0] == equalitymatcher_type)
-    //    context = NULL;
-
     TypeMatch match;
     
     if (context && !typematch(*context, v, match)) {

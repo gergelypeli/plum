@@ -161,7 +161,7 @@ public:
             if (declarations[i])
                 scope->remove(declarations[i]);
         
-        Value *value = typize(expr, scope);
+        Value *value = typize(expr, scope, &MULTI_TS);
         TypeMatch match;
         
         if (!typematch(MULTI_TS, value, match)) {

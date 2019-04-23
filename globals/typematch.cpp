@@ -221,6 +221,8 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
     }
     
     if (*t == multi_type || *t == multilvalue_type || *t == multitype_type) {
+        // Expecting a multi, only the same multi can suffice
+        
         if (*s != *t) {
             if (matchlog) std::cerr << "No match, scalar for Multi!\n";
             return false;
@@ -229,7 +231,21 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         // Match Multi to Multi
         return match_special_type(s, t, match, value, require_lvalue);
     }
+    else if (*t == multicode_type) {
+        // Expecting a plain multi, just in a Code context
+        
+        if (*s == multi_type) {
+            match[0].push_back(*t);
+            return true;
+        }
+        else {
+            if (matchlog) std::cerr << "No match, non-Multivalue for Multicode!\n";
+            return false;
+        }
+    }
     else {
+        // Expecting a scalar, only a plain multi can be scalarized, the others not so much
+        
         if (*s == multilvalue_type || *s == multitype_type) {
             if (*t == void_type) {
                 // This is not allowed because a Multi may contain uninitialized values
@@ -238,7 +254,7 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
                 return false;
             }
             else {
-                if (matchlog) std::cerr << "No match, Multi* for scalar!\n";
+                if (matchlog) std::cerr << "No match, non-Multivalue for scalar!\n";
                 return false;
             }
         }

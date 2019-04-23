@@ -911,21 +911,29 @@ public:
         handling = false;
     }
     
+    virtual bool unpack(std::vector<TypeSpec> &t) {
+        // Just in case we forward a multivalue out of the body
+        return body->unpack(t);
+    }
+    
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         try_scope = new TryScope;
         scope->add(try_scope);
         try_scope->enter();
 
-        TypeSpec arg_ts = context_ts.prefix(code_type);
+        // Let the body have our context
+        TypeSpec arg_ts = (context_ts == MULTI_TS ? MULTICODE_TS : context_ts.prefix(code_type));
         
         if (!check_args(args, { "body", &arg_ts, try_scope, &body }))
             return false;
         
         // Allow a :try without type context, but with a concrete body type return the
-        // same type, and also expect the same from the fix branch
+        // same type, and also expect the same from the fix branch.
+        // But if the body is a multivalue, then just disallow the fix branch, we don't
+        // want to allow multivalues from different branches.
         if (context_ts == ANY_TS) {
             context_ts = body->ts.rvalue();
-            arg_ts = context_ts.prefix(code_type);
+            arg_ts = (context_ts == MULTI_TS ? NO_TS : context_ts.prefix(code_type));
         }
 
         ts = context_ts;
@@ -933,9 +941,6 @@ public:
         try_scope->be_taken();
         try_scope->leave();
         
-        //if (!setup_yieldable(scope))
-        //    return false;
-
         switch_scope = new SwitchScope;
         scope->add(switch_scope);
         switch_scope->enter();
@@ -962,8 +967,6 @@ public:
 
         switch_scope->be_taken();
         switch_scope->leave();
-        //eval_scope->be_taken();
-        //eval_scope->leave();
 
         return true;
     }

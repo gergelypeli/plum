@@ -292,6 +292,9 @@ public:
         switch (s.where * t.where) {
         case NOWHERE_NOWHERE:
             return;
+    
+        case STACK_STACK:
+            return;
             
         case MEMORY_NOWHERE:
             return;
@@ -783,33 +786,6 @@ public:
     }
 };
 
-/*
-class EqualitymatcherType: public Type {
-public:
-    // To be used only as type context in the :is control
-    
-    EqualitymatcherType(std::string name)
-        :Type(name, Metatypes { value_metatype }, value_metatype) {
-    }
-    
-    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
-        // We've found an initializer where a match was expected
-        
-        if (n == "{}") {
-            return make<BulkEqualityMatcherValue>();
-        }
-        else {
-            Value *v = tm[1].lookup_initializer(n, s);
-            
-            if (!v)
-                return NULL;
-        
-            // Any arguments for us are actually arguments for the initializer
-            return make<InitializerEqualityMatcherValue>(v);
-        }
-    }
-};
-*/
 
 class MultiType: public Type {
 public:
@@ -818,14 +794,12 @@ public:
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
-        // Needed for unalias hinting only
-        
-        if (as_what == AS_ARGUMENT && this == multilvalue_type)
-            as_what = AS_LVALUE_ARGUMENT;
+        // The AS_ARGUMENT case is only used for unalias hinting, so we just
+        // need not to crash here.
         
         return (
-            as_what == AS_ARGUMENT ? MEMORY :
-            as_what == AS_LVALUE_ARGUMENT ? ALIAS :
+            as_what == AS_VALUE ? STACK :
+            as_what == AS_ARGUMENT ? NOWHERE :
             throw INTERNAL_ERROR
         );
     }

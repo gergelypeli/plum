@@ -115,6 +115,9 @@ void builtin_types(Scope *root_scope) {
     multitype_type = new MultiType("<Multitype>");
     root_scope->add(multitype_type);
 
+    multicode_type = new MultiType("<Multicode>");
+    root_scope->add(multicode_type);
+
     uninitialized_type = new UninitializedType("<Uninitialized>");
     root_scope->add(uninitialized_type);
 
@@ -361,6 +364,7 @@ void builtin_types(Scope *root_scope) {
     MULTI_TS = { multi_type };
     MULTILVALUE_TS = { multilvalue_type };
     MULTITYPE_TS = { multitype_type };
+    MULTICODE_TS = { multicode_type };
     UNIT_TS = { unit_type };
     WHATEVER_TS = { whatever_type };
     WHATEVER_CODE_TS = { code_type, whatever_type };
