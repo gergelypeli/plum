@@ -26,16 +26,19 @@ TypeSpec::TypeSpec(Type *t, TypeSpec &tm1, TypeSpec &tm2) {
 }
 
 
-std::string TypeSpec::symbolize() {
+std::string TypeSpec::symbolize(std::string suffix) {
     TypeMatch tm = match();
     unsigned pc = at(0)->get_parameter_count();
     std::stringstream ss;
 
     for (unsigned i = 0; i < pc; i++)
-        ss << tm[i + 1].symbolize() << "_";
+        ss << tm[i + 1].symbolize() << "__";
     
     ss << at(0)->get_fully_qualified_name();
-        
+    
+    if (suffix.size())
+        ss << "__" << suffix;
+    
     return ss.str();
 }
 

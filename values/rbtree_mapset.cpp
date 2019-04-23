@@ -229,7 +229,7 @@ public:
 void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64) {
     Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
 
-    x64->code_label_local(label, elem_ts.symbolize() + "_nosytree_callback");
+    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("callback"));
     
     std::stringstream ss;
     ss << elem_ts << " Nosytree callback";

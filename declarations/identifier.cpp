@@ -8,7 +8,10 @@ public:
     }
 
     virtual std::string get_fully_qualified_name() {
-        return outer_scope->fully_qualify(name);
+        // If the name begins with an associable prefix, include it in the qualified one,
+        // but if the associable name is empty, then don't keep an empty component.
+        
+        return outer_scope->fully_qualify(name[0] == '.' ? name.substr(1) : name);
     }
 
     virtual TypeSpec get_pivot_ts() {

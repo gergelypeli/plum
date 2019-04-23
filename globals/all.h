@@ -15,7 +15,7 @@ public:
     TypeSpec(std::initializer_list<Type *> il):std::vector<Type *>(il) {}
     TypeSpec(Type *t, TypeSpec &tm1, TypeSpec &tm2);
 
-    std::string symbolize();
+    std::string symbolize(std::string suffix = "");
     TypeMatch match();    
     Allocation measure();
     Allocation measure_identity();

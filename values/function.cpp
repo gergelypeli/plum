@@ -318,7 +318,7 @@ public:
         
         unsigned frame_size = fn_scope->get_frame_size();
         Storage self_storage = self_var ? self_var->get_local_storage() : Storage();
-        std::string fqn = fn_scope->outer_scope->fully_qualify(function->name);
+        std::string fqn = function->get_fully_qualified_name();
             
         if (import_name.size()) {
             return Storage();
@@ -459,9 +459,13 @@ public:
             }
         }
         
-        if (type == FINALIZER_FUNCTION && name != "<anonymous>") {
-            std::cerr << "Finalizer must be anonymous!\n";
-            return NULL;
+        if (type == FINALIZER_FUNCTION) {
+            if (name != "<anonymous>") {
+                std::cerr << "Finalizer must be anonymous!\n";
+                return NULL;
+            }
+            
+            name = "<finalizer>";
         }
         
         std::vector<TypeSpec> arg_tss;

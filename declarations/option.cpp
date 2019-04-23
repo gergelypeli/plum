@@ -193,7 +193,7 @@ public:
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);
         
-        x64->code_label_local(label, some_ts.symbolize() + "_option_streamification");
+        x64->code_label_local(label, some_ts.prefix(option_type).symbolize("streamification"));
 
         x64->op(CMPQ, value_addr, OPTION_FLAG_NONE);
         x64->op(JNE, some);
@@ -550,7 +550,7 @@ public:
         unsigned copy_count = union_size / ADDRESS_SIZE - 1;  // without the flag
         UnionType *ut = ptr_cast<UnionType>(union_ts[0]);
     
-        x64->code_label_local(label, union_ts.symbolize() + "_streamification");
+        x64->code_label_local(label, union_ts.symbolize("streamification"));
         Label end;
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);

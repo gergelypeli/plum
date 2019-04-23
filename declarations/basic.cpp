@@ -372,7 +372,7 @@ public:
         Label escape_label = x64->once->compile(compile_escape_character);
         Label escaped_two, escaped_three;
 
-        x64->code_label_local(label, "character_esc_streamification");
+        x64->code_label_local(label, "Character__esc_streamification");
         
         insert_pre_streamification(x64);
 
@@ -408,7 +408,7 @@ public:
         Label escape_label = x64->once->compile(compile_escape_character);
         Label escaped_two, escaped_three;
 
-        x64->code_label_local(label, "character_str_streamification");
+        x64->code_label_local(label, "Character__str_streamification");
         
         insert_pre_streamification(x64);
 
@@ -532,7 +532,7 @@ public:
         for (auto &keyword : t->keywords) 
             labels.push_back(x64->runtime->data_heap_string(decode_utf8(keyword)));
             
-        x64->data_label_local(label, t->name + "_stringifications");
+        x64->data_label_local(label, ts.symbolize("stringifications"));
         
         for (auto &l : labels)
             x64->data_reference(l);  // 64-bit absolute
@@ -600,7 +600,7 @@ public:
     
     static void compile_parents(Label label, TypeSpec ts, X64 *x64) {
         TreenumerationType *t = ptr_cast<TreenumerationType>(ts[0]);
-        x64->data_label_local(label, t->name + "_parents");
+        x64->data_label_local(label, ts.symbolize("parents"));
         
         for (unsigned p : t->parents)
             x64->data_byte(p);

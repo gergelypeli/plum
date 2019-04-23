@@ -328,7 +328,7 @@ public:
     }
     
     static void compile_stringeq(Label label, X64 *x64) {
-        x64->code_label_local(label, "stringeq");
+        x64->code_label_local(label, "String__equality");
         Label sete, done;
 
         x64->op(PUSHQ, RAX);
@@ -383,7 +383,7 @@ public:
 
     static void compile_stringcmp(Label label, X64 *x64) {
         // Expects arguments on the stack, returns R10B/flags.
-        x64->code_label_local(label, "stringcmp");
+        x64->code_label_local(label, "String__comparison");
         
         x64->op(PUSHQ, RAX);
         x64->op(PUSHQ, RCX);
@@ -448,7 +448,7 @@ public:
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);
         
-        x64->code_label_local(label, "string_esc_streamification");
+        x64->code_label_local(label, "String__esc_streamification");
         
         x64->op(MOVQ, RCX, 0);
         x64->op(JMP, check);

@@ -4,7 +4,7 @@ void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = elem_ts.measure_elem();
     Label finalizer_label = elem_ts.prefix(linearray_type).get_finalizer_label(x64);
     
-    x64->code_label_local(label, elem_ts.symbolize() + "_array_alloc");
+    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("alloc"));
     
     container_alloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, finalizer_label, x64);
 
@@ -18,7 +18,7 @@ void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
     int elem_size = elem_ts.measure_elem();
 
-    x64->code_label_local(label, elem_ts.symbolize() + "_array_realloc");
+    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("realloc"));
 
     container_realloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, x64);
 
@@ -31,8 +31,7 @@ void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
     Label realloc_label = x64->once->compile(compile_array_realloc, elem_ts);
 
-    x64->code_label_local(label, elem_ts.symbolize() + "_array_grow");
-    //x64->log("grow_array");
+    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("grow"));
     
     container_grow(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_MINIMUM_RESERVATION, realloc_label, x64);
     
@@ -48,7 +47,7 @@ void compile_array_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = elem_ts.measure_elem();
     TypeSpec heap_ts = elem_ts.prefix(linearray_type);
     
-    x64->code_label_local(label, elem_ts.symbolize() + "_array_clone");
+    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("clone"));
     x64->runtime->log("XXX array clone");
     
     x64->op(PUSHQ, RAX);
@@ -186,7 +185,7 @@ public:
     
     static void compile_array_concatenation(Label label, TypeSpec elem_ts, X64 *x64) {
         // RAX - result, R10 - first, R11 - second
-        x64->code_label_local(label, elem_ts.symbolize() + "_array_concatenation");
+        x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("concatenation"));
         Label alloc_array = x64->once->compile(compile_array_alloc, elem_ts);
         int elem_size = elem_ts.measure_elem();
         

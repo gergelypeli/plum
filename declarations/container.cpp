@@ -48,7 +48,7 @@ public:
         int elem_size = elem_ts.measure_elem();
         Label start, end, loop;
 
-        x64->code_label_local(label, elem_ts.symbolize() + "_linearray_finalizer");
+        x64->code_label_local(label, elem_ts.prefix(linearray_type).symbolize("finalizer"));
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
 
         x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -95,18 +95,18 @@ public:
     
     virtual void streamify(TypeMatch tm, X64 *x64) {
         TypeSpec elem_ts = tm[1];
-        Label label = x64->once->compile(compile_contents_streamification, elem_ts);
+        Label label = x64->once->compile(compile_streamification, elem_ts);
 
         x64->op(CALL, label);  // clobbers all
     }
     
-    static void compile_contents_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
+    static void compile_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
         int elem_size = elem_ts.measure_elem();
         Label loop, elem, end;
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);
 
-        x64->code_label_local(label, elem_ts.symbolize() + "_array_contents_streamify");
+        x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("streamify"));
         
         // open
         streamify_ascii("{", alias_addr, x64);  // clobbers all
@@ -178,7 +178,7 @@ public:
         int elem_size = elem_ts.measure_elem();
         Label start, end, loop, ok, ok1;
     
-        x64->code_label_local(label, elem_ts.symbolize() + "_circularray_finalizer");
+        x64->code_label_local(label, elem_ts.prefix(circularray_type).symbolize("finalizer"));
         x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
     
         x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_LENGTH_OFFSET));
@@ -304,18 +304,18 @@ public:
 
     virtual void streamify(TypeMatch tm, X64 *x64) {
         TypeSpec ets = typesubst(elem_ts, tm);
-        Label label = x64->once->compile(compile_contents_streamification, ets);
+        Label label = x64->once->compile(compile_streamification, ets);
 
         x64->op(CALL, label);  // clobbers all
     }
 
-    static void compile_contents_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
+    static void compile_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
         // TODO: massive copypaste from Array's
         Label loop, elem, end;
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);
 
-        x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_contents_streamify");
+        x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("streamify"));
         
         // open
         streamify_ascii("{", alias_addr, x64);

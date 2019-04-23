@@ -264,7 +264,7 @@ public:
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);
         
-        x64->code_label_local(label, "string_raw_streamification");
+        x64->code_label_local(label, "String__raw_streamification");
         
         x64->op(MOVQ, R10, value_addr);  // reference to the string
         
@@ -300,7 +300,7 @@ public:
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);
 
-        x64->code_label_local(label, "character_raw_streamification");
+        x64->code_label_local(label, "Character__raw_streamification");
 
         x64->op(MOVQ, R10, 1);
         stream_preappend2(alias_addr, x64);

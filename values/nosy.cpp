@@ -69,7 +69,7 @@ void rbtree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_nosytree_finalizer(Label label, TypeSpec elem_ts, X64 *x64) {
-    x64->code_label_local(label, elem_ts.symbolize() + "_nosytree_finalizer");
+    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("finalizer"));
     x64->runtime->log("Nosytree finalized.");
 
     x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
@@ -117,7 +117,7 @@ void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
     Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
     
-    x64->code_label_local(label, elem_ts.symbolize() + "_nosytree_clone");
+    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("clone"));
     x64->runtime->log("XXX Nosytree clone");
 
     x64->op(MOVQ, R10, Address(RAX, NOSYTREE_MEMBER_OFFSET));  // Rbtree ref

@@ -20,7 +20,7 @@ static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch 
         Label l = vt.get(i)->get_virtual_entry_label(tm, x64);
 
         if (i == 0)
-            x64->data_label_local(label, symbol + "_virtual_table");
+            x64->data_label_local(label, symbol + "__virtual_table");
 
         x64->data_reference(l);
     }
@@ -31,7 +31,7 @@ static void compile_autoconv_table(const std::vector<AutoconvEntry> &act, TypeMa
     std::cerr << "    Autoconv table for " << symbol << " (" << act.size() << ")\n";
 
     x64->data_align(8);
-    x64->data_label_local(label, symbol + "_autoconv_table");
+    x64->data_label_local(label, symbol + "__autoconv_table");
 
     for (auto ace : act) {
         x64->data_reference(ace.role_ts.get_interface_table_label(x64));
@@ -339,7 +339,7 @@ public:
 
     static void compile_ift(Label label, TypeSpec ts, X64 *x64) {
         std::cerr << "Compiling interface table for " << ts << "\n";
-        std::string symbol = ts.symbolize() + "_interface_table";
+        std::string symbol = ts.symbolize("interface_table");
 
         // We only need this for dynamic type casts
         x64->data_align(8);

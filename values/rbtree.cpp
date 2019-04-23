@@ -13,7 +13,7 @@ void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = rbtree_elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(rbtree_type).get_finalizer_label(x64);
     
-    x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_alloc");
+    x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("alloc"));
     
     container_alloc(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, finalizer_label, x64);
 
@@ -31,7 +31,7 @@ void compile_rbtree_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
     int elem_size = rbtree_elem_size(elem_ts);
 
-    x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_realloc");
+    x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("realloc"));
 
     container_realloc(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, x64);
 
@@ -44,8 +44,8 @@ void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // Double the reservation until it's enough
     Label realloc_label = x64->once->compile(compile_rbtree_realloc, elem_ts);
 
-    x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_grow");
-    //x64->log(elem_ts.symbolize() + "_rbtree_grow");
+    x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("grow"));
+
     container_grow(RBTREE_RESERVATION_OFFSET, RBTREE_MINIMUM_RESERVATION, realloc_label, x64);
     
     x64->op(RET);
@@ -78,7 +78,7 @@ void compile_rbtree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
     TypeSpec heap_ts = elem_ts.prefix(rbtree_type);
     
-    x64->code_label_local(label, elem_ts.symbolize() + "_rbtree_clone");
+    x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("clone"));
     x64->runtime->log("XXX rbtree clone");
     
     x64->op(PUSHQ, RAX);
