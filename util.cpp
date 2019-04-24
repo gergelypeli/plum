@@ -343,8 +343,8 @@ std::string character_name(int code) {
     for (unsigned i = 0; i < sizeof(character_codes) / sizeof(character_codes[0]); i++)
         if (character_codes[i].code == code)
             return character_codes[i].name;
-            
-    throw INTERNAL_ERROR;
+        
+    return "";    
 }
 
 

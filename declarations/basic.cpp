@@ -318,85 +318,57 @@ public:
         // RAX - stream ref, RBX - stream end, R10 - character
     }
 
-    static void compile_escape_character(Label label, X64 *x64) {
-        Label ctrl_names_label, ctrl_label, qu_label, lb_label, rb_label, del_label;
-    
+    static void compile_ascii_table(Label label, X64 *x64) {
         x64->data_align(8);
-        x64->data_label(ctrl_names_label);
+        x64->data_label(label);
 
-        for (unsigned i = 0; i < 32; i++) {
+        for (unsigned i = 0; i < 128; i++) {
             std::string name = character_name(i);
-            unsigned64 x = name[0] | name[1] << 16 | (name.size() == 3 ? (unsigned64)name[2] << 32 : 0);
+
+            unsigned64 x = (
+                name.size() == 0 ? i :  // unescaped
+                name.size() == 2 ? name[0] | name[1] << 16 :  // two-letter name
+                name.size() == 3 ? name[0] | name[1] << 16 | (unsigned64)name[2] << 32 : // three-letter name
+                throw INTERNAL_ERROR
+            );
+            
             x64->data_qword(x);
         }
-
-        x64->code_label_global(label, "escape_character");
-
-        x64->op(CMPQ, R10, 32);
-        x64->op(JB, ctrl_label);
-        x64->op(CMPQ, R10, 34);
-        x64->op(JE, qu_label);
-        x64->op(CMPQ, R10, 123);
-        x64->op(JE, lb_label);
-        x64->op(CMPQ, R10, 125);
-        x64->op(JE, rb_label);
-        x64->op(CMPQ, R10, 127);
-        x64->op(JE, del_label);
-
-        // unescaped character
-        x64->op(RET);
-
-        x64->code_label(ctrl_label);
-        x64->op(LEA, R11, Address(ctrl_names_label, 0));
-        x64->op(MOVQ, R10, Address(R11, R10, Address::SCALE_8, 0));
-        x64->op(RET);
-
-        x64->code_label(qu_label);
-        x64->op(MOVABSQ, R10, 'Q' | 'U' << 16);
-        x64->op(RET);
-
-        x64->code_label(lb_label);
-        x64->op(MOVABSQ, R10, 'L' | 'B' << 16);
-        x64->op(RET);
-
-        x64->code_label(rb_label);
-        x64->op(MOVABSQ, R10, 'R' | 'B' << 16);
-        x64->op(RET);
-
-        x64->code_label(del_label);
-        x64->op(MOVABSQ, R10, 'D' | 'E' << 16 | (unsigned64)'L' << 32);
-        x64->op(RET);
     }
 
     static void compile_esc_streamification(Label label, X64 *x64) {
-        Label escape_label = x64->once->compile(compile_escape_character);
-        Label escaped_two, escaped_three;
+        Label ascii_table_label = x64->once->compile(compile_ascii_table);
+        Label unescaped, escaped_two, escaped_three;
 
         x64->code_label_local(label, "Character__esc_streamification");
         
         insert_pre_streamification(x64);
 
-        x64->op(CALL, escape_label);  // clobbers R11
-        
+        x64->op(CMPQ, R10, 128);
+        x64->op(JAE, unescaped);
+        x64->op(LEA, R11, Address(ascii_table_label, 0));
+        x64->op(MOVQ, R10, Address(R11, R10, Address::SCALE_8, 0));
         x64->op(CMPQ, R10, 0xffffff);
         x64->op(JA, escaped_three);
         x64->op(CMPQ, R10, 0xffff);
         x64->op(JA, escaped_two);
 
-        // unescaped character
+        // unescaped character: "X"
+        x64->code_label(unescaped);
         x64->op(MOVW, Address(RBX, 0), '"');
         x64->op(MOVW, Address(RBX, 2), R10W);
         x64->op(MOVW, Address(RBX, 4), '"');
         x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 3);
         x64->op(RET);
 
+        // two characters: `XY
         x64->code_label(escaped_two);
         x64->op(MOVW, Address(RBX, 0), '`');
         x64->op(MOVD, Address(RBX, 2), R10D);
         x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 3);
         x64->op(RET);
         
-        // three characters
+        // three characters: `XYZ
         x64->code_label(escaped_three);
         x64->op(MOVW, Address(RBX, 0), '`');
         x64->op(MOVQ, Address(RBX, 2), R10);
@@ -405,25 +377,29 @@ public:
     }
 
     static void compile_str_streamification(Label label, X64 *x64) {
-        Label escape_label = x64->once->compile(compile_escape_character);
-        Label escaped_two, escaped_three;
+        Label ascii_table_label = x64->once->compile(compile_ascii_table);
+        Label unescaped, escaped_two, escaped_three;
 
         x64->code_label_local(label, "Character__str_streamification");
         
         insert_pre_streamification(x64);
 
-        x64->op(CALL, escape_label);  // clobbers R11
-        
+        x64->op(CMPQ, R10, 128);
+        x64->op(JAE, unescaped);
+        x64->op(LEA, R11, Address(ascii_table_label, 0));
+        x64->op(MOVQ, R10, Address(R11, R10, Address::SCALE_8, 0));
         x64->op(CMPQ, R10, 0xffffff);
         x64->op(JA, escaped_three);
         x64->op(CMPQ, R10, 0xffff);
         x64->op(JA, escaped_two);
 
-        // unescaped character
+        // unescaped character: X
+        x64->code_label(unescaped);
         x64->op(MOVW, Address(RBX, 0), R10W);
         x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 1);
         x64->op(RET);
 
+        // two characters: {XY}
         x64->code_label(escaped_two);
         x64->op(MOVW, Address(RBX, 0), '{');
         x64->op(MOVD, Address(RBX, 2), R10D);
@@ -431,7 +407,7 @@ public:
         x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 4);
         x64->op(RET);
         
-        // three characters
+        // three characters: {XYZ}
         x64->code_label(escaped_three);
         x64->op(MOVW, Address(RBX, 0), '{');
         x64->op(MOVQ, Address(RBX, 2), R10);
