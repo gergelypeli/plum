@@ -198,6 +198,7 @@ public:
     TypeSpec elem_ts;
     Unborrow *unborrow;
     int elems_offset;
+    Storage value_storage;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, TypeSpec hts, int eo)
         :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot,
@@ -223,7 +224,12 @@ public:
         
         if (lvalue_needed)
             clob = clob | Regs::heapvars();
-        
+
+        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
+            value_storage = ts.optimal_value_storage(preferred);
+            clob = clob | value_storage.regs();
+        }
+
         return clob;
     }
 
@@ -245,6 +251,8 @@ public:
         default:
             throw INTERNAL_ERROR;
         }
+    
+        Storage t;
 
         switch (ls.where) {
         case REGISTER:
@@ -255,7 +263,8 @@ public:
             
             x64->op(IMUL3Q, R10, R10, elem_size);
             x64->op(LEA, ls.reg, Address(ls.reg, R10, elems_offset));
-            return Storage(MEMORY, Address(ls.reg, 0));
+            t = Storage(MEMORY, Address(ls.reg, 0));
+            break;
         case MEMORY:
             x64->op(MOVQ, auxls.reg, ls.address);  // reg may be the base of ls.address
             // Borrow Lvalue container
@@ -266,10 +275,16 @@ public:
             
             x64->op(IMUL3Q, R10, R10, elem_size);
             x64->op(LEA, auxls.reg, Address(auxls.reg, R10, elems_offset));
-            return Storage(MEMORY, Address(auxls.reg, 0));
+            t = Storage(MEMORY, Address(auxls.reg, 0));
+            break;
         default:
             throw INTERNAL_ERROR;
         }
+        
+        if (value_storage.where != NOWHERE)
+            t = ts.store(t, value_storage, x64);
+            
+        return t;
     }    
 };
 

@@ -241,7 +241,8 @@ public:
     TypeSpec pts;
     bool is_rvalue_record;
     bool is_single_record;
-    Unborrow *unborrow;
+    Storage value_storage;
+    Regs borrows_allowed;
     
     VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
         :Value(v->get_typespec(tm)) {
@@ -251,7 +252,6 @@ public:
         match = tm;
         is_rvalue_record = false;
         is_single_record = false;
-        unborrow = NULL;
         
         if (pivot) {
             pts = pivot->ts.rvalue();
@@ -259,10 +259,6 @@ public:
             // Sanity check
             if (pts[0] == ref_type)
                 throw INTERNAL_ERROR;  // member variables are accessed by pointers only
-            else if (pts[0] == ptr_type) {
-                unborrow = new Unborrow(pts.unprefix(ptr_type));  // may or may not be used
-                scope->add(unborrow);
-            }
                 
             //is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != ptr_type && !pts.has_meta(singleton_metatype));
             if (pts.has_meta(record_metatype)) {
@@ -294,7 +290,15 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot ? pivot->precompile(preferred) : Regs();
+        borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars() | Regs::aliasvars());
+        Regs clob;
+        
+        if (pivot) {
+            // The container must let itself borrowed, we don't want a copy of it.
+            // And if it's a member itself, we don't want unaliasing either.
+            Regs pivot_prefs = preferred | Regs::stackvars() | Regs::heapvars() | Regs::aliasvars();
+            clob = pivot->precompile(pivot_prefs);
+        }
             
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
@@ -302,13 +306,18 @@ public:
         unalias_reg = preferred.get_any();
         clob = clob | unalias_reg;
 
-        if (pivot) {
-            if (variable->where == ALIAS)
-                throw INTERNAL_ERROR;
+        if (lvalue_needed) {
+            if (pivot) {
+                // The clobbered flags were already set by the pivot value, above
+            }
+            else {
+                clob = clob | variable->borrowing_requirements();
+            }
         }
         else {
-            if (lvalue_needed)
-                clob = clob | variable->lvalue_would_clobber();
+            // Can't make all decisions now, allocate, and we'll see
+            value_storage = ts.optimal_value_storage(preferred);
+            clob = clob | value_storage.regs();
         }
         
         return clob;
@@ -327,10 +336,12 @@ public:
             
             if (pts[0] == ptr_type) {
                 // The only member variable accessible by a Ptr are self variables, borrow.
+                // Don't disguise this as an ALIAS, we know it points to the heap.
+                
                 if (s.where == MEMORY) {
                     x64->op(MOVQ, unalias_reg, s.address);
                     s = Storage(MEMORY, Address(unalias_reg, 0));
-                    return variable->get_storage(match, s);  // [unalias_reg + x]
+                    t = variable->get_storage(match, s);  // [unalias_reg + x]
                 }
                 else
                     throw INTERNAL_ERROR;
@@ -338,43 +349,33 @@ public:
             else if (is_single_record) {
                 // Selecting the single member of a record is a no-op
                 // This also assumes that there are no such things as custom record finalizers
-                return s;
+                t = s;
             }
             else if (is_rvalue_record) {
-                Storage r;
+                Storage x, y;
                 
                 if (s.where == STACK) {
-                    r = variable->get_storage(match, Storage(MEMORY, Address(RSP, 0)));
-                    t = Storage(MEMORY, Address(RSP, pts.measure_stack()));
+                    x = variable->get_storage(match, Storage(MEMORY, Address(RSP, 0)));
+                    y = Storage(MEMORY, Address(RSP, pts.measure_stack()));
                 }
                 else if (s.where == MEMORY) {
-                    r = variable->get_storage(match, s);
-                    t = Storage(MEMORY, Address(RSP, 0));
+                    x = variable->get_storage(match, s);
+                    y = Storage(MEMORY, Address(RSP, 0));
                 }
                 else
                     throw INTERNAL_ERROR;
                     
-                ts.create(r, t, x64);
+                ts.create(x, y, x64);
                 pts.store(s, Storage(), x64);
                 
-                return Storage(STACK);
+                t = Storage(STACK);
             }
             else {
-                Storage t = variable->get_storage(match, s);
-                
-                if (t.where == ALIAS && !lvalue_needed) {
-                    // NOTE: this address base is unborrowable, so use a zero offset
-                    // This may become a convention soon.
-                    x64->op(MOVQ, unalias_reg, t.address);
-                    x64->op(ADDQ, unalias_reg, t.value);
-                    t = Storage(MEMORY, Address(unalias_reg, 0));  // [unalias_reg]
-                }
-                
-                return t;
+                t = variable->get_storage(match, s);
             }
         }
         else {
-            Storage t = variable->get_local_storage();
+            t = variable->get_local_storage();
 
             if (retro_scope) {
                 // In a retro scope we're running in a stack frame that is at a fixed offset
@@ -389,25 +390,40 @@ public:
                 else
                     throw INTERNAL_ERROR;
             }
-
-            //if (t.where == MEMORY && ts[0] != lvalue_type) {
-                // Local variables that are not lvalues are constant during the
-                // function execution, so they can be borrowed even if the subsequent
-                // sibling arguments clobber everything that moves. Tell this to the parent.
-
-            //    t.where = BMEMORY;
-            //}
-
-            if (t.where == ALIAS && !lvalue_needed) {
-                // NOTE: this address base is unborrowable, so use a zero offset
-                // This may become a convention soon.
-                x64->op(MOVQ, unalias_reg, t.address);
-                x64->op(ADDQ, unalias_reg, t.value);
-                t = Storage(MEMORY, Address(unalias_reg, 0));  // [unalias_reg]
-            }
-            
-            return t;
         }
+
+        if (!lvalue_needed && !(borrows_allowed & Regs::aliasvars())) {
+            // Some optional dereferencing
+
+            Regs borrows_required;
+
+            if (pivot) {
+                // Deduce some requirements from the received Storage
+                if (t.where == ALIAS)
+                    borrows_required = Regs::stackvars() | Regs::heapvars();
+                else if (t.where == MEMORY)
+                    borrows_required = (t.address.base == RBP ? Regs::stackvars() : Regs::heapvars());
+
+                // stays empty for STACK
+            }
+            else {
+                // Let the constant local variables have no requirements
+                borrows_required = variable->borrowing_requirements();
+            }
+
+            if (t.where == ALIAS) {
+                // Unalias rvalues for convenience
+                x64->op(MOVQ, unalias_reg, t.address);
+                t = Storage(MEMORY, Address(unalias_reg, t.value));  // [unalias_reg + x]
+            }
+                        
+            if ((borrows_allowed & borrows_required) != borrows_required) {
+                // Make a value copy if the location may be clobbered
+                t = ts.store(t, value_storage, x64);
+            }
+        }
+        
+        return t;
     }
 };
 

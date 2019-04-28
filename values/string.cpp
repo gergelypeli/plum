@@ -247,6 +247,7 @@ public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;
     Unborrow *unborrow;
+    Storage value_storage;
     
     SliceIndexValue(Value *pivot, TypeMatch &match)
         :GenericValue(INTEGER_TS, match[1].lvalue(), pivot) {
@@ -271,6 +272,11 @@ public:
 
         if (lvalue_needed)
             clob = clob | Regs::heapvars();
+
+        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
+            value_storage = ts.optimal_value_storage(preferred);
+            clob = clob | value_storage.regs();
+        }
             
         return clob;
     }
@@ -302,8 +308,12 @@ public:
 
         // Borrow Lvalue container
         x64->op(MOVQ, unborrow->get_address(), R10);
-    
-        return Storage(MEMORY, Address(RAX, 0));
+        Storage t = Storage(MEMORY, Address(RAX, 0));
+        
+        if (value_storage.where != NOWHERE)
+            t = ts.store(t, value_storage, x64);
+            
+        return t;
     }
 };
 

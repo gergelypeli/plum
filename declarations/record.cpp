@@ -164,6 +164,14 @@ public:
             throw INTERNAL_ERROR
         );
     }
+
+    virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
+        if (is_single) {
+            return typesubst(member_tss[0], tm).optimal_value_storage(preferred);
+        }
+    
+        return Storage(STACK);
+    }
         
     virtual unsigned comparable_member_count() {
         return member_variables.size();

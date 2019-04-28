@@ -135,6 +135,7 @@ private:
     static const int REGS_TOTAL = 32;
     static const unsigned64 STACKVARS = 0x000100000000;
     static const unsigned64 HEAPVARS  = 0x000200000000;
+    static const unsigned64 ALIASVARS = 0x000400000000;
     
     unsigned64 available;
     
@@ -167,6 +168,10 @@ public:
 
     static Regs heapvars() {
         return Regs(HEAPVARS);
+    }
+
+    static Regs aliasvars() {
+        return Regs(ALIASVARS);
     }
     
     Regs(Register r) {
@@ -217,8 +222,16 @@ public:
         return Regs(available & other.available);
     }
 
-    Regs operator~() {
+    Regs operator ~() {
         return Regs(~available & ALL_MASK);
+    }
+    
+    bool operator ==(Regs other) {
+        return available == other.available;
+    }
+
+    bool operator !=(Regs other) {
+        return available != other.available;
     }
     
     explicit operator bool() {

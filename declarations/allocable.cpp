@@ -32,18 +32,32 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual Regs lvalue_would_clobber() {
+    virtual Regs borrowing_requirements() {
         if (where == NOWHERE)
             throw INTERNAL_ERROR;
-        else if (where == ALIAS)
+        else if (where == ALIAS) {
+            // We can't be sure where the alias points to, so require both unclobbered
             return Regs::stackvars() | Regs::heapvars();
+        }
+        else if (where != MEMORY)
+            throw INTERNAL_ERROR;
             
         ScopeType st = get_allocation_scope()->type;
             
         if (st == MODULE_SCOPE)
             return Regs::heapvars();
-        else if (st == CODE_SCOPE || st == ARGUMENT_SCOPE)
-            return Regs::stackvars();
+        else if (st == CODE_SCOPE || st == ARGUMENT_SCOPE) {
+            // What flags are necessary to borrow a local variable?
+
+            if (alloc_ts[0] == lvalue_type) {
+                // For regular variables the stack must be unclobbered
+                return Regs::stackvars();
+            }
+            else {
+                // For constant (including T Ptr <Partial>) variables nothing is necessary
+                return Regs();
+            }
+        }
         else
             throw INTERNAL_ERROR;
     }
@@ -311,8 +325,12 @@ public:
         :GlobalVariable(n, mts, NO_TS) {
     }
 
+    virtual Regs borrowing_requirements() {
+        return Regs();  // the scope type check would be useless here
+    }
+
     virtual void allocate() {
-        where = MEMORY;
+        where = MEMORY;  // just to conform to others
     }
 
     virtual Storage get_local_storage() {

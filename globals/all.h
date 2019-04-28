@@ -23,6 +23,7 @@ public:
     int measure_elem();
     int measure_stack();
     int measure_where(StorageWhere where);
+    Storage optimal_value_storage(Regs preferred);
     devector<VirtualEntry *> get_virtual_table();
     Label get_virtual_table_label(X64 *x64);
     Label get_interface_table_label(X64 *x64);

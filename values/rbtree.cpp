@@ -512,6 +512,7 @@ public:
     TypeSpec key_ts, elem_ts, key_arg_ts, heap_ts;
     std::unique_ptr<Value> pivot, key;
     Unborrow *unborrow;
+    Storage value_storage;
 
     RbtreeIndexValue(Value *l, TypeSpec kts, TypeSpec ets, TypeSpec kats, TypeSpec vrts)
         :Value(vrts) {
@@ -542,6 +543,11 @@ public:
 
         if (lvalue_needed)
             clob = clob | Regs::heapvars();
+            
+        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
+            value_storage = ts.optimal_value_storage(preferred);
+            clob = clob | value_storage.regs();
+        }
             
         return clob | RBTREE_CLOB | COMPARE_CLOB;
     }
@@ -575,7 +581,12 @@ public:
         x64->op(MOVQ, unborrow->get_address(), SELFX);
         
         Address value_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
-        return Storage(MEMORY, value_addr);
+        Storage t = Storage(MEMORY, value_addr);
+        
+        if (value_storage.where != NOWHERE)
+            t = ts.store(t, value_storage, x64);
+            
+        return t;
     }
 };
 

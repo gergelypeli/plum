@@ -286,6 +286,10 @@ public:
         throw INTERNAL_ERROR;
     }
 
+    virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
+        return Storage(STACK);
+    }
+
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         // Assume MEMORY are initialized
         
@@ -565,6 +569,10 @@ public:
             return RETRO;
 
         return tm[1].where(as_what);
+    }
+
+    virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
+        return tm[1].optimal_value_storage(preferred);
     }
 
     virtual Allocation measure(TypeMatch tm) {

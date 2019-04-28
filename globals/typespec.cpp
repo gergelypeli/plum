@@ -156,6 +156,11 @@ StorageWhere TypeSpec::where(AsWhat as_what) {
 }
 
 
+Storage TypeSpec::optimal_value_storage(Regs preferred) {
+    return at(0)->optimal_value_storage(match(), preferred);
+}
+
+
 Allocation TypeSpec::measure() {
     return (size() > 0 ? at(0)->measure(match()) : Allocation());
 }

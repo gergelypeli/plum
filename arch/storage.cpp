@@ -173,7 +173,7 @@ struct Storage {
             // passed between Value-s, so no one should be interested in their clobbed registers.
             // In those cases just crash, as these registers are also illegal in a Regs.
             // Passing RBP based addresses is fine, and RBP won't be included in the result.
-            if (address.base != NOREG && address.base != RBP) {
+            if (address.base != NOREG && address.base != RBP && address.base != RSP) {
                 if (address.index != NOREG)
                     return Regs(address.base, address.index);
                 else

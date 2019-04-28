@@ -153,6 +153,7 @@ public:
     TypeSpec heap_ts;
     std::unique_ptr<Value> pivot;
     Unborrow *unborrow;
+    Storage value_storage;
 
     NosytreeMemberValue(Value *p, TypeSpec member_ts, Scope *scope)
         :Value(member_ts) {
@@ -164,33 +165,53 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return pivot->precompile(preferred) | Regs(RAX);
+        Regs clob = pivot->precompile(preferred) | Regs(RAX);
+
+        if (lvalue_needed)
+            clob = clob | Regs::heapvars();
+            
+        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
+            value_storage = ts.optimal_value_storage(preferred);
+            clob = clob | value_storage.regs();
+        }
+
+        return clob;
     }
 
     virtual Storage compile(X64 *x64) {
         Storage s = pivot->compile(x64);
+        Storage t;
         
         switch (s.where) {
         case REGISTER:
             x64->op(MOVQ, unborrow->get_address(), s.reg);
-            return Storage(MEMORY, Address(s.reg, NOSYTREE_MEMBER_OFFSET));
+            t = Storage(MEMORY, Address(s.reg, NOSYTREE_MEMBER_OFFSET));
+            break;
         case MEMORY:
             x64->op(MOVQ, RAX, s.address);
             heap_ts.incref(RAX, x64);
             x64->op(MOVQ, unborrow->get_address(), RAX);
-            return Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+            t = Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+            break;
         default:
             throw INTERNAL_ERROR;
         }
+        
+        if (value_storage.where != NOWHERE)
+            t = ts.store(t, value_storage, x64);
+            
+        return t;
     }
 };
 
 
+// TODO: merge!
 class NosytreeCowMemberValue: public Value, public Aliaser {
 public:
     TypeSpec heap_ts;
     std::unique_ptr<Value> pivot;
     Unborrow *unborrow;
+    Storage value_storage;
 
     NosytreeCowMemberValue(Value *p, TypeSpec member_ts, Scope *scope)
         :Value(member_ts) {
@@ -208,7 +229,19 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return pivot->precompile(preferred) | Regs::all();
+        Regs clob = pivot->precompile(preferred) | Regs::all();
+
+        if (lvalue_needed)
+            clob = clob | Regs::heapvars();
+        else
+            throw INTERNAL_ERROR;
+            
+        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
+            value_storage = ts.optimal_value_storage(preferred);
+            clob = clob | value_storage.regs();
+        }
+
+        return clob;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -221,7 +254,12 @@ public:
 
         heap_ts.incref(RAX, x64);
         x64->op(MOVQ, unborrow->get_address(), RAX);
-        return Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+        Storage t = Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+        
+        if (value_storage.where != NOWHERE)
+            t = ts.store(t, value_storage, x64);
+            
+        return t;
     }
 };
 

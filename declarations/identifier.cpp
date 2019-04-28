@@ -50,7 +50,7 @@ public:
         }
 
         if (typematch(pivot_ts, pivot, match)) {
-            if (pivot_ts[0] == lvalue_type)
+            if (pivot_ts[0] == lvalue_type || pivot_ts[0] == uninitialized_type)
                 value_need_lvalue(pivot);
 
             return matched(pivot, scope, match);

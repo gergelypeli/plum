@@ -243,6 +243,11 @@ public:
         );
     }
 
+    virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
+        Register r = preferred.get_any();
+        return Storage(REGISTER, r);
+    }
+
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         //std::cerr << "Ref inner lookup " << tm << " " << n << ".\n";
         Value *value = Type::lookup_inner(tm, n, v, s);

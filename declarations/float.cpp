@@ -194,6 +194,11 @@ public:
         );
     }
     
+    virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
+        SseRegister r = preferred.get_sse();
+        return Storage(SSEREGISTER, r);
+    }
+
     virtual void streamify(TypeMatch tm, X64 *x64) {
         Address value_addr(RSP, ALIAS_SIZE);
         Address alias_addr(RSP, 0);

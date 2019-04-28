@@ -212,6 +212,11 @@ public:
         );
     }
 
+    virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
+        Register r = preferred.get_any();
+        return Storage(REGISTER, r);
+    }
+
     virtual bool get_unsigned() {
         return is_unsigned;
     }
