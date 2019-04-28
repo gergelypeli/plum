@@ -267,7 +267,12 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RCX, RDX);
+        Regs clob = left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RCX, RDX);
+
+        if (lvalue_needed)
+            clob = clob | Regs::heapvars();
+            
+        return clob;
     }
 
     virtual Storage compile(X64 *x64) {

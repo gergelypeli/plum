@@ -5,9 +5,11 @@ class Value {
 public:
     TypeSpec ts;
     Token token;
+    bool lvalue_needed;
         
     Value(TypeSpec t)
         :ts(t) {
+        lvalue_needed = false;
     }
 
     virtual ~Value() {
@@ -31,10 +33,8 @@ public:
         return check_arguments(args, kwargs, ArgInfos());
     }
     
-    virtual void hint_unalias() {
-        // This method mostly exists to let a VariableValue with ALIAS storage
-        // allocate a register, and load the address into it, so the parent expression
-        // doesn't have to bother with it.
+    virtual void need_lvalue() {
+        lvalue_needed = true;
     }
     
     virtual Regs precompile(Regs) {
@@ -236,23 +236,21 @@ public:
     Variable *variable;
     RetroScope *retro_scope;
     std::unique_ptr<Value> pivot;
-    Register reg;
+    Register unalias_reg;
     TypeMatch match;
     TypeSpec pts;
     bool is_rvalue_record;
     bool is_single_record;
-    bool is_unalias_hinted;
     Unborrow *unborrow;
     
     VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
         :Value(v->get_typespec(tm)) {
         variable = v;
         pivot.reset(p);
-        reg = NOREG;
+        unalias_reg = NOREG;
         match = tm;
         is_rvalue_record = false;
         is_single_record = false;
-        is_unalias_hinted = false;
         unborrow = NULL;
         
         if (pivot) {
@@ -284,8 +282,15 @@ public:
         }
     }
     
-    virtual void hint_unalias() {
-        is_unalias_hinted = true;
+    virtual void need_lvalue() {
+        Value::need_lvalue();
+        
+        // The pivot type of member variables is not lvalue, so they can work with
+        // non-lvalue containers. So if the member turns out to be needed as an lvalue,
+        // we must warn the container so it can clobber the appropriate storages.
+        
+        if (pivot)
+            pivot->need_lvalue();
     }
     
     virtual Regs precompile(Regs preferred) {
@@ -294,21 +299,16 @@ public:
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
 
+        unalias_reg = preferred.get_any();
+        clob = clob | unalias_reg;
+
         if (pivot) {
             if (variable->where == ALIAS)
                 throw INTERNAL_ERROR;
-                
-            if (pts[0] == ptr_type || is_unalias_hinted) {
-                reg = preferred.get_any();
-                clob = clob | reg;
-            }
         }
         else {
-            if (variable->where == ALIAS && is_unalias_hinted) {
-                reg = preferred.get_any();
-                //std::cerr << "Alias variable " << variable->name << " loaded to " << reg << "\n";
-                clob = clob | reg;
-            }
+            if (lvalue_needed)
+                clob = clob | variable->lvalue_would_clobber();
         }
         
         return clob;
@@ -326,19 +326,14 @@ public:
             Storage s = pivot->compile(x64);
             
             if (pts[0] == ptr_type) {
-                if (s.where == BMEMORY) {
-                    // We can borrow a reference to the container for free
-                    pts.store(s, Storage(BREGISTER, reg), x64);
-                }
-                else if (s.where == MEMORY) {
-                    // Or do that for money
-                    pts.store(s, Storage(REGISTER, reg), x64);
-                    x64->op(MOVQ, unborrow->get_address(), reg);
+                // The only member variable accessible by a Ptr are self variables, borrow.
+                if (s.where == MEMORY) {
+                    x64->op(MOVQ, unalias_reg, s.address);
+                    s = Storage(MEMORY, Address(unalias_reg, 0));
+                    return variable->get_storage(match, s);  // [unalias_reg + x]
                 }
                 else
                     throw INTERNAL_ERROR;
-                
-                s = Storage(MEMORY, Address(reg, 0));
             }
             else if (is_single_record) {
                 // Selecting the single member of a record is a no-op
@@ -363,18 +358,28 @@ public:
                 pts.store(s, Storage(), x64);
                 
                 return Storage(STACK);
-
             }
-            
-            if (s.where != MEMORY && s.where != ALIAS)
-                throw INTERNAL_ERROR;
-            
-            t = variable->get_storage(match, s);
+            else {
+                Storage t = variable->get_storage(match, s);
+                
+                if (t.where == ALIAS && !lvalue_needed) {
+                    // NOTE: this address base is unborrowable, so use a zero offset
+                    // This may become a convention soon.
+                    x64->op(MOVQ, unalias_reg, t.address);
+                    x64->op(ADDQ, unalias_reg, t.value);
+                    t = Storage(MEMORY, Address(unalias_reg, 0));  // [unalias_reg]
+                }
+                
+                return t;
+            }
         }
         else {
-            t = variable->get_local_storage();
+            Storage t = variable->get_local_storage();
 
             if (retro_scope) {
+                // In a retro scope we're running in a stack frame that is at a fixed offset
+                // from the enclosing stack frame, so all local variable addresses
+                // must be adjusted (even for the ones declared inside the same retro scope).
                 int retro_offset = retro_scope->get_frame_offset();
                 
                 if (t.where == NOWHERE)
@@ -385,22 +390,24 @@ public:
                     throw INTERNAL_ERROR;
             }
 
-            if (variable->name == "$" && ts[0] == ptr_type) {
-                // Try borrowing on the self argument, guaranteed not to change
-                if (t.where != MEMORY)
-                    throw INTERNAL_ERROR;
-                    
-                // Let the parent borrow this instead of making a reference copy
-                t.where = BMEMORY;
-            }
-        }
+            //if (t.where == MEMORY && ts[0] != lvalue_type) {
+                // Local variables that are not lvalues are constant during the
+                // function execution, so they can be borrowed even if the subsequent
+                // sibling arguments clobber everything that moves. Tell this to the parent.
 
-        if (t.where == ALIAS && is_unalias_hinted) {
-            x64->op(MOVQ, reg, t.address);
-            t = Storage(MEMORY, Address(reg, t.value));
+            //    t.where = BMEMORY;
+            //}
+
+            if (t.where == ALIAS && !lvalue_needed) {
+                // NOTE: this address base is unborrowable, so use a zero offset
+                // This may become a convention soon.
+                x64->op(MOVQ, unalias_reg, t.address);
+                x64->op(ADDQ, unalias_reg, t.value);
+                t = Storage(MEMORY, Address(unalias_reg, 0));  // [unalias_reg]
+            }
+            
+            return t;
         }
-        
-        return t;    
     }
 };
 

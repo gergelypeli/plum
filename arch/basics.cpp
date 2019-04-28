@@ -128,11 +128,13 @@ struct Regs {
 private:
     // 16 general registers, except RSP (4, 0x10), RBP (5, 0x20), R10 (10, 0x400), R11 (11, 0x800).
     // 16 SSE registers, except XMM14 and XMM15 ({14,15}+16, 0xC0000000).
-    static const unsigned64 GPR_MASK = 0x0000F3CF;
-    static const unsigned64 PTR_MASK = 0x0000F3CF;
-    static const unsigned64 SSE_MASK = 0x3FFF0000;
-    static const unsigned64 ALL_MASK = GPR_MASK | PTR_MASK | SSE_MASK;
+    static const unsigned64 GPR_MASK  = 0x00000000F3CF;
+    static const unsigned64 PTR_MASK  = 0x00000000F3CF;
+    static const unsigned64 SSE_MASK  = 0x00003FFF0000;
+    static const unsigned64 ALL_MASK  = GPR_MASK | PTR_MASK | SSE_MASK;
     static const int REGS_TOTAL = 32;
+    static const unsigned64 STACKVARS = 0x000100000000;
+    static const unsigned64 HEAPVARS  = 0x000200000000;
     
     unsigned64 available;
     
@@ -157,6 +159,14 @@ public:
     
     static Regs all() {
         return Regs(ALL_MASK);
+    }
+    
+    static Regs stackvars() {
+        return Regs(STACKVARS);
+    }
+
+    static Regs heapvars() {
+        return Regs(HEAPVARS);
     }
     
     Regs(Register r) {

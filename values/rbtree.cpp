@@ -539,6 +539,10 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+
+        if (lvalue_needed)
+            clob = clob | Regs::heapvars();
+            
         return clob | RBTREE_CLOB | COMPARE_CLOB;
     }
 

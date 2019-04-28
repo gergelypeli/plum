@@ -32,6 +32,22 @@ public:
             throw INTERNAL_ERROR;
     }
 
+    virtual Regs lvalue_would_clobber() {
+        if (where == NOWHERE)
+            throw INTERNAL_ERROR;
+        else if (where == ALIAS)
+            return Regs::stackvars() | Regs::heapvars();
+            
+        ScopeType st = get_allocation_scope()->type;
+            
+        if (st == MODULE_SCOPE)
+            return Regs::heapvars();
+        else if (st == CODE_SCOPE || st == ARGUMENT_SCOPE)
+            return Regs::stackvars();
+        else
+            throw INTERNAL_ERROR;
+    }
+
     virtual int get_offset(TypeMatch tm) {
         // NOTE: will be overridden in aliased roles
         if (where == NOWHERE)

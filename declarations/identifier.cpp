@@ -49,23 +49,9 @@ public:
                 return NULL;
         }
 
-        // Sanity check for development
-        /*
-        DataScope *ds = ptr_cast<DataScope>(outer_scope);
-        Type *pts0 = get_typespec(pivot).rvalue()[0];
-        if (pivot_ts == ANY_TS && ds && ds->is_abstract_scope() && (pts0 != ref_type && pts0 != ptr_type))
-            throw INTERNAL_ERROR;
-        
-        if (pivot_ts.has_meta(record_metatype)) {
-            // Identifiers in records may handle lvalue pivots differently than rvalues
-            if (typematch(pivot_ts.lvalue(), pivot, match))
-                return matched(pivot, scope, match);
-        }
-        */
-        
         if (typematch(pivot_ts, pivot, match)) {
-            if (pivot_ts.where(AS_ARGUMENT) != ALIAS)
-                value_hint_unalias(pivot);
+            if (pivot_ts[0] == lvalue_type)
+                value_need_lvalue(pivot);
 
             return matched(pivot, scope, match);
         }

@@ -57,8 +57,8 @@ bool value_check(Value *v, Args &a, Kwargs &k, Scope *s) {
 }
 
 
-void value_hint_unalias(Value *v) {
-    v->hint_unalias();
+void value_need_lvalue(Value *v) {
+    v->need_lvalue();
 }
 
 
@@ -208,8 +208,8 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
         return false;
     }
 
-    if (context && (*context).where(AS_ARGUMENT) != ALIAS)
-        v->hint_unalias();
+    if (context && (*context)[0] == lvalue_type)
+        v->need_lvalue();
 
     if (code_scope) {
         v = (is_function_call ? make<RetroScopeValue>(v, code_scope) : make<CodeScopeValue>(v, code_scope));

@@ -204,12 +204,7 @@ public:
         GPR_SUBSET, GPR_SUBSET
         ) {
         heap_ts = hts;
-        //heap_ts = match[0].unprefix(ptr_type);
         elem_ts = match[1];
-        
-        //f (pivot->ts.rvalue()[0] != ptr_type)
-        //    throw INTERNAL_ERROR;  // sanity check
-            
         elems_offset = eo;
     }
 
@@ -221,6 +216,15 @@ public:
     }
 
     virtual void fix_R10_index(Register r, X64 *x64) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = OptimizedOperationValue::precompile(preferred);
+        
+        if (lvalue_needed)
+            clob = clob | Regs::heapvars();
+        
+        return clob;
     }
 
     virtual Storage compile(X64 *x64) {
