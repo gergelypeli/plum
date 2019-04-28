@@ -46,6 +46,10 @@ public:
         return NULL;
     }
 
+    virtual bool is_transient() {
+        return false;
+    }
+
     virtual bool is_typedefinition(std::string n) {
         return false;
     }

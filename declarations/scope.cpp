@@ -537,6 +537,10 @@ public:
         is_taken = true;
     }
 
+    virtual bool is_transient() {
+        return true;
+    }
+
     virtual void be_unwindable() {
         am_unwindable = true;
         
@@ -568,8 +572,18 @@ public:
             
         Allocation checkpoint = outer_scope->reserve(Allocation { 0, 0, 0, 0 });
 
+        // Escaped variables from statements are sorted later than the statement scope
+        // that declared them. Since statement scope may be finalized after such variables
+        // are initialized, these allocation ranges must not overlap. So allocate all
+        // code scopes above all the escaped variables.
+        
         for (auto &d : contents)
-            d->allocate();
+            if (!d->is_transient())
+                d->allocate();
+                
+        for (auto &d : contents)
+            if (d->is_transient())
+                d->allocate();
         
         outer_scope->rollback(checkpoint);
 
