@@ -128,19 +128,27 @@ public:
             pivot_value->ts.store(ps, Storage(STACK), x64);
             ps = Storage(STACK);
         }
-            
+
         for (auto &v : values) {
             int pop = 0;
             Storage vs = v->compile(x64);
+            Storage xps = ps;
             
             if (vs.where == STACK) {
                 // NOTE: we use that destroy does not change values
                 vs = Storage(MEMORY, Address(RSP, 0));
                 v->ts.destroy(vs, x64);
                 pop = v->ts.measure_stack();
+                
+                if (xps.where == STACK)
+                    xps = Storage(MEMORY, Address(RSP, pop));
+            }
+            else {
+                if (xps.where == STACK)
+                    xps = Storage(MEMORY, Address(RSP, 0));
             }
             
-            pivot_value->ts.equal(ps, vs, x64);
+            pivot_value->ts.equal(xps, vs, x64);  // sets flags
             
             if (pop)
                 x64->op(LEA, RSP, Address(RSP, pop));  // preserve flags

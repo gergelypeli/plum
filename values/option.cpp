@@ -240,8 +240,20 @@ public:
             x64->accounting->rewind(old_stack_usage);
 
             x64->code_label(ok);
-            x64->op(ADDQ, RSP, ADDRESS_SIZE);
-                
+            
+            // Since the matched type may be smaller than the maximum of the member sizes,
+            // we may need to shift the value up a bit on the stack. Not nice.
+            
+            int shift_count = (left->ts.measure_stack() - ADDRESS_SIZE - ts.measure_stack()) / ADDRESS_SIZE;
+            int copy_count = ts.measure_stack() / ADDRESS_SIZE;
+            
+            for (int i = 0; i < copy_count; i++) {
+                x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE * (copy_count - i)));
+                x64->op(MOVQ, Address(RSP, ADDRESS_SIZE * (copy_count - i + shift_count)), R10);
+            }
+
+            x64->op(ADDQ, RSP, ADDRESS_SIZE * (1 + shift_count));
+            
             return Storage(STACK);
         }
         case MEMORY:

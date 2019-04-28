@@ -180,6 +180,11 @@ public:
             x64->op(CMP, s.reg, t.address);
             break;
 
+        case STACK_CONSTANT:
+            x64->op(POPQ, R10);
+            x64->op(CMP, R10, t.value);
+            break;
+
         case MEMORY_CONSTANT:
             x64->op(CMP, s.address, t.value);
             break;

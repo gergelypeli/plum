@@ -28,10 +28,18 @@ public:
             x64->op(SUBQ, RSP, FLOAT_SIZE);
             x64->op(MOVSD, Address(RSP, 0), s.sse);
             break;
+        case SSEREGISTER_MEMORY:
+            x64->op(MOVSD, t.address, s.sse);
+            break;
             
         case STACK_NOWHERE:
             x64->op(ADDQ, RSP, FLOAT_SIZE);
             break;
+        case STACK_SSEREGISTER:
+            x64->op(MOVSD, s.sse, Address(RSP, 0));
+            x64->op(ADDQ, RSP, FLOAT_SIZE);
+            break;
+            
         case STACK_STACK:
             break;
             
@@ -59,6 +67,9 @@ public:
             break;
         case SSEREGISTER_MEMORY:
             x64->op(MOVSD, t.address, s.sse);
+            break;
+        case STACK_MEMORY:
+            x64->op(POPQ, t.address);
             break;
         case MEMORY_MEMORY:
             x64->op(MOVQ, R10, s.address);

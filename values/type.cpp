@@ -139,6 +139,10 @@ public:
 
         return value;
     }
+
+    virtual void need_lvalue() {
+        orig->need_lvalue();
+    }
     
     virtual Regs precompile(Regs preferred) {
         return orig->precompile(preferred);

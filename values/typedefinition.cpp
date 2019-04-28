@@ -1225,14 +1225,20 @@ public:
         if (ps.where != REGISTER)
             throw INTERNAL_ERROR;
             
+        x64->op(PUSHQ, ps.reg);
         Storage cs = Storage(MEMORY, Address(ps.reg, 0));
         
         // FIXME: handle exceptions!
         for (unsigned i = 0; i < with_vars.size(); i++) {
-            Storage s = with_values[i]->compile(x64);
+            with_values[i]->compile_and_store(x64, Storage(STACK));
+            
+            x64->op(MOVQ, ps.reg, Address(RSP, with_values[i]->ts.measure_stack()));
             Storage t = with_vars[i]->get_storage(match, cs);
-            with_vars[i]->alloc_ts.create(s, t, x64);
+            
+            with_vars[i]->alloc_ts.create(Storage(STACK), t, x64);
         }
+        
+        x64->op(POPQ, ps.reg);
         
         return ps;
     }

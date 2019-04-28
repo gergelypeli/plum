@@ -139,6 +139,9 @@ public:
             make<NosytreeMemberValue>(cpivot, mts, scope)
         );
         
+        if (pivot_ts[0] == lvalue_type)
+            value_need_lvalue(pivot);
+        
         Args fake_args;
         Kwargs fake_kwargs;
 

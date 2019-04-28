@@ -696,16 +696,19 @@ void define_container_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec 
     aiis->add(new Variable("container", container_ts.lvalue()));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    implement(aiis, value_ts.prefix(iterator_type), "iterator", {
-        new TemplateIdentifier<NextValue>("next"),
-    });
-    
     implement(aiis, value_ts.prefix(iterable_type), "iterable", {
         new Identity("iter")
+    });
+
+    DataScope *ails = iter_type->make_lvalue_scope();
+
+    implement(ails, value_ts.prefix(iterator_type), "iterator", {
+        new TemplateIdentifier<NextValue>("next"),
     });
     
     iter_type->complete_type();
     aiis->leave();
+    ails->leave();
 }
 
 
@@ -722,16 +725,19 @@ void define_slice_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec valu
     aiis->add(new Variable("length", INTEGER_LVALUE_TS));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    implement(aiis, value_ts.prefix(iterator_type), "iterator", {
-        new TemplateIdentifier<NextValue>("next")
-    });
-
     implement(aiis, value_ts.prefix(iterable_type), "iterable", {
         new Identity("iter")
+    });
+
+    DataScope *ails = iter_type->make_lvalue_scope();
+
+    implement(ails, value_ts.prefix(iterator_type), "iterator", {
+        new TemplateIdentifier<NextValue>("next")
     });
     
     iter_type->complete_type();
     aiis->leave();
+    ails->leave();
 }
 
 
@@ -745,6 +751,12 @@ void define_iterators() {
     
         cis->add(new Variable("limit", INTEGER_LVALUE_TS));  // Order matters!
         cis->add(new Variable("value", INTEGER_LVALUE_TS));
+
+        implement(cis, INTEGER_ITERABLE_TS, "iterable", {
+            new Identity("iter")
+        });
+
+        DataScope *cls = counter_type->make_lvalue_scope();
         Identifier *next_fn;
         
         if (!is_down) {
@@ -754,16 +766,13 @@ void define_iterators() {
             next_fn = new TemplateIdentifier<CountdownNextValue>("next");
         }
 
-        implement(cis, INTEGER_ITERATOR_TS, "iter", {
+        implement(cls, INTEGER_ITERATOR_TS, "iter", {
             next_fn,
-        });
-
-        implement(cis, INTEGER_ITERABLE_TS, "iterable", {
-            new Identity("iter")
         });
         
         counter_type->complete_type();
         cis->leave();
+        cls->leave();
     }
 
     // Item type for itemized iteration

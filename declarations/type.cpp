@@ -397,24 +397,46 @@ public:
         throw INTERNAL_ERROR;
     }
     
+    virtual Value *autoconv_scope(Scope *scope, TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
+        for (auto &d : scope->contents) {
+            Associable *imp = ptr_cast<Associable>(d.get());
+            
+            if (imp) {
+                if (!imp->is_autoconv()) {
+                    std::cerr << "Not considering role " << imp->name << "\n";
+                    continue;
+                }
+                
+                std::cerr << "Considering role " << imp->name << "\n";
+                Value *v = imp->autoconv(tm, target, orig, ifts);
+                
+                if (v)
+                    return v;
+                    
+                std::cerr << "Nope.\n";
+            }
+        }
+        
+        return NULL;
+    }
+    
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
         Scope *inner_scope = get_inner_scope();
         if (!inner_scope)
             return NULL;
 
-        for (auto &d : inner_scope->contents) {
-            Associable *imp = ptr_cast<Associable>(d.get());
-            
-            if (imp) {
-                if (!imp->is_autoconv())
-                    continue;
-                    
-                Value *v = imp->autoconv(tm, target, orig, ifts);
-                
-                if (v)
-                    return v;
-            }
-        }
+        Value *v = autoconv_scope(inner_scope, tm, target, orig, ifts);
+        if (v)
+            return v;
+
+        // FIXME: this must only be checked for lvalue originals            
+        Scope *lvalue_scope = get_lvalue_scope();
+        if (!lvalue_scope)
+            return NULL;
+
+        v = autoconv_scope(lvalue_scope, tm, target, orig, ifts);
+        if (v)
+            return v;
         
         return NULL;    
     }

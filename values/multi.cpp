@@ -37,8 +37,12 @@ public:
             //std::cerr << "Multi item ts: " << value->ts << "\n";
         }
 
-        if (is_lvalue)
+        if (is_lvalue) {
             ts = MULTILVALUE_TS;
+            
+            for (auto &v : values)
+                v->need_lvalue();
+        }
         else if (is_type)
             ts = MULTITYPE_TS;
         else {

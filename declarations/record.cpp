@@ -372,11 +372,16 @@ public:
 
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         if (s.where == MEMORY && t.where == MEMORY) {
-            if (t.address.base == RSP)
-                throw INTERNAL_ERROR;
-                
-            x64->op(PUSHQ, s.address);
-            x64->op(PUSHQ, t.address);
+            if (s.address.base == RSP || t.address.base == RSP) {
+                x64->op(MOVQ, R10, s.address);
+                x64->op(MOVQ, R11, t.address);
+                x64->op(PUSHQ, R10);
+                x64->op(PUSHQ, R11);
+            }
+            else {
+                x64->op(PUSHQ, s.address);
+                x64->op(PUSHQ, t.address);
+            }
         }
         else if ((s.where != STACK && s.where != BSTACK) || (t.where != STACK && t.where != BSTACK))
             throw INTERNAL_ERROR;
