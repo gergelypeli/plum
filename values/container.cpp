@@ -128,7 +128,7 @@ void container_preappend2(int reservation_offset, int length_offset, Label grow_
 
 
 void container_cow(Label clone_label, Storage ref_storage, X64 *x64) {
-    // No runtime arguments. Returns the Ref in RAX (not refcounted)
+    // No runtime arguments. Returns the borrowed Ref in RAX
     Label end;
     
     load_ref(RAX, R11, ref_storage, x64);
@@ -136,7 +136,12 @@ void container_cow(Label clone_label, Storage ref_storage, X64 *x64) {
     x64->runtime->oneref(RAX);
     x64->op(JE, end);
     
-    x64->op(CALL, clone_label);  // clobbers all, replaces refcounted RAX
+    // Cloning decreases the refcount of the passed RAX. Since we just loaded it
+    // from memory, it effectively decreases the original's refcount. After the clone we get
+    // a refcounted copy, which we immediately store back to the same location.
+    // So the original lost one reference, and the copy has exactly one.
+    // The RAX returned is a borrowed reference, and needs no decref later.
+    x64->op(CALL, clone_label);  // clobbers all
 
     store_ref(RAX, R11, ref_storage, x64);
     
@@ -541,7 +546,7 @@ public:
         ls = left->compile_and_alias(x64, get_alias());
         right->compile_and_store(x64, Storage(STACK));
 
-        container_cow(clone_label, ls, x64);
+        container_cow(clone_label, ls, x64);  // leaves borrowed Ref in RAX
 
         x64->op(MOVQ, R10, 1);
         container_preappend2(reservation_offset, length_offset, grow_label, ls, x64);
@@ -601,7 +606,7 @@ public:
         
         ls = left->compile_and_alias(x64, get_alias());
 
-        container_cow(clone_label, ls, x64);  // Leaves Ref in RAX
+        container_cow(clone_label, ls, x64);  // leaves borrowed Ref in RAX
         
         // Get rid of pivot (technically, it must be a nop now)
         left->ts.store(ls, Storage(), x64);

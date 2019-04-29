@@ -717,7 +717,7 @@ public:
         if (ts != VOID_TS)
             reg = preferred.get_any();
         
-        return Regs::all();  // assume everything is clobbered
+        return Regs::all() | Regs::heapvars();  // assume all registers are clobbered
     }
 
     virtual void push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {

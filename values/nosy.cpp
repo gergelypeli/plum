@@ -148,118 +148,76 @@ void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-class NosytreeMemberValue: public Value {
+class NosytreeMemberValue: public Value, public Aliaser {
 public:
     TypeSpec heap_ts;
     std::unique_ptr<Value> pivot;
     Unborrow *unborrow;
-    Storage value_storage;
 
-    NosytreeMemberValue(Value *p, TypeSpec member_ts, Scope *scope)
+    NosytreeMemberValue(Value *p, TypeSpec member_ts)
         :Value(member_ts) {
         pivot.reset(p);
         heap_ts = member_ts.prefix(nosytree_type);
-        
-        unborrow = new Unborrow(heap_ts);
-        scope->add(unborrow);
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | Regs(RAX);
-
-        if (lvalue_needed)
-            clob = clob | Regs::heapvars();
-            
-        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
-            value_storage = ts.optimal_value_storage(preferred);
-            clob = clob | value_storage.regs();
-        }
-
-        return clob;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        Storage s = pivot->compile(x64);
-        Storage t;
-        
-        switch (s.where) {
-        case REGISTER:
-            x64->op(MOVQ, unborrow->get_address(), s.reg);
-            t = Storage(MEMORY, Address(s.reg, NOSYTREE_MEMBER_OFFSET));
-            break;
-        case MEMORY:
-            x64->op(MOVQ, RAX, s.address);
-            heap_ts.incref(RAX, x64);
-            x64->op(MOVQ, unborrow->get_address(), RAX);
-            t = Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET));
-            break;
-        default:
-            throw INTERNAL_ERROR;
-        }
-        
-        if (value_storage.where != NOWHERE)
-            t = ts.store(t, value_storage, x64);
-            
-        return t;
-    }
-};
-
-
-// TODO: merge!
-class NosytreeCowMemberValue: public Value, public Aliaser {
-public:
-    TypeSpec heap_ts;
-    std::unique_ptr<Value> pivot;
-    Unborrow *unborrow;
-    Storage value_storage;
-
-    NosytreeCowMemberValue(Value *p, TypeSpec member_ts, Scope *scope)
-        :Value(member_ts) {
-        pivot.reset(p);
-        heap_ts = member_ts.prefix(nosytree_type);
-        
-        unborrow = new Unborrow(heap_ts);
-        scope->add(unborrow);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        check_alias(scope);
+        if (lvalue_needed)
+            check_alias(scope);
+
+        unborrow = new Unborrow(heap_ts);
+        scope->add(unborrow);
         
         return Value::check(args, kwargs, scope);
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | Regs::all();
-
-        if (lvalue_needed)
-            clob = clob | Regs::heapvars();
-        else
-            throw INTERNAL_ERROR;
-            
-        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
-            value_storage = ts.optimal_value_storage(preferred);
-            clob = clob | value_storage.regs();
+        Regs clob = pivot->precompile(preferred);
+        
+        if (lvalue_needed) {
+            // We COW an lvalue argument, may clobber any variables
+            clob = Regs::all() | Regs::stackvars() | Regs::heapvars();
+        }
+        else {
+            clob = clob | Regs(RAX);
         }
 
         return clob;
     }
 
     virtual Storage compile(X64 *x64) {
-        TypeSpec elem_ts = ts.unprefix(ref_type).unprefix(rbtree_type);
-        Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
-
-        Storage ps = pivot->compile_and_alias(x64, get_alias());
-
-        container_cow(clone_label, ps, x64);  // clobbers all, returns RAX
-
-        heap_ts.incref(RAX, x64);
-        x64->op(MOVQ, unborrow->get_address(), RAX);
-        Storage t = Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+        Register r;
         
-        if (value_storage.where != NOWHERE)
-            t = ts.store(t, value_storage, x64);
-            
-        return t;
+        if (lvalue_needed) {
+            TypeSpec elem_ts = ts.unprefix(ref_type).unprefix(rbtree_type);
+            Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
+
+            Storage ps = pivot->compile_and_alias(x64, get_alias());
+
+            container_cow(clone_label, ps, x64);  // leaves borrowed Ref in RAX
+            r = RAX;
+
+            heap_ts.incref(r, x64);
+        }
+        else {
+            Storage s = pivot->compile(x64);
+        
+            switch (s.where) {
+            case REGISTER:
+                r = s.reg;
+                break;
+            case MEMORY:
+                r = RAX;
+                x64->op(MOVQ, r, s.address);
+                heap_ts.incref(r, x64);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
+
+        x64->op(MOVQ, unborrow->get_address(), r);
+        
+        return Storage(MEMORY, Address(r, NOSYTREE_MEMBER_OFFSET));
     }
 };
 

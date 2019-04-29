@@ -315,7 +315,7 @@ public:
         Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
 
-        container_cow(clone_label, ps, x64);
+        container_cow(clone_label, ps, x64);  // leaves borrowed Ref in RAX
 
         x64->op(MOVQ, R10, 1);  // Growth
         rbtree_preappend2(elem_ts, ps, x64);
@@ -382,7 +382,7 @@ public:
         Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
 
-        container_cow(clone_label, ps, x64);
+        container_cow(clone_label, ps, x64);  // leaves borrowed Ref in RAX
 
         x64->op(MOVQ, R10, 1);  // Growth
         rbtree_preappend2(elem_ts, ps, x64);
@@ -444,7 +444,7 @@ public:
         Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
         Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
 
-        container_cow(clone_label, ps, x64);  // Leaves Ref in RAX
+        container_cow(clone_label, ps, x64);  // leaves borrowed Ref in RAX
 
         x64->op(MOVQ, SELFX, RAX);
         x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));

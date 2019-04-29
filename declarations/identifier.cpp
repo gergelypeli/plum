@@ -134,10 +134,7 @@ public:
         TypeSpec mts = typesubst(member_ts, match);
         TypeSpec pivot_ts = get_pivot_ts();
         
-        Value *pivot = (
-            pivot_ts[0] == lvalue_type ? make<NosytreeCowMemberValue>(cpivot, mts, scope) :
-            make<NosytreeMemberValue>(cpivot, mts, scope)
-        );
+        Value *pivot = make<NosytreeMemberValue>(cpivot, mts);
         
         if (pivot_ts[0] == lvalue_type)
             value_need_lvalue(pivot);
