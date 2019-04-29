@@ -449,16 +449,20 @@ public:
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
 
-        if (!clob.has_any())
-            clob = clob | RAX;
+        clob.reserve(4);
 
         return clob;
     }
 
-    virtual Storage subcompile(X64 *x64) {
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+
+    virtual Storage compile(X64 *x64) {
         elem_size = elem_ts.measure_elem();
         ls = left->compile(x64);  // iterator
-        Register reg = (clob & ~ls.regs()).get_any();
+        Register r = (clob & ~ls.regs()).get_any();
+        Register i = (clob & ~ls.regs() & ~Regs(r)).get_any();
         Label ok;
 
         int LENGTH_OFFSET = REFERENCE_SIZE + INTEGER_SIZE;
@@ -466,9 +470,9 @@ public:
         
         switch (ls.where) {
         case MEMORY:
-            x64->op(MOVQ, R10, ls.address + VALUE_OFFSET);
-            x64->op(MOVQ, reg, ls.address); // array ptr
-            x64->op(CMPQ, R10, ls.address + LENGTH_OFFSET);
+            x64->op(MOVQ, i, ls.address + VALUE_OFFSET);
+            x64->op(MOVQ, r, ls.address); // array ptr
+            x64->op(CMPQ, i, ls.address + LENGTH_OFFSET);
             x64->op(JNE, ok);
             
             raise("ITERATOR_DONE", x64);
@@ -476,7 +480,7 @@ public:
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + VALUE_OFFSET);
             
-            return Storage(REGISTER, reg);
+            return postprocess(r, i, x64);
         default:
             throw INTERNAL_ERROR;
         }
@@ -490,15 +494,14 @@ public:
         :SliceNextValue(match[1], match[1], l, false) {
     }
 
-    virtual Storage compile(X64 *x64) {
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
         int FRONT_OFFSET = REFERENCE_SIZE;
-        Storage r = subcompile(x64);
         
-        x64->op(ADDQ, R10, ls.address + FRONT_OFFSET);
-        x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, R10, LINEARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, i, ls.address + FRONT_OFFSET);
         
-        return Storage(MEMORY, Address(r.reg, 0));
+        Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
+        
+        return Storage(MEMORY, addr);
     }
 };
 
@@ -509,12 +512,8 @@ public:
         :SliceNextValue(INTEGER_TS, match[1], l, false) {
     }
     
-    virtual Storage compile(X64 *x64) {
-        Storage r = subcompile(x64);
-        
-        x64->op(MOVQ, r.reg, R10);
-        
-        return Storage(REGISTER, r.reg);
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        return Storage(REGISTER, i);
     }
 };
 
@@ -525,24 +524,21 @@ public:
         :SliceNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, false) {
     }
 
-    virtual Storage compile(X64 *x64) {
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
         int FRONT_OFFSET = REFERENCE_SIZE;
         int item_stack_size = ts.measure_stack();
 
-        Storage r = subcompile(x64);
-
         x64->op(SUBQ, RSP, item_stack_size);
-        x64->op(MOVQ, Address(RSP, 0), R10);
+        x64->op(MOVQ, Address(RSP, 0), i);
         
-        x64->op(ADDQ, R10, ls.address + FRONT_OFFSET);
-        x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, R10, LINEARRAY_ELEMS_OFFSET));
+        x64->op(ADDQ, i, ls.address + FRONT_OFFSET);
+
+        Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
         
-        Storage s = Storage(MEMORY, Address(r.reg, 0));
+        Storage s = Storage(MEMORY, addr);
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
         elem_ts.create(s, t, x64);
         
         return Storage(STACK);
     }
 };
-
