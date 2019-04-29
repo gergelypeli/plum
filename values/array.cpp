@@ -596,15 +596,12 @@ public:
         :ContainerNextValue(match[1], match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
     }
 
-    virtual Storage compile(X64 *x64) {
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
         int elem_size = elem_ts.measure_elem();
         
-        Storage r = ContainerNextValue::compile(x64);
+        Address addr = index_addr(r, i, elem_size, LINEARRAY_ELEMS_OFFSET, x64);
         
-        x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, R10, LINEARRAY_ELEMS_OFFSET));
-        
-        return Storage(MEMORY, Address(r.reg, 0));
+        return Storage(MEMORY, addr);
     }
 };
 
@@ -615,12 +612,8 @@ public:
         :ContainerNextValue(INTEGER_TS, match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
     }
     
-    virtual Storage compile(X64 *x64) {
-        Storage r = ContainerNextValue::compile(x64);
-        
-        x64->op(MOVQ, r.reg, R10);
-        
-        return Storage(REGISTER, r.reg);
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        return Storage(REGISTER, i);
     }
 };
 
@@ -631,23 +624,19 @@ public:
         :ContainerNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
     }
 
-    virtual Storage compile(X64 *x64) {
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
         int elem_size = elem_ts.measure_elem();
         int item_stack_size = ts.measure_stack();
 
-        Storage r = ContainerNextValue::compile(x64);
-
         x64->op(SUBQ, RSP, item_stack_size);
-        x64->op(MOVQ, Address(RSP, 0), R10);
+        x64->op(MOVQ, Address(RSP, 0), i);
         
-        x64->op(IMUL3Q, R10, R10, elem_size);
-        x64->op(LEA, r.reg, Address(r.reg, R10, LINEARRAY_ELEMS_OFFSET));
+        Address addr = index_addr(r, i, elem_size, LINEARRAY_ELEMS_OFFSET, x64);
         
-        Storage s = Storage(MEMORY, Address(r.reg, 0));
+        Storage s = Storage(MEMORY, addr);
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
         elem_ts.create(s, t, x64);
         
         return Storage(STACK);
     }
 };
-

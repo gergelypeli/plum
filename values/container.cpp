@@ -675,24 +675,28 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
-        
-        if (!clob.has_any())
-            clob = clob | RAX;
+
+        clob.reserve(4);
         
         return clob;
     }
 
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        throw INTERNAL_ERROR;
+    }
+
     virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);  // iterator
-        Register reg = (clob & ~ls.regs()).get_any();
+        Register r = (clob & ~ls.regs()).get_any();
+        Register i = (clob & ~ls.regs() & ~Regs(r)).get_any();
         Label ok;
         
         switch (ls.where) {
         case MEMORY:
             //std::cerr << "Compiling itemiter with reg=" << reg << " ls=" << ls << "\n";
-            x64->op(MOVQ, R10, ls.address + REFERENCE_SIZE);  // value
-            x64->op(MOVQ, reg, ls.address); // array reference without incref
-            x64->op(CMPQ, R10, Address(reg, length_offset));
+            x64->op(MOVQ, i, ls.address + REFERENCE_SIZE);  // value
+            x64->op(MOVQ, r, ls.address); // array reference without incref
+            x64->op(CMPQ, i, Address(r, length_offset));
             x64->op(JNE, ok);
 
             // MEMORY arg
@@ -700,8 +704,8 @@ public:
             
             x64->code_label(ok);
             x64->op(is_down ? DECQ : INCQ, ls.address + REFERENCE_SIZE);
-            //x64->err("NEXT COMPILE");
-            return Storage(REGISTER, reg);  // non-refcounted reference, with R10 index
+
+            return postprocess(r, i, x64);  // borrowed reference, with index
         default:
             throw INTERNAL_ERROR;
         }

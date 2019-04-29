@@ -287,6 +287,29 @@ public:
         std::cerr << "No available SSE register!\n";
         throw ASM_ERROR;
     }
+    
+    void reserve(int requested) {
+        int c = count();
+        
+        if (c >= requested)
+            return;
+            
+        for (int i=0; i<REGS_TOTAL; i++) {
+            unsigned64 x = GPR_MASK & (1UL << i);
+            
+            if (!x)
+                continue;
+                
+            if (available & x)
+                continue;
+
+            available |= x;
+            c += 1;
+                
+            if (c == requested)
+                return;
+        }
+    }
 };
 
 
