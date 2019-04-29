@@ -25,6 +25,22 @@ void store_ref(Register reg, Register tmp, Storage ref_storage, X64 *x64) {
 }
 
 
+Address index_addr(Register base, Register index, int scale, int offset, X64 * x64) {
+    if (scale == 1)
+        return Address(base, index, Address::SCALE_1, offset);
+    else if (scale == 2)
+        return Address(base, index, Address::SCALE_2, offset);
+    else if (scale == 4)
+        return Address(base, index, Address::SCALE_4, offset);
+    else if (scale == 8)
+        return Address(base, index, Address::SCALE_8, offset);
+    else {
+        x64->op(IMUL3Q, index, index, scale);
+        return Address(base, index, offset);
+    }
+}
+
+
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
     // FIXME: this won't work for ptr
     TypeSpec x = ts.rvalue();
@@ -94,20 +110,6 @@ void container_grow(int reservation_offset, int min_reservation, Label realloc_l
     x64->op(CALL, realloc_label);  // clobbers all
 }
 
-/*
-void container_preappend(int reservation_offset, int length_offset, Label grow_label, X64 *x64) {
-    // RAX - array, R10 - new addition
-
-    Label ok;
-    x64->op(ADDQ, R10, Address(RAX, length_offset));
-    x64->op(CMPQ, R10, Address(RAX, reservation_offset));
-    x64->op(JBE, ok);
-
-    x64->op(CALL, grow_label);  // clobbers all
-    
-    x64->code_label(ok);
-}
-*/
 
 void container_preappend2(int reservation_offset, int length_offset, Label grow_label, Storage ref_storage, X64 *x64) {
     // R10 - new addition. Returns the Ref in RAX.
@@ -221,11 +223,13 @@ public:
         return OptimizedOperationValue::check(args, kwargs, scope);
     }
 
-    virtual void fix_R10_index(Register r, X64 *x64) {
+    virtual void fix_index(Register r, Register i, X64 *x64) {
     }
 
     virtual Regs precompile(Regs preferred) {
         Regs clob = OptimizedOperationValue::precompile(preferred);
+        
+        clob = clob | Regs(RAX) | Regs(RBX);
         
         if (lvalue_needed)
             clob = clob | Regs::heapvars();
@@ -243,54 +247,44 @@ public:
     
         OptimizedOperationValue::subcompile(x64);
 
+        Register r = (ls.where == REGISTER ? ls.reg : ls.where == MEMORY ? auxls.reg : throw INTERNAL_ERROR);
+        Register i = (rs.where == REGISTER ? rs.reg : r == RAX ? RBX : RAX);
+
         switch (rs.where) {
         case CONSTANT:
-            x64->op(MOVQ, R10, rs.value);
+            x64->op(MOVQ, i, rs.value);
             break;
         case REGISTER:
-            x64->op(MOVQ, R10, rs.reg);
             break;
         case MEMORY:
-            x64->op(MOVQ, R10, rs.address);
+            x64->op(MOVQ, i, rs.address);
             break;
         default:
             throw INTERNAL_ERROR;
         }
     
-        Storage t;
-
         switch (ls.where) {
         case REGISTER:
-            // Borrow Lvalue container
-            x64->op(MOVQ, unborrow->get_address(), ls.reg);
-            
-            fix_R10_index(ls.reg, x64);
-            
-            x64->op(IMUL3Q, R10, R10, elem_size);
-            x64->op(LEA, ls.reg, Address(ls.reg, R10, elems_offset));
-            t = Storage(MEMORY, Address(ls.reg, 0));
             break;
         case MEMORY:
-            x64->op(MOVQ, auxls.reg, ls.address);  // reg may be the base of ls.address
-            // Borrow Lvalue container
-            heap_ts.incref(auxls.reg, x64);
-            x64->op(MOVQ, unborrow->get_address(), auxls.reg);
-            
-            fix_R10_index(auxls.reg, x64);
-            
-            x64->op(IMUL3Q, R10, R10, elem_size);
-            x64->op(LEA, auxls.reg, Address(auxls.reg, R10, elems_offset));
-            t = Storage(MEMORY, Address(auxls.reg, 0));
+            x64->op(MOVQ, r, ls.address);  // r may be the base of ls.address
+            heap_ts.incref(r, x64);
             break;
         default:
             throw INTERNAL_ERROR;
         }
+
+        x64->op(MOVQ, unborrow->get_address(), r);
+        fix_index(r, i, x64);
+
+        Address addr = index_addr(r, i, elem_size, elems_offset, x64);
+        Storage t(MEMORY, addr);
         
         if (value_storage.where != NOWHERE)
             t = ts.store(t, value_storage, x64);
             
         return t;
-    }    
+    }
 };
 
 
@@ -535,7 +529,7 @@ public:
         return Regs::all();
     }
 
-    virtual void fix_R10_index(Register r, X64 *x64) {
+    virtual void fix_index(Register r, Register i, X64 *x64) {
     }
 
     virtual Storage compile(X64 *x64) {
@@ -556,7 +550,7 @@ public:
         x64->op(INCQ, Address(RAX, length_offset));
 
         // R10 contains the index of the newly created element
-        fix_R10_index(RAX, x64);
+        fix_index(RAX, R10, x64);
         
         x64->op(IMUL3Q, R10, R10, elem_size);
         x64->op(ADDQ, RAX, R10);
@@ -596,7 +590,7 @@ public:
         return clob | RAX | RCX;
     }
 
-    virtual void fix_R10_index(Register r, X64 *x64) {
+    virtual void fix_index(Register r, Register i, X64 *x64) {
     }
 
     virtual Storage compile(X64 *x64) {
@@ -622,7 +616,7 @@ public:
         x64->op(MOVQ, R10, Address(RAX, length_offset));
 
         // R10 contains the index of the newly removed element
-        fix_R10_index(RAX, x64);
+        fix_index(RAX, R10, x64);
 
         x64->op(IMUL3Q, RCX, R10, elem_size);
         

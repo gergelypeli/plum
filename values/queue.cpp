@@ -4,27 +4,27 @@ int queue_elem_size(TypeSpec elem_ts) {
 }
 
 
-void fix_R10_index_overflow(Register r, X64 *x64) {
+void fix_index_overflow(Register r, Register i, X64 *x64) {
     Label ok;
-    x64->op(ADDQ, R10, Address(r, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(CMPQ, R10, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
+    x64->op(ADDQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
+    x64->op(CMPQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
     x64->op(JL, ok);
 
     //x64->err("Fixing index overflow.");
-    x64->op(SUBQ, R10, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
+    x64->op(SUBQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
         
     x64->code_label(ok);
 }
 
 
-void fix_R10_index_underflow(Register r, X64 *x64) {
+void fix_index_underflow(Register r, Register i, X64 *x64) {
     Label ok;
-    x64->op(ADDQ, R10, Address(r, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(CMPQ, R10, 0);
+    x64->op(ADDQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
+    x64->op(CMPQ, i, 0);
     x64->op(JGE, ok);
         
     //x64->err("Fixing index underflow.");
-    x64->op(ADDQ, R10, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
+    x64->op(ADDQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
         
     x64->code_label(ok);
 }
@@ -210,8 +210,8 @@ public:
         :ContainerIndexValue(o, pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_ELEMS_OFFSET) {
     }
 
-    virtual void fix_R10_index(Register r, X64 *x64) {
-        fix_R10_index_overflow(r, x64);
+    virtual void fix_index(Register r, Register i, X64 *x64) {
+        fix_index_overflow(r, i, x64);
     }
 };
 
@@ -246,8 +246,8 @@ public:
         :ContainerPushValue(l, match, CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone, compile_queue_grow) {
     }
 
-    virtual void fix_R10_index(Register r, X64 *x64) {
-        fix_R10_index_overflow(r, x64);
+    virtual void fix_index(Register r, Register i, X64 *x64) {
+        fix_index_overflow(r, i, x64);
     }
 };
 
@@ -258,8 +258,8 @@ public:
         :ContainerPopValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone) {
     }
 
-    virtual void fix_R10_index(Register r, X64 *x64) {
-        fix_R10_index_overflow(r, x64);
+    virtual void fix_index(Register r, Register i, X64 *x64) {
+        fix_index_overflow(r, i, x64);
     }
 };
 
@@ -270,11 +270,11 @@ public:
         :QueuePushValue(l, match) {
     }
 
-    virtual void fix_R10_index(Register r, X64 *x64) {
+    virtual void fix_index(Register r, Register i, X64 *x64) {
         // Compute the new front, and use it for the element index
-        x64->op(MOVQ, R10, -1);
-        fix_R10_index_underflow(r, x64);
-        x64->op(MOVQ, Address(r, CIRCULARRAY_FRONT_OFFSET), R10);
+        x64->op(MOVQ, i, -1);
+        fix_index_underflow(r, i, x64);
+        x64->op(MOVQ, Address(r, CIRCULARRAY_FRONT_OFFSET), i);
     }
 };
 
@@ -285,11 +285,11 @@ public:
         :QueuePopValue(l, match) {
     }
 
-    virtual void fix_R10_index(Register r, X64 *x64) {
+    virtual void fix_index(Register r, Register i, X64 *x64) {
         // Compute the new front, and use the old one for the element index
-        x64->op(MOVQ, R10, 1);
-        fix_R10_index_overflow(r, x64);
-        x64->op(XCHGQ, R10, Address(r, CIRCULARRAY_FRONT_OFFSET));
+        x64->op(MOVQ, i, 1);
+        fix_index_overflow(r, i, x64);
+        x64->op(XCHGQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
     }
 };
 
@@ -343,7 +343,7 @@ public:
 
         Storage r = ContainerNextValue::compile(x64);
 
-        fix_R10_index_overflow(r.reg, x64);
+        fix_index_overflow(r.reg, R10, x64);
         
         x64->op(IMUL3Q, R10, R10, elem_size);
         x64->op(LEA, r.reg, Address(r.reg, R10, CIRCULARRAY_ELEMS_OFFSET));
@@ -384,7 +384,7 @@ public:
         x64->op(SUBQ, RSP, item_stack_size);
         x64->op(MOVQ, Address(RSP, 0), R10);
 
-        fix_R10_index_overflow(r.reg, x64);
+        fix_index_overflow(r.reg, R10, x64);
 
         x64->op(IMUL3Q, R10, R10, elem_size);
         x64->op(LEA, r.reg, Address(r.reg, R10, CIRCULARRAY_ELEMS_OFFSET));

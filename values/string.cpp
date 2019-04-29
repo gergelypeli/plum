@@ -268,7 +268,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RCX, RDX);
+        Regs clob = left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RBX);
 
         if (lvalue_needed)
             clob = clob | Regs::heapvars();
@@ -289,27 +289,25 @@ public:
         right->compile_and_store(x64, Storage(STACK));
         
         x64->op(POPQ, RAX);  // index
-        x64->op(POPQ, R10);  // ptr
-        x64->op(POPQ, RCX);  // front
-        x64->op(POPQ, RDX);  // length
+        x64->op(POPQ, RBX);  // ptr
+        x64->op(POPQ, R10);  // front
+        x64->op(POPQ, R11);  // length
 
         Label ok;
-        x64->op(CMPQ, RAX, RDX);
+        x64->op(CMPQ, RAX, R11);
         x64->op(JB, ok);
 
         // all popped
-        heap_ts.decref(R10, x64);
+        heap_ts.decref(RBX, x64);
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
-        x64->op(ADDQ, RAX, RCX);
-        x64->op(IMUL3Q, RAX, RAX, elem_size);
-        x64->op(LEA, RAX, Address(RAX, R10, LINEARRAY_ELEMS_OFFSET));
-
-        // Borrow Lvalue container
-        x64->op(MOVQ, unborrow->get_address(), R10);
-        Storage t = Storage(MEMORY, Address(RAX, 0));
+        x64->op(MOVQ, unborrow->get_address(), RBX);
+        x64->op(ADDQ, RAX, R10);
         
+        Address addr = index_addr(RBX, RAX, elem_size, LINEARRAY_ELEMS_OFFSET, x64);
+        Storage t = Storage(MEMORY, addr);
+
         if (value_storage.where != NOWHERE)
             t = ts.store(t, value_storage, x64);
             
