@@ -305,7 +305,7 @@ public:
         x64->op(MOVQ, unborrow->get_address(), RBX);
         x64->op(ADDQ, RAX, R10);
         
-        Address addr = index_addr(RBX, RAX, elem_size, LINEARRAY_ELEMS_OFFSET, x64);
+        Address addr = x64->runtime->make_address(RBX, RAX, elem_size, LINEARRAY_ELEMS_OFFSET);
         Storage t = Storage(MEMORY, addr);
 
         if (value_storage.where != NOWHERE)

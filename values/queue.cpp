@@ -343,7 +343,7 @@ public:
 
         fix_index_overflow(r, i, x64);
         
-        Address addr = index_addr(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET, x64);
+        Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
         
         return Storage(MEMORY, addr);
     }
@@ -377,7 +377,7 @@ public:
 
         fix_index_overflow(r, i, x64);
 
-        Address addr = index_addr(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET, x64);
+        Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
         
         Storage s = Storage(MEMORY, addr);
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));

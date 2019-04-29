@@ -56,7 +56,7 @@ void rbtree_preappend2(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     // R10 - new addition. Returns the Ref in RAX.
     Label ok;
 
-    load_ref(RAX, R11, ref_storage, x64);
+    x64->runtime->load_lvalue(RAX, R11, ref_storage);
     
     x64->op(ADDQ, R10, Address(RAX, RBTREE_LENGTH_OFFSET));
     x64->op(CMPQ, R10, Address(RAX, RBTREE_RESERVATION_OFFSET));
@@ -65,7 +65,7 @@ void rbtree_preappend2(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     Label grow_label = x64->once->compile(compile_rbtree_grow, elem_ts);
     x64->op(CALL, grow_label);  // clobbers all
     
-    store_ref(RAX, R11, ref_storage, x64);
+    x64->runtime->store_lvalue(RAX, R11, ref_storage);
     
     x64->code_label(ok);
 }

@@ -584,6 +584,10 @@ public:
     void r10bcompar(bool is_unsigned);
     void copy(Address s, Address t, int size);
     void fix_address(Address address);
+
+    void load_lvalue(Register reg, Register tmp, Storage ref_storage);
+    void store_lvalue(Register reg, Register tmp, Storage ref_storage);
+    Address make_address(Register base, Register index, int scale, int offset);
     
     void log(std::string message);
     void logref(std::string message, Register r);
@@ -629,3 +633,5 @@ public:
         accounting->adjust_stack_usage(mod);
     }
 };
+
+

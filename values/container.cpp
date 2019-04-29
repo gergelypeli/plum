@@ -1,46 +1,4 @@
 
-void load_ref(Register reg, Register tmp, Storage ref_storage, X64 *x64) {
-    if (ref_storage.where == MEMORY) {
-        x64->op(MOVQ, reg, ref_storage.address);
-    }
-    else if (ref_storage.where == ALIAS) {
-        x64->op(MOVQ, tmp, ref_storage.address);
-        x64->op(MOVQ, reg, Address(tmp, ref_storage.value));
-    }
-    else
-        throw INTERNAL_ERROR;
-}
-
-
-void store_ref(Register reg, Register tmp, Storage ref_storage, X64 *x64) {
-    if (ref_storage.where == MEMORY) {
-        x64->op(MOVQ, ref_storage.address, reg);
-    }
-    else if (ref_storage.where == ALIAS) {
-        x64->op(MOVQ, tmp, ref_storage.address);
-        x64->op(MOVQ, Address(tmp, ref_storage.value), reg);
-    }
-    else
-        throw INTERNAL_ERROR;
-}
-
-
-Address index_addr(Register base, Register index, int scale, int offset, X64 * x64) {
-    if (scale == 1)
-        return Address(base, index, Address::SCALE_1, offset);
-    else if (scale == 2)
-        return Address(base, index, Address::SCALE_2, offset);
-    else if (scale == 4)
-        return Address(base, index, Address::SCALE_4, offset);
-    else if (scale == 8)
-        return Address(base, index, Address::SCALE_8, offset);
-    else {
-        x64->op(IMUL3Q, index, index, scale);
-        return Address(base, index, offset);
-    }
-}
-
-
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
     // FIXME: this won't work for ptr
     TypeSpec x = ts.rvalue();
@@ -115,7 +73,7 @@ void container_preappend2(int reservation_offset, int length_offset, Label grow_
     // R10 - new addition. Returns the Ref in RAX.
     Label ok;
 
-    load_ref(RAX, R11, ref_storage, x64);
+    x64->runtime->load_lvalue(RAX, R11, ref_storage);
 
     x64->op(ADDQ, R10, Address(RAX, length_offset));
     x64->op(CMPQ, R10, Address(RAX, reservation_offset));
@@ -123,7 +81,7 @@ void container_preappend2(int reservation_offset, int length_offset, Label grow_
 
     x64->op(CALL, grow_label);  // clobbers all
 
-    store_ref(RAX, R11, ref_storage, x64);
+    x64->runtime->store_lvalue(RAX, R11, ref_storage);
     
     x64->code_label(ok);
 }
@@ -133,7 +91,7 @@ void container_cow(Label clone_label, Storage ref_storage, X64 *x64) {
     // No runtime arguments. Returns the borrowed Ref in RAX
     Label end;
     
-    load_ref(RAX, R11, ref_storage, x64);
+    x64->runtime->load_lvalue(RAX, R11, ref_storage);
 
     x64->runtime->oneref(RAX);
     x64->op(JE, end);
@@ -145,7 +103,7 @@ void container_cow(Label clone_label, Storage ref_storage, X64 *x64) {
     // The RAX returned is a borrowed reference, and needs no decref later.
     x64->op(CALL, clone_label);  // clobbers all
 
-    store_ref(RAX, R11, ref_storage, x64);
+    x64->runtime->store_lvalue(RAX, R11, ref_storage);
     
     x64->code_label(end);
 }
@@ -277,7 +235,7 @@ public:
         x64->op(MOVQ, unborrow->get_address(), r);
         fix_index(r, i, x64);
 
-        Address addr = index_addr(r, i, elem_size, elems_offset, x64);
+        Address addr = x64->runtime->make_address(r, i, elem_size, elems_offset);
         Storage t(MEMORY, addr);
         
         if (value_storage.where != NOWHERE)

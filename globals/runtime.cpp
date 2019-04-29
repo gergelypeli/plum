@@ -1131,6 +1131,48 @@ void Runtime::copy(Address s, Address t, int size) {
 }
 
 
+void Runtime::load_lvalue(Register reg, Register tmp, Storage ref_storage) {
+    if (ref_storage.where == MEMORY) {
+        x64->op(MOVQ, reg, ref_storage.address);
+    }
+    else if (ref_storage.where == ALIAS) {
+        x64->op(MOVQ, tmp, ref_storage.address);
+        x64->op(MOVQ, reg, Address(tmp, ref_storage.value));
+    }
+    else
+        throw INTERNAL_ERROR;
+}
+
+
+void Runtime::store_lvalue(Register reg, Register tmp, Storage ref_storage) {
+    if (ref_storage.where == MEMORY) {
+        x64->op(MOVQ, ref_storage.address, reg);
+    }
+    else if (ref_storage.where == ALIAS) {
+        x64->op(MOVQ, tmp, ref_storage.address);
+        x64->op(MOVQ, Address(tmp, ref_storage.value), reg);
+    }
+    else
+        throw INTERNAL_ERROR;
+}
+
+
+Address Runtime::make_address(Register base, Register index, int scale, int offset) {
+    if (scale == 1)
+        return Address(base, index, Address::SCALE_1, offset);
+    else if (scale == 2)
+        return Address(base, index, Address::SCALE_2, offset);
+    else if (scale == 4)
+        return Address(base, index, Address::SCALE_4, offset);
+    else if (scale == 8)
+        return Address(base, index, Address::SCALE_8, offset);
+    else {
+        x64->op(IMUL3Q, index, index, scale);
+        return Address(base, index, offset);
+    }
+}
+
+
 void Runtime::log(std::string message) {
     int message_offset = x64->data.size();
     x64->data_zstring(message);

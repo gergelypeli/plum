@@ -345,7 +345,7 @@ public:
         if (right)
             right->compile_and_store(x64, Storage(STACK));
 
-        load_ref(RAX, R11, ls, x64);
+        x64->runtime->load_lvalue(RAX, R11, ls);
         
         if (right)
             x64->op(POPQ, R10);
@@ -354,7 +354,7 @@ public:
             
         x64->op(CALL, realloc_array);  // clobbers all
 
-        store_ref(RAX, R11, ls, x64);  // technically not an assignment
+        x64->runtime->store_lvalue(RAX, R11, ls);  // technically not an assignment
         
         return ls;
     }
@@ -528,7 +528,7 @@ public:
         length_value->compile_and_store(x64, Storage(STACK));
         
         // borrow array ref
-        load_ref(RAX, R11, as, x64);
+        x64->runtime->load_lvalue(RAX, R11, as);
         
         x64->op(MOVQ, R10, Address(RSP, 0));  // extra length (keep on stack)
         x64->op(ADDQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -538,7 +538,7 @@ public:
         // Need to reallocate
         x64->op(CALL, realloc_array);  // clobbers all
 
-        store_ref(RAX, R11, as, x64);
+        x64->runtime->store_lvalue(RAX, R11, as);
         
         x64->code_label(ok);
         x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -599,7 +599,7 @@ public:
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
         int elem_size = elem_ts.measure_elem();
         
-        Address addr = index_addr(r, i, elem_size, LINEARRAY_ELEMS_OFFSET, x64);
+        Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
         
         return Storage(MEMORY, addr);
     }
@@ -631,7 +631,7 @@ public:
         x64->op(SUBQ, RSP, item_stack_size);
         x64->op(MOVQ, Address(RSP, 0), i);
         
-        Address addr = index_addr(r, i, elem_size, LINEARRAY_ELEMS_OFFSET, x64);
+        Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
         
         Storage s = Storage(MEMORY, addr);
         Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
