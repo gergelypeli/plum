@@ -307,198 +307,50 @@ void nosy_postremove(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
 }
 
 
-TypeSpec nosy_ts(TypeSpec ts) {
-    return ts.prefix(nosyvalue_type);
+// NosyRbtree
+
+TypeSpec denosy_ts(TypeSpec ts) {
+    if (ts[0] == nosyvalue_type)
+        return ts.reprefix(nosyvalue_type, ptr_type);
+    else
+        return ts;
 }
 
 
-TypeSpec ptr_ts(TypeSpec ts) {
-    return ts.prefix(ptr_type);
+TypeSpec item_key_ts(TypeSpec ts) {
+    if (ts[0] == item_type) {
+        TypeMatch tm = ts.match();
+        
+        return tm[1];
+    }
+    else
+        return ts;
 }
 
 
-// WeakValueMap
-
-TypeSpec wvm_elem_ts(TypeMatch &tm) {
-    return typesubst(SAME_SAMEID2_NOSYVALUE_ITEM_TS, tm);
+TypeSpec item_value_ts(TypeSpec ts) {
+    if (ts[0] == item_type) {
+        TypeMatch tm = ts.match();
+        
+        return tm[2];
+    }
+    else
+        return ts;
 }
 
 
-//Value *wvm_rbtree(Value *v, TypeMatch &tm, Scope *s) {
-//    TypeSpec rbts = typesubst(SAME_SAMEID2_NOSYVALUE_ITEM_RBTREE_REF_TS, tm);
-//    return make<NosyContainerMemberValue>(v, rbts, s);
-//}
-
-
-class WeakValueMapLengthValue: public RbtreeLengthValue {
+class NosyRbtreeLengthValue: public RbtreeLengthValue {
 public:
-    WeakValueMapLengthValue(Value *l, TypeMatch &tm)
-        :RbtreeLengthValue(l, wvm_elem_ts(tm)) {
+    NosyRbtreeLengthValue(Value *l, TypeSpec elem_ts)
+        :RbtreeLengthValue(l, elem_ts) {
     }
 };
 
 
-class WeakValueMapAddValue: public RbtreeAddItemValue {
+class NosyRbtreeAddValue: public RbtreeAddValue {
 public:
-    WeakValueMapAddValue(Value *l, TypeMatch &tm)
-        :RbtreeAddItemValue(l, tm[1], nosy_ts(tm[2]), tm[1], ptr_ts(tm[2])) {
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return RbtreeAddItemValue::precompile(preferred) | Regs::all();
-    }
-
-    virtual Storage compile(X64 *x64) {
-        Storage ps = RbtreeAddItemValue::compile(x64);
-        
-        // Using the ps+SELFX+KEYX
-        nosy_postadd(elem_ts, ps, x64);  // clobbers all
-        
-        return ps;
-    }
-};
-
-
-class WeakValueMapRemoveValue: public RbtreeRemoveValue {
-public:
-    WeakValueMapRemoveValue(Value *l, TypeMatch &tm)
-        :RbtreeRemoveValue(l, wvm_elem_ts(tm), tm[1]) {
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return RbtreeRemoveValue::precompile(preferred) | Regs::all();
-    }
-
-    virtual Storage compile(X64 *x64) {
-        Storage ps = RbtreeRemoveValue::compile(x64);
-        
-        // Using the ps+SELFX+KEYX
-        nosy_postremove(elem_ts, ps, x64);  // clobbers all
-        
-        return ps;
-    }
-};
-
-
-class WeakValueMapHasValue: public RbtreeHasValue {
-public:
-    WeakValueMapHasValue(Value *l, TypeMatch &tm)
-        :RbtreeHasValue(l, wvm_elem_ts(tm), tm[1]) {
-    }
-};
-
-
-class WeakValueMapIndexValue: public RbtreeIndexValue {
-public:
-    WeakValueMapIndexValue(Value *l, TypeMatch &tm)
-        :RbtreeIndexValue(l, tm[1], wvm_elem_ts(tm), tm[1], ptr_ts(tm[2])) {
-        // NOTE: We must not return an Lvalue to this NosyValue!
-    }
-};
-
-
-// WeakIndexMap
-
-TypeSpec wim_elem_ts(TypeMatch &tm) {
-    return typesubst(SAMEID_NOSYVALUE_SAME2_ITEM_TS, tm);
-}
-
-
-//Value *wim_rbtree(Value *v, TypeMatch &tm) {
-//    return make<NosyContainerMemberValue>(v, typesubst(SAMEID_NOSYVALUE_SAME2_ITEM_RBTREE_REF_TS, tm));
-//}
-
-
-class WeakIndexMapLengthValue: public RbtreeLengthValue {
-public:
-    WeakIndexMapLengthValue(Value *l, TypeMatch &tm)
-        :RbtreeLengthValue(l, wim_elem_ts(tm)) {
-    }
-};
-
-
-class WeakIndexMapAddValue: public RbtreeAddItemValue {
-public:
-    WeakIndexMapAddValue(Value *l, TypeMatch &tm)
-        :RbtreeAddItemValue(l, nosy_ts(tm[1]), tm[2], ptr_ts(tm[1]), tm[2]) {
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return RbtreeAddItemValue::precompile(preferred) | Regs::all();
-    }
-
-    virtual Storage compile(X64 *x64) {
-        Storage ps = RbtreeAddItemValue::compile(x64);
-
-        // Using the ps+SELFX+KEYX
-        nosy_postadd(elem_ts, ps, x64);  // clobbers all
-        
-        return ps;
-    }
-};
-
-
-class WeakIndexMapRemoveValue: public RbtreeRemoveValue {
-public:
-    WeakIndexMapRemoveValue(Value *l, TypeMatch &tm)
-        :RbtreeRemoveValue(l, wim_elem_ts(tm), ptr_ts(tm[1])) {
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        return RbtreeRemoveValue::precompile(preferred) | Regs::all();
-    }
-
-    virtual Storage compile(X64 *x64) {
-        Storage ps = RbtreeRemoveValue::compile(x64);
-        
-        // Using the ps+SELFX+KEYX
-        nosy_postremove(elem_ts, ps, x64);  // clobbers all
-        
-        return ps;
-    }
-};
-
-
-class WeakIndexMapHasValue: public RbtreeHasValue {
-public:
-    WeakIndexMapHasValue(Value *l, TypeMatch &tm)
-        :RbtreeHasValue(l, wim_elem_ts(tm), ptr_ts(tm[1])) {
-    }
-};
-
-
-class WeakIndexMapIndexValue: public RbtreeIndexValue {
-public:
-    WeakIndexMapIndexValue(Value *l, TypeMatch &tm)
-        :RbtreeIndexValue(l, nosy_ts(tm[1]), wim_elem_ts(tm), ptr_ts(tm[1]), tm[2]) {
-    }
-};
-
-
-// WeakSet
-
-TypeSpec ws_elem_ts(TypeMatch &tm) {
-    return typesubst(SAMEID_NOSYVALUE_TS, tm);
-}
-
-
-//Value *ws_rbtree(Value *v, TypeMatch &tm) {
-//    return make<NosyContainerMemberValue>(v, typesubst(SAMEID_NOSYVALUE_RBTREE_REF_TS, tm));
-//}
-
-
-class WeakSetLengthValue: public RbtreeLengthValue {
-public:
-    WeakSetLengthValue(Value *l, TypeMatch &tm)
-        :RbtreeLengthValue(l, ws_elem_ts(tm)) {
-    }
-};
-
-
-class WeakSetAddValue: public RbtreeAddValue {
-public:
-    WeakSetAddValue(Value *l, TypeMatch &tm)
-        :RbtreeAddValue(l, ws_elem_ts(tm), ptr_ts(tm[1])) {
+    NosyRbtreeAddValue(Value *l, TypeSpec elem_ts)
+        :RbtreeAddValue(l, elem_ts, denosy_ts(elem_ts)) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -516,10 +368,31 @@ public:
 };
 
 
-class WeakSetRemoveValue: public RbtreeRemoveValue {
+class NosyRbtreeAddItemValue: public RbtreeAddItemValue {
 public:
-    WeakSetRemoveValue(Value *l, TypeMatch &tm)
-        :RbtreeRemoveValue(l, ws_elem_ts(tm), ptr_ts(tm[1])) {
+    NosyRbtreeAddItemValue(Value *l, TypeSpec elem_ts)
+        :RbtreeAddItemValue(l, item_key_ts(elem_ts), item_value_ts(elem_ts), denosy_ts(item_key_ts(elem_ts)), denosy_ts(item_value_ts(elem_ts))) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeAddItemValue::precompile(preferred) | Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage ps = RbtreeAddItemValue::compile(x64);
+        
+        // Using the ps+SELFX+KEYX
+        nosy_postadd(elem_ts, ps, x64);  // clobbers all
+        
+        return ps;
+    }
+};
+
+
+class NosyRbtreeRemoveValue: public RbtreeRemoveValue {
+public:
+    NosyRbtreeRemoveValue(Value *l, TypeSpec elem_ts)
+        :RbtreeRemoveValue(l, elem_ts, denosy_ts(item_key_ts(elem_ts))) {
     }
 
     virtual Regs precompile(Regs preferred) {
@@ -537,9 +410,18 @@ public:
 };
 
 
-class WeakSetHasValue: public RbtreeHasValue {
+class NosyRbtreeHasValue: public RbtreeHasValue {
 public:
-    WeakSetHasValue(Value *l, TypeMatch &tm)
-        :RbtreeHasValue(l, ws_elem_ts(tm), ptr_ts(tm[1])) {
+    NosyRbtreeHasValue(Value *l, TypeSpec elem_ts)
+        :RbtreeHasValue(l, elem_ts, denosy_ts(item_key_ts(elem_ts))) {
+    }
+};
+
+
+class NosyRbtreeIndexValue: public RbtreeIndexValue {
+public:
+    NosyRbtreeIndexValue(Value *l, TypeSpec elem_ts)
+        :RbtreeIndexValue(l, item_key_ts(elem_ts), elem_ts, denosy_ts(item_key_ts(elem_ts)), denosy_ts(item_value_ts(elem_ts))) {
+        // NOTE: We must not return an Lvalue to this NosyValue!
     }
 };

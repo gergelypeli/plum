@@ -25,6 +25,7 @@
 #include "nosy.cpp"
 #include "debug.cpp"
 
+// These Rbtree related defines are used only to keep the code a bit more readable.
 // Register usage:
 // ROOTX - index of current node
 // R10 - return of operation
@@ -48,4 +49,3 @@
 #undef ROOTX
 #undef THISX
 #undef THATX
-

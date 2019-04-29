@@ -150,20 +150,21 @@ void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
 
 class NosytreeMemberValue: public Value, public Aliaser {
 public:
-    TypeSpec heap_ts;
+    TypeSpec elem_ts;
     std::unique_ptr<Value> pivot;
     Unborrow *unborrow;
 
-    NosytreeMemberValue(Value *p, TypeSpec member_ts)
-        :Value(member_ts) {
+    NosytreeMemberValue(Value *p, TypeSpec ets)
+        :Value(ets.prefix(rbtree_type).prefix(ref_type)) {
         pivot.reset(p);
-        heap_ts = member_ts.prefix(nosytree_type);
+        elem_ts = ets;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (lvalue_needed)
             check_alias(scope);
 
+        TypeSpec heap_ts = ts.prefix(nosytree_type);
         unborrow = new Unborrow(heap_ts);
         scope->add(unborrow);
         
@@ -185,10 +186,10 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        TypeSpec heap_ts = ts.prefix(nosytree_type);
         Register r;
         
         if (lvalue_needed) {
-            TypeSpec elem_ts = ts.unprefix(ref_type).unprefix(rbtree_type);
             Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
 
             Storage ps = pivot->compile_and_alias(x64, get_alias());
