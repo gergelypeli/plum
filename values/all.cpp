@@ -22,7 +22,7 @@
 #include "function.cpp"
 #include "option.cpp"
 #include "float.cpp"
-#include "nosy.cpp"
+#include "weakref.cpp"
 #include "debug.cpp"
 
 // These Rbtree related defines are used only to keep the code a bit more readable.
@@ -43,6 +43,7 @@
 #include "rbtree_helpers.cpp"
 #include "rbtree.cpp"
 #include "rbtree_mapset.cpp"
+#include "rbtree_weakmapset.cpp"
 
 #undef SELFX
 #undef KEYX
