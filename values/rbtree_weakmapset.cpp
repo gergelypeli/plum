@@ -1,5 +1,5 @@
 
-// Weaktree
+// Type manipulations for unified case handling
 
 int nosyvalue_offset(TypeSpec elem_ts) {
     if (elem_ts[0] == nosyvalue_type)
@@ -37,7 +37,39 @@ TypeSpec nosyvalue_heap_ts(TypeSpec elem_ts) {
 }
 
 
-void rbtree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64) {
+TypeSpec denosy_ts(TypeSpec ts) {
+    if (ts[0] == nosyvalue_type)
+        return ts.reprefix(nosyvalue_type, ptr_type);
+    else
+        return ts;
+}
+
+
+TypeSpec item_key_ts(TypeSpec ts) {
+    if (ts[0] == item_type) {
+        TypeMatch tm = ts.match();
+        
+        return tm[1];
+    }
+    else
+        return ts;
+}
+
+
+TypeSpec item_value_ts(TypeSpec ts) {
+    if (ts[0] == item_type) {
+        TypeMatch tm = ts.match();
+        
+        return tm[2];
+    }
+    else
+        return ts;
+}
+
+
+// Helper functions
+
+void nosytree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64) {
     // R10 - callback address, R11 - nosytree address
     int noffset = nosyvalue_offset(elem_ts);
     Label elem_check, elem_loop;
@@ -67,206 +99,6 @@ void rbtree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64) {
     x64->op(JNE, elem_loop);
 }
 
-
-void compile_nosytree_finalizer(Label label, TypeSpec elem_ts, X64 *x64) {
-    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("finalizer"));
-    x64->runtime->log("Nosytree finalized.");
-
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
-    
-    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
-        
-    x64->op(LEA, R10, Address(callback_label, 0));
-    x64->op(LEA, R11, Address(RAX, NOSYTREE_MEMBER_OFFSET));
-    rbtree_fcb_action(x64->runtime->fcb_free_label, elem_ts, x64);  // clobbers all
-        
-    // If an iterator is referring to this rbtree, it must have increased all
-    // reference counts to make sure they continue to point to a valid object.
-    // Once we destroy the Rbtree Ref, only iterator(s) will be the owner(s)
-    // of this rbtree.
-
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
-    
-    TypeSpec member_ts = elem_ts.prefix(rbtree_type).prefix(ref_type);
-    member_ts.destroy(Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), x64);
-    
-    x64->op(RET);
-}
-
-
-void alloc_nosytree(TypeSpec elem_ts, X64 *x64) {
-    Label finalizer_label = x64->once->compile(compile_nosytree_finalizer, elem_ts);
-
-    x64->op(PUSHQ, REFERENCE_SIZE);
-    x64->op(LEA, R10, Address(finalizer_label, 0));
-    x64->op(PUSHQ, R10);
-    x64->runtime->heap_alloc();  // clobbers all
-    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
-
-    // Ref to Nosytree in RAX
-}
-
-
-void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
-    // RAX - Nosytree Ref
-    // Return a cloned Ref
-    TypeSpec rbtree_heap_ts = elem_ts.prefix(rbtree_type);
-    TypeSpec member_ts = rbtree_heap_ts.prefix(ref_type);
-    TypeSpec container_heap_ts = member_ts.prefix(nosytree_type);
-    
-    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
-    Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
-    
-    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("clone"));
-    x64->runtime->log("XXX Nosytree clone");
-
-    x64->op(MOVQ, R10, Address(RAX, NOSYTREE_MEMBER_OFFSET));  // Rbtree ref
-    rbtree_heap_ts.incref(R10, x64);
-    x64->op(PUSHQ, R10);
-    
-    container_heap_ts.decref(RAX, x64);
-    
-    alloc_nosytree(elem_ts, x64);  // clobbers all
-    
-    x64->op(XCHGQ, RAX, Address(RSP, 0));  // push new nosy, pop old rbtree
-    
-    // Cloning the rbtree means that only the clone will be managed by FCB-s, so the
-    // original must be referred by an iterator that increased all refcounts to make
-    // sure they continue to point to valid objects until the end of the iteration.
-    x64->op(CALL, clone_label);
-    
-    x64->op(POPQ, RBX);
-    member_ts.create(Storage(REGISTER, RAX), Storage(MEMORY, Address(RBX, NOSYTREE_MEMBER_OFFSET)), x64);
-    x64->op(PUSHQ, RBX);
-
-    x64->op(LEA, R10, Address(callback_label, 0));
-    x64->op(LEA, R11, Address(RBX, NOSYTREE_MEMBER_OFFSET));
-    rbtree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
-    
-    x64->op(POPQ, RAX);
-    x64->op(RET);
-}
-
-
-class NosytreeMemberValue: public Value, public Aliaser {
-public:
-    TypeSpec elem_ts;
-    std::unique_ptr<Value> pivot;
-    Unborrow *unborrow;
-
-    NosytreeMemberValue(Value *p, TypeSpec ets)
-        :Value(ets.prefix(rbtree_type).prefix(ref_type)) {
-        pivot.reset(p);
-        elem_ts = ets;
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (lvalue_needed)
-            check_alias(scope);
-
-        TypeSpec heap_ts = ts.prefix(nosytree_type);
-        unborrow = new Unborrow(heap_ts);
-        scope->add(unborrow);
-        
-        return Value::check(args, kwargs, scope);
-    }
-
-    virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred);
-        
-        if (lvalue_needed) {
-            // We COW an lvalue argument, may clobber any variables
-            clob = Regs::all() | Regs::stackvars() | Regs::heapvars();
-        }
-        else {
-            clob = clob | Regs(RAX);
-        }
-
-        return clob;
-    }
-
-    virtual Storage compile(X64 *x64) {
-        TypeSpec heap_ts = ts.prefix(nosytree_type);
-        Register r;
-        
-        if (lvalue_needed) {
-            Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
-
-            Storage ps = pivot->compile_and_alias(x64, get_alias());
-
-            container_cow(clone_label, ps, x64);  // leaves borrowed Ref in RAX
-            r = RAX;
-
-            heap_ts.incref(r, x64);
-        }
-        else {
-            Storage s = pivot->compile(x64);
-        
-            switch (s.where) {
-            case REGISTER:
-                r = s.reg;
-                break;
-            case MEMORY:
-                r = RAX;
-                x64->op(MOVQ, r, s.address);
-                heap_ts.incref(r, x64);
-                break;
-            default:
-                throw INTERNAL_ERROR;
-            }
-        }
-
-        x64->op(MOVQ, unborrow->get_address(), r);
-        
-        return Storage(MEMORY, Address(r, NOSYTREE_MEMBER_OFFSET));
-    }
-};
-
-
-class WeaktreeValue: public Value {
-public:
-    TypeSpec elem_ts;
-    std::unique_ptr<Value> member_value;
-
-    WeaktreeValue(Value *pivot, TypeSpec ets, TypeSpec cts)
-        :Value(cts) {
-        elem_ts = ets;
-        member_value.reset(pivot);
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        return member_value->check(args, kwargs, scope);  // for the Rbtree initializers
-    }
-    
-    virtual Regs precompile(Regs preferred) {
-        member_value->precompile(preferred);
-        return Regs::all();
-    }
-
-    virtual Storage compile(X64 *x64) {
-        TypeSpec member_ts = elem_ts.prefix(rbtree_type).prefix(ref_type);
-        Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
-
-        member_value->compile_and_store(x64, Storage(STACK));
-
-        alloc_nosytree(elem_ts, x64);  // clobbers all
-
-        member_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), x64);
-        
-        // Must set up the FCB-s
-        x64->op(PUSHQ, RAX);
-        
-        x64->op(LEA, R10, Address(callback_label, 0));
-        x64->op(LEA, R11, Address(RAX, NOSYTREE_MEMBER_OFFSET));
-        rbtree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
-        
-        x64->op(POPQ, RAX);
-        return Storage(REGISTER, RAX);
-    }
-};
-
-
-// Weak map helpers
 
 void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64) {
     Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
@@ -349,37 +181,211 @@ void nosy_postremove(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
 }
 
 
-// NosyRbtree
+// Nosytree basics
 
-TypeSpec denosy_ts(TypeSpec ts) {
-    if (ts[0] == nosyvalue_type)
-        return ts.reprefix(nosyvalue_type, ptr_type);
-    else
-        return ts;
-}
+void compile_nosytree_finalizer(Label label, TypeSpec elem_ts, X64 *x64) {
+    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("finalizer"));
+    x64->runtime->log("Nosytree finalized.");
 
-
-TypeSpec item_key_ts(TypeSpec ts) {
-    if (ts[0] == item_type) {
-        TypeMatch tm = ts.match();
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
+    
+    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
         
-        return tm[1];
-    }
-    else
-        return ts;
-}
-
-
-TypeSpec item_value_ts(TypeSpec ts) {
-    if (ts[0] == item_type) {
-        TypeMatch tm = ts.match();
+    x64->op(LEA, R10, Address(callback_label, 0));
+    x64->op(LEA, R11, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+    nosytree_fcb_action(x64->runtime->fcb_free_label, elem_ts, x64);  // clobbers all
         
-        return tm[2];
-    }
-    else
-        return ts;
+    // If an iterator is referring to this rbtree, it must have increased all
+    // reference counts to make sure they continue to point to a valid object.
+    // Once we destroy the Rbtree Ref, only iterator(s) will be the owner(s)
+    // of this rbtree.
+
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+    
+    TypeSpec member_ts = elem_ts.prefix(rbtree_type).prefix(ref_type);
+    member_ts.destroy(Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), x64);
+    
+    x64->op(RET);
 }
 
+
+void alloc_nosytree(TypeSpec elem_ts, X64 *x64) {
+    Label finalizer_label = x64->once->compile(compile_nosytree_finalizer, elem_ts);
+
+    x64->op(PUSHQ, REFERENCE_SIZE);
+    x64->op(LEA, R10, Address(finalizer_label, 0));
+    x64->op(PUSHQ, R10);
+    x64->runtime->heap_alloc();  // clobbers all
+    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+
+    // Ref to Nosytree in RAX
+}
+
+
+void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
+    // RAX - Nosytree Ref
+    // Return a cloned Ref
+    TypeSpec rbtree_heap_ts = elem_ts.prefix(rbtree_type);
+    TypeSpec member_ts = rbtree_heap_ts.prefix(ref_type);
+    TypeSpec container_heap_ts = member_ts.prefix(nosytree_type);
+    
+    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
+    Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
+    
+    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("clone"));
+    x64->runtime->log("XXX Nosytree clone");
+
+    x64->op(MOVQ, R10, Address(RAX, NOSYTREE_MEMBER_OFFSET));  // Rbtree ref
+    rbtree_heap_ts.incref(R10, x64);
+    x64->op(PUSHQ, R10);
+    
+    container_heap_ts.decref(RAX, x64);
+    
+    alloc_nosytree(elem_ts, x64);  // clobbers all
+    
+    x64->op(XCHGQ, RAX, Address(RSP, 0));  // push new nosy, pop old rbtree
+    
+    // Cloning the rbtree means that only the clone will be managed by FCB-s, so the
+    // original must be referred by an iterator that increased all refcounts to make
+    // sure they continue to point to valid objects until the end of the iteration.
+    x64->op(CALL, clone_label);
+    
+    x64->op(POPQ, RBX);
+    member_ts.create(Storage(REGISTER, RAX), Storage(MEMORY, Address(RBX, NOSYTREE_MEMBER_OFFSET)), x64);
+    x64->op(PUSHQ, RBX);
+
+    x64->op(LEA, R10, Address(callback_label, 0));
+    x64->op(LEA, R11, Address(RBX, NOSYTREE_MEMBER_OFFSET));
+    nosytree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
+    
+    x64->op(POPQ, RAX);
+    x64->op(RET);
+}
+
+
+// Internally used access to the Rbtree Ref inside the Nosytree Ref
+
+class NosytreeMemberValue: public Value, public Aliaser {
+public:
+    TypeSpec elem_ts;
+    std::unique_ptr<Value> pivot;
+    Unborrow *unborrow;
+
+    NosytreeMemberValue(Value *p, TypeSpec ets)
+        :Value(ets.prefix(rbtree_type).prefix(ref_type)) {
+        pivot.reset(p);
+        elem_ts = ets;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (lvalue_needed)
+            check_alias(scope);
+
+        TypeSpec heap_ts = ts.prefix(nosytree_type);
+        unborrow = new Unborrow(heap_ts);
+        scope->add(unborrow);
+        
+        return Value::check(args, kwargs, scope);
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob = pivot->precompile(preferred);
+        
+        if (lvalue_needed) {
+            // We COW an lvalue argument, may clobber any variables
+            clob = Regs::all() | Regs::stackvars() | Regs::heapvars();
+        }
+        else {
+            clob = clob | Regs(RAX);
+        }
+
+        return clob;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        TypeSpec heap_ts = ts.prefix(nosytree_type);
+        Register r;
+        
+        if (lvalue_needed) {
+            Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
+
+            Storage ps = pivot->compile_and_alias(x64, get_alias());
+
+            container_cow(clone_label, ps, x64);  // leaves borrowed Ref in RAX
+            r = RAX;
+
+            heap_ts.incref(r, x64);
+        }
+        else {
+            Storage s = pivot->compile(x64);
+        
+            switch (s.where) {
+            case REGISTER:
+                r = s.reg;
+                break;
+            case MEMORY:
+                r = RAX;
+                x64->op(MOVQ, r, s.address);
+                heap_ts.incref(r, x64);
+                break;
+            default:
+                throw INTERNAL_ERROR;
+            }
+        }
+
+        x64->op(MOVQ, unborrow->get_address(), r);
+        
+        return Storage(MEMORY, Address(r, NOSYTREE_MEMBER_OFFSET));
+    }
+};
+
+
+// Wraps a newly created Rbtree in a Nosytree
+
+class WeaktreeValue: public Value {
+public:
+    TypeSpec elem_ts;
+    std::unique_ptr<Value> member_value;
+
+    WeaktreeValue(Value *pivot, TypeSpec ets, TypeSpec cts)
+        :Value(cts) {
+        elem_ts = ets;
+        member_value.reset(pivot);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        return member_value->check(args, kwargs, scope);  // for the Rbtree initializers
+    }
+    
+    virtual Regs precompile(Regs preferred) {
+        member_value->precompile(preferred);
+        return Regs::all();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        TypeSpec member_ts = elem_ts.prefix(rbtree_type).prefix(ref_type);
+        Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
+
+        member_value->compile_and_store(x64, Storage(STACK));
+
+        alloc_nosytree(elem_ts, x64);  // clobbers all
+
+        member_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), x64);
+        
+        // Must set up the FCB-s
+        x64->op(PUSHQ, RAX);
+        
+        x64->op(LEA, R10, Address(callback_label, 0));
+        x64->op(LEA, R11, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+        nosytree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
+        
+        x64->op(POPQ, RAX);
+        return Storage(REGISTER, RAX);
+    }
+};
+
+
+// Common operations on Rbtree-s with some nosy elements
 
 class NosyRbtreeLengthValue: public RbtreeLengthValue {
 public:
