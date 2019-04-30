@@ -218,8 +218,10 @@ public:
     }
 
     virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
-        Register r = preferred.get_any();
-        return Storage(REGISTER, r);
+        if (preferred.has_any())
+            return Storage(REGISTER, preferred.get_any());
+        else
+            return Storage(STACK);
     }
 
     virtual bool get_unsigned() {

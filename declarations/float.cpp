@@ -206,8 +206,10 @@ public:
     }
     
     virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
-        SseRegister r = preferred.get_sse();
-        return Storage(SSEREGISTER, r);
+        if (preferred.has_sse())
+            return Storage(SSEREGISTER, preferred.get_sse());
+        else
+            return Storage(STACK);
     }
 
     virtual void streamify(TypeMatch tm, X64 *x64) {
