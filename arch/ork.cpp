@@ -6,14 +6,55 @@ struct LineInfo {
 };
 
 
+class DwarfBuffer: public std::vector<char> {
+public:
+    void uleb128(unsigned x) {
+        while (true) {
+            if ((x & ~0x7f) == 0) {
+                push_back(x & 0x7f);
+                break;
+            }
+        
+            push_back((x & 0x7f) | 0x80);
+            x = (x & ~0x7f) / 128;  // arithmetic shift right
+        }
+    }
+
+
+    void sleb128(int x) {
+        while (true) {
+            if ((x & ~0x7f) == (x & 0x40 ? ~0x7f : 0)) {
+                push_back(x & 0x7f);
+                break;
+            }
+        
+            push_back((x & 0x7f) | 0x80);
+            x = (x & ~0x7f) / 128;  // arithmetic shift right
+        }
+    }
+
+    template <typename T>
+    int append() {
+        unsigned offset = size();
+        resize(size() + sizeof(T), 0);
+        return offset;
+    }
+    
+    template <typename T>
+    T *pointer(int offset) {
+        return (T *)&((*this)[offset]);
+    }
+};
+
+
 class Ork {
 public:
     std::vector<char> code;
     std::vector<char> data;
-    std::vector<char> lineno;
-    std::vector<char> abbrev;
-    std::vector<char> info;
     std::vector<char> strings;
+    DwarfBuffer lineno;
+    DwarfBuffer abbrev;
+    DwarfBuffer info;
     
     std::vector<Elf64_Sym> symbols;
     std::vector<Elf64_Rela> code_relocations;
@@ -23,9 +64,6 @@ public:
     
     Ork();
     ~Ork();
-
-    void uleb128(unsigned x);
-    void sleb128(int x);
     
     unsigned add_string(std::string s);
     unsigned add_symbol(std::string name, Elf64_Addr value, unsigned size, bool is_global, int type, int section);
@@ -62,32 +100,6 @@ Ork::Ork() {
 
 
 Ork::~Ork() {
-}
-
-
-void Ork::uleb128(unsigned x) {
-    while (true) {
-        if ((x & ~0x7f) == 0) {
-            lineno.push_back(x & 0x7f);
-            break;
-        }
-        
-        lineno.push_back((x & 0x7f) | 0x80);
-        x = (x & ~0x7f) / 128;  // arithmetic shift right
-    }
-}
-
-
-void Ork::sleb128(int x) {
-    while (true) {
-        if ((x & ~0x7f) == (x & 0x40 ? ~0x7f : 0)) {
-            lineno.push_back(x & 0x7f);
-            break;
-        }
-        
-        lineno.push_back((x & 0x7f) | 0x80);
-        x = (x & ~0x7f) / 128;  // arithmetic shift right
-    }
 }
 
 
@@ -197,8 +209,8 @@ struct CompilationUnitHeader {
 void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInfo> &lis) {
     // Fill .debug_line
     
-    lineno.resize(sizeof(DebugLineHeader));
-    DebugLineHeader *dlh = (DebugLineHeader *)&lineno[0];
+    int dlh_offset = lineno.append<DebugLineHeader>();
+    auto dlh = lineno.pointer<DebugLineHeader>(dlh_offset);
     
     dlh->length = 0;  // To be filled later
     dlh->version = 4;  // Not the DWARF version, but the line numbering version
@@ -222,7 +234,11 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
     dlh->std_opcode_lengths[10] = 0;
     dlh->std_opcode_lengths[11] = 1;
     
-    lineno.push_back(0);  // no include directories
+    // Include directories
+    
+    lineno.push_back(0);  // end of include directories
+    
+    // Source file names
     
     for (auto &sn : source_names) {
         for (auto &c : sn)
@@ -235,8 +251,12 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
     }
     
     lineno.push_back(0);  // end of file names
-
-    int header_length = lineno.size() - 10;  // size after header_length
+    
+    // size after header_length
+    int header_start = dlh_offset + offsetof(DebugLineHeader, min_instruction_length);
+    int header_end = lineno.size();
+    dlh = lineno.pointer<DebugLineHeader>(dlh_offset);
+    dlh->header_length = header_end - header_start;
     
     // Line numbers program opcodes
     
@@ -244,12 +264,8 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
     lineno.push_back(0);
     lineno.push_back(9);
     lineno.push_back(2);
+    Elf64_Addr line_to_code_rel_location = lineno.append<unsigned64>();  // needs 64-bits relocation to .text
     
-    Elf64_Addr line_to_code_rel_location = lineno.size();
-    
-    for (int i=0; i<8; i++)
-        lineno.push_back(0);  // needs 64-bits relocation to .text
-
     // Initialize state machine
     int sm_address = 0;
     int sm_file_index = 0;
@@ -257,85 +273,82 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
         
     for (auto &li : lis) {
         lineno.push_back(2);  // advance pc op
-        uleb128(li.address - sm_address);
+        lineno.uleb128(li.address - sm_address);
         sm_address = li.address;
 
         lineno.push_back(3);  // advance line op
-        sleb128(li.line_number - sm_line_number);
+        lineno.sleb128(li.line_number - sm_line_number);
         sm_line_number = li.line_number;
         
         if (li.file_index != sm_file_index) {
             lineno.push_back(4);  // set file op
-            uleb128(li.file_index + 1);  // DWARF file indexing from 1
+            lineno.uleb128(li.file_index + 1);  // DWARF file indexing from 1
             sm_file_index = li.file_index;
         }
         
         lineno.push_back(1);  // copy op
     }
 
-    int length = lineno.size() - 4;  // size after length
-    
-    // lineno vector may have been reallocated
-    dlh = (DebugLineHeader *)&lineno[0];
-    dlh->length = length;
-    dlh->header_length = header_length;
-    
+    // size after length
+    int debug_line_start = dlh_offset + offsetof(DebugLineHeader, version);
+    int debug_line_end = lineno.size();
+    dlh = lineno.pointer<DebugLineHeader>(dlh_offset);
+    dlh->length = debug_line_end - debug_line_start;
+
     // Fill .debug_abbrev
-    // These 3 attributes are necessary to make gdb work
-    abbrev.push_back(0x01);  // type 1
-    abbrev.push_back(0x11);  // compilation unit
-    abbrev.push_back(0x01);  // has children (well, it doesn't really)
-
-    abbrev.push_back(0x10);  // stmt list
-    abbrev.push_back(0x17);  // sec offset
-
-    abbrev.push_back(0x11);  // low pc
-    abbrev.push_back(0x01);  // address
-
-    abbrev.push_back(0x12);  // high pc
-    abbrev.push_back(0x07);  // data8
     
-    abbrev.push_back(0x00);  // end of attributes
-    abbrev.push_back(0x00);  // end of attributes
+    // These 3 attributes are necessary to make gdb work
+    abbrev.uleb128(0x01);  // abbrev number 1
+    abbrev.uleb128(0x11);  // compilation unit
+    abbrev.push_back(0x01);  // has children
 
-    abbrev.push_back(0x00);  // end of abbreviations
+    abbrev.uleb128(0x10);  // stmt list
+    abbrev.uleb128(0x17);  // sec offset
+
+    abbrev.uleb128(0x11);  // low pc
+    abbrev.uleb128(0x01);  // address
+
+    abbrev.uleb128(0x12);  // high pc
+    abbrev.uleb128(0x07);  // data8
+    
+    abbrev.uleb128(0x00);  // end of attributes
+    abbrev.uleb128(0x00);  // end of attributes
+
+    abbrev.uleb128(0x00);  // end of abbreviations
     
     // Fill .debug_info
-    info.resize(sizeof(CompilationUnitHeader));
-    CompilationUnitHeader *cuh = (CompilationUnitHeader *)&info[0];
+    
+    int cuh_offset = info.append<CompilationUnitHeader>();
+    auto cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
     
     cuh->length = 0;  // to be filled
     cuh->version = 4;
     cuh->abbrev_offset = 0;  // needs 32-bits relocation to .debug_abbrev
     cuh->address_size = 8;
 
-    Elf64_Addr info_to_abbr_rel_location = 6;
+    Elf64_Addr info_to_abbr_rel_location = cuh_offset + offsetof(CompilationUnitHeader, abbrev_offset);
     
-    info.push_back(0x01);  // abbrev 1 (compilation unit)
+    // DIE
+    info.uleb128(0x01);  // abbrev 1 (compilation unit)
 
     // stmt list
-    Elf64_Addr info_to_line_rel_location = info.size();
-    
-    for (int i=0; i<4; i++)
-        info.push_back(0x00);  // needs 32-bits relocation to .debug_line
+    Elf64_Addr info_to_line_rel_location = info.append<unsigned32>();  // needs 32-bits relocation to .debug_line
         
     // low pc
-    Elf64_Addr info_to_code_rel_location = info.size();
+    Elf64_Addr info_to_code_rel_location = info.append<unsigned64>();  // needs 64-bits relocation to .text
 
-    for (int i=0; i<8; i++)
-        info.push_back(0x00);  // needs 64-bits relocation to .text
-    
     // high pc
-    for (int i=0; i<8; i++)
-        info.push_back(0x00);  // constant length filled below
-
-    *(unsigned64 *)&info[info.size() - 8] = code.size();
-
-    info.push_back(0x00);  // abbrev 0 (end of children)
+    auto hpc_offset = info.append<unsigned64>();
+    *info.pointer<unsigned64>(hpc_offset) = code.size();
+    
+    // children
+    info.uleb128(0x00);  // end of children
     
     // info vector may have been reallocated
-    cuh = (CompilationUnitHeader *)&info[0];
-    cuh->length = info.size() - 4;
+    int info_start = cuh_offset + offsetof(CompilationUnitHeader, version);
+    int info_end = info.size();
+    cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
+    cuh->length = info_end - info_start;
     
     // Add symbols necessary for our relocations
     unsigned code_start_sym = add_symbol(".line_to_code", 0, 0, false, STT_SECTION, 6);
@@ -377,19 +390,31 @@ void Ork::done(std::string filename) {
     ehdr.e_shnum = SECTION_COUNT;
     ehdr.e_shstrndx = 1;
 
-    // Spaces will be replaced with null bytes before writing.
-    // It begins with one and ends with two spaces.
-    //                      01         11      19      27         38         49    55    61          73            87          99               116
-    char section_names[] = " .shstrtab .strtab .symtab .rela.text .rela.data .text .data .debug_line .debug_abbrev .debug_info .rela.debug_line .rela.debug_info  ";
-    for (unsigned i = 0; i < sizeof(section_names); i++)
-        if (section_names[i] == ' ')
-            section_names[i] = '\0';
+    const char *SECTION_NAMES[] = {
+        "", ".shstrtab", ".strtab", ".symtab", ".rela.text", ".rela.data", ".text", ".data", ".debug_line", ".debug_abbrev", ".debug_info", ".rela.debug_line", ".rela.debug_info"
+    };
+    
+    std::vector<char> section_names;
+    std::vector<int> section_name_offsets;
+    
+    for (int i = 0; i < SECTION_COUNT; i++) {
+        section_name_offsets.push_back(section_names.size());
+        
+        int len = strlen(SECTION_NAMES[i]);
+        
+        for (int j = 0; j < len; j++)
+            section_names.push_back(SECTION_NAMES[i][j]);
+            
+        section_names.push_back(0);
+    }
+
+    section_names.push_back(0);
     
     Elf64_Shdr shdr[SECTION_COUNT];
     int offset = sizeof(Elf64_Ehdr) + SECTION_COUNT * sizeof(Elf64_Shdr);
 
     // null
-    shdr[0].sh_name = 0;
+    shdr[0].sh_name = section_name_offsets[0];
     shdr[0].sh_type = SHT_NULL;
     shdr[0].sh_flags = 0;
     shdr[0].sh_addr = 0;
@@ -402,12 +427,12 @@ void Ork::done(std::string filename) {
     offset += shdr[0].sh_size;
     
     // .shstrtab
-    shdr[1].sh_name = 1;
+    shdr[1].sh_name = section_name_offsets[1];
     shdr[1].sh_type = SHT_STRTAB;
     shdr[1].sh_flags = 0;
     shdr[1].sh_addr = 0;
     shdr[1].sh_offset = offset;
-    shdr[1].sh_size = sizeof(section_names);
+    shdr[1].sh_size = section_names.size();
     shdr[1].sh_link = 0;
     shdr[1].sh_info = 0;
     shdr[1].sh_addralign = 0;
@@ -415,7 +440,7 @@ void Ork::done(std::string filename) {
     offset += shdr[1].sh_size;
     
     // .strtab
-    shdr[2].sh_name = 11;
+    shdr[2].sh_name = section_name_offsets[2];
     shdr[2].sh_type = SHT_STRTAB;
     shdr[2].sh_flags = 0;
     shdr[2].sh_addr = 0;
@@ -428,7 +453,7 @@ void Ork::done(std::string filename) {
     offset += shdr[2].sh_size;
     
     // .symtab
-    shdr[3].sh_name = 19;
+    shdr[3].sh_name = section_name_offsets[3];
     shdr[3].sh_type = SHT_SYMTAB;
     shdr[3].sh_flags = 0;
     shdr[3].sh_addr = 0;
@@ -441,7 +466,7 @@ void Ork::done(std::string filename) {
     offset += shdr[3].sh_size;
     
     // .rela.text
-    shdr[4].sh_name = 27;
+    shdr[4].sh_name = section_name_offsets[4];
     shdr[4].sh_type = SHT_RELA;
     shdr[4].sh_flags = 0;
     shdr[4].sh_addr = 0;
@@ -454,7 +479,7 @@ void Ork::done(std::string filename) {
     offset += shdr[4].sh_size;
     
     // .rela.data
-    shdr[5].sh_name = 38;
+    shdr[5].sh_name = section_name_offsets[5];
     shdr[5].sh_type = SHT_RELA;
     shdr[5].sh_flags = 0;
     shdr[5].sh_addr = 0;
@@ -467,7 +492,7 @@ void Ork::done(std::string filename) {
     offset += shdr[5].sh_size;
     
     // .text
-    shdr[6].sh_name = 49;
+    shdr[6].sh_name = section_name_offsets[6];
     shdr[6].sh_type = SHT_PROGBITS;
     shdr[6].sh_flags = (SHF_ALLOC | SHF_EXECINSTR);
     shdr[6].sh_addr = 0;
@@ -480,7 +505,7 @@ void Ork::done(std::string filename) {
     offset += shdr[6].sh_size;
     
     // .data
-    shdr[7].sh_name = 55;
+    shdr[7].sh_name = section_name_offsets[7];
     shdr[7].sh_type = SHT_PROGBITS;
     shdr[7].sh_flags = (SHF_ALLOC | SHF_WRITE);
     shdr[7].sh_addr = 0;
@@ -493,7 +518,7 @@ void Ork::done(std::string filename) {
     offset += shdr[7].sh_size;
 
     // .debug_line
-    shdr[8].sh_name = 61;
+    shdr[8].sh_name = section_name_offsets[8];
     shdr[8].sh_type = SHT_PROGBITS;
     shdr[8].sh_flags = 0;
     shdr[8].sh_addr = 0;
@@ -506,7 +531,7 @@ void Ork::done(std::string filename) {
     offset += shdr[8].sh_size;
 
     // .debug_abbrev
-    shdr[9].sh_name = 73;
+    shdr[9].sh_name = section_name_offsets[9];
     shdr[9].sh_type = SHT_PROGBITS;
     shdr[9].sh_flags = 0;
     shdr[9].sh_addr = 0;
@@ -519,7 +544,7 @@ void Ork::done(std::string filename) {
     offset += shdr[9].sh_size;
 
     // .debug_info
-    shdr[10].sh_name = 87;
+    shdr[10].sh_name = section_name_offsets[10];
     shdr[10].sh_type = SHT_PROGBITS;
     shdr[10].sh_flags = 0;
     shdr[10].sh_addr = 0;
@@ -532,7 +557,7 @@ void Ork::done(std::string filename) {
     offset += shdr[10].sh_size;
     
     // .rela.debug_line
-    shdr[11].sh_name = 99;
+    shdr[11].sh_name = section_name_offsets[11];
     shdr[11].sh_type = SHT_RELA;
     shdr[11].sh_flags = 0;
     shdr[11].sh_addr = 0;
@@ -545,7 +570,7 @@ void Ork::done(std::string filename) {
     offset += shdr[11].sh_size;
     
     // .rela.debug_info
-    shdr[12].sh_name = 116;
+    shdr[12].sh_name = section_name_offsets[12];
     shdr[12].sh_type = SHT_RELA;
     shdr[12].sh_flags = 0;
     shdr[12].sh_addr = 0;
@@ -562,7 +587,7 @@ void Ork::done(std::string filename) {
     if (code.size() > 2) {
         fwrite(&ehdr, sizeof(Elf64_Ehdr), 1, out);
         fwrite(&shdr, sizeof(Elf64_Shdr), SECTION_COUNT, out);
-        fwrite(section_names, 1, sizeof(section_names), out);
+        fwrite(section_names.data(), 1, section_names.size(), out);
         fwrite(strings.data(), 1, strings.size(), out);
         fwrite(symbols.data(), sizeof(Elf64_Sym), symbols.size(), out);
         fwrite(code_relocations.data(), sizeof(Elf64_Rela), code_relocations.size(), out);
