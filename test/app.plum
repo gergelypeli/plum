@@ -112,13 +112,13 @@ App? :Class Application as:
     
         Std prints(s + s)
 
-        s chars[3] = s[4]
+        :try s chars[3] = s[4]
         Std prints(s)
 
-        s chars[3] = `unicode(592)
+        :try s chars[3] = `unicode(592)
         Std prints(s)
 
-        Std prints("s[3] is now {c}" { c: s[3] })
+        :try Std prints("s[3] is now {c}" { c: s[3] })
 
         z? = ""
         Std prints("Ez tök 대박")
@@ -148,7 +148,7 @@ App? :Class Application as:
         Std prints("NUL: {NUL}")
         
         wicked? = "{NUL}{HT}{ESC}{LB}{QU}{RB}{DEL}ő"
-        Std prints("Wicked {} characters: {} {} {} {} {} {} {} {}" { wicked length, wicked[0], wicked[1], wicked[2], wicked[3], wicked[4], wicked[5], wicked[6], wicked[7] })
+        :try Std prints("Wicked {} characters: {} {} {} {} {} {} {} {}" { wicked length, wicked[0], wicked[1], wicked[2], wicked[3], wicked[4], wicked[5], wicked[6], wicked[7] })
         Std prints("Wicked {} long string: {}" { wicked length, wicked })
 
         Std prints("Uni: {U263A} {}" { Character `U263b })
@@ -169,12 +169,12 @@ App? :Class Application as:
             Std prints("REGEXP NOT MATCHED!")
     
         :is m? = "foo" ~re ".*" then:
-            Std prints("Regexp matched as: {x}" {x: m[0]})
+            :try Std prints("Regexp matched as: {x}" {x: m[0]})
         else:
             Std prints("REGEXP NOT MATCHED!")
 
         :is m? = "this and that" ~re "(th[a-z]*).*(th[a-z]+)" then:
-            Std prints("Regexp matched as {x} and {y}" {x: m[1], y: m[2]})
+            :try Std prints("Regexp matched as {x} and {y}" {x: m[1], y: m[2]})
         else:
             Std prints("REGEXP NOT MATCHED!")
         
@@ -312,7 +312,7 @@ App? :Class Application as:
             :if $ index == $ string length then:
                 :raise `ITERATOR_DONE
 
-            :return $ string[$ index]
+            :return :try $ string[$ index]
 
     test_records? :Function as:
         p? Pair = `new
@@ -534,13 +534,13 @@ App? :Class Application as:
         Std prints("Empty array length: {x}" { x: strings length })
 
         ss? String Array = { "foo", "bar" }
-        Std prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
+        :try Std prints("Nonempty array has {x} and {y}" { x: ss[0], y: ss[1] })
 
         dd? = ss + ss
-        Std prints("Doubled array has {}, {}, {}, {}" { dd[0], dd[1], dd[2], dd[3] })
+        :try Std prints("Doubled array has {}, {}, {}, {}" { dd[0], dd[1], dd[2], dd[3] })
 
         dd += ss
-        Std prints("Tripled array has {}, {}, {}, {}, {}, {}" { dd[0], dd[1], dd[2], dd[3], dd[4], dd[5] })
+        :try Std prints("Tripled array has {}, {}, {}, {}, {}, {}" { dd[0], dd[1], dd[2], dd[3], dd[4], dd[5] })
 
         Std prints("Array contents: {}" { ss })
 
@@ -557,14 +557,14 @@ App? :Class Application as:
         ss_popped2? String = :try ss pop
         Std prints("Array popped {}" { ss_popped2 })
 
-        Std prints("Array length became {}, while copy still contains {} elems {} and {}." { ss length, cc length, cc[0], cc[1] })
+        :try Std prints("Array length became {}, while copy still contains {} elems {} and {}." { ss length, cc length, cc[0], cc[1] })
 
         st? String Array = `empty
         :try st push("foo")
         :try st push("bar")
         :try st push("baz")
         Std prints("Pushed stack length: {x}" { x: st length })
-        Std prints("Pushed stack has 2. elem: {x}" { x: st[2] })
+        :try Std prints("Pushed stack has 2. elem: {x}" { x: st[2] })
 
         Std prints("Stack contents: {}" { st })
 
@@ -600,10 +600,10 @@ App? :Class Application as:
         :try ca pop
         Std prints("Have a Circularray of {x}" { x: ca length })
         ca1? String = :try ca shift
-        Std prints("Shifted {x}, remained {y} and {z}." { x: ca1, y: ca[0], z: ca[1] })
+        :try Std prints("Shifted {x}, remained {y} and {z}." { x: ca1, y: ca[0], z: ca[1] })
         :try ca unshift("foo")
         :try ca unshift("foofoo")
-        Std prints("Unshifted {x} and {y} to {z} and {w}" { x: ca[0], y: ca[1], z: ca[2], w: ca[3] })
+        :try Std prints("Unshifted {x} and {y} to {z} and {w}" { x: ca[0], y: ca[1], z: ca[2], w: ca[3] })
         Std prints("Circularray length is {l}" { l: ca length })
 
         :for ca items each: it? do:
@@ -625,7 +625,7 @@ App? :Class Application as:
 
         cc? = qv
         :try qv shift
-        Std prints("Queue length became {}, while copy still contains {} elems like {} and {}." { qv length, cc length, cc[0], cc[1] })
+        :try Std prints("Queue length became {}, while copy still contains {} elems like {} and {}." { qv length, cc length, cc[0], cc[1] })
 
 
 #Test_rbtrees? :Singleton as:
@@ -712,7 +712,7 @@ App? :Class Application as:
         :for mp items_by_order each: iv? do:
             Std prints("Map item by order: {x} => {y}" {x: iv index, y: iv value})
     
-        Std prints("Map element at A is: {x}" {x: mp["A"]})
+        :try Std prints("Map element at A is: {x}" {x: mp["A"]})
 
         cc? = mp
         :try mp add("B", "b")
@@ -976,7 +976,7 @@ App? :Class Application as:
             wvm add("x", gr)
             wvm add("y", gr)
 
-        wvm["y"] greet
+        :try wvm["y"] greet
         
         ccc? = wvm
         
@@ -988,7 +988,7 @@ App? :Class Application as:
         :try
             wim add(gr, "incorrect")
             wim add(gr, "correct")
-        Std prints("wim stores for gr: {x}" {x: wim[gr]})
+        :try Std prints("wim stores for gr: {x}" {x: wim[gr]})
         Std prints("wim length is {x}" {x: wim length})
     
         ws? Greetable WeakSet = `empty

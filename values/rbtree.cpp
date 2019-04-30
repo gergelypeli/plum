@@ -507,7 +507,7 @@ public:
 };
 
 
-class RbtreeIndexValue: public Value {
+class RbtreeIndexValue: public Value, public Raiser {
 public:
     TypeSpec key_ts, elem_ts, key_arg_ts, heap_ts;
     std::unique_ptr<Value> pivot, key;
@@ -531,7 +531,10 @@ public:
             { "key", &key_arg_ts, scope, &key }
         }))
             return false;
-            
+        
+        if (!check_raise(lookup_exception_type, scope))
+            return false;
+
         unborrow = new Unborrow(heap_ts);
         scope->add(unborrow);
         
@@ -570,15 +573,13 @@ public:
         pivot->ts.store(Storage(STACK), Storage(REGISTER, SELFX), x64);
 
         Label ok;
+        x64->op(MOVQ, unborrow->get_address(), SELFX);
         x64->op(CMPQ, KEYX, RBNODE_NIL);
         x64->op(JNE, ok);
 
-        x64->runtime->die("Map missing!");  // FIXME: raise something
-
-        x64->code_label(ok);
-
-        x64->op(MOVQ, unborrow->get_address(), SELFX);
+        raise("NOT_FOUND", x64);
         
+        x64->code_label(ok);
         Address value_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
         Storage t = Storage(MEMORY, value_addr);
         

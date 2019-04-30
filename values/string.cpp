@@ -295,15 +295,14 @@ public:
         x64->op(POPQ, R11);  // length
 
         Label ok;
+        x64->op(MOVQ, unborrow->get_address(), RBX);
         x64->op(CMPQ, RAX, R11);
         x64->op(JB, ok);
 
         // all popped
-        heap_ts.decref(RBX, x64);
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
-        x64->op(MOVQ, unborrow->get_address(), RBX);
         x64->op(ADDQ, RAX, R10);
         
         Address addr = x64->runtime->make_address(RBX, RAX, elem_size, LINEARRAY_ELEMS_OFFSET);

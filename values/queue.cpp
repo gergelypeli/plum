@@ -207,7 +207,7 @@ public:
 class QueueIndexValue: public ContainerIndexValue {
 public:
     QueueIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-        :ContainerIndexValue(o, pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_ELEMS_OFFSET) {
+        :ContainerIndexValue(o, pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET) {
     }
 
     virtual void fix_index(Register r, Register i, X64 *x64) {

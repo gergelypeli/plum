@@ -25,10 +25,10 @@ String_parser? :Class Parser as:
         $ position = 0
         
     peek_character? :Function Character as:
-        :return $ input[$ position]
+        :return :try $ input[$ position]
         
     parse_character? :Function Character as:
-        c? = $ input[$ position]
+        c? = :try $ input[$ position]
         $ position += 1
         :return c
     

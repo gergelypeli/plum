@@ -420,6 +420,9 @@ public:
 
 
 // Extend the lifetime of Lvalue containers until the end of the innermost scope
+// If created, it must be used, no runtime checks are made. This also means that
+// if an operation raises an exception, this must be set before that, because the
+// decref will happen anyway.
 class Unborrow: public Declaration {
 public:
     TypeSpec heap_ts;

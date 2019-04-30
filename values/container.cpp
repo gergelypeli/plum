@@ -157,27 +157,32 @@ public:
 };
 
 
-class ContainerIndexValue: public OptimizedOperationValue {
+class ContainerIndexValue: public OptimizedOperationValue, public Raiser {
 public:
     TypeSpec heap_ts;
     TypeSpec elem_ts;
     Unborrow *unborrow;
+    int length_offset;
     int elems_offset;
     Storage value_storage;
     
-    ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, TypeSpec hts, int eo)
+    ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, TypeSpec hts, int lo, int eo)
         :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot,
         GPR_SUBSET, GPR_SUBSET
         ) {
         heap_ts = hts;
         elem_ts = match[1];
+        length_offset = lo;
         elems_offset = eo;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (!check_raise(lookup_exception_type, scope))
+            return false;
+
         unborrow = new Unborrow(heap_ts);
         scope->add(unborrow);
-        
+
         return OptimizedOperationValue::check(args, kwargs, scope);
     }
 
@@ -234,8 +239,15 @@ public:
         }
 
         x64->op(MOVQ, unborrow->get_address(), r);
-        fix_index(r, i, x64);
 
+        Label ok;
+        x64->op(CMPQ, i, Address(r, length_offset));  // needs logical index
+        x64->op(JB, ok);
+
+        raise("NOT_FOUND", x64);
+
+        x64->code_label(ok);
+        fix_index(r, i, x64);  // turns logical index into physical
         Address addr = x64->runtime->make_address(r, i, elem_size, elems_offset);
         Storage t(MEMORY, addr);
         

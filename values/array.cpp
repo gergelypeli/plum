@@ -90,7 +90,7 @@ public:
 class ArrayIndexValue: public ContainerIndexValue {
 public:
     ArrayIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-        :ContainerIndexValue(o, pivot, match, match[1].prefix(linearray_type), LINEARRAY_ELEMS_OFFSET) {
+        :ContainerIndexValue(o, pivot, match, match[1].prefix(linearray_type), LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET) {
     }
 };
 
