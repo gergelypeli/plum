@@ -292,8 +292,8 @@ public:
         Regs clob = pivot->precompile(preferred);
         
         if (lvalue_needed) {
-            // We COW an lvalue argument, may clobber any variables
-            clob = Regs::all() | Regs::stackvars() | Regs::heapvars();
+            // Altering the member would clobber the heap vars
+            clob = Regs::all() | Regs::heapvars();
         }
         else {
             clob = clob | Regs(RAX);
