@@ -543,10 +543,11 @@ public:
 
         if (lvalue_needed)
             clob = clob | Regs::heapvars();
-            
-        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
-            value_storage = ts.optimal_value_storage(preferred);
-            clob = clob | value_storage.regs();
+        else {
+            if (!(preferred & (Regs::heapvars() | Regs::relaxvars()))) {
+                value_storage = ts.optimal_value_storage(preferred);
+                clob = clob | value_storage.regs();
+            }
         }
             
         return clob | RBTREE_CLOB | COMPARE_CLOB;
@@ -566,7 +567,7 @@ public:
         x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
         
         key_arg_ts.store(Storage(STACK), Storage(), x64);
-        pivot->ts.store(Storage(STACK), Storage(), x64);
+        pivot->ts.store(Storage(STACK), Storage(REGISTER, SELFX), x64);
 
         Label ok;
         x64->op(CMPQ, KEYX, RBNODE_NIL);
@@ -576,8 +577,6 @@ public:
 
         x64->code_label(ok);
 
-        // Borrow Lvalue container
-        heap_ts.incref(SELFX, x64);
         x64->op(MOVQ, unborrow->get_address(), SELFX);
         
         Address value_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);

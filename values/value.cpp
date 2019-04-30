@@ -290,16 +290,20 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars() | Regs::aliasvars());
+        borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars() | Regs::relaxvars());
         Regs clob;
         
         if (pivot) {
-            // The container must let itself borrowed, we don't want a copy of it.
-            // And if it's a member itself, we don't want unaliasing either.
-            Regs pivot_prefs = preferred | Regs::stackvars() | Regs::heapvars() | Regs::aliasvars();
+            // Ask the child Value not to do any unaliasing or value copy for us.
+            // Not making a value copy is an optimization, since it's dumb to extract
+            // a member of a value on the stack for no reason. And not unaliasing is
+            // necessary to decide if we need to value copy, since an ALIAS has stricter
+            // borrow requirements (it may point to stack or heap), and loading it into
+            // a register prematurely would lose that information.
+            Regs pivot_prefs = preferred | Regs::relaxvars();
             clob = pivot->precompile(pivot_prefs);
         }
-            
+        
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
 
@@ -392,7 +396,7 @@ public:
             }
         }
 
-        if (!lvalue_needed && !(borrows_allowed & Regs::aliasvars())) {
+        if (!lvalue_needed && !(borrows_allowed & Regs::relaxvars())) {
             // Some optional dereferencing
 
             Regs borrows_required;

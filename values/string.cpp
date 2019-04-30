@@ -272,10 +272,11 @@ public:
 
         if (lvalue_needed)
             clob = clob | Regs::heapvars();
-
-        if (!lvalue_needed && !(preferred & Regs::heapvars())) {
-            value_storage = ts.optimal_value_storage(preferred);
-            clob = clob | value_storage.regs();
+        else {
+            if (!(preferred & (Regs::heapvars() | Regs::relaxvars()))) {
+                value_storage = ts.optimal_value_storage(preferred);
+                clob = clob | value_storage.regs();
+            }
         }
             
         return clob;

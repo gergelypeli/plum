@@ -135,7 +135,7 @@ private:
     static const int REGS_TOTAL = 32;
     static const unsigned64 STACKVARS = 0x000100000000;
     static const unsigned64 HEAPVARS  = 0x000200000000;
-    static const unsigned64 ALIASVARS = 0x000400000000;
+    static const unsigned64 RELAXVARS = 0x000400000000;
     
     unsigned64 available;
     
@@ -170,8 +170,8 @@ public:
         return Regs(HEAPVARS);
     }
 
-    static Regs aliasvars() {
-        return Regs(ALIASVARS);
+    static Regs relaxvars() {
+        return Regs(RELAXVARS);
     }
     
     Regs(Register r) {
