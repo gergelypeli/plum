@@ -265,11 +265,10 @@ void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
 
 // Internally used access to the Rbtree Ref inside the Nosytree Ref
 
-class NosytreeMemberValue: public Value, public Aliaser {
+class NosytreeMemberValue: public Value, public TemporaryAliaser, public TemporaryReferrer {
 public:
     TypeSpec elem_ts;
     std::unique_ptr<Value> pivot;
-    Unborrow *unborrow;
 
     NosytreeMemberValue(Value *p, TypeSpec ets)
         :Value(ets.prefix(rbtree_type).prefix(ref_type)) {
@@ -281,10 +280,9 @@ public:
         if (lvalue_needed)
             check_alias(scope);
 
-        TypeSpec heap_ts = ts.prefix(nosytree_type);
-        unborrow = new Unborrow(heap_ts);
-        scope->add(unborrow);
-        
+        if (!check_reference(scope))
+            return false;
+            
         return Value::check(args, kwargs, scope);
     }
 
@@ -303,7 +301,6 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        TypeSpec heap_ts = ts.prefix(nosytree_type);
         Register r;
         
         if (lvalue_needed) {
@@ -314,7 +311,7 @@ public:
             container_cow(clone_label, ps, x64);  // leaves borrowed Ref in RAX
             r = RAX;
 
-            heap_ts.incref(r, x64);
+            x64->runtime->incref(r);
         }
         else {
             Storage s = pivot->compile(x64);
@@ -326,14 +323,14 @@ public:
             case MEMORY:
                 r = RAX;
                 x64->op(MOVQ, r, s.address);
-                heap_ts.incref(r, x64);
+                x64->runtime->incref(r);
                 break;
             default:
                 throw INTERNAL_ERROR;
             }
         }
 
-        x64->op(MOVQ, unborrow->get_address(), r);
+        defer_decref(r, x64);
         
         return Storage(MEMORY, Address(r, NOSYTREE_MEMBER_OFFSET));
     }

@@ -62,15 +62,13 @@ public:
 // If created, it must be used, no runtime checks are made. This also means that
 // if an operation raises an exception, this must be set before that, because the
 // decref will happen anyway.
-class Unborrow: public Declaration {
+class TemporaryReference: public Declaration {
 public:
-    TypeSpec heap_ts;
     bool is_used;
     Allocation offset;
     
-    Unborrow(TypeSpec hts)
+    TemporaryReference()
         :Declaration() {
-        heap_ts = hts;
         is_used = false;
     }
     
@@ -87,9 +85,8 @@ public:
         if (!is_used)
             return;
             
-        //x64->runtime->log("Unborrowing.");
         x64->op(MOVQ, R10, get_address());
-        heap_ts.decref(R10, x64);
+        x64->runtime->decref(R10);
     }
 };
 

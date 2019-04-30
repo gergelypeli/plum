@@ -242,27 +242,24 @@ public:
 };
 
 
-class SliceIndexValue: public GenericValue, public Raiser {
+class SliceIndexValue: public GenericValue, public Raiser, public TemporaryReferrer {
 public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;
-    Unborrow *unborrow;
     Storage value_storage;
     
     SliceIndexValue(Value *pivot, TypeMatch &match)
         :GenericValue(INTEGER_TS, match[1].lvalue(), pivot) {
         elem_ts = match[1];
         heap_ts = elem_ts.prefix(linearray_type);
-        unborrow = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (!check_raise(lookup_exception_type, scope))
             return false;
-        
-        // Borrow only if not raising
-        unborrow = new Unborrow(heap_ts);
-        scope->add(unborrow);
+
+        if (!check_reference(scope))
+            return false;
         
         return GenericValue::check(args, kwargs, scope);
     }
@@ -295,7 +292,8 @@ public:
         x64->op(POPQ, R11);  // length
 
         Label ok;
-        x64->op(MOVQ, unborrow->get_address(), RBX);
+        defer_decref(RBX, x64);
+        
         x64->op(CMPQ, RAX, R11);
         x64->op(JB, ok);
 

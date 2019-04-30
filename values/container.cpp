@@ -157,11 +157,10 @@ public:
 };
 
 
-class ContainerIndexValue: public OptimizedOperationValue, public Raiser {
+class ContainerIndexValue: public OptimizedOperationValue, public Raiser, public TemporaryReferrer {
 public:
     TypeSpec heap_ts;
     TypeSpec elem_ts;
-    Unborrow *unborrow;
     int length_offset;
     int elems_offset;
     Storage value_storage;
@@ -180,8 +179,8 @@ public:
         if (!check_raise(lookup_exception_type, scope))
             return false;
 
-        unborrow = new Unborrow(heap_ts);
-        scope->add(unborrow);
+        if (!check_reference(scope))
+            return false;
 
         return OptimizedOperationValue::check(args, kwargs, scope);
     }
@@ -238,7 +237,7 @@ public:
             throw INTERNAL_ERROR;
         }
 
-        x64->op(MOVQ, unborrow->get_address(), r);
+        defer_decref(r, x64);
 
         Label ok;
         x64->op(CMPQ, i, Address(r, length_offset));  // needs logical index
@@ -470,7 +469,7 @@ public:
 };
 
 
-class ContainerPushValue: public GenericValue, public Aliaser {
+class ContainerPushValue: public GenericValue, public TemporaryAliaser {
 public:
     TypeSpec elem_ts;
     int reservation_offset;
@@ -533,7 +532,7 @@ public:
 };
 
 
-class ContainerPopValue: public ContainerEmptiableValue, public Aliaser {
+class ContainerPopValue: public ContainerEmptiableValue, public TemporaryAliaser {
 public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;

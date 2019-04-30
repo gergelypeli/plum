@@ -280,7 +280,7 @@ public:
 };
 
 
-class RbtreeAddValue: public Value, public Aliaser {
+class RbtreeAddValue: public Value, public TemporaryAliaser {
 public:
     TypeSpec elem_ts, elem_arg_ts;
     std::unique_ptr<Value> pivot, elem;
@@ -338,7 +338,7 @@ public:
 };
 
 
-class RbtreeAddItemValue: public Value, public Aliaser {
+class RbtreeAddItemValue: public Value, public TemporaryAliaser {
 public:
     TypeSpec key_ts, value_ts, key_arg_ts, value_arg_ts;
     TypeSpec elem_ts;
@@ -411,7 +411,7 @@ public:
 };
 
 
-class RbtreeRemoveValue: public Value, public Aliaser {
+class RbtreeRemoveValue: public Value, public TemporaryAliaser {
 public:
     TypeSpec elem_ts, key_arg_ts;
     std::unique_ptr<Value> pivot, key;
@@ -507,11 +507,10 @@ public:
 };
 
 
-class RbtreeIndexValue: public Value, public Raiser {
+class RbtreeIndexValue: public Value, public Raiser, public TemporaryReferrer {
 public:
     TypeSpec key_ts, elem_ts, key_arg_ts, heap_ts;
     std::unique_ptr<Value> pivot, key;
-    Unborrow *unborrow;
     Storage value_storage;
 
     RbtreeIndexValue(Value *l, TypeSpec kts, TypeSpec ets, TypeSpec kats, TypeSpec vrts)
@@ -523,7 +522,6 @@ public:
         key_arg_ts = kats;
         
         heap_ts = elem_ts.prefix(rbtree_type);
-        unborrow = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -535,9 +533,9 @@ public:
         if (!check_raise(lookup_exception_type, scope))
             return false;
 
-        unborrow = new Unborrow(heap_ts);
-        scope->add(unborrow);
-        
+        if (!check_reference(scope))
+            return false;
+            
         return true;
     }
 
@@ -573,7 +571,8 @@ public:
         pivot->ts.store(Storage(STACK), Storage(REGISTER, SELFX), x64);
 
         Label ok;
-        x64->op(MOVQ, unborrow->get_address(), SELFX);
+        defer_decref(SELFX, x64);
+        
         x64->op(CMPQ, KEYX, RBNODE_NIL);
         x64->op(JNE, ok);
 
@@ -683,7 +682,7 @@ public:
 };
 
 
-class RbtreeNextElemByOrderValue: public GenericValue, public Raiser, public Aliaser {
+class RbtreeNextElemByOrderValue: public GenericValue, public Raiser, public TemporaryAliaser {
 public:
     Regs clob;
 

@@ -250,7 +250,7 @@ public:
 };
 
 
-class ArrayExtendValue: public GenericValue, public Aliaser {
+class ArrayExtendValue: public GenericValue, public TemporaryAliaser {
 public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;
@@ -317,7 +317,7 @@ public:
 };
 
 
-class ArrayReallocValue: public GenericOperationValue, public Aliaser {
+class ArrayReallocValue: public GenericOperationValue, public TemporaryAliaser {
 public:
     TypeSpec elem_ts;
 
@@ -484,7 +484,7 @@ public:
 };
 
 
-class ArrayRefillValue: public Value, public Aliaser {
+class ArrayRefillValue: public Value, public TemporaryAliaser {
 public:
     std::unique_ptr<Value> array_value;
     std::unique_ptr<Value> fill_value;

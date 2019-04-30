@@ -150,11 +150,11 @@ public:
 };
 
 
-class Aliaser {
+class TemporaryAliaser {
 public:
     TemporaryAlias *temporary_alias;
     
-    Aliaser() {
+    TemporaryAliaser() {
         temporary_alias = NULL;
     }
     
@@ -166,6 +166,26 @@ public:
 
     TemporaryAlias *get_alias() {
         return temporary_alias;
+    }
+};
+
+
+class TemporaryReferrer {
+public:
+    TemporaryReference *temporary_reference;
+    
+    TemporaryReferrer() {
+        temporary_reference = NULL;
+    }
+    
+    bool check_reference(Scope *scope) {
+        temporary_reference = new TemporaryReference;
+        scope->add(temporary_reference);
+        return true;
+    }
+
+    void defer_decref(Register r, X64 *x64) {
+        x64->op(MOVQ, temporary_reference->get_address(), r);
     }
 };
 
