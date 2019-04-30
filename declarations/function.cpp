@@ -9,10 +9,10 @@ enum FunctionProt {
 };
 
 
-VirtualEntry *make_method_virtual_entry(Function *f);
+//VirtualEntry *make_method_virtual_entry(Function *f);
 
     
-class Function: public Identifier {
+class Function: public Identifier, public Methodlike {
 public:
     std::vector<TypeSpec> arg_tss;
     std::vector<std::string> arg_names;
@@ -91,7 +91,7 @@ public:
         bool needs_virtual_index = (ds && ds->is_virtual_scope() && type == GENERIC_FUNCTION);
         
         if (needs_virtual_index) {
-            VirtualEntry *mve = make_method_virtual_entry(this);
+            VirtualEntry *mve = new MethodVirtualEntry(this);
             
             if (!associated) {
                 virtual_index = ds->virtual_reserve(mve);
@@ -187,6 +187,14 @@ public:
 
     virtual void set_associated(Associable *a) {
         associated = a;
+    }
+    
+    virtual Label get_method_label(X64 *x64) {
+        return get_label(x64);
+    }
+    
+    virtual std::string get_method_name() {
+        return get_fully_qualified_name();
     }
 };
 
@@ -332,67 +340,6 @@ public:
     
     virtual Label get_label(X64 *x64) {
         return x64->once->import_got(import_name);
-    }
-};
-
-
-class MethodVirtualEntry: public VirtualEntry {
-public:
-    Function *function;
-    
-    MethodVirtualEntry(Function *f) {
-        function = f;
-    }
-    
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
-        // We're not yet ready to compile templated functions
-        if (tm[1] != NO_TS)
-            throw INTERNAL_ERROR;
-            
-        //std::cerr << "Function entry " << name << ".\n";
-        return function->get_label(x64);
-    }
-
-    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
-        return os << "FUNC " << function->get_fully_qualified_name();
-    }
-};
-
-
-VirtualEntry *make_method_virtual_entry(Function *f) {
-    return new MethodVirtualEntry(f);
-}
-
-
-class PatchMethodVirtualEntry: public VirtualEntry {
-public:
-    Label trampoline_label;
-    Function *function;
-    int offset;
-    
-    PatchMethodVirtualEntry(Function *f, int o) {
-        function = f;
-        offset = o;
-    }
-    
-    virtual void compile(TypeMatch tm, X64 *x64) {
-        x64->code_label(trampoline_label);
-        //x64->runtime->log("TRAMPOLINE!");
-        x64->op(MOVQ, R11, offset);
-        x64->op(JMP, function->get_label(x64));
-    }
-    
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
-        // We're not yet ready to compile templated functions
-        if (tm[1] != NO_TS)
-            throw INTERNAL_ERROR;
-            
-        //std::cerr << "Function entry " << name << ".\n";
-        return trampoline_label;
-    }
-
-    virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
-        return os << "FUNC " << function->get_fully_qualified_name() << " (" << offset << ")";
     }
 };
 

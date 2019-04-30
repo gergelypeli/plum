@@ -1,6 +1,7 @@
 
 #include "declaration.cpp"
 #include "scope.cpp"
+#include "util.cpp"
 #include "identifier.cpp"
 #include "allocable.cpp"
 #include "function.cpp"

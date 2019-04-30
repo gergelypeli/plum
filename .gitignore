@@ -4,3 +4,4 @@ core.*
 *.sav
 *.log
 *.diff
+*.asm

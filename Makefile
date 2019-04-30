@@ -1,7 +1,7 @@
 .PHONY: build clean
 SHELL      = /bin/zsh
 
-DECLS      = all declaration identifier scope type basic record reference interface class option allocable function associable float container nosy
+DECLS      = all declaration identifier scope type basic record reference interface class option allocable function associable float container nosy util
 VALUES     = all value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset rbtree_weakmapset container option equality float weakref debug
 ARCHS      = ork asm64 storage basics
 PARSING    = all tokenize treeize tupleize typize

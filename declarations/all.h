@@ -16,7 +16,6 @@ class Function;
 class SysvFunction;
 class ImportedFloatFunction;
 class ClassType;
-class Unborrow;
 
 // Types
 class Type;
