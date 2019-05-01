@@ -61,6 +61,8 @@ public:
     std::vector<Elf64_Rela> data_relocations;
     std::vector<Elf64_Rela> line_relocations;
     std::vector<Elf64_Rela> info_relocations;
+
+    unsigned code_start_sym, line_start_sym, abbr_start_sym;
     
     Ork();
     ~Ork();
@@ -80,6 +82,10 @@ public:
     void set_code(std::vector<char> &c);
     void set_data(std::vector<char> &d);
     void set_lineno(std::vector<std::string> &source_names, std::vector<LineInfo> &lis);
+    
+    void fill_abbrev();
+    void fill_info();
+    
     void done(std::string filename);
 };
 
@@ -96,6 +102,10 @@ Ork::Ork() {
     s.st_info = 0;
     s.st_other = 0;
     s.st_shndx = 0;
+    
+    code_start_sym = add_symbol(".code_start", 0, 0, false, STT_SECTION, 6);
+    line_start_sym = add_symbol(".line_start", 0, 0, false, STT_SECTION, 8);
+    abbr_start_sym = add_symbol(".abbr_start", 0, 0, false, STT_SECTION, 9);
 }
 
 
@@ -206,6 +216,70 @@ struct CompilationUnitHeader {
 } __attribute__((packed));
 
 
+void Ork::fill_abbrev() {
+    // Fill .debug_abbrev
+    
+    // These 3 attributes are necessary to make gdb work
+    abbrev.uleb128(0x01);  // abbrev number 1
+    abbrev.uleb128(0x11);  // compilation unit
+    abbrev.push_back(0x01);  // has children
+
+    abbrev.uleb128(0x10);  // stmt list
+    abbrev.uleb128(0x17);  // sec offset
+
+    abbrev.uleb128(0x11);  // low pc
+    abbrev.uleb128(0x01);  // address
+
+    abbrev.uleb128(0x12);  // high pc
+    abbrev.uleb128(0x07);  // data8
+    
+    abbrev.uleb128(0x00);  // end of attributes
+    abbrev.uleb128(0x00);  // end of attributes
+
+    abbrev.uleb128(0x00);  // end of abbreviations
+}
+
+
+void Ork::fill_info() {
+    // Fill .debug_info
+    
+    int cuh_offset = info.append<CompilationUnitHeader>();
+    auto cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
+    
+    cuh->length = 0;  // to be filled
+    cuh->version = 4;
+    cuh->abbrev_offset = 0;  // needs 32-bits relocation to .debug_abbrev
+    cuh->address_size = 8;
+
+    Elf64_Addr abbr_relocation = cuh_offset + offsetof(CompilationUnitHeader, abbrev_offset);
+    add_relocation(abbr_start_sym, abbr_relocation, 0, R_X86_64_32, info_relocations);
+    
+    // DIE
+    info.uleb128(0x01);  // abbrev 1 (compilation unit)
+
+    // stmt list
+    Elf64_Addr line_relocation = info.append<unsigned32>();  // needs 32-bits relocation to .debug_line
+    add_relocation(line_start_sym, line_relocation, 0, R_X86_64_32, info_relocations);
+        
+    // low pc
+    Elf64_Addr code_relocation = info.append<unsigned64>();  // needs 64-bits relocation to .text
+    add_relocation(code_start_sym, code_relocation, 0, R_X86_64_64, info_relocations);
+
+    // high pc
+    auto hpc_offset = info.append<unsigned64>();
+    *info.pointer<unsigned64>(hpc_offset) = code.size();
+    
+    // children
+    info.uleb128(0x00);  // end of children
+    
+    // info vector may have been reallocated
+    int info_start = cuh_offset + offsetof(CompilationUnitHeader, version);
+    int info_end = info.size();
+    cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
+    cuh->length = info_end - info_start;
+}
+
+
 void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInfo> &lis) {
     // Fill .debug_line
     
@@ -264,7 +338,8 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
     lineno.push_back(0);
     lineno.push_back(9);
     lineno.push_back(2);
-    Elf64_Addr line_to_code_rel_location = lineno.append<unsigned64>();  // needs 64-bits relocation to .text
+    Elf64_Addr code_relocation = lineno.append<unsigned64>();
+    add_relocation(code_start_sym, code_relocation, 0, R_X86_64_64, line_relocations);
     
     // Initialize state machine
     int sm_address = 0;
@@ -294,72 +369,6 @@ void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInf
     int debug_line_end = lineno.size();
     dlh = lineno.pointer<DebugLineHeader>(dlh_offset);
     dlh->length = debug_line_end - debug_line_start;
-
-    // Fill .debug_abbrev
-    
-    // These 3 attributes are necessary to make gdb work
-    abbrev.uleb128(0x01);  // abbrev number 1
-    abbrev.uleb128(0x11);  // compilation unit
-    abbrev.push_back(0x01);  // has children
-
-    abbrev.uleb128(0x10);  // stmt list
-    abbrev.uleb128(0x17);  // sec offset
-
-    abbrev.uleb128(0x11);  // low pc
-    abbrev.uleb128(0x01);  // address
-
-    abbrev.uleb128(0x12);  // high pc
-    abbrev.uleb128(0x07);  // data8
-    
-    abbrev.uleb128(0x00);  // end of attributes
-    abbrev.uleb128(0x00);  // end of attributes
-
-    abbrev.uleb128(0x00);  // end of abbreviations
-    
-    // Fill .debug_info
-    
-    int cuh_offset = info.append<CompilationUnitHeader>();
-    auto cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
-    
-    cuh->length = 0;  // to be filled
-    cuh->version = 4;
-    cuh->abbrev_offset = 0;  // needs 32-bits relocation to .debug_abbrev
-    cuh->address_size = 8;
-
-    Elf64_Addr info_to_abbr_rel_location = cuh_offset + offsetof(CompilationUnitHeader, abbrev_offset);
-    
-    // DIE
-    info.uleb128(0x01);  // abbrev 1 (compilation unit)
-
-    // stmt list
-    Elf64_Addr info_to_line_rel_location = info.append<unsigned32>();  // needs 32-bits relocation to .debug_line
-        
-    // low pc
-    Elf64_Addr info_to_code_rel_location = info.append<unsigned64>();  // needs 64-bits relocation to .text
-
-    // high pc
-    auto hpc_offset = info.append<unsigned64>();
-    *info.pointer<unsigned64>(hpc_offset) = code.size();
-    
-    // children
-    info.uleb128(0x00);  // end of children
-    
-    // info vector may have been reallocated
-    int info_start = cuh_offset + offsetof(CompilationUnitHeader, version);
-    int info_end = info.size();
-    cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
-    cuh->length = info_end - info_start;
-    
-    // Add symbols necessary for our relocations
-    unsigned code_start_sym = add_symbol(".line_to_code", 0, 0, false, STT_SECTION, 6);
-    unsigned line_start_sym = add_symbol(".info_to_line", 0, 0, false, STT_SECTION, 8);
-    unsigned abbr_start_sym = add_symbol(".info_to_abbr", 0, 0, false, STT_SECTION, 9);
-    
-    // Add relocations to .rela.debug_line and .rela.debug_info
-    add_relocation(code_start_sym, line_to_code_rel_location, 0, R_X86_64_64, line_relocations);
-    add_relocation(line_start_sym, info_to_line_rel_location, 0, R_X86_64_32, info_relocations);
-    add_relocation(abbr_start_sym, info_to_abbr_rel_location, 0, R_X86_64_32, info_relocations);
-    add_relocation(code_start_sym, info_to_code_rel_location, 0, R_X86_64_64, info_relocations);
 }
 
 

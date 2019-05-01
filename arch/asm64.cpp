@@ -535,6 +535,9 @@ void Asm64::done(std::string filename, std::vector<std::string> source_file_name
     ork->set_code(code);
     ork->set_data(data);
     ork->set_lineno(source_file_names, line_infos);
+
+    ork->fill_abbrev();
+    ork->fill_info();
     
     ork->done(filename);
     
