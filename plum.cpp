@@ -14,7 +14,9 @@
 #include <stdarg.h>
 #include <math.h>
 #include <unistd.h>
+
 #include <elf.h>
+#include <libdwarf/dwarf.h>
 
 // Shared files between the compiler and the runtime, in C
 #include "environment/typedefs.h"

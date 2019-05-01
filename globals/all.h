@@ -621,8 +621,10 @@ public:
         runtime->compile_source_infos(source_file_names);
         runtime->compile_func_infos();
         runtime->compile_call_infos();
-        
-        done(output, source_file_names);
+
+        relocate();
+        debug(source_file_names, "plum");
+        done(output);
     }
     
     virtual bool is_accounting() {

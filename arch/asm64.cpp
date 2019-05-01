@@ -260,7 +260,9 @@ public:
     ~Asm64();
     
     void init(std::string module_name);
-    void done(std::string name, std::vector<std::string> source_file_names);
+    void relocate();
+    void debug(std::vector<std::string> source_file_names, std::string producer);
+    void done(std::string filename);
 
     void add_def(Label label, const Def &def);
 
@@ -414,7 +416,7 @@ void Asm64::init(std::string module_name) {
 }
 
 
-void Asm64::done(std::string filename, std::vector<std::string> source_file_names) {
+void Asm64::relocate() {
     for (auto &kv : defs) {
         Def &d(kv.second);
 
@@ -531,14 +533,20 @@ void Asm64::done(std::string filename, std::vector<std::string> source_file_name
             break;
         }
     }
+}
 
+
+void Asm64::debug(std::vector<std::string> source_file_names, std::string producer) {
     ork->set_code(code);
     ork->set_data(data);
     ork->set_lineno(source_file_names, line_infos);
 
     ork->fill_abbrev();
-    ork->fill_info();
-    
+    ork->fill_info(source_file_names[1], producer);
+}
+
+
+void Asm64::done(std::string filename) {
     ork->done(filename);
     
     delete ork;

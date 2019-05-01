@@ -6,6 +6,12 @@ struct LineInfo {
 };
 
 
+struct DwarfAttrDef {
+    int at;
+    int form;
+};
+
+
 class DwarfBuffer: public std::vector<char> {
 public:
     void uleb128(unsigned x) {
@@ -31,6 +37,17 @@ public:
             push_back((x & 0x7f) | 0x80);
             x = (x & ~0x7f) / 128;  // arithmetic shift right
         }
+    }
+
+    void data1(int x) {
+        push_back(x);
+    }
+    
+    void string(std::string s) {
+        for (auto c : s)
+            push_back(c);
+            
+        push_back(0);
     }
 
     template <typename T>
@@ -63,6 +80,8 @@ public:
     std::vector<Elf64_Rela> info_relocations;
 
     unsigned code_start_sym, line_start_sym, abbr_start_sym;
+    unsigned abbrev_count;
+    unsigned compile_unit_abbrev_number, base_type_abbrev_number;
     
     Ork();
     ~Ork();
@@ -82,9 +101,10 @@ public:
     void set_code(std::vector<char> &c);
     void set_data(std::vector<char> &d);
     void set_lineno(std::vector<std::string> &source_names, std::vector<LineInfo> &lis);
-    
+
+    unsigned add_abbrev(int tag, bool has_children, std::vector<DwarfAttrDef> attrdefs);
     void fill_abbrev();
-    void fill_info();
+    void fill_info(std::string name, std::string producer);
     
     void done(std::string filename);
 };
@@ -106,6 +126,8 @@ Ork::Ork() {
     code_start_sym = add_symbol(".code_start", 0, 0, false, STT_SECTION, 6);
     line_start_sym = add_symbol(".line_start", 0, 0, false, STT_SECTION, 8);
     abbr_start_sym = add_symbol(".abbr_start", 0, 0, false, STT_SECTION, 9);
+    
+    abbrev_count = 0;
 }
 
 
@@ -194,55 +216,56 @@ void Ork::set_data(std::vector<char> &d) {
 }
 
 
-struct DebugLineHeader {
-    uint32_t length;
-    uint16_t version;
-    uint32_t header_length;
-    uint8_t min_instruction_length;
-    uint8_t maximum_operations_per_instruction;
-    uint8_t default_is_stmt;
-    int8_t line_base;
-    uint8_t line_range;
-    uint8_t opcode_base;
-    uint8_t std_opcode_lengths[12];
-} __attribute__((packed));
+unsigned Ork::add_abbrev(int tag, bool has_children, std::vector<DwarfAttrDef> attrdefs) {
+    unsigned number = ++abbrev_count;
+    
+    abbrev.uleb128(number);
+    abbrev.uleb128(tag);
+    abbrev.uleb128(has_children ? DW_children_yes : DW_children_no);
+    
+    for (auto attrdef : attrdefs) {
+        abbrev.uleb128(attrdef.at);
+        abbrev.uleb128(attrdef.form);
+    }
 
-
-struct CompilationUnitHeader {
-    uint32_t length;
-    uint16_t version;
-    uint32_t abbrev_offset;
-    uint8_t address_size;
-} __attribute__((packed));
-
+    abbrev.uleb128(0);
+    abbrev.uleb128(0);
+    
+    return number;
+}
 
 void Ork::fill_abbrev() {
     // Fill .debug_abbrev
     
-    // These 3 attributes are necessary to make gdb work
-    abbrev.uleb128(0x01);  // abbrev number 1
-    abbrev.uleb128(0x11);  // compilation unit
-    abbrev.push_back(0x01);  // has children
+    compile_unit_abbrev_number = add_abbrev(DW_TAG_compile_unit, true, {
+        { DW_AT_stmt_list, DW_FORM_sec_offset },
+        { DW_AT_low_pc, DW_FORM_addr },
+        { DW_AT_high_pc, DW_FORM_data8 },
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_producer, DW_FORM_string }
+    });
 
-    abbrev.uleb128(0x10);  // stmt list
-    abbrev.uleb128(0x17);  // sec offset
+    base_type_abbrev_number = add_abbrev(DW_TAG_base_type, false, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_byte_size, DW_FORM_data1 },
+        { DW_AT_encoding, DW_FORM_data1 }
+    });
 
-    abbrev.uleb128(0x11);  // low pc
-    abbrev.uleb128(0x01);  // address
-
-    abbrev.uleb128(0x12);  // high pc
-    abbrev.uleb128(0x07);  // data8
-    
-    abbrev.uleb128(0x00);  // end of attributes
-    abbrev.uleb128(0x00);  // end of attributes
-
-    abbrev.uleb128(0x00);  // end of abbreviations
+    // end of abbrevs
+    abbrev.uleb128(0);
 }
 
 
-void Ork::fill_info() {
+void Ork::fill_info(std::string name, std::string producer) {
     // Fill .debug_info
-    
+
+    struct CompilationUnitHeader {
+        uint32_t length;
+        uint16_t version;
+        uint32_t abbrev_offset;
+        uint8_t address_size;
+    } __attribute__((packed));
+
     int cuh_offset = info.append<CompilationUnitHeader>();
     auto cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
     
@@ -254,8 +277,8 @@ void Ork::fill_info() {
     Elf64_Addr abbr_relocation = cuh_offset + offsetof(CompilationUnitHeader, abbrev_offset);
     add_relocation(abbr_start_sym, abbr_relocation, 0, R_X86_64_32, info_relocations);
     
-    // DIE
-    info.uleb128(0x01);  // abbrev 1 (compilation unit)
+    // DIE - Compile Unit
+    info.uleb128(compile_unit_abbrev_number);
 
     // stmt list
     Elf64_Addr line_relocation = info.append<unsigned32>();  // needs 32-bits relocation to .debug_line
@@ -269,8 +292,34 @@ void Ork::fill_info() {
     auto hpc_offset = info.append<unsigned64>();
     *info.pointer<unsigned64>(hpc_offset) = code.size();
     
-    // children
-    info.uleb128(0x00);  // end of children
+    // name
+    info.string(name);
+    
+    // producer
+    info.string(producer);
+    
+    // Compile Unit children
+    
+    // DIE - Boolean
+    info.uleb128(base_type_abbrev_number);
+    info.string("Boolean");
+    info.data1(1);
+    info.data1(DW_ATE_boolean);
+
+    // DIE - Character
+    info.uleb128(base_type_abbrev_number);
+    info.string("Character");
+    info.data1(2);
+    info.data1(DW_ATE_UCS);
+
+    // DIE - Integer
+    info.uleb128(base_type_abbrev_number);
+    info.string("Integer");
+    info.data1(8);
+    info.data1(DW_ATE_signed);
+
+    // End of Compile Unit children
+    info.uleb128(0x00);
     
     // info vector may have been reallocated
     int info_start = cuh_offset + offsetof(CompilationUnitHeader, version);
@@ -282,6 +331,19 @@ void Ork::fill_info() {
 
 void Ork::set_lineno(std::vector<std::string> &source_names, std::vector<LineInfo> &lis) {
     // Fill .debug_line
+
+    struct DebugLineHeader {
+        uint32_t length;
+        uint16_t version;
+        uint32_t header_length;
+        uint8_t min_instruction_length;
+        uint8_t maximum_operations_per_instruction;
+        uint8_t default_is_stmt;
+        int8_t line_base;
+        uint8_t line_range;
+        uint8_t opcode_base;
+        uint8_t std_opcode_lengths[12];
+    } __attribute__((packed));
     
     int dlh_offset = lineno.append<DebugLineHeader>();
     auto dlh = lineno.pointer<DebugLineHeader>(dlh_offset);
