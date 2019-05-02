@@ -506,7 +506,8 @@ public:
     Label zero_label, float_zero_label, float_minus_zero_label;
     Label allocation_count_label, refcount_balance_label;
     Label die_unmatched_message_label, start_frame_label, task_stack_address_label, task_stack_size_label;
-    
+
+    Label call_sysv_label;
     Label heap_alloc_label, heap_realloc_label;
     Label fcb_alloc_label, fcb_free_label;
     Label empty_function_label, empty_array_label;
@@ -569,6 +570,7 @@ public:
     void compile_caller_frame_info();
     void compile_fix_stack();
     void compile_double_stack();
+    void compile_call_sysv();
     void compile_logging();
     
     void compile_start(Storage main_storage, std::vector<Label> ils, std::vector<Label> fls);

@@ -278,6 +278,7 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     compile_caller_frame_info();
     compile_fix_stack();
     compile_double_stack();
+    compile_call_sysv();
     
     compile_logging();
 }
@@ -311,44 +312,13 @@ Label Runtime::data_heap_string(std::ustring characters) {
 }
 
 void Runtime::call_sysv(Label l) {
-    // This only works if all arguments are passed in register, because we're switching
-    // stacks. The main stack pointer must have been saved aligned, so it won't cause
-    // a problem here.
-    // Use the callee-saved RBX to save the old RSP, leave RBP as the frame pointer.
-
-    bool old = x64->accounting->pause();
-
-    x64->op(PUSHQ, RBX);
-    x64->op(MOVQ, RBX, RSP);
-    x64->op(MOVQ, RSP, Address(start_frame_label, 0));
-    
-    x64->op(CALL, l);
-    
-    x64->op(MOVQ, RSP, RBX);
-    x64->op(POPQ, RBX);
-    
-    x64->accounting->unpause(old);
-    x64->adjust_stack_usage(24);
-    x64->adjust_stack_usage(-24);
+    x64->op(LEA, R10, Address(l, 0));
+    x64->op(CALL, call_sysv_label);
 }
 
 void Runtime::call_sysv_got(Label got_l) {
-    // As above
-
-    bool old = x64->accounting->pause();
-    
-    x64->op(PUSHQ, RBX);
-    x64->op(MOVQ, RBX, RSP);
-    x64->op(MOVQ, RSP, Address(start_frame_label, 0));
-    
-    x64->op(CALL, Address(got_l, 0));
-    
-    x64->op(MOVQ, RSP, RBX);
-    x64->op(POPQ, RBX);
-
-    x64->accounting->unpause(old);
-    x64->adjust_stack_usage(24);
-    x64->adjust_stack_usage(-24);
+    x64->op(MOVQ, R10, Address(got_l, 0));
+    x64->op(CALL, call_sysv_label);
 }
 
 void Runtime::compile_source_infos(std::vector<std::string> source_file_names) {
@@ -939,6 +909,37 @@ void Runtime::compile_double_stack() {
     x64->op(POPQ, RBP);
     x64->op(RET);
 }
+
+
+void Runtime::compile_call_sysv() {
+    // We need this indirection, because we're changing the stack back to the system
+    // stack. If the code drops a core dump while in an external function, and someone
+    // wants to analyze it with gdb, it starts whining when asked for a backtrace,
+    // because the stack frame addresses are no longer monotonic, so the calls preceding
+    // this point don't show up. There's no clean way to solve this, only a hack within
+    // gdb, which checks if the function messing with the stack is called __morestack.
+    // This is because the gcc split stacks are implemented this way. So right now the
+    // only way to beat proper backtraces out of gdb is to call this function like that.
+    
+    // Also note that a SysV functions expects 16 bytes stack alignment, but since we're
+    // just reusing the old stack, it is aligned that way.
+    
+    // And this only works with arguments all passed in registers.
+    
+    // And expects the callee address in R10.
+    
+    x64->code_label_local(call_sysv_label, "__morestack");
+    x64->op(PUSHQ, RBP);
+    x64->op(MOVQ, RBP, RSP);
+    
+    x64->op(MOVQ, RSP, Address(start_frame_label, 0));
+    x64->op(CALL, R10);
+    x64->op(MOVQ, RSP, RBP);
+    
+    x64->op(POPQ, RBP);
+    x64->op(RET);
+}
+
 
 void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer_labels, std::vector<Label> finalizer_labels) {
     // Invoked from Root after gathering the necessary pieces
