@@ -285,6 +285,7 @@ public:
     void code_label_local(Label c, std::string name, unsigned size = 0);
     void code_label_global(Label c, std::string name, unsigned size = 0);
     void code_reference(Label c, int offset = 0);
+    int get_pc();
     
     void effective_address(int regfield, Register rm);
     void effective_address(int regfield, SseRegister rm);
@@ -698,6 +699,11 @@ void Asm64::code_reference(Label label, int offset) {
     code_dword(offset);  // 32-bit offset only
     
     // TODO: shall we store 0 only, and put the offset into the addend?
+}
+
+
+int Asm64::get_pc() {
+    return code.size();
 }
 
 

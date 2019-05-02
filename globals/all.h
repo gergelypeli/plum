@@ -629,20 +629,22 @@ public:
         dwarf = new Dwarf(elf, sfns);
     }
     
-    virtual void finish(std::string output) {
+    virtual void compile_rest() {
         once->for_all(this);
         
         runtime->compile_source_infos(source_file_names);
         runtime->compile_func_infos();
         runtime->compile_call_infos();
-
-        dwarf->finish();
-        
-        done(output);
     }
     
+    virtual void finish(std::string output_file) {
+        dwarf->finish();
+        
+        done(output_file);
+    }
+
     virtual void add_lineno(int file_index, int line_number) {
-        dwarf->add_lineno(code.size(), file_index, line_number);
+        dwarf->add_lineno(get_pc(), file_index, line_number);
     }
     
     virtual bool is_accounting() {

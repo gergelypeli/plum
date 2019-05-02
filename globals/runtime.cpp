@@ -362,7 +362,7 @@ void Runtime::compile_func_infos() {
 }
 
 void Runtime::add_call_info(int file_index, int line_number) {
-    call_infos.push_back(LineInfo { (int)x64->code.size(), file_index, line_number });
+    call_infos.push_back(LineInfo { x64->get_pc(), file_index, line_number });
 }
 
 void Runtime::compile_call_infos() {

@@ -457,6 +457,17 @@ public:
     virtual bool complete_type() {
         return true;
     }
+
+    virtual void debug(Dwarf *dwarf) {
+        if (initializer_scope)
+            initializer_scope->debug(dwarf);
+            
+        if (inner_scope)
+            inner_scope->debug(dwarf);
+            
+        if (lvalue_scope)
+            lvalue_scope->debug(dwarf);
+    }
 };
 
 

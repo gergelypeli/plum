@@ -201,6 +201,11 @@ public:
         
         return false;
     }
+
+    virtual void debug(Dwarf *dwarf) {
+        for (auto &content : contents)
+            content->debug(dwarf);
+    }
 };
 
 
@@ -525,6 +530,8 @@ public:
     bool contents_finalized;  // for sanity check
     bool is_taken;  // too
     bool am_unwindable;  // for optimizing out checks
+    int low_pc;
+    int high_pc;
     
     CodeScope()
         :Scope(CODE_SCOPE) {
@@ -612,6 +619,11 @@ public:
             throw INTERNAL_ERROR;
             
         Scope::finalize(x64);
+    }
+
+    virtual void set_pc_range(int lo, int hi) {
+        low_pc = lo;
+        high_pc = hi;
     }
 };
 

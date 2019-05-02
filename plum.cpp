@@ -109,9 +109,13 @@ int main(int argc, char **argv) {
     
     X64 *x64 = new X64("mymodule", application_size, root->source_file_names);
 
+    int low_pc = x64->get_pc();
     root->compile_modules(x64);
+    x64->compile_rest();
+    int high_pc = x64->get_pc();
     
-    x64->dwarf->begin_compile_unit_info(root->source_file_names[1], "plum", x64->code.size());
+    x64->dwarf->begin_compile_unit_info(root->source_file_names[1], "plum", low_pc, high_pc);
+    root_scope->debug(x64->dwarf);
     x64->dwarf->end_info();
 
     x64->finish(output);

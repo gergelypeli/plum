@@ -93,7 +93,8 @@ public:
 
         int retro_offset = rs->get_frame_offset();
 
-        x64->code_label(label);
+        x64->code_label_local(label, "<retro>");
+        int low_pc = x64->get_pc();
         
         // Create an artificial stack frame at the location that RetroScope has allocated
         x64->op(MOVQ, R10, Address(RBP, 0));  // get our own frame back
@@ -114,12 +115,14 @@ public:
         
         x64->op(RET);
         
+        int high_pc = x64->get_pc();
+        
         // Generate fixup code for the preceding ALIAS storage retro variables, they're
         // allocated in the middle of the function's stack frame, so there's no one else
         // to take care of them. Fortunately they were moved into this code scope by
         // check_retros, so it's easy to find them.
-        Label fix;
-        x64->code_label(fix);
+        Label fixup_label;
+        x64->code_label_local(fixup_label, "<retro>__fixup");
         x64->runtime->log("Fixing retro arguments of a retro block.");
         
         for (auto &d : code_scope->contents) {
@@ -138,7 +141,8 @@ public:
         
         x64->op(RET);
         
-        x64->runtime->add_func_info("<retro>", label, fix);
+        rs->set_pc_range(low_pc, high_pc);
+        x64->runtime->add_func_info("<retro>", label, fixup_label);
     }
     
     virtual Storage compile(X64 *x64) {

@@ -28,6 +28,8 @@ public:
     Function *implemented_function;
 
     Label label;
+    int low_pc;
+    int high_pc;
     
     Function(std::string n, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
         :Identifier(n) {
@@ -42,6 +44,9 @@ public:
         prot = NATIVE_FUNCTION;
         associated = NULL;  // for overriding methods only
         implemented_function = NULL;
+        
+        low_pc = -1;
+        high_pc = -1;
     }
 
     Function *clone_abstract(std::string prefix) {
@@ -196,6 +201,25 @@ public:
     virtual std::string get_method_name() {
         return get_fully_qualified_name();
     }
+    
+    virtual void set_pc_range(int lo, int hi) {
+        low_pc = lo;
+        high_pc = hi;
+    }
+    
+    virtual void debug(Dwarf *dwarf) {
+        if (is_abstract())
+            return;
+            
+        if (low_pc < 0 || high_pc < 0)
+            throw INTERNAL_ERROR;
+            
+        dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc);
+        
+        Identifier::debug(dwarf);
+        
+        dwarf->end_info();
+    }
 };
 
 
@@ -317,6 +341,9 @@ public:
 
         x64->op(POPQ, RBP);
         x64->op(RET);
+    }
+
+    virtual void debug(Dwarf *dwarf) {
     }
 };
 

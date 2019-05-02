@@ -1,6 +1,18 @@
 
 class DwarfBuffer: public std::vector<char> {
 public:
+    template <typename T>
+    int append() {
+        unsigned offset = size();
+        resize(size() + sizeof(T), 0);
+        return offset;
+    }
+    
+    template <typename T>
+    T *pointer(int offset) {
+        return (T *)&((*this)[offset]);
+    }
+
     void uleb128(unsigned x) {
         while (true) {
             if ((x & ~0x7f) == 0) {
@@ -29,24 +41,17 @@ public:
     void data1(int x) {
         push_back(x);
     }
-    
+
+    void data8(int value) {
+        auto offset = append<unsigned64>();
+        *pointer<unsigned64>(offset) = value;
+    }
+
     void string(std::string s) {
         for (auto c : s)
             push_back(c);
             
         push_back(0);
-    }
-
-    template <typename T>
-    int append() {
-        unsigned offset = size();
-        resize(size() + sizeof(T), 0);
-        return offset;
-    }
-    
-    template <typename T>
-    T *pointer(int offset) {
-        return (T *)&((*this)[offset]);
     }
 };
 
@@ -102,7 +107,9 @@ public:
     void finish_abbrev();
     
     void init_info();
-    void begin_compile_unit_info(std::string name, std::string producer, int pc);
+    void info_code_address(int value);
+    void begin_compile_unit_info(std::string name, std::string producer, int low_pc, int high_pc);
+    void begin_subprogram_info(std::string name, int low_pc, int high_pc);
     void end_info();
     void finish_info();
 };
@@ -204,7 +211,13 @@ void Dwarf::finish_info() {
 }
 
 
-void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int pc) {
+void Dwarf::info_code_address(int value) {
+    Elf64_Addr offset = info.append<unsigned64>();
+    elf->info_relocation64(elf->code_start_sym, offset, value);
+}
+
+
+void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int low_pc, int high_pc) {
     // DIE - Compile Unit
     info.uleb128(compile_unit_abbrev_number);
 
@@ -213,12 +226,10 @@ void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int 
     elf->info_relocation32(elf->line_start_sym, line_relocation, 0);
         
     // low pc
-    Elf64_Addr code_relocation = info.append<unsigned64>();  // needs 64-bits relocation to .text
-    elf->info_relocation64(elf->code_start_sym, code_relocation, 0);
+    info_code_address(low_pc);
 
     // high pc
-    auto hpc_offset = info.append<unsigned64>();
-    *info.pointer<unsigned64>(hpc_offset) = pc;
+    info.data8(high_pc - low_pc);
     
     // name
     info.string(name);
@@ -247,7 +258,15 @@ void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int 
     info.data1(DW_ATE_signed);
     */
 }
+
+
+void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc) {
+    info.uleb128(subprogram_abbrev_number);
     
+    info.string(name);
+    info_code_address(low_pc);
+    info.data8(high_pc - low_pc);
+}
     
 void Dwarf::end_info() {
     // End of children

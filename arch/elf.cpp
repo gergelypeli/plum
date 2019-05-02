@@ -378,7 +378,7 @@ void Elf::done(std::string filename) {
     shdr[11].sh_flags = 0;
     shdr[11].sh_addr = 0;
     shdr[11].sh_offset = offset;
-    shdr[11].sh_size = 1 * sizeof(Elf64_Rela);  // just one
+    shdr[11].sh_size = line_relocations.size() * sizeof(Elf64_Rela);
     shdr[11].sh_link = 3;    // Take symbols from here
     shdr[11].sh_info = 8;    // Put relocations here
     shdr[11].sh_addralign = 0;
@@ -391,7 +391,7 @@ void Elf::done(std::string filename) {
     shdr[12].sh_flags = 0;
     shdr[12].sh_addr = 0;
     shdr[12].sh_offset = offset;
-    shdr[12].sh_size = 3 * sizeof(Elf64_Rela);  // just three
+    shdr[12].sh_size = info_relocations.size() * sizeof(Elf64_Rela);
     shdr[12].sh_link = 3;    // Take symbols from here
     shdr[12].sh_info = 10;   // Put relocations here
     shdr[12].sh_addralign = 0;

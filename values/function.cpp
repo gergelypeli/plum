@@ -338,8 +338,8 @@ public:
         }
         
         Label start_label = function->get_label(x64);
-        Label end_label;
-        x64->code_label_local(start_label, fqn);
+        x64->code_label_global(start_label, fqn);
+        int low_pc = x64->get_pc();
         
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
@@ -415,11 +415,13 @@ public:
         x64->op(POPQ, RBP);
         x64->op(RET);
 
-        x64->code_label(end_label);
+        int high_pc = x64->get_pc();
         
         // Generate fixup at end_label.
         // RSI - old stack bottom, RDI - old stack top, RDX - relocation difference
         // RBP points to the relocated stack frame
+        Label fixup_label;
+        x64->code_label_global(fixup_label, fqn + "__fixup");
         x64->runtime->log("Fixing arguments of " + function->get_fully_qualified_name());
         
         for (auto &d : fn_scope->self_scope->contents)
@@ -430,7 +432,8 @@ public:
         
         x64->op(RET);
         
-        x64->runtime->add_func_info(fqn, start_label, end_label);
+        function->set_pc_range(low_pc, high_pc);
+        x64->runtime->add_func_info(fqn, start_label, fixup_label);
         
         return Storage();
     }

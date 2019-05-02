@@ -75,5 +75,8 @@ public:
     virtual DataScope *find_inner_scope(std::string name) {
         return NULL;
     }
+    
+    virtual void debug(Dwarf *dwarf) {
+    }
 };
 
