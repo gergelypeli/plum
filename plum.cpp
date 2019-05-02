@@ -24,7 +24,8 @@
 #include "environment/heap.h"
 
 // Code generation
-#include "arch/ork.cpp"
+#include "arch/elf.cpp"
+#include "arch/dwarf.cpp"
 #include "arch/basics.cpp"
 #include "arch/asm64.cpp"
 #include "arch/storage.cpp"
@@ -106,8 +107,7 @@ int main(int argc, char **argv) {
     // Allocate builtins and modules
     unsigned application_size = root->allocate_modules();
     
-    X64 *x64 = new X64(application_size);
-    x64->init("mymodule");
+    X64 *x64 = new X64("mymodule", application_size);
 
     root->compile_modules(x64);
     

@@ -252,16 +252,12 @@ public:
     std::vector<Ref> refs;
     unsigned code_symbol_index, data_symbol_index;
     
-    std::vector<LineInfo> line_infos;
-    
-    Ork *ork;
+    Elf *elf;
 
-    Asm64();
+    Asm64(std::string module_name);
     ~Asm64();
     
-    void init(std::string module_name);
     void relocate();
-    void debug(std::vector<std::string> source_file_names, std::string producer);
     void done(std::string filename);
 
     void add_def(Label label, const Def &def);
@@ -290,8 +286,6 @@ public:
     void code_label_local(Label c, std::string name, unsigned size = 0);
     void code_label_global(Label c, std::string name, unsigned size = 0);
     void code_reference(Label c, int offset = 0);
-    void code_line_info(int file_index, int line_number);
-
     
     void effective_address(int regfield, Register rm);
     void effective_address(int regfield, SseRegister rm);
@@ -397,22 +391,18 @@ const int OPSIZE_WORD_PREFIX = 0x66;
 const int OPSIZE_REX_PREFIX = 0x40;
 
 
-Asm64::Asm64() {
+Asm64::Asm64(std::string module_name) {
+    elf = new Elf;
+
+    // symbol table indexes
+    code_symbol_index = elf->export_code(module_name + ".code", 0, 0, true);
+    data_symbol_index = elf->export_data(module_name + ".data", 0, 0, true);
+
+    op(UD2);  // Have fun jumping to address 0
 }
 
 
 Asm64::~Asm64() {
-}
-
-
-void Asm64::init(std::string module_name) {
-    ork = new Ork;  // New Ork, New Ork...
-
-    // symbol table indexes
-    code_symbol_index = ork->export_code(module_name + ".code", 0, 0, true);
-    data_symbol_index = ork->export_data(module_name + ".data", 0, 0, true);
-
-    op(UD2);  // Have fun jumping to address 0
 }
 
 
@@ -425,16 +415,16 @@ void Asm64::relocate() {
         case DEF_DATA: break;
         case DEF_ABSOLUTE: break;
         case DEF_CODE_IMPORT:
-            d.symbol_index = ork->import(d.name);
+            d.symbol_index = elf->import(d.name);
             break;
         case DEF_CODE_EXPORT:
-            d.symbol_index = ork->export_code(d.name, d.location, d.size, d.is_global);
+            d.symbol_index = elf->export_code(d.name, d.location, d.size, d.is_global);
             break;
         case DEF_DATA_EXPORT:
-            d.symbol_index = ork->export_data(d.name, d.location, d.size, d.is_global);
+            d.symbol_index = elf->export_data(d.name, d.location, d.size, d.is_global);
             break;
         case DEF_ABSOLUTE_EXPORT:
-            d.symbol_index = ork->export_absolute(d.name, d.location, d.size, d.is_global);
+            d.symbol_index = elf->export_absolute(d.name, d.location, d.size, d.is_global);
             break;
         default:
             std::cerr << "He?\n";
@@ -494,11 +484,11 @@ void Asm64::relocate() {
                 }
                 break;
             case DEF_CODE_IMPORT:
-                ork->code_relocation(d.symbol_index, r.location, -4);
+                elf->code_relocation(d.symbol_index, r.location, -4);
                 break;
             case DEF_DATA:
             case DEF_DATA_EXPORT:
-                ork->code_relocation(data_symbol_index, r.location, d.location - 4);
+                elf->code_relocation(data_symbol_index, r.location, d.location - 4);
                 break;
             default:
                 std::cerr << "Can't relocate code relative to this symbol!\n";
@@ -517,14 +507,14 @@ void Asm64::relocate() {
                 break;
             case DEF_DATA_EXPORT:
             case DEF_DATA:
-                ork->data_relocation(data_symbol_index, r.location, d.location);
+                elf->data_relocation(data_symbol_index, r.location, d.location);
                 break;
             case DEF_CODE:
             case DEF_CODE_EXPORT:
-                ork->data_relocation(code_symbol_index, r.location, d.location);
+                elf->data_relocation(code_symbol_index, r.location, d.location);
                 break;
             case DEF_CODE_IMPORT:
-                ork->data_relocation(d.symbol_index, r.location, 0);
+                elf->data_relocation(d.symbol_index, r.location, 0);
                 break;
             default:
                 std::cerr << "Can't relocate data absolute to this symbol!\n";
@@ -536,20 +526,15 @@ void Asm64::relocate() {
 }
 
 
-void Asm64::debug(std::vector<std::string> source_file_names, std::string producer) {
-    ork->set_code(code);
-    ork->set_data(data);
-    ork->set_lineno(source_file_names, line_infos);
-
-    ork->fill_abbrev();
-    ork->fill_info(source_file_names[1], producer);
-}
-
-
 void Asm64::done(std::string filename) {
-    ork->done(filename);
+    relocate();
     
-    delete ork;
+    elf->set_code(code);
+    elf->set_data(data);
+    
+    elf->done(filename);
+    
+    delete elf;
 }
 
 
@@ -718,11 +703,6 @@ void Asm64::code_reference(Label label, int offset) {
     code_dword(offset);  // 32-bit offset only
     
     // TODO: shall we store 0 only, and put the offset into the addend?
-}
-
-
-void Asm64::code_line_info(int file_index, int line_number) {
-    line_infos.push_back(LineInfo { (int)code.size(), file_index, line_number });
 }
 
 

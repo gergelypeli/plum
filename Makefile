@@ -3,7 +3,7 @@ SHELL      = /bin/zsh
 
 DECLS      = all declaration identifier scope type basic record reference interface class option allocable function associable float container nosy util
 VALUES     = all value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset rbtree_weakmapset container option equality float weakref debug
-ARCHS      = ork asm64 storage basics
+ARCHS      = elf asm64 storage basics dwarf
 PARSING    = all tokenize treeize tupleize typize
 GLOBALS    = all builtins builtins_errno typespec typematch functions runtime modules
 MODULES    = util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%) $(PARSING:%=parsing/%)

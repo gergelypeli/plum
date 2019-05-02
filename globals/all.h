@@ -604,27 +604,36 @@ public:
     Accounting *accounting;
 
     Runtime *runtime;
+    Dwarf *dwarf;
     
-    X64(int application_size)
-        :Asm64() {
+    X64(std::string module_name, int application_size)
+        :Asm64(module_name) {
         once = new Once;
         unwind = new Unwind;
         accounting = new Accounting;
         
         // Needs Accounting
         runtime = new Runtime(this, application_size);
+        dwarf = new Dwarf(elf);
     }
     
-    void finish(std::string output, std::vector<std::string> source_file_names) {
+    virtual void finish(std::string output, std::vector<std::string> source_file_names) {
         once->for_all(this);
         
         runtime->compile_source_infos(source_file_names);
         runtime->compile_func_infos();
         runtime->compile_call_infos();
 
-        relocate();
-        debug(source_file_names, "plum");
+        dwarf->fill_lineno(source_file_names);
+        dwarf->fill_abbrev();
+        dwarf->fill_info(source_file_names[1], "plum", code.size());
+        dwarf->finish();
+        
         done(output);
+    }
+    
+    virtual void add_line_info(int file_index, int line_number) {
+        dwarf->add_line_info(code.size(), file_index, line_number);
     }
     
     virtual bool is_accounting() {
