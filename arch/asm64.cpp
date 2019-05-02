@@ -250,7 +250,6 @@ public:
     std::vector<char> data;
     std::map<unsigned, Def> defs;
     std::vector<Ref> refs;
-    unsigned code_symbol_index, data_symbol_index;
     
     Elf *elf;
 
@@ -392,11 +391,7 @@ const int OPSIZE_REX_PREFIX = 0x40;
 
 
 Asm64::Asm64(std::string module_name) {
-    elf = new Elf;
-
-    // symbol table indexes
-    code_symbol_index = elf->export_code(module_name + ".code", 0, 0, true);
-    data_symbol_index = elf->export_data(module_name + ".data", 0, 0, true);
+    elf = new Elf(module_name);
 
     op(UD2);  // Have fun jumping to address 0
 }
@@ -488,7 +483,7 @@ void Asm64::relocate() {
                 break;
             case DEF_DATA:
             case DEF_DATA_EXPORT:
-                elf->code_relocation(data_symbol_index, r.location, d.location - 4);
+                elf->code_relocation(elf->data_start_sym, r.location, d.location - 4);
                 break;
             default:
                 std::cerr << "Can't relocate code relative to this symbol!\n";
@@ -507,11 +502,11 @@ void Asm64::relocate() {
                 break;
             case DEF_DATA_EXPORT:
             case DEF_DATA:
-                elf->data_relocation(data_symbol_index, r.location, d.location);
+                elf->data_relocation(elf->data_start_sym, r.location, d.location);
                 break;
             case DEF_CODE:
             case DEF_CODE_EXPORT:
-                elf->data_relocation(code_symbol_index, r.location, d.location);
+                elf->data_relocation(elf->code_start_sym, r.location, d.location);
                 break;
             case DEF_CODE_IMPORT:
                 elf->data_relocation(d.symbol_index, r.location, 0);

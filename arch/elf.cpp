@@ -14,9 +14,9 @@ public:
     std::vector<Elf64_Rela> line_relocations;
     std::vector<Elf64_Rela> info_relocations;
 
-    unsigned code_start_sym, line_start_sym, abbr_start_sym;
+    unsigned code_start_sym, data_start_sym, line_start_sym, abbr_start_sym;
     
-    Elf();
+    Elf(std::string module_name);
     ~Elf();
     
     unsigned add_string(std::string s);
@@ -44,7 +44,7 @@ public:
 };
 
 
-Elf::Elf() {
+Elf::Elf(std::string module_name) {
     strings.push_back('\0');
 
     symbols.push_back(Elf64_Sym());
@@ -57,9 +57,10 @@ Elf::Elf() {
     s.st_other = 0;
     s.st_shndx = 0;
     
-    code_start_sym = add_symbol(".code_start", 0, 0, false, STT_SECTION, 6);
-    line_start_sym = add_symbol(".line_start", 0, 0, false, STT_SECTION, 8);
-    abbr_start_sym = add_symbol(".abbr_start", 0, 0, false, STT_SECTION, 9);
+    code_start_sym = add_symbol(module_name + ".code_start", 0, 0, false, STT_SECTION, 6);
+    data_start_sym = add_symbol(module_name + ".data_start", 0, 0, false, STT_SECTION, 7);
+    line_start_sym = add_symbol(module_name + ".line_start", 0, 0, false, STT_SECTION, 8);
+    abbr_start_sym = add_symbol(module_name + ".abbr_start", 0, 0, false, STT_SECTION, 9);
 }
 
 
