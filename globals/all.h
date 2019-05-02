@@ -500,6 +500,19 @@ public:
     const int PROT_NONE = 0;
     const int PROT_RW = 3;
 
+    struct LineInfo {
+        int address;
+        int file_index;
+        int line_number;
+    };
+
+    struct FuncInfo {
+        std::string name;
+        Label start_label;
+        Label end_label;
+        Label name_label;
+    };
+
     X64 *x64;
     
     Label code_start_label, data_start_label, application_label;
@@ -523,13 +536,6 @@ public:
     Label sysv_sort_label, sysv_string_regexp_match_label;
     Label sysv_streamify_integer_label, sysv_streamify_unteger_label, sysv_streamify_boolean_label;
     Label sysv_streamify_pointer_label, sysv_streamify_float_label;
-
-    struct FuncInfo {
-        std::string name;
-        Label start_label;
-        Label end_label;
-        Label name_label;
-    };
 
     Label source_infos_label, source_infos_length_label;
 
@@ -608,34 +614,35 @@ public:
     Runtime *runtime;
     Dwarf *dwarf;
     
-    X64(std::string module_name, int application_size)
+    std::vector<std::string> source_file_names;
+    
+    X64(std::string module_name, int application_size, std::vector<std::string> sfns)
         :Asm64(module_name) {
+        source_file_names = sfns;
+        
         once = new Once;
         unwind = new Unwind;
         accounting = new Accounting;
         
         // Needs Accounting
         runtime = new Runtime(this, application_size);
-        dwarf = new Dwarf(elf);
+        dwarf = new Dwarf(elf, sfns);
     }
     
-    virtual void finish(std::string output, std::vector<std::string> source_file_names) {
+    virtual void finish(std::string output) {
         once->for_all(this);
         
         runtime->compile_source_infos(source_file_names);
         runtime->compile_func_infos();
         runtime->compile_call_infos();
 
-        dwarf->fill_lineno(source_file_names);
-        dwarf->fill_abbrev();
-        dwarf->fill_info(source_file_names[1], "plum", code.size());
         dwarf->finish();
         
         done(output);
     }
     
-    virtual void add_line_info(int file_index, int line_number) {
-        dwarf->add_line_info(code.size(), file_index, line_number);
+    virtual void add_lineno(int file_index, int line_number) {
+        dwarf->add_lineno(code.size(), file_index, line_number);
     }
     
     virtual bool is_accounting() {

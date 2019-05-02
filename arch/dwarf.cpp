@@ -1,11 +1,4 @@
 
-struct LineInfo {
-    int address;
-    int file_index;
-    int line_number;
-};
-
-
 class DwarfBuffer: public std::vector<char> {
 public:
     void uleb128(unsigned x) {
@@ -60,6 +53,27 @@ public:
 
 class Dwarf {
 public:
+    struct CompilationUnitHeader {
+        uint32_t length;
+        uint16_t version;
+        uint32_t abbrev_offset;
+        uint8_t address_size;
+    } __attribute__((packed));
+
+    struct DebugLineHeader {
+        uint32_t length;
+        uint16_t version;
+        uint32_t header_length;
+        uint8_t min_instruction_length;
+        uint8_t maximum_operations_per_instruction;
+        uint8_t default_is_stmt;
+        int8_t line_base;
+        uint8_t line_range;
+        uint8_t opcode_base;
+        uint8_t std_opcode_lengths[12];
+    } __attribute__((packed));
+    
+
     struct DwarfAttrDef {
         int at;
         int form;
@@ -69,40 +83,48 @@ public:
     DwarfBuffer abbrev;
     DwarfBuffer info;
 
-    std::vector<LineInfo> line_infos;
-    
     Elf *elf;
+    int cuh_offset, dlh_offset;
     unsigned abbrev_count;
     unsigned compile_unit_abbrev_number, base_type_abbrev_number, subprogram_abbrev_number;
+    int lineno_sm_address, lineno_sm_file_index, lineno_sm_line_number;
     
-    Dwarf(Elf *o);
+    Dwarf(Elf *o, std::vector<std::string> &source_names);
     void finish();
     
-    void add_line_info(int pc, int file_index, int line_number);
     unsigned add_abbrev(int tag, bool has_children, std::vector<DwarfAttrDef> attrdefs);
 
-    void fill_lineno(std::vector<std::string> &source_names);
-    void fill_abbrev();
-    void fill_info(std::string name, std::string producer, int pc);
+    void init_lineno(std::vector<std::string> &source_names);
+    void add_lineno(int pc, int file_index, int line_number);
+    void finish_lineno();
+    
+    void init_abbrev();
+    void finish_abbrev();
+    
+    void init_info();
+    void begin_compile_unit_info(std::string name, std::string producer, int pc);
+    void end_info();
+    void finish_info();
 };
 
 
-Dwarf::Dwarf(Elf *o) {
+Dwarf::Dwarf(Elf *o, std::vector<std::string> &source_names) {
     elf = o;
     
-    abbrev_count = 0;
+    init_abbrev();
+    init_info();
+    init_lineno(source_names);
 }
 
 
 void Dwarf::finish() {
+    finish_abbrev();
+    finish_lineno();
+    finish_info();
+
     elf->set_lineno(lineno);
     elf->set_abbrev(abbrev);
     elf->set_info(info);
-}
-
-
-void Dwarf::add_line_info(int pc, int file_index, int line_number) {
-    line_infos.push_back(LineInfo { pc, file_index, line_number });
 }
 
 
@@ -125,8 +147,9 @@ unsigned Dwarf::add_abbrev(int tag, bool has_children, std::vector<DwarfAttrDef>
 }
 
 
-void Dwarf::fill_abbrev() {
+void Dwarf::init_abbrev() {
     // Fill .debug_abbrev
+    abbrev_count = 0;
     
     compile_unit_abbrev_number = add_abbrev(DW_TAG_compile_unit, true, {
         { DW_AT_stmt_list, DW_FORM_sec_offset },
@@ -147,23 +170,19 @@ void Dwarf::fill_abbrev() {
         { DW_AT_low_pc, DW_FORM_addr },
         { DW_AT_high_pc, DW_FORM_data8 }
     });
+}
 
+
+void Dwarf::finish_abbrev() {
     // end of abbrevs
     abbrev.uleb128(0);
 }
 
 
-void Dwarf::fill_info(std::string name, std::string producer, int pc) {
+void Dwarf::init_info() {
     // Fill .debug_info
 
-    struct CompilationUnitHeader {
-        uint32_t length;
-        uint16_t version;
-        uint32_t abbrev_offset;
-        uint8_t address_size;
-    } __attribute__((packed));
-
-    int cuh_offset = info.append<CompilationUnitHeader>();
+    cuh_offset = info.append<CompilationUnitHeader>();
     auto cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
     
     cuh->length = 0;  // to be filled
@@ -173,7 +192,19 @@ void Dwarf::fill_info(std::string name, std::string producer, int pc) {
 
     Elf64_Addr abbr_relocation = cuh_offset + offsetof(CompilationUnitHeader, abbrev_offset);
     elf->info_relocation32(elf->abbr_start_sym, abbr_relocation, 0);
-    
+}
+
+
+void Dwarf::finish_info() {
+    // info vector may have been reallocated
+    int info_start = cuh_offset + offsetof(CompilationUnitHeader, version);
+    int info_end = info.size();
+    auto cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
+    cuh->length = info_end - info_start;
+}
+
+
+void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int pc) {
     // DIE - Compile Unit
     info.uleb128(compile_unit_abbrev_number);
 
@@ -194,9 +225,9 @@ void Dwarf::fill_info(std::string name, std::string producer, int pc) {
     
     // producer
     info.string(producer);
-    
+
     // Compile Unit children
-    
+    /*
     // DIE - Boolean
     info.uleb128(base_type_abbrev_number);
     info.string("Boolean");
@@ -214,35 +245,20 @@ void Dwarf::fill_info(std::string name, std::string producer, int pc) {
     info.string("Integer");
     info.data1(8);
     info.data1(DW_ATE_signed);
-
-    // End of Compile Unit children
-    info.uleb128(0x00);
+    */
+}
     
-    // info vector may have been reallocated
-    int info_start = cuh_offset + offsetof(CompilationUnitHeader, version);
-    int info_end = info.size();
-    cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
-    cuh->length = info_end - info_start;
+    
+void Dwarf::end_info() {
+    // End of children
+    info.uleb128(0x00);
 }
 
 
-void Dwarf::fill_lineno(std::vector<std::string> &source_names) {
+void Dwarf::init_lineno(std::vector<std::string> &source_names) {
     // Fill .debug_line
 
-    struct DebugLineHeader {
-        uint32_t length;
-        uint16_t version;
-        uint32_t header_length;
-        uint8_t min_instruction_length;
-        uint8_t maximum_operations_per_instruction;
-        uint8_t default_is_stmt;
-        int8_t line_base;
-        uint8_t line_range;
-        uint8_t opcode_base;
-        uint8_t std_opcode_lengths[12];
-    } __attribute__((packed));
-    
-    int dlh_offset = lineno.append<DebugLineHeader>();
+    dlh_offset = lineno.append<DebugLineHeader>();
     auto dlh = lineno.pointer<DebugLineHeader>(dlh_offset);
     
     dlh->length = 0;  // To be filled later
@@ -301,31 +317,35 @@ void Dwarf::fill_lineno(std::vector<std::string> &source_names) {
     elf->line_relocation64(elf->code_start_sym, code_relocation, 0);
     
     // Initialize state machine
-    int sm_address = 0;
-    int sm_file_index = 0;
-    int sm_line_number = 1;
-        
-    for (auto &li : line_infos) {
-        lineno.push_back(2);  // advance pc op
-        lineno.uleb128(li.address - sm_address);
-        sm_address = li.address;
+    lineno_sm_address = 0;
+    lineno_sm_file_index = 0;
+    lineno_sm_line_number = 1;
+}
 
-        lineno.push_back(3);  // advance line op
-        lineno.sleb128(li.line_number - sm_line_number);
-        sm_line_number = li.line_number;
-        
-        if (li.file_index != sm_file_index) {
-            lineno.push_back(4);  // set file op
-            lineno.uleb128(li.file_index + 1);  // DWARF file indexing from 1
-            sm_file_index = li.file_index;
-        }
-        
-        lineno.push_back(1);  // copy op
-    }
 
+void Dwarf::finish_lineno() {
     // size after length
     int debug_line_start = dlh_offset + offsetof(DebugLineHeader, version);
     int debug_line_end = lineno.size();
-    dlh = lineno.pointer<DebugLineHeader>(dlh_offset);
+    auto dlh = lineno.pointer<DebugLineHeader>(dlh_offset);
     dlh->length = debug_line_end - debug_line_start;
+}
+
+
+void Dwarf::add_lineno(int pc, int file_index, int line_number) {
+    lineno.push_back(2);  // advance pc op
+    lineno.uleb128(pc - lineno_sm_address);
+    lineno_sm_address = pc;
+
+    lineno.push_back(3);  // advance line op
+    lineno.sleb128(line_number - lineno_sm_line_number);
+    lineno_sm_line_number = line_number;
+    
+    if (file_index != lineno_sm_file_index) {
+        lineno.push_back(4);  // set file op
+        lineno.uleb128(file_index + 1);  // DWARF file indexing from 1
+        lineno_sm_file_index = file_index;
+    }
+    
+    lineno.push_back(1);  // copy op
 }

@@ -107,11 +107,14 @@ int main(int argc, char **argv) {
     // Allocate builtins and modules
     unsigned application_size = root->allocate_modules();
     
-    X64 *x64 = new X64("mymodule", application_size);
+    X64 *x64 = new X64("mymodule", application_size, root->source_file_names);
 
     root->compile_modules(x64);
     
-    x64->finish(output, root->source_file_names);
+    x64->dwarf->begin_compile_unit_info(root->source_file_names[1], "plum", x64->code.size());
+    x64->dwarf->end_info();
+
+    x64->finish(output);
     
     std::cerr << "Done.\n";
     return 0;
