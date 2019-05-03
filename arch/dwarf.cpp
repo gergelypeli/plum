@@ -102,7 +102,7 @@ public:
     int cuh_offset, dlh_offset;
     unsigned abbrev_count;
     unsigned compile_unit_abbrev_number, base_type_abbrev_number;
-    unsigned subprogram_abbrev_number, lexical_block_abbrev_number;
+    unsigned subprogram_abbrev_number, lexical_block_abbrev_number, try_block_abbrev_number, catch_block_abbrev_number;
     unsigned variable_abbrev_number, formal_parameter_abbrev_number;
     unsigned integer_die_offset;
     int lineno_sm_address, lineno_sm_file_index, lineno_sm_line_number;
@@ -124,6 +124,8 @@ public:
     void begin_compile_unit_info(std::string name, std::string producer, int low_pc, int high_pc);
     void begin_subprogram_info(std::string name, int low_pc, int high_pc);
     void begin_lexical_block_info(int low_pc, int high_pc);
+    void begin_try_block_info(int low_pc, int high_pc);
+    void begin_catch_block_info(int low_pc, int high_pc);
     void local_variable_info(std::string name, int rbp_offset);
     void formal_parameter_info(std::string name, int rbp_offset);
     void end_info();
@@ -196,6 +198,16 @@ void Dwarf::init_abbrev() {
     });
 
     lexical_block_abbrev_number = add_abbrev(DW_TAG_lexical_block, true, {
+        { DW_AT_low_pc, DW_FORM_addr },
+        { DW_AT_high_pc, DW_FORM_data8 }
+    });
+
+    try_block_abbrev_number = add_abbrev(DW_TAG_try_block, true, {
+        { DW_AT_low_pc, DW_FORM_addr },
+        { DW_AT_high_pc, DW_FORM_data8 }
+    });
+    
+    catch_block_abbrev_number = add_abbrev(DW_TAG_catch_block, true, {
         { DW_AT_low_pc, DW_FORM_addr },
         { DW_AT_high_pc, DW_FORM_data8 }
     });
@@ -308,6 +320,22 @@ void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc) {
 
 void Dwarf::begin_lexical_block_info(int low_pc, int high_pc) {
     info.uleb128(lexical_block_abbrev_number);
+    
+    info_code_address(low_pc);
+    info.data8(high_pc - low_pc);
+}
+
+
+void Dwarf::begin_try_block_info(int low_pc, int high_pc) {
+    info.uleb128(try_block_abbrev_number);
+    
+    info_code_address(low_pc);
+    info.data8(high_pc - low_pc);
+}
+
+
+void Dwarf::begin_catch_block_info(int low_pc, int high_pc) {
+    info.uleb128(catch_block_abbrev_number);
     
     info_code_address(low_pc);
     info.data8(high_pc - low_pc);

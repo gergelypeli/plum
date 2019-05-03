@@ -202,9 +202,13 @@ public:
         return false;
     }
 
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug_contents(Dwarf *dwarf) {
         for (auto &content : contents)
             content->debug(dwarf);
+    }
+
+    virtual void debug(Dwarf *dwarf) {
+        debug_contents(dwarf);
     }
 };
 
@@ -635,9 +639,7 @@ public:
         // Don't spam the debug info with empty scopes
         if (contents.size()) {
             dwarf->begin_lexical_block_info(low_pc, high_pc);
-        
-            Scope::debug(dwarf);
-        
+            debug_contents(dwarf);
             dwarf->end_info();
         }
     }
@@ -698,6 +700,15 @@ public:
     SwitchScope *get_switch_scope() {
         return this;
     }
+
+    virtual void debug(Dwarf *dwarf) {
+        if (low_pc < 0 || high_pc < 0)
+            throw INTERNAL_ERROR;
+
+        dwarf->begin_catch_block_info(low_pc, high_pc);
+        debug_contents(dwarf);
+        dwarf->end_info();
+    }
 };
 
 
@@ -734,7 +745,7 @@ public:
             std::cerr << "Mixed implicit and explicit matchers!\n";
             return false;
         }
-            
+
         return true;
     }
     
@@ -744,6 +755,15 @@ public:
     
     bool has_implicit_matcher() {
         return have_implicit_matcher;
+    }
+
+    virtual void debug(Dwarf *dwarf) {
+        if (low_pc < 0 || high_pc < 0)
+            throw INTERNAL_ERROR;
+
+        dwarf->begin_try_block_info(low_pc, high_pc);
+        debug_contents(dwarf);
+        dwarf->end_info();
     }
 };
 

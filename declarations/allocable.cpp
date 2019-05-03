@@ -431,5 +431,9 @@ public:
         where = ALIAS;
         offset = outer_scope->reserve(Allocation(ALIAS_SIZE));
     }
+    
+    virtual void debug(Dwarf *dwarf) {
+        Storage s = get_local_storage();
+        dwarf->formal_parameter_info(name, s.address.offset);
+    }
 };
-
