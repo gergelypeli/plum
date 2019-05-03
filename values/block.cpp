@@ -49,12 +49,16 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
+        int low_pc = x64->get_pc();
         Storage t = compile_body(x64);
     
         if (code_scope->is_unwindable())
             x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         code_scope->finalize_contents(x64);
+        int high_pc = x64->get_pc();
+
+        code_scope->set_pc_range(low_pc, high_pc);
 
         if (code_scope->is_unwindable()) {
             x64->op(CMPQ, RDX, NO_EXCEPTION);

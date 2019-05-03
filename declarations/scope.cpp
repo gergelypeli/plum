@@ -538,6 +538,8 @@ public:
         contents_finalized = false;
         is_taken = false;
         am_unwindable = false;
+        low_pc = -1;
+        high_pc = -1;
     }
 
     virtual void be_taken() {
@@ -624,6 +626,20 @@ public:
     virtual void set_pc_range(int lo, int hi) {
         low_pc = lo;
         high_pc = hi;
+    }
+    
+    virtual void debug(Dwarf *dwarf) {
+        if (low_pc < 0 || high_pc < 0)
+            throw INTERNAL_ERROR;
+
+        // Don't spam the debug info with empty scopes
+        if (contents.size()) {
+            dwarf->begin_lexical_block_info(low_pc, high_pc);
+        
+            Scope::debug(dwarf);
+        
+            dwarf->end_info();
+        }
     }
 };
 

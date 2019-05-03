@@ -365,7 +365,9 @@ public:
         }
         else if (associated_role_offset)
             x64->op(SUBQ, self_storage.address, associated_role_offset);
-        
+
+        int body_low_pc = x64->get_pc();
+
         x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
@@ -376,6 +378,8 @@ public:
         x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         fn_scope->body_scope->finalize_contents(x64);
+        
+        int body_high_pc = x64->get_pc();
         
         if (fn_scope->body_scope->is_unwindable()) {
             Label ok, caught;
@@ -431,7 +435,8 @@ public:
             fix_arg(d.get(), x64);
         
         x64->op(RET);
-        
+
+        fn_scope->body_scope->set_pc_range(body_low_pc, body_high_pc);
         function->set_pc_range(low_pc, high_pc);
         x64->runtime->add_func_info(fqn, start_label, fixup_label);
         

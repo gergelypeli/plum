@@ -1174,6 +1174,7 @@ public:
         
         cs->leave();
         scope->remove(cs);
+        delete cs;
         
         Args fake_args;
         fake_args.push_back(std::unique_ptr<Expr>(to_expr));

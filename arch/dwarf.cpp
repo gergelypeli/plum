@@ -42,6 +42,16 @@ public:
         push_back(x);
     }
 
+    void data2(int value) {
+        auto offset = append<unsigned16>();
+        *pointer<unsigned16>(offset) = value;
+    }
+    
+    void data4(int value) {
+        auto offset = append<unsigned32>();
+        *pointer<unsigned32>(offset) = value;
+    }
+
     void data8(int value) {
         auto offset = append<unsigned64>();
         *pointer<unsigned64>(offset) = value;
@@ -91,7 +101,10 @@ public:
     Elf *elf;
     int cuh_offset, dlh_offset;
     unsigned abbrev_count;
-    unsigned compile_unit_abbrev_number, base_type_abbrev_number, subprogram_abbrev_number;
+    unsigned compile_unit_abbrev_number, base_type_abbrev_number;
+    unsigned subprogram_abbrev_number, lexical_block_abbrev_number;
+    unsigned variable_abbrev_number, formal_parameter_abbrev_number;
+    unsigned integer_die_offset;
     int lineno_sm_address, lineno_sm_file_index, lineno_sm_line_number;
     
     Dwarf(Elf *o, std::vector<std::string> &source_names);
@@ -110,6 +123,9 @@ public:
     void info_code_address(int value);
     void begin_compile_unit_info(std::string name, std::string producer, int low_pc, int high_pc);
     void begin_subprogram_info(std::string name, int low_pc, int high_pc);
+    void begin_lexical_block_info(int low_pc, int high_pc);
+    void local_variable_info(std::string name, int rbp_offset);
+    void formal_parameter_info(std::string name, int rbp_offset);
     void end_info();
     void finish_info();
 };
@@ -175,7 +191,25 @@ void Dwarf::init_abbrev() {
     subprogram_abbrev_number = add_abbrev(DW_TAG_subprogram, true, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_low_pc, DW_FORM_addr },
+        { DW_AT_high_pc, DW_FORM_data8 },
+        { DW_AT_frame_base, DW_FORM_exprloc }
+    });
+
+    lexical_block_abbrev_number = add_abbrev(DW_TAG_lexical_block, true, {
+        { DW_AT_low_pc, DW_FORM_addr },
         { DW_AT_high_pc, DW_FORM_data8 }
+    });
+
+    variable_abbrev_number = add_abbrev(DW_TAG_variable, false, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_location, DW_FORM_exprloc },
+        { DW_AT_type, DW_FORM_ref4 }
+    });
+
+    formal_parameter_abbrev_number = add_abbrev(DW_TAG_formal_parameter, false, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_location, DW_FORM_exprloc },
+        { DW_AT_type, DW_FORM_ref4 }
     });
 }
 
@@ -250,13 +284,13 @@ void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int 
     info.string("Character");
     info.data1(2);
     info.data1(DW_ATE_UCS);
-
+    */
     // DIE - Integer
+    integer_die_offset = info.size();
     info.uleb128(base_type_abbrev_number);
     info.string("Integer");
     info.data1(8);
     info.data1(DW_ATE_signed);
-    */
 }
 
 
@@ -266,7 +300,53 @@ void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc) {
     info.string(name);
     info_code_address(low_pc);
     info.data8(high_pc - low_pc);
+    
+    info.uleb128(1);
+    info.data1(DW_OP_reg6);  // frame base is RBP
 }
+
+
+void Dwarf::begin_lexical_block_info(int low_pc, int high_pc) {
+    info.uleb128(lexical_block_abbrev_number);
+    
+    info_code_address(low_pc);
+    info.data8(high_pc - low_pc);
+}
+
+
+void Dwarf::local_variable_info(std::string name, int rbp_offset) {
+    info.uleb128(variable_abbrev_number);
+    
+    info.string(name);
+    
+    DwarfBuffer offbuff;
+    offbuff.sleb128(rbp_offset);
+    int exprlen = 1 + offbuff.size();
+        
+    info.uleb128(exprlen);
+    info.data1(DW_OP_fbreg);
+    info.sleb128(rbp_offset);
+    
+    info.data4(integer_die_offset);  // hardcoded Integer type for now
+}
+
+
+void Dwarf::formal_parameter_info(std::string name, int rbp_offset) {
+    info.uleb128(formal_parameter_abbrev_number);
+    
+    info.string(name);
+    
+    DwarfBuffer offbuff;
+    offbuff.sleb128(rbp_offset);
+    int exprlen = 1 + offbuff.size();
+        
+    info.uleb128(exprlen);
+    info.data1(DW_OP_fbreg);
+    info.sleb128(rbp_offset);
+    
+    info.data4(integer_die_offset);  // hardcoded Integer type for now
+}
+
     
 void Dwarf::end_info() {
     // End of children

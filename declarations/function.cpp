@@ -216,7 +216,10 @@ public:
             
         dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc);
         
-        Identifier::debug(dwarf);
+        fn_scope->result_scope->debug(dwarf);
+        fn_scope->self_scope->debug(dwarf);
+        fn_scope->head_scope->debug(dwarf);
+        fn_scope->body_scope->debug(dwarf);
         
         dwarf->end_info();
     }
