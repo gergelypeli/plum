@@ -216,7 +216,8 @@ public:
         
             if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP) {
                 unsigned ts_index = x64->once->type_info(alloc_ts);
-                x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index);
+                bool is_artificial = (name == "$");
+                x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index, is_artificial);
             }
         }
     }
@@ -439,6 +440,6 @@ public:
     virtual void debug(X64 *x64) {
         Storage s = get_local_storage();
         unsigned ts_index = x64->once->type_info(alloc_ts);
-        x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index);
+        x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index, false);
     }
 };

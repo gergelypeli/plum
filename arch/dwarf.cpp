@@ -107,7 +107,7 @@ public:
 
     unsigned compile_unit_abbrev_number;
     unsigned base_type_abbrev_number, enumeration_type_abbrev_number, enumerator_abbrev_number;
-    unsigned unspecified_type_abbrev_number;
+    unsigned unspecified_type_abbrev_number, pointer_type_abbrev_number;
     unsigned subprogram_abbrev_number, lexical_block_abbrev_number, try_block_abbrev_number, catch_block_abbrev_number;
     unsigned variable_abbrev_number, formal_parameter_abbrev_number;
 
@@ -140,15 +140,15 @@ public:
     void begin_enumeration_type_info(std::string name, int size);
     void enumerator_info(std::string name, int value);
     void unspecified_type_info(std::string name);
+    void pointer_type_info(std::string name, unsigned ts_index);
 
-    void begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality);
+    void begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index);
     void begin_lexical_block_info(int low_pc, int high_pc);
     void begin_try_block_info(int low_pc, int high_pc);
     void begin_catch_block_info(int low_pc, int high_pc);
 
     void local_variable_info(std::string name, int rbp_offset, unsigned ts_index);
-    void formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index);
-
+    void formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index, bool is_artificial);
 };
 
 
@@ -235,12 +235,18 @@ void Dwarf::init_abbrev() {
         { DW_AT_name, DW_FORM_string }
     });
 
+    pointer_type_abbrev_number = add_abbrev(DW_TAG_pointer_type, false, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_type, DW_FORM_ref4 }
+    });
+
     subprogram_abbrev_number = add_abbrev(DW_TAG_subprogram, true, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_low_pc, DW_FORM_addr },
         { DW_AT_high_pc, DW_FORM_data8 },
         { DW_AT_frame_base, DW_FORM_exprloc },
-        { DW_AT_virtuality, DW_FORM_data1 }
+        { DW_AT_virtuality, DW_FORM_data1 },
+        { DW_AT_object_pointer, DW_FORM_ref4 }
     });
 
     lexical_block_abbrev_number = add_abbrev(DW_TAG_lexical_block, true, {
@@ -267,7 +273,8 @@ void Dwarf::init_abbrev() {
     formal_parameter_abbrev_number = add_abbrev(DW_TAG_formal_parameter, false, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_location, DW_FORM_exprloc },
-        { DW_AT_type, DW_FORM_ref4 }
+        { DW_AT_type, DW_FORM_ref4 },
+        { DW_AT_artificial, DW_FORM_flag }
     });
 }
 
@@ -373,7 +380,15 @@ void Dwarf::unspecified_type_info(std::string name) {
 }
 
 
-void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality) {
+void Dwarf::pointer_type_info(std::string name, unsigned ts_index) {
+    info.uleb128(pointer_type_abbrev_number);
+    
+    info.string(name);
+    info_ref(ts_index);
+}
+
+
+void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index) {
     info.uleb128(subprogram_abbrev_number);
     
     info.string(name);
@@ -384,6 +399,7 @@ void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, boo
     info.data1(DW_OP_reg6);  // frame base is RBP
     
     info.data1(virtuality ? DW_VIRTUALITY_virtual : DW_VIRTUALITY_none);
+    info_ref(self_index);
 }
 
 
@@ -428,7 +444,7 @@ void Dwarf::local_variable_info(std::string name, int rbp_offset, unsigned ts_in
 }
 
 
-void Dwarf::formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index) {
+void Dwarf::formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index, bool is_artificial) {
     info.uleb128(formal_parameter_abbrev_number);
     
     info.string(name);
@@ -442,6 +458,7 @@ void Dwarf::formal_parameter_info(std::string name, int rbp_offset, unsigned ts_
     info.sleb128(rbp_offset);
 
     info_ref(ts_index);
+    info.data1(is_artificial ? 1 : 0);
 }
 
     

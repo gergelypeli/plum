@@ -214,12 +214,21 @@ public:
         if (low_pc < 0 || high_pc < 0)
             throw INTERNAL_ERROR;
 
+        if (fn_scope->self_scope->contents.empty())
+            throw INTERNAL_ERROR;
+
         bool virtuality = (virtual_index != 0);
-        x64->dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, virtuality);
+        Label self_label;
+        unsigned self_index = self_label.def_index;
+        x64->dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, virtuality, self_index);
         
         fn_scope->result_scope->debug(x64);
+        
+        x64->dwarf->info_def(self_index);
         fn_scope->self_scope->debug(x64);
+        
         fn_scope->head_scope->debug(x64);
+        
         fn_scope->body_scope->debug(x64);
         
         x64->dwarf->end_info();

@@ -67,24 +67,22 @@ public:
         Scope *ss = fn_scope->add_self_scope();
         ss->enter();
         
-        if (scope->type == DATA_SCOPE) {
-            TypeSpec pivot_ts = scope->get_pivot_ts();
-            
-            if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
-                if (type == INITIALIZER_FUNCTION) {
-                    self_var = new PartialVariable("$", pivot_ts.prefix(partial_type));
-                }
-                else if (type == LVALUE_FUNCTION) {
-                    self_var = new SelfVariable("$", pivot_ts.lvalue());
-                }
-                else {
-                    // Overriding functions have a different pivot type than the overridden
-                    // one, although they can be called on those as well.
-                    self_var = new SelfVariable("$", pivot_ts);
-                }
-                
-                ss->add(self_var);
+        TypeSpec pivot_ts = scope->get_pivot_ts();
+        
+        if (pivot_ts != NO_TS && pivot_ts != ANY_TS) {
+            if (type == INITIALIZER_FUNCTION) {
+                self_var = new PartialVariable("$", pivot_ts.prefix(partial_type));
             }
+            else if (type == LVALUE_FUNCTION) {
+                self_var = new SelfVariable("$", pivot_ts.lvalue());
+            }
+            else {
+                // Overriding functions have a different pivot type than the overridden
+                // one, although they can be called on those as well.
+                self_var = new SelfVariable("$", pivot_ts);
+            }
+            
+            ss->add(self_var);
         }
 
         ss->leave();
