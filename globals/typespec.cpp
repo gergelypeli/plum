@@ -291,6 +291,11 @@ void TypeSpec::decref(Register r, X64 *x64) {
 }
 
 
+void TypeSpec::type_info(X64 *x64) {
+    at(0)->type_info(match(), x64);
+}
+
+
 std::ostream &operator<<(std::ostream &os, const TypeSpec &ts) {
     os << "[";
     

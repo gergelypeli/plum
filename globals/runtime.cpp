@@ -22,6 +22,11 @@ Label Once::import_got(std::string name) {
 }
 
 
+unsigned Once::type_info(TypeSpec ts) {
+    return type_die_offsets.add(ts).def_index;
+}
+
+
 void Once::for_all(X64 *x64) {
     // NOTE: once-functions may ask to once-compile other functions, so we must keep
     // on checking until no new compilations are requested.
@@ -72,6 +77,19 @@ void Once::for_all(X64 *x64) {
             x64->data_reference(shared_label);
             was_dirty = true;
         }
+    }
+}
+
+
+void Once::for_debug(X64 *x64) {
+    while (type_die_offsets.is_dirty()) {
+        auto kv = type_die_offsets.take();
+        TypeSpec ts = kv.first;
+        Label label = kv.second;
+        unsigned index = label.def_index;
+        
+        x64->dwarf->info_def(index);
+        ts.type_info(x64);
     }
 }
 

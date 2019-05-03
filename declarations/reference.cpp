@@ -283,6 +283,10 @@ public:
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
         return tm[1].autoconv(target, orig, ifts);
     }
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->unspecified_type_info(tm[0].symbolize());  // TODO
+    }
 };
 
 

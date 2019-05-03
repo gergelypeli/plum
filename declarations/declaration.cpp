@@ -76,7 +76,7 @@ public:
         return NULL;
     }
     
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
     }
 };
 

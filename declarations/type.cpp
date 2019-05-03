@@ -15,8 +15,6 @@ public:
     std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
     std::unique_ptr<DataScope> lvalue_scope;
     
-    int dwarf_die_offset;
-    
     Type(std::string n, Metatypes pmts, MetaType *ut)
         :Identifier(n) {
         if (pmts.size() > 3)
@@ -25,8 +23,6 @@ public:
         prefix = n + QUALIFIER_NAME;
         param_metatypes = pmts;
         meta_type = ut;
-        
-        dwarf_die_offset = 0;
     }
     
     virtual unsigned get_parameter_count() {
@@ -462,15 +458,23 @@ public:
         return true;
     }
 
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
+        // For generating the Dwarf info for the contents
+        
         if (initializer_scope)
-            initializer_scope->debug(dwarf);
+            initializer_scope->debug(x64);
             
         if (inner_scope)
-            inner_scope->debug(dwarf);
+            inner_scope->debug(x64);
             
         if (lvalue_scope)
-            lvalue_scope->debug(dwarf);
+            lvalue_scope->debug(x64);
+    }
+    
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        // For generating the type info for a concrete type
+        std::cerr << "Untypeinfoable type: " << name << "!\n";
+        throw INTERNAL_ERROR;
     }
 };
 
@@ -659,6 +663,10 @@ public:
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
         return tm[1].lookup_inner(n, v, s);
     }
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        tm[1].type_info(x64);
+    }
 };
 
 
@@ -782,6 +790,10 @@ public:
             return member;
         }
     }
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        tm[1].type_info(x64);
+    }
 };
 
 
@@ -866,8 +878,8 @@ public:
             throw INTERNAL_ERROR;
     }
 
-    virtual void debug(Dwarf *dwarf) {
-        dwarf_die_offset = dwarf->unspecified_type_info(name);
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->unspecified_type_info(name);
     }
 };
 
@@ -901,8 +913,8 @@ public:
         streamify_ascii("U", alias_addr, x64);
     }
 
-    virtual void debug(Dwarf *dwarf) {
-        dwarf_die_offset = dwarf->unspecified_type_info(name);
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->unspecified_type_info(name);
     }
 };
 
@@ -947,8 +959,8 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual void debug(Dwarf *dwarf) {
-        dwarf_die_offset = dwarf->unspecified_type_info(name);
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->unspecified_type_info(name);
     }
 };
 

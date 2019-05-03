@@ -202,13 +202,13 @@ public:
         return false;
     }
 
-    virtual void debug_contents(Dwarf *dwarf) {
+    virtual void debug_contents(X64 *x64) {
         for (auto &content : contents)
-            content->debug(dwarf);
+            content->debug(x64);
     }
 
-    virtual void debug(Dwarf *dwarf) {
-        debug_contents(dwarf);
+    virtual void debug(X64 *x64) {
+        debug_contents(x64);
     }
 };
 
@@ -632,15 +632,15 @@ public:
         Scope::finalize(x64);
     }
 
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
         if (low_pc < 0 || high_pc < 0)
             throw INTERNAL_ERROR;
 
         // Don't spam the debug info with empty scopes
         if (contents.size()) {
-            dwarf->begin_lexical_block_info(low_pc, high_pc);
-            debug_contents(dwarf);
-            dwarf->end_info();
+            x64->dwarf->begin_lexical_block_info(low_pc, high_pc);
+            debug_contents(x64);
+            x64->dwarf->end_info();
         }
     }
 };
@@ -701,13 +701,13 @@ public:
         return this;
     }
 
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
         if (low_pc < 0 || high_pc < 0)
             throw INTERNAL_ERROR;
 
-        dwarf->begin_catch_block_info(low_pc, high_pc);
-        debug_contents(dwarf);
-        dwarf->end_info();
+        x64->dwarf->begin_catch_block_info(low_pc, high_pc);
+        debug_contents(x64);
+        x64->dwarf->end_info();
     }
 };
 
@@ -757,13 +757,13 @@ public:
         return have_implicit_matcher;
     }
 
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
         if (low_pc < 0 || high_pc < 0)
             throw INTERNAL_ERROR;
 
-        dwarf->begin_try_block_info(low_pc, high_pc);
-        debug_contents(dwarf);
-        dwarf->end_info();
+        x64->dwarf->begin_try_block_info(low_pc, high_pc);
+        debug_contents(x64);
+        x64->dwarf->end_info();
     }
 };
 

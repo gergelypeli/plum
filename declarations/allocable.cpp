@@ -202,18 +202,22 @@ public:
         ts.compare(s + o, t + o, x64);
     }
 
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
         if (outer_scope->type == CODE_SCOPE) {
             Storage s = get_local_storage();
         
-            if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP)
-                dwarf->local_variable_info(name, s.address.offset);
+            if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP) {
+                unsigned ts_index = x64->once->type_info(alloc_ts);
+                x64->dwarf->local_variable_info(name, s.address.offset, ts_index);
+            }
         }
         else if (outer_scope->type == ARGUMENT_SCOPE) {
             Storage s = get_local_storage();
         
-            if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP)
-                dwarf->formal_parameter_info(name, s.address.offset);
+            if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP) {
+                unsigned ts_index = x64->once->type_info(alloc_ts);
+                x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index);
+            }
         }
     }
 };
@@ -432,8 +436,9 @@ public:
         offset = outer_scope->reserve(Allocation(ALIAS_SIZE));
     }
     
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
         Storage s = get_local_storage();
-        dwarf->formal_parameter_info(name, s.address.offset);
+        unsigned ts_index = x64->once->type_info(alloc_ts);
+        x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index);
     }
 };

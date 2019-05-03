@@ -115,10 +115,13 @@ int main(int argc, char **argv) {
     int high_pc = x64->get_pc();
     
     x64->dwarf->begin_compile_unit_info(root->source_file_names[1], "plum", low_pc, high_pc);
-    root_scope->debug(x64->dwarf);
+    root_scope->debug(x64);
+    x64->debug_rest();
     x64->dwarf->end_info();
 
-    x64->finish(output);
+    x64->dwarf->finish();
+    
+    x64->done(output);
     
     std::cerr << "Done.\n";
     return 0;

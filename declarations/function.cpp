@@ -207,7 +207,7 @@ public:
         high_pc = hi;
     }
     
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
         if (is_abstract())
             return;
             
@@ -215,14 +215,14 @@ public:
             throw INTERNAL_ERROR;
 
         bool virtuality = (virtual_index != 0);
-        dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, virtuality);
+        x64->dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, virtuality);
         
-        fn_scope->result_scope->debug(dwarf);
-        fn_scope->self_scope->debug(dwarf);
-        fn_scope->head_scope->debug(dwarf);
-        fn_scope->body_scope->debug(dwarf);
+        fn_scope->result_scope->debug(x64);
+        fn_scope->self_scope->debug(x64);
+        fn_scope->head_scope->debug(x64);
+        fn_scope->body_scope->debug(x64);
         
-        dwarf->end_info();
+        x64->dwarf->end_info();
     }
 };
 
@@ -347,7 +347,8 @@ public:
         x64->op(RET);
     }
 
-    virtual void debug(Dwarf *dwarf) {
+    virtual void debug(X64 *x64) {
+        // Empty
     }
 };
 

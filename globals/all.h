@@ -50,6 +50,7 @@ public:
     void init_vt(Address self_addr, X64 *x64);
     void incref(Register r, X64 *x64);
     void decref(Register r, X64 *x64);
+    void type_info(X64 *x64);
 };
 
 typedef TypeSpec::iterator TypeSpecIter;
@@ -441,14 +442,17 @@ public:
     LabelStore<FunctionCompilerTuple> typed_function_compilers;
     LabelStore<Deferrable *> deferrables;
     LabelStore<std::string> import_gots;
+    LabelStore<TypeSpec> type_die_offsets;
     
     Label compile(FunctionCompiler fc);
     Label compile(TypedFunctionCompiler tfc, TypeSpec ts);
     Label compile(Deferrable *d);
     
     Label import_got(std::string name);
+    unsigned type_info(TypeSpec ts);
 
     void for_all(X64 *x64);
+    void for_debug(X64 *x64);
 };
 
 
@@ -637,12 +641,10 @@ public:
         runtime->compile_call_infos();
     }
     
-    virtual void finish(std::string output_file) {
-        dwarf->finish();
-        
-        done(output_file);
+    virtual void debug_rest() {
+        once->for_debug(this);
     }
-
+    
     virtual void add_lineno(int file_index, int line_number) {
         dwarf->add_lineno(get_pc(), file_index, line_number);
     }

@@ -98,21 +98,28 @@ public:
     DwarfBuffer abbrev;
     DwarfBuffer info;
 
+    std::map<unsigned, unsigned> info_def_offsets_by_index;
+    std::map<unsigned, unsigned> info_ref_indexes_by_offset;
+
     Elf *elf;
     int cuh_offset, dlh_offset;
     unsigned abbrev_count;
+
     unsigned compile_unit_abbrev_number;
     unsigned base_type_abbrev_number, enumeration_type_abbrev_number, enumerator_abbrev_number;
     unsigned unspecified_type_abbrev_number;
     unsigned subprogram_abbrev_number, lexical_block_abbrev_number, try_block_abbrev_number, catch_block_abbrev_number;
     unsigned variable_abbrev_number, formal_parameter_abbrev_number;
-    unsigned hack_type_die_offset;  // FIXME
+
     int lineno_sm_address, lineno_sm_file_index, lineno_sm_line_number;
     
     Dwarf(Elf *o, std::vector<std::string> &source_names);
     void finish();
     
     unsigned add_abbrev(int tag, bool has_children, std::vector<DwarfAttrDef> attrdefs);
+
+    void info_def(unsigned index);
+    void info_ref(unsigned index);
 
     void init_lineno(std::vector<std::string> &source_names);
     void add_lineno(int pc, int file_index, int line_number);
@@ -122,20 +129,26 @@ public:
     void finish_abbrev();
     
     void init_info();
+    void finish_info();
+
     void info_code_address(int value);
+    
     void begin_compile_unit_info(std::string name, std::string producer, int low_pc, int high_pc);
-    int base_type_info(std::string name, int size, int encoding);
-    int begin_enumeration_type_info(std::string name, int size);
+    void end_info();
+
+    void base_type_info(std::string name, int size, int encoding);
+    void begin_enumeration_type_info(std::string name, int size);
     void enumerator_info(std::string name, int value);
-    int unspecified_type_info(std::string name);
+    void unspecified_type_info(std::string name);
+
     void begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality);
     void begin_lexical_block_info(int low_pc, int high_pc);
     void begin_try_block_info(int low_pc, int high_pc);
     void begin_catch_block_info(int low_pc, int high_pc);
-    void local_variable_info(std::string name, int rbp_offset);
-    void formal_parameter_info(std::string name, int rbp_offset);
-    void end_info();
-    void finish_info();
+
+    void local_variable_info(std::string name, int rbp_offset, unsigned ts_index);
+    void formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index);
+
 };
 
 
@@ -156,6 +169,18 @@ void Dwarf::finish() {
     elf->set_lineno(lineno);
     elf->set_abbrev(abbrev);
     elf->set_info(info);
+}
+
+
+void Dwarf::info_def(unsigned index) {
+    unsigned def_offset = info.size();
+    info_def_offsets_by_index[index] = def_offset;
+}
+
+
+void Dwarf::info_ref(unsigned index) {
+    Elf64_Addr ref_offset = info.append<unsigned32>();
+    info_ref_indexes_by_offset[ref_offset] = index;
 }
 
 
@@ -275,6 +300,16 @@ void Dwarf::finish_info() {
     int info_end = info.size();
     auto cuh = info.pointer<CompilationUnitHeader>(cuh_offset);
     cuh->length = info_end - info_start;
+
+    // Resolve DIE references
+    for (auto &kv : info_ref_indexes_by_offset) {
+        unsigned ref_offset = kv.first;
+        unsigned index = kv.second;
+        unsigned def_offset = info_def_offsets_by_index.at(index);
+        
+        // We're using DW_FORM_ref4, a CU-relative offset
+        *info.pointer<unsigned32>(ref_offset) = def_offset;
+    }
 }
 
 
@@ -306,28 +341,20 @@ void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int 
 }
 
 
-int Dwarf::base_type_info(std::string name, int size, int encoding) {
-    int die_offset = info.size();
-    
+void Dwarf::base_type_info(std::string name, int size, int encoding) {
     info.uleb128(base_type_abbrev_number);
     
     info.string(name);
     info.data1(size);
     info.data1(encoding);
-    
-    return die_offset;
 }
 
 
-int Dwarf::begin_enumeration_type_info(std::string name, int size) {
-    int die_offset = info.size();
-    
+void Dwarf::begin_enumeration_type_info(std::string name, int size) {
     info.uleb128(enumeration_type_abbrev_number);
     
     info.string(name);
     info.data1(size);
-    
-    return die_offset;
 }
 
 
@@ -339,17 +366,10 @@ void Dwarf::enumerator_info(std::string name, int value) {
 }
 
 
-int Dwarf::unspecified_type_info(std::string name) {
-    int die_offset = info.size();
-    
-    if (hack_type_die_offset == 0)
-        hack_type_die_offset = die_offset;
-    
+void Dwarf::unspecified_type_info(std::string name) {
     info.uleb128(unspecified_type_abbrev_number);
     
     info.string(name);
-    
-    return die_offset;
 }
 
 
@@ -391,7 +411,7 @@ void Dwarf::begin_catch_block_info(int low_pc, int high_pc) {
 }
 
 
-void Dwarf::local_variable_info(std::string name, int rbp_offset) {
+void Dwarf::local_variable_info(std::string name, int rbp_offset, unsigned ts_index) {
     info.uleb128(variable_abbrev_number);
     
     info.string(name);
@@ -404,11 +424,11 @@ void Dwarf::local_variable_info(std::string name, int rbp_offset) {
     info.data1(DW_OP_fbreg);
     info.sleb128(rbp_offset);
     
-    info.data4(hack_type_die_offset);  // hardcoded hack type for now
+    info_ref(ts_index);
 }
 
 
-void Dwarf::formal_parameter_info(std::string name, int rbp_offset) {
+void Dwarf::formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index) {
     info.uleb128(formal_parameter_abbrev_number);
     
     info.string(name);
@@ -420,8 +440,8 @@ void Dwarf::formal_parameter_info(std::string name, int rbp_offset) {
     info.uleb128(exprlen);
     info.data1(DW_OP_fbreg);
     info.sleb128(rbp_offset);
-    
-    info.data4(hack_type_die_offset);  // hardcoded hack type for now
+
+    info_ref(ts_index);
 }
 
     
