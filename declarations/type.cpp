@@ -15,6 +15,8 @@ public:
     std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
     std::unique_ptr<DataScope> lvalue_scope;
     
+    int dwarf_die_offset;
+    
     Type(std::string n, Metatypes pmts, MetaType *ut)
         :Identifier(n) {
         if (pmts.size() > 3)
@@ -23,6 +25,8 @@ public:
         prefix = n + QUALIFIER_NAME;
         param_metatypes = pmts;
         meta_type = ut;
+        
+        dwarf_die_offset = 0;
     }
     
     virtual unsigned get_parameter_count() {
@@ -861,6 +865,10 @@ public:
         if (s.where != NOWHERE || t.where != NOWHERE)
             throw INTERNAL_ERROR;
     }
+
+    virtual void debug(Dwarf *dwarf) {
+        dwarf_die_offset = dwarf->unspecified_type_info(name);
+    }
 };
 
 
@@ -891,6 +899,10 @@ public:
         Address alias_addr(RSP, 0);
 
         streamify_ascii("U", alias_addr, x64);
+    }
+
+    virtual void debug(Dwarf *dwarf) {
+        dwarf_die_offset = dwarf->unspecified_type_info(name);
     }
 };
 
@@ -933,6 +945,10 @@ public:
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         throw INTERNAL_ERROR;
+    }
+
+    virtual void debug(Dwarf *dwarf) {
+        dwarf_die_offset = dwarf->unspecified_type_info(name);
     }
 };
 

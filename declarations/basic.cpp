@@ -272,6 +272,10 @@ public:
             x64->runtime->call_sysv(x64->runtime->sysv_streamify_integer_label);
         }
     }
+    
+    virtual void debug(Dwarf *dwarf) {
+        dwarf_die_offset = dwarf->base_type_info(name, size, is_unsigned ? DW_ATE_unsigned : DW_ATE_signed);
+    }
 };
 
 
@@ -300,6 +304,10 @@ public:
             std::cerr << "No Boolean initializer called " << name << "!\n";
             return NULL;
         }
+    }
+
+    virtual void debug(Dwarf *dwarf) {
+        dwarf_die_offset = dwarf->base_type_info(name, size, DW_ATE_boolean);
     }
 };
 
@@ -443,6 +451,10 @@ public:
             return NULL;
         }
     }
+
+    virtual void debug(Dwarf *dwarf) {
+        dwarf_die_offset = dwarf->base_type_info(name, size, DW_ATE_UTF);
+    }
 };
 
 
@@ -532,6 +544,16 @@ public:
                 return i;
         
         throw INTERNAL_ERROR;
+    }
+    
+    virtual void debug(Dwarf *dwarf) {
+        dwarf_die_offset = dwarf->begin_enumeration_type_info(name, 1);
+        
+        for (unsigned i = 0; i < keywords.size(); i++)
+            if (i || keywords[i].size())  // don't emit treenum root values
+                dwarf->enumerator_info(keywords[i], i);
+        
+        dwarf->end_info();
     }
 };
 

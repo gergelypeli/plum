@@ -101,10 +101,12 @@ public:
     Elf *elf;
     int cuh_offset, dlh_offset;
     unsigned abbrev_count;
-    unsigned compile_unit_abbrev_number, base_type_abbrev_number;
+    unsigned compile_unit_abbrev_number;
+    unsigned base_type_abbrev_number, enumeration_type_abbrev_number, enumerator_abbrev_number;
+    unsigned unspecified_type_abbrev_number;
     unsigned subprogram_abbrev_number, lexical_block_abbrev_number, try_block_abbrev_number, catch_block_abbrev_number;
     unsigned variable_abbrev_number, formal_parameter_abbrev_number;
-    unsigned integer_die_offset;
+    unsigned hack_type_die_offset;  // FIXME
     int lineno_sm_address, lineno_sm_file_index, lineno_sm_line_number;
     
     Dwarf(Elf *o, std::vector<std::string> &source_names);
@@ -122,7 +124,11 @@ public:
     void init_info();
     void info_code_address(int value);
     void begin_compile_unit_info(std::string name, std::string producer, int low_pc, int high_pc);
-    void begin_subprogram_info(std::string name, int low_pc, int high_pc);
+    int base_type_info(std::string name, int size, int encoding);
+    int begin_enumeration_type_info(std::string name, int size);
+    void enumerator_info(std::string name, int value);
+    int unspecified_type_info(std::string name);
+    void begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality);
     void begin_lexical_block_info(int low_pc, int high_pc);
     void begin_try_block_info(int low_pc, int high_pc);
     void begin_catch_block_info(int low_pc, int high_pc);
@@ -190,11 +196,26 @@ void Dwarf::init_abbrev() {
         { DW_AT_encoding, DW_FORM_data1 }
     });
 
+    enumeration_type_abbrev_number = add_abbrev(DW_TAG_enumeration_type, true, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_byte_size, DW_FORM_data1 }
+    });
+
+    enumerator_abbrev_number = add_abbrev(DW_TAG_enumerator, false, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_const_value, DW_FORM_data1 }
+    });
+
+    unspecified_type_abbrev_number = add_abbrev(DW_TAG_unspecified_type, false, {
+        { DW_AT_name, DW_FORM_string }
+    });
+
     subprogram_abbrev_number = add_abbrev(DW_TAG_subprogram, true, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_low_pc, DW_FORM_addr },
         { DW_AT_high_pc, DW_FORM_data8 },
-        { DW_AT_frame_base, DW_FORM_exprloc }
+        { DW_AT_frame_base, DW_FORM_exprloc },
+        { DW_AT_virtuality, DW_FORM_data1 }
     });
 
     lexical_block_abbrev_number = add_abbrev(DW_TAG_lexical_block, true, {
@@ -282,31 +303,57 @@ void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int 
     
     // producer
     info.string(producer);
-
-    // Compile Unit children
-    /*
-    // DIE - Boolean
-    info.uleb128(base_type_abbrev_number);
-    info.string("Boolean");
-    info.data1(1);
-    info.data1(DW_ATE_boolean);
-
-    // DIE - Character
-    info.uleb128(base_type_abbrev_number);
-    info.string("Character");
-    info.data1(2);
-    info.data1(DW_ATE_UCS);
-    */
-    // DIE - Integer
-    integer_die_offset = info.size();
-    info.uleb128(base_type_abbrev_number);
-    info.string("Integer");
-    info.data1(8);
-    info.data1(DW_ATE_signed);
 }
 
 
-void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc) {
+int Dwarf::base_type_info(std::string name, int size, int encoding) {
+    int die_offset = info.size();
+    
+    info.uleb128(base_type_abbrev_number);
+    
+    info.string(name);
+    info.data1(size);
+    info.data1(encoding);
+    
+    return die_offset;
+}
+
+
+int Dwarf::begin_enumeration_type_info(std::string name, int size) {
+    int die_offset = info.size();
+    
+    info.uleb128(enumeration_type_abbrev_number);
+    
+    info.string(name);
+    info.data1(size);
+    
+    return die_offset;
+}
+
+
+void Dwarf::enumerator_info(std::string name, int value) {
+    info.uleb128(enumerator_abbrev_number);
+    
+    info.string(name);
+    info.data1(value);
+}
+
+
+int Dwarf::unspecified_type_info(std::string name) {
+    int die_offset = info.size();
+    
+    if (hack_type_die_offset == 0)
+        hack_type_die_offset = die_offset;
+    
+    info.uleb128(unspecified_type_abbrev_number);
+    
+    info.string(name);
+    
+    return die_offset;
+}
+
+
+void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality) {
     info.uleb128(subprogram_abbrev_number);
     
     info.string(name);
@@ -315,6 +362,8 @@ void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc) {
     
     info.uleb128(1);
     info.data1(DW_OP_reg6);  // frame base is RBP
+    
+    info.data1(virtuality ? DW_VIRTUALITY_virtual : DW_VIRTUALITY_none);
 }
 
 
@@ -355,7 +404,7 @@ void Dwarf::local_variable_info(std::string name, int rbp_offset) {
     info.data1(DW_OP_fbreg);
     info.sleb128(rbp_offset);
     
-    info.data4(integer_die_offset);  // hardcoded Integer type for now
+    info.data4(hack_type_die_offset);  // hardcoded hack type for now
 }
 
 
@@ -372,7 +421,7 @@ void Dwarf::formal_parameter_info(std::string name, int rbp_offset) {
     info.data1(DW_OP_fbreg);
     info.sleb128(rbp_offset);
     
-    info.data4(integer_die_offset);  // hardcoded Integer type for now
+    info.data4(hack_type_die_offset);  // hardcoded hack type for now
 }
 
     

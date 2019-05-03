@@ -213,8 +213,9 @@ public:
             
         if (low_pc < 0 || high_pc < 0)
             throw INTERNAL_ERROR;
-            
-        dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc);
+
+        bool virtuality = (virtual_index != 0);
+        dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, virtuality);
         
         fn_scope->result_scope->debug(dwarf);
         fn_scope->self_scope->debug(dwarf);

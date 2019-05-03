@@ -235,4 +235,8 @@ public:
             return NULL;
         }
     }
+
+    virtual void debug(Dwarf *dwarf) {
+        dwarf_die_offset = dwarf->base_type_info(name, FLOAT_SIZE, DW_ATE_float);
+    }
 };
