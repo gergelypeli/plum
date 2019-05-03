@@ -613,10 +613,15 @@ public:
         return NO_TS;
     }
 
+    virtual void initialize_contents(X64 *x64) {
+        low_pc = x64->get_pc();
+    }
+
     virtual void finalize_contents(X64 *x64) {
         for (int i = contents.size() - 1; i >= 0; i--)
             contents[i]->finalize(x64);
             
+        high_pc = x64->get_pc();
         contents_finalized = true;
     }
     
@@ -627,11 +632,6 @@ public:
         Scope::finalize(x64);
     }
 
-    virtual void set_pc_range(int lo, int hi) {
-        low_pc = lo;
-        high_pc = hi;
-    }
-    
     virtual void debug(Dwarf *dwarf) {
         if (low_pc < 0 || high_pc < 0)
             throw INTERNAL_ERROR;

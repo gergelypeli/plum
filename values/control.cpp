@@ -508,7 +508,8 @@ public:
         Label start, end;
         x64->code_label(start);
 
-        int next_try_low_pc = x64->get_pc();
+        next_try_scope->initialize_contents(x64);
+
         x64->unwind->push(this);
         Storage ns = next->compile(x64);
         x64->unwind->pop(this);
@@ -519,8 +520,6 @@ public:
         // On exception we jump here, so the each variable won't be created
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         next_try_scope->finalize_contents(x64);
-        int next_try_high_pc = x64->get_pc();
-        next_try_scope->set_pc_range(next_try_low_pc, next_try_high_pc);
         
         x64->op(CMPQ, RDX, NO_EXCEPTION);
         x64->op(JNE, end);  // dropped
@@ -598,8 +597,9 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Storage vs = value->compile(x64);
-        
-        int switch_low_pc = x64->get_pc();
+
+        switch_scope->initialize_contents(x64);
+
         Storage switch_storage = switch_var->get_local_storage();
         value->ts.create(vs, switch_storage, x64);
 
@@ -612,8 +612,6 @@ public:
 
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         switch_scope->finalize_contents(x64);
-        int switch_high_pc = x64->get_pc();
-        switch_scope->set_pc_range(switch_low_pc, switch_high_pc);
 
         Label live;
         x64->op(CMPQ, RDX, NO_EXCEPTION);
@@ -735,22 +733,20 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label else_label, end;
-        //Address matched_addr = matched_var->get_local_storage().address;
 
-        int then_low_pc = x64->get_pc();
+        then_scope->initialize_contents(x64);
         x64->unwind->push(this);
         
-        //x64->op(MOVQ, matched_addr, 0);
-        int match_low_pc = x64->get_pc();
+        match_try_scope->initialize_contents(x64);
+        
         matching = true;
         match->compile_and_store(x64, Storage());
         matching = false;
-        int match_high_pc = x64->get_pc();
-        match_try_scope->set_pc_range(match_low_pc, match_high_pc);
         
-        // The match_try_scope has no contents, so it's fine not to finalize them
-
-        //x64->op(MOVQ, matched_addr, 1);
+        // The match try scope is empty, finalizing it is a formality, and we never jump
+        // here in the case of exceptions (we jump to the finalization of the then scope),
+        // so it's guaranteed to continue the normal execution.
+        match_try_scope->finalize_contents(x64);
 
         Storage t = get_context_storage();
 
@@ -761,8 +757,6 @@ public:
         
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         then_scope->finalize_contents(x64);
-        int then_high_pc = x64->get_pc();
-        then_scope->set_pc_range(then_low_pc, then_high_pc);
         
         // If the match raised UNMATCHED, proceed with the else branch
         x64->op(CMPQ, RDX, CAUGHT_UNMATCHED_EXCEPTION);
@@ -995,7 +989,8 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        int try_low_pc = x64->get_pc();
+        try_scope->initialize_contents(x64);
+
         x64->unwind->push(this);
         handling = false;
         Storage s = body->compile(x64);
@@ -1008,8 +1003,6 @@ public:
 
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         try_scope->finalize_contents(x64);  // exceptions from body jump here
-        int try_high_pc = x64->get_pc();
-        try_scope->set_pc_range(try_low_pc, try_high_pc);
         
         // The body may throw an exception
         Label live, handle;
@@ -1022,6 +1015,8 @@ public:
         
         // Caught exception, prepare for handling
         x64->code_label(handle);
+
+        switch_scope->initialize_contents(x64);
         
         if (switch_var) {
             Storage switch_storage = switch_var->get_local_storage();
@@ -1029,7 +1024,6 @@ public:
         }
         // dropped RDX
 
-        int switch_low_pc = x64->get_pc();
         x64->unwind->push(this);
         handling = true;
         
@@ -1054,9 +1048,6 @@ public:
 
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         switch_scope->finalize_contents(x64);
-        int switch_high_pc = x64->get_pc();
-        switch_scope->set_pc_range(switch_low_pc, switch_high_pc);
-        //eval_scope->finalize_contents(x64);
         
         x64->op(CMPQ, RDX, NO_EXCEPTION);
         x64->op(JE, live);  // dropped
@@ -1067,7 +1058,6 @@ public:
         x64->code_label(live);
         
         return t;
-        //return get_yield_storage();
     }
     
     virtual Scope *unwind(X64 *x64) {
@@ -1115,7 +1105,8 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        int eval_low_pc = x64->get_pc();
+        eval_scope->initialize_contents(x64);
+
         x64->unwind->push(this);
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
@@ -1124,8 +1115,6 @@ public:
             x64->op(MOVQ, RDX, NO_EXCEPTION);
             
         eval_scope->finalize_contents(x64);  // exceptions from body jump here
-        int eval_high_pc = x64->get_pc();
-        eval_scope->set_pc_range(eval_low_pc, eval_high_pc);
 
         if (eval_scope->is_unwindable()) {
             Label ok;

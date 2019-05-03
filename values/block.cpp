@@ -49,16 +49,14 @@ public:
     }
     
     virtual Storage compile(X64 *x64) {
-        int low_pc = x64->get_pc();
+        code_scope->initialize_contents(x64);
+
         Storage t = compile_body(x64);
     
         if (code_scope->is_unwindable())
             x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         code_scope->finalize_contents(x64);
-        int high_pc = x64->get_pc();
-
-        code_scope->set_pc_range(low_pc, high_pc);
 
         if (code_scope->is_unwindable()) {
             x64->op(CMPQ, RDX, NO_EXCEPTION);
@@ -98,7 +96,8 @@ public:
         int retro_offset = rs->get_frame_offset();
 
         x64->code_label_local(label, "<retro>");
-        int low_pc = x64->get_pc();
+
+        code_scope->initialize_contents(x64);
         
         // Create an artificial stack frame at the location that RetroScope has allocated
         x64->op(MOVQ, R10, Address(RBP, 0));  // get our own frame back
@@ -118,8 +117,6 @@ public:
         x64->op(MOVQ, RBP, Address(RBP, 0));
         
         x64->op(RET);
-        
-        int high_pc = x64->get_pc();
         
         // Generate fixup code for the preceding ALIAS storage retro variables, they're
         // allocated in the middle of the function's stack frame, so there's no one else
@@ -145,7 +142,6 @@ public:
         
         x64->op(RET);
         
-        rs->set_pc_range(low_pc, high_pc);
         x64->runtime->add_func_info("<retro>", label, fixup_label);
     }
     
