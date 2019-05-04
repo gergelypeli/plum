@@ -31,6 +31,10 @@ public:
     virtual Storage compile(X64 *x64) {
         TypeSpec class_ts = ts.unprefix(initializable_type).unprefix(ptr_type);;
         
+        // This is necessary, because if variables can't have concrete class types, then
+        // there's nothing to trigger the debug info generation for such types.
+        x64->once->type_info(class_ts);
+        
         return preinitialize_class(class_ts, x64);
     }
 };
