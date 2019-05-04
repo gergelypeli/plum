@@ -23,6 +23,9 @@ Label Once::import_got(std::string name) {
 
 
 unsigned Once::type_info(TypeSpec ts) {
+    if (ts == NO_TS)
+        throw INTERNAL_ERROR;
+        
     return type_die_offsets.add(ts).def_index;
 }
 
@@ -89,6 +92,7 @@ void Once::for_debug(X64 *x64) {
         unsigned index = label.def_index;
         
         x64->dwarf->info_def(index);
+        //std::cerr << "XXX type_info " << ts << "\n";
         ts.type_info(x64);
     }
 }

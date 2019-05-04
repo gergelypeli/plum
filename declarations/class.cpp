@@ -314,10 +314,6 @@ public:
 
         return value;
     }
-    
-    virtual void type_info(TypeMatch tm, X64 *x64) {
-        x64->dwarf->unspecified_type_info(tm[0].symbolize());  // TODO
-    }
 };
 
 
@@ -349,6 +345,14 @@ public:
         x64->data_align(8);
         x64->data_label_local(label, symbol);
         x64->data_qword(0);
+    }
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->begin_interface_type_info(tm[0].symbolize());
+        
+        debug_inner_scopes(tm, x64);
+        
+        x64->dwarf->end_info();
     }
 };
 
@@ -527,6 +531,17 @@ public:
         }
         
         return IdentityType::lookup_inner(tm, n, v, s);
+    }
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        // This must be a concrete parametrization
+        unsigned size = measure_identity(tm).concretize();
+        
+        x64->dwarf->begin_class_type_info(tm[0].symbolize(), size);
+        
+        debug_inner_scopes(tm, x64);
+        
+        x64->dwarf->end_info();
     }
 };
 

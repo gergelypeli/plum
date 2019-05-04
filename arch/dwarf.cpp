@@ -108,8 +108,10 @@ public:
     unsigned compile_unit_abbrev_number;
     unsigned base_type_abbrev_number, enumeration_type_abbrev_number, enumerator_abbrev_number;
     unsigned unspecified_type_abbrev_number, pointer_type_abbrev_number;
-    unsigned subprogram_abbrev_number, lexical_block_abbrev_number, try_block_abbrev_number, catch_block_abbrev_number;
-    unsigned variable_abbrev_number, formal_parameter_abbrev_number;
+    unsigned structure_type_abbrev_number, class_type_abbrev_number, interface_type_abbrev_number;
+    unsigned subprogram_abbrev_number, abstract_subprogram_abbrev_number;
+    unsigned lexical_block_abbrev_number, try_block_abbrev_number, catch_block_abbrev_number;
+    unsigned variable_abbrev_number, formal_parameter_abbrev_number, member_abbrev_number;
 
     int lineno_sm_address, lineno_sm_file_index, lineno_sm_line_number;
     
@@ -136,19 +138,24 @@ public:
     void begin_compile_unit_info(std::string name, std::string producer, int low_pc, int high_pc);
     void end_info();
 
-    void base_type_info(std::string name, int size, int encoding);
-    void begin_enumeration_type_info(std::string name, int size);
+    void base_type_info(std::string name, unsigned size, int encoding);
+    void begin_enumeration_type_info(std::string name, unsigned size);
     void enumerator_info(std::string name, int value);
     void unspecified_type_info(std::string name);
     void pointer_type_info(std::string name, unsigned ts_index);
+    void begin_structure_type_info(std::string name, unsigned size);
+    void begin_class_type_info(std::string name, unsigned size);
+    void begin_interface_type_info(std::string name);
 
     void begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index);
+    void begin_abstract_subprogram_info(std::string name, bool virtuality);
     void begin_lexical_block_info(int low_pc, int high_pc);
     void begin_try_block_info(int low_pc, int high_pc);
     void begin_catch_block_info(int low_pc, int high_pc);
 
     void local_variable_info(std::string name, int rbp_offset, unsigned ts_index);
     void formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index, bool is_artificial);
+    void member_info(std::string name, int offset, unsigned ts_index);
 };
 
 
@@ -210,20 +217,21 @@ void Dwarf::init_abbrev() {
     compile_unit_abbrev_number = add_abbrev(DW_TAG_compile_unit, true, {
         { DW_AT_stmt_list, DW_FORM_sec_offset },
         { DW_AT_low_pc, DW_FORM_addr },
-        { DW_AT_high_pc, DW_FORM_data8 },
+        { DW_AT_high_pc, DW_FORM_data4 },
         { DW_AT_name, DW_FORM_string },
         { DW_AT_producer, DW_FORM_string }
     });
 
+    // Types
     base_type_abbrev_number = add_abbrev(DW_TAG_base_type, false, {
         { DW_AT_name, DW_FORM_string },
-        { DW_AT_byte_size, DW_FORM_data1 },
+        { DW_AT_byte_size, DW_FORM_data4 },
         { DW_AT_encoding, DW_FORM_data1 }
     });
 
     enumeration_type_abbrev_number = add_abbrev(DW_TAG_enumeration_type, true, {
         { DW_AT_name, DW_FORM_string },
-        { DW_AT_byte_size, DW_FORM_data1 }
+        { DW_AT_byte_size, DW_FORM_data4 }
     });
 
     enumerator_abbrev_number = add_abbrev(DW_TAG_enumerator, false, {
@@ -240,30 +248,51 @@ void Dwarf::init_abbrev() {
         { DW_AT_type, DW_FORM_ref4 }
     });
 
+    structure_type_abbrev_number = add_abbrev(DW_TAG_structure_type, true, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_byte_size, DW_FORM_data4 }
+    });
+
+    class_type_abbrev_number = add_abbrev(DW_TAG_class_type, true, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_byte_size, DW_FORM_data4 }
+    });
+
+    interface_type_abbrev_number = add_abbrev(DW_TAG_interface_type, true, {
+        { DW_AT_name, DW_FORM_string }
+    });
+
+    // Code
     subprogram_abbrev_number = add_abbrev(DW_TAG_subprogram, true, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_low_pc, DW_FORM_addr },
-        { DW_AT_high_pc, DW_FORM_data8 },
+        { DW_AT_high_pc, DW_FORM_data4 },
         { DW_AT_frame_base, DW_FORM_exprloc },
         { DW_AT_virtuality, DW_FORM_data1 },
         { DW_AT_object_pointer, DW_FORM_ref4 }
     });
 
+    abstract_subprogram_abbrev_number = add_abbrev(DW_TAG_subprogram, true, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_virtuality, DW_FORM_data1 }
+    });
+
     lexical_block_abbrev_number = add_abbrev(DW_TAG_lexical_block, true, {
         { DW_AT_low_pc, DW_FORM_addr },
-        { DW_AT_high_pc, DW_FORM_data8 }
+        { DW_AT_high_pc, DW_FORM_data4 }
     });
 
     try_block_abbrev_number = add_abbrev(DW_TAG_try_block, true, {
         { DW_AT_low_pc, DW_FORM_addr },
-        { DW_AT_high_pc, DW_FORM_data8 }
+        { DW_AT_high_pc, DW_FORM_data4 }
     });
     
     catch_block_abbrev_number = add_abbrev(DW_TAG_catch_block, true, {
         { DW_AT_low_pc, DW_FORM_addr },
-        { DW_AT_high_pc, DW_FORM_data8 }
+        { DW_AT_high_pc, DW_FORM_data4 }
     });
 
+    // Data
     variable_abbrev_number = add_abbrev(DW_TAG_variable, false, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_location, DW_FORM_exprloc },
@@ -275,6 +304,12 @@ void Dwarf::init_abbrev() {
         { DW_AT_location, DW_FORM_exprloc },
         { DW_AT_type, DW_FORM_ref4 },
         { DW_AT_artificial, DW_FORM_flag }
+    });
+
+    member_abbrev_number = add_abbrev(DW_TAG_member, false, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_data_member_location, DW_FORM_data4 },
+        { DW_AT_type, DW_FORM_ref4 }
     });
 }
 
@@ -338,7 +373,7 @@ void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int 
     info_code_address(low_pc);
 
     // high pc
-    info.data8(high_pc - low_pc);
+    info.data4(high_pc - low_pc);
     
     // name
     info.string(name);
@@ -348,20 +383,20 @@ void Dwarf::begin_compile_unit_info(std::string name, std::string producer, int 
 }
 
 
-void Dwarf::base_type_info(std::string name, int size, int encoding) {
+void Dwarf::base_type_info(std::string name, unsigned size, int encoding) {
     info.uleb128(base_type_abbrev_number);
     
     info.string(name);
-    info.data1(size);
+    info.data4(size);
     info.data1(encoding);
 }
 
 
-void Dwarf::begin_enumeration_type_info(std::string name, int size) {
+void Dwarf::begin_enumeration_type_info(std::string name, unsigned size) {
     info.uleb128(enumeration_type_abbrev_number);
     
     info.string(name);
-    info.data1(size);
+    info.data4(size);
 }
 
 
@@ -388,12 +423,35 @@ void Dwarf::pointer_type_info(std::string name, unsigned ts_index) {
 }
 
 
+void Dwarf::begin_structure_type_info(std::string name, unsigned size) {
+    info.uleb128(structure_type_abbrev_number);
+    
+    info.string(name);
+    info.data4(size);
+}
+
+
+void Dwarf::begin_class_type_info(std::string name, unsigned size) {
+    info.uleb128(class_type_abbrev_number);
+    
+    info.string(name);
+    info.data4(size);
+}
+
+
+void Dwarf::begin_interface_type_info(std::string name) {
+    info.uleb128(interface_type_abbrev_number);
+    
+    info.string(name);
+}
+
+
 void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index) {
     info.uleb128(subprogram_abbrev_number);
     
     info.string(name);
     info_code_address(low_pc);
-    info.data8(high_pc - low_pc);
+    info.data4(high_pc - low_pc);
     
     info.uleb128(1);
     info.data1(DW_OP_reg6);  // frame base is RBP
@@ -403,11 +461,20 @@ void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, boo
 }
 
 
+void Dwarf::begin_abstract_subprogram_info(std::string name, bool virtuality) {
+    info.uleb128(abstract_subprogram_abbrev_number);
+    
+    info.string(name);
+    
+    info.data1(virtuality ? DW_VIRTUALITY_virtual : DW_VIRTUALITY_none);
+}
+
+
 void Dwarf::begin_lexical_block_info(int low_pc, int high_pc) {
     info.uleb128(lexical_block_abbrev_number);
     
     info_code_address(low_pc);
-    info.data8(high_pc - low_pc);
+    info.data4(high_pc - low_pc);
 }
 
 
@@ -415,7 +482,7 @@ void Dwarf::begin_try_block_info(int low_pc, int high_pc) {
     info.uleb128(try_block_abbrev_number);
     
     info_code_address(low_pc);
-    info.data8(high_pc - low_pc);
+    info.data4(high_pc - low_pc);
 }
 
 
@@ -423,7 +490,7 @@ void Dwarf::begin_catch_block_info(int low_pc, int high_pc) {
     info.uleb128(catch_block_abbrev_number);
     
     info_code_address(low_pc);
-    info.data8(high_pc - low_pc);
+    info.data4(high_pc - low_pc);
 }
 
 
@@ -459,6 +526,17 @@ void Dwarf::formal_parameter_info(std::string name, int rbp_offset, unsigned ts_
 
     info_ref(ts_index);
     info.data1(is_artificial ? 1 : 0);
+}
+
+
+void Dwarf::member_info(std::string name, int offset, unsigned ts_index) {
+    info.uleb128(member_abbrev_number);
+    
+    info.string(name);
+    
+    info.data4(offset);
+    
+    info_ref(ts_index);
 }
 
     

@@ -458,17 +458,17 @@ public:
         return true;
     }
 
-    virtual void debug(X64 *x64) {
+    virtual void debug_inner_scopes(TypeMatch tm, X64 *x64) {
         // For generating the Dwarf info for the contents
         
         if (initializer_scope)
-            initializer_scope->debug(x64);
+            initializer_scope->debug(tm, x64);
             
         if (inner_scope)
-            inner_scope->debug(x64);
+            inner_scope->debug(tm, x64);
             
         if (lvalue_scope)
-            lvalue_scope->debug(x64);
+            lvalue_scope->debug(tm, x64);
     }
     
     virtual void type_info(TypeMatch tm, X64 *x64) {
@@ -665,7 +665,7 @@ public:
     }
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        tm[1].type_info(x64);
+        x64->once->type_info(tm[1]);
     }
 };
 
@@ -792,7 +792,7 @@ public:
     }
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        tm[1].type_info(x64);
+        x64->once->type_info(tm[1]);
     }
 };
 

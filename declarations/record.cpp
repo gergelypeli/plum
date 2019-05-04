@@ -309,7 +309,14 @@ public:
     }
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        x64->dwarf->unspecified_type_info(tm[0].symbolize());  // TODO
+        // This must be a concrete parametrization
+        unsigned size = measure(tm).concretize();
+        
+        x64->dwarf->begin_structure_type_info(tm[0].symbolize(), size);
+        
+        debug_inner_scopes(tm, x64);
+        
+        x64->dwarf->end_info();
     }
 };
 

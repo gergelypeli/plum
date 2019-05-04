@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     int high_pc = x64->get_pc();
     
     x64->dwarf->begin_compile_unit_info(root->source_file_names[1], "plum", low_pc, high_pc);
-    root_scope->debug(x64);
+    root_scope->debug(TypeMatch(), x64);
     x64->debug_rest();
     x64->dwarf->end_info();
 

@@ -202,12 +202,14 @@ public:
         ts.compare(s + o, t + o, x64);
     }
 
-    virtual void debug(X64 *x64) {
+    virtual void debug(TypeMatch tm, X64 *x64) {
+        TypeSpec ts = typesubst(alloc_ts, tm);
+        unsigned ts_index = x64->once->type_info(ts);
+        
         if (outer_scope->type == CODE_SCOPE) {
             Storage s = get_local_storage();
         
             if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP) {
-                unsigned ts_index = x64->once->type_info(alloc_ts);
                 x64->dwarf->local_variable_info(name, s.address.offset, ts_index);
             }
         }
@@ -215,10 +217,13 @@ public:
             Storage s = get_local_storage();
         
             if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP) {
-                unsigned ts_index = x64->once->type_info(alloc_ts);
                 bool is_artificial = (name == "$");
                 x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index, is_artificial);
             }
+        }
+        else if (outer_scope->type == DATA_SCOPE) {
+            int o = offset.concretize(tm);
+            x64->dwarf->member_info(name, o, ts_index);
         }
     }
 };
@@ -334,6 +339,17 @@ public:
         
         return label;
     }
+
+    virtual void debug(TypeMatch tm, X64 *x64) {
+        Variable::debug(tm, x64);
+        
+        // We must also trigger the debug info generation of the actual class type,
+        // because it is not our declared type. Without this not even the Application
+        // class would get debug infos.
+        
+        TypeSpec ts = typesubst(class_ts, tm);
+        x64->once->type_info(ts);
+    }
 };
 
 
@@ -375,6 +391,9 @@ public:
         x64->op(RET);
         
         return label;
+    }
+
+    virtual void debug(TypeMatch tm, X64 *x64) {
     }
 };
 
@@ -437,9 +456,10 @@ public:
         offset = outer_scope->reserve(Allocation(ALIAS_SIZE));
     }
     
-    virtual void debug(X64 *x64) {
+    virtual void debug(TypeMatch tm, X64 *x64) {
         Storage s = get_local_storage();
-        unsigned ts_index = x64->once->type_info(alloc_ts);
+        TypeSpec ts = typesubst(alloc_ts, tm);
+        unsigned ts_index = x64->once->type_info(ts);
         x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index, false);
     }
 };

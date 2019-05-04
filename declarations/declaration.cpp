@@ -76,7 +76,7 @@ public:
         return NULL;
     }
     
-    virtual void debug(X64 *x64) {
+    virtual void debug(TypeMatch tm, X64 *x64) {
     }
 };
 
