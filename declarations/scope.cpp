@@ -109,12 +109,12 @@ public:
         }
     }
     
-    unsigned get_size(TypeMatch tm) {
+    Allocation get_size(TypeMatch tm) {
         allocate();
         //if (!is_allocated)
         //    throw INTERNAL_ERROR;
             
-        return size.concretize(tm);
+        return allocsubst(size, tm);
     }
     
     virtual Value *lookup(std::string name, Value *pivot, Scope *scope) {
@@ -253,10 +253,7 @@ public:
         // Variables allocate nonzero bytes
         Allocation pos = size;
         
-        size.bytes += stack_size(s.bytes);  // Simple strategy
-        size.count1 += s.count1;
-        size.count2 += s.count2;
-        size.count3 += s.count3;
+        size = size + s.stack_size();  // Simple strategy
         //std::cerr << "DataScope is now " << size << " bytes.\n";
     
         return pos;
@@ -827,10 +824,8 @@ public:
     virtual Allocation reserve(Allocation s) {
         // Upwards, because we allocate backwards
         Allocation offset = size;
-        size.bytes += stack_size(s.bytes);  // Each argument must be rounded up separately
-        size.count1 += s.count1;
-        size.count2 += s.count2;
-        size.count3 += s.count3;
+
+        size = size + s.stack_size();  // Each argument must be rounded up separately
         
         //std::cerr << "Now size is " << size << " bytes.\n";
         return offset;
@@ -945,24 +940,18 @@ public:
     }
 
     virtual Allocation reserve(Allocation s) {
-        current_size.bytes += stack_size(s.bytes);
-        current_size.count1 += s.count1;
-        current_size.count2 += s.count2;
-        current_size.count3 += s.count3;
+        current_size = current_size + s.stack_size();
         
         size.bytes = std::max(size.bytes, current_size.bytes);
         size.count1 = std::max(size.count1, current_size.count1);
         size.count2 = std::max(size.count2, current_size.count2);
         size.count3 = std::max(size.count3, current_size.count3);
         
-        return Allocation { -current_size.bytes, -current_size.count1, -current_size.count2, -current_size.count3 };
+        return current_size * (-1);
     }
     
     virtual void rollback(Allocation checkpoint) {
-        current_size.bytes = -checkpoint.bytes;
-        current_size.count1 = -checkpoint.count1;
-        current_size.count2 = -checkpoint.count2;
-        current_size.count3 = -checkpoint.count3;
+        current_size = checkpoint * (-1);
     }
     
     virtual void allocate() {

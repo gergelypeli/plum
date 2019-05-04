@@ -181,12 +181,12 @@ public:
     
     virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64) {
         Label label;
-        x64->absolute_label(label, -offset.concretize(tm));  // forcing an int into an unsigned64...
+        x64->absolute_label(label, -allocsubst(offset, tm).concretize());  // forcing an int into an unsigned64...
         return label;
     }
 
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm) {
-        return os << "FFWD " << -offset.concretize(tm);
+        return os << "FFWD " << -allocsubst(offset, tm).concretize();
     }
 };
 

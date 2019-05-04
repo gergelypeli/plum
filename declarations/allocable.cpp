@@ -67,7 +67,7 @@ public:
         if (where == NOWHERE)
             throw INTERNAL_ERROR;
             
-        return offset.concretize(tm);
+        return allocsubst(offset, tm).concretize();
     }
 
     virtual Storage get_storage(TypeMatch tm, Storage s) {
@@ -173,32 +173,32 @@ public:
     
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         TypeSpec ts = typesubst(alloc_ts, tm);
-        int o = offset.concretize(tm);
+        int o = allocsubst(offset, tm).concretize();
         ts.create(s.where == NOWHERE ? s : s + o, t + o, x64);
     }
 
     virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         TypeSpec ts = typesubst(alloc_ts, tm);
-        int o = offset.concretize(tm);
+        int o = allocsubst(offset, tm).concretize();
         ts.store(s.where == NOWHERE ? s : s + o, t + o, x64);
     }
 
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
         //x64->runtime->log(std::string("Destroying variable ") + name);
         TypeSpec ts = typesubst(alloc_ts, tm);
-        int o = offset.concretize(tm);
+        int o = allocsubst(offset, tm).concretize();
         ts.destroy(s + o, x64);
     }
     
     virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         TypeSpec ts = typesubst(alloc_ts, tm);
-        int o = offset.concretize(tm);
+        int o = allocsubst(offset, tm).concretize();
         ts.equal(s + o, t + o, x64);
     }
 
     virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         TypeSpec ts = typesubst(alloc_ts, tm);
-        int o = offset.concretize(tm);
+        int o = allocsubst(offset, tm).concretize();
         ts.compare(s + o, t + o, x64);
     }
 
@@ -222,7 +222,7 @@ public:
             }
         }
         else if (outer_scope->type == DATA_SCOPE) {
-            int o = offset.concretize(tm);
+            int o = allocsubst(offset, tm).concretize();
             x64->dwarf->member_info(name, o, ts_index);
         }
     }

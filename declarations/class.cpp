@@ -774,7 +774,7 @@ public:
             throw INTERNAL_ERROR;
             
         TypeSpec ts = typesubst(alloc_ts, tm);
-        int o = offset.concretize(tm);
+        int o = allocsubst(offset, tm).concretize();
         ts.destroy(s + o, x64);
     }
 
@@ -802,7 +802,7 @@ public:
         }
         else {
             x64->op(LEA, R10, Address(vt_label, 0));
-            x64->op(MOVQ, self_addr + offset.concretize(tm) + CLASS_VT_OFFSET, R10);
+            x64->op(MOVQ, self_addr + allocsubst(offset, tm).concretize() + CLASS_VT_OFFSET, R10);
         }
 
         for (auto &sr : shadow_associables)

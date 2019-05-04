@@ -1,4 +1,15 @@
 
+
+unsigned stack_size(unsigned size) {
+    return (size + 7) & ~7;
+}
+
+
+unsigned elem_size(unsigned size) {
+    return size <= 2 ? size : size <= 4 ? 4 : size <= 8 ? 8 : stack_size(size);
+}
+
+
 // Allocation
 
 struct Allocation {
@@ -8,11 +19,9 @@ struct Allocation {
     int count3;
     
     Allocation(int b = 0, int c1 = 0, int c2 = 0, int c3 = 0);
-    int concretize(TypeMatch tm);
     int concretize();
+    Allocation stack_size();
 };
-
-Allocation stack_size(Allocation a);
 
 std::ostream &operator<<(std::ostream &os, const Allocation &a);
 
@@ -31,23 +40,9 @@ int Allocation::concretize() {
         return bytes;
 }
 
-
-int Allocation::concretize(TypeMatch tm) {
-    int concrete_size = bytes;
-    
-    if (count1)
-        concrete_size += count1 * tm[1].measure_stack();
-        
-    if (count2)
-        concrete_size += count2 * tm[2].measure_stack();
-        
-    if (count3)
-        concrete_size += count3 * tm[3].measure_stack();
-    
-    //if (count1 || count2 || count3)
-    //    std::cerr << "Hohoho, concretized " << *this << " with " << tm << " to " << concrete_size << " bytes.\n";
-    
-    return concrete_size;
+Allocation Allocation::stack_size() {
+    int stack_bytes = (bytes >= 0 ? ::stack_size(bytes) : -::stack_size(-bytes));
+    return { stack_bytes, count1, count2, count3 };
 }
 
 
@@ -210,16 +205,6 @@ inline std::string unqualify(std::string name) {
 std::string get_working_path() {
    char temp[4096];  // No fucking standard, also see http://insanecoding.blogspot.com/2007/11/pathmax-simply-isnt.html
    return ( getcwd(temp, 4096) ? std::string( temp ) : std::string("") );
-}
-
-
-unsigned stack_size(unsigned size) {
-    return (size + 7) & ~7;
-}
-
-
-unsigned elem_size(unsigned size) {
-    return size <= 2 ? size : size <= 4 ? 4 : size <= 8 ? 8 : stack_size(size);
 }
 
 
