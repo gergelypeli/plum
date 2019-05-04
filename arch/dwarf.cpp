@@ -109,6 +109,7 @@ public:
     unsigned base_type_abbrev_number, enumeration_type_abbrev_number, enumerator_abbrev_number;
     unsigned unspecified_type_abbrev_number, pointer_type_abbrev_number, array_type_abbrev_number;
     unsigned structure_type_abbrev_number, class_type_abbrev_number, interface_type_abbrev_number;
+    unsigned variant_part_abbrev_number, variant_abbrev_number;
     unsigned subprogram_abbrev_number, abstract_subprogram_abbrev_number;
     unsigned lexical_block_abbrev_number, try_block_abbrev_number, catch_block_abbrev_number;
     unsigned variable_abbrev_number, formal_parameter_abbrev_number, member_abbrev_number;
@@ -147,6 +148,8 @@ public:
     void begin_structure_type_info(std::string name, unsigned size);
     void begin_class_type_info(std::string name, unsigned size);
     void begin_interface_type_info(std::string name);
+    void begin_variant_part_info(unsigned discr_index);
+    void begin_variant_info(unsigned discr_value);
 
     void begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index);
     void begin_abstract_subprogram_info(std::string name, bool virtuality);
@@ -268,6 +271,14 @@ void Dwarf::init_abbrev() {
 
     interface_type_abbrev_number = add_abbrev(DW_TAG_interface_type, true, {
         { DW_AT_name, DW_FORM_string }
+    });
+
+    variant_part_abbrev_number = add_abbrev(DW_TAG_variant_part, true, {
+        { DW_AT_discr, DW_FORM_ref4 }
+    });
+
+    variant_abbrev_number = add_abbrev(DW_TAG_variant, true, {
+        { DW_AT_discr_value, DW_FORM_udata }
     });
 
     // Code
@@ -467,6 +478,20 @@ void Dwarf::begin_interface_type_info(std::string name) {
     info.uleb128(interface_type_abbrev_number);
     
     info.string(name);
+}
+
+
+void Dwarf::begin_variant_part_info(unsigned discr_index) {
+    info.uleb128(variant_part_abbrev_number);
+    
+    info_ref(discr_index);
+}
+
+
+void Dwarf::begin_variant_info(unsigned discr_value) {
+    info.uleb128(variant_abbrev_number);
+    
+    info.uleb128(discr_value);
 }
 
 

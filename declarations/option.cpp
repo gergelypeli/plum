@@ -265,7 +265,36 @@ public:
     }
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        x64->dwarf->unspecified_type_info(tm[0].symbolize());  // TODO
+        // Yes, this is kinda insane
+        
+        TypeSpec some_ts = tm[1];
+        int flag_size = get_flag_size(some_ts);
+        unsigned some_ts_index = x64->once->type_info(some_ts);
+        unsigned flag_ts_index = x64->once->type_info(INTEGER_TS);  // needs ADDRESS_SIZE
+        unsigned size = tm[0].measure_raw();
+        Label label;
+        unsigned discr_index = label.def_index;
+        
+        x64->dwarf->begin_structure_type_info(tm[0].symbolize(), size);
+        
+        x64->dwarf->begin_variant_part_info(discr_index);
+        x64->dwarf->info_def(discr_index);
+        
+        if (flag_size) {
+            x64->dwarf->member_info("<flag>", 0, flag_ts_index);
+        
+            x64->dwarf->begin_variant_info(1);
+            x64->dwarf->member_info("<some>", flag_size, some_ts_index);
+            x64->dwarf->end_info();
+        }
+        else {
+            // Dwarf can't handle an implicit flag, so just output a member
+            x64->dwarf->member_info("<some>", 0, some_ts_index);
+        }
+        
+        x64->dwarf->end_info();
+        
+        x64->dwarf->end_info();
     }
 };
 
@@ -629,6 +658,31 @@ public:
     }
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        x64->dwarf->unspecified_type_info(tm[0].symbolize());  // TODO
+        // This is actually better
+        
+        int flag_size = get_flag_size();
+        unsigned flag_ts_index = x64->once->type_info(INTEGER_TS);  // needs ADDRESS_SIZE
+        unsigned size = tm[0].measure_raw();
+        Label label;
+        unsigned discr_index = label.def_index;
+        
+        x64->dwarf->begin_structure_type_info(tm[0].symbolize(), size);
+        
+        x64->dwarf->begin_variant_part_info(discr_index);
+
+        x64->dwarf->info_def(discr_index);
+        x64->dwarf->member_info("<flag>", 0, flag_ts_index);
+        
+        for (unsigned i = 0; i < tss.size(); i++) {
+            unsigned ts_index = x64->once->type_info(tss[i]);
+            
+            x64->dwarf->begin_variant_info(i);
+            x64->dwarf->member_info("<" + tags[i] + ">", flag_size, ts_index);
+            x64->dwarf->end_info();
+        }
+        
+        x64->dwarf->end_info();
+        
+        x64->dwarf->end_info();
     }
 };
