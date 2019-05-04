@@ -280,7 +280,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
     
         // TODO: MEMORY pivot can be much more optimal
         left->compile_and_store(x64, Storage(STACK));
@@ -341,7 +341,7 @@ public:
         right->compile_and_store(x64, Storage(STACK));
         
         Label loop, check, found;
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
         int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, RAX, Address(RSP, stack_size));
@@ -457,7 +457,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        elem_size = elem_ts.measure_elem();
+        elem_size = ContainerType::elem_size(elem_ts);
         ls = left->compile(x64);  // iterator
         Register r = (clob & ~ls.regs()).get_any();
         Register i = (clob & ~ls.regs() & ~Regs(r)).get_any();

@@ -1,7 +1,7 @@
 
 void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // R10 - reservation
-    int elem_size = elem_ts.measure_elem();
+    int elem_size = ContainerType::elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(linearray_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("alloc"));
@@ -16,7 +16,7 @@ void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
-    int elem_size = elem_ts.measure_elem();
+    int elem_size = ContainerType::elem_size(elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("realloc"));
 
@@ -44,7 +44,7 @@ void compile_array_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     // Return a cloned Ref
     Label loop, end;
     Label alloc_label = x64->once->compile(compile_array_alloc, elem_ts);
-    int elem_size = elem_ts.measure_elem();
+    int elem_size = ContainerType::elem_size(elem_ts);
     TypeSpec heap_ts = elem_ts.prefix(linearray_type);
     
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("clone"));
@@ -187,7 +187,7 @@ public:
         // RAX - result, R10 - first, R11 - second
         x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("concatenation"));
         Label alloc_array = x64->once->compile(compile_array_alloc, elem_ts);
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
         
         x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
         x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
@@ -375,7 +375,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
         Label compar = x64->once->compile(compile_compar, elem_ts);
         Label done;
 
@@ -439,7 +439,7 @@ public:
     }
     
     static void compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
 
         x64->code_label(label);
         Label ok, loop, check;
@@ -520,7 +520,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label ok, loop, check;
-        int elem_size = container_elem_size(elem_ts);
+        int elem_size = ContainerType::elem_size(elem_ts);
         Label realloc_array = x64->once->compile(compile_array_realloc, elem_ts);
 
         Storage as = array_value->compile_and_alias(x64, get_alias());
@@ -597,7 +597,7 @@ public:
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
         
         Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
         
@@ -625,7 +625,7 @@ public:
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
         int item_stack_size = ts.measure_stack();
 
         x64->op(SUBQ, RSP, item_stack_size);

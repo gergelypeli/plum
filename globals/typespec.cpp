@@ -176,11 +176,6 @@ int TypeSpec::measure_raw() {
 }
 
 
-int TypeSpec::measure_elem() {
-    return elem_size(measure_raw());
-}
-
-
 int TypeSpec::measure_stack() {
     return stack_size(measure_raw());
 }

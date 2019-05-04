@@ -12,12 +12,6 @@ TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL) {
 }
 
 
-int container_elem_size(TypeSpec elem_ts) {
-    // Note: this is like array and circularray, but unlike rbtree!
-    return elem_ts.measure_elem();
-}
-
-
 void container_alloc(int header_size, int elem_size, int reservation_offset, Label finalizer_label, X64 *x64) {
     // R10 - reservation size
     x64->op(PUSHQ, R10);
@@ -206,7 +200,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = container_elem_size(elem_ts);
+        int elem_size = ContainerType::elem_size(elem_ts);
     
         OptimizedOperationValue::subcompile(x64);
 
@@ -349,7 +343,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
-        int elem_size = container_elem_size(elem_ts);
+        int elem_size = ContainerType::elem_size(elem_ts);
 
         fill_value->compile_and_store(x64, Storage(STACK));
         length_value->compile_and_store(x64, Storage(STACK));
@@ -430,7 +424,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
-        int elem_size = container_elem_size(elem_ts);
+        int elem_size = ContainerType::elem_size(elem_ts);
         int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, R10, elems.size());
@@ -503,7 +497,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = container_elem_size(elem_ts);
+        int elem_size = ContainerType::elem_size(elem_ts);
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label grow_label = x64->once->compile(compile_grow, elem_ts);
 
@@ -564,7 +558,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = container_elem_size(elem_ts);
+        int elem_size = ContainerType::elem_size(elem_ts);
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label ok;
         

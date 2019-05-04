@@ -20,7 +20,6 @@ public:
     Allocation measure();
     Allocation measure_identity();
     int measure_raw();
-    int measure_elem();
     int measure_stack();
     int measure_where(StorageWhere where);
     Storage optimal_value_storage(Regs preferred);

@@ -1,8 +1,4 @@
 
-int queue_elem_size(TypeSpec elem_ts) {
-    return elem_ts.measure_elem();
-}
-
 
 void fix_index_overflow(Register r, Register i, X64 *x64) {
     Label ok;
@@ -32,7 +28,7 @@ void fix_index_underflow(Register r, Register i, X64 *x64) {
 
 void compile_queue_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // R10 - reservation
-    int elem_size = queue_elem_size(elem_ts);
+    int elem_size = ContainerType::elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("alloc"));
@@ -48,7 +44,7 @@ void compile_queue_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_queue_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
-    int elem_size = queue_elem_size(elem_ts);
+    int elem_size = ContainerType::elem_size(elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("realloc"));
     //x64->log("realloc_array");
@@ -64,7 +60,7 @@ void compile_queue_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     // RCX, RSI, RDI - clob
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
     Label realloc_label = x64->once->compile(compile_queue_realloc, elem_ts);
-    int elem_size = queue_elem_size(elem_ts);
+    int elem_size = ContainerType::elem_size(elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("grow"));
     x64->runtime->log("grow_circularray");
@@ -137,7 +133,7 @@ void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     // Return a cloned Ref
     Label loop, end, linear, linear2, loop2;
     Label alloc_label = x64->once->compile(compile_queue_alloc, elem_ts);
-    int elem_size = elem_ts.measure_elem();
+    int elem_size = ContainerType::elem_size(elem_ts);
     TypeSpec heap_ts = elem_ts.prefix(circularray_type);
     
     x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("clone"));
@@ -339,7 +335,7 @@ public:
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
-        int elem_size = queue_elem_size(elem_ts);
+        int elem_size = ContainerType::elem_size(elem_ts);
 
         fix_index_overflow(r, i, x64);
         
@@ -369,7 +365,7 @@ public:
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
-        int elem_size = queue_elem_size(elem_ts);
+        int elem_size = ContainerType::elem_size(elem_ts);
         int item_stack_size = ts.measure_stack();
 
         x64->op(SUBQ, RSP, item_stack_size);

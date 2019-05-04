@@ -29,8 +29,24 @@ public:
         x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
     }
 
+    static unsigned elem_size(TypeSpec elem_ts) {
+        return ::elem_size(elem_ts.measure_raw());
+    }
+
+    virtual unsigned get_elem_size(TypeSpec elem_ts) {
+        return elem_size(elem_ts);
+    }
+
+    virtual int get_elems_offset() {
+        return 0;
+    }
+
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        x64->dwarf->unspecified_type_info(tm[0].symbolize());  // TODO
+        unsigned ts_index = x64->once->type_info(tm[1]);
+        unsigned elem_size = get_elem_size(tm[1]);
+        int elems_offset = get_elems_offset();
+        
+        x64->dwarf->array_type_info(tm[0].symbolize(), ts_index, elem_size, elems_offset);
     }
 };
 
@@ -49,7 +65,7 @@ public:
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         TypeSpec elem_ts = ts.unprefix(linearray_type);
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
         Label start, end, loop;
 
         x64->code_label_local(label, elem_ts.prefix(linearray_type).symbolize("finalizer"));
@@ -71,6 +87,10 @@ public:
 
         x64->code_label(end);
         x64->op(RET);
+    }
+    
+    virtual int get_elems_offset() {
+        return LINEARRAY_ELEMS_OFFSET;
     }
 };
 
@@ -105,7 +125,7 @@ public:
     }
     
     static void compile_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
         Label loop, elem, end;
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);
@@ -179,7 +199,7 @@ public:
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         TypeSpec elem_ts = ts.unprefix(circularray_type);
-        int elem_size = elem_ts.measure_elem();
+        int elem_size = ContainerType::elem_size(elem_ts);
         Label start, end, loop, ok, ok1;
     
         x64->code_label_local(label, elem_ts.prefix(circularray_type).symbolize("finalizer"));
@@ -216,6 +236,10 @@ public:
     
         x64->code_label(end);
         x64->op(RET);
+    }
+
+    virtual int get_elems_offset() {
+        return CIRCULARRAY_ELEMS_OFFSET;
     }
 };
 
@@ -276,6 +300,17 @@ public:
         x64->op(RET);
     }
 
+    static unsigned elem_size(TypeSpec elem_ts) {
+        return elem_ts.measure_stack() + RBNODE_HEADER_SIZE;
+    }
+
+    virtual unsigned get_elem_size(TypeSpec elem_ts) {
+        return elem_size(elem_ts);
+    }
+
+    virtual int get_elems_offset() {
+        return RBTREE_ELEMS_OFFSET;
+    }
 };
 
 

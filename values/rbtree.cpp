@@ -1,16 +1,11 @@
 
-int rbtree_elem_size(TypeSpec elem_ts) {
-    return elem_ts.measure_stack() + RBNODE_HEADER_SIZE;
-}
-
-
 // NOTE: node indexes stored in root, vacant, *.{left,right,prev,next} are tree-relative
 // offsets, so if RSI points to the tree, then RSI + RAX points to the node. The NIL node
 // value may be 0, which is an invalid offset, since the tree itself has a nonempty header.
 
 void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // R10 - reservation
-    int elem_size = rbtree_elem_size(elem_ts);
+    int elem_size = RbtreeType::elem_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(rbtree_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("alloc"));
@@ -29,7 +24,7 @@ void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_rbtree_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
-    int elem_size = rbtree_elem_size(elem_ts);
+    int elem_size = RbtreeType::elem_size(elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("realloc"));
 
