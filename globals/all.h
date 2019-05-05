@@ -633,6 +633,9 @@ public:
     }
     
     virtual void compile_rest() {
+        // Don't associate the rest with the last line number compiled
+        add_lineno(0, 0);
+
         once->for_all(this);
         
         runtime->compile_source_infos(source_file_names);

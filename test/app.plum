@@ -1110,6 +1110,9 @@ App? :Class Application as:
         Std double_stack
         Std prints("Stack doubled")
         c = 444
+        #str? = "This is it."
+        :die
+        
 
     test_backtrace? :Function as:
         Std prints("This function is called {}" { :try Std frame_name(0) })

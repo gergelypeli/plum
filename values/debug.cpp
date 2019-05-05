@@ -125,3 +125,20 @@ public:
         return Storage();
     }
 };
+
+
+class DieValue: public Value {
+public:
+    DieValue(Value *p, TypeMatch tm)
+        :Value(WHATEVER_TS) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return Regs();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        x64->runtime->die("As expected.");
+        return Storage();
+    }
+};
