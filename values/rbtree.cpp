@@ -5,12 +5,12 @@
 
 void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // R10 - reservation
-    int elem_size = RbtreeType::elem_size(elem_ts);
+    int rbnode_size = RbtreeType::get_rbnode_size(elem_ts);
     Label finalizer_label = elem_ts.prefix(rbtree_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("alloc"));
     
-    container_alloc(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, finalizer_label, x64);
+    container_alloc(RBTREE_HEADER_SIZE, rbnode_size, RBTREE_RESERVATION_OFFSET, finalizer_label, x64);
 
     x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), 0);
     x64->op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RBNODE_NIL);
@@ -24,11 +24,11 @@ void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
 
 void compile_rbtree_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - array, R10 - new reservation
-    int elem_size = RbtreeType::elem_size(elem_ts);
+    int rbnode_size = RbtreeType::get_rbnode_size(elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("realloc"));
 
-    container_realloc(RBTREE_HEADER_SIZE, elem_size, RBTREE_RESERVATION_OFFSET, x64);
+    container_realloc(RBTREE_HEADER_SIZE, rbnode_size, RBTREE_RESERVATION_OFFSET, x64);
 
     x64->op(RET);
 }

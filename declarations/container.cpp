@@ -29,31 +29,8 @@ public:
         x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
     }
 
-    static unsigned elem_size(TypeSpec elem_ts) {
-        return ::elem_size(elem_ts.measure_raw());
-    }
-
-    virtual unsigned get_elem_size(TypeSpec elem_ts) {
-        return elem_size(elem_ts);
-    }
-
-    virtual int get_elems_offset() {
-        return 0;
-    }
-
-    virtual void type_info(TypeMatch tm, X64 *x64) {
-        unsigned elem_ts_index = x64->once->type_info(tm[1]);
-        unsigned elem_size = get_elem_size(tm[1]);
-        int elems_offset = get_elems_offset();
-        Label label;
-        unsigned array_ts_index = label.def_index;
-        
-        x64->dwarf->begin_structure_type_info(tm[0].symbolize(), elems_offset);
-        x64->dwarf->member_info("elems", elems_offset, array_ts_index);
-        x64->dwarf->end_info();
-        
-        x64->dwarf->info_def(array_ts_index);
-        x64->dwarf->array_type_info(tm[1].symbolize("<Elems>"), elem_ts_index, elem_size);
+    static unsigned get_elem_size(TypeSpec elem_ts) {
+        return elem_size(elem_ts.measure_raw());
     }
 };
 
@@ -72,7 +49,7 @@ public:
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         TypeSpec elem_ts = ts.unprefix(linearray_type);
-        int elem_size = ContainerType::elem_size(elem_ts);
+        int elem_size = ContainerType::get_elem_size(elem_ts);
         Label start, end, loop;
 
         x64->code_label_local(label, elem_ts.prefix(linearray_type).symbolize("finalizer"));
@@ -95,9 +72,25 @@ public:
         x64->code_label(end);
         x64->op(RET);
     }
-    
-    virtual int get_elems_offset() {
-        return LINEARRAY_ELEMS_OFFSET;
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        TypeSpec elem_ts = tm[1];
+        unsigned elem_ts_index = x64->once->type_info(elem_ts);
+        unsigned integer_ts_index = x64->once->type_info(INTEGER_TS);
+        unsigned elem_size = get_elem_size(elem_ts);
+        Label label;
+        unsigned array_ts_index = label.def_index;
+        
+        x64->dwarf->begin_structure_type_info(tm[0].symbolize(), LINEARRAY_ELEMS_OFFSET);
+        x64->dwarf->member_info("length", LINEARRAY_LENGTH_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("reservation", LINEARRAY_RESERVATION_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("elems", LINEARRAY_ELEMS_OFFSET, array_ts_index);
+        x64->dwarf->end_info();
+        
+        x64->dwarf->info_def(array_ts_index);
+        x64->dwarf->begin_array_type_info(elem_ts.symbolize("<Elems>"), elem_ts_index, elem_size);
+        x64->dwarf->subrange_type_info(LINEARRAY_LENGTH_OFFSET - LINEARRAY_ELEMS_OFFSET);
+        x64->dwarf->end_info();
     }
 };
 
@@ -132,7 +125,7 @@ public:
     }
     
     static void compile_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
-        int elem_size = ContainerType::elem_size(elem_ts);
+        int elem_size = ContainerType::get_elem_size(elem_ts);
         Label loop, elem, end;
         Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
         Address alias_addr(RSP, RIP_SIZE);
@@ -206,7 +199,7 @@ public:
 
     static void compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
         TypeSpec elem_ts = ts.unprefix(circularray_type);
-        int elem_size = ContainerType::elem_size(elem_ts);
+        int elem_size = ContainerType::get_elem_size(elem_ts);
         Label start, end, loop, ok, ok1;
     
         x64->code_label_local(label, elem_ts.prefix(circularray_type).symbolize("finalizer"));
@@ -245,8 +238,25 @@ public:
         x64->op(RET);
     }
 
-    virtual int get_elems_offset() {
-        return CIRCULARRAY_ELEMS_OFFSET;
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        TypeSpec elem_ts = tm[1];
+        unsigned elem_ts_index = x64->once->type_info(elem_ts);
+        unsigned integer_ts_index = x64->once->type_info(INTEGER_TS);
+        unsigned elem_size = get_elem_size(elem_ts);
+        Label label;
+        unsigned array_ts_index = label.def_index;
+        
+        x64->dwarf->begin_structure_type_info(tm[0].symbolize(), CIRCULARRAY_ELEMS_OFFSET);
+        x64->dwarf->member_info("length", CIRCULARRAY_LENGTH_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("reservation", CIRCULARRAY_RESERVATION_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("front", CIRCULARRAY_FRONT_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("elems", CIRCULARRAY_ELEMS_OFFSET, array_ts_index);
+        x64->dwarf->end_info();
+        
+        x64->dwarf->info_def(array_ts_index);
+        x64->dwarf->begin_array_type_info(elem_ts.symbolize("<Elems>"), elem_ts_index, elem_size);
+        x64->dwarf->subrange_type_info(CIRCULARRAY_LENGTH_OFFSET - CIRCULARRAY_ELEMS_OFFSET);
+        x64->dwarf->end_info();
     }
 };
 
@@ -307,16 +317,43 @@ public:
         x64->op(RET);
     }
 
-    static unsigned elem_size(TypeSpec elem_ts) {
+    static unsigned get_rbnode_size(TypeSpec elem_ts) {
         return elem_ts.measure_stack() + RBNODE_HEADER_SIZE;
     }
 
-    virtual unsigned get_elem_size(TypeSpec elem_ts) {
-        return elem_size(elem_ts);
-    }
-
-    virtual int get_elems_offset() {
-        return RBTREE_ELEMS_OFFSET;
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        TypeSpec elem_ts = tm[1];
+        unsigned elem_ts_index = x64->once->type_info(elem_ts);
+        unsigned integer_ts_index = x64->once->type_info(INTEGER_TS);
+        unsigned rbnode_size = get_rbnode_size(elem_ts);
+        Label label;
+        unsigned array_ts_index = label.def_index;
+        Label label2;
+        unsigned rbnode_ts_index = label2.def_index;
+        
+        x64->dwarf->begin_structure_type_info(tm[0].symbolize(), RBTREE_ELEMS_OFFSET);
+        x64->dwarf->member_info("length", RBTREE_LENGTH_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("reservation", RBTREE_RESERVATION_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("root", RBTREE_ROOT_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("first", RBTREE_FIRST_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("last", RBTREE_LAST_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("vacant", RBTREE_VACANT_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("elems", RBTREE_ELEMS_OFFSET, array_ts_index);
+        x64->dwarf->end_info();
+        
+        x64->dwarf->info_def(array_ts_index);
+        x64->dwarf->begin_array_type_info(elem_ts.symbolize("<Rbnodes>"), rbnode_ts_index, rbnode_size);
+        x64->dwarf->subrange_type_info(RBTREE_RESERVATION_OFFSET - RBTREE_ELEMS_OFFSET);
+        x64->dwarf->end_info();
+        
+        x64->dwarf->info_def(rbnode_ts_index);
+        x64->dwarf->begin_structure_type_info(elem_ts.symbolize("<Rbnode>"), rbnode_size);
+        x64->dwarf->member_info("pred", RBNODE_PRED_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("next", RBNODE_NEXT_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("left", RBNODE_LEFT_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("right", RBNODE_RIGHT_OFFSET, integer_ts_index);
+        x64->dwarf->member_info("value", RBNODE_VALUE_OFFSET, elem_ts_index);
+        x64->dwarf->end_info();
     }
 };
 

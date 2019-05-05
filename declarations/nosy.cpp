@@ -43,6 +43,10 @@ public:
     NosytreeType(std::string name)
         :ContainerType(name, Metatypes { value_metatype }) {
     }
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->unspecified_type_info(name);
+    }
 };
 
 
@@ -50,6 +54,10 @@ class NosyrefType: public ContainerType {
 public:
     NosyrefType(std::string name)
         :ContainerType(name, Metatypes { value_metatype }) {
+    }
+    
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->unspecified_type_info(name);
     }
 };
 

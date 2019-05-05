@@ -108,7 +108,7 @@ public:
     unsigned compile_unit_abbrev_number;
     unsigned base_type_abbrev_number, enumeration_type_abbrev_number, enumerator_abbrev_number;
     unsigned unspecified_type_abbrev_number, typedef_abbrev_number;
-    unsigned pointer_type_abbrev_number, array_type_abbrev_number;
+    unsigned pointer_type_abbrev_number, array_type_abbrev_number, subrange_type_abbrev_number;
     unsigned structure_type_abbrev_number, class_type_abbrev_number, interface_type_abbrev_number;
     unsigned variant_part_abbrev_number, variant_abbrev_number;
     unsigned subprogram_abbrev_number, abstract_subprogram_abbrev_number;
@@ -146,7 +146,8 @@ public:
     void unspecified_type_info(std::string name);
     void typedef_info(std::string name, unsigned ts_index);
     void pointer_type_info(std::string name, unsigned ts_index);
-    void array_type_info(std::string name, unsigned ts_index, unsigned elem_size);
+    void begin_array_type_info(std::string name, unsigned ts_index, unsigned elem_size);
+    void subrange_type_info(int length_offset);
     void begin_structure_type_info(std::string name, unsigned size);
     void begin_class_type_info(std::string name, unsigned size);
     void begin_interface_type_info(std::string name);
@@ -259,10 +260,15 @@ void Dwarf::init_abbrev() {
         { DW_AT_type, DW_FORM_ref4 }
     });
 
-    array_type_abbrev_number = add_abbrev(DW_TAG_array_type, false, {
+    array_type_abbrev_number = add_abbrev(DW_TAG_array_type, true, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_type, DW_FORM_ref4 },
         { DW_AT_byte_stride, DW_FORM_data4 }
+    });
+
+    subrange_type_abbrev_number = add_abbrev(DW_TAG_subrange_type, false, {
+        { DW_AT_lower_bound, DW_FORM_data4 },
+        { DW_AT_count, DW_FORM_exprloc }
     });
 
     structure_type_abbrev_number = add_abbrev(DW_TAG_structure_type, true, {
@@ -456,12 +462,28 @@ void Dwarf::pointer_type_info(std::string name, unsigned ts_index) {
 }
 
 
-void Dwarf::array_type_info(std::string name, unsigned ts_index, unsigned elem_size) {
+void Dwarf::begin_array_type_info(std::string name, unsigned ts_index, unsigned elem_size) {
     info.uleb128(array_type_abbrev_number);
     
     info.string(name);
     info_ref(ts_index);
     info.data4(elem_size);
+}
+
+void Dwarf::subrange_type_info(int length_offset) {
+    info.uleb128(subrange_type_abbrev_number);
+    
+    // We don't have a language specific default
+    info.data4(0);
+    
+    // The program is 9 bytes long
+    info.uleb128(9);
+    info.data1(DW_OP_push_object_address);
+    info.data1(DW_OP_const4s);
+    info.data4(length_offset);
+    info.data1(DW_OP_plus);
+    info.data1(DW_OP_deref_size);
+    info.data1(8);
 }
 
 

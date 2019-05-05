@@ -1111,6 +1111,7 @@ App? :Class Application as:
         Std prints("Stack doubled")
         c = 444
         str? = "This is it."
+        set? = String Set { "foo", "bar", "baz" }
         :die
         
 

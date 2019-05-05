@@ -200,7 +200,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = ContainerType::elem_size(elem_ts);
+        int elem_size = ContainerType::get_elem_size(elem_ts);
     
         OptimizedOperationValue::subcompile(x64);
 
@@ -343,7 +343,7 @@ public:
     
     virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
-        int elem_size = ContainerType::elem_size(elem_ts);
+        int elem_size = ContainerType::get_elem_size(elem_ts);
 
         fill_value->compile_and_store(x64, Storage(STACK));
         length_value->compile_and_store(x64, Storage(STACK));
@@ -424,7 +424,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         Label alloc_label = x64->once->compile(compile_alloc, elem_ts);
-        int elem_size = ContainerType::elem_size(elem_ts);
+        int elem_size = ContainerType::get_elem_size(elem_ts);
         int stack_size = elem_ts.measure_stack();
     
         x64->op(MOVQ, R10, elems.size());
@@ -497,7 +497,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = ContainerType::elem_size(elem_ts);
+        int elem_size = ContainerType::get_elem_size(elem_ts);
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label grow_label = x64->once->compile(compile_grow, elem_ts);
 
@@ -558,7 +558,7 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        int elem_size = ContainerType::elem_size(elem_ts);
+        int elem_size = ContainerType::get_elem_size(elem_ts);
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label ok;
         
