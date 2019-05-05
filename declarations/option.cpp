@@ -281,15 +281,15 @@ public:
         x64->dwarf->info_def(discr_index);
         
         if (flag_size) {
-            x64->dwarf->member_info("<flag>", 0, flag_ts_index);
+            x64->dwarf->member_info("<flag>", 0, flag_ts_index, true);
         
             x64->dwarf->begin_variant_info(1);
-            x64->dwarf->member_info("<some>", flag_size, some_ts_index);
+            x64->dwarf->member_info("<some>", flag_size, some_ts_index, true);
             x64->dwarf->end_info();
         }
         else {
             // Dwarf can't handle an implicit flag, so just output a member
-            x64->dwarf->member_info("<some>", 0, some_ts_index);
+            x64->dwarf->member_info("<some>", 0, some_ts_index, true);
         }
         
         x64->dwarf->end_info();
@@ -671,13 +671,13 @@ public:
         x64->dwarf->begin_variant_part_info(discr_index);
 
         x64->dwarf->info_def(discr_index);
-        x64->dwarf->member_info("<flag>", 0, flag_ts_index);
+        x64->dwarf->member_info("<flag>", 0, flag_ts_index, true);
         
         for (unsigned i = 0; i < tss.size(); i++) {
             unsigned ts_index = x64->once->type_info(tss[i]);
             
             x64->dwarf->begin_variant_info(i);
-            x64->dwarf->member_info("<" + tags[i] + ">", flag_size, ts_index);
+            x64->dwarf->member_info("<" + tags[i] + ">", flag_size, ts_index, true);
             x64->dwarf->end_info();
         }
         

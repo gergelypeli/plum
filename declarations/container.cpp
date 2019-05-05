@@ -82,9 +82,9 @@ public:
         unsigned array_ts_index = label.def_index;
         
         x64->dwarf->begin_structure_type_info(tm[0].symbolize(), LINEARRAY_ELEMS_OFFSET);
-        x64->dwarf->member_info("length", LINEARRAY_LENGTH_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("reservation", LINEARRAY_RESERVATION_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("elems", LINEARRAY_ELEMS_OFFSET, array_ts_index);
+        x64->dwarf->member_info("length", LINEARRAY_LENGTH_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("reservation", LINEARRAY_RESERVATION_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("elems", LINEARRAY_ELEMS_OFFSET, array_ts_index, true);
         x64->dwarf->end_info();
         
         x64->dwarf->info_def(array_ts_index);
@@ -247,10 +247,10 @@ public:
         unsigned array_ts_index = label.def_index;
         
         x64->dwarf->begin_structure_type_info(tm[0].symbolize(), CIRCULARRAY_ELEMS_OFFSET);
-        x64->dwarf->member_info("length", CIRCULARRAY_LENGTH_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("reservation", CIRCULARRAY_RESERVATION_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("front", CIRCULARRAY_FRONT_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("elems", CIRCULARRAY_ELEMS_OFFSET, array_ts_index);
+        x64->dwarf->member_info("length", CIRCULARRAY_LENGTH_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("reservation", CIRCULARRAY_RESERVATION_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("front", CIRCULARRAY_FRONT_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("elems", CIRCULARRAY_ELEMS_OFFSET, array_ts_index, true);
         x64->dwarf->end_info();
         
         x64->dwarf->info_def(array_ts_index);
@@ -332,13 +332,13 @@ public:
         unsigned rbnode_ts_index = label2.def_index;
         
         x64->dwarf->begin_structure_type_info(tm[0].symbolize(), RBTREE_ELEMS_OFFSET);
-        x64->dwarf->member_info("length", RBTREE_LENGTH_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("reservation", RBTREE_RESERVATION_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("root", RBTREE_ROOT_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("first", RBTREE_FIRST_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("last", RBTREE_LAST_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("vacant", RBTREE_VACANT_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("elems", RBTREE_ELEMS_OFFSET, array_ts_index);
+        x64->dwarf->member_info("length", RBTREE_LENGTH_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("reservation", RBTREE_RESERVATION_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("root", RBTREE_ROOT_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("first", RBTREE_FIRST_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("last", RBTREE_LAST_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("vacant", RBTREE_VACANT_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("elems", RBTREE_ELEMS_OFFSET, array_ts_index, true);
         x64->dwarf->end_info();
         
         x64->dwarf->info_def(array_ts_index);
@@ -348,11 +348,11 @@ public:
         
         x64->dwarf->info_def(rbnode_ts_index);
         x64->dwarf->begin_structure_type_info(elem_ts.symbolize("<Rbnode>"), rbnode_size);
-        x64->dwarf->member_info("pred", RBNODE_PRED_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("next", RBNODE_NEXT_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("left", RBNODE_LEFT_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("right", RBNODE_RIGHT_OFFSET, integer_ts_index);
-        x64->dwarf->member_info("value", RBNODE_VALUE_OFFSET, elem_ts_index);
+        x64->dwarf->member_info("pred", RBNODE_PRED_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("next", RBNODE_NEXT_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("left", RBNODE_LEFT_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("right", RBNODE_RIGHT_OFFSET, integer_ts_index, true);
+        x64->dwarf->member_info("value", RBNODE_VALUE_OFFSET, elem_ts_index, true);
         x64->dwarf->end_info();
     }
 };

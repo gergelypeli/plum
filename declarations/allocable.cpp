@@ -203,27 +203,32 @@ public:
     }
 
     virtual void debug(TypeMatch tm, X64 *x64) {
+        if (where != MEMORY && where != ALIAS && where != RETRO)
+            throw INTERNAL_ERROR;
+            
         TypeSpec ts = typesubst(alloc_ts, tm);
-        unsigned ts_index = x64->once->type_info(ts);
+        bool as_alias = (where == ALIAS || where == RETRO);
+        unsigned ts_index = x64->once->type_info(ts, as_alias);
+
+        bool is_artificial = (name[0] == '$' || name[0] == '<');
         
         if (outer_scope->type == CODE_SCOPE) {
             Storage s = get_local_storage();
+            if (s.address.base != RBP)
+                throw INTERNAL_ERROR;
         
-            if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP) {
-                x64->dwarf->local_variable_info(name, s.address.offset, ts_index);
-            }
+            x64->dwarf->local_variable_info(name, s.address.offset, ts_index, is_artificial);
         }
         else if (outer_scope->type == ARGUMENT_SCOPE) {
             Storage s = get_local_storage();
+            if (s.address.base != RBP)
+                throw INTERNAL_ERROR;
         
-            if ((s.where == MEMORY || s.where == ALIAS) && s.address.base == RBP) {
-                bool is_artificial = (name == "$");
-                x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index, is_artificial);
-            }
+            x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index, is_artificial);
         }
         else if (outer_scope->type == DATA_SCOPE) {
             int o = allocsubst(offset, tm).concretize();
-            x64->dwarf->member_info(name, o, ts_index);
+            x64->dwarf->member_info(name, o, ts_index, is_artificial);
         }
     }
 };

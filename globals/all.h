@@ -406,8 +406,11 @@ public:
 class Once {
 public:
     typedef void (*FunctionCompiler)(Label, X64 *);
+    
     typedef void (*TypedFunctionCompiler)(Label, TypeSpec, X64 *);
     typedef std::pair<TypedFunctionCompiler, TypeSpec> FunctionCompilerTuple;
+
+    typedef std::pair<TypeSpec, bool> TypeSpecTuple;
 
     template<typename KeyType>
     struct LabelStore {
@@ -441,14 +444,14 @@ public:
     LabelStore<FunctionCompilerTuple> typed_function_compilers;
     LabelStore<Deferrable *> deferrables;
     LabelStore<std::string> import_gots;
-    LabelStore<TypeSpec> type_die_offsets;
+    LabelStore<TypeSpecTuple> type_die_offsets;
     
     Label compile(FunctionCompiler fc);
     Label compile(TypedFunctionCompiler tfc, TypeSpec ts);
     Label compile(Deferrable *d);
     
     Label import_got(std::string name);
-    unsigned type_info(TypeSpec ts);
+    unsigned type_info(TypeSpec ts, bool as_alias = false);
 
     void for_all(X64 *x64);
     void for_debug(X64 *x64);

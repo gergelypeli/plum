@@ -22,11 +22,11 @@ Label Once::import_got(std::string name) {
 }
 
 
-unsigned Once::type_info(TypeSpec ts) {
+unsigned Once::type_info(TypeSpec ts, bool as_alias) {
     if (ts == NO_TS)
         throw INTERNAL_ERROR;
         
-    return type_die_offsets.add(ts).def_index;
+    return type_die_offsets.add(std::make_pair(ts, as_alias)).def_index;
 }
 
 
@@ -87,13 +87,25 @@ void Once::for_all(X64 *x64) {
 void Once::for_debug(X64 *x64) {
     while (type_die_offsets.is_dirty()) {
         auto kv = type_die_offsets.take();
-        TypeSpec ts = kv.first;
+        TypeSpecTuple tst = kv.first;
+        TypeSpec ts = tst.first;
+        bool as_alias = tst.second;
         Label label = kv.second;
         unsigned index = label.def_index;
         
+        // NOTE: our Ref and Ptr types are represented as Dwarf pointer types, but our
+        // ALIAS storages are represented as Dwarf reference types.
+
         x64->dwarf->info_def(index);
-        //std::cerr << "XXX type_info " << ts << "\n";
-        ts.type_info(x64);
+        
+        if (as_alias) {
+            unsigned ts_index = type_info(ts);
+            x64->dwarf->reference_type_info(ts.symbolize("alias"), ts_index);
+        }
+        else {
+            //std::cerr << "XXX type_info " << ts << "\n";
+            ts.type_info(x64);
+        }
     }
 }
 

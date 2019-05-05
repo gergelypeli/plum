@@ -108,7 +108,8 @@ public:
     unsigned compile_unit_abbrev_number;
     unsigned base_type_abbrev_number, enumeration_type_abbrev_number, enumerator_abbrev_number;
     unsigned unspecified_type_abbrev_number, typedef_abbrev_number;
-    unsigned pointer_type_abbrev_number, array_type_abbrev_number, subrange_type_abbrev_number;
+    unsigned pointer_type_abbrev_number, reference_type_abbrev_number;
+    unsigned array_type_abbrev_number, subrange_type_abbrev_number;
     unsigned structure_type_abbrev_number, class_type_abbrev_number, interface_type_abbrev_number;
     unsigned variant_part_abbrev_number, variant_abbrev_number;
     unsigned subprogram_abbrev_number, abstract_subprogram_abbrev_number;
@@ -146,6 +147,7 @@ public:
     void unspecified_type_info(std::string name);
     void typedef_info(std::string name, unsigned ts_index);
     void pointer_type_info(std::string name, unsigned ts_index);
+    void reference_type_info(std::string name, unsigned ts_index);
     void begin_array_type_info(std::string name, unsigned ts_index, unsigned elem_size);
     void subrange_type_info(int length_offset);
     void begin_structure_type_info(std::string name, unsigned size);
@@ -160,9 +162,9 @@ public:
     void begin_try_block_info(int low_pc, int high_pc);
     void begin_catch_block_info(int low_pc, int high_pc);
 
-    void local_variable_info(std::string name, int rbp_offset, unsigned ts_index);
+    void local_variable_info(std::string name, int rbp_offset, unsigned ts_index, bool is_artificial);
     void formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index, bool is_artificial);
-    void member_info(std::string name, int offset, unsigned ts_index);
+    void member_info(std::string name, int offset, unsigned ts_index, bool is_artificial);
 };
 
 
@@ -260,6 +262,11 @@ void Dwarf::init_abbrev() {
         { DW_AT_type, DW_FORM_ref4 }
     });
 
+    reference_type_abbrev_number = add_abbrev(DW_TAG_reference_type, false, {
+        { DW_AT_name, DW_FORM_string },
+        { DW_AT_type, DW_FORM_ref4 }
+    });
+
     array_type_abbrev_number = add_abbrev(DW_TAG_array_type, true, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_type, DW_FORM_ref4 },
@@ -327,7 +334,8 @@ void Dwarf::init_abbrev() {
     variable_abbrev_number = add_abbrev(DW_TAG_variable, false, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_location, DW_FORM_exprloc },
-        { DW_AT_type, DW_FORM_ref4 }
+        { DW_AT_type, DW_FORM_ref4 },
+        { DW_AT_artificial, DW_FORM_flag }
     });
 
     formal_parameter_abbrev_number = add_abbrev(DW_TAG_formal_parameter, false, {
@@ -340,7 +348,8 @@ void Dwarf::init_abbrev() {
     member_abbrev_number = add_abbrev(DW_TAG_member, false, {
         { DW_AT_name, DW_FORM_string },
         { DW_AT_data_member_location, DW_FORM_data4 },
-        { DW_AT_type, DW_FORM_ref4 }
+        { DW_AT_type, DW_FORM_ref4 },
+        { DW_AT_artificial, DW_FORM_flag }
     });
 }
 
@@ -462,6 +471,14 @@ void Dwarf::pointer_type_info(std::string name, unsigned ts_index) {
 }
 
 
+void Dwarf::reference_type_info(std::string name, unsigned ts_index) {
+    info.uleb128(reference_type_abbrev_number);
+    
+    info.string(name);
+    info_ref(ts_index);
+}
+
+
 void Dwarf::begin_array_type_info(std::string name, unsigned ts_index, unsigned elem_size) {
     info.uleb128(array_type_abbrev_number);
     
@@ -572,7 +589,7 @@ void Dwarf::begin_catch_block_info(int low_pc, int high_pc) {
 }
 
 
-void Dwarf::local_variable_info(std::string name, int rbp_offset, unsigned ts_index) {
+void Dwarf::local_variable_info(std::string name, int rbp_offset, unsigned ts_index, bool is_artificial) {
     info.uleb128(variable_abbrev_number);
     
     info.string(name);
@@ -586,6 +603,7 @@ void Dwarf::local_variable_info(std::string name, int rbp_offset, unsigned ts_in
     info.sleb128(rbp_offset);
     
     info_ref(ts_index);
+    info.data1(is_artificial ? 1 : 0);
 }
 
 
@@ -607,7 +625,7 @@ void Dwarf::formal_parameter_info(std::string name, int rbp_offset, unsigned ts_
 }
 
 
-void Dwarf::member_info(std::string name, int offset, unsigned ts_index) {
+void Dwarf::member_info(std::string name, int offset, unsigned ts_index, bool is_artificial) {
     info.uleb128(member_abbrev_number);
     
     info.string(name);
@@ -615,6 +633,7 @@ void Dwarf::member_info(std::string name, int offset, unsigned ts_index) {
     info.data4(offset);
     
     info_ref(ts_index);
+    info.data1(is_artificial ? 1 : 0);
 }
 
     
