@@ -1110,7 +1110,7 @@ App? :Class Application as:
         Std double_stack
         Std prints("Stack doubled")
         c = 444
-        #str? = "This is it."
+        str? = "This is it."
         :die
         
 

@@ -42,11 +42,18 @@ public:
     }
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        unsigned ts_index = x64->once->type_info(tm[1]);
+        unsigned elem_ts_index = x64->once->type_info(tm[1]);
         unsigned elem_size = get_elem_size(tm[1]);
         int elems_offset = get_elems_offset();
+        Label label;
+        unsigned array_ts_index = label.def_index;
         
-        x64->dwarf->array_type_info(tm[0].symbolize(), ts_index, elem_size, elems_offset);
+        x64->dwarf->begin_structure_type_info(tm[0].symbolize(), elems_offset);
+        x64->dwarf->member_info("elems", elems_offset, array_ts_index);
+        x64->dwarf->end_info();
+        
+        x64->dwarf->info_def(array_ts_index);
+        x64->dwarf->array_type_info(tm[1].symbolize("<Elems>"), elem_ts_index, elem_size);
     }
 };
 

@@ -665,7 +665,8 @@ public:
     }
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        x64->once->type_info(tm[1]);
+        unsigned ts_index = x64->once->type_info(tm[1]);
+        x64->dwarf->typedef_info(tm[0].symbolize(), ts_index);
     }
 };
 
@@ -792,7 +793,8 @@ public:
     }
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
-        x64->once->type_info(tm[1]);
+        unsigned ts_index = x64->once->type_info(tm[1]);
+        x64->dwarf->typedef_info(tm[0].symbolize(), ts_index);
     }
 };
 
