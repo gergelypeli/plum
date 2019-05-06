@@ -25,7 +25,6 @@ public:
             ls = left->ts.store(ls, Storage(STACK), x64);
             break;
         case BREGISTER:
-        case BMEMORY:
             ls = left->ts.store(ls, Storage(BSTACK), x64);
             break;
         case STACK:
@@ -45,7 +44,6 @@ public:
             rs = right->ts.store(rs, Storage(STACK), x64);
             break;
         case BREGISTER:
-        case BMEMORY:
             rs = right->ts.store(rs, Storage(BSTACK), x64);
             break;
         case STACK:

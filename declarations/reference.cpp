@@ -114,30 +114,6 @@ public:
         case BSTACK_BSTACK:
             return;
 
-        case BMEMORY_NOWHERE:
-            return;
-        case BMEMORY_REGISTER:
-            x64->op(MOVQ, t.reg, s.address);
-            tm[1].incref(t.reg, x64);
-            return;
-        case BMEMORY_STACK:
-            x64->op(MOVQ, R10, s.address);
-            tm[1].incref(R10, x64);
-            x64->op(PUSHQ, R10);
-            return;
-        case BMEMORY_MEMORY:
-            x64->op(MOVQ, R10, s.address);
-            tm[1].incref(R10, x64);
-            x64->op(XCHGQ, R10, t.address);
-            tm[1].decref(R10, x64);
-            return;
-        case BMEMORY_BREGISTER:
-            x64->op(MOVQ, t.reg, s.address);
-            return;
-        case BMEMORY_BSTACK:
-            x64->op(PUSHQ, s.address);
-            return;
-            
         default:
             Type::store(tm, s, t, x64);
         }
@@ -170,15 +146,6 @@ public:
             tm[1].incref(R10, x64);
             x64->op(MOVQ, t.address, R10);
             return;
-        case BMEMORY_MEMORY:
-            x64->op(MOVQ, R10, s.address);
-            tm[1].incref(R10, x64);
-            x64->op(MOVQ, t.address, R10);
-            return;
-        case BMEMORY_BMEMORY:
-            x64->op(MOVQ, R10, s.address);
-            x64->op(MOVQ, t.address, R10);
-            return;
         default:
             throw INTERNAL_ERROR;
         }
@@ -188,8 +155,6 @@ public:
         if (s.where == MEMORY) {
             x64->op(MOVQ, R10, s.address);
             tm[1].decref(R10, x64);
-        }
-        else if (s.where == BMEMORY) {
         }
         else
             throw INTERNAL_ERROR;

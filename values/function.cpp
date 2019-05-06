@@ -766,7 +766,7 @@ public:
                 Storage s = arg_value->compile(x64);
 
                 // Borrow argument reference, if possible
-                if ((s.where == BREGISTER || s.where == BSTACK || s.where == BMEMORY) && t.where == STACK)
+                if ((s.where == BREGISTER || s.where == BSTACK) && t.where == STACK)
                     t.where = BSTACK;
 
                 // Pushing a stack relative address onto the stack is becoming illegal.

@@ -1110,9 +1110,9 @@ App? :Class Application as:
         Std double_stack
         Std prints("Stack doubled")
         c = 444
-        str? = "This is it."
-        set? = String Set { "foo", "bar", "baz" }
-        :die
+        #str? = "This is it."
+        #set? = String Set { "foo", "bar", "baz" }
+        #:die
         
 
     test_backtrace? :Function as:

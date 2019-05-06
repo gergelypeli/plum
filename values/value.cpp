@@ -409,7 +409,7 @@ public:
                 
                 if (t.where == NOWHERE)
                     ;
-                else if (t.where == MEMORY || t.where == BMEMORY || t.where == ALIAS)
+                else if (t.where == MEMORY || t.where == ALIAS)
                     t.address.offset -= retro_offset;
                 else
                     throw INTERNAL_ERROR;
@@ -600,7 +600,7 @@ public:
             Register reg = RBX;
             x64->op(MOVQ, reg, dvalue_storage.address);
 
-            if (retro_where == MEMORY || retro_where == BMEMORY) {
+            if (retro_where == MEMORY) {
                 // rvalue retro, destroy value
 
                 Storage t(retro_where, Address(reg, 0));
@@ -631,16 +631,13 @@ public:
             
             if (retro_where == MEMORY) {
                 // rvalue retro, initialize the value
-                if (s.where == BMEMORY)
-                    retro_where = BMEMORY;  // allow borrowing
-                    
                 Storage t(retro_where, Address(reg, 0));
                 retro_ts.create(s, t, x64);
             }
             else if (retro_where == ALIAS) {
                 // lvalue retro, initialize the address
                 
-                if (s.where == MEMORY || s.where == BMEMORY) {
+                if (s.where == MEMORY) {
                     x64->op(LEA, R10, s.address);
                 }
                 else if (s.where == ALIAS) {
@@ -775,10 +772,6 @@ public:
                 pivot->ts.store(s, Storage(REGISTER, reg), x64);
                 x64->op(ADDQ, reg, offset);
                 return Storage(REGISTER, reg);
-            case BMEMORY:
-                pivot->ts.store(s, Storage(BREGISTER, reg), x64);
-                x64->op(ADDQ, reg, offset);
-                return Storage(BREGISTER, reg);
             default:
                 throw INTERNAL_ERROR;
             }
@@ -805,12 +798,6 @@ public:
                 x64->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
                 x64->op(ADDQ, reg, R10);
                 return Storage(REGISTER, reg);
-            case BMEMORY:
-                pivot->ts.store(s, Storage(BREGISTER, reg), x64);
-                x64->op(MOVQ, R10, Address(reg, CLASS_VT_OFFSET));
-                x64->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
-                x64->op(ADDQ, reg, R10);
-                return Storage(BREGISTER, reg);
             default:
                 throw INTERNAL_ERROR;
             }
