@@ -260,7 +260,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 text = encode_ascii(token.utext);
             }
         }
-        else if (is_quote(c)) {
+        else if (Tokenizer::is_quote(c)) {
             type = Node::STRING;
             back = REGULAR;
             fore = REGULAR;
@@ -271,7 +271,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             back = SEPARATING;
             fore = SEPARATING;
         }
-        else if (is_paren(c)) {
+        else if (Tokenizer::is_paren(c)) {
             if (c == '(') {
                 parens.push_back(PAREN);
                 
