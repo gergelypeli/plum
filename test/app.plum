@@ -482,19 +482,19 @@ App? :Class Application as:
             Std prints("Iterating elems again: {}" { c })
     
         x3? Integer = 0
-        x3 = :lol:
+        x3 = LOL:
             Std prints("Now yielding.")
-            :lol 33
+            :LOL 33
             Std prints("Don't print this!")
-            :lol 44
+            :LOL 44
         
         Std prints("Let's hope that {} == 33." { x3 })
     
         # Must survive adding an Integer to a Whatever
-        :lol:
-            100 + :lol
+        LOL:
+            100 + :LOL
     
-        x3 = :kkk: :kkk 44
+        x3 = KKK: :KKK 44
     
         Std prints("Let's hope that {} == 44." { x3 })
     
@@ -512,13 +512,13 @@ App? :Class Application as:
         :if !! Boolean `true then:
             Std prints("Faker news!")
 
-        $ twice(how: h? what:this: (Std prints("You want {}?" { h }), :this h * 1000))
+        $ twice(how: h? what: THIS: (Std prints("You want {}?" { h }), :THIS h * 1000))
 
-        :eval:
-            $ passthrough(what:this: (Std prints("Let's break."), :eval, :this 0))
+        EVAL:
+            $ passthrough(what: THIS: (Std prints("Let's break."), :EVAL, :THIS 0))
             Std prints("This shouldn't be printed!")
 
-        :hihi:if `true then: x3 else:if `false then: x4
+        HIHI: :if `true then: x3 else: :if `false then: x4
 
         :if `true then:
             last? = 0

@@ -127,12 +127,12 @@ File_decoder? :Class Decoder as:
     @.get_lines? :Function String Array as:
         lines? String Array = `empty
         
-        :x:repeat on: `true do:
+        X: :repeat on: `true do:
             :try
                 s? = $ @ get_line
                 :try lines push(s)
             fix:
-                :x
+                :X
 
         :return lines
         

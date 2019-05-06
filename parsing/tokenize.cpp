@@ -51,6 +51,7 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
     while (buffer[i] != '\0') {
         char c = buffer[i];
         int start = i;
+        int column_count = start - row_start;
         
         if (c == ' ') {
             i++;
@@ -94,7 +95,8 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
                 continue;
             }
 
-            std::cerr << "Invalid indentation of " << n << " spaces (at " << indent << ")!\n";
+            Token t(buffer.substr(start, i - start), file_index, row_count, column_count);
+            std::cerr << "Invalid indentation of " << n << " spaces after " << indent << " at " << t << "!\n";
             throw TOKEN_ERROR;
         }
         else if (c == '#') {
@@ -133,28 +135,30 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
                 start -= 1;
                 prefix = ':';
             }
-            
+
             do {
                 i++;
                 c = buffer[i];
             } while (is_identifier(c));
 
             if (prefix && i == start + 1) {
-                std::cerr << "Missing identifier of control token!\n";
+                Token t(buffer.substr(start, i - start), file_index, row_count, column_count);
+                std::cerr << "Missing identifier of control token at " << t << "!\n";
                 throw TOKEN_ERROR;
             }
 
             // Implicit line continuation on labels after logical line breaks
-            if (!prefix && c == ':' && tokens.back().utext == SEPARATE_UTEXT)
+            if (!prefix && islower(buffer[start]) && c == ':' && tokens.back().utext == SEPARATE_UTEXT)
                 tokens.pop_back();
 
             if (c == ':') {
-                if (!prefix || prefix == ':') {
+                if (!prefix) {
                     i++;
                     c = buffer[i];
                 }
                 else {
-                    std::cerr << "Invalid something-label token!\n";
+                    Token t(buffer.substr(start, i - start), file_index, row_count, column_count);
+                    std::cerr << "Invalid something-label token at " << t << "!\n";
                     throw TOKEN_ERROR;
                 }
             }
@@ -164,7 +168,8 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
                     c = buffer[i];
                 }
                 else {
-                    std::cerr << "Invalid something-declaration token!\n";
+                    Token t(buffer.substr(start, i - start), file_index, row_count, column_count);
+                    std::cerr << "Invalid something-declaration token at " << t << "!\n";
                     throw TOKEN_ERROR;
                 }
             }
@@ -192,11 +197,13 @@ std::vector<Token> tokenize(std::ustring buffer, int file_index) {
             } while (ispunct(c) && !is_prefix(c) && !is_paren(c) && !is_separator(c) && !is_quote(c));
         }
         else {
-            std::cerr << "Invalid input character " << c << "!\n";
+            Token t(buffer.substr(start, i - start), file_index, row_count, column_count);
+            std::cerr << "Invalid input character " << c << " at " << t << "!\n";
             throw TOKEN_ERROR;
         }
 
-        tokens.push_back(Token(buffer.substr(start, i - start), file_index, row_count, start - row_start));
+        Token t(buffer.substr(start, i - start), file_index, row_count, column_count);
+        tokens.push_back(t);
     }
 
     if (tokens.back().utext == SEPARATE_UTEXT)

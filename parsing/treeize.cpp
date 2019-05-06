@@ -199,18 +199,10 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             text = encode_ascii(token.utext);
         }
         else if (c == ':') {
-            if (token.utext.back() == ':') {
-                type = Node::EVAL;
-                back = REGULAR;
-                fore = SEPARATING;
-                text = encode_ascii(token.utext.substr(1, token.utext.size() - 2));
-            }
-            else {
-                type = Node::CONTROL;
-                back = REGULAR;
-                fore = SEPARATING;
-                text = encode_ascii(token.utext.substr(1));
-            }
+            type = Node::CONTROL;
+            back = REGULAR;
+            fore = SEPARATING;
+            text = encode_ascii(token.utext.substr(1));
         }
         else if (c == '`') {
             type = Node::INITIALIZER;
@@ -242,10 +234,18 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
         }
         else if (isalpha(c) || c == '_' || c == '$' || c == '@' || c == '.') {
             if (token.utext.back() == ':') {
-                type = Node::LABEL;
-                back = LABELING;
-                fore = LABELING;
-                text = encode_ascii(token.utext.substr(0, token.utext.length() - 1));
+                if (islower(c)) {
+                    type = Node::LABEL;
+                    back = LABELING;
+                    fore = LABELING;
+                    text = encode_ascii(token.utext.substr(0, token.utext.length() - 1));
+                }
+                else {
+                    type = Node::EVAL;
+                    back = REGULAR;
+                    fore = SEPARATING;
+                    text = encode_ascii(token.utext.substr(0, token.utext.size() - 1));
+                }
             }
             else if (token.utext.back() == '?') {
                 type = Node::DECLARATION;
