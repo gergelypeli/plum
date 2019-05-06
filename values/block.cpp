@@ -234,7 +234,7 @@ public:
         :Value(VOID_TS) {  // May be overridden
         context = c;
         
-        if (!c || (*c != VOID_TS && *c != VOID_CODE_TS && *c != WHATEVER_TS && *c != WHATEVER_CODE_TS))
+        if (!c || (*c != VOID_TS && *c != TUPLE0_CODE_TS && *c != WHATEVER_TS && *c != WHATEVER_TUPLE1_CODE_TS))
             throw INTERNAL_ERROR;
     }
 
@@ -258,7 +258,7 @@ public:
                 Expr *expr = args[i].get();
                 std::unique_ptr<Value> v;
                 
-                if (!check_argument(0, expr, { { "stmt", &VOID_CODE_TS, scope, &v } })) {
+                if (!check_argument(0, expr, { { "stmt", &TUPLE0_CODE_TS, scope, &v } })) {
                     std::cerr << "Statement error: " << expr->token << "\n";
                     return false;
                 }

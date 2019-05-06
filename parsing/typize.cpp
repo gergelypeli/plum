@@ -199,19 +199,26 @@ TypeSpec initializer_ts(Value *p, TypeSpec *context, Token token) {
     else if (context)
         ts = *context;
     else {
-        std::cerr << "Initializer without type context: " << token << "\n";
-        throw TYPE_ERROR;
+        // Initializers without context can only be tuple type definitions, give it a chance
+        ts = { tuple_metatype };
+        //std::cerr << "Initializer without type context: " << token << "\n";
+        //throw TYPE_ERROR;
     }
 
     // TODO: strip some prefixes
-    if (ts[0] == code_type)
+    if (ts[0] == code_type) {
         ts = ts.unprefix(code_type);
+        if (ts[0] == tuple0_type)
+            ts = VOID_TS;
+        else if (ts[0] == tuple1_type)
+            ts = ts.unprefix(tuple1_type);
+    }
     else if (ts[0] == ovalue_type)
         ts = ts.unprefix(ovalue_type);
     
     // We must have checked this.
-    if (!p && !ts.has_meta(value_metatype) && !ts.has_meta(metatype_hypertype)) {
-        std::cerr << "Initializer with nonvalue type context: " << ts << " at " << token << "!\n";
+    if (!p && !ts.has_meta(value_metatype) && !ts.is_meta()) {
+        std::cerr << "Initializer with nonvalue and nonmeta type context: " << ts << " at " << token << "!\n";
         throw TYPE_ERROR;
     }
     
@@ -249,6 +256,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
         }
         else {
+            // TODO: split the creation of Multilvalue and Multitype!
             value = make<MultiValue>();
         
             bool ok = value->check(expr->args, expr->kwargs, scope);

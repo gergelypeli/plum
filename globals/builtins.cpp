@@ -24,6 +24,9 @@ void builtin_types(Scope *root_scope) {
     module_metatype = new MetaType("<Module>", { type_metatype }, NULL);
     root_scope->add(module_metatype);
 
+    tuple_metatype = new TupleMetaType("<Tuple>", { type_metatype }, NULL);
+    root_scope->add(tuple_metatype);
+
 
     // Phase 3: declare the wildcard types, needed for the regular metatypes
     
@@ -139,9 +142,6 @@ void builtin_types(Scope *root_scope) {
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
 
-    //equalitymatcher_type = new EqualitymatcherType("<Equalitymatcher>");
-    //root_scope->add(equalitymatcher_type);
-
 
     // Phase 7: declare special types
 
@@ -163,6 +163,12 @@ void builtin_types(Scope *root_scope) {
     unit_type = new UnitType("Unit");
     root_scope->add(unit_type);
 
+    tuple0_type = new TupleType({});
+    root_scope->add(tuple0_type);
+
+    tuple1_type = new TupleType({ "" });
+    root_scope->add(tuple1_type);
+    
 
     // Phase 8: declare basic types
 
@@ -364,7 +370,7 @@ void builtin_types(Scope *root_scope) {
     MULTICODE_TS = { multicode_type };
     UNIT_TS = { unit_type };
     WHATEVER_TS = { whatever_type };
-    WHATEVER_CODE_TS = { code_type, whatever_type };
+    WHATEVER_TUPLE1_CODE_TS = { code_type, tuple1_type, whatever_type };
     BOOLEAN_TS = { boolean_type };
     INTEGER_TS = { integer_type };
     INTEGER_LVALUE_TS = { lvalue_type, integer_type };
@@ -401,8 +407,8 @@ void builtin_types(Scope *root_scope) {
     SAME_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, same_type };
     SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS = { lvalue_type, ref_type, rbtree_type, item_type, same_type, same2_type };
     ANY_RBTREE_PTR_TS = { ptr_type, rbtree_type, any_type };
-    VOID_CODE_TS = { code_type, void_type };
-    BOOLEAN_CODE_TS = { code_type, boolean_type };
+    TUPLE0_CODE_TS = { code_type, tuple0_type };
+    BOOLEAN_TUPLE1_CODE_TS = { code_type, tuple1_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
     ANY_ITERATOR_TS = { iterator_type, any_type };
     SAME_ITERATOR_TS = { iterator_type, same_type };

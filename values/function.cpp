@@ -250,7 +250,7 @@ public:
             // we'll handle its compilation.
             // Disallow fallthrough in nonvoid functions.
             bool is_void = (fn_scope->result_scope->contents.size() == 0);
-            TypeSpec *ctx = (is_void ? &VOID_CODE_TS : &WHATEVER_CODE_TS);
+            TypeSpec *ctx = (is_void ? &TUPLE0_CODE_TS : &WHATEVER_TUPLE1_CODE_TS);
             Value *bv = typize(deferred_body_expr, bs, ctx);
             body.reset(bv);
             

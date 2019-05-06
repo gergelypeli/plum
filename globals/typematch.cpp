@@ -180,6 +180,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         return false;
     }
 
+    // FIXME: we duplicate this check with Tuple0 Code as well, below
     if (*t == void_type) {
         // These can't interfere with references
         if (*s == void_type)
@@ -194,7 +195,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         value = make<VoidConversionValue>(value);
         return true;
     }
-    
+
     bool ok = match_regular_type(s, t, match, value);
     
     return ok;
@@ -314,29 +315,53 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         match[0].push_back(*t);
         t++;
 
-        if (!value) {
-            if (*t == void_type) {
+        int pc = (*t)->get_parameter_count();  // a Tuple must follow the Code
+        t++;
+        
+        if (pc == 0) {
+            // FIXME: we duplicate this check with Void, above
+            if (!value) {
                 if (matchlog) std::cerr << "Matched nothing for Void Code.\n";
-                match[0].push_back(void_type);
+                match[0].push_back(tuple0_type);
                 return true;
             }
-            else {
+            
+            if (*s == void_type)  // TODO: remove void_type?
+                return true;
+
+            if (*s == uninitialized_type || *s == stringtemplate_type) {
+                if (matchlog) std::cerr << "No match, " << s << " for Void!\n";
+                std::cerr << s << " value dropped on the floor!\n";
+                return false;
+            }
+
+            value = make<VoidConversionValue>(value);
+            return true;
+        }
+        else if (pc == 1) {
+            if (!value) {
                 if (matchlog) std::cerr << "No match, nothing for nonvoid Code!\n";
                 return false;
             }
+
+            // value is non-NULL from here
+
+            // Drop unnecessary attribute
+            if (*s == lvalue_type || *s == ovalue_type) {
+                s++;
+            }
+
+            match[0].push_back(tuple1_type);
+
+            if (!match_anymulti_type(s, t, match, value, false))
+                return false;
+
+            return true;
         }
-
-        // value is non-NULL from here
-
-        // Drop unnecessary attribute
-        if (*s == lvalue_type || *s == ovalue_type) {
-            s++;
-        }
-
-        if (!match_anymulti_type(s, t, match, value, false))
+        else {
+            if (matchlog) std::cerr << "Sorry, nothing converts to a nonscalar tuple yet!\n";
             return false;
-
-        return true;
+        }
     }
     else if (*t == ovalue_type) {
         if (!value) {

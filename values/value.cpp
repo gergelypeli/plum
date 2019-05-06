@@ -534,8 +534,19 @@ public:
     unsigned result_stack_size;
     FunctionScope *fn_scope;
     
+    static TypeSpec uncodify(TypeSpec ts) {
+        ts = ts.unprefix(code_type);
+        
+        if (ts[0] == tuple0_type)
+            ts = VOID_TS;
+        else if (ts[0] == tuple1_type)
+            ts = ts.unprefix(tuple1_type);
+            
+        return ts;
+    }
+    
     EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
-        :Value(typesubst(e->alloc_ts, tm).unprefix(code_type)) {
+        :Value(uncodify(typesubst(e->alloc_ts, tm))) {
         evaluable = e;
         
         dvalue_variables = e->get_dvalue_variables();

@@ -56,6 +56,7 @@ class SliceAllValue;
 class TreenumerationDefinitionValue;
 class TreenumerationAnyMatcherValue;
 class TreenumerationMatcherValue;
+class TupleTypeValue;
 class TypeValue;
 class UnicodeCharacterValue;
 class UnionMatcherValue;

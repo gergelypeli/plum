@@ -64,6 +64,52 @@ public:
 };
 
 
+class TupleTypeValue: public TypeValue {
+public:
+    TupleTypeValue()
+        :TypeValue(tuple_metatype, NO_TS) {
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        // TODO: limited support for now
+
+        if (args.size() == 0 && kwargs.size() == 0) {
+            // Empty tuple: {}
+            represented_ts = { tuple0_type };
+            return true;
+        }
+        else if (args.size() == 1 && kwargs.size() == 0) {
+            // Single tuple: { T }
+            Value *value = typize(args[0].get(), scope, NULL);
+    
+            if (!value->ts.is_meta()) {
+                std::cerr << "Not a type name in a tuple type definition!\n";
+                return false;
+            }
+        
+            TypeSpec rts = ptr_cast<TypeValue>(value)->represented_ts;
+        
+            if (!rts.has_meta(argument_metatype)) {
+                std::cerr << "Not an argument type name in a tuple type definition!\n";
+                return false;
+            }
+            
+            represented_ts = rts.prefix(tuple1_type);
+            return true;
+        }
+        else {
+            std::cerr << "Sorry, too complex tuple type for now!\n";
+            return false;
+        }
+    }
+
+    virtual Declaration *declare(std::string name, Scope *scope) {
+        std::cerr << "No identifier can be declared as a tuple type!\n";
+        return NULL;
+    }
+};
+
+
 class VoidConversionValue: public Value {
 public:
     std::unique_ptr<Value> orig;

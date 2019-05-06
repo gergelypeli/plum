@@ -22,17 +22,26 @@ public:
         for (auto &arg : args) {
             Value *value = typize(arg.get(), scope);
             TypeMatch match;
-            
-            if (value->ts[0] != lvalue_type && value->ts[0] != uninitialized_type)
+
+            if (value->ts.is_meta()) {
+                // Got a type name
                 is_lvalue = false;
-            else
-                tss.push_back(value->ts);
-        
-            if (!value->ts.is_meta())
-                is_type = false;
-            else
-                tss.push_back(ptr_cast<TypeValue>(value)->represented_ts);
                 
+                TypeSpec rts = ptr_cast<TypeValue>(value)->represented_ts;
+                tss.push_back(rts);
+            }
+            else {
+                // Got a value
+                is_type = false;
+                
+                TypeSpec vts = value->ts;
+                
+                if (vts[0] != lvalue_type && vts[0] != uninitialized_type)
+                    is_lvalue = false;
+                else
+                    tss.push_back(vts);
+            }
+
             values.push_back(std::unique_ptr<Value>(value));
             //std::cerr << "Multi item ts: " << value->ts << "\n";
         }
@@ -49,9 +58,6 @@ public:
             std::cerr << "Multis must be all lvalues or all types!\n";
             return false;
         }
-        
-        //for (auto &v : values)
-        //    tss.push_back(v->ts);
         
         return true;
     }

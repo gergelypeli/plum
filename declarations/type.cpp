@@ -542,6 +542,25 @@ public:
 };
 
 
+class TupleMetaType: public MetaType {
+public:
+    TupleMetaType(std::string n, std::vector<MetaType *> sts, TypeDefinitionFactory f)
+        :MetaType(n, sts, f) {
+    }
+    
+    virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
+        // Tuple types are not created by naming the tuple metatype (it has no name),
+        // but by invoking the anonymous initializer.
+        
+        if (n == "{")
+            return make<TupleTypeValue>();
+            
+        std::cerr << "No named initializer for creating tuple types!\n";
+        return NULL;
+    }
+};
+
+
 class AnyType: public Type {
 public:
     AnyType(std::string name, Metatypes param_metatypes, MetaType *mt)
@@ -698,7 +717,7 @@ public:
 class CodeType: public Type {
 public:
     CodeType(std::string n)
-        :Type(n, Metatypes { value_metatype }, argument_metatype) {
+        :Type(n, Metatypes { tuple_metatype }, argument_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -726,6 +745,18 @@ public:
 
     virtual void type_info(TypeMatch tm, X64 *x64) {
         x64->dwarf->unspecified_type_info(tm[0].symbolize());
+    }
+};
+
+
+class TupleType: public Type {
+public:
+    std::vector<std::string> keywords;
+
+    TupleType(std::vector<std::string> kws)
+        :Type("(Tuple)", Metatypes(kws.size(), argument_metatype), tuple_metatype) {
+        keywords = kws;
+        // TODO: cache these types!
     }
 };
 

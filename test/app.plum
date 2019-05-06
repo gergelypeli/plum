@@ -390,7 +390,7 @@ App? :Class Application as:
 
     twice? :Function from:
         how? Integer Dvalue
-        what? Integer Code
+        what? {Integer} Code
     as:
         :try
             sum? = what(1) + what(2)
@@ -398,7 +398,7 @@ App? :Class Application as:
         fix:
             Std prints("What failed!")
 
-    passthrough? :Function from: what? Integer Code as:
+    passthrough? :Function from: what? {Integer} Code as:
         :try what fix:
             Std prints("Passthrough code is breaking.")
 

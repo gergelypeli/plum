@@ -11,6 +11,19 @@ public:
         context_ts = VOID_TS;  // pivot controls will be Void
     }
 
+    virtual TypeSpec codify(TypeSpec ts) {
+        if (ts[0] == code_type)
+            return ts;
+        else if (ts == MULTI_TS)
+            return MULTICODE_TS;
+        else if (ts == VOID_TS)
+            return { code_type, tuple0_type };
+        else if (ts.has_meta(tuple_metatype))
+            return ts.prefix(code_type);
+        else
+            return ts.prefix(tuple1_type).prefix(code_type);
+    }
+
     virtual void set_context_ts(TypeSpec *c) {
         if (!c)
             return;
@@ -19,7 +32,11 @@ public:
         Type *a = context_ts[0];
         
         if (a == code_type)
-            context_ts = context_ts.unprefix(code_type);
+            context_ts = (
+                context_ts[1] == tuple0_type ? VOID_TS :
+                context_ts[1] == tuple1_type ? context_ts.unprefix(code_type).unprefix(tuple1_type) :
+                context_ts.unprefix(code_type)  // TODO: leaving Tuple on for now
+            );
         else if (a == ovalue_type)
             context_ts = context_ts.unprefix(ovalue_type);
         else if (a == lvalue_type) {
@@ -107,7 +124,7 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         ts = context_ts;
             
-        TypeSpec arg_ts = ts.prefix(code_type);
+        TypeSpec arg_ts = codify(ts);
             
         ArgInfos infos = {
             { "condition", &BOOLEAN_TS, scope, &condition },
@@ -330,9 +347,9 @@ public:
             return false;
 
         ArgInfos infos = {
-            { "do", &VOID_CODE_TS, scope, &body },
-            { "on", &BOOLEAN_CODE_TS, scope, &condition },
-            { "by", &VOID_CODE_TS, scope, &step }
+            { "do", &TUPLE0_CODE_TS, scope, &body },
+            { "on", &BOOLEAN_TUPLE1_CODE_TS, scope, &condition },
+            { "by", &TUPLE0_CODE_TS, scope, &step }
         };
         
         return check_kwargs(kwargs, infos);
@@ -471,7 +488,7 @@ public:
 
         ArgInfos infos = {
             { "each", &each_ts, scope, &each },
-            { "do", &VOID_CODE_TS, scope, &body }
+            { "do", &TUPLE0_CODE_TS, scope, &body }
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -574,7 +591,7 @@ public:
         switch_scope->set_switch_variable(switch_var);
         
         ArgInfos infos = {
-            { "do", &VOID_CODE_TS, switch_scope, &body }
+            { "do", &TUPLE0_CODE_TS, switch_scope, &body }
         };
         
         if (!check_kwargs(kwargs, infos))
@@ -703,7 +720,7 @@ public:
         match_try_scope->leave();
 
         ts = context_ts;
-        TypeSpec arg_ts = ts.prefix(code_type);
+        TypeSpec arg_ts = codify(ts);
 
         ArgInfos infos = {
             { "then", &arg_ts, then_scope, &then_branch },
@@ -930,7 +947,7 @@ public:
         try_scope->enter();
 
         // Let the body have our context
-        TypeSpec arg_ts = (context_ts == MULTI_TS ? MULTICODE_TS : context_ts.prefix(code_type));
+        TypeSpec arg_ts = codify(context_ts);
         
         if (!check_args(args, { "body", &arg_ts, try_scope, &body }))
             return false;
@@ -941,7 +958,7 @@ public:
         // want to allow multivalues from different branches.
         if (context_ts == ANY_TS) {
             context_ts = body->ts.rvalue();
-            arg_ts = (context_ts == MULTI_TS ? NO_TS : context_ts.prefix(code_type));
+            arg_ts = (context_ts == MULTI_TS ? NO_TS : context_ts.prefix(tuple1_type).prefix(code_type));
         }
 
         ts = context_ts;
@@ -1083,7 +1100,7 @@ public:
             
         //std::cerr << "Put :eval variable into " << scope << "\n";
         
-        TypeSpec *ctx = (context_ts == VOID_TS ? &VOID_CODE_TS : &WHATEVER_CODE_TS);
+        TypeSpec *ctx = (context_ts == VOID_TS ? &TUPLE0_CODE_TS : &WHATEVER_TUPLE1_CODE_TS);
         
         if (!check_args(args, { "body", ctx, eval_scope, &body }))
             return false;
