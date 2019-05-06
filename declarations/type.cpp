@@ -606,8 +606,6 @@ public:
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         if (as_what == AS_ARGUMENT && this == lvalue_type)
             as_what = AS_LVALUE_ARGUMENT;
-        else if (as_what == AS_ARGUMENT && this == dvalue_type)
-            return RETRO;
 
         return tm[1].where(as_what);
     }
@@ -667,6 +665,67 @@ public:
     virtual void type_info(TypeMatch tm, X64 *x64) {
         unsigned ts_index = x64->once->type_info(tm[1]);
         x64->dwarf->typedef_info(tm[0].symbolize(), ts_index);
+    }
+};
+
+
+class DvalueType: public Type {
+public:
+    DvalueType(std::string n)
+        :Type(n, Metatypes { value_metatype }, value_metatype) {
+    }
+
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        // We use ALIAS storage even if it may point to another ALIAS in the future.
+        // This is because Dvalue arguments always point to the stack, and needs fixing on
+        // stack relocation, which is only done for ALIAS storage arguments.
+        return (
+            as_what == AS_ARGUMENT ? ALIAS :
+            throw INTERNAL_ERROR
+        );
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        return ALIAS_SIZE;
+    }
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->unspecified_type_info(tm[0].symbolize());
+    }
+};
+
+
+class CodeType: public Type {
+public:
+    CodeType(std::string n)
+        :Type(n, Metatypes { value_metatype }, value_metatype) {
+    }
+
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        return (
+            as_what == AS_ARGUMENT ? MEMORY :
+            throw INTERNAL_ERROR
+        );
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        return ADDRESS_SIZE;
+    }
+
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        switch (s.where * t.where) {
+        case STACK_NOWHERE:
+            x64->op(ADDQ, RSP, ADDRESS_SIZE);
+            break;
+        case STACK_STACK:
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual void type_info(TypeMatch tm, X64 *x64) {
+        x64->dwarf->unspecified_type_info(tm[0].symbolize());
     }
 };
 

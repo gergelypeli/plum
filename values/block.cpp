@@ -401,6 +401,7 @@ public:
             }
 
             if ((*context)[0] == dvalue_type) {
+                // The declaration itself is T Dvalue, but the variable is just T.
                 ts = *context;
                 TypeSpec var_ts = ts.unprefix(dvalue_type);
                 var = new RetroVariable(name, var_ts);

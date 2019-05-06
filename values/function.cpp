@@ -284,7 +284,7 @@ public:
         Allocable *a = ptr_cast<Allocable>(d);
         Storage s = a->get_local_storage();
         
-        if (s.where == ALIAS || s.where == RETRO) {
+        if (s.where == ALIAS) {
             x64->runtime->fix_address(s.address);
             x64->runtime->log("Fixed argument " + a->name + " of " + function->get_fully_qualified_name());
         }
@@ -728,84 +728,59 @@ public:
         unsigned size;
         Storage stackfix;
         
-        if (arg_ts[0] == code_type) {
-            // arg_value is a RetroScopeValue
-            t = arg_value->compile(x64);
-            size = ADDRESS_SIZE;
+        StorageWhere where = arg_ts.where(AS_ARGUMENT);
+    
+        if (where != NOWHERE) {  // happens for singleton pivots
+            where = stacked(where);
+            t = Storage(where);
         }
-        else if (arg_ts[0] == dvalue_type) {
-            // arg_value is a DeclarationValue with a retro variable.
-            // Must pass its address, even if it means passing the address of an ALIAS.
-            // So this is another unnamed level of indirection.
+
+        size = arg_ts.measure_where(where);
+
+        if (arg_value) {
+            // Specified argument
             Storage s = arg_value->compile(x64);
+
+            // Borrow argument reference, if possible
+            if ((s.where == BREGISTER || s.where == BSTACK) && t.where == STACK)
+                t.where = BSTACK;
+
+            // Pushing a stack relative address onto the stack is becoming illegal.
+            // Unless this is done in the last step before invoking a function, when
+            // all subsequent arguments were evaluated (potentially moving the stack).
+            // So only store the RBP-relative offset onto the stack, and remember to add
+            // the current RBP value to them just before invoking the function.
+            if (t.where == ALISTACK) {
+                // Necessary to return the original storage in void functions
+                if (arg_value == pivot.get())
+                    pivot_alias_storage = s;
             
-            if (s.where != MEMORY && s.where != ALIAS)
-                throw INTERNAL_ERROR;
-                
-            if (s.address.base != RBP)
-                throw INTERNAL_ERROR;
-                
-            x64->op(LEA, R10, s.address);
-            x64->op(PUSHQ, R10);
-            
-            // The storage is whatever
-            size = ADDRESS_SIZE;
-        }
-        else {
-            StorageWhere where = arg_ts.where(AS_ARGUMENT);
-        
-            if (where != NOWHERE) {  // happens for singleton pivots
-                where = stacked(where);
-                t = Storage(where);
-            }
-
-            size = arg_ts.measure_where(where);
-
-            if (arg_value) {
-                // Specified argument
-                Storage s = arg_value->compile(x64);
-
-                // Borrow argument reference, if possible
-                if ((s.where == BREGISTER || s.where == BSTACK) && t.where == STACK)
-                    t.where = BSTACK;
-
-                // Pushing a stack relative address onto the stack is becoming illegal.
-                // Unless this is done in the last step before invoking a function, when
-                // all subsequent arguments were evaluated (potentially moving the stack).
-                // So only store the RBP-relative offset onto the stack, and remember to add
-                // the current RBP value to them just before invoking the function.
-                if (t.where == ALISTACK) {
-                    // Necessary to return the original storage in void functions
-                    if (arg_value == pivot.get())
-                        pivot_alias_storage = s;
-                
-                    if (s.where == MEMORY && s.address.base == RBP) {
-                        // Will add RBP
-                        x64->op(PUSHQ, s.address.offset);
-                        stackfix = s;
-                    }
-                    else if (s.where == MEMORY && s.address.base == RSP) {
-                        // Will add RBP
-                        x64->op(LEA, R10, s.address);
-                        x64->op(SUBQ, R10, RBP);
-                        x64->op(PUSHQ, R10);
-                        stackfix = s;
-                    }
-                    else if (s.where == ALIAS) {
-                        // Will add ALIAS address
-                        x64->op(PUSHQ, s.value);
-                        stackfix = s;
-                    }
-                    else
-                        arg_ts.store(s, t, x64);
+                if (s.where == MEMORY && s.address.base == RBP) {
+                    // Will add RBP
+                    x64->op(PUSHQ, s.address.offset);
+                    stackfix = s;
+                }
+                else if (s.where == MEMORY && s.address.base == RSP) {
+                    // Will add RBP
+                    x64->op(LEA, R10, s.address);
+                    x64->op(SUBQ, R10, RBP);
+                    x64->op(PUSHQ, R10);
+                    stackfix = s;
+                }
+                else if (s.where == ALIAS) {
+                    // Will add ALIAS address
+                    x64->op(PUSHQ, s.value);
+                    stackfix = s;
                 }
                 else
                     arg_ts.store(s, t, x64);
             }
-            else {
-                // Optional argument initialized to default value
-                arg_ts.store(Storage(), t, x64);
-            }
+            else
+                arg_ts.store(s, t, x64);
+        }
+        else {
+            // Optional argument initialized to default value
+            arg_ts.store(Storage(), t, x64);
         }
 
         pushed_tss.push_back(arg_ts);
@@ -823,16 +798,7 @@ public:
         pushed_sizes.pop_back();
         pushed_stackfixes.pop_back();
         
-        if (arg_ts[0] == code_type) {
-            // TODO: code_type should take care of itself!
-            x64->op(ADDQ, RSP, ADDRESS_SIZE);
-        }
-        else if (arg_ts[0] == dvalue_type) {
-            x64->op(ADDQ, RSP, ADDRESS_SIZE);
-        }
-        else {
-            arg_ts.store(s, Storage(), x64);
-        }
+        arg_ts.store(s, Storage(), x64);
     }
 
     virtual Storage compile(X64 *x64) {

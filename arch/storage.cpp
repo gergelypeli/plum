@@ -22,9 +22,7 @@ enum StorageWhere {
     // Borrowed reference in a register
     BREGISTER = 9,
     // Borrowed reference value on the top of the stack
-    BSTACK = 10,
-    // Address of an argument, only used when passing Dvalue arguments (experimental)
-    RETRO = 12
+    BSTACK = 10
 };
 
 
@@ -120,7 +118,7 @@ struct Storage {
     }
 
     Storage(StorageWhere w, Address a) {
-        if (w != MEMORY && w != RETRO) {
+        if (w != MEMORY) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
         }

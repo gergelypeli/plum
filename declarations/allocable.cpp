@@ -78,8 +78,6 @@ public:
                 return Storage(where, s.address + o);
             else if (where == ALIAS)
                 return Storage(where, s.address + o, 0);
-            else if (where == RETRO)
-                return Storage(where, s.address + o);
             else
                 throw INTERNAL_ERROR;
         }
@@ -152,7 +150,6 @@ public:
             where == NOWHERE ? Allocation() :
             where == MEMORY ? alloc_ts.measure() :
             where == ALIAS ? Allocation(ALIAS_SIZE) :
-            where == RETRO ? Allocation(ADDRESS_SIZE) :
             throw INTERNAL_ERROR
         );
         
@@ -203,11 +200,11 @@ public:
     }
 
     virtual void debug(TypeMatch tm, X64 *x64) {
-        if (where != MEMORY && where != ALIAS && where != RETRO)
+        if (where != MEMORY && where != ALIAS)
             throw INTERNAL_ERROR;
             
         TypeSpec ts = typesubst(alloc_ts, tm);
-        bool as_alias = (where == ALIAS || where == RETRO);
+        bool as_alias = (where == ALIAS);
         unsigned ts_index = x64->once->type_info(ts, as_alias);
 
         bool is_artificial = (name[0] == '$' || name[0] == '<');
@@ -412,7 +409,19 @@ public:
     }
 
     virtual void finalize(X64 *x64) {
-        // These are not finalized
+        // These are not finalized by their scope, because only lived during the
+        // invocation of the retro code.
+    }
+    
+    virtual void allocate() {
+        Variable::allocate();
+        
+        // The thing that is passed as a Dvalue argument must always have MEMORY storage,
+        // because its address needs to be passed as ALIAS.
+        // TODO: if eventually a tuple is passed, the tuple itself must have MEMORY storage,
+        // even if the individual elements may have a mix of MEMORY and ALIAS.
+        if (where != MEMORY)
+            throw INTERNAL_ERROR;
     }
 };
 

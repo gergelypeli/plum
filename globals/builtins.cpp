@@ -151,10 +151,10 @@ void builtin_types(Scope *root_scope) {
     ovalue_type = new AttributeType("Ovalue");
     root_scope->add(ovalue_type);
 
-    dvalue_type = new AttributeType("Dvalue");
+    dvalue_type = new DvalueType("Dvalue");
     root_scope->add(dvalue_type);
 
-    code_type = new AttributeType("Code");
+    code_type = new CodeType("Code");
     root_scope->add(code_type);
 
     //rvalue_type = new AttributeType("Rvalue", interface_metatype);

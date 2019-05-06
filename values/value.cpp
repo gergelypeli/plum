@@ -606,9 +606,11 @@ public:
                 Storage t(retro_where, Address(reg, 0));
                 retro_ts.destroy(t, x64);
             }
+            /*
             else if (retro_where == ALIAS) {
                 // lvalue retro, no need to clear address
             }
+            */
             else
                 throw INTERNAL_ERROR;
         }
@@ -622,21 +624,24 @@ public:
             
             Variable *dvalue_var = dvalue_variables[i];
             Storage dvalue_storage = dvalue_var->get_local_storage();
+            if (dvalue_storage.where != ALIAS)
+                throw INTERNAL_ERROR;
+                
+            Register reg = (Regs::all() & ~s.regs()).get_any();
+            x64->op(MOVQ, reg, dvalue_storage.address);
+
             TypeSpec dvalue_ts = dvalue_var->get_typespec(TypeMatch());
             TypeSpec retro_ts = dvalue_ts.unprefix(dvalue_type);
             StorageWhere retro_where = retro_ts.where(AS_ARGUMENT);
-
-            Register reg = (Regs::all() & ~s.regs()).get_any();
-            x64->op(MOVQ, reg, dvalue_storage.address);
             
             if (retro_where == MEMORY) {
                 // rvalue retro, initialize the value
                 Storage t(retro_where, Address(reg, 0));
                 retro_ts.create(s, t, x64);
             }
+            /* not yet possible
             else if (retro_where == ALIAS) {
                 // lvalue retro, initialize the address
-                
                 if (s.where == MEMORY) {
                     x64->op(LEA, R10, s.address);
                 }
@@ -651,6 +656,7 @@ public:
 
                 x64->op(MOVQ, Address(reg, 0), R10);
             }
+            */
             else
                 throw INTERNAL_ERROR;
 
@@ -658,6 +664,8 @@ public:
         }
 
         Storage es = evaluable->get_local_storage();
+        if (es.where != ALIAS)
+            throw INTERNAL_ERROR;
 
         StorageWhere where = ts.where(AS_VALUE);
         Storage t = (
