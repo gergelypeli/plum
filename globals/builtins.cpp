@@ -12,7 +12,10 @@ void builtin_types(Scope *root_scope) {
     type_metatype = new MetaType("<Type>", {}, NULL);
     root_scope->add(type_metatype);
 
-    value_metatype = new MetaType("<Value>", { type_metatype }, NULL);
+    argument_metatype = new MetaType("<Argument>", { type_metatype }, NULL);
+    root_scope->add(argument_metatype);
+
+    value_metatype = new MetaType("<Value>", { argument_metatype }, NULL);
     root_scope->add(value_metatype);
 
     identity_metatype = new MetaType("<Identity>", { type_metatype }, NULL);
@@ -20,9 +23,6 @@ void builtin_types(Scope *root_scope) {
 
     module_metatype = new MetaType("<Module>", { type_metatype }, NULL);
     root_scope->add(module_metatype);
-
-    attribute_metatype = new MetaType("<Attribute>", { type_metatype }, NULL);
-    root_scope->add(attribute_metatype);
 
 
     // Phase 3: declare the wildcard types, needed for the regular metatypes
@@ -156,9 +156,6 @@ void builtin_types(Scope *root_scope) {
 
     code_type = new CodeType("Code");
     root_scope->add(code_type);
-
-    //rvalue_type = new AttributeType("Rvalue", interface_metatype);
-    //root_scope->add(rvalue_type);
 
     whatever_type = new WhateverType("Whatever");
     root_scope->add(whatever_type);

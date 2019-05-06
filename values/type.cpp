@@ -31,7 +31,7 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == ARGUMENT_SCOPE) {
-            if (!represented_ts.has_meta(attribute_metatype) && !represented_ts.has_meta(value_metatype)) {
+            if (!represented_ts.has_meta(argument_metatype)) {
                 std::cerr << "Invalid type for argument declaration: " << represented_ts << "!\n";
                 return NULL;
             }

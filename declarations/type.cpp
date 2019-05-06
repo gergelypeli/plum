@@ -600,7 +600,7 @@ public:
 class AttributeType: public Type {
 public:
     AttributeType(std::string n, MetaType *arg_metatype = value_metatype)
-        :Type(n, Metatypes { arg_metatype }, attribute_metatype) {
+        :Type(n, Metatypes { arg_metatype }, argument_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -672,7 +672,7 @@ public:
 class DvalueType: public Type {
 public:
     DvalueType(std::string n)
-        :Type(n, Metatypes { value_metatype }, value_metatype) {
+        :Type(n, Metatypes { value_metatype }, argument_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -698,7 +698,7 @@ public:
 class CodeType: public Type {
 public:
     CodeType(std::string n)
-        :Type(n, Metatypes { value_metatype }, value_metatype) {
+        :Type(n, Metatypes { value_metatype }, argument_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
