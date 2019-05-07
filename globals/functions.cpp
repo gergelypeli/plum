@@ -42,6 +42,13 @@ TypeSpec type_value_represented_ts(Value *v) {
 }
 
 
+TSs type_tuple_value_represented_tss(Value *v) {
+    TypeTupleValue *ttv = ptr_cast<TypeTupleValue>(v);
+    
+    return (ttv ? ttv->represented_tss : TSs());
+}
+
+
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
     return v->unpack(tss);
 }

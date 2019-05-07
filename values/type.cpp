@@ -64,6 +64,7 @@ public:
 };
 
 
+// Describes a type, that happens to be a tuple
 class TupleTypeValue: public TypeValue {
 public:
     TupleTypeValue()
@@ -106,6 +107,57 @@ public:
     virtual Declaration *declare(std::string name, Scope *scope) {
         std::cerr << "No identifier can be declared as a tuple type!\n";
         return NULL;
+    }
+};
+
+
+// Describes a tuple, that happens to contain types
+class TypeTupleValue: public Value {
+public:
+    std::vector<std::unique_ptr<Value>> values;
+    std::vector<TypeSpec> represented_tss;
+
+    static TypeSpec metas(std::vector<std::unique_ptr<Value>> &vs) {
+        TupleType *tt = TupleType::get(std::vector<std::string>(vs.size(), ""));
+        TypeSpec mts = { tt };
+        
+        for (auto &v : vs) {
+            mts.insert(mts.end(), v->ts.begin(), v->ts.end());
+        }
+        
+        return mts;
+    }
+
+    TypeTupleValue(std::vector<std::unique_ptr<Value>> vs)
+        :Value(metas(vs)), values(std::move(vs)) {
+        for (auto &v : values)
+            represented_tss.push_back(ptr_cast<TypeValue>(v.get() )->represented_ts);
+    }
+    
+    /*
+    static TypeSpec metas(std::vector<TypeSpec> rtss) {
+        TupleType *tt = TupleType::get(std::vector<std::string>(rtss.size(), ""));
+        TypeSpec mts = { tt };
+        
+        for (auto &rts : rtss)
+            mts.push_back(rts.get_meta());
+            
+        return mts;
+    }
+
+    TypeTupleValue(std::vector<TypeSpec> tss)
+        :Value(metas(tss)) {
+        represented_tss = tss;
+    }
+    */
+    
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        // This class was created after checking the arguments
+        throw INTERNAL_ERROR;
+    }
+    
+    virtual Storage compile(X64 *x64) {
+        throw INTERNAL_ERROR;
     }
 };
 

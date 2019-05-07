@@ -223,15 +223,7 @@ public:
             tss.push_back(type_value_represented_ts(pivot));
         }
         else {
-            TypeMatch match;
-            
-            if (!typematch(MULTITYPE_TS, pivot, match)) {
-                std::cerr << "Type " << name << " needs type parameters!\n";
-                return NULL;
-            }
-                
-            if (!unpack_value(pivot, tss))
-                throw INTERNAL_ERROR;
+            tss = type_tuple_value_represented_tss(pivot);
 
             if (tss.size() != pc) {
                 std::cerr << "Type " << name << " needs " << pc << " parameters!\n";
@@ -547,6 +539,12 @@ public:
     TupleMetaType(std::string n, std::vector<MetaType *> sts, TypeDefinitionFactory f)
         :MetaType(n, sts, f) {
     }
+
+    virtual TypeSpec make_pivot_ts() {
+        // We have unpacking in the tuple metascope, but cannot describe the type of
+        // an arbitrary long tuple, so hack this in.
+        return NO_TS;
+    }
     
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
         // Tuple types are not created by naming the tuple metatype (it has no name),
@@ -751,14 +749,36 @@ public:
 
 class TupleType: public Type {
 public:
-    std::vector<std::string> keywords;
+    typedef std::vector<std::string> Keywords;
+    
+    static std::map<Keywords, std::unique_ptr<TupleType>> cache;
+    
+    static TupleType *get(Keywords kws) {
+        std::unique_ptr<TupleType> &t = cache[kws];
+        
+        if (!t) {
+            t.reset(new TupleType(kws));
+            t->make_inner_scope()->leave();
+        }
+            
+        return t.get();
+    }
+    
+    Keywords keywords;
 
     TupleType(std::vector<std::string> kws)
         :Type("(Tuple)", Metatypes(kws.size(), argument_metatype), tuple_metatype) {
         keywords = kws;
-        // TODO: cache these types!
+    }
+
+    virtual TypeSpec make_pivot_ts() {
+        // We want to have an inner scope, but only to have a pointer to the metascope
+        // than contains the unpacking operator.
+        return NO_TS;
     }
 };
+
+std::map<TupleType::Keywords, std::unique_ptr<TupleType>> TupleType::cache;
 
 
 class PartialType: public Type {

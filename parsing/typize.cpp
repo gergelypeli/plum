@@ -226,6 +226,50 @@ TypeSpec initializer_ts(Value *p, TypeSpec *context, Token token) {
 }
 
 
+Value *typize_contextless_tuple(Args &args, Kwargs &kwargs, Scope *scope) {
+    if (kwargs.size() > 0) {
+        std::cerr << "Can't handle labels in tuples yet!\n";
+        return NULL;
+    }
+
+    std::vector<std::unique_ptr<Value>> values;
+    bool is_lvalue = true;  // or uninitialized, both are handled similarly
+    bool is_type = true;
+    
+    for (auto &arg : args) {
+        Value *value = typize(arg.get(), scope);
+        TypeMatch match;
+
+        if (value->ts.is_meta()) {
+            // Got a type name
+            is_lvalue = false;
+        }
+        else {
+            // Got a value
+            is_type = false;
+            
+            TypeSpec vts = value->ts;
+            if (vts[0] != lvalue_type && vts[0] != uninitialized_type)
+                is_lvalue = false;
+        }
+
+        values.push_back(std::unique_ptr<Value>(value));
+        //std::cerr << "Multi item ts: " << value->ts << "\n";
+    }
+
+    if (is_lvalue) {
+        return new LvalueTupleValue(std::move(values));
+    }
+    else if (is_type) {
+        return new TypeTupleValue(std::move(values));
+    }
+    else {
+        std::cerr << "Tuples without context must be all lvalues or all types!\n";
+        return NULL;
+    }
+}
+
+
 Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     // Sanity check, interface types can't be contexts, as they're not concrete types,
     // so they're useless for initializers, but would allow a multi-tailed control to
@@ -256,11 +300,9 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
         }
         else {
-            // TODO: split the creation of Multilvalue and Multitype!
-            value = make<MultiValue>();
+            value = typize_contextless_tuple(expr->args, expr->kwargs, scope);
         
-            bool ok = value->check(expr->args, expr->kwargs, scope);
-            if (!ok) {
+            if (!value) {
                 std::cerr << "Multi value error: " << expr->token << "\n";
                 throw TYPE_ERROR;
             }

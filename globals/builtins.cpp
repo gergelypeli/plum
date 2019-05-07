@@ -26,7 +26,7 @@ void builtin_types(Scope *root_scope) {
 
     tuple_metatype = new TupleMetaType("<Tuple>", { type_metatype }, NULL);
     root_scope->add(tuple_metatype);
-
+    tuple_metatype->make_inner_scope()->leave();  // some tuple types are created below
 
     // Phase 3: declare the wildcard types, needed for the regular metatypes
     
@@ -163,10 +163,10 @@ void builtin_types(Scope *root_scope) {
     unit_type = new UnitType("Unit");
     root_scope->add(unit_type);
 
-    tuple0_type = new TupleType({});
+    tuple0_type = TupleType::get({});
     root_scope->add(tuple0_type);
 
-    tuple1_type = new TupleType({ "" });
+    tuple1_type = TupleType::get({ "" });
     root_scope->add(tuple1_type);
     
 
@@ -1339,9 +1339,10 @@ RootScope *init_builtins() {
     ptr_lscope->leave();
 
     // Unpacking
-    Scope *mls = multilvalue_type->make_inner_scope();
-    mls->add(new TemplateIdentifier<UnpackingValue>("assign other"));
-    mls->leave();
+    Scope *tms = tuple_metatype->get_inner_scope();
+    tms->enter();
+    tms->add(new Unpacking("assign other"));
+    tms->leave();
 
     // Initializing
     Scope *uns = uninitialized_type->make_inner_scope();

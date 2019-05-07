@@ -73,6 +73,7 @@ PartialInfo *partial_variable_get_info(Value *v);
 bool unpack_value(Value *v, std::vector<TypeSpec> &tss);
 bool is_initializer_function_call(Value *value);
 TypeSpec type_value_represented_ts(Value *v);
+TSs type_tuple_value_represented_tss(Value *v);
 void function_call_be_static(Value *v, Associable *sr);
 Value *value_lookup_inner(Value *value, std::string name, Scope *scope);
 bool value_check(Value *v, Args &a, Kwargs &k, Scope *s);

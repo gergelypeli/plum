@@ -1,72 +1,30 @@
 
 
-class MultiValue: public Value {
+class LvalueTupleValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> values;
     std::vector<TypeSpec> tss;
     std::vector<Storage> storages;
 
-    MultiValue()
-        :Value(NO_TS) {
-    }
-
-    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (kwargs.size() > 0) {
-            std::cerr << "Can't handle labels in multi yet!\n";
-            return false;
-        }
-
-        bool is_lvalue = true;  // or uninitialized, both are handled similarly
-        bool is_type = true;
+    static TypeSpec metas(std::vector<std::unique_ptr<Value>> &vs) {
+        TupleType *tt = TupleType::get(std::vector<std::string>(vs.size(), ""));
+        TypeSpec mts = { tt };
         
-        for (auto &arg : args) {
-            Value *value = typize(arg.get(), scope);
-            TypeMatch match;
-
-            if (value->ts.is_meta()) {
-                // Got a type name
-                is_lvalue = false;
-                
-                TypeSpec rts = ptr_cast<TypeValue>(value)->represented_ts;
-                tss.push_back(rts);
-            }
-            else {
-                // Got a value
-                is_type = false;
-                
-                TypeSpec vts = value->ts;
-                
-                if (vts[0] != lvalue_type && vts[0] != uninitialized_type)
-                    is_lvalue = false;
-                else
-                    tss.push_back(vts);
-            }
-
-            values.push_back(std::unique_ptr<Value>(value));
-            //std::cerr << "Multi item ts: " << value->ts << "\n";
+        for (auto &v : vs) {
+            mts.insert(mts.end(), v->ts.begin(), v->ts.end());
         }
-
-        if (is_lvalue) {
-            ts = MULTILVALUE_TS;
             
-            for (auto &v : values)
-                v->need_lvalue();
-        }
-        else if (is_type)
-            ts = MULTITYPE_TS;
-        else {
-            std::cerr << "Multis must be all lvalues or all types!\n";
-            return false;
-        }
-        
-        return true;
+        return mts;
     }
 
-    virtual bool unpack(std::vector<TypeSpec> &t) {
-        t = tss;
-        return true;
+    LvalueTupleValue(std::vector<std::unique_ptr<Value>> vs)
+        :Value(metas(vs)), values(std::move(vs)) {
+        for (auto &v : values) {
+            v->need_lvalue();
+            tss.push_back(v->ts);
+        }
     }
-    
+
     virtual std::vector<Storage> get_storages() {
         return storages;
     }
@@ -137,16 +95,16 @@ public:
 
 class UnpackingValue: public Value {
 public:
-    std::unique_ptr<MultiValue> left;
+    std::unique_ptr<LvalueTupleValue> left;
     std::unique_ptr<Value> right;
     std::vector<TypeSpec> left_tss, right_tss;
     int left_total;
     std::vector<Declaration *> declarations;
     Scope *scope;
     
-    UnpackingValue(Value *l, TypeMatch &match)
+    UnpackingValue(Value *l)
         :Value(VOID_TS) {
-        left.reset(ptr_cast<MultiValue>(l));
+        left.reset(ptr_cast<LvalueTupleValue>(l));
         
         if (!left)
             throw INTERNAL_ERROR;
@@ -179,8 +137,9 @@ public:
             return false;
         }
         
-        if (!left->unpack(left_tss))
-            throw INTERNAL_ERROR;
+        left_tss = left->tss;
+        //if (!left->unpack(left_tss))
+        //    throw INTERNAL_ERROR;
         
         if (!value->unpack(right_tss))
             throw INTERNAL_ERROR;

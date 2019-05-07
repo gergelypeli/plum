@@ -119,6 +119,33 @@ public:
 };
 
 
+class Unpacking: public Identifier {
+public:
+    Unpacking(std::string n)
+        :Identifier(n) {
+    }
+
+    virtual Value *match(std::string n, Value *pivot, Scope *scope) {
+        // This operation is in the tuple metascope.
+        // If anything finds it here, the pivot argument must be a tuple.
+        // But we can't represent a generic type for any tuple, so the official pivot type
+        // of the metascope is useless, so don't check that.
+        if (n != name) {
+            //std::cerr << "Nope, this is " << name << " not " << n << "\n";
+            return NULL;
+        }
+
+        TypeSpec pts = get_typespec(pivot);
+        
+        if (!pts.has_meta(tuple_metatype))
+            return NULL;
+        
+        // TODO: check for all lvalues!
+        return make<UnpackingValue>(pivot);
+    }
+};
+
+
 template <typename T>
 class NosytreeTemplateIdentifier: public Identifier {
 public:
