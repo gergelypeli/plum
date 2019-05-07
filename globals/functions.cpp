@@ -49,11 +49,6 @@ TSs type_tuple_value_represented_tss(Value *v) {
 }
 
 
-bool unpack_value(Value *v, std::vector<TypeSpec> &tss) {
-    return v->unpack(tss);
-}
-
-
 Value *value_lookup_inner(Value *value, std::string name, Scope *scope) {
     return value->lookup_inner(name, scope);
 }
@@ -190,7 +185,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
     CodeScope *code_scope = NULL;
     Type *ct0 = (context ? (*context)[0] : NULL);
     
-    if (ct0 == code_type || ct0 == multicode_type) {
+    if (ct0 == code_type) {
         code_scope = (is_function_call ? new RetroScope : new CodeScope);
         check_retros(i, scope, arg_infos, code_scope);
     }

@@ -616,15 +616,6 @@ public:
         static_role = sr;
     }
 
-    virtual bool unpack(std::vector<TypeSpec> &tss) {
-        if (res_tss.size() > 1) {
-            tss = res_tss;
-            return true;
-        }
-        else
-            return false;
-    }
-
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         ArgInfos infos;
 

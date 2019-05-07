@@ -202,7 +202,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 }
 
 
-bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool require_lvalue) {
+bool match_anytuple_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool require_lvalue) {
     // Allow any_type match references
     
     if (is_any(*t)) {
@@ -210,8 +210,8 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
             if (matchlog) std::cerr << "No match, Void for Any!\n";
             return false;
         }
-        else if (*s == multi_type || *s == multilvalue_type || *s == multitype_type) {
-            if (matchlog) std::cerr << "No match, Multi for Any!\n";
+        else if ((*s)->meta_type == tuple_metatype) {
+            if (matchlog) std::cerr << "No match, Tuple for Any!\n";
             return false;
         }
         else if (*s == whatever_type) {
@@ -245,34 +245,17 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         
         return true;
     }
-    else if (*t == multicode_type) {
-        // Expecting a plain multi, just in a Code context
-        
-        if (*s == multi_type) {
-            match[0].push_back(*t);
-            return true;
-        }
-        else {
-            if (matchlog) std::cerr << "No match, non-Multivalue for Multicode!\n";
-            return false;
-        }
-    }
     else {
         // Expecting a scalar, only a plain multi can be scalarized, the others not so much
         
-        if (*s == multilvalue_type || *s == multitype_type) {
+        if ((*s)->meta_type == tuple_metatype) {
             if (*t == void_type) {
                 // This is not allowed because a Multi may contain uninitialized values
                 if (matchlog) std::cerr << "No match, Multi for Void!\n";
                 std::cerr << "Multi value dropped on the floor!\n";
                 return false;
             }
-            else {
-                if (matchlog) std::cerr << "No match, non-Multivalue for scalar!\n";
-                return false;
-            }
-        }
-        else if ((*s)->meta_type == tuple_metatype) {
+        
             // A Multi is being converted to something non-Multi.
             // Since a Multi can never be in a pivot position, this value must be a plain
             // argument, so if converting it fails, then it will be a fatal error. So
@@ -315,7 +298,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         if (*s == void_type || *t == void_type)
             throw INTERNAL_ERROR;
         
-        return match_anymulti_type(s, t, match, value, true);
+        return match_anytuple_type(s, t, match, value, true);
     }
     else if (*t == code_type) {  // evalue
         match[0].push_back(*t);
@@ -360,14 +343,14 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
 
             match[0].push_back(tuple1_type);
 
-            if (!match_anymulti_type(s, t, match, value, false))
+            if (!match_anytuple_type(s, t, match, value, false))
                 return false;
 
             return true;
         }
         else {
             // This is a bit lame
-            if (!match_anymulti_type(s, t, match, value, false))
+            if (!match_anytuple_type(s, t, match, value, false))
                 return false;
 
             return true;
@@ -385,7 +368,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_anymulti_type(s, t, match, value, false);
+        return match_anytuple_type(s, t, match, value, false);
     }
     else if (*t == uninitialized_type) {
         // This is a special case, Uninitialized only occurs with Any.
@@ -418,7 +401,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             s++;
         }
 
-        return match_anymulti_type(s, t, match, value, false);
+        return match_anytuple_type(s, t, match, value, false);
     }
 }
 

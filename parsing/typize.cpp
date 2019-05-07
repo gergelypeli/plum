@@ -18,14 +18,6 @@ bool is_typedefinition(Expr *expr) {
 
 
 Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
-    if (pivot && pivot->ts[0] == multi_type) {
-        // Conversions from Multi to a scalar can only be attempted once (see typematch),
-        // but it's not a problem, since we don't want Multi pivots anyway. But for correct
-        // operation we should catch this case here.
-        // Note that Multilvalue and Multitype passes this test.
-        return NULL;
-    }
-    
     //std::cerr << "Looking up  " << get_typespec(pivot) << " " << name << " definition.\n";
     Value *value = NULL;
     

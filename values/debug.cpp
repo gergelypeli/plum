@@ -49,11 +49,6 @@ public:
         :Value({ tuple3_type, string_type, string_type, integer_type }) {
     }
 
-    virtual bool unpack(std::vector<TypeSpec> &tss) {
-        tss = { STRING_TS, STRING_TS, INTEGER_TS };
-        return true;
-    }
-
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (!check_raise(lookup_exception_type, scope))
             return false;

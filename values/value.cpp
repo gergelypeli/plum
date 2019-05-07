@@ -66,10 +66,6 @@ public:
         return NULL;
     }
     
-    virtual bool unpack(std::vector<TypeSpec> &tss) {
-        return false;
-    }
-
     virtual void escape_statement_variables() {
         // Not needed in most Value classes
     }

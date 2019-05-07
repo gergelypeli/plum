@@ -325,8 +325,7 @@ public:
         :Value(NO_TS) {
         orig.reset(p);
         
-        if (!p->unpack(tss))
-            throw INTERNAL_ERROR;
+        orig->ts.unpack_tuple(tss);
             
         ts = tss[0];
     }

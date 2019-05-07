@@ -14,8 +14,6 @@ public:
     virtual TypeSpec codify(TypeSpec ts) {
         if (ts[0] == code_type)
             return ts;
-        //else if (ts == MULTI_TS)
-        //    return MULTICODE_TS;
         else if (ts == VOID_TS)
             return { code_type, tuple0_type };
         else if (ts.has_meta(tuple_metatype))
@@ -965,11 +963,6 @@ public:
         switch_scope = NULL;
         
         handling = false;
-    }
-    
-    virtual bool unpack(std::vector<TypeSpec> &t) {
-        // Just in case we forward a multivalue out of the body
-        return body->unpack(t);
     }
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

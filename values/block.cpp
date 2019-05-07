@@ -17,11 +17,6 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual bool unpack(std::vector<TypeSpec> &t) {
-        // Just in case we forward a multivalue out of the body
-        return value->unpack(t);
-    }
-
     virtual Regs precompile(Regs preferred) {
         return value->precompile(preferred) | Regs(RAX) | Regs(XMM0);
     }

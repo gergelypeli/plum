@@ -109,18 +109,6 @@ void builtin_types(Scope *root_scope) {
     void_type = new VoidType("<Void>");
     root_scope->add(void_type);
 
-    multi_type = new MultiType("<Multi>");
-    root_scope->add(multi_type);
-
-    multilvalue_type = new MultiType("<Multilvalue>");
-    root_scope->add(multilvalue_type);
-
-    multitype_type = new MultiType("<Multitype>");
-    root_scope->add(multitype_type);
-
-    multicode_type = new MultiType("<Multicode>");
-    root_scope->add(multicode_type);
-
     uninitialized_type = new UninitializedType("<Uninitialized>");
     root_scope->add(uninitialized_type);
 
@@ -373,10 +361,6 @@ void builtin_types(Scope *root_scope) {
     SAME_LVALUE_TS = { lvalue_type, same_type };
     SAME2_LVALUE_TS = { lvalue_type, same2_type };
     VOID_TS = { void_type };
-    MULTI_TS = { multi_type };
-    MULTILVALUE_TS = { multilvalue_type };
-    MULTITYPE_TS = { multitype_type };
-    MULTICODE_TS = { multicode_type };
     UNIT_TS = { unit_type };
     WHATEVER_TS = { whatever_type };
     WHATEVER_TUPLE1_CODE_TS = { code_type, tuple1_type, whatever_type };
