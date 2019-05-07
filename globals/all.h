@@ -34,6 +34,9 @@ public:
     TypeSpec reprefix(Type *s, Type *t);
     TypeSpec rvalue();
     TypeSpec lvalue();
+    bool is_tuple();
+    void pack_tuple(std::vector<TypeSpec> &tss);
+    void unpack_tuple(std::vector<TypeSpec> &tss);
     bool has_meta(MetaType *mt);
     bool is_meta();
     bool is_hyper();
@@ -208,6 +211,8 @@ Type *multicode_type = NULL;
 Type *whatever_type = NULL;
 Type *tuple0_type = NULL;
 Type *tuple1_type = NULL;
+Type *tuple2_type = NULL;
+Type *tuple3_type = NULL;
 
 Type *boolean_type = NULL;
 Type *integer_type = NULL;

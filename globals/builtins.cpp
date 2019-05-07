@@ -168,6 +168,12 @@ void builtin_types(Scope *root_scope) {
 
     tuple1_type = TupleType::get({ "" });
     root_scope->add(tuple1_type);
+
+    tuple2_type = TupleType::get({ "", "" });
+    root_scope->add(tuple2_type);
+
+    tuple3_type = TupleType::get({ "", "", "" });
+    root_scope->add(tuple3_type);
     
 
     // Phase 8: declare basic types

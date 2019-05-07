@@ -46,7 +46,7 @@ public:
     std::unique_ptr<Value> value;
     
     FrameStuffValue(Value *, TypeMatch)
-        :Value(MULTI_TS) {
+        :Value({ tuple3_type, string_type, string_type, integer_type }) {
     }
 
     virtual bool unpack(std::vector<TypeSpec> &tss) {

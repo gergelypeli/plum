@@ -767,7 +767,7 @@ public:
     Keywords keywords;
 
     TupleType(std::vector<std::string> kws)
-        :Type("(Tuple)", Metatypes(kws.size(), argument_metatype), tuple_metatype) {
+        :Type("(" + std::to_string(kws.size()) + ")", Metatypes(kws.size(), argument_metatype), tuple_metatype) {
         keywords = kws;
     }
 
@@ -775,6 +775,13 @@ public:
         // We want to have an inner scope, but only to have a pointer to the metascope
         // than contains the unpacking operator.
         return NO_TS;
+    }
+
+    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
+        return (
+            as_what == AS_VALUE ? STACK :
+            throw INTERNAL_ERROR
+        );
     }
 };
 
@@ -912,7 +919,7 @@ public:
 class UninitializedType: public Type {
 public:
     UninitializedType(std::string name)
-        :Type(name, Metatypes { value_metatype }, type_metatype) {
+        :Type(name, Metatypes { value_metatype }, argument_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {

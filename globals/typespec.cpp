@@ -110,7 +110,55 @@ TypeSpec TypeSpec::rvalue() {
 
 
 TypeSpec TypeSpec::lvalue() {
+    if (at(0) == whatever_type)
+        throw INTERNAL_ERROR;
+        
     return at(0) == lvalue_type ? *this : at(0) == ovalue_type ? unprefix(ovalue_type).prefix(lvalue_type) : prefix(lvalue_type);
+}
+
+
+bool TypeSpec::is_tuple() {
+    return !empty() && ptr_cast<TupleType>(at(0)) != NULL;
+}
+
+
+void TypeSpec::pack_tuple(TSs &tss) {
+    TupleType *tt = TupleType::get(std::vector<std::string>(tss.size(), ""));
+
+    clear();
+    push_back(tt);
+    
+    for (auto &ts : tss) {
+        if (!ts.has_meta(argument_metatype)) {
+            std::cerr << "XXX can't be a tuple elem: " << ts << "!\n";
+            throw INTERNAL_ERROR;
+        }
+            
+        insert(end(), ts.begin(), ts.end());
+    }
+}
+
+
+void TypeSpec::unpack_tuple(TSs &tss) {
+    TupleType *tt = ptr_cast<TupleType>(at(0));
+    if (!tt)
+        throw INTERNAL_ERROR;
+        
+    unsigned pc = tt->get_parameter_count();
+    TypeSpecIter tsi = begin() + 1;
+    
+    for (unsigned i = 0; i < pc; i++) {
+        TypeSpec ts;
+        unsigned counter = 1;
+    
+        while (counter--) {
+            ts.push_back(*tsi);
+            counter += (*tsi)->get_parameter_count();
+            tsi++;
+        }
+        
+        tss.push_back(ts);
+    }
 }
 
 

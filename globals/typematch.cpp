@@ -227,16 +227,23 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
         return true;
     }
     
-    if (*t == multi_type || *t == multilvalue_type || *t == multitype_type) {
-        // Expecting a multi, only the same multi can suffice
+    if ((*t)->meta_type == tuple_metatype) {
+        // Expecting a multi, only the same multi can suffice.
         
-        if (*s != *t) {
+        if ((*s)->meta_type != tuple_metatype) {
             if (matchlog) std::cerr << "No match, scalar for Multi!\n";
             return false;
         }
         
-        // Match Multi to Multi
-        return match_special_type(s, t, match, value, require_lvalue);
+        if ((*s)->get_parameter_count() < (*t)->get_parameter_count()) {
+            if (matchlog) std::cerr << "No match, short tuple for long!\n";
+            return false;
+        }
+        
+        // Leave the rest of the test to the Value, because we can't process multiple
+        // type parameters.
+        
+        return true;
     }
     else if (*t == multicode_type) {
         // Expecting a plain multi, just in a Code context
@@ -265,15 +272,14 @@ bool match_anymulti_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
                 return false;
             }
         }
-        else if (*s == multi_type) {
+        else if ((*s)->meta_type == tuple_metatype) {
             // A Multi is being converted to something non-Multi.
             // Since a Multi can never be in a pivot position, this value must be a plain
             // argument, so if converting it fails, then it will be a fatal error. So
             // it's OK to wrap it in a scalarization, because this is our only conversion chance.
             std::vector<TypeSpec> tss;
-        
-            if (!unpack_value(value, tss))
-                throw INTERNAL_ERROR;
+            TypeSpec ts(s);
+            ts.unpack_tuple(tss);
         
             TypeSpec ss = tss[0];
             s = ss.begin();
@@ -316,7 +322,6 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
         t++;
 
         int pc = (*t)->get_parameter_count();  // a Tuple must follow the Code
-        t++;
         
         if (pc == 0) {
             // FIXME: we duplicate this check with Void, above
@@ -339,6 +344,8 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             return true;
         }
         else if (pc == 1) {
+            t++;
+            
             if (!value) {
                 if (matchlog) std::cerr << "No match, nothing for nonvoid Code!\n";
                 return false;
@@ -359,8 +366,11 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             return true;
         }
         else {
-            if (matchlog) std::cerr << "Sorry, nothing converts to a nonscalar tuple yet!\n";
-            return false;
+            // This is a bit lame
+            if (!match_anymulti_type(s, t, match, value, false))
+                return false;
+
+            return true;
         }
     }
     else if (*t == ovalue_type) {

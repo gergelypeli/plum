@@ -600,7 +600,7 @@ public:
         else if (res_tss.size() == 1)
             ts = res_tss[0];
         else if (res_tss.size() > 1)
-            ts = MULTI_TS;
+            ts.pack_tuple(res_tss);
             
         res_total = 0;
         has_code_arg = false;

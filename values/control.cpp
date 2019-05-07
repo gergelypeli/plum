@@ -14,8 +14,8 @@ public:
     virtual TypeSpec codify(TypeSpec ts) {
         if (ts[0] == code_type)
             return ts;
-        else if (ts == MULTI_TS)
-            return MULTICODE_TS;
+        //else if (ts == MULTI_TS)
+        //    return MULTICODE_TS;
         else if (ts == VOID_TS)
             return { code_type, tuple0_type };
         else if (ts.has_meta(tuple_metatype))
@@ -43,6 +43,22 @@ public:
             std::cerr << "Control :" << name << " in Lvalue context!\n";
             throw TYPE_ERROR;
         }
+    }
+
+    virtual bool has_fuzzy_context_ts() {
+        bool is_fuzzy = false;
+        
+        if (context_ts.is_tuple()) {
+            TSs tss;
+            context_ts.unpack_tuple(tss);
+            
+            for (auto &ts : tss)
+                is_fuzzy = is_fuzzy || (ts == ANY_TS);
+        }
+        else
+            is_fuzzy = (context_ts == ANY_TS);
+            
+        return is_fuzzy;
     }
 
     virtual bool check_args(Args &args, ArgInfo arg_info) {
@@ -122,8 +138,13 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (has_fuzzy_context_ts()) {
+            std::cerr << ":if in fuzzy context!\n";
+            return false;
+        }
+        
         ts = context_ts;
-            
+        
         TypeSpec arg_ts = codify(ts);
             
         ArgInfos infos = {
@@ -265,6 +286,11 @@ public:
     }
 
     virtual bool setup_yieldable(Scope *scope) {
+        if (has_fuzzy_context_ts()) {
+            std::cerr << "Yieldable in fuzzy context!\n";
+            return false;
+        }
+        
         ts = context_ts;
 
         eval_scope = new EvalScope(this);
@@ -719,6 +745,11 @@ public:
         // This is a TransparentTryScope with no inner declarations, needs no finalization
         match_try_scope->leave();
 
+        if (has_fuzzy_context_ts()) {
+            std::cerr << ":is in fuzzy context!\n";
+            return false;
+        }
+
         ts = context_ts;
         TypeSpec arg_ts = codify(ts);
 
@@ -946,7 +977,7 @@ public:
         scope->add(try_scope);
         try_scope->enter();
 
-        // Let the body have our context
+        // Let the body have our context, even if it is fuzzy
         TypeSpec arg_ts = codify(context_ts);
         
         if (!check_args(args, { "body", &arg_ts, try_scope, &body }))
@@ -956,9 +987,9 @@ public:
         // same type, and also expect the same from the fix branch.
         // But if the body is a multivalue, then just disallow the fix branch, we don't
         // want to allow multivalues from different branches.
-        if (context_ts == ANY_TS) {
+        if (has_fuzzy_context_ts()) {
             context_ts = body->ts.rvalue();
-            arg_ts = (context_ts == MULTI_TS ? NO_TS : context_ts.prefix(tuple1_type).prefix(code_type));
+            arg_ts = codify(context_ts);  //(context_ts.is_tuple() ? NO_TS : codify(context_ts));
         }
 
         ts = context_ts;

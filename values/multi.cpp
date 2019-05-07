@@ -128,21 +128,30 @@ public:
         for (int i = declarations.size() - 1; i >= 0; i--)
             if (declarations[i])
                 scope->remove(declarations[i]);
+
+        left_tss = left->tss;
+        TSs arg_tss;
         
-        Value *value = typize(expr, scope, &MULTI_TS);
-        TypeMatch match;
+        for (auto &lts : left_tss) {
+            if (lts == WHATEVER_UNINITIALIZED_TS)
+                arg_tss.push_back(ANY_TS);
+            else if (lts[0] == lvalue_type || lts[0] == uninitialized_type)
+                arg_tss.push_back(lts.unprefix(lts[0]));
+            else
+                throw INTERNAL_ERROR;
+        }
+            
+        TypeSpec arg_ts;
+        arg_ts.pack_tuple(arg_tss);
         
-        if (!typematch(MULTI_TS, value, match)) {
-            std::cerr << "Multivalue is needed in an unpacking!\n";
+        Value *value = typize(expr, scope, &arg_ts);
+        
+        if (!value->ts.is_tuple()) {
+            std::cerr << "Tuple value is needed in an unpacking!\n";
             return false;
         }
         
-        left_tss = left->tss;
-        //if (!left->unpack(left_tss))
-        //    throw INTERNAL_ERROR;
-        
-        if (!value->unpack(right_tss))
-            throw INTERNAL_ERROR;
+        value->ts.unpack_tuple(right_tss);
             
         for (unsigned i = 0; i < left_tss.size(); i++) {
             TypeSpec left_ts = left_tss[i];
