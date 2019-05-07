@@ -110,10 +110,7 @@ TypeSpec TypeSpec::rvalue() {
 
 
 TypeSpec TypeSpec::lvalue() {
-    if (at(0) == whatever_type)
-        throw INTERNAL_ERROR;
-        
-    return at(0) == lvalue_type ? *this : at(0) == ovalue_type ? unprefix(ovalue_type).prefix(lvalue_type) : prefix(lvalue_type);
+    return at(0) == lvalue_type ? *this : at(0) == ovalue_type ? reprefix(ovalue_type, lvalue_type) : prefix(lvalue_type);
 }
 
 

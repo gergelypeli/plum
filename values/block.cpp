@@ -396,7 +396,7 @@ public:
         if (!expr) {
             if (!context) {
                 // Must call fix_bare later to add the real declaration
-                ts = WHATEVER_UNINITIALIZED_TS;  // dummy type, just to be Uninitialized
+                ts = BARE_UNINITIALIZED_TS;  // dummy type
                 return true;
             }
 
@@ -522,7 +522,7 @@ public:
             
             if (d)
                 scope->remove(d);  // care
-            else if (dv->ts == WHATEVER_UNINITIALIZED_TS)
+            else if (dv->ts == BARE_UNINITIALIZED_TS)
                 arg_ts = ANY_TS;  // bare
             else
                 throw INTERNAL_ERROR;
@@ -534,7 +534,7 @@ public:
         if (dv) {
             if (d)
                 scope->add(d);  // care
-            else if (dv->ts == WHATEVER_UNINITIALIZED_TS) {
+            else if (dv->ts == BARE_UNINITIALIZED_TS) {
                 // bare
                 TypeSpec implicit_ts = right->ts.rvalue();
                 std::cerr << "Fixing bare declaration with " << implicit_ts << ".\n";

@@ -142,6 +142,9 @@ void builtin_types(Scope *root_scope) {
     partial_type = new PartialType("<Partial>");
     root_scope->add(partial_type);
 
+    bare_type = new BareType("<Bare>");
+    root_scope->add(bare_type);
+
 
     // Phase 7: declare special types
 
@@ -398,7 +401,7 @@ void builtin_types(Scope *root_scope) {
     ANYID_WEAKREF_TS = { weakref_type, anyid_type };
     ANYID_WEAKREF_LVALUE_TS = { lvalue_type, weakref_type, anyid_type };
     ANY_UNINITIALIZED_TS = { uninitialized_type, any_type };
-    WHATEVER_UNINITIALIZED_TS = { uninitialized_type, whatever_type };
+    BARE_UNINITIALIZED_TS = { uninitialized_type, bare_type };
     STRINGTEMPLATE_TS = { stringtemplate_type };
     ANY_ARRAY_TS = { array_type, any_type };
     ANY_ARRAY_LVALUE_TS = { lvalue_type, array_type, any_type };

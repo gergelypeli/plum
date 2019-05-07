@@ -1050,12 +1050,11 @@ public:
 };
 
 
-// Mostly for expressions that don't return, but Whatever Uninitialized is also
-// used for bare declarations.
+// For expressions that don't return
 class WhateverType: public Type {
 public:
     WhateverType(std::string name)
-        :Type(name, {}, value_metatype) {
+        :Type(name, {}, argument_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -1091,3 +1090,12 @@ public:
     }
 };
 
+
+// A dummy type, only to be used as Bare Uninitialized for bare declarations,
+// whose type will be derived from the right hand side of their initialization.
+class BareType: public Type {
+public:
+    BareType(std::string name)
+        :Type(name, {}, value_metatype) {
+    }
+};

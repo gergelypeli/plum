@@ -133,7 +133,7 @@ public:
         TSs arg_tss;
         
         for (auto &lts : left_tss) {
-            if (lts == WHATEVER_UNINITIALIZED_TS)
+            if (lts == BARE_UNINITIALIZED_TS)
                 arg_tss.push_back(ANY_TS);
             else if (lts[0] == lvalue_type || lts[0] == uninitialized_type)
                 arg_tss.push_back(lts.unprefix(lts[0]));
@@ -166,7 +166,7 @@ public:
             // TODO: this may be too strict, but we can't call typespec, because we don't
             // have a value for the right side, and we can't convert the type either.
             if (left_ts[0] == uninitialized_type) {
-                if (left_ts == WHATEVER_UNINITIALIZED_TS) {
+                if (left_ts == BARE_UNINITIALIZED_TS) {
                     // Fix bare declaration, and place it in its scope
                     left_ts = left->fix_bare(i, right_ts, scope);
                     declarations[i] = left->get_declaration(i);
