@@ -520,13 +520,35 @@ public:
     }
 };
 
-
-class EvaluableValue: public Value, public Raiser {
+class EvaluableValue: public Value {
 public:
     Evaluable *evaluable;
+    
+    EvaluableValue(Evaluable *e)
+        :Value(e->alloc_ts) { //uncodify(typesubst(e->alloc_ts, tm))) {
+        evaluable = e;
+    }
+    
+    virtual std::vector<Variable *> get_dvalue_variables() {
+        return evaluable->get_dvalue_variables();
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return Regs();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        return evaluable->get_local_storage();
+    }
+};
+
+
+class EvaluateValue: public Value, public Raiser {
+public:
     std::vector<Variable *> dvalue_variables;
+    std::unique_ptr<Value> evaluable_value;
     std::vector<std::unique_ptr<Value>> arg_values;
-    std::vector<StorageWhere> retro_wheres;
+    //std::vector<StorageWhere> retro_wheres;
     unsigned result_stack_size;
     FunctionScope *fn_scope;
     
@@ -541,18 +563,35 @@ public:
         return ts;
     }
     
-    EvaluableValue(Evaluable *e, Value *p, TypeMatch &tm)
-        :Value(uncodify(typesubst(e->alloc_ts, tm))) {
-        evaluable = e;
-        
-        dvalue_variables = e->get_dvalue_variables();
-        result_stack_size = 0;
-        
-        if (p)
-            throw INTERNAL_ERROR;
+    EvaluateValue(Value *p, TypeMatch &tm)
+        :Value(NO_TS) { //uncodify(typesubst(e->alloc_ts, tm))) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (args.size() != 1) {
+            std::cerr << "Whacky :evaluate!\n";
+            return false;
+        }
+        
+        Value *v = typize(args[0].get(), scope, NULL);
+        evaluable_value.reset(v);
+        
+        EvaluableValue *ev = ptr_cast<EvaluableValue>(v);
+        
+        if (!ev) {
+            std::cerr << "Invalid :evaluate argument!\n";
+            return false;
+        }
+        
+        dvalue_variables = ev->get_dvalue_variables();
+
+        TypeSpec tuple_ts = evaluable_value->ts.unprefix(code_type);
+        TSs res_tss;
+        tuple_ts.unpack_tuple(res_tss);
+        
+        // TODO: not nice
+        ts = (res_tss.size() == 1 ? res_tss[0] : tuple_ts);
+
         ArgInfos infos;
         TSs arg_tss;
         
@@ -563,7 +602,12 @@ public:
             arg_values.push_back(NULL);
             
             // Must keep these, as we hold a pointer to each
-            arg_tss.push_back(v->get_typespec(TypeMatch()).unprefix(dvalue_type));
+            TypeSpec tuple_ts = v->get_typespec(TypeMatch()).unprefix(dvalue_type);
+            TSs member_tss;
+            tuple_ts.unpack_tuple(member_tss);
+            
+            // TODO: not nice
+            arg_tss.push_back(member_tss.size() == 1 ? member_tss[0] : tuple_ts);
             
             infos.push_back(ArgInfo {
                 v->name.c_str(),
@@ -573,7 +617,9 @@ public:
             });
         }
 
-        if (!check_arguments(args, kwargs, infos))
+        Args fake_args;
+
+        if (!check_arguments(fake_args, kwargs, infos))
             return false;
             
         // Must insert dummy after evaluating arguments
@@ -586,9 +632,6 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        if (evaluable->where == NOWHERE)
-            throw INTERNAL_ERROR;
-    
         for (auto &a : arg_values)
             a->precompile(preferred);
             
@@ -600,26 +643,13 @@ public:
             Variable *dvalue_var = dvalue_variables[i];
             Storage dvalue_storage = dvalue_var->get_local_storage();
             TypeSpec dvalue_ts = dvalue_var->get_typespec(TypeMatch());
-            TypeSpec retro_ts = dvalue_ts.unprefix(dvalue_type);
-            StorageWhere retro_where = retro_wheres[i];
+            TypeSpec tuple_ts = dvalue_ts.unprefix(dvalue_type);
+            //StorageWhere retro_where = retro_wheres[i];
 
             // Must use RBX to load the ALIAS-es to, because RAX is a valid result storage
             Register reg = RBX;
             x64->op(MOVQ, reg, dvalue_storage.address);
-
-            if (retro_where == MEMORY) {
-                // rvalue retro, destroy value
-
-                Storage t(retro_where, Address(reg, 0));
-                retro_ts.destroy(t, x64);
-            }
-            /*
-            else if (retro_where == ALIAS) {
-                // lvalue retro, no need to clear address
-            }
-            */
-            else
-                throw INTERNAL_ERROR;
+            tuple_ts.destroy(Storage(MEMORY, Address(reg, 0)), x64);
         }
     }
     
@@ -627,50 +657,26 @@ public:
         x64->unwind->push(this);
         
         for (unsigned i = 0; i < arg_values.size(); i++) {
-            Storage s = arg_values[i]->compile(x64);
+            arg_values[i]->compile_and_store(x64, Storage(STACK));
             
             Variable *dvalue_var = dvalue_variables[i];
             Storage dvalue_storage = dvalue_var->get_local_storage();
             if (dvalue_storage.where != ALIAS)
                 throw INTERNAL_ERROR;
                 
-            Register reg = (Regs::all() & ~s.regs()).get_any();
+            Register reg = RBX;
             x64->op(MOVQ, reg, dvalue_storage.address);
 
             TypeSpec dvalue_ts = dvalue_var->get_typespec(TypeMatch());
-            TypeSpec retro_ts = dvalue_ts.unprefix(dvalue_type);
-            StorageWhere retro_where = retro_ts.where(AS_ARGUMENT);
+            TypeSpec tuple_ts = dvalue_ts.unprefix(dvalue_type);
             
-            if (retro_where == MEMORY) {
-                // rvalue retro, initialize the value
-                Storage t(retro_where, Address(reg, 0));
-                retro_ts.create(s, t, x64);
-            }
-            /* not yet possible
-            else if (retro_where == ALIAS) {
-                // lvalue retro, initialize the address
-                if (s.where == MEMORY) {
-                    x64->op(LEA, R10, s.address);
-                }
-                else if (s.where == ALIAS) {
-                    x64->op(MOVQ, R10, s.address);
-                    
-                    if (s.value)
-                        x64->op(ADDQ, R10, s.value);
-                }
-                else
-                    throw INTERNAL_ERROR;
-
-                x64->op(MOVQ, Address(reg, 0), R10);
-            }
-            */
-            else
+            if (tuple_ts.where(AS_ARGUMENT) != MEMORY)
                 throw INTERNAL_ERROR;
-
-            retro_wheres.push_back(retro_where);
+            
+            tuple_ts.create(Storage(STACK), Storage(MEMORY, Address(reg, 0)), x64);
         }
 
-        Storage es = evaluable->get_local_storage();
+        Storage es = evaluable_value->compile(x64);
         if (es.where != ALIAS)
             throw INTERNAL_ERROR;
 
@@ -682,10 +688,10 @@ public:
             Storage(STACK)
         );
         
-        if (t.where == STACK) {
-            result_stack_size = ts.measure_stack();
-            x64->op(SUBQ, RSP, result_stack_size);
-        }
+        //if (t.where == STACK) {
+        //    result_stack_size = ts.measure_stack();
+        //    x64->op(SUBQ, RSP, result_stack_size);
+        //}
 
         x64->op(CALL, es.address);
 

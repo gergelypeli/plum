@@ -389,17 +389,21 @@ App? :Class Application as:
         :raise `SMALL_ERROR
 
     twice? :Function from:
-        how? Integer Dvalue
+        how? {Integer} Dvalue
         what? {Integer} Code
     as:
         :try
-            sum? = what(1) + what(2)
+            x? = :evaluate what how: 1
+            y? = :evaluate what how: 2
+            sum? = x + y
             Std prints("That was {}." { sum })
         fix:
             Std prints("What failed!")
 
     passthrough? :Function from: what? {Integer} Code as:
-        :try what fix:
+        :try
+            :evaluate what
+        fix:
             Std prints("Passthrough code is breaking.")
 
     test? :Function as:

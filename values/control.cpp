@@ -491,7 +491,7 @@ public:
         }
 
         TypeSpec elem_ts = match[1];
-        each_ts = elem_ts.prefix(dvalue_type);  //lvalue();
+        each_ts = elem_ts.prefix(tuple1_type).prefix(dvalue_type);  //lvalue();
         
         Value *next = lookup_fake("next", it, next_try_scope, token, NULL);
         

@@ -689,7 +689,7 @@ public:
 class DvalueType: public Type {
 public:
     DvalueType(std::string n)
-        :Type(n, Metatypes { value_metatype }, argument_metatype) {
+        :Type(n, Metatypes { tuple_metatype }, argument_metatype) {
     }
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -780,8 +780,58 @@ public:
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
         return (
             as_what == AS_VALUE ? STACK :
+            as_what == AS_ARGUMENT ? MEMORY :
             throw INTERNAL_ERROR
         );
+    }
+
+    virtual Allocation measure(TypeMatch tm) {
+        TSs tss;
+        tm[0].unpack_tuple(tss);
+        
+        unsigned size = 0;
+        
+        for (auto &ts : tss)
+            size += ts.measure_stack();
+            
+        return Allocation(size);
+    }
+    
+    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        switch (s.where * t.where) {
+        case STACK_MEMORY: {
+            // Used in :evaluate
+            int size = measure(tm).bytes;
+            int offset = 0;
+            
+            while (offset < size) {
+                x64->op(POPQ, t.address + offset);
+                offset += ADDRESS_SIZE;
+            }
+        }
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+
+    virtual void destroy(TypeMatch tm, Storage s, X64 *x64) {
+        switch (s.where) {
+        case MEMORY: {
+            // Used in :evaluate
+            TSs tss;
+            tm[0].unpack_tuple(tss);
+            int offset = 0;
+
+            for (auto &ts : backward<std::vector<TypeSpec>>(tss)) {
+                ts.destroy(Storage(MEMORY, s.address + offset), x64);
+                offset += ts.measure_stack();
+            }
+        }
+            break;
+        default:
+            throw INTERNAL_ERROR;
+        }
     }
 };
 

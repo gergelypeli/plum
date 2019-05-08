@@ -91,6 +91,17 @@ namespace std {
 };
 
 
+// https://stackoverflow.com/questions/3610933/iterating-c-vector-from-the-end-to-the-begin
+template <class T>
+class backward {
+    T& _obj;
+public:
+    backward(T &obj) : _obj(obj) {}
+    auto begin() {return _obj.rbegin();}
+    auto end() {return _obj.rend();}
+};
+
+
 std::ostream &operator<<(std::ostream &os, const std::ustring &x) {
     int charlen = x.size();
     char bytes[charlen * 3];

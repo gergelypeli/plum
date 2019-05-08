@@ -398,8 +398,16 @@ public:
             if ((*context)[0] == dvalue_type) {
                 // The declaration itself is T Dvalue, but the variable is just T.
                 ts = *context;
-                TypeSpec var_ts = ts.unprefix(dvalue_type);
-                var = new RetroVariable(name, var_ts);
+                TypeSpec tuple_ts = ts.unprefix(dvalue_type);
+                TSs tss;
+                tuple_ts.unpack_tuple(tss);
+                
+                if (tss.size() != 1) {
+                    // FIXME
+                    throw INTERNAL_ERROR;
+                }
+                
+                var = new RetroVariable(name, tss[0]);
             
                 decl = var;
                 scope->add(decl);

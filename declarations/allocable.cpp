@@ -460,7 +460,7 @@ public:
     }
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        return make<EvaluableValue>(this, cpivot, match);
+        return make<EvaluableValue>(this);
     }
     
     virtual void allocate() {
