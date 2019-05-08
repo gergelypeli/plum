@@ -843,6 +843,44 @@ public:
 
 
 
+class RetroArgumentScope: public ArgumentScope {
+public:
+    TypeSpec tuple_ts;
+    Allocation offset;
+    
+    RetroArgumentScope(TypeSpec tts)
+        :ArgumentScope() {
+        tuple_ts = tts;
+    }
+    
+    virtual Value *match(std::string name, Value *pivot, Scope *scope) {
+        // Allow the lookup of retro variables
+        return lookup(name, pivot, scope);
+    }
+
+    virtual void allocate() {
+        Allocation total_size = tuple_ts.measure();
+        offset = outer_scope->reserve(total_size);
+        
+        ArgumentScope::allocate();
+        
+        if (size.bytes != total_size.bytes)  // FIXME: proper comparison!
+            throw INTERNAL_ERROR;
+    }
+    
+    virtual Storage get_local_storage() {
+        Storage s = ArgumentScope::get_local_storage();
+        
+        if (s.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
+        return Storage(MEMORY, s.address + offset.concretize());
+    }
+};
+
+
+
+
 class FunctionScope: public Scope {
 public:
     ArgumentScope *result_scope;

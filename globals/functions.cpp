@@ -181,13 +181,29 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
         return false;
     }
 
-    // The argument type being Code or Multicode requests a code scope around the value
-    CodeScope *code_scope = NULL;
-    Type *ct0 = (context ? (*context)[0] : NULL);
+    // Some context types request a certain scope around the value
+    Type *ctx0 = (context ? (*context)[0] : NULL);
     
-    if (ct0 == code_type) {
-        code_scope = (is_function_call ? new RetroScope : new CodeScope);
-        check_retros(i, scope, arg_infos, code_scope);
+    CodeScope *code_scope = NULL;
+    RetroScope *retro_scope = NULL;
+    RetroArgumentScope *retro_argument_scope = NULL;
+    Scope *innermost_scope = scope;
+    
+    if (ctx0 == code_type && !is_function_call) {
+        code_scope = new CodeScope;
+        check_retros(i, scope, arg_infos, code_scope);  // FIXME: move to RetroScopeValue?
+        innermost_scope = code_scope;
+    }
+    else if (ctx0 == code_type && is_function_call) {
+        retro_scope = new RetroScope;
+        check_retros(i, scope, arg_infos, retro_scope);  // FIXME: move to RetroScopeValue?
+        innermost_scope = retro_scope;
+    }
+    else if (ctx0 == dvalue_type) {
+        retro_argument_scope = new RetroArgumentScope((*context).unprefix(dvalue_type));
+        scope->add(retro_argument_scope);
+        retro_argument_scope->enter();
+        innermost_scope = retro_argument_scope;
     }
 
     // The argument type being an Interface can't be a context for initializers
@@ -196,11 +212,11 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
     if (context && (*context).rvalue().has_meta(interface_metatype))
         constructive_context = NULL;
 
-    Value *v = typize(e, code_scope ? code_scope : scope, constructive_context);
+    Value *v = typize(e, innermost_scope, constructive_context);
     
     TypeMatch match;
     
-    if (context && !typematch(*context, v, match)) {
+    if (context && (*context)[0] != dvalue_type && !typematch(*context, v, match)) {
         // Make an effort to print meaningful error messages
         if (*context == WHATEVER_TUPLE1_CODE_TS)
             std::cerr << "Expression must transfer control, not return " << get_typespec(v) << " at " << e->token << "!\n";
@@ -210,12 +226,24 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
         return false;
     }
 
-    if (context && (*context)[0] == lvalue_type)
+    if (ctx0 == lvalue_type)
         v->need_lvalue();
 
     if (code_scope) {
-        v = (is_function_call ? make<RetroScopeValue>(v, code_scope) : make<CodeScopeValue>(v, code_scope));
+        v = make<CodeScopeValue>(v, code_scope);
         code_scope->leave();
+    }
+    else if (retro_scope) {
+        v = make<RetroScopeValue>(v, retro_scope);
+        retro_scope->leave();
+    }
+    else if (retro_argument_scope) {
+        v = make<RetroArgumentValue>(v, retro_argument_scope);
+        
+        if (!ptr_cast<RetroArgumentValue>(v)->check())
+            return false;
+            
+        retro_argument_scope->leave();
     }
 
     target->reset(v);
@@ -236,6 +264,11 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos, bool
 
     for (unsigned i = 0; i < n; i++)
         exprs[i] = NULL;
+
+    if (args.size() > n) {
+        std::cerr << "Too many arguments!\n";
+        return false;
+    }
 
     for (unsigned i = 0; i < args.size(); i++) {
         exprs[i] = args[i].get();

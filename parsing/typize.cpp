@@ -283,13 +283,32 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         }
 
         if (context) {
-            value = make<CodeBlockValue>(context);
+            if ((*context)[0] == code_type) {
+                if ((*context) != TUPLE0_CODE_TS && (*context) != WHATEVER_TUPLE1_CODE_TS) {
+                    std::cerr << "Compound statement can't be used in a nonvoid context!\n";
+                    throw TYPE_ERROR;
+                }
+                
+                value = make<CodeBlockValue>(*context);
         
-            bool ok = value->check(expr->args, expr->kwargs, scope);
-            if (!ok) {
-                std::cerr << "Code block error!\n";
-                throw TYPE_ERROR;
+                bool ok = value->check(expr->args, expr->kwargs, scope);
+                if (!ok) {
+                    std::cerr << "Code block error!\n";
+                    throw TYPE_ERROR;
+                }
             }
+            else if ((*context)[0] == dvalue_type) {
+                value = make<DataBlockValue>(scope);
+                
+                for (auto &a : expr->args) {
+                    if (!ptr_cast<DataBlockValue>(value)->check_statement(a.get())) {
+                        std::cerr << "Retro statement error!\n";
+                        throw TYPE_ERROR;
+                    }
+                }
+            }
+            else
+                throw INTERNAL_ERROR;
         }
         else {
             value = typize_contextless_tuple(expr->args, expr->kwargs, scope);

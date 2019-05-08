@@ -153,7 +153,6 @@ public:
 
 
 
-
 class DataBlockValue: public Value {
 public:
     Scope *scope;  // Must work with various scopes
@@ -223,13 +222,17 @@ public:
 class CodeBlockValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> statements;
-    TypeSpec *context;
+    TypeSpec last_statement_context;
 
-    CodeBlockValue(TypeSpec *c)
+    CodeBlockValue(TypeSpec lsc)
         :Value(VOID_TS) {  // May be overridden
-        context = c;
-        
-        if (!c || (*c != VOID_TS && *c != TUPLE0_CODE_TS && *c != WHATEVER_TS && *c != WHATEVER_TUPLE1_CODE_TS))
+        last_statement_context = lsc;
+
+        // The context is always specified as a T Code, otherwise this is not invoked.
+        // Function bodies are always evaluated with either {} Code (for void functions),
+        // or {Whatever} Code (for nonvoid functions), but never allowing the last statement
+        // to return a value. But currently we disallow any fancier context.
+        if (lsc != TUPLE0_CODE_TS && lsc != WHATEVER_TUPLE1_CODE_TS)
             throw INTERNAL_ERROR;
     }
 
@@ -267,7 +270,7 @@ public:
             Expr *expr = args.back().get();
             std::unique_ptr<Value> v;
         
-            if (!check_argument(0, expr, { { "stmt", context, scope, &v } })) {
+            if (!check_argument(0, expr, { { "stmt", &last_statement_context, scope, &v } })) {
                 std::cerr << "Statement error: " << expr->token << "\n";
                 return false;
             }
@@ -294,19 +297,12 @@ public:
         for (unsigned i = 0; i < statements.size() - 1; i++) {
             Token &token = statements[i]->token;
             
-            // Poor man's debug info
-            //Label l;
-            //std::stringstream ss;
-            //ss << "line." << token.row;
-            //x64->code_label_local(l, ss.str());
-            
             // Dwarves debug info
             x64->add_lineno(token.file_index, token.row);
             
             statements[i]->compile_and_store(x64, Storage());
 
             x64->op(NOP);  // For readability
-            //std::cerr << "XXX statement\n";
         }
 
         Token &token = statements.back()->token;
@@ -355,6 +351,14 @@ public:
         ts = var->alloc_ts.reprefix(lvalue_type, uninitialized_type);
     }
 
+    virtual void fix_bare_retro(TypeSpec var_ts, Scope *scope) {
+        // This must be called after/instead of check
+        var = new Variable(name, var_ts);
+        decl = var;
+        
+        scope->add(decl);
+    }
+
     virtual bool associate(Declaration *decl, std::string name) {
         if (!decl || !decl->outer_scope)
             throw INTERNAL_ERROR;
@@ -389,29 +393,9 @@ public:
         std::cerr << "Trying to declare " << name << "\n";
 
         if (!expr) {
-            if (!context) {
+            if (!context || (*context)[0] == dvalue_type) {
                 // Must call fix_bare later to add the real declaration
                 ts = BARE_UNINITIALIZED_TS;  // dummy type
-                return true;
-            }
-
-            if ((*context)[0] == dvalue_type) {
-                // The declaration itself is T Dvalue, but the variable is just T.
-                ts = *context;
-                TypeSpec tuple_ts = ts.unprefix(dvalue_type);
-                TSs tss;
-                tuple_ts.unpack_tuple(tss);
-                
-                if (tss.size() != 1) {
-                    // FIXME
-                    throw INTERNAL_ERROR;
-                }
-                
-                var = new RetroVariable(name, tss[0]);
-            
-                decl = var;
-                scope->add(decl);
-            
                 return true;
             }
 
@@ -500,6 +484,70 @@ public:
     }
 };
 
+
+
+class RetroArgumentValue: public Value {
+public:
+    std::unique_ptr<Value> value;
+    RetroArgumentScope *retro_argument_scope;
+    
+    RetroArgumentValue(Value *v, RetroArgumentScope *ras)
+        :Value(ras->tuple_ts.prefix(dvalue_type)) {
+        value.reset(v);
+        retro_argument_scope = ras;
+    }
+    
+    virtual bool check() {
+        // We must have one or more bare declarations inside, must tell them
+        // what types they are actually.
+        
+        TSs tss;
+        retro_argument_scope->tuple_ts.unpack_tuple(tss);
+        
+        std::vector<Value *> vs;
+        DataBlockValue *dbv = ptr_cast<DataBlockValue>(value.get());
+        
+        if (dbv) {
+            for (auto &s : dbv->statements)
+                vs.push_back(s.get());
+        }
+        else
+            vs.push_back(value.get());
+            
+        if (vs.size() != tss.size()) {
+            std::cerr << "Wrong number of retro variables!\n";
+            return false;
+        }
+        
+        for (unsigned i = 0; i < vs.size(); i++) {
+            DeclarationValue *dv = ptr_cast<DeclarationValue>(vs[i]);
+            
+            if (!dv) {
+                std::cerr << "Not a declaration in a retro argument!\n";
+                return false;
+            }
+            
+            if (dv->ts != BARE_UNINITIALIZED_TS) {
+                std::cerr << "Not a bare declaration in a retro argument!\n";
+                return false;
+            }
+            
+            dv->fix_bare_retro(tss[i], retro_argument_scope);
+            std::cerr << "Fixed bare retro variable " << dv->name << " to be " << tss[i] << "\n";
+        }
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return Regs();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        // A MEMORY that points to the beginning of the tuple values
+        return retro_argument_scope->get_local_storage();
+    }
+};
 
 
 
