@@ -155,18 +155,18 @@ public:
 
 class DataBlockValue: public Value {
 public:
-    Scope *scope;  // Must work with various scopes
+    //Scope *scope;  // Must work with various scopes
     std::vector<std::unique_ptr<Value>> statements;
 
-    DataBlockValue(Scope *s)
+    DataBlockValue()
         :Value(VOID_TS) {
-        scope = s;
+        //scope = s;
         
-        if (s->type != DATA_SCOPE && s->type != ARGUMENT_SCOPE && s->type != MODULE_SCOPE)
-            throw INTERNAL_ERROR;
+        //if (s->type != DATA_SCOPE && s->type != ARGUMENT_SCOPE && s->type != MODULE_SCOPE)
+        //    throw INTERNAL_ERROR;
     }
 
-    virtual bool check_statement(Expr *expr) {
+    virtual bool check_statement(Expr *expr, Scope *scope) {
         bool is_allowed = (expr->type == Expr::DECLARATION);
 
         if (!is_allowed) {
@@ -175,16 +175,41 @@ public:
         }
 
         Value *value = typize(expr, scope);
-        
+    
         // This is just a check for explicitly scoped declarations
         //DeclarationValue *dv = ptr_cast<DeclarationValue>(value);
         //Declaration *d = declaration_get_decl(dv);
-        
+    
         //if (d->outer_scope != scope)
         //    std::cerr << "Hah, a declaration wandered away!\n";
-        
+    
         statements.push_back(std::unique_ptr<Value>(value));
         return true;
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {      
+        if (kwargs.size() > 0)
+            throw INTERNAL_ERROR;
+            
+        for (auto &a : args) {
+            if (!check_statement(a.get(), scope))
+                return false;
+        }
+        
+        return true;
+    }
+
+    virtual bool check_tuple(Expr *expr, Scope *scope) {
+        if (expr->type == Expr::TUPLE) {
+            for (auto &a : expr->args)
+                if (!check_statement(a.get(), scope))
+                    return false;
+                    
+            return true;
+        }
+        else {
+            return check_statement(expr, scope);
+        }
     }
 
     virtual bool define_data() {
@@ -379,7 +404,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *expr = NULL;
+        std::unique_ptr<Expr> expr;
         
         ExprInfos eis = {
             { "", &expr }
@@ -403,7 +428,7 @@ public:
             return false;
         }
 
-        Value *v = typize(expr, scope, context);  // This is why arg shouldn't be a pivot
+        Value *v = typize(expr.get(), scope, context);  // This is why arg shouldn't be a pivot
         
         if (!v->ts.is_meta() && !v->ts.is_hyper()) {
             std::cerr << "Not a type used for declaration, but a value of " << v->ts << "!\n";

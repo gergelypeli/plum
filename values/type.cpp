@@ -72,17 +72,16 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        // TODO: limited support for now
-
-        if (args.size() == 0 && kwargs.size() == 0) {
-            // Empty tuple: {}
-            represented_ts = { tuple0_type };
-            return true;
+        if (kwargs.size() > 0) {
+            std::cerr << "Sorry, no keywords in tuple types now!\n";
+            return false;
         }
-        else if (args.size() == 1 && kwargs.size() == 0) {
-            // Single tuple: { T }
-            Value *value = typize(args[0].get(), scope, NULL);
-    
+        
+        TSs tss;
+        
+        for (auto &a : args) {
+            Value *value = typize(a.get(), scope, NULL);
+            
             if (!value->ts.is_meta()) {
                 std::cerr << "Not a type name in a tuple type definition!\n";
                 return false;
@@ -95,13 +94,11 @@ public:
                 return false;
             }
             
-            represented_ts = rts.prefix(tuple1_type);
-            return true;
+            tss.push_back(rts);
         }
-        else {
-            std::cerr << "Sorry, too complex tuple type for now!\n";
-            return false;
-        }
+        
+        represented_ts.pack_tuple(tss);
+        return true;
     }
 
     virtual Declaration *declare(std::string name, Scope *scope) {

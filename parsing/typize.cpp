@@ -298,13 +298,12 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
                 }
             }
             else if ((*context)[0] == dvalue_type) {
-                value = make<DataBlockValue>(scope);
-                
-                for (auto &a : expr->args) {
-                    if (!ptr_cast<DataBlockValue>(value)->check_statement(a.get())) {
-                        std::cerr << "Retro statement error!\n";
-                        throw TYPE_ERROR;
-                    }
+                value = make<DataBlockValue>();
+
+                bool ok = value->check(expr->args, expr->kwargs, scope);
+                if (!ok) {
+                    std::cerr << "Data block error!\n";
+                    throw TYPE_ERROR;
                 }
             }
             else

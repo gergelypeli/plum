@@ -338,7 +338,7 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         DataScope *ds = ptr_cast<DataScope>(scope);
         is_concrete = ds->is_virtual_scope() && !ds->is_abstract_scope();
-        Expr *implemented_expr = NULL, *inherited_expr = NULL;
+        std::unique_ptr<Expr> implemented_expr, inherited_expr;
 
         ExprInfos eis = {
             { "", &implemented_expr },
@@ -362,7 +362,7 @@ public:
         
         if (implemented_expr) {
             // Implementation
-            Value *v = typize(implemented_expr, scope, NULL);
+            Value *v = typize(implemented_expr.get(), scope, NULL);
     
             if (!v->ts.is_meta()) {
                 std::cerr << "Implemented type name expected!\n";
@@ -386,7 +386,7 @@ public:
                 return false;
             }
             
-            Value *v = typize(inherited_expr, scope, NULL);
+            Value *v = typize(inherited_expr.get(), scope, NULL);
     
             if (!v->ts.is_meta()) {
                 std::cerr << "Inherited type name expected!\n";
@@ -451,7 +451,7 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         DataScope *ds = ptr_cast<DataScope>(scope);
-        Expr *provider_expr = NULL;
+        std::unique_ptr<Expr> provider_expr;
 
         ExprInfos eis = {
             { "", &provider_expr }
@@ -535,7 +535,7 @@ public:
     
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *name_expr = NULL, *for_expr = NULL;
+        std::unique_ptr<Expr> name_expr, for_expr;
         
         ExprInfos eis = {
             { "", &name_expr },
@@ -570,7 +570,7 @@ public:
                     ok = ok && check_identifier(x.get());
             }
             else
-                ok = check_identifier(for_expr);
+                ok = check_identifier(for_expr.get());
         }
         
         import_scope->leave();
@@ -607,7 +607,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *main_expr = NULL, *class_expr = NULL;
+        std::unique_ptr<Expr> main_expr, class_expr;
         
         ExprInfos eis = {
             { "", &main_expr },
@@ -624,11 +624,11 @@ public:
             return false;
         }
 
-        main_ts = typize_typespec(main_expr, scope, abstract_metatype);
+        main_ts = typize_typespec(main_expr.get(), scope, abstract_metatype);
         if (main_ts == NO_TS)
             return false;
             
-        class_ts = typize_typespec(class_expr, scope, class_metatype);
+        class_ts = typize_typespec(class_expr.get(), scope, class_metatype);
         if (class_ts == NO_TS)
             return false;
             
@@ -669,8 +669,8 @@ public:
 class ScopedTypeDefinitionValue: public TypeDefinitionValue {
 public:
     Type *defined_type;
-    std::vector<Expr *> meta_exprs;
-    std::vector<Expr *> data_exprs;
+    Args meta_args;
+    Args data_args;
     std::unique_ptr<DataBlockValue> block_value;
 
     ScopedTypeDefinitionValue()
@@ -678,21 +678,26 @@ public:
         defined_type = NULL;
     }
 
-    void defer(Expr *e) {
-        if (is_typedefinition(e))
-            meta_exprs.push_back(e);
+    void defer(std::unique_ptr<Expr> e) {
+        // Expressions in type definitions may define other types, and such definitions
+        // must take place in the first pass, while the definitions of the type details
+        // in the second pass.
+        
+        if (is_typedefinition(e.get()))
+            meta_args.push_back(std::move(e));
         else
-            data_exprs.push_back(e);
+            data_args.push_back(std::move(e));
     }
 
-    void defer_as(Expr *as_expr) {
+    void defer_as(std::unique_ptr<Expr> as_expr) {
         // Type bodies may refer to their own type name, so they must be deferred
         if (as_expr) {
-            if (as_expr->type == Expr::TUPLE)
+            if (as_expr->type == Expr::TUPLE) {
                 for (auto &e : as_expr->args)
-                    defer(e.get());
+                    defer(std::move(e));
+            }
             else
-                defer(as_expr);
+                defer(std::move(as_expr));
         }
     }
 
@@ -704,11 +709,12 @@ public:
         defined_type->make_initializer_scope();
         defined_type->make_lvalue_scope();
         
-        block_value.reset(new DataBlockValue(defined_type->get_inner_scope()));
+        block_value.reset(new DataBlockValue);
         
-        for (Expr *expr : meta_exprs)
-            if (!block_value->check_statement(expr))
-                return NULL;
+        Kwargs fake_kwargs;
+        
+        if (!block_value->check(meta_args, fake_kwargs, defined_type->get_inner_scope()))
+            return NULL;
         
         defined_type->get_inner_scope()->leave();
         
@@ -731,9 +737,10 @@ public:
             return false;
         }
 
-        for (Expr *expr : data_exprs)
-            if (!block_value->check_statement(expr))
-                return false;
+        Kwargs fake_kwargs;
+        
+        if (!block_value->check(data_args, fake_kwargs, defined_type->get_inner_scope()))
+            return NULL;
 
         // Must complete records/classes before compiling method bodies
         if (!defined_type->complete_type())
@@ -773,7 +780,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *as_expr = NULL;
+        std::unique_ptr<Expr> as_expr;
         
         ExprInfos eis = {
             { "as", &as_expr }
@@ -784,7 +791,7 @@ public:
             return false;
         }
 
-        defer_as(as_expr);
+        defer_as(std::move(as_expr));
         
         std::cerr << "Deferring record definition.\n";
         return true;
@@ -809,7 +816,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *as_expr = NULL;
+        std::unique_ptr<Expr> as_expr;
         
         ExprInfos eis = {
             { "as", &as_expr }
@@ -820,7 +827,7 @@ public:
             return false;
         }
 
-        defer_as(as_expr);
+        defer_as(std::move(as_expr));
         
         std::cerr << "Deferring union definition.\n";
         return true;
@@ -839,7 +846,7 @@ public:
 
 class AbstractDefinitionValue: public ScopedTypeDefinitionValue {
 public:
-    Expr *base_expr;
+    std::unique_ptr<Expr> base_expr;
 
     AbstractDefinitionValue()
         :ScopedTypeDefinitionValue() {
@@ -847,7 +854,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *as_expr = NULL;
+        std::unique_ptr<Expr> as_expr;
         
         ExprInfos eis = {
             { "", &base_expr },
@@ -859,7 +866,7 @@ public:
             return false;
         }
 
-        defer_as(as_expr);
+        defer_as(std::move(as_expr));
             
         std::cerr << "Deferring abstract definition.\n";
         return true;
@@ -869,7 +876,7 @@ public:
         Scope *is = defined_type->get_inner_scope();
         
         if (base_expr) {
-            TypeSpec base_ts = typize_typespec(base_expr, is, abstract_metatype);
+            TypeSpec base_ts = typize_typespec(base_expr.get(), is, abstract_metatype);
         
             if (base_ts == NO_TS) {
                 std::cerr << "Base abstract name expected!\n";
@@ -895,17 +902,15 @@ public:
 
 class ClassDefinitionValue: public ScopedTypeDefinitionValue, public RoleCreator {
 public:
-    Expr *base_expr;
-    Expr *main_expr;
+    std::unique_ptr<Expr> base_expr;
+    std::unique_ptr<Expr> main_expr;
     
     ClassDefinitionValue()
         :ScopedTypeDefinitionValue() {
-        base_expr = NULL;
-        main_expr = NULL;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *as_expr = NULL;
+        std::unique_ptr<Expr> as_expr;
         
         ExprInfos eis = {
             { "", &main_expr },
@@ -916,7 +921,7 @@ public:
         if (!check_exprs(args, kwargs, eis))
             return false;
         
-        defer_as(as_expr);
+        defer_as(std::move(as_expr));
             
         std::cerr << "Deferring class definition.\n";
         return true;
@@ -936,7 +941,7 @@ public:
         TypeSpec main_ts, base_ts;
         
         if (main_expr) {
-            main_ts = typize_typespec(main_expr, is, abstract_metatype);
+            main_ts = typize_typespec(main_expr.get(), is, abstract_metatype);
         
             if (main_ts == NO_TS) {
                 std::cerr << "Main abstract name expected!\n";
@@ -945,7 +950,7 @@ public:
         }
         
         if (base_expr) {
-            base_ts = typize_typespec(base_expr, is, class_metatype);
+            base_ts = typize_typespec(base_expr.get(), is, class_metatype);
         
             if (base_ts == NO_TS) {
                 std::cerr << "Base class name expected!\n";
@@ -964,7 +969,7 @@ public:
 // TODO: allow users define Interfaces?
 class InterfaceDefinitionValue: public ScopedTypeDefinitionValue {
 public:
-    Expr *base_expr;
+    std::unique_ptr<Expr> base_expr;
 
     InterfaceDefinitionValue()
         :ScopedTypeDefinitionValue() {
@@ -972,7 +977,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *as_expr = NULL;
+        std::unique_ptr<Expr> as_expr;
         
         ExprInfos eis = {
             { "", &base_expr },
@@ -984,7 +989,7 @@ public:
             return false;
         }
 
-        defer_as(as_expr);
+        defer_as(std::move(as_expr));
             
         std::cerr << "Deferring interface definition.\n";
         return true;
@@ -994,7 +999,7 @@ public:
         Scope *is = defined_type->get_inner_scope();
         
         if (base_expr) {
-            TypeSpec base_ts = typize_typespec(base_expr, is, interface_metatype);
+            TypeSpec base_ts = typize_typespec(base_expr.get(), is, interface_metatype);
         
             if (base_ts == NO_TS) {
                 std::cerr << "Base interface name expected!\n";
@@ -1027,7 +1032,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *interface_expr = NULL;
+        std::unique_ptr<Expr> interface_expr;
 
         ExprInfos eis = {
             { "", &interface_expr }
@@ -1040,7 +1045,7 @@ public:
 
         if (interface_expr) {
             // Implementation
-            Value *v = typize(interface_expr, scope, NULL);
+            Value *v = typize(interface_expr.get(), scope, NULL);
     
             if (!v->ts.is_meta()) {
                 std::cerr << "Implemented type name expected!\n";
@@ -1117,7 +1122,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        Expr *main_expr = NULL, *with_expr = NULL, *to_expr = NULL, *from_expr = NULL, *do_expr = NULL;
+        std::unique_ptr<Expr> main_expr, with_expr, to_expr, from_expr, do_expr;
         
         ExprInfos eis = {
             { "", &main_expr },
@@ -1141,7 +1146,7 @@ public:
         DataScope *is = class_type->get_inner_scope();
         
         // Add main role
-        TypeSpec main_ts = typize_typespec(main_expr, scope, abstract_metatype);
+        TypeSpec main_ts = typize_typespec(main_expr.get(), scope, abstract_metatype);
         
         if (main_ts == NO_TS) {
             std::cerr << "Functor abstract name expected!\n";
@@ -1168,7 +1173,7 @@ public:
             }
         }
         else {
-            if (!check_with(with_expr, cs, is))
+            if (!check_with(with_expr.get(), cs, is))
                 return false;
         }
         
@@ -1177,10 +1182,10 @@ public:
         delete cs;
         
         Args fake_args;
-        fake_args.push_back(std::unique_ptr<Expr>(to_expr));
+        fake_args.push_back(std::move(to_expr));
         Kwargs fake_kwargs;
-        fake_kwargs["from"] = std::unique_ptr<Expr>(from_expr);
-        fake_kwargs["as"] = std::unique_ptr<Expr>(do_expr);
+        fake_kwargs["from"] = std::move(from_expr);
+        fake_kwargs["as"] = std::move(do_expr);
         
         fdv = make<FunctionDefinitionValue>((Value *)NULL, match);
         

@@ -346,7 +346,7 @@ bool check_exprs(Args &args, Kwargs &kwargs, const ExprInfos &expr_infos) {
             return false;
         }
         
-        *expr_infos[i].target = args[0].get();
+        *expr_infos[i].target = std::move(args[0]);
     }
 
     for (auto &kv : kwargs) {
@@ -364,7 +364,7 @@ bool check_exprs(Args &args, Kwargs &kwargs, const ExprInfos &expr_infos) {
             return false;
         }
         
-        *expr_infos[i].target = kv.second.get();
+        *expr_infos[i].target = std::move(kv.second);
     }
 
     return true;

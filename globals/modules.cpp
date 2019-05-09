@@ -13,20 +13,13 @@ public:
         package_name = mn;  // TODO: allow explicit submodule declarations
         
         module_scope = new ModuleScope(module_name, rs);
-        value_root = new DataBlockValue(module_scope);
+        value_root = new DataBlockValue;
     }
     
     bool typize(Expr *expr_root) {
-        bool ok = true;
         module_scope->enter();
 
-        if (expr_root->type == Expr::TUPLE) {
-            for (auto &a : expr_root->args)
-                ok = ok && value_root->check_statement(a.get());
-        }
-        else {
-            ok = value_root->check_statement(expr_root);
-        }
+        bool ok = value_root->check_tuple(expr_root, module_scope);
         
         ok = ok && value_root->define_data() && value_root->define_code();
     

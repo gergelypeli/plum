@@ -7,7 +7,7 @@ public:
     std::unique_ptr<Value> body;
     std::unique_ptr<Value> exception_type_value;
     FunctionScope *fn_scope;
-    Expr *deferred_body_expr;
+    std::unique_ptr<Expr> deferred_body_expr;
     Variable *self_var;
     TypeMatch match;
     Scope *outer_scope;
@@ -88,7 +88,7 @@ public:
         ss->leave();
 
         Args fake_args;
-        Expr *raise_expr = NULL, *from_expr = NULL, *import_expr = NULL, *as_expr = NULL;
+        std::unique_ptr<Expr> raise_expr, from_expr, import_expr, as_expr;
         
         ExprInfos eis = {
             { "from", &from_expr },
@@ -105,7 +105,7 @@ public:
         // TODO: why do we store this in the fn scope?
         if (raise_expr) {
             TypeSpec TREENUMMETA_TS = { treenumeration_metatype };
-            Value *v = typize(raise_expr, fn_scope, &TREENUMMETA_TS);
+            Value *v = typize(raise_expr.get(), fn_scope, &TREENUMMETA_TS);
             
             if (v) {
                 TreenumerationType *t = NULL;
@@ -140,29 +140,22 @@ public:
         Scope *hs = fn_scope->add_head_scope();
         hs->enter();
         
-        head.reset(new DataBlockValue(hs));
+        head.reset(new DataBlockValue);
 
         if (from_expr) {
-            if (from_expr->type == Expr::TUPLE) {
-                for (auto &expr : from_expr->args)
-                    if (!head->check_statement(expr.get()))
-                        return false;
-            }
-            else {
-                if (!head->check_statement(from_expr))
-                    return false;
-            }
+            if (!head->check_tuple(from_expr.get(), hs))
+                return false;
         }
         
         hs->leave();
         
         if (as_expr) {
             std::cerr << "Deferring definition of function body.\n";
-            deferred_body_expr = as_expr;
+            deferred_body_expr = std::move(as_expr);
         }
 
         if (import_expr) {
-            Value *i = typize(import_expr, scope, &STRING_TS);
+            Value *i = typize(import_expr.get(), scope, &STRING_TS);
             StringLiteralValue *sl = ptr_cast<StringLiteralValue>(i);
             
             if (!sl) {
@@ -251,7 +244,7 @@ public:
             // Disallow fallthrough in nonvoid functions.
             bool is_void = (fn_scope->result_scope->contents.size() == 0);
             TypeSpec *ctx = (is_void ? &TUPLE0_CODE_TS : &WHATEVER_TUPLE1_CODE_TS);
-            Value *bv = typize(deferred_body_expr, bs, ctx);
+            Value *bv = typize(deferred_body_expr.get(), bs, ctx);
             body.reset(bv);
             
             if (pi) {

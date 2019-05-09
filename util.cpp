@@ -138,7 +138,7 @@ struct ArgInfo {
 
 struct ExprInfo {
     std::string name;
-    Expr **target;
+    std::unique_ptr<Expr> *target;  // Yes, too
 };
 
 
