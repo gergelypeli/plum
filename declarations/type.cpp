@@ -519,16 +519,6 @@ public:
     AnyType(std::string name, Metatypes param_metatypes, MetaType *mt)
         :Type(name, param_metatypes, mt) {
     }
-    
-    virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
-        // Needed for unalias hinting only
-        
-        return (
-            as_what == AS_ARGUMENT ? MEMORY :
-            as_what == AS_LVALUE_ARGUMENT ? ALIAS :
-            throw INTERNAL_ERROR
-        );
-    }
 };
 
 

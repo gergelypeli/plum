@@ -1,13 +1,31 @@
 
 // Matching
 
+int any_index(Type *t) {
+    return (
+        t == any_type  || t == anyid_type  || t == anytuple_type  ? 1 :
+        t == any2_type || t == anyid2_type || t == anytuple2_type ? 2 :
+        t == any3_type || t == anyid3_type || t == anytuple3_type ? 3 :
+        0
+    );
+}
+
+int same_index(Type *t) {
+    return (
+        t == same_type  || t == sameid_type  || t == sametuple_type  ? 1 :
+        t == same2_type || t == sameid2_type || t == sametuple2_type ? 2 :
+        t == same3_type || t == sameid3_type || t == sametuple3_type ? 3 :
+        0
+    );
+}
+
 TypeSpec typesubst(TypeSpec &tt, TypeMatch &match) {
     TypeSpec ts;
     
     for (TypeSpecIter tti = tt.begin(); tti != tt.end(); tti++) {
-        if (*tti == same_type || *tti == same2_type || *tti == same3_type || *tti == sameid_type || *tti == sameid2_type || *tti == sameid3_type) {
-            int mi = (*tti == same_type || *tti == sameid_type ? 1 : *tti == same2_type || *tti == sameid2_type ? 2 : *tti == same3_type || *tti == sameid3_type ? 3 : throw INTERNAL_ERROR);
-            
+        int mi = same_index(*tti);
+        
+        if (mi > 0) {
             if (match[mi] == NO_TS) {
                 std::cerr << "No matched Any type while substituting Same!\n";
                 std::cerr << tt << " - " << match << "\n";
@@ -52,10 +70,6 @@ Allocation allocsubst(Allocation a, TypeMatch &match) {
 
 // *******
 extern bool matchlog;
-
-bool is_any(Type *t) {
-    return t == any_type || t == any2_type || t == any3_type || t == anyid_type || t == anyid2_type || t == anyid3_type;
-}
 
 
 bool match_type_parameter(TypeSpecIter &s, TypeSpecIter &t, TypeMatch &match, int mi, MetaType *metatype) {
@@ -117,6 +131,18 @@ bool match_type_parameters(TypeSpecIter s, TypeSpecIter t, TypeMatch &match) {
             if (!match_type_parameter(s, t, match, 3, identity_metatype))
                 return false;
         }
+        else if (*t == anytuple_type) {
+            if (!match_type_parameter(s, t, match, 1, tuple_metatype))
+                return false;
+        }
+        else if (*t == anytuple2_type) {
+            if (!match_type_parameter(s, t, match, 2, tuple_metatype))
+                return false;
+        }
+        else if (*t == anytuple3_type) {
+            if (!match_type_parameter(s, t, match, 3, tuple_metatype))
+                return false;
+        }
         else {
             if (matchlog) std::cerr << "No match, type parameters differ!\n";
             return false;
@@ -168,7 +194,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
         }
     }
     
-    if (*s == *t || is_any(*t)) {
+    if (*s == *t || any_index(*t)) {
         bool ok = match_type_parameters(s, t, match);
         
         return ok;
@@ -205,7 +231,7 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
 bool match_anytuple_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value *&value, bool require_lvalue) {
     // Allow any_type match references
     
-    if (is_any(*t)) {
+    if (any_index(*t)) {
         if (*s == void_type) {
             if (matchlog) std::cerr << "No match, Void for Any!\n";
             return false;

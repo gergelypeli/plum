@@ -48,6 +48,15 @@ void builtin_types(Scope *root_scope) {
     anyid3_type = new AnyType("<Anyid3>", {}, identity_metatype);
     root_scope->add(anyid3_type);
 
+    anytuple_type = new AnyType("<Anytuple>", {}, tuple_metatype);
+    root_scope->add(anytuple_type);
+
+    anytuple2_type = new AnyType("<Anytuple2>", {}, tuple_metatype);
+    root_scope->add(anytuple2_type);
+
+    anytuple3_type = new AnyType("<Anytuple3>", {}, tuple_metatype);
+    root_scope->add(anytuple3_type);
+
     same_type = new SameType("<Same>", {}, value_metatype);
     root_scope->add(same_type);
 
@@ -65,6 +74,15 @@ void builtin_types(Scope *root_scope) {
 
     sameid3_type = new SameType("<Sameid3>", {}, identity_metatype);
     root_scope->add(sameid3_type);
+
+    sametuple_type = new SameType("<Sametuple>", {}, tuple_metatype);
+    root_scope->add(sametuple_type);
+
+    sametuple2_type = new SameType("<Sametuple2>", {}, tuple_metatype);
+    root_scope->add(sametuple2_type);
+
+    sametuple3_type = new SameType("<Sametuple3>", {}, tuple_metatype);
+    root_scope->add(sametuple3_type);
 
 
     // Phase 4: declare Colon type, which needs value_metatype, and needed for the colon scope
@@ -683,9 +701,6 @@ void define_interfaces() {
 
 template <typename NextValue>
 void define_container_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec value_ts) {
-    //TypeSpec PIVOT_TS = { iter_type, any_type };
-    //TypeSpec SAME_CONTAINER_LVALUE_TS = { lvalue_type, container_type, same_type };
-    
     DataScope *aiis = iter_type->make_inner_scope();
 
     // Order matters!
@@ -710,9 +725,6 @@ void define_container_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec 
 
 template <typename NextValue>
 void define_slice_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec value_ts) {
-    //TypeSpec PIVOT_TS = { iter_type, any_type };
-    //TypeSpec SAME_ARRAY_LVALUE_TS = { lvalue_type, array_type, same_type };
-    
     DataScope *aiis = iter_type->make_inner_scope();
 
     // Order matters!
