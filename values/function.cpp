@@ -916,10 +916,7 @@ public:
     virtual Scope *unwind(X64 *x64) {
         //std::cerr << "Unwinding function call " << function->name << " would wipe " << pushed_tss.size() << " arguments.\n";
         for (int i = pushed_tss.size() - 1; i >= 0; i--) {
-            if (pushed_tss[i][0] == code_type)
-                x64->op(ADDQ, RSP, ADDRESS_SIZE);
-            else
-                pushed_tss[i].store(pushed_storages[i], Storage(), x64);
+            pushed_tss[i].store(pushed_storages[i], Storage(), x64);
         }
         
         // This area is uninitialized

@@ -342,6 +342,7 @@ class TupleBlockValue: public Value {
 public:
     std::vector<std::unique_ptr<Value>> statements;
     TSs context_tss;
+    std::vector<Storage> pushed_storages;
 
     TupleBlockValue(TypeSpec tuple_ts)
         :Value(tuple_ts) {
@@ -384,13 +385,28 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        x64->unwind->push(this);
+
         for (unsigned i = 0; i < statements.size(); i++) {
             StorageWhere where = context_tss[i].where(AS_ARGUMENT);
-            StorageWhere swhere = stacked(where);
-            statements[i]->compile_and_store(x64, Storage(swhere));
+            Storage s = Storage(stacked(where));
+            
+            statements[i]->compile_and_store(x64, s);
+            
+            pushed_storages.push_back(s);
         }
+
+        x64->unwind->pop(this);
         
         return Storage(STACK);
+    }
+
+    virtual Scope *unwind(X64 *x64) {
+        for (int i = pushed_storages.size() - 1; i >= 0; i--) {
+            context_tss[i].store(pushed_storages[i], Storage(), x64);
+        }
+
+        return NULL;
     }
 };
 
