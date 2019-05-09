@@ -284,30 +284,37 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
 
         if (context) {
             if ((*context)[0] == code_type) {
-                if ((*context) != TUPLE0_CODE_TS && (*context) != WHATEVER_TUPLE1_CODE_TS) {
-                    std::cerr << "Compound statement can't be used in a nonvoid context!\n";
-                    throw TYPE_ERROR;
-                }
+                // Using a tuple in a value context is generally disallowed, because we
+                // don't want to simply take the value of the last expression. But in some
+                // cases it must work.
                 
-                value = make<CodeBlockValue>(*context);
-        
-                bool ok = value->check(expr->args, expr->kwargs, scope);
-                if (!ok) {
-                    std::cerr << "Code block error!\n";
+                if ((*context) == TUPLE0_CODE_TS || (*context) == WHATEVER_TUPLE1_CODE_TS) {
+                    // Evaluating function bodies is always in void or Whatever context.
+                    value = make<CodeBlockValue>(*context);
+                }
+                else if ((*context)[1]->meta_type == tuple_metatype) {
+                    // If a tuple is expected, assume this will be assembled
+                    value = make<TupleBlockValue>((*context).unprefix(code_type));
+                }
+                else {
+                    std::cerr << "A block can't be used in a typed context!\n";
                     throw TYPE_ERROR;
                 }
             }
             else if ((*context)[0] == dvalue_type) {
                 value = make<DataBlockValue>();
-
-                bool ok = value->check(expr->args, expr->kwargs, scope);
-                if (!ok) {
-                    std::cerr << "Data block error!\n";
-                    throw TYPE_ERROR;
-                }
+            }
+            else if ((*context).is_tuple()) {
+                value = make<TupleBlockValue>(*context);
             }
             else
                 throw INTERNAL_ERROR;
+
+            bool ok = value->check(expr->args, expr->kwargs, scope);
+            if (!ok) {
+                std::cerr << "Block error!\n";
+                throw TYPE_ERROR;
+            }
         }
         else {
             value = typize_contextless_tuple(expr->args, expr->kwargs, scope);

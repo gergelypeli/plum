@@ -549,7 +549,6 @@ public:
     std::unique_ptr<Value> evaluable_value;
     std::vector<std::unique_ptr<Value>> arg_values;
     //std::vector<StorageWhere> retro_wheres;
-    unsigned result_stack_size;
     FunctionScope *fn_scope;
     
     static TypeSpec uncodify(TypeSpec ts) {
@@ -688,11 +687,6 @@ public:
             Storage(STACK)
         );
         
-        //if (t.where == STACK) {
-        //    result_stack_size = ts.measure_stack();
-        //    x64->op(SUBQ, RSP, result_stack_size);
-        //}
-
         x64->op(CALL, es.address);
 
         // This is like with function calls
@@ -712,6 +706,14 @@ public:
         
         x64->code_label(noex);
         destroy_arguments(x64);
+
+        // We don't allocate space for the results on the stack, so we must
+        // account for the result size manually, but only on success.
+        if (t.where == STACK) {
+            TypeSpec tuple_ts = evaluable_value->ts.unprefix(code_type);
+            int result_stack_size = tuple_ts.measure_where(tuple_ts.where(AS_ARGUMENT));
+            x64->accounting->adjust_stack_usage(result_stack_size);
+        }
         
         return t;
     }
@@ -719,9 +721,6 @@ public:
     virtual Scope *unwind(X64 *x64) {
         destroy_arguments(x64);
         
-        if (result_stack_size)
-            x64->op(ADDQ, RSP, result_stack_size);
-            
         return NULL;
     }
 };

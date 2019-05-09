@@ -338,6 +338,63 @@ public:
 };
 
 
+class TupleBlockValue: public Value {
+public:
+    std::vector<std::unique_ptr<Value>> statements;
+    TSs context_tss;
+
+    TupleBlockValue(TypeSpec tuple_ts)
+        :Value(tuple_ts) {
+        tuple_ts.unpack_tuple(context_tss);
+    }
+
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (kwargs.size() > 0) {
+            std::cerr << "Sorry, labelled tuples are not yet supported!\n";
+            return false;
+        }
+
+        if (args.size() != context_tss.size()) {
+            std::cerr << "Wrong number of tuple elements!\n";
+            return false;
+        }
+
+        for (unsigned i = 0; i < args.size(); i++) {
+            Expr *expr = args[i].get();
+            std::unique_ptr<Value> v;
+            
+            if (!check_argument(0, expr, { { "stmt", &context_tss[i], scope, &v } })) {
+                std::cerr << "Tuple element error: " << expr->token << "\n";
+                return false;
+            }
+
+            statements.push_back(std::move(v));
+        }
+        
+        return true;
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        Regs clob;
+        
+        for (unsigned i = 0; i < statements.size(); i++)
+            clob = clob | statements[i]->precompile();
+
+        return clob;
+    }
+
+    virtual Storage compile(X64 *x64) {
+        for (unsigned i = 0; i < statements.size(); i++) {
+            StorageWhere where = context_tss[i].where(AS_ARGUMENT);
+            StorageWhere swhere = stacked(where);
+            statements[i]->compile_and_store(x64, Storage(swhere));
+        }
+        
+        return Storage(STACK);
+    }
+};
+
+
 class DeclarationValue: public Value {
 public:
     std::string name;

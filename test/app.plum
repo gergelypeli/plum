@@ -400,13 +400,14 @@ App? :Class Application as:
         fix:
             Std prints("What failed!")
 
-    #tuple_io? :Function from:
-    #    in? {Integer,Integer,Integer} Dvalue
-    #    out? {Integer,Integer,Integer} Code
-    #as:
-    #    Std prints("Tuple io before: {}, {}, {}" { 10, 20, 30 })
-    #    (x?, y?, z?) = :evaluate out in: (10, 20, 30)
-    #    Std prints("Tuple io after: {}, {}, {}" { x, y, z })
+    tuple_io? :Function from:
+        in? {Integer,Integer,Integer} Dvalue
+        out? {Integer,Integer,Integer} Code
+    as:
+        :try
+            Std prints("Tuple io before: {}, {}, {}" { 10, 20, 30 })
+            (x?, y?, z?) = :evaluate out in: (10, 20, 30)
+            Std prints("Tuple io after: {}, {}, {}" { x, y, z })
 
     passthrough? :Function from: what? {Integer} Code as:
         :try
@@ -530,7 +531,7 @@ App? :Class Application as:
             $ passthrough(what: THIS: (Std prints("Let's break."), :EVAL, :THIS 0))
             Std prints("This shouldn't be printed!")
 
-        #$ tuple_io(in: (a?, b?, c?) out: (c * 10, b * 10, a * 10))
+        $ tuple_io(in: (a?, b?, c?) out: (c * 10, b * 10, a * 10))
 
         HIHI: :if `true then: x3 else: :if `false then: x4
 
