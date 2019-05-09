@@ -17,6 +17,21 @@ bool is_typedefinition(Expr *expr) {
 }
 
 
+bool is_type_name(std::string name) {
+    unsigned start_index = 0;
+    auto dot_index = name.rfind('.');
+    
+    if (dot_index != std::string::npos) {
+        start_index = dot_index + 1;
+        
+        if (start_index == name.size())
+            return false;
+    }
+    
+    return isupper(name[start_index]);
+}
+
+
 Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     //std::cerr << "Looking up  " << get_typespec(pivot) << " " << name << " definition.\n";
     Value *value = NULL;
@@ -122,22 +137,22 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
 }
 
 
-Value *lookup(std::string name, Value *pivot, Scope *scope, Expr *expr, TypeSpec *context) {
+Value *lookup_identifier(std::string name, Value *pivot, Scope *scope, Token token, Args &args, Kwargs &kwargs, TypeSpec *context) {
     //std::cerr << "Looking up  " << pts << " " << name << " definition.\n";
     Value *value = lookup_unchecked(name, pivot, scope);
     
     if (!value) {
-        std::cerr << "No match for " << get_typespec(pivot) << " " << name << " at " << expr->token << "!\n";
+        std::cerr << "No match for " << get_typespec(pivot) << " " << name << " at " << token << "!\n";
         throw TYPE_ERROR;
     }
 
-    value->set_token(expr->token);
+    value->set_token(token);
     value->set_context_ts(context);
     
-    bool ok = value->check(expr->args, expr->kwargs, scope);
+    bool ok = value->check(args, kwargs, scope);
 
     if (!ok) {
-        std::cerr << "Argument problem for " << expr->token << "!\n";
+        std::cerr << "Argument problem for " << token << "!\n";
         throw TYPE_ERROR;
     }
     
@@ -146,14 +161,13 @@ Value *lookup(std::string name, Value *pivot, Scope *scope, Expr *expr, TypeSpec
 
 
 Value *lookup_fake(std::string name, Value *pivot, Scope *scope, Token token, TypeSpec *context, Variable *arg_var) {
-    Expr fake_expr(Expr::IDENTIFIER, token, name);
+    Args fake_args;
+    Kwargs fake_kwargs;
     
-    if (arg_var) {
-        Expr *fake_arg_expr = new Expr(Expr::IDENTIFIER, token, arg_var->name);
-        fake_expr.args.push_back(std::unique_ptr<Expr>(fake_arg_expr));
-    }
+    if (arg_var)
+        fake_args.push_back(std::make_unique<Expr>(Expr::IDENTIFIER, token, arg_var->name));
     
-    return lookup(name, pivot, scope, &fake_expr, context);
+    return lookup_identifier(name, pivot, scope, token, fake_args, fake_kwargs, context);
 }
 
 
@@ -191,10 +205,8 @@ TypeSpec initializer_ts(Value *p, TypeSpec *context, Token token) {
     else if (context)
         ts = *context;
     else {
-        // Initializers without context can only be tuple type definitions, give it a chance
-        ts = { tuple_metatype };
-        //std::cerr << "Initializer without type context: " << token << "\n";
-        //throw TYPE_ERROR;
+        std::cerr << "Initializer without type context: " << token << "\n";
+        throw TYPE_ERROR;
     }
 
     // TODO: strip some prefixes
@@ -215,50 +227,6 @@ TypeSpec initializer_ts(Value *p, TypeSpec *context, Token token) {
     }
     
     return ts;
-}
-
-
-Value *typize_contextless_tuple(Args &args, Kwargs &kwargs, Scope *scope) {
-    if (kwargs.size() > 0) {
-        std::cerr << "Can't handle labels in tuples yet!\n";
-        return NULL;
-    }
-
-    std::vector<std::unique_ptr<Value>> values;
-    bool is_lvalue = true;  // or uninitialized, both are handled similarly
-    bool is_type = true;
-    
-    for (auto &arg : args) {
-        Value *value = typize(arg.get(), scope);
-        TypeMatch match;
-
-        if (value->ts.is_meta()) {
-            // Got a type name
-            is_lvalue = false;
-        }
-        else {
-            // Got a value
-            is_type = false;
-            
-            TypeSpec vts = value->ts;
-            if (vts[0] != lvalue_type && vts[0] != uninitialized_type)
-                is_lvalue = false;
-        }
-
-        values.push_back(std::unique_ptr<Value>(value));
-        //std::cerr << "Multi item ts: " << value->ts << "\n";
-    }
-
-    if (is_lvalue) {
-        return new LvalueTupleValue(std::move(values));
-    }
-    else if (is_type) {
-        return new TypeTupleValue(std::move(values));
-    }
-    else {
-        std::cerr << "Tuples without context must be all lvalues or all types!\n";
-        return NULL;
-    }
 }
 
 
@@ -317,10 +285,12 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
         }
         else {
-            value = typize_contextless_tuple(expr->args, expr->kwargs, scope);
+            value = make<LvalueTupleValue>();
+            
+            bool ok = value->check(expr->args, expr->kwargs, scope);
         
-            if (!value) {
-                std::cerr << "Multi value error: " << expr->token << "\n";
+            if (!ok) {
+                std::cerr << "Lvalue tuple error: " << expr->token << "\n";
                 throw TYPE_ERROR;
             }
         }
@@ -349,9 +319,27 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
     }
     else if (expr->type == Expr::IDENTIFIER) {
         std::string name = expr->text;
-        Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
+        
+        if (is_type_name(name)) {
+            // Make the left arguments be the arguments of the identifier with no pivot
+            
+            if (expr->pivot && expr->pivot->type == Expr::TUPLE)
+                value = lookup_identifier(name, NULL, scope, expr->token, expr->pivot->args, expr->pivot->kwargs);
+            else {
+                Args fake_args;
+                Kwargs fake_kwargs;
+                
+                if (expr->pivot)
+                    fake_args.push_back(std::move(expr->pivot));
+                    
+                value = lookup_identifier(name, NULL, scope, expr->token, fake_args, fake_kwargs);
+            }
+        }
+        else {
+            Value *p = expr->pivot ? typize(expr->pivot.get(), scope) : NULL;
 
-        value = lookup(name, p, scope, expr);
+            value = lookup_identifier(name, p, scope, expr->token, expr->args, expr->kwargs);
+        }
         
         if (!value)
             throw TYPE_ERROR;
@@ -375,7 +363,7 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
             }
         }
 
-        value = lookup(name, colon_value, scope, expr, context);  // dummy value
+        value = lookup_identifier(name, colon_value, scope, expr->token, expr->args, expr->kwargs, context);  // dummy value
 
         if (!value)
             throw TYPE_ERROR;

@@ -1,23 +1,51 @@
 
 class TypeValue: public Value {
 public:
-    TypeSpec pivot_ts;
+    Type *type;
+    MetaType *meta_type;
+    Metatypes param_metatypes;
     TypeSpec represented_ts;
     
-    TypeValue(Type *mt, TypeSpec ts)
+    TypeValue(Type *t, MetaType *mt, Metatypes pmts)
         :Value(TypeSpec { mt }) {
-        represented_ts = ts;
+        type = t;
+        meta_type = mt;
+        param_metatypes = pmts;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (args.size() != 0 || kwargs.size() != 0) {
-            std::cerr << "Whacky type name!\n";
+        if (kwargs.size() > 0) {
             return false;
         }
+        
+        unsigned pc = param_metatypes.size();
+        
+        if (args.size() != pc) {
+            std::cerr << "Type " << type->name << " requires " << pc << " parameters!\n";
+            return false;
+        }
+        
+        represented_ts.push_back(type);
+        
+        for (unsigned i = 0; i < pc; i++) {
+            TypeSpec meta_ts = { param_metatypes[i] };
+            Value *value = typize(args[i].get(), scope, &meta_ts);
+    
+            if (!value->ts.is_meta()) {
+                std::cerr << "Type " << type->name << " parameter " << (i + 1) << " is not a type!\n";
+                return false;
+            }
+        
+            TypeSpec rts = ptr_cast<TypeValue>(value)->represented_ts;
+        
+            if (!rts.has_meta(param_metatypes[i])) {
+                std::cerr << "Type " << type->name << " parameter " << (i + 1) << " is not a " << param_metatypes[i]->name << "!\n";
+                return false;
+            }
+        
+            represented_ts.insert(represented_ts.end(), rts.begin(), rts.end());
+        }
 
-        if (scope->type == ARGUMENT_SCOPE || scope->type == CODE_SCOPE || scope->type == DATA_SCOPE)
-            pivot_ts = scope->get_pivot_ts();
-            
         return true;
     }
     
@@ -68,7 +96,7 @@ public:
 class TupleTypeValue: public TypeValue {
 public:
     TupleTypeValue()
-        :TypeValue(tuple_metatype, NO_TS) {
+        :TypeValue(NULL, tuple_metatype, {}) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

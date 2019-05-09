@@ -108,8 +108,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         // This is ridiculously late, but better than never
-        Expr *expr = new Expr(Expr::IDENTIFIER, Token(), name);
-        Value *tv = lookup(name, NULL, scope, expr, NULL);
+        Value *tv = lookup_fake(name, NULL, scope, Token(), NULL, NULL);
         
         if (!tv)
             return false;

@@ -6,23 +6,31 @@ public:
     std::vector<TypeSpec> tss;
     std::vector<Storage> storages;
 
-    static TypeSpec metas(std::vector<std::unique_ptr<Value>> &vs) {
-        TupleType *tt = TupleType::get(std::vector<std::string>(vs.size(), ""));
-        TypeSpec mts = { tt };
-        
-        for (auto &v : vs) {
-            mts.insert(mts.end(), v->ts.begin(), v->ts.end());
-        }
-            
-        return mts;
+    LvalueTupleValue()
+        :Value(NO_TS) {
     }
 
-    LvalueTupleValue(std::vector<std::unique_ptr<Value>> vs)
-        :Value(metas(vs)), values(std::move(vs)) {
-        for (auto &v : values) {
-            v->need_lvalue();
-            tss.push_back(v->ts);
+    virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
+        if (kwargs.size() > 0) {
+            std::cerr << "Can't handle labels in tuples yet!\n";
+            return NULL;
         }
+
+        for (auto &arg : args) {
+            Value *value = typize(arg.get(), scope);
+
+            if (value->ts[0] != lvalue_type && value->ts[0] != uninitialized_type)
+                return false;
+
+            value->need_lvalue();
+            
+            tss.push_back(value->ts);
+            values.push_back(std::unique_ptr<Value>(value));
+        }
+
+        ts.pack_tuple(tss);
+        
+        return true;
     }
 
     virtual std::vector<Storage> get_storages() {
