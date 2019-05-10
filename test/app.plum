@@ -592,6 +592,12 @@ App? :Class Application as:
         Std prints("Popped baz as {}" { baz })
         Std prints("Popped stack length: {x}" { x: st length })
 
+        nums? Integer Array = { 2, 2, 2, 2, 2 }
+        Std prints("The nums were {}" { nums })
+        :for nums items each: (i?, x?) do:
+            x *= i
+        Std prints("The nums became {}" { nums })
+
         sl? String Array = { "foo", "bar", "baz" }
 
         sl1? String Slice = `empty

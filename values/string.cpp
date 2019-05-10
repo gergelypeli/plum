@@ -489,7 +489,7 @@ public:
 class SliceNextElemValue: public SliceNextValue {
 public:
     SliceNextElemValue(Value *l, TypeMatch &match)
-        :SliceNextValue(match[1].prefix(tuple1_type), match[1], l, false) {
+        :SliceNextValue(typesubst(SAME_LVALUE_TUPLE1_TS, match), match[1], l, false) {
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
@@ -507,7 +507,7 @@ public:
 class SliceNextIndexValue: public SliceNextValue {
 public:
     SliceNextIndexValue(Value *l, TypeMatch &match)
-        :SliceNextValue(INTEGER_TS.prefix(tuple1_type), match[1], l, false) {
+        :SliceNextValue(INTEGER_TUPLE1_TS, match[1], l, false) {
     }
     
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
@@ -519,23 +519,20 @@ public:
 class SliceNextItemValue: public SliceNextValue {
 public:
     SliceNextItemValue(Value *l, TypeMatch &match)
-        :SliceNextValue(typesubst(INTEGER_SAME_TUPLE2_TS, match), match[1], l, false) {
+        :SliceNextValue(typesubst(INTEGER_SAME_LVALUE_TUPLE2_TS, match), match[1], l, false) {
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
         int FRONT_OFFSET = REFERENCE_SIZE;
-        int item_stack_size = ts.measure_stack();
+        //int item_stack_size = ts.measure_stack();
 
-        x64->op(SUBQ, RSP, item_stack_size);
-        x64->op(MOVQ, Address(RSP, 0), i);
-        
+        x64->op(PUSHQ, i);
+
         x64->op(ADDQ, i, ls.address + FRONT_OFFSET);
-
         Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
-        
-        Storage s = Storage(MEMORY, addr);
-        Storage t = Storage(MEMORY, Address(RSP, INTEGER_SIZE));
-        elem_ts.create(s, t, x64);
+
+        x64->op(LEA, R10, addr);
+        x64->op(PUSHQ, R10);
         
         return Storage(STACK);
     }

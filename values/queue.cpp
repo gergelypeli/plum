@@ -331,7 +331,7 @@ public:
 class QueueNextElemValue: public ContainerNextValue {
 public:
     QueueNextElemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(match[1].prefix(tuple1_type), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
+        :ContainerNextValue(typesubst(SAME_LVALUE_TUPLE1_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
@@ -349,7 +349,7 @@ public:
 class QueueNextIndexValue: public ContainerNextValue {
 public:
     QueueNextIndexValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(INTEGER_TS.prefix(tuple1_type), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
+        :ContainerNextValue(INTEGER_TUPLE1_TS, match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
     }
     
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
@@ -361,7 +361,7 @@ public:
 class QueueNextItemValue: public ContainerNextValue {
 public:
     QueueNextItemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(INTEGER_SAME_TUPLE2_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
+        :ContainerNextValue(typesubst(INTEGER_SAME_LVALUE_TUPLE2_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
@@ -369,15 +369,12 @@ public:
         //int item_stack_size = ts.measure_stack();
 
         x64->op(PUSHQ, i);
-        x64->op(SUBQ, RSP, elem_ts.measure_stack());
-
+        
         fix_index_overflow(r, i, x64);
 
         Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
-        
-        Storage s = Storage(MEMORY, addr);
-        Storage t = Storage(MEMORY, Address(RSP, 0));
-        elem_ts.create(s, t, x64);
+        x64->op(LEA, R10, addr);
+        x64->op(PUSHQ, R10);
         
         return Storage(STACK);
     }

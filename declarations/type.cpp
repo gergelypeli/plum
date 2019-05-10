@@ -739,8 +739,10 @@ public:
         
         unsigned size = 0;
         
-        for (auto &ts : tss)
-            size += ts.measure_stack();
+        for (auto &ts : tss) {
+            StorageWhere param_where = ts.where(AS_ARGUMENT);
+            size += ts.measure_where(param_where);
+        }
             
         return Allocation(size);
     }
@@ -752,7 +754,8 @@ public:
             else if (this == tuple0_type)
                 return;
             else if (this == tuple1_type) {
-                tm[1].store(s, t, x64);
+                StorageWhere param_where = tm[1].where(AS_ARGUMENT);
+                tm[1].store(s, Storage(stacked(param_where)), x64);
                 return;
             }
         }
@@ -787,8 +790,12 @@ public:
             int offset = 0;
 
             for (auto &ts : backward<std::vector<TypeSpec>>(tss)) {
-                ts.destroy(Storage(MEMORY, s.address + offset), x64);
-                offset += ts.measure_stack();
+                StorageWhere param_where = ts.where(AS_ARGUMENT);
+                
+                if (param_where == MEMORY)
+                    ts.destroy(Storage(param_where, s.address + offset), x64);
+                    
+                offset += ts.measure_where(param_where);
             }
         }
             break;

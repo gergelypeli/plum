@@ -431,6 +431,9 @@ void builtin_types(Scope *root_scope) {
     SAME_SAME2_TUPLE2_TS = { tuple2_type, same_type, same2_type };
     INTEGER_SAME_TUPLE2_TS = { tuple2_type, integer_type, same_type };
     SAME_TUPLE1_ITERABLE_TS = { iterable_type, tuple1_type, same_type };
+    SAME_LVALUE_TUPLE1_TS = { tuple1_type, lvalue_type, same_type };
+    INTEGER_SAME_LVALUE_TUPLE2_TS = { tuple2_type, integer_type, lvalue_type, same_type };
+    SAME_SAME2_LVALUE_TUPLE2_TS = { tuple2_type, same_type, lvalue_type, same2_type };
     SAMETUPLE_TS = { sametuple_type };
     ANYTUPLE_ITERABLE_TS = { iterable_type, anytuple_type };
     SAMETUPLE_ITERABLE_TS = { iterable_type, sametuple_type };
@@ -801,29 +804,29 @@ void define_iterators() {
     TypeSpec INTEGER_SAME_TUPLE2_ITERATOR_TS = { iterator_type, tuple2_type, integer_type, same_type };
 
     // Array Iterator operations
-    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, SAME_ARRAY_TS, SAME_TUPLE1_TS);
+    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, SAME_ARRAY_TS, SAME_LVALUE_TUPLE1_TS);
     define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, SAME_ARRAY_TS, INTEGER_TUPLE1_TS);
-    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_TUPLE2_TS);
+    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_LVALUE_TUPLE2_TS);
 
     // Circularray Iterator operations
-    define_container_iterator<QueueNextElemValue>(queueelemiter_type, SAME_QUEUE_TS, SAME_TUPLE1_TS);
+    define_container_iterator<QueueNextElemValue>(queueelemiter_type, SAME_QUEUE_TS, SAME_LVALUE_TUPLE1_TS);
     define_container_iterator<QueueNextIndexValue>(queueindexiter_type, SAME_QUEUE_TS, INTEGER_TUPLE1_TS);
-    define_container_iterator<QueueNextItemValue>(queueitemiter_type, SAME_QUEUE_TS, INTEGER_SAME_TUPLE2_TS);
+    define_container_iterator<QueueNextItemValue>(queueitemiter_type, SAME_QUEUE_TS, INTEGER_SAME_LVALUE_TUPLE2_TS);
 
     // Set Iterator operations
     define_container_iterator<SetNextElemByAgeValue>(setelembyageiter_type, SAME_SET_TS, SAME_TUPLE1_TS);
     define_container_iterator<SetNextElemByOrderValue>(setelembyorderiter_type, SAME_SET_TS, SAME_TUPLE1_TS);
 
     // Map Iterator operations
-    define_container_iterator<MapNextItemByAgeValue>(mapitembyageiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_TUPLE2_TS);
-    define_container_iterator<MapNextItemByOrderValue>(mapitembyorderiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_TUPLE2_TS);
+    define_container_iterator<MapNextItemByAgeValue>(mapitembyageiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_LVALUE_TUPLE2_TS);
+    define_container_iterator<MapNextItemByOrderValue>(mapitembyorderiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_LVALUE_TUPLE2_TS);
     define_container_iterator<MapNextIndexByAgeValue>(mapindexbyageiter_type, SAME_SAME2_MAP_TS, SAME_TUPLE1_TS);
     define_container_iterator<MapNextIndexByOrderValue>(mapindexbyorderiter_type, SAME_SAME2_MAP_TS, SAME_TUPLE1_TS);
 
     // Slice Iterator operations
-    define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ARRAY_TS, SAME_TUPLE1_TS);
+    define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ARRAY_TS, SAME_LVALUE_TUPLE1_TS);
     define_slice_iterator<SliceNextIndexValue>(sliceindexiter_type, SAME_ARRAY_TS, INTEGER_TUPLE1_TS);
-    define_slice_iterator<SliceNextItemValue>(sliceitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_TUPLE2_TS);
+    define_slice_iterator<SliceNextItemValue>(sliceitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_LVALUE_TUPLE2_TS);
 }
 
 

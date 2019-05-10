@@ -197,15 +197,21 @@ public:
     TypeSpec value_ts;
     
     MapNextItemByAgeValue(Value *l, TypeMatch &tm)
-        :RbtreeNextElemByAgeValue(l, TypeSpec(tuple2_type, tm[1], tm[2])) {
+        :RbtreeNextElemByAgeValue(l, typesubst(SAME_SAME2_LVALUE_TUPLE2_TS, tm)) {
         index_ts = tm[1];
         value_ts = tm[2];
     }
     
     virtual Storage postprocess(Storage s, X64 *x64) {
+        if (s.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
         // Must push index and value in this order
         index_ts.store(s, Storage(STACK), x64);
-        value_ts.store(s + index_ts.measure_stack(), Storage(STACK), x64);
+        
+        x64->op(LEA, R10, s.address + index_ts.measure_stack());
+        x64->op(PUSHQ, R10);
+
         return Storage(STACK);
     }
 };
@@ -217,15 +223,21 @@ public:
     TypeSpec value_ts;
     
     MapNextItemByOrderValue(Value *l, TypeMatch &tm)
-        :RbtreeNextElemByOrderValue(l, TypeSpec(tuple2_type, tm[1], tm[2])) {
+        :RbtreeNextElemByOrderValue(l, typesubst(SAME_SAME2_LVALUE_TUPLE2_TS, tm)) {
         index_ts = tm[1];
         value_ts = tm[2];
     }
 
     virtual Storage postprocess(Storage s, X64 *x64) {
+        if (s.where != MEMORY)
+            throw INTERNAL_ERROR;
+            
         // Must push index and value in this order
         index_ts.store(s, Storage(STACK), x64);
-        value_ts.store(s + index_ts.measure_stack(), Storage(STACK), x64);
+        
+        x64->op(LEA, R10, s.address + index_ts.measure_stack());
+        x64->op(PUSHQ, R10);
+
         return Storage(STACK);
     }
 };
