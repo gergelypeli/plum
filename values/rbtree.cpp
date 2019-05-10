@@ -634,13 +634,17 @@ public:
         return clob;
     }
 
+    virtual Storage postprocess(Storage s, X64 *x64) {
+        return s;
+    }
+
     virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);  // iterator
         Register reg = (clob & ~ls.regs()).get_any();
         Label ok;
         
         switch (ls.where) {
-        case MEMORY:
+        case MEMORY: {
             x64->op(MOVQ, R10, ls.address + REFERENCE_SIZE);  // offset
             x64->op(MOVQ, reg, ls.address); // tree reference without incref
             x64->op(CMPQ, R10, RBNODE_NIL);
@@ -661,7 +665,10 @@ public:
             
             x64->op(MOVQ, ls.address + REFERENCE_SIZE, R10);
             
-            return Storage(MEMORY, Address(reg, RBNODE_VALUE_OFFSET));
+            Storage s = Storage(MEMORY, Address(reg, RBNODE_VALUE_OFFSET));
+            
+            return postprocess(s, x64);
+        }
         default:
             throw INTERNAL_ERROR;
         }
@@ -701,6 +708,10 @@ public:
         clob = left->precompile(preferred);
         
         return clob | RAX | RCX | RDX | SELFX;
+    }
+
+    virtual Storage postprocess(Storage s, X64 *x64) {
+        return s;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -743,7 +754,9 @@ public:
         // Return new item address
         x64->op(LEA, RAX, Address(SELFX, R10, RBNODE_VALUE_OFFSET));
 
-        return Storage(MEMORY, Address(RAX, 0));
+        Storage s = Storage(MEMORY, Address(RAX, 0));
+        
+        return postprocess(s, x64);
     }
 };
 

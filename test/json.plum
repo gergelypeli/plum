@@ -200,17 +200,17 @@ String_printer? :Class Printer as:
         $ print_character(`LB)
         tail? Boolean = `false
     
-        :for m items_by_age each: iv? do:
+        :for m items_by_age each: (index?, value?) do:
             :if tail then:
                 $ stream += ","
             else:
                 tail = `true
                 
-            :try $ print_string(iv index)
+            :try $ print_string(index)
             
             $ print_character(":")
             
-            :try $ print_value(iv value)
+            :try $ print_value(value)
             
         $ print_character(`RB)
 

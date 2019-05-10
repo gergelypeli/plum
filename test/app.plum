@@ -278,7 +278,7 @@ App? :Class Application as:
             $ current = -1
             $ limit = n
         
-        itor? :Implementation Integer Iterator
+        itor? :Implementation {Integer} Iterator
 
         itor.next? :Procedure Integer raise: Iterator_done_exception as:
             $ current += 1
@@ -288,7 +288,7 @@ App? :Class Application as:
             
             :return $ current
         
-        ible? :Implementation Integer Iterable
+        ible? :Implementation {Integer} Iterable
     
         ible.iter? :Function XCounter as:
             :return $
@@ -304,7 +304,7 @@ App? :Class Application as:
             $ string = s
             $ index = -1
 
-        itor? :Implementation Character Iterator
+        itor? :Implementation {Character} Iterator
     
         itor.next? :Procedure Character raise: Iterator_done_exception as:
             $ index += 1
@@ -487,8 +487,8 @@ App? :Class Application as:
         :for "Abc" indexes each: i? do:
             Std prints("Iterating indexes: {}" { i })
         
-        :for "Abc" items each: it? do:
-            Std prints("Iterating items: {i} => {e}" {i: it index, e: it value})
+        :for "Abc" items each: (index?, value?) do:
+            Std prints("Iterating items: {i} => {e}" {i: index, e: value})
 
         ait? = "Abc" elements
         :for ait each: c? do:
@@ -621,22 +621,22 @@ App? :Class Application as:
         :try Std prints("Unshifted {x} and {y} to {z} and {w}" { x: ca[0], y: ca[1], z: ca[2], w: ca[3] })
         Std prints("Circularray length is {l}" { l: ca length })
 
-        :for ca items each: it? do:
-            Std prints("Circularray items: {x} => {y}" {x: it index, y: it value})
+        :for ca items each: (index?, value?) do:
+            Std prints("Circularray items: {x} => {y}" {x: index, y: value})
 
         qu? String Queue = { "A", "B", "C", "D", "E", "F", "G", "H" }
         :try qu shift
         :try qu push("I")  # folds
         :try qu push("J")  # grows
-        :for qu items each: it? do:
-            Std prints("Queue items: {x} => {y}" { x: it index, y: it value })
+        :for qu items each: (index?, value?) do:
+            Std prints("Queue items: {x} => {y}" { x: index, y: value })
 
         qv? String Queue = { "A", "B", "C", "D", "E", "F", "G", "H" }
         :try qv pop
         :try qv unshift("$")  # folds
         :try qv unshift("$$") # grows
-        :for qv items each: it? do:
-            Std prints("Queue items: {x} => {y}" { x: it index, y: it value })
+        :for qv items each: (index?, value?) do:
+            Std prints("Queue items: {x} => {y}" { x: index, y: value })
 
         cc? = qv
         :try qv shift
@@ -721,11 +721,11 @@ App? :Class Application as:
         :for mp indexes_by_order each: index? do:
             Std prints("Map index by order: {}" { index })
 
-        :for mp items_by_age each: iv? do:
-            Std prints("Map item by age: {x} => {y}" {x: iv index, y: iv value})
+        :for mp items_by_age each: (index?, value?) do:
+            Std prints("Map item by age: {x} => {y}" {x: index, y: value})
     
-        :for mp items_by_order each: iv? do:
-            Std prints("Map item by order: {x} => {y}" {x: iv index, y: iv value})
+        :for mp items_by_order each: (index?, value?) do:
+            Std prints("Map item by order: {x} => {y}" {x: index, y: value})
     
         :try Std prints("Map element at A is: {x}" {x: mp["A"]})
 
@@ -1199,8 +1199,8 @@ App? :Class Application as:
         lines? = dc get_lines
         Std prints("Those were {n} lines." {n: lines length})
     
-        :for lines items each: it? do:
-            Std prints("Line {x}: {y}" {x: it index, y: it value})
+        :for lines items each: (index?, value?) do:
+            Std prints("Line {x}: {y}" {x: index, y: value})
             
         .sub.Sub
         Sub

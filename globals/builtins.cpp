@@ -244,10 +244,10 @@ void builtin_types(Scope *root_scope) {
     streamifiable_type = new InterfaceType("Streamifiable", {});
     root_scope->add(streamifiable_type);
 
-    iterator_type = new InterfaceType("Iterator", { value_metatype });
+    iterator_type = new InterfaceType("Iterator", { tuple_metatype });
     root_scope->add(iterator_type);
 
-    iterable_type = new InterfaceType("Iterable", { value_metatype });
+    iterable_type = new InterfaceType("Iterable", { tuple_metatype });
     root_scope->add(iterable_type);
 
     application_type = new AbstractType("Application", {});
@@ -421,13 +421,19 @@ void builtin_types(Scope *root_scope) {
     TUPLE0_CODE_TS = { code_type, tuple0_type };
     BOOLEAN_TUPLE1_CODE_TS = { code_type, tuple1_type, boolean_type };
     STREAMIFIABLE_TS = { streamifiable_type };
-    ANY_ITERATOR_TS = { iterator_type, any_type };
-    SAME_ITERATOR_TS = { iterator_type, same_type };
-    SAME_SAME2_ITEM_ITERATOR_TS = { iterator_type, item_type, same_type, same2_type };
-    INTEGER_ITERATOR_TS = { iterator_type, integer_type };
-    INTEGER_ITERABLE_TS = { iterable_type, integer_type };
-    ANY_ITERABLE_TS = { iterable_type, any_type };
-    SAME_ITERABLE_TS = { iterable_type, same_type };
+    ANYTUPLE_ITERATOR_TS = { iterator_type, anytuple_type };
+    SAMETUPLE_ITERATOR_TS = { iterator_type, sametuple_type };
+    SAME_SAME2_TUPLE2_ITERATOR_TS = { iterator_type, tuple2_type, same_type, same2_type };
+    INTEGER_TUPLE1_ITERATOR_TS = { iterator_type, tuple1_type, integer_type };
+    INTEGER_TUPLE1_ITERABLE_TS = { iterable_type, tuple1_type, integer_type };
+    SAME_TUPLE1_TS = { tuple1_type, same_type };
+    INTEGER_TUPLE1_TS = { tuple1_type, integer_type };
+    SAME_SAME2_TUPLE2_TS = { tuple2_type, same_type, same2_type };
+    INTEGER_SAME_TUPLE2_TS = { tuple2_type, integer_type, same_type };
+    SAME_TUPLE1_ITERABLE_TS = { iterable_type, tuple1_type, same_type };
+    SAMETUPLE_TS = { sametuple_type };
+    ANYTUPLE_ITERABLE_TS = { iterable_type, anytuple_type };
+    SAMETUPLE_ITERABLE_TS = { iterable_type, sametuple_type };
     STRING_TS = { string_type };
     STRING_LVALUE_TS = { lvalue_type, string_type };
     STRING_ARRAY_TS = { array_type, string_type };
@@ -652,13 +658,13 @@ void define_interfaces() {
     sis->leave();
     
     // Iterable interface
-    TypeSpec jpts = ANY_ITERABLE_TS;
+    TypeSpec jpts = ANYTUPLE_ITERABLE_TS;
     DataScope *jis = iterable_type->make_inner_scope();
     Function *xf = new Function("iter",
         GENERIC_FUNCTION,
         TSs {},
         Ss {},
-        TSs { SAME_ITERATOR_TS },
+        TSs { SAMETUPLE_ITERATOR_TS },
         NULL,
         NULL
     );
@@ -667,18 +673,17 @@ void define_interfaces() {
     jis->leave();
 
     // Iterator interface
-    TypeSpec ipts = ANY_ITERATOR_TS;
+    TypeSpec ipts = ANYTUPLE_ITERATOR_TS;
     DataScope *iis = iterator_type->make_inner_scope();
     Function *nf = new Function("next",
         LVALUE_FUNCTION,
         TSs {},
         Ss {},
-        TSs { SAME_TS },
+        TSs { SAMETUPLE_TS },  // FIXME: this is a hack
         iterator_done_exception_type,
         NULL
     );
     iis->add(nf);
-    //implement(iis, SAME_ITERABLE_TS, "iterable", {});
     iterator_type->complete_type();
     iis->leave();
     
@@ -700,20 +705,20 @@ void define_interfaces() {
 
 
 template <typename NextValue>
-void define_container_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec value_ts) {
+void define_container_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec tuple_ts) {
     DataScope *aiis = iter_type->make_inner_scope();
 
     // Order matters!
     aiis->add(new Variable("container", container_ts.lvalue()));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    implement(aiis, value_ts.prefix(iterable_type), "iterable", {
+    implement(aiis, tuple_ts.prefix(iterable_type), "iterable", {
         new Identity("iter")
     });
 
     DataScope *ails = iter_type->make_lvalue_scope();
 
-    implement(ails, value_ts.prefix(iterator_type), "iterator", {
+    implement(ails, tuple_ts.prefix(iterator_type), "iterator", {
         new TemplateIdentifier<NextValue>("next"),
     });
     
@@ -724,7 +729,7 @@ void define_container_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec 
 
 
 template <typename NextValue>
-void define_slice_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec value_ts) {
+void define_slice_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec tuple_ts) {
     DataScope *aiis = iter_type->make_inner_scope();
 
     // Order matters!
@@ -733,13 +738,13 @@ void define_slice_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec valu
     aiis->add(new Variable("length", INTEGER_LVALUE_TS));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    implement(aiis, value_ts.prefix(iterable_type), "iterable", {
+    implement(aiis, tuple_ts.prefix(iterable_type), "iterable", {
         new Identity("iter")
     });
 
     DataScope *ails = iter_type->make_lvalue_scope();
 
-    implement(ails, value_ts.prefix(iterator_type), "iterator", {
+    implement(ails, tuple_ts.prefix(iterator_type), "iterator", {
         new TemplateIdentifier<NextValue>("next")
     });
     
@@ -760,7 +765,7 @@ void define_iterators() {
         cis->add(new Variable("limit", INTEGER_LVALUE_TS));  // Order matters!
         cis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-        implement(cis, INTEGER_ITERABLE_TS, "iterable", {
+        implement(cis, INTEGER_TUPLE1_ITERABLE_TS, "iterable", {
             new Identity("iter")
         });
 
@@ -774,7 +779,7 @@ void define_iterators() {
             next_fn = new TemplateIdentifier<CountdownNextValue>("next");
         }
 
-        implement(cls, INTEGER_ITERATOR_TS, "iter", {
+        implement(cls, INTEGER_TUPLE1_ITERATOR_TS, "iter", {
             next_fn,
         });
         
@@ -793,32 +798,32 @@ void define_iterators() {
     item_type->complete_type();
     itis->leave();
     
-    TypeSpec INTEGER_SAME_ITEM_ITERATOR_TS = { iterator_type, item_type, integer_type, same_type };
+    TypeSpec INTEGER_SAME_TUPLE2_ITERATOR_TS = { iterator_type, tuple2_type, integer_type, same_type };
 
     // Array Iterator operations
-    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, SAME_ARRAY_TS, SAME_TS);
-    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, SAME_ARRAY_TS, INTEGER_TS);
-    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_ITEM_TS);
+    define_container_iterator<ArrayNextElemValue>(arrayelemiter_type, SAME_ARRAY_TS, SAME_TUPLE1_TS);
+    define_container_iterator<ArrayNextIndexValue>(arrayindexiter_type, SAME_ARRAY_TS, INTEGER_TUPLE1_TS);
+    define_container_iterator<ArrayNextItemValue>(arrayitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_TUPLE2_TS);
 
     // Circularray Iterator operations
-    define_container_iterator<QueueNextElemValue>(queueelemiter_type, SAME_QUEUE_TS, SAME_TS);
-    define_container_iterator<QueueNextIndexValue>(queueindexiter_type, SAME_QUEUE_TS, INTEGER_TS);
-    define_container_iterator<QueueNextItemValue>(queueitemiter_type, SAME_QUEUE_TS, INTEGER_SAME_ITEM_TS);
+    define_container_iterator<QueueNextElemValue>(queueelemiter_type, SAME_QUEUE_TS, SAME_TUPLE1_TS);
+    define_container_iterator<QueueNextIndexValue>(queueindexiter_type, SAME_QUEUE_TS, INTEGER_TUPLE1_TS);
+    define_container_iterator<QueueNextItemValue>(queueitemiter_type, SAME_QUEUE_TS, INTEGER_SAME_TUPLE2_TS);
 
     // Set Iterator operations
-    define_container_iterator<SetNextElemByAgeValue>(setelembyageiter_type, SAME_SET_TS, SAME_TS);
-    define_container_iterator<SetNextElemByOrderValue>(setelembyorderiter_type, SAME_SET_TS, SAME_TS);
+    define_container_iterator<SetNextElemByAgeValue>(setelembyageiter_type, SAME_SET_TS, SAME_TUPLE1_TS);
+    define_container_iterator<SetNextElemByOrderValue>(setelembyorderiter_type, SAME_SET_TS, SAME_TUPLE1_TS);
 
     // Map Iterator operations
-    define_container_iterator<MapNextItemByAgeValue>(mapitembyageiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_ITEM_TS);
-    define_container_iterator<MapNextItemByOrderValue>(mapitembyorderiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_ITEM_TS);
-    define_container_iterator<MapNextIndexByAgeValue>(mapindexbyageiter_type, SAME_SAME2_MAP_TS, SAME_TS);
-    define_container_iterator<MapNextIndexByOrderValue>(mapindexbyorderiter_type, SAME_SAME2_MAP_TS, SAME_TS);
+    define_container_iterator<MapNextItemByAgeValue>(mapitembyageiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_TUPLE2_TS);
+    define_container_iterator<MapNextItemByOrderValue>(mapitembyorderiter_type, SAME_SAME2_MAP_TS, SAME_SAME2_TUPLE2_TS);
+    define_container_iterator<MapNextIndexByAgeValue>(mapindexbyageiter_type, SAME_SAME2_MAP_TS, SAME_TUPLE1_TS);
+    define_container_iterator<MapNextIndexByOrderValue>(mapindexbyorderiter_type, SAME_SAME2_MAP_TS, SAME_TUPLE1_TS);
 
     // Slice Iterator operations
-    define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ARRAY_TS, SAME_TS);
-    define_slice_iterator<SliceNextIndexValue>(sliceindexiter_type, SAME_ARRAY_TS, INTEGER_TS);
-    define_slice_iterator<SliceNextItemValue>(sliceitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_ITEM_TS);
+    define_slice_iterator<SliceNextElemValue>(sliceelemiter_type, SAME_ARRAY_TS, SAME_TUPLE1_TS);
+    define_slice_iterator<SliceNextIndexValue>(sliceindexiter_type, SAME_ARRAY_TS, INTEGER_TUPLE1_TS);
+    define_slice_iterator<SliceNextItemValue>(sliceitemiter_type, SAME_ARRAY_TS, INTEGER_SAME_TUPLE2_TS);
 }
 
 
@@ -864,7 +869,7 @@ void define_string() {
     is->add(new TemplateOperation<StringOperationValue>("not_equal", NOT_EQUAL));
     is->add(new TemplateOperation<StringOperationValue>("compare", COMPARE));
 
-    implement(is, TypeSpec { iterable_type, character_type }, "iterable", {
+    implement(is, TypeSpec { iterable_type, tuple1_type, character_type }, "iterable", {
         new RecordWrapperIdentifier("iter", CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
     });
 
@@ -903,7 +908,7 @@ void define_slice(RootScope *root_scope) {
     is->add(new TemplateIdentifier<SliceFindValue>("find"));
     is->add(new TemplateIdentifier<SliceSliceValue>("slice"));
 
-    implement(is, SAME_ITERABLE_TS, "iterable", {
+    implement(is, SAME_TUPLE1_ITERABLE_TS, "iterable", {
         new TemplateIdentifier<SliceElemIterValue>("iter")
     });
 
@@ -974,7 +979,7 @@ void define_array(RootScope *root_scope) {
     array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice"));
     
     // Array iterable operations
-    implement(array_scope, SAME_ITERABLE_TS, "iterable", {
+    implement(array_scope, SAME_TUPLE1_ITERABLE_TS, "iterable", {
         new TemplateIdentifier<ArrayElemIterValue>("iter")
     });
 
@@ -1016,7 +1021,7 @@ void define_queue() {
     queue_scope->add(new TemplateOperation<QueueIndexValue>("index", TWEAK));
     
     // Queue iterable operations
-    implement(queue_scope, SAME_ITERABLE_TS, "iterable", {
+    implement(queue_scope, SAME_TUPLE1_ITERABLE_TS, "iterable", {
         new TemplateIdentifier<QueueElemIterValue>("iter")
     });
 
@@ -1050,7 +1055,7 @@ void define_set() {
     is->add(new TemplateIdentifier<SetHasValue>("has"));
 
     // Iteration
-    implement(is, SAME_ITERABLE_TS, "iterable", {
+    implement(is, SAME_TUPLE1_ITERABLE_TS, "iterable", {
         new TemplateIdentifier<SetElemByAgeIterValue>("iter")
     });
     
@@ -1082,7 +1087,7 @@ void define_map() {
     is->add(new TemplateIdentifier<MapIndexValue>("index"));
 
     // Iteration
-    implement(is, SAME_ITERABLE_TS, "iterable", {
+    implement(is, SAME_TUPLE1_ITERABLE_TS, "iterable", {
         new TemplateIdentifier<MapIndexByAgeIterValue>("iter")
     });
 

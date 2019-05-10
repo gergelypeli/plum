@@ -76,7 +76,7 @@ public:
 class SetNextElemByAgeValue: public RbtreeNextElemByAgeValue {
 public:
     SetNextElemByAgeValue(Value *l, TypeMatch &tm)
-        :RbtreeNextElemByAgeValue(l, tm[1]) {
+        :RbtreeNextElemByAgeValue(l, tm[1].prefix(tuple1_type)) {
     }
 };
 
@@ -84,7 +84,7 @@ public:
 class SetNextElemByOrderValue: public RbtreeNextElemByOrderValue {
 public:
     SetNextElemByOrderValue(Value *l, TypeMatch &tm)
-        :RbtreeNextElemByOrderValue(l, tm[1]) {
+        :RbtreeNextElemByOrderValue(l, tm[1].prefix(tuple1_type)) {
     }
 };
 
@@ -193,16 +193,40 @@ public:
 
 class MapNextItemByAgeValue: public RbtreeNextElemByAgeValue {
 public:
+    TypeSpec index_ts;
+    TypeSpec value_ts;
+    
     MapNextItemByAgeValue(Value *l, TypeMatch &tm)
-        :RbtreeNextElemByAgeValue(l, TypeSpec(item_type, tm[1], tm[2])) {
+        :RbtreeNextElemByAgeValue(l, TypeSpec(tuple2_type, tm[1], tm[2])) {
+        index_ts = tm[1];
+        value_ts = tm[2];
+    }
+    
+    virtual Storage postprocess(Storage s, X64 *x64) {
+        // Must push index and value in this order
+        index_ts.store(s, Storage(STACK), x64);
+        value_ts.store(s + index_ts.measure_stack(), Storage(STACK), x64);
+        return Storage(STACK);
     }
 };
 
 
 class MapNextItemByOrderValue: public RbtreeNextElemByOrderValue {
 public:
+    TypeSpec index_ts;
+    TypeSpec value_ts;
+    
     MapNextItemByOrderValue(Value *l, TypeMatch &tm)
-        :RbtreeNextElemByOrderValue(l, TypeSpec(item_type, tm[1], tm[2])) {
+        :RbtreeNextElemByOrderValue(l, TypeSpec(tuple2_type, tm[1], tm[2])) {
+        index_ts = tm[1];
+        value_ts = tm[2];
+    }
+
+    virtual Storage postprocess(Storage s, X64 *x64) {
+        // Must push index and value in this order
+        index_ts.store(s, Storage(STACK), x64);
+        value_ts.store(s + index_ts.measure_stack(), Storage(STACK), x64);
+        return Storage(STACK);
     }
 };
 
@@ -210,7 +234,7 @@ public:
 class MapNextIndexByAgeValue: public RbtreeNextElemByAgeValue {
 public:
     MapNextIndexByAgeValue(Value *l, TypeMatch &tm)
-        :RbtreeNextElemByAgeValue(l, tm[1]) {  // NOTE: the index comes first in Item
+        :RbtreeNextElemByAgeValue(l, tm[1].prefix(tuple1_type)) {  // NOTE: the index comes first in Item
     }
 };
 
@@ -218,7 +242,7 @@ public:
 class MapNextIndexByOrderValue: public RbtreeNextElemByOrderValue {
 public:
     MapNextIndexByOrderValue(Value *l, TypeMatch &tm)
-        :RbtreeNextElemByOrderValue(l, tm[1]) {  // NOTE: the index comes first in Item
+        :RbtreeNextElemByOrderValue(l, tm[1].prefix(tuple1_type)) {  // NOTE: the index comes first in Item
     }
 };
 

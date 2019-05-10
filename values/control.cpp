@@ -455,7 +455,7 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
         std::unique_ptr<Value> ib;
     
-        if (!check_args(args, { "", &ANY_ITERABLE_TS, scope, &ib}))
+        if (!check_args(args, { "", &ANYTUPLE_ITERABLE_TS, scope, &ib}))
             return false;
     
         //std::cerr << "XXX :foreach iterable is " << ib->ts << "\n";
@@ -485,13 +485,13 @@ public:
         Value *it = iterator_var->matched(NULL, scope, imatch);
         
         TypeMatch match;
-        if (!typematch(ANY_ITERATOR_TS, it, match)) {
+        if (!typematch(ANYTUPLE_ITERATOR_TS, it, match)) {
             std::cerr << "Iterable iter didn't return an Iterator, but: " << it->ts << "!\n";
             return false;
         }
 
-        TypeSpec elem_ts = match[1];
-        each_ts = elem_ts.prefix(tuple1_type).prefix(dvalue_type);  //lvalue();
+        TypeSpec tuple_ts = match[1];
+        each_ts = tuple_ts.prefix(dvalue_type);  //lvalue();
         
         Value *next = lookup_fake("next", it, next_try_scope, token, NULL);
         
@@ -500,8 +500,8 @@ public:
             throw INTERNAL_ERROR;
         }
         
-        if (next->ts != elem_ts) {
-            std::cerr << "Misimplemented " << elem_ts << " iterator next returns " << next->ts << "!\n";
+        if (next->ts != tuple_ts) {
+            std::cerr << "Misimplemented " << tuple_ts << " iterator next returns " << next->ts << "!\n";
             throw INTERNAL_ERROR;
         }
         
@@ -552,11 +552,11 @@ public:
         next_try_scope->initialize_contents(x64);
 
         x64->unwind->push(this);
-        Storage ns = next->compile(x64);
+        next->compile_and_store(x64, Storage(STACK));
         x64->unwind->pop(this);
         
         // Finalize after storing, so the return value won't be lost
-        next->ts.create(ns, es, x64);  // create the each variable
+        next->ts.create(Storage(STACK), es, x64);  // create the each variable
 
         // On exception we jump here, so the each variable won't be created
         x64->op(MOVQ, RDX, NO_EXCEPTION);

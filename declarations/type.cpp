@@ -49,11 +49,12 @@ public:
         TypeSpec ts = { this };
         
         if (param_metatypes.size()) {
-            if (!value_metatype || !identity_metatype || !any_type || !anyid_type)
+            if (!value_metatype || !identity_metatype || !any_type || !anyid_type || !anytuple_type)
                 throw INTERNAL_ERROR;  // sanity check for initialization
         
             Type *any[] = { any_type, any2_type, any3_type };
             Type *anyid[] = { anyid_type, anyid2_type, anyid3_type };
+            Type *anytuple[] = { anytuple_type, anytuple2_type, anytuple3_type };
         
             for (unsigned i = 0; i < param_metatypes.size(); i++) {
                 MetaType *mt = param_metatypes[i];
@@ -62,6 +63,8 @@ public:
                     ts.push_back(any[i]);
                 else if (mt == identity_metatype)
                     ts.push_back(anyid[i]);
+                else if (mt == tuple_metatype)
+                    ts.push_back(anytuple[i]);
                 else
                     throw INTERNAL_ERROR;
             }
@@ -740,6 +743,21 @@ public:
             size += ts.measure_stack();
             
         return Allocation(size);
+    }
+
+    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+        if (t.where == STACK) {
+            if (s.where == STACK)
+                return;
+            else if (this == tuple0_type)
+                return;
+            else if (this == tuple1_type) {
+                tm[1].store(s, t, x64);
+                return;
+            }
+        }
+        
+        throw INTERNAL_ERROR;
     }
     
     virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64) {

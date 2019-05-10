@@ -82,8 +82,14 @@ public:
         
         pts = typesubst(pivot_ts, tm);
         
-        for (auto &rts : res_tss)
-            rtss.push_back(typesubst(rts, tm));
+        if (res_tss.size() == 1 && res_tss[0] == SAMETUPLE_TS) {
+            // This is a hack to allow the full return tuple be the tuple type parameter
+            tm[1].unpack_tuple(rtss);
+        }
+        else {
+            for (auto &rts : res_tss)
+                rtss.push_back(typesubst(rts, tm));
+        }
         
         for (auto &ats : arg_tss)
             atss.push_back(typesubst(ats, tm));

@@ -18,7 +18,7 @@ public:
     Regs clob;
     
     CountupNextValue(Value *l, TypeMatch &match)
-        :GenericValue(NO_TS, INTEGER_TS, l) {
+        :GenericValue(NO_TS, INTEGER_TUPLE1_TS, l) {
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {

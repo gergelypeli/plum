@@ -489,7 +489,7 @@ public:
 class SliceNextElemValue: public SliceNextValue {
 public:
     SliceNextElemValue(Value *l, TypeMatch &match)
-        :SliceNextValue(match[1], match[1], l, false) {
+        :SliceNextValue(match[1].prefix(tuple1_type), match[1], l, false) {
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
@@ -507,7 +507,7 @@ public:
 class SliceNextIndexValue: public SliceNextValue {
 public:
     SliceNextIndexValue(Value *l, TypeMatch &match)
-        :SliceNextValue(INTEGER_TS, match[1], l, false) {
+        :SliceNextValue(INTEGER_TS.prefix(tuple1_type), match[1], l, false) {
     }
     
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
@@ -519,7 +519,7 @@ public:
 class SliceNextItemValue: public SliceNextValue {
 public:
     SliceNextItemValue(Value *l, TypeMatch &match)
-        :SliceNextValue(typesubst(INTEGER_SAME_ITEM_TS, match), match[1], l, false) {
+        :SliceNextValue(typesubst(INTEGER_SAME_TUPLE2_TS, match), match[1], l, false) {
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
