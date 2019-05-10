@@ -4,7 +4,7 @@ public:
     Associable *provider_associable;
     
     Provision(std::string n, Associable *pa)
-        :Identifier(n) {
+        :Identifier(n, CUSTOM_PIVOT) {
         provider_associable = pa;
     }
 };
@@ -42,8 +42,8 @@ public:
     std::set<std::string> associated_names;
     TypeMatch explicit_tm;
 
-    Associable(std::string n, TypeSpec ts, InheritAs ia, bool ama)
-        :Allocable(n, ts) {
+    Associable(std::string n, PivotRequirement pr, TypeSpec ts, InheritAs ia, bool ama)
+        :Allocable(n, pr, ts) {
         prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = ia;
@@ -56,7 +56,7 @@ public:
     }
 
     Associable(std::string p, Associable *original, TypeMatch etm)
-        :Allocable(mkname(p, original), typesubst(original->alloc_ts, etm)) {
+        :Allocable(mkname(p, original), original->pivot_requirement, typesubst(original->alloc_ts, etm)) {
         prefix = name + QUALIFIER_NAME;
         parent = NULL;
         inherit_as = original->inherit_as;

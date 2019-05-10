@@ -11,12 +11,10 @@ public:
     Metatypes param_metatypes;
     MetaType *meta_type;
     
-    std::unique_ptr<DataScope> initializer_scope;
     std::unique_ptr<DataScope> inner_scope;  // Won't be visible from the outer scope
-    std::unique_ptr<DataScope> lvalue_scope;
     
     Type(std::string n, Metatypes pmts, MetaType *ut)
-        :Identifier(n) {
+        :Identifier(n, NO_PIVOT) {
         if (pmts.size() > 3)
             throw INTERNAL_ERROR;  // current limitation
             
@@ -35,14 +33,8 @@ public:
         
         Declaration::set_outer_scope(os);
 
-        if (initializer_scope)
-            initializer_scope->set_outer_scope(os);
-            
         if (inner_scope)
             inner_scope->set_outer_scope(os);
-            
-        if (lvalue_scope)
-            lvalue_scope->set_outer_scope(os);
     }
 
     virtual TypeSpec make_pivot_ts() {
@@ -99,78 +91,8 @@ public:
         return inner_scope.get();
     }
     
-    virtual DataScope *make_initializer_scope() {
-        if (!inner_scope || initializer_scope)
-            throw INTERNAL_ERROR;
-        
-        initializer_scope.reset(new DataScope);
-        initializer_scope->set_name(name);
-
-        TypeSpec pivot_ts = make_pivot_ts();
-        if (pivot_ts != NO_TS)
-            initializer_scope->set_pivot_ts(pivot_ts.prefix(initializable_type));
-
-        if (outer_scope)
-            initializer_scope->set_outer_scope(outer_scope);
-
-        initializer_scope->enter();
-
-        return initializer_scope.get();
-    }
-    
-    virtual DataScope *make_lvalue_scope() {
-        if (!inner_scope || lvalue_scope)
-            throw INTERNAL_ERROR;
-        
-        lvalue_scope.reset(new DataScope);
-        lvalue_scope->set_name(name);
-
-        TypeSpec pivot_ts = make_pivot_ts();
-        if (pivot_ts != NO_TS)
-            lvalue_scope->set_pivot_ts(pivot_ts.prefix(lvalue_type));
-
-        if (outer_scope)
-            lvalue_scope->set_outer_scope(outer_scope);
-
-        inner_scope->push_scope(lvalue_scope.get());
-
-        lvalue_scope->enter();
-
-        return lvalue_scope.get();
-    }
-    
-    virtual void transplant_initializers(std::vector<Declaration *> inits) {
-        initializer_scope->enter();
-    
-        for (auto d : inits) {
-            inner_scope->remove_internal(d);
-            initializer_scope->add(d);
-        }
-
-        initializer_scope->leave();
-    }
-
-    virtual void transplant_procedures(std::vector<Declaration *> procs) {
-        lvalue_scope->enter();
-    
-        for (auto d : procs) {
-            inner_scope->remove_internal(d);
-            lvalue_scope->add(d);
-        }
-
-        lvalue_scope->leave();
-    }
-
-    virtual DataScope *get_initializer_scope() {
-        return initializer_scope.get();
-    }
-
     virtual DataScope *get_inner_scope() {
         return inner_scope.get();
-    }
-
-    virtual DataScope *get_lvalue_scope() {
-        return lvalue_scope.get();
     }
 
     virtual void outer_scope_entered() {
@@ -185,10 +107,6 @@ public:
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
         return make<TypeValue>(this, meta_type, param_metatypes);
-    }
-
-    virtual TypeSpec get_pivot_ts() {
-        return NO_TS;
     }
 
     virtual Value *match(std::string name, Value *pivot, Scope *scope) {
@@ -211,14 +129,8 @@ public:
     }
 
     virtual void allocate() {
-        if (initializer_scope)
-            initializer_scope->allocate();
-            
         if (inner_scope)
             inner_scope->allocate();
-            
-        if (lvalue_scope)
-            lvalue_scope->allocate();
     }
     
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what) {
@@ -379,16 +291,7 @@ public:
         if (v)
             return v;
 
-        // FIXME: this must only be checked for lvalue originals            
-        Scope *lvalue_scope = get_lvalue_scope();
-        if (!lvalue_scope)
-            return NULL;
-
-        v = autoconv_scope(lvalue_scope, tm, target, orig, ifts);
-        if (v)
-            return v;
-        
-        return NULL;    
+        return NULL;
     }
 
     virtual void init_vt(TypeMatch tm, Address addr, X64 *x64) {
@@ -411,14 +314,8 @@ public:
     virtual void debug_inner_scopes(TypeMatch tm, X64 *x64) {
         // For generating the Dwarf info for the contents
         
-        if (initializer_scope)
-            initializer_scope->debug(tm, x64);
-            
         if (inner_scope)
             inner_scope->debug(tm, x64);
-            
-        if (lvalue_scope)
-            lvalue_scope->debug(tm, x64);
     }
     
     virtual void type_info(TypeMatch tm, X64 *x64) {

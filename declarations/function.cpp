@@ -31,8 +31,8 @@ public:
     int low_pc;
     int high_pc;
     
-    Function(std::string n, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
-        :Identifier(n) {
+    Function(std::string n, PivotRequirement pr, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
+        :Identifier(n, pr) {
         type = ft;
         arg_tss = ats;
         arg_names = ans;
@@ -55,7 +55,7 @@ public:
         if (!is_abstract())
             throw INTERNAL_ERROR;
             
-        return new Function(prefix + name, type, arg_tss, arg_names, res_tss, exception_type, NULL);
+        return new Function(prefix + name, pivot_requirement, type, arg_tss, arg_names, res_tss, exception_type, NULL);
     }
 
     virtual bool is_abstract() {
@@ -251,8 +251,8 @@ class SysvFunction: public Function, public Deferrable {
 public:
     std::string import_name;
     
-    SysvFunction(std::string in, std::string n, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et = NULL, FunctionScope *fs = NULL)
-        :Function(n, ft, ats, ans, rts, et, fs) {
+    SysvFunction(std::string in, std::string n, PivotRequirement pr, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et = NULL, FunctionScope *fs = NULL)
+        :Function(n, pr, ft, ats, ans, rts, et, fs) {
         import_name = in;
         prot = SYSV_FUNCTION;
     }
@@ -379,8 +379,8 @@ public:
     TypeSpec arg_ts;
     TypeSpec res_ts;
     
-    ImportedFloatFunction(std::string in, std::string n, TypeSpec ats, TypeSpec rts)
-        :Identifier(n) {
+    ImportedFloatFunction(std::string in, std::string n, PivotRequirement pr, TypeSpec ats, TypeSpec rts)
+        :Identifier(n, pr) {
         import_name = in;
         arg_ts = ats;
         res_ts = rts;

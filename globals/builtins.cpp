@@ -493,11 +493,11 @@ void builtin_types(Scope *root_scope) {
 }
 
 
-void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
+void implement(Scope *implementor_scope, PivotRequirement pr, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
     TypeSpec implementor_ts = implementor_scope->get_pivot_ts();
     std::cerr << "XXX built-in implementing " << implementor_ts << " " << implementation_name << " as " << interface_ts << "\n";
     
-    Implementation *implementation = new Implementation(implementation_name, interface_ts, AS_ROLE);
+    Implementation *implementation = new Implementation(implementation_name, pr, interface_ts, AS_ROLE);
     implementor_scope->add(implementation);
     
     for (Identifier *i : contents) {
@@ -513,21 +513,13 @@ void implement(Scope *implementor_scope, TypeSpec interface_ts, std::string impl
             
         implementor_scope->add(i);
 
-        if (i->get_pivot_ts() != implementor_ts) {
-            std::cerr << "XXXX " << i->get_pivot_ts() << " != " << implementor_ts << "\n";
+        if (i->get_pivot_ts() != implementation->get_pivot_ts()) {
+            std::cerr << "XXXX " << i->get_pivot_ts() << " != " << implementation->get_pivot_ts() << "\n";
             throw INTERNAL_ERROR;  // sanity check
         }
     }
 }
 
-/*
-void lself_implement(Scope *implementor_scope, TypeSpec interface_ts, std::string implementation_name, std::vector<Identifier *> contents) {
-    Lself *lself = new Lself("lself");
-    implementor_scope->add(lself);
-    
-    implement(implementor_scope, interface_ts, "lself." + implementation_name, contents);
-}
-*/
 
 void define_integers() {
     struct {
@@ -573,14 +565,15 @@ void define_integers() {
     for (auto &item : integer_rvalue_operations)
         integer_metascope->add(new TemplateOperation<IntegerOperationValue>(item.name, item.operation));
 
+    for (auto &item : integer_lvalue_operations)
+        integer_metascope->add(new TemplateOperation<IntegerOperationValue>(item.name, item.operation));
+
     integer_metascope->leave();
 
-    Scope *integer_lmetascope = integer_metatype->make_lvalue_scope();
+    //Scope *integer_lmetascope = integer_metatype->make_lvalue_scope();
 
-    for (auto &item : integer_lvalue_operations)
-        integer_lmetascope->add(new TemplateOperation<IntegerOperationValue>(item.name, item.operation));
 
-    integer_lmetascope->leave();
+    //integer_lmetascope->leave();
     
     for (auto t : {
         integer_type, integer32_type, integer16_type, integer8_type,
@@ -591,8 +584,8 @@ void define_integers() {
     
     Scope *integer_is = integer_type->get_inner_scope();
     integer_is->enter();
-    integer_is->add(new TemplateIdentifier<CountupValue>("countup"));
-    integer_is->add(new TemplateIdentifier<CountdownValue>("countdown"));
+    integer_is->add(new TemplateIdentifier<CountupValue>("countup", RVALUE_PIVOT));
+    integer_is->add(new TemplateIdentifier<CountdownValue>("countdown", RVALUE_PIVOT));
     integer_is->leave();
 }
 
@@ -627,20 +620,16 @@ void define_float() {
     for (auto &item : float_rvalue_operations)
         float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, item.operation));
 
-    float_scope->add(new TemplateIdentifier<FloatIsnanValue>("is_nan"));
+    float_scope->add(new TemplateIdentifier<FloatIsnanValue>("is_nan", RVALUE_PIVOT));
 
-    float_scope->add(new ImportedFloatFunction("log", "log", NO_TS, FLOAT_TS));
-    float_scope->add(new ImportedFloatFunction("exp", "exp", NO_TS, FLOAT_TS));
-    float_scope->add(new ImportedFloatFunction("pow", "binary_exponent", FLOAT_TS, FLOAT_TS));
-
-    float_scope->leave();
-
-    Scope *float_lscope = float_type->make_lvalue_scope();
+    float_scope->add(new ImportedFloatFunction("log", "log", RVALUE_PIVOT, NO_TS, FLOAT_TS));
+    float_scope->add(new ImportedFloatFunction("exp", "exp", RVALUE_PIVOT, NO_TS, FLOAT_TS));
+    float_scope->add(new ImportedFloatFunction("pow", "binary_exponent", RVALUE_PIVOT, FLOAT_TS, FLOAT_TS));
 
     for (auto &item : float_lvalue_operations)
-        float_lscope->add(new TemplateOperation<FloatOperationValue>(item.name, item.operation));
-    
-    float_lscope->leave();
+        float_scope->add(new TemplateOperation<FloatOperationValue>(item.name, item.operation));
+
+    float_scope->leave();
 }
 
 
@@ -649,6 +638,7 @@ void define_interfaces() {
     TypeSpec spts = STREAMIFIABLE_TS;
     DataScope *sis = streamifiable_type->make_inner_scope();
     Function *sf = new Function("streamify",
+        RVALUE_PIVOT,
         GENERIC_FUNCTION,
         TSs { STRING_LVALUE_TS },
         Ss { "stream" },
@@ -664,6 +654,7 @@ void define_interfaces() {
     TypeSpec jpts = ANYTUPLE_ITERABLE_TS;
     DataScope *jis = iterable_type->make_inner_scope();
     Function *xf = new Function("iter",
+        RVALUE_PIVOT,
         GENERIC_FUNCTION,
         TSs {},
         Ss {},
@@ -679,6 +670,7 @@ void define_interfaces() {
     TypeSpec ipts = ANYTUPLE_ITERATOR_TS;
     DataScope *iis = iterator_type->make_inner_scope();
     Function *nf = new Function("next",
+        LVALUE_PIVOT,
         LVALUE_FUNCTION,
         TSs {},
         Ss {},
@@ -694,6 +686,7 @@ void define_interfaces() {
     TypeSpec apts = { ptr_type, application_type };
     DataScope *ais = application_type->make_inner_scope();
     Function *tf = new Function("start",
+        RVALUE_PIVOT,
         GENERIC_FUNCTION,
         TSs {},
         Ss {},
@@ -715,19 +708,16 @@ void define_container_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec 
     aiis->add(new Variable("container", container_ts.lvalue()));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    implement(aiis, tuple_ts.prefix(iterable_type), "iterable", {
+    implement(aiis, RVALUE_PIVOT, tuple_ts.prefix(iterable_type), "iterable", {
         new Identity("iter")
     });
 
-    DataScope *ails = iter_type->make_lvalue_scope();
-
-    implement(ails, tuple_ts.prefix(iterator_type), "iterator", {
-        new TemplateIdentifier<NextValue>("next"),
+    implement(aiis, LVALUE_PIVOT, tuple_ts.prefix(iterator_type), "iterator", {
+        new TemplateIdentifier<NextValue>("next", LVALUE_PIVOT),
     });
     
     iter_type->complete_type();
     aiis->leave();
-    ails->leave();
 }
 
 
@@ -741,19 +731,16 @@ void define_slice_iterator(Type *iter_type, TypeSpec container_ts, TypeSpec tupl
     aiis->add(new Variable("length", INTEGER_LVALUE_TS));
     aiis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-    implement(aiis, tuple_ts.prefix(iterable_type), "iterable", {
+    implement(aiis, RVALUE_PIVOT, tuple_ts.prefix(iterable_type), "iterable", {
         new Identity("iter")
     });
 
-    DataScope *ails = iter_type->make_lvalue_scope();
-
-    implement(ails, tuple_ts.prefix(iterator_type), "iterator", {
-        new TemplateIdentifier<NextValue>("next")
+    implement(aiis, LVALUE_PIVOT, tuple_ts.prefix(iterator_type), "iterator", {
+        new TemplateIdentifier<NextValue>("next", LVALUE_PIVOT)
     });
     
     iter_type->complete_type();
     aiis->leave();
-    ails->leave();
 }
 
 
@@ -768,27 +755,25 @@ void define_iterators() {
         cis->add(new Variable("limit", INTEGER_LVALUE_TS));  // Order matters!
         cis->add(new Variable("value", INTEGER_LVALUE_TS));
 
-        implement(cis, INTEGER_TUPLE1_ITERABLE_TS, "iterable", {
+        implement(cis, RVALUE_PIVOT, INTEGER_TUPLE1_ITERABLE_TS, "iterable", {
             new Identity("iter")
         });
 
-        DataScope *cls = counter_type->make_lvalue_scope();
         Identifier *next_fn;
         
         if (!is_down) {
-            next_fn = new TemplateIdentifier<CountupNextValue>("next");
+            next_fn = new TemplateIdentifier<CountupNextValue>("next", LVALUE_PIVOT);
         }
         else {
-            next_fn = new TemplateIdentifier<CountdownNextValue>("next");
+            next_fn = new TemplateIdentifier<CountdownNextValue>("next", LVALUE_PIVOT);
         }
 
-        implement(cls, INTEGER_TUPLE1_ITERATOR_TS, "iter", {
-            next_fn,
+        implement(cis, LVALUE_PIVOT, INTEGER_TUPLE1_ITERATOR_TS, "iter", {
+            next_fn
         });
         
         counter_type->complete_type();
         cis->leave();
-        cls->leave();
     }
 
     // Item type for itemized iteration
@@ -836,25 +821,21 @@ void define_character() {
     char_scope->add(new TemplateOperation<IntegerOperationValue>("compare", COMPARE));
     char_scope->add(new CharacterRawStreamifiableImplementation("raw"));
 
-    char_scope->add(new SysvFunction("Character__is_alnum", "is_alnum", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_alpha", "is_alpha", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_ascii", "is_ascii", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_blank", "is_blank", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_cntrl", "is_cntrl", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_digit", "is_digit", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_lower", "is_lower", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_punct", "is_punct", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_space", "is_space", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_upper", "is_upper", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
-    char_scope->add(new SysvFunction("Character__is_xdigit", "is_xdigit", GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_alnum", "is_alnum", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_alpha", "is_alpha", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_ascii", "is_ascii", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_blank", "is_blank", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_cntrl", "is_cntrl", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_digit", "is_digit", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_lower", "is_lower", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_punct", "is_punct", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_space", "is_space", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_upper", "is_upper", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+    char_scope->add(new SysvFunction("Character__is_xdigit", "is_xdigit", RVALUE_PIVOT, GENERIC_FUNCTION, {}, {}, { BOOLEAN_TS }));
+
+    char_scope->add(new TemplateOperation<IntegerOperationValue>("assign other", ASSIGN));
 
     char_scope->leave();
-
-    Scope *char_lscope = character_type->make_lvalue_scope();
-    
-    char_lscope->add(new TemplateOperation<IntegerOperationValue>("assign other", ASSIGN));
-
-    char_lscope->leave();
 }
 
 
@@ -864,36 +845,34 @@ void define_string() {
 
     is->add(new Variable("chars", CHARACTER_ARRAY_LVALUE_TS));
 
-    is->add(new RecordWrapperIdentifier("length", CHARACTER_ARRAY_TS, INTEGER_TS, "length"));
-    is->add(new RecordWrapperIdentifier("binary_plus", CHARACTER_ARRAY_TS, STRING_TS, "binary_plus", "chars"));
-    is->add(new RecordWrapperIdentifier("index", CHARACTER_ARRAY_TS, CHARACTER_TS, "index"));
+    is->add(new RecordWrapperIdentifier("length", RVALUE_PIVOT, CHARACTER_ARRAY_TS, INTEGER_TS, "length"));
+    is->add(new RecordWrapperIdentifier("binary_plus", RVALUE_PIVOT, CHARACTER_ARRAY_TS, STRING_TS, "binary_plus", "chars"));
+    is->add(new RecordWrapperIdentifier("index", RVALUE_PIVOT, CHARACTER_ARRAY_TS, CHARACTER_TS, "index"));
 
     is->add(new TemplateOperation<StringOperationValue>("is_equal", EQUAL));
     is->add(new TemplateOperation<StringOperationValue>("not_equal", NOT_EQUAL));
     is->add(new TemplateOperation<StringOperationValue>("compare", COMPARE));
 
-    implement(is, TypeSpec { iterable_type, tuple1_type, character_type }, "iterable", {
-        new RecordWrapperIdentifier("iter", CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
+    implement(is, RVALUE_PIVOT, TypeSpec { iterable_type, tuple1_type, character_type }, "iterable", {
+        new RecordWrapperIdentifier("iter", RVALUE_PIVOT, CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
     });
 
-    is->add(new RecordWrapperIdentifier("elements", CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
-    is->add(new RecordWrapperIdentifier("indexes", CHARACTER_ARRAY_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
-    is->add(new RecordWrapperIdentifier("items", CHARACTER_ARRAY_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
+    is->add(new RecordWrapperIdentifier("elements", RVALUE_PIVOT, CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    is->add(new RecordWrapperIdentifier("indexes", RVALUE_PIVOT, CHARACTER_ARRAY_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
+    is->add(new RecordWrapperIdentifier("items", RVALUE_PIVOT, CHARACTER_ARRAY_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
     is->add(new StringRawStreamifiableImplementation("raw"));
 
     // String operations
-    is->add(new SysvFunction("C__encode_utf8", "encode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }));
+    is->add(new SysvFunction("C__encode_utf8", "encode_utf8", RVALUE_PIVOT, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }));
 
-    DataScope *ls = record_type->make_lvalue_scope();
+    is->add(new RecordWrapperIdentifier("assign_plus", LVALUE_PIVOT, CHARACTER_ARRAY_LVALUE_TS, STRING_TS, "assign_plus", "chars"));
+    is->add(new RecordWrapperIdentifier("realloc", LVALUE_PIVOT, CHARACTER_ARRAY_LVALUE_TS, STRING_LVALUE_TS, "realloc"));
 
-    ls->add(new RecordWrapperIdentifier("assign_plus", CHARACTER_ARRAY_LVALUE_TS, STRING_TS, "assign_plus", "chars"));
-    ls->add(new RecordWrapperIdentifier("realloc", CHARACTER_ARRAY_LVALUE_TS, STRING_LVALUE_TS, "realloc"));
-    ls->add(new TemplateOperation<RecordOperationValue>("assign other", ASSIGN));
+    is->add(new TemplateOperation<RecordOperationValue>("assign other", ASSIGN));
 
     record_type->complete_type();
     is->leave();
-    ls->leave();
 }
 
 
@@ -907,26 +886,27 @@ void define_slice(RootScope *root_scope) {
     is->add(new Variable("front", INTEGER_LVALUE_TS));
     is->add(new Variable("length", INTEGER_LVALUE_TS));
 
-    is->add(new TemplateIdentifier<SliceIndexValue>("index"));
-    is->add(new TemplateIdentifier<SliceFindValue>("find"));
-    is->add(new TemplateIdentifier<SliceSliceValue>("slice"));
+    is->add(new TemplateIdentifier<SliceIndexValue>("index", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<SliceFindValue>("find", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<SliceSliceValue>("slice", RVALUE_PIVOT));
 
-    implement(is, SAME_TUPLE1_ITERABLE_TS, "iterable", {
-        new TemplateIdentifier<SliceElemIterValue>("iter")
+    implement(is, RVALUE_PIVOT, SAME_TUPLE1_ITERABLE_TS, "iterable", {
+        new TemplateIdentifier<SliceElemIterValue>("iter", RVALUE_PIVOT)
     });
 
-    is->add(new TemplateIdentifier<SliceElemIterValue>("elements"));
-    is->add(new TemplateIdentifier<SliceIndexIterValue>("indexes"));
-    is->add(new TemplateIdentifier<SliceItemIterValue>("items"));
+    is->add(new TemplateIdentifier<SliceElemIterValue>("elements", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<SliceIndexIterValue>("indexes", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<SliceItemIterValue>("items", RVALUE_PIVOT));
 
     record_type->complete_type();
     is->leave();
 
+    // This is for a concrete type parameter only
     ExtensionScope *es = new ExtensionScope(is);
     root_scope->add(es);
     es->set_pivot_ts(BYTE_SLICE_TS);
     es->enter();
-    es->add(new SysvFunction("C__decode_utf8_slice", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
+    es->add(new SysvFunction("C__decode_utf8_slice", "decode_utf8", RVALUE_PIVOT, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
     es->leave();
 }
 
@@ -942,13 +922,10 @@ void define_weakref() {
 
     is->add(new TemplateOperation<RecordOperationValue>("compare", COMPARE));
 
-    DataScope *ls = record_type->make_lvalue_scope();
-    
-    ls->add(new TemplateOperation<RecordOperationValue>("assign other", ASSIGN));
+    is->add(new TemplateOperation<RecordOperationValue>("assign other", ASSIGN));
 
     record_type->complete_type();
     is->leave();
-    ls->leave();
 }
 
 
@@ -957,158 +934,132 @@ void define_option() {
 
     is->add(new TemplateOperation<OptionOperationValue>("compare", COMPARE));
 
-    DataScope *ls = option_type->make_lvalue_scope();
-
-    ls->add(new TemplateOperation<OptionOperationValue>("assign other", ASSIGN));
+    is->add(new TemplateOperation<OptionOperationValue>("assign other", ASSIGN));
 
     option_type->complete_type();
     is->leave();
-    ls->leave();
 }
 
 
 void define_array(RootScope *root_scope) {
-    TypeSpec PIVOT_TS = ANY_ARRAY_TS;
     DataScope *array_scope = array_type->make_inner_scope();
 
     array_scope->add(new Variable("linearray", SAME_LINEARRAY_REF_LVALUE_TS));
 
-    array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length"));
-    array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove"));  // needs Ref
-    array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus"));
+    array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", RVALUE_PIVOT));
+    array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", LVALUE_PIVOT));
+    array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", RVALUE_PIVOT));
     array_scope->add(new TemplateOperation<ArrayIndexValue>("index", TWEAK));
-    array_scope->add(new TemplateIdentifier<ArraySortValue>("sort"));
-    //array_scope->add(new TemplateIdentifier<ArrayAutogrowValue>("autogrow"));
-    array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice"));
+    array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", LVALUE_PIVOT));
+    array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", RVALUE_PIVOT));
     
     // Array iterable operations
-    implement(array_scope, SAME_TUPLE1_ITERABLE_TS, "iterable", {
-        new TemplateIdentifier<ArrayElemIterValue>("iter")
+    implement(array_scope, RVALUE_PIVOT, SAME_TUPLE1_ITERABLE_TS, "iterable", {
+        new TemplateIdentifier<ArrayElemIterValue>("iter", RVALUE_PIVOT)
     });
 
-    array_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements"));
-    array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes"));
-    array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items"));
+    array_scope->add(new TemplateIdentifier<ArrayElemIterValue>("elements", RVALUE_PIVOT));
+    array_scope->add(new TemplateIdentifier<ArrayIndexIterValue>("indexes", RVALUE_PIVOT));
+    array_scope->add(new TemplateIdentifier<ArrayItemIterValue>("items", RVALUE_PIVOT));
 
-    //array_scope->add(new AltStreamifiableImplementation("contents"));
-    
-    TypeSpec PIVOT_LVALUE_TS = ANY_ARRAY_LVALUE_TS;
-    Scope *array_lscope = array_type->make_lvalue_scope();
-
-    array_lscope->add(new TemplateOperation<ArrayReallocValue>("realloc", TWEAK));
-    array_lscope->add(new TemplateIdentifier<ArrayRefillValue>("refill"));
-    array_lscope->add(new TemplateIdentifier<ArrayExtendValue>("assign_plus"));
-    array_lscope->add(new TemplateIdentifier<ArrayPushValue>("push"));
-    array_lscope->add(new TemplateIdentifier<ArrayPopValue>("pop"));
+    array_scope->add(new TemplateOperation<ArrayReallocValue>("realloc", LTWEAK));
+    array_scope->add(new TemplateIdentifier<ArrayRefillValue>("refill", LVALUE_PIVOT));
+    array_scope->add(new TemplateIdentifier<ArrayExtendValue>("assign_plus", LVALUE_PIVOT));
+    array_scope->add(new TemplateIdentifier<ArrayPushValue>("push", LVALUE_PIVOT));
+    array_scope->add(new TemplateIdentifier<ArrayPopValue>("pop", LVALUE_PIVOT));
 
     array_type->complete_type();
     array_scope->leave();
-    array_lscope->leave();
     
     ExtensionScope *es = new ExtensionScope(array_scope);
     root_scope->add(es);
     es->set_pivot_ts(UNSIGNED_INTEGER8_ARRAY_TS);
     es->enter();
-    es->add(new SysvFunction("C__decode_utf8", "decode_utf8", GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
+    es->add(new SysvFunction("C__decode_utf8", "decode_utf8", RVALUE_PIVOT, GENERIC_FUNCTION, TSs {}, {}, TSs { STRING_TS }));
     es->leave();
 }
 
 
 void define_queue() {
-    TypeSpec PIVOT_TS = ANY_QUEUE_TS;
     Scope *queue_scope = queue_type->make_inner_scope();
 
     queue_scope->add(new Variable("circularray", SAME_CIRCULARRAY_REF_LVALUE_TS));
 
-    queue_scope->add(new TemplateIdentifier<QueueLengthValue>("length"));
+    queue_scope->add(new TemplateIdentifier<QueueLengthValue>("length", RVALUE_PIVOT));
     queue_scope->add(new TemplateOperation<QueueIndexValue>("index", TWEAK));
     
     // Queue iterable operations
-    implement(queue_scope, SAME_TUPLE1_ITERABLE_TS, "iterable", {
-        new TemplateIdentifier<QueueElemIterValue>("iter")
+    implement(queue_scope, RVALUE_PIVOT, SAME_TUPLE1_ITERABLE_TS, "iterable", {
+        new TemplateIdentifier<QueueElemIterValue>("iter", RVALUE_PIVOT)
     });
 
-    queue_scope->add(new TemplateIdentifier<QueueElemIterValue>("elements"));
-    queue_scope->add(new TemplateIdentifier<QueueIndexIterValue>("indexes"));
-    queue_scope->add(new TemplateIdentifier<QueueItemIterValue>("items"));
+    queue_scope->add(new TemplateIdentifier<QueueElemIterValue>("elements", RVALUE_PIVOT));
+    queue_scope->add(new TemplateIdentifier<QueueIndexIterValue>("indexes", RVALUE_PIVOT));
+    queue_scope->add(new TemplateIdentifier<QueueItemIterValue>("items", RVALUE_PIVOT));
 
-    TypeSpec PIVOT_LVALUE_TS = ANY_QUEUE_LVALUE_TS;
-    Scope *queue_lscope = queue_type->make_lvalue_scope();
-
-    queue_lscope->add(new TemplateIdentifier<QueuePushValue>("push"));
-    queue_lscope->add(new TemplateIdentifier<QueuePopValue>("pop"));
-    queue_lscope->add(new TemplateIdentifier<QueueUnshiftValue>("unshift"));
-    queue_lscope->add(new TemplateIdentifier<QueueShiftValue>("shift"));
+    queue_scope->add(new TemplateIdentifier<QueuePushValue>("push", LVALUE_PIVOT));
+    queue_scope->add(new TemplateIdentifier<QueuePopValue>("pop", LVALUE_PIVOT));
+    queue_scope->add(new TemplateIdentifier<QueueUnshiftValue>("unshift", LVALUE_PIVOT));
+    queue_scope->add(new TemplateIdentifier<QueueShiftValue>("shift", LVALUE_PIVOT));
 
     queue_type->complete_type();
     queue_scope->leave();
-    queue_lscope->leave();
 }
 
 
 void define_set() {
-    TypeSpec PIVOT_TS = ANY_SET_TS;
     TypeSpec MEMBER_TS = SAME_RBTREE_REF_LVALUE_TS;
     
     DataScope *is = set_type->make_inner_scope();
 
     is->add(new Variable("rbtree", MEMBER_TS));
 
-    is->add(new TemplateIdentifier<SetLengthValue>("length"));
-    is->add(new TemplateIdentifier<SetHasValue>("has"));
+    is->add(new TemplateIdentifier<SetLengthValue>("length", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<SetHasValue>("has", RVALUE_PIVOT));
 
     // Iteration
-    implement(is, SAME_TUPLE1_ITERABLE_TS, "iterable", {
-        new TemplateIdentifier<SetElemByAgeIterValue>("iter")
+    implement(is, RVALUE_PIVOT, SAME_TUPLE1_ITERABLE_TS, "iterable", {
+        new TemplateIdentifier<SetElemByAgeIterValue>("iter", RVALUE_PIVOT)
     });
     
-    is->add(new TemplateIdentifier<SetElemByAgeIterValue>("elements_by_age"));
-    is->add(new TemplateIdentifier<SetElemByOrderIterValue>("elements_by_order"));
+    is->add(new TemplateIdentifier<SetElemByAgeIterValue>("elements_by_age", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<SetElemByOrderIterValue>("elements_by_order", RVALUE_PIVOT));
 
-    TypeSpec PIVOT_LVALUE_TS = ANY_SET_LVALUE_TS;
-    DataScope *ls = set_type->make_lvalue_scope();
-    
-    ls->add(new TemplateIdentifier<SetAddValue>("add"));
-    ls->add(new TemplateIdentifier<SetRemoveValue>("remove"));
+    is->add(new TemplateIdentifier<SetAddValue>("add", LVALUE_PIVOT));
+    is->add(new TemplateIdentifier<SetRemoveValue>("remove", LVALUE_PIVOT));
         
     set_type->complete_type();
     is->leave();
-    ls->leave();
 }
 
 
 void define_map() {
-    TypeSpec PIVOT_TS = ANY_ANY2_MAP_TS;
     TypeSpec MEMBER_TS = SAME_SAME2_ITEM_RBTREE_REF_LVALUE_TS;
     
     DataScope *is = map_type->make_inner_scope();
 
     is->add(new Variable("rbtree", MEMBER_TS));
     
-    is->add(new TemplateIdentifier<MapLengthValue>("length"));
-    is->add(new TemplateIdentifier<MapHasValue>("has"));
-    is->add(new TemplateIdentifier<MapIndexValue>("index"));
+    is->add(new TemplateIdentifier<MapLengthValue>("length", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<MapHasValue>("has", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<MapIndexValue>("index", RVALUE_PIVOT));
 
     // Iteration
-    implement(is, SAME_TUPLE1_ITERABLE_TS, "iterable", {
-        new TemplateIdentifier<MapIndexByAgeIterValue>("iter")
+    implement(is, RVALUE_PIVOT, SAME_TUPLE1_ITERABLE_TS, "iterable", {
+        new TemplateIdentifier<MapIndexByAgeIterValue>("iter", RVALUE_PIVOT)
     });
 
-    is->add(new TemplateIdentifier<MapItemByAgeIterValue>("items_by_age"));
-    is->add(new TemplateIdentifier<MapItemByOrderIterValue>("items_by_order"));
+    is->add(new TemplateIdentifier<MapItemByAgeIterValue>("items_by_age", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<MapItemByOrderIterValue>("items_by_order", RVALUE_PIVOT));
 
-    is->add(new TemplateIdentifier<MapIndexByAgeIterValue>("indexes_by_age"));
-    is->add(new TemplateIdentifier<MapIndexByOrderIterValue>("indexes_by_order"));
+    is->add(new TemplateIdentifier<MapIndexByAgeIterValue>("indexes_by_age", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<MapIndexByOrderIterValue>("indexes_by_order", RVALUE_PIVOT));
 
-    TypeSpec PIVOT_LVALUE_TS = ANY_ANY2_MAP_LVALUE_TS;
-    DataScope *ls = map_type->make_lvalue_scope();
-    
-    ls->add(new TemplateIdentifier<MapAddValue>("add"));
-    ls->add(new TemplateIdentifier<MapRemoveValue>("remove"));
+    is->add(new TemplateIdentifier<MapAddValue>("add", LVALUE_PIVOT));
+    is->add(new TemplateIdentifier<MapRemoveValue>("remove", LVALUE_PIVOT));
     
     map_type->complete_type();
     is->leave();
-    ls->leave();
 }
 
 
@@ -1120,20 +1071,17 @@ void define_weakvaluemap() {
 
     is->add(new Variable("nosytree", NOSYTREE_TS));
     
-    is->add(new NosytreeTemplateIdentifier<NosyRbtreeLengthValue>("length", ELEM_TS));
-    is->add(new NosytreeTemplateIdentifier<NosyRbtreeHasValue>("has", ELEM_TS));
-    is->add(new NosytreeTemplateIdentifier<NosyRbtreeIndexValue>("index", ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeLengthValue>("length", RVALUE_PIVOT, ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeHasValue>("has", RVALUE_PIVOT, ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeIndexValue>("index", RVALUE_PIVOT, ELEM_TS));
 
     // Must not define iteration due to the volatility of this container
 
-    DataScope *ls = weakvaluemap_type->make_lvalue_scope();
-    
-    ls->add(new NosytreeTemplateIdentifier<NosyRbtreeAddItemValue>("add", ELEM_TS));
-    ls->add(new NosytreeTemplateIdentifier<NosyRbtreeRemoveValue>("remove", ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeAddItemValue>("add", LVALUE_PIVOT, ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeRemoveValue>("remove", LVALUE_PIVOT, ELEM_TS));
     
     weakvaluemap_type->complete_type();
     is->leave();
-    ls->leave();
 }
 
 
@@ -1145,20 +1093,17 @@ void define_weakindexmap() {
 
     is->add(new Variable("nosytree", NOSYTREE_TS));
 
-    is->add(new NosytreeTemplateIdentifier<NosyRbtreeLengthValue>("length", ELEM_TS));
-    is->add(new NosytreeTemplateIdentifier<NosyRbtreeHasValue>("has", ELEM_TS));
-    is->add(new NosytreeTemplateIdentifier<NosyRbtreeIndexValue>("index", ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeLengthValue>("length", RVALUE_PIVOT, ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeHasValue>("has", RVALUE_PIVOT, ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeIndexValue>("index", RVALUE_PIVOT, ELEM_TS));
     
     // Must not define iteration due to the volatility of this container
 
-    DataScope *ls = weakindexmap_type->make_lvalue_scope();
-    
-    ls->add(new NosytreeTemplateIdentifier<NosyRbtreeAddItemValue>("add", ELEM_TS));
-    ls->add(new NosytreeTemplateIdentifier<NosyRbtreeRemoveValue>("remove", ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeAddItemValue>("add", LVALUE_PIVOT, ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeRemoveValue>("remove", LVALUE_PIVOT, ELEM_TS));
 
     weakindexmap_type->complete_type();
     is->leave();
-    ls->leave();
 }
 
 
@@ -1170,49 +1115,46 @@ void define_weakset() {
 
     is->add(new Variable("nosytree", NOSYTREE_TS));
     
-    is->add(new NosytreeTemplateIdentifier<NosyRbtreeLengthValue>("length", ELEM_TS));
-    is->add(new NosytreeTemplateIdentifier<NosyRbtreeHasValue>("has", ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeLengthValue>("length", RVALUE_PIVOT, ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeHasValue>("has", RVALUE_PIVOT, ELEM_TS));
 
     // Must not define iteration due to the volatility of this container
 
-    DataScope *ls = weakset_type->make_lvalue_scope();
-
-    ls->add(new NosytreeTemplateIdentifier<NosyRbtreeAddValue>("add", ELEM_TS));
-    ls->add(new NosytreeTemplateIdentifier<NosyRbtreeRemoveValue>("remove", ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeAddValue>("add", LVALUE_PIVOT, ELEM_TS));
+    is->add(new NosytreeTemplateIdentifier<NosyRbtreeRemoveValue>("remove", LVALUE_PIVOT, ELEM_TS));
     
     weakset_type->complete_type();
     is->leave();
-    ls->leave();
 }
 
 
 void builtin_colon(Scope *root_scope) {
     colon_scope->add(new TemplateOperation<IfValue>("if", TWEAK));
-    colon_scope->add(new TemplateIdentifier<RepeatValue>("repeat"));
-    colon_scope->add(new TemplateIdentifier<ForEachValue>("for"));
-    colon_scope->add(new TemplateIdentifier<SwitchValue>("switch"));
-    colon_scope->add(new TemplateIdentifier<RaiseValue>("raise"));
-    colon_scope->add(new TemplateIdentifier<TryValue>("try"));
-    colon_scope->add(new TemplateIdentifier<IsValue>("is"));
+    colon_scope->add(new TemplateIdentifier<RepeatValue>("repeat", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<ForEachValue>("for", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<SwitchValue>("switch", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<RaiseValue>("raise", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<TryValue>("try", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<IsValue>("is", NO_PIVOT));
     colon_scope->add(new TemplateOperation<FunctionReturnValue>("return", TWEAK));
-    colon_scope->add(new TemplateIdentifier<PassValue>("pass"));
-    colon_scope->add(new TemplateIdentifier<DieValue>("die"));
-    colon_scope->add(new TemplateIdentifier<EvaluateValue>("evaluate"));
+    colon_scope->add(new TemplateIdentifier<PassValue>("pass", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<DieValue>("die", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<EvaluateValue>("evaluate", NO_PIVOT));
 
-    colon_scope->add(new TemplateIdentifier<FunctorDefinitionValue>("functor"));
+    colon_scope->add(new TemplateIdentifier<FunctorDefinitionValue>("functor", NO_PIVOT));
 
-    colon_scope->add(new TemplateIdentifier<PtrCastValue>("ptr"));
+    colon_scope->add(new TemplateIdentifier<PtrCastValue>("ptr", NO_PIVOT));
 
-    colon_scope->add(new TemplateIdentifier<FunctionDefinitionValue>("Function"));
-    colon_scope->add(new TemplateIdentifier<ProcedureDefinitionValue>("Procedure"));
-    colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer"));
-    colon_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>("Finalizer"));
-    colon_scope->add(new TemplateIdentifier<PlainRoleDefinitionValue>("Role"));
-    colon_scope->add(new TemplateIdentifier<AutoRoleDefinitionValue>("Auto"));
-    colon_scope->add(new TemplateIdentifier<RequireRoleDefinitionValue>("Require"));
-    colon_scope->add(new TemplateIdentifier<ProvideDefinitionValue>("Provide"));
-    colon_scope->add(new TemplateIdentifier<ImplementationDefinitionValue>("Implementation"));
-    colon_scope->add(new TemplateIdentifier<GlobalDefinitionValue>("Global"));
+    colon_scope->add(new TemplateIdentifier<FunctionDefinitionValue>("Function", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<ProcedureDefinitionValue>("Procedure", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<InitializerDefinitionValue>("Initializer", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<FinalizerDefinitionValue>("Finalizer", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<PlainRoleDefinitionValue>("Role", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<AutoRoleDefinitionValue>("Auto", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<RequireRoleDefinitionValue>("Require", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<ProvideDefinitionValue>("Provide", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<ImplementationDefinitionValue>("Implementation", NO_PIVOT));
+    colon_scope->add(new TemplateIdentifier<GlobalDefinitionValue>("Global", NO_PIVOT));
 
     colon_type->complete_type();
     colon_scope->leave();
@@ -1241,24 +1183,24 @@ void builtin_runtime(Scope *root_scope) {
     Declaration *std = new GlobalNamespace("Std", STD_TS);
     root_scope->add(std);
 
-    is->add(new SysvFunction("Std__printi", "printi", GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS));
-    is->add(new SysvFunction("Std__printc", "printc", GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS));
-    is->add(new SysvFunction("Std__printd", "printd", GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS));
-    is->add(new SysvFunction("Std__printb", "printb", GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, NO_TSS));
-    is->add(new SysvFunction("Std__prints", "prints", GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS));
-    is->add(new SysvFunction("Std__printp", "printp", GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS));  // needs Lvalue to avoid ref copy
+    is->add(new SysvFunction("Std__printi", "printi", RVALUE_PIVOT, GENERIC_FUNCTION, INTEGER_TSS, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__printc", "printc", RVALUE_PIVOT, GENERIC_FUNCTION, UNSIGNED_INTEGER8_TSS, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__printd", "printd", RVALUE_PIVOT, GENERIC_FUNCTION, FLOAT_TSS, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__printb", "printb", RVALUE_PIVOT, GENERIC_FUNCTION, UNSIGNED_INTEGER8_ARRAY_TSS, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__prints", "prints", RVALUE_PIVOT, GENERIC_FUNCTION, TSs { STRING_TS }, value_names, NO_TSS));
+    is->add(new SysvFunction("Std__printp", "printp", RVALUE_PIVOT, GENERIC_FUNCTION, TSs { ANYID_REF_LVALUE_TS }, value_names, NO_TSS));  // needs Lvalue to avoid ref copy
 
-    is->add(new SysvFunction("Std__parse_ws", "parse_ws", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, NO_TSS));
-    is->add(new SysvFunction("Std__parse_identifier", "parse_identifier", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, parse_exception_type));
-    is->add(new SysvFunction("Std__parse_integer", "parse_integer", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { INTEGER_TS }, parse_exception_type));
-    is->add(new SysvFunction("Std__parse_float", "parse_float", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { FLOAT_TS }, parse_exception_type));
-    is->add(new SysvFunction("Std__parse_jstring", "parse_jstring", GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, parse_exception_type));
+    is->add(new SysvFunction("Std__parse_ws", "parse_ws", RVALUE_PIVOT, GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, NO_TSS));
+    is->add(new SysvFunction("Std__parse_identifier", "parse_identifier", RVALUE_PIVOT, GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, parse_exception_type));
+    is->add(new SysvFunction("Std__parse_integer", "parse_integer", RVALUE_PIVOT, GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { INTEGER_TS }, parse_exception_type));
+    is->add(new SysvFunction("Std__parse_float", "parse_float", RVALUE_PIVOT, GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { FLOAT_TS }, parse_exception_type));
+    is->add(new SysvFunction("Std__parse_jstring", "parse_jstring", RVALUE_PIVOT, GENERIC_FUNCTION, TSs { STRING_TS, INTEGER_LVALUE_TS }, { "str", "idx" }, { STRING_TS }, parse_exception_type));
 
-    is->add(new SysvFunction("Std__print_jstring", "print_jstring", GENERIC_FUNCTION, TSs { STRING_TS, STRING_LVALUE_TS }, { "str", "stream" }, {}));
+    is->add(new SysvFunction("Std__print_jstring", "print_jstring", RVALUE_PIVOT, GENERIC_FUNCTION, TSs { STRING_TS, STRING_LVALUE_TS }, { "str", "stream" }, {}));
 
-    is->add(new TemplateIdentifier<FrameNameValue>("frame_name"));
-    is->add(new TemplateIdentifier<FrameStuffValue>("frame_stuff"));
-    is->add(new TemplateIdentifier<DoubleStackValue>("double_stack"));
+    is->add(new TemplateIdentifier<FrameNameValue>("frame_name", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<FrameStuffValue>("frame_stuff", RVALUE_PIVOT));
+    is->add(new TemplateIdentifier<DoubleStackValue>("double_stack", RVALUE_PIVOT));
 
     std_type->complete_type();
     is->leave();
@@ -1298,59 +1240,43 @@ RootScope *init_builtins() {
     // Boolean operations
     Scope *bool_scope = boolean_type->make_inner_scope();
     bool_scope->add(new TemplateOperation<BooleanOperationValue>("compare", COMPARE));
-    bool_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not"));
-    bool_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and"));
-    bool_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or"));
+    bool_scope->add(new TemplateIdentifier<BooleanNotValue>("logical not", RVALUE_PIVOT));
+    bool_scope->add(new TemplateIdentifier<BooleanAndValue>("logical and", RVALUE_PIVOT));
+    bool_scope->add(new TemplateIdentifier<BooleanOrValue>("logical or", RVALUE_PIVOT));
+    bool_scope->add(new TemplateOperation<BooleanOperationValue>("assign other", ASSIGN));
     bool_scope->leave();
-
-    Scope *bool_lscope = boolean_type->make_lvalue_scope();
-    bool_lscope->add(new TemplateOperation<BooleanOperationValue>("assign other", ASSIGN));
-    bool_lscope->leave();
 
     // Enum operations
     Scope *enum_metascope = enumeration_metatype->make_inner_scope();
     enum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", EQUAL));
+    enum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ASSIGN));
     enum_metascope->leave();
-
-    Scope *enum_metalscope = enumeration_metatype->make_lvalue_scope();
-    enum_metalscope->add(new TemplateOperation<IntegerOperationValue>("assign other", ASSIGN));
-    enum_metalscope->leave();
 
     // Treenum operations
     Scope *treenum_metascope = treenumeration_metatype->make_inner_scope();
     treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("is_equal", EQUAL));
+    treenum_metascope->add(new TemplateOperation<IntegerOperationValue>("assign other", ASSIGN));
     treenum_metascope->leave();
 
-    Scope *treenum_metalscope = treenumeration_metatype->make_lvalue_scope();
-    treenum_metalscope->add(new TemplateOperation<IntegerOperationValue>("assign other", ASSIGN));
-    treenum_metalscope->leave();
-
     // Record operations
-    record_metatype->make_inner_scope()->leave();
-    Scope *record_metalscope = record_metatype->make_lvalue_scope();
-    record_metalscope->add(new TemplateOperation<RecordOperationValue>("assign other", ASSIGN));
-    record_metalscope->leave();
+    Scope *record_metascope = record_metatype->make_inner_scope();
+    record_metascope->add(new TemplateOperation<RecordOperationValue>("assign other", ASSIGN));
+    record_metascope->leave();
 
     // Reference operations
     typedef TemplateOperation<ReferenceOperationValue> ReferenceOperation;
     Scope *ref_scope = ref_type->make_inner_scope();
     ref_scope->add(new ReferenceOperation("is_equal", EQUAL));
     ref_scope->add(new ReferenceOperation("not_equal", NOT_EQUAL));
+    ref_scope->add(new ReferenceOperation("assign other", ASSIGN));
     ref_scope->leave();
-    
-    Scope *ref_lscope = ref_type->make_lvalue_scope();
-    ref_lscope->add(new ReferenceOperation("assign other", ASSIGN));
-    ref_lscope->leave();
 
     typedef TemplateOperation<PointerOperationValue> PointerOperation;
     Scope *ptr_scope = ptr_type->make_inner_scope();
     ptr_scope->add(new PointerOperation("is_equal", EQUAL));
     ptr_scope->add(new PointerOperation("not_equal", NOT_EQUAL));
+    ptr_scope->add(new PointerOperation("assign other", ASSIGN));
     ptr_scope->leave();
-
-    Scope *ptr_lscope = ptr_type->make_lvalue_scope();
-    ptr_lscope->add(new PointerOperation("assign other", ASSIGN));
-    ptr_lscope->leave();
 
     // Unpacking
     Scope *tms = tuple_metatype->get_inner_scope();
@@ -1360,7 +1286,7 @@ RootScope *init_builtins() {
 
     // Initializing
     Scope *uns = uninitialized_type->make_inner_scope();
-    uns->add(new TemplateIdentifier<CreateValue>("assign other"));
+    uns->add(new TemplateIdentifier<CreateValue>("assign other", RVALUE_PIVOT));  // Kinda yes
     uns->leave();
     
     // Builtin controls

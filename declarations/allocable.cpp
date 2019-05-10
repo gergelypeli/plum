@@ -6,8 +6,8 @@ public:
     Allocation offset;
     StorageWhere where;
     
-    Allocable(std::string name, TypeSpec ats)
-        :Identifier(name) {
+    Allocable(std::string name, PivotRequirement pr, TypeSpec ats)
+        :Identifier(name, pr) {
         where = NOWHERE;
         alloc_ts = ats;
         
@@ -107,7 +107,7 @@ public:
     AsWhat as_what;
     
     Variable(std::string name, TypeSpec vts)
-        :Allocable(name, vts) {
+        :Allocable(name, RVALUE_PIVOT, vts) {
         if (vts == NO_TS)
             throw INTERNAL_ERROR;
             
@@ -270,14 +270,11 @@ public:
         :Variable(n, mts) {
         class_ts = cts;
         initializer_function = NULL;
+        pivot_requirement = NO_PIVOT;
     }
 
     virtual void set_initializer_function(Function *f) {
         initializer_function = f;
-    }
-
-    virtual TypeSpec get_pivot_ts() {
-        return NO_TS;
     }
 
     virtual TypeSpec get_class_ts() {
@@ -431,7 +428,7 @@ public:
     std::vector<Variable *> dvalue_variables;
     
     Evaluable(std::string name, TypeSpec vts)
-        :Allocable(name, vts) {
+        :Allocable(name, NO_PIVOT, vts) {
     }
 
     virtual void set_outer_scope(Scope *os) {

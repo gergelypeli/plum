@@ -62,18 +62,18 @@ protected:
         
         if (base_ts != NO_TS) {
             if (is_explicit)
-                base_role = new Role(name, base_ts, ia, isa);
+                base_role = new Role(name, RVALUE_PIVOT, base_ts, ia, isa);
             else
-                base_role = new Role(BASE_ROLE_NAME, base_ts, AS_BASE, true);
+                base_role = new Role(BASE_ROLE_NAME, RVALUE_PIVOT, base_ts, AS_BASE, true);
                 
             is_explicit = false;
         }
             
         if (main_ts != NO_TS) {
             if (is_explicit)
-                main_role = new Role(name, main_ts, ia, isa);
+                main_role = new Role(name, RVALUE_PIVOT, main_ts, ia, isa);
             else
-                main_role = new Role(MAIN_ROLE_NAME, main_ts, AS_MAIN, true);
+                main_role = new Role(MAIN_ROLE_NAME, RVALUE_PIVOT, main_ts, AS_MAIN, true);
         }
 
         if (main_role && base_role) {
@@ -639,10 +639,16 @@ public:
         // Runs after declare
         // TODO: maybe allow selecting the initializer?
         Function *initializer_function = NULL;
-        Scope *izs = ptr_cast<ClassType>(class_ts[0])->get_initializer_scope();
+        Scope *is = ptr_cast<ClassType>(class_ts[0])->get_inner_scope();
 
-        if (izs->contents.size())
-            initializer_function = ptr_cast<Function>(izs->contents[0].get());
+        for (auto &d : is->contents) {
+            Function *f = ptr_cast<Function>(d.get());
+            
+            if (f && f->type == INITIALIZER_FUNCTION) {
+                initializer_function = f;
+                break;
+            }
+        }
         
         if (!initializer_function) {
             std::cerr << "No initializer in global variable class!\n";
@@ -706,8 +712,6 @@ public:
         s->add(defined_type);
 
         defined_type->make_inner_scope();
-        defined_type->make_initializer_scope();
-        defined_type->make_lvalue_scope();
         
         block_value.reset(new DataBlockValue);
         
@@ -883,7 +887,7 @@ public:
                 return false;
             }
 
-            is->add(new Role("", base_ts, AS_BASE, true));
+            is->add(new Role("", RVALUE_PIVOT, base_ts, AS_BASE, true));
         }
 
         return true;
@@ -1006,7 +1010,7 @@ public:
                 return false;
             }
 
-            is->add(new Implementation("", base_ts, AS_BASE));
+            is->add(new Implementation("", RVALUE_PIVOT, base_ts, AS_BASE));
         }
 
         return true;
@@ -1069,7 +1073,7 @@ public:
 
     virtual Declaration *declare(std::string name, Scope *scope) {
         if (scope->type == DATA_SCOPE) {
-            Declaration *d = new Implementation(name, interface_ts, AS_ROLE);
+            Declaration *d = new Implementation(name, RVALUE_PIVOT, interface_ts, AS_ROLE);
             scope->add(d);
             return d;
         }
@@ -1155,7 +1159,7 @@ public:
 
         ts = main_ts.prefix(ref_type);
 
-        Associable *main_role = new Role(MAIN_ROLE_NAME, main_ts, AS_MAIN, true);
+        Associable *main_role = new Role(MAIN_ROLE_NAME, RVALUE_PIVOT, main_ts, AS_MAIN, true);
         is->add(main_role);
         
         // Typize the with block, using a temporary code scope to collect state variables

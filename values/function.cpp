@@ -519,10 +519,18 @@ public:
             
         std::cerr << "Making function " << name << ".\n";
         
+        PivotRequirement pr = (
+            type == GENERIC_FUNCTION ? RVALUE_PIVOT :
+            type == LVALUE_FUNCTION ? LVALUE_PIVOT :
+            type == INITIALIZER_FUNCTION ? INITIALIZABLE_PIVOT :
+            type == FINALIZER_FUNCTION ? (ds->is_virtual_scope() ? RVALUE_PIVOT : LVALUE_PIVOT) :
+            throw INTERNAL_ERROR
+        );
+        
         if (import_name.size())
-            function = new SysvFunction(import_name, name, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
+            function = new SysvFunction(import_name, name, pr, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
         else
-            function = new Function(name, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
+            function = new Function(name, pr, type, arg_tss, arg_names, result_tss, fn_scope->get_exception_type(), fn_scope);
 
         scope->add(function);
         return function;

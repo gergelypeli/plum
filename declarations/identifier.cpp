@@ -1,11 +1,21 @@
 
+enum PivotRequirement {
+    RVALUE_PIVOT, LVALUE_PIVOT, INITIALIZABLE_PIVOT, NO_PIVOT, CUSTOM_PIVOT
+};
+
 class Identifier: public Declaration {
 public:
     std::string name;
+    PivotRequirement pivot_requirement;
 
-    Identifier(std::string n) {
+    Identifier(std::string n, PivotRequirement pr) {
         name = n;
+        pivot_requirement = pr;
     }
+    
+    //virtual void set_pivot_requirement(PivotRequirement pr) {
+    //    pivot_requirement = pr;
+    //}
 
     virtual std::string get_fully_qualified_name() {
         // If the name begins with an associable prefix, include it in the qualified one,
@@ -18,11 +28,22 @@ public:
         DataScope *ds = ptr_cast<DataScope>(outer_scope);
         
         if (!ds)
-            return NO_TS;
+            return NO_TS;  // TODO: make it only acceptable for some pr values?
             
-        TypeSpec ts = ds->get_pivot_ts();
-        
-        return ts;
+        switch (pivot_requirement) {
+        case RVALUE_PIVOT:
+            return ds->get_pivot_ts();
+        case LVALUE_PIVOT:
+            return ds->get_pivot_ts().lvalue();
+        case INITIALIZABLE_PIVOT:
+            return ds->get_pivot_ts().prefix(initializable_type);
+        case NO_PIVOT:
+            return NO_TS;
+        case CUSTOM_PIVOT:
+            throw INTERNAL_ERROR;
+        default:
+            throw INTERNAL_ERROR;
+        }
     }
 
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
@@ -66,7 +87,7 @@ public:
 class Identity: public Identifier {
 public:
     Identity(std::string name)
-        :Identifier(name) {
+        :Identifier(name, RVALUE_PIVOT) {
     }
 
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
@@ -80,7 +101,7 @@ public:
     TypeSpec cast_ts;
     
     Cast(std::string name, TypeSpec cts)
-        :Identifier(name) {
+        :Identifier(name, RVALUE_PIVOT) {
         cast_ts = cts;
     }
 
@@ -96,7 +117,7 @@ public:
     OperationType operation;
 
     TemplateOperation(std::string n, OperationType o)
-        :Identifier(n) {
+        :Identifier(n, is_assignment(o) ? LVALUE_PIVOT : RVALUE_PIVOT) {
         operation = o;
     }
     
@@ -109,8 +130,8 @@ public:
 template <typename T>
 class TemplateIdentifier: public Identifier {
 public:
-    TemplateIdentifier(std::string n)
-        :Identifier(n) {
+    TemplateIdentifier(std::string n, PivotRequirement pr)
+        :Identifier(n, pr) {
     }
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
@@ -122,7 +143,7 @@ public:
 class Unpacking: public Identifier {
 public:
     Unpacking(std::string n)
-        :Identifier(n) {
+        :Identifier(n, CUSTOM_PIVOT) {
     }
 
     virtual Value *match(std::string n, Value *pivot, Scope *scope) {
@@ -151,8 +172,8 @@ class NosytreeTemplateIdentifier: public Identifier {
 public:
     TypeSpec elem_ts;
     
-    NosytreeTemplateIdentifier(std::string n, TypeSpec ets)
-        :Identifier(n) {
+    NosytreeTemplateIdentifier(std::string n, PivotRequirement pr, TypeSpec ets)
+        :Identifier(n, pr) {
         elem_ts = ets;
     }
     
@@ -184,8 +205,8 @@ public:
     std::string operation_name;
     std::string arg_operation_name;
     
-    RecordWrapperIdentifier(std::string n, TypeSpec pcts, TypeSpec rts, std::string on, std::string aon = "")
-        :Identifier(n) {
+    RecordWrapperIdentifier(std::string n, PivotRequirement pr, TypeSpec pcts, TypeSpec rts, std::string on, std::string aon = "")
+        :Identifier(n, pr) {
         result_ts = rts;
         pivot_cast_ts = pcts;
         operation_name = on;
@@ -212,8 +233,8 @@ public:
     std::string operation_name;
     bool autogrow;
     
-    ClassWrapperIdentifier(std::string n, TypeSpec pcts, std::string on, bool ag = false)
-        :Identifier(n) {
+    ClassWrapperIdentifier(std::string n, PivotRequirement pr, TypeSpec pcts, std::string on, bool ag = false)
+        :Identifier(n, pr) {
         pivot_cast_ts = pcts;
         operation_name = on;
         autogrow = ag;
@@ -253,7 +274,7 @@ public:
     YieldableValue *yieldable_value;
     
     Yield(std::string n, YieldableValue *yv)
-        :Identifier(n) {
+        :Identifier(n, RVALUE_PIVOT) {
         yieldable_value = yv;
     }
     

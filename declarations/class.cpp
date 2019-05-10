@@ -50,8 +50,6 @@ public:
     
     std::vector<Function *> member_functions;
     std::vector<Associable *> member_associables;
-    std::vector<Declaration *> member_initializers;
-    std::vector<Declaration *> member_procedures;
 
     bool is_abstract;
     Function *finalizer_function;
@@ -136,12 +134,7 @@ public:
                     std::cerr << "Initializer in abstract type!\n";
                     return false;
                 }
-
-                member_initializers.push_back(f);
             }
-
-            if (f && f->type == LVALUE_FUNCTION)
-                member_procedures.push_back(f);  // for transplanting only
 
             if (f && (f->type == GENERIC_FUNCTION || f->type == LVALUE_FUNCTION))
                 member_functions.push_back(f);
@@ -368,19 +361,6 @@ public:
         fastforward_ve = NULL;
     }
 
-    virtual bool complete_type() {
-        if (!IdentityType::complete_type())
-            return false;
-            
-        if (initializer_scope)
-            transplant_initializers(member_initializers);
-
-        if (lvalue_scope)
-            transplant_procedures(member_procedures);
-            
-        return true;
-    }
-
     virtual std::vector<std::string> get_partial_initializable_names() {
         return member_names;
     }
@@ -429,7 +409,7 @@ public:
             
             Value *preinit = make<ClassPreinitializerValue>(rts);
 
-            Value *value = initializer_scope->lookup(name, preinit, scope);
+            Value *value = inner_scope->lookup(name, preinit, scope);
 
             if (value) {
                 return make<ClassPostinitializerValue>(mts, value);
@@ -527,7 +507,7 @@ public:
             // Base role initialization, takes a pivot argument
             std::cerr << "Class " << name << " initializer lookup " << n << ".\n";
             
-            return initializer_scope->lookup(n, v, s);
+            return inner_scope->lookup(n, v, s);
         }
         
         return IdentityType::lookup_inner(tm, n, v, s);
@@ -552,8 +532,8 @@ public:
     Label vt_label;
     Label act_label;
 
-    Role(std::string n, TypeSpec ts, InheritAs ia, bool ama)
-        :Associable(n, ts, ia, ama) {
+    Role(std::string n, PivotRequirement pr, TypeSpec ts, InheritAs ia, bool ama)
+        :Associable(n, pr, ts, ia, ama) {
         std::cerr << "Creating " << (ia == AS_BASE ? "base " : ia == AS_MAIN ? "main " : "") << "role " << name << "\n";
         
         inherit();

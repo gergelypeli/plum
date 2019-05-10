@@ -122,8 +122,8 @@ public:
 
 class Implementation: public Associable {
 public:
-    Implementation(std::string name, TypeSpec ifts, InheritAs ia)
-        :Associable(name, ifts, ia, true) {
+    Implementation(std::string name, PivotRequirement pr, TypeSpec ifts, InheritAs ia)
+        :Associable(name, pr, ifts, ia, true) {
         std::cerr << "Creating implementation " << name << "\n";
 
         inherit();
@@ -237,7 +237,7 @@ public:
     Once::FunctionCompiler compile_streamification;
     
     RawStreamifiableImplementation(std::string name, Once::FunctionCompiler cs)
-        :Implementation(name, STREAMIFIABLE_TS, AS_ROLE) {
+        :Implementation(name, RVALUE_PIVOT, STREAMIFIABLE_TS, AS_ROLE) {
         compile_streamification = cs;
     }
     
