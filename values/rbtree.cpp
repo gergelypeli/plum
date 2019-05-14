@@ -518,7 +518,7 @@ public:
 };
 
 
-class RbtreeIndexValue: public Value, public Raiser {
+class RbtreeIndexValue: public Value, public Raiser, public ContainedLvalue {
 public:
     TypeSpec key_ts, elem_ts, key_arg_ts, heap_ts;
     std::unique_ptr<Value> pivot, key;
@@ -553,14 +553,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
 
-        if (lvalue_needed)
-            clob = clob | Regs::heapvars();
-        else {
-            if (!(preferred & (Regs::heapvars() | Regs::relaxvars()))) {
-                value_storage = ts.optimal_value_storage(preferred);
-                clob = clob | value_storage.regs();
-            }
-        }
+        clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
             
         return clob | RBTREE_CLOB | COMPARE_CLOB;
     }
@@ -590,19 +583,9 @@ public:
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
-        Address value_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
-        Storage t = Storage(MEMORY, value_addr);
-        
-        if (lvalue_needed) {
-            x64->op(PUSHQ, SELFX);  // refcounted container
-            x64->op(LEA, R10, value_addr);
-            x64->op(PUSHQ, R10);
-            t = Storage(ALISTACK);
-        }
-        else if (value_storage.where != NOWHERE)
-            t = ts.store(t, value_storage, x64);
-            
-        return t;
+        Address addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
+
+        return compile_contained_lvalue(addr, SELFX, ts, x64);
     }
 };
 
@@ -650,55 +633,49 @@ public:
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
         
-        if (!clob.has_any())
-            clob = clob | RAX;
+        clob.reserve(4);
         
         return clob;
     }
 
-    virtual Storage postprocess(Storage s, X64 *x64) {
-        return s;
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        throw INTERNAL_ERROR;
     }
 
     virtual Storage compile(X64 *x64) {
         ls = left->compile_lvalue(x64);  // iterator
         Storage als = ls.access(0);
         
-        Register reg = (clob & ~ls.regs()).get_any();
+        Register r = (clob & ~ls.regs()).get_any();
+        Register i = (clob & ~ls.regs() & ~Regs(r)).get_any();
         Label ok;
 
-        // Load the ref to reg, and the index to R10
-        x64->runtime->load_lvalue(reg, R11, als);
-        x64->runtime->load_lvalue(R10, R11, als, REFERENCE_SIZE);
+        // Load the ref to r, and the index to i
+        x64->runtime->load_lvalue(r, R11, als);
+        x64->runtime->load_lvalue(i, R11, als, REFERENCE_SIZE);
         
-        x64->op(CMPQ, R10, RBNODE_NIL);
+        x64->op(CMPQ, i, RBNODE_NIL);
         x64->op(JNE, ok);
         
+        left->ts.store(ls, Storage(), x64);
         raise("ITERATOR_DONE", x64);
         
         x64->code_label(ok);
-        x64->runtime->incref(reg);  // First half of the ALISTACK
-        x64->op(PUSHQ, reg);
-        
-        x64->op(ADDQ, reg, R10);
         
         if (is_down) {
-            x64->op(MOVQ, R10, Address(reg, RBNODE_PRED_OFFSET));
-            x64->op(ANDQ, R10, ~RBNODE_RED_BIT);  // remove color bit
+            x64->op(MOVQ, i, Address(r, i, RBNODE_PRED_OFFSET));
+            x64->op(ANDQ, i, ~RBNODE_RED_BIT);  // remove color bit
         }
         else {
-            x64->op(MOVQ, R10, Address(reg, RBNODE_NEXT_OFFSET));
+            x64->op(MOVQ, i, Address(r, i, RBNODE_NEXT_OFFSET));
         }
 
         // Save new iterator position
-        x64->runtime->store_lvalue(R10, R11, als, REFERENCE_SIZE);
+        x64->runtime->store_lvalue(i, R11, als, REFERENCE_SIZE);
 
-        x64->op(LEA, R10, Address(reg, RBNODE_VALUE_OFFSET));
-        x64->op(PUSHQ, R10);  // ALISTACK second half
-        
-        Storage s = Storage(ALISTACK);
-        
-        return postprocess(s, x64);
+        left->ts.store(ls, Storage(), x64);
+
+        return postprocess(r, i, x64);
     }
 };
 
@@ -737,8 +714,8 @@ public:
         return clob | RAX | RCX | RDX | SELFX;
     }
 
-    virtual Storage postprocess(Storage s, X64 *x64) {
-        return s;
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        throw INTERNAL_ERROR;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -766,15 +743,7 @@ public:
         
         left->ts.store(ls, Storage(), x64);
         
-        // Return new item address
-        x64->runtime->incref(SELFX);
-        x64->op(PUSHQ, SELFX);
-        x64->op(LEA, R10, Address(SELFX, R10, RBNODE_VALUE_OFFSET));
-        x64->op(PUSHQ, R10);
-
-        Storage s = Storage(ALISTACK);
-        
-        return postprocess(s, x64);
+        return postprocess(SELFX, RAX, x64);
     }
 };
 

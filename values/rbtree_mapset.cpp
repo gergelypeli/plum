@@ -78,6 +78,10 @@ public:
     SetNextElemByAgeValue(Value *l, TypeMatch &tm)
         :RbtreeNextElemByAgeValue(l, tm[1].prefix(tuple1_type)) {
     }
+    
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        return Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET));
+    }
 };
 
 
@@ -85,6 +89,10 @@ class SetNextElemByOrderValue: public RbtreeNextElemByOrderValue {
 public:
     SetNextElemByOrderValue(Value *l, TypeMatch &tm)
         :RbtreeNextElemByOrderValue(l, tm[1].prefix(tuple1_type)) {
+    }
+
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        return Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET));
     }
 };
 
@@ -206,18 +214,12 @@ public:
         return RbtreeNextElemByAgeValue::precompile(preferred) | Regs(RAX, RBX);
     }
 
-    virtual Storage postprocess(Storage s, X64 *x64) {
-        if (s.where != ALISTACK)
-            throw INTERNAL_ERROR;
-            
-        x64->op(POPQ, RAX);
-        x64->op(POPQ, RBX);
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        index_ts.store(Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET)), Storage(STACK), x64);
 
-        index_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
-
-        x64->op(PUSHQ, RBX);
-        x64->op(ADDQ, RAX, index_ts.measure_stack());
-        x64->op(PUSHQ, RAX);
+        x64->op(PUSHQ, 0);
+        x64->op(LEA, R10, Address(r, i, RBNODE_VALUE_OFFSET + index_ts.measure_stack()));
+        x64->op(PUSHQ, R10);
 
         return Storage(STACK);
     }
@@ -239,18 +241,12 @@ public:
         return RbtreeNextElemByOrderValue::precompile(preferred) | Regs(RAX, RBX);
     }
 
-    virtual Storage postprocess(Storage s, X64 *x64) {
-        if (s.where != ALISTACK)
-            throw INTERNAL_ERROR;
-            
-        x64->op(POPQ, RAX);
-        x64->op(POPQ, RBX);
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        index_ts.store(Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET)), Storage(STACK), x64);
 
-        index_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
-
-        x64->op(PUSHQ, RBX);
-        x64->op(ADDQ, RAX, index_ts.measure_stack());
-        x64->op(PUSHQ, RAX);
+        x64->op(PUSHQ, 0);
+        x64->op(LEA, R10, Address(r, i, RBNODE_VALUE_OFFSET + index_ts.measure_stack()));
+        x64->op(PUSHQ, R10);
 
         return Storage(STACK);
     }
@@ -262,6 +258,10 @@ public:
     MapNextIndexByAgeValue(Value *l, TypeMatch &tm)
         :RbtreeNextElemByAgeValue(l, tm[1].prefix(tuple1_type)) {  // NOTE: the index comes first in Item
     }
+
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        return Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET));
+    }
 };
 
 
@@ -269,6 +269,10 @@ class MapNextIndexByOrderValue: public RbtreeNextElemByOrderValue {
 public:
     MapNextIndexByOrderValue(Value *l, TypeMatch &tm)
         :RbtreeNextElemByOrderValue(l, tm[1].prefix(tuple1_type)) {  // NOTE: the index comes first in Item
+    }
+
+    virtual Storage postprocess(Register r, Register i, X64 *x64) {
+        return Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET));
     }
 };
 

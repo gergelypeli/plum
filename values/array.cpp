@@ -578,18 +578,22 @@ public:
 };
 
 
-class ArrayNextElemValue: public ContainerNextValue {
+class ArrayNextElemValue: public ContainerNextValue, public ContainedLvalue {
 public:
     ArrayNextElemValue(Value *l, TypeMatch &match)
         :ContainerNextValue(typesubst(SAME_LVALUE_TUPLE1_TS, match), match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
+    }
+
+    virtual Regs precompile(Regs preferred) {
+        return ContainerNextValue::precompile(preferred) | precompile_contained_lvalue(preferred, lvalue_needed, ts);
     }
 
     virtual Storage postprocess(Register r, Register i, X64 *x64) {
         int elem_size = ContainerType::get_elem_size(elem_ts);
         
         Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
-        
-        return Storage(MEMORY, addr);
+
+        return compile_contained_lvalue(addr, NOREG, ts, x64);
     }
 };
 
@@ -619,6 +623,8 @@ public:
         x64->op(PUSHQ, i);
         
         Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
+        
+        x64->op(PUSHQ, 0);
         x64->op(LEA, R10, addr);
         x64->op(PUSHQ, R10);
         

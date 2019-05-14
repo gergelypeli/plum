@@ -151,7 +151,7 @@ public:
 };
 
 
-class ContainerIndexValue: public OptimizedOperationValue, public Raiser {
+class ContainerIndexValue: public OptimizedOperationValue, public Raiser, public ContainedLvalue {
 public:
     TypeSpec heap_ts;
     TypeSpec elem_ts;
@@ -186,15 +186,7 @@ public:
         Regs clob = OptimizedOperationValue::precompile(preferred);
         
         clob = clob | Regs(RAX) | Regs(RBX);
-        
-        if (lvalue_needed)
-            clob = clob | Regs::heapvars();
-        else {
-            if (!(preferred & (Regs::heapvars() | Regs::relaxvars()))) {
-                value_storage = ts.optimal_value_storage(preferred);
-                clob = clob | value_storage.regs();
-            }
-        }
+        clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
 
         return clob;
     }
@@ -243,18 +235,8 @@ public:
         x64->code_label(ok);
         fix_index(r, i, x64);  // turns logical index into physical
         Address addr = x64->runtime->make_address(r, i, elem_size, elems_offset);
-        Storage t(MEMORY, addr);
         
-        if (lvalue_needed) {
-            x64->op(PUSHQ, r);
-            x64->op(LEA, R10, addr);
-            x64->op(PUSHQ, R10);
-            t = Storage(ALISTACK);
-        }
-        else if (value_storage.where != NOWHERE)
-            t = ts.store(t, value_storage, x64);
-            
-        return t;
+        return compile_contained_lvalue(addr, r, ts, x64);
     }
 };
 

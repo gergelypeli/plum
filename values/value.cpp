@@ -185,19 +185,19 @@ public:
 class ContainedLvalue {
 public:
     Storage rvalue_storage;
-    bool lvalue_needed;
+    bool use_lvalue;
     bool may_borrow;
     
     ContainedLvalue() {
         may_borrow = false;
     }
     
-    virtual Regs precompile_lvalue(Regs preferred, bool needed) {
+    virtual Regs precompile_contained_lvalue(Regs preferred, bool lvalue_needed, TypeSpec ts) {
         // All contained values are on the heap
-        lvalue_needed = needed;
+        use_lvalue = lvalue_needed;
         Regs borrowing_requirements = Regs::heapvars();
         
-        if (lvalue_needed)
+        if (use_lvalue)
             return borrowing_requirements;
         else {
             if ((preferred & borrowing_requirements) == borrowing_requirements)
@@ -209,8 +209,8 @@ public:
         }
     }
     
-    virtual Storage compile_lvalue(Address addr, Register container_ref, X64 *x64) {
-        if (lvalue_needed) {
+    virtual Storage compile_contained_lvalue(Address addr, Register container_ref, TypeSpec ts, X64 *x64) {
+        if (use_lvalue) {
             // Lvalue
             
             if (container_ref == NOREG) {
