@@ -1166,26 +1166,39 @@ void Runtime::copy(Address s, Address t, int size) {
 }
 
 
-void Runtime::load_lvalue(Register reg, Register tmp, Storage ref_storage) {
+void Runtime::load_lvalue(Register reg, Register tmp, Storage ref_storage, int offset) {
     if (ref_storage.where == MEMORY) {
-        x64->op(MOVQ, reg, ref_storage.address);
+        x64->op(MOVQ, reg, ref_storage.address + offset);
     }
     else if (ref_storage.where == ALIAS) {
         x64->op(MOVQ, tmp, ref_storage.address);
-        x64->op(MOVQ, reg, Address(tmp, ref_storage.value));
+        x64->op(MOVQ, reg, Address(tmp, ref_storage.value + offset));
     }
     else
         throw INTERNAL_ERROR;
 }
 
 
-void Runtime::store_lvalue(Register reg, Register tmp, Storage ref_storage) {
+void Runtime::store_lvalue(Register reg, Register tmp, Storage ref_storage, int offset) {
     if (ref_storage.where == MEMORY) {
-        x64->op(MOVQ, ref_storage.address, reg);
+        x64->op(MOVQ, ref_storage.address + offset, reg);
     }
     else if (ref_storage.where == ALIAS) {
         x64->op(MOVQ, tmp, ref_storage.address);
-        x64->op(MOVQ, Address(tmp, ref_storage.value), reg);
+        x64->op(MOVQ, Address(tmp, ref_storage.value + offset), reg);
+    }
+    else
+        throw INTERNAL_ERROR;
+}
+
+
+void Runtime::exchange_lvalue(Register reg, Register tmp, Storage ref_storage, int offset) {
+    if (ref_storage.where == MEMORY) {
+        x64->op(XCHGQ, ref_storage.address + offset, reg);
+    }
+    else if (ref_storage.where == ALIAS) {
+        x64->op(MOVQ, tmp, ref_storage.address);
+        x64->op(XCHGQ, Address(tmp, ref_storage.value + offset), reg);
     }
     else
         throw INTERNAL_ERROR;

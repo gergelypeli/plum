@@ -56,11 +56,47 @@ public:
         //std::cerr << "Compiled and storing a " << ts << " from " << s << " to " << t << ".\n";
         ts.store(s, t, x64);
     }
-
-    virtual Storage compile_and_alias(X64 *x64, TemporaryAlias *ta) {
-        return ta->process(compile(x64), x64);
+    
+    virtual Storage compile_lvalue(X64 *x64) {
+        Storage s = compile(x64);
+        
+        if (s.where == MEMORY) {
+            if (s.address.base == RBP) {
+                if (s.address.index != NOREG)
+                    throw INTERNAL_ERROR;
+                
+                // Stack-local addresses are handled in compile time
+                return s;
+            }
+            else if (s.address.base == RSP) {
+                // RecordPreinitializer and FunctionCall can handle this, but they can
+                // store RBP-relative values and fix later, while we can't.
+                throw INTERNAL_ERROR;
+            }
+            else {
+                // Borrowed dynamic addresses will be stored, and used as an ALISTACK
+                x64->op(LEA, R10, s.address);
+                x64->op(PUSHQ, 0);
+                x64->op(PUSHQ, R10);
+                
+                return Storage(ALISTACK);
+            }
+        }
+        else if (s.where == ALIAS) {
+            if (s.address.base == RBP && s.address.index == NOREG) {
+                // Stack-local addresses are handled in compile time
+                return s;
+            }
+            else
+                throw INTERNAL_ERROR;
+        }
+        else if (s.where == ALISTACK) {
+            return s;
+        }
+        else
+            throw INTERNAL_ERROR;
     }
-
+    
     virtual Declaration *declare(std::string name, Scope *scope) {
         std::cerr << "Can't declare " << name << " with neither a type nor a metatype!\n";
         return NULL;
@@ -146,6 +182,113 @@ public:
 };
 
 
+class ContainedLvalue {
+public:
+    Storage rvalue_storage;
+    bool lvalue_needed;
+    bool may_borrow;
+    
+    ContainedLvalue() {
+        may_borrow = false;
+    }
+    
+    virtual Regs precompile_lvalue(Regs preferred, bool needed) {
+        // All contained values are on the heap
+        lvalue_needed = needed;
+        Regs borrowing_requirements = Regs::heapvars();
+        
+        if (lvalue_needed)
+            return borrowing_requirements;
+        else {
+            if ((preferred & borrowing_requirements) == borrowing_requirements)
+                may_borrow = true;
+            
+            // May need to load the value
+            rvalue_storage = ts.optimal_value_storage(preferred);
+            return rvalue_storage.regs();
+        }
+    }
+    
+    virtual Storage compile_lvalue(Address addr, Register container_ref, X64 *x64) {
+        if (lvalue_needed) {
+            // Lvalue
+            
+            if (container_ref == NOREG) {
+                // Borrow contained value as well
+                return Storage(MEMORY, addr);
+            }
+            else {
+                // Return ALISTACK
+                x64->op(PUSHQ, container_ref);
+                x64->op(LEA, R10, addr);
+                x64->op(PUSHQ, R10);
+                return Storage(ALISTACK);
+            }
+        }
+        else {
+            // Rvalue
+            
+            if (container_ref == NOREG) {
+                if (may_borrow) {
+                    // Borrow contained value as well
+                    return Storage(MEMORY, addr);
+                }
+                else {
+                    // Load value
+                    return ts.store(Storage(MEMORY, addr), rvalue_storage, x64);
+                }
+            }
+            else {
+                // Load value and decref container
+                Storage t = ts.store(Storage(MEMORY, addr), rvalue_storage, x64);
+                x64->runtime->decref(container_ref);
+                return t;
+            }
+        }
+    }
+    
+    /*
+    virtual Storage result_lvalue(Storage s, Register unalias_reg, Storage value_storage, X64 *x64) {
+        if (lvalue_needed)
+            return s;
+
+        switch (s.where) {
+        case MEMORY:
+            // Only valid if can be borrowed, otherwise load the value
+            if (value_storage.where != NOWHERE)
+                return ts.store(s, value_storage, x64);
+            else
+                return s;
+        case ALIAS:
+            // Must be unaliased, and potentially loaded
+            x64->op(MOVQ, unalias_reg, s.address);
+            s = Storage(MEMORY, Address(unalias_reg, s.value));
+
+            if (value_storage.where != NOWHERE)
+                return ts.store(s, value_storage, x64);
+            else
+                return s;
+        case ALISTACK:
+            // Must be unaliased and will be pushed, because we're out of registers, TODO
+            x64->op(POPQ, unalias_reg);
+            x64->op(POPQ, R10);
+            x64->op(SUBQ, RSP, ts.measure_stack());
+            x64->op(PUSHQ, R10);
+            
+            ts.store(Storage(MEMORY, Address(unalias_reg, 0)), Storage(MEMORY, Address(RSP, ADDRESS_SIZE)), x64);
+            
+            x64->op(POPQ, R10);
+            x64->runtime->unref(R10);
+            return Storage(STACK);
+        default:
+            throw INTERNAL_ERROR;
+        }
+    }
+    */
+};
+
+
+/*
 class TemporaryAliaser {
 public:
     TemporaryAlias *temporary_alias;
@@ -184,7 +327,7 @@ public:
         x64->op(MOVQ, temporary_reference->get_address(), r);
     }
 };
-
+*/
 
 class PassValue: public Value {
 public:

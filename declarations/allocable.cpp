@@ -415,8 +415,6 @@ public:
         
         // The thing that is passed as a Dvalue argument must always have MEMORY storage,
         // because its address needs to be passed as ALIAS.
-        // TODO: if eventually a tuple is passed, the tuple itself must have MEMORY storage,
-        // even if the individual elements may have a mix of MEMORY and ALIAS.
         if (where != MEMORY)
             throw INTERNAL_ERROR;
     }

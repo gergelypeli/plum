@@ -1,4 +1,4 @@
-
+/*
 class TemporaryAlias: public Declaration {
 public:
     Allocation offset;
@@ -89,7 +89,7 @@ public:
         x64->runtime->decref(R10);
     }
 };
-
+*/
 
 class Autoconvertible {
 public:

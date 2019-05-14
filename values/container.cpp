@@ -151,7 +151,7 @@ public:
 };
 
 
-class ContainerIndexValue: public OptimizedOperationValue, public Raiser, public TemporaryReferrer {
+class ContainerIndexValue: public OptimizedOperationValue, public Raiser {
 public:
     TypeSpec heap_ts;
     TypeSpec elem_ts;
@@ -173,8 +173,8 @@ public:
         if (!check_raise(lookup_exception_type, scope))
             return false;
 
-        if (!check_reference(scope))
-            return false;
+        //if (!check_reference(scope))
+        //    return false;
 
         return OptimizedOperationValue::check(args, kwargs, scope);
     }
@@ -231,12 +231,13 @@ public:
             throw INTERNAL_ERROR;
         }
 
-        defer_decref(r, x64);
+        //defer_decref(r, x64);
 
         Label ok;
         x64->op(CMPQ, i, Address(r, length_offset));  // needs logical index
         x64->op(JB, ok);
 
+        heap_ts.decref(r, x64);
         raise("NOT_FOUND", x64);
 
         x64->code_label(ok);
@@ -244,7 +245,13 @@ public:
         Address addr = x64->runtime->make_address(r, i, elem_size, elems_offset);
         Storage t(MEMORY, addr);
         
-        if (value_storage.where != NOWHERE)
+        if (lvalue_needed) {
+            x64->op(PUSHQ, r);
+            x64->op(LEA, R10, addr);
+            x64->op(PUSHQ, R10);
+            t = Storage(ALISTACK);
+        }
+        else if (value_storage.where != NOWHERE)
             t = ts.store(t, value_storage, x64);
             
         return t;
@@ -463,7 +470,7 @@ public:
 };
 
 
-class ContainerPushValue: public GenericValue, public TemporaryAliaser {
+class ContainerPushValue: public GenericValue {
 public:
     TypeSpec elem_ts;
     int reservation_offset;
@@ -482,7 +489,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        check_alias(scope);
+        //check_alias(scope);
         
         return GenericValue::check(args, kwargs, scope);
     }
@@ -501,13 +508,14 @@ public:
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label grow_label = x64->once->compile(compile_grow, elem_ts);
 
-        ls = left->compile_and_alias(x64, get_alias());
+        ls = left->compile_lvalue(x64);
         right->compile_and_store(x64, Storage(STACK));
+        Storage als = ls.access(right->ts.measure_stack());
 
-        container_cow(clone_label, ls, x64);  // leaves borrowed Ref in RAX
+        container_cow(clone_label, als, x64);  // leaves borrowed Ref in RAX
 
         x64->op(MOVQ, R10, 1);
-        container_preappend2(reservation_offset, length_offset, grow_label, ls, x64);
+        container_preappend2(reservation_offset, length_offset, grow_label, als, x64);
         // RAX - Ref
         
         x64->op(MOVQ, R10, Address(RAX, length_offset));
@@ -526,7 +534,7 @@ public:
 };
 
 
-class ContainerPopValue: public ContainerEmptiableValue, public TemporaryAliaser {
+class ContainerPopValue: public ContainerEmptiableValue {
 public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;
@@ -544,7 +552,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        check_alias(scope);
+        //check_alias(scope);
         
         return ContainerEmptiableValue::check(args, kwargs, scope);
     }
@@ -562,11 +570,12 @@ public:
         Label clone_label = x64->once->compile(compile_clone, elem_ts);
         Label ok;
         
-        ls = left->compile_and_alias(x64, get_alias());
+        ls = left->compile_lvalue(x64);
+        Storage als = ls.access(0);
 
-        container_cow(clone_label, ls, x64);  // leaves borrowed Ref in RAX
+        container_cow(clone_label, als, x64);  // leaves borrowed Ref in RAX
         
-        // Get rid of pivot (technically, it must be a nop now)
+        // Get rid of pivot
         left->ts.store(ls, Storage(), x64);
         
         x64->op(CMPQ, Address(RAX, length_offset), 0);

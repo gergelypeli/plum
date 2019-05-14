@@ -182,6 +182,15 @@ struct Storage {
             throw INTERNAL_ERROR;
         }
     }
+    
+    Storage access(int stack_offset) {
+        if (where == MEMORY || where == ALIAS)
+            return *this;
+        else if (where == ALISTACK)
+            return Storage(ALIAS, Address(RSP, stack_offset), 0);
+        else
+            throw INTERNAL_ERROR;
+    }
 };
 
 

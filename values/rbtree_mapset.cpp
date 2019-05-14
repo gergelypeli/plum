@@ -201,16 +201,23 @@ public:
         index_ts = tm[1];
         value_ts = tm[2];
     }
-    
+
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeNextElemByAgeValue::precompile(preferred) | Regs(RAX, RBX);
+    }
+
     virtual Storage postprocess(Storage s, X64 *x64) {
-        if (s.where != MEMORY)
+        if (s.where != ALISTACK)
             throw INTERNAL_ERROR;
             
-        // Must push index and value in this order
-        index_ts.store(s, Storage(STACK), x64);
-        
-        x64->op(LEA, R10, s.address + index_ts.measure_stack());
-        x64->op(PUSHQ, R10);
+        x64->op(POPQ, RAX);
+        x64->op(POPQ, RBX);
+
+        index_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
+
+        x64->op(PUSHQ, RBX);
+        x64->op(ADDQ, RAX, index_ts.measure_stack());
+        x64->op(PUSHQ, RAX);
 
         return Storage(STACK);
     }
@@ -228,15 +235,22 @@ public:
         value_ts = tm[2];
     }
 
+    virtual Regs precompile(Regs preferred) {
+        return RbtreeNextElemByOrderValue::precompile(preferred) | Regs(RAX, RBX);
+    }
+
     virtual Storage postprocess(Storage s, X64 *x64) {
-        if (s.where != MEMORY)
+        if (s.where != ALISTACK)
             throw INTERNAL_ERROR;
             
-        // Must push index and value in this order
-        index_ts.store(s, Storage(STACK), x64);
-        
-        x64->op(LEA, R10, s.address + index_ts.measure_stack());
-        x64->op(PUSHQ, R10);
+        x64->op(POPQ, RAX);
+        x64->op(POPQ, RBX);
+
+        index_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
+
+        x64->op(PUSHQ, RBX);
+        x64->op(ADDQ, RAX, index_ts.measure_stack());
+        x64->op(PUSHQ, RAX);
 
         return Storage(STACK);
     }

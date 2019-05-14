@@ -91,34 +91,27 @@ public:
         if (ls.where != MEMORY && ls.where != ALIAS)
             throw INTERNAL_ERROR;
 
-        bool spilled_left_memory = false;
-
         if (ls.regs() & rclob) {
             // a clobberable ls must be a MEMORY with a dynamic address
-            spilled_left_memory = true;
             x64->op(LEA, R10, ls.address);
+            x64->op(PUSHQ, 0);
             x64->op(PUSHQ, R10);
+            ls = Storage(ALISTACK);
         }
 
         x64->unwind->push(this);
         rs = right->compile(x64);
         x64->unwind->pop(this);
 
-        if (ls.where == MEMORY) {
-            if (spilled_left_memory) {
-                // Surely a dynamic address
-                Register r = (clob & ~rs.regs()).get_any();
+        Storage orig_ls = ls;
 
-                if (rs.where == STACK) {
-                    x64->op(MOVQ, r, Address(RSP, right->ts.measure_stack()));
-                }
-                else {
-                    x64->op(POPQ, r);
-                    spilled_left_memory = false;
-                }
-
-                ls = Storage(MEMORY, Address(r, 0));
-            }
+        if (ls.where == ALISTACK) {
+            // Surely a dynamic address
+            Register r = (clob & ~rs.regs()).get_any();
+            int offset = (rs.where == STACK ? right->ts.measure_stack() : 0);
+            
+            x64->op(MOVQ, r, Address(RSP, offset));
+            ls = Storage(MEMORY, Address(r, 0));
         }
         else if (ls.where == ALIAS) {
             Register r = (clob & ~rs.regs()).get_any();
@@ -133,10 +126,7 @@ public:
         else
             throw INTERNAL_ERROR;
         
-        if (spilled_left_memory)
-            x64->op(ADDQ, RSP, ADDRESS_SIZE);
-        
-        return ls;
+        return orig_ls;
     }
 
     virtual Storage compare(X64 *x64) {

@@ -1009,8 +1009,9 @@ public:
 
         //std::cerr << "Function head is " << head_scope->size - 16 << "bytes, self is " << self_scope->size - head_scope->size << " bytes, result is " << result_scope->size - self_scope->size << " bytes.\n";
 
+        // FIXME: this is technically not an ALIAS, just an address
         if (result_alias_storage.where == MEMORY) {
-            Allocation a = reserve(Allocation { ALIAS_SIZE, 0, 0, 0 });
+            Allocation a = reserve(Allocation { ADDRESS_SIZE, 0, 0, 0 });
             result_alias_storage.address = Address(RBP, a.concretize());
         }
         

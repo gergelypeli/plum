@@ -250,7 +250,7 @@ public:
 };
 
 
-class ArrayExtendValue: public GenericValue, public TemporaryAliaser {
+class ArrayExtendValue: public GenericValue {
 public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;
@@ -262,7 +262,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        check_alias(scope);
+        //check_alias(scope);
         
         return GenericValue::check(args, kwargs, scope);
     }
@@ -277,47 +277,30 @@ public:
         // TODO: This is just a concatenation and an assignment, could be more optimal.
         Label l = x64->once->compile(ArrayConcatenationValue::compile_array_concatenation, elem_ts);
 
-        ls = left->compile_and_alias(x64, get_alias());
+        ls = left->compile_lvalue(x64);
 
-        if (ls.where == MEMORY) {
-            x64->op(MOVQ, R10, ls.address);
-        }
-        else {
-            x64->op(MOVQ, R11, ls.address);
-            x64->op(MOVQ, R10, Address(R11, 0));
-        }
-
-        // The right expression may kill our reference, so don't just borrow
-        x64->runtime->incref(R10);
-        x64->op(PUSHQ, R10);
-        
+        x64->op(SUBQ, RSP, ADDRESS_SIZE);  // placeholder for borrowed left side Ref
         right->compile_and_store(x64, Storage(STACK));
-        
+
+        Storage als = ls.access(ADDRESS_SIZE * 2);
+        x64->runtime->load_lvalue(R10, R11, als);
+        x64->op(MOVQ, Address(RSP, ADDRESS_SIZE), R10);  // borrow left side Ref
+
         x64->op(CALL, l);  // result array ref in RAX
-        
-        right->ts.store(Storage(STACK), Storage(), x64);
-        x64->op(POPQ, R10);
-        heap_ts.decref(R10, x64);  // release left reference
 
         // Now mimic a ref assignment
-        if (ls.where == MEMORY) {
-            x64->op(MOVQ, R10, ls.address);
-            x64->runtime->decref(R10);
-            x64->op(MOVQ, ls.address, RAX);
-        }
-        else {
-            x64->op(MOVQ, R11, ls.address);
-            x64->op(MOVQ, R10, Address(R11, 0));
-            x64->runtime->decref(R10);
-            x64->op(MOVQ, Address(R11, 0), RAX);
-        }
+        x64->runtime->exchange_lvalue(RAX, R11, als);
+        x64->runtime->decref(RAX);
+        
+        right->ts.store(Storage(STACK), Storage(), x64);
+        x64->op(ADDQ, RSP, ADDRESS_SIZE);
         
         return ls;
     }
 };
 
 
-class ArrayReallocValue: public GenericOperationValue, public TemporaryAliaser {
+class ArrayReallocValue: public GenericOperationValue {
 public:
     TypeSpec elem_ts;
 
@@ -327,7 +310,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        check_alias(scope);
+        //check_alias(scope);
         
         return GenericOperationValue::check(args, kwargs, scope);
     }
@@ -340,21 +323,24 @@ public:
     virtual Storage compile(X64 *x64) {
         Label realloc_array = x64->once->compile(compile_array_realloc, elem_ts);
 
-        ls = left->compile_and_alias(x64, get_alias());
+        ls = left->compile_lvalue(x64);
 
-        if (right)
+        if (right) {
             right->compile_and_store(x64, Storage(STACK));
-
-        x64->runtime->load_lvalue(RAX, R11, ls);
-        
-        if (right)
             x64->op(POPQ, R10);
-        else
+        }
+
+        Storage als = ls.access(0);
+        x64->runtime->load_lvalue(RAX, R11, als);
+        
+        if (!right)
             x64->op(MOVQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // shrink to fit
             
         x64->op(CALL, realloc_array);  // clobbers all
 
-        x64->runtime->store_lvalue(RAX, R11, ls);  // technically not an assignment
+        // Although realloc may change the address of the container, it is technically
+        // the same object with the same refcount, so we can just store it.
+        x64->runtime->store_lvalue(RAX, R11, als);
         
         return ls;
     }
@@ -484,7 +470,7 @@ public:
 };
 
 
-class ArrayRefillValue: public Value, public TemporaryAliaser {
+class ArrayRefillValue: public Value {
 public:
     std::unique_ptr<Value> array_value;
     std::unique_ptr<Value> fill_value;
@@ -498,7 +484,7 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        check_alias(scope);
+        //check_alias(scope);
         
         ArgInfos infos = {
             { "fill", &elem_ts, scope, &fill_value },
@@ -523,12 +509,13 @@ public:
         int elem_size = ContainerType::get_elem_size(elem_ts);
         Label realloc_array = x64->once->compile(compile_array_realloc, elem_ts);
 
-        Storage as = array_value->compile_and_alias(x64, get_alias());
+        Storage as = array_value->compile_lvalue(x64);
         fill_value->compile_and_store(x64, Storage(STACK));
         length_value->compile_and_store(x64, Storage(STACK));
         
         // borrow array ref
-        x64->runtime->load_lvalue(RAX, R11, as);
+        Storage aas = as.access(fill_value->ts.measure_stack() + INTEGER_TS.measure_stack());
+        x64->runtime->load_lvalue(RAX, R11, aas);
         
         x64->op(MOVQ, R10, Address(RSP, 0));  // extra length (keep on stack)
         x64->op(ADDQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -538,7 +525,7 @@ public:
         // Need to reallocate
         x64->op(CALL, realloc_array);  // clobbers all
 
-        x64->runtime->store_lvalue(RAX, R11, as);
+        x64->runtime->store_lvalue(RAX, R11, aas);
         
         x64->code_label(ok);
         x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -548,6 +535,7 @@ public:
         x64->op(JMP, check);
         
         x64->code_label(loop);
+        // Use MEMORY for the create source, so it won't be popped
         elem_ts.create(Storage(MEMORY, Address(RSP, 0)), Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), x64);
         x64->op(ADDQ, RDX, elem_size);
         x64->op(DECQ, RCX);

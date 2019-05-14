@@ -166,11 +166,23 @@ public:
             return;
         case MEMORY_ALISTACK:
             x64->op(LEA, R10, s.address);
+            x64->op(PUSHQ, 0);
             x64->op(PUSHQ, R10);
             return;
             
-        case ALISTACK_NOWHERE:
-            x64->op(ADDQ, RSP, ALIAS_SIZE);
+        // ALIAS to ALISTACK is not implemented here, because that may push a stack relative
+        // address onto the stack, which is normally disallowed, only the function call may
+        // do it, because it knows how to do that safely.
+            
+        case ALISTACK_NOWHERE: {
+            Label skip;  // TODO: this whole thing must be optimized
+            x64->op(POPQ, R10);
+            x64->op(POPQ, R10);
+            x64->op(CMPQ, R10, 0);
+            x64->op(JE, skip);
+            x64->runtime->decref(R10);
+            x64->code_label(skip);
+        }
             return;
             
         case ALIAS_NOWHERE:

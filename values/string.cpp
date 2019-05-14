@@ -242,7 +242,7 @@ public:
 };
 
 
-class SliceIndexValue: public GenericValue, public Raiser, public TemporaryReferrer {
+class SliceIndexValue: public GenericValue, public Raiser {
 public:
     TypeSpec elem_ts;
     TypeSpec heap_ts;
@@ -258,8 +258,8 @@ public:
         if (!check_raise(lookup_exception_type, scope))
             return false;
 
-        if (!check_reference(scope))
-            return false;
+        //if (!check_reference(scope))
+        //    return false;
         
         return GenericValue::check(args, kwargs, scope);
     }
@@ -292,7 +292,7 @@ public:
         x64->op(POPQ, R11);  // length
 
         Label ok;
-        defer_decref(RBX, x64);
+        //defer_decref(RBX, x64);
         
         x64->op(CMPQ, RAX, R11);
         x64->op(JB, ok);
@@ -306,7 +306,13 @@ public:
         Address addr = x64->runtime->make_address(RBX, RAX, elem_size, LINEARRAY_ELEMS_OFFSET);
         Storage t = Storage(MEMORY, addr);
 
-        if (value_storage.where != NOWHERE)
+        if (lvalue_needed) {
+            x64->op(PUSHQ, RBX);  // refcounted container
+            x64->op(LEA, R10, addr);
+            x64->op(PUSHQ, R10);
+            t = Storage(ALISTACK);
+        }
+        else if (value_storage.where != NOWHERE)
             t = ts.store(t, value_storage, x64);
             
         return t;

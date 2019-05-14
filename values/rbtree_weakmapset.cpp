@@ -134,13 +134,11 @@ void nosy_postadd(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     TypeSpec heap_ts = nosyvalue_heap_ts(elem_ts);
     int noffset = nosyvalue_offset(elem_ts);
     
-    // This is the storage of the rbtree ref as the operation's pivot value returned.
-    // As it was an Lvalue pivot, it is either MEMORY[RBP+x] or ALIAS[RBP+x].
-    // The rbtree ref of a nosy structure is on the heap, so it must be the second one.
-    if (ref_storage.where != ALIAS || ref_storage.value != 0)
+    // This Rbtree Ref is the member of a Nosytree, on the heap, so must be ALISTACK.
+    if (ref_storage.where != ALISTACK)
         throw INTERNAL_ERROR;
         
-    x64->op(MOVQ, R11, ref_storage.address);
+    x64->op(MOVQ, R11, Address(RSP, 0));
     
     x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
     x64->op(LEA, R10, Address(callback_label, 0));
@@ -165,10 +163,10 @@ void nosy_postremove(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     int noffset = nosyvalue_offset(elem_ts);
 
     // See above
-    if (ref_storage.where != ALIAS || ref_storage.value != 0)
+    if (ref_storage.where != ALISTACK)
         throw INTERNAL_ERROR;
         
-    x64->op(MOVQ, R11, ref_storage.address);
+    x64->op(MOVQ, R11, Address(RSP, 0));
     
     x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
     x64->op(LEA, R10, Address(callback_label, 0));
@@ -265,7 +263,7 @@ void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
 
 // Internally used access to the Rbtree Ref inside the Nosytree Ref
 
-class NosytreeMemberValue: public Value, public TemporaryAliaser, public TemporaryReferrer {
+class NosytreeMemberValue: public Value {
 public:
     TypeSpec elem_ts;
     std::unique_ptr<Value> pivot;
@@ -277,11 +275,11 @@ public:
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
-        if (lvalue_needed)
-            check_alias(scope);
+        //if (lvalue_needed)
+        //    check_alias(scope);
 
-        if (!check_reference(scope))
-            return false;
+        //if (!check_reference(scope))
+        //    return false;
             
         return Value::check(args, kwargs, scope);
     }
@@ -306,9 +304,10 @@ public:
         if (lvalue_needed) {
             Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
 
-            Storage ps = pivot->compile_and_alias(x64, get_alias());
+            Storage ps = pivot->compile_lvalue(x64);
+            Storage aps = ps.access(0);
 
-            container_cow(clone_label, ps, x64);  // leaves borrowed Ref in RAX
+            container_cow(clone_label, aps, x64);  // leaves borrowed Ref in RAX
             r = RAX;
 
             x64->runtime->incref(r);
@@ -330,9 +329,11 @@ public:
             }
         }
 
-        defer_decref(r, x64);
-        
-        return Storage(MEMORY, Address(r, NOSYTREE_MEMBER_OFFSET));
+        x64->op(PUSHQ, r);
+        x64->op(ADDQ, r, NOSYTREE_MEMBER_OFFSET);
+        x64->op(PUSHQ, r);
+
+        return Storage(ALISTACK);
     }
 };
 
@@ -402,9 +403,7 @@ public:
         return RbtreeAddValue::precompile(preferred) | Regs::all();
     }
 
-    virtual Storage compile(X64 *x64) {
-        Storage ps = RbtreeAddValue::compile(x64);
-        
+    virtual Storage postprocess(Storage ps, X64 *x64) {
         // Using the ps+SELFX+KEYX
         nosy_postadd(elem_ts, ps, x64);  // clobbers all
         
@@ -423,9 +422,7 @@ public:
         return RbtreeAddItemValue::precompile(preferred) | Regs::all();
     }
 
-    virtual Storage compile(X64 *x64) {
-        Storage ps = RbtreeAddItemValue::compile(x64);
-        
+    virtual Storage postprocess(Storage ps, X64 *x64) {
         // Using the ps+SELFX+KEYX
         nosy_postadd(elem_ts, ps, x64);  // clobbers all
         
@@ -444,9 +441,7 @@ public:
         return RbtreeRemoveValue::precompile(preferred) | Regs::all();
     }
 
-    virtual Storage compile(X64 *x64) {
-        Storage ps = RbtreeRemoveValue::compile(x64);
-        
+    virtual Storage postprocess(Storage ps, X64 *x64) {
         // Using the ps+SELFX+KEYX
         nosy_postremove(elem_ts, ps, x64);  // clobbers all
         

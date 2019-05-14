@@ -615,8 +615,10 @@ public:
     void copy(Address s, Address t, int size);
     void fix_address(Address address);
 
-    void load_lvalue(Register reg, Register tmp, Storage ref_storage);
-    void store_lvalue(Register reg, Register tmp, Storage ref_storage);
+    void load_lvalue(Register reg, Register tmp, Storage ref_storage, int offset = 0);
+    void store_lvalue(Register reg, Register tmp, Storage ref_storage, int offset = 0);
+    void exchange_lvalue(Register reg, Register tmp, Storage ref_storage, int offset = 0);
+
     Address make_address(Register base, Register index, int scale, int offset);
     
     void log(std::string message);
