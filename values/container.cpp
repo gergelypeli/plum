@@ -151,7 +151,7 @@ public:
 };
 
 
-class ContainerIndexValue: public OptimizedOperationValue, public Raiser, public ContainedLvalue {
+class ContainerIndexValue: public GenericOperationValue, public Raiser, public ContainedLvalue {
 public:
     TypeSpec heap_ts;
     TypeSpec elem_ts;
@@ -160,9 +160,7 @@ public:
     Storage value_storage;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, TypeSpec hts, int lo, int eo)
-        :OptimizedOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot,
-        GPR_SUBSET, GPR_SUBSET
-        ) {
+        :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
         heap_ts = hts;
         elem_ts = match[1];
         length_offset = lo;
@@ -176,36 +174,51 @@ public:
         //if (!check_reference(scope))
         //    return false;
 
-        return OptimizedOperationValue::check(args, kwargs, scope);
+        return GenericOperationValue::check(args, kwargs, scope);
     }
 
     virtual void fix_index(Register r, Register i, X64 *x64) {
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = OptimizedOperationValue::precompile(preferred);
+        clob = GenericOperationValue::precompile(preferred);
         
-        clob = clob | Regs(RAX) | Regs(RBX);
+        //clob = clob | Regs(RAX) | Regs(RBX);
         clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
+        clob.reserve(3);
 
         return clob;
     }
 
     virtual Storage compile(X64 *x64) {
         int elem_size = ContainerType::get_elem_size(elem_ts);
-    
-        OptimizedOperationValue::subcompile(x64);
 
-        Register r = (ls.where == REGISTER ? ls.reg : ls.where == MEMORY ? auxls.reg : throw INTERNAL_ERROR);
-        Register i = (rs.where == REGISTER ? rs.reg : r == RAX ? RBX : RAX);
+        ls = left->compile(x64);
+        
+        if (ls.regs() & rclob) {
+            ls = left->ts.store(ls, Storage(STACK), x64);
+        }
+
+        x64->unwind->push(this);
+        rs = right->compile(x64);
+        x64->unwind->pop(this);
+
+        rs = right->compile(x64);
+    
+        //Register r = (ls.where == REGISTER ? ls.reg : ls.where == MEMORY ? auxls.reg : throw INTERNAL_ERROR);
+        //Register i = (rs.where == REGISTER ? rs.reg : r == RAX ? RBX : RAX);
+        Register r, i;
 
         switch (rs.where) {
         case CONSTANT:
+            i = (clob & ~ls.regs()).get_any();
             x64->op(MOVQ, i, rs.value);
             break;
         case REGISTER:
+            i = rs.reg;
             break;
         case MEMORY:
+            i = (clob & ~ls.regs()).get_any();
             x64->op(MOVQ, i, rs.address);
             break;
         default:
@@ -214,8 +227,10 @@ public:
     
         switch (ls.where) {
         case REGISTER:
+            r = ls.reg;
             break;
         case MEMORY:
+            r = (clob & ~Regs(i)).get_any();
             x64->op(MOVQ, r, ls.address);  // r may be the base of ls.address
             heap_ts.incref(r, x64);
             break;
