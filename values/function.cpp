@@ -749,6 +749,7 @@ public:
             
                 if (s.where == MEMORY && s.address.base == RBP) {
                     // Will add RBP
+                    x64->op(PUSHQ, 0);
                     x64->op(PUSHQ, s.address.offset);
                     stackfix = s;
                 }
@@ -756,16 +757,20 @@ public:
                     // Will add RBP
                     x64->op(LEA, R10, s.address);
                     x64->op(SUBQ, R10, RBP);
+                    x64->op(PUSHQ, 0);
                     x64->op(PUSHQ, R10);
                     stackfix = s;
                 }
                 else if (s.where == ALIAS) {
                     // Will add ALIAS address
+                    x64->op(PUSHQ, 0);
                     x64->op(PUSHQ, s.value);
                     stackfix = s;
                 }
-                else
+                else {
+                    // Other cases all deal with heap locations
                     arg_ts.store(s, t, x64);
+                }
             }
             else
                 arg_ts.store(s, t, x64);
@@ -823,13 +828,19 @@ public:
 
         x64->unwind->push(this);
         
+        //std::cerr << "Function call " << function->name << " stack at " << x64->accounting->mark() << "\n";
+        
         if (pivot_ts.size()) {
             push_arg(pivot_ts, pivot.get(), x64);
             //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
         }
         
-        for (unsigned i = 0; i < values.size(); i++)
+        for (unsigned i = 0; i < values.size(); i++) {
+            //std::cerr << "Function call " << function->name << " stack at " << x64->accounting->mark() << "\n";
             push_arg(arg_tss[i], values[i].get(), x64);
+        }
+
+        //std::cerr << "Function call " << function->name << " stack at " << x64->accounting->mark() << "\n";
 
         unsigned passed_size = 0;
         for (unsigned &s : pushed_sizes)
@@ -889,15 +900,26 @@ public:
                     s = pivot_alias_storage;
                     
                     if (s.where == MEMORY) {
-                        if (s.address.base == RBP || s.address.base == RSP)
-                            x64->op(ADDQ, RSP, ADDRESS_SIZE);
+                        if (s.address.base == RBP || s.address.base == RSP) {
+                            // Stack relative address, no heap container
+                            x64->op(ADDQ, RSP, ALIAS_SIZE);
+                        }
                         else {
+                            // Borrowed location, no heap container
                             x64->op(POPQ, RAX);
+                            x64->op(POPQ, R10);
                             s = Storage(MEMORY, Address(RAX, 0));
                         }
                     }
-                    else if (s.where == ALIAS)
-                        x64->op(ADDQ, RSP, ADDRESS_SIZE);
+                    else if (s.where == ALIAS) {
+                        // Aliased argument passed, no heap container
+                        x64->op(ADDQ, RSP, ALIAS_SIZE);
+                    }
+                    else if (s.where == ALISTACK) {
+                        // We got an ALISTACK, pass it back as received
+                    }
+                    else
+                        throw INTERNAL_ERROR;
                 }
             
                 return s;
@@ -1028,7 +1050,6 @@ public:
         
             for (unsigned i = 0; i < values.size(); i++) {
                 Storage var_storage = result_vars[i]->get_storage(match, r);
-                var_storages.push_back(var_storage);
                 TypeSpec var_ts = result_vars[i]->alloc_ts;
             
                 Storage s = values[i]->compile(x64);
@@ -1036,6 +1057,8 @@ public:
 
                 x64->op(MOVQ, RAX, ras.address);
                 var_ts.create(s, t, x64);
+                
+                var_storages.push_back(var_storage);
             }
 
             x64->unwind->pop(this);

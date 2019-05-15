@@ -312,18 +312,21 @@ public:
         unsigned sse_index = 0;
         
         // Account for the return address and the saved RBP
-        unsigned stack_offset = passed_size + 2 * ADDRESS_SIZE;
+        unsigned stack_offset = passed_size + RIP_SIZE + ADDRESS_SIZE;
 
         for (unsigned i = 0; i < pushed_tss.size(); i++) {
             // Must move raw values so it doesn't count as a copy
             stack_offset -= pushed_sizes[i];
             
-            StorageWhere pushed_where = pushed_tss[i].where(AS_VALUE);
+            StorageWhere optimal_where = pushed_tss[i].where(AS_VALUE);
+            StorageWhere pushed_where = stacked(pushed_tss[i].where(AS_ARGUMENT));
             
-            if (pushed_where == NOWHERE)
+            if (optimal_where == NOWHERE)
                 ;  // happens for singleton pivots
-            else if (pushed_where == SSEREGISTER)
+            else if (optimal_where == SSEREGISTER)
                 x64->op(MOVSD, sses[sse_index++], Address(RBP, stack_offset));
+            else if (pushed_where == ALISTACK)
+                x64->op(MOVQ, regs[reg_index++], Address(RBP, stack_offset));
             else if (pushed_sizes[i] == ADDRESS_SIZE)
                 x64->op(MOVQ, regs[reg_index++], Address(RBP, stack_offset));
             else
