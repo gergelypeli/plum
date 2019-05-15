@@ -5,8 +5,8 @@ public:
     CodeScope *code_scope;
     Storage save_storage;
 
-    CodeScopeValue(Value *v, CodeScope *s)
-        :Value(v->ts.rvalue()) {
+    CodeScopeValue(Value *v, CodeScope *s, TypeSpec ts)
+        :Value(ts) {
         value.reset(v);
         set_token(v->token);
         code_scope = s;
@@ -79,8 +79,8 @@ public:
 
 class RetroScopeValue: public CodeScopeValue, public Deferrable {
 public:
-    RetroScopeValue(Value *v, CodeScope *s)
-        :CodeScopeValue(v, s) {
+    RetroScopeValue(Value *v, CodeScope *s, TypeSpec ts)
+        :CodeScopeValue(v, s, ts) {
     }
     
     virtual void deferred_compile(Label label, X64 *x64) {
@@ -319,6 +319,8 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
+        int stack_usage = x64->accounting->mark();
+
         for (unsigned i = 0; i < statements.size() - 1; i++) {
             Token &token = statements[i]->token;
             
@@ -328,6 +330,11 @@ public:
             statements[i]->compile_and_store(x64, Storage());
 
             x64->op(NOP);  // For readability
+            
+            if (x64->accounting->mark() != stack_usage) {
+                std::cerr << "Statement stack usage weirdness!\n";
+                throw INTERNAL_ERROR;
+            }
         }
 
         Token &token = statements.back()->token;

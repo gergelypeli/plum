@@ -230,11 +230,11 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
         v->need_lvalue();
 
     if (code_scope) {
-        v = make<CodeScopeValue>(v, code_scope);
+        v = make<CodeScopeValue>(v, code_scope, v->ts);
         code_scope->leave();
     }
     else if (retro_scope) {
-        v = make<RetroScopeValue>(v, retro_scope);
+        v = make<RetroScopeValue>(v, retro_scope, match[0]);
         retro_scope->leave();
     }
     else if (retro_argument_scope) {

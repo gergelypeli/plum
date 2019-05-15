@@ -237,8 +237,14 @@ bool match_anytuple_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value
             return false;
         }
         else if ((*s)->meta_type == tuple_metatype) {
-            if (matchlog) std::cerr << "No match, Tuple for Any!\n";
-            return false;
+            if ((*s)->get_parameter_count() == 1) {
+                if (matchlog) std::cerr << "Matched single tuple for Any.\n";
+                s++;
+            }
+            else {
+                if (matchlog) std::cerr << "No match, Tuple for Any!\n";
+                return false;
+            }
         }
         else if (*s == whatever_type) {
             if (matchlog) std::cerr << "No match, Whatever for Any!\n";
@@ -423,7 +429,7 @@ bool match_attribute_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Valu
             return false;
         }
         
-        if (*s == lvalue_type || *s == ovalue_type) {
+        if (*s == lvalue_type || *s == ovalue_type || *s == code_type) {
             s++;
         }
 
