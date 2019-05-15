@@ -239,13 +239,15 @@ public:
                 Storage s = v->get_storage(tm, Storage(MEMORY, Address(RAX, 0)));
                 Storage t = Storage(STACK);
                 mts.store(s, t, x64);
-                x64->op(PUSHQ, Address(RSP, mts.measure_stack()));
+                x64->op(PUSHQ, 0);
+                x64->op(PUSHQ, Address(RSP, mts.measure_stack() + ADDRESS_SIZE));
                 
                 // Invoking a custom streamification may relocate the stack, so the
                 // passed stream alias may be fixed, must propagate it upwards.
                 mts.streamify(x64);
                 
-                x64->op(POPQ, Address(RSP, mts.measure_stack()));
+                x64->op(POPQ, Address(RSP, mts.measure_stack() + ADDRESS_SIZE));
+                x64->op(POPQ, R10);
                 mts.store(t, Storage(), x64);
             }
 
@@ -467,9 +469,10 @@ public:
         x64->op(PUSHQ, RCX);
         x64->op(MOVW, R10W, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET));
         x64->op(PUSHQ, R10);
-        x64->op(PUSHQ, alias_addr + 2 * ADDRESS_SIZE);  // skip char, counter, retaddr
+        x64->op(PUSHQ, 0);
+        x64->op(PUSHQ, alias_addr + 3 * ADDRESS_SIZE);
         x64->op(CALL, char_str_label);  // clobbers all
-        x64->op(ADDQ, RSP, ADDRESS_SIZE * 2);
+        x64->op(ADDQ, RSP, ADDRESS_SIZE + ALIAS_SIZE);
         x64->op(POPQ, RCX);
         x64->op(INCQ, RCX);
         

@@ -159,6 +159,7 @@ public:
         x64->op(PUSHQ, RCX);
         x64->op(MOVQ, RBX, alias_addr + 2 * ADDRESS_SIZE);  // stream alias
         elem_ts.store(Storage(MEMORY, Address(RAX, 0)), Storage(STACK), x64);
+        x64->op(PUSHQ, 0);
         x64->op(PUSHQ, RBX);
         
         // Invoking a custom streamification may relocate the stack, so the
@@ -166,6 +167,7 @@ public:
         elem_ts.streamify(x64);  // clobbers all
         
         x64->op(POPQ, RBX);
+        x64->op(POPQ, R10);
         elem_ts.store(Storage(STACK), Storage(), x64);
         x64->op(MOVQ, alias_addr + 2 * ADDRESS_SIZE, RBX);  // stream alias
         x64->op(POPQ, RCX);
@@ -426,6 +428,7 @@ public:
         x64->op(PUSHQ, RCX);
         x64->op(MOVQ, RBX, alias_addr + 2 * ADDRESS_SIZE);  // stream alias
         elem_ts.store(Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), Storage(STACK), x64);
+        x64->op(PUSHQ, 0);
         x64->op(PUSHQ, RBX);
         
         // Invoking a custom streamification may relocate the stack, so the
@@ -433,6 +436,7 @@ public:
         elem_ts.streamify(x64);  // clobbers all
         
         x64->op(POPQ, RBX);
+        x64->op(POPQ, R10);
         elem_ts.store(Storage(STACK), Storage(), x64);
         x64->op(MOVQ, alias_addr + 2 * ADDRESS_SIZE, RBX);  // stream alias
         x64->op(POPQ, RCX);

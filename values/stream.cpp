@@ -134,11 +134,12 @@ public:
             c->compile_and_store(x64, Storage(STACK));
             
             x64->op(LEA, R10, Address(RSP, c->ts.measure_stack()));
+            x64->op(PUSHQ, 0);
             x64->op(PUSHQ, R10);
             
             c->streamify(x64);
             
-            x64->op(ADDQ, RSP, ADDRESS_SIZE);
+            x64->op(ADDQ, RSP, ALIAS_SIZE);
             c->ts.store(Storage(STACK), Storage(), x64);
         }
 
