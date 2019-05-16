@@ -221,7 +221,9 @@ public:
             if (s.address.base != RBP)
                 throw INTERNAL_ERROR;
         
-            x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index, is_artificial);
+            // gdb treats $ as a history expansion token
+            std::string display_name = (name == "$" ? "SELF" : name);
+            x64->dwarf->formal_parameter_info(display_name, s.address.offset, ts_index, is_artificial);
         }
         else if (outer_scope->type == DATA_SCOPE) {
             int o = allocsubst(offset, tm).concretize();

@@ -359,7 +359,10 @@ public:
 
         fn_scope->body_scope->initialize_contents(x64);
 
+        x64->op(NOP);
+
         x64->unwind->push(this);
+        x64->add_lineno(body->token.file_index, body->token.row);
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
         
