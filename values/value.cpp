@@ -400,7 +400,6 @@ public:
 class VariableValue: public Value {
 public:
     Variable *variable;
-    RetroScope *retro_scope;
     std::unique_ptr<Value> pivot;
     Register unalias_reg;
     TypeMatch match;
@@ -436,11 +435,6 @@ public:
                     ts = ts.rvalue();
                 }
             }
-            
-            retro_scope = NULL;
-        }
-        else {
-            retro_scope = scope->get_retro_scope();
         }
     }
     
@@ -546,20 +540,6 @@ public:
         }
         else {
             t = variable->get_local_storage();
-
-            if (retro_scope) {
-                // In a retro scope we're running in a stack frame that is at a fixed offset
-                // from the enclosing stack frame, so all local variable addresses
-                // must be adjusted (even for the ones declared inside the same retro scope).
-                int retro_offset = retro_scope->get_frame_offset();
-                
-                if (t.where == NOWHERE)
-                    ;
-                else if (t.where == MEMORY || t.where == ALIAS)
-                    t.address.offset -= retro_offset;
-                else
-                    throw INTERNAL_ERROR;
-            }
         }
 
         if (!lvalue_needed && !(borrows_allowed & Regs::relaxvars())) {

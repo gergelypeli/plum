@@ -92,19 +92,21 @@ public:
 
         x64->code_label_local(label, "<retro>");
 
-        code_scope->initialize_contents(x64);
-        
         // Create an artificial stack frame at the location that RetroScope has allocated
-        x64->op(MOVQ, R10, Address(RBP, 0));  // get our own frame back
+        x64->op(MOVQ, R10, Address(RBP, 0));  // get the enclosing function frame back
         x64->op(POPQ, Address(R10, retro_offset + ADDRESS_SIZE));
         x64->op(MOVQ, Address(R10, retro_offset), RBP);
         x64->op(LEA, RBP, Address(R10, retro_offset));
+
+        code_scope->get_function_scope()->adjust_frame_base_offset(-retro_offset);
+        code_scope->initialize_contents(x64);
 
         compile_body(x64);
         
         x64->op(MOVQ, RDX, NO_EXCEPTION);
 
         code_scope->finalize_contents(x64);
+        code_scope->get_function_scope()->adjust_frame_base_offset(retro_offset);
 
         x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
 

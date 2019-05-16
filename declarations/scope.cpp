@@ -892,6 +892,7 @@ public:
     Storage result_alias_storage;
     Storage associated_offset_storage;
     Allocation current_size;
+    int frame_base_offset;  
 
     FunctionScope()
         :Scope(FUNCTION_SCOPE) {
@@ -900,62 +901,81 @@ public:
         head_scope = NULL;
         body_scope = NULL;
         exception_type = NULL;
+        frame_base_offset = 0;
     }
     
-    ArgumentScope *add_result_scope() {
+    virtual ArgumentScope *add_result_scope() {
         result_scope = new ArgumentScope;
         add(result_scope);
         return result_scope;
     }
     
-    ArgumentScope *add_self_scope() {
+    virtual ArgumentScope *add_self_scope() {
         self_scope = new ArgumentScope;
         add(self_scope);
         return self_scope;
     }
 
-    ArgumentScope *add_head_scope() {
+    virtual ArgumentScope *add_head_scope() {
         head_scope = new ArgumentScope;
         add(head_scope);
         return head_scope;
     }
     
-    CodeScope *add_body_scope() {
+    virtual CodeScope *add_body_scope() {
         body_scope = new CodeScope;
         add(body_scope);
         return body_scope;
     }
-    
-    void set_exception_type(TreenumerationType *et) {
+
+    virtual void adjust_frame_base_offset(int fbo) {
+        // NOTE: the frame base offset is 0 for compiling the plain function body.
+        // But when compiling the retro scopes in it, RBP will point to the retro
+        // frame, which is an artificial stack frame at a fixed offset from the enclosing
+        // function frame. So accessing anything RBP-relative within the retro scopes
+        // must take this offset into consideration.
+        frame_base_offset += fbo;
+    }
+
+    virtual void set_exception_type(TreenumerationType *et) {
         exception_type = et;
     }
     
-    TreenumerationType *get_exception_type() {
+    virtual TreenumerationType *get_exception_type() {
         return exception_type;
     }
 
-    void make_forwarded_exception_storage() {
+    virtual void make_forwarded_exception_storage() {
         forwarded_exception_storage.where = MEMORY;
     }
     
-    Storage get_forwarded_exception_storage() {
-        return forwarded_exception_storage;
+    virtual Storage get_forwarded_exception_storage() {
+        if (forwarded_exception_storage.where == MEMORY)
+            return forwarded_exception_storage + frame_base_offset;
+        else
+            return Storage();
     }
 
-    void make_result_alias_storage() {
+    virtual void make_result_alias_storage() {
         result_alias_storage.where = MEMORY;
     }
     
-    Storage get_result_alias_storage() {
-        return result_alias_storage;
+    virtual Storage get_result_alias_storage() {
+        if (result_alias_storage.where == MEMORY)
+            return result_alias_storage + frame_base_offset;
+        else
+            return Storage();
     }
 
-    void make_associated_offset_storage() {
+    virtual void make_associated_offset_storage() {
         associated_offset_storage.where = MEMORY;
     }
     
-    Storage get_associated_offset_storage() {
-        return associated_offset_storage;
+    virtual Storage get_associated_offset_storage() {
+        if (associated_offset_storage.where == MEMORY)
+            return associated_offset_storage + frame_base_offset;
+        else
+            return Storage();
     }
 
     virtual TypeSpec get_pivot_ts() {
@@ -1031,7 +1051,7 @@ public:
     }
 
     virtual Storage get_local_storage() {
-        return Storage(MEMORY, Address(RBP, 0));
+        return Storage(MEMORY, Address(RBP, frame_base_offset));
     }
     
     virtual unsigned get_frame_size() {
