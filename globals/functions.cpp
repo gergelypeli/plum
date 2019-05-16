@@ -133,35 +133,28 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
 // Checking
 
 void check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &arg_infos, CodeScope *code_scope) {
-    // Grab all preceding Dvalue bar declarations, and put them in this scope.
+    // Grab all preceding Dvalue var declarations, and put them in this scope.
     // Retro variables must only be accessible from the following Code argument's
     // scope, because their initialization is only guaranteed while that Code
     // is being evaluated.
-    std::vector<Variable *> retros;
+    std::vector<RetroArgumentScope *> retros;
     
     for (unsigned j = i - 1; j < i; j--) {
-        DeclarationValue *dv = ptr_cast<DeclarationValue>(arg_infos[j].target->get());
+        RetroArgumentValue *rav = ptr_cast<RetroArgumentValue>(arg_infos[j].target->get());
         
-        if (dv) {
-            if (dv->ts[0] != dvalue_type)
-                break;
-                
-            Declaration *decl = declaration_get_decl(dv);
-            Variable *var = ptr_cast<Variable>(decl);
-            if (!var)
-                throw INTERNAL_ERROR;
-                
-            var->outer_scope->remove(var);
-            retros.push_back(var);
+        if (rav) {
+            RetroArgumentScope *ras = rav->retro_argument_scope;
+            ras->outer_scope->remove(ras);
+            retros.push_back(ras);
+            std::cerr << "Moving retro argument " << arg_infos[j].name << " to code scope.\n";
         }
     }
 
     scope->add(code_scope);
     code_scope->enter();
 
-    for (auto var : retros) {
-        std::cerr << "Moving retro variable " << var->name << " to code scope.\n";
-        code_scope->add(var);
+    for (auto ras : retros) {
+        code_scope->add(ras);
     }
 }
 

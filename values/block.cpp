@@ -116,25 +116,41 @@ public:
         x64->op(RET);
         
         // Generate fixup code for the preceding ALIAS storage retro variables, they're
-        // allocated in the middle of the function's stack frame, so there's no one else
-        // to take care of them. Fortunately they were moved into this code scope by
-        // check_retros, so it's easy to find them.
+        // allocated in the middle of the function's stack frame in a RetroArgumentScope,
+        // so there's no one else to take care of them. Fortunately they were moved into
+        // this code scope by check_retros, so it's easy to find them.
         Label fixup_label;
         x64->code_label_local(fixup_label, "<retro>__fixup");
         x64->runtime->log("Fixing retro arguments of a retro block.");
         
         for (auto &d : code_scope->contents) {
-            RetroVariable *rv = ptr_cast<RetroVariable>(d.get());
+            RetroArgumentScope *ras = ptr_cast<RetroArgumentScope>(d.get());
             
-            if (!rv)
+            if (!ras)
                 break;
                 
-            Storage s = rv->get_local_storage();
+            // We need to fix all potential retro arguments, even the ones that were not
+            // named in this invocation, because :evaluate still created them.
+            TSs tss;
+            ras->tuple_ts.unpack_tuple(tss);
+            Storage s = ras->get_local_storage() + (-retro_offset);
+            int offset = ras->tuple_ts.measure_stack();
+
+            //std::cerr << "XXX retro fix " << ras->tuple_ts << "\n";
             
-            if (s.where == ALIAS) {
-                x64->runtime->fix_address(s.address + (-retro_offset));
-                x64->runtime->log("Fixed retro argument " + rv->name + " of a retro block.");
+            for (auto &ts : tss) {
+                StorageWhere w = ts.where(AS_ARGUMENT);
+                offset -= ts.measure_where(w);
+                
+                if (w == ALIAS) {
+                    x64->runtime->fix_address(s.address + offset);
+                    x64->runtime->log("Fixed retro argument of " + ts.symbolize() + " of a retro block.");
+                    std::cerr << "Will fix retro argument of " << ts << " of a retro block.\n";
+                }
             }
+            
+            if (offset != 0)
+                throw INTERNAL_ERROR;
         }
         
         x64->op(RET);
@@ -651,7 +667,8 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        // A MEMORY that points to the beginning of the tuple values
+        // A MEMORY that points to the beginning of the tuple values.
+        // Will be passed as ALISTACK, though.
         return retro_argument_scope->get_local_storage();
     }
 };
