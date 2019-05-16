@@ -663,15 +663,15 @@ public:
         x64->code_label(ok);
         
         if (is_down) {
-            x64->op(MOVQ, i, Address(r, i, RBNODE_PRED_OFFSET));
-            x64->op(ANDQ, i, ~RBNODE_RED_BIT);  // remove color bit
+            x64->op(MOVQ, R10, Address(r, i, RBNODE_PRED_OFFSET));
+            x64->op(ANDQ, R10, ~RBNODE_RED_BIT);  // remove color bit
         }
         else {
-            x64->op(MOVQ, i, Address(r, i, RBNODE_NEXT_OFFSET));
+            x64->op(MOVQ, R10, Address(r, i, RBNODE_NEXT_OFFSET));
         }
 
         // Save new iterator position
-        x64->runtime->store_lvalue(i, R11, als, REFERENCE_SIZE);
+        x64->runtime->store_lvalue(R10, R11, als, REFERENCE_SIZE);
 
         left->ts.store(ls, Storage(), x64);
 
@@ -729,7 +729,7 @@ public:
         x64->runtime->load_lvalue(SELFX, R11, als);
         x64->runtime->load_lvalue(RAX, R11, als, REFERENCE_SIZE);
             
-        x64->op(CALL, next_label);
+        x64->op(CALL, next_label);  // RAX - new it, R10 - index
         
         x64->op(CMPQ, RAX, 0);
         x64->op(JNE, ok);
@@ -740,7 +740,8 @@ public:
 
         // Save new iterator position
         x64->runtime->store_lvalue(RAX, R11, als, REFERENCE_SIZE);
-        
+
+        x64->op(MOVQ, RAX, R10);
         left->ts.store(ls, Storage(), x64);
         
         return postprocess(SELFX, RAX, x64);

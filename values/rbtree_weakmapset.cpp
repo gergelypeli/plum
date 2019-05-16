@@ -267,6 +267,7 @@ class NosytreeMemberValue: public Value {
 public:
     TypeSpec elem_ts;
     std::unique_ptr<Value> pivot;
+    Regs clob;
 
     NosytreeMemberValue(Value *p, TypeSpec ets)
         :Value(ets.prefix(rbtree_type).prefix(ref_type)) {
@@ -285,14 +286,14 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred);
+        clob = pivot->precompile(preferred);
         
         if (lvalue_needed) {
             // Altering the member would clobber the heap vars
             clob = Regs::all() | Regs::heapvars();
         }
         else {
-            clob = clob | Regs(RAX);
+            clob.reserve(2);
         }
 
         return clob;
@@ -311,29 +312,34 @@ public:
             r = RAX;
 
             x64->runtime->incref(r);
+            
+            x64->op(PUSHQ, r);
+            x64->op(ADDQ, r, NOSYTREE_MEMBER_OFFSET);
+            x64->op(PUSHQ, r);
+
+            return Storage(ALISTACK);
         }
         else {
+            // Until we can make sure the member can be borrowed, return a value copy
             Storage s = pivot->compile(x64);
         
             switch (s.where) {
             case REGISTER:
-                r = s.reg;
-                break;
-            case MEMORY:
-                r = RAX;
-                x64->op(MOVQ, r, s.address);
+                r = (clob & ~Regs(s.reg)).get_any();
+                x64->op(MOVQ, r, Address(s.reg, NOSYTREE_MEMBER_OFFSET));
                 x64->runtime->incref(r);
-                break;
+                x64->runtime->decref(s.reg);
+                return Storage(REGISTER, r);
+            case MEMORY:
+                r = clob.get_any();
+                x64->op(MOVQ, r, s.address);
+                x64->op(MOVQ, r, Address(r, NOSYTREE_MEMBER_OFFSET));
+                x64->runtime->incref(r);
+                return Storage(REGISTER, r);
             default:
                 throw INTERNAL_ERROR;
             }
         }
-
-        x64->op(PUSHQ, r);
-        x64->op(ADDQ, r, NOSYTREE_MEMBER_OFFSET);
-        x64->op(PUSHQ, r);
-
-        return Storage(ALISTACK);
     }
 };
 

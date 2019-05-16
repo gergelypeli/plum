@@ -229,6 +229,10 @@ public:
         case REGISTER:
             r = ls.reg;
             break;
+        case STACK:
+            r = (clob & ~Regs(i)).get_any();
+            x64->op(POPQ, r);
+            break;
         case MEMORY:
             r = (clob & ~Regs(i)).get_any();
             x64->op(MOVQ, r, ls.address);  // r may be the base of ls.address
