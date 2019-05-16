@@ -240,6 +240,13 @@ public:
             }
             else {
                 // Load value and decref container
+                // NOTE: rvalue_storage may be using the container_ref register, because
+                // we're to silly to take care. So override the optimal storage and
+                // use STACK instead, that always works.
+                
+                if (rvalue_storage.regs() & Regs(container_ref))
+                    rvalue_storage = Storage(STACK);
+                    
                 Storage t = ts.store(Storage(MEMORY, addr), rvalue_storage, x64);
                 x64->runtime->decref(container_ref);
                 return t;
@@ -819,7 +826,7 @@ public:
         }
 
         Storage es = evaluable_value->compile(x64);
-        if (es.where != ALIAS)
+        if (es.where != MEMORY)
             throw INTERNAL_ERROR;
 
         StorageWhere where = ts.where(AS_VALUE);

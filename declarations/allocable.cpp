@@ -396,7 +396,7 @@ public:
     }
 };
 
-
+// TODO: remove
 class RetroVariable: public Variable {
 public:
     RetroVariable(std::string name, TypeSpec vts)
@@ -461,8 +461,8 @@ public:
     virtual void allocate() {
         Allocable::allocate();
         
-        where = ALIAS;
-        offset = outer_scope->reserve(Allocation(ALIAS_SIZE));
+        where = MEMORY;
+        offset = outer_scope->reserve(Allocation(ADDRESS_SIZE));
     }
     
     virtual void debug(TypeMatch tm, X64 *x64) {
