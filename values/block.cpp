@@ -616,12 +616,12 @@ public:
     
     RetroArgumentValue(Value *v, RetroArgumentScope *ras)
         :Value(ras->tuple_ts.prefix(dvalue_type)) {
-        value.reset(v);
+        value.reset(v);  // potentially NULL
         retro_argument_scope = ras;
     }
     
     virtual bool check() {
-        // We must have one or more bare declarations inside, must tell them
+        // We must have zero or more bare declarations inside, must tell them
         // what types they are actually.
         
         TSs tss;
@@ -634,11 +634,11 @@ public:
             for (auto &s : dbv->statements)
                 vs.push_back(s.get());
         }
-        else
+        else if (value)
             vs.push_back(value.get());
             
-        if (vs.size() != tss.size()) {
-            std::cerr << "Wrong number of retro variables!\n";
+        if (vs.size() > tss.size()) {
+            std::cerr << "Too many retro variables!\n";
             return false;
         }
         

@@ -864,7 +864,8 @@ public:
         
         ArgumentScope::allocate();
         
-        if (size.bytes != total_size.bytes)  // FIXME: proper comparison!
+        // Fewer named retro variables are allowed
+        if (size.bytes > total_size.bytes)  // FIXME: proper comparison!
             throw INTERNAL_ERROR;
     }
     

@@ -527,7 +527,7 @@ App? :Class Application as:
 
         outer_value? = 77
         
-        $ twice(how: h? what: outer_value * 1000)
+        $ twice(what: outer_value * 1000)
 
         $ twice(how: h? what: THIS: (Std prints("You want {}?" { h }), :THIS h * 1000))
 

@@ -165,6 +165,20 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
         return false;
     }
 
+    if (!e && arg_infos[i].context) {
+        // Some arguments may be omitted
+        TypeSpec cts = *arg_infos[i].context;
+        
+        if (cts[0] == dvalue_type)
+            ;  // continue here
+        else if (cts[0] == ovalue_type || cts == TUPLE0_CODE_TS || cts[0] == unit_type)
+            return true;  // leave target empty
+        else {
+            std::cerr << "Missing mandatory argument " << arg_infos[i].name << "!\n";
+            return false;
+        }
+    }
+
     std::unique_ptr<Value> *target = arg_infos[i].target;
     TypeSpec *context = arg_infos[i].context;
     Scope *scope = arg_infos[i].scope;
@@ -205,7 +219,8 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
     if (context && (*context).rvalue().has_meta(interface_metatype))
         constructive_context = NULL;
 
-    Value *v = typize(e, innermost_scope, constructive_context);
+    // NULL expr is now allowed for omitted value in Dvalue context
+    Value *v = (e ? typize(e, innermost_scope, constructive_context) : NULL);
     
     TypeMatch match;
     
@@ -298,23 +313,8 @@ bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos, bool
     }
 
     for (unsigned i = 0; i < n; i++) {
-        if (exprs[i]) {
-            if (!check_argument(i, exprs[i], arg_infos, is_function_call))
-                return false;
-        }
-        else {
-            if (arg_infos[i].context) {
-                TypeSpec &ts = *arg_infos[i].context;
-            
-                if (ts[0] != ovalue_type && ts != TUPLE0_CODE_TS && ts[0] != unit_type) {
-                    std::cerr << "Missing mandatory argument " << arg_infos[i].name << "!\n";
-                    return false;
-                }
-            }
-            else {
-                std::cerr << "XXX is this used somewhere?\n";
-            }
-        }
+        if (!check_argument(i, exprs[i], arg_infos, is_function_call))
+            return false;
     }
     
     return true;
