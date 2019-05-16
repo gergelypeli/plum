@@ -79,10 +79,31 @@ public:
         else if (operation == COMPARE)
             clob = clob | COMPARE_CLOB;
         
-        if (clob.count() <= 2)
-            clob = clob | (~clob).get_any();  // have at least one lame working register
+        clob.reserve(3);
         
         return clob;
+    }
+
+    virtual Storage lmemory(X64 *x64) {
+        // Load the left side lvalue argument to a temporary MEMORY storage
+        
+        if (ls.where == ALISTACK) {
+            // Surely a dynamic address
+            Register r = (clob & ~rs.regs()).get_any();
+            int offset = (rs.where == STACK ? right->ts.measure_stack() : 0);
+            
+            x64->op(MOVQ, r, Address(RSP, offset));
+            return Storage(MEMORY, Address(r, 0));
+        }
+        else if (ls.where == ALIAS) {
+            Register r = (clob & ~rs.regs()).get_any();
+            x64->op(MOVQ, r, ls.address);
+            return Storage(MEMORY, Address(r, ls.value));
+        }
+        else if (ls.where == MEMORY)
+            return ls;
+        else
+            throw INTERNAL_ERROR;
     }
 
     virtual Storage assign_create(X64 *x64) {
@@ -103,30 +124,16 @@ public:
         rs = right->compile(x64);
         x64->unwind->pop(this);
 
-        Storage orig_ls = ls;
-
-        if (ls.where == ALISTACK) {
-            // Surely a dynamic address
-            Register r = (clob & ~rs.regs()).get_any();
-            int offset = (rs.where == STACK ? right->ts.measure_stack() : 0);
-            
-            x64->op(MOVQ, r, Address(RSP, offset));
-            ls = Storage(MEMORY, Address(r, 0));
-        }
-        else if (ls.where == ALIAS) {
-            Register r = (clob & ~rs.regs()).get_any();
-            x64->op(MOVQ, r, ls.address);
-            ls = Storage(MEMORY, Address(r, ls.value));
-        }
+        Storage als = lmemory(x64);
 
         if (operation == ASSIGN)
-            ts.store(rs, ls, x64);
+            ts.store(rs, als, x64);
         else if (operation == CREATE)
-            ts.create(rs, ls, x64);
+            ts.create(rs, als, x64);
         else
             throw INTERNAL_ERROR;
         
-        return orig_ls;
+        return ls;
     }
 
     virtual Storage compare(X64 *x64) {
@@ -388,8 +395,6 @@ public:
     virtual void subcompile(X64 *x64) {
         ls = left->compile(x64);
 
-        bool spilled_left_memory = false;
-
         // Put the left value in a safe place
         if (is_left_lvalue) {
             // Address handling
@@ -408,15 +413,19 @@ public:
                     }
                     else {
                         // Spill dynamic address to stack
-                        spilled_left_memory = true;
                         x64->op(LEA, R10, ls.address);
+                        x64->op(PUSHQ, 0);
                         x64->op(PUSHQ, R10);
+                        ls = Storage(ALISTACK);
                     }
                 }
                 break;
             case ALIAS:
                 // Aliases are at static addresses, can't be clobbered.
                 // And they never change, so we don't have to load them just to be sure.
+                break;
+            case ALISTACK:
+                // We can handle it later
                 break;
             default:
                 throw INTERNAL_ERROR;
@@ -547,22 +556,12 @@ public:
                 throw INTERNAL_ERROR;
             break;
         case MEMORY:
-            if (spilled_left_memory) {
-                if (auxls.where == MEMORY) {
-                    x64->op(POPQ, auxls.address.base);
-                    ls = auxls;
-                }
-                else
-                    throw INTERNAL_ERROR;
-            }
             break;
         case ALIAS:
-            if (auxls.where == MEMORY) {
-                x64->op(MOVQ, auxls.address.base, ls.address);
-                ls = auxls + ls.value;
-            }
-            else
-                throw INTERNAL_ERROR;
+            // Must use lmemory for direct access
+            break;
+        case ALISTACK:
+            // Must use lmemory for direct access
             break;
         default:
             throw INTERNAL_ERROR;
@@ -572,10 +571,9 @@ public:
     virtual Storage assign(X64 *x64) {
         subcompile(x64);
 
-        if (ls.where != MEMORY)
-            throw INTERNAL_ERROR;
+        Storage als = lmemory(x64);
 
-        ts.store(rs, ls, x64);
+        ts.store(rs, als, x64);
         
         return ls;
     }
