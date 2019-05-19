@@ -196,7 +196,7 @@ public:
         root_scope->set_application_label(x64->runtime->application_label);
     
         for (Module *m : modules_in_order) {
-            m->value_root->precompile(Regs::all());
+            m->value_root->precompile_tail();
             m->value_root->compile(x64);
 
             //m->collect_initializer_labels(initializer_labels, x64);

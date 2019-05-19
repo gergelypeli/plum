@@ -121,7 +121,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         for (auto &v : values)
             if (v)
-                v->precompile(preferred);
+                v->precompile_tail();  // All will be pushed
             
         return Regs::all();  // We're too complex to care
     }

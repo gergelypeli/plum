@@ -33,9 +33,8 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
-        
-        if (!clob.has_gpr())
-            clob = clob | RAX;
+
+        clob.reserve_gpr(3);
         
         return clob;
     }

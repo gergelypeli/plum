@@ -160,7 +160,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clobbered = Regs();
         
-        clobbered = clobbered | condition->precompile();
+        clobbered = clobbered | condition->precompile_tail();
         
         if (then_branch)
             clobbered = clobbered | then_branch->precompile(preferred);
@@ -169,7 +169,7 @@ public:
             clobbered = clobbered | else_branch->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get_gpr();
+        reg = preferred.has_gpr() ? preferred.get_gpr() : RAX;
         
         return clobbered | reg;
     }
@@ -381,16 +381,16 @@ public:
     
     virtual Regs precompile(Regs preferred) {
         if (setup)
-            setup->precompile(Regs::all());
+            setup->precompile_tail();
             
         if (condition)
-            condition->precompile(Regs::all());
+            condition->precompile_tail();
             
         if (step)
-            step->precompile(Regs::all());
+            step->precompile_tail();
             
         if (body)
-            body->precompile(Regs::all());
+            body->precompile_tail();
             
         return Regs::all();  // We're Void
     }
@@ -523,16 +523,16 @@ public:
     
     virtual Regs precompile(Regs preferred) {
         if (iterator)
-            iterator->precompile(Regs::all());
+            iterator->precompile_tail();
             
         if (each)
-            each->precompile(Regs::all());
+            each->precompile_tail();
             
         if (body)
-            body->precompile(Regs::all());
+            body->precompile_tail();
             
         if (next)
-            next->precompile(Regs::all());
+            next->precompile_tail();
             
         return Regs::all();  // We're Void
     }
@@ -628,10 +628,10 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = value->precompile(Regs::all());
+        Regs clob = value->precompile_tail();
             
         if (body)
-            clob = clob | body->precompile(Regs::all());
+            clob = clob | body->precompile_tail();
             
         return clob;
     }
@@ -766,13 +766,13 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        match->precompile(Regs::all());
+        match->precompile_tail();
             
         if (then_branch)
-            then_branch->precompile(Regs::all());
+            then_branch->precompile_tail();
 
         if (else_branch)
-            else_branch->precompile(Regs::all());
+            else_branch->precompile_tail();
             
         return Regs::all();  // We're Void
     }
@@ -922,7 +922,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        value->precompile(Regs::all());
+        value->precompile_tail();
             
         return Regs::all();  // We're Void
     }
@@ -1142,7 +1142,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return body->precompile(preferred);
+        return body->precompile_tail();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -1217,7 +1217,7 @@ public:
     
     virtual Regs precompile(Regs preferred) {
         if (value)
-            value->precompile(preferred);
+            value->precompile_tail();
             
         return Regs::all();
     }

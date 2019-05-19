@@ -266,7 +266,7 @@ public:
 
     virtual Regs precompile(Regs) {
         if (body)
-            body->precompile();
+            body->precompile_tail();
             
         return Regs();
     }
@@ -705,17 +705,15 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        if (pivot)
-            pivot->precompile();
-        
         for (auto &value : values)
             if (value)
-                value->precompile();
+                value->precompile_tail();  // all will be pushed
+
+        if (pivot)
+            pivot->precompile_tail();
         
-        if (ts != VOID_TS)
-            reg = preferred.get_gpr();
-        
-        return Regs::all() | Regs::heapvars();  // assume all registers are clobbered
+        // local stack variables are not clobbered by any called functions
+        return Regs::all() & ~Regs::stackvars();
     }
 
     virtual void push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
@@ -1018,7 +1016,7 @@ public:
 
     virtual Regs precompile(Regs) {
         for (auto &v : values)
-            v->precompile();
+            v->precompile_tail();  // if more than one value, the it will be pushed
             
         return Regs();  // We won't return
     }

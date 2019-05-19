@@ -344,8 +344,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        fill_value->precompile(preferred);
-        length_value->precompile(preferred);
+        Regs clob = length_value->precompile_tail();
+        clob = clob | fill_value->precompile_tail();
+        
         return Regs::all();
     }
     
@@ -425,7 +426,7 @@ public:
         Regs clob;
         
         for (auto &elem : elems)
-            clob = clob | elem->precompile(preferred);
+            clob = clob | elem->precompile_tail();
             
         return Regs::all();
     }
@@ -496,8 +497,9 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        left->precompile(preferred);
-        right->precompile(preferred);
+        Regs clob = right->precompile_tail();
+        clob = clob | left->precompile(preferred & ~clob);
+        
         return Regs::all();
     }
 
@@ -559,7 +561,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred);
+        Regs clob = left->precompile_tail();
         return clob | RAX | RCX;
     }
 

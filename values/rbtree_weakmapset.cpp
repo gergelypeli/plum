@@ -286,7 +286,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        clob = pivot->precompile(preferred);
+        clob = pivot->precompile_tail();
         
         if (lvalue_needed) {
             // Altering the member would clobber the heap vars
@@ -362,7 +362,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        member_value->precompile(preferred);
+        member_value->precompile_tail();
         return Regs::all();
     }
 

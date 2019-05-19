@@ -58,8 +58,8 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob;
         
-        for (unsigned i = 0; i < values.size(); i++)
-            clob = clob | values[i]->precompile();
+        for (auto &v : values)
+            clob = clob | v->precompile_tail();
 
         return clob;
     }
@@ -199,7 +199,8 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred);
+        Regs clob = right->precompile_tail();
+        clob = clob | left->precompile_tail();  // will be pushed
         
         return clob | RAX;
     }

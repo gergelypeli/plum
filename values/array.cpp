@@ -165,8 +165,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        left->precompile(preferred);
-        right->precompile(preferred);
+        right->precompile_tail();
+        left->precompile_tail();
+        
         return Regs::all();
     }
 
@@ -268,8 +269,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        left->precompile(preferred);
-        right->precompile(preferred);
+        Regs rclob = right->precompile_tail();
+        left->precompile(preferred & ~rclob);
+        
         return Regs::all();
     }
 
@@ -357,7 +359,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | Regs(RAX, RCX, RDX, RSI, RDI) | COMPARE_CLOB;
+        return left->precompile_tail() | Regs(RAX, RCX, RDX, RSI, RDI) | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
@@ -408,7 +410,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | right->precompile(preferred) | Regs::all();  // SysV
+        return left->precompile_tail() | right->precompile_tail() | Regs::all();  // SysV
     }
 
     virtual Storage compile(X64 *x64) {
@@ -498,9 +500,10 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        array_value->precompile(preferred);
-        fill_value->precompile(preferred);
-        length_value->precompile(preferred);
+        Regs clob = length_value->precompile_tail();
+        clob = clob | fill_value->precompile_tail();
+        clob = clob | array_value->precompile(preferred & ~clob);
+
         return Regs::all();
     }
     

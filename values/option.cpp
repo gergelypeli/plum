@@ -179,7 +179,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         if (value)
-            return value->precompile(preferred);
+            return value->precompile_tail();
         else
             return Regs();
     }

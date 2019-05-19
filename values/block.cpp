@@ -18,7 +18,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return value->precompile(preferred) | Regs(RAX) | Regs(XMM0);
+        return value->precompile_tail() | Regs(RAX) | Regs(XMM0);
     }
 
     virtual Storage compile_body(X64 *x64) {
@@ -248,7 +248,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         for (unsigned i = 0; i < statements.size(); i++)
-            statements[i]->precompile();
+            statements[i]->precompile_tail();
             
         return Regs();
     }
@@ -329,7 +329,7 @@ public:
         Regs clob;
         
         for (unsigned i = 0; i < statements.size() - 1; i++)
-            clob = clob | statements[i]->precompile();
+            clob = clob | statements[i]->precompile_tail();
 
         clob = clob | statements.back()->precompile(preferred);
             
@@ -404,7 +404,7 @@ public:
         Regs clob;
         
         for (unsigned i = 0; i < statements.size(); i++)
-            clob = clob | statements[i]->precompile();
+            clob = clob | statements[i]->precompile_tail();
 
         return clob;
     }
@@ -594,6 +594,7 @@ public:
             throw INTERNAL_ERROR;
             
         // var is unset for anything nonvariable
+        // FIXME: handle lvalue result properly!
         return var ? var->get_local_storage() : Storage();
     }
     
@@ -739,32 +740,7 @@ public:
 
         return (dv ? declaration_get_decl(dv) : NULL);
     }
-    /*
-    virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | right->precompile(preferred);
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        Storage ls = left->compile(x64);
-        
-        // TODO: check that it can't be clobbered!
-        if (ls.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
-        Storage rs = right->compile(x64);
-        
-        //Identifier *i = ptr_cast<Identifier>(get_decl());
-        //std::cerr << "XXX CreateValue " << (i ? i->name : "?") << " from " << rs << "\n";
-        
-        arg_ts.create(rs, ls, x64);
 
-        DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
-        if (!dv)
-            std::cerr << "XXX member init " << arg_ts << " from " << rs << " to " << ls << "\n";
-        
-        return ls;
-    }
-    */
     virtual void escape_statement_variables() {
         DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
         

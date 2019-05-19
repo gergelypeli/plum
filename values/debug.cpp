@@ -15,7 +15,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return value->precompile(preferred) | Regs::all();
+        return value->precompile_tail() | Regs::all();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -57,7 +57,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return value->precompile(preferred) | Regs::all();
+        return value->precompile_tail() | Regs::all();
     }
     
     virtual Storage compile(X64 *x64) {

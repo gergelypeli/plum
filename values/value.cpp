@@ -42,8 +42,11 @@ public:
         throw INTERNAL_ERROR;
     }
 
-    virtual Regs precompile() {
-        return precompile(Regs::all());  // no particular preference
+    virtual Regs precompile_tail() {
+        // Use to precompile a Value with no preference with the result location, and
+        // allowing all borrows, since there's no subsequent sibling argument, or
+        // this Value is stored onto the stack anyway.
+        return precompile(Regs::all());
     }
 
     virtual Storage compile(X64 *) {
@@ -467,7 +470,7 @@ public:
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
 
-        unalias_reg = preferred.get_gpr();
+        unalias_reg = preferred.has_gpr() ? preferred.get_gpr() : RAX;
         clob = clob | unalias_reg;
 
         if (lvalue_needed) {
@@ -762,7 +765,7 @@ public:
     
     virtual Regs precompile(Regs preferred) {
         for (auto &a : arg_values)
-            a->precompile(preferred);
+            a->precompile_tail();  // will be pushed
             
         return Regs::all();
     }

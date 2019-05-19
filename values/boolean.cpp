@@ -28,7 +28,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return value->precompile(preferred);
+        return value->precompile_tail();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -72,10 +72,11 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clobbered = left->precompile(preferred) | right->precompile(preferred);
+        Regs clobbered = right->precompile(preferred);
+        clobbered = clobbered | left->precompile(preferred & ~clobbered);
         
         // This won't be clobbered
-        reg = preferred.get_gpr();
+        reg = preferred.has_gpr() ? preferred.get_gpr() : RAX;
         
         return clobbered | reg;
     }

@@ -199,7 +199,7 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return orig->precompile(preferred);
+        return orig->precompile_tail();
     }
     
     virtual Storage compile(X64 *x64) {

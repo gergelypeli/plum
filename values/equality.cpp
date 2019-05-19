@@ -111,10 +111,12 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot_value->precompile(preferred);
+        Regs clob;
         
         for (auto &v : values)
-            clob = clob | v->precompile(preferred);
+            clob = clob | v->precompile_tail();
+            
+        clob = clob | pivot_value->precompile(preferred & ~clob);
             
         return clob | EQUAL_CLOB;
     }

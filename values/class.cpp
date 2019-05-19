@@ -78,7 +78,10 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return object->precompile(preferred) | value->precompile(preferred) | Regs(RAX);
+        Regs clob = value->precompile_tail();
+        clob = clob | object->precompile_tail();
+        
+        return clob | Regs(RAX);
     }
 
     virtual Storage compile(X64 *x64) {

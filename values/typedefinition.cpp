@@ -768,7 +768,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return block_value->precompile(preferred);
+        return block_value->precompile_tail();
     }
     
     virtual Storage compile(X64 *x64) {
@@ -1215,9 +1215,9 @@ public:
     
     virtual Regs precompile(Regs preferred) {
         for (auto wv : with_values)
-            wv->precompile(preferred);
+            wv->precompile_tail();
             
-        fdv->precompile(preferred);
+        fdv->precompile_tail();
         
         return Regs::all();
     }

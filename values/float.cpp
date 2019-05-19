@@ -171,10 +171,10 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        left->precompile();
-        
         if (right)
-            rclob = right->precompile();
+            rclob = right->precompile_tail();
+
+        left->precompile(~rclob);
             
         return Regs::all();
     }
@@ -182,8 +182,7 @@ public:
     virtual Storage compile(X64 *x64) {
         Storage ls = left->compile(x64);
         
-        if (rclob) {
-            // Chickening out
+        if (ls.regs() & rclob) {
             ls = left->ts.store(ls, Storage(STACK), x64);
         }
         
@@ -223,7 +222,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | Regs(XMM0);
+        return left->precompile_tail() | Regs(XMM0);
     }
     
     virtual Storage compile(X64 *x64) {

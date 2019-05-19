@@ -42,7 +42,6 @@ void streamify_ascii(std::string s, Address alias_addr, X64 *x64) {
 class InterpolationValue: public Value {
 public:
     std::vector<std::ustring> fragments;
-    std::unique_ptr<Value> buffer;
     std::vector<std::unique_ptr<Value>> components;
 
     InterpolationValue(std::vector<std::ustring> f, Token t)
@@ -113,11 +112,8 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        if (buffer)
-            buffer->precompile(preferred);
-
         for (auto &c : components)
-            c->precompile(preferred);
+            c->precompile_tail();
             
         return Regs::all();
     }

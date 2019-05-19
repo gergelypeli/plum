@@ -69,9 +69,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        rclob = right ? right->precompile() : Regs();
+        rclob = right ? right->precompile_tail() : Regs();
         
-        Regs lclob = left->precompile(Regs::all());
+        Regs lclob = left->precompile(preferred & ~rclob);
         clob = lclob | rclob;
         
         if (operation == EQUAL || operation == NOT_EQUAL)
@@ -371,7 +371,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        rclob = right ? right->precompile() : Regs();
+        rclob = right ? right->precompile_tail() : Regs();
         
         // lpref must be nonempty
         Regs lpref = (preferred & ~rclob).has_gpr() ? preferred & ~rclob : (~rclob).has_gpr() ? ~rclob : Regs::all();

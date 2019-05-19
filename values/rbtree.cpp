@@ -297,7 +297,8 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | elem->precompile(preferred);
+        Regs clob = elem->precompile_tail();
+        clob = clob | pivot->precompile(preferred & ~clob);
         
         return clob | RBTREE_CLOB | COMPARE_CLOB;
     }
@@ -366,7 +367,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred) | value->precompile(preferred);
+        Regs clob = value->precompile_tail();
+        clob = clob | key->precompile(~clob);
+        clob = clob | pivot->precompile(preferred & ~clob);
 
         return clob | RBTREE_CLOB | COMPARE_CLOB;
     }
@@ -438,7 +441,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        Regs clob = key->precompile_tail();
+        clob = clob | pivot->precompile(preferred & ~clob);
+        
         return clob | RBTREE_CLOB | COMPARE_CLOB;
     }
 
@@ -492,7 +497,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        Regs clob = key->precompile(preferred);
+        clob = clob | pivot->precompile(preferred);
+        
         return clob | RBTREE_CLOB | COMPARE_CLOB;
     }
 
@@ -551,7 +558,8 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = pivot->precompile(preferred) | key->precompile(preferred);
+        Regs clob = key->precompile_tail();
+        clob = clob | pivot->precompile(preferred & ~clob);
 
         clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
             

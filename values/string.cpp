@@ -14,8 +14,9 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        left->precompile(preferred);
-        right->precompile(preferred);
+        Regs clob = right->precompile_tail();
+        left->precompile(~clob);
+        
         return Regs::all();
     }
 
@@ -75,7 +76,7 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return right->precompile(preferred);
+        return right->precompile_tail();
     }
 
     virtual Storage compile(X64 *x64) {
@@ -140,7 +141,11 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return array_value->precompile(preferred) | front_value->precompile(preferred) | length_value->precompile(preferred) | Regs(RAX, RCX, RDX);
+        Regs clob = length_value->precompile_tail();
+        clob = clob | front_value->precompile_tail();
+        clob = clob | array_value->precompile_tail();
+        
+        return clob | Regs(RAX, RCX, RDX);
     }
     
     virtual Storage compile(X64 *x64) {
@@ -206,7 +211,11 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return slice_value->precompile(preferred) | front_value->precompile(preferred) | length_value->precompile(preferred) | Regs(RAX, RCX, RDX);
+        Regs clob = length_value->precompile_tail();
+        clob = clob | front_value->precompile_tail();
+        clob = clob | slice_value->precompile_tail();
+        
+        return clob | Regs(RAX, RCX, RDX);
     }
     
     virtual Storage compile(X64 *x64) {
@@ -265,11 +274,12 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        Regs clob = left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RBX);
+        Regs clob = right->precompile_tail();
+        clob = clob | left->precompile(~clob);
 
         clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
             
-        return clob;
+        return clob | Regs(RAX, RBX);
     }
 
     virtual Storage compile(X64 *x64) {
@@ -322,7 +332,10 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
-        return left->precompile(preferred) | right->precompile(preferred) | Regs(RAX, RCX, RDX) | COMPARE_CLOB;
+        Regs clob = right->precompile_tail();
+        clob = clob | left->precompile(~clob);
+        
+        return clob | Regs(RAX, RCX, RDX) | COMPARE_CLOB;
     }
 
     virtual Storage compile(X64 *x64) {
