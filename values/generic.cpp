@@ -79,7 +79,7 @@ public:
         else if (operation == COMPARE)
             clob = clob | COMPARE_CLOB;
         
-        clob.reserve(3);
+        clob.reserve_gpr(3);
         
         return clob;
     }
@@ -89,14 +89,14 @@ public:
         
         if (ls.where == ALISTACK) {
             // Surely a dynamic address
-            Register r = (clob & ~rs.regs()).get_any();
+            Register r = (clob & ~rs.regs()).get_gpr();
             int offset = (rs.where == STACK ? right->ts.measure_stack() : 0);
             
             x64->op(MOVQ, r, Address(RSP, offset));
             return Storage(MEMORY, Address(r, 0));
         }
         else if (ls.where == ALIAS) {
-            Register r = (clob & ~rs.regs()).get_any();
+            Register r = (clob & ~rs.regs()).get_gpr();
             x64->op(MOVQ, r, ls.address);
             return Storage(MEMORY, Address(r, ls.value));
         }
@@ -172,7 +172,7 @@ public:
         
         left->ts.compare(s, t, x64);
 
-        Register r = clob.get_any();
+        Register r = clob.get_gpr();
         x64->op(MOVSXBQ, r, R10B);  // sign extend byte to qword
 
         right->ts.store(rs, Storage(), x64);
@@ -217,7 +217,7 @@ public:
         
         left->ts.equal(s, t, x64);
 
-        Register r = clob.get_any();
+        Register r = clob.get_gpr();
         x64->op(negate ? SETNE : SETE, r);
 
         right->ts.store(rs, Storage(), x64);
@@ -272,21 +272,21 @@ public:
         if (lsubset == GPR_SUBSET || lsubset == PTR_SUBSET) {
             Register r = NOREG;
         
-            if ((preferred & clob & ~rclob).has_any()) {
+            if ((preferred & clob & ~rclob).has_gpr()) {
                 // We have preferred registers clobbered by the left side only, use one
-                r = (preferred & clob & ~rclob).get_any();
+                r = (preferred & clob & ~rclob).get_gpr();
             }
-            else if ((clob & ~rclob).has_any()) {
+            else if ((clob & ~rclob).has_gpr()) {
                 // We have registers clobbered by the left side only, use one
-                r = (clob & ~rclob).get_any();
+                r = (clob & ~rclob).get_gpr();
             }
-            else if ((preferred & ~rclob).has_any()) {
+            else if ((preferred & ~rclob).has_gpr()) {
                 // We have preferred registers not clobbered by the right side, allocate one
-                r = (preferred & ~rclob).get_any();
+                r = (preferred & ~rclob).get_gpr();
             }
-            else if (rclob.count() <= 2) {
+            else if (rclob.count_gpr() <= 2) {
                 // Just allocate a register that is not clobbered by the right side
-                r = (~rclob).get_any();
+                r = (~rclob).get_gpr();
             }
             else {
                 // The right side clobbers many registers, so pick one for the left later
@@ -332,7 +332,7 @@ public:
         // The right side clobbered many registers, pick one that is not used by its value
         
         if (lsubset == GPR_SUBSET || lsubset == PTR_SUBSET) {
-            Register r = (clob & ~rs.regs()).get_any();
+            Register r = (clob & ~rs.regs()).get_gpr();
 
             if (lsubset == PTR_SUBSET)
                 return Storage(MEMORY, Address(r, 0));
@@ -354,7 +354,7 @@ public:
         // in memory in many cases, only have to load stuff from ALIAS.
 
         if (rss == GPR_SUBSET || rss == PTR_SUBSET) {
-            Register r = (~(ls.regs() | auxls.regs())).get_any();
+            Register r = (~(ls.regs() | auxls.regs())).get_gpr();
         
             if (rss == PTR_SUBSET)
                 return Storage(MEMORY, Address(r, 0));
@@ -374,7 +374,7 @@ public:
         rclob = right ? right->precompile() : Regs();
         
         // lpref must be nonempty
-        Regs lpref = (preferred & ~rclob).has_any() ? preferred & ~rclob : (~rclob).has_any() ? ~rclob : Regs::all();
+        Regs lpref = (preferred & ~rclob).has_gpr() ? preferred & ~rclob : (~rclob).has_gpr() ? ~rclob : Regs::all();
         Regs lclob = left->precompile(lpref);
         clob = lclob | rclob;
         
@@ -463,7 +463,7 @@ public:
                 // And reg is a register that we allocate for values, so make sure
                 // a dynamic address is not using that!
                 
-                if (!rclob.has_any()) {
+                if (!rclob.has_gpr()) {
                     // TODO: we need to have a better way to detect side effects!
                     // Okay, the right side has no side effects, and we don't want to
                     // destroy the address either, so keep the MEMORY storage.
@@ -482,7 +482,7 @@ public:
                 // The address itself may be safe, but the value may be not.
                 // Store is only defined from ALIAS to MEMORY, so do this manually.
 
-                Register tmpr = clob.get_any();
+                Register tmpr = clob.get_gpr();
                 x64->op(MOVQ, tmpr, ls.address);
                 ls = Storage(MEMORY, Address(tmpr, ls.value));
                 

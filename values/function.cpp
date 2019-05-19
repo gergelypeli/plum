@@ -713,7 +713,7 @@ public:
                 value->precompile();
         
         if (ts != VOID_TS)
-            reg = preferred.get_any();
+            reg = preferred.get_gpr();
         
         return Regs::all() | Regs::heapvars();  // assume all registers are clobbered
     }

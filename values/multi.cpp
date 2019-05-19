@@ -73,7 +73,7 @@ public:
             if (s.where != MEMORY && s.where != ALIAS)
                 throw INTERNAL_ERROR;
 
-            if (s.regs().has_any()) {  // that is, non-RBP MEMORY
+            if (s.regs().has_gpr()) {  // that is, non-RBP MEMORY
                 StorageWhere where = stacked(tss[i].where(AS_ARGUMENT));
                 if (where != ALISTACK)
                     throw INTERNAL_ERROR;

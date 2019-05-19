@@ -293,7 +293,7 @@ public:
             clob = Regs::all() | Regs::heapvars();
         }
         else {
-            clob.reserve(2);
+            clob.reserve_gpr(2);
         }
 
         return clob;
@@ -325,13 +325,13 @@ public:
         
             switch (s.where) {
             case REGISTER:
-                r = (clob & ~Regs(s.reg)).get_any();
+                r = (clob & ~Regs(s.reg)).get_gpr();
                 x64->op(MOVQ, r, Address(s.reg, NOSYTREE_MEMBER_OFFSET));
                 x64->runtime->incref(r);
                 x64->runtime->decref(s.reg);
                 return Storage(REGISTER, r);
             case MEMORY:
-                r = clob.get_any();
+                r = clob.get_gpr();
                 x64->op(MOVQ, r, s.address);
                 x64->op(MOVQ, r, Address(r, NOSYTREE_MEMBER_OFFSET));
                 x64->runtime->incref(r);

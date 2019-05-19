@@ -59,7 +59,7 @@ public:
         
         left->ts.compare(ls, rs, x64);
 
-        Register r = clob.get_any();
+        Register r = clob.get_gpr();
         x64->op(MOVSXBQ, r, R10B);  // sign extend byte to qword
 
         right->ts.store(rs, Storage(), x64);
@@ -73,7 +73,7 @@ public:
         
         left->ts.equal(ls, rs, x64);
 
-        Register r = clob.get_any();
+        Register r = clob.get_gpr();
         x64->op(negate ? SETNE : SETE, r);
 
         right->ts.store(rs, Storage(), x64);

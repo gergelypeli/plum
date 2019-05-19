@@ -34,7 +34,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
         
-        if (!clob.has_any())
+        if (!clob.has_gpr())
             clob = clob | RAX;
         
         return clob;
@@ -46,7 +46,7 @@ public:
 
     virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);
-        Register reg = (clob & ~ls.regs()).get_any();
+        Register reg = (clob & ~ls.regs()).get_gpr();
         Label ok;
         
         switch (ls.where) {

@@ -169,7 +169,7 @@ public:
             clobbered = clobbered | else_branch->precompile(preferred);
         
         // This won't be bothered by either branches
-        reg = preferred.get_any();
+        reg = preferred.get_gpr();
         
         return clobbered | reg;
     }

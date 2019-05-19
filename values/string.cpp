@@ -436,7 +436,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
 
-        clob.reserve(4);
+        clob.reserve_gpr(4);
 
         return clob;
     }
@@ -448,8 +448,8 @@ public:
     virtual Storage compile(X64 *x64) {
         elem_size = ContainerType::get_elem_size(elem_ts);
         ls = left->compile(x64);  // iterator
-        Register r = (clob & ~ls.regs()).get_any();
-        Register i = (clob & ~ls.regs() & ~Regs(r)).get_any();
+        Register r = (clob & ~ls.regs()).get_gpr();
+        Register i = (clob & ~ls.regs() & ~Regs(r)).get_gpr();
         Label ok;
 
         int LENGTH_OFFSET = REFERENCE_SIZE + INTEGER_SIZE;

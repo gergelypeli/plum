@@ -128,14 +128,14 @@ struct Regs {
 private:
     // 16 general registers, except RSP (4, 0x10), RBP (5, 0x20), R10 (10, 0x400), R11 (11, 0x800).
     // 16 SSE registers, except XMM14 and XMM15 ({14,15}+16, 0xC0000000).
+    static const int REGS_TOTAL = 32;
     static const unsigned64 GPR_MASK  = 0x00000000F3CF;
     static const unsigned64 PTR_MASK  = 0x00000000F3CF;
     static const unsigned64 SSE_MASK  = 0x00003FFF0000;
-    static const unsigned64 ALL_MASK  = GPR_MASK | PTR_MASK | SSE_MASK;
-    static const int REGS_TOTAL = 32;
     static const unsigned64 STACKVARS = 0x000100000000;
     static const unsigned64 HEAPVARS  = 0x000200000000;
-    static const unsigned64 RELAXVARS = 0x000400000000;
+    static const unsigned64 RELAXVARS = 0x000400000000;  // very special, don't include in ALL
+    static const unsigned64 ALL_MASK  = GPR_MASK | PTR_MASK | SSE_MASK | STACKVARS | HEAPVARS;
     
     unsigned64 available;
     
@@ -238,7 +238,7 @@ public:
         return available != 0;
     }
     
-    bool has_any() {
+    bool has_gpr() {
         return (available & GPR_MASK) != 0;
     }
 
@@ -246,7 +246,7 @@ public:
         return (available & SSE_MASK) != 0;
     }
 
-    int count() {
+    int count_gpr() {
         int n = 0;
         
         for (int i=0; i<REGS_TOTAL; i++)
@@ -268,7 +268,7 @@ public:
         return n;
     }
 
-    Register get_any() {
+    Register get_gpr() {
         for (int i=0; i<REGS_TOTAL; i++)
             if (available & GPR_MASK & (1UL << i)) {
                 return (Register)i;
@@ -288,8 +288,8 @@ public:
         throw ASM_ERROR;
     }
     
-    void reserve(int requested) {
-        int c = count();
+    void reserve_gpr(int requested) {
+        int c = count_gpr();
         
         if (c >= requested)
             return;

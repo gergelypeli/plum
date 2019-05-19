@@ -17,7 +17,7 @@ public:
 
     virtual Regs precompile(Regs preferred) {
         if (number < -2147483648 || number > 2147483647) {
-            reg = preferred.get_any();
+            reg = preferred.get_gpr();
             return Regs(reg);
         }
         else

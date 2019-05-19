@@ -248,10 +248,10 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred);
         
-        if (!clob.has_any())
+        if (!clob.has_gpr())
             clob = clob | RAX;
         
-        reg = clob.get_any();
+        reg = clob.get_gpr();
             
         return clob;
     }
@@ -633,7 +633,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
         
-        clob.reserve(4);
+        clob.reserve_gpr(4);
         
         return clob;
     }
@@ -646,8 +646,8 @@ public:
         ls = left->compile_lvalue(x64);  // iterator
         Storage als = ls.access(0);
         
-        Register r = (clob & ~ls.regs()).get_any();
-        Register i = (clob & ~ls.regs() & ~Regs(r)).get_any();
+        Register r = (clob & ~ls.regs()).get_gpr();
+        Register i = (clob & ~ls.regs() & ~Regs(r)).get_gpr();
         Label ok;
 
         // Load the ref to r, and the index to i

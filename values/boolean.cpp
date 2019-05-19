@@ -75,7 +75,7 @@ public:
         Regs clobbered = left->precompile(preferred) | right->precompile(preferred);
         
         // This won't be clobbered
-        reg = preferred.get_any();
+        reg = preferred.get_gpr();
         
         return clobbered | reg;
     }

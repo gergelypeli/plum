@@ -209,8 +209,8 @@ public:
     }
 
     virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred) {
-        if (preferred.has_any())
-            return Storage(REGISTER, preferred.get_any());
+        if (preferred.has_gpr())
+            return Storage(REGISTER, preferred.get_gpr());
         else
             return Storage(STACK);
     }

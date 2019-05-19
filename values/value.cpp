@@ -467,7 +467,7 @@ public:
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
 
-        unalias_reg = preferred.get_any();
+        unalias_reg = preferred.get_gpr();
         clob = clob | unalias_reg;
 
         if (lvalue_needed) {
@@ -886,8 +886,8 @@ public:
             throw INTERNAL_ERROR;
             
         // Get a working register just in case
-        if (clob.has_any())
-            reg = clob.get_any();
+        if (clob.has_gpr())
+            reg = clob.get_gpr();
         else {
             reg = RAX;
             clob = clob | reg;

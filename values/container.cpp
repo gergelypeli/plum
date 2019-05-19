@@ -119,10 +119,10 @@ public:
     virtual Regs precompile(Regs preferred) {
         Regs clob = left->precompile(preferred);
         
-        if (!clob.has_any())
+        if (!clob.has_gpr())
             clob = clob | RAX;
         
-        reg = clob.get_any();
+        reg = clob.get_gpr();
             
         return clob;
     }
@@ -185,7 +185,7 @@ public:
         
         //clob = clob | Regs(RAX) | Regs(RBX);
         clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
-        clob.reserve(3);
+        clob.reserve_gpr(3);
 
         return clob;
     }
@@ -211,14 +211,14 @@ public:
 
         switch (rs.where) {
         case CONSTANT:
-            i = (clob & ~ls.regs()).get_any();
+            i = (clob & ~ls.regs()).get_gpr();
             x64->op(MOVQ, i, rs.value);
             break;
         case REGISTER:
             i = rs.reg;
             break;
         case MEMORY:
-            i = (clob & ~ls.regs()).get_any();
+            i = (clob & ~ls.regs()).get_gpr();
             x64->op(MOVQ, i, rs.address);
             break;
         default:
@@ -230,11 +230,11 @@ public:
             r = ls.reg;
             break;
         case STACK:
-            r = (clob & ~Regs(i)).get_any();
+            r = (clob & ~Regs(i)).get_gpr();
             x64->op(POPQ, r);
             break;
         case MEMORY:
-            r = (clob & ~Regs(i)).get_any();
+            r = (clob & ~Regs(i)).get_gpr();
             x64->op(MOVQ, r, ls.address);  // r may be the base of ls.address
             heap_ts.incref(r, x64);
             break;
@@ -650,7 +650,7 @@ public:
     virtual Regs precompile(Regs preferred) {
         clob = left->precompile(preferred);
 
-        clob.reserve(4);
+        clob.reserve_gpr(4);
         
         return clob;
     }
@@ -661,8 +661,8 @@ public:
 
     virtual Storage compile(X64 *x64) {
         ls = left->compile(x64);  // iterator
-        Register r = (clob & ~ls.regs()).get_any();
-        Register i = (clob & ~ls.regs() & ~Regs(r)).get_any();
+        Register r = (clob & ~ls.regs()).get_gpr();
+        Register i = (clob & ~ls.regs() & ~Regs(r)).get_gpr();
         Label ok;
         
         switch (ls.where) {
