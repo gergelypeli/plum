@@ -34,7 +34,7 @@ public:
     }
     
     virtual void need_lvalue() {
-        if (ts[0] != lvalue_type && ts[0] != uninitialized_type)
+        if (ts[0] != lvalue_type && ts[0] != uninitialized_type && ts[0] != partial_type)
             throw INTERNAL_ERROR;
             
         lvalue_needed = true;
@@ -302,6 +302,10 @@ public:
         pivot.reset(p);
     }
 
+    virtual void need_lvalue() {
+        pivot->need_lvalue();
+    }
+
     virtual Regs precompile(Regs preferred) {
         return pivot->precompile(preferred);
     }
@@ -349,6 +353,7 @@ public:
     //bool is_single_record;
     Storage value_storage;
     Regs borrows_allowed;
+    bool ralias_needed;
     
     VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
         :Value(v->get_typespec(tm)) {
@@ -356,8 +361,7 @@ public:
         pivot.reset(p);
         unalias_reg = NOREG;
         match = tm;
-        //is_rvalue_record = false;
-        //is_single_record = false;
+        ralias_needed = false;
         
         if (pivot) {
             pts = pivot->ts.rvalue();
@@ -391,12 +395,31 @@ public:
             pivot->need_lvalue();
     }
     
+    virtual void need_ralias() {
+        // This is an optimization so that rvalue ALIAS-es are not value copied,
+        // but returned as ALIAS, because the parent VariableValue can handle it.
+        // We can't borrow an ALIAS, since if loaded into a MEMORY, it may be spilled
+        // to the stack, but may point to the stack itself, which is relocatable.
+        // But that's suboptimal for members of ALIAS variables, so make a little effort.
+        
+        ralias_needed = true;
+    }
+    
     virtual Regs precompile(Regs preferred) {
         borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars());
         Regs clob;
         
-        if (pivot)
+        if (pivot) {
             clob = pivot->precompile(preferred);
+            
+            if (!lvalue_needed) {
+                // Try some optimization
+                VariableValue *vvp = ptr_cast<VariableValue>(pivot.get());
+                
+                if (vvp)
+                    vvp->need_ralias();
+            }
+        }
         
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
@@ -425,11 +448,6 @@ public:
         Storage t;
         
         if (pivot) {
-            // Rvalue containers may be on the STACK, so we must extract our variable
-            // and discard it all.
-            //if (is_rvalue_record)
-            //    x64->op(SUBQ, RSP, ts.measure_stack());
-
             Storage s = pivot->compile(x64);
             
             if (pts[0] == ptr_type) {
@@ -513,31 +531,49 @@ public:
             }
             else if (t.where == MEMORY)
                 return t;  // return borrowable location
+            else if (t.where == ALIAS) {
+                // We must have asked for this with need_ralias
+                
+                if (!ralias_needed) {
+                    // Do a value copy, as an ALIAS can't be borrowed
+                    x64->op(MOVQ, unalias_reg, t.address);
+                    t = Storage(MEMORY, Address(unalias_reg, t.value));  // [unalias_reg + x]
+                    t = ts.store(t, value_storage, x64);
+                }
+                
+                return t;
+            }
             else
-                throw INTERNAL_ERROR;  // ALIAS and ALISTACK are invalid for rvalues
+                throw INTERNAL_ERROR;  // ALISTACK is invalid for rvalues
         }
         else {
-            // For either kind of rvalue results ALIAS must be dereferenced
             if (t.where == NOWHERE)
-                ;  // for GlobalNamespace and Unit
-            else if (t.where == MEMORY)
-                ;  // okay for now
+                return t;  // for GlobalNamespace and Unit
+            else if (t.where == MEMORY) {
+                // Possibly borrowable, check for the requirements
+                Regs borrows_required = variable->borrowing_requirements();
+                        
+                if ((borrows_allowed & borrows_required) != borrows_required) {
+                    // Make a value copy if the location may be clobbered
+                    t = ts.store(t, value_storage, x64);
+                }
+                
+                return t;
+            }
             else if (t.where == ALIAS) {
-                x64->op(MOVQ, unalias_reg, t.address);
-                t = Storage(MEMORY, Address(unalias_reg, t.value));  // [unalias_reg + x]
+                // An ALIAS can't be borrowed
+                
+                if (!ralias_needed) {
+                    // Do a value copy
+                    x64->op(MOVQ, unalias_reg, t.address);
+                    t = Storage(MEMORY, Address(unalias_reg, t.value));  // [unalias_reg + x]
+                    t = ts.store(t, value_storage, x64);
+                }
+                
+                return t;
             }
             else
                 throw INTERNAL_ERROR;
-
-            // Local variables know their own borrow requirements
-            Regs borrows_required = variable->borrowing_requirements();
-                        
-            if ((borrows_allowed & borrows_required) != borrows_required) {
-                // Make a value copy if the location may be clobbered
-                t = ts.store(t, value_storage, x64);
-            }
-            
-            return t;
         }
     }
 };
