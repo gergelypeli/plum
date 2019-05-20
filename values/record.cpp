@@ -236,7 +236,8 @@ public:
 
 class RecordWrapperValue: public Value {
 public:
-    std::unique_ptr<Value> operation;
+    std::unique_ptr<Value> value;
+    Value *operation;
     std::string arg_operation_name;
 
     RecordWrapperValue(Value *pivot, TypeSpec pcts, TypeSpec rts, std::string on, std::string aon, Scope *scope)
@@ -251,8 +252,14 @@ public:
             if (!pivot)
                 throw INTERNAL_ERROR;
         }
+
+        operation = pivot;
+
+        // Necessary for casting an Array indexing into String indexing
+        if (pivot->ts[0] == lvalue_type && rts[0] != lvalue_type)
+            pivot = make<RvalueCastValue>(pivot);
         
-        operation.reset(pivot);
+        value.reset(pivot);
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -268,11 +275,11 @@ public:
     }
     
     virtual Regs precompile(Regs preferred) {
-        return operation->precompile(preferred);
+        return value->precompile(preferred);
     }
     
     virtual Storage compile(X64 *x64) {
-        Storage s = operation->compile(x64);
+        Storage s = value->compile(x64);
         
         if (s.where == REGISTER) {
             x64->op(PUSHQ, s.reg);

@@ -98,6 +98,9 @@ public:
                     // NOTE: in C++ 'bool += 1' is legal, and does not even generate a warning
                     position += 1;
                 }
+                
+                if (pivot->ts[0] == lvalue_type)
+                    pivot = make<RvalueCastValue>(pivot);
             }
             else {
                 pivot = make<StringLiteralValue>(fragment)->lookup_inner("raw", scope);

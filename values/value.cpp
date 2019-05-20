@@ -187,91 +187,124 @@ public:
     }
 };
 
-/*
-class GenericLvalue {
+
+class RvalueCastValue: public Value {
 public:
-    bool lvalue_needed;
+    std::unique_ptr<Value> pivot;
     Storage rvalue_storage;
+    Regs borrows_allowed;
+    Register unalias_reg;
+    Register container_reg;
+    bool ralias_needed;
     
-    GenericLvalue() {
-        lvalue_needed = false;
+    RvalueCastValue(Value *v)
+        :Value(v->ts.rvalue()) {
+        pivot.reset(v);
+        ralias_needed = false;
+    }
+
+    virtual void need_ralias() {
+        // This is an optimization so that rvalue ALIAS-es are not value copied,
+        // but returned as ALIAS, because the parent VariableValue can handle it.
+        // We can't borrow an ALIAS, since if loaded into a MEMORY, it may be spilled
+        // to the stack, but may point to the stack itself, which is relocatable.
+        // But that's suboptimal for members of ALIAS variables, so make a little effort.
+        
+        ralias_needed = true;
     }
     
-    virtual void need_lvalue() {
-        lvalue_needed = true;
+    virtual Regs precompile(Regs preferred) {
+        borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars());
+
+        Regs clob = pivot->precompile(preferred);
+        
+        // We'd need one register to handle ALIAS, and two for ALISTACK pivots
+        clob.reserve_gpr(2);
+        unalias_reg = clob.get_gpr();
+        container_reg = (clob & ~Regs(unalias_reg)).get_gpr();
+        
+        // May need to load the value
+        // Overwriting unalias_reg in one step is fine, but killing container_reg is not.
+        rvalue_storage = ts.optimal_value_storage(preferred & ~Regs(container_reg));
+        
+        return clob | rvalue_storage.regs();
+    }
+
+    virtual Storage compile(X64 *x64) {
+        Storage s = pivot->compile(x64);
+        
+        switch (s.where) {
+        case MEMORY:
+            if (s.address.base == RSP)
+                throw INTERNAL_ERROR;
+            else {
+                // The base may be NOREG for static locations
+                Regs borrow_needed = (s.address.base == RBP ? Regs::stackvars() : Regs::heapvars());
+                
+                if (borrow_needed & borrows_allowed)
+                    return s;
+                else
+                    return ts.store(s, rvalue_storage, x64);
+            }
+        case ALIAS:
+            if (s.address.base != RBP)
+                throw INTERNAL_ERROR;
+            else if (ralias_needed) {
+                // A bit of optimization for VariableValue parents
+                return s;
+            }
+            else {
+                // An ALIAS may point to stack-local addresses, so we can't borrow it.
+
+                x64->op(MOVQ, unalias_reg, s.address);
+
+                Storage x(MEMORY, Address(unalias_reg, s.value));
+                ts.store(x, rvalue_storage, x64);
+                
+                return rvalue_storage;
+            }
+        case ALISTACK:
+            // Can't borrow, as the container may be freed, so make a value copy.
+            // Assume that the container is always non-NULL, as there should be no reason
+            // to return ALISTACK if not.
+            
+            x64->op(POPQ, unalias_reg);
+            x64->op(POPQ, container_reg);
+
+            s = Storage(MEMORY, Address(unalias_reg, s.value));
+            ts.store(s, rvalue_storage, x64);
+            
+            x64->runtime->decref(container_reg);
+            
+            return rvalue_storage;
+        default:
+            return s;
+        }
     }
 };
-*/
 
+
+// TODO: remove eventually
 class ContainedLvalue {
 public:
-    Storage rvalue_storage;
-    bool use_lvalue;
-    bool may_borrow;
-    
     ContainedLvalue() {
-        may_borrow = false;
     }
     
     virtual Regs precompile_contained_lvalue(Regs preferred, bool lvalue_needed, TypeSpec ts) {
-        // All contained values are on the heap
-        use_lvalue = lvalue_needed;
-        Regs borrowing_requirements = Regs::heapvars();
-        
-        if (use_lvalue)
-            return borrowing_requirements;
-        else {
-            if ((preferred & borrowing_requirements) == borrowing_requirements)
-                may_borrow = true;
-            
-            // May need to load the value
-            rvalue_storage = ts.optimal_value_storage(preferred);
-            return rvalue_storage.regs();
-        }
+        return lvalue_needed ? Regs::heapvars() : Regs();
     }
     
     virtual Storage compile_contained_lvalue(Address addr, Register container_ref, TypeSpec ts, X64 *x64) {
-        if (use_lvalue) {
-            // Lvalue
-            
-            if (container_ref == NOREG) {
-                // Borrow contained value as well
-                return Storage(MEMORY, addr);
-            }
-            else {
-                // Return ALISTACK
-                x64->op(PUSHQ, container_ref);
-                x64->op(LEA, R10, addr);
-                x64->op(PUSHQ, R10);
-                return Storage(ALISTACK);
-            }
+        if (container_ref == NOREG) {
+            // Return borrowable contained value as well
+            return Storage(MEMORY, addr);
         }
         else {
-            // Rvalue
-            
-            if (container_ref == NOREG) {
-                if (may_borrow) {
-                    // Borrow contained value as well
-                    return Storage(MEMORY, addr);
-                }
-                else {
-                    // Load value
-                    return ts.store(Storage(MEMORY, addr), rvalue_storage, x64);
-                }
-            }
-            else {
-                // Load value and decref container
-                // NOTE: rvalue_storage may be using the container_ref register, because
-                // we're to silly to take care. So override the optimal storage and
-                // use STACK instead, that always works.
-                
-                if (rvalue_storage.regs() & Regs(container_ref))
-                    rvalue_storage = Storage(STACK);
-                    
-                Storage t = ts.store(Storage(MEMORY, addr), rvalue_storage, x64);
-                x64->runtime->decref(container_ref);
-                return t;
-            }
+            // Return ALISTACK
+            x64->op(PUSHQ, container_ref);
+            x64->op(LEA, R10, addr);
+            x64->op(PUSHQ, R10);
+            return Storage(ALISTACK);
         }
     }
 };
@@ -346,22 +379,24 @@ class VariableValue: public Value {
 public:
     Variable *variable;
     std::unique_ptr<Value> pivot;
-    Register unalias_reg;
+    //Register unalias_reg;
     TypeMatch match;
     TypeSpec pts;
     //bool is_rvalue_record;
     //bool is_single_record;
-    Storage value_storage;
-    Regs borrows_allowed;
-    bool ralias_needed;
+    //Storage value_storage;
+    //Regs borrows_allowed;
+    //bool ralias_needed;
+    Register record_reg;
+    Storage member_storage;
     
     VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
         :Value(v->get_typespec(tm)) {
         variable = v;
         pivot.reset(p);
-        unalias_reg = NOREG;
+        record_reg = NOREG;
         match = tm;
-        ralias_needed = false;
+        //ralias_needed = false;
         
         if (pivot) {
             pts = pivot->ts.rvalue();
@@ -369,18 +404,6 @@ public:
             // Sanity check
             if (pts[0] == ref_type)
                 throw INTERNAL_ERROR;  // member variables are accessed by pointers only
-            /*
-            //is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != ptr_type && !pts.has_meta(singleton_metatype));
-            if (pts.has_meta(record_metatype)) {
-                if (ptr_cast<RecordType>(pts[0])->is_single) {
-                    is_single_record = true;
-                }
-                else if (pivot->ts[0] != lvalue_type) {
-                    is_rvalue_record = true;
-                    ts = ts.rvalue();
-                }
-            }
-            */
         }
     }
     
@@ -395,18 +418,7 @@ public:
             pivot->need_lvalue();
     }
     
-    virtual void need_ralias() {
-        // This is an optimization so that rvalue ALIAS-es are not value copied,
-        // but returned as ALIAS, because the parent VariableValue can handle it.
-        // We can't borrow an ALIAS, since if loaded into a MEMORY, it may be spilled
-        // to the stack, but may point to the stack itself, which is relocatable.
-        // But that's suboptimal for members of ALIAS variables, so make a little effort.
-        
-        ralias_needed = true;
-    }
-    
     virtual Regs precompile(Regs preferred) {
-        borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars());
         Regs clob;
         
         if (pivot) {
@@ -414,18 +426,19 @@ public:
             
             if (!lvalue_needed) {
                 // Try some optimization
-                VariableValue *vvp = ptr_cast<VariableValue>(pivot.get());
+                RvalueCastValue *rcv = ptr_cast<RvalueCastValue>(pivot.get());
                 
-                if (vvp)
-                    vvp->need_ralias();
+                if (rcv)
+                    rcv->need_ralias();
             }
+            
+            clob.reserve_gpr(1);
+            record_reg = clob.get_gpr();
+            member_storage = ts.optimal_value_storage(preferred);
         }
         
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
-
-        unalias_reg = preferred.has_gpr() ? preferred.get_gpr() : RAX;
-        clob = clob | unalias_reg;
 
         if (lvalue_needed) {
             if (pivot) {
@@ -435,12 +448,7 @@ public:
                 clob = clob | variable->borrowing_requirements();
             }
         }
-        else {
-            // Can't make all decisions now, allocate, and we'll see
-            value_storage = ts.optimal_value_storage(preferred);
-            clob = clob | value_storage.regs();
-        }
-        
+
         return clob;
     }
     
@@ -455,8 +463,8 @@ public:
                 // Don't disguise this as an ALIAS, we know it points to the heap.
                 
                 if (s.where == MEMORY) {
-                    x64->op(MOVQ, unalias_reg, s.address);
-                    s = Storage(MEMORY, Address(unalias_reg, 0));
+                    x64->op(MOVQ, record_reg, s.address);
+                    s = Storage(MEMORY, Address(record_reg, 0));
                     t = variable->get_storage(match, s);  // [unalias_reg + x]
                 }
                 else
@@ -481,100 +489,39 @@ public:
             t = variable->get_local_storage();
         }
 
-        // If the parent can handle lvalues, it can handle any storages
-        if (lvalue_needed) {
-            if (t.where == MEMORY || t.where == ALIAS || t.where == ALISTACK)
-                return t;
-            else
-                throw INTERNAL_ERROR;
-        }
+        if (t.where == STACK) {
+            // Must extract the member from a STACK value
             
-        // Otherwise we must either borrow a MEMORY, or do a value copy
+            // We can save this step for single member records
+            if (ts.measure_stack() != pts.measure_stack()) {
+                // A store from an RSP-relative address to a STACK is invalid
+                x64->op(MOVQ, record_reg, RSP);
+                Storage ms = variable->get_storage(match, Storage(MEMORY, Address(record_reg, 0)));
+            
+                // If the optimal storage is REGISTER, this may overwrite unalias_reg, that's OK
+                ts.store(ms, member_storage, x64);
+                pts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
+                
+                if (member_storage.where == STACK) {
+                    // We must shift up the member (the member size is smaller)
+                    int offset = pts.measure_stack();
+                    int length = ts.measure_stack();
+                    
+                    for (int i = 0; i < length; i += ADDRESS_SIZE)
+                        x64->op(POPQ, Address(RSP, offset - ADDRESS_SIZE));  // POP [RSP]!
+                        
+                    x64->op(ADDQ, RSP, offset - length);
+                }
+                else {
+                    // Just drop the stack value
+                    x64->op(ADDQ, RSP, pts.measure_stack());
+                }
+                
+                t = member_storage;
+            }
+        }
 
-        if (pivot) {
-            // The pivot did all the necessary borrowing checks
-            
-            if (t.where == REGISTER || t.where == SSEREGISTER)
-                return t;
-            else if (t.where == STACK) {
-                // Must extract the member from a STACK value
-                
-                // We can save this step for single member records
-                if (ts.measure_stack() != pts.measure_stack()) {
-                    // A store from an RSP-relative address to a STACK is invalid
-                    x64->op(MOVQ, unalias_reg, RSP);
-                    Storage ms = variable->get_storage(match, Storage(MEMORY, Address(unalias_reg, 0)));
-                
-                    // If the optimal storage is REGISTER, this may overwrite unalias_reg, that's OK
-                    ts.store(ms, value_storage, x64);
-                    pts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
-                    
-                    if (value_storage.where == STACK) {
-                        // We must shift up the member (the member size is smaller)
-                        int offset = pts.measure_stack();
-                        int length = ts.measure_stack();
-                        
-                        for (int i = 0; i < length; i += ADDRESS_SIZE)
-                            x64->op(POPQ, Address(RSP, offset - ADDRESS_SIZE));  // POP [RSP]!
-                            
-                        x64->op(ADDQ, RSP, offset - length);
-                    }
-                    else {
-                        // Just drop the stack value
-                        x64->op(ADDQ, RSP, pts.measure_stack());
-                    }
-                    
-                    t = value_storage;
-                }
-                
-                return t;  // return value copy
-            }
-            else if (t.where == MEMORY)
-                return t;  // return borrowable location
-            else if (t.where == ALIAS) {
-                // We must have asked for this with need_ralias
-                
-                if (!ralias_needed) {
-                    // Do a value copy, as an ALIAS can't be borrowed
-                    x64->op(MOVQ, unalias_reg, t.address);
-                    t = Storage(MEMORY, Address(unalias_reg, t.value));  // [unalias_reg + x]
-                    t = ts.store(t, value_storage, x64);
-                }
-                
-                return t;
-            }
-            else
-                throw INTERNAL_ERROR;  // ALISTACK is invalid for rvalues
-        }
-        else {
-            if (t.where == NOWHERE)
-                return t;  // for GlobalNamespace and Unit
-            else if (t.where == MEMORY) {
-                // Possibly borrowable, check for the requirements
-                Regs borrows_required = variable->borrowing_requirements();
-                        
-                if ((borrows_allowed & borrows_required) != borrows_required) {
-                    // Make a value copy if the location may be clobbered
-                    t = ts.store(t, value_storage, x64);
-                }
-                
-                return t;
-            }
-            else if (t.where == ALIAS) {
-                // An ALIAS can't be borrowed
-                
-                if (!ralias_needed) {
-                    // Do a value copy
-                    x64->op(MOVQ, unalias_reg, t.address);
-                    t = Storage(MEMORY, Address(unalias_reg, t.value));  // [unalias_reg + x]
-                    t = ts.store(t, value_storage, x64);
-                }
-                
-                return t;
-            }
-            else
-                throw INTERNAL_ERROR;
-        }
+        return t;
     }
 };
 

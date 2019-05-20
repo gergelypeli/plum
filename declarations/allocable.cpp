@@ -135,6 +135,10 @@ public:
         
         return ts;
     }
+
+    virtual bool disable_rvalue_pivot_cast() {
+        return true;
+    }
     
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable

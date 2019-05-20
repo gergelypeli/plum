@@ -236,6 +236,8 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
 
     if (ctx0 == lvalue_type)
         v->need_lvalue();
+    else if (v && v->ts[0] == lvalue_type && !(ctx0 && ctx0->meta_type == interface_metatype))
+        v = new RvalueCastValue(v);
 
     if (code_scope) {
         v = make<CodeScopeValue>(v, code_scope, v->ts);

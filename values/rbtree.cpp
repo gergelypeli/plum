@@ -532,7 +532,7 @@ public:
     Storage value_storage;
 
     RbtreeIndexValue(Value *l, TypeSpec kts, TypeSpec ets, TypeSpec kats, TypeSpec vrts)
-        :Value(vrts) {
+        :Value(vrts.lvalue()) {
         pivot.reset(l);
 
         key_ts = kts;

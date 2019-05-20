@@ -843,31 +843,32 @@ void define_string() {
     RecordType *record_type = ptr_cast<RecordType>(string_type);
     DataScope *is = record_type->make_inner_scope();
 
-    is->add(new Variable("chars", CHARACTER_ARRAY_LVALUE_TS));
+    TypeSpec MEMBER_TS = CHARACTER_ARRAY_LVALUE_TS;
+    is->add(new Variable("chars", MEMBER_TS));
 
-    is->add(new RecordWrapperIdentifier("length", RVALUE_PIVOT, CHARACTER_ARRAY_TS, INTEGER_TS, "length"));
-    is->add(new RecordWrapperIdentifier("binary_plus", RVALUE_PIVOT, CHARACTER_ARRAY_TS, STRING_TS, "binary_plus", "chars"));
-    is->add(new RecordWrapperIdentifier("index", RVALUE_PIVOT, CHARACTER_ARRAY_TS, CHARACTER_TS, "index"));
+    is->add(new RecordWrapperIdentifier("length", RVALUE_PIVOT, MEMBER_TS, INTEGER_TS, "length"));
+    is->add(new RecordWrapperIdentifier("binary_plus", RVALUE_PIVOT, MEMBER_TS, STRING_TS, "binary_plus", "chars"));
+    is->add(new RecordWrapperIdentifier("index", RVALUE_PIVOT, MEMBER_TS, CHARACTER_TS, "index"));
 
     is->add(new TemplateOperation<StringOperationValue>("is_equal", EQUAL));
     is->add(new TemplateOperation<StringOperationValue>("not_equal", NOT_EQUAL));
     is->add(new TemplateOperation<StringOperationValue>("compare", COMPARE));
 
     implement(is, RVALUE_PIVOT, TypeSpec { iterable_type, tuple1_type, character_type }, "iterable", {
-        new RecordWrapperIdentifier("iter", RVALUE_PIVOT, CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
+        new RecordWrapperIdentifier("iter", RVALUE_PIVOT, MEMBER_TS, TypeSpec { arrayelemiter_type, character_type }, "elements")
     });
 
-    is->add(new RecordWrapperIdentifier("elements", RVALUE_PIVOT, CHARACTER_ARRAY_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
-    is->add(new RecordWrapperIdentifier("indexes", RVALUE_PIVOT, CHARACTER_ARRAY_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
-    is->add(new RecordWrapperIdentifier("items", RVALUE_PIVOT, CHARACTER_ARRAY_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
+    is->add(new RecordWrapperIdentifier("elements", RVALUE_PIVOT, MEMBER_TS, TypeSpec { arrayelemiter_type, character_type }, "elements"));
+    is->add(new RecordWrapperIdentifier("indexes", RVALUE_PIVOT, MEMBER_TS, TypeSpec { arrayindexiter_type, character_type }, "indexes"));
+    is->add(new RecordWrapperIdentifier("items", RVALUE_PIVOT, MEMBER_TS, TypeSpec { arrayitemiter_type, character_type }, "items"));
 
     is->add(new StringRawStreamifiableImplementation("raw"));
 
     // String operations
     is->add(new SysvFunction("C__encode_utf8", "encode_utf8", RVALUE_PIVOT, GENERIC_FUNCTION, TSs {}, {}, TSs { UNSIGNED_INTEGER8_ARRAY_TS }));
 
-    is->add(new RecordWrapperIdentifier("assign_plus", LVALUE_PIVOT, CHARACTER_ARRAY_LVALUE_TS, STRING_TS, "assign_plus", "chars"));
-    is->add(new RecordWrapperIdentifier("realloc", LVALUE_PIVOT, CHARACTER_ARRAY_LVALUE_TS, STRING_LVALUE_TS, "realloc"));
+    is->add(new RecordWrapperIdentifier("assign_plus", LVALUE_PIVOT, MEMBER_TS, STRING_TS, "assign_plus", "chars"));
+    is->add(new RecordWrapperIdentifier("realloc", LVALUE_PIVOT, MEMBER_TS, STRING_LVALUE_TS, "realloc"));
 
     is->add(new TemplateOperation<RecordOperationValue>("assign other", ASSIGN));
 
