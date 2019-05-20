@@ -181,11 +181,16 @@ public:
         // Take the Rbtree Ref from the Nosytree before instantiating
         TypeSpec ets = typesubst(elem_ts, match);
         TypeSpec pivot_ts = get_pivot_ts();
-        
-        Value *pivot = make<NosytreeMemberValue>(cpivot, ets);
-        
+
+        TypeSpec member_ts = ets.prefix(rbtree_type).prefix(ref_type);
         if (pivot_ts[0] == lvalue_type)
+            member_ts = member_ts.lvalue();
+        
+        Value *pivot = make<NosytreeMemberValue>(cpivot, ets, member_ts);
+        
+        if (pivot_ts[0] == lvalue_type) {
             value_need_lvalue(pivot);
+        }
         
         Args fake_args;
         Kwargs fake_kwargs;

@@ -34,6 +34,9 @@ public:
     }
     
     virtual void need_lvalue() {
+        if (ts[0] != lvalue_type && ts[0] != uninitialized_type)
+            throw INTERNAL_ERROR;
+            
         lvalue_needed = true;
     }
     
@@ -184,6 +187,21 @@ public:
     }
 };
 
+/*
+class GenericLvalue {
+public:
+    bool lvalue_needed;
+    Storage rvalue_storage;
+    
+    GenericLvalue() {
+        lvalue_needed = false;
+    }
+    
+    virtual void need_lvalue() {
+        lvalue_needed = true;
+    }
+};
+*/
 
 class ContainedLvalue {
 public:
@@ -256,88 +274,8 @@ public:
             }
         }
     }
-    
-    /*
-    virtual Storage result_lvalue(Storage s, Register unalias_reg, Storage value_storage, X64 *x64) {
-        if (lvalue_needed)
-            return s;
-
-        switch (s.where) {
-        case MEMORY:
-            // Only valid if can be borrowed, otherwise load the value
-            if (value_storage.where != NOWHERE)
-                return ts.store(s, value_storage, x64);
-            else
-                return s;
-        case ALIAS:
-            // Must be unaliased, and potentially loaded
-            x64->op(MOVQ, unalias_reg, s.address);
-            s = Storage(MEMORY, Address(unalias_reg, s.value));
-
-            if (value_storage.where != NOWHERE)
-                return ts.store(s, value_storage, x64);
-            else
-                return s;
-        case ALISTACK:
-            // Must be unaliased and will be pushed, because we're out of registers, TODO
-            x64->op(POPQ, unalias_reg);
-            x64->op(POPQ, R10);
-            x64->op(SUBQ, RSP, ts.measure_stack());
-            x64->op(PUSHQ, R10);
-            
-            ts.store(Storage(MEMORY, Address(unalias_reg, 0)), Storage(MEMORY, Address(RSP, ADDRESS_SIZE)), x64);
-            
-            x64->op(POPQ, R10);
-            x64->runtime->unref(R10);
-            return Storage(STACK);
-        default:
-            throw INTERNAL_ERROR;
-        }
-    }
-    */
 };
 
-
-/*
-class TemporaryAliaser {
-public:
-    TemporaryAlias *temporary_alias;
-    
-    TemporaryAliaser() {
-        temporary_alias = NULL;
-    }
-    
-    bool check_alias(Scope *scope) {
-        temporary_alias = new TemporaryAlias;
-        scope->add(temporary_alias);
-        return true;
-    }
-
-    TemporaryAlias *get_alias() {
-        return temporary_alias;
-    }
-};
-
-
-class TemporaryReferrer {
-public:
-    TemporaryReference *temporary_reference;
-    
-    TemporaryReferrer() {
-        temporary_reference = NULL;
-    }
-    
-    bool check_reference(Scope *scope) {
-        temporary_reference = new TemporaryReference;
-        scope->add(temporary_reference);
-        return true;
-    }
-
-    void defer_decref(Register r, X64 *x64) {
-        x64->op(MOVQ, temporary_reference->get_address(), r);
-    }
-};
-*/
 
 class PassValue: public Value {
 public:
@@ -407,8 +345,8 @@ public:
     Register unalias_reg;
     TypeMatch match;
     TypeSpec pts;
-    bool is_rvalue_record;
-    bool is_single_record;
+    //bool is_rvalue_record;
+    //bool is_single_record;
     Storage value_storage;
     Regs borrows_allowed;
     
@@ -418,8 +356,8 @@ public:
         pivot.reset(p);
         unalias_reg = NOREG;
         match = tm;
-        is_rvalue_record = false;
-        is_single_record = false;
+        //is_rvalue_record = false;
+        //is_single_record = false;
         
         if (pivot) {
             pts = pivot->ts.rvalue();
@@ -427,7 +365,7 @@ public:
             // Sanity check
             if (pts[0] == ref_type)
                 throw INTERNAL_ERROR;  // member variables are accessed by pointers only
-                
+            /*
             //is_rvalue = (pivot->ts[0] != lvalue_type && pts[0] != ptr_type && !pts.has_meta(singleton_metatype));
             if (pts.has_meta(record_metatype)) {
                 if (ptr_cast<RecordType>(pts[0])->is_single) {
@@ -438,6 +376,7 @@ public:
                     ts = ts.rvalue();
                 }
             }
+            */
         }
     }
     
@@ -446,26 +385,18 @@ public:
         
         // The pivot type of member variables is not lvalue, so they can work with
         // non-lvalue containers. So if the member turns out to be needed as an lvalue,
-        // we must warn the container so it can clobber the appropriate storages.
+        // we must warn the container so it can clobber the appropriate flags.
         
-        if (pivot)
+        if (pivot && pts[0] != ptr_type)
             pivot->need_lvalue();
     }
     
     virtual Regs precompile(Regs preferred) {
-        borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars() | Regs::relaxvars());
+        borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars());
         Regs clob;
         
-        if (pivot) {
-            // Ask the child Value not to do any unaliasing or value copy for us.
-            // Not making a value copy is an optimization, since it's dumb to extract
-            // a member of a value on the stack for no reason. And not unaliasing is
-            // necessary to decide if we need to value copy, since an ALIAS has stricter
-            // borrow requirements (it may point to stack or heap), and loading it into
-            // a register prematurely would lose that information.
-            Regs pivot_prefs = preferred | Regs::relaxvars();
-            clob = pivot->precompile(pivot_prefs);
-        }
+        if (pivot)
+            clob = pivot->precompile(preferred);
         
         if (variable->where == NOWHERE)
             throw INTERNAL_ERROR;
@@ -496,8 +427,8 @@ public:
         if (pivot) {
             // Rvalue containers may be on the STACK, so we must extract our variable
             // and discard it all.
-            if (is_rvalue_record)
-                x64->op(SUBQ, RSP, ts.measure_stack());
+            //if (is_rvalue_record)
+            //    x64->op(SUBQ, RSP, ts.measure_stack());
 
             Storage s = pivot->compile(x64);
             
@@ -513,70 +444,101 @@ public:
                 else
                     throw INTERNAL_ERROR;
             }
-            else if (is_single_record) {
-                // Selecting the single member of a record is a no-op
-                // This also assumes that there are no such things as custom record finalizers
-                t = s;
-            }
-            else if (is_rvalue_record) {
-                Storage x, y;
-                
-                if (s.where == STACK) {
-                    x = variable->get_storage(match, Storage(MEMORY, Address(RSP, 0)));
-                    y = Storage(MEMORY, Address(RSP, pts.measure_stack()));
-                }
-                else if (s.where == MEMORY) {
-                    x = variable->get_storage(match, s);
-                    y = Storage(MEMORY, Address(RSP, 0));
+            else {
+                if (s.where == REGISTER || s.where == SSEREGISTER)
+                    t = s;  // optimized record, no need to extract
+                else if (s.where == STACK)
+                    t = s;  // we'll do the member extraction later
+                else if (s.where == MEMORY || s.where == ALIAS)
+                    t = variable->get_storage(match, s);
+                else if (s.where == ALISTACK) {
+                    x64->op(ADDQ, Address(RSP, 0), variable->get_offset(match));
+                    t = s;
                 }
                 else
                     throw INTERNAL_ERROR;
-                    
-                ts.create(x, y, x64);
-                pts.store(s, Storage(), x64);
-                
-                t = Storage(STACK);
-            }
-            else {
-                t = variable->get_storage(match, s);
             }
         }
         else {
             t = variable->get_local_storage();
         }
 
-        if (!lvalue_needed && !(borrows_allowed & Regs::relaxvars())) {
-            // Some optional dereferencing
+        // If the parent can handle lvalues, it can handle any storages
+        if (lvalue_needed) {
+            if (t.where == MEMORY || t.where == ALIAS || t.where == ALISTACK)
+                return t;
+            else
+                throw INTERNAL_ERROR;
+        }
+            
+        // Otherwise we must either borrow a MEMORY, or do a value copy
 
-            Regs borrows_required;
-
-            if (pivot) {
-                // Deduce some requirements from the received Storage
-                if (t.where == ALIAS)
-                    borrows_required = Regs::stackvars() | Regs::heapvars();
-                else if (t.where == MEMORY)
-                    borrows_required = (t.address.base == RBP ? Regs::stackvars() : Regs::heapvars());
-
-                // stays empty for STACK
+        if (pivot) {
+            // The pivot did all the necessary borrowing checks
+            
+            if (t.where == REGISTER || t.where == SSEREGISTER)
+                return t;
+            else if (t.where == STACK) {
+                // Must extract the member from a STACK value
+                
+                // We can save this step for single member records
+                if (ts.measure_stack() != pts.measure_stack()) {
+                    // A store from an RSP-relative address to a STACK is invalid
+                    x64->op(MOVQ, unalias_reg, RSP);
+                    Storage ms = variable->get_storage(match, Storage(MEMORY, Address(unalias_reg, 0)));
+                
+                    // If the optimal storage is REGISTER, this may overwrite unalias_reg, that's OK
+                    ts.store(ms, value_storage, x64);
+                    pts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
+                    
+                    if (value_storage.where == STACK) {
+                        // We must shift up the member (the member size is smaller)
+                        int offset = pts.measure_stack();
+                        int length = ts.measure_stack();
+                        
+                        for (int i = 0; i < length; i += ADDRESS_SIZE)
+                            x64->op(POPQ, Address(RSP, offset - ADDRESS_SIZE));  // POP [RSP]!
+                            
+                        x64->op(ADDQ, RSP, offset - length);
+                    }
+                    else {
+                        // Just drop the stack value
+                        x64->op(ADDQ, RSP, pts.measure_stack());
+                    }
+                    
+                    t = value_storage;
+                }
+                
+                return t;  // return value copy
             }
-            else {
-                // Let the constant local variables have no requirements
-                borrows_required = variable->borrowing_requirements();
-            }
-
-            if (t.where == ALIAS) {
-                // Unalias rvalues for convenience
+            else if (t.where == MEMORY)
+                return t;  // return borrowable location
+            else
+                throw INTERNAL_ERROR;  // ALIAS and ALISTACK are invalid for rvalues
+        }
+        else {
+            // For either kind of rvalue results ALIAS must be dereferenced
+            if (t.where == NOWHERE)
+                ;  // for GlobalNamespace and Unit
+            else if (t.where == MEMORY)
+                ;  // okay for now
+            else if (t.where == ALIAS) {
                 x64->op(MOVQ, unalias_reg, t.address);
                 t = Storage(MEMORY, Address(unalias_reg, t.value));  // [unalias_reg + x]
             }
+            else
+                throw INTERNAL_ERROR;
+
+            // Local variables know their own borrow requirements
+            Regs borrows_required = variable->borrowing_requirements();
                         
             if ((borrows_allowed & borrows_required) != borrows_required) {
                 // Make a value copy if the location may be clobbered
                 t = ts.store(t, value_storage, x64);
             }
+            
+            return t;
         }
-        
-        return t;
     }
 };
 

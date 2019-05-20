@@ -109,9 +109,13 @@ public:
 
     virtual Storage compile(X64 *x64) {
         Label l = x64->runtime->data_heap_string(utext);
+        Label dl;
+        x64->data_label(dl);
+        x64->data_reference(l);
         
-        x64->op(LEA, RAX, Address(l, 0));
-        return Storage(BREGISTER, RAX);
+        return Storage(MEMORY, Address(dl, 0));
+        //x64->op(LEA, RAX, Address(l, 0));
+        //return Storage(BREGISTER, RAX);
     }
 };
 

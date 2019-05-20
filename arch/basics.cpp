@@ -134,7 +134,6 @@ private:
     static const unsigned64 SSE_MASK  = 0x00003FFF0000;
     static const unsigned64 STACKVARS = 0x000100000000;
     static const unsigned64 HEAPVARS  = 0x000200000000;
-    static const unsigned64 RELAXVARS = 0x000400000000;  // very special, don't include in ALL
     static const unsigned64 ALL_MASK  = GPR_MASK | PTR_MASK | SSE_MASK | STACKVARS | HEAPVARS;
     
     unsigned64 available;
@@ -170,10 +169,6 @@ public:
         return Regs(HEAPVARS);
     }
 
-    static Regs relaxvars() {
-        return Regs(RELAXVARS);
-    }
-    
     Regs(Register r) {
         validate(r);
         available = (1UL << (int)r);

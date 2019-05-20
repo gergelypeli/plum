@@ -269,8 +269,8 @@ public:
     std::unique_ptr<Value> pivot;
     Regs clob;
 
-    NosytreeMemberValue(Value *p, TypeSpec ets)
-        :Value(ets.prefix(rbtree_type).prefix(ref_type)) {
+    NosytreeMemberValue(Value *p, TypeSpec ets, TypeSpec member_ts)
+        :Value(member_ts) {
         pivot.reset(p);
         elem_ts = ets;
     }

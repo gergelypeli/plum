@@ -257,7 +257,7 @@ public:
     TypeSpec heap_ts;
     
     ArrayExtendValue(Value *l, TypeMatch &match)
-        :GenericValue(match[0], match[0], l) {
+        :GenericValue(match[0].rvalue(), match[0].rvalue(), l) {
         elem_ts = match[1];
         heap_ts = elem_ts.prefix(linearray_type);
     }
