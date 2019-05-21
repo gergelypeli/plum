@@ -1,6 +1,6 @@
 
 enum PivotRequirement {
-    RVALUE_PIVOT, LVALUE_PIVOT, INITIALIZABLE_PIVOT, NO_PIVOT, CUSTOM_PIVOT
+    RVALUE_PIVOT, LVALUE_PIVOT, INITIALIZABLE_PIVOT, VARIABLE_PIVOT, NO_PIVOT, CUSTOM_PIVOT
 };
 
 class Identifier: public Declaration {
@@ -32,6 +32,7 @@ public:
             
         switch (pivot_requirement) {
         case RVALUE_PIVOT:
+        case VARIABLE_PIVOT:
             return ds->get_pivot_ts();
         case LVALUE_PIVOT:
             return ds->get_pivot_ts().lvalue();
@@ -46,12 +47,6 @@ public:
         }
     }
 
-    virtual bool disable_rvalue_pivot_cast() {
-        // This is a hack for the sake of Variable, because it works with both
-        // rvalue and lvalue pivots.
-        return false;
-    }
-    
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match) {
         std::cerr << "Unmatchable identifier!\n";
         throw INTERNAL_ERROR;
@@ -79,7 +74,7 @@ public:
         if (typematch(pivot_ts, pivot, match)) {
             if (pivot_ts[0] == lvalue_type || pivot_ts[0] == uninitialized_type)
                 value_need_lvalue(pivot);
-            else if (get_typespec(pivot)[0] == lvalue_type && !disable_rvalue_pivot_cast())
+            else if (get_typespec(pivot)[0] == lvalue_type && pivot_requirement != VARIABLE_PIVOT)
                 pivot = make<RvalueCastValue>(pivot);
 
             return matched(pivot, scope, match);

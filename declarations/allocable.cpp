@@ -107,7 +107,7 @@ public:
     AsWhat as_what;
     
     Variable(std::string name, TypeSpec vts)
-        :Allocable(name, RVALUE_PIVOT, vts) {
+        :Allocable(name, VARIABLE_PIVOT, vts) {
         if (vts == NO_TS)
             throw INTERNAL_ERROR;
             
@@ -136,10 +136,6 @@ public:
         return ts;
     }
 
-    virtual bool disable_rvalue_pivot_cast() {
-        return true;
-    }
-    
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
         // cpivot may be NULL if this is a local variable
         return make<VariableValue>(this, cpivot, scope, match);
