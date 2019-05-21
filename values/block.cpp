@@ -67,7 +67,7 @@ public:
         return t;
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         return code_scope;  // stop unwinding here, and start destroying scoped variables
     }
     
@@ -426,7 +426,7 @@ public:
         return Storage(STACK);
     }
 
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         for (int i = pushed_storages.size() - 1; i >= 0; i--) {
             context_tss[i].store(pushed_storages[i], Storage(), x64);
         }

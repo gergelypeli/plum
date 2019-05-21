@@ -40,7 +40,7 @@ public:
         x64->unwind->pop(this);
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         left->ts.store(ls, Storage(), x64);
         return NULL;
     }
@@ -243,7 +243,7 @@ public:
         }
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         left->ts.store(ls, Storage(), x64);
         return NULL;
     }
@@ -618,7 +618,7 @@ public:
         }
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         left->ts.store(ls, Storage(), x64);
         return NULL;
     }

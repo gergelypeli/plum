@@ -614,6 +614,14 @@ public:
         low_pc = x64->get_pc();
     }
 
+    virtual bool has_finalizable_contents() {
+        for (auto &d : contents)
+            if (!d->is_transient())
+                return true;
+        
+        return false;
+    }
+    
     virtual void finalize_contents(X64 *x64) {
         for (int i = contents.size() - 1; i >= 0; i--)
             contents[i]->finalize(x64);
@@ -627,6 +635,10 @@ public:
             throw INTERNAL_ERROR;
             
         Scope::finalize(x64);
+    }
+
+    virtual void reraise(X64 *x64) {
+        x64->unwind->initiate(this, x64);
     }
 
     virtual void debug(TypeMatch tm, X64 *x64) {

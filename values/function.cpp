@@ -434,7 +434,7 @@ public:
         return Storage();
     }
 
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         return fn_scope->body_scope;  // stop unwinding here, and start destroying scoped variables
     }
 
@@ -944,7 +944,7 @@ public:
             return Storage(STACK);  // Multiple result values
     }
 
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         //std::cerr << "Unwinding function call " << function->name << " would wipe " << pushed_tss.size() << " arguments.\n";
         for (int i = pushed_tss.size() - 1; i >= 0; i--) {
             pushed_tss[i].store(pushed_storages[i], Storage(), x64);
@@ -1071,7 +1071,7 @@ public:
         return Storage();
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         Storage ras = fn_scope->get_result_alias_storage();
         if (ras.where == MEMORY)
             x64->op(MOVQ, RAX, ras.address);  // load result base

@@ -157,7 +157,7 @@ public:
         return Storage(STACK);
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         for (int i = var_storages.size() - 1; i >= 0; i--)
             record_type->member_variables[i]->alloc_ts.destroy(var_storages[i], x64);
 

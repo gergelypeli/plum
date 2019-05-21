@@ -112,7 +112,7 @@ public:
         // Not needed in most Value classes
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         std::cerr << "This Value can't be unwound!\n";
         throw INTERNAL_ERROR;
     }
@@ -796,7 +796,7 @@ public:
         return t;
     }
 
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         destroy_arguments(x64);
         
         return NULL;

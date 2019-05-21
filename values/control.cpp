@@ -561,9 +561,10 @@ public:
         // On exception we jump here, so the each variable won't be created
         x64->op(MOVQ, RDX, NO_EXCEPTION);
         next_try_scope->finalize_contents(x64);
-        
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JNE, end);  // dropped
+
+        int id_index = iterator_done_exception_type->get_keyword_index("ITERATOR_DONE");
+        x64->op(CMPQ, RDX, id_index);
+        x64->op(JE, end);  // dropped
 
         body->compile_and_store(x64, Storage());
         
@@ -572,12 +573,12 @@ public:
         x64->op(JMP, start);
         
         x64->code_label(end);
-        // We don't need to clean up local variables yet
+        // We don't need to clean up local variables yet (iterator_var is not in our scopes)
         
         return Storage();
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         // May be called only while executing next
         return next_try_scope;
     }
@@ -666,7 +667,7 @@ public:
         return Storage();
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         return switch_scope;  // Start finalizing the variable
     }
 };
@@ -852,7 +853,7 @@ public:
         return t;
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         if (matching) {
             // We need to be able to tell apart an UNMATCHED exception raised in the match
             // clause (to swallow it and proceed with the else branch), and an UNMATCHED
@@ -1101,8 +1102,8 @@ public:
         return t;
     }
     
-    virtual Scope *unwind(X64 *x64) {
-        return handling ? (Scope *)switch_scope : (Scope *)try_scope;
+    virtual CodeScope *unwind(X64 *x64) {
+        return handling ? (CodeScope *)switch_scope : (CodeScope *)try_scope;
     }
 };
 
@@ -1175,7 +1176,7 @@ public:
         return get_yield_storage();
     }
     
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         return eval_scope;
     }
 };

@@ -92,7 +92,7 @@ public:
         return Storage();  // Well...
     }
 
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         for (int i = storages.size() - 1; i >= 0; i--)
             tss[i].store(storages[i], Storage(), x64);  // dropping a MEMORY is a no-op
             
@@ -302,7 +302,7 @@ public:
         return Storage();
     }
 
-    virtual Scope *unwind(X64 *x64) {
+    virtual CodeScope *unwind(X64 *x64) {
         if (left_total)
             x64->op(ADDQ, RSP, left_total);
             
