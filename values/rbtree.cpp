@@ -530,6 +530,7 @@ public:
     TypeSpec key_ts, elem_ts, key_arg_ts, heap_ts;
     std::unique_ptr<Value> pivot, key;
     Storage value_storage;
+    bool may_borrow_heap;
 
     RbtreeIndexValue(Value *l, TypeSpec kts, TypeSpec ets, TypeSpec kats, TypeSpec vrts)
         :Value(vrts.lvalue()) {
@@ -540,6 +541,7 @@ public:
         key_arg_ts = kats;
         
         heap_ts = elem_ts.prefix(rbtree_type);
+        may_borrow_heap = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -558,6 +560,8 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
+        may_borrow_heap = (bool)(preferred & Regs::heapvars());
+        
         Regs clob = key->precompile_tail();
         clob = clob | pivot->precompile(preferred & ~clob);
 
@@ -567,7 +571,17 @@ public:
     }
 
     virtual Storage compile(X64 *x64) {
-        pivot->compile_and_store(x64, Storage(STACK));
+        // Try borrowing the container
+        Storage ps = pivot->compile(x64);
+        bool container_borrowed = false;
+        
+        if (may_borrow_heap && ps.where == MEMORY) {
+            x64->op(PUSHQ, ps.address);
+            container_borrowed = true;
+        }
+        else
+            pivot->ts.store(ps, Storage(STACK), x64);
+        
         key->compile_and_store(x64, Storage(STACK));
 
         int key_size = key_ts.measure_stack();  // in an Item it's rounded up
@@ -580,7 +594,11 @@ public:
         x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
         
         key_arg_ts.store(Storage(STACK), Storage(), x64);
-        pivot->ts.store(Storage(STACK), Storage(REGISTER, SELFX), x64);
+        
+        if (container_borrowed)
+            x64->op(POPQ, SELFX);
+        else
+            pivot->ts.store(Storage(STACK), Storage(REGISTER, SELFX), x64);
 
         Label ok;
         //defer_decref(SELFX, x64);
@@ -588,12 +606,14 @@ public:
         x64->op(CMPQ, KEYX, RBNODE_NIL);
         x64->op(JNE, ok);
 
+        if (!container_borrowed)
+            x64->runtime->decref(SELFX);
         raise("NOT_FOUND", x64);
         
         x64->code_label(ok);
         Address addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
 
-        return compile_contained_lvalue(addr, SELFX, ts, x64);
+        return compile_contained_lvalue(addr, container_borrowed ? NOREG : SELFX, ts, x64);
     }
 };
 

@@ -158,6 +158,7 @@ public:
     int length_offset;
     int elems_offset;
     Storage value_storage;
+    bool may_borrow_heap;
     
     ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, TypeSpec hts, int lo, int eo)
         :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
@@ -165,6 +166,7 @@ public:
         elem_ts = match[1];
         length_offset = lo;
         elems_offset = eo;
+        may_borrow_heap = false;
     }
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope) {
@@ -181,6 +183,8 @@ public:
     }
 
     virtual Regs precompile(Regs preferred) {
+        may_borrow_heap = (bool)(preferred & Regs::heapvars());
+
         clob = GenericOperationValue::precompile(preferred);
         
         //clob = clob | Regs(RAX) | Regs(RBX);
@@ -225,6 +229,8 @@ public:
             throw INTERNAL_ERROR;
         }
     
+        bool container_borrowed = false;
+    
         switch (ls.where) {
         case REGISTER:
             r = ls.reg;
@@ -236,7 +242,12 @@ public:
         case MEMORY:
             r = (clob & ~Regs(i)).get_gpr();
             x64->op(MOVQ, r, ls.address);  // r may be the base of ls.address
-            heap_ts.incref(r, x64);
+            
+            if (may_borrow_heap)
+                container_borrowed = true;
+            else
+                heap_ts.incref(r, x64);
+                
             break;
         default:
             throw INTERNAL_ERROR;
@@ -248,14 +259,15 @@ public:
         x64->op(CMPQ, i, Address(r, length_offset));  // needs logical index
         x64->op(JB, ok);
 
-        heap_ts.decref(r, x64);
+        if (!container_borrowed)
+            heap_ts.decref(r, x64);
         raise("NOT_FOUND", x64);
 
         x64->code_label(ok);
         fix_index(r, i, x64);  // turns logical index into physical
         Address addr = x64->runtime->make_address(r, i, elem_size, elems_offset);
         
-        return compile_contained_lvalue(addr, r, ts, x64);
+        return compile_contained_lvalue(addr, container_borrowed ? NOREG : r, ts, x64);
     }
 };
 
