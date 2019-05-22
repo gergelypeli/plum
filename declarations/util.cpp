@@ -1,95 +1,25 @@
-/*
-class TemporaryAlias: public Declaration {
-public:
-    Allocation offset;
 
-    TemporaryAlias()
+
+class RaisingDummy: public Declaration {
+public:
+    Unwound unwound;
+    
+    RaisingDummy(Unwound u)
         :Declaration() {
+        unwound = u;
     }
-    
-    virtual void allocate() {
-        offset = outer_scope->reserve(ALIAS_SIZE);
+
+    virtual bool may_omit_finalization() {
+        return true;
     }
-    
-    virtual Storage get_local_storage() {
-        Storage ls = outer_scope->get_local_storage();
+
+    virtual void set_outer_scope(Scope *os) {
+        Declaration::set_outer_scope(os);
         
-        if (ls.where != MEMORY)
-            throw INTERNAL_ERROR;
-            
-        return Storage(ALIAS, ls.address + offset.concretize(), 0);
-    }
-    
-    virtual Storage process(Storage s, X64 *x64) {
-        Storage ts = get_local_storage();
-        
-        if (s.where == MEMORY) {
-            if (s.address.base == RBP) {
-                if (s.address.index != NOREG)
-                    throw INTERNAL_ERROR;
-                
-                // Stack-local addresses are handled in compile time
-                return s;
-            }
-            else if (s.address.base == RSP) {
-                // RecordPreinitializer and FunctionCall can handle this, but they can
-                // store RBP-relative values and fix later, while we can't.
-                throw INTERNAL_ERROR;
-            }
-            else {
-                // Dynamic addresses will be stored, and used as an ALIAS
-                x64->op(LEA, R10, s.address);
-                x64->op(MOVQ, ts.address, R10);
-                
-                return ts;
-            }
-        }
-        else if (s.where == ALIAS) {
-            if (s.address.base == RBP && s.address.index == NOREG) {
-                // Stack-local addresses are handled in compile time
-                return s;
-            }
-            else
-                throw INTERNAL_ERROR;
-        }
-        else
-            throw INTERNAL_ERROR;
+        outer_scope->be_unwindable(unwound);
     }
 };
 
-
-// Extend the lifetime of Lvalue containers until the end of the innermost scope
-// If created, it must be used, no runtime checks are made. This also means that
-// if an operation raises an exception, this must be set before that, because the
-// decref will happen anyway.
-class TemporaryReference: public Declaration {
-public:
-    bool is_used;
-    Allocation offset;
-    
-    TemporaryReference()
-        :Declaration() {
-        is_used = false;
-    }
-    
-    virtual void allocate() {
-        offset = outer_scope->reserve(Allocation(REFERENCE_SIZE));
-    }
-
-    virtual Address get_address() {
-        is_used = true;
-        return Address(RBP, offset.concretize());
-    }
-    
-    virtual void finalize(X64 *x64) {
-        if (!is_used)
-            return;
-            
-        x64->op(MOVQ, R10, get_address());
-        x64->runtime->decref(R10);
-    }
-};
-*/
 
 class Autoconvertible {
 public:
@@ -212,11 +142,6 @@ public:
         return os << "FUNC " << method->get_method_name();
     }
 };
-
-
-//VirtualEntry *make_method_virtual_entry(Function *f) {
-//    return new MethodVirtualEntry(f);
-//}
 
 
 class PatchMethodVirtualEntry: public VirtualEntry {

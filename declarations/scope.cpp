@@ -519,23 +519,6 @@ public:
 };
 
 
-class RaisingDummy: public Declaration {
-public:
-    Unwound unwound;
-    
-    RaisingDummy(Unwound u)
-        :Declaration() {
-        unwound = u;
-    }
-
-    virtual void set_outer_scope(Scope *os) {
-        Declaration::set_outer_scope(os);
-        
-        outer_scope->be_unwindable(unwound);
-    }
-};
-
-
 class CodeScope: public Scope {
 public:
     Allocation offset;
@@ -544,6 +527,9 @@ public:
     Unwound unwound;  // for optimizing out checks
     int low_pc;
     int high_pc;
+    Label got_nothing_label;
+    Label got_exception_label;
+    Label got_yield_label;
     
     CodeScope()
         :Scope(CODE_SCOPE) {
@@ -559,6 +545,10 @@ public:
     }
 
     virtual bool is_transient() {
+        return true;
+    }
+
+    virtual bool may_omit_finalization() {
         return true;
     }
 
@@ -621,6 +611,14 @@ public:
         return NO_TS;
     }
 
+    virtual bool may_omit_content_finalization() {
+        for (auto &d : contents)
+            if (!d->may_omit_finalization())
+                return false;
+        
+        return true;
+    }
+
     virtual void initialize_contents(X64 *x64) {
         low_pc = x64->get_pc();
     }
@@ -634,34 +632,48 @@ public:
     }
 
     virtual void finalize_contents_and_unwind(X64 *x64) {
-        if (unwound != NOT_UNWOUND) {
-            x64->op(MOVQ, RDX, NO_EXCEPTION);
+        if (unwound == NOT_UNWOUND) {
+            finalize_contents(x64);
         }
-        
-        finalize_contents(x64);
-        
-        if (unwound != NOT_UNWOUND) {
-            Label got_nothing_label;
-            x64->op(CMPQ, RDX, NO_EXCEPTION);
-            x64->op(JE, got_nothing_label);
+        else if (may_omit_content_finalization()) {
+            finalize_contents(x64);  // formal only
+            
+            x64->op(JMP, got_nothing_label);
+
+            x64->code_label(got_exception_label);
+            x64->code_label(got_yield_label);
             x64->unwind->initiate(this, x64);  // exception or yield
+
             x64->code_label(got_nothing_label);
         }
-    }
-
-    virtual bool has_finalizable_contents() {
-        for (auto &d : contents)
-            if (!d->is_transient())
-                return true;
+        else {
+            x64->op(MOVQ, RDX, NO_EXCEPTION);
         
-        return false;
+            finalize_contents(x64);
+        
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            x64->op(JE, got_nothing_label);
+            
+            x64->code_label(got_exception_label);
+            x64->code_label(got_yield_label);
+            x64->unwind->initiate(this, x64);  // exception or yield
+            
+            x64->code_label(got_nothing_label);
+        }
     }
 
     virtual void jump_to_content_finalization(Declaration *last, X64 *x64) {
         if (last->outer_scope != this)
             throw INTERNAL_ERROR;
             
-        last->jump_to_finalization(x64);
+        if (unwound == NOT_UNWOUND)
+            x64->op(UD2);
+        else if (may_omit_content_finalization()) {
+            x64->op(JMP, got_exception_label);  // or yield, handled the same here
+        }
+        else {
+            last->jump_to_finalization(x64);
+        }
     }
     
     virtual void finalize(X64 *x64) {
@@ -669,10 +681,6 @@ public:
             throw INTERNAL_ERROR;
             
         Scope::finalize(x64);
-    }
-
-    virtual void reraise(X64 *x64) {
-        x64->unwind->initiate(this, x64);
     }
 
     virtual void debug(TypeMatch tm, X64 *x64) {
@@ -761,9 +769,6 @@ class TryScope: public CodeScope {
 public:
     TreenumerationType *exception_type;
     bool have_implicit_matcher;
-    Label got_nothing_label;
-    Label got_exception_label;
-    Label got_yield_label;
 
     TryScope()
         :CodeScope() {
@@ -804,17 +809,46 @@ public:
     }
 
     virtual void finalize_contents_and_unwind(X64 *x64) {
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-        
-        finalize_contents(x64);
-        
-        //x64->runtime->dump("XXX try scope postfinalize");
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, got_nothing_label);
-        x64->op(JG, got_exception_label);
+        if (unwound == NOT_UNWOUND) {
+            finalize_contents(x64);
+        }
+        else if (may_omit_content_finalization()) {
+            finalize_contents(x64);  // formal only
+            
+            x64->op(JMP, got_nothing_label);
 
-        x64->code_label(got_yield_label);
-        x64->unwind->initiate(this, x64);
+            x64->code_label(got_yield_label);
+            x64->unwind->initiate(this, x64);  // exception or yield
+        }
+        else {
+            x64->op(MOVQ, RDX, NO_EXCEPTION);
+        
+            finalize_contents(x64);
+        
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            x64->op(JE, got_nothing_label);
+            x64->op(JG, got_exception_label);
+
+            x64->code_label(got_yield_label);
+            x64->unwind->initiate(this, x64);
+        }
+    }
+
+    virtual void jump_to_content_finalization(Declaration *last, X64 *x64) {
+        if (last->outer_scope != this)
+            throw INTERNAL_ERROR;
+            
+        if (unwound == NOT_UNWOUND)
+            x64->op(UD2);
+        else if (may_omit_content_finalization()) {
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            x64->op(JG, got_exception_label);
+            x64->op(JL, got_yield_label);
+            x64->op(UD2);
+        }
+        else {
+            last->jump_to_finalization(x64);
+        }
     }
 
     virtual void debug(TypeMatch tm, X64 *x64) {
@@ -836,6 +870,7 @@ public:
         :TryScope() {
         is_taken = true;
         contents_finalized = true;
+        unwound = BOTH_UNWOUND;  // unfortunately RaisingDummy-s avoid us, don't optimize!
     }
 
     virtual void add(Declaration *d) {
@@ -852,10 +887,16 @@ public:
         // we're empty, we have no finalization label to jump to, so check and jump
         // to the handling code directly.
 
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JG, got_exception_label);
-        x64->op(JL, got_yield_label);
-        x64->op(UD2);
+        if (unwound == NOT_UNWOUND)
+            x64->op(UD2);
+        else if (may_omit_content_finalization()) {
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            x64->op(JG, got_exception_label);
+            x64->op(JL, got_yield_label);
+            x64->op(UD2);
+        }
+        else
+            throw INTERNAL_ERROR;
     }
 };
 
@@ -879,19 +920,52 @@ public:
     }
 
     virtual void finalize_contents_and_unwind(X64 *x64) {
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-        
-        finalize_contents(x64);
+        if (unwound == NOT_UNWOUND) {
+            finalize_contents(x64);
+        }
+        else if (may_omit_content_finalization()) {
+            finalize_contents(x64);  // formal only
+            
+            x64->op(JMP, got_nothing_label);
 
-        Label got_nothing_label;
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, got_nothing_label);
-        x64->op(CMPQ, RDX, get_yield_value());
-        x64->op(JE, got_nothing_label);
+            x64->code_label(got_exception_label);
+            x64->code_label(got_yield_label);
+            x64->unwind->initiate(this, x64);  // exception or yield
 
-        x64->unwind->initiate(this, x64);
+            x64->code_label(got_nothing_label);
+        }
+        else {
+            x64->op(MOVQ, RDX, NO_EXCEPTION);
         
-        x64->code_label(got_nothing_label);
+            finalize_contents(x64);
+
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            x64->op(JE, got_nothing_label);
+            x64->op(CMPQ, RDX, get_yield_value());
+            x64->op(JE, got_nothing_label);
+
+            x64->code_label(got_exception_label);
+            x64->code_label(got_yield_label);
+            x64->unwind->initiate(this, x64);
+        
+            x64->code_label(got_nothing_label);
+        }
+    }
+
+    virtual void jump_to_content_finalization(Declaration *last, X64 *x64) {
+        if (last->outer_scope != this)
+            throw INTERNAL_ERROR;
+            
+        if (unwound == NOT_UNWOUND)
+            x64->op(UD2);
+        else if (may_omit_content_finalization()) {
+            x64->op(CMPQ, RDX, get_yield_value());  // RDX can't be NO_EXCEPTION here
+            x64->op(JE, got_nothing_label);
+            x64->op(JMP, got_yield_label);
+        }
+        else {
+            last->jump_to_finalization(x64);
+        }
     }
 };
 

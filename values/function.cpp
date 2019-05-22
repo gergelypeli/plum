@@ -374,12 +374,15 @@ public:
         fn_scope->body_scope->finalize_contents(x64);
         
         if (fn_scope->body_scope->unwound != NOT_UNWOUND) {
-            Label ok, caught;
+            Label caught;
+
+            x64->code_label(fn_scope->body_scope->got_exception_label);
+            x64->code_label(fn_scope->body_scope->got_yield_label);
             x64->op(CMPQ, RDX, RETURN_EXCEPTION);
             x64->op(JE, caught);
             
             x64->op(CMPQ, RDX, NO_EXCEPTION);
-            x64->op(JAE, ok);
+            x64->op(JAE, fn_scope->body_scope->got_nothing_label);
             
             // Negative values mean yields, but that would be completely bogus.
             // Check this for debugging.
@@ -388,7 +391,7 @@ public:
             x64->code_label(caught);
             x64->op(MOVQ, RDX, NO_EXCEPTION);  // caught
             
-            x64->code_label(ok);
+            x64->code_label(fn_scope->body_scope->got_nothing_label);
         }
 
         // If the caller reuses the self pointer, it must continue pointing to the role data

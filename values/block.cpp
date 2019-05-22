@@ -94,6 +94,10 @@ public:
         code_scope->finalize_contents(x64);
         code_scope->get_function_scope()->adjust_frame_base_offset(retro_offset);
 
+        x64->code_label(code_scope->got_nothing_label);
+        x64->code_label(code_scope->got_exception_label);
+        x64->code_label(code_scope->got_yield_label);
+        
         x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
 
         x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));

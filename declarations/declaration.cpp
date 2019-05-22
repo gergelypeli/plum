@@ -50,6 +50,10 @@ public:
         return false;
     }
 
+    virtual bool may_omit_finalization() {
+        return false;  // this is for optimization only
+    }
+
     virtual bool is_typedefinition(std::string n) {
         return false;
     }
@@ -79,4 +83,3 @@ public:
     virtual void debug(TypeMatch tm, X64 *x64) {
     }
 };
-
