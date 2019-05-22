@@ -48,21 +48,7 @@ public:
 
         Storage t = compile_body(x64);
     
-        if (code_scope->is_unwindable())
-            x64->op(MOVQ, RDX, NO_EXCEPTION);
-
-        code_scope->finalize_contents(x64);
-
-        if (code_scope->is_unwindable()) {
-            x64->op(CMPQ, RDX, NO_EXCEPTION);
-
-            Label ok;
-            x64->op(JE, ok);
-    
-            x64->unwind->initiate(code_scope, x64);
-        
-            x64->code_label(ok);
-        }
+        code_scope->finalize_contents_and_unwind(x64);
 
         return t;
     }

@@ -291,7 +291,7 @@ public:
         
         ts = context_ts;
 
-        eval_scope = new EvalScope(this);
+        eval_scope = new EvalScope;
         scope->add(eval_scope);
         eval_scope->enter();
         
@@ -311,12 +311,6 @@ public:
         }
         
         return true;
-    }
-
-    virtual int get_yield_exception_value() {
-        EvalScope *es = eval_scope->outer_scope->get_eval_scope();
-        
-        return (es ? es->get_yieldable_value()->get_yield_exception_value() : RETURN_EXCEPTION) - 1;
     }
 
     virtual Storage get_yield_storage() {
@@ -559,19 +553,17 @@ public:
         next->ts.create(Storage(STACK), es, x64);  // create the each variable
 
         // On exception we jump here, so the each variable won't be created
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-        next_try_scope->finalize_contents(x64);
+        next_try_scope->finalize_contents_and_unwind(x64);
 
-        int id_index = iterator_done_exception_type->get_keyword_index("ITERATOR_DONE");
-        x64->op(CMPQ, RDX, id_index);
-        x64->op(JE, end);  // dropped
-
+        x64->code_label(next_try_scope->got_nothing_label);
+        
         body->compile_and_store(x64, Storage());
         
         next->ts.destroy(es, x64);  // destroy the each variable
         
         x64->op(JMP, start);
         
+        x64->code_label(next_try_scope->got_exception_label);
         x64->code_label(end);
         // We don't need to clean up local variables yet (iterator_var is not in our scopes)
         
@@ -652,17 +644,7 @@ public:
         
         x64->unwind->pop(this);
 
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-        switch_scope->finalize_contents(x64);
-
-        Label live;
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, live);
-
-        // Otherwise must have raised something
-        x64->unwind->initiate(switch_scope, x64);
-
-        x64->code_label(live);
+        switch_scope->finalize_contents_and_unwind(x64);
 
         return Storage();
     }
@@ -790,11 +772,10 @@ public:
         match->compile_and_store(x64, Storage());
         matching = false;
         
-        // The match try scope is empty, finalizing it is a formality, and we never jump
-        // here in the case of exceptions (we jump to the finalization of the then scope),
-        // so it's guaranteed to continue the normal execution.
-        match_try_scope->finalize_contents(x64);
+        match_try_scope->finalize_contents_and_unwind(x64);
 
+        x64->code_label(match_try_scope->got_nothing_label);
+        
         Storage t = get_context_storage();
 
         if (then_branch)
@@ -802,19 +783,11 @@ public:
         
         x64->unwind->pop(this);
         
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-        then_scope->finalize_contents(x64);
+        then_scope->finalize_contents_and_unwind(x64);
         
-        // If the match raised UNMATCHED, proceed with the else branch
-        x64->op(CMPQ, RDX, CAUGHT_UNMATCHED_EXCEPTION);
-        x64->op(JE, else_label);
+        x64->op(JMP, end);
         
-        // If the then branch raised UNMATCHED, proceed with unwinding
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, end);
-        
-        x64->unwind->initiate(then_scope, x64);
-        
+        x64->code_label(match_try_scope->got_exception_label);
         x64->code_label(else_label);
         
         if (else_branch)
@@ -854,15 +827,10 @@ public:
     }
     
     virtual CodeScope *unwind(X64 *x64) {
-        if (matching) {
-            // We need to be able to tell apart an UNMATCHED exception raised in the match
-            // clause (to swallow it and proceed with the else branch), and an UNMATCHED
-            // raised in the then branch (to let it unwind the stack), so we're replacing the
-            // former with a custom yield code.
-            x64->op(MOVQ, RDX, CAUGHT_UNMATCHED_EXCEPTION);
-        }
-        
-        return then_scope;
+        if (matching)
+            return match_try_scope;
+        else
+            return then_scope;
     }
 };
 
@@ -910,7 +878,7 @@ public:
         if (!check_args(args, { "value", &ets, scope, &value }))
             return false;
             
-        dummy = new RaisingDummy;
+        dummy = new RaisingDummy(EXCEPTION_UNWOUND);
         scope->add(dummy);
 
         ArgInfos infos = {
@@ -1043,20 +1011,10 @@ public:
         ts.store(s, t, x64);
         //XXX store_yield(s, x64);
 
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-        try_scope->finalize_contents(x64);  // exceptions from body jump here
-        
-        // The body may throw an exception
-        Label live, handle;
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, live);
-        x64->op(JG, handle);
-        
-        // reraise yields from body
-        x64->unwind->initiate(try_scope, x64);
+        try_scope->finalize_contents_and_unwind(x64);  // exceptions from body jump here
         
         // Caught exception, prepare for handling
-        x64->code_label(handle);
+        x64->code_label(try_scope->got_exception_label);
 
         switch_scope->initialize_contents(x64);
         
@@ -1088,16 +1046,9 @@ public:
 
         x64->unwind->pop(this);
 
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
-        switch_scope->finalize_contents(x64);
-        
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, live);  // dropped
+        switch_scope->finalize_contents_and_unwind(x64);
 
-        // reraise exceptions and yields from the handler
-        x64->unwind->initiate(switch_scope, x64);
-
-        x64->code_label(live);
+        x64->code_label(try_scope->got_nothing_label);
         
         return t;
     }
@@ -1153,26 +1104,8 @@ public:
         body->compile_and_store(x64, Storage());
         x64->unwind->pop(this);
 
-        if (eval_scope->is_unwindable())
-            x64->op(MOVQ, RDX, NO_EXCEPTION);
-            
-        eval_scope->finalize_contents(x64);  // exceptions from body jump here
+        eval_scope->finalize_contents_and_unwind(x64);  // exceptions from body jump here
 
-        if (eval_scope->is_unwindable()) {
-            Label ok;
-        
-            x64->op(CMPQ, RDX, NO_EXCEPTION);
-            x64->op(JE, ok);
-        
-            x64->op(CMPQ, RDX, get_yield_exception_value());
-            x64->op(JE, ok);  // dropped
-
-            // reraise other exceptions
-            x64->unwind->initiate(eval_scope, x64);
-        
-            x64->code_label(ok);
-        }
-        
         return get_yield_storage();
     }
     
@@ -1204,7 +1137,7 @@ public:
         if (!check_args(args, { "value", &arg_ts, scope, &value }))
             return false;
 
-        dummy = new RaisingDummy;
+        dummy = new RaisingDummy(YIELD_UNWOUND);
         scope->add(dummy);
 
         ArgInfos infos = {
@@ -1229,7 +1162,7 @@ public:
             yieldable_value->store_yield(s, x64);
         }
         
-        x64->op(MOVQ, RDX, yieldable_value->get_yield_exception_value());
+        x64->op(MOVQ, RDX, yieldable_value->eval_scope->get_yield_value());
         x64->unwind->initiate(dummy, x64);
 
         return nonsense_result(x64);

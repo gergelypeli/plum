@@ -126,18 +126,21 @@ void Unwind::pop(Value *v) {
 
 
 void Unwind::initiate(Declaration *last, X64 *x64) {
+    // Sanity check for debugging
+    //Label ok;
+    //x64->op(CMPQ, RDX, NO_EXCEPTION);
+    //x64->op(JNE, ok);
+    //x64->runtime->die("Raised nothing!");
+    //x64->code_label(ok);
+
     int old_stack_usage = x64->accounting->mark();
 
     for (int i = stack.size() - 1; i >= 0; i--) {
-        Scope *s = stack[i]->unwind(x64);
+        CodeScope *cs = stack[i]->unwind(x64);
         
-        if (s) {
-            if (s != last->outer_scope)
-                throw INTERNAL_ERROR;
-                
-            last->jump_to_finalization(x64);
+        if (cs) {
+            cs->jump_to_content_finalization(last, x64);
             x64->accounting->rewind(old_stack_usage);
-            
             return;
         }
     }

@@ -373,7 +373,7 @@ public:
 
         fn_scope->body_scope->finalize_contents(x64);
         
-        if (fn_scope->body_scope->is_unwindable()) {
+        if (fn_scope->body_scope->unwound != NOT_UNWOUND) {
             Label ok, caught;
             x64->op(CMPQ, RDX, RETURN_EXCEPTION);
             x64->op(JE, caught);
@@ -1008,7 +1008,7 @@ public:
 
         // We must insert this after all potential declarations inside the result expression,
         // because we must finalize those variables upon return.
-        dummy = new RaisingDummy;
+        dummy = new RaisingDummy(YIELD_UNWOUND);
         scope->add(dummy);
         
         return true;

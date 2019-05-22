@@ -4,6 +4,14 @@ enum ScopeType {
 };
 
 
+enum Unwound {
+    NOT_UNWOUND = 0,
+    EXCEPTION_UNWOUND = 1,
+    YIELD_UNWOUND = 2,
+    BOTH_UNWOUND = 3
+};
+
+
 class Scope: virtual public Declaration {
 public:
     std::vector<std::unique_ptr<Declaration>> contents;
@@ -162,7 +170,7 @@ public:
         return outer_scope->get_root_scope();
     }
 
-    virtual void be_unwindable() {
+    virtual void be_unwindable(Unwound u) {
         throw INTERNAL_ERROR;  // only for CodeScope and friends
     }
 
@@ -513,14 +521,17 @@ public:
 
 class RaisingDummy: public Declaration {
 public:
-    RaisingDummy()
+    Unwound unwound;
+    
+    RaisingDummy(Unwound u)
         :Declaration() {
+        unwound = u;
     }
 
     virtual void set_outer_scope(Scope *os) {
         Declaration::set_outer_scope(os);
         
-        outer_scope->be_unwindable();
+        outer_scope->be_unwindable(unwound);
     }
 };
 
@@ -530,7 +541,7 @@ public:
     Allocation offset;
     bool contents_finalized;  // for sanity check
     bool is_taken;  // too
-    bool am_unwindable;  // for optimizing out checks
+    Unwound unwound;  // for optimizing out checks
     int low_pc;
     int high_pc;
     
@@ -538,7 +549,7 @@ public:
         :Scope(CODE_SCOPE) {
         contents_finalized = false;
         is_taken = false;
-        am_unwindable = false;
+        unwound = NOT_UNWOUND;
         low_pc = -1;
         high_pc = -1;
     }
@@ -551,15 +562,15 @@ public:
         return true;
     }
 
-    virtual void be_unwindable() {
-        am_unwindable = true;
+    virtual void be_unwindable(Unwound u) {
+        unwound = u;
         
-        outer_scope->be_unwindable();
+        outer_scope->be_unwindable(u);
     }
     
-    virtual bool is_unwindable() {
-        return am_unwindable;
-    }
+    //virtual bool is_unwindable() {
+    //    return am_unwindable;
+    //}
 
     virtual void leave() {
         if (!is_taken)
@@ -614,6 +625,30 @@ public:
         low_pc = x64->get_pc();
     }
 
+    virtual void finalize_contents(X64 *x64) {
+        for (int i = contents.size() - 1; i >= 0; i--)
+            contents[i]->finalize(x64);
+            
+        high_pc = x64->get_pc();
+        contents_finalized = true;
+    }
+
+    virtual void finalize_contents_and_unwind(X64 *x64) {
+        if (unwound != NOT_UNWOUND) {
+            x64->op(MOVQ, RDX, NO_EXCEPTION);
+        }
+        
+        finalize_contents(x64);
+        
+        if (unwound != NOT_UNWOUND) {
+            Label got_nothing_label;
+            x64->op(CMPQ, RDX, NO_EXCEPTION);
+            x64->op(JE, got_nothing_label);
+            x64->unwind->initiate(this, x64);  // exception or yield
+            x64->code_label(got_nothing_label);
+        }
+    }
+
     virtual bool has_finalizable_contents() {
         for (auto &d : contents)
             if (!d->is_transient())
@@ -621,13 +656,12 @@ public:
         
         return false;
     }
-    
-    virtual void finalize_contents(X64 *x64) {
-        for (int i = contents.size() - 1; i >= 0; i--)
-            contents[i]->finalize(x64);
+
+    virtual void jump_to_content_finalization(Declaration *last, X64 *x64) {
+        if (last->outer_scope != this)
+            throw INTERNAL_ERROR;
             
-        high_pc = x64->get_pc();
-        contents_finalized = true;
+        last->jump_to_finalization(x64);
     }
     
     virtual void finalize(X64 *x64) {
@@ -677,7 +711,7 @@ public:
         CodeScope::allocate();
     }
     
-    int get_frame_offset() {
+    virtual int get_frame_offset() {
         return header_offset.concretize();
     }
 };
@@ -694,7 +728,7 @@ public:
         switch_variable = NULL;
     }
 
-    void set_switch_variable(Variable *sv) {
+    virtual void set_switch_variable(Variable *sv) {
         if (switch_variable || contents.size())
             throw INTERNAL_ERROR;
             
@@ -702,11 +736,11 @@ public:
         switch_variable = sv;
     }
 
-    Variable *get_variable() {
+    virtual Variable *get_variable() {
         return switch_variable;
     }
 
-    SwitchScope *get_switch_scope() {
+    virtual SwitchScope *get_switch_scope() {
         return this;
     }
 
@@ -727,6 +761,9 @@ class TryScope: public CodeScope {
 public:
     TreenumerationType *exception_type;
     bool have_implicit_matcher;
+    Label got_nothing_label;
+    Label got_exception_label;
+    Label got_yield_label;
 
     TryScope()
         :CodeScope() {
@@ -734,11 +771,11 @@ public:
         have_implicit_matcher = false;
     }
 
-    TryScope *get_try_scope() {
+    virtual TryScope *get_try_scope() {
         return this;
     }
     
-    bool set_exception_type(TreenumerationType *et, bool is_implicit_matcher) {
+    virtual bool set_exception_type(TreenumerationType *et, bool is_implicit_matcher) {
         if (!exception_type) {
             exception_type = et;
             have_implicit_matcher = is_implicit_matcher;
@@ -758,12 +795,26 @@ public:
         return true;
     }
     
-    TreenumerationType *get_exception_type() {
+    virtual TreenumerationType *get_exception_type() {
         return exception_type;
     }
     
-    bool has_implicit_matcher() {
+    virtual bool has_implicit_matcher() {
         return have_implicit_matcher;
+    }
+
+    virtual void finalize_contents_and_unwind(X64 *x64) {
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
+        
+        finalize_contents(x64);
+        
+        //x64->runtime->dump("XXX try scope postfinalize");
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        x64->op(JE, got_nothing_label);
+        x64->op(JG, got_exception_label);
+
+        x64->code_label(got_yield_label);
+        x64->unwind->initiate(this, x64);
     }
 
     virtual void debug(TypeMatch tm, X64 *x64) {
@@ -790,6 +841,22 @@ public:
     virtual void add(Declaration *d) {
         outer_scope->add(d);
     }
+
+    virtual void jump_to_content_finalization(Declaration *last, X64 *x64) {
+        // Must tweak this check, as this scope has no content
+        if (last->outer_scope != outer_scope)
+            throw INTERNAL_ERROR;
+        
+        // Even though the 'last' raising dummy fell out to the outer scope with all
+        // the other declarations, the finalization must finalize this scope. Since
+        // we're empty, we have no finalization label to jump to, so check and jump
+        // to the handling code directly.
+
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        x64->op(JG, got_exception_label);
+        x64->op(JL, got_yield_label);
+        x64->op(UD2);
+    }
 };
 
 
@@ -797,19 +864,34 @@ public:
 
 class EvalScope: public CodeScope {
 public:
-    YieldableValue *yieldable_value;
-
-    EvalScope(YieldableValue *yv)
+    EvalScope()
         :CodeScope() {
-        yieldable_value = yv;
     }
 
-    YieldableValue *get_yieldable_value() {
-        return yieldable_value;
+    virtual int get_yield_value() {
+        EvalScope *prev = outer_scope->get_eval_scope();
+        
+        return (prev ? prev->get_yield_value() - 1 : RETURN_EXCEPTION - 1);
     }
 
-    EvalScope *get_eval_scope() {
+    virtual EvalScope *get_eval_scope() {
         return this;
+    }
+
+    virtual void finalize_contents_and_unwind(X64 *x64) {
+        x64->op(MOVQ, RDX, NO_EXCEPTION);
+        
+        finalize_contents(x64);
+
+        Label got_nothing_label;
+        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        x64->op(JE, got_nothing_label);
+        x64->op(CMPQ, RDX, get_yield_value());
+        x64->op(JE, got_nothing_label);
+
+        x64->unwind->initiate(this, x64);
+        
+        x64->code_label(got_nothing_label);
     }
 };
 
@@ -1091,7 +1173,7 @@ public:
         return NULL;
     }
     
-    virtual void be_unwindable() {
+    virtual void be_unwindable(Unwound u) {
         // Finish the notification here
     }
     

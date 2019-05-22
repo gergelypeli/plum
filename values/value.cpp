@@ -152,7 +152,7 @@ public:
     }
     
     virtual void make_raising_dummy(Scope *scope) {
-        raising_dummy = new RaisingDummy;
+        raising_dummy = new RaisingDummy(EXCEPTION_UNWOUND);
         scope->add(raising_dummy);
     }
     

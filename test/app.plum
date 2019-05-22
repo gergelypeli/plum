@@ -442,7 +442,7 @@ App? :Class Application as:
                 Std prints("IN THE EMPTY SET!")
             else:
                 Std prints("Not in the empty set.")
-            
+
             :is ~{ `TWENTY } then:
                 Std prints("Single twenty.")
             
