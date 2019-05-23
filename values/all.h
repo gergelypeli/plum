@@ -13,6 +13,7 @@ class ClassPostinitializerValue;
 class ClassPreinitializerValue;
 class ClassWrapperInitializerValue;
 class CreateValue;
+class DataBlockValue;
 class DeclarationValue;
 class EnumerationDefinitionValue;
 class EvaluableValue;
@@ -72,4 +73,5 @@ class WeakrefDeadMatcherValue;
 class WeakrefLiveMatcherValue;
 class YieldValue;
 class YieldableValue;
+
 
