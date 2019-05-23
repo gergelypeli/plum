@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <iomanip>
 
+#include <stddef.h>
 #include <stdarg.h>
 #include <math.h>
 #include <unistd.h>
