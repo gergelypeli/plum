@@ -186,8 +186,10 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
     }
     
     for (auto token : tokens) {
-        Node::NodeType type;
-        Precedence back, fore;
+        // Only initializing these because of g++ complaining
+        Node::NodeType type = Node::NONE;
+        Precedence back = OPENING;
+        Precedence fore = OPENING;
         std::string text;  // Non-ASCII characters were only accepted in string literals
         
         unsigned16 c = token.utext[0];

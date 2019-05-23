@@ -25,10 +25,15 @@
 #include "environment/heap.h"
 
 // Code generation
+#include "arch/elf.h"
 #include "arch/elf.cpp"
+#include "arch/dwarf.h"
 #include "arch/dwarf.cpp"
+#include "arch/basics.h"
 #include "arch/basics.cpp"
+#include "arch/asm64.h"
 #include "arch/asm64.cpp"
+#include "arch/storage.h"
 #include "arch/storage.cpp"
 
 // Forward declarations
