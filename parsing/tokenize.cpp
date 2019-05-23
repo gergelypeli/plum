@@ -1,6 +1,21 @@
 
 // Stage 1
 
+Token::Token() {
+    //text = "";
+    file_index = -1;
+    row = -1;
+    column = -1;
+}
+
+Token::Token(const std::ustring &ut, int f, int r, int c) {
+    utext = ut;
+    file_index = f;
+    row = r;
+    column = c;
+}
+
+
 const std::ustring INDENT_UTEXT = " indent";
 const std::ustring DEDENT_UTEXT = " dedent";
 const std::ustring SEPARATE_UTEXT = " separate";

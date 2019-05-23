@@ -1,8 +1,57 @@
 
 // Stage 3
 
+Expr::Expr(ExprType t, Token k) {
+    type = t;
+    token = k;
+}
 
-Expr *tupleize(std::vector<Node> &nodes, int i);
+Expr::Expr(ExprType t, Token k, std::string tx) {
+    type = t;
+    token = k;
+    text = tx;
+}
+
+Expr *Expr::set_pivot(Expr *p) {
+    pivot.reset(p);
+    return this;
+}
+
+Expr *Expr::add_arg(Expr *a) {
+    if (kwargs.size()) {
+        std::cerr << "Positional params after keyword at " << a->token << "!\n";
+        throw TUPLE_ERROR;
+    }
+        
+    args.push_back(std::unique_ptr<Expr>(a));
+    return this;
+}
+
+Expr *Expr::add_kwarg(std::string k, Expr *v) {
+    if (kwargs[k]) {
+        std::cerr << "Duplicate keyword argument " << k << " at " << token << "!\n";
+        throw TUPLE_ERROR;
+    }
+        
+    kwargs[k] = std::unique_ptr<Expr>(v);
+    return this;
+}
+
+const char *Expr::print_type() {
+    return (
+        type == TUPLE ? "TUPLE" :
+        type == UNSIGNED_NUMBER ? "UNSIGNED_NUMBER" :
+        type == NEGATIVE_NUMBER ? "NEGATIVE_NUMBER" :
+        type == STRING ? "STRING" :
+        type == INITIALIZER ? "INITIALIZER" :
+        type == MATCHER ? "MATCHER" :
+        type == IDENTIFIER ? "IDENTIFIER" :
+        type == CONTROL ? "CONTROL" :
+        type == EVAL ? "EVAL" :
+        type == DECLARATION ? "DECLARATION" :
+        throw TUPLE_ERROR
+    );
+}
 
 
 void tupleize_arguments(Expr *e, std::vector<Node> &nodes, int i) {
