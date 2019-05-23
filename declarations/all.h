@@ -42,3 +42,4 @@ class RootScope;
 extern const std::string MAIN_ROLE_NAME;
 extern const std::string BASE_ROLE_NAME;
 extern const std::string QUALIFIER_NAME;
+
