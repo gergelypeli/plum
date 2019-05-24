@@ -192,197 +192,154 @@ void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
 }
 
 
-class QueueLengthValue: public ContainerLengthValue {
-public:
-    QueueLengthValue(Value *l, TypeMatch &match)
-        :ContainerLengthValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET) {
-    }
-};
 
 
-class QueueIndexValue: public ContainerIndexValue {
-public:
-    QueueIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-        :ContainerIndexValue(o, pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET) {
-    }
-
-    virtual void fix_index(Register r, Register i, X64 *x64) {
-        fix_index_overflow(r, i, x64);
-    }
-};
+QueueLengthValue::QueueLengthValue(Value *l, TypeMatch &match)
+    :ContainerLengthValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET) {
+}
 
 
-class QueueEmptyValue: public ContainerEmptyValue {
-public:
-    QueueEmptyValue(TypeSpec ts)
-        :ContainerEmptyValue(ts, compile_queue_alloc) {
-    }
-};
+
+QueueIndexValue::QueueIndexValue(OperationType o, Value *pivot, TypeMatch &match)
+    :ContainerIndexValue(o, pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET) {
+}
+
+void QueueIndexValue::fix_index(Register r, Register i, X64 *x64) {
+    fix_index_overflow(r, i, x64);
+}
 
 
-class QueueReservedValue: public ContainerReservedValue {
-public:
-    QueueReservedValue(TypeSpec ts)
-        :ContainerReservedValue(ts, compile_queue_alloc) {
-    }
-};
+
+QueueEmptyValue::QueueEmptyValue(TypeSpec ts)
+    :ContainerEmptyValue(ts, compile_queue_alloc) {
+}
 
 
-class QueueInitializerValue: public ContainerInitializerValue {
-public:
-    QueueInitializerValue(TypeSpec ts)
-        :ContainerInitializerValue(ts.unprefix(queue_type), ts, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_alloc) {
-    }
-};
+
+QueueReservedValue::QueueReservedValue(TypeSpec ts)
+    :ContainerReservedValue(ts, compile_queue_alloc) {
+}
 
 
-class QueuePushValue: public ContainerPushValue {
-public:
-    QueuePushValue(Value *l, TypeMatch &match)
-        :ContainerPushValue(l, match, CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone, compile_queue_grow) {
-    }
 
-    virtual void fix_index(Register r, Register i, X64 *x64) {
-        fix_index_overflow(r, i, x64);
-    }
-};
+QueueInitializerValue::QueueInitializerValue(TypeSpec ts)
+    :ContainerInitializerValue(ts.unprefix(queue_type), ts, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_alloc) {
+}
 
 
-class QueuePopValue: public ContainerPopValue {
-public:
-    QueuePopValue(Value *l, TypeMatch &match)
-        :ContainerPopValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone) {
-    }
 
-    virtual void fix_index(Register r, Register i, X64 *x64) {
-        fix_index_overflow(r, i, x64);
-    }
-};
+QueuePushValue::QueuePushValue(Value *l, TypeMatch &match)
+    :ContainerPushValue(l, match, CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone, compile_queue_grow) {
+}
+
+void QueuePushValue::fix_index(Register r, Register i, X64 *x64) {
+    fix_index_overflow(r, i, x64);
+}
 
 
-class QueueUnshiftValue: public QueuePushValue {
-public:
-    QueueUnshiftValue(Value *l, TypeMatch &match)
-        :QueuePushValue(l, match) {
-    }
 
-    virtual void fix_index(Register r, Register i, X64 *x64) {
-        // Compute the new front, and use it for the element index
-        x64->op(MOVQ, i, -1);
-        fix_index_underflow(r, i, x64);
-        x64->op(MOVQ, Address(r, CIRCULARRAY_FRONT_OFFSET), i);
-    }
-};
+QueuePopValue::QueuePopValue(Value *l, TypeMatch &match)
+    :ContainerPopValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone) {
+}
+
+void QueuePopValue::fix_index(Register r, Register i, X64 *x64) {
+    fix_index_overflow(r, i, x64);
+}
 
 
-class QueueShiftValue: public QueuePopValue {
-public:
-    QueueShiftValue(Value *l, TypeMatch &match)
-        :QueuePopValue(l, match) {
-    }
 
-    virtual void fix_index(Register r, Register i, X64 *x64) {
-        // Compute the new front, and use the old one for the element index
-        x64->op(MOVQ, i, 1);
-        fix_index_overflow(r, i, x64);
-        x64->op(XCHGQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
-    }
-};
+QueueUnshiftValue::QueueUnshiftValue(Value *l, TypeMatch &match)
+    :QueuePushValue(l, match) {
+}
 
-/*
-class QueueAutogrowValue: public ContainerAutogrowValue {
-public:
-    QueueAutogrowValue(Value *l, TypeMatch &match)
-        :ContainerAutogrowValue(l, match) {
-    }
-    
-    virtual Storage compile(X64 *x64) {
-        return subcompile(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, compile_queue_grow, x64);
-    }
-};
-*/
+void QueueUnshiftValue::fix_index(Register r, Register i, X64 *x64) {
+    // Compute the new front, and use it for the element index
+    x64->op(MOVQ, i, -1);
+    fix_index_underflow(r, i, x64);
+    x64->op(MOVQ, Address(r, CIRCULARRAY_FRONT_OFFSET), i);
+}
+
+
+
+QueueShiftValue::QueueShiftValue(Value *l, TypeMatch &match)
+    :QueuePopValue(l, match) {
+}
+
+void QueueShiftValue::fix_index(Register r, Register i, X64 *x64) {
+    // Compute the new front, and use the old one for the element index
+    x64->op(MOVQ, i, 1);
+    fix_index_overflow(r, i, x64);
+    x64->op(XCHGQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
+}
+
 
 // Iteration
 
-class QueueElemIterValue: public ContainerIterValue {
-public:
-    QueueElemIterValue(Value *l, TypeMatch &match)
-        :ContainerIterValue(typesubst(SAME_QUEUEELEMITER_TS, match), l) {
-    }
-};
+QueueElemIterValue::QueueElemIterValue(Value *l, TypeMatch &match)
+    :ContainerIterValue(typesubst(SAME_QUEUEELEMITER_TS, match), l) {
+}
 
 
-class QueueIndexIterValue: public ContainerIterValue {
-public:
-    QueueIndexIterValue(Value *l, TypeMatch &match)
-        :ContainerIterValue(typesubst(SAME_QUEUEINDEXITER_TS, match), l) {
-    }
-};
+
+QueueIndexIterValue::QueueIndexIterValue(Value *l, TypeMatch &match)
+    :ContainerIterValue(typesubst(SAME_QUEUEINDEXITER_TS, match), l) {
+}
 
 
-class QueueItemIterValue: public ContainerIterValue {
-public:
-    QueueItemIterValue(Value *l, TypeMatch &match)
-        :ContainerIterValue(typesubst(SAME_QUEUEITEMITER_TS, match), l) {
-    }
-};
+
+QueueItemIterValue::QueueItemIterValue(Value *l, TypeMatch &match)
+    :ContainerIterValue(typesubst(SAME_QUEUEITEMITER_TS, match), l) {
+}
 
 
-class QueueNextElemValue: public ContainerNextValue, public ContainedLvalue {
-public:
-    QueueNextElemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(SAME_LVALUE_TUPLE1_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
-    }
 
-    virtual Regs precompile(Regs preferred) {
-        return ContainerNextValue::precompile(preferred) | precompile_contained_lvalue(preferred, lvalue_needed, ts);
-    }
+QueueNextElemValue::QueueNextElemValue(Value *l, TypeMatch &match)
+    :ContainerNextValue(typesubst(SAME_LVALUE_TUPLE1_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
+}
 
-    virtual Storage postprocess(Register r, Register i, X64 *x64) {
-        int elem_size = ContainerType::get_elem_size(elem_ts);
+Regs QueueNextElemValue::precompile(Regs preferred) {
+    return ContainerNextValue::precompile(preferred) | precompile_contained_lvalue(preferred, lvalue_needed, ts);
+}
 
-        fix_index_overflow(r, i, x64);
-        
-        Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
-        
-        return compile_contained_lvalue(addr, NOREG, ts, x64);
-    }
-};
+Storage QueueNextElemValue::postprocess(Register r, Register i, X64 *x64) {
+    int elem_size = ContainerType::get_elem_size(elem_ts);
 
-
-class QueueNextIndexValue: public ContainerNextValue {
-public:
-    QueueNextIndexValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(INTEGER_TUPLE1_TS, match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
-    }
+    fix_index_overflow(r, i, x64);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64) {
-        return Storage(REGISTER, i);
-    }
-};
+    Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
+    
+    return compile_contained_lvalue(addr, NOREG, ts, x64);
+}
 
 
-class QueueNextItemValue: public ContainerNextValue {
-public:
-    QueueNextItemValue(Value *l, TypeMatch &match)
-        :ContainerNextValue(typesubst(INTEGER_SAME_LVALUE_TUPLE2_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
-    }
 
-    virtual Storage postprocess(Register r, Register i, X64 *x64) {
-        int elem_size = ContainerType::get_elem_size(elem_ts);
-        //int item_stack_size = ts.measure_stack();
+QueueNextIndexValue::QueueNextIndexValue(Value *l, TypeMatch &match)
+    :ContainerNextValue(INTEGER_TUPLE1_TS, match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
+}
 
-        x64->op(PUSHQ, i);
-        
-        fix_index_overflow(r, i, x64);
+Storage QueueNextIndexValue::postprocess(Register r, Register i, X64 *x64) {
+    return Storage(REGISTER, i);
+}
 
-        Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
-        
-        x64->op(PUSHQ, 0);
-        x64->op(LEA, R10, addr);
-        x64->op(PUSHQ, R10);
-        
-        return Storage(STACK);
-    }
-};
 
+
+QueueNextItemValue::QueueNextItemValue(Value *l, TypeMatch &match)
+    :ContainerNextValue(typesubst(INTEGER_SAME_LVALUE_TUPLE2_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
+}
+
+Storage QueueNextItemValue::postprocess(Register r, Register i, X64 *x64) {
+    int elem_size = ContainerType::get_elem_size(elem_ts);
+    //int item_stack_size = ts.measure_stack();
+
+    x64->op(PUSHQ, i);
+    
+    fix_index_overflow(r, i, x64);
+
+    Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
+    
+    x64->op(PUSHQ, 0);
+    x64->op(LEA, R10, addr);
+    x64->op(PUSHQ, R10);
+    
+    return Storage(STACK);
+}
