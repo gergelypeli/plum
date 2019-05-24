@@ -6,7 +6,7 @@ struct ExprInfo;
 typedef std::vector<ExprInfo> ExprInfos;
 struct PartialInfo;
 struct TreenumInput;
-struct Allocation;
+//struct Allocation;
 struct Token;
 class Expr;
 typedef std::vector<std::unique_ptr<Expr>> Args;
@@ -90,6 +90,8 @@ namespace std {
     };
 };
 
+std::ostream &operator<<(std::ostream &os, const std::ustring &x);
+
 
 // https://stackoverflow.com/questions/3610933/iterating-c-vector-from-the-end-to-the-begin
 template <class T>
@@ -102,13 +104,37 @@ public:
 };
 
 
-std::ostream &operator<<(std::ostream &os, const std::ustring &x) {
-    int charlen = x.size();
-    char bytes[charlen * 3];
-    
-    int64 character_count, byte_count;
-    encode_utf8_buffer(x.data(), charlen, bytes, charlen * 3, &character_count, &byte_count);
 
-    os.write(bytes, byte_count);
-    return os;
-}
+struct Allocation {
+    int bytes;
+    int count1;
+    int count2;
+    int count3;
+    
+    Allocation(int b = 0, int c1 = 0, int c2 = 0, int c3 = 0);
+    int concretize();
+    Allocation stack_size();
+};
+
+std::ostream &operator<<(std::ostream &os, const Allocation &a);
+
+
+enum OperationType {
+    TWEAK,
+    COMPLEMENT, NEGATE, GENERIC_UNARY,
+    ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
+    OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
+    EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL, COMPARE,
+    ASSIGN, ASSIGN_ADD, ASSIGN_SUBTRACT, ASSIGN_MULTIPLY, ASSIGN_DIVIDE, ASSIGN_MODULO, ASSIGN_EXPONENT,
+    ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT,
+    CREATE, LTWEAK
+};
+
+bool is_unary(OperationType o);
+bool is_comparison(OperationType o);
+bool is_assignment(OperationType o);
+
+
+enum InheritAs {
+    AS_ROLE, AS_BASE, AS_MAIN, AS_REQUIRE
+};

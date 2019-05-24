@@ -12,19 +12,6 @@ unsigned elem_size(unsigned size) {
 
 // Allocation
 
-struct Allocation {
-    int bytes;
-    int count1;
-    int count2;
-    int count3;
-    
-    Allocation(int b = 0, int c1 = 0, int c2 = 0, int c3 = 0);
-    int concretize();
-    Allocation stack_size();
-};
-
-std::ostream &operator<<(std::ostream &os, const Allocation &a);
-
 Allocation::Allocation(int b, int c1, int c2, int c3) {
     bytes = b;
     count1 = c1;
@@ -106,20 +93,6 @@ struct PartialInfo {
 };
 
 
-struct SelfInfo {
-    std::map<std::string, Identifier *> specials;
-    
-    SelfInfo() {
-    }
-    
-    virtual void add_special(std::string n, Identifier *i) {
-        specials[n] = i;
-    }
-    
-    virtual Identifier *get_special(std::string n) {
-        return specials.count(n) ? specials[n] : NULL;
-    }
-};
 
 
 struct TreenumInput {
@@ -139,11 +112,6 @@ struct ArgInfo {
 struct ExprInfo {
     std::string name;
     std::unique_ptr<Expr> *target;  // Yes, too
-};
-
-
-enum InheritAs {
-    AS_ROLE, AS_BASE, AS_MAIN, AS_REQUIRE
 };
 
 
@@ -208,6 +176,18 @@ std::string get_working_path() {
 }
 
 
+std::ostream &operator<<(std::ostream &os, const std::ustring &x) {
+    int charlen = x.size();
+    char bytes[charlen * 3];
+    
+    int64 character_count, byte_count;
+    encode_utf8_buffer(x.data(), charlen, bytes, charlen * 3, &character_count, &byte_count);
+
+    os.write(bytes, byte_count);
+    return os;
+}
+
+
 std::vector<std::ustring> brace_split(std::ustring s) {
     std::vector<std::ustring> fragments;
     unsigned p = 0;
@@ -246,16 +226,6 @@ std::ostream &operator<<(std::ostream &os, const std::set<T> &x) {
 }
 
 
-enum OperationType {
-    TWEAK,
-    COMPLEMENT, NEGATE, GENERIC_UNARY,
-    ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, EXPONENT,
-    OR, XOR, AND, SHIFT_LEFT, SHIFT_RIGHT, 
-    EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL, COMPARE,
-    ASSIGN, ASSIGN_ADD, ASSIGN_SUBTRACT, ASSIGN_MULTIPLY, ASSIGN_DIVIDE, ASSIGN_MODULO, ASSIGN_EXPONENT,
-    ASSIGN_OR, ASSIGN_XOR, ASSIGN_AND, ASSIGN_SHIFT_LEFT, ASSIGN_SHIFT_RIGHT,
-    CREATE, LTWEAK
-};
 
 bool is_unary(OperationType o) {
     return o == COMPLEMENT || o == NEGATE || o == GENERIC_UNARY;

@@ -15,6 +15,11 @@ Token::Token(const std::ustring &ut, int f, int r, int c) {
     column = c;
 }
 
+std::ostream &operator<<(std::ostream &os, const Token &token) {
+    os << get_source_file_display_name(token.file_index) << ":" << token.row << ":" << token.column << ":\"" << token.utext << "\"";
+    return os;
+}
+
 
 const std::ustring INDENT_UTEXT = " indent";
 const std::ustring DEDENT_UTEXT = " dedent";

@@ -1,3 +1,23 @@
+
+#include "declaration.h"
+#include "scope.h"
+#include "util.h"
+#include "identifier.h"
+#include "allocable.h"
+#include "function.h"
+#include "associable.h"
+#include "type.h"
+
+#include "interface.h"
+#include "basic.h"
+#include "float.h"
+#include "reference.h"
+#include "record.h"
+#include "class.h"
+#include "option.h"
+#include "container.h"
+#include "nosy.h"
+
 // Types
 
 class VirtualEntry;

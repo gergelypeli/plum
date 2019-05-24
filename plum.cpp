@@ -1,50 +1,11 @@
-#include <string>
-#include <cstring>
-#include <vector>
-#include <map>
-#include <set>
-#include <stack>
-#include <memory>
-#include <iostream>
-#include <sstream>
-#include <fstream>
-#include <algorithm>
-#include <iomanip>
+#include "plum.h"
 
-#include <stddef.h>
-#include <stdarg.h>
-#include <math.h>
-#include <unistd.h>
-
-#include <elf.h>
-#include <libdwarf/dwarf.h>
-
-// Shared files between the compiler and the runtime, in C
-#include "environment/typedefs.h"
-#include "environment/text.h"
-#include "environment/heap.h"
-
-// Code generation
-#include "arch/elf.h"
 #include "arch/elf.cpp"
-#include "arch/dwarf.h"
 #include "arch/dwarf.cpp"
-#include "arch/basics.h"
 #include "arch/basics.cpp"
-#include "arch/asm64.h"
 #include "arch/asm64.cpp"
-#include "arch/storage.h"
 #include "arch/storage.cpp"
 
-// Forward declarations
-#include "util.h"
-#include "declarations/all.h"
-#include "values/all.h"
-#include "globals/all.h"
-#include "parsing/all.h"
-ModuleScope *import_module(std::string required_name, Scope *scope);
-
-// Stuff gets done here
 #include "util.cpp"
 #include "declarations/all.cpp"
 #include "values/all.cpp"

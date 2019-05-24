@@ -67,39 +67,23 @@ public:
     virtual Value *match(std::string n, Value *pivot, Scope *scope);
 };
 
-template <typename T>
-class NosytreeTemplateIdentifier: public Identifier {
+class NosytreeIdentifier: public Identifier {
 public:
     TypeSpec elem_ts;
     
+    NosytreeIdentifier(std::string n, PivotRequirement pr, TypeSpec ets);
+    virtual Value *create(Value *pivot, TypeSpec ets);
+    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match);
+};
+
+template <typename T>
+class NosytreeTemplateIdentifier: public NosytreeIdentifier {
+public:
     NosytreeTemplateIdentifier(std::string n, PivotRequirement pr, TypeSpec ets)
-        :Identifier(n, pr) {
-        elem_ts = ets;
+        :NosytreeIdentifier(n, pr, ets) {
     }
-    
-    virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match) {
-        // Take the Rbtree Ref from the Nosytree before instantiating
-        TypeSpec ets = typesubst(elem_ts, match);
-        TypeSpec pivot_ts = get_pivot_ts();
 
-        TypeSpec member_ts = ets.prefix(rbtree_type).prefix(ref_type);
-        if (pivot_ts[0] == lvalue_type)
-            member_ts = member_ts.lvalue();
-        
-        Value *pivot = make<NosytreeMemberValue>(cpivot, ets, member_ts);
-        
-        if (pivot_ts[0] == lvalue_type) {
-            value_need_lvalue(pivot);
-        }
-        else if (get_typespec(pivot)[0] == lvalue_type)
-            pivot = make<RvalueCastValue>(pivot);
-        
-        Args fake_args;
-        Kwargs fake_kwargs;
-
-        if (!value_check(pivot, fake_args, fake_kwargs, scope))
-            throw INTERNAL_ERROR;
-        
+    virtual Value *create(Value *pivot, TypeSpec ets) {
         return new T(pivot, ets);
     }
 };

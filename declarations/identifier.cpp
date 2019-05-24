@@ -124,6 +124,44 @@ Value *Unpacking::match(std::string n, Value *pivot, Scope *scope) {
 
 
 
+NosytreeIdentifier::NosytreeIdentifier(std::string n, PivotRequirement pr, TypeSpec ets)
+    :Identifier(n, pr) {
+    elem_ts = ets;
+}
+
+Value *NosytreeIdentifier::create(Value *pivot, TypeSpec ets) {
+    throw INTERNAL_ERROR;
+}
+
+Value *NosytreeIdentifier::matched(Value *cpivot, Scope *scope, TypeMatch &match) {
+    // Take the Rbtree Ref from the Nosytree before instantiating
+    TypeSpec ets = typesubst(elem_ts, match);
+    TypeSpec pivot_ts = get_pivot_ts();
+
+    TypeSpec member_ts = ets.prefix(rbtree_type).prefix(ref_type);
+    if (pivot_ts[0] == lvalue_type)
+        member_ts = member_ts.lvalue();
+    
+    Value *pivot = make<NosytreeMemberValue>(cpivot, ets, member_ts);
+    
+    if (pivot_ts[0] == lvalue_type) {
+        value_need_lvalue(pivot);
+    }
+    else if (get_typespec(pivot)[0] == lvalue_type)
+        pivot = make<RvalueCastValue>(pivot);
+    
+    Args fake_args;
+    Kwargs fake_kwargs;
+
+    if (!value_check(pivot, fake_args, fake_kwargs, scope))
+        throw INTERNAL_ERROR;
+    
+    return create(pivot, ets);
+}
+
+
+
+
 RecordWrapperIdentifier::RecordWrapperIdentifier(std::string n, PivotRequirement pr, TypeSpec pcts, TypeSpec rts, std::string on, std::string aon)
     :Identifier(n, pr) {
     result_ts = rts;

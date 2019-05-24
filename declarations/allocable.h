@@ -40,6 +40,15 @@ public:
 };
 
 
+struct SelfInfo {
+    std::map<std::string, Identifier *> specials;
+    
+    SelfInfo();
+    virtual void add_special(std::string n, Identifier *i);
+    virtual Identifier *get_special(std::string n);
+};
+
+
 class SelfVariable: public Variable {
 public:
     std::unique_ptr<SelfInfo> self_info;

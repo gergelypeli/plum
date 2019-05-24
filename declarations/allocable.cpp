@@ -222,6 +222,21 @@ void Variable::debug(TypeMatch tm, X64 *x64) {
 
 
 
+
+SelfInfo::SelfInfo() {
+}
+
+void SelfInfo::add_special(std::string n, Identifier *i) {
+    specials[n] = i;
+}
+
+Identifier *SelfInfo::get_special(std::string n) {
+    return specials.count(n) ? specials[n] : NULL;
+}
+
+
+
+
 SelfVariable::SelfVariable(std::string name, TypeSpec vts)
     :Variable(name, vts) {
     self_info.reset(new SelfInfo);
