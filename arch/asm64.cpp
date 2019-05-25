@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 Opsize OPSIZE_LEGACY(int opcode) {

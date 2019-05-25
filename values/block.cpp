@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 CodeScopeValue::CodeScopeValue(Value *v, CodeScope *s, TypeSpec ts)

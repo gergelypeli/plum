@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 IntegerOperationValue::IntegerOperationValue(OperationType o, Value *pivot, TypeMatch &match)
     :OptimizedOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), pivot,

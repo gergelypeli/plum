@@ -7,10 +7,6 @@
 // Other than these, immediate constants are always 32 bits!
 
 static const int REGISTER_COUNT = 16;
-const char *REGISTER_NAMES[] = {
-    "RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RSI", "RDI",
-    "R8",  "R9",  "R10", "R11", "R12", "R13", "R14", "R15"
-};
 
 enum Register {
     RAX=0, RCX, RDX, RBX, RSP, RBP, RSI, RDI, R8,  R9,  R10,  R11,  R12,  R13,  R14,  R15,
@@ -20,7 +16,7 @@ enum Register {
     NOREG=-1
 };
 
-
+const char *register_name(Register r);
 std::ostream &operator << (std::ostream &os, const Register r);
 
 
@@ -29,31 +25,15 @@ enum HighByteRegister {
 };
 
 
-const char *SSE_REGISTER_NAMES[] = {
-    "XMM0", "XMM1", "XMM2", "XMM3", "XMM4", "XMM5", "XMM6", "XMM7",
-    "XMM8", "XMM9", "XMM10", "XMM11", "XMM12", "XMM13", "XMM14", "XMM15",
-};
-
 enum SseRegister {
     XMM0=0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
     XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15,
     NOSSE=-1
 };
 
-
+const char *sseregister_name(SseRegister r);
 std::ostream &operator << (std::ostream &os, const SseRegister r);
 
-
-const char *CONDITION_NAMES[] = {
-    "OVERFLOW", "NOT_OVERFLOW",
-    "BELOW", "ABOVE_EQUAL",
-    "EQUAL", "NOT_EQUAL",
-    "BELOW_EQUAL", "ABOVE",
-    "SIGN", "NOT_SIGN",
-    "PARITY", "NOT_PARITY",
-    "LESS", "GREATER_EQUAL",
-    "LESS_EQUAL", "GREATER"
-};
 
 enum ConditionCode {
     CC_OVERFLOW=0, CC_NOT_OVERFLOW,

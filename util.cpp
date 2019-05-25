@@ -1,3 +1,4 @@
+#include "plum.h"
 
 
 unsigned stack_size(unsigned size) {
@@ -54,74 +55,42 @@ std::ostream &operator<<(std::ostream &os, const Allocation &a) {
 
 
 
-struct PartialInfo {
-    std::set<std::string> uninitialized_member_names;
-    std::set<std::string> initialized_member_names;
-    
-    PartialInfo() {
-    }
+PartialInfo::PartialInfo() {
+}
 
-    virtual void set_member_names(std::vector<std::string> mn) {
-        uninitialized_member_names.insert(mn.begin(), mn.end());
-    }
-    
-    virtual void be_initialized(std::string name) {
-        initialized_member_names.insert(name);
-        uninitialized_member_names.erase(name);
-    }
-    
-    virtual bool is_initialized(std::string name) {
-        return initialized_member_names.count(name) == 1;
-    }
+void PartialInfo::set_member_names(std::vector<std::string> mn) {
+    uninitialized_member_names.insert(mn.begin(), mn.end());
+}
 
-    virtual bool is_uninitialized(std::string name) {
-        return uninitialized_member_names.count(name) == 1;
-    }
-    
-    virtual bool is_complete() {
-        return uninitialized_member_names.size() == 0;
-    }
+void PartialInfo::be_initialized(std::string name) {
+    initialized_member_names.insert(name);
+    uninitialized_member_names.erase(name);
+}
 
-    virtual void be_complete() {
-        initialized_member_names.insert(uninitialized_member_names.begin(), uninitialized_member_names.end());
-        uninitialized_member_names.clear();
-    }
+bool PartialInfo::is_initialized(std::string name) {
+    return initialized_member_names.count(name) == 1;
+}
 
-    virtual bool is_dirty() {
-        return initialized_member_names.size() != 0;
-    }
-};
+bool PartialInfo::is_uninitialized(std::string name) {
+    return uninitialized_member_names.count(name) == 1;
+}
 
+bool PartialInfo::is_complete() {
+    return uninitialized_member_names.size() == 0;
+}
 
+void PartialInfo::be_complete() {
+    initialized_member_names.insert(uninitialized_member_names.begin(), uninitialized_member_names.end());
+    uninitialized_member_names.clear();
+}
 
+bool PartialInfo::is_dirty() {
+    return initialized_member_names.size() != 0;
+}
 
-struct TreenumInput {
-    const char *kw;
-    unsigned p;
-};
-
-
-struct ArgInfo {
-    const char *name;
-    TypeSpec *context;
-    Scope *scope;
-    std::unique_ptr<Value> *target;  // Yes, a pointer to an unique_ptr
-};
-
-
-struct ExprInfo {
-    std::string name;
-    std::unique_ptr<Expr> *target;  // Yes, too
-};
-
-
-struct AutoconvEntry {
-    TypeSpec role_ts;
-    int role_offset;
-};
 
 // From https://stackoverflow.com/questions/874134/find-if-string-ends-with-another-string-in-c
-inline bool desuffix(std::string &value, std::string const &ending)
+bool desuffix(std::string &value, std::string const &ending)
 {
     if (ending.size() > value.size())
         return false;
@@ -134,7 +103,7 @@ inline bool desuffix(std::string &value, std::string const &ending)
 }
 
 
-inline bool deprefix(std::string &value, std::string const &beginning)
+bool deprefix(std::string &value, std::string const &beginning)
 {
     if (beginning.size() > value.size())
         return false;
@@ -148,7 +117,7 @@ inline bool deprefix(std::string &value, std::string const &beginning)
 }
 
 
-inline bool has_prefix(std::string &value, std::string const &beginning)
+bool has_prefix(std::string &value, std::string const &beginning)
 {
     if (beginning.size() > value.size())
         return false;
@@ -160,7 +129,7 @@ inline bool has_prefix(std::string &value, std::string const &beginning)
 }
 
 
-inline std::string unqualify(std::string name) {
+std::string unqualify(std::string name) {
     auto i = name.rfind('.');
         
     if (i != std::string::npos)
@@ -206,25 +175,6 @@ std::vector<std::ustring> brace_split(std::ustring s) {
     
     return fragments;
 }
-
-
-template <typename T>
-std::ostream &operator<<(std::ostream &os, const std::set<T> &x) {
-    os << "{";
-    bool first = true;
-    
-    for (auto &y : x) {
-        if (!first)
-            os << ", ";
-            
-        first = false;
-        os << y;
-    }
-    
-    os << "}";
-    return os;
-}
-
 
 
 bool is_unary(OperationType o) {

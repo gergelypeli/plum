@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 EqualityValue::EqualityValue(bool n, Value *v)
     :Value(BOOLEAN_TS) {

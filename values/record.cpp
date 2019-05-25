@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 RecordOperationValue::RecordOperationValue(OperationType o, Value *p, TypeMatch &match)
     :GenericOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p) {

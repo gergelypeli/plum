@@ -14,7 +14,7 @@ enum RexFlags {
     REX_Q=0x10  // virtual flag, set if a register operand is SIL, DIL, SPL, BPL.
 };
 
-RexFlags operator |(RexFlags x, RexFlags y) { return (RexFlags)((int)x | (int)y); }
+inline RexFlags operator |(RexFlags x, RexFlags y) { return (RexFlags)((int)x | (int)y); }
 
 
 enum SimpleOp {
@@ -41,7 +41,7 @@ enum UnaryOp {
     VERW=52
 };
 
-UnaryOp operator%(UnaryOp x, int y) { return (UnaryOp)((x & ~3) | (y & 3)); }
+inline UnaryOp operator%(UnaryOp x, int y) { return (UnaryOp)((x & ~3) | (y & 3)); }
 
 
 enum PortOp {
@@ -83,7 +83,7 @@ enum BinaryOp {
     XORB=36, XORW, XORD, XORQ
 };
 
-BinaryOp operator%(BinaryOp x, int y) { return (BinaryOp)((x & ~3) | (y & 3)); }
+inline BinaryOp operator%(BinaryOp x, int y) { return (BinaryOp)((x & ~3) | (y & 3)); }
 
 
 enum MovabsOp {
@@ -102,14 +102,14 @@ enum ShiftOp {
     SHRB=28, SHRW, SHRD, SHRQ
 };
 
-ShiftOp operator%(ShiftOp x, int y) { return (ShiftOp)((x & ~3) | (y & 3)); }
+inline ShiftOp operator%(ShiftOp x, int y) { return (ShiftOp)((x & ~3) | (y & 3)); }
 
 
 enum ExchangeOp {
     XCHGB=0, XCHGW, XCHGD, XCHGQ
 };
 
-ExchangeOp operator%(ExchangeOp x, int y) { return (ExchangeOp)((x & ~3) | (y & 3)); }
+inline ExchangeOp operator%(ExchangeOp x, int y) { return (ExchangeOp)((x & ~3) | (y & 3)); }
 
 
 enum StackOp {
@@ -132,14 +132,14 @@ enum RegisterFirstOp {
     MOVZXDB_, MOVZXDW_, MOVZXDQ, MOVZXDQ_,  // the DQ variant has DWORD size to zero extend
 };
 
-RegisterFirstOp operator%(RegisterFirstOp x, int y) { return (RegisterFirstOp)((x & ~3) | (y & 3)); }
+inline RegisterFirstOp operator%(RegisterFirstOp x, int y) { return (RegisterFirstOp)((x & ~3) | (y & 3)); }
 
 
 enum Imul3Op {
     IMUL3W=1, IMUL3D, IMUL3Q
 };
 
-Imul3Op operator%(Imul3Op x, int y) { return (Imul3Op)((x & ~3) | (y & 3)); }
+inline Imul3Op operator%(Imul3Op x, int y) { return (Imul3Op)((x & ~3) | (y & 3)); }
 
 
 enum RegisterMemoryOp {
@@ -153,7 +153,7 @@ enum BranchOp {
 };
 
 
-BranchOp branch(ConditionCode cc) {
+inline BranchOp branch(ConditionCode cc) {
     // Both enums are just condition bits, so converting between them is straightforward
     return cc != CC_NONE ? (BranchOp)cc : throw ASM_ERROR;
 }
@@ -170,7 +170,7 @@ enum BitSetOp {
 };
 
 
-BitSetOp bitset(ConditionCode cc) {
+inline BitSetOp bitset(ConditionCode cc) {
     // Both enums are just condition bits, so converting between them is straightforward
     return cc != CC_NONE ? (BitSetOp)cc : throw ASM_ERROR;
 }

@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 Type::Type(std::string n, Metatypes pmts, MetaType *ut)
     :Identifier(n, NO_PIVOT) {
@@ -565,6 +567,9 @@ void CodeType::type_info(TypeMatch tm, X64 *x64) {
 }
 
 
+
+
+std::map<TupleType::Keywords, std::unique_ptr<TupleType>> TupleType::cache;
 
 
 TupleType *TupleType::get(Keywords kws) {

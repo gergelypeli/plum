@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 SimpleRecordValue::SimpleRecordValue(TypeSpec ret_ts, Value *pivot)

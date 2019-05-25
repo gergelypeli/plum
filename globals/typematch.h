@@ -1,4 +1,17 @@
 
+
+struct ArgInfo {
+    const char *name;
+    TypeSpec *context;
+    Scope *scope;
+    std::unique_ptr<Value> *target;  // Yes, a pointer to an unique_ptr
+};
+
+struct ExprInfo {
+    std::string name;
+    std::unique_ptr<Expr> *target;  // Yes, too
+};
+
 // Check
 bool typematch(TypeSpec tt, Value *&v, TypeMatch &match);
 TypeSpec typesubst(TypeSpec &ts, TypeMatch &match);

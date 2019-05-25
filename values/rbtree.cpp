@@ -1,3 +1,7 @@
+#include "../plum.h"
+
+#include "rbtree_registers.h"
+
 
 // NOTE: node indexes stored in root, vacant, *.{left,right,prev,next} are tree-relative
 // offsets, so if RSI points to the tree, then RSI + RAX points to the node. The NIL node

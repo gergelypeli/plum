@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 void fix_index_overflow(Register r, Register i, X64 *x64) {

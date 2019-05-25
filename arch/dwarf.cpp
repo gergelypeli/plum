@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 void DwarfBuffer::uleb128(unsigned x) {
     while (true) {

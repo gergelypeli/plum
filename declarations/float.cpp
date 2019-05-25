@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 FloatType::FloatType(std::string n, MetaType *mt)
     :Type(n, {}, mt ? mt : value_metatype) {

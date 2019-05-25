@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 ReferenceOperationValue::ReferenceOperationValue(OperationType o, Value *l, TypeMatch &match)

@@ -84,4 +84,4 @@ public:
 };
 
 
-static void dump_associable(Associable *a, int indent);
+void dump_associable(Associable *a, int indent);

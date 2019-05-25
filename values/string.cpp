@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 StringRegexpMatcherValue::StringRegexpMatcherValue(Value *l, TypeMatch &match)
     :GenericValue(STRING_TS, STRING_ARRAY_TS, l) {

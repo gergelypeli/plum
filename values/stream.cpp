@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 // During the streamification process the stream aliases are on the stack. As the stream
 // reference is created on the stack, if the stack is relocated, these aliases would point

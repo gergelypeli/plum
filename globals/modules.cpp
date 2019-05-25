@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 Module::Module(std::string mn, RootScope *rs) {
     module_name = mn;

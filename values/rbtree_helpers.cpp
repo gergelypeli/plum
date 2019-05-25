@@ -1,3 +1,7 @@
+#include "../plum.h"
+
+#include "rbtree_registers.h"
+
 
 void compile_rbtree_left_fix(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_left_fix");

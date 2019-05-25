@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 FrameNameValue::FrameNameValue(Value *, TypeMatch)

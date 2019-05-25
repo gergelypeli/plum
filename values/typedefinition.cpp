@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 bool RoleCreator::extend_main_role(Associable *base_role, Associable *main_role) {
     // Find the topmost base role

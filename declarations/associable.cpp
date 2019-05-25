@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 Provision::Provision(std::string n, Associable *pa)
@@ -441,7 +442,7 @@ std::ostream &DataVirtualEntry::out_virtual_entry(std::ostream &os, TypeMatch tm
 
 // FIXME: method!
 
-static void dump_associable(Associable *a, int indent) {
+void dump_associable(Associable *a, int indent) {
     // FIXME: method!
     
     for (int i = 0; i < indent; i++)

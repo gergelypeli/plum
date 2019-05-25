@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 RecordType::RecordType(std::string n, Metatypes param_metatypes)
     :Type(n, param_metatypes, record_metatype) {

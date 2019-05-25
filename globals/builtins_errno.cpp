@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 #define XPERMISSION 1
 #define XMISMATCH 2

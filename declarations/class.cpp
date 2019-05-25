@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch tm, Label label, std::string symbol, X64 *x64) {
     // Allow entries to compile some stuff if necessary

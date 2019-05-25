@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 Declaration::Declaration() {

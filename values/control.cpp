@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 ControlValue::ControlValue(std::string n)

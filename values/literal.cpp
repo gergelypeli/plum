@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 BasicValue::BasicValue(TypeSpec ts, int64 n)
     :Value(ts) {

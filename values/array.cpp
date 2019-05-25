@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     // R10 - reservation

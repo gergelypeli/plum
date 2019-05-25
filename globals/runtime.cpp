@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 // Once
@@ -663,7 +664,7 @@ void Runtime::compile_incref_decref() {
         // We use a standard stack frame only for debugging, should be cleaned up later
     
         // NOTE: preserves all registers, including the scratch ones
-        x64->code_label_global(incref_labels[reg], std::string("incref_") + REGISTER_NAMES[reg]);
+        x64->code_label_global(incref_labels[reg], std::string("incref_") + register_name(reg));
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
 
@@ -677,7 +678,7 @@ void Runtime::compile_incref_decref() {
         Label dl, dl2;
     
         // NOTE: preserves all registers, including the scratch ones
-        x64->code_label_global(decref_labels[reg], std::string("decref_") + REGISTER_NAMES[reg]);
+        x64->code_label_global(decref_labels[reg], std::string("decref_") + register_name(reg));
         x64->op(PUSHQ, RBP);
         x64->op(MOVQ, RBP, RSP);
 

@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 Storage preinitialize_class(TypeSpec class_ts, X64 *x64) {

@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 TypeValue::TypeValue(Type *t, MetaType *mt, Metatypes pmts)
     :Value(TypeSpec { mt }) {

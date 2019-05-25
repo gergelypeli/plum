@@ -157,7 +157,6 @@ public:
     virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
 };
 
-std::map<TupleType::Keywords, std::unique_ptr<TupleType>> TupleType::cache;
 
 class PartialType: public Type {
 public:

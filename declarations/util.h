@@ -8,6 +8,11 @@ public:
     virtual void set_outer_scope(Scope *os);
 };
 
+struct AutoconvEntry {
+    TypeSpec role_ts;
+    int role_offset;
+};
+
 class Autoconvertible {
 public:
     virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64);

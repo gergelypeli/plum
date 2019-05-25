@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 FloatOperationValue::FloatOperationValue(OperationType o, Value *p, TypeMatch &match)
     :OptimizedOperationValue(o, op_arg_ts(o, match), op_ret_ts(o, match), p,

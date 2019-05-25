@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 InterfaceType::InterfaceType(std::string name, Metatypes param_metatypes)

@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 Function::Function(std::string n, PivotRequirement pr, FunctionType ft, std::vector<TypeSpec> ats, std::vector<std::string> ans, std::vector<TypeSpec> rts, TreenumerationType *et, FunctionScope *fs)
     :Identifier(n, pr) {

@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 ContainerType::ContainerType(std::string name, Metatypes param_metatypes)
     :Type(name, param_metatypes, identity_metatype) {

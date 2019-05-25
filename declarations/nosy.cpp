@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 NosyValueType::NosyValueType(std::string name)
     :PointerType(name) {

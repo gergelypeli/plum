@@ -1,3 +1,7 @@
+#include "../plum.h"
+
+#include "rbtree_registers.h"
+
 
 // Type manipulations for unified case handling
 

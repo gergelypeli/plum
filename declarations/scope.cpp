@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 Scope::Scope(ScopeType st)
     :Declaration() {

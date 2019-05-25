@@ -116,6 +116,8 @@ struct Allocation {
     Allocation stack_size();
 };
 
+Allocation operator+(Allocation a, Allocation b);
+Allocation operator*(Allocation a, int c);
 std::ostream &operator<<(std::ostream &os, const Allocation &a);
 
 
@@ -138,3 +140,65 @@ bool is_assignment(OperationType o);
 enum InheritAs {
     AS_ROLE, AS_BASE, AS_MAIN, AS_REQUIRE
 };
+
+
+bool desuffix(std::string &value, std::string const &ending);
+bool deprefix(std::string &value, std::string const &beginning);
+bool has_prefix(std::string &value, std::string const &beginning);
+std::string unqualify(std::string name);
+std::string get_working_path();
+std::ostream &operator<<(std::ostream &os, const std::ustring &x);
+std::vector<std::ustring> brace_split(std::ustring s);
+
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const std::set<T> &x) {
+    os << "{";
+    bool first = true;
+    
+    for (auto &y : x) {
+        if (!first)
+            os << ", ";
+            
+        first = false;
+        os << y;
+    }
+    
+    os << "}";
+    return os;
+}
+
+
+struct PartialInfo {
+    std::set<std::string> uninitialized_member_names;
+    std::set<std::string> initialized_member_names;
+    
+    PartialInfo();
+    
+    void set_member_names(std::vector<std::string> mn);
+    void be_initialized(std::string name);
+    bool is_initialized(std::string name);
+    bool is_uninitialized(std::string name);
+    bool is_complete();
+    void be_complete();
+    bool is_dirty();
+};
+
+
+int character_code(std::string name);
+std::string character_name(int code);
+int uni_code(std::string name);
+
+std::ustring decode_utf8(std::string text);
+std::string encode_utf8(std::ustring text);
+std::string encode_ascii(std::ustring text);
+std::vector<std::ustring> interpolate_characters(std::vector<std::ustring> in);
+
+
+struct TreenumInput {
+    const char *kw;
+    unsigned p;
+};
+
+
+unsigned stack_size(unsigned size);
+unsigned elem_size(unsigned size);

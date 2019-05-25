@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 FunctionDefinitionValue::FunctionDefinitionValue(Value *r, TypeMatch &tm)
     :Value(HYPERTYPE_TS) {

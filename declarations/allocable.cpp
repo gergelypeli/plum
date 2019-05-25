@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 Allocable::Allocable(std::string name, PivotRequirement pr, TypeSpec ats)
     :Identifier(name, pr) {

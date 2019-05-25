@@ -18,6 +18,8 @@
 #include "heap.h"
 #include "fpconv/fpconv.h"
 
+#include "text.c"
+
 #define ALENGTH(x) *(int64 *)((x) + LINEARRAY_LENGTH_OFFSET)
 #define ARESERVATION(x) *(int64 *)((x) + LINEARRAY_RESERVATION_OFFSET)
 #define AELEMENTS(x) ((x) + LINEARRAY_ELEMS_OFFSET)

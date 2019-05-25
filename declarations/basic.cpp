@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 BasicType::BasicType(std::string n, unsigned s, bool iu, MetaType *mt)

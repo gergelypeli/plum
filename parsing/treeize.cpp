@@ -1,24 +1,7 @@
+#include "../plum.h"
+
 
 // Stage 2
-
-enum Precedence {
-    OPENING,
-    SEPARATING, // comma must end controls: :if x then: y else: z, ...
-    LABELING,   // must be lower than DECLARING: each: i?
-    ASSIGNING,  // must be lower than DECLARING: x? Int = 8
-    DECLARING,
-    LOGICAL_LOW,    // must be lower than COMPARING
-    LOGICAL_MED,
-    LOGICAL_HIGH,
-    COMPARING,
-    ADDITIVE,
-    MULTIPLICATIVE,
-    EXPONENTIAL,
-    UNARY,
-    REGULAR,
-    CLOSING
-};
-
 
 const char *print_precedence(Precedence p) {
     return (
@@ -47,53 +30,36 @@ bool is_right_associative(Precedence) {
 }
 
 
-class Node {
-public:
-    enum NodeType {
-        NONE, OPEN, CLOSE,
-        UNSIGNED_NUMBER, STRING,
-        INITIALIZER, MATCHER,
-        IDENTIFIER, LABEL, CONTROL, EVAL, DECLARATION,
-        SEPARATOR
-    } type;
-    std::string text;
-    Precedence back, fore;
-    int left;
-    int right;
-    int up;
-    Token token;
+Node::Node(NodeType type, const std::string &text, Precedence back, Precedence fore, Token token) {
+    this->type = type;
+    this->text = text;
+    this->back = back;
+    this->fore = fore;
+    this->token = token;
     
-    Node(NodeType type, const std::string &text, Precedence back, Precedence fore, Token token) {
-        this->type = type;
-        this->text = text;
-        this->back = back;
-        this->fore = fore;
-        this->token = token;
-        
-        left = 0;
-        right = 0;
-        up = 0;
-    }
-    
-    //std::ostream &operator<<(std::ostream &os, NodeType type) {
-    const char *print_type() {
-        return (
-            type == OPEN ? "OPEN" :
-            type == CLOSE ? "CLOSE" :
-            type == UNSIGNED_NUMBER ? "UNSIGNED_NUMBER" :
-            type == STRING ? "STRING" :
-            type == INITIALIZER ? "INITIALIZER" :
-            type == MATCHER ? "MATCHER" :
-            type == IDENTIFIER ? "IDENTIFIER" :
-            type == LABEL ? "LABEL" :
-            type == CONTROL ? "CONTROL" :
-            type == EVAL ? "EVAL" :
-            type == DECLARATION ? "DECLARATION" :
-            type == SEPARATOR ? "SEPARATOR" :
-            throw TREE_ERROR
-        );
-    }
-};
+    left = 0;
+    right = 0;
+    up = 0;
+}
+
+//std::ostream &operator<<(std::ostream &os, NodeType type) {
+const char *Node::print_type() {
+    return (
+        type == OPEN ? "OPEN" :
+        type == CLOSE ? "CLOSE" :
+        type == UNSIGNED_NUMBER ? "UNSIGNED_NUMBER" :
+        type == STRING ? "STRING" :
+        type == INITIALIZER ? "INITIALIZER" :
+        type == MATCHER ? "MATCHER" :
+        type == IDENTIFIER ? "IDENTIFIER" :
+        type == LABEL ? "LABEL" :
+        type == CONTROL ? "CONTROL" :
+        type == EVAL ? "EVAL" :
+        type == DECLARATION ? "DECLARATION" :
+        type == SEPARATOR ? "SEPARATOR" :
+        throw TREE_ERROR
+    );
+}
 
 
 enum Paren {
@@ -262,7 +228,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
                 text = encode_ascii(token.utext);
             }
         }
-        else if (Tokenizer::is_quote(c)) {
+        else if (c == '\'' || c == '"') {
             type = Node::STRING;
             back = REGULAR;
             fore = REGULAR;
@@ -273,7 +239,7 @@ std::vector<Node> treeize(std::vector<Token> tokens) {
             back = SEPARATING;
             fore = SEPARATING;
         }
-        else if (Tokenizer::is_paren(c)) {
+        else if (c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}') {
             if (c == '(') {
                 parens.push_back(PAREN);
                 

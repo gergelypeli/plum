@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 Elf::Elf(std::string module_name) {
     strings.push_back('\0');

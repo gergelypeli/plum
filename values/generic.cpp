@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 GenericValue::GenericValue(TypeSpec at, TypeSpec rt, Value *l)
     :Value(rt) {

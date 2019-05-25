@@ -1,19 +1,22 @@
 .PHONY: build clean
 SHELL      = /bin/zsh
 
-DECLS      = all declaration identifier scope type basic record reference interface class option allocable function associable float container nosy util
-VALUES     = all value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset rbtree_weakmapset container option equality float weakref debug
+DECLS      = declaration identifier scope type basic record reference interface class option allocable function associable float container nosy util
+VALUES     = value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset rbtree_weakmapset container option equality float weakref debug
 ARCHS      = elf asm64 storage basics dwarf
-PARSING    = all tokenize treeize tupleize typize
-GLOBALS    = all builtins builtins_errno typespec typematch functions runtime modules
+PARSING    = tokenize treeize tupleize typize
+GLOBALS    = builtins builtins_errno typespec typematch functions runtime modules
 MODULES    = util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%) $(PARSING:%=parsing/%)
-HEADERS    = util parsing/all globals/all declarations/all values/all
+OBJECTS    = $(MODULES:%=build/%.o)
+
+SPECIALS   = util parsing/all globals/all declarations/all values/all
 ENVHEADERS = heap typedefs text
-SOURCES    = $(MODULES:%=%.cpp) $(HEADERS:%=%.h) $(ENVHEADERS:%=environment/%.h)
+HEADERS    = $(MODULES:%=%.h) $(SPECIALS:%=%.h) $(ENVHEADERS:%=environment/%.h)
+
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
-MAIN       = plum.cpp
+#MAIN       = plum.cpp
 BIN        = run/plum
 BINFLAGS   = 
 GCCLOG     = run/gcc.log
@@ -47,9 +50,12 @@ uncore:
 untest:
 	@rm -f $(TESTBIN) $(TESTOBJ)
 
-$(BIN): $(SOURCES)
-	@clear
-	@$(COMPILE) -o $@ $(CFLAGS) $(MAIN) > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false }
+$(BIN): $(OBJECTS)
+	@$(COMPILE) -o $@ $(CFLAGS) $(OBJECTS)
+
+$(OBJECTS): build/%.o: %.cpp $(HEADERS)
+	@mkdir -p $(dir $@)
+	@$(COMPILE) -c -o $@ $(CFLAGS) $< > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false }
 
 $(TESTBIN): $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ)
 	@gcc $(CFLAGS) -o $(TESTBIN) $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ) $(TESTLIBS)
@@ -64,4 +70,4 @@ $(TESTOBJ): $(TESTSRC) $(BIN)
 	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(BINLOG) 2>&1 || { cat $(BINLOG); false } && { cat $(BINLOG) }
 
 clean:
-	@rm -f $(BIN) $(TESTBIN) $(MAINOBJ) $(TESTOBJ) $(FPCONVOBJ) run/*.log
+	@rm -f $(BIN) $(TESTBIN) $(OBJECTS) $(MAINOBJ) $(TESTOBJ) $(FPCONVOBJ) run/*.log

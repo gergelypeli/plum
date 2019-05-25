@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 ReferenceType::ReferenceType(std::string name)
     :Type(name, Metatypes { identity_metatype }, value_metatype) {

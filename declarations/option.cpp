@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 OptionType::OptionType(std::string n)
     :Type(n, Metatypes { value_metatype }, value_metatype) {

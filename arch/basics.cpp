@@ -1,14 +1,48 @@
+#include "../plum.h"
+
+const char *REGISTER_NAMES[] = {
+    "RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RSI", "RDI",
+    "R8",  "R9",  "R10", "R11", "R12", "R13", "R14", "R15"
+};
+
+
+const char *register_name(Register r) {
+    return (r == NOREG ? "---" : REGISTER_NAMES[r]);
+}
 
 std::ostream &operator << (std::ostream &os, const Register r) {
-    os << (r == NOREG ? "---" : REGISTER_NAMES[r]);
+    os << register_name(r);
     return os;
+}
+
+
+const char *SSE_REGISTER_NAMES[] = {
+    "XMM0", "XMM1", "XMM2", "XMM3", "XMM4", "XMM5", "XMM6", "XMM7",
+    "XMM8", "XMM9", "XMM10", "XMM11", "XMM12", "XMM13", "XMM14", "XMM15",
+};
+
+
+const char *sseregister_name(SseRegister r) {
+    return (r == NOSSE ? "---" : SSE_REGISTER_NAMES[r]);
 }
 
 
 std::ostream &operator << (std::ostream &os, const SseRegister r) {
-    os << (r == NOSSE ? "---" : SSE_REGISTER_NAMES[r]);
+    os << sseregister_name(r);
     return os;
 }
+
+
+const char *CONDITION_NAMES[] = {
+    "OVERFLOW", "NOT_OVERFLOW",
+    "BELOW", "ABOVE_EQUAL",
+    "EQUAL", "NOT_EQUAL",
+    "BELOW_EQUAL", "ABOVE",
+    "SIGN", "NOT_SIGN",
+    "PARITY", "NOT_PARITY",
+    "LESS", "GREATER_EQUAL",
+    "LESS_EQUAL", "GREATER"
+};
 
 
 std::ostream &operator << (std::ostream &os, const ConditionCode cc) {

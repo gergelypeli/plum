@@ -1,3 +1,5 @@
+#include "../plum.h"
+
 
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type) {
     // FIXME: this won't work for ptr

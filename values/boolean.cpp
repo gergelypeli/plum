@@ -1,3 +1,4 @@
+#include "../plum.h"
 
 
 BooleanOperationValue::BooleanOperationValue(OperationType o, Value *p, TypeMatch &match)
