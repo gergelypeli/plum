@@ -1,5 +1,4 @@
 .PHONY: build clean
-SHELL      = /bin/zsh
 
 DECLS      = declaration identifier scope type basic record reference interface class option allocable function associable float container nosy util
 VALUES     = value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset rbtree_weakmapset container option equality float weakref debug
@@ -9,20 +8,18 @@ GLOBALS    = builtins builtins_errno typespec typematch functions runtime module
 MODULES    = util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%) $(PARSING:%=parsing/%)
 OBJECTS    = $(MODULES:%=build/%.o)
 
-SPECIALS   = util parsing/all globals/all declarations/all values/all
+ALLHEADERS = parsing/all globals/all declarations/all values/all
 ENVHEADERS = heap typedefs text
-HEADERS    = $(MODULES:%=%.h) $(SPECIALS:%=%.h) $(ENVHEADERS:%=environment/%.h)
+HEADERS    = $(MODULES:%=%.h) $(ALLHEADERS:%=%.h) $(ENVHEADERS:%=environment/%.h)
+
+PRECOMP    = plum.h.gch
 
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
-PRECOMP    = plum.h.gch
-
-#MAIN       = plum.cpp
 BIN        = run/plum
 BINFLAGS   = 
 GCCLOG     = run/gcc.log
-CORE       = core.plum.*(N) core.app.*(N)
 BINLOG     = run/plum.log
 
 MAINDEPS   = $(ENVHEADERS:%=environment/%.h)
@@ -47,7 +44,7 @@ test: uncore untest $(TESTBIN)
 	@diff -ua $(TESTLOGOK) $(TESTLOG)
 
 uncore:
-	@rm -f $(CORE)
+	@for x in core*; do if file -b $$x | grep -q ' core file '; then rm $$x; fi; done
 
 untest:
 	@rm -f $(TESTBIN) $(TESTOBJ)
@@ -63,7 +60,7 @@ $(BIN): $(PRECOMP) $(OBJECTS)
 $(OBJECTS): build/%.o: %.cpp $(HEADERS)
 	@echo Compiling $@
 	@mkdir -p $(dir $@)
-	@$(COMPILE) -c -o $@ $(CFLAGS) $< > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false }
+	@$(COMPILE) -c -o $@ $(CFLAGS) $< > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false; }
 
 $(TESTBIN): $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ)
 	@gcc $(CFLAGS) -o $(TESTBIN) $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ) $(TESTLIBS)
@@ -75,7 +72,7 @@ $(FPCONVOBJ):
 	@gcc $(CFLAGS) -c -o $(FPCONVOBJ) $(FPCONVSRC)
 
 $(TESTOBJ): $(TESTSRC) $(BIN)
-	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(BINLOG) 2>&1 || { cat $(BINLOG); false } && { cat $(BINLOG) }
+	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(BINLOG) 2>&1 || { cat $(BINLOG); false; } && { cat $(BINLOG); }
 
 clean:
 	@rm -f $(BIN) $(TESTBIN) $(OBJECTS) $(MAINOBJ) $(TESTOBJ) $(FPCONVOBJ) $(PRECOMP) run/*.log
