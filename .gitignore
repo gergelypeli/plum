@@ -1,7 +1,9 @@
 run/*
+build/*
 .*
 core.*
 *.sav
 *.log
 *.diff
 *.asm
+*.gch

@@ -16,6 +16,8 @@ HEADERS    = $(MODULES:%=%.h) $(SPECIALS:%=%.h) $(ENVHEADERS:%=environment/%.h)
 COMPILE    = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
+PRECOMP    = plum.h.gch
+
 #MAIN       = plum.cpp
 BIN        = run/plum
 BINFLAGS   = 
@@ -50,10 +52,16 @@ uncore:
 untest:
 	@rm -f $(TESTBIN) $(TESTOBJ)
 
-$(BIN): $(OBJECTS)
+$(PRECOMP): plum.h $(HEADERS)
+	@echo Precompiling $@
+	@$(COMPILE) $(CFLAGS) -o $@ $<
+
+$(BIN): $(PRECOMP) $(OBJECTS)
+	@echo Linking $@
 	@$(COMPILE) -o $@ $(CFLAGS) $(OBJECTS)
 
 $(OBJECTS): build/%.o: %.cpp $(HEADERS)
+	@echo Compiling $@
 	@mkdir -p $(dir $@)
 	@$(COMPILE) -c -o $@ $(CFLAGS) $< > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false }
 
@@ -70,4 +78,4 @@ $(TESTOBJ): $(TESTSRC) $(BIN)
 	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(BINLOG) 2>&1 || { cat $(BINLOG); false } && { cat $(BINLOG) }
 
 clean:
-	@rm -f $(BIN) $(TESTBIN) $(OBJECTS) $(MAINOBJ) $(TESTOBJ) $(FPCONVOBJ) run/*.log
+	@rm -f $(BIN) $(TESTBIN) $(OBJECTS) $(MAINOBJ) $(TESTOBJ) $(FPCONVOBJ) $(PRECOMP) run/*.log
