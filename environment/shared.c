@@ -1,3 +1,9 @@
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
+
+#include "shared.h"
+
 
 bool decode_utf8_buffer(const char *bytes, int64 byte_length, unsigned16 *characters, int64 character_length, int64 *byte_count, int64 *character_count) {
     const char *bytes_start = bytes;

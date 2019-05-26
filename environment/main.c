@@ -13,12 +13,8 @@
 #define PCRE2_CODE_UNIT_WIDTH 16
 #include <pcre2.h>
 
-#include "typedefs.h"
-#include "text.h"
-#include "heap.h"
 #include "fpconv/fpconv.h"
-
-#include "text.c"
+#include "shared.h"
 
 #define ALENGTH(x) *(int64 *)((x) + LINEARRAY_LENGTH_OFFSET)
 #define ARESERVATION(x) *(int64 *)((x) + LINEARRAY_RESERVATION_OFFSET)

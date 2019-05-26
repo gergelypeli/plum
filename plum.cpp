@@ -1,20 +1,5 @@
 #include "plum.h"
 
-#include "environment/text.c"
-
-/*
-#include "arch/elf.cpp"
-#include "arch/dwarf.cpp"
-#include "arch/basics.cpp"
-#include "arch/asm64.cpp"
-#include "arch/storage.cpp"
-
-#include "util.cpp"
-#include "declarations/all.cpp"
-#include "values/all.cpp"
-#include "globals/all.cpp"
-#include "parsing/all.cpp"
-*/
 
 bool matchlog;
 Root *root;

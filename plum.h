@@ -22,9 +22,9 @@
 #include <libdwarf/dwarf.h>
 
 // Shared files between the compiler and the runtime, in C
-#include "environment/typedefs.h"
-#include "environment/text.h"
-#include "environment/heap.h"
+extern "C" {
+#include "environment/shared.h"
+}
 
 // Low level stuff
 #include "arch/all.h"

@@ -9,12 +9,13 @@ MODULES    = util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=
 OBJECTS    = $(MODULES:%=build/%.o)
 
 ALLHEADERS = parsing/all globals/all declarations/all values/all
-ENVHEADERS = heap typedefs text
+ENVHEADERS = shared
 HEADERS    = $(MODULES:%=%.h) $(ALLHEADERS:%=%.h) $(ENVHEADERS:%=environment/%.h)
 
 PRECOMP    = plum.h.gch
 
-COMPILE    = g++
+GCC        = gcc
+GXX        = g++
 CFLAGS     = -Wall -Wextra -Werror -Wno-unused-parameter -Wno-psabi -g -fdiagnostics-color=always
 
 BIN        = run/plum
@@ -24,18 +25,22 @@ BINLOG     = run/plum.log
 
 MAINDEPS   = $(ENVHEADERS:%=environment/%.h)
 MAINSRC    = environment/main.c
-MAINOBJ    = run/main.o
+MAINOBJ    = build/environment/main.o
+SHAREDSRC  = environment/shared.c
+SHAREDOBJ  = build/environment/shared.o
 
-FPCONVOBJ  = run/fpconv.o
+FPCONVOBJ  = build/environment/fpconv/fpconv.o
 FPCONVSRC  = environment/fpconv/fpconv.c
 
 TESTBIN    = run/app
-TESTOBJ    = run/app.o
+TESTOBJ    = build/test/app.o
 TESTSRC    = test/app.plum
 TESTLIBS   = -lpcre2-16 -lm
 TESTINPUT  = test/input.sh
 TESTLOG    = run/app.log
 TESTLOGOK  = test/app.log.ok
+
+# General
 
 exe: uncore $(BIN)
 
@@ -49,30 +54,47 @@ uncore:
 untest:
 	@rm -f $(TESTBIN) $(TESTOBJ)
 
-$(PRECOMP): plum.h $(HEADERS)
-	@echo Precompiling $@
-	@$(COMPILE) $(CFLAGS) -o $@ $<
-
-$(BIN): $(PRECOMP) $(OBJECTS)
-	@echo Linking $@
-	@$(COMPILE) -o $@ $(CFLAGS) $(OBJECTS)
-
-$(OBJECTS): build/%.o: %.cpp $(HEADERS)
-	@echo Compiling $@
-	@mkdir -p $(dir $@)
-	@$(COMPILE) -c -o $@ $(CFLAGS) $< > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false; }
-
-$(TESTBIN): $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ)
-	@gcc $(CFLAGS) -o $(TESTBIN) $(MAINOBJ) $(FPCONVOBJ) $(TESTOBJ) $(TESTLIBS)
-
-$(MAINOBJ): $(MAINSRC) $(MAINDEPS)
-	@gcc $(CFLAGS) -c -o $(MAINOBJ) $(MAINSRC)
-
-$(FPCONVOBJ):
-	@gcc $(CFLAGS) -c -o $(FPCONVOBJ) $(FPCONVSRC)
-
-$(TESTOBJ): $(TESTSRC) $(BIN)
-	@$(BIN) $(BINFLAGS) $(TESTSRC) $(TESTOBJ) > $(BINLOG) 2>&1 || { cat $(BINLOG); false; } && { cat $(BINLOG); }
-
 clean:
 	@rm -f $(BIN) $(TESTBIN) $(OBJECTS) $(MAINOBJ) $(TESTOBJ) $(FPCONVOBJ) $(PRECOMP) run/*.log
+
+# Compiler
+
+$(PRECOMP): plum.h $(HEADERS)
+	@echo Precompiling $@
+	@$(GXX) $(CFLAGS) -o $@ $<
+
+$(OBJECTS): build/%.o: %.cpp $(PRECOMP)
+	@echo Compiling $@
+	@mkdir -p $(dir $@)
+	@$(GXX) $(CFLAGS) -c -o $@  $< > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false; }
+
+$(SHAREDOBJ): $(SHAREDSRC)
+	@echo Compiling $@
+	@mkdir -p $(dir $@)
+	@$(GCC) $(CFLAGS) -c -o $@ $<
+
+$(BIN): $(OBJECTS) $(SHAREDOBJ)
+	@echo Linking $@
+	@$(GXX) $(CFLAGS) -o $@ $^
+
+# Runtime
+
+$(MAINOBJ): $(MAINSRC) $(MAINDEPS)
+	@echo Compiling $@
+	@mkdir -p $(dir $@)
+	@$(GCC) $(CFLAGS) -c -o $@ $<
+
+$(FPCONVOBJ): $(FPCONVSRC)
+	@echo Compiling $@
+	@mkdir -p $(dir $@)
+	@$(GCC) $(CFLAGS) -c -o $@ $<
+
+$(TESTOBJ): $(TESTSRC) $(BIN)
+	@echo Compiling test $@
+	@mkdir -p $(dir $@)
+	@$(BIN) $(BINFLAGS) $< $@ > $(BINLOG) 2>&1 || { cat $(BINLOG); false; } && { cat $(BINLOG); }
+
+$(TESTBIN): $(MAINOBJ) $(FPCONVOBJ) $(SHAREDOBJ) $(TESTOBJ)
+	@echo Linking test $@
+	@mkdir -p $(dir $@)
+	@$(GCC) $(CFLAGS) -o $@ $^ $(TESTLIBS)
