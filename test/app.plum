@@ -527,15 +527,15 @@ App? :Class Application as:
 
         outer_value? = 77
         
-        $ twice(what: outer_value * 1000)
+        $ :twice what: outer_value * 1000
 
-        $ twice(how: h? what: THIS: (Std prints("You want {}?" { h }), :THIS h * 1000))
+        $ :twice how: h? what: THIS: (Std prints("You want {}?" { h }), :THIS h * 1000)
 
         EVAL:
-            $ passthrough(what: THIS: (Std prints("Let's break."), :EVAL, :THIS 0))
+            $ :passthrough what: THIS: (Std prints("Let's break."), :EVAL, :THIS 0)
             Std prints("This shouldn't be printed!")
 
-        $ tuple_io(in: (a?, b?, c?) out: (c * 10, b * 10, a * 10))
+        $ :tuple_io in: (a?, b?, c?) out: (c * 10, b * 10, a * 10)
 
         HIHI: :if `true then: x3 else: :if `false then: x4
 

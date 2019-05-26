@@ -353,19 +353,25 @@ Value *typize(Expr *expr, Scope *scope, TypeSpec *context) {
         //    p->set_marker(marker);
 
         TypeSpec ts;
+        Value *lookup_value = NULL;
         
         if (p) {
             if (p->ts.is_meta()) {
                 ts = ptr_cast<TypeValue>(p)->represented_ts;
                 context = &ts;
+                lookup_value = colon_value;
             }
             else {
-                std::cerr << "Control with nontype context!\n";
-                throw TYPE_ERROR;
+                lookup_value = p;
+                //std::cerr << "Control with nontype context!\n";
+                //throw TYPE_ERROR;
             }
         }
+        else {
+            lookup_value = colon_value;
+        }
 
-        value = lookup_identifier(name, colon_value, scope, expr->token, expr->args, expr->kwargs, context);  // dummy value
+        value = lookup_identifier(name, lookup_value, scope, expr->token, expr->args, expr->kwargs, context);
 
         if (!value)
             throw TYPE_ERROR;
