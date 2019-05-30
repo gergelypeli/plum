@@ -316,7 +316,7 @@ void StringType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         x64->op(PUSHQ, s.address);
         x64->op(PUSHQ, t.address);
     }
-    else if ((s.where != STACK && s.where != BSTACK) || (t.where != STACK && t.where != BSTACK))
+    else if ((s.where != STACK) || (t.where != STACK))
         throw INTERNAL_ERROR;
     
     Label streq_label = x64->once->compile(compile_stringeq);
@@ -375,7 +375,7 @@ void StringType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
             x64->op(PUSHQ, t.address);
         }
     }
-    else if ((s.where != STACK && s.where != BSTACK) || (t.where != STACK && t.where != BSTACK))
+    else if ((s.where != STACK) || (t.where != STACK))
         throw INTERNAL_ERROR;
 
     Label strcmp_label = x64->once->compile(compile_stringcmp);

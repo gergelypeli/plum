@@ -418,11 +418,11 @@ Storage VariableValue::compile(X64 *x64) {
         Storage s = pivot->compile(x64);
         
         if (pts[0] == ptr_type) {
-            // The only member variable accessible by a Ptr are self variables, borrow.
-            // Don't disguise this as an ALIAS, we know it points to the heap.
+            // The only member variables accessible by a Ptr are self variables.
+            // Since $ is a rvalue argument, we can borrow the reference.
             
             if (s.where == MEMORY) {
-                x64->op(MOVQ, record_reg, s.address);
+                x64->op(MOVQ, record_reg, s.address);  // borrow $
                 s = Storage(MEMORY, Address(record_reg, 0));
                 t = variable->get_storage(match, s);  // [unalias_reg + x]
             }

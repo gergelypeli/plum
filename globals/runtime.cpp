@@ -1170,6 +1170,12 @@ void Runtime::copy(Address s, Address t, int size) {
 }
 
 
+void Runtime::push(Address s, int size) {
+    for (int i = (size + 7) / 8 - 1; i >= 0; i--)
+        x64->op(PUSHQ, s + i * 8);
+}
+
+
 void Runtime::load_lvalue(Register reg, Register tmp, Storage ref_storage, int offset) {
     if (ref_storage.where == MEMORY) {
         x64->op(MOVQ, reg, ref_storage.address + offset);

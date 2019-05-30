@@ -201,6 +201,7 @@ public:
 
     void r10bcompar(bool is_unsigned);
     void copy(Address s, Address t, int size);
+    void push(Address s, int size);
     void fix_address(Address address);
 
     void load_lvalue(Register reg, Register tmp, Storage ref_storage, int offset = 0);

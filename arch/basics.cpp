@@ -96,6 +96,10 @@ Regs Regs::all() {
     return Regs(ALL_MASK);
 }
 
+Regs Regs::allregs() {
+    return Regs(ALL_MASK & ~STACKVARS & ~HEAPVARS);
+}
+
 Regs Regs::stackvars() {
     return Regs(STACKVARS);
 }

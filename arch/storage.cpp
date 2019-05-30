@@ -20,7 +20,7 @@ StorageWhere stacked(StorageWhere w) {
     }
 
     Storage::Storage(StorageWhere w) {
-        if (w != STACK && w != ALISTACK && w != BSTACK) {
+        if (w != STACK && w != ALISTACK) {
             std::cerr << "Incomplete Storage!\n";
             throw INTERNAL_ERROR;
         }
@@ -126,7 +126,6 @@ StorageWhere stacked(StorageWhere w) {
             return sse != NOSSE ? Regs(sse) : Regs();
         case STACK:
         case ALISTACK:
-        case BSTACK:
             return Regs();
         case MEMORY:
         case ALIAS:
@@ -186,8 +185,6 @@ std::ostream &operator<<(std::ostream &os, const Storage &s) {
         os << "ALISTACK";
     else if (s.where == ALIAS)
         os << "ALIAS(" << s.address << "+" << s.value << ")";
-    else if (s.where == BSTACK)
-        os << "BSTACK";
     else
         os << "???";
         

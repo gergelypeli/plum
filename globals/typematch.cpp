@@ -188,7 +188,11 @@ bool match_special_type(TypeSpecIter s, TypeSpecIter t, TypeMatch &match, Value 
             match[0].push_back(*t);
             s++;
             t++;
-            value = new CastValue(value, value->ts.rvalue().reprefix(ref_type, ptr_type));
+            
+            if (value->ts[0] == lvalue_type)
+                value = new RvalueCastValue(value);
+                
+            value = new CastValue(value, value->ts.reprefix(ref_type, ptr_type));
         }
         else if (*s == ptr_type && *t == ref_type) {
             if (matchlog) std::cerr << "No match, ptr for ref!\n";

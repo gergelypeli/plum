@@ -140,8 +140,8 @@ Storage GenericOperationValue::compare(X64 *x64) {
     int stack_size = left->ts.measure_stack();
     Storage s, t;
 
-    bool lx = (ls.where == STACK || ls.where == BSTACK);
-    bool rx = (rs.where == STACK || rs.where == BSTACK);
+    bool lx = (ls.where == STACK);
+    bool rx = (rs.where == STACK);
     
     if (lx && rx) {
         s = Storage(MEMORY, Address(RSP, stack_size));
@@ -185,8 +185,8 @@ Storage GenericOperationValue::equal(X64 *x64, bool negate) {
     int stack_size = left->ts.measure_stack();
     Storage s, t;
     
-    bool lx = (ls.where == STACK || ls.where == BSTACK);
-    bool rx = (rs.where == STACK || rs.where == BSTACK);
+    bool lx = (ls.where == STACK);
+    bool rx = (rs.where == STACK);
     
     if (lx && rx) {
         s = Storage(MEMORY, Address(RSP, stack_size));

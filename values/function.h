@@ -52,12 +52,14 @@ public:
     std::vector<Storage> pushed_storages;
     std::vector<unsigned> pushed_sizes;
     std::vector<Storage> pushed_stackfixes;
+    std::vector<Storage> pushed_borrows;
     TypeSpec pivot_ts;
     Storage pivot_alias_storage;
     std::vector<TypeSpec> arg_tss;
     std::vector<TypeSpec> res_tss;
     std::vector<std::string> arg_names;
     bool has_code_arg;
+    bool may_borrow_stackvars;
     Associable *static_role;
 
     FunctionCallValue(Function *f, Value *p, TypeMatch &m);
@@ -69,6 +71,7 @@ public:
     virtual Regs precompile(Regs preferred);
     virtual void push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64);
     virtual void pop_arg(X64 *x64);
+    virtual Storage ret_pivot(X64 *x64);
     virtual Storage compile(X64 *x64);
     virtual CodeScope *unwind(X64 *x64);
 };

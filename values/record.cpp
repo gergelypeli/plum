@@ -22,7 +22,6 @@ void StringOperationValue::compile_and_stack_both(X64 *x64) {
         ls = left->ts.store(ls, Storage(STACK), x64);
         break;
     case STACK:
-    case BSTACK:
         break;
     default:
         throw INTERNAL_ERROR;
@@ -38,7 +37,6 @@ void StringOperationValue::compile_and_stack_both(X64 *x64) {
         rs = right->ts.store(rs, Storage(STACK), x64);
         break;
     case STACK:
-    case BSTACK:
         break;
     default:
         throw INTERNAL_ERROR;

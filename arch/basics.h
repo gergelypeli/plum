@@ -96,6 +96,7 @@ private:
 public:
     Regs();
     static Regs all();
+    static Regs allregs();
     static Regs stackvars();
     static Regs heapvars();
     Regs(Register r);

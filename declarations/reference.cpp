@@ -66,26 +66,6 @@ void ReferenceType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         tm[1].decref(R10, x64);
         return;
         
-    case BSTACK_NOWHERE:
-        x64->op(ADDQ, RSP, REFERENCE_SIZE);
-        return;
-    case BSTACK_REGISTER:
-        x64->op(POPQ, t.reg);
-        tm[1].incref(t.reg, x64);
-        return;
-    case BSTACK_STACK:
-        x64->op(MOVQ, R10, Address(RSP, 0));
-        tm[1].incref(R10, x64);
-        return;
-    case BSTACK_MEMORY:
-        x64->op(POPQ, R10);
-        tm[1].incref(R10, x64);
-        x64->op(XCHGQ, t.address, R10);
-        tm[1].decref(R10, x64);
-        return;
-    case BSTACK_BSTACK:
-        return;
-
     default:
         Type::store(tm, s, t, x64);
     }
@@ -106,11 +86,6 @@ void ReferenceType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         return;
     case MEMORY_MEMORY:
         x64->op(MOVQ, R10, s.address);
-        tm[1].incref(R10, x64);
-        x64->op(MOVQ, t.address, R10);
-        return;
-    case BSTACK_MEMORY:
-        x64->op(POPQ, R10);
         tm[1].incref(R10, x64);
         x64->op(MOVQ, t.address, R10);
         return;
