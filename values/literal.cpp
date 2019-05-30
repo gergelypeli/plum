@@ -97,8 +97,6 @@ Storage StringLiteralValue::compile(X64 *x64) {
     x64->data_reference(l);
     
     return Storage(MEMORY, Address(dl, 0));
-    //x64->op(LEA, RAX, Address(l, 0));
-    //return Storage(BREGISTER, RAX);
 }
 
 

@@ -65,31 +65,6 @@ void ReferenceType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         x64->op(XCHGQ, R10, t.address);
         tm[1].decref(R10, x64);
         return;
-
-    case BREGISTER_NOWHERE:
-        return;
-    case BREGISTER_REGISTER:
-        if (s.reg != t.reg)
-            x64->op(MOVQ, t.reg, s.reg);
-            
-        tm[1].incref(t.reg, x64);
-        return;
-    case BREGISTER_STACK:
-        tm[1].incref(s.reg, x64);
-        x64->op(PUSHQ, s.reg);
-        return;
-    case BREGISTER_MEMORY:
-        tm[1].incref(s.reg, x64);
-        x64->op(XCHGQ, t.address, s.reg);
-        tm[1].decref(s.reg, x64);
-        return;
-    case BREGISTER_BREGISTER:
-        if (s.reg != t.reg)
-            x64->op(MOVQ, t.reg, s.reg);
-        return;
-    case BREGISTER_BSTACK:
-        x64->op(PUSHQ, s.reg);
-        return;
         
     case BSTACK_NOWHERE:
         x64->op(ADDQ, RSP, REFERENCE_SIZE);
@@ -107,9 +82,6 @@ void ReferenceType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         tm[1].incref(R10, x64);
         x64->op(XCHGQ, t.address, R10);
         tm[1].decref(R10, x64);
-        return;
-    case BSTACK_BREGISTER:
-        x64->op(POPQ, t.reg);
         return;
     case BSTACK_BSTACK:
         return;
@@ -136,10 +108,6 @@ void ReferenceType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         x64->op(MOVQ, R10, s.address);
         tm[1].incref(R10, x64);
         x64->op(MOVQ, t.address, R10);
-        return;
-    case BREGISTER_MEMORY:
-        tm[1].incref(s.reg, x64);
-        x64->op(MOVQ, t.address, s.reg);
         return;
     case BSTACK_MEMORY:
         x64->op(POPQ, R10);

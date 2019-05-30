@@ -59,7 +59,7 @@ StorageWhere stacked(StorageWhere w) {
     }
 
     Storage::Storage(StorageWhere w, Register r) {
-        if (w != REGISTER && w != BREGISTER) {
+        if (w != REGISTER) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
         }
@@ -121,7 +121,6 @@ StorageWhere stacked(StorageWhere w) {
         case FLAGS:
             return Regs();
         case REGISTER:
-        case BREGISTER:
             return reg != NOREG ? Regs(reg) : Regs();
         case SSEREGISTER:
             return sse != NOSSE ? Regs(sse) : Regs();
@@ -187,8 +186,6 @@ std::ostream &operator<<(std::ostream &os, const Storage &s) {
         os << "ALISTACK";
     else if (s.where == ALIAS)
         os << "ALIAS(" << s.address << "+" << s.value << ")";
-    else if (s.where == BREGISTER)
-        os << "BREGISTER(" << s.reg << ")";
     else if (s.where == BSTACK)
         os << "BSTACK";
     else

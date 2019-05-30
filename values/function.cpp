@@ -694,7 +694,7 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         Storage s = arg_value->compile(x64);
 
         // Borrow argument reference, if possible
-        if ((s.where == BREGISTER || s.where == BSTACK) && t.where == STACK)
+        if (s.where == BSTACK && t.where == STACK)
             t.where = BSTACK;
 
         // Pushing a stack relative address onto the stack is becoming illegal.

@@ -21,9 +21,6 @@ void StringOperationValue::compile_and_stack_both(X64 *x64) {
     case MEMORY:
         ls = left->ts.store(ls, Storage(STACK), x64);
         break;
-    case BREGISTER:
-        ls = left->ts.store(ls, Storage(BSTACK), x64);
-        break;
     case STACK:
     case BSTACK:
         break;
@@ -39,9 +36,6 @@ void StringOperationValue::compile_and_stack_both(X64 *x64) {
     case REGISTER:
     case MEMORY:
         rs = right->ts.store(rs, Storage(STACK), x64);
-        break;
-    case BREGISTER:
-        rs = right->ts.store(rs, Storage(BSTACK), x64);
         break;
     case STACK:
     case BSTACK:

@@ -20,7 +20,7 @@ enum StorageWhere {
     // The address of the value is ate the specified address (always RBP based)
     ALIAS = 8,
     // Borrowed reference in a register
-    BREGISTER = 9,
+    //BREGISTER = 9,
     // Borrowed reference value on the top of the stack
     BSTACK = 10
 };
