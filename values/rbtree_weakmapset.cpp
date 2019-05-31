@@ -289,7 +289,7 @@ Regs NosytreeMemberValue::precompile(Regs preferred) {
     
     if (lvalue_needed) {
         // Altering the member would clobber the heap vars
-        clob = Regs::all() | Regs::heapvars();
+        clob = Regs::allregs() | Regs::heapvars();
     }
     else {
         clob.reserve_gpr(2);

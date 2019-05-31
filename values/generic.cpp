@@ -360,7 +360,7 @@ Regs OptimizedOperationValue::precompile(Regs preferred) {
     rclob = right ? right->precompile_tail() : Regs();
     
     // lpref must be nonempty
-    Regs lpref = (preferred & ~rclob).has_gpr() ? preferred & ~rclob : (~rclob).has_gpr() ? ~rclob : Regs::all();
+    Regs lpref = (preferred & ~rclob).has_gpr() ? preferred & ~rclob : (~rclob).has_gpr() ? ~rclob : Regs::allregs();
     Regs lclob = left->precompile(lpref);
     clob = lclob | rclob;
     
