@@ -43,18 +43,22 @@ public:
 // The value of calling a function
 class FunctionCallValue: public Value, public Raiser {
 public:
+    struct PushedInfo {
+        TypeSpec ts;
+        Storage orig_storage;
+        Storage storage;
+        unsigned size;
+        bool is_fixed;
+        bool is_borrowed;
+    };
+    
     Function *function;
     std::unique_ptr<Value> pivot;
     std::vector<std::unique_ptr<Value>> values;
     Register reg;
     unsigned res_total;
-    std::vector<TypeSpec> pushed_tss;
-    std::vector<Storage> pushed_storages;
-    std::vector<unsigned> pushed_sizes;
-    std::vector<Storage> pushed_stackfixes;
-    std::vector<Storage> pushed_borrows;
+    std::vector<PushedInfo> pushed_infos;
     TypeSpec pivot_ts;
-    Storage pivot_alias_storage;
     std::vector<TypeSpec> arg_tss;
     std::vector<TypeSpec> res_tss;
     std::vector<std::string> arg_names;

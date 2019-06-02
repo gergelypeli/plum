@@ -685,10 +685,11 @@ void FunctionCallValue::call_virtual(X64 *x64, unsigned passed_size) {
 
 
 void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+    Storage s;
     Storage t;
     unsigned size;
-    Storage stackfix;
-    Storage borrow;
+    bool is_fixed = false;
+    bool is_borrowed = false;
     
     StorageWhere where = arg_ts.where(AS_ARGUMENT);
 
@@ -701,7 +702,7 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
 
     if (arg_value) {
         // Specified argument
-        Storage s = arg_value->compile(x64);
+        s = arg_value->compile(x64);
 
         // Pushing a stack relative address onto the stack is illegal.
         // Unless this is done in the last step before invoking a function, when
@@ -709,15 +710,11 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         // So only store the RBP-relative offset onto the stack, and remember to add
         // the current RBP value to them just before invoking the function.
         if (t.where == ALISTACK) {
-            // Necessary to return the original storage in void functions
-            if (arg_value == pivot.get())
-                pivot_alias_storage = s;
-        
             if (s.where == MEMORY && s.address.base == RBP) {
                 // Will add RBP
                 x64->op(PUSHQ, 0);
                 x64->op(PUSHQ, s.address.offset);
-                stackfix = s;
+                is_fixed = true;
             }
             else if (s.where == MEMORY && s.address.base == RSP) {
                 // Will add RBP
@@ -725,13 +722,13 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
                 x64->op(SUBQ, R10, RBP);
                 x64->op(PUSHQ, 0);
                 x64->op(PUSHQ, R10);
-                stackfix = s;
+                is_fixed = true;
             }
             else if (s.where == ALIAS) {
                 // Will add ALIAS address
                 x64->op(PUSHQ, 0);
                 x64->op(PUSHQ, s.value);
-                stackfix = s;
+                is_fixed = true;
             }
             else {
                 // Other cases all deal with heap locations
@@ -744,7 +741,7 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
             if (s.address.base != RBP && s.address.base != NOREG)
                 throw INTERNAL_ERROR;
                 
-            borrow = s;
+            is_borrowed = true;
             x64->runtime->push(s.address, size);
         }
         else
@@ -752,80 +749,72 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
     }
     else {
         // Optional argument initialized to default value
-        arg_ts.store(Storage(), t, x64);
+        arg_ts.store(s, t, x64);
     }
 
-    pushed_tss.push_back(arg_ts);
-    pushed_storages.push_back(t);  // For unwinding
-    pushed_sizes.push_back(size);
-    pushed_stackfixes.push_back(stackfix);
-    pushed_borrows.push_back(borrow);
+    pushed_infos.push_back({ arg_ts, s, t, size, is_fixed, is_borrowed });
 }
 
 void FunctionCallValue::pop_arg(X64 *x64) {
-    TypeSpec arg_ts = pushed_tss.back();
-    Storage s = pushed_storages.back();
-    unsigned size = pushed_sizes.back();
-    Storage borrow = pushed_borrows.back();
-
-    pushed_tss.pop_back();
-    pushed_storages.pop_back();
-    pushed_sizes.pop_back();
-    pushed_stackfixes.pop_back();
-    pushed_borrows.pop_back();
+    PushedInfo pi = pushed_infos.back();
+    pushed_infos.pop_back();
     
-    if (borrow.where != NOWHERE)
-        x64->op(ADDQ, RSP, size);
+    if (pi.is_borrowed)
+        x64->op(ADDQ, RSP, pi.size);
     else
-        arg_ts.store(s, Storage(), x64);
+        pi.ts.store(pi.storage, Storage(), x64);
 }
 
 Storage FunctionCallValue::ret_pivot(X64 *x64) {
     // Return pivot argument (an ALIAS must be returned as received)
     
-    Storage s = pushed_storages[0];
-    Storage b = pushed_borrows[0];
+    PushedInfo pi = pushed_infos[0];
 
-    if (s.where == ALISTACK) {
+    if (pi.storage.where == ALISTACK) {
         // A general register can only be used to store heap addresses.
         // If the pivot was specified using a stack relative address, we need
         // to return it as we got it.
-        s = pivot_alias_storage;
         
-        if (s.where == MEMORY) {
-            if (s.address.base == RBP || s.address.base == RSP) {
-                // Stack relative address, no heap container
+        if (pi.orig_storage.where == MEMORY) {
+            // Borrowed location with no heap container
+            
+            if (pi.orig_storage.address.base == RBP || pi.orig_storage.address.base == RSP) {
+                // Stack relative address, must return the original storage
                 x64->op(ADDQ, RSP, ALIAS_SIZE);
+                return pi.orig_storage;
             }
             else {
-                // Borrowed location, no heap container
+                // Heap address, return in a popped register
                 x64->op(POPQ, RAX);
                 x64->op(POPQ, R10);
-                s = Storage(MEMORY, Address(RAX, 0));
+                return Storage(MEMORY, Address(RAX, 0));
             }
         }
-        else if (s.where == ALIAS) {
-            // Aliased argument passed, no heap container
+        else if (pi.orig_storage.where == ALIAS) {
+            // Aliased argument passed, must return original storage
             x64->op(ADDQ, RSP, ALIAS_SIZE);
+            return pi.orig_storage;
         }
-        else if (s.where == ALISTACK) {
+        else if (pi.orig_storage.where == ALISTACK) {
             // We got an ALISTACK, pass it back as received
+            return pi.orig_storage;
         }
         else
             throw INTERNAL_ERROR;
     }
-    else if (b.where != NOWHERE) {
+    else if (pi.is_borrowed) {
         // Borrowed local variable, return the variable's storage
-        if (b.where != MEMORY || (b.address.base != RBP && b.address.base != NOREG))
+        if (pi.orig_storage.where != MEMORY || (pi.orig_storage.address.base != RBP && pi.orig_storage.address.base != NOREG))
             throw INTERNAL_ERROR;
             
-        unsigned size = pushed_sizes[0];
-        x64->op(ADDQ, RSP, size);
-        
-        s = b;
-    }
+        x64->op(ADDQ, RSP, pi.size);
 
-    return s;
+        return pi.orig_storage;
+    }
+    else {
+        // Return the pushed storage
+        return pi.storage;
+    }
 }
 
 Storage FunctionCallValue::compile(X64 *x64) {
@@ -873,23 +862,31 @@ Storage FunctionCallValue::compile(X64 *x64) {
     //std::cerr << "Function call " << function->name << " stack at " << x64->accounting->mark() << "\n";
 
     unsigned passed_size = 0;
-    for (unsigned &s : pushed_sizes)
-        passed_size += s;
+    for (PushedInfo &pi : pushed_infos)
+        passed_size += pi.size;
 
     int stackfix_offset = passed_size;
     
-    for (unsigned i = 0; i < pushed_stackfixes.size(); i++) {
-        stackfix_offset -= pushed_sizes[i];
-        Storage sf = pushed_stackfixes[i];
+    for (unsigned i = 0; i < pushed_infos.size(); i++) {
+        stackfix_offset -= pushed_infos[i].size;
+        bool f = pushed_infos[i].is_fixed;
+        Storage os = pushed_infos[i].orig_storage;
         
-        if (sf.where == MEMORY) {
-            std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
-            x64->op(ADDQ, Address(RSP, stackfix_offset), RBP);
-        }
-        else if (sf.where == ALIAS) {
-            std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
-            x64->op(MOVQ, R10, sf.address);
-            x64->op(ADDQ, Address(RSP, stackfix_offset), R10);
+        if (f) {
+            // A stack relative address is pushed, so we deferred storing the full address
+            // until now to deal with stack relocations during argument evaluation.
+            
+            if (os.where == MEMORY) {
+                std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
+                x64->op(ADDQ, Address(RSP, stackfix_offset), RBP);
+            }
+            else if (os.where == ALIAS) {
+                std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
+                x64->op(MOVQ, R10, os.address);
+                x64->op(ADDQ, Address(RSP, stackfix_offset), R10);
+            }
+            else
+                throw INTERNAL_ERROR;
         }
     }
 
@@ -941,11 +938,11 @@ Storage FunctionCallValue::compile(X64 *x64) {
 
 CodeScope *FunctionCallValue::unwind(X64 *x64) {
     //std::cerr << "Unwinding function call " << function->name << " would wipe " << pushed_tss.size() << " arguments.\n";
-    for (int i = pushed_tss.size() - 1; i >= 0; i--) {
-        if (pushed_borrows[i].where != NOWHERE)
-            x64->op(ADDQ, RSP, pushed_sizes[i]);
+    for (int i = pushed_infos.size() - 1; i >= 0; i--) {
+        if (pushed_infos[i].is_borrowed)
+            x64->op(ADDQ, RSP, pushed_infos[i].size);
         else
-            pushed_tss[i].store(pushed_storages[i], Storage(), x64);
+            pushed_infos[i].ts.store(pushed_infos[i].storage, Storage(), x64);
     }
     
     // This area is uninitialized before invoking the function
