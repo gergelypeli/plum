@@ -53,7 +53,8 @@ public:
     std::unique_ptr<Value> pivot;
     
     RecordUnwrapValue(TypeSpec cast_ts, Value *p);
-    
+
+    virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
     virtual Storage compile(X64 *x64);
 };

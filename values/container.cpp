@@ -150,8 +150,8 @@ Storage ContainerLengthValue::compile(X64 *x64) {
 
 
 
-ContainerIndexValue::ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, TypeSpec hts, int lo, int eo)
-    :GenericOperationValue(o, INTEGER_TS, match[1].lvalue(), pivot) {
+ContainerIndexValue::ContainerIndexValue(Value *pivot, TypeMatch &match, TypeSpec hts, int lo, int eo)
+    :GenericValue(INTEGER_TS, match[1].lvalue(), pivot) {
     heap_ts = hts;
     elem_ts = match[1];
     length_offset = lo;
@@ -166,7 +166,7 @@ bool ContainerIndexValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
     //if (!check_reference(scope))
     //    return false;
 
-    return GenericOperationValue::check(args, kwargs, scope);
+    return GenericValue::check(args, kwargs, scope);
 }
 
 void ContainerIndexValue::fix_index(Register r, Register i, X64 *x64) {
@@ -175,7 +175,10 @@ void ContainerIndexValue::fix_index(Register r, Register i, X64 *x64) {
 Regs ContainerIndexValue::precompile(Regs preferred) {
     may_borrow_heap = (bool)(preferred & Regs::heapvars());
 
-    clob = GenericOperationValue::precompile(preferred);
+    rclob = right ? right->precompile_tail() : Regs();
+    
+    Regs lclob = left->precompile(preferred & ~rclob);
+    clob = lclob | rclob;
     
     //clob = clob | Regs(RAX) | Regs(RBX);
     clob = clob | precompile_contained_lvalue();

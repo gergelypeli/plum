@@ -703,4 +703,3 @@ void CreateValue::escape_statement_variables() {
     if (dv)
         left->escape_statement_variables();
 }
-

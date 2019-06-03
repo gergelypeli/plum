@@ -397,32 +397,30 @@ void VariableValue::need_rvalue() {
         throw INTERNAL_ERROR;
         
     GenericLvalue::need_rvalue();
+
+    if (pivot && pivot->ts[0] == lvalue_type) {
+        // The pivot type of member variables is not lvalue, so they can work with
+        // non-lvalue containers. So if the member turns out to be needed as an rvalue,
+        // we must warn the container so it won't clobber the appropriate flags.
+        // Also, accessing the members of a Ptr $ doesn't need lvalue pivot either.
+        
+        GenericLvalue *glv = ptr_cast<GenericLvalue>(pivot.get());
+    
+        if (glv)
+            glv->need_rvalue();
+    }
+    
+    // Try some optimization by asking RvalueCastValue not to unalias
+    RvalueCastValue *rcv = ptr_cast<RvalueCastValue>(pivot.get());
+    
+    if (rcv)
+        rcv->need_ralias();
 }
 
 Regs VariableValue::precompile(Regs preferred) {
     Regs clob;
     
     if (pivot) {
-        if (rvalue_needed && pivot->ts[0] == lvalue_type) {
-            // The pivot type of member variables is not lvalue, so they can work with
-            // non-lvalue containers. So if the member turns out to be needed as an rvalue,
-            // we must warn the container so it won't clobber the appropriate flags.
-            // Also, accessing the members of a Ptr $ doesn't need lvalue pivot either.
-            
-            GenericLvalue *glv = ptr_cast<GenericLvalue>(pivot.get());
-        
-            if (glv)
-                glv->need_rvalue();
-        }
-
-        if (rvalue_needed) {
-            // Try some optimization by asking RvalueCastValue not to unalias
-            RvalueCastValue *rcv = ptr_cast<RvalueCastValue>(pivot.get());
-            
-            if (rcv)
-                rcv->need_ralias();
-        }
-    
         clob = pivot->precompile(preferred);
         
         clob.reserve_gpr(1);
@@ -434,11 +432,57 @@ Regs VariableValue::precompile(Regs preferred) {
         throw INTERNAL_ERROR;
 
     if (!rvalue_needed) {
-        if (pivot) {
-            // The clobbered flags were already set by the pivot value, above
+        if (ts[0] == uninitialized_type) {
+            // This must be handled specially.
+            // First, the Variable we point to is never Uninitialized, more like Lvalue,
+            // so it cannot tell when it is initialized, and when assigned. So we check it.
+            // Second, the CREATE operation returns an lvalue to the freshly created variable.
+            // If it happens to be really used as an lvalue, it would clobber something.
+            // Since CREATE relies on its pivot argument to set the necessary clobber flags,
+            // the initialization must be considered clobbering a location, even if technically
+            // it does not overwrite any meaningful data.
+            
+            if (pivot) {
+                // Uninitialized member.
+                // The Partial prefix is cast off the $ for the sake of member lookup.
+                // And it is also prefixed by Lvalue for records.
+                
+                if (pivot->ts[0] == lvalue_type) {
+                    // Uninitialized member of a record
+                    // NOTE: we assume record initialization happens on the stack!
+                    clob = clob | Regs::stackvars();
+                }
+                else if (pivot->ts[0] == ptr_type) {
+                    // Uninitialized member of a class
+                    clob = clob | Regs::heapvars();
+                }
+                else
+                    throw INTERNAL_ERROR;
+            }
+            else {
+                // Uninitialized local variable, it's on the stack
+                clob = clob | Regs::stackvars();
+            }
+        }
+        else if (ts[0] == lvalue_type) {
+            if (pivot) {
+                if (pivot->ts[0] == lvalue_type) {
+                    // Lvalue member of an lvalue record, the pivot already clobbered
+                }
+                else if (pivot->ts[0] == ptr_type) {
+                    // Lvalue member of a class, clobber the heap
+                    clob = clob | Regs::heapvars();
+                }
+                else
+                    throw INTERNAL_ERROR;
+            }
+            else {
+                // Ask the local variable itself
+                clob = clob | variable->borrowing_requirements();
+            }
         }
         else {
-            clob = clob | variable->borrowing_requirements();
+            // It's OK to be a non-lvalue variable, then rvalue_needed is not set
         }
     }
 

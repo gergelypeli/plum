@@ -1199,7 +1199,7 @@ void define_array(RootScope *root_scope) {
     array_scope->add(new TemplateIdentifier<ArrayLengthValue>("length", RVALUE_PIVOT));
     array_scope->add(new TemplateIdentifier<ArrayRemoveValue>("remove", LVALUE_PIVOT));
     array_scope->add(new TemplateIdentifier<ArrayConcatenationValue>("binary_plus", RVALUE_PIVOT));
-    array_scope->add(new TemplateOperation<ArrayIndexValue>("index", TWEAK));
+    array_scope->add(new TemplateIdentifier<ArrayIndexValue>("index", RVALUE_PIVOT));
     array_scope->add(new TemplateIdentifier<ArraySortValue>("sort", LVALUE_PIVOT));
     array_scope->add(new TemplateIdentifier<ArraySliceValue>("slice", RVALUE_PIVOT));
     
@@ -1236,7 +1236,7 @@ void define_queue() {
     queue_scope->add(new Variable("circularray", SAME_CIRCULARRAY_REF_LVALUE_TS));
 
     queue_scope->add(new TemplateIdentifier<QueueLengthValue>("length", RVALUE_PIVOT));
-    queue_scope->add(new TemplateOperation<QueueIndexValue>("index", TWEAK));
+    queue_scope->add(new TemplateIdentifier<QueueIndexValue>("index", RVALUE_PIVOT));
     
     // Queue iterable operations
     implement(queue_scope, RVALUE_PIVOT, SAME_TUPLE1_ITERABLE_TS, "iterable", {

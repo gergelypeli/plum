@@ -88,8 +88,8 @@ ArrayLengthValue::ArrayLengthValue(Value *l, TypeMatch &match)
 
 
 
-ArrayIndexValue::ArrayIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-    :ContainerIndexValue(o, pivot, match, match[1].prefix(linearray_type), LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET) {
+ArrayIndexValue::ArrayIndexValue(Value *pivot, TypeMatch &match)
+    :ContainerIndexValue(pivot, match, match[1].prefix(linearray_type), LINEARRAY_LENGTH_OFFSET, LINEARRAY_ELEMS_OFFSET) {
 }
 
 

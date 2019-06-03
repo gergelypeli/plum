@@ -17,7 +17,7 @@ public:
     virtual Storage compile(X64 *x64);
 };
 
-class ContainerIndexValue: public GenericOperationValue, public Raiser, public ContainedLvalue {
+class ContainerIndexValue: public GenericValue, public Raiser, public ContainedLvalue {
 public:
     TypeSpec heap_ts;
     TypeSpec elem_ts;
@@ -25,8 +25,9 @@ public:
     int elems_offset;
     Storage value_storage;
     bool may_borrow_heap;
+    Regs clob, rclob;
     
-    ContainerIndexValue(OperationType o, Value *pivot, TypeMatch &match, TypeSpec hts, int lo, int eo);
+    ContainerIndexValue(Value *pivot, TypeMatch &match, TypeSpec hts, int lo, int eo);
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual void fix_index(Register r, Register i, X64 *x64);

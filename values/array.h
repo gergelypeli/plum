@@ -10,7 +10,7 @@ public:
 
 class ArrayIndexValue: public ContainerIndexValue {
 public:
-    ArrayIndexValue(OperationType o, Value *pivot, TypeMatch &match);
+    ArrayIndexValue(Value *pivot, TypeMatch &match);
 };
 
 class ArrayEmptyValue: public ContainerEmptyValue {

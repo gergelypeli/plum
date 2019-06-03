@@ -275,13 +275,13 @@ NosytreeMemberValue::NosytreeMemberValue(Value *p, TypeSpec ets, TypeSpec member
 }
 
 bool NosytreeMemberValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
-    //if (lvalue_needed)
-    //    check_alias(scope);
-
-    //if (!check_reference(scope))
-    //    return false;
-        
     return Value::check(args, kwargs, scope);
+}
+
+void NosytreeMemberValue::need_rvalue() {
+    GenericLvalue::need_rvalue();
+
+    // If we're an rvalue, then our pivot is already rvalue-cast by NosytreeTemplateIdentifier
 }
 
 Regs NosytreeMemberValue::precompile(Regs preferred) {

@@ -201,8 +201,8 @@ QueueLengthValue::QueueLengthValue(Value *l, TypeMatch &match)
 
 
 
-QueueIndexValue::QueueIndexValue(OperationType o, Value *pivot, TypeMatch &match)
-    :ContainerIndexValue(o, pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET) {
+QueueIndexValue::QueueIndexValue(Value *pivot, TypeMatch &match)
+    :ContainerIndexValue(pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET) {
 }
 
 void QueueIndexValue::fix_index(Register r, Register i, X64 *x64) {

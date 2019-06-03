@@ -58,6 +58,13 @@ TypeSpec GenericOperationValue::op_ret_ts(OperationType o, TypeMatch &match) {
     return o == COMPARE ? INTEGER_TS : is_comparison(o) ? BOOLEAN_TS : match[0];
 }
 
+void GenericOperationValue::need_rvalue() {
+    GenericLvalue::need_rvalue();
+    
+    // Since even if we take an lvalue pivot, we surely modify it, so that won't be
+    // an rvalue, even if our parent doesn't want to modify us.
+}
+
 Regs GenericOperationValue::precompile(Regs preferred) {
     rclob = right ? right->precompile_tail() : Regs();
     
@@ -70,6 +77,10 @@ Regs GenericOperationValue::precompile(Regs preferred) {
         clob = clob | COMPARE_CLOB;
     
     clob.reserve_gpr(3);
+
+    // NOTE: lvalue returning operations return the pivot operand, which is an lvalue itself.
+    // Since it will be modified, the pivot value will set the necessary clobbering flags.
+    // Initialization is considered a modification for this reason only.
     
     return clob;
 }

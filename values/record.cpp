@@ -197,6 +197,17 @@ RecordUnwrapValue::RecordUnwrapValue(TypeSpec cast_ts, Value *p)
     pivot.reset(p);
 }
 
+void RecordUnwrapValue::need_rvalue() {
+    GenericLvalue::need_rvalue();
+
+    if (pivot->ts[0] == lvalue_type) {
+        GenericLvalue *glv = ptr_cast<GenericLvalue>(pivot.get());
+    
+        if (glv)
+            glv->need_rvalue();
+    }
+}
+
 Regs RecordUnwrapValue::precompile(Regs preferred) {
     return pivot->precompile(preferred);
 }

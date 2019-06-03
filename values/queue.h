@@ -12,7 +12,7 @@ public:
 
 class QueueIndexValue: public ContainerIndexValue {
 public:
-    QueueIndexValue(OperationType o, Value *pivot, TypeMatch &match);
+    QueueIndexValue(Value *pivot, TypeMatch &match);
     
     virtual void fix_index(Register r, Register i, X64 *x64);
 };

@@ -12,7 +12,7 @@ public:
 };
 
 // Unoptimized version, but works with STACK valued types
-class GenericOperationValue: public GenericValue {
+class GenericOperationValue: public GenericValue, public GenericLvalue {
 public:
     OperationType operation;
     bool is_left_lvalue;
@@ -22,6 +22,7 @@ public:
     
     static TypeSpec op_arg_ts(OperationType o, TypeMatch &match);
     static TypeSpec op_ret_ts(OperationType o, TypeMatch &match);
+    virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
     virtual Storage lmemory(X64 *x64);
     virtual Storage assign_create(X64 *x64);

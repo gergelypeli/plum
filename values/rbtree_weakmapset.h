@@ -19,6 +19,7 @@ public:
     NosytreeMemberValue(Value *p, TypeSpec ets, TypeSpec member_ts);
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
+    virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
     virtual Storage compile(X64 *x64);
 };
