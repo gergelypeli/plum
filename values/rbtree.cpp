@@ -533,7 +533,7 @@ Regs RbtreeIndexValue::precompile(Regs preferred) {
     Regs clob = key->precompile_tail();
     clob = clob | pivot->precompile(preferred & ~clob);
 
-    clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
+    clob = clob | precompile_contained_lvalue();
         
     return clob | RBTREE_CLOB | COMPARE_CLOB;
 }

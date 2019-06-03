@@ -5,7 +5,6 @@
 
 Value::Value(TypeSpec t)
     :ts(t) {
-    lvalue_needed = false;
 }
 
 Value::~Value() {
@@ -27,13 +26,6 @@ bool Value::check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_info
 
 bool Value::check(Args &args, Kwargs &kwargs, Scope *scope) {
     return check_arguments(args, kwargs, ArgInfos());
-}
-
-void Value::need_lvalue() {
-    if (ts[0] != lvalue_type && ts[0] != uninitialized_type && ts[0] != partial_type)
-        throw INTERNAL_ERROR;
-        
-    lvalue_needed = true;
 }
 
 Regs Value::precompile(Regs) {
@@ -184,6 +176,9 @@ RvalueCastValue::RvalueCastValue(Value *v)
     :Value(v->ts.rvalue()) {
     pivot.reset(v);
     ralias_needed = false;
+
+    if (v->ts[0] != lvalue_type && v->ts[0] != uninitialized_type && v->ts[0] != partial_type)
+        throw INTERNAL_ERROR;
 }
 
 void RvalueCastValue::need_ralias() {
@@ -197,6 +192,13 @@ void RvalueCastValue::need_ralias() {
 }
 
 Regs RvalueCastValue::precompile(Regs preferred) {
+    GenericLvalue *glv = ptr_cast<GenericLvalue>(pivot.get());
+    
+    if (glv)
+        glv->need_rvalue();
+    else
+        throw INTERNAL_ERROR;
+
     borrows_allowed = preferred & (Regs::stackvars() | Regs::heapvars());
 
     Regs clob = pivot->precompile(preferred);
@@ -266,13 +268,26 @@ Storage RvalueCastValue::compile(X64 *x64) {
 }
 
 
-// TODO: remove eventually?
 
-ContainedLvalue::ContainedLvalue() {
+
+GenericLvalue::GenericLvalue() {
+    rvalue_needed = false;
 }
 
-Regs ContainedLvalue::precompile_contained_lvalue(Regs preferred, bool lvalue_needed, TypeSpec ts) {
-    return lvalue_needed ? Regs::heapvars() : Regs();
+
+void GenericLvalue::need_rvalue() {
+    rvalue_needed = true;
+}
+
+
+
+
+ContainedLvalue::ContainedLvalue()
+    :GenericLvalue() {
+}
+
+Regs ContainedLvalue::precompile_contained_lvalue() {
+    return !rvalue_needed ? Regs::heapvars() : Regs();
 }
 
 Storage ContainedLvalue::compile_contained_lvalue(Address addr, Register container_ref, TypeSpec ts, X64 *x64) {
@@ -311,8 +326,8 @@ CastValue::CastValue(Value *p, TypeSpec ts)
     pivot.reset(p);
 }
 
-void CastValue::need_lvalue() {
-    pivot->need_lvalue();
+void CastValue::need_rvalue() {
+    ptr_cast<GenericLvalue>(pivot.get())->need_rvalue();
 }
 
 Regs CastValue::precompile(Regs preferred) {
@@ -355,7 +370,6 @@ VariableValue::VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
     pivot.reset(p);
     record_reg = NOREG;
     match = tm;
-    //ralias_needed = false;
     
     if (pivot) {
         pts = pivot->ts.rvalue();
@@ -363,33 +377,53 @@ VariableValue::VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm)
         // Sanity check
         if (pts[0] == ref_type)
             throw INTERNAL_ERROR;  // member variables are accessed by pointers only
+            
+        if (pts[0] == ptr_type) {
+            // The only Ptr whose member variables can be accessed is $, which should not
+            // be an lvalue.
+            if (pivot->ts[0] == lvalue_type)
+                throw INTERNAL_ERROR;
+        }
+        else {
+            // Members of rvalue records are rvalues themselves
+            if (pivot->ts[0] != lvalue_type)
+                ts = ts.rvalue();
+        }
     }
 }
 
-void VariableValue::need_lvalue() {
-    Value::need_lvalue();
-    
-    // The pivot type of member variables is not lvalue, so they can work with
-    // non-lvalue containers. So if the member turns out to be needed as an lvalue,
-    // we must warn the container so it can clobber the appropriate flags.
-    
-    if (pivot && pts[0] != ptr_type)
-        pivot->need_lvalue();
+void VariableValue::need_rvalue() {
+    if (ts[0] != lvalue_type && ts[0] != uninitialized_type && ts[0] != partial_type)
+        throw INTERNAL_ERROR;
+        
+    GenericLvalue::need_rvalue();
 }
 
 Regs VariableValue::precompile(Regs preferred) {
     Regs clob;
     
     if (pivot) {
-        clob = pivot->precompile(preferred);
+        if (rvalue_needed && pivot->ts[0] == lvalue_type) {
+            // The pivot type of member variables is not lvalue, so they can work with
+            // non-lvalue containers. So if the member turns out to be needed as an rvalue,
+            // we must warn the container so it won't clobber the appropriate flags.
+            // Also, accessing the members of a Ptr $ doesn't need lvalue pivot either.
+            
+            GenericLvalue *glv = ptr_cast<GenericLvalue>(pivot.get());
         
-        if (!lvalue_needed) {
-            // Try some optimization
+            if (glv)
+                glv->need_rvalue();
+        }
+
+        if (rvalue_needed) {
+            // Try some optimization by asking RvalueCastValue not to unalias
             RvalueCastValue *rcv = ptr_cast<RvalueCastValue>(pivot.get());
             
             if (rcv)
                 rcv->need_ralias();
         }
+    
+        clob = pivot->precompile(preferred);
         
         clob.reserve_gpr(1);
         record_reg = clob.get_gpr();
@@ -399,7 +433,7 @@ Regs VariableValue::precompile(Regs preferred) {
     if (variable->where == NOWHERE)
         throw INTERNAL_ERROR;
 
-    if (lvalue_needed) {
+    if (!rvalue_needed) {
         if (pivot) {
             // The clobbered flags were already set by the pivot value, above
         }

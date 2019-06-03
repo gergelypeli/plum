@@ -48,7 +48,7 @@ public:
     virtual Storage compile(X64 *x64);
 };
 
-class RecordUnwrapValue: public Value {
+class RecordUnwrapValue: public Value, public GenericLvalue {
 public:
     std::unique_ptr<Value> pivot;
     

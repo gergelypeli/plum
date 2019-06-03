@@ -10,7 +10,7 @@ void alloc_nosytree(TypeSpec elem_ts, X64 *x64);
 void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64);
 
 // Internally used access to the Rbtree Ref inside the Nosytree Ref
-class NosytreeMemberValue: public Value {
+class NosytreeMemberValue: public Value, public GenericLvalue {
 public:
     TypeSpec elem_ts;
     std::unique_ptr<Value> pivot;

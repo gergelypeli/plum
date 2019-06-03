@@ -100,7 +100,7 @@ public:
     virtual Storage compile(X64 *x64);
 };
 
-class CreateValue: public GenericOperationValue {
+class CreateValue: public GenericOperationValue, public GenericLvalue {
 public:
     CreateValue(Value *l, TypeMatch &tm);
     

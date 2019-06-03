@@ -252,7 +252,7 @@ Regs SliceIndexValue::precompile(Regs preferred) {
     Regs clob = right->precompile_tail();
     clob = clob | left->precompile(~clob);
 
-    clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
+    clob = clob | precompile_contained_lvalue();
         
     return clob | Regs(RAX, RBX);
 }
@@ -448,7 +448,7 @@ SliceNextElemValue::SliceNextElemValue(Value *l, TypeMatch &match)
 }
 
 Regs SliceNextElemValue::precompile(Regs preferred) {
-    return SliceNextValue::precompile(preferred) | precompile_contained_lvalue(preferred, lvalue_needed, ts);
+    return SliceNextValue::precompile(preferred) | precompile_contained_lvalue();
 }
 
 Storage SliceNextElemValue::postprocess(Register r, Register i, X64 *x64) {

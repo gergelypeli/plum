@@ -11,7 +11,6 @@ TypeSpec type_value_represented_ts(Value *v);
 TSs type_tuple_value_represented_tss(Value *v);
 Value *value_lookup_inner(Value *value, std::string name, Scope *scope);
 bool value_check(Value *v, Args &a, Kwargs &k, Scope *s);
-void value_need_lvalue(Value *v);
 const char *typeidname(Value *v);
 
 // Declaration operations

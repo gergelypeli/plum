@@ -178,7 +178,7 @@ Regs ContainerIndexValue::precompile(Regs preferred) {
     clob = GenericOperationValue::precompile(preferred);
     
     //clob = clob | Regs(RAX) | Regs(RBX);
-    clob = clob | precompile_contained_lvalue(preferred, lvalue_needed, ts);
+    clob = clob | precompile_contained_lvalue();
     clob.reserve_gpr(3);
 
     return clob;

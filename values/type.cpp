@@ -226,8 +226,8 @@ Value *ImplementationConversionValue::lookup_inner(std::string name, Scope *scop
     return value;
 }
 
-void ImplementationConversionValue::need_lvalue() {
-    orig->need_lvalue();
+void ImplementationConversionValue::need_rvalue() {
+    ptr_cast<GenericLvalue>(orig.get())->need_rvalue();
 }
 
 Regs ImplementationConversionValue::precompile(Regs preferred) {

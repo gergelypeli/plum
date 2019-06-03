@@ -287,7 +287,7 @@ bool NosytreeMemberValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
 Regs NosytreeMemberValue::precompile(Regs preferred) {
     clob = pivot->precompile_tail();
     
-    if (lvalue_needed) {
+    if (!rvalue_needed) {
         // Altering the member would clobber the heap vars
         clob = Regs::allregs() | Regs::heapvars();
     }
@@ -301,7 +301,7 @@ Regs NosytreeMemberValue::precompile(Regs preferred) {
 Storage NosytreeMemberValue::compile(X64 *x64) {
     Register r;
     
-    if (lvalue_needed) {
+    if (!rvalue_needed) {
         Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
 
         Storage ps = pivot->compile_lvalue(x64);

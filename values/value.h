@@ -3,7 +3,6 @@ class Value {
 public:
     TypeSpec ts;
     Token token;
-    bool lvalue_needed;
 
     Value(TypeSpec t);
 
@@ -12,7 +11,6 @@ public:
     virtual void set_context_ts(TypeSpec *c);
     bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos, bool is_function_call = false);
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
-    virtual void need_lvalue();
     virtual Regs precompile(Regs);
     virtual Regs precompile_tail();
     virtual Storage compile(X64 *);
@@ -57,10 +55,18 @@ public:
     virtual Storage compile(X64 *x64);
 };
 
-class ContainedLvalue {
+class GenericLvalue {
+public:
+    bool rvalue_needed;
+    
+    GenericLvalue();
+    virtual void need_rvalue();
+};
+
+class ContainedLvalue: public GenericLvalue {
 public:
     ContainedLvalue();
-    virtual Regs precompile_contained_lvalue(Regs preferred, bool lvalue_needed, TypeSpec ts);
+    virtual Regs precompile_contained_lvalue();
     virtual Storage compile_contained_lvalue(Address addr, Register container_ref, TypeSpec ts, X64 *x64);
 };
 
@@ -72,13 +78,13 @@ public:
     virtual Storage compile(X64 *x64);
 };
 
-class CastValue: public Value {
+class CastValue: public Value, public GenericLvalue {
 public:
     std::unique_ptr<Value> pivot;
 
     CastValue(Value *p, TypeSpec ts);
 
-    virtual void need_lvalue();
+    virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
     virtual Storage compile(X64 *x64);
 };
@@ -94,24 +100,18 @@ public:
     virtual Storage compile(X64 *x64);
 };
 
-class VariableValue: public Value {
+class VariableValue: public Value, public GenericLvalue {
 public:
     Variable *variable;
     std::unique_ptr<Value> pivot;
-    //Register unalias_reg;
     TypeMatch match;
     TypeSpec pts;
-    //bool is_rvalue_record;
-    //bool is_single_record;
-    //Storage value_storage;
-    //Regs borrows_allowed;
-    //bool ralias_needed;
     Register record_reg;
     Storage member_storage;
 
     VariableValue(Variable *v, Value *p, Scope *scope, TypeMatch &tm);
 
-    virtual void need_lvalue();
+    virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
     virtual Storage compile(X64 *x64);
 };

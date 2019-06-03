@@ -544,7 +544,7 @@ ArrayNextElemValue::ArrayNextElemValue(Value *l, TypeMatch &match)
 }
 
 Regs ArrayNextElemValue::precompile(Regs preferred) {
-    return ContainerNextValue::precompile(preferred) | precompile_contained_lvalue(preferred, lvalue_needed, ts);
+    return ContainerNextValue::precompile(preferred) | precompile_contained_lvalue();
 }
 
 Storage ArrayNextElemValue::postprocess(Register r, Register i, X64 *x64) {

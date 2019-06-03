@@ -17,8 +17,6 @@ bool LvalueTupleValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
         if (value->ts[0] != lvalue_type && value->ts[0] != uninitialized_type)
             return false;
 
-        value->need_lvalue();
-        
         tss.push_back(value->ts);
         values.push_back(std::unique_ptr<Value>(value));
     }

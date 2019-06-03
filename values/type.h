@@ -46,7 +46,7 @@ public:
     virtual void escape_statement_variables();
 };
 
-class ImplementationConversionValue: public Value {
+class ImplementationConversionValue: public Value, public GenericLvalue {
 public:
     TypeMatch match;
     Implementation *implementation;
@@ -56,7 +56,7 @@ public:
     
     virtual void streamify(X64 *x64);
     virtual Value *lookup_inner(std::string name, Scope *scope);
-    virtual void need_lvalue();
+    virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
     virtual Storage compile(X64 *x64);
 };

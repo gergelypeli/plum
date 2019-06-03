@@ -61,9 +61,10 @@ Value *Identifier::match(std::string n, Value *pivot, Scope *scope) {
     }
 
     if (typematch(pivot_ts, pivot, match)) {
-        if (pivot_ts[0] == lvalue_type || pivot_ts[0] == uninitialized_type)
-            value_need_lvalue(pivot);
-        else if (get_typespec(pivot)[0] == lvalue_type && pivot_requirement != VARIABLE_PIVOT)
+        if (
+            pivot_ts[0] != lvalue_type && pivot_ts[0] != uninitialized_type &&
+            get_typespec(pivot)[0] == lvalue_type && pivot_requirement != VARIABLE_PIVOT
+        )
             pivot = make<RvalueCastValue>(pivot);
 
         return matched(pivot, scope, match);
@@ -140,16 +141,11 @@ Value *NosytreeIdentifier::matched(Value *cpivot, Scope *scope, TypeMatch &match
     TypeSpec ets = typesubst(elem_ts, match);
     TypeSpec pivot_ts = get_pivot_ts();
 
-    TypeSpec member_ts = ets.prefix(rbtree_type).prefix(ref_type);
-    if (pivot_ts[0] == lvalue_type)
-        member_ts = member_ts.lvalue();
+    TypeSpec member_ts = ets.prefix(rbtree_type).prefix(ref_type).lvalue();
     
     Value *pivot = make<NosytreeMemberValue>(cpivot, ets, member_ts);
     
-    if (pivot_ts[0] == lvalue_type) {
-        value_need_lvalue(pivot);
-    }
-    else if (get_typespec(pivot)[0] == lvalue_type)
+    if (get_typespec(pivot)[0] == lvalue_type && pivot_ts[0] != lvalue_type)
         pivot = make<RvalueCastValue>(pivot);
     
     Args fake_args;

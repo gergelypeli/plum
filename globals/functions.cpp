@@ -61,11 +61,6 @@ bool value_check(Value *v, Args &a, Kwargs &k, Scope *s) {
 }
 
 
-void value_need_lvalue(Value *v) {
-    v->need_lvalue();
-}
-
-
 const char *typeidname(Value *v) {
     return typeid(*v).name();
 }
@@ -236,9 +231,7 @@ bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, 
         return false;
     }
 
-    if (ctx0 == lvalue_type)
-        v->need_lvalue();
-    else if (v && v->ts[0] == lvalue_type && !(ctx0 && ctx0->meta_type == interface_metatype))
+    if (ctx0 != lvalue_type && v && v->ts[0] == lvalue_type && !(ctx0 && ctx0->meta_type == interface_metatype))
         v = new RvalueCastValue(v);
 
     if (code_scope) {
