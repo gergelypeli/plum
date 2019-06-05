@@ -646,8 +646,10 @@ Storage RbtreeNextElemByAgeValue::compile(X64 *x64) {
     x64->op(CMPQ, i, RBNODE_NIL);
     x64->op(JNE, ok);
     
+    int old_stack_usage = x64->accounting->mark();
     left->ts.store(ls, Storage(), x64);
     raise("ITERATOR_DONE", x64);
+    x64->accounting->rewind(old_stack_usage);
     
     x64->code_label(ok);
     
@@ -719,7 +721,10 @@ Storage RbtreeNextElemByOrderValue::compile(X64 *x64) {
     x64->op(CMPQ, RAX, 0);
     x64->op(JNE, ok);
 
+    int old_stack_usage = x64->accounting->mark();
+    left->ts.store(ls, Storage(), x64);
     raise("ITERATOR_DONE", x64);
+    x64->accounting->rewind(old_stack_usage);
     
     x64->code_label(ok);
 
