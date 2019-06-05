@@ -86,30 +86,6 @@ void Elf::add_relocation(unsigned index, Elf64_Addr location, int addend, int ty
 }
 
 
-void Elf::code_relocation(unsigned index, Elf64_Addr location, int addend) {
-    add_relocation(index, location, addend, R_X86_64_PC32, code_relocations);
-}
-
-
-void Elf::data_relocation(unsigned index, Elf64_Addr location, int addend) {
-    add_relocation(index, location, addend, R_X86_64_64, data_relocations);
-}
-
-
-void Elf::info_relocation32(unsigned index, Elf64_Addr location, int addend) {
-    add_relocation(index, location, addend, R_X86_64_32, info_relocations);
-}
-
-
-void Elf::info_relocation64(unsigned index, Elf64_Addr location, int addend) {
-    add_relocation(index, location, addend, R_X86_64_64, info_relocations);
-}
-
-
-void Elf::line_relocation64(unsigned index, Elf64_Addr location, int addend) {
-    add_relocation(index, location, addend, R_X86_64_64, line_relocations);
-}
-
 
 void Elf::set_code(std::vector<char> &c) {
     code = c;
@@ -150,7 +126,7 @@ void Elf::done(std::string filename) {
     ehdr.e_ident[7] = ELFOSABI_LINUX;
 
     ehdr.e_type = ET_REL;
-    ehdr.e_machine = EM_X86_64;
+    ehdr.e_machine = get_machine();
     ehdr.e_version = EV_CURRENT;
     ehdr.e_entry = 0;
     ehdr.e_phoff = 0;
@@ -376,3 +352,42 @@ void Elf::done(std::string filename) {
     
     fclose(out);
 }
+
+
+// X64
+
+Elf_X64::Elf_X64(std::string module_name)
+    :Elf(module_name) {
+}
+
+
+Elf64_Half Elf_X64::get_machine() {
+    return EM_X86_64;
+}
+
+
+void Elf_X64::info_relocation32(unsigned index, Elf64_Addr location, int addend) {
+    add_relocation(index, location, addend, R_X86_64_32, info_relocations);
+}
+
+
+void Elf_X64::info_relocation64(unsigned index, Elf64_Addr location, int addend) {
+    add_relocation(index, location, addend, R_X86_64_64, info_relocations);
+}
+
+
+void Elf_X64::line_relocation64(unsigned index, Elf64_Addr location, int addend) {
+    add_relocation(index, location, addend, R_X86_64_64, line_relocations);
+}
+
+
+void Elf_X64::code_relocation(unsigned index, Elf64_Addr location, int addend) {
+    add_relocation(index, location, addend, R_X86_64_PC32, code_relocations);
+}
+
+
+void Elf_X64::data_relocation(unsigned index, Elf64_Addr location, int addend) {
+    add_relocation(index, location, addend, R_X86_64_64, data_relocations);
+}
+
+

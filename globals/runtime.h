@@ -218,7 +218,7 @@ public:
 };
 
 
-class X64: public Asm64 {
+class X64: public Asm_X64 {
 public:
     Once *once;
     Unwind *unwind;
@@ -230,7 +230,7 @@ public:
     std::vector<std::string> source_file_names;
     
     X64(std::string module_name, int application_size, std::vector<std::string> sfns)
-        :Asm64(module_name) {
+        :Asm_X64(new Elf_X64(module_name)) {
         source_file_names = sfns;
         
         once = new Once;
@@ -239,7 +239,7 @@ public:
         
         // Needs Accounting
         runtime = new Runtime(this, application_size);
-        dwarf = new Dwarf(elf, sfns);
+        dwarf = new Dwarf(elf_x64, sfns);
     }
     
     virtual void compile_rest() {

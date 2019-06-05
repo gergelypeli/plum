@@ -1,22 +1,4 @@
 
-enum Opsize {
-    OPSIZE_LEGACY_BYTE, OPSIZE_LEGACY_WORD, OPSIZE_LEGACY_DWORD, OPSIZE_LEGACY_QWORD,
-    OPSIZE_HIGH_BYTE, OPSIZE_WORD, OPSIZE_DEFAULT, OPSIZE_QWORD
-};
-
-
-enum RexFlags {
-    REX_NONE=0x00,
-    REX_B=0x01,
-    REX_X=0x02,
-    REX_R=0x04,
-    REX_W=0x08,
-    REX_Q=0x10  // virtual flag, set if a register operand is SIL, DIL, SPL, BPL.
-};
-
-inline RexFlags operator |(RexFlags x, RexFlags y) { return (RexFlags)((int)x | (int)y); }
-
-
 enum SimpleOp {
     CBW, CDQ, CLC, CLD, CLI, CLTS, CMC, CQO,
     CWD, HLT, IRET, LAHF, NOP, POPFQ, PUSHFQ, RETF,
@@ -201,7 +183,7 @@ enum GprSsememOp {
 };
 
 
-class Asm64 {
+class Asm {
 public:
     enum Def_type {
         DEF_CODE,
@@ -233,6 +215,114 @@ public:
         }
     };
     
+    std::vector<char> code;
+    std::vector<char> data;
+    std::map<unsigned, Def> defs;
+    
+    Asm();
+    virtual ~Asm();
+    
+    virtual void done(std::string filename) =0;
+
+    virtual void add_def(Label label, const Def &def);
+    
+    virtual bool is_accounting();
+    virtual void adjust_stack_usage(int mod);
+
+    virtual void absolute_label(Label c, unsigned64 value, unsigned size = 0);
+
+    virtual void data_align(int bytes);
+    virtual void data_blob(void *blob, int length);
+    virtual void data_byte(char x);
+    virtual void data_word(int16 x);
+    virtual void data_dword(int x);
+    virtual void data_qword(int64 x);
+    virtual void data_zstring(std::string s);
+    virtual void data_double(double x);
+    virtual void data_label(Label c, unsigned size = 0);
+    virtual void data_label_local(Label c, std::string name, unsigned size = 0);
+    virtual void data_label_global(Label c, std::string name, unsigned size = 0);
+
+    virtual void code_byte(char x);
+    virtual void code_word(int16 x);
+    virtual void code_dword(int x);
+    virtual void code_qword(int64 x);
+    virtual void code_label(Label c, unsigned size = 0);
+    virtual void code_label_import(Label c, std::string name);
+    virtual void code_label_local(Label c, std::string name, unsigned size = 0);
+    virtual void code_label_global(Label c, std::string name, unsigned size = 0);
+
+    virtual int get_pc();
+    
+    virtual void op(SimpleOp opcode) =0;
+    virtual void op(UnaryOp opcode, Register x) =0;
+    virtual void op(UnaryOp opcode, Address x) =0;
+    virtual void op(PortOp opcode) =0;
+    virtual void op(PortOp opcode, int x) =0;
+    virtual void op(StringOp opcode) =0;
+    virtual void op(BinaryOp opcode, Register x, int y) =0;
+    virtual void op(BinaryOp opcode, Address x, int y) =0;
+    virtual void op(BinaryOp opcode, Register x, Register y) =0;
+    virtual void op(BinaryOp opcode, Register x, HighByteRegister y) =0;
+    virtual void op(BinaryOp opcode, Address x, Register y) =0;
+    virtual void op(BinaryOp opcode, Register x, Address y) =0;
+    virtual void op(MovabsOp opcode, Register x, int64 y) =0;  // 64-bit immediate capable
+    virtual void op(ShiftOp opcode, Register x, Register cl) =0;
+    virtual void op(ShiftOp opcode, Address x, Register cl) =0;
+    virtual void op(ShiftOp opcode, Register x, char y) =0;
+    virtual void op(ShiftOp opcode, Address x, char y) =0;
+    virtual void op(ExchangeOp opcode, Register x, Register y) =0;
+    virtual void op(ExchangeOp opcode, Address x, Register y) =0;
+    virtual void op(ExchangeOp opcode, Register x, Address y) =0;
+    virtual void op(StackOp opcode, int x) =0;
+    virtual void op(StackOp opcode, Register x) =0;
+    virtual void op(StackOp opcode, Address x) =0;
+    virtual void op(MemoryOp opcode, Address x) =0;
+    virtual void op(RegisterFirstOp opcode, Register x, Register y) =0;
+    virtual void op(RegisterFirstOp opcode, Register x, Address y) =0;
+    virtual void op(Imul3Op opcode, Register x, Register y, int z) =0;
+    virtual void op(Imul3Op opcode, Register x, Address y, int z) =0;
+    virtual void op(RegisterMemoryOp opcode, Register x, Address y) =0;
+    virtual void op(BitSetOp, Register x) =0;
+    virtual void op(BitSetOp, HighByteRegister x) =0;
+    virtual void op(BitSetOp, Address x) =0;
+    virtual void op(BranchOp opcode, Label c) =0;
+    virtual void op(JumpOp opcode, Label c) =0;
+    virtual void op(JumpOp opcode, Address x) =0;
+    virtual void op(JumpOp opcode, Register x) =0;
+    virtual void op(ConstantOp opcode, int x) =0;
+    
+    virtual void op(SsememSsememOp opcode, SseRegister x, SseRegister y) =0;
+    virtual void op(SsememSsememOp opcode, SseRegister x, Address y) =0;
+    virtual void op(SsememSsememOp opcode, Address x, SseRegister y) =0;
+    
+    virtual void op(SseSsememOp opcode, SseRegister x, SseRegister y) =0;
+    virtual void op(SseSsememOp opcode, SseRegister x, Address y) =0;
+
+    virtual void op(SseGprmemOp opcode, SseRegister x, Register y) =0;
+    virtual void op(SseGprmemOp opcode, SseRegister x, Address y) =0;
+
+    virtual void op(GprSsememOp opcode, Register x, SseRegister y) =0;
+    virtual void op(GprSsememOp opcode, Register x, Address y) =0;
+};
+
+
+class Asm_X64: public Asm {
+public:
+    enum Opsize {
+        OPSIZE_LEGACY_BYTE, OPSIZE_LEGACY_WORD, OPSIZE_LEGACY_DWORD, OPSIZE_LEGACY_QWORD,
+        OPSIZE_HIGH_BYTE, OPSIZE_WORD, OPSIZE_DEFAULT, OPSIZE_QWORD
+    };
+
+    enum RexFlags {
+        REX_NONE=0x00,
+        REX_B=0x01,
+        REX_X=0x02,
+        REX_R=0x04,
+        REX_W=0x08,
+        REX_Q=0x10  // virtual flag, set if a register operand is SIL, DIL, SPL, BPL.
+    };
+
     enum Ref_type {
         REF_CODE_SHORT,
         REF_CODE_RELATIVE,
@@ -245,123 +335,92 @@ public:
         unsigned def_index;
     };
 
-
-    std::vector<char> code;
-    std::vector<char> data;
-    std::map<unsigned, Def> defs;
     std::vector<Ref> refs;
     
-    Elf *elf;
+    Elf_X64 *elf_x64;
 
-    Asm64(std::string module_name);
-    ~Asm64();
+    Asm_X64(Elf_X64 *e);
+    virtual ~Asm_X64();
+
+    virtual void relocate();
+    virtual void done(std::string filename);
+
+    virtual void data_reference(Label c);
+
+    virtual void code_reference(Label c, int offset = 0);
     
-    void relocate();
-    void done(std::string filename);
+    virtual void effective_address(int regfield, Register rm);
+    virtual void effective_address(int regfield, SseRegister rm);
+    virtual void effective_address(int regfield, Address rm);
 
-    void add_def(Label label, const Def &def);
-
-    void absolute_label(Label c, unsigned64 value, unsigned size = 0);
-
-    void data_align(int bytes);
-    void data_blob(void *blob, int length);
-    void data_byte(char x);
-    void data_word(int16 x);
-    void data_dword(int x);
-    void data_qword(int64 x);
-    void data_zstring(std::string s);
-    void data_double(double x);
-    void data_label(Label c, unsigned size = 0);
-    void data_label_local(Label c, std::string name, unsigned size = 0);
-    void data_label_global(Label c, std::string name, unsigned size = 0);
-    void data_reference(Label c);
-
-    void code_byte(char x);
-    void code_word(int16 x);
-    void code_dword(int x);
-    void code_qword(int64 x);
-    void code_label(Label c, unsigned size = 0);
-    void code_label_import(Label c, std::string name);
-    void code_label_local(Label c, std::string name, unsigned size = 0);
-    void code_label_global(Label c, std::string name, unsigned size = 0);
-    void code_reference(Label c, int offset = 0);
-    int get_pc();
+    virtual RexFlags q(Register r);
+    virtual RexFlags r(Register regfield);
+    virtual RexFlags r(SseRegister regfield);
+    virtual RexFlags xb(Register regfield);
+    virtual RexFlags xb(SseRegister regfield);
+    virtual RexFlags xb(Address rm);
     
-    void effective_address(int regfield, Register rm);
-    void effective_address(int regfield, SseRegister rm);
-    void effective_address(int regfield, Address rm);
+    virtual void rex(RexFlags wrxb, bool force = false);
+    virtual void prefixless_op(int opcode);
+    virtual void prefixed_op(int opcode, Opsize opsize, RexFlags rxbq = REX_NONE);
+    
+    virtual void code_op(int opcode, Opsize opsize, Slash regfield, Register rm);
+    virtual void code_op(int opcode, Opsize opsize, Register regfield, Register rm);
+    virtual void code_op(int opcode, Opsize opsize, Slash regfield, Address rm);
+    virtual void code_op(int opcode, Opsize opsize, Register regfield, Address rm);
+    virtual void code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm);
+    virtual void code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm);
+    virtual void code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm);
+    virtual void code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm);
 
-    RexFlags q(Register r);
-    RexFlags r(Register regfield);
-    RexFlags r(SseRegister regfield);
-    RexFlags xb(Register regfield);
-    RexFlags xb(SseRegister regfield);
-    RexFlags xb(Address rm);
+    virtual void op(SimpleOp opcode);
+    virtual void op(UnaryOp opcode, Register x);
+    virtual void op(UnaryOp opcode, Address x);
+    virtual void op(PortOp opcode);
+    virtual void op(PortOp opcode, int x);
+    virtual void op(StringOp opcode);
+    virtual void op(BinaryOp opcode, Register x, int y);
+    virtual void op(BinaryOp opcode, Address x, int y);
+    virtual void op(BinaryOp opcode, Register x, Register y);
+    virtual void op(BinaryOp opcode, Register x, HighByteRegister y);
+    virtual void op(BinaryOp opcode, Address x, Register y);
+    virtual void op(BinaryOp opcode, Register x, Address y);
+    virtual void op(MovabsOp opcode, Register x, int64 y);  // 64-bit immediate capable
+    virtual void op(ShiftOp opcode, Register x, Register cl);
+    virtual void op(ShiftOp opcode, Address x, Register cl);
+    virtual void op(ShiftOp opcode, Register x, char y);
+    virtual void op(ShiftOp opcode, Address x, char y);
+    virtual void op(ExchangeOp opcode, Register x, Register y);
+    virtual void op(ExchangeOp opcode, Address x, Register y);
+    virtual void op(ExchangeOp opcode, Register x, Address y);
+    virtual void op(StackOp opcode, int x);
+    virtual void op(StackOp opcode, Register x);
+    virtual void op(StackOp opcode, Address x);
+    virtual void op(MemoryOp opcode, Address x);
+    virtual void op(RegisterFirstOp opcode, Register x, Register y);
+    virtual void op(RegisterFirstOp opcode, Register x, Address y);
+    virtual void op(Imul3Op opcode, Register x, Register y, int z);
+    virtual void op(Imul3Op opcode, Register x, Address y, int z);
+    virtual void op(RegisterMemoryOp opcode, Register x, Address y);
+    virtual void op(BitSetOp, Register x);
+    virtual void op(BitSetOp, HighByteRegister x);
+    virtual void op(BitSetOp, Address x);
+    virtual void op(BranchOp opcode, Label c);
+    virtual void op(JumpOp opcode, Label c);
+    virtual void op(JumpOp opcode, Address x);
+    virtual void op(JumpOp opcode, Register x);
+    virtual void op(ConstantOp opcode, int x);
     
-    void rex(RexFlags wrxb, bool force = false);
-    void prefixless_op(int opcode);
-    void prefixed_op(int opcode, Opsize opsize, RexFlags rxbq = REX_NONE);
+    virtual void op(SsememSsememOp opcode, SseRegister x, SseRegister y);
+    virtual void op(SsememSsememOp opcode, SseRegister x, Address y);
+    virtual void op(SsememSsememOp opcode, Address x, SseRegister y);
     
-    void code_op(int opcode, Opsize opsize, Slash regfield, Register rm);
-    void code_op(int opcode, Opsize opsize, Register regfield, Register rm);
-    void code_op(int opcode, Opsize opsize, Slash regfield, Address rm);
-    void code_op(int opcode, Opsize opsize, Register regfield, Address rm);
-    void code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm);
-    void code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm);
-    void code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm);
-    void code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm);
+    virtual void op(SseSsememOp opcode, SseRegister x, SseRegister y);
+    virtual void op(SseSsememOp opcode, SseRegister x, Address y);
 
-    void op(SimpleOp opcode);
-    void op(UnaryOp opcode, Register x);
-    void op(UnaryOp opcode, Address x);
-    void op(PortOp opcode);
-    void op(PortOp opcode, int x);
-    void op(StringOp opcode);
-    void op(BinaryOp opcode, Register x, int y);
-    void op(BinaryOp opcode, Address x, int y);
-    void op(BinaryOp opcode, Register x, Register y);
-    void op(BinaryOp opcode, Register x, HighByteRegister y);
-    void op(BinaryOp opcode, Address x, Register y);
-    void op(BinaryOp opcode, Register x, Address y);
-    void op(MovabsOp opcode, Register x, int64 y);  // 64-bit immediate capable
-    void op(ShiftOp opcode, Register x, Register cl);
-    void op(ShiftOp opcode, Address x, Register cl);
-    void op(ShiftOp opcode, Register x, char y);
-    void op(ShiftOp opcode, Address x, char y);
-    void op(ExchangeOp opcode, Register x, Register y);
-    void op(ExchangeOp opcode, Address x, Register y);
-    void op(ExchangeOp opcode, Register x, Address y);
-    void op(StackOp opcode, int x);
-    void op(StackOp opcode, Register x);
-    void op(StackOp opcode, Address x);
-    void op(MemoryOp opcode, Address x);
-    void op(RegisterFirstOp opcode, Register x, Register y);
-    void op(RegisterFirstOp opcode, Register x, Address y);
-    void op(Imul3Op opcode, Register x, Register y, int z);
-    void op(Imul3Op opcode, Register x, Address y, int z);
-    void op(RegisterMemoryOp opcode, Register x, Address y);
-    void op(BitSetOp, Register x);
-    void op(BitSetOp, HighByteRegister x);
-    void op(BitSetOp, Address x);
-    void op(BranchOp opcode, Label c);
-    void op(JumpOp opcode, Label c);
-    void op(JumpOp opcode, Address x);
-    void op(JumpOp opcode, Register x);
-    void op(ConstantOp opcode, int x);
-    
-    void op(SsememSsememOp opcode, SseRegister x, SseRegister y);
-    void op(SsememSsememOp opcode, SseRegister x, Address y);
-    void op(SsememSsememOp opcode, Address x, SseRegister y);
-    
-    void op(SseSsememOp opcode, SseRegister x, SseRegister y);
-    void op(SseSsememOp opcode, SseRegister x, Address y);
+    virtual void op(SseGprmemOp opcode, SseRegister x, Register y);
+    virtual void op(SseGprmemOp opcode, SseRegister x, Address y);
 
-    void op(SseGprmemOp opcode, SseRegister x, Register y);
-    void op(SseGprmemOp opcode, SseRegister x, Address y);
-
-    void op(GprSsememOp opcode, Register x, SseRegister y);
-    void op(GprSsememOp opcode, Register x, Address y);
-    
-    virtual bool is_accounting();
-    virtual void adjust_stack_usage(int mod);
+    virtual void op(GprSsememOp opcode, Register x, SseRegister y);
+    virtual void op(GprSsememOp opcode, Register x, Address y);
 };
