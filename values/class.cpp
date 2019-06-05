@@ -159,10 +159,7 @@ Storage ClassMatcherValue::compile(X64 *x64) {
     
     x64->code_label(not_matched);
     
-    int old_stack_usage = x64->accounting->mark();
-    ts.store(Storage(STACK), Storage(), x64);
-    raise("UNMATCHED", x64);
-    x64->accounting->rewind(old_stack_usage);
+    drop_and_raise(ts, Storage(STACK), "UNMATCHED", x64);
     
     x64->code_label(matched);
     x64->op(MOVQ, R11, Address(R10, ADDRESS_SIZE));  // matched role offset

@@ -123,10 +123,7 @@ Storage OptionSomeMatcherValue::compile(X64 *x64) {
         x64->op(CMPQ, Address(RSP, 0), OPTION_FLAG_NONE);
         x64->op(JNE, ok);
 
-        int old_stack_usage = x64->accounting->mark();
-        left->ts.store(ls, Storage(), x64);
-        raise("UNMATCHED", x64);
-        x64->accounting->rewind(old_stack_usage);
+        drop_and_raise(left->ts, ls, "UNMATCHED", x64);
 
         x64->code_label(ok);
         if (flag_size == ADDRESS_SIZE)
@@ -140,7 +137,7 @@ Storage OptionSomeMatcherValue::compile(X64 *x64) {
         x64->op(CMPQ, ls.address, OPTION_FLAG_NONE);
         x64->op(JNE, ok);
         
-        raise("UNMATCHED", x64);
+        drop_and_raise(left->ts, ls, "UNMATCHED", x64);
         
         x64->code_label(ok);
         return Storage(MEMORY, ls.address + flag_size);
@@ -215,10 +212,7 @@ Storage UnionMatcherValue::compile(X64 *x64) {
         x64->op(CMPQ, Address(RSP, 0), tag_index);
         x64->op(JE, ok);
 
-        int old_stack_usage = x64->accounting->mark();
-        left->ts.store(ls, Storage(), x64);
-        raise("UNMATCHED", x64);
-        x64->accounting->rewind(old_stack_usage);
+        drop_and_raise(left->ts, ls, "UNMATCHED", x64);
 
         x64->code_label(ok);
         
@@ -241,7 +235,7 @@ Storage UnionMatcherValue::compile(X64 *x64) {
         x64->op(CMPQ, ls.address, tag_index);
         x64->op(JE, ok);
         
-        raise("UNMATCHED", x64);
+        drop_and_raise(left->ts, ls, "UNMATCHED", x64);
         
         x64->code_label(ok);
         return Storage(MEMORY, ls.address + ADDRESS_SIZE);

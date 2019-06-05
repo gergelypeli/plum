@@ -169,6 +169,26 @@ void Raiser::raise(std::string keyword, X64 *x64) {
     x64->unwind->initiate(raising_dummy, x64);
 }
 
+void Raiser::drop_and_raise(TypeSpec left_ts, Storage ls, std::string keyword, X64 *x64) {
+    int old_stack_usage = x64->accounting->mark();
+    left_ts.store(ls, Storage(), x64);
+    
+    raise(keyword, x64);
+    
+    x64->accounting->rewind(old_stack_usage);
+}
+
+
+void Raiser::drop_two_and_raise(TypeSpec right_ts, Storage rs, TypeSpec left_ts, Storage ls, std::string keyword, X64 *x64) {
+    int old_stack_usage = x64->accounting->mark();
+    right_ts.store(rs, Storage(), x64);
+    left_ts.store(ls, Storage(), x64);
+    
+    raise(keyword, x64);
+    
+    x64->accounting->rewind(old_stack_usage);
+}
+
 
 
 

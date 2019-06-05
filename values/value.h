@@ -37,6 +37,8 @@ public:
     virtual void make_raising_dummy(Scope *scope);
     virtual bool check_raise(TreenumerationType *exception_type, Scope *scope);
     virtual void raise(std::string keyword, X64 *x64);
+    virtual void drop_and_raise(TypeSpec left_ts, Storage ls, std::string keyword, X64 *x64);
+    virtual void drop_two_and_raise(TypeSpec right_ts, Storage rs, TypeSpec left_ts, Storage ls, std::string keyword, X64 *x64);
 };
 
 class RvalueCastValue: public Value {

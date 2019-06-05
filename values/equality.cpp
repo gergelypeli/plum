@@ -147,10 +147,7 @@ Storage BulkEqualityMatcherValue::compile(X64 *x64) {
         x64->op(JE, equal);
     }
 
-    int old_stack_usage = x64->accounting->mark();
-    pivot_value->ts.store(ps, Storage(), x64);
-    raise("UNMATCHED", x64);
-    x64->accounting->rewind(old_stack_usage);
+    drop_and_raise(pivot_value->ts, ps, "UNMATCHED", x64);
     
     x64->code_label(equal);
     
