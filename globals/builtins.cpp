@@ -270,6 +270,12 @@ TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
 }
 
 
+template <typename ValueType>
+Value *make_value() {
+    return new ValueType;
+}
+
+
 void builtin_types(Scope *root_scope) {
 
     // Phase 1: declare the hypertype
@@ -365,31 +371,31 @@ void builtin_types(Scope *root_scope) {
 
     // Phase 5: declare regular metatypes, need the wildcard types and the colon scope
     
-    integer_metatype = new MetaType("Integer", { value_metatype }, make<IntegerDefinitionValue>);
+    integer_metatype = new MetaType("Integer", { value_metatype }, make_value<IntegerDefinitionValue>);
     colon_scope->add(integer_metatype);
 
-    enumeration_metatype = new MetaType("Enumeration", { value_metatype }, make<EnumerationDefinitionValue>);
+    enumeration_metatype = new MetaType("Enumeration", { value_metatype }, make_value<EnumerationDefinitionValue>);
     colon_scope->add(enumeration_metatype);
 
-    treenumeration_metatype = new MetaType("Treenumeration", { value_metatype }, make<TreenumerationDefinitionValue>);
+    treenumeration_metatype = new MetaType("Treenumeration", { value_metatype }, make_value<TreenumerationDefinitionValue>);
     colon_scope->add(treenumeration_metatype);
 
-    record_metatype = new MetaType("Record", { value_metatype }, make<RecordDefinitionValue>);
+    record_metatype = new MetaType("Record", { value_metatype }, make_value<RecordDefinitionValue>);
     colon_scope->add(record_metatype);
 
-    union_metatype = new MetaType("Union", { }, make<UnionDefinitionValue>);
+    union_metatype = new MetaType("Union", { }, make_value<UnionDefinitionValue>);
     colon_scope->add(union_metatype);
 
-    abstract_metatype = new MetaType("Abstract", { identity_metatype }, make<AbstractDefinitionValue>);
+    abstract_metatype = new MetaType("Abstract", { identity_metatype }, make_value<AbstractDefinitionValue>);
     colon_scope->add(abstract_metatype);
 
-    class_metatype = new MetaType("Class", { identity_metatype }, make<ClassDefinitionValue>);
+    class_metatype = new MetaType("Class", { identity_metatype }, make_value<ClassDefinitionValue>);
     colon_scope->add(class_metatype);
 
-    interface_metatype = new MetaType("Interface", { value_metatype }, make<InterfaceDefinitionValue>);
+    interface_metatype = new MetaType("Interface", { value_metatype }, make_value<InterfaceDefinitionValue>);
     colon_scope->add(interface_metatype);
 
-    import_metatype = new MetaType("Import", { type_metatype }, make<ImportDefinitionValue>);
+    import_metatype = new MetaType("Import", { type_metatype }, make_value<ImportDefinitionValue>);
     colon_scope->add(import_metatype);
 
 

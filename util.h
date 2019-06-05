@@ -13,6 +13,17 @@ typedef std::vector<std::unique_ptr<Expr>> Args;
 typedef std::map<std::string, std::unique_ptr<Expr>> Kwargs;
 
 
+template <class T, class S> T *ptr_cast(S *s) {
+    return dynamic_cast<T *>(s);
+}
+
+
+template <typename ValueType, typename... ArgTypes>
+ValueType *make(ArgTypes... args) {
+    return new ValueType(args...);
+}
+
+
 template <typename T>
 class devector {
 public:
