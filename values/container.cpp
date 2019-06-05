@@ -394,7 +394,7 @@ bool ContainerInitializerValue::check(Args &args, Kwargs &kwargs, Scope *scope) 
         TypeMatch match;
         
         if (!typematch(elem_ts, v, match)) {
-            std::cerr << "Container element is not " << elem_ts << ", but " << get_typespec(v) << "!\n";
+            std::cerr << "Container element is not " << elem_ts << ", but " << v->ts << "!\n";
             return false;
         }
         

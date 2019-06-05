@@ -88,11 +88,11 @@ void Function::allocate() {
         else {
             // Copying it is necessary, as overriding functions can only get it from each other
             virtual_index = implemented_function->virtual_index;
-            associable_override_virtual_entry(associated, virtual_index, mve);
+            associated->override_virtual_entry(virtual_index, mve);
             std::cerr << "Set virtual index " << virtual_index << " for function " << name << ".\n";
         }
 
-        if (associable_is_or_is_in_requiring(associated))
+        if (associated && (associated->is_requiring() || associated->is_in_requiring()))
             fn_scope->make_associated_offset_storage();
     }
     
@@ -157,8 +157,8 @@ bool Function::does_implement(TypeMatch tm, Function *iff, TypeMatch iftm) {
     // TODO: this should be referred somehow even if anonymous!
     if (exception_type != iff->exception_type) {
         std::cerr << "Mismatching implementation exception types, " <<
-            print_exception_type(exception_type) << " is not " <<
-            print_exception_type(iff->exception_type) << "!\n";
+            (exception_type ? exception_type->name : "-") << " is not " <<
+            (iff->exception_type ? iff->exception_type->name : "-") << "!\n";
         return false;
     }
     

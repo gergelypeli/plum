@@ -44,7 +44,6 @@ Value *make(A a, B b, C c, D d, E e, F f) {
 #include "typespec.h"
 #include "builtins.h"
 #include "builtins_errno.h"
-#include "functions.h"
 #include "typematch.h"
 #include "runtime.h"
 #include "modules.h"

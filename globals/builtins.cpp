@@ -248,6 +248,28 @@ TypeSpec INTEGER_SAME_ITEM_TS;
 TypeSpec COLON_TS;
 
 
+TreenumerationType *make_treenum(const char *name, const char *kw1) {
+    TreenumerationType *t = new TreenumerationType(name, { "", kw1 }, { 0, 0 });
+    t->make_inner_scope()->leave();
+    return t;
+}
+
+
+TreenumerationType *make_treenum(const char *name, TreenumInput *x) {
+    std::vector<std::string> keywords = { "" };
+    std::vector<unsigned> parents = { 0 };
+
+    for (unsigned i = 0; x[i].kw; i++) {
+        keywords.push_back(x[i].kw);
+        parents.push_back(x[i].p);
+    }
+
+    TreenumerationType *t = new TreenumerationType(name, keywords, parents);
+    t->make_inner_scope()->leave();
+    return t;
+}
+
+
 void builtin_types(Scope *root_scope) {
 
     // Phase 1: declare the hypertype

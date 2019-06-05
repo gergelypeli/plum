@@ -161,7 +161,7 @@ void Implementation::set_outer_scope(Scope *os) {
 Value *Implementation::make_value(Value *orig, TypeMatch match) {
     // If the pivot is not a concrete type, but a Ptr to an interface, then this
     // is accessing an abstract role via an interface pointer
-    TypeSpec ots = ::get_typespec(orig).rvalue();
+    TypeSpec ots = orig->ts.rvalue();
     
     if (ots[0] == ptr_type && ots.unprefix(ptr_type).has_meta(interface_metatype)) {
         throw INTERNAL_ERROR;  // FIXME: this should be obsolete now

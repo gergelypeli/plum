@@ -711,22 +711,22 @@ Value *PartialType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s
         n = n.substr(0, n.size() - 1);
     }
     
-    PartialInfo *pi = partial_variable_get_info(v);
+    PartialInfo *pi = dynamic_cast<PartialVariableValue *>(v)->partial_info;
     TypeSpec cast_ts = tm[1];
     // Use lvalue pivot cast for records so the members will be lvalues, too
     if (cast_ts.has_meta(record_metatype))
         cast_ts = cast_ts.lvalue();
 
     Value *cast_value = make<CastValue>(v, cast_ts);
-    Value *member = value_lookup_inner(cast_value, n, s);
+    Value *member = cast_value->lookup_inner(n, s);
 
     if (!member) {
         // Consider initializer delegation before giving up
         if (!dot) {
             std::cerr << "Partial not found, considering initializer delegation.\n";
         
-            set_typespec(cast_value, tm[1].prefix(initializable_type));
-            member = value_lookup_inner(cast_value, n, s);
+            cast_value->ts = tm[1].prefix(initializable_type);
+            member = cast_value->lookup_inner(n, s);
         
             if (member) {
                 if (pi->is_dirty()) {
@@ -746,7 +746,7 @@ Value *PartialType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s
     if (pi->is_uninitialized(n)) {
         //std::cerr << "Partial member " << n << " is uninitialized.\n";
         
-        TypeSpec member_ts = get_typespec(member);
+        TypeSpec member_ts = member->ts;
         //std::cerr << "Partial member " << n << " is " << member_ts << "\n";
         
         if (ptr_cast<RoleValue>(member)) {
@@ -759,7 +759,7 @@ Value *PartialType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s
             }
 
             // Accessed with the $ foo. syntax, allow
-            set_typespec(member, member_ts.prefix(initializable_type));
+            member->ts = member_ts.prefix(initializable_type);
             pi->be_initialized(n);
             return member;
         }
@@ -770,7 +770,7 @@ Value *PartialType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s
             }
             
             std::cerr << "Member variable " << n << " is not yet initialized.\n";
-            set_typespec(member, member_ts.reprefix(lvalue_type, uninitialized_type));
+            member->ts = member_ts.reprefix(lvalue_type, uninitialized_type);
             pi->be_initialized(n);
             return member;
         }

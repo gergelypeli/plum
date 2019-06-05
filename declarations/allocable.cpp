@@ -310,7 +310,7 @@ Label GlobalVariable::compile_initializer(X64 *x64) {
         throw INTERNAL_ERROR;
 
     alloc_ts.store(s, Storage(STACK), x64);
-    x64->op(CALL, function_get_label(initializer_function, x64));
+    x64->op(CALL, initializer_function->get_label(x64));
     alloc_ts.create(Storage(STACK), t, x64);
 
     x64->op(RET);
@@ -363,7 +363,7 @@ Label GlobalNamespace::compile_initializer(X64 *x64) {
     x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
 
     if (initializer_function)
-        x64->op(CALL, function_get_label(initializer_function, x64));
+        x64->op(CALL, initializer_function->get_label(x64));
 
     x64->op(RET);
     return label;

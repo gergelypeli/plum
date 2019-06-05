@@ -4,7 +4,7 @@ DECLS      = declaration identifier scope type basic record reference interface 
 VALUES     = value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset rbtree_weakmapset container option equality float weakref debug
 ARCHS      = elf asm64 storage basics dwarf
 PARSING    = tokenize treeize tupleize typize
-GLOBALS    = builtins builtins_errno typespec typematch functions runtime modules
+GLOBALS    = builtins builtins_errno typespec typematch runtime modules
 MODULES    = util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%) $(PARSING:%=parsing/%)
 OBJECTS    = $(MODULES:%=build/%.o)
 

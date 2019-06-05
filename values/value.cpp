@@ -607,7 +607,7 @@ Value *SelfVariableValue::lookup_inner(std::string name, Scope *scope) {
         if (!v)
             throw INTERNAL_ERROR;
             
-        function_call_be_static(v, r);
+        ptr_cast<FunctionCallValue>(v)->be_static(r);
 
         return v;
     }

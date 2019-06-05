@@ -49,7 +49,7 @@ Value *Identifier::match(std::string n, Value *pivot, Scope *scope) {
 
     TypeSpec pivot_ts = get_pivot_ts();
     
-    std::cerr << "Identifier match " << name << " from " << get_typespec(pivot) << " to " << pivot_ts << "\n";
+    std::cerr << "Identifier match " << name << " from " << (pivot ? pivot->ts : NO_TS) << " to " << pivot_ts << "\n";
 
     TypeMatch match;
         
@@ -63,14 +63,14 @@ Value *Identifier::match(std::string n, Value *pivot, Scope *scope) {
     if (typematch(pivot_ts, pivot, match)) {
         if (
             pivot_ts[0] != lvalue_type && pivot_ts[0] != uninitialized_type &&
-            get_typespec(pivot)[0] == lvalue_type && pivot_requirement != VARIABLE_PIVOT
+            pivot->ts[0] == lvalue_type && pivot_requirement != VARIABLE_PIVOT
         )
             pivot = make<RvalueCastValue>(pivot);
 
         return matched(pivot, scope, match);
     }
     else {
-        //std::cerr << "Identifier pivot " << get_typespec(pivot) << " did not match " << pivot_ts << "!\n";
+        //std::cerr << "Identifier pivot " << pivot->ts << " did not match " << pivot_ts << "!\n";
         return NULL;
     }
 }
@@ -115,7 +115,7 @@ Value *Unpacking::match(std::string n, Value *pivot, Scope *scope) {
         return NULL;
     }
 
-    TypeSpec pts = get_typespec(pivot);
+    TypeSpec pts = pivot->ts;
     
     if (!pts.has_meta(tuple_metatype))
         return NULL;
@@ -145,13 +145,13 @@ Value *NosytreeIdentifier::matched(Value *cpivot, Scope *scope, TypeMatch &match
     
     Value *pivot = make<NosytreeMemberValue>(cpivot, ets, member_ts);
     
-    if (get_typespec(pivot)[0] == lvalue_type && pivot_ts[0] != lvalue_type)
+    if (pivot->ts[0] == lvalue_type && pivot_ts[0] != lvalue_type)
         pivot = make<RvalueCastValue>(pivot);
     
     Args fake_args;
     Kwargs fake_kwargs;
 
-    if (!value_check(pivot, fake_args, fake_kwargs, scope))
+    if (!pivot->check(fake_args, fake_kwargs, scope))
         throw INTERNAL_ERROR;
     
     return create(pivot, ets);
@@ -190,26 +190,26 @@ ClassWrapperIdentifier::ClassWrapperIdentifier(std::string n, PivotRequirement p
 }
 
 Value *ClassWrapperIdentifier::matched(Value *pivot, Scope *scope, TypeMatch &match) {
-    Value *member = value_lookup_inner(pivot, "wrapped", scope);
+    Value *member = pivot->lookup_inner("wrapped", scope);
     
     if (autogrow) {
-        member = value_lookup_inner(member, "autogrow", scope);
+        member = member->lookup_inner("autogrow", scope);
         
         if (!member) {
-            std::cerr << "No autogrow for " << get_typespec(member) << "!\n";
+            std::cerr << "No autogrow for " << member->ts << "!\n";
             throw INTERNAL_ERROR;
         }
         
         Args args;
         Kwargs kwargs;
         
-        if (!value_check(member, args, kwargs, scope))
+        if (!member->check(args, kwargs, scope))
             throw INTERNAL_ERROR;
     }
     
-    Value *operation = value_lookup_inner(member, operation_name, scope);
+    Value *operation = member->lookup_inner(operation_name, scope);
     if (!operation) {
-        std::cerr << "No operation " << operation_name << " in " << get_typespec(member) << "!\n";
+        std::cerr << "No operation " << operation_name << " in " << member->ts << "!\n";
         throw INTERNAL_ERROR;
     }
     

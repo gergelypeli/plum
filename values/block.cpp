@@ -650,7 +650,7 @@ bool CreateValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
     Declaration *d = NULL;
     
     if (dv) {
-        d = declaration_get_decl(dv);
+        d = dv->get_decl();
         
         if (d)
             scope->remove(d);  // care
@@ -685,7 +685,7 @@ bool CreateValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
 void CreateValue::use(Value *r) {
     DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
     
-    if (!declaration_get_decl(dv))  // make sure no unfixed bare declarations
+    if (!dv->get_decl())  // make sure no unfixed bare declarations
         throw INTERNAL_ERROR;
         
     right.reset(r);
@@ -694,7 +694,7 @@ void CreateValue::use(Value *r) {
 Declaration *CreateValue::get_decl() {
     DeclarationValue *dv = ptr_cast<DeclarationValue>(left.get());
 
-    return (dv ? declaration_get_decl(dv) : NULL);
+    return (dv ? dv->get_decl() : NULL);
 }
 
 void CreateValue::escape_statement_variables() {

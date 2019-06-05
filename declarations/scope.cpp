@@ -702,7 +702,7 @@ bool TryScope::set_exception_type(TreenumerationType *et, bool is_implicit_match
     }
     
     if (exception_type != et) {
-        std::cerr << "Different exception types raised: " << treenumeration_get_name(exception_type) << " and " << treenumeration_get_name(et) << "!\n";
+        std::cerr << "Different exception types raised: " << exception_type->name << " and " << et->name << "!\n";
         return false;
     }
     

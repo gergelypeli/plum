@@ -33,7 +33,7 @@ std::vector<Storage> LvalueTupleValue::get_storages() {
 Declaration *LvalueTupleValue::get_declaration(int i) {
     DeclarationValue *dv = ptr_cast<DeclarationValue>(values[i].get());
     
-    return (dv ? declaration_get_decl(dv) : NULL);
+    return (dv ? dv->get_decl() : NULL);
 }
 
 TypeSpec LvalueTupleValue::fix_bare(int i, TypeSpec implicit_ts, Scope *scope) {

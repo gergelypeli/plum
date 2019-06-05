@@ -457,19 +457,19 @@ bool typematch(TypeSpec tt, Value *&value, TypeMatch &match) {
     if (tt == NO_TS)
         throw INTERNAL_ERROR;  // Mustn't be called with NO_TS
 
-    if (matchlog) std::cerr << "Matching " << get_typespec(value) << " to pattern " << tt << "...\n";
+    if (matchlog) std::cerr << "Matching " << value->ts << " to pattern " << tt << "...\n";
 
     match[0] = NO_TS;
     match[1] = NO_TS;
     match[2] = NO_TS;
     match[3] = NO_TS;
     
-    TypeSpec ss = get_typespec(value);
+    TypeSpec ss = value->ts;
     TypeSpecIter s(ss.begin());
     TypeSpecIter t(tt.begin());
     
     if (!match_attribute_type(s, t, match, value)) {
-        //std::cerr << "Typematch failed with " << get_typespec(value) << " to " << tt << "!\n";
+        //std::cerr << "Typematch failed with " << value->ts << " to " << tt << "!\n";
         return false;
     }
         
@@ -490,4 +490,236 @@ bool converts(TypeSpec sts, TypeSpec tts) {
     delete dummy_value;
     
     return ok;
+}
+
+
+void check_retros(unsigned i, Scope *scope, const std::vector<ArgInfo> &arg_infos, CodeScope *code_scope) {
+    // Grab all preceding Dvalue var declarations, and put them in this scope.
+    // Retro variables must only be accessible from the following Code argument's
+    // scope, because their initialization is only guaranteed while that Code
+    // is being evaluated.
+    std::vector<RetroArgumentScope *> retros;
+    
+    for (unsigned j = i - 1; j < i; j--) {
+        RetroArgumentValue *rav = ptr_cast<RetroArgumentValue>(arg_infos[j].target->get());
+        
+        if (rav) {
+            RetroArgumentScope *ras = rav->retro_argument_scope;
+            ras->outer_scope->remove(ras);
+            retros.push_back(ras);
+            std::cerr << "Moving retro argument " << arg_infos[j].name << " to code scope.\n";
+        }
+    }
+
+    scope->add(code_scope);
+    code_scope->enter();
+
+    for (auto ras : retros) {
+        code_scope->add(ras);
+    }
+}
+
+
+bool check_argument(unsigned i, Expr *e, const std::vector<ArgInfo> &arg_infos, bool is_function_call) {
+    if (i >= arg_infos.size()) {
+        std::cerr << "Too many arguments!\n";
+        return false;
+    }
+
+    if (!e && arg_infos[i].context) {
+        // Some arguments may be omitted
+        TypeSpec cts = *arg_infos[i].context;
+        
+        if (cts[0] == dvalue_type)
+            ;  // continue here
+        else if (cts[0] == ovalue_type || cts == TUPLE0_CODE_TS || cts[0] == unit_type)
+            return true;  // leave target empty
+        else {
+            std::cerr << "Missing mandatory argument " << arg_infos[i].name << "!\n";
+            return false;
+        }
+    }
+
+    std::unique_ptr<Value> *target = arg_infos[i].target;
+    TypeSpec *context = arg_infos[i].context;
+    Scope *scope = arg_infos[i].scope;
+
+    if (*target) {
+        std::cerr << "Argument " << i << " already supplied!\n";
+        return false;
+    }
+
+    // Some context types request a certain scope around the value
+    Type *ctx0 = (context ? (*context)[0] : NULL);
+    
+    CodeScope *code_scope = NULL;
+    RetroScope *retro_scope = NULL;
+    RetroArgumentScope *retro_argument_scope = NULL;
+    Scope *innermost_scope = scope;
+    
+    if (ctx0 == code_type && !is_function_call) {
+        code_scope = new CodeScope;
+        check_retros(i, scope, arg_infos, code_scope);  // FIXME: move to RetroScopeValue?
+        innermost_scope = code_scope;
+    }
+    else if (ctx0 == code_type && is_function_call) {
+        retro_scope = new RetroScope;
+        check_retros(i, scope, arg_infos, retro_scope);  // FIXME: move to RetroScopeValue?
+        innermost_scope = retro_scope;
+    }
+    else if (ctx0 == dvalue_type) {
+        retro_argument_scope = new RetroArgumentScope((*context).unprefix(dvalue_type));
+        scope->add(retro_argument_scope);
+        retro_argument_scope->enter();
+        innermost_scope = retro_argument_scope;
+    }
+
+    // The argument type being an Interface can't be a context for initializers
+    TypeSpec *constructive_context = context;
+    
+    if (context && (*context).rvalue().has_meta(interface_metatype))
+        constructive_context = NULL;
+
+    // NULL expr is now allowed for omitted value in Dvalue context
+    Value *v = (e ? typize(e, innermost_scope, constructive_context) : NULL);
+    
+    TypeMatch match;
+    
+    if (context && (*context)[0] != dvalue_type && !typematch(*context, v, match)) {
+        // Make an effort to print meaningful error messages
+        if (*context == WHATEVER_TUPLE1_CODE_TS)
+            std::cerr << "Expression must transfer control, not return " << v->ts << " at " << e->token << "!\n";
+        else
+            std::cerr << "Argument type mismatch, " << v->ts << " is not a " << *context << " at " << e->token << "!\n";
+
+        return false;
+    }
+
+    if (ctx0 != lvalue_type && v && v->ts[0] == lvalue_type && !(ctx0 && ctx0->meta_type == interface_metatype))
+        v = new RvalueCastValue(v);
+
+    if (code_scope) {
+        v = make<CodeScopeValue>(v, code_scope, v->ts);
+        code_scope->leave();
+    }
+    else if (retro_scope) {
+        v = make<RetroScopeValue>(v, retro_scope, match[0]);
+        retro_scope->leave();
+    }
+    else if (retro_argument_scope) {
+        v = make<RetroArgumentValue>(v, retro_argument_scope);
+        
+        if (!ptr_cast<RetroArgumentValue>(v)->check())
+            return false;
+            
+        retro_argument_scope->leave();
+    }
+
+    target->reset(v);
+    return true;
+}
+
+
+bool check_arguments(Args &args, Kwargs &kwargs, const ArgInfos &arg_infos, bool is_function_call) {
+    //std::cerr << "Checking arguments: ";
+    
+    //for (auto &ai : arg_infos)
+    //    std::cerr << ai.name << ":" << (ai.context ? *ai.context : NO_TS) << " ";
+        
+    //std::cerr << "\n";
+
+    unsigned n = arg_infos.size();
+    Expr *exprs[n];
+
+    for (unsigned i = 0; i < n; i++)
+        exprs[i] = NULL;
+
+    if (args.size() > n) {
+        std::cerr << "Too many arguments!\n";
+        return false;
+    }
+
+    for (unsigned i = 0; i < args.size(); i++) {
+        exprs[i] = args[i].get();
+        
+        //if (!check_argument(i, e, arg_infos))
+        //    return false;
+    }
+            
+    for (auto &kv : kwargs) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < n; j++) {
+            if (arg_infos[j].name == kv.first) {
+                i = j;
+                break;
+            }
+        }
+            
+        if (i == (unsigned)-1) {
+            std::cerr << "No argument named " << kv.first << "!\n";
+            return false;
+        }
+        
+        if (exprs[i]) {
+            std::cerr << "Argument " << i << " duplicated as " << kv.first << "!\n";
+            return false;
+        }
+        
+        exprs[i] = kv.second.get();
+        //std::cerr << "Checking keyword argument " << kv.first << ".\n";
+        
+        //if (!check_argument(i, e, arg_infos))
+        //    return false;
+    }
+
+    for (unsigned i = 0; i < n; i++) {
+        if (!check_argument(i, exprs[i], arg_infos, is_function_call))
+            return false;
+    }
+    
+    return true;
+}
+
+
+bool check_exprs(Args &args, Kwargs &kwargs, const ExprInfos &expr_infos) {
+    if (args.size() > 1)
+        throw INTERNAL_ERROR;
+    else if (args.size() == 1) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < expr_infos.size(); j++) {
+            if (expr_infos[j].name == "") {
+                i = j;
+                break;
+            }
+        }
+
+        if (i == (unsigned)-1) {
+            std::cerr << "No positional argument allowed!\n";
+            return false;
+        }
+        
+        *expr_infos[i].target = std::move(args[0]);
+    }
+
+    for (auto &kv : kwargs) {
+        unsigned i = (unsigned)-1;
+        
+        for (unsigned j = 0; j < expr_infos.size(); j++) {
+            if (expr_infos[j].name == kv.first) {
+                i = j;
+                break;
+            }
+        }
+            
+        if (i == (unsigned)-1) {
+            std::cerr << "No keyword argument named " << kv.first << "!\n";
+            return false;
+        }
+        
+        *expr_infos[i].target = std::move(kv.second);
+    }
+
+    return true;
 }

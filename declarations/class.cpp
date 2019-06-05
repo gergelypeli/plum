@@ -489,7 +489,7 @@ void ClassType::init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
 }
 
 Value *ClassType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
-    if (get_typespec(v)[0] == initializable_type) {
+    if (v->ts[0] == initializable_type) {
         // Base role initialization, takes a pivot argument
         std::cerr << "Class " << name << " initializer lookup " << n << ".\n";
         

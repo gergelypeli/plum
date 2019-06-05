@@ -556,7 +556,7 @@ FunctionCallValue::FunctionCallValue(Function *f, Value *p, TypeMatch &m)
     function = f;
     pivot.reset(p);
 
-    function->get_parameters(pivot_ts, res_tss, arg_tss, arg_names, get_typespec(p), m);
+    function->get_parameters(pivot_ts, res_tss, arg_tss, arg_names, p->ts, m);
     
     if (res_tss.size() == 0)
         ts = pivot_ts != NO_TS ? pivot_ts : VOID_TS;

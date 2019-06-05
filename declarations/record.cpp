@@ -36,8 +36,10 @@ bool RecordType::complete_type() {
             streamify_function = f;
     }
 
-    if (!has_custom_compare)
-        inner_scope->add(make_record_compare());
+    if (!has_custom_compare) {
+        Declaration *d = new TemplateOperation<RecordOperationValue>("compare", COMPARE);
+        inner_scope->add(d);
+    }
     
     if (member_variables.size() == 1)
         is_single = true;

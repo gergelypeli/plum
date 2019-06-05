@@ -35,7 +35,7 @@ bool is_type_name(std::string name) {
 
 
 Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
-    //std::cerr << "Looking up  " << get_typespec(pivot) << " " << name << " definition.\n";
+    //std::cerr << "Looking up  " << pivot->ts << " " << name << " definition.\n";
     Value *value = NULL;
     
     // Types are not pivot-scoped, but explicit scoped.
@@ -131,7 +131,7 @@ Value *lookup_unchecked(std::string name, Value *pivot, Scope *scope) {
     
     // TODO: we should print the definition pivot type, not the value type
     if (value) {
-        std::cerr << "Found       " << get_typespec(pivot) << " " << name << " returning " << value->ts << ".\n";
+        std::cerr << "Found       " << (pivot ? pivot->ts : NO_TS) << " " << name << " returning " << value->ts << ".\n";
         //std::cerr << "... type " << typeid(*value).name() << ".\n";
     }
         
@@ -144,7 +144,7 @@ Value *lookup_identifier(std::string name, Value *pivot, Scope *scope, Token tok
     Value *value = lookup_unchecked(name, pivot, scope);
     
     if (!value) {
-        std::cerr << "No match for " << get_typespec(pivot) << " " << name << " at " << token << "!\n";
+        std::cerr << "No match for " << pivot->ts << " " << name << " at " << token << "!\n";
         throw TYPE_ERROR;
     }
 
