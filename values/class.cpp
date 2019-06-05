@@ -142,19 +142,16 @@ Storage ClassMatcherValue::compile(X64 *x64) {
     
     value->compile_and_store(x64, Storage(STACK));
     
-    x64->op(LEA, R10, Address(ts.get_interface_table_label(x64), 0));
-    x64->op(PUSHQ, R10);  // target ACT
+    x64->op(LEA, R11, Address(ts.get_interface_table_label(x64), 0));  // target ACT
     
-    x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE));  // the reference
+    x64->op(MOVQ, R10, Address(RSP, 0));  // the borrowed reference
     x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));  // the virtual table
     x64->op(MOVQ, R10, Address(R10, VT_AUTOCONV_INDEX * ADDRESS_SIZE));  // table start
     
     x64->code_label(loop);
-    x64->op(MOVQ, R11, Address(R10, 0));  // interface id
-
-    x64->op(CMPQ, R11, 0);  // end marker
+    x64->op(CMPQ, Address(R10, 0), 0);  // check for table end marker
     x64->op(JE, not_matched);
-    x64->op(CMPQ, R11, Address(RSP, 0));
+    x64->op(CMPQ, Address(R10, 0), R11);  // check for target ACT
     x64->op(JE, matched);
     
     x64->op(ADDQ, R10, 2 * ADDRESS_SIZE);
@@ -163,15 +160,13 @@ Storage ClassMatcherValue::compile(X64 *x64) {
     x64->code_label(not_matched);
     
     int old_stack_usage = x64->accounting->mark();
-    x64->op(ADDQ, RSP, ADDRESS_SIZE);
     ts.store(Storage(STACK), Storage(), x64);
     raise("UNMATCHED", x64);
     x64->accounting->rewind(old_stack_usage);
     
     x64->code_label(matched);
-    x64->op(MOVQ, R11, Address(R10, ADDRESS_SIZE));  // role offset
-    x64->op(ADDQ, Address(RSP, ADDRESS_SIZE), R11);  // adjust result
-    x64->op(ADDQ, RSP, ADDRESS_SIZE);
+    x64->op(MOVQ, R11, Address(R10, ADDRESS_SIZE));  // matched role offset
+    x64->op(ADDQ, Address(RSP, 0), R11);  // adjust result reference
     
     return Storage(STACK);
 }
