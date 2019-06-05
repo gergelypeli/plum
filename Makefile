@@ -66,7 +66,7 @@ $(PRECOMP): plum.h $(HEADERS)
 $(OBJECTS): build/%.o: %.cpp $(PRECOMP)
 	@echo Compiling $@
 	@mkdir -p $(dir $@)
-	@$(GXX) $(CFLAGS) -c -o $@  $< > $(GCCLOG) 2>&1 || { head -n 30 $(GCCLOG); false; }
+	@$(GXX) $(CFLAGS) -c -o $@  $<
 
 $(SHAREDOBJ): $(SHAREDSRC)
 	@echo Compiling $@
