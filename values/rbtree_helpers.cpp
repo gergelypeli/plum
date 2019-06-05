@@ -423,8 +423,8 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
-    // Expects SELFX - tree, ROOTX - index, KEYX - key / key with destroyed value
-    // Returns R10 - new index, R11 - dark_soul
+    // Expects SELFX - tree, ROOTX - index, KEYX - key
+    // Returns R10 - new index, R11 - dark_soul, KEYX - index with destroyed value
     // Clobbers THISX, THATX
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("remove"));
     

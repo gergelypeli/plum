@@ -449,7 +449,7 @@ Storage RbtreeRemoveValue::compile(X64 *x64) {
 
     key_arg_ts.store(Storage(STACK), Storage(), x64);
 
-    // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
+    // Leaves ps/SELFX/KEYX point to the destroyed elem, for subclasses
     return postprocess(ps, x64);
 }
 
