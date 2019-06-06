@@ -231,7 +231,7 @@ void Asm_X64::relocate() {
             switch (d.type) {
             case DEF_CODE:
             case DEF_CODE_EXPORT: {
-                int64 distance = d.location - (r.location + 1);
+                int64 distance = d.location - r.location + r.addend;
                     
                 if (distance > 127 || distance < -128) {
                     std::cerr << "REF_CODE_SHORT can't jump " << distance << " bytes!\n";
@@ -250,13 +250,11 @@ void Asm_X64::relocate() {
         case REF_CODE_RELATIVE:
             // 4-byte relative references from code to code or data.
             // May be used for RIP-relative control transfer or data access.
-            // The relocated part is assumed to be the last part of the instruction,
-            // that is, at -4 bytes from the beginning of the next instruction.
             
             switch (d.type) {
             case DEF_CODE:
             case DEF_CODE_EXPORT: {
-                int64 distance = d.location - (r.location + 4);
+                int64 distance = d.location - r.location + r.addend;
                 
                 if (distance > 2147483647 || distance < -2147483648) {
                     std::cerr << "REF_CODE_RELATIVE can't jump " << distance << " bytes!\n";
@@ -267,11 +265,11 @@ void Asm_X64::relocate() {
                 }
                 break;
             case DEF_CODE_IMPORT:
-                elf_x64->code_relocation(d.symbol_index, r.location, -4);
+                elf_x64->code_relocation(d.symbol_index, r.location, r.addend);
                 break;
             case DEF_DATA:
             case DEF_DATA_EXPORT:
-                elf_x64->code_relocation(elf_x64->data_start_sym, r.location, d.location - 4);
+                elf_x64->code_relocation(elf_x64->data_start_sym, r.location, d.location + r.addend);
                 break;
             default:
                 std::cerr << "Can't relocate code relative to this symbol!\n";
@@ -286,18 +284,18 @@ void Asm_X64::relocate() {
             switch (d.type) {
             case DEF_ABSOLUTE:
             case DEF_ABSOLUTE_EXPORT:
-                *(unsigned64 *)&data[r.location] = d.location;
+                *(unsigned64 *)&data[r.location] = d.location + r.addend;
                 break;
             case DEF_DATA_EXPORT:
             case DEF_DATA:
-                elf_x64->data_relocation(elf_x64->data_start_sym, r.location, d.location);
+                elf_x64->data_relocation(elf_x64->data_start_sym, r.location, d.location + r.addend);
                 break;
             case DEF_CODE:
             case DEF_CODE_EXPORT:
-                elf_x64->data_relocation(elf_x64->code_start_sym, r.location, d.location);
+                elf_x64->data_relocation(elf_x64->code_start_sym, r.location, d.location + r.addend);
                 break;
             case DEF_CODE_IMPORT:
-                elf_x64->data_relocation(d.symbol_index, r.location, 0);
+                elf_x64->data_relocation(d.symbol_index, r.location, r.addend);
                 break;
             default:
                 std::cerr << "Can't relocate data absolute to this symbol!\n";
@@ -321,42 +319,25 @@ void Asm_X64::done(std::string filename) {
 }
 
 
-void Asm_X64::data_reference(Label label) {
+void Asm_X64::data_reference(Label label, int addend) {
     if (!label.def_index) {
         std::cerr << "Can't reference an undeclared label!\n";
         throw ASM_ERROR;
     }
 
-    refs.push_back(Ref());
-    Ref &r = refs.back();
-    
-    r.location = data.size();  // Store the beginning
-    r.type = REF_DATA_ABSOLUTE;
-    r.def_index = label.def_index;
-    
+    refs.push_back({ REF_DATA_ABSOLUTE, data.size(), label.def_index, addend });
     data_qword(0);  // 64-bit relocations only
 }
 
 
-void Asm_X64::code_reference(Label label, int offset) {
+void Asm_X64::code_reference(Label label, int addend) {
     if (!label.def_index) {
         std::cerr << "Can't reference an undeclared label!\n";
         throw ASM_ERROR;
     }
 
-    //if (label.def_index == 1347)
-    //    abort();
-
-    refs.push_back(Ref());
-    Ref &r = refs.back();
-
-    r.location = code.size();  // Store the beginning!
-    r.type = REF_CODE_RELATIVE;
-    r.def_index = label.def_index;
-
-    code_dword(offset);  // 32-bit offset only
-    
-    // TODO: shall we store 0 only, and put the offset into the addend?
+    refs.push_back({ REF_CODE_RELATIVE, code.size(), label.def_index, addend });
+    code_dword(0);  // 32-bit offset only
 }
 
 
@@ -534,9 +515,10 @@ void Asm_X64::effective_address(int regfield, Address x) {
         // Accessing a fixed memory location is only allowed using RIP-relative addressing,
         // so our code can be position independent.
         // Specifying DISP0 offsets with RBP/R13 base in r/m means [RIP+disp32].
+        // Assume the next instruction starts at the end of the 4-byte immediate value.
 
         code_byte((DISP0 << 6) | (regfield << 3) | RBP);
-        code_reference(x.label, offset);
+        code_reference(x.label, offset - 4);
     }
     else if (base == NOREG) {
         // Specifying DISP0 offsets with SIB with RBP/R13 base means [disp32].
@@ -1159,14 +1141,18 @@ void Asm_X64::op(BitSetOp opcode, Address x) {
 
 
 void Asm_X64::op(BranchOp opcode, Label c) {
+    // Assume the next instruction starts at the end of the 4-byte immediate value.
+    
     prefixless_op(0x0F80 | opcode);
-    code_reference(c);
+    code_reference(c, -4);
 }
 
 
 
 
 void Asm_X64::op(JumpOp opcode, Label c) {
+    // Assume the next instruction starts at the end of the 4-byte immediate value.
+    
     if (opcode == CALL) {
         if (is_accounting()) {
             adjust_stack_usage(16);
@@ -1174,11 +1160,11 @@ void Asm_X64::op(JumpOp opcode, Label c) {
         }
             
         prefixless_op(0xE8);
-        code_reference(c);
+        code_reference(c, -4);
     }
     else if (opcode == JMP) {
         prefixless_op(0xE9);
-        code_reference(c);
+        code_reference(c, -4);
     }
     else
         throw ASM_ERROR;

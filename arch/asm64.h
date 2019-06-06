@@ -333,6 +333,7 @@ public:
         Ref_type type;
         unsigned64 location;
         unsigned def_index;
+        int addend;
     };
 
     std::vector<Ref> refs;
@@ -345,9 +346,8 @@ public:
     virtual void relocate();
     virtual void done(std::string filename);
 
-    virtual void data_reference(Label c);
-
-    virtual void code_reference(Label c, int offset = 0);
+    virtual void data_reference(Label c, int addend = 0);
+    virtual void code_reference(Label c, int addend = 0);
     
     virtual void effective_address(int regfield, Register rm);
     virtual void effective_address(int regfield, SseRegister rm);
