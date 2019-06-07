@@ -52,7 +52,13 @@ enum Lsl {
 enum ShiftDir {
     SHIFT_LSL = 0,
     SHIFT_LSR = 1,
-    SHIFT_ASR = 2
+    SHIFT_ASR = 2,
+    SHIFT_ROR = 3  // not allowed for some instructions
+};
+
+enum Shift12 {
+    SHIFT12_NO,
+    SHIFT12_YES
 };
 
 enum MovImmOpcode {
@@ -83,7 +89,17 @@ enum MemOpcode {
 
 enum ArithOpcode {
     ADD, ADDS,
-    SUB, SUBS
+    SUB, SUBS,
+    AND, ANDS,
+    EOR, ORR
+};
+
+enum ArithNotOpcode {
+    EON, ORN
+};
+
+enum MulOpcode {
+    MADD
 };
 
 }
@@ -116,8 +132,13 @@ public:
     void op(MemOpcode opcode, Register rt, Register rn, int imm, bool post);
     void op(MemOpcode opcode, Register rt, Register rn, Register rm);
 
-    void op(ArithOpcode opcode, Register rd, Register rn, int imm, bool shift12 = false);
+    void op(ArithOpcode opcode, Register rd, Register rn, int imm, Shift12 shift12 = SHIFT12_NO);
+    void op(ArithOpcode opcode, Register rd, Register rn, unsigned lowest_bit, unsigned bit_length);
     void op(ArithOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir = SHIFT_LSL, int shift_amount = 0);
+
+    void op(ArithNotOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir = SHIFT_LSL, int shift_amount = 0);
+
+    void op(MulOpcode opcode, Register rd, Register rn, Register rm, Register ra);
 };
 
 
@@ -271,19 +292,73 @@ struct {
     { 0b10110001, 0b10101011 }, // ADDS
     { 0b11010001, 0b11001011 }, // SUB
     { 0b11110001, 0b11101011 }, // SUBS
+    { 0b10010010, 0b10001010 }, // AND
+    { 0b11110010, 0b11101010 }, // ANDS
+    { 0b11010010, 0b11001010 }, // EOR
+    { 0b10110010, 0b10101010 }, // ORR
 };
 
-void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, int imm, bool shift12) {
+static bool is_logical(ArithOpcode opcode) {
+    return (opcode == A::AND || opcode == ANDS || opcode == EOR || opcode == ORR);
+}
+
+void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, int imm, Shift12 shift12) {
+    if (is_logical(opcode))
+        throw ASM_ERROR;  // should use the bitmask operand version instead
+
     int op8 = arith_info[opcode].imm_op8;
-    int shift = (shift12 ? 0b01 : 0b00);
     
-    op(op8 << 24 | shift << 22 | uimm(imm, 12) << 10 | rn << 5 | rd << 0);
+    op(op8 << 24 | shift12 << 22 | uimm(imm, 12) << 10 | rn << 5 | rd << 0);
+}
+
+void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, unsigned lowest_bit, unsigned bit_length) {
+    if (!is_logical(opcode))
+        throw ASM_ERROR;  // should use the numeric operand version instead
+
+    if (lowest_bit >= 64 || bit_length >= 64 || bit_length == 0)
+        throw ASM_ERROR;
+
+    int op8 = arith_info[opcode].imm_op8;
+    int n = 0b01;  // we always use 64-bit wide patterns
+    int immr = (64 - lowest_bit) % 64;
+    int imms = bit_length - 1;
+    
+    op(op8 << 24 | n << 22 | immr << 16 | imms << 10 | rn << 5 | rd << 0);
 }
 
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
+    if (shift_dir == SHIFT_ROR && !is_logical(opcode))
+        throw ASM_ERROR;
+
     int op8 = arith_info[opcode].reg_op8;
+    int neg = 0b0;
     
-    op(op8 << 24 | shift_dir << 22 | 0b0 << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
+    op(op8 << 24 | shift_dir << 22 | neg << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
+}
+
+
+struct {
+    unsigned reg_op8;
+} arithnot_info[] = {
+    0b11001010, // EON  (practically EOR)
+    0b10101010, // ORN  (practically ORR)
+};
+
+void Asm_A64::op(ArithNotOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
+    int op8 = arithnot_info[opcode].reg_op8;
+    int neg = 0b1;
+    
+    op(op8 << 24 | shift_dir << 22 | neg << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
+}
+
+
+
+// Mul
+
+void Asm_A64::op(MulOpcode opcode, Register rd, Register rn, Register rm, Register ra) {
+    int op8 = 0b10011011;  // MADD
+    
+    op(op8 << 24 | 0b000 << 21 | rm << 16 | 0b0 << 15 | ra << 10 | rn << 5 | rd << 0);
 }
 
 
@@ -401,6 +476,21 @@ int main() {
     a64->op(SUB, R10, R11, R12, SHIFT_LSR, 10);
     a64->op(SUBS, R10, R11, R12, SHIFT_ASR, 10);
     
+    a64->op(A::AND, R10, R11, R12, SHIFT_ROR, 10);
+    a64->op(ANDS, R10, R11, R12, SHIFT_ROR, 10);
+    a64->op(EOR, R10, R11, R12, SHIFT_ROR, 10);
+    a64->op(ORR, R10, R11, R12, SHIFT_ROR, 10);
+    
+    a64->op(A::AND, R10, R11, 0, 4);
+    a64->op(ANDS, R10, R11, 4, 8);
+    a64->op(EOR, R10, R11, 8, 12);
+    a64->op(ORR, R10, R11, 12, 16);
+
+    a64->op(EON, R10, R11, R12, SHIFT_ROR, 10);
+    a64->op(ORN, R10, R11, R12, SHIFT_ROR, 10);
+    
+    a64->op(MADD, R10, R11, R12, R13);
+        
     a64->done("/tmp/aatest.o");
     
     return 0;
