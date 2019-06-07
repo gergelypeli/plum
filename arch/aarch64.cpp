@@ -41,11 +41,18 @@ void Elf_A64::line_relocation64(unsigned index, Elf64_Addr location, int addend)
 
 // Opcodes
 
+namespace A {
 enum Lsl {
     LSL_0 = 0,
     LSL_16 = 1,
     LSL_32 = 2,
     LSL_48 = 3
+};
+
+enum ShiftDir {
+    SHIFT_LSL = 0,
+    SHIFT_LSR = 1,
+    SHIFT_ASR = 2
 };
 
 enum MovImmOpcode {
@@ -74,6 +81,16 @@ enum MemOpcode {
 };
 
 
+enum ArithOpcode {
+    ADD, ADDS,
+    SUB, SUBS
+};
+
+}
+
+
+using namespace A;
+
 // Asm_A64
 
 class Asm_A64: public Asm {
@@ -83,11 +100,9 @@ public:
     Asm_A64(Elf_A64 *e);
 
     void done(std::string filename);
-    
-    int uimm16(int imm);
-    int simm9(int imm);
-    int simm7(int imm, int size);
-    int uimm12(int imm, int size);
+
+    int uimm(int imm, int width, int unit = 1);
+    int simm(int imm, int width, int unit = 1);
 
     void op(unsigned op);
 
@@ -100,6 +115,9 @@ public:
     void op(MemOpcode opcode, Register rt, Register rn, int imm);
     void op(MemOpcode opcode, Register rt, Register rn, int imm, bool post);
     void op(MemOpcode opcode, Register rt, Register rn, Register rm);
+
+    void op(ArithOpcode opcode, Register rd, Register rn, int imm, bool shift12 = false);
+    void op(ArithOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir = SHIFT_LSL, int shift_amount = 0);
 };
 
 
@@ -120,30 +138,17 @@ void Asm_A64::done(std::string filename) {
 }
 
 
-int Asm_A64::uimm16(int imm) {
-    if (imm >= -32768 && imm <= 32767)
-        return imm & 0xffff;
+int Asm_A64::uimm(int imm, int width, int unit) {
+    if (imm % unit == 0 && imm / unit >= 0 && imm / unit < (1 << width))
+        return (imm / unit) & ((1 << width) - 1);
     else
         throw ASM_ERROR;
 }
 
-int Asm_A64::simm9(int imm) {
-    if (imm >= -256 && imm <= 255)
-        return imm & 0x1ff;
-    else
-        throw ASM_ERROR;
-}
 
-int Asm_A64::simm7(int imm, int size) {
-    if (imm % size == 0 && imm / size >= -64 && imm / size <= 63)
-        return (imm / size) & 0x7f;
-    else
-        throw ASM_ERROR;
-}
-
-int Asm_A64::uimm12(int imm, int size) {
-    if (imm % size == 0 && imm / size >= 0 && imm / size <= 4095)
-        return (imm / size) & 0xfff;
+int Asm_A64::simm(int imm, int width, int unit) {
+    if (imm % unit == 0 && imm / unit >= (-1 << (width - 1)) && imm / unit < (1 << (width - 1)))
+        return (imm / unit) & ((1 << width) - 1);
     else
         throw ASM_ERROR;
 }
@@ -151,9 +156,11 @@ int Asm_A64::uimm12(int imm, int size) {
 void Asm_A64::op(unsigned opcode) {
     // NOTE: host must be little endian, as Aarch64 is, too
     
-    code_dword(opcode);  
+    code_dword(opcode);
 }
 
+
+// MovImm
 
 struct {
     unsigned op9;
@@ -164,7 +171,7 @@ struct {
 };
 
 void Asm_A64::op(MovImmOpcode opcode, Register rd, int imm, Lsl hw) {
-    op(movimm_info[opcode].op9 << 23 | hw << 21 | uimm16(imm) << 5 | rd << 0);
+    op(movimm_info[opcode].op9 << 23 | hw << 21 | uimm(imm, 16) << 5 | rd << 0);
 }
 
 
@@ -172,6 +179,8 @@ void Asm_A64::op(MovImmOpcode opcode, Register rd, int imm, Lsl hw) {
 //    op(ORR, rd, XZR, rm, 0);
 //}
 
+
+// Pair
 
 struct {
     unsigned op10;
@@ -183,15 +192,17 @@ struct {
 void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int imm) {
     int op10 = pair_info[opcode].op10 | 0b10 << 1;
     
-    op(op10 << 22 | simm7(imm, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
+    op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
 }
 
 void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int imm, bool post) {
     int op10 = pair_info[opcode].op10 | (post ? 0b01 : 0b11) << 1;
     
-    op(op10 << 22 | simm7(imm, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
+    op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
 }
 
+
+// Mem
 
 struct {
     unsigned op10;
@@ -216,40 +227,6 @@ enum {
     MEM_PREINDEX = 0b11
 };
 
-/*
-struct {
-    unsigned op10;
-    unsigned op2;
-} ldrimm_info[] = {
-    { 0b1111100101, 0 },  // LDR
-    { 0b1111100001, 0b11 },
-    { 0b1111100001, 0b01 },
-
-    { 0b1011100101, 0 },  // LDRUW
-    { 0b1011100001, 0b11 },
-    { 0b1011100001, 0b01 },
-
-    { 0b0111100101, 0 },  // LDRUH
-    { 0b0111100001, 0b11 },
-    { 0b0111100001, 0b01 },
-    
-    { 0b0011100101, 0 },  // LDRUB
-    { 0b0011100001, 0b11 },
-    { 0b0011100001, 0b01 },
-    
-    { 0b1011100110, 0 },  // LDRSW
-    { 0b1011100010, 0b11 },
-    { 0b1011100010, 0b01 },
-    
-    { 0b0111100110, 0 },  // LDRSH
-    { 0b0111100010, 0b11 },
-    { 0b0111100010, 0b01 },
-    
-    { 0b0011100110, 0 },  // LDRSB
-    { 0b0011100010, 0b11 },
-    { 0b0011100010, 0b01 }
-}
-*/
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm) {
     int op10 = mem_info[opcode].op10;
     int imm12;
@@ -258,11 +235,11 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm) {
     if (imm >= 0 && imm % size == 0) {
         // Use the scaled unsigned immediate version
         op10 |= 0b100;
-        imm12 = uimm12(imm, size);
+        imm12 = uimm(imm, 12, size);
     }
     else {
         // Use the unscaled signed immediate version
-        imm12 = 0 | simm9(imm) << 2 | MEM_NORMAL;
+        imm12 = 0 | simm(imm, 9) << 2 | MEM_NORMAL;
     }
     
     op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
@@ -270,7 +247,7 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm) {
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, bool post) {
     int op10 = mem_info[opcode].op10;
-    int imm12 = 0 | simm9(imm) << 2 | (post ? MEM_POSTINDEX : MEM_PREINDEX);
+    int imm12 = 0 | simm(imm, 9) << 2 | (post ? MEM_POSTINDEX : MEM_PREINDEX);
     
     op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
 }
@@ -284,24 +261,31 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, Register rm) {
 }
 
 
+// Arith
 
+struct {
+    unsigned imm_op8;
+    unsigned reg_op8;
+} arith_info[] = {
+    { 0b10010001, 0b10001011 }, // ADD
+    { 0b10110001, 0b10101011 }, // ADDS
+    { 0b11010001, 0b11001011 }, // SUB
+    { 0b11110001, 0b11101011 }, // SUBS
+};
 
-
-/*
-void Asm_A64::movz(Register rd, int imm16, Lsl hw) {
-    op(0b110100101 << 23 | hw << 21 | imm16 << 5 | rd << 0);
+void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, int imm, bool shift12) {
+    int op8 = arith_info[opcode].imm_op8;
+    int shift = (shift12 ? 0b01 : 0b00);
+    
+    op(op8 << 24 | shift << 22 | uimm(imm, 12) << 10 | rn << 5 | rd << 0);
 }
 
-
-void Asm_A64::movn(Register rd, int imm16, Lsl hw) {
-    op(0b100100101 << 23 | hw << 21 | imm16 << 5 | rd << 0);
+void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
+    int op8 = arith_info[opcode].reg_op8;
+    
+    op(op8 << 24 | shift_dir << 22 | 0b0 << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
 }
 
-
-void Asm_A64::movk(Register rd, int imm16, Lsl hw) {
-    op(0b111100101 << 23 | hw << 21 | imm16 << 5 | rd << 0);
-}
-*/
 
 
 
@@ -407,7 +391,17 @@ int main() {
     a64->op(STRH, R10, R12, 0x19);
     a64->op(STRB, R10, R12, 0x19);
     
-    a64->done("aatest.o");
+    a64->op(A::ADD, R10, R11, 100);
+    a64->op(ADDS, R10, R11, 100);
+    a64->op(SUB, R10, R11, 100);
+    a64->op(SUBS, R10, R11, 100);
+    
+    a64->op(A::ADD, R10, R11, R12, SHIFT_LSL, 0);
+    a64->op(ADDS, R10, R11, R12, SHIFT_LSL, 10);
+    a64->op(SUB, R10, R11, R12, SHIFT_LSR, 10);
+    a64->op(SUBS, R10, R11, R12, SHIFT_ASR, 10);
+    
+    a64->done("/tmp/aatest.o");
     
     return 0;
 }
