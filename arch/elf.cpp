@@ -333,22 +333,20 @@ void Elf::done(std::string filename) {
     
     FILE *out = fopen(filename.c_str(), "wb");
     
-    if (code.size() > 2) {
-        fwrite(&ehdr, sizeof(Elf64_Ehdr), 1, out);
-        fwrite(&shdr, sizeof(Elf64_Shdr), SECTION_COUNT, out);
-        fwrite(section_names.data(), 1, section_names.size(), out);
-        fwrite(strings.data(), 1, strings.size(), out);
-        fwrite(symbols.data(), sizeof(Elf64_Sym), symbols.size(), out);
-        fwrite(code_relocations.data(), sizeof(Elf64_Rela), code_relocations.size(), out);
-        fwrite(data_relocations.data(), sizeof(Elf64_Rela), data_relocations.size(), out);
-        fwrite(code.data(), 1, code.size(), out);
-        fwrite(data.data(), 1, data.size(), out);
-        fwrite(lineno.data(), 1, lineno.size(), out);
-        fwrite(abbrev.data(), 1, abbrev.size(), out);
-        fwrite(info.data(), 1, info.size(), out);
-        fwrite(line_relocations.data(), sizeof(Elf64_Rela), line_relocations.size(), out);
-        fwrite(info_relocations.data(), sizeof(Elf64_Rela), info_relocations.size(), out);
-    }
+    fwrite(&ehdr, sizeof(Elf64_Ehdr), 1, out);
+    fwrite(&shdr, sizeof(Elf64_Shdr), SECTION_COUNT, out);
+    fwrite(section_names.data(), 1, section_names.size(), out);
+    fwrite(strings.data(), 1, strings.size(), out);
+    fwrite(symbols.data(), sizeof(Elf64_Sym), symbols.size(), out);
+    fwrite(code_relocations.data(), sizeof(Elf64_Rela), code_relocations.size(), out);
+    fwrite(data_relocations.data(), sizeof(Elf64_Rela), data_relocations.size(), out);
+    fwrite(code.data(), 1, code.size(), out);
+    fwrite(data.data(), 1, data.size(), out);
+    fwrite(lineno.data(), 1, lineno.size(), out);
+    fwrite(abbrev.data(), 1, abbrev.size(), out);
+    fwrite(info.data(), 1, info.size(), out);
+    fwrite(line_relocations.data(), sizeof(Elf64_Rela), line_relocations.size(), out);
+    fwrite(info_relocations.data(), sizeof(Elf64_Rela), info_relocations.size(), out);
     
     fclose(out);
 }
