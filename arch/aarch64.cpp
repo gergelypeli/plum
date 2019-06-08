@@ -61,6 +61,38 @@ enum Shift12 {
     SHIFT12_YES
 };
 
+struct BitMask {
+    unsigned imms;  // index of the most significant bit to keep
+    unsigned immr;  // number of right rotations (variant depends on the instruction)
+    
+    // NOTES:
+    //   AND, ORR, EOR
+    //     use an artificial all-1s input
+    //     clear the higher bits
+    //     then cyclic rotate to the right, low bits returning of the high side
+    //   UBFM
+    //     clears the higher bits
+    //     logical shifts to the right, inserting 0 high bits
+    //     but when all bits would disappear, they appear at the highest bits
+    //   SBFM
+    //     sign extends the higher bits
+    //     arithmetic shifts to the right, inserting sign high bits
+    //     but when all bits would disappear, they appear at the highest bits
+    //   BFM
+    //     ignores the higher bits
+    //     shifts to the right, ignoring more high bits
+    //     but when all bits would disappear, they appear at the highest bits
+    //     only the significant bits are replaced in the destination, the rest is kept
+    
+    BitMask(unsigned s, unsigned r) {
+        if (s >= 64 || r >= 64)
+            throw ASM_ERROR;
+            
+        imms = s;
+        immr = r;
+    }
+};
+
 enum MovImmOpcode {
     MOVZ, MOVN, MOVK
 };
@@ -102,6 +134,54 @@ enum MulOpcode {
     MADD
 };
 
+enum DivOpcode {
+    SDIV, UDIV
+};
+
+enum ShiftOpcode {
+    ASR, LSL, LSR, ROR
+};
+
+enum BitFieldOpcode {
+    BFM, SBFM, UBFM
+};
+
+enum ExtrOpcode {
+    EXTR
+};
+
+enum NopOpcode {
+    NOP
+};
+
+enum JumpOpcode {
+    B, BL
+};
+
+enum CondCode {
+    CC_EQ, CC_NE,  // equal, not
+    CC_HS, CC_LO,  // unsigned higher or same, lower
+    CC_MI, CC_PL,  // minus, plus
+    CC_VS, CC_VC,  // overflow, not
+    CC_HI, CC_LS,  // unsigned higher, lower or same
+    CC_GE, CC_LT,  // signed greater or equal, less
+    CC_GT, CC_LE,  // signed greater, less or equal
+    CC_AL, CC_NV   // always, always
+};
+
+enum RetOpcode {
+    RET
+};
+
+enum RegLabelOpcode {
+    CBZ, CBNZ
+};
+
+enum CondSelOpcode {
+    CSEL, CSINC, CSINV, CSNEG
+};
+
+
 }
 
 
@@ -111,11 +191,26 @@ using namespace A;
 
 class Asm_A64: public Asm {
 public:
+    enum Ref_type {
+        REF_CODE_JUMP, REF_CODE_BRANCH
+    };
+
+    struct Ref {
+        Ref_type type;
+        unsigned64 location;
+        unsigned def_index;
+        int addend;
+    };
+
+    std::vector<Ref> refs;
+
     Elf_A64 *elf_a64;
 
     Asm_A64(Elf_A64 *e);
 
     void done(std::string filename);
+
+    void code_reference(Ref_type rt, Label label, int addend = 0);
 
     int uimm(int imm, int width, int unit = 1);
     int simm(int imm, int width, int unit = 1);
@@ -133,12 +228,31 @@ public:
     void op(MemOpcode opcode, Register rt, Register rn, Register rm);
 
     void op(ArithOpcode opcode, Register rd, Register rn, int imm, Shift12 shift12 = SHIFT12_NO);
+    void op(ArithOpcode opcode, Register rd, Register rn, BitMask bitmask);
     void op(ArithOpcode opcode, Register rd, Register rn, unsigned lowest_bit, unsigned bit_length);
     void op(ArithOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir = SHIFT_LSL, int shift_amount = 0);
 
     void op(ArithNotOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir = SHIFT_LSL, int shift_amount = 0);
 
     void op(MulOpcode opcode, Register rd, Register rn, Register rm, Register ra);
+
+    void op(DivOpcode opcode, Register rd, Register rn, Register rm);
+
+    void op(ShiftOpcode opcode, Register rd, Register rn, Register rm);
+
+    void op(BitFieldOpcode opcode, Register rd, Register rn, BitMask bitmask);
+    void op(ExtrOpcode opcode, Register rd, Register rn, Register rm, int lsb_index);
+    
+    void op(NopOpcode);
+    
+    void op(JumpOpcode opcode, Label label);
+    void op(JumpOpcode opcode, Register rn);
+    void op(JumpOpcode opcode, CondCode cc, Label label);
+
+    void op(RetOpcode opcode, Register rn);
+
+    void op(CondSelOpcode opcode, CondCode cc, Register rd, Register rn, Register rm);
+    void op(RegLabelOpcode opcode, Register rn, Label label);
 };
 
 
@@ -158,6 +272,14 @@ void Asm_A64::done(std::string filename) {
     delete elf_a64;
 }
 
+void Asm_A64::code_reference(Ref_type rt, Label label, int addend) {
+    if (!label.def_index) {
+        std::cerr << "Can't reference an undeclared label!\n";
+        throw ASM_ERROR;
+    }
+
+    refs.push_back({ rt, code.size(), label.def_index, addend });
+}
 
 int Asm_A64::uimm(int imm, int width, int unit) {
     if (imm % unit == 0 && imm / unit >= 0 && imm / unit < (1 << width))
@@ -311,6 +433,19 @@ void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, int imm, Shift12 
     op(op8 << 24 | shift12 << 22 | uimm(imm, 12) << 10 | rn << 5 | rd << 0);
 }
 
+void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, BitMask bitmask) {
+    if (!is_logical(opcode))
+        throw ASM_ERROR;  // should use the numeric operand version instead
+
+    if (bitmask.imms >= 63 || bitmask.immr >= 64)
+        throw ASM_ERROR;
+
+    int op8 = arith_info[opcode].imm_op8;
+    int n = 0b01;  // we always use 64-bit wide patterns
+    
+    op(op8 << 24 | n << 22 | bitmask.immr << 16 | bitmask.imms << 10 | rn << 5 | rd << 0);
+}
+
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, unsigned lowest_bit, unsigned bit_length) {
     if (!is_logical(opcode))
         throw ASM_ERROR;  // should use the numeric operand version instead
@@ -318,12 +453,7 @@ void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, unsigned lowest_b
     if (lowest_bit >= 64 || bit_length >= 64 || bit_length == 0)
         throw ASM_ERROR;
 
-    int op8 = arith_info[opcode].imm_op8;
-    int n = 0b01;  // we always use 64-bit wide patterns
-    int immr = (64 - lowest_bit) % 64;
-    int imms = bit_length - 1;
-    
-    op(op8 << 24 | n << 22 | immr << 16 | imms << 10 | rn << 5 | rd << 0);
+    op(opcode, rd, rn, BitMask(bit_length - 1, (64 - lowest_bit) % 64));
 }
 
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
@@ -362,6 +492,140 @@ void Asm_A64::op(MulOpcode opcode, Register rd, Register rn, Register rm, Regist
 }
 
 
+// Div
+
+void Asm_A64::op(DivOpcode opcode, Register rd, Register rn, Register rm) {
+    int op11 = 0b10011010110;
+    int op6 = (opcode == SDIV ? 0b000011 : 0b000010);
+    
+    op(op11 << 21 | rm << 16 | op6 << 10 | rn << 5 | rd << 0);
+}
+
+
+// Shift (register)
+
+struct {
+    unsigned op11;
+    unsigned op6;
+} shift_info[] = {
+    { 0b10011010110, 0b001010 },  // ASR
+    { 0b10011010110, 0b001000 },  // LSL
+    { 0b10011010110, 0b001001 },  // LSR
+    { 0b10011010110, 0b001011 }   // ROR
+};
+
+void Asm_A64::op(ShiftOpcode opcode, Register rd, Register rn, Register rm) {
+    int op11 = shift_info[opcode].op11;
+    int op6 = shift_info[opcode].op6;
+    
+    op(op11 << 21 | rm << 16 | op6 << 10 | rn << 5 | rd << 0);
+}
+
+
+// BitField
+
+struct {
+    unsigned imm_op8;
+} bitfield_info[] = {
+    { 0b10110011 },  // BFM
+    { 0b10010011 },  // SBFM
+    { 0b11010011 },  // UBFM
+};
+
+void Asm_A64::op(BitFieldOpcode opcode, Register rd, Register rn, BitMask bitmask) {
+    int op8 = bitfield_info[opcode].imm_op8;
+    int op2 = 0b01;
+    
+    op(op8 << 24 | op2 << 22 | bitmask.immr << 16 | bitmask.imms << 10 | rn << 5 | rd << 0);
+}
+
+void Asm_A64::op(ExtrOpcode opcode, Register rd, Register rn, Register rm, int lsb_index) {
+    int op11 = 0b10010011110;
+    int imm6 = uimm(lsb_index, 6);
+    
+    op(op11 << 21 | rm << 16 | imm6 << 10 | rn << 5 | rd << 0);
+}
+
+
+// Nop
+
+void Asm_A64::op(NopOpcode opcode) {
+    op(0b11010101000000110010000000011111);
+}
+
+
+// Branch
+
+void Asm_A64::op(JumpOpcode opcode, Label label) {
+    code_reference(REF_CODE_JUMP, label);  // needs imm26
+
+    int op6 = (opcode == B ? 0b000101 : opcode == A::BL ? 0b100101 : throw ASM_ERROR);
+
+    op(op6 << 26);
+}
+
+void Asm_A64::op(JumpOpcode opcode, Register rn) {
+    int op16 = (opcode == B ? 0b1101011000011111 : opcode == A::BL ? 0b1101011000111111 : throw ASM_ERROR);
+
+    op(op16 << 16 | 0b000000 << 10 | rn << 5 | 0b00000 << 0);
+}
+
+void Asm_A64::op(JumpOpcode opcode, CondCode cc, Label label) {
+    if (opcode != B)
+        throw ASM_ERROR;
+        
+    code_reference(REF_CODE_BRANCH, label);  // needs imm19
+
+    int op8 = 0b01010100;
+
+    op(op8 << 24 | 0b0 << 4 | cc);
+}
+
+
+// Ret
+
+void Asm_A64::op(RetOpcode opcode, Register rn) {
+    int op22 = 0b1101011001011111000000;
+    int op5 = 0b00000;
+
+    op(op22 << 10 | rn << 5 | op5 << 0);
+}
+
+
+// CondSel
+
+struct {
+    unsigned op11;
+    unsigned op2;
+} condsel_info[] = {
+    { 0b10011010100, 0b00 },  // CSEL
+    { 0b10011010100, 0b01 },  // CSINC
+    { 0b11011010100, 0b00 },  // CSINV
+    { 0b11011010100, 0b01 },  // CSNEG
+};
+
+void Asm_A64::op(CondSelOpcode opcode, CondCode cc, Register rd, Register rn, Register rm) {
+    int op11 = condsel_info[opcode].op11;
+    int op2 = condsel_info[opcode].op2;
+    
+    op(op11 << 21 | rm << 16 | cc << 12 | op2 << 10 | rn << 5 | rd << 0);
+}
+
+void Asm_A64::op(RegLabelOpcode opcode, Register rn, Label label) {
+    code_reference(REF_CODE_BRANCH, label);  // needs imm19
+    
+    int op8 = (opcode == CBZ ? 0b10110100 : opcode == CBNZ ? 0b10110101 : throw ASM_ERROR);
+    
+    op(op8 << 24 | rn << 0);
+}
+
+
+
+
+// NOTES:
+//   CMP A, B => SUBS XZR, A, B
+//   TST A, B => ANDS XZR, A, B
+//   MOV A, B => ORR A, B, XZR
 
 
 class A64: public Asm_A64 {
@@ -490,7 +754,41 @@ int main() {
     a64->op(ORN, R10, R11, R12, SHIFT_ROR, 10);
     
     a64->op(MADD, R10, R11, R12, R13);
+    a64->op(SDIV, R10, R11, R12);
+    a64->op(UDIV, R10, R11, R12);
+
+    a64->op(ASR, R10, R11, R12);
+    a64->op(LSL, R10, R11, R12);
+    a64->op(LSR, R10, R11, R12);
+    a64->op(ROR, R10, R11, R12);
+
+    a64->op(BFM, R10, R11, BitMask(3, 0));
+    a64->op(SBFM, R10, R11, BitMask(3, 0));
+    a64->op(UBFM, R10, R11, BitMask(3, 0));
+
+    a64->op(A::NOP);
         
+    Label somewhere;
+    a64->op(B, somewhere);
+    a64->op(B, R10);
+    a64->op(A::BL, somewhere);
+    a64->op(A::BL, R10);
+    
+    a64->op(B, CC_EQ, somewhere);
+    a64->op(B, CC_LT, somewhere);
+    a64->op(B, CC_GT, somewhere);
+    a64->op(B, CC_AL, somewhere);
+
+    a64->op(A::RET, R10);
+    
+    a64->op(CSEL, CC_EQ, R10, R11, R12);
+    a64->op(CSINC, CC_EQ, R10, R11, R12);
+    a64->op(CSINV, CC_EQ, R10, R11, R12);
+    a64->op(CSNEG, CC_EQ, R10, R11, R12);
+
+    a64->op(CBZ, R10, somewhere);
+    a64->op(CBNZ, R10, somewhere);
+
     a64->done("/tmp/aatest.o");
     
     return 0;
