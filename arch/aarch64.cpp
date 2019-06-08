@@ -215,7 +215,7 @@ public:
     int uimm(int imm, int width, int unit = 1);
     int simm(int imm, int width, int unit = 1);
 
-    void op(unsigned op);
+    void code_op(unsigned op);
 
     void op(MovImmOpcode opcode, Register rd, int imm, Lsl hw);
     //void op(MovImmOpcode, Register rd, Register rm);
@@ -296,7 +296,7 @@ int Asm_A64::simm(int imm, int width, int unit) {
         throw ASM_ERROR;
 }
 
-void Asm_A64::op(unsigned opcode) {
+void Asm_A64::code_op(unsigned opcode) {
     // NOTE: host must be little endian, as Aarch64 is, too
     
     code_dword(opcode);
@@ -314,12 +314,12 @@ struct {
 };
 
 void Asm_A64::op(MovImmOpcode opcode, Register rd, int imm, Lsl hw) {
-    op(movimm_info[opcode].op9 << 23 | hw << 21 | uimm(imm, 16) << 5 | rd << 0);
+    code_op(movimm_info[opcode].op9 << 23 | hw << 21 | uimm(imm, 16) << 5 | rd << 0);
 }
 
 
 //void Asm_A64::op(MovImmOpcode, Register rd, Register rm) {
-//    op(ORR, rd, XZR, rm, 0);
+//    code_op(ORR, rd, XZR, rm, 0);
 //}
 
 
@@ -335,13 +335,13 @@ struct {
 void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int imm) {
     int op10 = pair_info[opcode].op10 | 0b10 << 1;
     
-    op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
+    code_op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
 }
 
 void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int imm, bool post) {
     int op10 = pair_info[opcode].op10 | (post ? 0b01 : 0b11) << 1;
     
-    op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
+    code_op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
 }
 
 
@@ -385,14 +385,14 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm) {
         imm12 = 0 | simm(imm, 9) << 2 | MEM_NORMAL;
     }
     
-    op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
+    code_op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
 }
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, bool post) {
     int op10 = mem_info[opcode].op10;
     int imm12 = 0 | simm(imm, 9) << 2 | (post ? MEM_POSTINDEX : MEM_PREINDEX);
     
-    op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
+    code_op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
 }
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, Register rm) {
@@ -400,7 +400,7 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, Register rm) {
     int option = 0b011;  // LSL
     int scale = 0b0;
 
-    op(op10 << 22 | 0b1 << 21 | rm << 16 | option << 13 | scale << 12 | 0b10 << 10 | rn << 5 | rt << 0);
+    code_op(op10 << 22 | 0b1 << 21 | rm << 16 | option << 13 | scale << 12 | 0b10 << 10 | rn << 5 | rt << 0);
 }
 
 
@@ -430,7 +430,7 @@ void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, int imm, Shift12 
 
     int op8 = arith_info[opcode].imm_op8;
     
-    op(op8 << 24 | shift12 << 22 | uimm(imm, 12) << 10 | rn << 5 | rd << 0);
+    code_op(op8 << 24 | shift12 << 22 | uimm(imm, 12) << 10 | rn << 5 | rd << 0);
 }
 
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, BitMask bitmask) {
@@ -443,7 +443,7 @@ void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, BitMask bitmask) 
     int op8 = arith_info[opcode].imm_op8;
     int n = 0b01;  // we always use 64-bit wide patterns
     
-    op(op8 << 24 | n << 22 | bitmask.immr << 16 | bitmask.imms << 10 | rn << 5 | rd << 0);
+    code_op(op8 << 24 | n << 22 | bitmask.immr << 16 | bitmask.imms << 10 | rn << 5 | rd << 0);
 }
 
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, unsigned lowest_bit, unsigned bit_length) {
@@ -463,7 +463,7 @@ void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, Register rm, Shif
     int op8 = arith_info[opcode].reg_op8;
     int neg = 0b0;
     
-    op(op8 << 24 | shift_dir << 22 | neg << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
+    code_op(op8 << 24 | shift_dir << 22 | neg << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
 }
 
 
@@ -478,7 +478,7 @@ void Asm_A64::op(ArithNotOpcode opcode, Register rd, Register rn, Register rm, S
     int op8 = arithnot_info[opcode].reg_op8;
     int neg = 0b1;
     
-    op(op8 << 24 | shift_dir << 22 | neg << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
+    code_op(op8 << 24 | shift_dir << 22 | neg << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
 }
 
 
@@ -488,7 +488,7 @@ void Asm_A64::op(ArithNotOpcode opcode, Register rd, Register rn, Register rm, S
 void Asm_A64::op(MulOpcode opcode, Register rd, Register rn, Register rm, Register ra) {
     int op8 = 0b10011011;  // MADD
     
-    op(op8 << 24 | 0b000 << 21 | rm << 16 | 0b0 << 15 | ra << 10 | rn << 5 | rd << 0);
+    code_op(op8 << 24 | 0b000 << 21 | rm << 16 | 0b0 << 15 | ra << 10 | rn << 5 | rd << 0);
 }
 
 
@@ -498,7 +498,7 @@ void Asm_A64::op(DivOpcode opcode, Register rd, Register rn, Register rm) {
     int op11 = 0b10011010110;
     int op6 = (opcode == SDIV ? 0b000011 : 0b000010);
     
-    op(op11 << 21 | rm << 16 | op6 << 10 | rn << 5 | rd << 0);
+    code_op(op11 << 21 | rm << 16 | op6 << 10 | rn << 5 | rd << 0);
 }
 
 
@@ -518,7 +518,7 @@ void Asm_A64::op(ShiftOpcode opcode, Register rd, Register rn, Register rm) {
     int op11 = shift_info[opcode].op11;
     int op6 = shift_info[opcode].op6;
     
-    op(op11 << 21 | rm << 16 | op6 << 10 | rn << 5 | rd << 0);
+    code_op(op11 << 21 | rm << 16 | op6 << 10 | rn << 5 | rd << 0);
 }
 
 
@@ -536,21 +536,21 @@ void Asm_A64::op(BitFieldOpcode opcode, Register rd, Register rn, BitMask bitmas
     int op8 = bitfield_info[opcode].imm_op8;
     int op2 = 0b01;
     
-    op(op8 << 24 | op2 << 22 | bitmask.immr << 16 | bitmask.imms << 10 | rn << 5 | rd << 0);
+    code_op(op8 << 24 | op2 << 22 | bitmask.immr << 16 | bitmask.imms << 10 | rn << 5 | rd << 0);
 }
 
 void Asm_A64::op(ExtrOpcode opcode, Register rd, Register rn, Register rm, int lsb_index) {
     int op11 = 0b10010011110;
     int imm6 = uimm(lsb_index, 6);
     
-    op(op11 << 21 | rm << 16 | imm6 << 10 | rn << 5 | rd << 0);
+    code_op(op11 << 21 | rm << 16 | imm6 << 10 | rn << 5 | rd << 0);
 }
 
 
 // Nop
 
 void Asm_A64::op(NopOpcode opcode) {
-    op(0b11010101000000110010000000011111);
+    code_op(0b11010101000000110010000000011111);
 }
 
 
@@ -561,13 +561,13 @@ void Asm_A64::op(JumpOpcode opcode, Label label) {
 
     int op6 = (opcode == B ? 0b000101 : opcode == A::BL ? 0b100101 : throw ASM_ERROR);
 
-    op(op6 << 26);
+    code_op(op6 << 26);
 }
 
 void Asm_A64::op(JumpOpcode opcode, Register rn) {
     int op16 = (opcode == B ? 0b1101011000011111 : opcode == A::BL ? 0b1101011000111111 : throw ASM_ERROR);
 
-    op(op16 << 16 | 0b000000 << 10 | rn << 5 | 0b00000 << 0);
+    code_op(op16 << 16 | 0b000000 << 10 | rn << 5 | 0b00000 << 0);
 }
 
 void Asm_A64::op(JumpOpcode opcode, CondCode cc, Label label) {
@@ -578,7 +578,7 @@ void Asm_A64::op(JumpOpcode opcode, CondCode cc, Label label) {
 
     int op8 = 0b01010100;
 
-    op(op8 << 24 | 0b0 << 4 | cc);
+    code_op(op8 << 24 | 0b0 << 4 | cc);
 }
 
 
@@ -588,7 +588,7 @@ void Asm_A64::op(RetOpcode opcode, Register rn) {
     int op22 = 0b1101011001011111000000;
     int op5 = 0b00000;
 
-    op(op22 << 10 | rn << 5 | op5 << 0);
+    code_op(op22 << 10 | rn << 5 | op5 << 0);
 }
 
 
@@ -608,7 +608,7 @@ void Asm_A64::op(CondSelOpcode opcode, CondCode cc, Register rd, Register rn, Re
     int op11 = condsel_info[opcode].op11;
     int op2 = condsel_info[opcode].op2;
     
-    op(op11 << 21 | rm << 16 | cc << 12 | op2 << 10 | rn << 5 | rd << 0);
+    code_op(op11 << 21 | rm << 16 | cc << 12 | op2 << 10 | rn << 5 | rd << 0);
 }
 
 void Asm_A64::op(RegLabelOpcode opcode, Register rn, Label label) {
@@ -616,7 +616,7 @@ void Asm_A64::op(RegLabelOpcode opcode, Register rn, Label label) {
     
     int op8 = (opcode == CBZ ? 0b10110100 : opcode == CBNZ ? 0b10110101 : throw ASM_ERROR);
     
-    op(op8 << 24 | rn << 0);
+    code_op(op8 << 24 | rn << 0);
 }
 
 
