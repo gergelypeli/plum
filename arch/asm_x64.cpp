@@ -1,154 +1,6 @@
 #include "../plum.h"
 
-
-Asm::Asm() {
-}
-
-
-Asm::~Asm() {
-}
-
-
-void Asm::add_def(Label label, const Def &def) {
-    if (!label.def_index) {
-        std::cerr << "Can't define an undeclared label!\n";
-        throw ASM_ERROR;
-    }
-
-    if (defs.count(label.def_index)) {
-        std::cerr << "Can't redefine label!\n";
-        throw ASM_ERROR;
-    }
-
-    defs.insert(decltype(defs)::value_type(label.def_index, def));
-}
-
-
-void Asm::absolute_label(Label c, unsigned64 value, unsigned size) {
-    add_def(c, Def(DEF_ABSOLUTE, value, size, "", false));
-}
-
-
-void Asm::data_align(int bytes) {
-    data.resize((data.size() + (bytes - 1)) & ~(bytes - 1));
-}
-
-
-void Asm::data_blob(void *blob, int length) {
-    data.resize(data.size() + length);
-    memcpy(data.data() + data.size() - length, blob, length);
-}
-
-
-void Asm::data_byte(char x) {
-    data.push_back(x);
-}
-
-
-void Asm::data_word(int16 x) {
-    data.resize(data.size() + 2);
-    *(short *)(data.data() + data.size() - 2) = x;
-}
-
-
-void Asm::data_dword(int x) {
-    data.resize(data.size() + 4);
-    *(int *)(data.data() + data.size() - 4) = x;
-}
-
-
-void Asm::data_qword(int64 x) {
-    data.resize(data.size() + 8);
-    *(int64 *)(data.data() + data.size() - 8) = x;
-}
-
-
-void Asm::data_zstring(std::string s) {
-    for (char c : s)
-        data.push_back(c);
-        
-    data.push_back(0);
-}
-
-
-void Asm::data_double(double x) {
-    data.resize(data.size() + 8);
-    *(double *)(data.data() + data.size() - 8) = x;
-}
-
-
-void Asm::data_label(Label c, unsigned size) {
-    add_def(c, Def(DEF_DATA, data.size(), size, "", false));
-}
-
-
-void Asm::data_label_local(Label c, std::string name, unsigned size) {
-    add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, false));
-}
-
-
-void Asm::data_label_global(Label c, std::string name, unsigned size) {
-    add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, true));
-}
-
-
-void Asm::code_byte(char x) {
-    code.push_back(x);
-}
-
-
-void Asm::code_word(int16 x) {
-    code.resize(code.size() + 2);
-    *(int16 *)(code.data() + code.size() - 2) = x;
-}
-
-
-void Asm::code_dword(int x) {
-    code.resize(code.size() + 4);
-    *(int *)(code.data() + code.size() - 4) = x;
-}
-
-
-void Asm::code_qword(int64 x) {
-    code.resize(code.size() + 8);
-    *(int64 *)(code.data() + code.size() - 8) = x;
-}
-
-
-void Asm::code_label(Label c, unsigned size) {
-    add_def(c, Def(DEF_CODE, code.size(), size, "", false));
-}
-
-
-void Asm::code_label_import(Label c, std::string name) {
-    add_def(c, Def(DEF_CODE_IMPORT, 0, 0, name, false));
-}
-
-
-void Asm::code_label_local(Label c, std::string name, unsigned size) {
-    add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, false));
-}
-
-
-void Asm::code_label_global(Label c, std::string name, unsigned size) {
-    add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, true));
-}
-
-
-int Asm::get_pc() {
-    return code.size();
-}
-
-
-bool Asm::is_accounting() {
-    return false;
-}
-
-
-void Asm::adjust_stack_usage(int mod) {
-    throw ASM_ERROR;
-}
-
+using namespace X;
 
 // Asm_X64
 
@@ -178,10 +30,11 @@ const int OPSIZE_REX_PREFIX = 0x40;
 Asm_X64::RexFlags operator |(Asm_X64::RexFlags x, Asm_X64::RexFlags y) { return (Asm_X64::RexFlags)((int)x | (int)y); }
 
 
-Asm_X64::Asm_X64(Elf_X64 *e) {
+Asm_X64::Asm_X64(Elf_X64 *e)
+    :Asm() {
     elf_x64 = e;
     
-    op(UD2);  // Have fun jumping to address 0
+    op(X::UD2);  // Have fun jumping to address 0
 }
 
 
@@ -641,7 +494,7 @@ int simple_info[] = {
 };
 
 
-void Asm_X64::op(SimpleOp opcode) {
+void Asm_X64::op(X::SimpleOp opcode) {
     prefixless_op(simple_info[opcode]);
 }
 
@@ -669,7 +522,7 @@ struct {
 };
 
 
-void Asm_X64::op(UnaryOp opcode, Register x) {
+void Asm_X64::op(X::UnaryOp opcode, Register x) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -677,7 +530,7 @@ void Asm_X64::op(UnaryOp opcode, Register x) {
     code_op(info.op, OPSIZE_LEGACY(opcode), info.regfield, x);
 }
 
-void Asm_X64::op(UnaryOp opcode, Address x) {
+void Asm_X64::op(X::UnaryOp opcode, Address x) {
     auto &info = unary_info[opcode >> 2];
     code_op(info.op, OPSIZE_LEGACY(opcode), info.regfield, x);
 }
@@ -685,16 +538,16 @@ void Asm_X64::op(UnaryOp opcode, Address x) {
 
 
 
-void Asm_X64::op(PortOp opcode) {
-    if ((opcode | 3) == INQ)
+void Asm_X64::op(X::PortOp opcode) {
+    if ((opcode | 3) == X::INQ)
         prefixed_op(0xEC, OPSIZE_LEGACY(opcode));
     else
         prefixed_op(0xEE, OPSIZE_LEGACY(opcode));
 }
 
 
-void Asm_X64::op(PortOp opcode, int x) {
-    if ((opcode | 3) == INQ)
+void Asm_X64::op(X::PortOp opcode, int x) {
+    if ((opcode | 3) == X::INQ)
         prefixed_op(0xE4, OPSIZE_LEGACY(opcode));
     else
         prefixed_op(0xE6, OPSIZE_LEGACY(opcode));
@@ -714,7 +567,7 @@ int string_info[] = {
 };
 
 
-void Asm_X64::op(StringOp opcode) {
+void Asm_X64::op(X::StringOp opcode) {
     // 64-bit mode uses the RCX, RSI, RDI registers because of using 64-bit ADDRESS size.
     // The REP prefixes must precede the REX prefix, so we must encode it manually.
     // NOTE: REP MOVSB/STOSB is really fast on post Ivy Bridge processors, even if they
@@ -749,11 +602,11 @@ struct {
 };
 
 
-void Asm_X64::op(BinaryOp opcode, Register x, int y) {
+void Asm_X64::op(X::BinaryOp opcode, Register x, int y) {
     if (is_accounting() && x == RSP) {
-        if (opcode == ADDQ)
+        if (opcode == X::ADDQ)
             adjust_stack_usage(-y);
-        else if (opcode == SUBQ)
+        else if (opcode == X::SUBQ)
             adjust_stack_usage(y);
         else
             throw ASM_ERROR;
@@ -770,7 +623,7 @@ void Asm_X64::op(BinaryOp opcode, Register x, int y) {
     }
 }
 
-void Asm_X64::op(BinaryOp opcode, Address x, int y) {
+void Asm_X64::op(X::BinaryOp opcode, Address x, int y) {
     if (x.label.def_index) {
         // Must adjust RIP-relative offset with trailing immediate operand
         switch (opcode & 3) {
@@ -792,18 +645,18 @@ void Asm_X64::op(BinaryOp opcode, Address x, int y) {
     }
 }
 
-void Asm_X64::op(BinaryOp opcode, Register x, Register y) {
+void Asm_X64::op(X::BinaryOp opcode, Register x, Register y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
-    if ((opcode | 3) == MOVQ && x == y)
+    if ((opcode | 3) == X::MOVQ && x == y)
         return;  // Don't embarrass ourselves
 
     auto &info = binary_info[opcode >> 2];
     code_op(info.op2, OPSIZE_LEGACY(opcode), y, x);
 }
 
-void Asm_X64::op(BinaryOp opcode, Register x, HighByteRegister y) {
+void Asm_X64::op(X::BinaryOp opcode, Register x, HighByteRegister y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -817,12 +670,12 @@ void Asm_X64::op(BinaryOp opcode, Register x, HighByteRegister y) {
     code_op(info.op2, OPSIZE_HIGH_BYTE, (Register)y, x);
 }
 
-void Asm_X64::op(BinaryOp opcode, Address x, Register y) {
+void Asm_X64::op(X::BinaryOp opcode, Address x, Register y) {
     auto &info = binary_info[opcode >> 2];
     code_op(info.op2, OPSIZE_LEGACY(opcode), y, x);
 }
 
-void Asm_X64::op(BinaryOp opcode, Register x, Address y) {
+void Asm_X64::op(X::BinaryOp opcode, Register x, Address y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -833,7 +686,7 @@ void Asm_X64::op(BinaryOp opcode, Register x, Address y) {
 
 
 
-void Asm_X64::op(MovabsOp opcode, Register x, int64 y) {
+void Asm_X64::op(X::MovabsOp opcode, Register x, int64 y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -860,7 +713,7 @@ Slash shift_info[] = {
 // spell it out. But CL would automatically convert to char, and encode
 // the constant shifts! So calling these function with a second operand of CL
 // would encode shifts by 1 (CL numeric value)!
-void Asm_X64::op(ShiftOp opcode, Register x, Register cl) {
+void Asm_X64::op(X::ShiftOp opcode, Register x, Register cl) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -871,7 +724,7 @@ void Asm_X64::op(ShiftOp opcode, Register x, Register cl) {
     code_op(0xD2, OPSIZE_LEGACY(opcode), info, x);
 }
 
-void Asm_X64::op(ShiftOp opcode, Address x, Register cl) {
+void Asm_X64::op(X::ShiftOp opcode, Address x, Register cl) {
     if (cl != CL)
         throw ASM_ERROR;
 
@@ -879,7 +732,7 @@ void Asm_X64::op(ShiftOp opcode, Address x, Register cl) {
     code_op(0xD2, OPSIZE_LEGACY(opcode), info, x);
 }
 
-void Asm_X64::op(ShiftOp opcode, Register x, char y) {
+void Asm_X64::op(X::ShiftOp opcode, Register x, char y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -894,7 +747,7 @@ void Asm_X64::op(ShiftOp opcode, Register x, char y) {
     }
 }
 
-void Asm_X64::op(ShiftOp opcode, Address x, char y) {
+void Asm_X64::op(X::ShiftOp opcode, Address x, char y) {
     auto &info = shift_info[opcode >> 2];
 
     if (y == 1) {
@@ -914,18 +767,18 @@ void Asm_X64::op(ShiftOp opcode, Address x, char y) {
 
 
 
-void Asm_X64::op(ExchangeOp opcode, Register x, Register y) {
+void Asm_X64::op(X::ExchangeOp opcode, Register x, Register y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
     code_op(0x86, OPSIZE_LEGACY(opcode), x, y);
 }
 
-void Asm_X64::op(ExchangeOp opcode, Address x, Register y) {
+void Asm_X64::op(X::ExchangeOp opcode, Address x, Register y) {
     code_op(0x86, OPSIZE_LEGACY(opcode), y, x);
 }
 
-void Asm_X64::op(ExchangeOp opcode, Register x, Address y) {
+void Asm_X64::op(X::ExchangeOp opcode, Register x, Address y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -935,8 +788,8 @@ void Asm_X64::op(ExchangeOp opcode, Register x, Address y) {
 
 
 
-void Asm_X64::op(StackOp opcode, int x) {
-    if (opcode == PUSHQ) {
+void Asm_X64::op(X::StackOp opcode, int x) {
+    if (opcode == X::PUSHQ) {
         if (is_accounting())
             adjust_stack_usage(8);
 
@@ -947,14 +800,14 @@ void Asm_X64::op(StackOp opcode, int x) {
         throw ASM_ERROR;
 }
 
-void Asm_X64::op(StackOp opcode, Register x) {
-    if (opcode == PUSHQ) {
+void Asm_X64::op(X::StackOp opcode, Register x) {
+    if (opcode == X::PUSHQ) {
         if (is_accounting())
             adjust_stack_usage(8);
             
         prefixed_op(0x50 | (x & 0x07), OPSIZE_DEFAULT, xb(x));
     }
-    else if (opcode == POPQ) {
+    else if (opcode == X::POPQ) {
         if (is_accounting()) {
             if (x == RSP)
                 throw ASM_ERROR;
@@ -968,14 +821,14 @@ void Asm_X64::op(StackOp opcode, Register x) {
         throw ASM_ERROR;
 }
 
-void Asm_X64::op(StackOp opcode, Address x) {
-    if (opcode == PUSHQ) {
+void Asm_X64::op(X::StackOp opcode, Address x) {
+    if (opcode == X::PUSHQ) {
         if (is_accounting())
             adjust_stack_usage(8);
             
         code_op(0xFF, OPSIZE_DEFAULT, SLASH_6, x);
     }
-    else if (opcode == POPQ) {
+    else if (opcode == X::POPQ) {
         if (is_accounting())
             adjust_stack_usage(-8);
             
@@ -1003,7 +856,7 @@ struct {
         {0xD9,   SLASH_5}
 };
 
-void Asm_X64::op(MemoryOp opcode, Address x) {
+void Asm_X64::op(X::MemoryOp opcode, Address x) {
     auto &info = memory_info[opcode];
     code_op(info.op, OPSIZE_DEFAULT, info.regfield, x);
 }
@@ -1021,7 +874,7 @@ int registerfirst_info[] = {
     0x63   // MOVSXD with DWORD size zero extends a DWORD to QWORD (like a normal MOVD)
 };
 
-void Asm_X64::op(RegisterFirstOp opcode, Register x, Register y) {
+void Asm_X64::op(X::RegisterFirstOp opcode, Register x, Register y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -1029,7 +882,7 @@ void Asm_X64::op(RegisterFirstOp opcode, Register x, Register y) {
     code_op(info, OPSIZE_NONBYTE(opcode), x, y);
 }
 
-void Asm_X64::op(RegisterFirstOp opcode, Register x, Address y) {
+void Asm_X64::op(X::RegisterFirstOp opcode, Register x, Address y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -1040,7 +893,7 @@ void Asm_X64::op(RegisterFirstOp opcode, Register x, Address y) {
 
 
 
-void Asm_X64::op(Imul3Op opcode, Register x, Register y, int z) {
+void Asm_X64::op(X::Imul3Op opcode, Register x, Register y, int z) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -1060,7 +913,7 @@ void Asm_X64::op(Imul3Op opcode, Register x, Register y, int z) {
     }
 }
 
-void Asm_X64::op(Imul3Op opcode, Register x, Address y, int z) {
+void Asm_X64::op(X::Imul3Op opcode, Register x, Address y, int z) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -1101,8 +954,8 @@ int registermemory_info[] = {
 };
 
 
-void Asm_X64::op(RegisterMemoryOp opcode, Register x, Address y) {
-    if (opcode == LEA) {
+void Asm_X64::op(X::RegisterMemoryOp opcode, Register x, Address y) {
+    if (opcode == X::LEA) {
         if (is_accounting() && x == RSP) {
             if (y.base == RSP && y.index == NOREG)
                 adjust_stack_usage(-y.offset);
@@ -1120,7 +973,7 @@ void Asm_X64::op(RegisterMemoryOp opcode, Register x, Address y) {
 
 
 
-void Asm_X64::op(BitSetOp opcode, Register x) {
+void Asm_X64::op(X::BitSetOp opcode, Register x) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
@@ -1128,19 +981,19 @@ void Asm_X64::op(BitSetOp opcode, Register x) {
 }
 
 
-void Asm_X64::op(BitSetOp opcode, HighByteRegister x) {
+void Asm_X64::op(X::BitSetOp opcode, HighByteRegister x) {
     code_op(0x0F90 | opcode, OPSIZE_HIGH_BYTE, SLASH_0, (Register)x);
 }
 
 
-void Asm_X64::op(BitSetOp opcode, Address x) {
+void Asm_X64::op(X::BitSetOp opcode, Address x) {
     code_op(0x0F90 | opcode, OPSIZE_DEFAULT, SLASH_0, x);
 }
 
 
 
 
-void Asm_X64::op(BranchOp opcode, Label c) {
+void Asm_X64::op(X::BranchOp opcode, Label c) {
     // Assume the next instruction starts at the end of the 4-byte immediate value.
     
     prefixless_op(0x0F80 | opcode);
@@ -1150,10 +1003,10 @@ void Asm_X64::op(BranchOp opcode, Label c) {
 
 
 
-void Asm_X64::op(JumpOp opcode, Label c) {
+void Asm_X64::op(X::JumpOp opcode, Label c) {
     // Assume the next instruction starts at the end of the 4-byte immediate value.
     
-    if (opcode == CALL) {
+    if (opcode == X::CALL) {
         if (is_accounting()) {
             adjust_stack_usage(16);
             adjust_stack_usage(-16);
@@ -1162,7 +1015,7 @@ void Asm_X64::op(JumpOp opcode, Label c) {
         prefixless_op(0xE8);
         code_reference(c, -4);
     }
-    else if (opcode == JMP) {
+    else if (opcode == X::JMP) {
         prefixless_op(0xE9);
         code_reference(c, -4);
     }
@@ -1171,8 +1024,8 @@ void Asm_X64::op(JumpOp opcode, Label c) {
 }
 
 
-void Asm_X64::op(JumpOp opcode, Address x) {
-    if (opcode == CALL) {
+void Asm_X64::op(X::JumpOp opcode, Address x) {
+    if (opcode == X::CALL) {
         if (is_accounting()) {
             adjust_stack_usage(16);
             adjust_stack_usage(-16);
@@ -1180,7 +1033,7 @@ void Asm_X64::op(JumpOp opcode, Address x) {
             
         code_op(0xFF, OPSIZE_DEFAULT, SLASH_2, x);
     }
-    else if (opcode == JMP) {
+    else if (opcode == X::JMP) {
         code_op(0xFF, OPSIZE_DEFAULT, SLASH_4, x);
     }
     else
@@ -1188,8 +1041,8 @@ void Asm_X64::op(JumpOp opcode, Address x) {
 }
 
 
-void Asm_X64::op(JumpOp opcode, Register x) {
-    if (opcode == CALL) {
+void Asm_X64::op(X::JumpOp opcode, Register x) {
+    if (opcode == X::CALL) {
         if (is_accounting()) {
             adjust_stack_usage(16);
             adjust_stack_usage(-16);
@@ -1197,7 +1050,7 @@ void Asm_X64::op(JumpOp opcode, Register x) {
             
         code_op(0xFF, OPSIZE_DEFAULT, SLASH_2, x);
     }
-    else if (opcode == JMP) {
+    else if (opcode == X::JMP) {
         code_op(0xFF, OPSIZE_DEFAULT, SLASH_4, x);
     }
     else
@@ -1205,19 +1058,19 @@ void Asm_X64::op(JumpOp opcode, Register x) {
 }
 
 
-void Asm_X64::op(ConstantOp opcode, int x) {
+void Asm_X64::op(X::ConstantOp opcode, int x) {
     if (is_accounting())
         throw ASM_ERROR;
 
-    if (opcode == INT) {
+    if (opcode == X::INT) {
         prefixless_op(0xCD);
         code_byte(x);
     }
-    else if (opcode == RETX) {
+    else if (opcode == X::RETX) {
         prefixless_op(0xC2);
         code_word(x);
     }
-    else if (opcode == RETFX) {
+    else if (opcode == X::RETFX) {
         prefixless_op(0xCA);
         code_word(x);
     }
@@ -1233,17 +1086,17 @@ struct {
     { 0xF30F10, 0xF30F11 },  // MOVSS
 };
 
-void Asm_X64::op(SsememSsememOp opcode, SseRegister x, SseRegister y) {
+void Asm_X64::op(X::SsememSsememOp opcode, SseRegister x, SseRegister y) {
     code_op(ssemem_ssemem_info[opcode].op1, OPSIZE_DEFAULT, x, y);
 }
 
 
-void Asm_X64::op(SsememSsememOp opcode, SseRegister x, Address y) {
+void Asm_X64::op(X::SsememSsememOp opcode, SseRegister x, Address y) {
     code_op(ssemem_ssemem_info[opcode].op1, OPSIZE_DEFAULT, x, y);
 }
 
 
-void Asm_X64::op(SsememSsememOp opcode, Address x, SseRegister y) {
+void Asm_X64::op(X::SsememSsememOp opcode, Address x, SseRegister y) {
     code_op(ssemem_ssemem_info[opcode].op2, OPSIZE_DEFAULT, y, x);
 }
 
@@ -1263,11 +1116,11 @@ int sse_ssemem_info[] = {  // xmm1, xmm2/mem64  Test REX placement!
     0x660FEF,  // PXOR
 };
 
-void Asm_X64::op(SseSsememOp opcode, SseRegister x, SseRegister y) {
+void Asm_X64::op(X::SseSsememOp opcode, SseRegister x, SseRegister y) {
     code_op(sse_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
-void Asm_X64::op(SseSsememOp opcode, SseRegister x, Address y) {
+void Asm_X64::op(X::SseSsememOp opcode, SseRegister x, Address y) {
     code_op(sse_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
@@ -1276,11 +1129,11 @@ int sse_gprmem_info[] = {  // xmm1, reg64/mem64
     0xF20F2A,  // CVTSI2SD
 };
 
-void Asm_X64::op(SseGprmemOp opcode, SseRegister x, Register y) {
+void Asm_X64::op(X::SseGprmemOp opcode, SseRegister x, Register y) {
     code_op(sse_gprmem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
-void Asm_X64::op(SseGprmemOp opcode, SseRegister x, Address y) {
+void Asm_X64::op(X::SseGprmemOp opcode, SseRegister x, Address y) {
     code_op(sse_gprmem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
@@ -1290,14 +1143,14 @@ int gpr_ssemem_info[] = {  // reg64, xmm1/mem64
     0xF20F2C,  // CVTTSD2SI
 };
 
-void Asm_X64::op(GprSsememOp opcode, Register x, SseRegister y) {
+void Asm_X64::op(X::GprSsememOp opcode, Register x, SseRegister y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 
     code_op(gpr_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
-void Asm_X64::op(GprSsememOp opcode, Register x, Address y) {
+void Asm_X64::op(X::GprSsememOp opcode, Register x, Address y) {
     if (is_accounting() && x == RSP)
         throw ASM_ERROR;
 

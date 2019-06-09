@@ -1232,7 +1232,7 @@ Address Runtime::make_address(Register base, Register index, int scale, int offs
 
 
 void Runtime::log(std::string message) {
-    int message_offset = x64->data.size();
+    int message_offset = x64->get_dc();
     x64->data_zstring(message);
 
     x64->op(PUSHQ, message_offset);
@@ -1241,7 +1241,7 @@ void Runtime::log(std::string message) {
 }
 
 void Runtime::logref(std::string message, Register r) {
-    int message_offset = x64->data.size();
+    int message_offset = x64->get_dc();
     x64->data_zstring(message);
 
     x64->op(PUSHQ, message_offset);
@@ -1251,7 +1251,7 @@ void Runtime::logref(std::string message, Register r) {
 }
 
 void Runtime::dump(std::string message) {
-    int message_offset = x64->data.size();
+    int message_offset = x64->get_dc();
     x64->data_zstring(message);
 
     x64->op(PUSHQ, message_offset);

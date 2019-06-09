@@ -72,7 +72,7 @@ public:
 };
 
 
-class Accounting {
+class Accounting: public Acc {
 public:
     bool am_on;
     int current_stack_usage, highest_stack_usage;
@@ -218,7 +218,7 @@ public:
 };
 
 
-class X64: public Asm_X64 {
+class X64: public Cc_X64 {
 public:
     Once *once;
     Unwind *unwind;
@@ -230,12 +230,13 @@ public:
     std::vector<std::string> source_file_names;
     
     X64(std::string module_name, int application_size, std::vector<std::string> sfns)
-        :Asm_X64(new Elf_X64(module_name)) {
+        :Cc_X64(module_name) {
         source_file_names = sfns;
         
         once = new Once;
         unwind = new Unwind;
         accounting = new Accounting;
+        asm_x64->set_accounting(accounting);
         
         // Needs Accounting
         runtime = new Runtime(this, application_size);
@@ -261,13 +262,13 @@ public:
         dwarf->add_lineno(get_pc(), file_index, line_number);
     }
     
-    virtual bool is_accounting() {
-        return accounting->is_on();
-    }
+    //virtual bool is_accounting() {
+    //    return accounting->is_on();
+    //}
     
-    virtual void adjust_stack_usage(int mod) {
-        accounting->adjust_stack_usage(mod);
-    }
+    //virtual void adjust_stack_usage(int mod) {
+    //    accounting->adjust_stack_usage(mod);
+    //}
 };
 
 
