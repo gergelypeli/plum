@@ -187,6 +187,13 @@ enum GprSsememOp {
 }
 
 
+class Referrer_X64 {
+public:
+    virtual void data_reference(Label label, int addend) =0;
+    virtual void code_reference(Label label, int addend) =0;
+};
+
+
 class Asm_X64: public Asm {
 public:
     enum Opsize {
@@ -203,32 +210,15 @@ public:
         REX_Q=0x10  // virtual flag, set if a register operand is SIL, DIL, SPL, BPL.
     };
 
-    enum Ref_type {
-        REF_CODE_SHORT,
-        REF_CODE_RELATIVE,
-        REF_DATA_ABSOLUTE,
-    };
-    
-    struct Ref {
-        Ref_type type;
-        unsigned64 location;
-        unsigned def_index;
-        int addend;
-    };
+    Referrer_X64 *referrer_x64;
 
-    std::vector<Ref> refs;
-    
-    Elf_X64 *elf_x64;
-
-    Asm_X64(Elf_X64 *e);
+    Asm_X64();
     virtual ~Asm_X64();
 
-    virtual void relocate();
-    virtual void done(std::string filename);
+    virtual void set_referrer_x64(Referrer_X64 *r);
+    virtual void data_reference(Label label, int addend = 0);
+    virtual void code_reference(Label label, int addend = 0);
 
-    virtual void data_reference(Label c, int addend = 0);
-    virtual void code_reference(Label c, int addend = 0);
-    
     virtual void effective_address(int regfield, Register rm);
     virtual void effective_address(int regfield, SseRegister rm);
     virtual void effective_address(int regfield, Address rm);

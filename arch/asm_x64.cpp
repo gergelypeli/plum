@@ -30,11 +30,11 @@ const int OPSIZE_REX_PREFIX = 0x40;
 Asm_X64::RexFlags operator |(Asm_X64::RexFlags x, Asm_X64::RexFlags y) { return (Asm_X64::RexFlags)((int)x | (int)y); }
 
 
-Asm_X64::Asm_X64(Elf_X64 *e)
+Asm_X64::Asm_X64()
     :Asm() {
-    elf_x64 = e;
+    referrer_x64 = NULL;
     
-    op(X::UD2);  // Have fun jumping to address 0
+    //op(X::UD2);  // Have fun jumping to address 0
 }
 
 
@@ -42,155 +42,18 @@ Asm_X64::~Asm_X64() {
 }
 
 
-void Asm_X64::relocate() {
-    for (auto &kv : defs) {
-        Def &d(kv.second);
-
-        switch (d.type) {
-        case DEF_CODE: break;
-        case DEF_DATA: break;
-        case DEF_ABSOLUTE: break;
-        case DEF_CODE_IMPORT:
-            d.symbol_index = elf_x64->import(d.name);
-            break;
-        case DEF_CODE_EXPORT:
-            d.symbol_index = elf_x64->export_code(d.name, d.location, d.size, d.is_global);
-            break;
-        case DEF_DATA_EXPORT:
-            d.symbol_index = elf_x64->export_data(d.name, d.location, d.size, d.is_global);
-            break;
-        case DEF_ABSOLUTE_EXPORT:
-            d.symbol_index = elf_x64->export_absolute(d.name, d.location, d.size, d.is_global);
-            break;
-        default:
-            std::cerr << "He?\n";
-            throw ASM_ERROR;
-        }
-    }
-
-    for (auto &r : refs) {
-        if (!defs.count(r.def_index)) {
-            std::cerr << "Reference to undefined label " << r.def_index << "!\n";
-            throw ASM_ERROR;
-        }
-        
-        Def &d(defs.at(r.def_index));
-
-        switch (r.type) {
-        case REF_CODE_SHORT:
-            // 1-byte references from code to code.
-            // May be used for RIP-relative short branching instructions.
-            
-            switch (d.type) {
-            case DEF_CODE:
-            case DEF_CODE_EXPORT: {
-                int64 distance = d.location - r.location + r.addend;
-                    
-                if (distance > 127 || distance < -128) {
-                    std::cerr << "REF_CODE_SHORT can't jump " << distance << " bytes!\n";
-                    throw ASM_ERROR;
-                }
-                
-                code[r.location] = (char)distance;
-                }
-                break;
-            default:
-                std::cerr << "Can't short jump to this symbol!\n";
-                throw ASM_ERROR;
-            }
-            break;
-            
-        case REF_CODE_RELATIVE:
-            // 4-byte relative references from code to code or data.
-            // May be used for RIP-relative control transfer or data access.
-            
-            switch (d.type) {
-            case DEF_CODE:
-            case DEF_CODE_EXPORT: {
-                int64 distance = d.location - r.location + r.addend;
-                
-                if (distance > 2147483647 || distance < -2147483648) {
-                    std::cerr << "REF_CODE_RELATIVE can't jump " << distance << " bytes!\n";
-                    throw ASM_ERROR;
-                }
-                
-                *(int *)&code[r.location] = (int)distance;
-                }
-                break;
-            case DEF_CODE_IMPORT:
-                elf_x64->code_relocation(d.symbol_index, r.location, r.addend);
-                break;
-            case DEF_DATA:
-            case DEF_DATA_EXPORT:
-                elf_x64->code_relocation(elf_x64->data_start_sym, r.location, d.location + r.addend);
-                break;
-            default:
-                std::cerr << "Can't relocate code relative to this symbol!\n";
-                throw ASM_ERROR;
-            }
-            break;
-            
-        case REF_DATA_ABSOLUTE:
-            // 8-byte absolute references from data to code, data or absolute values.
-            // May be used for intra-data absolute addresses, or 8-byte constants.
-            
-            switch (d.type) {
-            case DEF_ABSOLUTE:
-            case DEF_ABSOLUTE_EXPORT:
-                *(unsigned64 *)&data[r.location] = d.location + r.addend;
-                break;
-            case DEF_DATA_EXPORT:
-            case DEF_DATA:
-                elf_x64->data_relocation(elf_x64->data_start_sym, r.location, d.location + r.addend);
-                break;
-            case DEF_CODE:
-            case DEF_CODE_EXPORT:
-                elf_x64->data_relocation(elf_x64->code_start_sym, r.location, d.location + r.addend);
-                break;
-            case DEF_CODE_IMPORT:
-                elf_x64->data_relocation(d.symbol_index, r.location, r.addend);
-                break;
-            default:
-                std::cerr << "Can't relocate data absolute to this symbol!\n";
-                throw ASM_ERROR;
-            }
-            break;
-        }
-    }
-}
-
-
-void Asm_X64::done(std::string filename) {
-    relocate();
-    
-    elf_x64->set_code(code);
-    elf_x64->set_data(data);
-    
-    elf_x64->done(filename);
-    
-    delete elf_x64;
+void Asm_X64::set_referrer_x64(Referrer_X64 *r) {
+    referrer_x64 = r;
 }
 
 
 void Asm_X64::data_reference(Label label, int addend) {
-    if (!label.def_index) {
-        std::cerr << "Can't reference an undeclared label!\n";
-        throw ASM_ERROR;
-    }
-
-    refs.push_back({ REF_DATA_ABSOLUTE, data.size(), label.def_index, addend });
-    data_qword(0);  // 64-bit relocations only
+    referrer_x64->data_reference(label, addend);
 }
 
 
 void Asm_X64::code_reference(Label label, int addend) {
-    if (!label.def_index) {
-        std::cerr << "Can't reference an undeclared label!\n";
-        throw ASM_ERROR;
-    }
-
-    refs.push_back({ REF_CODE_RELATIVE, code.size(), label.def_index, addend });
-    code_dword(0);  // 32-bit offset only
+    referrer_x64->code_reference(label, addend);
 }
 
 

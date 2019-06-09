@@ -1,36 +1,30 @@
 
-class Cc_X64 {
+class Cc_X64: public Cc, public Referrer_X64 {
 public:
+    enum Ref_type {
+        REF_CODE_SHORT,
+        REF_CODE_RELATIVE,
+        REF_DATA_ABSOLUTE,
+    };
+    
+    struct Ref {
+        Ref_type type;
+        unsigned64 location;
+        unsigned def_index;
+        int addend;
+    };
+
+    std::vector<Ref> refs;
+
     Elf_X64 *elf_x64;
     Asm_X64 *asm_x64;
     
     Cc_X64(std::string module_name);
 
-    virtual void absolute_label(Label c, unsigned64 value, unsigned size = 0);
+    void data_reference(Label label, int addend = 0);
+    void code_reference(Label label, int addend = 0);
 
-    virtual void data_align(int bytes);
-    virtual void data_blob(void *blob, int length);
-    virtual void data_byte(char x);
-    virtual void data_word(int16 x);
-    virtual void data_dword(int x);
-    virtual void data_qword(int64 x);
-    virtual void data_zstring(std::string s);
-    virtual void data_double(double x);
-    virtual void data_label(Label c, unsigned size = 0);
-    virtual void data_label_local(Label c, std::string name, unsigned size = 0);
-    virtual void data_label_global(Label c, std::string name, unsigned size = 0);
-
-    virtual void data_reference(Label c, int addend = 0);
-    
-    virtual void code_label(Label c, unsigned size = 0);
-    virtual void code_label_import(Label c, std::string name);
-    virtual void code_label_local(Label c, std::string name, unsigned size = 0);
-    virtual void code_label_global(Label c, std::string name, unsigned size = 0);
-
-    virtual int get_pc();
-    virtual int get_dc();
-        
-    virtual void done(std::string output);
+    virtual void process_relocations();
     
     virtual void op(SimpleOp opcode);
     virtual void op(UnaryOp opcode, Register x);

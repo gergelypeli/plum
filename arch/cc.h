@@ -1,27 +1,77 @@
 
-class Cc {
+class Cc: public Emitter {
 public:
-    virtual void absolute_label(Label c, unsigned64 value, unsigned size = 0) =0;
+    enum Def_type {
+        DEF_CODE,
+        DEF_CODE_EXPORT,
+        DEF_CODE_IMPORT,
+        DEF_DATA,
+        DEF_DATA_EXPORT,
+        DEF_ABSOLUTE,
+        DEF_ABSOLUTE_EXPORT
+    };
+    
+    struct Def {
+        Def_type type;
+        unsigned64 location;  // Can be arbitrary value for absolute symbols
+        unsigned size;
+        std::string name;
+        bool is_global;
 
-    virtual void data_align(int bytes) =0;
-    virtual void data_blob(void *blob, int length) =0;
-    virtual void data_byte(char x) =0;
-    virtual void data_word(int16 x) =0;
-    virtual void data_dword(int x) =0;
-    virtual void data_qword(int64 x) =0;
-    virtual void data_zstring(std::string s) =0;
-    virtual void data_double(double x) =0;
-    virtual void data_label(Label c, unsigned size = 0) =0;
-    virtual void data_label_local(Label c, std::string name, unsigned size = 0) =0;
-    virtual void data_label_global(Label c, std::string name, unsigned size = 0) =0;
+        unsigned symbol_index;  // To be filled during importing
+        
+        Def(Def_type t, int l = 0, unsigned s = 0, const std::string &n = "", bool ig = false) {
+            type = t;
+            location = l;
+            size = s;
+            name = n;
+            is_global = ig;
+            
+            symbol_index = 0;
+        }
+    };
 
-    virtual void code_label(Label c, unsigned size = 0) =0;
-    virtual void code_label_import(Label c, std::string name) =0;
-    virtual void code_label_local(Label c, std::string name, unsigned size = 0) =0;
-    virtual void code_label_global(Label c, std::string name, unsigned size = 0) =0;
+    std::map<unsigned, Def> defs;
+    
+    std::vector<char> code;
+    std::vector<char> data;
 
-    virtual int get_pc() =0;
-    virtual int get_dc() =0;
+    Elf *elf;
+
+    Cc();
+    virtual ~Cc();
+    
+    virtual void process_definitions();
+    virtual void process_relocations() =0;
+    virtual void done(std::string filename);
+
+    void add_def(Label label, const Def &def);
+
+    virtual void absolute_label(Label c, unsigned64 value, unsigned size = 0);
+
+    virtual void data_align(int bytes);
+    virtual void data_blob(void *blob, int length);
+    virtual void data_byte(char x);
+    virtual void data_word(int16 x);
+    virtual void data_dword(int x);
+    virtual void data_qword(int64 x);
+    virtual void data_zstring(std::string s);
+    virtual void data_double(double x);
+    virtual void data_label(Label c, unsigned size = 0);
+    virtual void data_label_local(Label c, std::string name, unsigned size = 0);
+    virtual void data_label_global(Label c, std::string name, unsigned size = 0);
+
+    virtual void code_byte(char x);
+    virtual void code_word(int16 x);
+    virtual void code_dword(int x);
+    virtual void code_qword(int64 x);
+    virtual void code_label(Label c, unsigned size = 0);
+    virtual void code_label_import(Label c, std::string name);
+    virtual void code_label_local(Label c, std::string name, unsigned size = 0);
+    virtual void code_label_global(Label c, std::string name, unsigned size = 0);
+
+    virtual int get_pc();
+    virtual int get_dc();
 
     virtual void op(SimpleOp opcode) =0;
     virtual void op(UnaryOp opcode, Register x) =0;

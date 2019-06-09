@@ -3,35 +3,128 @@
 
 Cc_X64::Cc_X64(std::string module_name) {
     elf_x64 = new Elf_X64(module_name);
-    asm_x64 = new Asm_X64(elf_x64);
+    elf = elf_x64;
+    
+    asm_x64 = new Asm_X64();
+    asm_x64->set_referrer_x64(this);
 }
 
-void Cc_X64::absolute_label(Label c, unsigned64 value, unsigned size) { asm_x64->absolute_label(c, value, size); }
 
-void Cc_X64::data_align(int bytes) { asm_x64->data_align(bytes); }
-void Cc_X64::data_blob(void *blob, int length) { asm_x64->data_blob(blob, length); }
-void Cc_X64::data_byte(char x) { asm_x64->data_byte(x); }
-void Cc_X64::data_word(int16 x) { asm_x64->data_word(x); }
-void Cc_X64::data_dword(int x) { asm_x64->data_dword(x); }
-void Cc_X64::data_qword(int64 x) { asm_x64->data_qword(x); }
-void Cc_X64::data_zstring(std::string s) { asm_x64->data_zstring(s); }
-void Cc_X64::data_double(double x) { asm_x64->data_double(x); }
-void Cc_X64::data_label(Label c, unsigned size) { asm_x64->data_label(c, size); }
-void Cc_X64::data_label_local(Label c, std::string name, unsigned size) { asm_x64->data_label_local(c, name, size); }
-void Cc_X64::data_label_global(Label c, std::string name, unsigned size) { asm_x64->data_label_global(c, name, size); }
+void Cc_X64::data_reference(Label label, int addend) {
+    if (!label.def_index) {
+        std::cerr << "Can't reference an undeclared label!\n";
+        throw ASM_ERROR;
+    }
 
-void Cc_X64::data_reference(Label c, int addend) { asm_x64->data_reference(c, addend); }
-    
-void Cc_X64::code_label(Label c, unsigned size) { return asm_x64->code_label(c, size); }
-void Cc_X64::code_label_import(Label c, std::string name) { return asm_x64->code_label_import(c, name); };
-void Cc_X64::code_label_local(Label c, std::string name, unsigned size) { return asm_x64->code_label_local(c, name, size); };
-void Cc_X64::code_label_global(Label c, std::string name, unsigned size) { return asm_x64->code_label_global(c, name, size); };
+    refs.push_back({ REF_DATA_ABSOLUTE, data.size(), label.def_index, addend });
+    data_qword(0);  // 64-bit relocations only
+}
 
-int Cc_X64::get_pc() { return asm_x64->get_pc(); }
-int Cc_X64::get_dc() { return asm_x64->get_dc(); }
 
-void Cc_X64::done(std::string output) { asm_x64->done(output); }
-    
+void Cc_X64::code_reference(Label label, int addend) {
+    if (!label.def_index) {
+        std::cerr << "Can't reference an undeclared label!\n";
+        throw ASM_ERROR;
+    }
+
+    refs.push_back({ REF_CODE_RELATIVE, code.size(), label.def_index, addend });
+    code_dword(0);  // 32-bit offset only
+}
+
+
+void Cc_X64::process_relocations() {
+    for (auto &r : refs) {
+        if (!defs.count(r.def_index)) {
+            std::cerr << "Reference to undefined label " << r.def_index << "!\n";
+            throw ASM_ERROR;
+        }
+        
+        Def &d(defs.at(r.def_index));
+
+        switch (r.type) {
+        case REF_CODE_SHORT:
+            // 1-byte references from code to code.
+            // May be used for RIP-relative short branching instructions.
+            
+            switch (d.type) {
+            case DEF_CODE:
+            case DEF_CODE_EXPORT: {
+                int64 distance = d.location - r.location + r.addend;
+                    
+                if (distance > 127 || distance < -128) {
+                    std::cerr << "REF_CODE_SHORT can't jump " << distance << " bytes!\n";
+                    throw ASM_ERROR;
+                }
+                
+                code[r.location] = (char)distance;
+                }
+                break;
+            default:
+                std::cerr << "Can't short jump to this symbol!\n";
+                throw ASM_ERROR;
+            }
+            break;
+            
+        case REF_CODE_RELATIVE:
+            // 4-byte relative references from code to code or data.
+            // May be used for RIP-relative control transfer or data access.
+            
+            switch (d.type) {
+            case DEF_CODE:
+            case DEF_CODE_EXPORT: {
+                int64 distance = d.location - r.location + r.addend;
+                
+                if (distance > 2147483647 || distance < -2147483648) {
+                    std::cerr << "REF_CODE_RELATIVE can't jump " << distance << " bytes!\n";
+                    throw ASM_ERROR;
+                }
+                
+                *(int *)&code[r.location] = (int)distance;
+                }
+                break;
+            case DEF_CODE_IMPORT:
+                elf_x64->code_relocation(d.symbol_index, r.location, r.addend);
+                break;
+            case DEF_DATA:
+            case DEF_DATA_EXPORT:
+                elf_x64->code_relocation(elf_x64->data_start_sym, r.location, d.location + r.addend);
+                break;
+            default:
+                std::cerr << "Can't relocate code relative to this symbol!\n";
+                throw ASM_ERROR;
+            }
+            break;
+            
+        case REF_DATA_ABSOLUTE:
+            // 8-byte absolute references from data to code, data or absolute values.
+            // May be used for intra-data absolute addresses, or 8-byte constants.
+            
+            switch (d.type) {
+            case DEF_ABSOLUTE:
+            case DEF_ABSOLUTE_EXPORT:
+                *(unsigned64 *)&data[r.location] = d.location + r.addend;
+                break;
+            case DEF_DATA_EXPORT:
+            case DEF_DATA:
+                elf_x64->data_relocation(elf_x64->data_start_sym, r.location, d.location + r.addend);
+                break;
+            case DEF_CODE:
+            case DEF_CODE_EXPORT:
+                elf_x64->data_relocation(elf_x64->code_start_sym, r.location, d.location + r.addend);
+                break;
+            case DEF_CODE_IMPORT:
+                elf_x64->data_relocation(d.symbol_index, r.location, r.addend);
+                break;
+            default:
+                std::cerr << "Can't relocate data absolute to this symbol!\n";
+                throw ASM_ERROR;
+            }
+            break;
+        }
+    }
+}
+
+
 void Cc_X64::op(SimpleOp opcode) { asm_x64->op((X::SimpleOp)opcode); }
 void Cc_X64::op(UnaryOp opcode, Register x) { asm_x64->op((X::UnaryOp)opcode, x); }
 void Cc_X64::op(UnaryOp opcode, Address x) { asm_x64->op((X::UnaryOp)opcode, x); }

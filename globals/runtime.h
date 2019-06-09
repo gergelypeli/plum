@@ -72,7 +72,7 @@ public:
 };
 
 
-class Accounting: public Acc {
+class Accounting: public Accounter {
 public:
     bool am_on;
     int current_stack_usage, highest_stack_usage;
@@ -236,7 +236,8 @@ public:
         once = new Once;
         unwind = new Unwind;
         accounting = new Accounting;
-        asm_x64->set_accounting(accounting);
+
+        asm_x64->setup(accounting, this);
         
         // Needs Accounting
         runtime = new Runtime(this, application_size);

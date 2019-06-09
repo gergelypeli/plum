@@ -183,86 +183,37 @@ enum GprSsememOp {
 };
 
 
-class Acc {
+class Accounter {
 public:
     virtual bool is_on() =0;
     virtual void adjust_stack_usage(int mod) =0;
 };
 
 
+class Emitter {
+public:
+    virtual void code_byte(char x) =0;
+    virtual void code_word(int16 x) =0;
+    virtual void code_dword(int x) =0;
+    virtual void code_qword(int64 x) =0;
+};
+
+
 class Asm {
 public:
-    enum Def_type {
-        DEF_CODE,
-        DEF_CODE_EXPORT,
-        DEF_CODE_IMPORT,
-        DEF_DATA,
-        DEF_DATA_EXPORT,
-        DEF_ABSOLUTE,
-        DEF_ABSOLUTE_EXPORT
-    };
-    
-    struct Def {
-        Def_type type;
-        unsigned64 location;  // Can be arbitrary value for absolute symbols
-        unsigned size;
-        std::string name;
-        bool is_global;
-
-        unsigned symbol_index;  // To be filled during importing
-        
-        Def(Def_type t, int l = 0, unsigned s = 0, const std::string &n = "", bool ig = false) {
-            type = t;
-            location = l;
-            size = s;
-            name = n;
-            is_global = ig;
-            
-            symbol_index = 0;
-        }
-    };
-    
-    std::vector<char> code;
-    std::vector<char> data;
-    std::map<unsigned, Def> defs;
-    Acc *acc;
+    Accounter *accounter;
+    Emitter *emitter;
     
     Asm();
     virtual ~Asm();
+
+    virtual void setup(Accounter *a, Emitter *e);
     
-    virtual void done(std::string filename) =0;
-
-    virtual void add_def(Label label, const Def &def);
-
-    virtual void set_accounting(Acc *acc);
-    virtual bool is_accounting();
-    virtual void adjust_stack_usage(int mod);
-
-    virtual void absolute_label(Label c, unsigned64 value, unsigned size = 0);
-
-    virtual void data_align(int bytes);
-    virtual void data_blob(void *blob, int length);
-    virtual void data_byte(char x);
-    virtual void data_word(int16 x);
-    virtual void data_dword(int x);
-    virtual void data_qword(int64 x);
-    virtual void data_zstring(std::string s);
-    virtual void data_double(double x);
-    virtual void data_label(Label c, unsigned size = 0);
-    virtual void data_label_local(Label c, std::string name, unsigned size = 0);
-    virtual void data_label_global(Label c, std::string name, unsigned size = 0);
-
     virtual void code_byte(char x);
     virtual void code_word(int16 x);
     virtual void code_dword(int x);
     virtual void code_qword(int64 x);
-    virtual void code_label(Label c, unsigned size = 0);
-    virtual void code_label_import(Label c, std::string name);
-    virtual void code_label_local(Label c, std::string name, unsigned size = 0);
-    virtual void code_label_global(Label c, std::string name, unsigned size = 0);
 
-    virtual int get_pc();
-    virtual int get_dc();
+    virtual bool is_accounting();
+    virtual void adjust_stack_usage(int mod);
 };
-
-
