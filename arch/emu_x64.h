@@ -29,8 +29,6 @@ public:
     virtual void op(SimpleOp opcode);
     virtual void op(UnaryOp opcode, Register x);
     virtual void op(UnaryOp opcode, Address x);
-    virtual void op(PortOp opcode);
-    virtual void op(PortOp opcode, int x);
     virtual void op(StringOp opcode);
     virtual void op(BinaryOp opcode, Register x, int y);
     virtual void op(BinaryOp opcode, Address x, int y);
@@ -49,7 +47,6 @@ public:
     virtual void op(StackOp opcode, int x);
     virtual void op(StackOp opcode, Register x);
     virtual void op(StackOp opcode, Address x);
-    virtual void op(MemoryOp opcode, Address x);
     virtual void op(RegisterFirstOp opcode, Register x, Register y);
     virtual void op(RegisterFirstOp opcode, Register x, Address y);
     virtual void op(Imul3Op opcode, Register x, Register y, int z);
@@ -62,7 +59,6 @@ public:
     virtual void op(JumpOp opcode, Label c);
     virtual void op(JumpOp opcode, Address x);
     virtual void op(JumpOp opcode, Register x);
-    virtual void op(ConstantOp opcode, int x);
     
     virtual void op(SsememSsememOp opcode, SseRegister x, SseRegister y);
     virtual void op(SsememSsememOp opcode, SseRegister x, Address y);

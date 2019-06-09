@@ -1,4 +1,150 @@
 
+enum SimpleOp {
+    CBW, CDQ, CQO, CWD, NOP, POPFQ, PUSHFQ, RET, UD2
+};
+
+
+enum UnaryOp {
+    DECB=0, DECW, DECD, DECQ,
+    DIVB=4, DIVW, DIVD, DIVQ,
+    IDIVB=8, IDIVW, IDIVD, IDIVQ,
+    IMULB=12, IMULW, IMULD, IMULQ,
+    INCB=16, INCW, INCD, INCQ,
+    MULB=20, MULW, MULD, MULQ,
+    NEGB=24, NEGW, NEGD, NEGQ,
+    NOTB=28, NOTW, NOTD, NOTQ,
+};
+
+inline UnaryOp operator%(UnaryOp x, int y) { return (UnaryOp)((x & ~3) | (y & 3)); }
+
+
+enum StringOp {
+    REPMOVSB,
+    REPECMPSW
+};
+
+
+enum BinaryOp {
+    ADCB=0, ADCW, ADCD, ADCQ,
+    ADDB=4, ADDW, ADDD, ADDQ,
+    ANDB=8, ANDW, ANDD, ANDQ,
+    CMPB=12, CMPW, CMPD, CMPQ,
+    MOVB=16, MOVW, MOVD, MOVQ,
+    ORB=20, ORW, ORD, ORQ,
+    SBBB=24, SBBW, SBBD, SBBQ,
+    SUBB=28, SUBW, SUBD, SUBQ,
+    TESTB=32, TESTW, TESTD, TESTQ,
+    XORB=36, XORW, XORD, XORQ
+};
+
+inline BinaryOp operator%(BinaryOp x, int y) { return (BinaryOp)((x & ~3) | (y & 3)); }
+
+
+enum MovabsOp {
+    MOVABSQ
+};
+
+
+enum ShiftOp {
+    RCLB=0, RCLW, RCLD, RCLQ,
+    RCRB=4, RCRW, RCRD, RCRQ,
+    ROLB=8, ROLW, ROLD, ROLQ,
+    RORB=12, RORW, RORD, RORQ,
+    SALB=16, SALW, SALD, SALQ,
+    SARB=20, SARW, SARD, SARQ,
+    SHLB=24, SHLW, SHLD, SHLQ,
+    SHRB=28, SHRW, SHRD, SHRQ
+};
+
+inline ShiftOp operator%(ShiftOp x, int y) { return (ShiftOp)((x & ~3) | (y & 3)); }
+
+
+enum ExchangeOp {
+    XCHGB=0, XCHGW, XCHGD, XCHGQ
+};
+
+inline ExchangeOp operator%(ExchangeOp x, int y) { return (ExchangeOp)((x & ~3) | (y & 3)); }
+
+
+enum StackOp {
+    PUSHQ, POPQ
+};
+
+
+enum RegisterFirstOp {
+    IMUL2B_=0, IMUL2W, IMUL2D, IMUL2Q,
+    MOVSXBQ=7,
+    MOVSXWQ=11,
+    MOVSXDQ=15,
+    MOVZXBQ=19,
+    MOVZXWQ=23,
+    MOVZXDQ=27,
+};
+
+inline RegisterFirstOp operator%(RegisterFirstOp x, int y) { return (RegisterFirstOp)((x & ~3) | (y & 3)); }
+
+
+enum Imul3Op {
+    IMUL3W=1, IMUL3D, IMUL3Q
+};
+
+inline Imul3Op operator%(Imul3Op x, int y) { return (Imul3Op)((x & ~3) | (y & 3)); }
+
+
+enum RegisterMemoryOp {
+    LEA
+};
+
+
+enum BranchOp {
+    JO, JNO, JB, JAE, JE, JNE, JBE, JA,
+    JS, JNS, JP, JNP, JL, JGE, JLE, JG
+};
+
+
+inline BranchOp branch(ConditionCode cc) {
+    // Both enums are just condition bits, so converting between them is straightforward
+    return cc != CC_NONE ? (BranchOp)cc : throw ASM_ERROR;
+}
+
+
+enum JumpOp {
+    CALL, JMP
+};
+
+
+enum BitSetOp {
+    SETO, SETNO, SETB, SETAE, SETE, SETNE, SETBE, SETA,
+    SETS, SETNS, SETP, SETNP, SETL, SETGE, SETLE, SETG
+};
+
+
+inline BitSetOp bitset(ConditionCode cc) {
+    // Both enums are just condition bits, so converting between them is straightforward
+    return cc != CC_NONE ? (BitSetOp)cc : throw ASM_ERROR;
+}
+
+
+enum SsememSsememOp {
+    MOVQW, MOVSD, MOVSS
+};
+
+
+enum SseSsememOp {
+    ADDSD, SUBSD, MULSD, DIVSD, COMISD, UCOMISD, CVTSS2SD, CVTSD2SS, MAXSD, MINSD, SQRTSD, PXOR
+};
+
+
+enum SseGprmemOp {
+    CVTSI2SD
+};
+
+
+enum GprSsememOp {
+    CVTSD2SI, CVTTSD2SI
+};
+
+
 class Emu: public Emitter {
 public:
     enum Def_type {
@@ -76,8 +222,6 @@ public:
     virtual void op(SimpleOp opcode) =0;
     virtual void op(UnaryOp opcode, Register x) =0;
     virtual void op(UnaryOp opcode, Address x) =0;
-    virtual void op(PortOp opcode) =0;
-    virtual void op(PortOp opcode, int x) =0;
     virtual void op(StringOp opcode) =0;
     virtual void op(BinaryOp opcode, Register x, int y) =0;
     virtual void op(BinaryOp opcode, Address x, int y) =0;
@@ -96,7 +240,6 @@ public:
     virtual void op(StackOp opcode, int x) =0;
     virtual void op(StackOp opcode, Register x) =0;
     virtual void op(StackOp opcode, Address x) =0;
-    virtual void op(MemoryOp opcode, Address x) =0;
     virtual void op(RegisterFirstOp opcode, Register x, Register y) =0;
     virtual void op(RegisterFirstOp opcode, Register x, Address y) =0;
     virtual void op(Imul3Op opcode, Register x, Register y, int z) =0;
@@ -109,7 +252,6 @@ public:
     virtual void op(JumpOp opcode, Label c) =0;
     virtual void op(JumpOp opcode, Address x) =0;
     virtual void op(JumpOp opcode, Register x) =0;
-    virtual void op(ConstantOp opcode, int x) =0;
     
     virtual void op(SsememSsememOp opcode, SseRegister x, SseRegister y) =0;
     virtual void op(SsememSsememOp opcode, SseRegister x, Address y) =0;
