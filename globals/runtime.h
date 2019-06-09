@@ -218,7 +218,7 @@ public:
 };
 
 
-class X64: public Cc_X64 {
+class X64: public Emu_X64 {
 public:
     Once *once;
     Unwind *unwind;
@@ -230,7 +230,7 @@ public:
     std::vector<std::string> source_file_names;
     
     X64(std::string module_name, int application_size, std::vector<std::string> sfns)
-        :Cc_X64(module_name) {
+        :Emu_X64(module_name) {
         source_file_names = sfns;
         
         once = new Once;

@@ -1,5 +1,5 @@
 
-class Cc: public Emitter {
+class Emu: public Emitter {
 public:
     enum Def_type {
         DEF_CODE,
@@ -38,8 +38,8 @@ public:
 
     Elf *elf;
 
-    Cc();
-    virtual ~Cc();
+    Emu();
+    virtual ~Emu();
     
     virtual void process_definitions();
     virtual void process_relocations() =0;

@@ -1,5 +1,5 @@
 
-class Cc_X64: public Cc, public Referrer_X64 {
+class Emu_X64: public Emu, public Referrer_X64 {
 public:
     enum Ref_type {
         REF_CODE_SHORT,
@@ -19,7 +19,7 @@ public:
     Elf_X64 *elf_x64;
     Asm_X64 *asm_x64;
     
-    Cc_X64(std::string module_name);
+    Emu_X64(std::string module_name);
 
     void data_reference(Label label, int addend = 0);
     void code_reference(Label label, int addend = 0);

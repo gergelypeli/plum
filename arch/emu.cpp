@@ -1,15 +1,15 @@
 #include "../plum.h"
 
 
-Cc::Cc() {
+Emu::Emu() {
     elf = NULL;
 }
 
-Cc::~Cc() {
+Emu::~Emu() {
 }
 
 
-void Cc::process_definitions() {
+void Emu::process_definitions() {
     for (auto &kv : defs) {
         Def &d(kv.second);
 
@@ -37,7 +37,7 @@ void Cc::process_definitions() {
 }
 
 
-void Cc::done(std::string filename) {
+void Emu::done(std::string filename) {
     process_definitions();
     process_relocations();
     
@@ -50,7 +50,7 @@ void Cc::done(std::string filename) {
 }
 
 
-void Cc::add_def(Label label, const Def &def) {
+void Emu::add_def(Label label, const Def &def) {
     if (!label.def_index) {
         std::cerr << "Can't define an undeclared label!\n";
         throw ASM_ERROR;
@@ -65,46 +65,46 @@ void Cc::add_def(Label label, const Def &def) {
 }
 
 
-void Cc::absolute_label(Label c, unsigned64 value, unsigned size) {
+void Emu::absolute_label(Label c, unsigned64 value, unsigned size) {
     add_def(c, Def(DEF_ABSOLUTE, value, size, "", false));
 }
 
 
-void Cc::data_align(int bytes) {
+void Emu::data_align(int bytes) {
     data.resize((data.size() + (bytes - 1)) & ~(bytes - 1));
 }
 
 
-void Cc::data_blob(void *blob, int length) {
+void Emu::data_blob(void *blob, int length) {
     data.resize(data.size() + length);
     memcpy(data.data() + data.size() - length, blob, length);
 }
 
 
-void Cc::data_byte(char x) {
+void Emu::data_byte(char x) {
     data.push_back(x);
 }
 
 
-void Cc::data_word(int16 x) {
+void Emu::data_word(int16 x) {
     data.resize(data.size() + 2);
     *(short *)(data.data() + data.size() - 2) = x;
 }
 
 
-void Cc::data_dword(int x) {
+void Emu::data_dword(int x) {
     data.resize(data.size() + 4);
     *(int *)(data.data() + data.size() - 4) = x;
 }
 
 
-void Cc::data_qword(int64 x) {
+void Emu::data_qword(int64 x) {
     data.resize(data.size() + 8);
     *(int64 *)(data.data() + data.size() - 8) = x;
 }
 
 
-void Cc::data_zstring(std::string s) {
+void Emu::data_zstring(std::string s) {
     for (char c : s)
         data.push_back(c);
         
@@ -112,75 +112,75 @@ void Cc::data_zstring(std::string s) {
 }
 
 
-void Cc::data_double(double x) {
+void Emu::data_double(double x) {
     data.resize(data.size() + 8);
     *(double *)(data.data() + data.size() - 8) = x;
 }
 
 
-void Cc::data_label(Label c, unsigned size) {
+void Emu::data_label(Label c, unsigned size) {
     add_def(c, Def(DEF_DATA, data.size(), size, "", false));
 }
 
 
-void Cc::data_label_local(Label c, std::string name, unsigned size) {
+void Emu::data_label_local(Label c, std::string name, unsigned size) {
     add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, false));
 }
 
 
-void Cc::data_label_global(Label c, std::string name, unsigned size) {
+void Emu::data_label_global(Label c, std::string name, unsigned size) {
     add_def(c, Def(DEF_DATA_EXPORT, data.size(), size, name, true));
 }
 
 
-void Cc::code_byte(char x) {
+void Emu::code_byte(char x) {
     code.push_back(x);
 }
 
 
-void Cc::code_word(int16 x) {
+void Emu::code_word(int16 x) {
     code.resize(code.size() + 2);
     *(int16 *)(code.data() + code.size() - 2) = x;
 }
 
 
-void Cc::code_dword(int x) {
+void Emu::code_dword(int x) {
     code.resize(code.size() + 4);
     *(int *)(code.data() + code.size() - 4) = x;
 }
 
 
-void Cc::code_qword(int64 x) {
+void Emu::code_qword(int64 x) {
     code.resize(code.size() + 8);
     *(int64 *)(code.data() + code.size() - 8) = x;
 }
 
 
-void Cc::code_label(Label c, unsigned size) {
+void Emu::code_label(Label c, unsigned size) {
     add_def(c, Def(DEF_CODE, code.size(), size, "", false));
 }
 
 
-void Cc::code_label_import(Label c, std::string name) {
+void Emu::code_label_import(Label c, std::string name) {
     add_def(c, Def(DEF_CODE_IMPORT, 0, 0, name, false));
 }
 
 
-void Cc::code_label_local(Label c, std::string name, unsigned size) {
+void Emu::code_label_local(Label c, std::string name, unsigned size) {
     add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, false));
 }
 
 
-void Cc::code_label_global(Label c, std::string name, unsigned size) {
+void Emu::code_label_global(Label c, std::string name, unsigned size) {
     add_def(c, Def(DEF_CODE_EXPORT, code.size(), size, name, true));
 }
 
 
-int Cc::get_pc() {
+int Emu::get_pc() {
     return code.size();
 }
 
 
-int Cc::get_dc() {
+int Emu::get_dc() {
     return data.size();
 }
