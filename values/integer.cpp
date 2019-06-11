@@ -256,16 +256,51 @@ Storage IntegerOperationValue::binary_multiply(X64 *x64) {
 Storage IntegerOperationValue::binary_divmod(X64 *x64, bool mod) {
     subcompile(x64);
 
-    if (ls.where == CONSTANT && rs.where == CONSTANT)
-        return Storage(CONSTANT, mod ? ls.value % rs.value : ls.value / rs.value);
+    BinaryOp mov = MOVQ % os;
+    DivModOp op = (is_unsigned ? (mod ? MODQ : DIVQ) : (mod ? IMODQ : IDIVQ)) % os;
 
-    little_prearrange(x64);  // move rs out of RAX/RCX/RDX, potentially into R10
-
-    left->ts.store(ls, Storage(REGISTER, RAX), x64);
-
-    x64->op((is_unsigned ? DIVMODQ : IDIVMODQ) % os, rs.reg);
-
-    return Storage(REGISTER, mod ? RDX : RAX);
+    switch (ls.where * rs.where) {
+    case CONSTANT_CONSTANT: {
+        int value = mod ? ls.value % rs.value : ls.value / rs.value;
+        return Storage(CONSTANT, value);
+    }
+    case CONSTANT_REGISTER:
+        x64->op(mov, auxls.reg, ls.value);
+        x64->op(op, auxls.reg, rs.reg);
+        return Storage(REGISTER, auxls.reg);
+    case CONSTANT_MEMORY:
+        x64->op(mov, auxls.reg, ls.value);
+        x64->op(mov, R10, rs.address);
+        x64->op(op, auxls.reg, R10);
+        return Storage(REGISTER, auxls.reg);
+    case REGISTER_CONSTANT:
+        x64->op(mov, R10, rs.value);
+        x64->op(op, ls.reg, R10);
+        return Storage(REGISTER, ls.reg);
+    case REGISTER_REGISTER:
+        x64->op(op, ls.reg, rs.reg);
+        return Storage(REGISTER, ls.reg);
+    case REGISTER_MEMORY:
+        x64->op(mov, R10, rs.address);
+        x64->op(op, ls.reg, R10);
+        return Storage(REGISTER, ls.reg);
+    case MEMORY_CONSTANT:
+        x64->op(mov, auxls.reg, ls.address);
+        x64->op(mov, R10, rs.value);
+        x64->op(op, auxls.reg, R10);
+        return Storage(REGISTER, auxls.reg);
+    case MEMORY_REGISTER:
+        x64->op(mov, auxls.reg, ls.address);
+        x64->op(op, auxls.reg, rs.reg);
+        return Storage(REGISTER, auxls.reg);
+    case MEMORY_MEMORY:
+        x64->op(mov, auxls.reg, ls.address);
+        x64->op(mov, R10, rs.address);
+        x64->op(op, auxls.reg, R10);
+        return Storage(REGISTER, auxls.reg);
+    default:
+        throw INTERNAL_ERROR;
+    }
 }
 
 Storage IntegerOperationValue::binary_shift(X64 *x64, ShiftOp opcode) {
@@ -463,15 +498,33 @@ Storage IntegerOperationValue::assign_multiply(X64 *x64) {
 Storage IntegerOperationValue::assign_divmod(X64 *x64, bool mod) {
     subcompile(x64);
 
-    big_prearrange(x64);
-
     Storage als = lmemory(x64);
 
-    x64->op(MOVQ % os, RAX, als.address);
+    BinaryOp mov = MOVQ % os;
+    DivModOp op = (is_unsigned ? (mod ? MODQ : DIVQ) : (mod ? IMODQ : IDIVQ)) % os;
+    
+    x64->op(mov, R10, als.address);
+    Register y;
 
-    x64->op((is_unsigned ? DIVMODQ : IDIVMODQ) % os, rs.reg);
+    switch (rs.where) {
+    case CONSTANT:
+        x64->op(mov, R11, rs.value);
+        y = R11;
+        break;
+    case REGISTER:
+        y = rs.reg;
+        break;
+    case MEMORY:
+        x64->op(mov, R11, rs.address);
+        y = R11;
+        break;
+    default:
+        throw INTERNAL_ERROR;
+    }
 
-    x64->op(MOVQ % os, als.address, mod ? RDX : RAX);
+    x64->op(op, R10, y);
+
+    x64->op(mov, als.address, R10);
     return ls;
 }
 

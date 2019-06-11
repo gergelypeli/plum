@@ -71,5 +71,5 @@ public:
     virtual void op(GprSsememOp opcode, Register x, SseRegister y);
     virtual void op(GprSsememOp opcode, Register x, Address y);
 
-    virtual void op(DivModOp opcode, Register x);
+    virtual void op(DivModOp opcode, Register x, Register y);
 };

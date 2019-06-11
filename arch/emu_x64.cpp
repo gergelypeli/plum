@@ -325,46 +325,117 @@ void Emu_X64::op(SseGprmemOp opcode, SseRegister x, Address y) { asm_x64->op(map
 void Emu_X64::op(GprSsememOp opcode, Register x, SseRegister y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(GprSsememOp opcode, Register x, Address y) { asm_x64->op(map(opcode), x, y); }
 
-void Emu_X64::op(DivModOp opcode, Register x) {
-    if (x == RAX || x == RDX)
-        throw ASM_ERROR;
-        
+static void divmod(Asm_X64 *asm_x64, DivModOp opcode, Register r) {
     switch (opcode) {
-    case DIVMODB:
+    case DIVB:
+    case MODB:
         asm_x64->op(X::ANDW, AX, 255);
-        asm_x64->op(X::DIVB, x);
+        asm_x64->op(X::DIVB, r);
         asm_x64->op(X::MOVB, DL, AH);
         break;
-    case DIVMODW:
+    case DIVW:
+    case MODW:
         asm_x64->op(X::MOVW, DX, 0);
-        asm_x64->op(X::DIVW, x);
+        asm_x64->op(X::DIVW, r);
         break;
-    case DIVMODD:
+    case DIVD:
+    case MODD:
         asm_x64->op(X::MOVD, EDX, 0);
-        asm_x64->op(X::DIVD, x);
+        asm_x64->op(X::DIVD, r);
         break;
-    case DIVMODQ:
+    case DIVQ:
+    case MODQ:
         asm_x64->op(X::MOVQ, RDX, 0);
-        asm_x64->op(X::DIVQ, x);
+        asm_x64->op(X::DIVQ, r);
         break;
-    case IDIVMODB:
+    case IDIVB:
+    case IMODB:
         asm_x64->op(X::CBW);
-        asm_x64->op(X::IDIVB, x);
+        asm_x64->op(X::IDIVB, r);
         asm_x64->op(X::MOVB, DL, AH);
         break;
-    case IDIVMODW:
+    case IDIVW:
+    case IMODW:
         asm_x64->op(X::CWD);
-        asm_x64->op(X::IDIVW, x);
+        asm_x64->op(X::IDIVW, r);
         break;
-    case IDIVMODD:
+    case IDIVD:
+    case IMODD:
         asm_x64->op(X::CDQ);
-        asm_x64->op(X::IDIVD, x);
+        asm_x64->op(X::IDIVD, r);
         break;
-    case IDIVMODQ:
+    case IDIVQ:
+    case IMODQ:
         asm_x64->op(X::CQO);
-        asm_x64->op(X::IDIVQ, x);
+        asm_x64->op(X::IDIVQ, r);
         break;
     default:
         throw ASM_ERROR;
+    }
+}
+
+
+void Emu_X64::op(DivModOp opcode, Register x, Register y) {
+    bool is_div = (opcode % 3 == DIVQ || opcode % 3 == IDIVQ);
+
+    if (x == RAX) {
+        if (y == RAX)
+            throw ASM_ERROR;
+        else if (y == RDX) {
+            asm_x64->op(X::PUSHQ, RCX);
+            asm_x64->op(X::MOVQ, RCX, RDX);
+            divmod(asm_x64, opcode, RCX);
+            if (!is_div) asm_x64->op(X::MOVQ, RAX, RDX);
+            asm_x64->op(X::POPQ, RCX);
+        }
+        else {
+            asm_x64->op(X::PUSHQ, RDX);
+            divmod(asm_x64, opcode, y);
+            if (!is_div) asm_x64->op(X::MOVQ, RAX, RDX);
+            asm_x64->op(X::POPQ, RDX);
+        }
+    }
+    else if (x == RDX) {
+        if (y == RAX) {
+            asm_x64->op(X::PUSHQ, RCX);
+            asm_x64->op(X::MOVQ, RCX, RAX);
+            asm_x64->op(X::MOVQ, RAX, RDX);
+            divmod(asm_x64, opcode, RCX);
+            if (is_div) asm_x64->op(X::MOVQ, RDX, RAX);
+            asm_x64->op(X::POPQ, RCX);
+        }
+        else if (y == RDX)
+            throw ASM_ERROR;
+        else {
+            asm_x64->op(X::PUSHQ, RAX);
+            asm_x64->op(X::MOVQ, RAX, RDX);
+            divmod(asm_x64, opcode, y);
+            if (is_div) asm_x64->op(X::MOVQ, RDX, RAX);
+            asm_x64->op(X::POPQ, RAX);
+        }
+    }
+    else {
+        if (y == RAX) {
+            asm_x64->op(X::PUSHQ, RDX);
+            asm_x64->op(X::XCHGQ, RAX, x);
+            divmod(asm_x64, opcode, x);
+            if (is_div) asm_x64->op(X::XCHGQ, RAX, x); else { asm_x64->op(X::MOVQ, RAX, x); asm_x64->op(X::MOVQ, x, RDX); }
+            asm_x64->op(X::POPQ, RDX);
+        }
+        else if (y == RDX) {
+            asm_x64->op(X::PUSHQ, RAX);
+            asm_x64->op(X::MOVQ, RAX, x);
+            asm_x64->op(X::MOVQ, x, RDX);
+            divmod(asm_x64, opcode, x);
+            if (is_div) asm_x64->op(X::MOVQ, x, RAX); else asm_x64->op(X::MOVQ, x, RDX);
+            asm_x64->op(X::POPQ, RAX);
+        }
+        else {
+            asm_x64->op(X::PUSHQ, RDX);
+            asm_x64->op(X::XCHGQ, RAX, x);
+            divmod(asm_x64, opcode, y);
+            if (is_div) asm_x64->op(X::XCHGQ, RAX, x); else { asm_x64->op(X::MOVQ, RAX, x); asm_x64->op(X::MOVQ, x, RDX); }
+            asm_x64->op(X::POPQ, RDX);
+        }
     }
 }

@@ -15,8 +15,10 @@ inline UnaryOp operator%(UnaryOp x, int y) { return (UnaryOp)((x & ~3) | (y & 3)
 
 
 enum DivModOp {
-    DIVMODB=0, DIVMODW, DIVMODD, DIVMODQ,
-    IDIVMODB=4, IDIVMODW, IDIVMODD, IDIVMODQ,
+    DIVB=0, DIVW, DIVD, DIVQ,
+    MODB=4, MODW, MODD, MODQ,
+    IDIVB=8, IDIVW, IDIVD, IDIVQ,
+    IMODB=12, IMODW, IMODD, IMODQ,
 };
 
 inline DivModOp operator%(DivModOp x, int y) { return (DivModOp)((x & ~3) | (y & 3)); }
@@ -226,7 +228,7 @@ public:
     virtual void op(SimpleOp opcode) =0;
     virtual void op(UnaryOp opcode, Register x) =0;
     virtual void op(UnaryOp opcode, Address x) =0;
-    virtual void op(DivModOp opcode, Register x) =0;
+    virtual void op(DivModOp opcode, Register x, Register y) =0;
     virtual void op(StringOp opcode) =0;
     virtual void op(BinaryOp opcode, Register x, int y) =0;
     virtual void op(BinaryOp opcode, Address x, int y) =0;
