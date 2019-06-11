@@ -136,9 +136,7 @@ static X::SimpleOp map(SimpleOp x) {
 static X::UnaryOp map(UnaryOp x) {
     return
         MAP(DECB) MAP(DECW) MAP(DECD) MAP(DECQ)
-        MAP(IMULB) MAP(IMULW) MAP(IMULD) MAP(IMULQ)
         MAP(INCB) MAP(INCW) MAP(INCD) MAP(INCQ)
-        MAP(MULB) MAP(MULW) MAP(MULD) MAP(MULQ)
         MAP(NEGB) MAP(NEGW) MAP(NEGD) MAP(NEGQ)
         MAP(NOTB) MAP(NOTW) MAP(NOTD) MAP(NOTQ)
         throw ASM_ERROR;

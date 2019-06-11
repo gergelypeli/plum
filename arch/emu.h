@@ -6,11 +6,9 @@ enum SimpleOp {
 
 enum UnaryOp {
     DECB=0, DECW, DECD, DECQ,
-    IMULB=4, IMULW, IMULD, IMULQ,
-    INCB=8, INCW, INCD, INCQ,
-    MULB=12, MULW, MULD, MULQ,
-    NEGB=16, NEGW, NEGD, NEGQ,
-    NOTB=20, NOTW, NOTD, NOTQ,
+    INCB=4, INCW, INCD, INCQ,
+    NEGB=8, NEGW, NEGD, NEGQ,
+    NOTB=16, NOTW, NOTD, NOTQ,
 };
 
 inline UnaryOp operator%(UnaryOp x, int y) { return (UnaryOp)((x & ~3) | (y & 3)); }
