@@ -129,17 +129,13 @@ void Emu_X64::process_relocations() {
 
 static X::SimpleOp map(SimpleOp x) {
     return
-        MAP(CBW) MAP(CBW) MAP(CDQ) MAP(CQO)
-        MAP(CWD) MAP(NOP) MAP(POPFQ) MAP(PUSHFQ)
-        MAP(RET) MAP(UD2)
+        MAP(NOP) MAP(POPFQ) MAP(PUSHFQ) MAP(RET) MAP(UD2)
         throw ASM_ERROR;
 }
 
 static X::UnaryOp map(UnaryOp x) {
     return
         MAP(DECB) MAP(DECW) MAP(DECD) MAP(DECQ)
-        MAP(DIVB) MAP(DIVW) MAP(DIVD) MAP(DIVQ)
-        MAP(IDIVB) MAP(IDIVW) MAP(IDIVD) MAP(IDIVQ)
         MAP(IMULB) MAP(IMULW) MAP(IMULD) MAP(IMULQ)
         MAP(INCB) MAP(INCW) MAP(INCD) MAP(INCQ)
         MAP(MULB) MAP(MULW) MAP(MULD) MAP(MULQ)
@@ -293,7 +289,6 @@ void Emu_X64::op(StringOp opcode) { asm_x64->op(map(opcode)); }
 void Emu_X64::op(BinaryOp opcode, Register x, int y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(BinaryOp opcode, Address x, int y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(BinaryOp opcode, Register x, Register y) { asm_x64->op(map(opcode), x, y); }
-void Emu_X64::op(BinaryOp opcode, Register x, HighByteRegister y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(BinaryOp opcode, Address x, Register y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(BinaryOp opcode, Register x, Address y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(MovabsOp opcode, Register x, int64 y) { asm_x64->op(map(opcode), x, y); }  // 64-bit immediate capable
@@ -313,7 +308,6 @@ void Emu_X64::op(Imul3Op opcode, Register x, Register y, int z) { asm_x64->op(ma
 void Emu_X64::op(Imul3Op opcode, Register x, Address y, int z) { asm_x64->op(map(opcode), x, y, z); }
 void Emu_X64::op(RegisterMemoryOp opcode, Register x, Address y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(BitSetOp opcode, Register x) { asm_x64->op(map(opcode), x); }
-void Emu_X64::op(BitSetOp opcode, HighByteRegister x) { asm_x64->op(map(opcode), x); }
 void Emu_X64::op(BitSetOp opcode, Address x) { asm_x64->op(map(opcode), x); }
 void Emu_X64::op(BranchOp opcode, Label c) { asm_x64->op(map(opcode), c); }
 void Emu_X64::op(JumpOp opcode, Label c) { asm_x64->op(map(opcode), c); }
@@ -332,3 +326,47 @@ void Emu_X64::op(SseGprmemOp opcode, SseRegister x, Address y) { asm_x64->op(map
 
 void Emu_X64::op(GprSsememOp opcode, Register x, SseRegister y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(GprSsememOp opcode, Register x, Address y) { asm_x64->op(map(opcode), x, y); }
+
+void Emu_X64::op(DivModOp opcode, Register x) {
+    if (x == RAX || x == RDX)
+        throw ASM_ERROR;
+        
+    switch (opcode) {
+    case DIVMODB:
+        asm_x64->op(X::ANDW, AX, 255);
+        asm_x64->op(X::DIVB, x);
+        asm_x64->op(X::MOVB, DL, AH);
+        break;
+    case DIVMODW:
+        asm_x64->op(X::MOVW, DX, 0);
+        asm_x64->op(X::DIVW, x);
+        break;
+    case DIVMODD:
+        asm_x64->op(X::MOVD, EDX, 0);
+        asm_x64->op(X::DIVD, x);
+        break;
+    case DIVMODQ:
+        asm_x64->op(X::MOVQ, RDX, 0);
+        asm_x64->op(X::DIVQ, x);
+        break;
+    case IDIVMODB:
+        asm_x64->op(X::CBW);
+        asm_x64->op(X::IDIVB, x);
+        asm_x64->op(X::MOVB, DL, AH);
+        break;
+    case IDIVMODW:
+        asm_x64->op(X::CWD);
+        asm_x64->op(X::IDIVW, x);
+        break;
+    case IDIVMODD:
+        asm_x64->op(X::CDQ);
+        asm_x64->op(X::IDIVD, x);
+        break;
+    case IDIVMODQ:
+        asm_x64->op(X::CQO);
+        asm_x64->op(X::IDIVQ, x);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
+}

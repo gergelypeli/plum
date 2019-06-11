@@ -1,21 +1,27 @@
 
 enum SimpleOp {
-    CBW, CDQ, CQO, CWD, NOP, POPFQ, PUSHFQ, RET, UD2
+    NOP, POPFQ, PUSHFQ, RET, UD2
 };
 
 
 enum UnaryOp {
     DECB=0, DECW, DECD, DECQ,
-    DIVB=4, DIVW, DIVD, DIVQ,
-    IDIVB=8, IDIVW, IDIVD, IDIVQ,
-    IMULB=12, IMULW, IMULD, IMULQ,
-    INCB=16, INCW, INCD, INCQ,
-    MULB=20, MULW, MULD, MULQ,
-    NEGB=24, NEGW, NEGD, NEGQ,
-    NOTB=28, NOTW, NOTD, NOTQ,
+    IMULB=4, IMULW, IMULD, IMULQ,
+    INCB=8, INCW, INCD, INCQ,
+    MULB=12, MULW, MULD, MULQ,
+    NEGB=16, NEGW, NEGD, NEGQ,
+    NOTB=20, NOTW, NOTD, NOTQ,
 };
 
 inline UnaryOp operator%(UnaryOp x, int y) { return (UnaryOp)((x & ~3) | (y & 3)); }
+
+
+enum DivModOp {
+    DIVMODB=0, DIVMODW, DIVMODD, DIVMODQ,
+    IDIVMODB=4, IDIVMODW, IDIVMODD, IDIVMODQ,
+};
+
+inline DivModOp operator%(DivModOp x, int y) { return (DivModOp)((x & ~3) | (y & 3)); }
 
 
 enum StringOp {
@@ -222,11 +228,11 @@ public:
     virtual void op(SimpleOp opcode) =0;
     virtual void op(UnaryOp opcode, Register x) =0;
     virtual void op(UnaryOp opcode, Address x) =0;
+    virtual void op(DivModOp opcode, Register x) =0;
     virtual void op(StringOp opcode) =0;
     virtual void op(BinaryOp opcode, Register x, int y) =0;
     virtual void op(BinaryOp opcode, Address x, int y) =0;
     virtual void op(BinaryOp opcode, Register x, Register y) =0;
-    virtual void op(BinaryOp opcode, Register x, HighByteRegister y) =0;
     virtual void op(BinaryOp opcode, Address x, Register y) =0;
     virtual void op(BinaryOp opcode, Register x, Address y) =0;
     virtual void op(MovabsOp opcode, Register x, int64 y) =0;  // 64-bit immediate capable
@@ -246,7 +252,6 @@ public:
     virtual void op(Imul3Op opcode, Register x, Address y, int z) =0;
     virtual void op(RegisterMemoryOp opcode, Register x, Address y) =0;
     virtual void op(BitSetOp, Register x) =0;
-    virtual void op(BitSetOp, HighByteRegister x) =0;
     virtual void op(BitSetOp, Address x) =0;
     virtual void op(BranchOp opcode, Label c) =0;
     virtual void op(JumpOp opcode, Label c) =0;

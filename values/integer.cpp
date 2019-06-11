@@ -263,12 +263,8 @@ Storage IntegerOperationValue::binary_divmod(X64 *x64, bool mod) {
 
     left->ts.store(ls, Storage(REGISTER, RAX), x64);
 
-    x64->op(os == 0 ? CBW : os == 1 ? CWD : os == 2 ? CDQ : CQO);
-    x64->op((is_unsigned ? DIVQ : IDIVQ) % os, rs.reg);
+    x64->op((is_unsigned ? DIVMODQ : IDIVMODQ) % os, rs.reg);
 
-    if (mod && os == 0)
-        x64->op(MOVB, DL, AH);  // Result in AH, get it into a sane register
-        
     return Storage(REGISTER, mod ? RDX : RAX);
 }
 
@@ -467,17 +463,13 @@ Storage IntegerOperationValue::assign_multiply(X64 *x64) {
 Storage IntegerOperationValue::assign_divmod(X64 *x64, bool mod) {
     subcompile(x64);
 
-    Storage als = lmemory(x64);
-        
     big_prearrange(x64);
+
+    Storage als = lmemory(x64);
 
     x64->op(MOVQ % os, RAX, als.address);
 
-    x64->op(os == 0 ? CBW : os == 1 ? CWD : os == 2 ? CDQ : CQO);
-    x64->op((is_unsigned ? DIVQ : IDIVQ) % os, rs.reg);
-
-    if (mod && os == 0)
-        x64->op(MOVB, DL, AH);  // Result in AH, get it into a sane register
+    x64->op((is_unsigned ? DIVMODQ : IDIVMODQ) % os, rs.reg);
 
     x64->op(MOVQ % os, als.address, mod ? RDX : RAX);
     return ls;
@@ -486,9 +478,9 @@ Storage IntegerOperationValue::assign_divmod(X64 *x64, bool mod) {
 Storage IntegerOperationValue::assign_exponent(X64 *x64) {
     subcompile(x64);
 
-    Storage als = lmemory(x64);
-        
     big_prearrange(x64);
+
+    Storage als = lmemory(x64);
 
     x64->op(MOVQ % os, RAX, als.address);
 
