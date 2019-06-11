@@ -290,8 +290,6 @@ void Emu_X64::op(BinaryOp opcode, Register x, Register y) { asm_x64->op(map(opco
 void Emu_X64::op(BinaryOp opcode, Address x, Register y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(BinaryOp opcode, Register x, Address y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(MovabsOp opcode, Register x, int64 y) { asm_x64->op(map(opcode), x, y); }  // 64-bit immediate capable
-void Emu_X64::op(ShiftOp opcode, Register x, Register cl) { asm_x64->op(map(opcode), x, cl); }
-void Emu_X64::op(ShiftOp opcode, Address x, Register cl) { asm_x64->op(map(opcode), x, cl); }
 void Emu_X64::op(ShiftOp opcode, Register x, char y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(ShiftOp opcode, Address x, char y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(ExchangeOp opcode, Register x, Register y) { asm_x64->op(map(opcode), x, y); }
@@ -324,6 +322,22 @@ void Emu_X64::op(SseGprmemOp opcode, SseRegister x, Address y) { asm_x64->op(map
 
 void Emu_X64::op(GprSsememOp opcode, Register x, SseRegister y) { asm_x64->op(map(opcode), x, y); }
 void Emu_X64::op(GprSsememOp opcode, Register x, Address y) { asm_x64->op(map(opcode), x, y); }
+
+void Emu_X64::op(ShiftOp opcode, Register x, Register y) {
+    if (y == RCX) {
+        asm_x64->op(map(opcode), x, CL);
+    }
+    else if (x == RCX) {
+        asm_x64->op(X::XCHGQ, y, RCX);
+        asm_x64->op(map(opcode), y, CL);
+        asm_x64->op(X::XCHGQ, y, RCX);
+    }
+    else {
+        asm_x64->op(X::XCHGQ, y, RCX);
+        asm_x64->op(map(opcode), x, CL);
+        asm_x64->op(X::XCHGQ, y, RCX);
+    }
+}
 
 static void divmod(Asm_X64 *asm_x64, DivModOp opcode, Register r) {
     switch (opcode) {

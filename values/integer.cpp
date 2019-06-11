@@ -306,72 +306,63 @@ Storage IntegerOperationValue::binary_divmod(X64 *x64, bool mod) {
 Storage IntegerOperationValue::binary_shift(X64 *x64, ShiftOp opcode) {
     subcompile(x64);
 
-    // The register allocation gave us a register that looked promising as
-    // a return value. But that we cannot exclude that it returned RCX,
-    // which is inappropriate in this case, as it will be used for the
-    // right hand side. So this is why we force allocated RAX, too.
-    if (auxls.reg == RCX)
-        auxls.reg = RAX;
+    BinaryOp mov = MOVQ % os;
+    ShiftOp op = opcode % os;
 
     switch (ls.where * rs.where) {
-    case CONSTANT_CONSTANT:
-        return Storage(CONSTANT, opcode % 3 == SHLQ ? ls.value << rs.value : ls.value >> rs.value);
+    case CONSTANT_CONSTANT: {
+        // FIXME: implement all
+        int value = (
+            (opcode % 3) == RCLQ ? throw INTERNAL_ERROR :
+            (opcode % 3) == RCRQ ? throw INTERNAL_ERROR :
+            (opcode % 3) == ROLQ ? throw INTERNAL_ERROR :
+            (opcode % 3) == RORQ ? throw INTERNAL_ERROR :
+            (opcode % 3) == SALQ ? throw INTERNAL_ERROR :
+            (opcode % 3) == SARQ ? throw INTERNAL_ERROR :
+            (opcode % 3) == SHLQ ? ls.value << rs.value :
+            (opcode % 3) == SHRQ ? ls.value >> rs.value :
+            throw INTERNAL_ERROR
+        );
+
+        if (fits32(value))
+            return Storage(CONSTANT, value);
+
+        x64->op(mov, auxls.reg, ls.value);
+        x64->op(op, auxls.reg, rs.value);
+        return Storage(REGISTER, auxls.reg);
+    }
     case CONSTANT_REGISTER:
-        x64->op(MOVQ % os, RCX, rs.reg);
-        x64->op(MOVQ % os, auxls.reg, ls.value);
-        x64->op(opcode % os, auxls.reg, CL);
-        return auxls;
+        x64->op(mov, auxls.reg, ls.value);
+        x64->op(op, auxls.reg, rs.reg);
+        return Storage(REGISTER, auxls.reg);
     case CONSTANT_MEMORY:
-        x64->op(MOVQ % os, RCX, rs.address);
-        x64->op(MOVQ % os, auxls.reg, ls.value);
-        x64->op(opcode % os, auxls.reg, CL);
-        return auxls;
+        x64->op(mov, auxls.reg, ls.value);
+        x64->op(mov, R10, rs.address);
+        x64->op(op, auxls.reg, R10);
+        return Storage(REGISTER, auxls.reg);
     case REGISTER_CONSTANT:
-        x64->op(opcode % os, ls.reg, rs.value);
+        x64->op(op, ls.reg, rs.value);
         return Storage(REGISTER, ls.reg);
     case REGISTER_REGISTER:
-        if (ls.reg == RCX) {
-            x64->op(XCHGQ % os, ls.reg, rs.reg);
-            x64->op(opcode % os, rs.reg, CL);
-            return Storage(REGISTER, rs.reg);
-        }
-        else if (rs.reg != RCX) {
-            x64->op(MOVQ % os, RCX, rs.reg);
-            x64->op(opcode % os, ls.reg, CL);
-            return Storage(REGISTER, ls.reg);
-        }
-        else {
-            x64->op(opcode % os, ls.reg, CL);
-            return Storage(REGISTER, ls.reg);
-        }
+        x64->op(op, ls.reg, rs.reg);
+        return Storage(REGISTER, ls.reg);
     case REGISTER_MEMORY:
-        if (ls.reg == RCX) {
-            x64->op(MOVQ % os, auxls.reg, ls.reg);  // not RCX
-            x64->op(MOVQ % os, RCX, rs.address);
-            x64->op(opcode % os, auxls.reg, CL);
-            return auxls;
-        }
-        else {
-            x64->op(MOVQ % os, RCX, rs.address);
-            x64->op(opcode % os, ls.reg, CL);
-            return Storage(REGISTER, ls.reg);
-        }
+        x64->op(mov, R10, rs.address);
+        x64->op(op, ls.reg, R10);
+        return Storage(REGISTER, ls.reg);
     case MEMORY_CONSTANT:
-        x64->op(MOVQ % os, auxls.reg, ls.address);
-        x64->op(opcode % os, auxls.reg, rs.value);
-        return auxls;
+        x64->op(mov, auxls.reg, ls.address);
+        x64->op(op, auxls.reg, rs.value);
+        return Storage(REGISTER, auxls.reg);
     case MEMORY_REGISTER:
-        if (rs.reg != RCX)
-            x64->op(MOVQ % os, RCX, rs.reg);
-            
-        x64->op(MOVQ % os, auxls.reg, ls.address);  // not RCX
-        x64->op(opcode % os, auxls.reg, CL);
-        return auxls;
+        x64->op(mov, auxls.reg, ls.address);
+        x64->op(op, auxls.reg, rs.reg);
+        return Storage(REGISTER, auxls.reg);
     case MEMORY_MEMORY:
-        x64->op(MOVQ % os, auxls.reg, ls.address);  // not RCX
-        x64->op(MOVQ % os, RCX, rs.address);
-        x64->op(opcode % os, auxls.reg, CL);
-        return auxls;
+        x64->op(mov, auxls.reg, ls.address);
+        x64->op(mov, R10, rs.address);
+        x64->op(op, auxls.reg, R10);
+        return Storage(REGISTER, auxls.reg);
     default:
         throw INTERNAL_ERROR;
     }
@@ -547,42 +538,29 @@ Storage IntegerOperationValue::assign_shift(X64 *x64, ShiftOp opcode) {
     subcompile(x64);
     
     Storage als = lmemory(x64);
-        
+
+    BinaryOp mov = MOVQ % os;
+    ShiftOp op = opcode % os;
+    
+    x64->op(mov, R10, als.address);
+
     switch (rs.where) {
     case CONSTANT:
-        x64->op(opcode % os, als.address, rs.value);
-        return ls;
+        x64->op(op, R10, rs.value);
+        break;
     case REGISTER:
-        if (als.address.base != RCX) {
-            x64->op(MOVB, CL, rs.reg);
-            x64->op(opcode % os, als.address, CL);
-            return ls;
-        }
-        else {
-            x64->op(XCHGQ, als.address.base, rs.reg);
-            x64->op(MOVB, CL, als.address.base);
-            als.address.base = rs.reg;
-            x64->op(opcode % os, als.address, CL);
-            return ls;
-        }
+        x64->op(op, R10, rs.reg);
+        break;
     case MEMORY:
-        if (als.address.base != RCX) {
-            x64->op(MOVB, CL, rs.address);
-            x64->op(opcode % os, als.address, CL);
-            return ls;
-        }
-        else {
-            x64->op(MOVQ, R10, RCX);
-            als.address.base = R10;
-            x64->op(MOVB, CL, rs.address);
-            x64->op(opcode % os, als.address, CL);
-            x64->op(MOVQ, RCX, R10);
-            als.address.base = RCX;
-            return ls;
-        }
+        x64->op(mov, R11, rs.address);
+        x64->op(op, R10, R11);
+        break;
     default:
         throw INTERNAL_ERROR;
     }
+
+    x64->op(mov, als.address, R10);
+    return ls;
 }
 
 Regs IntegerOperationValue::precompile(Regs preferred) {

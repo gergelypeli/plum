@@ -236,8 +236,7 @@ public:
     virtual void op(BinaryOp opcode, Address x, Register y) =0;
     virtual void op(BinaryOp opcode, Register x, Address y) =0;
     virtual void op(MovabsOp opcode, Register x, int64 y) =0;  // 64-bit immediate capable
-    virtual void op(ShiftOp opcode, Register x, Register cl) =0;
-    virtual void op(ShiftOp opcode, Address x, Register cl) =0;
+    virtual void op(ShiftOp opcode, Register x, Register y) =0;
     virtual void op(ShiftOp opcode, Register x, char y) =0;
     virtual void op(ShiftOp opcode, Address x, char y) =0;
     virtual void op(ExchangeOp opcode, Register x, Register y) =0;

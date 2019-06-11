@@ -36,8 +36,7 @@ public:
     virtual void op(BinaryOp opcode, Address x, Register y);
     virtual void op(BinaryOp opcode, Register x, Address y);
     virtual void op(MovabsOp opcode, Register x, int64 y);  // 64-bit immediate capable
-    virtual void op(ShiftOp opcode, Register x, Register cl);
-    virtual void op(ShiftOp opcode, Address x, Register cl);
+    virtual void op(ShiftOp opcode, Register x, Register y);
     virtual void op(ShiftOp opcode, Register x, char y);
     virtual void op(ShiftOp opcode, Address x, char y);
     virtual void op(ExchangeOp opcode, Register x, Register y);
