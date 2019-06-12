@@ -41,10 +41,6 @@ void IntegerOperationValue::exponentiation_by_squaring(X64 *x64, Register BASE, 
     x64->op(JNE, loop_label);
 }
 
-bool IntegerOperationValue::fits8(int value) {
-    return value >= -128 && value <= 127;
-}
-
 bool IntegerOperationValue::fits32(int value) {
     // We don't want to rely on the C++ truncation mechanism, so
     // as soon as the values don't fit in our types, stop keeping
@@ -65,46 +61,6 @@ bool IntegerOperationValue::fits32(int value) {
     );
 }
 
-void IntegerOperationValue::little_prearrange(X64 *x64) {
-    // Get rs into a register, but out of RAX/RCX/RDX, may use R10
-    // Used for divmod/exponent.
-    switch (rs.where) {
-    case CONSTANT:
-        x64->op(MOVQ % os, R10, rs.value);
-        rs = Storage(REGISTER, R10);
-        break;
-    case REGISTER:
-        if (rs.reg == RAX || rs.reg == RCX || rs.reg == RDX) {
-            x64->op(MOVQ % os, R10, rs.reg);
-            rs = Storage(REGISTER, R10);
-        }
-        break;
-    case MEMORY:
-        x64->op(MOVQ % os, R10, rs.address);
-        rs = Storage(REGISTER, R10);
-        break;
-    default:
-        throw INTERNAL_ERROR;
-    }
-}
-
-void IntegerOperationValue::big_prearrange(X64 *x64) {
-    little_prearrange(x64);
-    
-    // Get ls out of RAX/RDX, may use RCX
-    // Used for assigning divmod/exponent.
-    switch (ls.where) {
-    case MEMORY:
-        if (ls.regs() & Regs(RAX, RDX)) {
-            x64->op(LEA, RCX, ls.address);
-            ls = Storage(MEMORY, Address(RCX, 0));
-        }
-        break;
-    default:
-        throw INTERNAL_ERROR;
-    }
-}
-    
 Storage IntegerOperationValue::unary(X64 *x64, UnaryOp opcode) {
     subcompile(x64);
 
@@ -371,14 +327,55 @@ Storage IntegerOperationValue::binary_shift(X64 *x64, ShiftOp opcode) {
 Storage IntegerOperationValue::binary_exponent(X64 *x64) {
     subcompile(x64);
 
-    little_prearrange(x64);  // get rs out of RAX/RCX/RDX, potentially into R10
+    BinaryOp mov = MOVQ % os;
 
-    left->ts.store(ls, Storage(REGISTER, RAX), x64);
-    
-    // base in RAX, exponent in rs, result in RDX
-    exponentiation_by_squaring(x64, RAX, rs.reg, RDX);
-
-    return Storage(REGISTER, RDX);
+    switch (ls.where * rs.where) {
+    case CONSTANT_CONSTANT: {
+        x64->op(mov, R10, ls.value);
+        x64->op(mov, R11, rs.value);
+        exponentiation_by_squaring(x64, R10, R11, auxls.reg);
+        return Storage(REGISTER, auxls.reg);
+    }
+    case CONSTANT_REGISTER:
+        x64->op(mov, R10, ls.value);
+        exponentiation_by_squaring(x64, R10, rs.reg, auxls.reg);
+        return Storage(REGISTER, auxls.reg);
+    case CONSTANT_MEMORY:
+        x64->op(mov, R10, ls.value);
+        x64->op(mov, R11, rs.address);
+        exponentiation_by_squaring(x64, R10, R11, auxls.reg);
+        return Storage(REGISTER, auxls.reg);
+    case REGISTER_CONSTANT:
+        x64->op(mov, R10, ls.reg);
+        x64->op(mov, R11, rs.value);
+        exponentiation_by_squaring(x64, R10, R11, ls.reg);
+        return Storage(REGISTER, ls.reg);
+    case REGISTER_REGISTER:
+        x64->op(mov, R10, ls.reg);
+        exponentiation_by_squaring(x64, R10, rs.reg, ls.reg);
+        return Storage(REGISTER, ls.reg);
+    case REGISTER_MEMORY:
+        x64->op(mov, R10, ls.reg);
+        x64->op(mov, R11, rs.address);
+        exponentiation_by_squaring(x64, R10, R11, ls.reg);
+        return Storage(REGISTER, ls.reg);
+    case MEMORY_CONSTANT:
+        x64->op(mov, R10, ls.address);
+        x64->op(mov, R11, rs.value);
+        exponentiation_by_squaring(x64, R10, R11, auxls.reg);
+        return Storage(REGISTER, auxls.reg);
+    case MEMORY_REGISTER:
+        x64->op(mov, R10, ls.address);
+        exponentiation_by_squaring(x64, R10, rs.reg, auxls.reg);
+        return Storage(REGISTER, auxls.reg);
+    case MEMORY_MEMORY:
+        x64->op(mov, R10, ls.address);
+        x64->op(mov, R11, rs.address);
+        exponentiation_by_squaring(x64, R10, R11, auxls.reg);
+        return Storage(REGISTER, auxls.reg);
+    default:
+        throw INTERNAL_ERROR;
+    }
 }
 
 Storage IntegerOperationValue::binary_compare(X64 *x64, ConditionCode cc) {
@@ -522,15 +519,36 @@ Storage IntegerOperationValue::assign_divmod(X64 *x64, bool mod) {
 Storage IntegerOperationValue::assign_exponent(X64 *x64) {
     subcompile(x64);
 
-    big_prearrange(x64);
-
     Storage als = lmemory(x64);
 
-    x64->op(MOVQ % os, RAX, als.address);
+    BinaryOp mov = MOVQ % os;
 
-    exponentiation_by_squaring(x64, RAX, rs.reg, RDX);
-    
-    x64->op(MOVQ % os, als.address, RDX);
+    x64->op(mov, R10, als.address);
+
+    switch (rs.where) {
+    case CONSTANT:
+        x64->op(PUSHQ, RAX);
+        x64->op(mov, RAX, rs.value);
+        exponentiation_by_squaring(x64, R10, RAX, R11);
+        x64->op(POPQ, RAX);
+        x64->op(mov, als.address, R11);
+        break;
+    case REGISTER:
+        exponentiation_by_squaring(x64, R10, rs.reg, R11);
+        x64->op(mov, als.address, R11);
+        break;
+    case MEMORY:
+        x64->op(mov, R11, rs.address);
+        x64->op(PUSHQ, RAX);
+        x64->op(mov, RAX, R11);
+        exponentiation_by_squaring(x64, R10, RAX, R11);
+        x64->op(POPQ, RAX);
+        x64->op(mov, als.address, R11);
+        break;
+    default:
+        throw INTERNAL_ERROR;
+    }
+
     return ls;
 }
 
@@ -566,27 +584,6 @@ Storage IntegerOperationValue::assign_shift(X64 *x64, ShiftOp opcode) {
 Regs IntegerOperationValue::precompile(Regs preferred) {
     Regs clob = OptimizedOperationValue::precompile(preferred);
 
-    switch (operation) {
-    case DIVIDE:
-    case ASSIGN_DIVIDE:
-    case MODULO:
-    case ASSIGN_MODULO:
-    case EXPONENT:
-    case ASSIGN_EXPONENT:
-        clob = clob | RAX | RDX | RCX;
-        break;
-    case SHIFT_LEFT:
-    case SHIFT_RIGHT:
-        clob = clob | RAX | RCX;
-        break;
-    case ASSIGN_SHIFT_LEFT:
-    case ASSIGN_SHIFT_RIGHT:
-        clob = clob | RCX;
-        break;
-    default:
-        break;
-    }
-    
     return clob;
 }
 
