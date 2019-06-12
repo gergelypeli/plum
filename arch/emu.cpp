@@ -176,11 +176,11 @@ void Emu::code_label_global(Label c, std::string name, unsigned size) {
 }
 
 
-int Emu::get_pc() {
+unsigned Emu::get_pc() {
     return code.size();
 }
 
 
-int Emu::get_dc() {
+unsigned Emu::get_dc() {
     return data.size();
 }

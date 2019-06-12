@@ -16,7 +16,7 @@ void Emu_X64::data_reference(Label label, int addend) {
         throw ASM_ERROR;
     }
 
-    refs.push_back({ REF_DATA_ABSOLUTE, data.size(), label.def_index, addend });
+    refs.push_back({ REF_DATA_ABSOLUTE, get_dc(), label.def_index, addend });
     data_qword(0);  // 64-bit relocations only
 }
 
@@ -27,7 +27,7 @@ void Emu_X64::code_reference(Label label, int addend) {
         throw ASM_ERROR;
     }
 
-    refs.push_back({ REF_CODE_RELATIVE, code.size(), label.def_index, addend });
+    refs.push_back({ REF_CODE_RELATIVE, get_pc(), label.def_index, addend });
     code_dword(0);  // 32-bit offset only
 }
 

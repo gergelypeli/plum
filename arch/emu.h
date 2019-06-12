@@ -222,8 +222,8 @@ public:
     virtual void code_label_local(Label c, std::string name, unsigned size = 0);
     virtual void code_label_global(Label c, std::string name, unsigned size = 0);
 
-    virtual int get_pc();
-    virtual int get_dc();
+    virtual unsigned get_pc();
+    virtual unsigned get_dc();
 
     virtual void op(SimpleOp opcode) =0;
     virtual void op(UnaryOp opcode, Register x) =0;
