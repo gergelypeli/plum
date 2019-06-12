@@ -1,3 +1,6 @@
+#ifndef PLUM_H
+#define PLUM_H
+
 // Standard libraries
 #include <string>
 #include <cstring>
@@ -71,3 +74,5 @@ class SelfInfo;
 // Defined here
 ModuleScope *import_module(std::string required_name, Scope *scope);
 std::string get_source_file_display_name(int index);
+
+#endif

@@ -2,7 +2,7 @@
 
 DECLS      = declaration identifier scope type basic record reference interface class option allocable function associable float container nosy util
 VALUES     = value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset rbtree_weakmapset container option equality float weakref debug
-ARCHS      = elf asm asm_x64 emu emu_x64 storage basics dwarf
+ARCHS      = elf elf_a64 asm asm_x64 asm_a64 emu emu_x64 emu_a64 storage basics dwarf
 PARSING    = tokenize treeize tupleize typize
 GLOBALS    = builtins builtins_errno typespec typematch runtime modules
 MODULES    = util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%) $(PARSING:%=parsing/%)
