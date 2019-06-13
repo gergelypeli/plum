@@ -51,6 +51,10 @@ struct BitMask {
     }
 };
 
+enum SpecReg {
+    SPECREG_CONDFLAGS = 0b1101101000010000
+};
+
 enum MovImmOpcode {
     MOVZ, MOVN, MOVK
 };
@@ -80,11 +84,14 @@ enum MemOpcode {
 enum ArithOpcode {
     ADD, ADDS,
     SUB, SUBS,
+};
+
+enum LogicalOpcode {
     AND, ANDS,
     EOR, ORR
 };
 
-enum ArithNotOpcode {
+enum LogicalNotOpcode {
     EON, ORN
 };
 
@@ -108,8 +115,8 @@ enum ExtrOpcode {
     EXTR
 };
 
-enum NopOpcode {
-    NOP
+enum SimpleOpcode {
+    NOP, UDF
 };
 
 enum JumpOpcode {
@@ -139,6 +146,9 @@ enum CondSelOpcode {
     CSEL, CSINC, CSINV, CSNEG
 };
 
+enum SysRegOpcode {
+    MSRR, MSRW
+};
 
 }
 
@@ -169,6 +179,9 @@ public:
 
     virtual void code_op(unsigned op);
 
+    virtual void pushq(Register r);
+    virtual void popq(Register r);
+
     virtual void op(A::MovImmOpcode opcode, Register rd, int imm, A::Lsl hw);
 
     virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm);
@@ -179,11 +192,12 @@ public:
     virtual void op(A::MemOpcode opcode, Register rt, Register rn, Register rm);
 
     virtual void op(A::ArithOpcode opcode, Register rd, Register rn, int imm, A::Shift12 shift12 = A::SHIFT12_NO);
-    virtual void op(A::ArithOpcode opcode, Register rd, Register rn, A::BitMask bitmask);
-    virtual void op(A::ArithOpcode opcode, Register rd, Register rn, unsigned lowest_bit, unsigned bit_length);
     virtual void op(A::ArithOpcode opcode, Register rd, Register rn, Register rm, A::ShiftDir shift_dir = A::SHIFT_LSL, int shift_amount = 0);
 
-    virtual void op(A::ArithNotOpcode opcode, Register rd, Register rn, Register rm, A::ShiftDir shift_dir = A::SHIFT_LSL, int shift_amount = 0);
+    virtual void op(A::LogicalOpcode opcode, Register rd, Register rn, A::BitMask bitmask);
+    virtual void op(A::LogicalOpcode opcode, Register rd, Register rn, Register rm, A::ShiftDir shift_dir = A::SHIFT_LSL, int shift_amount = 0);
+
+    virtual void op(A::LogicalNotOpcode opcode, Register rd, Register rn, Register rm, A::ShiftDir shift_dir = A::SHIFT_LSL, int shift_amount = 0);
 
     virtual void op(A::MulOpcode opcode, Register rd, Register rn, Register rm, Register ra);
 
@@ -194,7 +208,7 @@ public:
     virtual void op(A::BitFieldOpcode opcode, Register rd, Register rn, A::BitMask bitmask);
     virtual void op(A::ExtrOpcode opcode, Register rd, Register rn, Register rm, int lsb_index);
 
-    virtual void op(A::NopOpcode);
+    virtual void op(A::SimpleOpcode);
 
     virtual void op(A::JumpOpcode opcode, Label label);
     virtual void op(A::JumpOpcode opcode, Register rn);
@@ -204,4 +218,6 @@ public:
 
     virtual void op(A::CondSelOpcode opcode, A::CondCode cc, Register rd, Register rn, Register rm);
     virtual void op(A::RegLabelOpcode opcode, Register rn, Label label);
+    
+    virtual void op(A::SysRegOpcode opcode, SpecReg specreg16, Register rt);
 };

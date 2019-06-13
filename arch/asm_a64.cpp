@@ -51,6 +51,18 @@ void Asm_A64::code_op(unsigned opcode) {
 }
 
 
+// Helpers
+
+void Asm_A64::pushq(Register r) {
+    op(STRQ, t, RSP, -8, false);
+}
+
+
+void Asm_A64::popq(Register r) {
+    op(LDRQ, t, RSP, 8, true);
+}
+
+
 // MovImm
 
 struct {
@@ -100,17 +112,18 @@ struct {
 } mem_info[] = {
     0b1111100001,  // LDR
     0b1011100001,  // LDRUW
-    0b0111100001,
-    0b0011100001,
+    0b0111100001,  // LDRUH
+    0b0011100001,  // LDRUB
     0b1011100010,  // LDRSW
-    0b0111100010,
-    0b0011100010,
+    0b0111100010,  // LDRSH
+    0b0011100010,  // LDRSB
     0b1111100000,  // STR
-    0b1011100000,  // STRUW
-    0b0111100000,
-    0b0011100000,
+    0b1011100000,  // STRW
+    0b0111100000,  // STRH
+    0b0011100000,  // STRB
 };
 
+// The unscaled signed immediate addressing has these variants
 enum {
     MEM_NORMAL = 0b00,
     MEM_POSTINDEX = 0b01,
@@ -162,50 +175,16 @@ struct {
     { 0b10110001, 0b10101011 }, // ADDS
     { 0b11010001, 0b11001011 }, // SUB
     { 0b11110001, 0b11101011 }, // SUBS
-    { 0b10010010, 0b10001010 }, // AND
-    { 0b11110010, 0b11101010 }, // ANDS
-    { 0b11010010, 0b11001010 }, // EOR
-    { 0b10110010, 0b10101010 }, // ORR
 };
 
-static bool is_logical(ArithOpcode opcode) {
-    return (opcode == A::AND || opcode == ANDS || opcode == EOR || opcode == ORR);
-}
-
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, int imm, Shift12 shift12) {
-    if (is_logical(opcode))
-        throw ASM_ERROR;  // should use the bitmask operand version instead
-
     int op8 = arith_info[opcode].imm_op8;
     
     code_op(op8 << 24 | shift12 << 22 | uimm(imm, 12) << 10 | rn << 5 | rd << 0);
 }
 
-void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, BitMask bitmask) {
-    if (!is_logical(opcode))
-        throw ASM_ERROR;  // should use the numeric operand version instead
-
-    if (bitmask.imms >= 63 || bitmask.immr >= 64)
-        throw ASM_ERROR;
-
-    int op8 = arith_info[opcode].imm_op8;
-    int n = 0b01;  // we always use 64-bit wide patterns
-    
-    code_op(op8 << 24 | n << 22 | bitmask.immr << 16 | bitmask.imms << 10 | rn << 5 | rd << 0);
-}
-
-void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, unsigned lowest_bit, unsigned bit_length) {
-    if (!is_logical(opcode))
-        throw ASM_ERROR;  // should use the numeric operand version instead
-
-    if (lowest_bit >= 64 || bit_length >= 64 || bit_length == 0)
-        throw ASM_ERROR;
-
-    op(opcode, rd, rn, BitMask(bit_length - 1, (64 - lowest_bit) % 64));
-}
-
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
-    if (shift_dir == SHIFT_ROR && !is_logical(opcode))
+    if (shift_dir == SHIFT_ROR)
         throw ASM_ERROR;
 
     int op8 = arith_info[opcode].reg_op8;
@@ -215,20 +194,51 @@ void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, Register rm, Shif
 }
 
 
+// Logical
+
 struct {
+    unsigned imm_op8;
     unsigned reg_op8;
-} arithnot_info[] = {
-    0b11001010, // EON  (practically EOR)
-    0b10101010, // ORN  (practically ORR)
+} logical_info[] = {
+    { 0b10010010, 0b10001010 }, // AND
+    { 0b11110010, 0b11101010 }, // ANDS
+    { 0b11010010, 0b11001010 }, // EOR
+    { 0b10110010, 0b10101010 }, // ORR
 };
 
-void Asm_A64::op(ArithNotOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
-    int op8 = arithnot_info[opcode].reg_op8;
-    int neg = 0b1;
+void Asm_A64::op(LogicalOpcode opcode, Register rd, Register rn, BitMask bitmask) {
+    if (bitmask.imms >= 63 || bitmask.immr >= 64)
+        throw ASM_ERROR;
+
+    int op8 = logical_info[opcode].imm_op8;
+    int n = 0b01;  // we always use 64-bit wide patterns
+    
+    code_op(op8 << 24 | n << 22 | bitmask.immr << 16 | bitmask.imms << 10 | rn << 5 | rd << 0);
+}
+
+void Asm_A64::op(LogicalOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
+    int op8 = logical_info[opcode].reg_op8;
+    int neg = 0b0;
     
     code_op(op8 << 24 | shift_dir << 22 | neg << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
 }
 
+
+// LogicalNot 
+
+struct {
+    unsigned reg_op8;
+} logicalnot_info[] = {
+    0b11001010, // EON  (practically EOR)
+    0b10101010, // ORN  (practically ORR)
+};
+
+void Asm_A64::op(LogicalNotOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
+    int op8 = logicalnot_info[opcode].reg_op8;
+    int neg = 0b1;
+    
+    code_op(op8 << 24 | shift_dir << 22 | neg << 21 | rm << 16 | uimm(shift_amount, 6) << 10 | rn << 5 | rd << 0);
+}
 
 
 // Mul
@@ -295,10 +305,19 @@ void Asm_A64::op(ExtrOpcode opcode, Register rd, Register rn, Register rm, int l
 }
 
 
-// Nop
+// Simple
 
-void Asm_A64::op(NopOpcode opcode) {
-    code_op(0b11010101000000110010000000011111);
+void Asm_A64::op(SimpleOpcode opcode) {
+    switch (opcode) {
+    case NOP:
+        code_op(0b11010101000000110010000000011111);
+        break;
+    case UDF:
+        code_op(0b00000000000000000000000000000000);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
 }
 
 
@@ -367,3 +386,13 @@ void Asm_A64::op(RegLabelOpcode opcode, Register rn, Label label) {
     code_op(op8 << 24 | rn << 0);
 }
 
+
+// SysReg
+
+void Asm_A64::op(SysRegOpcode opcode, SpecReg specreg16, Register rt) {
+    int op10 = 0b1101010100;
+    int l = (opcode == MSRR ? 0b1 : 0b0);
+    // specreg16 is o0op1CRnCRmop2
+    
+    code_op(op10 << 22 | l << 21 | specreg16 << 5 | rt << 0);
+}
