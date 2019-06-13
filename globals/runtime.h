@@ -111,7 +111,7 @@ public:
     const int PROT_RW = 3;
 
     struct LineInfo {
-        int address;
+        unsigned address;
         int file_index;
         int line_number;
     };
