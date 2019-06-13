@@ -19,6 +19,16 @@ enum Shift12 {
     SHIFT12_YES
 };
 
+enum MemIncrement {
+    INCREMENT_PRE,
+    INCREMENT_POST
+};
+
+enum MemScaling {
+    UNSIGNED_SCALED,
+    SIGNED_UNSCALED
+};
+
 struct BitMask {
     unsigned imms;  // index of the most significant bit to keep
     unsigned immr;  // number of right rotations (variant depends on the instruction)
@@ -146,7 +156,7 @@ enum CondSelOpcode {
     CSEL, CSINC, CSINV, CSNEG
 };
 
-enum SysRegOpcode {
+enum SpecRegOpcode {
     MSRR, MSRW
 };
 
@@ -185,10 +195,10 @@ public:
     virtual void op(A::MovImmOpcode opcode, Register rd, int imm, A::Lsl hw);
 
     virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm);
-    virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm, bool post);
+    virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm, A::MemIncrement increment);
 
-    virtual void op(A::MemOpcode opcode, Register rt, Register rn, int imm);
-    virtual void op(A::MemOpcode opcode, Register rt, Register rn, int imm, bool post);
+    virtual void op(A::MemOpcode opcode, Register rt, Register rn, int imm, A::MemScaling scaling);
+    virtual void op(A::MemOpcode opcode, Register rt, Register rn, int imm, A::MemIncrement increment);
     virtual void op(A::MemOpcode opcode, Register rt, Register rn, Register rm);
 
     virtual void op(A::ArithOpcode opcode, Register rd, Register rn, int imm, A::Shift12 shift12 = A::SHIFT12_NO);
@@ -219,5 +229,5 @@ public:
     virtual void op(A::CondSelOpcode opcode, A::CondCode cc, Register rd, Register rn, Register rm);
     virtual void op(A::RegLabelOpcode opcode, Register rn, Label label);
     
-    virtual void op(A::SysRegOpcode opcode, SpecReg specreg16, Register rt);
+    virtual void op(A::SpecRegOpcode opcode, A::SpecReg specreg16, Register rt);
 };

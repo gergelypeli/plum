@@ -38,7 +38,7 @@ int Asm_A64::uimm(int imm, int width, int unit) {
 
 
 int Asm_A64::simm(int imm, int width, int unit) {
-    if (imm % unit == 0 && imm / unit >= (-1 << (width - 1)) && imm / unit < (1 << (width - 1)))
+    if (imm % unit == 0 && imm / unit >= -(1 << (width - 1)) && imm / unit < (1 << (width - 1)))
         return (imm / unit) & ((1 << width) - 1);
     else
         throw ASM_ERROR;
@@ -54,13 +54,22 @@ void Asm_A64::code_op(unsigned opcode) {
 // Helpers
 
 void Asm_A64::pushq(Register r) {
-    op(STRQ, t, RSP, -8, false);
+    op(STRQ, r, RSP, -8, INCREMENT_PRE);
 }
 
 
 void Asm_A64::popq(Register r) {
-    op(LDRQ, t, RSP, 8, true);
+    op(LDRQ, r, RSP, 8, INCREMENT_POST);
 }
+
+
+// The unscaled signed immediate addressing has these variants
+enum {
+    MEM_NORMAL = 0b00,
+    MEM_POSTINDEX = 0b01,
+    MEM_UNPRIVILEGED = 0b10,
+    MEM_PREINDEX = 0b11
+};
 
 
 // MovImm
@@ -98,8 +107,13 @@ void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int i
     code_op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
 }
 
-void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int imm, bool post) {
-    int op10 = pair_info[opcode].op10 | (post ? 0b01 : 0b11) << 1;
+void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int imm, MemIncrement increment) {
+    int inc = (
+        increment == INCREMENT_PRE ? MEM_PREINDEX :
+        increment == INCREMENT_POST ? MEM_POSTINDEX :
+        throw ASM_ERROR
+    );
+    int op10 = pair_info[opcode].op10 | inc << 1;
     
     code_op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
 }
@@ -123,35 +137,33 @@ struct {
     0b0011100000,  // STRB
 };
 
-// The unscaled signed immediate addressing has these variants
-enum {
-    MEM_NORMAL = 0b00,
-    MEM_POSTINDEX = 0b01,
-    MEM_UNPRIVILEGED = 0b10,
-    MEM_PREINDEX = 0b11
-};
 
-void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm) {
+void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemScaling scaling) {
     int op10 = mem_info[opcode].op10;
     int imm12;
     int size = 1 << (op10 >> 8);
     
-    if (imm >= 0 && imm % size == 0) {
-        // Use the scaled unsigned immediate version
+    if (scaling == UNSIGNED_SCALED) {
         op10 |= 0b100;
         imm12 = uimm(imm, 12, size);
     }
-    else {
-        // Use the unscaled signed immediate version
+    else if (scaling == SIGNED_UNSCALED) {
         imm12 = 0 | simm(imm, 9) << 2 | MEM_NORMAL;
     }
+    else
+        throw ASM_ERROR;
     
     code_op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
 }
 
-void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, bool post) {
+void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemIncrement increment) {
     int op10 = mem_info[opcode].op10;
-    int imm12 = 0 | simm(imm, 9) << 2 | (post ? MEM_POSTINDEX : MEM_PREINDEX);
+    int inc = (
+        increment == INCREMENT_PRE ? MEM_PREINDEX :
+        increment == INCREMENT_POST ? MEM_POSTINDEX :
+        throw ASM_ERROR
+    );
+    int imm12 = 0 | simm(imm, 9) << 2 | inc << 0;
     
     code_op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
 }
@@ -159,7 +171,7 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, bool post)
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, Register rm) {
     int op10 = mem_info[opcode].op10;
     int option = 0b011;  // LSL
-    int scale = 0b0;
+    int scale = 0b0;  // no shift
 
     code_op(op10 << 22 | 0b1 << 21 | rm << 16 | option << 13 | scale << 12 | 0b10 << 10 | rn << 5 | rt << 0);
 }
@@ -309,10 +321,10 @@ void Asm_A64::op(ExtrOpcode opcode, Register rd, Register rn, Register rm, int l
 
 void Asm_A64::op(SimpleOpcode opcode) {
     switch (opcode) {
-    case NOP:
+    case A::NOP:
         code_op(0b11010101000000110010000000011111);
         break;
-    case UDF:
+    case A::UDF:
         code_op(0b00000000000000000000000000000000);
         break;
     default:
@@ -387,9 +399,9 @@ void Asm_A64::op(RegLabelOpcode opcode, Register rn, Label label) {
 }
 
 
-// SysReg
+// SpecReg
 
-void Asm_A64::op(SysRegOpcode opcode, SpecReg specreg16, Register rt) {
+void Asm_A64::op(SpecRegOpcode opcode, SpecReg specreg16, Register rt) {
     int op10 = 0b1101010100;
     int l = (opcode == MSRR ? 0b1 : 0b0);
     // specreg16 is o0op1CRnCRmop2
