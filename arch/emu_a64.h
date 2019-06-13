@@ -1,6 +1,15 @@
 
 class Emu_A64: public Emu, public Referrer_A64 {
 public:
+    struct Addressing {
+        enum Mode {
+            OFFSET_REGISTER, OFFSET_SCALED, OFFSET_UNSCALED
+        } mode;
+        Register base;
+        Register index;
+        int imm;
+    };
+
     enum Ref_type {
         REF_CODE_JUMP, REF_CODE_BRANCH
     };
@@ -21,8 +30,11 @@ public:
 
     virtual void process_relocations();
 
-    void code_jump_reference(Label label, int addend = 0);
-    void code_branch_reference(Label label, int addend = 0);
+    virtual void code_jump_reference(Label label, int addend = 0);
+    virtual void code_branch_reference(Label label, int addend = 0);
+
+    virtual Addressing prepare(int os, Address a);
+    virtual void mem(A::MemOpcode opcode, Register rt, Addressing a);
 
     virtual void op(SimpleOp opcode);
     virtual void op(UnaryOp opcode, Register x);
@@ -31,7 +43,6 @@ public:
     virtual void op(BinaryOp opcode, Register x, int y);
     virtual void op(BinaryOp opcode, Address x, int y);
     virtual void op(BinaryOp opcode, Register x, Register y);
-    virtual void op(BinaryOp opcode, Register x, HighByteRegister y);
     virtual void op(BinaryOp opcode, Address x, Register y);
     virtual void op(BinaryOp opcode, Register x, Address y);
     virtual void op(MovabsOp opcode, Register x, int64 y);  // 64-bit immediate capable
@@ -50,7 +61,6 @@ public:
     virtual void op(Imul3Op opcode, Register x, Address y, int z);
     virtual void op(RegisterMemoryOp opcode, Register x, Address y);
     virtual void op(BitSetOp, Register x);
-    virtual void op(BitSetOp, HighByteRegister x);
     virtual void op(BitSetOp, Address x);
     virtual void op(BranchOp opcode, Label c);
     virtual void op(JumpOp opcode, Label c);
