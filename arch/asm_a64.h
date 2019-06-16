@@ -19,6 +19,11 @@ enum Shift12 {
     SHIFT12_YES
 };
 
+enum IndexShift {
+    INDEX_UNSHIFTED,
+    INDEX_SHIFTED
+};
+
 enum MemIncrement {
     INCREMENT_PRE,
     INCREMENT_POST
@@ -106,7 +111,7 @@ enum LogicalNotOpcode {
 };
 
 enum MulOpcode {
-    MADD
+    MADD, MSUB
 };
 
 enum DivOpcode {
@@ -189,9 +194,6 @@ public:
 
     virtual void code_op(unsigned op);
 
-    virtual void pushq(Register r);
-    virtual void popq(Register r);
-
     virtual void op(A::MovImmOpcode opcode, Register rd, int imm, A::Lsl hw);
 
     virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm);
@@ -199,7 +201,7 @@ public:
 
     virtual void op(A::MemOpcode opcode, Register rt, Register rn, int imm, A::MemScaling scaling);
     virtual void op(A::MemOpcode opcode, Register rt, Register rn, int imm, A::MemIncrement increment);
-    virtual void op(A::MemOpcode opcode, Register rt, Register rn, Register rm);
+    virtual void op(A::MemOpcode opcode, Register rt, Register rn, Register rm, A::IndexShift indexshift = A::INDEX_UNSHIFTED);
 
     virtual void op(A::ArithOpcode opcode, Register rd, Register rn, int imm, A::Shift12 shift12 = A::SHIFT12_NO);
     virtual void op(A::ArithOpcode opcode, Register rd, Register rn, Register rm, A::ShiftDir shift_dir = A::SHIFT_LSL, int shift_amount = 0);

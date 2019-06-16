@@ -3,7 +3,7 @@ class Emu_A64: public Emu, public Referrer_A64 {
 public:
     struct Addressing {
         enum Mode {
-            OFFSET_REGISTER, OFFSET_SCALED, OFFSET_UNSCALED
+            OFFSET_SCALED, OFFSET_UNSCALED, OFFSET_REGISTER, OFFSET_REGISTER_SHIFTED
         } mode;
         Register base;
         Register index;
@@ -32,6 +32,14 @@ public:
 
     virtual void code_jump_reference(Label label, int addend = 0);
     virtual void code_branch_reference(Label label, int addend = 0);
+
+    virtual A::MemOpcode ldrs(int os);
+    virtual A::MemOpcode ldru(int os);
+    virtual A::MemOpcode str(int os);
+    virtual void movimm(Register x, int64 y);
+    virtual void pushq(Register r);
+    virtual void popq(Register r);
+    virtual void lea(Register x, Address y);
 
     virtual Addressing prepare(int os, Address a);
     virtual void mem(A::MemOpcode opcode, Register rt, Addressing a);

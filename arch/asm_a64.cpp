@@ -51,18 +51,6 @@ void Asm_A64::code_op(unsigned opcode) {
 }
 
 
-// Helpers
-
-void Asm_A64::pushq(Register r) {
-    op(STRQ, r, RSP, -8, INCREMENT_PRE);
-}
-
-
-void Asm_A64::popq(Register r) {
-    op(LDRQ, r, RSP, 8, INCREMENT_POST);
-}
-
-
 // The unscaled signed immediate addressing has these variants
 enum {
     MEM_NORMAL = 0b00,
@@ -168,10 +156,11 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemIncreme
     code_op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
 }
 
-void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, Register rm) {
+void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, Register rm, IndexShift indexshift) {
+    // The shift amount depends on the memory operand size
     int op10 = mem_info[opcode].op10;
     int option = 0b011;  // LSL
-    int scale = 0b0;  // no shift
+    int scale = (indexshift == INDEX_SHIFTED ? 0b1 : indexshift == INDEX_UNSHIFTED ? 0b0 : throw ASM_ERROR);
 
     code_op(op10 << 22 | 0b1 << 21 | rm << 16 | option << 13 | scale << 12 | 0b10 << 10 | rn << 5 | rt << 0);
 }
@@ -256,9 +245,10 @@ void Asm_A64::op(LogicalNotOpcode opcode, Register rd, Register rn, Register rm,
 // Mul
 
 void Asm_A64::op(MulOpcode opcode, Register rd, Register rn, Register rm, Register ra) {
-    int op8 = 0b10011011;  // MADD
+    int op11 = 0b10011011000;
+    int op1 = (opcode == MADD ? 0b0 : opcode == MSUB ? 0b1 : throw ASM_ERROR);
     
-    code_op(op8 << 24 | 0b000 << 21 | rm << 16 | 0b0 << 15 | ra << 10 | rn << 5 | rd << 0);
+    code_op(op11 << 21 | rm << 16 | op1 << 15 | ra << 10 | rn << 5 | rd << 0);
 }
 
 
