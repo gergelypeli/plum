@@ -63,7 +63,8 @@ int main(int argc, char **argv) {
     // Allocate builtins and modules
     unsigned application_size = root->allocate_modules();
     
-    X64 *x64 = new X64("mymodule", application_size, root->source_file_names);
+    X64 *x64 = new X64_X64("mymodule");
+    x64->init(application_size, root->source_file_names);
 
     int low_pc = x64->get_pc();
     root->compile_modules(x64);

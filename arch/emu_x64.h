@@ -1,5 +1,5 @@
 
-class Emu_X64: public Emu, public Referrer_X64 {
+class Emu_X64: public virtual Emu, public virtual Referrer_X64 {
 public:
     enum Ref_type {
         REF_CODE_SHORT,
@@ -21,8 +21,9 @@ public:
     
     Emu_X64(std::string module_name);
 
-    void data_reference(Label label, int addend = 0);
-    void code_reference(Label label, int addend = 0);
+    virtual void add_ref(Ref r);
+    virtual void data_reference(Label label, int addend = 0);
+    virtual void code_reference(Label label, int addend = 0);
 
     virtual void process_relocations();
     

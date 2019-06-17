@@ -21,23 +21,31 @@ Emu_A64::Emu_A64(std::string module_name) {
 }
 
 
-void Emu_A64::code_jump_reference(Label label, int addend) {
-    if (!label.def_index) {
+void Emu_A64::add_ref(Ref r) {
+    if (!r.def_index) {
         std::cerr << "Can't reference an undeclared label!\n";
         throw ASM_ERROR;
     }
 
-    refs.push_back({ REF_CODE_JUMP, get_pc(), label.def_index, addend });
+    refs.push_back(r);
+}
+
+
+void Emu_A64::data_reference(Label label, int addend) {
+    add_ref({ REF_DATA_ABSOLUTE, get_dc(), label.def_index, addend });
+    data_qword(0);  // 64-bit relocations only
+}
+
+
+void Emu_A64::code_jump_reference(Label label, int addend) {
+    add_ref({ REF_CODE_JUMP, get_pc(), label.def_index, addend });
+    // No placeholder added
 }
 
 
 void Emu_A64::code_branch_reference(Label label, int addend) {
-    if (!label.def_index) {
-        std::cerr << "Can't reference an undeclared label!\n";
-        throw ASM_ERROR;
-    }
-
-    refs.push_back({ REF_CODE_BRANCH, get_pc(), label.def_index, addend });
+    add_ref({ REF_CODE_BRANCH, get_pc(), label.def_index, addend });
+    // No placeholder added
 }
 
 

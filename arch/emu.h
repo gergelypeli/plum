@@ -199,6 +199,8 @@ public:
 
     void add_def(Label label, const Def &def);
 
+    virtual void data_reference(Label label, int addend = 0) =0;
+
     virtual void absolute_label(Label c, unsigned64 value, unsigned size = 0);
 
     virtual void data_align(int bytes);

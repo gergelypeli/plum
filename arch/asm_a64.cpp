@@ -19,6 +19,11 @@ void Asm_A64::set_referrer_a64(Referrer_A64 *r) {
 }
 
 
+void Asm_A64::data_reference(Label label, int addend) {
+    referrer_a64->data_reference(label, addend);
+}
+
+
 void Asm_A64::code_jump_reference(Label label, int addend) {
     referrer_a64->code_jump_reference(label, addend);
 }

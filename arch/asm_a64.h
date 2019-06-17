@@ -170,6 +170,7 @@ enum SpecRegOpcode {
 
 class Referrer_A64 {
 public:
+    virtual void data_reference(Label label, int addend) =0;
     virtual void code_jump_reference(Label label, int addend = 0) =0;
     virtual void code_branch_reference(Label label, int addend = 0) =0;
 };
@@ -186,6 +187,7 @@ public:
 
     virtual void set_referrer_a64(Referrer_A64 *r);
     
+    virtual void data_reference(Label label, int addend = 0);
     virtual void code_jump_reference(Label label, int addend = 0);
     virtual void code_branch_reference(Label label, int addend = 0);
 

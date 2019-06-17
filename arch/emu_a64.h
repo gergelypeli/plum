@@ -1,5 +1,5 @@
 
-class Emu_A64: public Emu, public Referrer_A64 {
+class Emu_A64: public virtual Emu, public virtual Referrer_A64 {
 public:
     struct Addressing {
         enum Mode {
@@ -11,7 +11,7 @@ public:
     };
 
     enum Ref_type {
-        REF_CODE_JUMP, REF_CODE_BRANCH
+        REF_CODE_JUMP, REF_CODE_BRANCH, REF_DATA_ABSOLUTE
     };
 
     struct Ref {
@@ -30,6 +30,8 @@ public:
 
     virtual void process_relocations();
 
+    virtual void add_ref(Ref r);
+    virtual void data_reference(Label label, int addend = 0);
     virtual void code_jump_reference(Label label, int addend = 0);
     virtual void code_branch_reference(Label label, int addend = 0);
 

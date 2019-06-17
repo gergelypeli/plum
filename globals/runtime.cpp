@@ -229,17 +229,11 @@ void Accounting::adjust_stack_usage(int mod) {
 
 // Runtime
 
-Runtime::Runtime(X64 *x, unsigned application_size) {
+Runtime::Runtime(X64 *x, unsigned application_size, std::vector<std::string> source_file_names) {
     x64 = x;
     
     x64->code_label_global(code_start_label, "code_start");
     x64->data_label_global(data_start_label, "data_start");
-    
-    std::cerr << "Application size is " << application_size << " bytes.\n";
-    x64->data_align(16);
-    x64->data_label(application_label);
-    for (unsigned i = 0; i < application_size; i++)
-        x64->data_byte(0);
     
     x64->absolute_label(zero_label, 0);
 
@@ -319,6 +313,8 @@ Runtime::Runtime(X64 *x, unsigned application_size) {
     compile_call_sysv();
     
     compile_logging();
+    compile_application_data(application_size);
+    compile_source_infos(source_file_names);
 }
 
 void Runtime::data_heap_header() {
@@ -415,6 +411,16 @@ void Runtime::compile_call_infos() {
         x64->data_word(ci.file_index);
         x64->data_word(ci.line_number);
     }
+}
+
+void Runtime::compile_application_data(unsigned application_size) {
+    std::cerr << "Application size is " << application_size << " bytes.\n";
+    
+    x64->data_align(16);
+    x64->data_label(application_label);
+    
+    for (unsigned i = 0; i < application_size; i++)
+        x64->data_byte(0);
 }
 
 int Runtime::pusha(bool except_rax) {

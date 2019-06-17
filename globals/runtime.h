@@ -155,7 +155,7 @@ public:
     Label call_infos_label, call_infos_length_label;
     std::vector<LineInfo> call_infos;
 
-    Runtime(X64 *x, unsigned application_size);
+    Runtime(X64 *x, unsigned application_size, std::vector<std::string> source_file_names);
 
     void data_heap_header();
     Label data_heap_string(std::ustring characters);
@@ -171,6 +171,8 @@ public:
     void add_call_info(int source_file_index, int line_number);
     void compile_call_infos();
     
+    void compile_application_data(unsigned application_size);
+
     int pusha(bool except_rax = false);
     void popa(bool except_rax = false);
     void compile_incref_decref();
@@ -218,7 +220,9 @@ public:
 };
 
 
-class X64: public Emu_X64 {
+// TODO: rename!
+
+class X64: public virtual Emu {
 public:
     Once *once;
     Unwind *unwind;
@@ -227,21 +231,19 @@ public:
     Runtime *runtime;
     Dwarf *dwarf;
     
-    std::vector<std::string> source_file_names;
+    virtual Asm *get_asm() =0;
+    virtual Elf *get_elf() =0;
     
-    X64(std::string module_name, int application_size, std::vector<std::string> sfns)
-        :Emu_X64(module_name) {
-        source_file_names = sfns;
-        
+    virtual void init(unsigned application_size, std::vector<std::string> source_file_names) {
         once = new Once;
         unwind = new Unwind;
         accounting = new Accounting;
 
-        asm_x64->setup(accounting, this);
+        get_asm()->setup(accounting, this);
         
         // Needs Accounting
-        runtime = new Runtime(this, application_size);
-        dwarf = new Dwarf(elf_x64, sfns);
+        runtime = new Runtime(this, application_size, source_file_names);
+        dwarf = new Dwarf(get_elf(), source_file_names);
     }
     
     virtual void compile_rest() {
@@ -250,7 +252,6 @@ public:
 
         once->for_all(this);
         
-        runtime->compile_source_infos(source_file_names);
         runtime->compile_func_infos();
         runtime->compile_call_infos();
     }
@@ -262,14 +263,22 @@ public:
     virtual void add_lineno(int file_index, int line_number) {
         dwarf->add_lineno(get_pc(), file_index, line_number);
     }
-    
-    //virtual bool is_accounting() {
-    //    return accounting->is_on();
-    //}
-    
-    //virtual void adjust_stack_usage(int mod) {
-    //    accounting->adjust_stack_usage(mod);
-    //}
 };
 
 
+// TODO: seriously, rename!
+
+class X64_X64: public Emu_X64, public virtual X64 {
+public:
+    X64_X64(std::string module_name)
+        :Emu_X64(module_name) {
+    }
+
+    virtual Asm *get_asm() {
+        return asm_x64;
+    }
+    
+    virtual Elf *get_elf() {
+        return elf_x64;
+    }
+};

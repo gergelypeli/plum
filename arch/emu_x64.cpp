@@ -10,24 +10,24 @@ Emu_X64::Emu_X64(std::string module_name) {
 }
 
 
-void Emu_X64::data_reference(Label label, int addend) {
-    if (!label.def_index) {
+void Emu_X64::add_ref(Ref r) {
+    if (!r.def_index) {
         std::cerr << "Can't reference an undeclared label!\n";
         throw ASM_ERROR;
     }
 
-    refs.push_back({ REF_DATA_ABSOLUTE, get_dc(), label.def_index, addend });
+    refs.push_back(r);
+}
+
+
+void Emu_X64::data_reference(Label label, int addend) {
+    add_ref({ REF_DATA_ABSOLUTE, get_dc(), label.def_index, addend });
     data_qword(0);  // 64-bit relocations only
 }
 
 
 void Emu_X64::code_reference(Label label, int addend) {
-    if (!label.def_index) {
-        std::cerr << "Can't reference an undeclared label!\n";
-        throw ASM_ERROR;
-    }
-
-    refs.push_back({ REF_CODE_RELATIVE, get_pc(), label.def_index, addend });
+    add_ref({ REF_CODE_RELATIVE, get_pc(), label.def_index, addend });
     code_dword(0);  // 32-bit offset only
 }
 
