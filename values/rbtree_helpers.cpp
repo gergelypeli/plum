@@ -282,13 +282,13 @@ void compile_rbtree_occupy(Label label, X64 *x64) {
 void compile_rbtree_vacate(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_vacate");
     // In: SELFX - tree, ROOTX - node
-    // Clob: R10, THISX
+    // Clob: R10, R11, THISX
     Label no_prev, prev_ok, no_next, next_ok;
     //x64->log("Rbtree vacate.");
     
     x64->op(MOVQ, R10, Address(SELFX, ROOTX, RBNODE_PRED_OFFSET));
-    x64->op(ANDQ, R10, ~RBNODE_RED_BIT);
-    x64->op(MOVQ, THISX, Address(SELFX, ROOTX, RBNODE_NEXT_OFFSET));
+    x64->op(ANDQ, R10, ~RBNODE_RED_BIT);  // R10 - prev index
+    x64->op(MOVQ, THISX, Address(SELFX, ROOTX, RBNODE_NEXT_OFFSET));  // THISX - next index
 
     x64->op(CMPQ, R10, RBNODE_NIL);
     x64->op(JE, no_prev);
@@ -304,9 +304,9 @@ void compile_rbtree_vacate(Label label, X64 *x64) {
     x64->op(JE, no_next);
     
     // set prev while keeping the color
-    x64->op(SHRQ, R10, 1);
-    x64->op(SHRQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), 1);  // color to CF
-    x64->op(RCLQ, R10, 1);
+    x64->op(MOVQ, R11, Address(SELFX, THISX, RBNODE_PRED_OFFSET));
+    x64->op(ANDQ, R11, RBNODE_RED_BIT);  // next index color bit only
+    x64->op(ORQ, R10, R11);  // colored prev index
     x64->op(MOVQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), R10);
     x64->op(JMP, next_ok);
     

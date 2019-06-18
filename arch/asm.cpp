@@ -37,11 +37,13 @@ void Asm::code_qword(int64 x) {
 }
 
 
-bool Asm::is_accounting() {
-    if (accounter) return accounter->is_on(); else throw ASM_ERROR;
+void Asm::account(int mod) {
+    if (accounter && accounter->is_on())
+        accounter->adjust_stack_usage(mod);
 }
 
 
-void Asm::adjust_stack_usage(int mod) {
-    if (accounter) accounter->adjust_stack_usage(mod); else throw ASM_ERROR;
+void Asm::cant_account() {
+    if (accounter && accounter->is_on())
+        throw ASM_ERROR;
 }

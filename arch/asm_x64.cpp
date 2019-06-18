@@ -386,8 +386,8 @@ struct {
 
 
 void Asm_X64::op(X::UnaryOp opcode, Register x) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     auto &info = unary_info[opcode >> 2];
     code_op(info.op, OPSIZE_LEGACY(opcode), info.regfield, x);
@@ -466,13 +466,13 @@ struct {
 
 
 void Asm_X64::op(X::BinaryOp opcode, Register x, int y) {
-    if (is_accounting() && x == RSP) {
+    if (x == RSP) {
         if (opcode == X::ADDQ)
-            adjust_stack_usage(-y);
+            account(-y);
         else if (opcode == X::SUBQ)
-            adjust_stack_usage(y);
+            account(y);
         else
-            throw ASM_ERROR;
+            cant_account();
     }
 
     auto &info = binary_info[opcode >> 2];
@@ -509,8 +509,8 @@ void Asm_X64::op(X::BinaryOp opcode, Address x, int y) {
 }
 
 void Asm_X64::op(X::BinaryOp opcode, Register x, Register y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     if ((opcode | 3) == X::MOVQ && x == y)
         return;  // Don't embarrass ourselves
@@ -520,8 +520,8 @@ void Asm_X64::op(X::BinaryOp opcode, Register x, Register y) {
 }
 
 void Asm_X64::op(X::BinaryOp opcode, Register x, HighByteRegister y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     if ((opcode & 3) != 0)
         throw ASM_ERROR;  // Must use byte operands for this combination
@@ -539,8 +539,8 @@ void Asm_X64::op(X::BinaryOp opcode, Address x, Register y) {
 }
 
 void Asm_X64::op(X::BinaryOp opcode, Register x, Address y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     auto &info = binary_info[opcode >> 2];
     code_op(info.op3, OPSIZE_LEGACY(opcode), x, y);
@@ -550,8 +550,8 @@ void Asm_X64::op(X::BinaryOp opcode, Register x, Address y) {
 
 
 void Asm_X64::op(X::MovabsOp opcode, Register x, int64 y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     prefixed_op(0xB8 + (x & 7), OPSIZE_QWORD, xb(x));
     code_qword(y);
@@ -577,8 +577,8 @@ Slash shift_info[] = {
 // the constant shifts! So calling these function with a second operand of CL
 // would encode shifts by 1 (CL numeric value)!
 void Asm_X64::op(X::ShiftOp opcode, Register x, Register cl) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     if (cl != CL)
         throw ASM_ERROR;
@@ -596,8 +596,8 @@ void Asm_X64::op(X::ShiftOp opcode, Address x, Register cl) {
 }
 
 void Asm_X64::op(X::ShiftOp opcode, Register x, char y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     auto &info = shift_info[opcode >> 2];
 
@@ -631,8 +631,8 @@ void Asm_X64::op(X::ShiftOp opcode, Address x, char y) {
 
 
 void Asm_X64::op(X::ExchangeOp opcode, Register x, Register y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     code_op(0x86, OPSIZE_LEGACY(opcode), x, y);
 }
@@ -642,8 +642,8 @@ void Asm_X64::op(X::ExchangeOp opcode, Address x, Register y) {
 }
 
 void Asm_X64::op(X::ExchangeOp opcode, Register x, Address y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     code_op(0x86, OPSIZE_LEGACY(opcode), x, y);
 }
@@ -653,8 +653,7 @@ void Asm_X64::op(X::ExchangeOp opcode, Register x, Address y) {
 
 void Asm_X64::op(X::StackOp opcode, int x) {
     if (opcode == X::PUSHQ) {
-        if (is_accounting())
-            adjust_stack_usage(8);
+        account(8);
 
         code_byte(0x68);  // Defaults to 64-bit operand size
         code_dword(x);  // 32-bit immediate only
@@ -665,18 +664,15 @@ void Asm_X64::op(X::StackOp opcode, int x) {
 
 void Asm_X64::op(X::StackOp opcode, Register x) {
     if (opcode == X::PUSHQ) {
-        if (is_accounting())
-            adjust_stack_usage(8);
+        account(8);
             
         prefixed_op(0x50 | (x & 0x07), OPSIZE_DEFAULT, xb(x));
     }
     else if (opcode == X::POPQ) {
-        if (is_accounting()) {
-            if (x == RSP)
-                throw ASM_ERROR;
-            
-            adjust_stack_usage(-8);
-        }
+        if (x == RSP)
+            cant_account();
+        else
+            account(-8);
 
         prefixed_op(0x58 | (x & 0x07), OPSIZE_DEFAULT, xb(x));
     }
@@ -686,14 +682,12 @@ void Asm_X64::op(X::StackOp opcode, Register x) {
 
 void Asm_X64::op(X::StackOp opcode, Address x) {
     if (opcode == X::PUSHQ) {
-        if (is_accounting())
-            adjust_stack_usage(8);
+        account(8);
             
         code_op(0xFF, OPSIZE_DEFAULT, SLASH_6, x);
     }
     else if (opcode == X::POPQ) {
-        if (is_accounting())
-            adjust_stack_usage(-8);
+        account(-8);
             
         // NOTE: POP with an RSP based address uses the RSP value after the pop!
         code_op(0x8F, OPSIZE_DEFAULT, SLASH_0, x);
@@ -738,16 +732,16 @@ int registerfirst_info[] = {
 };
 
 void Asm_X64::op(X::RegisterFirstOp opcode, Register x, Register y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     auto &info = registerfirst_info[opcode >> 2];
     code_op(info, OPSIZE_NONBYTE(opcode), x, y);
 }
 
 void Asm_X64::op(X::RegisterFirstOp opcode, Register x, Address y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     auto &info = registerfirst_info[opcode >> 2];
     code_op(info, OPSIZE_NONBYTE(opcode), x, y);
@@ -757,8 +751,8 @@ void Asm_X64::op(X::RegisterFirstOp opcode, Register x, Address y) {
 
 
 void Asm_X64::op(X::Imul3Op opcode, Register x, Register y, int z) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     if (z >= -128 && z <= 127) {
         code_op(0x6B, OPSIZE_NONBYTE(opcode), x, y);
@@ -777,8 +771,8 @@ void Asm_X64::op(X::Imul3Op opcode, Register x, Register y, int z) {
 }
 
 void Asm_X64::op(X::Imul3Op opcode, Register x, Address y, int z) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     if (y.label.def_index) {
         // Must adjust RIP-relative offset with trailing immediate operand
@@ -819,11 +813,11 @@ int registermemory_info[] = {
 
 void Asm_X64::op(X::RegisterMemoryOp opcode, Register x, Address y) {
     if (opcode == X::LEA) {
-        if (is_accounting() && x == RSP) {
+        if (x == RSP) {
             if (y.base == RSP && y.index == NOREG)
-                adjust_stack_usage(-y.offset);
+                account(-y.offset);
             else
-                throw ASM_ERROR;
+                cant_account();
         }
 
         auto &info = registermemory_info[opcode];
@@ -837,8 +831,8 @@ void Asm_X64::op(X::RegisterMemoryOp opcode, Register x, Address y) {
 
 
 void Asm_X64::op(X::BitSetOp opcode, Register x) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     code_op(0x0F90 | opcode, OPSIZE_DEFAULT, SLASH_0, x);
 }
@@ -870,10 +864,8 @@ void Asm_X64::op(X::JumpOp opcode, Label c) {
     // Assume the next instruction starts at the end of the 4-byte immediate value.
     
     if (opcode == X::CALL) {
-        if (is_accounting()) {
-            adjust_stack_usage(16);
-            adjust_stack_usage(-16);
-        }
+        account(16);
+        account(-16);
             
         prefixless_op(0xE8);
         code_reference(c, -4);
@@ -889,10 +881,8 @@ void Asm_X64::op(X::JumpOp opcode, Label c) {
 
 void Asm_X64::op(X::JumpOp opcode, Address x) {
     if (opcode == X::CALL) {
-        if (is_accounting()) {
-            adjust_stack_usage(16);
-            adjust_stack_usage(-16);
-        }
+        account(16);
+        account(-16);
             
         code_op(0xFF, OPSIZE_DEFAULT, SLASH_2, x);
     }
@@ -906,10 +896,8 @@ void Asm_X64::op(X::JumpOp opcode, Address x) {
 
 void Asm_X64::op(X::JumpOp opcode, Register x) {
     if (opcode == X::CALL) {
-        if (is_accounting()) {
-            adjust_stack_usage(16);
-            adjust_stack_usage(-16);
-        }
+        account(16);
+        account(-16);
             
         code_op(0xFF, OPSIZE_DEFAULT, SLASH_2, x);
     }
@@ -922,8 +910,7 @@ void Asm_X64::op(X::JumpOp opcode, Register x) {
 
 
 void Asm_X64::op(X::ConstantOp opcode, int x) {
-    if (is_accounting())
-        throw ASM_ERROR;
+    cant_account();
 
     if (opcode == X::INT) {
         prefixless_op(0xCD);
@@ -1007,15 +994,15 @@ int gpr_ssemem_info[] = {  // reg64, xmm1/mem64
 };
 
 void Asm_X64::op(X::GprSsememOp opcode, Register x, SseRegister y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     code_op(gpr_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
 void Asm_X64::op(X::GprSsememOp opcode, Register x, Address y) {
-    if (is_accounting() && x == RSP)
-        throw ASM_ERROR;
+    if (x == RSP)
+        cant_account();
 
     code_op(gpr_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
 }

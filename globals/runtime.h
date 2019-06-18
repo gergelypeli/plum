@@ -282,3 +282,21 @@ public:
         return elf_x64;
     }
 };
+
+
+// TODO: I mean it, rename!
+
+class X64_A64: public Emu_A64, public virtual X64 {
+public:
+    X64_A64(std::string module_name)
+        :Emu_A64(module_name) {
+    }
+
+    virtual Asm *get_asm() {
+        return asm_a64;
+    }
+    
+    virtual Elf *get_elf() {
+        return elf_a64;
+    }
+};

@@ -70,19 +70,14 @@ enum {
 struct {
     unsigned op9;
 } movimm_info[] = {
-    0b110100101,
-    0b100100101,
-    0b111100101
+    0b110100101,  // MOVZ
+    0b100100101,  // MOVN
+    0b111100101   // MOVK
 };
 
 void Asm_A64::op(MovImmOpcode opcode, Register rd, int imm, Lsl hw) {
     code_op(movimm_info[opcode].op9 << 23 | hw << 21 | uimm(imm, 16) << 5 | rd << 0);
 }
-
-
-//void Asm_A64::op(MovImmOpcode, Register rd, Register rm) {
-//    code_op(ORR, rd, XZR, rm, 0);
-//}
 
 
 // Pair
@@ -95,12 +90,20 @@ struct {
 };
 
 void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int imm) {
+    if (r1 == RSP || r2 == RSP)
+        cant_account();
+        
     int op10 = pair_info[opcode].op10 | 0b10 << 1;
     
     code_op(op10 << 22 | simm(imm, 7, 8) << 15 | r2 << 10 | rn << 5 | r1 << 0);
 }
 
 void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int imm, MemIncrement increment) {
+    if (r1 == RSP || r2 == RSP)
+        cant_account();
+    else if (rn == RSP)
+        account(-imm);
+    
     int inc = (
         increment == INCREMENT_PRE ? MEM_PREINDEX :
         increment == INCREMENT_POST ? MEM_POSTINDEX :
@@ -132,6 +135,9 @@ struct {
 
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemScaling scaling) {
+    if (rt == RSP)
+        cant_account();
+
     int op10 = mem_info[opcode].op10;
     int imm12;
     int size = 1 << (op10 >> 8);
@@ -150,6 +156,11 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemScaling
 }
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemIncrement increment) {
+    if (rt == RSP)
+        cant_account();
+    else if (rn == RSP)
+        account(-imm);
+    
     int op10 = mem_info[opcode].op10;
     int inc = (
         increment == INCREMENT_PRE ? MEM_PREINDEX :
@@ -162,6 +173,9 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemIncreme
 }
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, Register rm, IndexShift indexshift) {
+    if (rt == RSP)
+        cant_account();
+
     // The shift amount depends on the memory operand size
     int op10 = mem_info[opcode].op10;
     int option = 0b011;  // LSL
@@ -184,12 +198,26 @@ struct {
 };
 
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, int imm, Shift12 shift12) {
+    if (rd == RSP) {
+        if (rn != RSP)
+            cant_account();
+        else {
+            int sign = (opcode == A::ADD || opcode == A::ADDS ? -1 : 1);
+            int amount = imm << (shift12 == SHIFT12_YES ? 12 : 0);
+            
+            account(sign * amount);
+        }
+    }
+        
     int op8 = arith_info[opcode].imm_op8;
     
     code_op(op8 << 24 | shift12 << 22 | uimm(imm, 12) << 10 | rn << 5 | rd << 0);
 }
 
 void Asm_A64::op(ArithOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
+    if (rd == RSP)
+        cant_account();
+
     if (shift_dir == SHIFT_ROR)
         throw ASM_ERROR;
 
@@ -213,6 +241,9 @@ struct {
 };
 
 void Asm_A64::op(LogicalOpcode opcode, Register rd, Register rn, BitMask bitmask) {
+    if (rd == RSP)
+        cant_account();
+
     if (bitmask.imms >= 63 || bitmask.immr >= 64)
         throw ASM_ERROR;
 
@@ -223,6 +254,9 @@ void Asm_A64::op(LogicalOpcode opcode, Register rd, Register rn, BitMask bitmask
 }
 
 void Asm_A64::op(LogicalOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
+    if (rd == RSP)
+        cant_account();
+
     int op8 = logical_info[opcode].reg_op8;
     int neg = 0b0;
     
@@ -240,6 +274,9 @@ struct {
 };
 
 void Asm_A64::op(LogicalNotOpcode opcode, Register rd, Register rn, Register rm, ShiftDir shift_dir, int shift_amount) {
+    if (rd == RSP)
+        cant_account();
+
     int op8 = logicalnot_info[opcode].reg_op8;
     int neg = 0b1;
     
@@ -250,6 +287,9 @@ void Asm_A64::op(LogicalNotOpcode opcode, Register rd, Register rn, Register rm,
 // Mul
 
 void Asm_A64::op(MulOpcode opcode, Register rd, Register rn, Register rm, Register ra) {
+    if (rd == RSP)
+        cant_account();
+
     int op11 = 0b10011011000;
     int op1 = (opcode == MADD ? 0b0 : opcode == MSUB ? 0b1 : throw ASM_ERROR);
     
@@ -260,6 +300,9 @@ void Asm_A64::op(MulOpcode opcode, Register rd, Register rn, Register rm, Regist
 // Div
 
 void Asm_A64::op(DivOpcode opcode, Register rd, Register rn, Register rm) {
+    if (rd == RSP)
+        cant_account();
+
     int op11 = 0b10011010110;
     int op6 = (opcode == SDIV ? 0b000011 : 0b000010);
     
@@ -280,6 +323,9 @@ struct {
 };
 
 void Asm_A64::op(ShiftOpcode opcode, Register rd, Register rn, Register rm) {
+    if (rd == RSP)
+        cant_account();
+
     int op11 = shift_info[opcode].op11;
     int op6 = shift_info[opcode].op6;
     
@@ -298,6 +344,9 @@ struct {
 };
 
 void Asm_A64::op(BitFieldOpcode opcode, Register rd, Register rn, BitMask bitmask) {
+    if (rd == RSP)
+        cant_account();
+
     int op8 = bitfield_info[opcode].imm_op8;
     int op2 = 0b01;
     
@@ -305,6 +354,9 @@ void Asm_A64::op(BitFieldOpcode opcode, Register rd, Register rn, BitMask bitmas
 }
 
 void Asm_A64::op(ExtrOpcode opcode, Register rd, Register rn, Register rm, int lsb_index) {
+    if (rd == RSP)
+        cant_account();
+
     int op11 = 0b10010011110;
     int imm6 = uimm(lsb_index, 6);
     
@@ -379,6 +431,9 @@ struct {
 };
 
 void Asm_A64::op(CondSelOpcode opcode, CondCode cc, Register rd, Register rn, Register rm) {
+    if (rd == RSP)
+        cant_account();
+
     int op11 = condsel_info[opcode].op11;
     int op2 = condsel_info[opcode].op2;
     
@@ -397,6 +452,9 @@ void Asm_A64::op(RegLabelOpcode opcode, Register rn, Label label) {
 // SpecReg
 
 void Asm_A64::op(SpecRegOpcode opcode, SpecReg specreg16, Register rt) {
+    if (rt == RSP)
+        cant_account();
+
     int op10 = 0b1101010100;
     int l = (opcode == MSRR ? 0b1 : 0b0);
     // specreg16 is o0op1CRnCRmop2

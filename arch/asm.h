@@ -30,6 +30,6 @@ public:
     virtual void code_dword(int x);
     virtual void code_qword(int64 x);
 
-    virtual bool is_accounting();
-    virtual void adjust_stack_usage(int mod);
+    virtual void account(int mod);
+    virtual void cant_account();
 };

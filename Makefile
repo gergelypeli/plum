@@ -48,6 +48,8 @@ test: uncore untest $(TESTBIN)
 	@$(TESTINPUT) | $(TESTBIN) 2>&1 | tee $(TESTLOG)
 	@diff -ua $(TESTLOGOK) $(TESTLOG)
 
+testobj: $(TESTOBJ)
+
 uncore:
 	@for x in core*; do if file -b $$x | grep -q ' core file '; then rm $$x; fi; done
 

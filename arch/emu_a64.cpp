@@ -126,18 +126,33 @@ void Emu_A64::lea(Register x, Address y) {
         r = y.base;
     }
 
-    // We can make this work up to 2*12 bits, that should be enough for us    
-    if (y.offset > 0) {
-        asm_a64->op(A::ADD, x, r, y.offset & 0xfff);
+    // NOTE: this is different from the regular add immediate handling in two ways:
+    //   * the flags are unchanged
+    //   * we assume a writable destination register for multiple steps to work
+    //   * uses no extra register
+    //   * zero is optimized out
+    
+    int z = y.offset;
+    
+    if (z > 0) {
+        asm_a64->op(A::ADD, x, r, z & 0xfff);
         
-        if (y.offset >= 4096)
-            asm_a64->op(A::ADD, x, x, (y.offset >> 12) & 0xfff, A::SHIFT12_YES);
+        if (z >= 4096) {
+            asm_a64->op(A::ADD, x, x, (z >> 12) & 0xfff, A::SHIFT12_YES);
+            
+            if (z >= 4096 * 4096)
+                throw ASM_ERROR;
+        }
     }
-    else if (y.offset < 0) {
-        asm_a64->op(A::SUB, x, r, (-y.offset) & 0xfff);
+    else if (z < 0) {
+        asm_a64->op(A::SUB, x, r, -z & 0xfff);
         
-        if (-y.offset >= 4096)
-            asm_a64->op(A::ADD, x, x, ((-y.offset) >> 12) & 0xfff, A::SHIFT12_YES);
+        if (-z >= 4096) {
+            asm_a64->op(A::SUB, x, x, (-z >> 12) & 0xfff, A::SHIFT12_YES);
+            
+            if (-z >= 4096 * 4096)
+                throw ASM_ERROR;
+        }
     }
 }
 
@@ -289,10 +304,14 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         throw ASM_ERROR;
         break;
     case ADDQ:
-        if (y >= 0)
+        if (y >= 0 && y < 4096)
             asm_a64->op(A::ADDS, x, x, y);
-        else
+        else if (-y > 0 && -y < 4096)
             asm_a64->op(A::SUBS, x, x, -y);
+        else {
+            movimm(XVALUE, y);
+            asm_a64->op(A::ADDS, x, x, XVALUE);
+        }
         break;
     case ANDQ:
         // TODO: may be optimized for consecutive bits
@@ -300,10 +319,14 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         asm_a64->op(A::ANDS, x, x, XVALUE);
         break;
     case CMPQ:
-        if (y >= 0)
+        if (y >= 0 && y < 4096)
             asm_a64->op(A::SUBS, XZR, x, y);
-        else
+        else if (-y > 0 && -y < 4096)
             asm_a64->op(A::ADDS, XZR, x, -y);
+        else {
+            movimm(XVALUE, y);
+            asm_a64->op(A::SUBS, XZR, x, XVALUE);
+        }
         break;
     case MOVQ:
         movimm(x, y);
@@ -317,10 +340,14 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         throw ASM_ERROR;
         break;
     case SUBQ:
-        if (y >= 0)
+        if (y >= 0 && y < 4096)
             asm_a64->op(A::SUBS, x, x, y);
-        else
+        else if (-y > 0 && -y < 4096)
             asm_a64->op(A::ADDS, x, x, -y);
+        else {
+            movimm(XVALUE, y);
+            asm_a64->op(A::SUBS, x, x, XVALUE);
+        }
         break;
     case TESTQ:
         // TODO: may be optimized for consecutive bits
@@ -670,7 +697,10 @@ static A::CondCode cc(ConditionCode c) {
 }
 
 void Emu_A64::op(BitSetOp opcode, Register x) {
-    asm_a64->op(A::CSINC, cc((ConditionCode)opcode), x, XZR, XZR);
+    if (opcode == SETP || opcode == SETNP)
+        asm_a64->op(A::UDF);
+    else
+        asm_a64->op(A::CSINC, cc((ConditionCode)opcode), x, XZR, XZR);
 }
 
 
@@ -685,7 +715,10 @@ void Emu_A64::op(BitSetOp opcode, Address x) {
 
 
 void Emu_A64::op(BranchOp opcode, Label c) {
-    asm_a64->op(A::B, cc((ConditionCode)opcode), c);
+    if (opcode == JP || opcode == JNP)
+        asm_a64->op(A::UDF);
+    else
+        asm_a64->op(A::B, cc((ConditionCode)opcode), c);
 }
 
 
