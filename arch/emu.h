@@ -226,6 +226,13 @@ public:
 
     virtual unsigned get_pc();
     virtual unsigned get_dc();
+    
+    virtual std::array<Register, 6> abi_arg_regs() =0;
+    virtual std::array<SseRegister, 6> abi_arg_sses() =0;
+    virtual std::array<Register, 2> abi_res_regs() =0;
+    virtual void prologue() =0;
+    virtual void epilogue() =0;
+    virtual void start() =0;
 
     virtual void op(SimpleOp opcode) =0;
     virtual void op(UnaryOp opcode, Register x) =0;

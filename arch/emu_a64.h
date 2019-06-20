@@ -11,7 +11,7 @@ public:
     };
 
     enum Ref_type {
-        REF_CODE_JUMP, REF_CODE_BRANCH, REF_DATA_ABSOLUTE
+        REF_CODE_JUMP, REF_CODE_BRANCH, REF_CODE_ADR, REF_DATA_ABSOLUTE
     };
 
     struct Ref {
@@ -29,11 +29,18 @@ public:
     Emu_A64(std::string module_name);
 
     virtual void process_relocations();
+    virtual std::array<Register, 6> abi_arg_regs();
+    virtual std::array<SseRegister, 6> abi_arg_sses();
+    virtual std::array<Register, 2> abi_res_regs();
+    virtual void prologue();
+    virtual void epilogue();
+    virtual void start();
 
     virtual void add_ref(Ref r);
     virtual void data_reference(Label label, int addend = 0);
     virtual void code_jump_reference(Label label, int addend = 0);
     virtual void code_branch_reference(Label label, int addend = 0);
+    virtual void code_adr_reference(Label label, int addend = 0);
 
     virtual A::MemOpcode ldrs(int os);
     virtual A::MemOpcode ldru(int os);

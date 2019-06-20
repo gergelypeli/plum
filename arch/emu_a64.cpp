@@ -1,15 +1,19 @@
 #include "../plum.h"
 
 
-// Zero register / official stack pointer
+// Zero register / official stack pointer (varies by instructions)
 const Register XZR = (Register)31;
+const Register XSP = (Register)31;
 
 // Link register
 const Register XLR = (Register)30;
 
+// Frame Pointer
+const Register XFP = (Register)29;
+
 // Architectural scratch registers
-const Register XADDRESS = (Register)29;
-const Register XVALUE = (Register)28;
+const Register XADDRESS = (Register)17;
+const Register XVALUE = (Register)16;
 
 
 Emu_A64::Emu_A64(std::string module_name) {
@@ -49,8 +53,170 @@ void Emu_A64::code_branch_reference(Label label, int addend) {
 }
 
 
+void Emu_A64::code_adr_reference(Label label, int addend) {
+    add_ref({ REF_CODE_ADR, get_pc(), label.def_index, addend });
+    // No placeholder added
+}
+
+
 void Emu_A64::process_relocations() {
-    // TODO
+    for (auto &r : refs) {
+        if (!defs.count(r.def_index)) {
+            std::cerr << "Reference to undefined label " << r.def_index << "!\n";
+            throw ASM_ERROR;
+        }
+        
+        Def &d(defs.at(r.def_index));
+
+        switch (r.type) {
+        case REF_CODE_JUMP:
+            // PC-relative offset imm26*4 at bits 25:0
+            
+            switch (d.type) {
+            case DEF_CODE:
+            case DEF_CODE_EXPORT: {
+                int64 distance = (int64)(d.location - r.location + r.addend) / 4;
+                    
+                if (distance >= (1 << 25) || distance < -(1 << 25)) {
+                    std::cerr << "REF_CODE_JUMP can't jump " << distance << " bytes!\n";
+                    throw ASM_ERROR;
+                }
+                
+                unsigned32 *u = (unsigned32 *)&code[r.location];
+                *u = (*u & 0xfc000000) | ((distance << 0) & 0x03ffffff);
+            }
+                break;
+            case DEF_CODE_IMPORT:
+                elf_a64->code_jump_relocation(d.symbol_index, r.location, r.addend);
+                break;
+            default:
+                std::cerr << "Can't code jump to this symbol!\n";
+                throw ASM_ERROR;
+            }
+            break;
+            
+        case REF_CODE_BRANCH:
+            // PC-relative offset imm19*4 at bits 23:5.
+            
+            switch (d.type) {
+            case DEF_CODE:
+            case DEF_CODE_EXPORT: {
+                int64 distance = (int64)(d.location - r.location + r.addend) / 4;
+                
+                if (distance >= (1 << 18) || distance < -(1 << 18)) {
+                    std::cerr << "REF_CODE_BRANCH can't jump " << distance << " bytes!\n";
+                    throw ASM_ERROR;
+                }
+
+                unsigned32 *u = (unsigned32 *)&code[r.location];
+                *u = (*u & 0xff00001f) | ((distance << 5) & 0x00ffffe0);
+            }
+                break;
+            case DEF_CODE_IMPORT:
+                elf_a64->code_branch_relocation(d.symbol_index, r.location, r.addend);
+                break;
+            default:
+                std::cerr << "Can't code branch to this symbol!\n";
+                throw ASM_ERROR;
+            }
+            break;
+
+        case REF_CODE_ADR:
+            // PC-relative offset imm19:imm2 at some batshit bit positions.
+            
+            switch (d.type) {
+            case DEF_CODE:
+            case DEF_CODE_EXPORT: {
+                int64 distance = d.location - r.location + r.addend;
+                
+                if (distance >= (1 << 20) || distance < -(1 << 20)) {
+                    std::cerr << "REF_CODE_ADR can't address " << distance << " bytes!\n";
+                    throw ASM_ERROR;
+                }
+
+                unsigned32 *u = (unsigned32 *)&code[r.location];
+                *u = (*u & 0x9f00001f) | ((distance << 5) & 0x00ffffe0) | ((distance << 10) & 0x60000000);
+            }
+                break;
+            case DEF_CODE_IMPORT:
+                elf_a64->code_adr_relocation(d.symbol_index, r.location, r.addend);
+                break;
+            case DEF_DATA_EXPORT:
+            case DEF_DATA:
+                elf_a64->code_adr_relocation(elf_a64->data_start_sym, r.location, d.location + r.addend);
+                break;
+            default:
+                std::cerr << "Can't code adr to this symbol!\n";
+                throw ASM_ERROR;
+            }
+            break;
+            
+        case REF_DATA_ABSOLUTE:
+            // 8-byte absolute references from data to code, data or absolute values.
+            // May be used for intra-data absolute addresses, or 8-byte constants.
+            
+            switch (d.type) {
+            case DEF_ABSOLUTE:
+            case DEF_ABSOLUTE_EXPORT:
+                *(unsigned64 *)&data[r.location] = d.location + r.addend;
+                break;
+            case DEF_DATA_EXPORT:
+            case DEF_DATA:
+                elf_a64->data_relocation(elf_a64->data_start_sym, r.location, d.location + r.addend);
+                break;
+            case DEF_CODE:
+            case DEF_CODE_EXPORT:
+                elf_a64->data_relocation(elf_a64->code_start_sym, r.location, d.location + r.addend);
+                break;
+            case DEF_CODE_IMPORT:
+                elf_a64->data_relocation(d.symbol_index, r.location, r.addend);
+                break;
+            default:
+                std::cerr << "Can't relocate data absolute to this symbol!\n";
+                throw ASM_ERROR;
+            }
+            break;
+        }
+    }
+}
+
+
+std::array<Register, 6> Emu_A64::abi_arg_regs() {
+    return { (Register)0, (Register)1, (Register)2, (Register)3, (Register)4, (Register)5 };
+}
+
+
+std::array<SseRegister, 6> Emu_A64::abi_arg_sses() {
+    return { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
+}
+
+
+std::array<Register, 2> Emu_A64::abi_res_regs() {
+    return { (Register)0, (Register)1 };
+}
+
+
+void Emu_A64::prologue() {
+    pushq(XLR);
+    pushq(RBP);
+    
+    op(MOVQ, RBP, RSP);
+    op(MOVQ, XFP, RBP);  // for debuggers
+}
+
+
+void Emu_A64::epilogue() {
+    popq(RBP);
+    popq(XLR);
+    
+    op(MOVQ, XFP, RBP);  // for debuggers
+    op(RET);
+}
+
+
+void Emu_A64::start() {
+    asm_a64->op(A::ADD, RSP, XSP, 0);  // MOV (ORR) would use XZR instead of XSP
+    op(MOVQ, RBP, XFP);
 }
 
 
@@ -111,6 +277,14 @@ void Emu_A64::popq(Register r) {
 
 
 void Emu_A64::lea(Register x, Address y) {
+    if (y.label.def_index) {
+        if (y.base != NOREG || y.index != NOREG)
+            throw ASM_ERROR;
+            
+        asm_a64->op(A::ADR, x, y.label, y.offset);
+        return;
+    }
+
     // TODO: this can be more optimal
     // NOTE: but must not set flags here
     // NOTE: x can be among the components of y!
@@ -136,6 +310,7 @@ void Emu_A64::lea(Register x, Address y) {
     
     if (z > 0) {
         asm_a64->op(A::ADD, x, r, z & 0xfff);
+        r = x;
         
         if (z >= 4096) {
             asm_a64->op(A::ADD, x, x, (z >> 12) & 0xfff, A::SHIFT12_YES);
@@ -146,6 +321,7 @@ void Emu_A64::lea(Register x, Address y) {
     }
     else if (z < 0) {
         asm_a64->op(A::SUB, x, r, -z & 0xfff);
+        r = x;
         
         if (-z >= 4096) {
             asm_a64->op(A::SUB, x, x, (-z >> 12) & 0xfff, A::SHIFT12_YES);
@@ -154,20 +330,25 @@ void Emu_A64::lea(Register x, Address y) {
                 throw ASM_ERROR;
         }
     }
+    
+    if (r != x) {
+        op(MOVQ, x, r);
+        r = x;
+    }
 }
 
 
 Emu_A64::Addressing Emu_A64::prepare(int os, Address a) {
-    if (a.index == NOREG && a.offset >= -256 && a.offset < 256)
+    if (a.index == NOREG && a.offset >= -256 && a.offset < 256 && a.label.def_index == 0)
         return { Addressing::OFFSET_UNSCALED, a.base, NOREG, a.offset };
         
-    if (a.index == NOREG && a.offset >= 0 && (a.offset & ((1 << os) - 1)) == 0 && a.offset >> os < 4096)
+    if (a.index == NOREG && a.offset >= 0 && (a.offset & ((1 << os) - 1)) == 0 && a.offset >> os < 4096 && a.label.def_index == 0)
         return { Addressing::OFFSET_SCALED, a.base, NOREG, a.offset };
         
-    if (a.index != NOREG && a.scale == Address::SCALE_1 && a.offset == 0)
+    if (a.index != NOREG && a.scale == Address::SCALE_1 && a.offset == 0 && a.label.def_index == 0)
         return { Addressing::OFFSET_REGISTER, a.base, a.index, 0 };
 
-    if (a.index != NOREG && (int)a.scale == os && a.offset == 0)
+    if (a.index != NOREG && (int)a.scale == os && a.offset == 0 && a.label.def_index == 0)
         return { Addressing::OFFSET_REGISTER_SHIFTED, a.base, a.index, 0 };
         
     lea(XADDRESS, a);
@@ -723,7 +904,16 @@ void Emu_A64::op(BranchOp opcode, Label c) {
 
 
 void Emu_A64::op(JumpOp opcode, Label c) {
-    asm_a64->op(A::B, c);
+    switch (opcode) {
+    case JMP:
+        asm_a64->op(A::B, c);
+        break;
+    case CALL:
+        asm_a64->op(A::BL, c);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
 }
 
 

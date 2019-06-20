@@ -125,6 +125,38 @@ void Emu_X64::process_relocations() {
 }
 
 
+std::array<Register, 6> Emu_X64::abi_arg_regs() {
+    return { RDI, RSI, RDX, RCX, R8, R9 };
+}
+
+
+std::array<SseRegister, 6> Emu_X64::abi_arg_sses() {
+    return { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
+}
+
+
+std::array<Register, 2> Emu_X64::abi_res_regs() {
+    return { RAX, RDX };
+}
+
+
+void Emu_X64::prologue() {
+    op(PUSHQ, RBP);
+    op(MOVQ, RBP, RSP);
+}
+
+
+void Emu_X64::epilogue() {
+    op(POPQ, RBP);
+    op(RET);
+}
+
+
+void Emu_X64::start() {
+    // Empty
+}
+
+
 #define MAP(OP) x == OP ? X::OP : 
 
 static X::SimpleOp map(SimpleOp x) {

@@ -34,6 +34,11 @@ void Asm_A64::code_branch_reference(Label label, int addend) {
 }
 
 
+void Asm_A64::code_adr_reference(Label label, int addend) {
+    referrer_a64->code_adr_reference(label, addend);
+}
+
+
 int Asm_A64::uimm(int imm, int width, int unit) {
     if (imm % unit == 0 && imm / unit >= 0 && imm / unit < (1 << width))
         return (imm / unit) & ((1 << width) - 1);
@@ -76,7 +81,25 @@ struct {
 };
 
 void Asm_A64::op(MovImmOpcode opcode, Register rd, int imm, Lsl hw) {
+    if (rd == RSP)
+        cant_account();
+        
     code_op(movimm_info[opcode].op9 << 23 | hw << 21 | uimm(imm, 16) << 5 | rd << 0);
+}
+
+
+// Adr
+
+void Asm_A64::op(A::AdrOpcode opcode, Register rd, Label l, int offset) {
+    if (rd == RSP)
+        cant_account();
+
+    code_adr_reference(l, offset);  // needs imm2 + imm19 relocation
+    
+    int op1 = 0b0;
+    int op5 = 0b10000;
+    
+    code_op(op1 << 31 | op5 << 24 | rd << 0);
 }
 
 

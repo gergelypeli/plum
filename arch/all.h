@@ -1,5 +1,6 @@
 
 #include "elf.h"
+#include "elf_x64.h"
 #include "elf_a64.h"
 #include "dwarf.h"
 #include "basics.h"

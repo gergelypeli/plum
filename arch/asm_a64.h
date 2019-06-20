@@ -74,6 +74,10 @@ enum MovImmOpcode {
     MOVZ, MOVN, MOVK
 };
 
+enum AdrOpcode {
+    ADR
+};
+
 enum PairOpcode {
     LDP, STP
 };
@@ -173,6 +177,7 @@ public:
     virtual void data_reference(Label label, int addend) =0;
     virtual void code_jump_reference(Label label, int addend = 0) =0;
     virtual void code_branch_reference(Label label, int addend = 0) =0;
+    virtual void code_adr_reference(Label label, int addend = 0) =0;
 };
 
 
@@ -190,6 +195,7 @@ public:
     virtual void data_reference(Label label, int addend = 0);
     virtual void code_jump_reference(Label label, int addend = 0);
     virtual void code_branch_reference(Label label, int addend = 0);
+    virtual void code_adr_reference(Label label, int addend = 0);
 
     virtual int uimm(int imm, int width, int unit = 1);
     virtual int simm(int imm, int width, int unit = 1);
@@ -197,6 +203,8 @@ public:
     virtual void code_op(unsigned op);
 
     virtual void op(A::MovImmOpcode opcode, Register rd, int imm, A::Lsl hw);
+
+    virtual void op(A::AdrOpcode opcode, Register rd, Label l, int offset);
 
     virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm);
     virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm, A::MemIncrement increment);

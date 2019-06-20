@@ -2,7 +2,7 @@
 
 DECLS      = declaration identifier scope type basic record reference interface class option allocable function associable float container nosy util
 VALUES     = value literal function boolean integer array reference type typedefinition block record multi generic control stream string iterator class queue rbtree rbtree_helpers rbtree_mapset rbtree_weakmapset container option equality float weakref debug
-ARCHS      = elf elf_a64 asm asm_x64 asm_a64 emu emu_x64 emu_a64 storage basics dwarf
+ARCHS      = elf elf_x64 elf_a64 asm asm_x64 asm_a64 emu emu_x64 emu_a64 storage basics dwarf
 PARSING    = tokenize treeize tupleize typize
 GLOBALS    = builtins builtins_errno typespec typematch runtime modules
 MODULES    = util plum $(DECLS:%=declarations/%) $(VALUES:%=values/%) $(ARCHS:%=arch/%) $(GLOBALS:%=globals/%) $(PARSING:%=parsing/%)
@@ -51,13 +51,13 @@ test: uncore untest $(TESTBIN)
 testobj: $(TESTOBJ)
 
 uncore:
-	@for x in core*; do if file -b $$x | grep -q ' core file '; then rm $$x; fi; done
+	@for x in core*; do if file -b $$x | grep -q 'ELF 64-bit LSB core file'; then rm $$x; fi; done
 
 untest:
 	@rm -f $(TESTBIN) $(TESTOBJ)
 
 clean:
-	@rm -f $(BIN) $(TESTBIN) $(OBJECTS) $(MAINOBJ) $(TESTOBJ) $(FPCONVOBJ) $(PRECOMP) run/*.log
+	@rm -f $(BIN) $(TESTBIN) $(OBJECTS) $(MAINOBJ) $(SHAREDOBJ) $(TESTOBJ) $(FPCONVOBJ) $(PRECOMP) run/*.log
 
 # Compiler
 

@@ -27,6 +27,13 @@ public:
 
     virtual void process_relocations();
     
+    virtual std::array<Register, 6> abi_arg_regs();
+    virtual std::array<SseRegister, 6> abi_arg_sses();
+    virtual std::array<Register, 2> abi_res_regs();
+    virtual void prologue();
+    virtual void epilogue();
+    virtual void start();
+
     virtual void op(SimpleOp opcode);
     virtual void op(UnaryOp opcode, Register x);
     virtual void op(UnaryOp opcode, Address x);
