@@ -972,10 +972,12 @@ Storage TryValue::compile(X64 *x64) {
         TreenumerationType *et = try_scope->get_exception_type();
         
         if (et) {
+            auto arg_regs = x64->abi_arg_regs();
+            
             x64->op(MOVQ, R10, switch_var->get_local_storage().address);
             x64->op(LEA, R11, Address(et->get_stringifications_label(x64), 0));
-            x64->op(MOVQ, RDI, Address(R11, R10, Address::SCALE_8, 0));  // treenum name
-            x64->op(MOVQ, RSI, token.row);
+            x64->op(MOVQ, arg_regs[0], Address(R11, R10, Address::SCALE_8, 0));  // treenum name
+            x64->op(MOVQ, arg_regs[1], token.row);
             x64->runtime->call_sysv(x64->runtime->sysv_die_uncaught_label);
             x64->op(UD2);
         }

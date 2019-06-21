@@ -176,6 +176,8 @@ Regs FloatFunctionValue::precompile(Regs preferred) {
 }
 
 Storage FloatFunctionValue::compile(X64 *x64) {
+    auto arg_sses = x64->abi_arg_sses();
+    auto res_sses = x64->abi_res_sses();
     Storage ls = left->compile(x64);
     
     if (ls.regs() & rclob) {
@@ -183,18 +185,18 @@ Storage FloatFunctionValue::compile(X64 *x64) {
     }
     
     if (right)
-        right->compile_and_store(x64, Storage(SSEREGISTER, XMM1));
+        right->compile_and_store(x64, Storage(SSEREGISTER, arg_sses[1]));
     
     switch (ls.where) {
     case SSEREGISTER:
-        x64->op(MOVSD, XMM0, ls.sse);
+        x64->op(MOVSD, arg_sses[0], ls.sse);
         break;
     case STACK:
-        x64->op(MOVSD, XMM0, Address(RSP, 0));
+        x64->op(MOVSD, arg_sses[0], Address(RSP, 0));
         x64->op(ADDQ, RSP, FLOAT_SIZE);
         break;
     case MEMORY:
-        x64->op(MOVSD, XMM0, ls.address);
+        x64->op(MOVSD, arg_sses[0], ls.address);
         break;
     default:
         throw INTERNAL_ERROR;
@@ -202,7 +204,7 @@ Storage FloatFunctionValue::compile(X64 *x64) {
     
     x64->runtime->call_sysv_got(function->get_label(x64));
     
-    return Storage(SSEREGISTER, XMM0);
+    return Storage(SSEREGISTER, res_sses[0]);
 }
 
 

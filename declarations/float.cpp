@@ -213,12 +213,14 @@ Storage FloatType::optimal_value_storage(TypeMatch tm, Regs preferred) {
 }
 
 void FloatType::streamify(TypeMatch tm, X64 *x64) {
+    auto arg_regs = x64->abi_arg_regs();
+    auto arg_sses = x64->abi_arg_sses();
     Address value_addr(RSP, ALIAS_SIZE);
     Address alias_addr(RSP, 0);
 
     // SysV
-    x64->op(MOVSD, XMM0, value_addr);
-    x64->op(MOVQ, RDI, alias_addr);
+    x64->op(MOVSD, arg_sses[0], value_addr);
+    x64->op(MOVQ, arg_regs[0], alias_addr);
     
     x64->runtime->call_sysv(x64->runtime->sysv_streamify_float_label);
 }

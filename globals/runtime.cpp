@@ -465,7 +465,7 @@ void Runtime::popa(bool except_rax) {
 void Runtime::compile_finalize() {
     // finalize(pointer)
     // Preserves all registers, including the scratch ones
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
 
     x64->code_label_global(finalize_label, "finalize");
     x64->prologue();
@@ -515,7 +515,8 @@ void Runtime::compile_finalize() {
 void Runtime::compile_heap_alloc() {
     // heap_alloc(size, finalizer)
     // Clobbers all registers
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
+    auto res_regs = x64->abi_res_regs();
     
     x64->code_label_global(heap_alloc_label, "heap_alloc");
     const int ARGS = ARGS_2;
@@ -525,6 +526,7 @@ void Runtime::compile_heap_alloc() {
     x64->op(MOVQ, arg_regs[0], Address(RSP, ARGS + ARG_1));  // size arg
     x64->op(ADDQ, arg_regs[0], HEAP_HEADER_SIZE);
     call_sysv(sysv_malloc_label);
+    x64->op(MOVQ, RAX, res_regs[0]);
     
     x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
     x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // finalizer arg
@@ -542,7 +544,8 @@ void Runtime::compile_heap_alloc() {
 void Runtime::compile_heap_realloc() {
     // heap_realloc(pointer, new_size)
     // Clobbers all registers
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
+    auto res_regs = x64->abi_res_regs();
 
     x64->code_label_global(heap_realloc_label, "heap_realloc");
     const int ARGS = ARGS_2;
@@ -561,8 +564,8 @@ void Runtime::compile_heap_realloc() {
     x64->op(MOVQ, arg_regs[1], Address(RSP, ARGS + ARG_2));  // new_size arg
     x64->op(ADDQ, arg_regs[1], HEAP_HEADER_SIZE);
     call_sysv(sysv_realloc_label);
-    
-    x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
+
+    x64->op(LEA, RAX, Address(res_regs[0], HEAP_HEADER_SIZE));
     
     x64->epilogue();
 }
@@ -570,7 +573,8 @@ void Runtime::compile_heap_realloc() {
 void Runtime::compile_fcb_alloc() {
     // fcb_alloc(pointer, callback, payload1, payload2)
     // Clobbers all registers
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
+    auto res_regs = x64->abi_res_regs();
 
     x64->code_label_global(fcb_alloc_label, "fcb_alloc");
     const int ARGS = ARGS_4;
@@ -579,6 +583,7 @@ void Runtime::compile_fcb_alloc() {
 
     x64->op(MOVQ, arg_regs[0], FCB_SIZE);
     call_sysv(sysv_malloc_label);
+    x64->op(MOVQ, RAX, res_regs[0]);
     
     x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // callback arg
     x64->op(MOVQ, Address(RAX, FCB_CALLBACK_OFFSET), RBX);
@@ -607,7 +612,7 @@ void Runtime::compile_fcb_alloc() {
 void Runtime::compile_fcb_free() {
     // fcb_free(pointer, callback, payload1, payload2)
     // Clobbers all registers
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
     
     x64->code_label_global(fcb_free_label, "fcb_free");
     Label check, loop, nope, no_next;
@@ -910,7 +915,8 @@ void Runtime::compile_double_stack() {
     // This function is invoked on the task stack
     // clobbers all registers
     // must use a stack frame for the stack fix code
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
+    auto res_regs = x64->abi_res_regs();
     
     x64->code_label_global(double_stack_label, "double_stack");
     x64->prologue();
@@ -920,6 +926,7 @@ void Runtime::compile_double_stack() {
     x64->op(MOVQ, arg_regs[1], Address(task_stack_size_label, 0));
     x64->op(SHLQ, arg_regs[1], 2);
     call_sysv(sysv_aligned_alloc_label);
+    x64->op(MOVQ, RAX, res_regs[0]);
     
     // Compute relocation offset of the stack tops.
     // We can't count on architecture-independent callee-saved registers.
@@ -1016,7 +1023,7 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
 
     // Some architectural help
     x64->start();
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
 
     // Be nice to debuggers and set up a stack frame.
     // NOTE: the RBP must point at its older value and next to the return address,
@@ -1080,7 +1087,7 @@ void Runtime::compile_logging() {
     // We want to preserve all registers, but also keep calling these functions the simplest.
     // Since we can't push the string address directly onto the stack, we push its
     // relative location in the data segment, and convert it to absolute address here.
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
     
     x64->code_label_local(log_label, "R__log");
     x64->prologue();
@@ -1314,7 +1321,7 @@ void Runtime::dump(std::string message) {
 
 void Runtime::die(std::string message) {
     // TODO: this encodes the message several times unnecessarily!
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
 
     Label message_label;
     x64->data_label(message_label);
@@ -1327,7 +1334,7 @@ void Runtime::die(std::string message) {
 
 
 void Runtime::dies(Register r) {
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    auto arg_regs = x64->abi_arg_regs();
 
     x64->op(MOVQ, arg_regs[0], r);
     call_sysv(sysv_dies_label);

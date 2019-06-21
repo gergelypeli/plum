@@ -140,6 +140,11 @@ std::array<Register, 2> Emu_X64::abi_res_regs() {
 }
 
 
+std::array<SseRegister, 2> Emu_X64::abi_res_sses() {
+    return { XMM0, XMM1 };
+}
+
+
 void Emu_X64::prologue() {
     op(PUSHQ, RBP);
     op(MOVQ, RBP, RSP);

@@ -20,11 +20,12 @@ void ContainerType::decref(TypeMatch tm, Register r, X64 *x64) {
 
 void ContainerType::streamify(TypeMatch tm, X64 *x64) {
     // We do this for container types that don't implement Streamifiable
+    auto arg_regs = x64->abi_arg_regs();
     Address value_addr(RSP, ALIAS_SIZE);
     Address alias_addr(RSP, 0);
 
-    x64->op(MOVQ, RDI, value_addr);
-    x64->op(MOVQ, RSI, alias_addr);
+    x64->op(MOVQ, arg_regs[0], value_addr);
+    x64->op(MOVQ, arg_regs[1], alias_addr);
 
     x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
 }

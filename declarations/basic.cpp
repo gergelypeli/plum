@@ -233,37 +233,38 @@ IntegerType::IntegerType(std::string n, unsigned s, bool iu)
 
 void IntegerType::streamify(TypeMatch tm, X64 *x64) {
     // SysV
+    auto arg_regs = x64->abi_arg_regs();
     Address value_addr(RSP, ALIAS_SIZE);
     Address alias_addr(RSP, 0);
     
     if (is_unsigned) {
         if (size == 1)
-            x64->op(MOVZXBQ, RDI, value_addr);
+            x64->op(MOVZXBQ, arg_regs[0], value_addr);
         else if (size == 2)
-            x64->op(MOVZXWQ, RDI, value_addr);
+            x64->op(MOVZXWQ, arg_regs[0], value_addr);
         else if (size == 4)
-            x64->op(MOVZXDQ, RDI, value_addr);
+            x64->op(MOVZXDQ, arg_regs[0], value_addr);
         else if (size == 8)
-            x64->op(MOVQ, RDI, value_addr);
+            x64->op(MOVQ, arg_regs[0], value_addr);
         else
             throw INTERNAL_ERROR;
 
-        x64->op(MOVQ, RSI, alias_addr);
+        x64->op(MOVQ, arg_regs[1], alias_addr);
         x64->runtime->call_sysv(x64->runtime->sysv_streamify_unteger_label);
     }
     else {
         if (size == 1)
-            x64->op(MOVSXBQ, RDI, value_addr);
+            x64->op(MOVSXBQ, arg_regs[0], value_addr);
         else if (size == 2)
-            x64->op(MOVSXWQ, RDI, value_addr);
+            x64->op(MOVSXWQ, arg_regs[0], value_addr);
         else if (size == 4)
-            x64->op(MOVSXDQ, RDI, value_addr);
+            x64->op(MOVSXDQ, arg_regs[0], value_addr);
         else if (size == 8)
-            x64->op(MOVQ, RDI, value_addr);
+            x64->op(MOVQ, arg_regs[0], value_addr);
         else
             throw INTERNAL_ERROR;
 
-        x64->op(MOVQ, RSI, alias_addr);
+        x64->op(MOVQ, arg_regs[1], alias_addr);
         x64->runtime->call_sysv(x64->runtime->sysv_streamify_integer_label);
     }
 }
@@ -281,11 +282,12 @@ BooleanType::BooleanType(std::string n, unsigned s)
 
 void BooleanType::streamify(TypeMatch tm, X64 *x64) {
     // SysV
+    auto arg_regs = x64->abi_arg_regs();
     Address value_addr(RSP, ALIAS_SIZE);
     Address alias_addr(RSP, 0);
 
-    x64->op(MOVQ, RDI, value_addr);
-    x64->op(MOVQ, RSI, alias_addr);
+    x64->op(MOVQ, arg_regs[0], value_addr);
+    x64->op(MOVQ, arg_regs[1], alias_addr);
     x64->runtime->call_sysv(x64->runtime->sysv_streamify_boolean_label);
 }
 

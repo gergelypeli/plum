@@ -336,18 +336,19 @@ Regs ArraySortValue::precompile(Regs preferred) {
 }
 
 Storage ArraySortValue::compile(X64 *x64) {
+    auto arg_regs = x64->abi_arg_regs();
     int elem_size = ContainerType::get_elem_size(elem_ts);
     Label compar = x64->once->compile(compile_compar, elem_ts);
     Label done;
 
     left->compile_and_store(x64, Storage(STACK));
     
-    // RDI = base, RSI = nmemb, RDX = size, RCX = compar
+    // base, nmemb, size, compar
     x64->op(MOVQ, R10, Address(RSP, 0));
-    x64->op(LEA, RDI, Address(R10, LINEARRAY_ELEMS_OFFSET));
-    x64->op(MOVQ, RSI, Address(R10, LINEARRAY_LENGTH_OFFSET));
-    x64->op(MOVQ, RDX, elem_size);
-    x64->op(LEA, RCX, Address(compar, 0));
+    x64->op(LEA, arg_regs[0], Address(R10, LINEARRAY_ELEMS_OFFSET));
+    x64->op(MOVQ, arg_regs[1], Address(R10, LINEARRAY_LENGTH_OFFSET));
+    x64->op(MOVQ, arg_regs[2], elem_size);
+    x64->op(LEA, arg_regs[3], Address(compar, 0));
     
     x64->runtime->call_sysv(x64->runtime->sysv_sort_label);
     
@@ -397,6 +398,7 @@ Storage ArrayRemoveValue::compile(X64 *x64) {
 }
 
 void ArrayRemoveValue::compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
+    auto arg_regs = x64->abi_arg_regs();
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
     x64->code_label(label);
@@ -426,14 +428,17 @@ void ArrayRemoveValue::compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
 
     x64->op(SUBQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
 
-    // call memmove - RDI = dest, RSI = src, RDX = n
-    x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));  // dest
+    // call memmove(dest, src, n)
+    x64->op(MOVQ, R10, RAX);  // borrowed array ref
+    x64->op(MOVQ, R11, RCX);  // remove count
     
-    x64->op(IMUL3Q, RSI, RCX, elem_size);
-    x64->op(ADDQ, RSI, RDI);  // src
+    x64->op(LEA, arg_regs[0], Address(R10, LINEARRAY_ELEMS_OFFSET));  // dest
     
-    x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(IMUL3Q, RDX, RDX, elem_size);  // n
+    x64->op(IMUL3Q, arg_regs[1], R11, elem_size);
+    x64->op(ADDQ, arg_regs[1], arg_regs[0]);  // src
+    
+    x64->op(MOVQ, arg_regs[2], Address(R10, LINEARRAY_LENGTH_OFFSET));
+    x64->op(IMUL3Q, arg_regs[2], arg_regs[2], elem_size);  // n
     
     x64->runtime->call_sysv(x64->runtime->sysv_memmove_label);
 

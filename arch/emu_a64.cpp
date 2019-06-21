@@ -187,12 +187,17 @@ std::array<Register, 6> Emu_A64::abi_arg_regs() {
 
 
 std::array<SseRegister, 6> Emu_A64::abi_arg_sses() {
-    return { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
+    return { (SseRegister)0, (SseRegister)1, (SseRegister)2, (SseRegister)3, (SseRegister)4, (SseRegister)5 };
 }
 
 
 std::array<Register, 2> Emu_A64::abi_res_regs() {
     return { (Register)0, (Register)1 };
+}
+
+
+std::array<SseRegister, 2> Emu_A64::abi_res_sses() {
+    return { (SseRegister)0, (SseRegister)1 };
 }
 
 

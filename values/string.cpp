@@ -22,9 +22,11 @@ Regs StringRegexpMatcherValue::precompile(Regs preferred) {
 Storage StringRegexpMatcherValue::compile(X64 *x64) {
     compile_and_store_both(x64, Storage(STACK), Storage(STACK));
     Label ok;
+    auto arg_regs = x64->abi_arg_regs();
+    auto res_regs = x64->abi_res_regs();
 
-    x64->op(MOVQ, RDI, Address(RSP, ADDRESS_SIZE));
-    x64->op(MOVQ, RSI, Address(RSP, 0));
+    x64->op(MOVQ, arg_regs[0], Address(RSP, ADDRESS_SIZE));
+    x64->op(MOVQ, arg_regs[1], Address(RSP, 0));
     
     // This uses SSE instructions, so SysV stack alignment must be ensured
     x64->runtime->call_sysv(x64->runtime->sysv_string_regexp_match_label);
@@ -32,14 +34,14 @@ Storage StringRegexpMatcherValue::compile(X64 *x64) {
     right->ts.store(Storage(STACK), Storage(), x64);
     left->ts.store(Storage(STACK), Storage(), x64);
     
-    x64->op(CMPQ, RAX, 0);
+    x64->op(CMPQ, res_regs[0], 0);
     x64->op(JNE, ok);
     
     raise("UNMATCHED", x64);
     
     x64->code_label(ok);
 
-    return Storage(REGISTER, RAX);
+    return Storage(REGISTER, res_regs[0]);
 }
 
 
