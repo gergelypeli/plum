@@ -269,11 +269,10 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     x64->code_label_local(label, get_fully_qualified_name() + "__sysv_wrapper");
 
     // Create a proper stack frame for debugging
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RBP, RSP);
+    x64->prologue();
 
-    Register regs[] = { RDI, RSI, RDX, RCX, R8, R9 };
-    SseRegister sses[] = { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    std::array<SseRegister, 6> arg_sses = x64->abi_arg_sses();
     unsigned reg_index = 0;
     unsigned sse_index = 0;
     
@@ -290,13 +289,13 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
         if (optimal_where == NOWHERE)
             ;  // happens for singleton pivots
         else if (optimal_where == SSEREGISTER)
-            x64->op(MOVSD, sses[sse_index++], Address(RBP, stack_offset));
+            x64->op(MOVSD, arg_sses[sse_index++], Address(RBP, stack_offset));
         else if (pushed_where == ALISTACK)
-            x64->op(MOVQ, regs[reg_index++], Address(RBP, stack_offset));
+            x64->op(MOVQ, arg_regs[reg_index++], Address(RBP, stack_offset));
         else if (pushed_sizes[i] == ADDRESS_SIZE)
-            x64->op(MOVQ, regs[reg_index++], Address(RBP, stack_offset));
+            x64->op(MOVQ, arg_regs[reg_index++], Address(RBP, stack_offset));
         else
-            x64->op(LEA, regs[reg_index++], Address(RBP, stack_offset));
+            x64->op(LEA, arg_regs[reg_index++], Address(RBP, stack_offset));
     }
     
     Label got_label = x64->once->import_got(import_name);
@@ -305,23 +304,31 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     //x64->runtime->dump("Returned from SysV.");
 
     // We return simple values in RAX and XMM0 like SysV.
-    // But exceptions are always in RAX, so it may need a fix.
+    // But simulated exceptions are always received in res_reg[0], and must be
+    // put in RDX, so it may need a fix.
     StorageWhere simple_where = (res_tss.size() ? res_tss[0].where(AS_VALUE) : NOWHERE);
+    std::array<Register, 2> res_regs = x64->abi_res_regs();
 
     switch (simple_where) {
     case NOWHERE:
         if (exception_type) {
-            x64->op(MOVQ, RDX, RAX);
+            x64->op(MOVQ, RDX, res_regs[0]);
         }
         break;
     case REGISTER:
         if (exception_type) {
-            x64->op(XCHGQ, RDX, RAX);
+            x64->op(MOVQ, R10, res_regs[0]);  // exc
+            x64->op(MOVQ, R11, res_regs[1]);  // res
+            x64->op(MOVQ, RDX, R10);
+            x64->op(MOVQ, RAX, R11);
+        }
+        else {
+            x64->op(MOVQ, RAX, res_regs[0]);
         }
         break;
     case SSEREGISTER:
         if (exception_type) {
-            x64->op(MOVQ, RDX, RAX);
+            x64->op(MOVQ, RDX, res_regs[0]);
         }
         break;
     default:
@@ -332,8 +339,7 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     if (exception_type)
         x64->op(CMPQ, RDX, NO_EXCEPTION);
 
-    x64->op(POPQ, RBP);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void SysvFunction::debug(TypeMatch tm, X64 *x64) {

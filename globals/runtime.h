@@ -95,10 +95,10 @@ public:
 
 class Runtime {
 public:
-    const int ARGS_1 = 16;
-    const int ARGS_2 = 24;
-    const int ARGS_3 = 32;
-    const int ARGS_4 = 40;
+    const int ARGS_1 = 24;
+    const int ARGS_2 = 32;
+    const int ARGS_3 = 40;
+    const int ARGS_4 = 48;
     
     const int ARG_1 = -8;
     const int ARG_2 = -16;
@@ -128,7 +128,8 @@ public:
     Label code_start_label, data_start_label, application_label;
     Label zero_label, float_zero_label, float_minus_zero_label;
     Label allocation_count_label, refcount_balance_label;
-    Label die_unmatched_message_label, start_frame_label, task_stack_address_label, task_stack_size_label;
+    Label die_unmatched_message_label, start_frame_label, task_frame_label;
+    Label task_stack_address_label, task_stack_size_label;
 
     Label call_sysv_label;
     Label heap_alloc_label, heap_realloc_label;

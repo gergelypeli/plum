@@ -317,8 +317,7 @@ Storage FunctionDefinitionValue::compile(X64 *x64) {
     x64->code_label_global(start_label, fqn);
     int low_pc = x64->get_pc();
     
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RBP, RSP);
+    x64->prologue();
     x64->op(SUBQ, RSP, frame_size);
     
     x64->accounting->start();
@@ -396,8 +395,7 @@ Storage FunctionDefinitionValue::compile(X64 *x64) {
         x64->op(MOVQ, RDX, fes.address);
         
     x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
-    x64->op(POPQ, RBP);
-    x64->op(RET);
+    x64->epilogue();
 
     int high_pc = x64->get_pc();
     

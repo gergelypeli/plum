@@ -255,6 +255,9 @@ Runtime::Runtime(X64 *x, unsigned application_size, std::vector<std::string> sou
 
     x64->data_label(start_frame_label);
     x64->data_qword(0);
+
+    x64->data_label(task_frame_label);
+    x64->data_qword(0);
     
     x64->data_label(task_stack_address_label);
     x64->data_qword(0);
@@ -462,8 +465,11 @@ void Runtime::popa(bool except_rax) {
 void Runtime::compile_finalize() {
     // finalize(pointer)
     // Preserves all registers, including the scratch ones
-    
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+
     x64->code_label_global(finalize_label, "finalize");
+    x64->prologue();
+
     const int ARGS = pusha() + ARGS_1;
     Label fcb_loop, fcb_cond;
     
@@ -483,8 +489,8 @@ void Runtime::compile_finalize() {
     x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 
     // Free FCB
-    x64->op(POPQ, RDI);
-    x64->op(PUSHQ, Address(RDI, FCB_NEXT_OFFSET));  // advance before free
+    x64->op(POPQ, arg_regs[0]);
+    x64->op(PUSHQ, Address(arg_regs[0], FCB_NEXT_OFFSET));  // advance before free
     call_sysv(sysv_free_label);  // clobbers all
     x64->op(POPQ, RAX);
 
@@ -498,23 +504,26 @@ void Runtime::compile_finalize() {
     x64->op(PUSHQ, RAX);
     x64->op(CALL, Address(RAX, HEAP_FINALIZER_OFFSET));  // finalizers may clobber everything
 
-    x64->op(POPQ, RDI);
-    x64->op(SUBQ, RDI, HEAP_HEADER_SIZE);
+    x64->op(POPQ, arg_regs[0]);
+    x64->op(SUBQ, arg_regs[0], HEAP_HEADER_SIZE);
     call_sysv(sysv_free_label);  // will probably clobber everything
 
     popa();
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_heap_alloc() {
     // heap_alloc(size, finalizer)
     // Clobbers all registers
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
     
     x64->code_label_global(heap_alloc_label, "heap_alloc");
     const int ARGS = ARGS_2;
     
-    x64->op(MOVQ, RDI, Address(RSP, ARGS + ARG_1));  // size arg
-    x64->op(ADDQ, RDI, HEAP_HEADER_SIZE);
+    x64->prologue();
+    
+    x64->op(MOVQ, arg_regs[0], Address(RSP, ARGS + ARG_1));  // size arg
+    x64->op(ADDQ, arg_regs[0], HEAP_HEADER_SIZE);
     call_sysv(sysv_malloc_label);
     
     x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
@@ -527,41 +536,48 @@ void Runtime::compile_heap_alloc() {
     
     x64->op(INCQ, Address(refcount_balance_label, 0));  // necessary to keep the balance
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_heap_realloc() {
     // heap_realloc(pointer, new_size)
     // Clobbers all registers
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
 
     x64->code_label_global(heap_realloc_label, "heap_realloc");
     const int ARGS = ARGS_2;
     Label realloc_ok;
     
-    x64->op(MOVQ, RDI, Address(RSP, ARGS + ARG_1));  // pointer arg
-    check_unshared(RDI);
+    x64->prologue();
+    
+    x64->op(MOVQ, arg_regs[0], Address(RSP, ARGS + ARG_1));  // pointer arg
+    check_unshared(arg_regs[0]);
     x64->op(JE, realloc_ok);
     
     die("Realloc of shared array!");
 
     x64->code_label(realloc_ok);
-    x64->op(SUBQ, RDI, HEAP_HEADER_SIZE);
-    x64->op(MOVQ, RSI, Address(RSP, ARGS + ARG_2));  // new_size arg
-    x64->op(ADDQ, RSI, HEAP_HEADER_SIZE);
+    x64->op(SUBQ, arg_regs[0], HEAP_HEADER_SIZE);
+    x64->op(MOVQ, arg_regs[1], Address(RSP, ARGS + ARG_2));  // new_size arg
+    x64->op(ADDQ, arg_regs[1], HEAP_HEADER_SIZE);
     call_sysv(sysv_realloc_label);
     
     x64->op(ADDQ, RAX, HEAP_HEADER_SIZE);
-    x64->op(RET);
+    
+    x64->epilogue();
 }
 
 void Runtime::compile_fcb_alloc() {
     // fcb_alloc(pointer, callback, payload1, payload2)
     // Clobbers all registers
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
 
     x64->code_label_global(fcb_alloc_label, "fcb_alloc");
     const int ARGS = ARGS_4;
 
-    x64->op(MOVQ, RDI, FCB_SIZE);
+    x64->prologue();
+
+    x64->op(MOVQ, arg_regs[0], FCB_SIZE);
     call_sysv(sysv_malloc_label);
     
     x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // callback arg
@@ -585,16 +601,19 @@ void Runtime::compile_fcb_alloc() {
     x64->op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RAX);
     x64->code_label(no_next);
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_fcb_free() {
     // fcb_free(pointer, callback, payload1, payload2)
     // Clobbers all registers
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
     
     x64->code_label_global(fcb_free_label, "fcb_free");
     Label check, loop, nope, no_next;
     const int ARGS = ARGS_4;
+
+    x64->prologue();
 
     x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));  // object
     x64->op(MOVQ, RBX, Address(RSP, ARGS + ARG_2));  // callback
@@ -621,10 +640,10 @@ void Runtime::compile_fcb_free() {
     x64->op(MOVQ, Address(RCX, FCB_PREV_OFFSET), RBX);
     x64->code_label(no_next);
 
-    x64->op(MOVQ, RDI, RAX);
+    x64->op(MOVQ, arg_regs[0], RAX);
     call_sysv(sysv_free_label);  // clobbers all
 
-    x64->op(RET);
+    x64->epilogue();
     
     x64->code_label(nope);
     x64->op(MOVQ, RAX, Address(RAX, FCB_NEXT_OFFSET));
@@ -645,6 +664,8 @@ void Runtime::compile_finalize_reference_array() {
     Label fra_cond, fra_loop;
     const int ARGS = ARGS_1;
     
+    x64->prologue();
+    
     x64->op(MOVQ, RAX, Address(RSP, ARGS + ARG_1));
     x64->op(MOVQ, RCX, 0);
     x64->op(JMP, fra_cond);
@@ -658,7 +679,7 @@ void Runtime::compile_finalize_reference_array() {
     x64->op(CMPQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
     x64->op(JB, fra_loop);
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_incref_decref() {
@@ -671,22 +692,19 @@ void Runtime::compile_incref_decref() {
     
         // NOTE: preserves all registers, including the scratch ones
         x64->code_label_global(incref_labels[reg], std::string("incref_") + register_name(reg));
-        x64->op(PUSHQ, RBP);
-        x64->op(MOVQ, RBP, RSP);
+        x64->prologue();
 
         x64->op(INCQ, Address(reg, HEAP_REFCOUNT_OFFSET));
         //logref(std::string("INCREF ") + REGISTER_NAMES[reg], reg);
 
         x64->op(INCQ, Address(refcount_balance_label, 0));
-        x64->op(POPQ, RBP);
-        x64->op(RET);
+        x64->epilogue();
     
         Label dl, dl2;
     
         // NOTE: preserves all registers, including the scratch ones
         x64->code_label_global(decref_labels[reg], std::string("decref_") + register_name(reg));
-        x64->op(PUSHQ, RBP);
-        x64->op(MOVQ, RBP, RSP);
+        x64->prologue();
 
         x64->op(DECQ, Address(reg, HEAP_REFCOUNT_OFFSET));
         //logref(std::string("DECREF ") + REGISTER_NAMES[reg], reg);
@@ -698,8 +716,7 @@ void Runtime::compile_incref_decref() {
 
         x64->code_label(dl);
         x64->op(DECQ, Address(refcount_balance_label, 0));
-        x64->op(POPQ, RBP);
-        x64->op(RET);
+        x64->epilogue();
     }
 }
 
@@ -709,9 +726,10 @@ void Runtime::compile_lookup_source_info() {
     // clobbers RAX, RBX, RCX
     
     x64->code_label_global(lookup_source_info_label, "lookup_source_info");
+    x64->prologue();
     Label found;
 
-    x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));  // index
+    x64->op(MOVQ, RBX, Address(RSP, 2 * ADDRESS_SIZE));  // index
     x64->op(LEA, RAX, Address(source_infos_label, 0));
     x64->op(MOVQ, RCX, Address(source_infos_length_label, 0));
     
@@ -724,7 +742,7 @@ void Runtime::compile_lookup_source_info() {
     x64->op(MOVQ, RAX, Address(RAX, RBX, Address::SCALE_8, 0));
     incref(RAX);
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_lookup_call_info() {
@@ -733,11 +751,12 @@ void Runtime::compile_lookup_call_info() {
     // clobbers RAX, RBX, RCX
     
     x64->code_label_global(lookup_call_info_label, "lookup_call_info");
+    x64->prologue();
     Label loop, skip, end;
 
     x64->op(LEA, RBX, Address(code_start_label, 0));
     x64->op(NEGQ, RBX);
-    x64->op(ADDQ, RBX, Address(RSP, ADDRESS_SIZE));  // relative RIP within the code segment
+    x64->op(ADDQ, RBX, Address(RSP, 2 * ADDRESS_SIZE));  // relative RIP within the code segment
     x64->op(LEA, RAX, Address(call_infos_label, 0));
     x64->op(MOVQ, RCX, Address(call_infos_length_label, 0));
     
@@ -753,7 +772,7 @@ void Runtime::compile_lookup_call_info() {
     x64->op(MOVQ, RAX, 0);
     
     x64->code_label(end);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_lookup_frame_info() {
@@ -762,9 +781,10 @@ void Runtime::compile_lookup_frame_info() {
     // clobbers RAX, RBX, RCX
     
     x64->code_label_global(lookup_frame_info_label, "lookup_frame_info");
+    x64->prologue();
     Label loop, skip, end;
 
-    x64->op(MOVQ, RBX, Address(RSP, ADDRESS_SIZE));
+    x64->op(MOVQ, RBX, Address(RSP, 2 * ADDRESS_SIZE));
     x64->op(LEA, RAX, Address(func_infos_label, 0));
     x64->op(MOVQ, RCX, Address(func_infos_length_label, 0));
     
@@ -786,7 +806,7 @@ void Runtime::compile_lookup_frame_info() {
     x64->op(MOVQ, RAX, 0);
     
     x64->code_label(end);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_caller_frame_info() {
@@ -798,10 +818,11 @@ void Runtime::compile_caller_frame_info() {
     Label up, lookup, nope, end;
     
     x64->code_label_global(caller_frame_info_label, "caller_frame_info");
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RCX, Address(RSP, 2 * ADDRESS_SIZE));
+    x64->prologue();
     
-    x64->op(MOVQ, RBX, RSP);
+    x64->op(MOVQ, RCX, Address(RBP, 2 * ADDRESS_SIZE));
+    
+    x64->op(MOVQ, RBX, RBP);
     x64->op(CMPQ, RCX, 0);
     x64->op(JE, lookup);
     
@@ -829,8 +850,7 @@ void Runtime::compile_caller_frame_info() {
     x64->op(MOVQ, RBX, 0);
     
     x64->code_label(end);
-    x64->op(POPQ, RBP);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::fix_address(Address address) {
@@ -853,11 +873,12 @@ void Runtime::compile_fix_stack() {
     // points to the first app function that needs fixing.
     
     x64->code_label_global(fix_stack_label, "fix_stack");
-    x64->op(PUSHQ, RBP);  // just saving, the caller must have a proper frame
+    x64->prologue();
     
-    x64->op(MOVQ, RSI, Address(RSP, 4 * ADDRESS_SIZE));  // old_bottom
-    x64->op(MOVQ, RDI, Address(RSP, 3 * ADDRESS_SIZE));  // old_top
-    x64->op(MOVQ, RDX, Address(RSP, 2 * ADDRESS_SIZE));  // relocation
+    x64->op(MOVQ, RSI, Address(RBP, 4 * ADDRESS_SIZE));  // old_bottom
+    x64->op(MOVQ, RDI, Address(RBP, 3 * ADDRESS_SIZE));  // old_top
+    x64->op(MOVQ, RDX, Address(RBP, 2 * ADDRESS_SIZE));  // relocation
+    x64->op(MOVQ, RBP, Address(RBP, 0));  // caller helper function frame
 
     Label loop, end;
     x64->code_label(loop);
@@ -882,65 +903,69 @@ void Runtime::compile_fix_stack() {
     x64->op(JMP, loop);
     
     x64->code_label(end);
-    x64->op(POPQ, RBP);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_double_stack() {
     // This function is invoked on the task stack
     // clobbers all registers
     // must use a stack frame for the stack fix code
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
     
     x64->code_label_global(double_stack_label, "double_stack");
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RBP, RSP);
+    x64->prologue();
 
     // Allocate new stack    
-    x64->op(MOVQ, RDI, PAGE_SIZE);
-    x64->op(MOVQ, RSI, Address(task_stack_size_label, 0));
-    x64->op(SHLQ, RSI, 2);
+    x64->op(MOVQ, arg_regs[0], PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[1], Address(task_stack_size_label, 0));
+    x64->op(SHLQ, arg_regs[1], 2);
     call_sysv(sysv_aligned_alloc_label);
     
-    // Compute relocation offset of the stack tops (RBX is callee saved)
+    // Compute relocation offset of the stack tops.
+    // We can't count on architecture-independent callee-saved registers.
     x64->op(MOVQ, RBX, RAX);
     x64->op(ADDQ, RBX, Address(task_stack_size_label, 0));
     x64->op(SUBQ, RBX, Address(task_stack_address_label, 0));
+    x64->op(PUSHQ, RBX);  // save diff
     
-    x64->op(MOVQ, RDI, RAX);
-    x64->op(MOVQ, RSI, PAGE_SIZE);
-    x64->op(MOVQ, RDX, PROT_NONE);
+    x64->op(MOVQ, arg_regs[0], RAX);
+    x64->op(MOVQ, arg_regs[1], PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[2], PROT_NONE);
     call_sysv(sysv_mprotect_label);
 
     // Copy stack contents to the upper half of the new stack (skipping the guard page)
-    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
-    x64->op(ADDQ, RDI, RBX);
-    x64->op(ADDQ, RDI, PAGE_SIZE);
-    x64->op(MOVQ, RSI, Address(task_stack_address_label, 0));
-    x64->op(ADDQ, RSI, PAGE_SIZE);
-    x64->op(MOVQ, RDX, Address(task_stack_size_label, 0));
-    x64->op(SUBQ, RDX, PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[0], Address(task_stack_address_label, 0));
+    x64->op(ADDQ, arg_regs[0], Address(RSP, 0));
+    x64->op(ADDQ, arg_regs[0], PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[1], Address(task_stack_address_label, 0));
+    x64->op(ADDQ, arg_regs[1], PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[2], Address(task_stack_size_label, 0));
+    x64->op(SUBQ, arg_regs[2], PAGE_SIZE);
     call_sysv(sysv_memcpy_label);
 
     // Switch stacks
+    x64->op(POPQ, RBX);
     x64->op(ADDQ, RSP, RBX);
     x64->op(ADDQ, RBP, RBX);
+    x64->op(PUSHQ, RBX);
 
     // Drop old stack
-    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
-    x64->op(MOVQ, RSI, PAGE_SIZE);
-    x64->op(MOVQ, RDX, PROT_RW);
+    x64->op(MOVQ, arg_regs[0], Address(task_stack_address_label, 0));
+    x64->op(MOVQ, arg_regs[1], PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[2], PROT_RW);
     call_sysv(sysv_mprotect_label);
     
-    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
+    x64->op(MOVQ, arg_regs[0], Address(task_stack_address_label, 0));
     call_sysv(sysv_free_label);
 
     // Fix new stack
+    x64->op(POPQ, RBX);
     x64->op(MOVQ, R10, Address(task_stack_address_label, 0));
     x64->op(PUSHQ, R10);  // old_bottom
     x64->op(ADDQ, R10, Address(task_stack_size_label, 0));
     x64->op(PUSHQ, R10);  // old_top
     x64->op(PUSHQ, RBX);  // relocation offset
-    x64->op(CALL, fix_stack_label);
+    x64->op(CALL, fix_stack_label);  // also uses our RBP to traverse the stack frames
     x64->op(POPQ, RBX);
     x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
     
@@ -950,8 +975,7 @@ void Runtime::compile_double_stack() {
     x64->op(SHLQ, Address(task_stack_size_label, 0), 1);
     
     // That should be it
-    x64->op(POPQ, RBP);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -973,42 +997,45 @@ void Runtime::compile_call_sysv() {
     // And expects the callee address in R10.
     
     x64->code_label_local(call_sysv_label, "__morestack");
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RBP, RSP);
+    x64->prologue();
+
+    // The only architecture-independent way to save our RSP is to store it globally
+    x64->op(MOVQ, Address(task_frame_label, 0), RSP);
     
     x64->op(MOVQ, RSP, Address(start_frame_label, 0));
     x64->op(CALL, R10);
-    x64->op(MOVQ, RSP, RBP);
+    x64->op(MOVQ, RSP, Address(task_frame_label, 0));
     
-    x64->op(POPQ, RBP);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
 void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer_labels, std::vector<Label> finalizer_labels) {
-    // Invoked from Root after gathering the necessary pieces
     Label start;
     x64->code_label_global(start, "start");
+
+    // Some architectural help
+    x64->start();
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
 
     // Be nice to debuggers and set up a stack frame.
     // NOTE: the RBP must point at its older value and next to the return address,
     // so it has to be on the system stack. We won't need one on the task stack.
-    // NOTE: Don't use Runtime::call_sys, that works on task stacks only! And
+    // NOTE: Don't use Runtime::call_sysv, that works on task stacks only! And
     // this frame is guaranteed to be aligned.
-    x64->op(PUSHQ, RBP);
-    x64->op(MOVQ, RBP, RSP);
+    x64->prologue();
 
     // Create the initial task stack with a guard page at the bottom
-    x64->op(MOVQ, RDI, PAGE_SIZE);
-    x64->op(MOVQ, RSI, INITIAL_STACK_SIZE);
+    x64->op(MOVQ, arg_regs[0], PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[1], INITIAL_STACK_SIZE);
     x64->op(CALL, sysv_aligned_alloc_label);
     
     x64->op(MOVQ, Address(task_stack_address_label, 0), RAX);
     x64->op(MOVQ, Address(task_stack_size_label, 0), INITIAL_STACK_SIZE);
     
-    x64->op(MOVQ, RDI, RAX);
-    x64->op(MOVQ, RSI, PAGE_SIZE);
-    x64->op(MOVQ, RDX, PROT_NONE);
+    x64->op(MOVQ, arg_regs[0], RAX);
+    x64->op(MOVQ, arg_regs[1], PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[2], PROT_NONE);
     x64->op(CALL, sysv_mprotect_label);
     
     // Switch to the new stack
@@ -1020,6 +1047,8 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     // Invoke global initializers
     for (Label l : initializer_labels)
         x64->op(CALL, l);
+
+    //log("Hello, world!");
 
     // Into the new world
     x64->op(MOVQ, R10, main_storage.address);
@@ -1036,62 +1065,78 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     x64->op(MOVQ, RSP, Address(start_frame_label, 0));  // should be a single step
     
     // Drop the task stack
-    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
-    x64->op(MOVQ, RSI, PAGE_SIZE);
-    x64->op(MOVQ, RDX, PROT_RW);
+    x64->op(MOVQ, arg_regs[0], Address(task_stack_address_label, 0));
+    x64->op(MOVQ, arg_regs[1], PAGE_SIZE);
+    x64->op(MOVQ, arg_regs[2], PROT_RW);
     x64->op(CALL, sysv_mprotect_label);
     
-    x64->op(MOVQ, RDI, Address(task_stack_address_label, 0));
+    x64->op(MOVQ, arg_regs[0], Address(task_stack_address_label, 0));
     x64->op(CALL, sysv_free_label);
     
-    x64->op(POPQ, RBP);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void Runtime::compile_logging() {
     // We want to preserve all registers, but also keep calling these functions the simplest.
     // Since we can't push the string address directly onto the stack, we push its
     // relative location in the data segment, and convert it to absolute address here.
-    x64->code_label(log_label);
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+    
+    x64->code_label_local(log_label, "R__log");
+    x64->prologue();
+    
     x64->op(PUSHFQ);
     int offset = pusha();
     
-    x64->op(LEA, RDI, Address(data_start_label, 0));
-    x64->op(ADDQ, RDI, Address(RSP, offset + ADDRESS_SIZE + RIP_SIZE));
+    x64->op(LEA, arg_regs[0], Address(data_start_label, 0));
+    x64->op(ADDQ, arg_regs[0], Address(RSP, offset + 2 * ADDRESS_SIZE + RIP_SIZE));
     
     call_sysv(sysv_log_label);
     
     popa();
     x64->op(POPFQ);
-    x64->op(RET);
+    
+    x64->epilogue();
 
     // As above
-    x64->code_label(logref_label);
+    x64->code_label_local(logref_label, "R__logref");
+    x64->prologue();
+    
     x64->op(PUSHFQ);
     offset = pusha();
     
-    x64->op(LEA, RDI, Address(data_start_label, 0));
-    x64->op(ADDQ, RDI, Address(RSP, offset + 2 * ADDRESS_SIZE + RIP_SIZE));
-    x64->op(MOVQ, RSI, Address(RSP, offset + ADDRESS_SIZE + RIP_SIZE));
+    x64->op(LEA, arg_regs[0], Address(data_start_label, 0));
+    x64->op(ADDQ, arg_regs[0], Address(RSP, offset + 3 * ADDRESS_SIZE + RIP_SIZE));
+    x64->op(MOVQ, arg_regs[1], Address(RSP, offset + 2 * ADDRESS_SIZE + RIP_SIZE));
     
     call_sysv(sysv_logref_label);
     
     popa();
     x64->op(POPFQ);
-    x64->op(RET);
+    
+    x64->epilogue();
     
     // As above
-    x64->code_label(dump_label);
+    x64->code_label_local(dump_label, "R__dump");
+    x64->prologue();  // clobbers RBP
+    
     x64->op(PUSHFQ);
 
-    // NOTE: we'll adjust the saved RSP to its original value (STR+RIP+RFLAGS+RAX+RBX+RCX+RDX)
+    // NOTE: we'll adjust the saved RSP and RBP to their original value
     for (Register r : { RAX, RBX, RCX, RDX, RSP, RBP, RSI, RDI, R8, R9, R10, R11, R12, R13, R14, R15 })
         x64->op(PUSHQ, r);
 
-    x64->op(ADDQ, Address(RSP, 11 * ADDRESS_SIZE), 5 * ADDRESS_SIZE + RIP_SIZE + ADDRESS_SIZE);
-    x64->op(LEA, RDI, Address(data_start_label, 0));
-    x64->op(ADDQ, RDI, Address(RSP, 17 * ADDRESS_SIZE + RIP_SIZE));
-    x64->op(MOVQ, RSI, RSP);
+    // Adjust the passed RSP
+    x64->op(ADDQ, Address(RSP, 11 * ADDRESS_SIZE), 5 * ADDRESS_SIZE + RIP_SIZE + 2 * ADDRESS_SIZE);
+
+    // Restore the passed RBP
+    x64->op(MOVQ, R10, Address(RSP, 17 * ADDRESS_SIZE));
+    x64->op(MOVQ, Address(RSP, 10 * ADDRESS_SIZE), R10);
+    
+    // Pass the string and the register data area address as arguments
+    x64->op(LEA, arg_regs[0], Address(data_start_label, 0));
+    x64->op(ADDQ, arg_regs[0], Address(RSP, 17 * ADDRESS_SIZE + RIP_SIZE + ADDRESS_SIZE));
+    x64->op(MOVQ, arg_regs[1], RSP);
     
     call_sysv(sysv_dump_label);
 
@@ -1100,7 +1145,8 @@ void Runtime::compile_logging() {
         x64->op(POPQ, r);
         
     x64->op(POPFQ);
-    x64->op(RET);
+    
+    x64->epilogue();
 }
 
 void Runtime::incref(Register reg) {
@@ -1268,18 +1314,22 @@ void Runtime::dump(std::string message) {
 
 void Runtime::die(std::string message) {
     // TODO: this encodes the message several times unnecessarily!
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+
     Label message_label;
     x64->data_label(message_label);
     x64->data_zstring(message);
 
-    x64->op(LEA, RDI, Address(message_label, 0));
+    x64->op(LEA, arg_regs[0], Address(message_label, 0));
     call_sysv(sysv_die_label);
     x64->op(UD2);
 }
 
 
 void Runtime::dies(Register r) {
-    x64->op(MOVQ, RDI, r);
+    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
+
+    x64->op(MOVQ, arg_regs[0], r);
     call_sysv(sysv_dies_label);
     x64->op(UD2);
 }
