@@ -125,13 +125,13 @@ void Emu_X64::process_relocations() {
 }
 
 
-std::array<Register, 6> Emu_X64::abi_arg_regs() {
-    return { RDI, RSI, RDX, RCX, R8, R9 };
+std::array<Register, 4> Emu_X64::abi_arg_regs() {
+    return { RDI, RSI, RDX, RCX };
 }
 
 
-std::array<SseRegister, 6> Emu_X64::abi_arg_sses() {
-    return { XMM0, XMM1, XMM2, XMM3, XMM4, XMM5 };
+std::array<SseRegister, 4> Emu_X64::abi_arg_sses() {
+    return { XMM0, XMM1, XMM2, XMM3 };
 }
 
 

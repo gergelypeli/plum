@@ -1032,6 +1032,9 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     // this frame is guaranteed to be aligned.
     x64->prologue();
 
+    // This may be clobbered on A64 during SysV calls, save it first
+    x64->op(MOVQ, Address(start_frame_label, 0), RBP);  // aligned
+
     // Create the initial task stack with a guard page at the bottom
     x64->op(MOVQ, arg_regs[0], PAGE_SIZE);
     x64->op(MOVQ, arg_regs[1], INITIAL_STACK_SIZE);
@@ -1046,16 +1049,16 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     x64->op(CALL, sysv_mprotect_label);
     
     // Switch to the new stack
-    x64->op(MOVQ, Address(start_frame_label, 0), RSP);  // aligned
     x64->op(MOVQ, RBX, Address(task_stack_address_label, 0));
     x64->op(ADDQ, RBX, Address(task_stack_size_label, 0));
     x64->op(MOVQ, RSP, RBX);  // should be a single step
+    x64->op(MOVQ, RBP, Address(start_frame_label, 0));  // for proper frame linking
+
+    log("Hello, world!");
 
     // Invoke global initializers
     for (Label l : initializer_labels)
         x64->op(CALL, l);
-
-    //log("Hello, world!");
 
     // Into the new world
     x64->op(MOVQ, R10, main_storage.address);

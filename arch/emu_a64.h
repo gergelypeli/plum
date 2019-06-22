@@ -29,8 +29,8 @@ public:
     Emu_A64(std::string module_name);
 
     virtual void process_relocations();
-    virtual std::array<Register, 6> abi_arg_regs();
-    virtual std::array<SseRegister, 6> abi_arg_sses();
+    virtual std::array<Register, 4> abi_arg_regs();
+    virtual std::array<SseRegister, 4> abi_arg_sses();
     virtual std::array<Register, 2> abi_res_regs();
     virtual std::array<SseRegister, 2> abi_res_sses();
     virtual void prologue();

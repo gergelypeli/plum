@@ -7,12 +7,13 @@ void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     Label finalizer_label = elem_ts.prefix(linearray_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("alloc"));
+    x64->prologue();
     
     container_alloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, finalizer_label, x64);
 
     x64->op(MOVQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 0);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -21,10 +22,11 @@ void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("realloc"));
+    x64->prologue();
 
     container_realloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, x64);
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -34,10 +36,11 @@ void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     Label realloc_label = x64->once->compile(compile_array_realloc, elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("grow"));
+    x64->prologue();
     
     container_grow(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_MINIMUM_RESERVATION, realloc_label, x64);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -50,6 +53,7 @@ void compile_array_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     TypeSpec heap_ts = elem_ts.prefix(linearray_type);
     
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("clone"));
+    x64->prologue();
     x64->runtime->log("XXX array clone");
     
     x64->op(PUSHQ, RAX);
@@ -77,7 +81,7 @@ void compile_array_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     heap_ts.decref(RBX, x64);
     
     x64->code_label(end);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -170,11 +174,13 @@ Storage ArrayConcatenationValue::compile(X64 *x64) {
 void ArrayConcatenationValue::compile_array_concatenation(Label label, TypeSpec elem_ts, X64 *x64) {
     // RAX - result, R10 - first, R11 - second
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("concatenation"));
+    x64->prologue();
+
     Label alloc_array = x64->once->compile(compile_array_alloc, elem_ts);
     int elem_size = ContainerType::get_elem_size(elem_ts);
     
-    x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));
-    x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));
+    x64->op(MOVQ, R10, Address(RSP, RIP_SIZE + ADDRESS_SIZE + REFERENCE_SIZE));
+    x64->op(MOVQ, R11, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
     
     x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
     x64->op(ADDQ, R10, Address(R11, LINEARRAY_LENGTH_OFFSET));  // total length
@@ -184,7 +190,7 @@ void ArrayConcatenationValue::compile_array_concatenation(Label label, TypeSpec 
     x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
     
     // copy left array
-    x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + REFERENCE_SIZE));  // restored
+    x64->op(MOVQ, R10, Address(RSP, RIP_SIZE + ADDRESS_SIZE + REFERENCE_SIZE));  // restored
     x64->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
     x64->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
@@ -207,7 +213,7 @@ void ArrayConcatenationValue::compile_array_concatenation(Label label, TypeSpec 
     x64->code_label(left_end);
 
     // copy right array
-    x64->op(MOVQ, R11, Address(RSP, ADDRESS_SIZE));  // restored
+    x64->op(MOVQ, R11, Address(RSP, RIP_SIZE + ADDRESS_SIZE));  // restored
     x64->op(LEA, RSI, Address(R11, LINEARRAY_ELEMS_OFFSET));
     x64->op(MOVQ, RCX, Address(R11, LINEARRAY_LENGTH_OFFSET));
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
@@ -229,7 +235,7 @@ void ArrayConcatenationValue::compile_array_concatenation(Label label, TypeSpec 
     x64->op(JNE, right_loop);
     x64->code_label(right_end);
     
-    x64->op(RET);  // new array in RAX
+    x64->epilogue();  // new array in RAX
 }
 
 
@@ -361,6 +367,7 @@ void ArraySortValue::compile_compar(Label label, TypeSpec elem_ts, X64 *x64) {
     // Generate a SysV function to wrap our compare function.
     // RDI and RSI contains the pointers to the array elements.
     x64->code_label(label);
+    x64->prologue();
     
     Storage a(MEMORY, Address(RDI, 0));
     Storage b(MEMORY, Address(RSI, 0));
@@ -369,7 +376,7 @@ void ArraySortValue::compile_compar(Label label, TypeSpec elem_ts, X64 *x64) {
     
     x64->op(MOVSXBQ, RAX, R10B);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -402,11 +409,12 @@ void ArrayRemoveValue::compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
     x64->code_label(label);
+    x64->prologue();
     Label ok, loop, check;
     
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));
+    x64->op(MOVQ, RAX, Address(RSP, RIP_SIZE + ADDRESS_SIZE + INTEGER_SIZE));
     x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(CMPQ, RCX, Address(RSP, ADDRESS_SIZE));
+    x64->op(CMPQ, RCX, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
     x64->op(JAE, ok);
     
     x64->runtime->die("Array remove length out of bounds!");  // FIXME: raise instead
@@ -423,7 +431,7 @@ void ArrayRemoveValue::compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(INCQ, RCX);
     
     x64->code_label(check);
-    x64->op(CMPQ, RCX, Address(RSP, ADDRESS_SIZE));
+    x64->op(CMPQ, RCX, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
     x64->op(JB, loop);
 
     x64->op(SUBQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
@@ -442,7 +450,7 @@ void ArrayRemoveValue::compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     
     x64->runtime->call_sysv(x64->runtime->sysv_memmove_label);
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 

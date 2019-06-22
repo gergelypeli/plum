@@ -271,8 +271,8 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     // Create a proper stack frame for debugging
     x64->prologue();
 
-    std::array<Register, 6> arg_regs = x64->abi_arg_regs();
-    std::array<SseRegister, 6> arg_sses = x64->abi_arg_sses();
+    std::array<Register, 4> arg_regs = x64->abi_arg_regs();
+    std::array<SseRegister, 4> arg_sses = x64->abi_arg_sses();
     unsigned reg_index = 0;
     unsigned sse_index = 0;
     
@@ -308,6 +308,7 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     // put in RDX, so it may need a fix.
     StorageWhere simple_where = (res_tss.size() ? res_tss[0].where(AS_VALUE) : NOWHERE);
     std::array<Register, 2> res_regs = x64->abi_res_regs();
+    std::array<SseRegister, 2> res_sses = x64->abi_res_sses();
 
     switch (simple_where) {
     case NOWHERE:
@@ -329,6 +330,10 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     case SSEREGISTER:
         if (exception_type) {
             x64->op(MOVQ, RDX, res_regs[0]);
+            x64->op(MOVSD, XMM0, res_sses[0]);
+        }
+        else {
+            x64->op(MOVSD, XMM0, res_sses[0]);
         }
         break;
     default:

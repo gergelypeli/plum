@@ -181,13 +181,13 @@ void Emu_A64::process_relocations() {
 }
 
 
-std::array<Register, 6> Emu_A64::abi_arg_regs() {
-    return { (Register)0, (Register)1, (Register)2, (Register)3, (Register)4, (Register)5 };
+std::array<Register, 4> Emu_A64::abi_arg_regs() {
+    return { (Register)0, (Register)1, (Register)2, (Register)3 };
 }
 
 
-std::array<SseRegister, 6> Emu_A64::abi_arg_sses() {
-    return { (SseRegister)0, (SseRegister)1, (SseRegister)2, (SseRegister)3, (SseRegister)4, (SseRegister)5 };
+std::array<SseRegister, 4> Emu_A64::abi_arg_sses() {
+    return { (SseRegister)0, (SseRegister)1, (SseRegister)2, (SseRegister)3 };
 }
 
 
@@ -220,8 +220,14 @@ void Emu_A64::epilogue() {
 
 
 void Emu_A64::start() {
+    // Shadow XSP as RSP
     asm_a64->op(A::ADD, RSP, XSP, 0);  // MOV (ORR) would use XZR instead of XSP
+    
+    // Shadow XFP as RBP
     op(MOVQ, RBP, XFP);
+    
+    // Adjust the original XSP so the to-be-created start frame fits above it
+    asm_a64->op(A::SUB, XSP, XSP, 16);
 }
 
 
@@ -605,21 +611,31 @@ void Emu_A64::op(BinaryOp opcode, Address x, Register y) {
     int os = opcode & 3;
     Addressing aing = prepare(os, x);
     
-    mem(ldrs(os), XVALUE, aing);
-    
-    op(opcode, XVALUE, y);
-    
-    mem(str(os), XVALUE, aing);
+    if (opcode % 3 == MOVQ) {
+        // Don't load the former value just to be overwritten
+        mem(str(os), y, aing);
+    }
+    else {
+        mem(ldrs(os), XVALUE, aing);
+        op(opcode, XVALUE, y);
+        mem(str(os), XVALUE, aing);
+    }
+        
 }
 
 
 void Emu_A64::op(BinaryOp opcode, Register x, Address y) {
     int os = opcode & 3;
     Addressing aing = prepare(os, y);
-    
-    mem(ldrs(os), XVALUE, aing);
-    
-    op(opcode, x, XVALUE);
+
+    if (opcode % 3 == MOVQ) {
+        // Don't load the value to a scratch
+        mem(ldrs(os), x, aing);
+    }
+    else {
+        mem(ldrs(os), XVALUE, aing);
+        op(opcode, x, XVALUE);
+    }
 }
 
 
@@ -762,7 +778,7 @@ void Emu_A64::op(StackOp opcode, Register x) {
 
 
 void Emu_A64::op(StackOp opcode, Address x) {
-    int os = opcode & 3;
+    int os = 3;
     Addressing aing = prepare(os, x);
     
     switch (opcode) {
@@ -933,7 +949,16 @@ void Emu_A64::op(JumpOp opcode, Address x) {
 
 
 void Emu_A64::op(JumpOp opcode, Register x) {
-    asm_a64->op(A::B, x);
+    switch (opcode) {
+    case JMP:
+        asm_a64->op(A::B, x);
+        break;
+    case CALL:
+        asm_a64->op(A::BL, x);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
 }
 
 

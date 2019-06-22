@@ -227,8 +227,8 @@ public:
     virtual unsigned get_pc();
     virtual unsigned get_dc();
     
-    virtual std::array<Register, 6> abi_arg_regs() =0;
-    virtual std::array<SseRegister, 6> abi_arg_sses() =0;
+    virtual std::array<Register, 4> abi_arg_regs() =0;
+    virtual std::array<SseRegister, 4> abi_arg_sses() =0;
     virtual std::array<Register, 2> abi_res_regs() =0;
     virtual std::array<SseRegister, 2> abi_res_sses() =0;
     virtual void prologue() =0;

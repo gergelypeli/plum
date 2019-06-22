@@ -300,6 +300,7 @@ void GlobalVariable::allocate() {
 Label GlobalVariable::compile_initializer(X64 *x64) {
     Label label;
     x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
+    x64->prologue();
 
     Storage s = preinitialize_class(class_ts, x64);
     if (s.where != REGISTER)
@@ -313,7 +314,7 @@ Label GlobalVariable::compile_initializer(X64 *x64) {
     x64->op(CALL, initializer_function->get_label(x64));
     alloc_ts.create(Storage(STACK), t, x64);
 
-    x64->op(RET);
+    x64->epilogue();
     return label;
 }
 
@@ -361,19 +362,20 @@ Storage GlobalNamespace::get_local_storage() {
 Label GlobalNamespace::compile_initializer(X64 *x64) {
     Label label;
     x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
+    x64->prologue();
 
     if (initializer_function)
         x64->op(CALL, initializer_function->get_label(x64));
 
-    x64->op(RET);
+    x64->epilogue();
     return label;
 }
 
 Label GlobalNamespace::compile_finalizer(X64 *x64) {
     Label label;
     x64->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
-
-    x64->op(RET);
+    x64->prologue();
+    x64->epilogue();
     
     return label;
 }

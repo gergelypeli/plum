@@ -1,6 +1,15 @@
 #include "plum.h"
 
 
+#if defined __x86_64__
+typedef X64_X64 X64_HOST;
+#elif defined __aarch64__
+typedef X64_A64 X64_HOST;
+#else
+#error "Must be compiled on x86-64 or aarch64 hosts!"
+#endif
+
+
 bool matchlog;
 Root *root;
 
@@ -63,7 +72,7 @@ int main(int argc, char **argv) {
     // Allocate builtins and modules
     unsigned application_size = root->allocate_modules();
     
-    X64 *x64 = new X64_A64("mymodule");
+    X64 *x64 = new X64_HOST("mymodule");
     x64->init(application_size, root->source_file_names);
 
     int low_pc = x64->get_pc();
