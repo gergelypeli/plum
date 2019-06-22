@@ -44,7 +44,7 @@ TESTLOGOK  = test/app.log.ok
 
 exe: uncore $(BIN)
 
-test: uncore untest $(TESTBIN)
+test: uncore $(TESTBIN)
 	@$(TESTINPUT) | $(TESTBIN) 2>&1 | tee $(TESTLOG)
 	@diff -ua $(TESTLOGOK) $(TESTLOG)
 
@@ -52,9 +52,6 @@ testobj: $(TESTOBJ)
 
 uncore:
 	@for x in core*; do if file -b $$x | grep -q 'ELF 64-bit LSB core file'; then rm $$x; fi; done
-
-untest:
-	@rm -f $(TESTBIN) $(TESTOBJ)
 
 clean:
 	@rm -f $(BIN) $(TESTBIN) $(OBJECTS) $(MAINOBJ) $(SHAREDOBJ) $(TESTOBJ) $(FPCONVOBJ) $(PRECOMP) run/*.log

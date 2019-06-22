@@ -252,10 +252,11 @@ StringRawStreamifiableImplementation::StringRawStreamifiableImplementation(std::
 
 void StringRawStreamifiableImplementation::compile_raw_streamification(Label label, X64 *x64) {
     // RAX - target array, RCX - size, R10 - source array, R11 - alias
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
     
     x64->code_label_local(label, "String__raw_streamification");
+    x64->prologue();
     
     x64->op(MOVQ, R10, value_addr);  // reference to the string
     
@@ -276,7 +277,7 @@ void StringRawStreamifiableImplementation::compile_raw_streamification(Label lab
     
     x64->op(REPMOVSB);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 

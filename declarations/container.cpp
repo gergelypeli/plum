@@ -50,7 +50,8 @@ void LinearrayType::compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
     Label start, end, loop;
 
     x64->code_label_local(label, elem_ts.prefix(linearray_type).symbolize("finalizer"));
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+    x64->prologue();
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE));
 
     x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
     x64->op(CMPQ, RCX, 0);
@@ -67,7 +68,7 @@ void LinearrayType::compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
     x64->op(JNE, loop);
 
     x64->code_label(end);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void LinearrayType::type_info(TypeMatch tm, X64 *x64) {

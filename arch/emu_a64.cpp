@@ -134,8 +134,11 @@ void Emu_A64::process_relocations() {
                     throw ASM_ERROR;
                 }
 
+                int immlo = distance & 3;
+                int immhi = distance >> 2;
+
                 unsigned32 *u = (unsigned32 *)&code[r.location];
-                *u = (*u & 0x9f00001f) | ((distance << 5) & 0x00ffffe0) | ((distance << 10) & 0x60000000);
+                *u = (*u & 0x9f00001f) | ((immhi << 5) & 0x00ffffe0) | ((immlo << 29) & 0x60000000);
             }
                 break;
             case DEF_CODE_IMPORT:
@@ -902,7 +905,7 @@ void Emu_A64::op(BitSetOp opcode, Register x) {
     if (opcode == SETP || opcode == SETNP)
         asm_a64->op(A::UDF);
     else
-        asm_a64->op(A::CSINC, cc((ConditionCode)opcode), x, XZR, XZR);
+        asm_a64->op(A::CSINC, cc(negated((ConditionCode)opcode)), x, XZR, XZR);
 }
 
 
