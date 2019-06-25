@@ -200,8 +200,13 @@ void Function::debug(TypeMatch tm, X64 *x64) {
 
     Label self_label;
     unsigned self_index = self_label.def_index;
+    
+    // Even if we currently use registers with the same number for the same purpose across
+    // architectures, their Dwarf numbering may differ. RBP is reg6 in Dwarf-x64, but its
+    // corresponding X5 is reg5 in Dwarf-a64.
+    int fbregnum = x64->dwarf_register_number(RBP);
 
-    x64->dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, virtuality, self_index);
+    x64->dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, fbregnum, virtuality, self_index);
     
     fn_scope->result_scope->debug(tm, x64);
     

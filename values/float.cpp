@@ -57,46 +57,27 @@ Storage FloatOperationValue::binary(X64 *x64, SseSsememOp opcode) {
 Storage FloatOperationValue::compare(X64 *x64, ConditionCode cc) {
     subcompile(x64);
 
-    // NOTE: COMISD is like an unsigned comparison with a twist
-    // unordered => ZF+CF+PF
-    // less => CF
-    // equal => ZF
-    // greater => -
-    // Since we need to avoid false positives for unordered results, we must
-    // check our conditions together with parity before coming to any conclusion.
-    // A NaN makes most comparisons false, except inequality, which becomes true.
-    // The parity flag is set on unordered comparison. So normally it is required
-    // to be cleared, but for inequality it is sufficient to be set.
+    // NOT_EQUAL is not an ordering status, but the negation of one
+    ConditionCode test_cc = (cc == CC_NOT_EQUAL ? CC_EQUAL : cc);
+    ConditionCode res_cc = (cc == CC_NOT_EQUAL ? CC_NOT_EQUAL : CC_EQUAL);
 
-    BitSetOp setnp = (cc != CC_NOT_EQUAL ? SETNP : SETP);
-    BinaryOp andb = (cc != CC_NOT_EQUAL ? ANDB : ORB);
-    
     switch (ls.where * rs.where) {
     case SSEREGISTER_SSEREGISTER:
-        x64->op(COMISD, ls.sse, rs.sse);
-        x64->op(setnp, R11B);
-        x64->op(bitset(cc), R10B);
-        x64->op(andb, R10B, R11B);
-        return Storage(FLAGS, CC_NOT_EQUAL);
+        x64->floatcmp(test_cc, ls.sse, rs.sse);
+        return Storage(FLAGS, res_cc);
     case SSEREGISTER_MEMORY:
-        x64->op(COMISD, ls.sse, rs.address);
-        x64->op(setnp, R11B);
-        x64->op(bitset(cc), R10B);
-        x64->op(andb, R10B, R11B);
-        return Storage(FLAGS, CC_NOT_EQUAL);
+        x64->op(MOVSD, XMM15, rs.address);
+        x64->floatcmp(test_cc, ls.sse, XMM15);
+        return Storage(FLAGS, res_cc);
     case MEMORY_SSEREGISTER:
-        x64->op(COMISD, rs.sse, ls.address);  // swapped arguments
-        x64->op(setnp, R11B);
-        x64->op(bitset(swapped(cc)), R10B);
-        x64->op(andb, R10B, R11B);
-        return Storage(FLAGS, CC_NOT_EQUAL);
+        x64->op(MOVSD, XMM15, ls.address);
+        x64->floatcmp(test_cc, XMM15, rs.sse);
+        return Storage(FLAGS, res_cc);
     case MEMORY_MEMORY:
-        x64->op(MOVSD, auxls.sse, ls.address);
-        x64->op(COMISD, auxls.sse, rs.address);
-        x64->op(setnp, R11B);
-        x64->op(bitset(cc), R10B);
-        x64->op(andb, R10B, R11B);
-        return Storage(FLAGS, CC_NOT_EQUAL);
+        x64->op(MOVSD, XMM14, ls.address);
+        x64->op(MOVSD, XMM15, rs.address);
+        x64->floatcmp(test_cc, XMM14, XMM15);
+        return Storage(FLAGS, res_cc);
     default:
         throw INTERNAL_ERROR;
     }
@@ -218,7 +199,7 @@ bool FloatIsnanValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
 }
 
 Regs FloatIsnanValue::precompile(Regs preferred) {
-    return left->precompile_tail() | Regs(XMM0);
+    return left->precompile_tail();
 }
 
 Storage FloatIsnanValue::compile(X64 *x64) {
@@ -226,12 +207,12 @@ Storage FloatIsnanValue::compile(X64 *x64) {
 
     switch (ls.where) {
     case SSEREGISTER:
-        x64->op(COMISD, ls.sse, ls.sse);
-        return Storage(FLAGS, CC_PARITY);
+        x64->floatcmp(CC_EQUAL, ls.sse, ls.sse);
+        return Storage(FLAGS, CC_NOT_EQUAL);
     case MEMORY:
-        x64->op(MOVSD, XMM0, ls.address);
-        x64->op(COMISD, XMM0, XMM0);
-        return Storage(FLAGS, CC_PARITY);
+        x64->op(MOVSD, XMM15, ls.address);
+        x64->floatcmp(CC_EQUAL, XMM15, XMM15);
+        return Storage(FLAGS, CC_NOT_EQUAL);
     default:
         throw INTERNAL_ERROR;
     }

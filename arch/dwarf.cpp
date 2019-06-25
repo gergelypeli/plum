@@ -452,7 +452,7 @@ void Dwarf::begin_variant_info(unsigned discr_value) {
 }
 
 
-void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index) {
+void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, int fbregnum, bool virtuality, unsigned self_index) {
     info.uleb128(subprogram_abbrev_number);
     
     info.string(name);
@@ -460,7 +460,7 @@ void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, boo
     info.data4(high_pc - low_pc);
     
     info.uleb128(1);
-    info.data1(DW_OP_reg6);  // frame base is RBP
+    info.data1(DW_OP_reg0 + fbregnum);
     
     info.data1(virtuality ? DW_VIRTUALITY_virtual : DW_VIRTUALITY_none);
     info_ref(self_index);

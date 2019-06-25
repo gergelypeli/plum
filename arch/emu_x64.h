@@ -34,6 +34,8 @@ public:
     virtual void prologue();
     virtual void epilogue();
     virtual void start();
+    virtual int dwarf_register_number(Register r);
+    virtual int dwarf_sseregister_number(SseRegister s);
 
     virtual void op(SimpleOp opcode);
     virtual void op(UnaryOp opcode, Register x);
@@ -80,4 +82,7 @@ public:
     virtual void op(GprSsememOp opcode, Register x, Address y);
 
     virtual void op(DivModOp opcode, Register x, Register y);
+    
+    virtual void floatcmp(ConditionCode cc, SseRegister x, SseRegister y);
+    virtual void floatorder(SseRegister x, SseRegister y);
 };

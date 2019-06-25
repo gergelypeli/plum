@@ -92,7 +92,7 @@ public:
     void begin_variant_part_info(unsigned discr_index);
     void begin_variant_info(unsigned discr_value);
 
-    void begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index);
+    void begin_subprogram_info(std::string name, int low_pc, int high_pc, int fbregnum, bool virtuality, unsigned self_index);
     void begin_abstract_subprogram_info(std::string name, bool virtuality);
     void begin_lexical_block_info(int low_pc, int high_pc);
     void begin_try_block_info(int low_pc, int high_pc);

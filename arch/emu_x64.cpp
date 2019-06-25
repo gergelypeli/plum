@@ -162,6 +162,19 @@ void Emu_X64::start() {
 }
 
 
+int Emu_X64::dwarf_register_number(Register r) {
+    // WHO THE FUCK NUMBERED THESE REGISTERS THIS WAY?
+    //                RAX, RCX, RDX, RBX, RSP, RBP, RSI, RDI,  R8,  R9, R10, R11, R12, R13, R14, R15
+    int numbers[] = {   0,   2,   1,   3,   7,   6,   4,   5,   8,   9,  10,  11,  12,  13,  14,  15 };
+    return numbers[(int)r];
+}
+
+
+int Emu_X64::dwarf_sseregister_number(SseRegister s) {
+    return 17 + (int)s;
+}
+
+
 #define MAP(OP) x == OP ? X::OP : 
 
 static X::SimpleOp map(SimpleOp x) {
@@ -489,4 +502,57 @@ void Emu_X64::op(DivModOp opcode, Register x, Register y) {
             asm_x64->op(X::POPQ, RDX);
         }
     }
+}
+
+
+void Emu_X64::floatcmp(ConditionCode cc, SseRegister x, SseRegister y) {
+    // NOTE: (U)COMISD is like an unsigned comparison with a twist
+    // unordered => ZF+CF+PF
+    // less => CF
+    // equal => ZF
+    // greater => -
+    // Since we need to avoid false positives for unordered results, we must
+    // check our conditions together with parity before coming to any conclusion.
+    // A NaN makes most comparisons false, except inequality, which becomes true.
+    // The parity flag is set on unordered comparison. So normally it is required
+    // to be cleared, but for inequality it is sufficient to be set.
+    // Officially UCOMISD always works with quiet NaN-s, while COMISD raises FPE,
+    // unless FP invalid operations are masked, which is the x64 Linux default.
+    // We don't need no education, so use the UCOMISD.
+
+    op(UCOMISD, x, y);
+
+    if (cc == CC_NOT_EQUAL)
+        throw ASM_ERROR;  // this must be negated explicitly by the caller
+
+    op(SETP, R11B);  // set if unordered
+    op(bitset(negated(cc)), R10B);  // set if unmatched
+    op(ORB, R10B, R11B);
+    
+    // ZF is set if neither condition held, so not unordered, and not unmatched
+}
+
+
+void Emu_X64::floatorder(SseRegister x, SseRegister y) {
+    // We need to do something with NaN-s, so do what Java does, and treat them
+    // as greater than everything, including positive infinity. Chuck Norris likes this.
+
+    Label finite, end;
+
+    op(UCOMISD, x, y);
+    op(JNP, finite);
+    
+    // R11B=1 iff s is finite, R10B=1 iff t is finite
+    op(UCOMISD, x, x);
+    op(SETNP, R11B);
+    op(UCOMISD, y, y);
+    op(SETNP, R10B);
+    op(JMP, end);
+    
+    code_label(finite);
+    op(SETB, R11B);
+    op(SETA, R10B);
+    
+    code_label(end);
+    op(SUBB, R10B, R11B);
 }

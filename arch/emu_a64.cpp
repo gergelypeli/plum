@@ -234,6 +234,16 @@ void Emu_A64::start() {
 }
 
 
+int Emu_A64::dwarf_register_number(Register r) {
+    return (int)r;
+}
+
+
+int Emu_A64::dwarf_sseregister_number(SseRegister s) {
+    return 64 + (int)s;
+}
+
+
 A::MemOpcode Emu_A64::ldrs(int os) {
     return (
         os % 4 == 0 ? A::LDRSB :
@@ -997,4 +1007,11 @@ void Emu_A64::op(DivModOp opcode, Register x, Register y) {
     default:
         throw ASM_ERROR;
     }
+}
+
+void Emu_A64::floatcmp(ConditionCode cc, SseRegister x, SseRegister y) {
+}
+
+
+void Emu_A64::floatorder(SseRegister x, SseRegister y) {
 }
