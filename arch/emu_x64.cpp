@@ -157,7 +157,12 @@ void Emu_X64::epilogue() {
 }
 
 
-void Emu_X64::start() {
+void Emu_X64::welcome() {
+    // Empty
+}
+
+
+void Emu_X64::goodbye() {
     // Empty
 }
 

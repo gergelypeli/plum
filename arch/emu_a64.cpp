@@ -222,7 +222,7 @@ void Emu_A64::epilogue() {
 }
 
 
-void Emu_A64::start() {
+void Emu_A64::welcome() {
     // Shadow XSP as RSP
     asm_a64->op(A::ADD, RSP, XSP, 0);  // MOV (ORR) would use XZR instead of XSP
     
@@ -231,6 +231,17 @@ void Emu_A64::start() {
     
     // Adjust the original XSP so the to-be-created start frame fits above it
     asm_a64->op(A::SUB, XSP, XSP, 16);
+}
+
+
+void Emu_A64::goodbye() {
+    // Restore XSP from RSP
+    asm_a64->op(A::ADD, XSP, RSP, 0);  // MOV (ORR) would use XZR instead of XSP
+    
+    // NOTE: this has a race condition between this ADD and the epilogue, when a
+    // signal handler may overwrite the system stack.
+    // FIXME: welcome/goodbye should do the prologue/epilogue, too to get this right!
+    asm_a64->op(A::ADD, XSP, XSP, 16);
 }
 
 

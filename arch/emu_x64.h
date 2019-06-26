@@ -33,7 +33,8 @@ public:
     virtual std::array<SseRegister, 2> abi_res_sses();
     virtual void prologue();
     virtual void epilogue();
-    virtual void start();
+    virtual void welcome();
+    virtual void goodbye();
     virtual int dwarf_register_number(Register r);
     virtual int dwarf_sseregister_number(SseRegister s);
     virtual int dwarf_retaddr_number();

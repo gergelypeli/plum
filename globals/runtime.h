@@ -163,6 +163,9 @@ public:
     
     void call_sysv(Label l);
     void call_sysv_got(Label got_l);
+    
+    void callback_prologue();
+    void callback_epilogue();
 
     void compile_source_infos(std::vector<std::string> source_file_names);
 

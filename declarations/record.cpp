@@ -331,13 +331,14 @@ void StringType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
 
 void StringType::compile_stringeq(Label label, X64 *x64) {
     x64->code_label_local(label, "String__equality");
+    x64->prologue();
     Label sete, done;
 
     x64->op(PUSHQ, RAX);
     x64->op(PUSHQ, RCX);
     
-    x64->op(MOVQ, RAX, Address(RSP, 32));
-    x64->op(MOVQ, R10, Address(RSP, 24));
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 3 * ADDRESS_SIZE));
+    x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 2 * ADDRESS_SIZE));
     
     x64->op(CMPQ, RAX, R10);
     x64->op(JE, done);  // identical, must be equal, ZF as expected
@@ -361,7 +362,7 @@ void StringType::compile_stringeq(Label label, X64 *x64) {
     x64->op(POPQ, RCX);
     x64->op(POPQ, RAX);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void StringType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
@@ -391,6 +392,7 @@ void StringType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
 void StringType::compile_stringcmp(Label label, X64 *x64) {
     // Expects arguments on the stack, returns R10B/flags.
     x64->code_label_local(label, "String__comparison");
+    x64->prologue();
     
     x64->op(PUSHQ, RAX);
     x64->op(PUSHQ, RCX);
@@ -399,8 +401,8 @@ void StringType::compile_stringcmp(Label label, X64 *x64) {
     x64->op(PUSHQ, RDI);
     
     Label s_longer, begin, end;
-    x64->op(MOVQ, RAX, Address(RSP, 56));  // s
-    x64->op(MOVQ, RDX, Address(RSP, 48));  // t
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 6 * ADDRESS_SIZE));  // s
+    x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 5 * ADDRESS_SIZE));  // t
     
     x64->op(MOVB, R10B, 0);  // assume equality
     x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
@@ -433,7 +435,8 @@ void StringType::compile_stringcmp(Label label, X64 *x64) {
     x64->op(POPQ, RDX);
     x64->op(POPQ, RCX);
     x64->op(POPQ, RAX);
-    x64->op(RET);
+    
+    x64->epilogue();
 }
 
 void StringType::streamify(TypeMatch tm, X64 *x64) {
@@ -452,10 +455,12 @@ void StringType::compile_esc_streamification(Label label, X64 *x64) {
     // RAX - target array, RCX - size, R10 - source array, R11 - alias
     Label char_str_label = x64->once->compile(CharacterType::compile_str_streamification);
     Label loop, check;
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
     
     x64->code_label_local(label, "String__esc_streamification");
+    
+    x64->prologue();
     
     x64->op(MOVQ, RCX, 0);
     x64->op(JMP, check);
@@ -476,7 +481,7 @@ void StringType::compile_esc_streamification(Label label, X64 *x64) {
     x64->op(CMPQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
     x64->op(JB, loop);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 Value *StringType::lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {

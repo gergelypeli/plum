@@ -320,9 +320,11 @@ void CharacterType::streamify(TypeMatch tm, X64 *x64) {
 }
 
 void CharacterType::insert_pre_streamification(X64 *x64) {
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
 
+    x64->prologue();
+    
     x64->op(MOVQ, R10, 5);  // worst case will be five character escapes
     stream_preappend2(alias_addr, x64);
 
@@ -374,21 +376,21 @@ void CharacterType::compile_esc_streamification(Label label, X64 *x64) {
     x64->op(MOVW, Address(RBX, 2), R10W);
     x64->op(MOVW, Address(RBX, 4), '"');
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 3);
-    x64->op(RET);
+    x64->epilogue();
 
     // two characters: `XY
     x64->code_label(escaped_two);
     x64->op(MOVW, Address(RBX, 0), '`');
     x64->op(MOVD, Address(RBX, 2), R10D);
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 3);
-    x64->op(RET);
+    x64->epilogue();
     
     // three characters: `XYZ
     x64->code_label(escaped_three);
     x64->op(MOVW, Address(RBX, 0), '`');
     x64->op(MOVQ, Address(RBX, 2), R10);
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 4);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void CharacterType::compile_str_streamification(Label label, X64 *x64) {
@@ -412,7 +414,7 @@ void CharacterType::compile_str_streamification(Label label, X64 *x64) {
     x64->code_label(unescaped);
     x64->op(MOVW, Address(RBX, 0), R10W);
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 1);
-    x64->op(RET);
+    x64->epilogue();
 
     // two characters: {XY}
     x64->code_label(escaped_two);
@@ -420,7 +422,7 @@ void CharacterType::compile_str_streamification(Label label, X64 *x64) {
     x64->op(MOVD, Address(RBX, 2), R10D);
     x64->op(MOVW, Address(RBX, 6), '}');
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 4);
-    x64->op(RET);
+    x64->epilogue();
     
     // three characters: {XYZ}
     x64->code_label(escaped_three);
@@ -428,7 +430,7 @@ void CharacterType::compile_str_streamification(Label label, X64 *x64) {
     x64->op(MOVQ, Address(RBX, 2), R10);
     x64->op(MOVW, Address(RBX, 8), '}');
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 5);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 Value *CharacterType::lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
@@ -467,11 +469,12 @@ void EnumerationType::streamify(TypeMatch tm, X64 *x64) {
 
 void EnumerationType::compile_streamification(Label label, X64 *x64) {
     // RAX - target array, RBX - table start, RCX - size, R10 - source enum
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
 
     x64->code_label_local(label, "enum_streamification");
-
+    x64->prologue();
+    
     x64->op(MOVQ, R10, value_addr);  // the enum
 
     // Find the string for this enum value
@@ -497,7 +500,7 @@ void EnumerationType::compile_streamification(Label label, X64 *x64) {
     
     x64->op(REPMOVSB);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 Value *EnumerationType::lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {

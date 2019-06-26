@@ -358,6 +358,34 @@ void Runtime::call_sysv_got(Label got_l) {
     x64->op(CALL, call_sysv_label);
 }
 
+void Runtime::callback_prologue() {
+    // We're returning to the task stack temporarily. As RSP will be clobbered,
+    // we must save it on the task stack. But since the return address may be saved on
+    // the system stack, have the stack frame there. This means that the callback function
+    // must not use local variables, and must get all arguments in registers.
+    
+    // Shadow registers if necessary
+    x64->welcome();
+    
+    // Create stack frame, let RBP point to the system stack
+    x64->prologue();
+    
+    // Switch to the task stack
+    x64->op(MOVQ, RSP, Address(task_frame_label, 0));
+}
+
+void Runtime::callback_epilogue() {
+    // This may have changed by recursive invocations
+    x64->op(MOVQ, Address(task_frame_label, 0), RSP);
+    
+    // Return to the system stack
+    x64->op(MOVQ, RSP, RBP);
+    
+    x64->goodbye();
+    
+    x64->epilogue();
+}
+
 void Runtime::compile_source_infos(std::vector<std::string> source_file_names) {
     x64->data_label(source_infos_length_label);
     x64->data_qword(source_file_names.size());
@@ -1019,11 +1047,12 @@ void Runtime::compile_call_sysv() {
 
 void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer_labels, std::vector<Label> finalizer_labels) {
     Label start;
+    auto arg_regs = x64->abi_arg_regs();
+    
     x64->code_label_global(start, "start");
 
     // Some architectural help
-    x64->start();
-    auto arg_regs = x64->abi_arg_regs();
+    x64->welcome();
 
     // Be nice to debuggers and set up a stack frame.
     // NOTE: the RBP must point at its older value and next to the return address,

@@ -355,7 +355,7 @@ Storage ArraySortValue::compile(X64 *x64) {
     x64->op(MOVQ, arg_regs[1], Address(R10, LINEARRAY_LENGTH_OFFSET));
     x64->op(MOVQ, arg_regs[2], elem_size);
     x64->op(LEA, arg_regs[3], Address(compar, 0));
-    
+
     x64->runtime->call_sysv(x64->runtime->sysv_sort_label);
     
     left->ts.store(Storage(STACK), Storage(), x64);
@@ -365,18 +365,22 @@ Storage ArraySortValue::compile(X64 *x64) {
 
 void ArraySortValue::compile_compar(Label label, TypeSpec elem_ts, X64 *x64) {
     // Generate a SysV function to wrap our compare function.
-    // RDI and RSI contains the pointers to the array elements.
-    x64->code_label(label);
-    x64->prologue();
+    // The two arguments contain the pointers to the array elements.
+    auto arg_regs = x64->abi_arg_regs();
+    auto res_regs = x64->abi_res_regs();
+
+    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("compar"));
     
-    Storage a(MEMORY, Address(RDI, 0));
-    Storage b(MEMORY, Address(RSI, 0));
+    x64->runtime->callback_prologue();
+    
+    Storage a(MEMORY, Address(arg_regs[0], 0));
+    Storage b(MEMORY, Address(arg_regs[1], 0));
 
     elem_ts.compare(a, b, x64);
     
-    x64->op(MOVSXBQ, RAX, R10B);
-    
-    x64->epilogue();
+    x64->op(MOVSXBQ, res_regs[0], R10B);
+
+    x64->runtime->callback_epilogue();
 }
 
 
