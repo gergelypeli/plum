@@ -244,6 +244,11 @@ int Emu_A64::dwarf_sseregister_number(SseRegister s) {
 }
 
 
+int Emu_A64::dwarf_retaddr_number() {
+    return 30;
+}
+
+
 A::MemOpcode Emu_A64::ldrs(int os) {
     return (
         os % 4 == 0 ? A::LDRSB :

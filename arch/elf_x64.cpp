@@ -26,6 +26,11 @@ void Elf_X64::line_relocation64(unsigned index, Elf64_Addr location, int addend)
 }
 
 
+void Elf_X64::frame_relocation64(unsigned index, Elf64_Addr location, int addend) {
+    add_relocation(index, location, addend, R_X86_64_64, frame_relocations);
+}
+
+
 void Elf_X64::code_relocation(unsigned index, Elf64_Addr location, int addend) {
     add_relocation(index, location, addend, R_X86_64_PC32, code_relocations);
 }

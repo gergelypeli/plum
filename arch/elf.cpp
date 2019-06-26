@@ -112,8 +112,13 @@ void Elf::set_info(std::vector<char> &i) {
 }
 
 
+void Elf::set_frame(std::vector<char> &f) {
+    frame = f;
+}
+
+
 void Elf::done(std::string filename) {
-    const int SECTION_COUNT = 13;
+    const int SECTION_COUNT = 15;
     
     Elf64_Ehdr ehdr;
     ehdr.e_ident[0] = ELFMAG0;
@@ -140,7 +145,7 @@ void Elf::done(std::string filename) {
     ehdr.e_shstrndx = 1;
 
     const char *SECTION_NAMES[] = {
-        "", ".shstrtab", ".strtab", ".symtab", ".rela.text", ".rela.data", ".text", ".data", ".debug_line", ".debug_abbrev", ".debug_info", ".rela.debug_line", ".rela.debug_info"
+        "", ".shstrtab", ".strtab", ".symtab", ".rela.text", ".rela.data", ".text", ".data", ".debug_line", ".debug_abbrev", ".debug_info", ".rela.debug_line", ".rela.debug_info", ".debug_frame", ".rela.debug_frame"
     };
     
     std::vector<char> section_names;
@@ -330,6 +335,32 @@ void Elf::done(std::string filename) {
     shdr[12].sh_addralign = 0;
     shdr[12].sh_entsize = sizeof(Elf64_Rela);
     offset += shdr[12].sh_size;
+
+    // .debug_frame
+    shdr[13].sh_name = section_name_offsets[13];
+    shdr[13].sh_type = SHT_PROGBITS;
+    shdr[13].sh_flags = 0;
+    shdr[13].sh_addr = 0;
+    shdr[13].sh_offset = offset;
+    shdr[13].sh_size = frame.size();
+    shdr[13].sh_link = 0;
+    shdr[13].sh_info = 0;
+    shdr[13].sh_addralign = 0;  // must not align debug
+    shdr[13].sh_entsize = 0;
+    offset += shdr[13].sh_size;
+
+    // .rela.debug_frame
+    shdr[14].sh_name = section_name_offsets[14];
+    shdr[14].sh_type = SHT_RELA;
+    shdr[14].sh_flags = 0;
+    shdr[14].sh_addr = 0;
+    shdr[14].sh_offset = offset;
+    shdr[14].sh_size = frame_relocations.size() * sizeof(Elf64_Rela);
+    shdr[14].sh_link = 3;    // Take symbols from here
+    shdr[14].sh_info = 13;   // Put relocations here
+    shdr[14].sh_addralign = 0;
+    shdr[14].sh_entsize = sizeof(Elf64_Rela);
+    offset += shdr[14].sh_size;
     
     FILE *out = fopen(filename.c_str(), "wb");
     
@@ -347,6 +378,8 @@ void Elf::done(std::string filename) {
     fwrite(info.data(), 1, info.size(), out);
     fwrite(line_relocations.data(), sizeof(Elf64_Rela), line_relocations.size(), out);
     fwrite(info_relocations.data(), sizeof(Elf64_Rela), info_relocations.size(), out);
+    fwrite(frame.data(), 1, frame.size(), out);
+    fwrite(frame_relocations.data(), sizeof(Elf64_Rela), frame_relocations.size(), out);
     
     fclose(out);
 }

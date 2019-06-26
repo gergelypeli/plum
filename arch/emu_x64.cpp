@@ -175,6 +175,11 @@ int Emu_X64::dwarf_sseregister_number(SseRegister s) {
 }
 
 
+int Emu_X64::dwarf_retaddr_number() {
+    return 16;
+}
+
+
 #define MAP(OP) x == OP ? X::OP : 
 
 static X::SimpleOp map(SimpleOp x) {

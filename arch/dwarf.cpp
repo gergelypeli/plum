@@ -77,14 +77,15 @@ struct DebugLineHeader {
 } __attribute__((packed));
 
 
-
-
-Dwarf::Dwarf(Elf *o, std::vector<std::string> &source_names) {
+Dwarf::Dwarf(Elf *o, std::vector<std::string> &source_names, int fbrn, int rarn) {
     elf = o;
+    fbregnum = fbrn;
+    raregnum = rarn;
     
     init_abbrev();
     init_info();
     init_lineno(source_names);
+    init_frame();
 }
 
 
@@ -92,10 +93,12 @@ void Dwarf::finish() {
     finish_abbrev();
     finish_lineno();
     finish_info();
+    finish_frame();
 
     elf->set_lineno(lineno);
     elf->set_abbrev(abbrev);
     elf->set_info(info);
+    elf->set_frame(frame);
 }
 
 
@@ -452,7 +455,7 @@ void Dwarf::begin_variant_info(unsigned discr_value) {
 }
 
 
-void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, int fbregnum, bool virtuality, unsigned self_index) {
+void Dwarf::begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index) {
     info.uleb128(subprogram_abbrev_number);
     
     info.string(name);
@@ -647,4 +650,49 @@ void Dwarf::add_lineno(int pc, int file_index, int line_number) {
     }
     
     lineno.push_back(1);  // copy op
+}
+
+
+void Dwarf::init_frame() {
+    // Create a CIE
+    frame.data4(20);  // 4 + length must be a multiple of 8
+    frame.data4(-1);  // CIE id, but not for CIE-s themselves
+    frame.data1(4);  // version number
+    frame.data1(0);  // augmentation UTF-8 string terminator
+    frame.data1(8);  // address size
+    frame.data1(0);  // segment selector size
+    frame.uleb128(1);  // code alignment factor
+    frame.sleb128(1);  // data alignment factor
+    frame.uleb128(16);  // return address "register"
+
+    frame.data1(DW_CFA_def_cfa);  // CFA = RBP + 16
+    frame.uleb128(fbregnum);
+    frame.uleb128(16);
+    
+    frame.data1(DW_CFA_offset_extended_sf);  // saved frame address = [CFA - 16]
+    frame.uleb128(fbregnum);
+    frame.sleb128(-16);
+
+    frame.data1(DW_CFA_offset_extended_sf);  // saved return address = [CFA - 8]
+    frame.uleb128(raregnum);
+    frame.sleb128(-8);
+    
+    //frame.data1(DW_CFA_nop);  // padding
+}
+
+
+void Dwarf::finish_frame() {
+    // Empty
+}
+
+
+void Dwarf::add_frame_description_entry(int low_pc, int high_pc) {
+    frame.data4(20);  // length
+    
+    frame.data4(0);  // CIE offset, which is 0
+
+    Elf64_Addr code_relocation = frame.append<unsigned64>();
+    elf->frame_relocation64(elf->code_start_sym, code_relocation, low_pc);
+    
+    frame.data8(high_pc - low_pc);
 }

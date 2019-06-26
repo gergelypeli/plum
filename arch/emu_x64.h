@@ -36,6 +36,7 @@ public:
     virtual void start();
     virtual int dwarf_register_number(Register r);
     virtual int dwarf_sseregister_number(SseRegister s);
+    virtual int dwarf_retaddr_number();
 
     virtual void op(SimpleOp opcode);
     virtual void op(UnaryOp opcode, Register x);

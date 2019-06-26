@@ -244,7 +244,14 @@ public:
         
         // Needs Accounting
         runtime = new Runtime(this, application_size, source_file_names);
-        dwarf = new Dwarf(get_elf(), source_file_names);
+        
+        // Even if we currently use registers with the same number for the same purpose across
+        // architectures, their Dwarf numbering may differ. RBP is reg6 in Dwarf-x64, but its
+        // corresponding X5 is reg5 in Dwarf-a64.
+        int fbregnum = dwarf_register_number(RBP);
+        int raregnum = dwarf_retaddr_number();
+
+        dwarf = new Dwarf(get_elf(), source_file_names, fbregnum, raregnum);
     }
     
     virtual void compile_rest() {

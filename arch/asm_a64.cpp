@@ -179,9 +179,23 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemScaling
 }
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemIncrement increment) {
-    if (rt == RSP)
-        cant_account();
-    else if (rn == RSP)
+    if (rt == RSP) {
+        switch (opcode) {
+            case LDRQ:
+            case LDRUW:
+            case LDRUH:
+            case LDRUB:
+            case LDRSW:
+            case LDRSH:
+            case LDRSB:
+                cant_account();
+                break;
+            default:
+                ;
+        }
+    }
+    
+    if (rn == RSP)
         account(-imm);
     
     int op10 = mem_info[opcode].op10;

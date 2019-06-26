@@ -85,6 +85,8 @@ int main(int argc, char **argv) {
     x64->debug_rest();
     x64->dwarf->end_info();
 
+    x64->dwarf->add_frame_description_entry(low_pc, high_pc);
+
     x64->dwarf->finish();
     
     x64->done(output);

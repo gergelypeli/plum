@@ -33,6 +33,7 @@ public:
     DwarfBuffer lineno;
     DwarfBuffer abbrev;
     DwarfBuffer info;
+    DwarfBuffer frame;
 
     std::map<unsigned, unsigned> info_def_offsets_by_index;
     std::map<unsigned, unsigned> info_ref_indexes_by_offset;
@@ -40,6 +41,7 @@ public:
     Elf *elf;
     int cuh_offset, dlh_offset;
     unsigned abbrev_count;
+    int fbregnum, raregnum;
 
     unsigned compile_unit_abbrev_number;
     unsigned base_type_abbrev_number, enumeration_type_abbrev_number, enumerator_abbrev_number;
@@ -54,7 +56,7 @@ public:
 
     int lineno_sm_address, lineno_sm_file_index, lineno_sm_line_number;
     
-    Dwarf(Elf *o, std::vector<std::string> &source_names);
+    Dwarf(Elf *o, std::vector<std::string> &source_names, int fbrn, int rarn);
     void finish();
     
     unsigned add_abbrev(int tag, bool has_children, std::vector<DwarfAttrDef> attrdefs);
@@ -92,7 +94,7 @@ public:
     void begin_variant_part_info(unsigned discr_index);
     void begin_variant_info(unsigned discr_value);
 
-    void begin_subprogram_info(std::string name, int low_pc, int high_pc, int fbregnum, bool virtuality, unsigned self_index);
+    void begin_subprogram_info(std::string name, int low_pc, int high_pc, bool virtuality, unsigned self_index);
     void begin_abstract_subprogram_info(std::string name, bool virtuality);
     void begin_lexical_block_info(int low_pc, int high_pc);
     void begin_try_block_info(int low_pc, int high_pc);
@@ -101,4 +103,8 @@ public:
     void local_variable_info(std::string name, int rbp_offset, unsigned ts_index, bool is_artificial);
     void formal_parameter_info(std::string name, int rbp_offset, unsigned ts_index, bool is_artificial);
     void member_info(std::string name, int offset, unsigned ts_index, bool is_artificial);
+
+    void init_frame();
+    void finish_frame();
+    void add_frame_description_entry(int low_pc, int high_pc);
 };

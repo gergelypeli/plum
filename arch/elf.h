@@ -7,12 +7,14 @@ public:
     std::vector<char> lineno;
     std::vector<char> abbrev;
     std::vector<char> info;
+    std::vector<char> frame;
 
     std::vector<Elf64_Sym> symbols;
     std::vector<Elf64_Rela> code_relocations;
     std::vector<Elf64_Rela> data_relocations;
     std::vector<Elf64_Rela> line_relocations;
     std::vector<Elf64_Rela> info_relocations;
+    std::vector<Elf64_Rela> frame_relocations;
 
     unsigned code_start_sym, data_start_sym, line_start_sym, abbr_start_sym;
     
@@ -23,6 +25,7 @@ public:
     virtual void info_relocation32(unsigned index, Elf64_Addr location, int addend) =0;
     virtual void info_relocation64(unsigned index, Elf64_Addr location, int addend) =0;
     virtual void line_relocation64(unsigned index, Elf64_Addr location, int addend) =0;
+    virtual void frame_relocation64(unsigned index, Elf64_Addr location, int addend) =0;
     
     virtual unsigned add_string(std::string s);
     virtual unsigned add_symbol(std::string name, Elf64_Addr value, unsigned size, bool is_global, int type, int section);
@@ -38,6 +41,7 @@ public:
     virtual void set_lineno(std::vector<char> &l);
     virtual void set_abbrev(std::vector<char> &a);
     virtual void set_info(std::vector<char> &i);
+    virtual void set_frame(std::vector<char> &f);
 
     virtual void done(std::string filename);
 };

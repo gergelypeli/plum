@@ -236,6 +236,7 @@ public:
     virtual void start() =0;
     virtual int dwarf_register_number(Register r) =0;
     virtual int dwarf_sseregister_number(SseRegister s) =0;
+    virtual int dwarf_retaddr_number() =0;
 
     virtual void op(SimpleOp opcode) =0;
     virtual void op(UnaryOp opcode, Register x) =0;

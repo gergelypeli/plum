@@ -38,6 +38,7 @@ public:
     virtual void start();
     virtual int dwarf_register_number(Register r);
     virtual int dwarf_sseregister_number(SseRegister s);
+    virtual int dwarf_retaddr_number();
 
     virtual void add_ref(Ref r);
     virtual void data_reference(Label label, int addend = 0);
