@@ -205,43 +205,39 @@ std::array<SseRegister, 2> Emu_A64::abi_res_sses() {
 
 
 void Emu_A64::prologue() {
-    pushq(XLR);
-    pushq(RBP);
+    asm_a64->op(A::STP, RBP, XLR, RSP, -16, A::INCREMENT_PRE);
     
     op(MOVQ, RBP, RSP);
-    op(MOVQ, XFP, RBP);  // for debuggers
 }
 
 
 void Emu_A64::epilogue() {
-    popq(RBP);
-    popq(XLR);
+    asm_a64->op(A::LDP, RBP, XLR, RSP, 16, A::INCREMENT_POST);
     
-    op(MOVQ, XFP, RBP);  // for debuggers
     op(RET);
 }
 
 
 void Emu_A64::welcome() {
-    // Shadow XSP as RSP
-    asm_a64->op(A::ADD, RSP, XSP, 0);  // MOV (ORR) would use XZR instead of XSP
+    // Create system frame
+    asm_a64->op(A::STP, XFP, XLR, XSP, -16, A::INCREMENT_PRE);
+
+    // RBP will point to the system frame
+    asm_a64->op(A::ADD, RBP, XSP, 0);  // MOV (ORR) would use XZR instead of XSP
     
-    // Shadow XFP as RBP
-    op(MOVQ, RBP, XFP);
-    
-    // Adjust the original XSP so the to-be-created start frame fits above it
-    asm_a64->op(A::SUB, XSP, XSP, 16);
+    // RSP is not used on the system stack by our code, so it's not initialized.
+    // But XSP points there for signal handlers and function calls.
 }
 
 
 void Emu_A64::goodbye() {
-    // Restore XSP from RSP
-    asm_a64->op(A::ADD, XSP, RSP, 0);  // MOV (ORR) would use XZR instead of XSP
+    // RBP is expected to point to the system frame
+    asm_a64->op(A::ADD, XSP, RBP, 0);  // MOV (ORR) would use XZR instead of XSP
+
+    // Reload saved values from the system stack
+    asm_a64->op(A::LDP, XFP, XLR, XSP, 16, A::INCREMENT_POST);
     
-    // NOTE: this has a race condition between this ADD and the epilogue, when a
-    // signal handler may overwrite the system stack.
-    // FIXME: welcome/goodbye should do the prologue/epilogue, too to get this right!
-    asm_a64->op(A::ADD, XSP, XSP, 16);
+    op(RET);
 }
 
 

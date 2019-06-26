@@ -364,11 +364,8 @@ void Runtime::callback_prologue() {
     // the system stack, have the stack frame there. This means that the callback function
     // must not use local variables, and must get all arguments in registers.
     
-    // Shadow registers if necessary
-    x64->welcome();
-    
     // Create stack frame, let RBP point to the system stack
-    x64->prologue();
+    x64->welcome();
     
     // Switch to the task stack
     x64->op(MOVQ, RSP, Address(task_frame_label, 0));
@@ -382,8 +379,6 @@ void Runtime::callback_epilogue() {
     x64->op(MOVQ, RSP, RBP);
     
     x64->goodbye();
-    
-    x64->epilogue();
 }
 
 void Runtime::compile_source_infos(std::vector<std::string> source_file_names) {
@@ -1051,15 +1046,12 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     
     x64->code_label_global(start, "start");
 
-    // Some architectural help
-    x64->welcome();
-
     // Be nice to debuggers and set up a stack frame.
     // NOTE: the RBP must point at its older value and next to the return address,
     // so it has to be on the system stack. We won't need one on the task stack.
     // NOTE: Don't use Runtime::call_sysv, that works on task stacks only! And
     // this frame is guaranteed to be aligned.
-    x64->prologue();
+    x64->welcome();
 
     // This may be clobbered on A64 during SysV calls, save it first
     x64->op(MOVQ, Address(start_frame_label, 0), RBP);  // aligned
@@ -1111,8 +1103,11 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     
     x64->op(MOVQ, arg_regs[0], Address(task_stack_address_label, 0));
     x64->op(CALL, sysv_free_label);
+
+    // For proper goodbye
+    x64->op(MOVQ, RBP, Address(start_frame_label, 0));  // should be a single step
     
-    x64->epilogue();
+    x64->goodbye();
 }
 
 void Runtime::compile_logging() {

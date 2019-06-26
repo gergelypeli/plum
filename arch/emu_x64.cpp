@@ -158,12 +158,19 @@ void Emu_X64::epilogue() {
 
 
 void Emu_X64::welcome() {
-    // Empty
+    op(PUSHQ, RBP);
+    op(MOVQ, RBP, RSP);
+    // RBP points to the system frame
+    // RSP continues to point to the system stack, but only for signal handlers
+    // and function calls.
 }
 
 
 void Emu_X64::goodbye() {
-    // Empty
+    // RBP is expected to point to the system frame
+    op(MOVQ, RSP, RBP);
+    op(POPQ, RBP);
+    op(RET);
 }
 
 
