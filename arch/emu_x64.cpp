@@ -193,6 +193,8 @@ int Emu_X64::dwarf_retaddr_number() {
 
 
 #define MAP(OP) x == OP ? X::OP : 
+#define REMAP(OP, XOP) x == OP ? X::XOP : 
+
 
 static X::SimpleOp map(SimpleOp x) {
     return
@@ -321,28 +323,29 @@ static X::BitSetOp map(BitSetOp x) {
 
 static X::FprmemFprmemOp map(FprmemFprmemOp x) {
     return
-        MAP(MOVQW) MAP(MOVSD) MAP(MOVSS)
+        REMAP(MOVF, MOVSD)
         throw ASM_ERROR;
 };
 
 
 static X::FprFprmemOp map(FprFprmemOp x) {
     return
-        MAP(ADDSD) MAP(SUBSD) MAP(MULSD) MAP(DIVSD) MAP(COMISD) MAP(UCOMISD) MAP(CVTSS2SD) MAP(CVTSD2SS) MAP(MAXSD) MAP(MINSD) MAP(SQRTSD) MAP(PXOR)
+        REMAP(ADDF, ADDSD) REMAP(SUBF, SUBSD) REMAP(MULF, MULSD) REMAP(DIVF, DIVSD)
+        REMAP(CMPF, UCOMISD) REMAP(MAXF, MAXSD) REMAP(MINF, MINSD) REMAP(SQRTF, SQRTSD)
         throw ASM_ERROR;
 };
 
 
 static X::FprGprmemOp map(FprGprmemOp x) {
     return
-        MAP(CVTSI2SD)
+        REMAP(CNVQF, CVTSI2SD)
         throw ASM_ERROR;
 };
 
 
 static X::GprFprmemOp map(GprFprmemOp x) {
     return
-        MAP(CVTSD2SI) MAP(CVTTSD2SI)
+        REMAP(RNDFQ, CVTSD2SI) REMAP(TRNFQ, CVTTSD2SI)
         throw ASM_ERROR;
 };
 
@@ -537,7 +540,7 @@ void Emu_X64::floatcmp(ConditionCode cc, FpRegister x, FpRegister y) {
     // unless FP invalid operations are masked, which is the x64 Linux default.
     // We don't need no education, so use the UCOMISD.
 
-    op(UCOMISD, x, y);
+    op(CMPF, x, y);  // aka UCOMISD
 
     if (cc == CC_NOT_EQUAL)
         throw ASM_ERROR;  // this must be negated explicitly by the caller
@@ -556,13 +559,13 @@ void Emu_X64::floatorder(FpRegister x, FpRegister y) {
 
     Label finite, end;
 
-    op(UCOMISD, x, y);
+    op(CMPF, x, y);  // aka UCOMISD
     op(JNP, finite);
     
     // R11B=1 iff s is finite, R10B=1 iff t is finite
-    op(UCOMISD, x, x);
+    op(CMPF, x, x);
     op(SETNP, R11B);
-    op(UCOMISD, y, y);
+    op(CMPF, y, y);
     op(SETNP, R10B);
     op(JMP, end);
     

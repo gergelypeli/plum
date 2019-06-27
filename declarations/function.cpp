@@ -289,7 +289,7 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
         if (optimal_where == NOWHERE)
             ;  // happens for singleton pivots
         else if (optimal_where == FPREGISTER)
-            x64->op(MOVSD, arg_fprs[fpr_index++], Address(RBP, stack_offset));
+            x64->op(MOVF, arg_fprs[fpr_index++], Address(RBP, stack_offset));
         else if (pushed_where == ALISTACK)
             x64->op(MOVQ, arg_regs[reg_index++], Address(RBP, stack_offset));
         else if (pushed_sizes[i] == ADDRESS_SIZE)
@@ -330,10 +330,10 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     case FPREGISTER:
         if (exception_type) {
             x64->op(MOVQ, RDX, res_regs[0]);
-            x64->op(MOVSD, FPR0, res_fprs[0]);
+            x64->op(MOVF, FPR0, res_fprs[0]);
         }
         else {
-            x64->op(MOVSD, FPR0, res_fprs[0]);
+            x64->op(MOVF, FPR0, res_fprs[0]);
         }
         break;
     default:

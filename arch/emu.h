@@ -132,22 +132,22 @@ inline BitSetOp bitset(ConditionCode cc) {
 
 
 enum FprmemFprmemOp {
-    MOVQW, MOVSD, MOVSS
+    MOVF
 };
 
 
 enum FprFprmemOp {
-    ADDSD, SUBSD, MULSD, DIVSD, COMISD, UCOMISD, CVTSS2SD, CVTSD2SS, MAXSD, MINSD, SQRTSD, PXOR
+    ADDF, SUBF, MULF, DIVF, CMPF, MAXF, MINF, SQRTF, XORF
 };
 
 
 enum FprGprmemOp {
-    CVTSI2SD
+    CNVQF
 };
 
 
 enum GprFprmemOp {
-    CVTSD2SI, CVTTSD2SI
+    RNDFQ, TRNFQ
 };
 
 

@@ -12,7 +12,7 @@ Allocation FloatType::measure(TypeMatch tm) {
 void FloatType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     switch (s.where * t.where) {
     case NOWHERE_FPREGISTER:
-        x64->op(MOVSD, t.fpr, Address(x64->runtime->float_zero_label, 0));
+        x64->op(MOVF, t.fpr, Address(x64->runtime->float_zero_label, 0));
         break;
     case NOWHERE_STACK:
         x64->op(PUSHQ, 0);  // using that 0.0 is represented as all zeroes
@@ -22,21 +22,21 @@ void FloatType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         break;
     case FPREGISTER_FPREGISTER:
         if (s.fpr != t.fpr)
-            x64->op(MOVSD, t.fpr, s.fpr);
+            x64->op(MOVF, t.fpr, s.fpr);
         break;
     case FPREGISTER_STACK:
         x64->op(SUBQ, RSP, FLOAT_SIZE);
-        x64->op(MOVSD, Address(RSP, 0), s.fpr);
+        x64->op(MOVF, Address(RSP, 0), s.fpr);
         break;
     case FPREGISTER_MEMORY:
-        x64->op(MOVSD, t.address, s.fpr);
+        x64->op(MOVF, t.address, s.fpr);
         break;
         
     case STACK_NOWHERE:
         x64->op(ADDQ, RSP, FLOAT_SIZE);
         break;
     case STACK_FPREGISTER:
-        x64->op(MOVSD, s.fpr, Address(RSP, 0));
+        x64->op(MOVF, s.fpr, Address(RSP, 0));
         x64->op(ADDQ, RSP, FLOAT_SIZE);
         break;
         
@@ -46,7 +46,7 @@ void FloatType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     case MEMORY_NOWHERE:
         break;
     case MEMORY_FPREGISTER:
-        x64->op(MOVSD, t.fpr, s.address);
+        x64->op(MOVF, t.fpr, s.address);
         break;
     case MEMORY_STACK:
         x64->op(PUSHQ, s.address);
@@ -66,7 +66,7 @@ void FloatType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         x64->op(MOVQ, t.address, 0);  // using that 0.0 is represented as all zeroes
         break;
     case FPREGISTER_MEMORY:
-        x64->op(MOVSD, t.address, s.fpr);
+        x64->op(MOVF, t.address, s.fpr);
         break;
     case STACK_MEMORY:
         x64->op(POPQ, t.address);
@@ -96,16 +96,16 @@ void FloatType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         x64->floatcmp(CC_EQUAL, s.fpr, t.fpr);
         return;
     case FPREGISTER_MEMORY:
-        x64->op(MOVSD, FPR15, t.address);
+        x64->op(MOVF, FPR15, t.address);
         x64->floatcmp(CC_EQUAL, s.fpr, FPR15);
         return;
     case MEMORY_FPREGISTER:
-        x64->op(MOVSD, FPR15, s.address);
+        x64->op(MOVF, FPR15, s.address);
         x64->floatcmp(CC_EQUAL, FPR15, t.fpr);
         return;
     case MEMORY_MEMORY:
-        x64->op(MOVSD, FPR14, s.address);
-        x64->op(MOVSD, FPR15, t.address);
+        x64->op(MOVF, FPR14, s.address);
+        x64->op(MOVF, FPR15, t.address);
         x64->floatcmp(CC_EQUAL, FPR14, FPR15);
         return;
     default:
@@ -123,16 +123,16 @@ void FloatType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         x64->floatorder(s.fpr, t.fpr);
         break;
     case FPREGISTER_MEMORY:
-        x64->op(MOVSD, FPR15, t.address);
+        x64->op(MOVF, FPR15, t.address);
         x64->floatorder(s.fpr, FPR15);
         break;
     case MEMORY_FPREGISTER:
-        x64->op(MOVSD, FPR15, s.address);
+        x64->op(MOVF, FPR15, s.address);
         x64->floatorder(FPR15, t.fpr);
         break;
     case MEMORY_MEMORY:
-        x64->op(MOVSD, FPR14, s.address);
-        x64->op(MOVSD, FPR15, t.address);
+        x64->op(MOVF, FPR14, s.address);
+        x64->op(MOVF, FPR15, t.address);
         x64->floatorder(FPR14, FPR15);
         break;
     default:
@@ -164,7 +164,7 @@ void FloatType::streamify(TypeMatch tm, X64 *x64) {
     Address alias_addr(RSP, 0);
 
     // SysV
-    x64->op(MOVSD, arg_fprs[0], value_addr);
+    x64->op(MOVF, arg_fprs[0], value_addr);
     x64->op(MOVQ, arg_regs[0], alias_addr);
     
     x64->runtime->call_sysv(x64->runtime->sysv_streamify_float_label);

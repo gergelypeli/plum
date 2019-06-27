@@ -1025,7 +1025,11 @@ void Emu_A64::op(JumpOp opcode, Register x) {
 }
 
 
-void Emu_A64::op(FprmemFprmemOp opcode, FpRegister x, FpRegister y) {}
+void Emu_A64::op(FprmemFprmemOp opcode, FpRegister x, FpRegister y) {
+    
+}
+
+
 void Emu_A64::op(FprmemFprmemOp opcode, FpRegister x, Address y) {}
 void Emu_A64::op(FprmemFprmemOp opcode, Address x, FpRegister y) {}
 
