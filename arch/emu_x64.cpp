@@ -526,6 +526,9 @@ void Emu_X64::op(DivModOp opcode, Register x, Register y) {
 
 
 void Emu_X64::floatcmp(ConditionCode cc, FpRegister x, FpRegister y) {
+    if (cc == CC_NOT_EQUAL)
+        throw ASM_ERROR;  // this must be negated explicitly by the caller
+
     // NOTE: (U)COMISD is like an unsigned comparison with a twist
     // unordered => ZF+CF+PF
     // less => CF
@@ -540,13 +543,19 @@ void Emu_X64::floatcmp(ConditionCode cc, FpRegister x, FpRegister y) {
     // unless FP invalid operations are masked, which is the x64 Linux default.
     // We don't need no education, so use the UCOMISD.
 
+    ConditionCode unordered_cc = CC_PARITY;
+    ConditionCode unmatched_cc = (
+        cc == CC_EQUAL ? CC_NOT_EQUAL :
+        cc == CC_BELOW ? CC_ABOVE_EQUAL :
+        cc == CC_ABOVE ? CC_BELOW_EQUAL :
+        cc == CC_BELOW_EQUAL ? CC_ABOVE :
+        cc == CC_ABOVE_EQUAL ? CC_BELOW :
+        throw ASM_ERROR
+    );
+
     op(CMPF, x, y);  // aka UCOMISD
-
-    if (cc == CC_NOT_EQUAL)
-        throw ASM_ERROR;  // this must be negated explicitly by the caller
-
-    op(SETP, R11B);  // set if unordered
-    op(bitset(negated(cc)), R10B);  // set if unmatched
+    op(bitset(unordered_cc), R11B);
+    op(bitset(unmatched_cc), R10B);
     op(ORB, R10B, R11B);
     
     // ZF is set if neither condition held, so not unordered, and not unmatched
@@ -557,21 +566,25 @@ void Emu_X64::floatorder(FpRegister x, FpRegister y) {
     // We need to do something with NaN-s, so do what Java does, and treat them
     // as greater than everything, including positive infinity. Chuck Norris likes this.
 
+    ConditionCode finite_cc = CC_NOT_PARITY;
+    ConditionCode less_cc = CC_BELOW;
+    ConditionCode greater_cc = CC_ABOVE;
+
     Label finite, end;
 
     op(CMPF, x, y);  // aka UCOMISD
-    op(JNP, finite);
+    op(branch(finite_cc), finite);
     
     // R11B=1 iff s is finite, R10B=1 iff t is finite
     op(CMPF, x, x);
-    op(SETNP, R11B);
+    op(bitset(finite_cc), R11B);
     op(CMPF, y, y);
-    op(SETNP, R10B);
+    op(bitset(finite_cc), R10B);
     op(JMP, end);
     
     code_label(finite);
-    op(SETB, R11B);
-    op(SETA, R10B);
+    op(bitset(less_cc), R11B);
+    op(bitset(greater_cc), R10B);
     
     code_label(end);
     op(SUBB, R10B, R11B);

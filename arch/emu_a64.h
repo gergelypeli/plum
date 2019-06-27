@@ -57,6 +57,7 @@ public:
 
     virtual Addressing prepare(int os, Address a);
     virtual void mem(A::MemOpcode opcode, Register rt, Addressing a);
+    virtual void floatmem(A::FloatMemOpcode opcode, FpRegister rt, Addressing a);
 
     virtual void op(SimpleOp opcode);
     virtual void op(UnaryOp opcode, Register x);

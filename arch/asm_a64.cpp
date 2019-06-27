@@ -138,30 +138,9 @@ void Asm_A64::op(PairOpcode opcode, Register r1, Register r2, Register rn, int i
 }
 
 
-// Mem
+// These are the generic addressing methods, used by both the GPR and FPR opcodes
 
-struct {
-    unsigned op10;
-} mem_info[] = {
-    0b1111100001,  // LDR
-    0b1011100001,  // LDRUW
-    0b0111100001,  // LDRUH
-    0b0011100001,  // LDRUB
-    0b1011100010,  // LDRSW
-    0b0111100010,  // LDRSH
-    0b0011100010,  // LDRSB
-    0b1111100000,  // STR
-    0b1011100000,  // STRW
-    0b0111100000,  // STRH
-    0b0011100000,  // STRB
-};
-
-
-void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemScaling scaling) {
-    if (rt == RSP)
-        cant_account();
-
-    int op10 = mem_info[opcode].op10;
+void Asm_A64::memop(int op10, int rt, Register rn, int imm, MemScaling scaling) {
     int imm12;
     int size = 1 << (op10 >> 8);
     
@@ -176,6 +155,54 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemScaling
         throw ASM_ERROR;
     
     code_op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
+}
+
+void Asm_A64::memop(int op10, int rt, Register rn, int imm, MemIncrement increment) {
+    int inc = (
+        increment == INCREMENT_PRE ? MEM_PREINDEX :
+        increment == INCREMENT_POST ? MEM_POSTINDEX :
+        throw ASM_ERROR
+    );
+    int imm12 = 0 | simm(imm, 9) << 2 | inc << 0;
+    
+    code_op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
+}
+
+void Asm_A64::memop(int op10, int rt, Register rn, Register rm, IndexShift indexshift) {
+    // The shift amount depends on the memory operand size
+    int option = 0b011;  // LSL
+    int scale = (indexshift == INDEX_SHIFTED ? 0b1 : indexshift == INDEX_UNSHIFTED ? 0b0 : throw ASM_ERROR);
+
+    code_op(op10 << 22 | 0b1 << 21 | rm << 16 | option << 13 | scale << 12 | 0b10 << 10 | rn << 5 | rt << 0);
+}
+
+
+// Mem
+
+struct {
+    unsigned op10;
+} mem_info[] = {
+    0b1111100001,  // LDRQ
+    0b1011100001,  // LDRUW
+    0b0111100001,  // LDRUH
+    0b0011100001,  // LDRUB
+    0b1011100010,  // LDRSW
+    0b0111100010,  // LDRSH
+    0b0011100010,  // LDRSB
+    0b1111100000,  // STRQ
+    0b1011100000,  // STRW
+    0b0111100000,  // STRH
+    0b0011100000,  // STRB
+};
+
+
+void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemScaling scaling) {
+    if (rt == RSP)
+        cant_account();
+
+    int op10 = mem_info[opcode].op10;
+    
+    memop(op10, rt, rn, imm, scaling);
 }
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemIncrement increment) {
@@ -199,26 +226,17 @@ void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, int imm, MemIncreme
         account(-imm);
     
     int op10 = mem_info[opcode].op10;
-    int inc = (
-        increment == INCREMENT_PRE ? MEM_PREINDEX :
-        increment == INCREMENT_POST ? MEM_POSTINDEX :
-        throw ASM_ERROR
-    );
-    int imm12 = 0 | simm(imm, 9) << 2 | inc << 0;
     
-    code_op(op10 << 22 | imm12 << 10 | rn << 5 | rt << 0);
+    memop(op10, rt, rn, imm, increment);
 }
 
 void Asm_A64::op(MemOpcode opcode, Register rt, Register rn, Register rm, IndexShift indexshift) {
     if (rt == RSP)
         cant_account();
 
-    // The shift amount depends on the memory operand size
     int op10 = mem_info[opcode].op10;
-    int option = 0b011;  // LSL
-    int scale = (indexshift == INDEX_SHIFTED ? 0b1 : indexshift == INDEX_UNSHIFTED ? 0b0 : throw ASM_ERROR);
-
-    code_op(op10 << 22 | 0b1 << 21 | rm << 16 | option << 13 | scale << 12 | 0b10 << 10 | rn << 5 | rt << 0);
+    
+    memop(op10, rt, rn, rm, indexshift);
 }
 
 
@@ -497,4 +515,133 @@ void Asm_A64::op(SpecRegOpcode opcode, SpecReg specreg16, Register rt) {
     // specreg16 is o0op1CRnCRmop2
     
     code_op(op10 << 22 | l << 21 | specreg16 << 5 | rt << 0);
+}
+
+
+// Float mem
+
+struct {
+    unsigned op10;
+} floatmem_info[] = {
+    0b1111110001,  // LDR(F) 64-bit
+    0b1111110000,  // STR(F) 64-bit
+};
+
+
+void Asm_A64::op(FloatMemOpcode opcode, FpRegister rt, Register rn, int imm, MemScaling scaling) {
+    int op10 = floatmem_info[opcode].op10;
+    
+    memop(op10, rt, rn, imm, scaling);
+}
+
+void Asm_A64::op(FloatMemOpcode opcode, FpRegister rt, Register rn, int imm, MemIncrement increment) {
+    if (rn == RSP)
+        account(-imm);
+    
+    int op10 = floatmem_info[opcode].op10;
+    
+    memop(op10, rt, rn, imm, increment);
+}
+
+void Asm_A64::op(FloatMemOpcode opcode, FpRegister rt, Register rn, Register rm, IndexShift indexshift) {
+    int op10 = floatmem_info[opcode].op10;
+    
+    memop(op10, rt, rn, rm, indexshift);
+}
+
+
+// Float
+
+struct {
+    unsigned op11;
+    unsigned op6;
+} float_info[] = {
+    { 0b00011110011, 0b001010 },  // FADD
+    { 0b00011110011, 0b001110 },  // FSUB
+    { 0b00011110011, 0b000010 },  // FMUL
+    { 0b00011110011, 0b000110 },  // FDIV
+    { 0b00011110011, 0b010010 },  // FMAX
+    { 0b00011110011, 0b010110 },  // FMIN
+    { 0b00101110001, 0b000111 },  // (F)EOR 64-bit
+    
+};
+
+void Asm_A64::op(A::FloatOpcode opcode, FpRegister rd, FpRegister rn, FpRegister rm) {
+    int op11 = float_info[opcode].op11;
+    int op6 = float_info[opcode].op6;
+    
+    code_op(op11 << 21 | rm << 16 | op6 << 10 | rn << 5 | rd << 0);
+}
+
+
+struct {
+    unsigned op11;
+    unsigned op6;
+} float2_info[] = {
+    { 0b00011110011, 0b001000 },  // FCMP
+};
+
+void Asm_A64::op(A::Float2Opcode opcode, FpRegister rn, FpRegister rm) {
+    int op11 = float2_info[opcode].op11;
+    int op6 = float2_info[opcode].op6;
+    int op5 = 0b00000;
+    
+    code_op(op11 << 21 | rm << 16 | op6 << 10 | rn << 5 | op5 << 0);
+}
+
+
+struct {
+    unsigned op11;
+    unsigned op11b;
+} float3_info[] = {
+    { 0b00011110011, 0b00001110000 },  // FSQRT
+    { 0b00011110011, 0b00001010000 },  // FNEG
+    { 0b00011110011, 0b00000010000 },  // FMOV
+};
+
+void Asm_A64::op(A::Float3Opcode opcode, FpRegister rd, FpRegister rn) {
+    int op11 = float3_info[opcode].op11;
+    int op11b = float3_info[opcode].op11b;
+    
+    code_op(op11 << 21 | op11b << 10 | rn << 5 | rd << 0);
+}
+
+
+struct {
+    unsigned op11;
+    unsigned op11b;
+} fprgpr_info[] = {
+    { 0b10011110011, 0b00010000000 },  // SCVTF 64-bit to double
+    { 0b10011110011, 0b00011000000 },  // UCVTF 64-bit to double
+};
+
+void Asm_A64::op(A::FprGprOpcode opcode, FpRegister rd, Register rn) {
+    int op11 = fprgpr_info[opcode].op11;
+    int op11b = fprgpr_info[opcode].op11b;
+    
+    code_op(op11 << 21 | op11b << 10 | rn << 5 | rd << 0);
+}
+
+
+struct {
+    unsigned op11;
+    unsigned op11b;
+} gprfpr_info[] = {
+    { 0b10011110011, 0b00100000000 },  // FCVTAS (round toward nearest, ties away)
+    { 0b10011110011, 0b00101000000 },  // FCVTAU (round toward nearest, ties away)
+    { 0b10011110011, 0b10000000000 },  // FCVTMS (round toward minus inf)
+    { 0b10011110011, 0b10001000000 },  // FCVTMU (round toward minus inf)
+    { 0b10011110011, 0b00000000000 },  // FCVTNS (round toward nearest, ties to even)
+    { 0b10011110011, 0b00001000000 },  // FCVTNU (round toward nearest, ties to even)
+    { 0b10011110011, 0b01000000000 },  // FCVTPS (round toward plus inf)
+    { 0b10011110011, 0b01001000000 },  // FCVTPU (round toward plus inf)
+    { 0b10011110011, 0b11000000000 },  // FCVTZS (round toward zero)
+    { 0b10011110011, 0b11001000000 },  // FCVTZU (round toward zero)
+};
+
+void Asm_A64::op(A::GprFprOpcode opcode, Register rd, FpRegister rn) {
+    int op11 = gprfpr_info[opcode].op11;
+    int op11b = gprfpr_info[opcode].op11b;
+    
+    code_op(op11 << 21 | op11b << 10 | rn << 5 | rd << 0);
 }

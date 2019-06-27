@@ -99,7 +99,6 @@ enum MemOpcode {
     STRB
 };
 
-
 enum ArithOpcode {
     ADD, ADDS,
     SUB, SUBS,
@@ -169,6 +168,35 @@ enum SpecRegOpcode {
     MSRR, MSRW
 };
 
+enum FloatMemOpcode {
+    LDRF,
+    STRF
+};
+
+enum FloatOpcode {
+    FADD, FSUB, FMUL, FDIV, FMAX, FMIN, FEOR
+};
+
+enum Float2Opcode {
+    FCMP
+};
+
+enum Float3Opcode {
+    FSQRT, FNEG, FMOV
+};
+
+enum FprGprOpcode {
+    SCVTF, UCVTF
+};
+
+enum GprFprOpcode {
+    FCVTAS, FCVTAU,
+    FCVTMS, FCVTMU,
+    FCVTNS, FCVTNU,
+    FCVTPS, FCVTPU,
+    FCVTZS, FCVTZU
+};
+
 }
 
 
@@ -209,6 +237,10 @@ public:
     virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm);
     virtual void op(A::PairOpcode opcode, Register r1, Register r2, Register rn, int imm, A::MemIncrement increment);
 
+    virtual void memop(int op10, int rt, Register rn, int imm, A::MemScaling scaling);
+    virtual void memop(int op10, int rt, Register rn, int imm, A::MemIncrement increment);
+    virtual void memop(int op10, int rt, Register rn, Register rm, A::IndexShift indexshift = A::INDEX_UNSHIFTED);
+
     virtual void op(A::MemOpcode opcode, Register rt, Register rn, int imm, A::MemScaling scaling);
     virtual void op(A::MemOpcode opcode, Register rt, Register rn, int imm, A::MemIncrement increment);
     virtual void op(A::MemOpcode opcode, Register rt, Register rn, Register rm, A::IndexShift indexshift = A::INDEX_UNSHIFTED);
@@ -242,4 +274,14 @@ public:
     virtual void op(A::RegLabelOpcode opcode, Register rn, Label label);
     
     virtual void op(A::SpecRegOpcode opcode, A::SpecReg specreg16, Register rt);
+
+    virtual void op(A::FloatMemOpcode opcode, FpRegister rt, Register rn, int imm, A::MemScaling scaling);
+    virtual void op(A::FloatMemOpcode opcode, FpRegister rt, Register rn, int imm, A::MemIncrement increment);
+    virtual void op(A::FloatMemOpcode opcode, FpRegister rt, Register rn, Register rm, A::IndexShift indexshift = A::INDEX_UNSHIFTED);
+
+    virtual void op(A::FloatOpcode opcode, FpRegister rd, FpRegister rn, FpRegister rm);
+    virtual void op(A::Float2Opcode opcode, FpRegister rn, FpRegister rm);
+    virtual void op(A::Float3Opcode opcode, FpRegister rd, FpRegister rn);
+    virtual void op(A::FprGprOpcode opcode, FpRegister rd, Register rn);
+    virtual void op(A::GprFprOpcode opcode, Register rd, FpRegister rn);
 };

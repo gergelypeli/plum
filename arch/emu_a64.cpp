@@ -29,6 +29,9 @@ const Register XIMMEDIATE = XFP;
 // we shamelessly reuse it for the latter purpose. The current ABI-s don't leave us much
 // choice in this regard.
 
+// And some more
+const FpRegister XFLOAT = (FpRegister)16;
+
 
 Emu_A64::Emu_A64(std::string module_name) {
     elf_a64 = new Elf_A64(module_name);
@@ -430,6 +433,26 @@ void Emu_A64::mem(A::MemOpcode opcode, Register rt, Addressing a) {
 }
 
 
+void Emu_A64::floatmem(A::FloatMemOpcode opcode, FpRegister rt, Addressing a) {
+    switch (a.mode) {
+    case Addressing::OFFSET_SCALED:
+        asm_a64->op(opcode, rt, a.base, a.imm, A::UNSIGNED_SCALED);
+        break;
+    case Addressing::OFFSET_UNSCALED:
+        asm_a64->op(opcode, rt, a.base, a.imm, A::SIGNED_UNSCALED);
+        break;
+    case Addressing::OFFSET_REGISTER:
+        asm_a64->op(opcode, rt, a.base, a.index, A::INDEX_UNSHIFTED);
+        break;
+    case Addressing::OFFSET_REGISTER_SHIFTED:
+        asm_a64->op(opcode, rt, a.base, a.index, A::INDEX_SHIFTED);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
+}
+
+
 void Emu_A64::op(SimpleOp opcode) {
     switch (opcode) {
     case NOP:
@@ -551,6 +574,8 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         // TODO: may be optimized for consecutive bits
         movimm(XIMMEDIATE, y);
         asm_a64->op(A::ANDS, x, x, XIMMEDIATE);
+        
+        // This one sets the flags, yay
         break;
     case CMPQ:
         if (y >= 0 && y < 4096)
@@ -570,6 +595,9 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         // TODO: may be optimized for consecutive bits
         movimm(XIMMEDIATE, y);
         asm_a64->op(A::ORR, x, x, XIMMEDIATE);
+
+        // Ahhh, these doesn't set the flags
+        op(CMPQ, x, 0);
         break;
     case SBBQ:
         throw ASM_ERROR;
@@ -593,6 +621,9 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         // TODO: may be optimized for consecutive bits
         movimm(XIMMEDIATE, y);
         asm_a64->op(A::EOR, x, x, XIMMEDIATE);
+
+        // Ahhh, these doesn't set the flags
+        op(CMPQ, x, 0);
         break;
     default:
         throw ASM_ERROR;
@@ -632,6 +663,7 @@ void Emu_A64::op(BinaryOp opcode, Register x, Register y) {
         break;
     case ANDQ:
         asm_a64->op(A::ANDS, x, x, y);
+        // This one sets the flags, yay
         break;
     case CMPQ:
         asm_a64->op(A::SUBS, XZR, x, y);
@@ -641,6 +673,8 @@ void Emu_A64::op(BinaryOp opcode, Register x, Register y) {
         break;
     case ORQ:
         asm_a64->op(A::ORR, x, x, y);
+        // Ahhh, these doesn't set the flags
+        op(CMPQ, x, 0);
         break;
     case SBBQ:
         throw ASM_ERROR;
@@ -653,6 +687,8 @@ void Emu_A64::op(BinaryOp opcode, Register x, Register y) {
         break;
     case XORQ:
         asm_a64->op(A::EOR, x, x, y);
+        // Ahhh, these doesn't set the flags
+        op(CMPQ, x, 0);
         break;
     default:
         throw ASM_ERROR;
@@ -1026,21 +1062,133 @@ void Emu_A64::op(JumpOp opcode, Register x) {
 
 
 void Emu_A64::op(FprmemFprmemOp opcode, FpRegister x, FpRegister y) {
-    
+    switch (opcode) {
+    case MOVF:
+        asm_a64->op(A::FMOV, x, y);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
 }
 
 
-void Emu_A64::op(FprmemFprmemOp opcode, FpRegister x, Address y) {}
-void Emu_A64::op(FprmemFprmemOp opcode, Address x, FpRegister y) {}
+void Emu_A64::op(FprmemFprmemOp opcode, FpRegister x, Address y) {
+    int os = 3;
+    Addressing aing = prepare(os, y);
 
-void Emu_A64::op(FprFprmemOp opcode, FpRegister x, FpRegister y) {}
-void Emu_A64::op(FprFprmemOp opcode, FpRegister x, Address y) {}
+    switch (opcode) {
+    case MOVF:
+        floatmem(A::LDRF, x, aing);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
+}
 
-void Emu_A64::op(FprGprmemOp opcode, FpRegister x, Register y) {}
-void Emu_A64::op(FprGprmemOp opcode, FpRegister x, Address y) {}
 
-void Emu_A64::op(GprFprmemOp opcode, Register x, FpRegister y) {}
-void Emu_A64::op(GprFprmemOp opcode, Register x, Address y) {}
+void Emu_A64::op(FprmemFprmemOp opcode, Address x, FpRegister y) {
+    int os = 3;
+    Addressing aing = prepare(os, x);
+
+    switch (opcode) {
+    case MOVF:
+        floatmem(A::STRF, y, aing);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
+}
+
+
+void Emu_A64::op(FprFprmemOp opcode, FpRegister x, FpRegister y) {
+    switch (opcode) {
+    case ADDF:
+        asm_a64->op(A::FADD, x, x, y);
+        break;
+    case SUBF:
+        asm_a64->op(A::FSUB, x, x, y);
+        break;
+    case MULF:
+        asm_a64->op(A::FMUL, x, x, y);
+        break;
+    case DIVF:
+        asm_a64->op(A::FDIV, x, x, y);
+        break;
+    case CMPF:
+        asm_a64->op(A::FCMP, x, y);
+        break;
+    case MAXF:
+        asm_a64->op(A::FMAX, x, x, y);
+        break;
+    case MINF:
+        asm_a64->op(A::FMIN, x, x, y);
+        break;
+    case SQRTF:
+        asm_a64->op(A::FSQRT, x, y);
+        break;
+    case XORF:
+        asm_a64->op(A::FEOR, x, x, y);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
+}
+
+
+void Emu_A64::op(FprFprmemOp opcode, FpRegister x, Address y) {
+    int os = 3;
+    Addressing aing = prepare(os, y);
+
+    floatmem(A::LDRF, XFLOAT, aing);
+    
+    op(opcode, x, XFLOAT);
+}
+
+
+void Emu_A64::op(FprGprmemOp opcode, FpRegister x, Register y) {
+    switch (opcode) {
+    case CNVQF:
+        asm_a64->op(A::SCVTF, x, y);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
+}
+
+
+void Emu_A64::op(FprGprmemOp opcode, FpRegister x, Address y) {
+    int os = 3;
+    Addressing aing = prepare(os, y);
+
+    mem(A::LDRQ, XVALUE, aing);
+
+    op(opcode, x, XVALUE);
+}
+
+
+void Emu_A64::op(GprFprmemOp opcode, Register x, FpRegister y) {
+    switch (opcode) {
+    case RNDFQ:
+        asm_a64->op(A::FCVTAS, x, y);
+        break;
+    case TRNFQ:
+        asm_a64->op(A::FCVTZS, x, y);
+        break;
+    default:
+        throw ASM_ERROR;
+    }
+}
+
+
+void Emu_A64::op(GprFprmemOp opcode, Register x, Address y) {
+    int os = 3;
+    Addressing aing = prepare(os, y);
+
+    floatmem(A::LDRF, XFLOAT, aing);
+
+    op(opcode, x, XFLOAT);
+}
+
 
 void Emu_A64::op(DivModOp opcode, Register x, Register y) {
     switch (opcode % 3) {
@@ -1064,8 +1212,56 @@ void Emu_A64::op(DivModOp opcode, Register x, Register y) {
 }
 
 void Emu_A64::floatcmp(ConditionCode cc, FpRegister x, FpRegister y) {
+    if (cc == CC_NOT_EQUAL)
+        throw ASM_ERROR;  // this must be negated explicitly by the caller
+
+    // The FCMP instruction sets the V flag on NaN-s, and otherwise the result
+    // according to a signed comparison. Since X64 uses flag combinations
+    // for unsigned comparisons, we must map those to ours.
+
+    ConditionCode unordered_cc = CC_OVERFLOW;
+    ConditionCode unmatched_cc = (
+        cc == CC_EQUAL ? CC_NOT_EQUAL :
+        cc == CC_BELOW ? CC_GREATER_EQUAL :
+        cc == CC_ABOVE ? CC_LESS_EQUAL :
+        cc == CC_BELOW_EQUAL ? CC_GREATER :
+        cc == CC_ABOVE_EQUAL ? CC_LESS :
+        throw ASM_ERROR
+    );
+
+    op(CMPF, x, y);  // aka FCMP
+    op(bitset(unordered_cc), R11B);
+    op(bitset(unmatched_cc), R10B);
+    op(ORB, R10B, R11B);
+    
+    // ZF is set if neither condition held, so not unordered, and not unmatched
 }
 
 
 void Emu_A64::floatorder(FpRegister x, FpRegister y) {
+    // We need to do something with NaN-s, so do what Java does, and treat them
+    // as greater than everything, including positive infinity. Chuck Norris likes this.
+
+    ConditionCode finite_cc = CC_NOT_OVERFLOW;
+    ConditionCode less_cc = CC_LESS;
+    ConditionCode greater_cc = CC_GREATER;
+
+    Label finite, end;
+
+    op(CMPF, x, y);  // aka FCMP
+    op(branch(finite_cc), finite);
+    
+    // R11B=1 iff s is finite, R10B=1 iff t is finite
+    op(CMPF, x, x);
+    op(bitset(finite_cc), R11B);
+    op(CMPF, y, y);
+    op(bitset(finite_cc), R10B);
+    op(JMP, end);
+    
+    code_label(finite);
+    op(bitset(less_cc), R11B);
+    op(bitset(greater_cc), R10B);
+    
+    code_label(end);
+    op(SUBB, R10B, R11B);
 }
