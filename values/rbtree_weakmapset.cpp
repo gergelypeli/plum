@@ -105,9 +105,13 @@ void nosytree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64) {
 
 
 void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64) {
+    Address payload1_arg_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ADDRESS_SIZE);
+    Address payload2_arg_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
+    
     Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("callback"));
+    x64->prologue();
     
     std::stringstream ss;
     ss << elem_ts << " Nosytree callback";
@@ -116,16 +120,16 @@ void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64) {
     // arguments: payload1, payload2
     // We may clobber all registers
 
-    x64->op(MOVQ, SELFX, Address(RSP, ADDRESS_SIZE * 2));  // payload1 arg (rbtree ref address)
+    x64->op(MOVQ, SELFX, payload1_arg_addr);  // rbtree ref address
     x64->op(MOVQ, SELFX, Address(SELFX, 0));  // load current rbtree ref
     x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(MOVQ, KEYX, Address(RSP, ADDRESS_SIZE));  // payload2 arg (elem index)
+    x64->op(MOVQ, KEYX, payload2_arg_addr);  // elem index
     x64->op(LEA, KEYX, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET));  // use the elem key
 
     x64->op(CALL, remove_label);
     x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -186,10 +190,13 @@ void nosy_postremove(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
 // Nosytree basics
 
 void compile_nosytree_finalizer(Label label, TypeSpec elem_ts, X64 *x64) {
+    Address ref_arg_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
+    
     x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("finalizer"));
+    x64->prologue();
     x64->runtime->log("Nosytree finalized.");
 
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
+    x64->op(MOVQ, RAX, ref_arg_addr);  // pointer arg
     
     Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
         
@@ -202,12 +209,12 @@ void compile_nosytree_finalizer(Label label, TypeSpec elem_ts, X64 *x64) {
     // Once we destroy the Rbtree Ref, only iterator(s) will be the owner(s)
     // of this rbtree.
 
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+    x64->op(MOVQ, RAX, ref_arg_addr);
     
     TypeSpec member_ts = elem_ts.prefix(rbtree_type).prefix(ref_type);
     member_ts.destroy(Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), x64);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -235,6 +242,7 @@ void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
     
     x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("clone"));
+    x64->prologue();
     x64->runtime->log("XXX Nosytree clone");
 
     x64->op(MOVQ, R10, Address(RAX, NOSYTREE_MEMBER_OFFSET));  // Rbtree ref
@@ -261,7 +269,7 @@ void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     nosytree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
     
     x64->op(POPQ, RAX);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 

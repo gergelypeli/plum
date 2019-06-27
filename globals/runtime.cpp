@@ -272,7 +272,8 @@ Runtime::Runtime(X64 *x, unsigned application_size, std::vector<std::string> sou
     x64->data_qword(0);
 
     x64->code_label_global(empty_function_label, "empty_function");
-    x64->op(RET);
+    x64->prologue();
+    x64->epilogue();
 
     die_unmatched_message_label = data_heap_string(decode_utf8("Fatal unmatched value: "));
 
@@ -913,7 +914,7 @@ void Runtime::compile_fix_stack() {
     
     // find caller info
     x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
-    x64->op(CALL, lookup_frame_info_label);
+    x64->op(CALL, lookup_frame_info_label);  // RAX - info record
     x64->op(ADDQ, RSP, ADDRESS_SIZE);
     
     // up to caller frame
@@ -1074,8 +1075,6 @@ void Runtime::compile_start(Storage main_storage, std::vector<Label> initializer
     x64->op(ADDQ, RBX, Address(task_stack_size_label, 0));
     x64->op(MOVQ, RSP, RBX);  // should be a single step
     x64->op(MOVQ, RBP, Address(start_frame_label, 0));  // for proper frame linking
-
-    log("Hello, world!");
 
     // Invoke global initializers
     for (Label l : initializer_labels)

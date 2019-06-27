@@ -288,10 +288,11 @@ CharacterRawStreamifiableImplementation::CharacterRawStreamifiableImplementation
 }
 
 void CharacterRawStreamifiableImplementation::compile_raw_streamification(Label label, X64 *x64) {
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
 
     x64->code_label_local(label, "Character__raw_streamification");
+    x64->prologue();
 
     x64->op(MOVQ, R10, 1);
     stream_preappend2(alias_addr, x64);
@@ -301,5 +302,5 @@ void CharacterRawStreamifiableImplementation::compile_raw_streamification(Label 
     x64->op(MOVW, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET), R10W);  // stream end
     x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 1);
 
-    x64->op(RET);
+    x64->epilogue();
 }

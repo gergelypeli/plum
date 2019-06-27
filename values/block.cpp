@@ -71,11 +71,13 @@ void RetroScopeValue::deferred_compile(Label label, X64 *x64) {
     int retro_offset = rs->get_frame_offset();
 
     x64->code_label_local(label, "<retro>");
+    x64->prologue();
 
     // Create an artificial stack frame at the location that RetroScope has allocated
-    x64->op(MOVQ, R10, Address(RBP, 0));  // get the enclosing function frame back
+    x64->op(POPQ, R11);  // caller RBP
+    x64->op(MOVQ, R10, Address(R11, 0));  // enclosing RBP
     x64->op(POPQ, Address(R10, retro_offset + ADDRESS_SIZE));
-    x64->op(MOVQ, Address(R10, retro_offset), RBP);
+    x64->op(MOVQ, Address(R10, retro_offset), R11);
     x64->op(LEA, RBP, Address(R10, retro_offset));
 
     code_scope->get_function_scope()->adjust_frame_base_offset(-retro_offset);
@@ -94,10 +96,11 @@ void RetroScopeValue::deferred_compile(Label label, X64 *x64) {
     
     x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
 
+    // Undo artificial frame
     x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
-    x64->op(MOVQ, RBP, Address(RBP, 0));
+    x64->op(PUSHQ, Address(RBP, 0));
     
-    x64->op(RET);
+    x64->epilogue();
     
     // Generate fixup code for the preceding ALIAS storage retro variables, they're
     // allocated in the middle of the function's stack frame in a RetroArgumentScope,
@@ -105,7 +108,10 @@ void RetroScopeValue::deferred_compile(Label label, X64 *x64) {
     // this code scope by check_retros, so it's easy to find them.
     Label fixup_label;
     x64->code_label_local(fixup_label, "<retro>__fixup");
+    x64->prologue();
     x64->runtime->log("Fixing retro arguments of a retro block.");
+    
+    x64->op(MOVQ, RBP, Address(RBP, 0));
     
     for (auto &d : code_scope->contents) {
         RetroArgumentScope *ras = ptr_cast<RetroArgumentScope>(d.get());
@@ -137,7 +143,7 @@ void RetroScopeValue::deferred_compile(Label label, X64 *x64) {
             throw INTERNAL_ERROR;
     }
     
-    x64->op(RET);
+    x64->epilogue();
     
     x64->runtime->add_func_info("<retro>", label, fixup_label);
 }

@@ -190,10 +190,11 @@ void OptionType::streamify(TypeMatch tm, X64 *x64) {
 
 void OptionType::compile_streamification(Label label, TypeSpec some_ts, X64 *x64) {
     Label some, ok;
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
     
     x64->code_label_local(label, some_ts.prefix(option_type).symbolize("streamification"));
+    x64->prologue();
 
     x64->op(CMPQ, value_addr, OPTION_FLAG_NONE);
     x64->op(JNE, some);
@@ -236,7 +237,7 @@ void OptionType::compile_streamification(Label label, TypeSpec some_ts, X64 *x64
     }
     
     x64->code_label(ok);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 Value *OptionType::lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
@@ -581,9 +582,10 @@ void UnionType::compile_streamification(Label label, TypeSpec union_ts, X64 *x64
     UnionType *ut = ptr_cast<UnionType>(union_ts[0]);
 
     x64->code_label_local(label, union_ts.symbolize("streamification"));
+    x64->prologue();
     Label end;
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
 
     for (unsigned i = 0; i < ut->tss.size(); i++) {
         Label skip;
@@ -626,7 +628,7 @@ void UnionType::compile_streamification(Label label, TypeSpec union_ts, X64 *x64
     x64->runtime->die("Invalid Union!");
 
     x64->code_label(end);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 Value *UnionType::lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {

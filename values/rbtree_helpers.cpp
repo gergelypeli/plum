@@ -5,6 +5,7 @@
 
 void compile_rbtree_left_fix(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_left_fix");
+    x64->prologue();
     // SELFX - tree, ROOTX - node
     // R10 - result
     // THISX, THATX - clob
@@ -36,7 +37,7 @@ void compile_rbtree_left_fix(Label label, X64 *x64) {
     x64->op(MOVQ, Address(SELFX, R10, RBNODE_RIGHT_OFFSET), ROOTX);
     
     x64->op(ANDQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken outer
-    x64->op(RET);  // the red left child is the new root
+    x64->epilogue();  // the red left child is the new root
     
     x64->code_label(outer_nonred);
     x64->op(MOVQ, THATX, Address(SELFX, R10, RBNODE_RIGHT_OFFSET));
@@ -59,12 +60,13 @@ void compile_rbtree_left_fix(Label label, X64 *x64) {
     x64->code_label(ok);
     //x64->log("Rbtree left fix ok.");
     x64->op(MOVQ, R10, ROOTX);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
 void compile_rbtree_right_fix(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_right_fix");
+    x64->prologue();
     // SELFX - tree, ROOTX - node
     // R10 - result
     // THISX, THATX - clob
@@ -96,7 +98,7 @@ void compile_rbtree_right_fix(Label label, X64 *x64) {
     x64->op(MOVQ, Address(SELFX, R10, RBNODE_LEFT_OFFSET), ROOTX);
     
     x64->op(ANDQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken outer
-    x64->op(RET);  // the red right child is the new root
+    x64->epilogue();  // the red right child is the new root
     
     x64->code_label(outer_nonred);
     x64->op(MOVQ, THATX, Address(SELFX, R10, RBNODE_LEFT_OFFSET));
@@ -119,7 +121,7 @@ void compile_rbtree_right_fix(Label label, X64 *x64) {
     x64->code_label(ok);
     //x64->log("Rbtree right fix ok.");
     x64->op(MOVQ, R10, ROOTX);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -130,6 +132,7 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
 
     {
         x64->code_label_local(label, "rbtree_other_fix");
+        x64->prologue();
         // SELFX - tree, ROOTX - node, R10 - child, R11 - dark soul
         // R10 - result, R11 - dark soul
         // THISX, THATX - clob
@@ -175,15 +178,16 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
         x64->op(XCHGQ, R10, ROOTX);
         x64->op(CALL, materialize);  // on the new root
         x64->op(XCHGQ, R10, ROOTX);
-        x64->op(RET);
+        x64->epilogue();
         
         x64->code_label(no_dark_soul);
         x64->op(MOVQ, R10, ROOTX);
-        x64->op(RET);
+        x64->epilogue();
     }
     
     {
         x64->code_label_local(redden_side, "rbtree_redden_side");
+        x64->prologue();
         // SELFX - tree, R10 - child
         // THISX - clob
         Label black;
@@ -197,15 +201,16 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
         x64->op(ORQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
         x64->op(MOVQ, THISX, Address(SELFX, R10, RBNODE_RIGHT_OFFSET));
         x64->op(ORQ, Address(SELFX, THISX, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
-        x64->op(RET);
+        x64->epilogue();
     
         x64->code_label(black);
         x64->op(ORQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), RBNODE_RED_BIT);
-        x64->op(RET);
+        x64->epilogue();
     }
     
     {
         x64->code_label_local(materialize, "_materialize");
+        x64->prologue();
         // SELFX - tree, ROOTX - node, R11 - dark soul
         // R11 - dark soul
         Label end;
@@ -221,13 +226,14 @@ void compile_rbtree_other_fix(Label label, X64 *x64) {
         x64->op(MOVQ, R11, 0);
     
         x64->code_label(end);
-        x64->op(RET);
+        x64->epilogue();
     }
 }
 
 
 void compile_rbtree_occupy(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_occupy");
+    x64->prologue();
     // In: SELFX - tree, R10 - node size
     // Out: ROOTX - node or NIL
     // Clob: R10
@@ -253,7 +259,7 @@ void compile_rbtree_occupy(Label label, X64 *x64) {
     
     x64->code_label(no_reservation);
     x64->op(MOVQ, ROOTX, RBNODE_NIL);
-    x64->op(RET);
+    x64->epilogue();
     
     x64->code_label(init);
     x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET), RBNODE_NIL);
@@ -275,12 +281,13 @@ void compile_rbtree_occupy(Label label, X64 *x64) {
     x64->code_label(end);
     x64->op(MOVQ, Address(SELFX, RBTREE_LAST_OFFSET), ROOTX);
     x64->op(INCQ, Address(SELFX, RBTREE_LENGTH_OFFSET));
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
 void compile_rbtree_vacate(Label label, X64 *x64) {
     x64->code_label_local(label, "rbtree_vacate");
+    x64->prologue();
     // In: SELFX - tree, ROOTX - node
     // Clob: R10, R11, THISX
     Label no_prev, prev_ok, no_next, next_ok;
@@ -319,7 +326,7 @@ void compile_rbtree_vacate(Label label, X64 *x64) {
     x64->op(MOVQ, Address(SELFX, RBTREE_VACANT_OFFSET), ROOTX);
     
     x64->op(DECQ, Address(SELFX, RBTREE_LENGTH_OFFSET));
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -328,6 +335,7 @@ void compile_rbtree_has(Label label, TypeSpec elem_ts, X64 *x64) {
     // ROOTX - node
     // KEYX - key / found index or NIL
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("has"));
+    x64->prologue();
 
     Label loop, finish, less, greater;
 
@@ -347,7 +355,7 @@ void compile_rbtree_has(Label label, TypeSpec elem_ts, X64 *x64) {
     
     x64->code_label(finish);
     x64->op(MOVQ, KEYX, ROOTX);  // Found index or NIL
-    x64->op(RET);
+    x64->epilogue();
     
     x64->code_label(less);
     x64->op(MOVQ, ROOTX, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
@@ -364,6 +372,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     // Returns R10 - new subtree root, KEYX - index with uninitialized value
     // Clobbers THISX, THATX
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("add"));
+    x64->prologue();
     
     Label less, greater, no;
     Label left_fix = x64->once->compile(compile_rbtree_left_fix);
@@ -390,7 +399,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     elem_ts.destroy(vs, x64);
     x64->op(MOVQ, R10, ROOTX);
     x64->op(MOVQ, KEYX, ROOTX);
-    x64->op(RET);
+    x64->epilogue();
     
     x64->code_label(less);
     //x64->runtime->log("Rbtree add left.");
@@ -400,7 +409,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(POPQ, ROOTX);
     x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET), R10);
     x64->op(CALL, left_fix);
-    x64->op(RET);
+    x64->epilogue();
     
     x64->code_label(greater);
     //x64->runtime->log("Rbtree add right.");
@@ -410,7 +419,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(POPQ, ROOTX);
     x64->op(MOVQ, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET), R10);
     x64->op(CALL, right_fix);
-    x64->op(RET);
+    x64->epilogue();
     
     x64->code_label(no);
     //x64->runtime->log("Rbtree add missing.");
@@ -418,7 +427,7 @@ void compile_rbtree_add(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(CALL, occupy);  // from SELFX to ROOTX (may be NIL)
     x64->op(MOVQ, R10, ROOTX);
     x64->op(MOVQ, KEYX, ROOTX);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -427,6 +436,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     // Returns R10 - new index, R11 - dark_soul, KEYX - index with destroyed value
     // Clobbers THISX, THATX
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("remove"));
+    x64->prologue();
     
     Label no, remove_left, remove_right;
     Label vacate = x64->once->compile(compile_rbtree_vacate);
@@ -527,7 +537,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(POPQ, R10);  // return the left child
     x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken
     x64->op(MOVQ, R11, 0);  // no dark soul
-    x64->op(RET);
+    x64->epilogue();
         
     x64->code_label(no_left);
     x64->op(MOVQ, THATX, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
@@ -543,7 +553,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(POPQ, R10);  // return the right child
     x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken
     x64->op(MOVQ, R11, 0);  // no dark soul
-    x64->op(RET);
+    x64->epilogue();
     
     // No children, just remove
     x64->code_label(no_children);
@@ -560,7 +570,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     
     x64->code_label(was_red);
     x64->op(MOVQ, R10, RBNODE_NIL);
-    x64->op(RET);
+    x64->epilogue();
     
     // Descend to the left
     x64->code_label(remove_left);
@@ -573,7 +583,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
 
     x64->op(MOVQ, R10, Address(SELFX, ROOTX, RBNODE_RIGHT_OFFSET));
     x64->op(CALL, other_fix);
-    x64->op(RET);
+    x64->epilogue();
     
     // Descend to the right
     x64->code_label(remove_right);
@@ -586,7 +596,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
 
     x64->op(MOVQ, R10, Address(SELFX, ROOTX, RBNODE_LEFT_OFFSET));
     x64->op(CALL, other_fix);
-    x64->op(RET);
+    x64->epilogue();
     
     // Not found
     x64->code_label(no);
@@ -594,7 +604,7 @@ void compile_rbtree_remove(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(MOVQ, KEYX, RBNODE_NIL);
     x64->op(MOVQ, R10, RBNODE_NIL);
     x64->op(MOVQ, R11, 0);  // no dark soul
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -603,6 +613,7 @@ void compile_rbtree_next(Label label, X64 *x64) {
     // Returns RAX - new it or 0, R10 new index
     // Clobbers RCX, RDX
     x64->code_label_local(label, "rbtree_next");
+    x64->prologue();
     Label terminate, find_leftmost, loop_leftmost, loop_check, loop, right_step, stepped, no_right;
     
     x64->op(MOVQ, R10, Address(SELFX, RBTREE_ROOT_OFFSET));
@@ -658,7 +669,7 @@ void compile_rbtree_next(Label label, X64 *x64) {
     x64->op(DECQ, RDX);
     x64->op(ANDQ, RAX, RDX);
     x64->op(ORQ, RAX, RCX);
-    x64->op(RET);
+    x64->epilogue();
     
     x64->code_label(loop_leftmost);
     x64->op(MOVQ, R10, RDX);
@@ -670,10 +681,10 @@ void compile_rbtree_next(Label label, X64 *x64) {
     x64->op(JNE, loop_leftmost);
     
     x64->op(ORQ, RAX, RCX);
-    x64->op(RET);
+    x64->epilogue();
     
     x64->code_label(terminate);
     x64->op(MOVQ, RAX, 0);
-    x64->op(RET);
+    x64->epilogue();
 }
 

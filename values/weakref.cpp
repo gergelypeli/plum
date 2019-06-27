@@ -5,20 +5,22 @@
 
 void compile_nosyref_callback(Label label, X64 *x64) {
     x64->code_label_local(label, "nosyref_callback");
+    x64->prologue();
     x64->runtime->log("Nosyref callback.");
 
-    x64->op(MOVQ, RCX, Address(RSP, ADDRESS_SIZE * 2));  // payload1 arg (nosyref address)
+    x64->op(MOVQ, RCX, Address(RSP, RIP_SIZE + ADDRESS_SIZE * 2));  // payload1 arg (nosyref address)
     x64->op(MOVQ, Address(RCX, NOSYREF_MEMBER_OFFSET + NOSYVALUE_RAW_OFFSET), 0);
         
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
 void compile_nosyref_finalizer(Label label, X64 *x64) {
     x64->code_label_local(label, "nosyref_finalizer");
+    x64->prologue();
     x64->runtime->log("Nosyref finalized.");
 
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE));  // pointer arg
     
     Label callback_label = x64->once->compile(compile_nosyref_callback);
     Label ok;
@@ -42,7 +44,7 @@ void compile_nosyref_finalizer(Label label, X64 *x64) {
 
     // Member needs no actual finalization
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 

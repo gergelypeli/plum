@@ -472,11 +472,12 @@ void ClassType::compile_vt(Label label, TypeSpec ts, X64 *x64) {
 
 void ClassType::compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
     x64->code_label_local(label, ts[0]->name + "_finalizer");  // FIXME: ambiguous name!
+    x64->prologue();
 
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));  // pointer arg
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE));  // pointer arg
     ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void ClassType::init_vt(TypeMatch tm, Address self_addr, X64 *x64) {

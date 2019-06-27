@@ -124,10 +124,11 @@ void ArrayType::streamify(TypeMatch tm, X64 *x64) {
 void ArrayType::compile_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
     Label loop, elem, end;
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
 
     x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("streamify"));
+    x64->prologue();
     
     // open
     streamify_ascii("{", alias_addr, x64);  // clobbers all
@@ -179,7 +180,7 @@ void ArrayType::compile_streamification(Label label, TypeSpec elem_ts, X64 *x64)
     // close
     streamify_ascii("}", alias_addr, x64);  // clobbers all
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -199,7 +200,9 @@ void CircularrayType::compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
     Label start, end, loop, ok, ok1;
 
     x64->code_label_local(label, elem_ts.prefix(circularray_type).symbolize("finalizer"));
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+    x64->prologue();
+    
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE));
 
     x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_LENGTH_OFFSET));
     x64->op(CMPQ, RCX, 0);
@@ -231,7 +234,7 @@ void CircularrayType::compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
     x64->op(JNE, loop);
 
     x64->code_label(end);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 void CircularrayType::type_info(TypeMatch tm, X64 *x64) {
@@ -291,7 +294,9 @@ void RbtreeType::compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
     Label loop, cond;
 
     x64->code_label(label);
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE));
+    x64->prologue();
+    
+    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE));
 
     x64->op(MOVQ, RCX, Address(RAX, RBTREE_LAST_OFFSET));
     x64->op(JMP, cond);
@@ -305,7 +310,7 @@ void RbtreeType::compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
     x64->op(CMPQ, RCX, RBNODE_NIL);
     x64->op(JNE, loop);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 unsigned RbtreeType::get_rbnode_size(TypeSpec elem_ts) {
@@ -382,10 +387,11 @@ void TreelikeType::streamify(TypeMatch tm, X64 *x64) {
 void TreelikeType::compile_streamification(Label label, TypeSpec elem_ts, X64 *x64) {
     // TODO: massive copypaste from Array's
     Label loop, elem, end;
-    Address value_addr(RSP, RIP_SIZE + ALIAS_SIZE);
-    Address alias_addr(RSP, RIP_SIZE);
+    Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
+    Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
 
     x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("streamify"));
+    x64->prologue();
     
     // open
     streamify_ascii("{", alias_addr, x64);
@@ -436,7 +442,7 @@ void TreelikeType::compile_streamification(Label label, TypeSpec elem_ts, X64 *x
     // close
     streamify_ascii("}", alias_addr, x64);
 
-    x64->op(RET);
+    x64->epilogue();
 }
 
 

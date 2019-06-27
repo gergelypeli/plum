@@ -321,12 +321,13 @@ Label GlobalVariable::compile_initializer(X64 *x64) {
 Label GlobalVariable::compile_finalizer(X64 *x64) {
     Label label;
     x64->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
+    x64->prologue();
 
     Storage s = get_local_storage();
     
     alloc_ts.destroy(s, x64);
 
-    x64->op(RET);
+    x64->epilogue();
     
     return label;
 }

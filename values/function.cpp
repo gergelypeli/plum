@@ -309,7 +309,9 @@ Storage FunctionDefinitionValue::compile(X64 *x64) {
             throw INTERNAL_ERROR;
             
         x64->code_label_local(function->get_label(x64), fqn);
-        x64->op(RET);
+        x64->prologue();
+        x64->epilogue();
+
         return Storage();
     }
     
@@ -404,7 +406,10 @@ Storage FunctionDefinitionValue::compile(X64 *x64) {
     // RBP points to the relocated stack frame
     Label fixup_label;
     x64->code_label_global(fixup_label, fqn + "__fixup");
+    x64->prologue();
     x64->runtime->log("Fixing arguments of " + function->get_fully_qualified_name());
+    
+    x64->op(MOVQ, RBP, Address(RBP, 0));
     
     for (auto &d : fn_scope->self_scope->contents)
         fix_arg(d.get(), x64);
@@ -412,7 +417,7 @@ Storage FunctionDefinitionValue::compile(X64 *x64) {
     for (auto &d : fn_scope->head_scope->contents)
         fix_arg(d.get(), x64);
     
-    x64->op(RET);
+    x64->epilogue();
 
     function->set_pc_range(low_pc, high_pc);
     x64->runtime->add_func_info(fqn, start_label, fixup_label);

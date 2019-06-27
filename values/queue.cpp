@@ -33,13 +33,14 @@ void compile_queue_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
     Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(x64);
     
     x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("alloc"));
+    x64->prologue();
     
     container_alloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, finalizer_label, x64);
 
     x64->op(MOVQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET), 0);
     x64->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), 0);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -48,11 +49,11 @@ void compile_queue_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("realloc"));
-    //x64->log("realloc_array");
+    x64->prologue();
     
     container_realloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, x64);
     
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
@@ -64,6 +65,8 @@ void compile_queue_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
     x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("grow"));
+    x64->prologue();
+    
     x64->runtime->log("grow_circularray");
     x64->op(PUSHQ, RCX);
     x64->op(PUSHQ, RSI);
@@ -125,7 +128,8 @@ void compile_queue_grow(Label label, TypeSpec elem_ts, X64 *x64) {
     x64->op(POPQ, RDI);
     x64->op(POPQ, RSI);
     x64->op(POPQ, RCX);
-    x64->op(RET);
+    
+    x64->epilogue();
 }
 
 
@@ -138,6 +142,7 @@ void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     TypeSpec heap_ts = elem_ts.prefix(circularray_type);
     
     x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("clone"));
+    x64->prologue();
     x64->runtime->log("XXX queue clone");
     
     x64->op(PUSHQ, RAX);
@@ -189,7 +194,7 @@ void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
     heap_ts.decref(RBX, x64);
     
     x64->code_label(end);
-    x64->op(RET);
+    x64->epilogue();
 }
 
 
