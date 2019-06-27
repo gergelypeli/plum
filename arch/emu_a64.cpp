@@ -1212,9 +1212,6 @@ void Emu_A64::op(DivModOp opcode, Register x, Register y) {
 }
 
 void Emu_A64::floatcmp(ConditionCode cc, FpRegister x, FpRegister y) {
-    if (cc == CC_NOT_EQUAL)
-        throw ASM_ERROR;  // this must be negated explicitly by the caller
-
     // The FCMP instruction sets the V flag on NaN-s, and otherwise the result
     // according to a signed comparison. Since X64 uses flag combinations
     // for unsigned comparisons, we must map those to ours.
@@ -1229,12 +1226,7 @@ void Emu_A64::floatcmp(ConditionCode cc, FpRegister x, FpRegister y) {
         throw ASM_ERROR
     );
 
-    op(CMPF, x, y);  // aka FCMP
-    op(bitset(unordered_cc), R11B);
-    op(bitset(unmatched_cc), R10B);
-    op(ORB, R10B, R11B);
-    
-    // ZF is set if neither condition held, so not unordered, and not unmatched
+    generic_floatcmp(unordered_cc, unmatched_cc, x, y);
 }
 
 
@@ -1246,22 +1238,5 @@ void Emu_A64::floatorder(FpRegister x, FpRegister y) {
     ConditionCode less_cc = CC_LESS;
     ConditionCode greater_cc = CC_GREATER;
 
-    Label finite, end;
-
-    op(CMPF, x, y);  // aka FCMP
-    op(branch(finite_cc), finite);
-    
-    // R11B=1 iff s is finite, R10B=1 iff t is finite
-    op(CMPF, x, x);
-    op(bitset(finite_cc), R11B);
-    op(CMPF, y, y);
-    op(bitset(finite_cc), R10B);
-    op(JMP, end);
-    
-    code_label(finite);
-    op(bitset(less_cc), R11B);
-    op(bitset(greater_cc), R10B);
-    
-    code_label(end);
-    op(SUBB, R10B, R11B);
+    generic_floatorder(finite_cc, less_cc, greater_cc, x, y);
 }

@@ -227,6 +227,9 @@ public:
     virtual unsigned get_pc();
     virtual unsigned get_dc();
 
+    virtual void generic_floatcmp(ConditionCode unordered_cc, ConditionCode unmatched_cc, FpRegister x, FpRegister y);
+    virtual void generic_floatorder(ConditionCode finite_cc, ConditionCode less_cc, ConditionCode greater_cc, FpRegister x, FpRegister y);
+
     virtual std::array<Register, 4> abi_arg_regs() =0;
     virtual std::array<FpRegister, 4> abi_arg_fprs() =0;
     virtual std::array<Register, 2> abi_res_regs() =0;

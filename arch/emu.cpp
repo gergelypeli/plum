@@ -184,3 +184,35 @@ unsigned Emu::get_pc() {
 unsigned Emu::get_dc() {
     return data.size();
 }
+
+
+void Emu::generic_floatcmp(ConditionCode unordered_cc, ConditionCode unmatched_cc, FpRegister x, FpRegister y) {
+    op(CMPF, x, y);
+    op(bitset(unordered_cc), R11B);
+    op(bitset(unmatched_cc), R10B);
+    op(ORB, R10B, R11B);
+    
+    // ZF is set if neither condition held, so not unordered, and not unmatched
+}
+
+
+void Emu::generic_floatorder(ConditionCode finite_cc, ConditionCode less_cc, ConditionCode greater_cc, FpRegister x, FpRegister y) {
+    Label finite, end;
+
+    op(CMPF, x, y);
+    op(branch(finite_cc), finite);
+    
+    // R11B=1 iff s is finite, R10B=1 iff t is finite
+    op(CMPF, x, x);
+    op(bitset(finite_cc), R11B);
+    op(CMPF, y, y);
+    op(bitset(finite_cc), R10B);
+    op(JMP, end);
+    
+    code_label(finite);
+    op(bitset(less_cc), R11B);
+    op(bitset(greater_cc), R10B);
+    
+    code_label(end);
+    op(SUBB, R10B, R11B);
+}
