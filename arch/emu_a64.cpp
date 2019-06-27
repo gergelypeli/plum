@@ -14,6 +14,20 @@ const Register XFP = (Register)29;
 // Architectural scratch registers
 const Register XADDRESS = (Register)17;
 const Register XVALUE = (Register)16;
+const Register XIMMEDIATE = XFP;
+
+// Since we're mostly emulating the X64 instruction set with A64, we need up to 3
+// scratch registers:
+//   * Operations on a memory operands need to be loaded into/stored from a temporary
+//     value register (XVALUE).
+//   * Some fancy X64 addressing cannot be emulated directly, and the address must be
+//     computed in a temporary address register (XADDRESS).
+//   * Some fancy immediate constants cannot be encoded into the instructions,
+//     and must be computed in a temporary immediate register (XIMMEDIATE).
+// An instruction like "ADD [RAX + RBX + 8], 0x1234" therefore needs all 3 scratch registers.
+// Since we don't use FP in our code, but save and restore it upon welcome/goodbye,
+// we shamelessly reuse it for the latter purpose. The current ABI-s don't leave us much
+// choice in this regard.
 
 
 Emu_A64::Emu_A64(std::string module_name) {
@@ -289,6 +303,9 @@ A::MemOpcode Emu_A64::str(int os) {
 void Emu_A64::movimm(Register x, int64 y) {
     // TODO: can be more optimal
     
+    if (x == XVALUE)
+        throw ASM_ERROR;  // XVALUE may contain user data!
+    
     if (y >= 0 && y < 65536)
         asm_a64->op(A::MOVZ, x, y & 0xffff, A::LSL_0);
     else if (y < 0 && y >= -65536)
@@ -526,14 +543,14 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         else if (-y > 0 && -y < 4096)
             asm_a64->op(A::SUBS, x, x, -y);
         else {
-            movimm(XVALUE, y);
-            asm_a64->op(A::ADDS, x, x, XVALUE);
+            movimm(XIMMEDIATE, y);
+            asm_a64->op(A::ADDS, x, x, XIMMEDIATE);
         }
         break;
     case ANDQ:
         // TODO: may be optimized for consecutive bits
-        movimm(XVALUE, y);
-        asm_a64->op(A::ANDS, x, x, XVALUE);
+        movimm(XIMMEDIATE, y);
+        asm_a64->op(A::ANDS, x, x, XIMMEDIATE);
         break;
     case CMPQ:
         if (y >= 0 && y < 4096)
@@ -541,17 +558,18 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         else if (-y > 0 && -y < 4096)
             asm_a64->op(A::ADDS, XZR, x, -y);
         else {
-            movimm(XVALUE, y);
-            asm_a64->op(A::SUBS, XZR, x, XVALUE);
+            movimm(XIMMEDIATE, y);
+            asm_a64->op(A::SUBS, XZR, x, XIMMEDIATE);
         }
         break;
     case MOVQ:
+        // Must not be used if x is XVALUE!
         movimm(x, y);
         break;
     case ORQ:
         // TODO: may be optimized for consecutive bits
-        movimm(XVALUE, y);
-        asm_a64->op(A::ORR, x, x, XVALUE);
+        movimm(XIMMEDIATE, y);
+        asm_a64->op(A::ORR, x, x, XIMMEDIATE);
         break;
     case SBBQ:
         throw ASM_ERROR;
@@ -562,19 +580,19 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
         else if (-y > 0 && -y < 4096)
             asm_a64->op(A::ADDS, x, x, -y);
         else {
-            movimm(XVALUE, y);
-            asm_a64->op(A::SUBS, x, x, XVALUE);
+            movimm(XIMMEDIATE, y);
+            asm_a64->op(A::SUBS, x, x, XIMMEDIATE);
         }
         break;
     case TESTQ:
         // TODO: may be optimized for consecutive bits
-        movimm(XVALUE, y);
-        asm_a64->op(A::ANDS, XZR, x, XVALUE);
+        movimm(XIMMEDIATE, y);
+        asm_a64->op(A::ANDS, XZR, x, XIMMEDIATE);
         break;
     case XORQ:
         // TODO: may be optimized for consecutive bits
-        movimm(XVALUE, y);
-        asm_a64->op(A::EOR, x, x, XVALUE);
+        movimm(XIMMEDIATE, y);
+        asm_a64->op(A::EOR, x, x, XIMMEDIATE);
         break;
     default:
         throw ASM_ERROR;
@@ -585,12 +603,22 @@ void Emu_A64::op(BinaryOp opcode, Register x, int y) {
 void Emu_A64::op(BinaryOp opcode, Address x, int y) {
     int os = opcode & 3;
     Addressing aing = prepare(os, x);
-    
-    mem(ldrs(os), XVALUE, aing);
-    
-    op(opcode, XVALUE, y);
-    
-    mem(str(os), XVALUE, aing);
+
+    if (opcode % 3 == MOVQ) {
+        // Don't load the former value just to be overwritten
+        op(opcode, XIMMEDIATE, y);
+        mem(str(os), XIMMEDIATE, aing);
+    }
+    else if (opcode % 3 == CMPQ || opcode % 3 == TESTQ) {
+        // Don't store the unchanged value
+        mem(ldrs(os), XVALUE, aing);
+        op(opcode, XVALUE, y);
+    }
+    else {
+        mem(ldrs(os), XVALUE, aing);
+        op(opcode, XVALUE, y);
+        mem(str(os), XVALUE, aing);
+    }
 }
 
 
@@ -639,6 +667,11 @@ void Emu_A64::op(BinaryOp opcode, Address x, Register y) {
     if (opcode % 3 == MOVQ) {
         // Don't load the former value just to be overwritten
         mem(str(os), y, aing);
+    }
+    else if (opcode % 3 == CMPQ || opcode % 3 == TESTQ) {
+        // Don't store the unchanged value
+        mem(ldrs(os), XVALUE, aing);
+        op(opcode, XVALUE, y);
     }
     else {
         mem(ldrs(os), XVALUE, aing);
@@ -701,6 +734,9 @@ void Emu_A64::op(ShiftOp opcode, Register x, Register y) {
     default:
         throw ASM_ERROR;
     }
+
+    // Ahhh, these doesn't set the flags
+    op(CMPQ, x, 0);
 }
 
 
@@ -735,6 +771,8 @@ void Emu_A64::op(ShiftOp opcode, Register x, char y) {
         throw ASM_ERROR;
     }
 
+    // Ahhh, these doesn't set the flags
+    op(CMPQ, x, 0);
 }
 
 
@@ -779,8 +817,8 @@ void Emu_A64::op(ExchangeOp opcode, Register x, Address y) {
 void Emu_A64::op(StackOp opcode, int x) {
     switch (opcode) {
     case PUSHQ:
-        movimm(XVALUE, x);
-        pushq(XVALUE);
+        movimm(XIMMEDIATE, x);
+        pushq(XIMMEDIATE);
         break;
     default:
         throw ASM_ERROR;
@@ -878,8 +916,8 @@ void Emu_A64::op(RegisterFirstOp opcode, Register x, Address y) {
 
 
 void Emu_A64::op(Imul3Op opcode, Register x, Register y, int z) {
-    movimm(XVALUE, z);
-    asm_a64->op(A::MADD, x, x, XVALUE, XZR);
+    movimm(XIMMEDIATE, z);
+    asm_a64->op(A::MADD, x, y, XIMMEDIATE, XZR);
 }
 
 
@@ -888,8 +926,8 @@ void Emu_A64::op(Imul3Op opcode, Register x, Address y, int z) {
     Addressing aing = prepare(os, y);
 
     mem(ldrs(os), x, aing);
-    movimm(XVALUE, z);
-    asm_a64->op(A::MADD, x, x, XVALUE, XZR);
+    movimm(XIMMEDIATE, z);
+    asm_a64->op(A::MADD, x, x, XIMMEDIATE, XZR);
 }
 
 
