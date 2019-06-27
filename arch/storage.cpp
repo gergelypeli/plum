@@ -16,7 +16,7 @@ StorageWhere stacked(StorageWhere w) {
         value = 0;
         cc = CC_NONE;
         reg = NOREG;
-        sse = NOSSE;
+        fpr = NOFPR;
     }
 
     Storage::Storage(StorageWhere w) {
@@ -29,7 +29,7 @@ StorageWhere stacked(StorageWhere w) {
         value = 0;
         cc = CC_NONE;
         reg = NOREG;
-        sse = NOSSE;
+        fpr = NOFPR;
     }
 
     Storage::Storage(StorageWhere w, int v) {
@@ -42,7 +42,7 @@ StorageWhere stacked(StorageWhere w) {
         value = v;
         cc = CC_NONE;
         reg = NOREG;
-        sse = NOSSE;
+        fpr = NOFPR;
     }
 
     Storage::Storage(StorageWhere w, ConditionCode c) {
@@ -55,7 +55,7 @@ StorageWhere stacked(StorageWhere w) {
         value = 0;
         cc = c;
         reg = NOREG;
-        sse = NOSSE;
+        fpr = NOFPR;
     }
 
     Storage::Storage(StorageWhere w, Register r) {
@@ -68,11 +68,11 @@ StorageWhere stacked(StorageWhere w) {
         value = 0;
         cc = CC_NONE;
         reg = r;
-        sse = NOSSE;
+        fpr = NOFPR;
     }
 
-    Storage::Storage(StorageWhere w, SseRegister s) {
-        if (w != SSEREGISTER) {
+    Storage::Storage(StorageWhere w, FpRegister s) {
+        if (w != FPREGISTER) {
             std::cerr << "Wrong Storage!\n";
             throw INTERNAL_ERROR;
         }
@@ -81,7 +81,7 @@ StorageWhere stacked(StorageWhere w) {
         value = 0;
         cc = CC_NONE;
         reg = NOREG;
-        sse = s;
+        fpr = s;
     }
 
     Storage::Storage(StorageWhere w, Address a) {
@@ -94,7 +94,7 @@ StorageWhere stacked(StorageWhere w) {
         value = 0;
         cc = CC_NONE;
         reg = NOREG;
-        sse = NOSSE;
+        fpr = NOFPR;
         address = a;
     }
 
@@ -108,7 +108,7 @@ StorageWhere stacked(StorageWhere w) {
         value = v;
         cc = CC_NONE;
         reg = NOREG;
-        sse = NOSSE;
+        fpr = NOFPR;
         address = a;
     }
 
@@ -122,8 +122,8 @@ StorageWhere stacked(StorageWhere w) {
             return Regs();
         case REGISTER:
             return reg != NOREG ? Regs(reg) : Regs();
-        case SSEREGISTER:
-            return sse != NOSSE ? Regs(sse) : Regs();
+        case FPREGISTER:
+            return fpr != NOFPR ? Regs(fpr) : Regs();
         case STACK:
         case ALISTACK:
             return Regs();
@@ -175,8 +175,8 @@ std::ostream &operator<<(std::ostream &os, const Storage &s) {
         os << "FLAGS(" << s.cc << ")";
     else if (s.where == REGISTER)
         os << "REGISTER(" << s.reg << ")";
-    else if (s.where == SSEREGISTER)
-        os << "SSEREGISTER(" << s.sse << ")";
+    else if (s.where == FPREGISTER)
+        os << "FPREGISTER(" << s.fpr << ")";
     else if (s.where == STACK)
         os << "STACK";
     else if (s.where == MEMORY)

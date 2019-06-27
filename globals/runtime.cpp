@@ -237,7 +237,7 @@ Runtime::Runtime(X64 *x, unsigned application_size, std::vector<std::string> sou
     
     x64->absolute_label(zero_label, 0);
 
-    // Float constants are aligned to 16 bytes so SSE packed instructions can use it
+    // Float constants are aligned to 16 bytes so SIMD packed instructions can use it
     x64->data_align(16);
     x64->data_label(float_zero_label);
     x64->data_double(0.0);

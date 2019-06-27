@@ -28,7 +28,7 @@ Storage StringRegexpMatcherValue::compile(X64 *x64) {
     x64->op(MOVQ, arg_regs[0], Address(RSP, ADDRESS_SIZE));
     x64->op(MOVQ, arg_regs[1], Address(RSP, 0));
     
-    // This uses SSE instructions, so SysV stack alignment must be ensured
+    // This uses SIMD instructions on X64, so SysV stack alignment must be ensured
     x64->runtime->call_sysv(x64->runtime->sysv_string_regexp_match_label);
 
     right->ts.store(Storage(STACK), Storage(), x64);

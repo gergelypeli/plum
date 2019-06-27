@@ -528,7 +528,7 @@ Storage VariableValue::compile(X64 *x64) {
                 throw INTERNAL_ERROR;
         }
         else {
-            if (s.where == REGISTER || s.where == SSEREGISTER)
+            if (s.where == REGISTER || s.where == FPREGISTER)
                 t = s;  // optimized record, no need to extract
             else if (s.where == STACK)
                 t = s;  // we'll do the member extraction later
@@ -803,7 +803,7 @@ Storage EvaluateValue::compile(X64 *x64) {
     Storage t = (
         where == NOWHERE ? Storage() :
         where == REGISTER ? Storage(REGISTER, RAX) :
-        where == SSEREGISTER ? Storage(SSEREGISTER, XMM0) :
+        where == FPREGISTER ? Storage(FPREGISTER, FPR0) :
         Storage(STACK)
     );
     

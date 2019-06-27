@@ -16,19 +16,19 @@ std::ostream &operator << (std::ostream &os, const Register r) {
 }
 
 
-const char *SSE_REGISTER_NAMES[] = {
-    "XMM0", "XMM1", "XMM2", "XMM3", "XMM4", "XMM5", "XMM6", "XMM7",
-    "XMM8", "XMM9", "XMM10", "XMM11", "XMM12", "XMM13", "XMM14", "XMM15",
+const char *FPR_REGISTER_NAMES[] = {
+    "FPR0", "FPR1", "FPR2", "FPR3", "FPR4", "FPR5", "FPR6", "FPR7",
+    "FPR8", "FPR9", "FPR10", "FPR11", "FPR12", "FPR13", "FPR14", "FPR15",
 };
 
 
-const char *sseregister_name(SseRegister r) {
-    return (r == NOSSE ? "---" : SSE_REGISTER_NAMES[r]);
+const char *fpregister_name(FpRegister r) {
+    return (r == NOFPR ? "---" : FPR_REGISTER_NAMES[r]);
 }
 
 
-std::ostream &operator << (std::ostream &os, const SseRegister r) {
-    os << sseregister_name(r);
+std::ostream &operator << (std::ostream &os, const FpRegister r) {
+    os << fpregister_name(r);
     return os;
 }
 
@@ -83,8 +83,8 @@ void Regs::validate(Register r) {
         throw ASM_ERROR;
 }
 
-void Regs::validate(SseRegister s) {
-    if (s == NOSSE || s == XMM14 || s == XMM15)
+void Regs::validate(FpRegister s) {
+    if (s == NOFPR || s == FPR14 || s == FPR15)
         throw ASM_ERROR;
 }
 
@@ -143,7 +143,7 @@ Regs::Regs(Register r1, Register r2, Register r3, Register r4, Register r5) {
     available = (1UL << (int)r1) | (1UL << (int)r2) | (1UL << (int)r3) | (1UL << (int)r4) | (1UL << (int)r5);
 }
 
-Regs::Regs(SseRegister s) {
+Regs::Regs(FpRegister s) {
     validate(s);
     available = (1UL << ((int)s + 16));
 }
@@ -176,8 +176,8 @@ bool Regs::has_gpr() {
     return (available & GPR_MASK) != 0;
 }
 
-bool Regs::has_sse() {
-    return (available & SSE_MASK) != 0;
+bool Regs::has_fpr() {
+    return (available & FPR_MASK) != 0;
 }
 
 int Regs::count_gpr() {
@@ -191,11 +191,11 @@ int Regs::count_gpr() {
     return n;
 }
 
-int Regs::count_sse() {
+int Regs::count_fpr() {
     int n = 0;
     
     for (int i=0; i<REGS_TOTAL; i++)
-        if (available & SSE_MASK & (1UL << i)) {
+        if (available & FPR_MASK & (1UL << i)) {
             n++;
         }
 
@@ -212,13 +212,13 @@ Register Regs::get_gpr() {
     throw ASM_ERROR;
 }
 
-SseRegister Regs::get_sse() {
+FpRegister Regs::get_fpr() {
     for (int i=0; i<REGS_TOTAL; i++)
-        if (available & SSE_MASK & (1UL << i)) {
-            return (SseRegister)(i - 16);
+        if (available & FPR_MASK & (1UL << i)) {
+            return (FpRegister)(i - 16);
         }
 
-    std::cerr << "No available SSE register!\n";
+    std::cerr << "No available FP register!\n";
     throw ASM_ERROR;
 }
 

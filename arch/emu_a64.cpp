@@ -203,8 +203,8 @@ std::array<Register, 4> Emu_A64::abi_arg_regs() {
 }
 
 
-std::array<SseRegister, 4> Emu_A64::abi_arg_sses() {
-    return { (SseRegister)0, (SseRegister)1, (SseRegister)2, (SseRegister)3 };
+std::array<FpRegister, 4> Emu_A64::abi_arg_fprs() {
+    return { (FpRegister)0, (FpRegister)1, (FpRegister)2, (FpRegister)3 };
 }
 
 
@@ -213,8 +213,8 @@ std::array<Register, 2> Emu_A64::abi_res_regs() {
 }
 
 
-std::array<SseRegister, 2> Emu_A64::abi_res_sses() {
-    return { (SseRegister)0, (SseRegister)1 };
+std::array<FpRegister, 2> Emu_A64::abi_res_fprs() {
+    return { (FpRegister)0, (FpRegister)1 };
 }
 
 
@@ -260,7 +260,7 @@ int Emu_A64::dwarf_register_number(Register r) {
 }
 
 
-int Emu_A64::dwarf_sseregister_number(SseRegister s) {
+int Emu_A64::dwarf_fprregister_number(FpRegister s) {
     return 64 + (int)s;
 }
 
@@ -1025,18 +1025,18 @@ void Emu_A64::op(JumpOp opcode, Register x) {
 }
 
 
-void Emu_A64::op(SsememSsememOp opcode, SseRegister x, SseRegister y) {}
-void Emu_A64::op(SsememSsememOp opcode, SseRegister x, Address y) {}
-void Emu_A64::op(SsememSsememOp opcode, Address x, SseRegister y) {}
+void Emu_A64::op(FprmemFprmemOp opcode, FpRegister x, FpRegister y) {}
+void Emu_A64::op(FprmemFprmemOp opcode, FpRegister x, Address y) {}
+void Emu_A64::op(FprmemFprmemOp opcode, Address x, FpRegister y) {}
 
-void Emu_A64::op(SseSsememOp opcode, SseRegister x, SseRegister y) {}
-void Emu_A64::op(SseSsememOp opcode, SseRegister x, Address y) {}
+void Emu_A64::op(FprFprmemOp opcode, FpRegister x, FpRegister y) {}
+void Emu_A64::op(FprFprmemOp opcode, FpRegister x, Address y) {}
 
-void Emu_A64::op(SseGprmemOp opcode, SseRegister x, Register y) {}
-void Emu_A64::op(SseGprmemOp opcode, SseRegister x, Address y) {}
+void Emu_A64::op(FprGprmemOp opcode, FpRegister x, Register y) {}
+void Emu_A64::op(FprGprmemOp opcode, FpRegister x, Address y) {}
 
-void Emu_A64::op(GprSsememOp opcode, Register x, SseRegister y) {}
-void Emu_A64::op(GprSsememOp opcode, Register x, Address y) {}
+void Emu_A64::op(GprFprmemOp opcode, Register x, FpRegister y) {}
+void Emu_A64::op(GprFprmemOp opcode, Register x, Address y) {}
 
 void Emu_A64::op(DivModOp opcode, Register x, Register y) {
     switch (opcode % 3) {
@@ -1059,9 +1059,9 @@ void Emu_A64::op(DivModOp opcode, Register x, Register y) {
     }
 }
 
-void Emu_A64::floatcmp(ConditionCode cc, SseRegister x, SseRegister y) {
+void Emu_A64::floatcmp(ConditionCode cc, FpRegister x, FpRegister y) {
 }
 
 
-void Emu_A64::floatorder(SseRegister x, SseRegister y) {
+void Emu_A64::floatorder(FpRegister x, FpRegister y) {
 }

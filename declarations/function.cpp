@@ -260,7 +260,7 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     if (res_tss.size() == 1) {
         StorageWhere simple_where = res_tss[0].where(AS_VALUE);
         
-        if (simple_where != REGISTER && simple_where != SSEREGISTER) {
+        if (simple_where != REGISTER && simple_where != FPREGISTER) {
             std::cerr << "Oops, not a simple result from a SysV function!\n";
             throw INTERNAL_ERROR;
         }
@@ -272,9 +272,9 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     x64->prologue();
 
     std::array<Register, 4> arg_regs = x64->abi_arg_regs();
-    std::array<SseRegister, 4> arg_sses = x64->abi_arg_sses();
+    std::array<FpRegister, 4> arg_fprs = x64->abi_arg_fprs();
     unsigned reg_index = 0;
-    unsigned sse_index = 0;
+    unsigned fpr_index = 0;
     
     // Account for the return address and the saved RBP
     unsigned stack_offset = passed_size + RIP_SIZE + ADDRESS_SIZE;
@@ -288,8 +288,8 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
         
         if (optimal_where == NOWHERE)
             ;  // happens for singleton pivots
-        else if (optimal_where == SSEREGISTER)
-            x64->op(MOVSD, arg_sses[sse_index++], Address(RBP, stack_offset));
+        else if (optimal_where == FPREGISTER)
+            x64->op(MOVSD, arg_fprs[fpr_index++], Address(RBP, stack_offset));
         else if (pushed_where == ALISTACK)
             x64->op(MOVQ, arg_regs[reg_index++], Address(RBP, stack_offset));
         else if (pushed_sizes[i] == ADDRESS_SIZE)
@@ -308,7 +308,7 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
     // put in RDX, so it may need a fix.
     StorageWhere simple_where = (res_tss.size() ? res_tss[0].where(AS_VALUE) : NOWHERE);
     std::array<Register, 2> res_regs = x64->abi_res_regs();
-    std::array<SseRegister, 2> res_sses = x64->abi_res_sses();
+    std::array<FpRegister, 2> res_fprs = x64->abi_res_fprs();
 
     switch (simple_where) {
     case NOWHERE:
@@ -327,13 +327,13 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
             x64->op(MOVQ, RAX, res_regs[0]);
         }
         break;
-    case SSEREGISTER:
+    case FPREGISTER:
         if (exception_type) {
             x64->op(MOVQ, RDX, res_regs[0]);
-            x64->op(MOVSD, XMM0, res_sses[0]);
+            x64->op(MOVSD, FPR0, res_fprs[0]);
         }
         else {
-            x64->op(MOVSD, XMM0, res_sses[0]);
+            x64->op(MOVSD, FPR0, res_fprs[0]);
         }
         break;
     default:

@@ -11,32 +11,32 @@ Allocation FloatType::measure(TypeMatch tm) {
 
 void FloatType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     switch (s.where * t.where) {
-    case NOWHERE_SSEREGISTER:
-        x64->op(MOVSD, t.sse, Address(x64->runtime->float_zero_label, 0));
+    case NOWHERE_FPREGISTER:
+        x64->op(MOVSD, t.fpr, Address(x64->runtime->float_zero_label, 0));
         break;
     case NOWHERE_STACK:
         x64->op(PUSHQ, 0);  // using that 0.0 is represented as all zeroes
         break;
 
-    case SSEREGISTER_NOWHERE:
+    case FPREGISTER_NOWHERE:
         break;
-    case SSEREGISTER_SSEREGISTER:
-        if (s.sse != t.sse)
-            x64->op(MOVSD, t.sse, s.sse);
+    case FPREGISTER_FPREGISTER:
+        if (s.fpr != t.fpr)
+            x64->op(MOVSD, t.fpr, s.fpr);
         break;
-    case SSEREGISTER_STACK:
+    case FPREGISTER_STACK:
         x64->op(SUBQ, RSP, FLOAT_SIZE);
-        x64->op(MOVSD, Address(RSP, 0), s.sse);
+        x64->op(MOVSD, Address(RSP, 0), s.fpr);
         break;
-    case SSEREGISTER_MEMORY:
-        x64->op(MOVSD, t.address, s.sse);
+    case FPREGISTER_MEMORY:
+        x64->op(MOVSD, t.address, s.fpr);
         break;
         
     case STACK_NOWHERE:
         x64->op(ADDQ, RSP, FLOAT_SIZE);
         break;
-    case STACK_SSEREGISTER:
-        x64->op(MOVSD, s.sse, Address(RSP, 0));
+    case STACK_FPREGISTER:
+        x64->op(MOVSD, s.fpr, Address(RSP, 0));
         x64->op(ADDQ, RSP, FLOAT_SIZE);
         break;
         
@@ -45,8 +45,8 @@ void FloatType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         
     case MEMORY_NOWHERE:
         break;
-    case MEMORY_SSEREGISTER:
-        x64->op(MOVSD, t.sse, s.address);
+    case MEMORY_FPREGISTER:
+        x64->op(MOVSD, t.fpr, s.address);
         break;
     case MEMORY_STACK:
         x64->op(PUSHQ, s.address);
@@ -65,8 +65,8 @@ void FloatType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     case NOWHERE_MEMORY:
         x64->op(MOVQ, t.address, 0);  // using that 0.0 is represented as all zeroes
         break;
-    case SSEREGISTER_MEMORY:
-        x64->op(MOVSD, t.address, s.sse);
+    case FPREGISTER_MEMORY:
+        x64->op(MOVSD, t.address, s.fpr);
         break;
     case STACK_MEMORY:
         x64->op(POPQ, t.address);
@@ -92,21 +92,21 @@ void FloatType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     // Values are equal iff ZF && !PF. Thanks, NaN!
     
     switch (s.where * t.where) {
-    case SSEREGISTER_SSEREGISTER:
-        x64->floatcmp(CC_EQUAL, s.sse, t.sse);
+    case FPREGISTER_FPREGISTER:
+        x64->floatcmp(CC_EQUAL, s.fpr, t.fpr);
         return;
-    case SSEREGISTER_MEMORY:
-        x64->op(MOVSD, XMM15, t.address);
-        x64->floatcmp(CC_EQUAL, s.sse, XMM15);
+    case FPREGISTER_MEMORY:
+        x64->op(MOVSD, FPR15, t.address);
+        x64->floatcmp(CC_EQUAL, s.fpr, FPR15);
         return;
-    case MEMORY_SSEREGISTER:
-        x64->op(MOVSD, XMM15, s.address);
-        x64->floatcmp(CC_EQUAL, XMM15, t.sse);
+    case MEMORY_FPREGISTER:
+        x64->op(MOVSD, FPR15, s.address);
+        x64->floatcmp(CC_EQUAL, FPR15, t.fpr);
         return;
     case MEMORY_MEMORY:
-        x64->op(MOVSD, XMM14, s.address);
-        x64->op(MOVSD, XMM15, t.address);
-        x64->floatcmp(CC_EQUAL, XMM14, XMM15);
+        x64->op(MOVSD, FPR14, s.address);
+        x64->op(MOVSD, FPR15, t.address);
+        x64->floatcmp(CC_EQUAL, FPR14, FPR15);
         return;
     default:
         throw INTERNAL_ERROR;
@@ -119,21 +119,21 @@ void FloatType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     Label finite, end;
     
     switch (s.where * t.where) {
-    case SSEREGISTER_SSEREGISTER:
-        x64->floatorder(s.sse, t.sse);
+    case FPREGISTER_FPREGISTER:
+        x64->floatorder(s.fpr, t.fpr);
         break;
-    case SSEREGISTER_MEMORY:
-        x64->op(MOVSD, XMM15, t.address);
-        x64->floatorder(s.sse, XMM15);
+    case FPREGISTER_MEMORY:
+        x64->op(MOVSD, FPR15, t.address);
+        x64->floatorder(s.fpr, FPR15);
         break;
-    case MEMORY_SSEREGISTER:
-        x64->op(MOVSD, XMM15, s.address);
-        x64->floatorder(XMM15, t.sse);
+    case MEMORY_FPREGISTER:
+        x64->op(MOVSD, FPR15, s.address);
+        x64->floatorder(FPR15, t.fpr);
         break;
     case MEMORY_MEMORY:
-        x64->op(MOVSD, XMM14, s.address);
-        x64->op(MOVSD, XMM15, t.address);
-        x64->floatorder(XMM14, XMM15);
+        x64->op(MOVSD, FPR14, s.address);
+        x64->op(MOVSD, FPR15, t.address);
+        x64->floatorder(FPR14, FPR15);
         break;
     default:
         throw INTERNAL_ERROR;
@@ -142,7 +142,7 @@ void FloatType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
 
 StorageWhere FloatType::where(TypeMatch tm, AsWhat as_what) {
     return (
-        as_what == AS_VALUE ? SSEREGISTER :
+        as_what == AS_VALUE ? FPREGISTER :
         as_what == AS_VARIABLE ? MEMORY :
         as_what == AS_ARGUMENT ? MEMORY :
         as_what == AS_LVALUE_ARGUMENT ? ALIAS :
@@ -151,20 +151,20 @@ StorageWhere FloatType::where(TypeMatch tm, AsWhat as_what) {
 }
 
 Storage FloatType::optimal_value_storage(TypeMatch tm, Regs preferred) {
-    if (preferred.has_sse())
-        return Storage(SSEREGISTER, preferred.get_sse());
+    if (preferred.has_fpr())
+        return Storage(FPREGISTER, preferred.get_fpr());
     else
         return Storage(STACK);
 }
 
 void FloatType::streamify(TypeMatch tm, X64 *x64) {
     auto arg_regs = x64->abi_arg_regs();
-    auto arg_sses = x64->abi_arg_sses();
+    auto arg_fprs = x64->abi_arg_fprs();
     Address value_addr(RSP, ALIAS_SIZE);
     Address alias_addr(RSP, 0);
 
     // SysV
-    x64->op(MOVSD, arg_sses[0], value_addr);
+    x64->op(MOVSD, arg_fprs[0], value_addr);
     x64->op(MOVQ, arg_regs[0], alias_addr);
     
     x64->runtime->call_sysv(x64->runtime->sysv_streamify_float_label);

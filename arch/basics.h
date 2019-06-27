@@ -25,14 +25,14 @@ enum HighByteRegister {
 };
 
 
-enum SseRegister {
-    XMM0=0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
-    XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15,
-    NOSSE=-1
+enum FpRegister {
+    FPR0=0, FPR1, FPR2, FPR3, FPR4, FPR5, FPR6, FPR7,
+    FPR8, FPR9, FPR10, FPR11, FPR12, FPR13, FPR14, FPR15,
+    NOFPR=-1
 };
 
-const char *sseregister_name(SseRegister r);
-std::ostream &operator << (std::ostream &os, const SseRegister r);
+const char *fpregister_name(FpRegister r);
+std::ostream &operator << (std::ostream &os, const FpRegister r);
 
 
 enum ConditionCode {
@@ -71,27 +71,27 @@ enum Slash {
 enum RegSubset {
     GPR_SUBSET,
     PTR_SUBSET,
-    SSE_SUBSET
+    FPR_SUBSET
 };
 
 struct Regs {
 private:
     // 16 general registers, except RSP (4, 0x10), RBP (5, 0x20), R10 (10, 0x400), R11 (11, 0x800).
-    // 16 SSE registers, except XMM14 and XMM15 ({14,15}+16, 0xC0000000).
+    // 16 FP registers, except FPR14 and FPR15 ({14,15}+16, 0xC0000000).
     static const int REGS_TOTAL = 32;
     static const unsigned64 GPR_MASK  = 0x00000000F3CF;
     static const unsigned64 PTR_MASK  = 0x00000000F3CF;
-    static const unsigned64 SSE_MASK  = 0x00003FFF0000;
+    static const unsigned64 FPR_MASK  = 0x00003FFF0000;
     static const unsigned64 STACKVARS = 0x000100000000;
     static const unsigned64 HEAPVARS  = 0x000200000000;
-    static const unsigned64 ALL_MASK  = GPR_MASK | PTR_MASK | SSE_MASK | STACKVARS | HEAPVARS;
+    static const unsigned64 ALL_MASK  = GPR_MASK | PTR_MASK | FPR_MASK | STACKVARS | HEAPVARS;
     
     unsigned64 available;
     
     Regs(unsigned64 a);
 
     void validate(Register r);
-    void validate(SseRegister s);
+    void validate(FpRegister s);
 
 public:
     Regs();
@@ -104,7 +104,7 @@ public:
     Regs(Register r1, Register r2, Register r3);
     Regs(Register r1, Register r2, Register r3, Register r4);
     Regs(Register r1, Register r2, Register r3, Register r4, Register r5);
-    Regs(SseRegister s);
+    Regs(FpRegister s);
     Regs operator |(Regs other);
     Regs operator &(Regs other);
     Regs operator ~();
@@ -112,11 +112,11 @@ public:
     bool operator !=(Regs other);
     explicit operator bool();
     bool has_gpr();
-    bool has_sse();
+    bool has_fpr();
     int count_gpr();
-    int count_sse();
+    int count_fpr();
     Register get_gpr();
-    SseRegister get_sse();
+    FpRegister get_fpr();
     void reserve_gpr(int requested);
 };
 

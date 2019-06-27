@@ -130,8 +130,8 @@ std::array<Register, 4> Emu_X64::abi_arg_regs() {
 }
 
 
-std::array<SseRegister, 4> Emu_X64::abi_arg_sses() {
-    return { XMM0, XMM1, XMM2, XMM3 };
+std::array<FpRegister, 4> Emu_X64::abi_arg_fprs() {
+    return { FPR0, FPR1, FPR2, FPR3 };
 }
 
 
@@ -140,8 +140,8 @@ std::array<Register, 2> Emu_X64::abi_res_regs() {
 }
 
 
-std::array<SseRegister, 2> Emu_X64::abi_res_sses() {
-    return { XMM0, XMM1 };
+std::array<FpRegister, 2> Emu_X64::abi_res_fprs() {
+    return { FPR0, FPR1 };
 }
 
 
@@ -182,7 +182,7 @@ int Emu_X64::dwarf_register_number(Register r) {
 }
 
 
-int Emu_X64::dwarf_sseregister_number(SseRegister s) {
+int Emu_X64::dwarf_fprregister_number(FpRegister s) {
     return 17 + (int)s;
 }
 
@@ -319,28 +319,28 @@ static X::BitSetOp map(BitSetOp x) {
 };
 
 
-static X::SsememSsememOp map(SsememSsememOp x) {
+static X::FprmemFprmemOp map(FprmemFprmemOp x) {
     return
         MAP(MOVQW) MAP(MOVSD) MAP(MOVSS)
         throw ASM_ERROR;
 };
 
 
-static X::SseSsememOp map(SseSsememOp x) {
+static X::FprFprmemOp map(FprFprmemOp x) {
     return
         MAP(ADDSD) MAP(SUBSD) MAP(MULSD) MAP(DIVSD) MAP(COMISD) MAP(UCOMISD) MAP(CVTSS2SD) MAP(CVTSD2SS) MAP(MAXSD) MAP(MINSD) MAP(SQRTSD) MAP(PXOR)
         throw ASM_ERROR;
 };
 
 
-static X::SseGprmemOp map(SseGprmemOp x) {
+static X::FprGprmemOp map(FprGprmemOp x) {
     return
         MAP(CVTSI2SD)
         throw ASM_ERROR;
 };
 
 
-static X::GprSsememOp map(GprSsememOp x) {
+static X::GprFprmemOp map(GprFprmemOp x) {
     return
         MAP(CVTSD2SI) MAP(CVTTSD2SI)
         throw ASM_ERROR;
@@ -377,18 +377,18 @@ void Emu_X64::op(JumpOp opcode, Label c) { asm_x64->op(map(opcode), c); }
 void Emu_X64::op(JumpOp opcode, Address x) { asm_x64->op(map(opcode), x); }
 void Emu_X64::op(JumpOp opcode, Register x) { asm_x64->op(map(opcode), x); }
 
-void Emu_X64::op(SsememSsememOp opcode, SseRegister x, SseRegister y) { asm_x64->op(map(opcode), x, y); }
-void Emu_X64::op(SsememSsememOp opcode, SseRegister x, Address y) { asm_x64->op(map(opcode), x, y); }
-void Emu_X64::op(SsememSsememOp opcode, Address x, SseRegister y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(FprmemFprmemOp opcode, FpRegister x, FpRegister y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(FprmemFprmemOp opcode, FpRegister x, Address y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(FprmemFprmemOp opcode, Address x, FpRegister y) { asm_x64->op(map(opcode), x, y); }
 
-void Emu_X64::op(SseSsememOp opcode, SseRegister x, SseRegister y) { asm_x64->op(map(opcode), x, y); }
-void Emu_X64::op(SseSsememOp opcode, SseRegister x, Address y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(FprFprmemOp opcode, FpRegister x, FpRegister y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(FprFprmemOp opcode, FpRegister x, Address y) { asm_x64->op(map(opcode), x, y); }
 
-void Emu_X64::op(SseGprmemOp opcode, SseRegister x, Register y) { asm_x64->op(map(opcode), x, y); }
-void Emu_X64::op(SseGprmemOp opcode, SseRegister x, Address y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(FprGprmemOp opcode, FpRegister x, Register y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(FprGprmemOp opcode, FpRegister x, Address y) { asm_x64->op(map(opcode), x, y); }
 
-void Emu_X64::op(GprSsememOp opcode, Register x, SseRegister y) { asm_x64->op(map(opcode), x, y); }
-void Emu_X64::op(GprSsememOp opcode, Register x, Address y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(GprFprmemOp opcode, Register x, FpRegister y) { asm_x64->op(map(opcode), x, y); }
+void Emu_X64::op(GprFprmemOp opcode, Register x, Address y) { asm_x64->op(map(opcode), x, y); }
 
 void Emu_X64::op(ShiftOp opcode, Register x, Register y) {
     if (y == RCX) {
@@ -522,7 +522,7 @@ void Emu_X64::op(DivModOp opcode, Register x, Register y) {
 }
 
 
-void Emu_X64::floatcmp(ConditionCode cc, SseRegister x, SseRegister y) {
+void Emu_X64::floatcmp(ConditionCode cc, FpRegister x, FpRegister y) {
     // NOTE: (U)COMISD is like an unsigned comparison with a twist
     // unordered => ZF+CF+PF
     // less => CF
@@ -550,7 +550,7 @@ void Emu_X64::floatcmp(ConditionCode cc, SseRegister x, SseRegister y) {
 }
 
 
-void Emu_X64::floatorder(SseRegister x, SseRegister y) {
+void Emu_X64::floatorder(FpRegister x, FpRegister y) {
     // We need to do something with NaN-s, so do what Java does, and treat them
     // as greater than everything, including positive infinity. Chuck Norris likes this.
 

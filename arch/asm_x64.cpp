@@ -68,7 +68,7 @@ Asm_X64::RexFlags Asm_X64::r(Register regfield) {
 }
 
 
-Asm_X64::RexFlags Asm_X64::r(SseRegister regfield) {
+Asm_X64::RexFlags Asm_X64::r(FpRegister regfield) {
     return
         (regfield >= 8 ? REX_R : REX_NONE);
 }
@@ -87,7 +87,7 @@ Asm_X64::RexFlags Asm_X64::xb(Register rm) {
 }
 
 
-Asm_X64::RexFlags Asm_X64::xb(SseRegister rm) {
+Asm_X64::RexFlags Asm_X64::xb(FpRegister rm) {
     return
         (rm >= 8 ? REX_B : REX_NONE);
 }
@@ -182,7 +182,7 @@ void Asm_X64::effective_address(int regfield, Register rm) {
 }
 
 
-void Asm_X64::effective_address(int regfield, SseRegister rm) {
+void Asm_X64::effective_address(int regfield, FpRegister rm) {
     // The cut off bits belong to the REX prefix
     code_byte(0xC0 | ((regfield & 7) << 3) | (rm & 7));
 }
@@ -324,25 +324,25 @@ void Asm_X64::code_op(int opcode, Opsize opsize, Register regfield, Address rm) 
 }
 
 
-void Asm_X64::code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm) {
+void Asm_X64::code_op(int opcode, Opsize opsize, FpRegister regfield, FpRegister rm) {
     prefixed_op(opcode, opsize, r(regfield) | xb(rm));
     effective_address(regfield, rm);
 }
 
 
-void Asm_X64::code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm) {
+void Asm_X64::code_op(int opcode, Opsize opsize, FpRegister regfield, Address rm) {
     prefixed_op(opcode, opsize, r(regfield) | xb(rm));
     effective_address(regfield, rm);
 }
 
 
-void Asm_X64::code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm) {
+void Asm_X64::code_op(int opcode, Opsize opsize, FpRegister regfield, Register rm) {
     prefixed_op(opcode, opsize, r(regfield) | xb(rm) | q(rm));
     effective_address(regfield, rm);
 }
 
 
-void Asm_X64::code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm) {
+void Asm_X64::code_op(int opcode, Opsize opsize, Register regfield, FpRegister rm) {
     prefixed_op(opcode, opsize, r(regfield) | xb(rm) | q(regfield));
     effective_address(regfield, rm);
 }
@@ -930,28 +930,28 @@ void Asm_X64::op(X::ConstantOp opcode, int x) {
 struct {
     int op1;
     int op2;
-} ssemem_ssemem_info[] = {   // xmm1, xmm2/mem64    xmm1/mem64, xmm2
+} fprmem_fprmem_info[] = {   // xmm1, xmm2/mem64    xmm1/mem64, xmm2
     { 0xF30F7E, 0x660FD6 },  // MOVQW
     { 0xF20F10, 0xF20F11 },  // MOVSD
     { 0xF30F10, 0xF30F11 },  // MOVSS
 };
 
-void Asm_X64::op(X::SsememSsememOp opcode, SseRegister x, SseRegister y) {
-    code_op(ssemem_ssemem_info[opcode].op1, OPSIZE_DEFAULT, x, y);
+void Asm_X64::op(X::FprmemFprmemOp opcode, FpRegister x, FpRegister y) {
+    code_op(fprmem_fprmem_info[opcode].op1, OPSIZE_DEFAULT, x, y);
 }
 
 
-void Asm_X64::op(X::SsememSsememOp opcode, SseRegister x, Address y) {
-    code_op(ssemem_ssemem_info[opcode].op1, OPSIZE_DEFAULT, x, y);
+void Asm_X64::op(X::FprmemFprmemOp opcode, FpRegister x, Address y) {
+    code_op(fprmem_fprmem_info[opcode].op1, OPSIZE_DEFAULT, x, y);
 }
 
 
-void Asm_X64::op(X::SsememSsememOp opcode, Address x, SseRegister y) {
-    code_op(ssemem_ssemem_info[opcode].op2, OPSIZE_DEFAULT, y, x);
+void Asm_X64::op(X::FprmemFprmemOp opcode, Address x, FpRegister y) {
+    code_op(fprmem_fprmem_info[opcode].op2, OPSIZE_DEFAULT, y, x);
 }
 
 
-int sse_ssemem_info[] = {  // xmm1, xmm2/mem64  Test REX placement!
+int fpr_fprmem_info[] = {  // xmm1, xmm2/mem64  Test REX placement!
     0xF20F58,  // ADDSD
     0xF20F5C,  // SUBSD
     0xF20F59,  // MULSD
@@ -966,43 +966,43 @@ int sse_ssemem_info[] = {  // xmm1, xmm2/mem64  Test REX placement!
     0x660FEF,  // PXOR
 };
 
-void Asm_X64::op(X::SseSsememOp opcode, SseRegister x, SseRegister y) {
-    code_op(sse_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
+void Asm_X64::op(X::FprFprmemOp opcode, FpRegister x, FpRegister y) {
+    code_op(fpr_fprmem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
-void Asm_X64::op(X::SseSsememOp opcode, SseRegister x, Address y) {
-    code_op(sse_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
+void Asm_X64::op(X::FprFprmemOp opcode, FpRegister x, Address y) {
+    code_op(fpr_fprmem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
 
-int sse_gprmem_info[] = {  // xmm1, reg64/mem64
+int fpr_gprmem_info[] = {  // xmm1, reg64/mem64
     0xF20F2A,  // CVTSI2SD
 };
 
-void Asm_X64::op(X::SseGprmemOp opcode, SseRegister x, Register y) {
-    code_op(sse_gprmem_info[opcode], OPSIZE_DEFAULT, x, y);
+void Asm_X64::op(X::FprGprmemOp opcode, FpRegister x, Register y) {
+    code_op(fpr_gprmem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
-void Asm_X64::op(X::SseGprmemOp opcode, SseRegister x, Address y) {
-    code_op(sse_gprmem_info[opcode], OPSIZE_DEFAULT, x, y);
+void Asm_X64::op(X::FprGprmemOp opcode, FpRegister x, Address y) {
+    code_op(fpr_gprmem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
 
-int gpr_ssemem_info[] = {  // reg64, xmm1/mem64
+int gpr_fprmem_info[] = {  // reg64, xmm1/mem64
     0xF20F2D,  // CVTSD2SI
     0xF20F2C,  // CVTTSD2SI
 };
 
-void Asm_X64::op(X::GprSsememOp opcode, Register x, SseRegister y) {
+void Asm_X64::op(X::GprFprmemOp opcode, Register x, FpRegister y) {
     if (x == RSP)
         cant_account();
 
-    code_op(gpr_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
+    code_op(gpr_fprmem_info[opcode], OPSIZE_DEFAULT, x, y);
 }
 
-void Asm_X64::op(X::GprSsememOp opcode, Register x, Address y) {
+void Asm_X64::op(X::GprFprmemOp opcode, Register x, Address y) {
     if (x == RSP)
         cant_account();
 
-    code_op(gpr_ssemem_info[opcode], OPSIZE_DEFAULT, x, y);
+    code_op(gpr_fprmem_info[opcode], OPSIZE_DEFAULT, x, y);
 }

@@ -505,7 +505,7 @@ Declaration *FunctionDefinitionValue::declare(std::string name, Scope *scope) {
         STACK
     );
     
-    if (simple_where != NOWHERE && simple_where != REGISTER && simple_where != SSEREGISTER)
+    if (simple_where != NOWHERE && simple_where != REGISTER && simple_where != FPREGISTER)
         fn_scope->make_result_alias_storage();
 
     if (has_code_arg)
@@ -841,7 +841,7 @@ Storage FunctionCallValue::compile(X64 *x64) {
     if (res_tss.size() == 1) {
         simple_where = res_tss[0].where(AS_VALUE);
         
-        if (simple_where == REGISTER || simple_where == SSEREGISTER)
+        if (simple_where == REGISTER || simple_where == FPREGISTER)
             res_total = 0;
     }
 
@@ -930,8 +930,8 @@ Storage FunctionCallValue::compile(X64 *x64) {
     else if (res_tss.size() == 1) {
         if (simple_where == REGISTER)
             return Storage(REGISTER, RAX);
-        else if (simple_where == SSEREGISTER)
-            return Storage(SSEREGISTER, XMM0);
+        else if (simple_where == FPREGISTER)
+            return Storage(FPREGISTER, FPR0);
         else
             return Storage(stacked(res_tss[0].where(AS_ARGUMENT)));
     }
@@ -1023,8 +1023,8 @@ Storage FunctionReturnValue::compile(X64 *x64) {
     else if (simple_where == REGISTER) {
         values[0]->compile_and_store(x64, Storage(REGISTER, RAX));
     }
-    else if (simple_where == SSEREGISTER) {
-        values[0]->compile_and_store(x64, Storage(SSEREGISTER, XMM0));
+    else if (simple_where == FPREGISTER) {
+        values[0]->compile_and_store(x64, Storage(FPREGISTER, FPR0));
     }
     else {
         // Since we store each result in a variable, upon an exception we must

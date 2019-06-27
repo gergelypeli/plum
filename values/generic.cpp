@@ -258,7 +258,7 @@ OptimizedOperationValue::OptimizedOperationValue(OperationType o, TypeSpec at, T
     StorageWhere lw = left->ts.where(AS_VALUE);
     StorageWhere rw = (at != NO_TS ? at.where(AS_VALUE) : NOWHERE);
     
-    if ((lw != REGISTER && lw != SSEREGISTER) || (rw != REGISTER && rw != SSEREGISTER && rw != NOWHERE))
+    if ((lw != REGISTER && lw != FPREGISTER) || (rw != REGISTER && rw != FPREGISTER && rw != NOWHERE))
         throw INTERNAL_ERROR;
         
     lsubset = lss;
@@ -295,31 +295,31 @@ Storage OptimizedOperationValue::pick_early_auxls(Regs preferred) {
         else
             return Storage(REGISTER, r);
     }
-    else if (lsubset == SSE_SUBSET) {
-        SseRegister r = NOSSE;
+    else if (lsubset == FPR_SUBSET) {
+        FpRegister r = NOFPR;
     
-        if ((preferred & clob & ~rclob).has_sse()) {
+        if ((preferred & clob & ~rclob).has_fpr()) {
             // We have preferred registers clobbered by the left side only, use one
-            r = (preferred & clob & ~rclob).get_sse();
+            r = (preferred & clob & ~rclob).get_fpr();
         }
-        else if ((clob & ~rclob).has_sse()) {
+        else if ((clob & ~rclob).has_fpr()) {
             // We have registers clobbered by the left side only, use one
-            r = (clob & ~rclob).get_sse();
+            r = (clob & ~rclob).get_fpr();
         }
-        else if ((preferred & ~rclob).has_sse()) {
+        else if ((preferred & ~rclob).has_fpr()) {
             // We have preferred registers not clobbered by the right side, allocate one
-            r = (preferred & ~rclob).get_sse();
+            r = (preferred & ~rclob).get_fpr();
         }
-        else if (rclob.count_sse() <= 2) {
+        else if (rclob.count_fpr() <= 2) {
             // Just allocate a register that is not clobbered by the right side
-            r = (~rclob).get_sse();
+            r = (~rclob).get_fpr();
         }
         else {
             // The right side clobbers many registers, so pick one for the left later
             return Storage();
         }
     
-        return Storage(SSEREGISTER, r);
+        return Storage(FPREGISTER, r);
     }
     else
         throw INTERNAL_ERROR;
@@ -336,8 +336,8 @@ Storage OptimizedOperationValue::pick_late_auxls() {
         else
             return Storage(REGISTER, r);
     }
-    else if (lsubset == SSE_SUBSET) {
-        SseRegister r = (clob & ~rs.regs()).get_sse();
+    else if (lsubset == FPR_SUBSET) {
+        FpRegister r = (clob & ~rs.regs()).get_fpr();
 
         return Storage(REGISTER, r);
     }
@@ -358,10 +358,10 @@ Storage OptimizedOperationValue::pick_auxrs(RegSubset rss) {
         else
             return Storage(REGISTER, r);
     }
-    else if (rss == SSE_SUBSET) {
-        SseRegister r = (~(ls.regs() | auxls.regs())).get_sse();
+    else if (rss == FPR_SUBSET) {
+        FpRegister r = (~(ls.regs() | auxls.regs())).get_fpr();
     
-        return Storage(SSEREGISTER, r);
+        return Storage(FPREGISTER, r);
     }
     else
         throw INTERNAL_ERROR;
@@ -443,9 +443,9 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
             }
             break;
         case REGISTER:
-        case SSEREGISTER:
+        case FPREGISTER:
             if (ls.regs() & rclob) {
-                if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
+                if (auxls.where == REGISTER || auxls.where == FPREGISTER) {
                     ls = left->ts.store(ls, auxls, x64);
                 }
                 else {
@@ -465,7 +465,7 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
                 // Okay, the right side has no side effects, and we don't want to
                 // destroy the address either, so keep the MEMORY storage.
             }
-            else if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
+            else if (auxls.where == REGISTER || auxls.where == FPREGISTER) {
                 // We already know a register that won't be clobbered, save value there
                 // This may actually reuse the same register, but that's OK
                 ls = left->ts.store(ls, auxls, x64);
@@ -483,7 +483,7 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
             x64->op(MOVQ, tmpr, ls.address);
             ls = Storage(MEMORY, Address(tmpr, ls.value));
             
-            if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
+            if (auxls.where == REGISTER || auxls.where == FPREGISTER) {
                 // We already know a register that won't be clobbered, save value there
                 ls = left->ts.store(ls, auxls, x64);
             }
@@ -518,7 +518,7 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
         break;
     case REGISTER:
         break;
-    case SSEREGISTER:
+    case FPREGISTER:
         break;
     case STACK:
         rs = right->ts.store(rs, pick_auxrs(rsubset), x64);
@@ -543,10 +543,10 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
         throw INTERNAL_ERROR;
     case REGISTER:
         break;
-    case SSEREGISTER:
+    case FPREGISTER:
         break;
     case STACK:
-        if (auxls.where == REGISTER || auxls.where == SSEREGISTER) {
+        if (auxls.where == REGISTER || auxls.where == FPREGISTER) {
             ls = left->ts.store(ls, auxls, x64);
         }
         else
@@ -581,7 +581,7 @@ Storage OptimizedOperationValue::compare(X64 *x64) {
     left->ts.compare(ls, rs, x64);
     
     if (auxls.where != REGISTER) {
-        // This happens when the comparison used SSE registers
+        // This happens when the comparison used FP registers
         x64->op(MOVSXBQ, R10, R10B);  // sign extend byte to qword
         x64->op(PUSHQ, R10);
         return Storage(STACK);

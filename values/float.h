@@ -3,9 +3,9 @@ public:
     FloatOperationValue(OperationType o, Value *p, TypeMatch &match);
 
     virtual Storage negate(X64 *x64);
-    virtual Storage binary(X64 *x64, SseSsememOp opcode);
+    virtual Storage binary(X64 *x64, FprFprmemOp opcode);
     virtual Storage compare(X64 *x64, ConditionCode cc);
-    virtual Storage assign_binary(X64 *x64, SseSsememOp opcode);
+    virtual Storage assign_binary(X64 *x64, FprFprmemOp opcode);
     virtual Storage compile(X64 *x64);
 };
 

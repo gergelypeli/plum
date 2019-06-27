@@ -93,8 +93,8 @@ Storage ControlValue::get_context_storage() {
         return Storage();
     case REGISTER:
         return Storage(REGISTER, RAX);
-    case SSEREGISTER:
-        return Storage(SSEREGISTER, XMM0);
+    case FPREGISTER:
+        return Storage(FPREGISTER, FPR0);
     case STACK:
         return Storage(STACK);
     default:
@@ -302,8 +302,8 @@ Storage YieldableValue::get_yield_storage() {
         return Storage();
     case REGISTER:
         return Storage(REGISTER, RAX);
-    case SSEREGISTER:
-        return Storage(SSEREGISTER, XMM0);
+    case FPREGISTER:
+        return Storage(FPREGISTER, FPR0);
     case STACK:
         return yield_var->get_local_storage();
     default:
@@ -319,7 +319,7 @@ void YieldableValue::store_yield(Storage s, X64 *x64) {
     case NOWHERE:
         break;
     case REGISTER:
-    case SSEREGISTER:
+    case FPREGISTER:
         ts.store(s, t, x64);
         break;
     case MEMORY:

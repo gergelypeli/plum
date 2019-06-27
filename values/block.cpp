@@ -14,7 +14,7 @@ bool CodeScopeValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
 }
 
 Regs CodeScopeValue::precompile(Regs preferred) {
-    return value->precompile_tail() | Regs(RAX) | Regs(XMM0);
+    return value->precompile_tail() | Regs(RAX) | Regs(FPR0);
 }
 
 Storage CodeScopeValue::compile_body(X64 *x64) {
@@ -30,7 +30,7 @@ Storage CodeScopeValue::compile_body(X64 *x64) {
     Storage t = (
         where == NOWHERE ? Storage() :
         where == REGISTER ? Storage(REGISTER, RAX) :
-        where == SSEREGISTER ? Storage(SSEREGISTER, XMM0) :
+        where == FPREGISTER ? Storage(FPREGISTER, FPR0) :
         Storage(STACK)
     );
 

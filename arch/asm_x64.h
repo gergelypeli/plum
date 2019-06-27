@@ -165,22 +165,22 @@ enum ConstantOp {
 };
 
 
-enum SsememSsememOp {
+enum FprmemFprmemOp {
     MOVQW, MOVSD, MOVSS
 };
 
 
-enum SseSsememOp {
+enum FprFprmemOp {
     ADDSD, SUBSD, MULSD, DIVSD, COMISD, UCOMISD, CVTSS2SD, CVTSD2SS, MAXSD, MINSD, SQRTSD, PXOR
 };
 
 
-enum SseGprmemOp {
+enum FprGprmemOp {
     CVTSI2SD
 };
 
 
-enum GprSsememOp {
+enum GprFprmemOp {
     CVTSD2SI, CVTTSD2SI
 };
 
@@ -220,14 +220,14 @@ public:
     virtual void code_reference(Label label, int addend = 0);
 
     virtual void effective_address(int regfield, Register rm);
-    virtual void effective_address(int regfield, SseRegister rm);
+    virtual void effective_address(int regfield, FpRegister rm);
     virtual void effective_address(int regfield, Address rm);
 
     virtual RexFlags q(Register r);
     virtual RexFlags r(Register regfield);
-    virtual RexFlags r(SseRegister regfield);
+    virtual RexFlags r(FpRegister regfield);
     virtual RexFlags xb(Register regfield);
-    virtual RexFlags xb(SseRegister regfield);
+    virtual RexFlags xb(FpRegister regfield);
     virtual RexFlags xb(Address rm);
     
     virtual void rex(RexFlags wrxb, bool force = false);
@@ -238,10 +238,10 @@ public:
     virtual void code_op(int opcode, Opsize opsize, Register regfield, Register rm);
     virtual void code_op(int opcode, Opsize opsize, Slash regfield, Address rm);
     virtual void code_op(int opcode, Opsize opsize, Register regfield, Address rm);
-    virtual void code_op(int opcode, Opsize opsize, SseRegister regfield, SseRegister rm);
-    virtual void code_op(int opcode, Opsize opsize, SseRegister regfield, Address rm);
-    virtual void code_op(int opcode, Opsize opsize, SseRegister regfield, Register rm);
-    virtual void code_op(int opcode, Opsize opsize, Register regfield, SseRegister rm);
+    virtual void code_op(int opcode, Opsize opsize, FpRegister regfield, FpRegister rm);
+    virtual void code_op(int opcode, Opsize opsize, FpRegister regfield, Address rm);
+    virtual void code_op(int opcode, Opsize opsize, FpRegister regfield, Register rm);
+    virtual void code_op(int opcode, Opsize opsize, Register regfield, FpRegister rm);
 
     virtual void op(X::SimpleOp opcode);
     virtual void op(X::UnaryOp opcode, Register x);
@@ -281,16 +281,16 @@ public:
     virtual void op(X::JumpOp opcode, Register x);
     virtual void op(X::ConstantOp opcode, int x);
     
-    virtual void op(X::SsememSsememOp opcode, SseRegister x, SseRegister y);
-    virtual void op(X::SsememSsememOp opcode, SseRegister x, Address y);
-    virtual void op(X::SsememSsememOp opcode, Address x, SseRegister y);
+    virtual void op(X::FprmemFprmemOp opcode, FpRegister x, FpRegister y);
+    virtual void op(X::FprmemFprmemOp opcode, FpRegister x, Address y);
+    virtual void op(X::FprmemFprmemOp opcode, Address x, FpRegister y);
     
-    virtual void op(X::SseSsememOp opcode, SseRegister x, SseRegister y);
-    virtual void op(X::SseSsememOp opcode, SseRegister x, Address y);
+    virtual void op(X::FprFprmemOp opcode, FpRegister x, FpRegister y);
+    virtual void op(X::FprFprmemOp opcode, FpRegister x, Address y);
 
-    virtual void op(X::SseGprmemOp opcode, SseRegister x, Register y);
-    virtual void op(X::SseGprmemOp opcode, SseRegister x, Address y);
+    virtual void op(X::FprGprmemOp opcode, FpRegister x, Register y);
+    virtual void op(X::FprGprmemOp opcode, FpRegister x, Address y);
 
-    virtual void op(X::GprSsememOp opcode, Register x, SseRegister y);
-    virtual void op(X::GprSsememOp opcode, Register x, Address y);
+    virtual void op(X::GprFprmemOp opcode, Register x, FpRegister y);
+    virtual void op(X::GprFprmemOp opcode, Register x, Address y);
 };

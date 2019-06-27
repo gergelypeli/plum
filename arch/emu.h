@@ -131,22 +131,22 @@ inline BitSetOp bitset(ConditionCode cc) {
 }
 
 
-enum SsememSsememOp {
+enum FprmemFprmemOp {
     MOVQW, MOVSD, MOVSS
 };
 
 
-enum SseSsememOp {
+enum FprFprmemOp {
     ADDSD, SUBSD, MULSD, DIVSD, COMISD, UCOMISD, CVTSS2SD, CVTSD2SS, MAXSD, MINSD, SQRTSD, PXOR
 };
 
 
-enum SseGprmemOp {
+enum FprGprmemOp {
     CVTSI2SD
 };
 
 
-enum GprSsememOp {
+enum GprFprmemOp {
     CVTSD2SI, CVTTSD2SI
 };
 
@@ -228,15 +228,15 @@ public:
     virtual unsigned get_dc();
 
     virtual std::array<Register, 4> abi_arg_regs() =0;
-    virtual std::array<SseRegister, 4> abi_arg_sses() =0;
+    virtual std::array<FpRegister, 4> abi_arg_fprs() =0;
     virtual std::array<Register, 2> abi_res_regs() =0;
-    virtual std::array<SseRegister, 2> abi_res_sses() =0;
+    virtual std::array<FpRegister, 2> abi_res_fprs() =0;
     virtual void prologue() =0;
     virtual void epilogue() =0;
     virtual void welcome() =0;
     virtual void goodbye() =0;
     virtual int dwarf_register_number(Register r) =0;
-    virtual int dwarf_sseregister_number(SseRegister s) =0;
+    virtual int dwarf_fprregister_number(FpRegister s) =0;
     virtual int dwarf_retaddr_number() =0;
 
     virtual void op(SimpleOp opcode) =0;
@@ -271,19 +271,19 @@ public:
     virtual void op(JumpOp opcode, Address x) =0;
     virtual void op(JumpOp opcode, Register x) =0;
     
-    virtual void op(SsememSsememOp opcode, SseRegister x, SseRegister y) =0;
-    virtual void op(SsememSsememOp opcode, SseRegister x, Address y) =0;
-    virtual void op(SsememSsememOp opcode, Address x, SseRegister y) =0;
+    virtual void op(FprmemFprmemOp opcode, FpRegister x, FpRegister y) =0;
+    virtual void op(FprmemFprmemOp opcode, FpRegister x, Address y) =0;
+    virtual void op(FprmemFprmemOp opcode, Address x, FpRegister y) =0;
     
-    virtual void op(SseSsememOp opcode, SseRegister x, SseRegister y) =0;
-    virtual void op(SseSsememOp opcode, SseRegister x, Address y) =0;
+    virtual void op(FprFprmemOp opcode, FpRegister x, FpRegister y) =0;
+    virtual void op(FprFprmemOp opcode, FpRegister x, Address y) =0;
 
-    virtual void op(SseGprmemOp opcode, SseRegister x, Register y) =0;
-    virtual void op(SseGprmemOp opcode, SseRegister x, Address y) =0;
+    virtual void op(FprGprmemOp opcode, FpRegister x, Register y) =0;
+    virtual void op(FprGprmemOp opcode, FpRegister x, Address y) =0;
 
-    virtual void op(GprSsememOp opcode, Register x, SseRegister y) =0;
-    virtual void op(GprSsememOp opcode, Register x, Address y) =0;
+    virtual void op(GprFprmemOp opcode, Register x, FpRegister y) =0;
+    virtual void op(GprFprmemOp opcode, Register x, Address y) =0;
     
-    virtual void floatcmp(ConditionCode cc, SseRegister x, SseRegister y) =0;
-    virtual void floatorder(SseRegister x, SseRegister y) =0;
+    virtual void floatcmp(ConditionCode cc, FpRegister x, FpRegister y) =0;
+    virtual void floatorder(FpRegister x, FpRegister y) =0;
 };
