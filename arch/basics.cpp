@@ -143,6 +143,16 @@ Regs::Regs(Register r1, Register r2, Register r3, Register r4, Register r5) {
     available = (1UL << (int)r1) | (1UL << (int)r2) | (1UL << (int)r3) | (1UL << (int)r4) | (1UL << (int)r5);
 }
 
+Regs::Regs(Register r1, Register r2, Register r3, Register r4, Register r5, Register r6) {
+    validate(r1);
+    validate(r2);
+    validate(r3);
+    validate(r4);
+    validate(r5);
+    validate(r6);
+    available = (1UL << (int)r1) | (1UL << (int)r2) | (1UL << (int)r3) | (1UL << (int)r4) | (1UL << (int)r5) | (1UL << (int)r6);
+}
+
 Regs::Regs(FpRegister s) {
     validate(s);
     available = (1UL << ((int)s + 16));

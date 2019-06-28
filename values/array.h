@@ -85,7 +85,7 @@ public:
     
     virtual Regs precompile(Regs preferred);
     virtual Storage compile(Cx *cx);
-    static void compile_compar(Label label, TypeSpec elem_ts, Cx *cx);
+    static void compile_shellsort(Label label, TypeSpec elem_ts, Cx *cx);
 };
 
 class ArrayRemoveValue: public GenericValue {

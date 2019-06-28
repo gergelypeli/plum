@@ -618,6 +618,10 @@ App? :Class Application as:
         :for sl3 each: x? do:
             Std prints("Slice has: {}" { x })
 
+        words? String Array = { "2quick", "5jumps", "9dog", "6over", "8lazy", "4fox", "7the", "3brown", "1The" }
+        words sort
+        Std prints("The words are: {}" { words })
+
 
 #Test_queues? :Singleton as:
     test_queues? :Function as:

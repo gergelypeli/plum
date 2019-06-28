@@ -248,6 +248,19 @@ Runtime::Runtime(Cx *x, unsigned application_size, std::vector<std::string> sour
     cx->data_double(-0.0);
     cx->data_double(0.0);
 
+    long long tokuda_gaps[30] = {
+        1, 4, 9, 20, 46,
+        103, 233, 525, 1182, 2660,
+        5985, 13467, 30301, 68178, 153401,
+        345152, 776591, 1747331, 3931496, 8845866,
+        19903198, 44782196, 100759940, 226709866, 510097200,
+        1147718700, 2582367076, 5810325920, 13073233321, 29414774973
+    };
+
+    cx->data_label(tokuda_gaps_label);
+    for (unsigned i = 0; i < 30; i++)
+        cx->data_qword(tokuda_gaps[i]);
+
     data_heap_header();
     cx->data_label(empty_array_label);
     cx->data_qword(0);  // reservation
@@ -292,7 +305,6 @@ Runtime::Runtime(Cx *x, unsigned application_size, std::vector<std::string> sour
     cx->code_label_import(sysv_dies_label, "C__dies");
     cx->code_label_import(sysv_die_uncaught_label, "C__die_uncaught");
     
-    cx->code_label_import(sysv_sort_label, "C__sort");
     cx->code_label_import(sysv_string_regexp_match_label, "C__string_regexp_match");
     
     cx->code_label_import(sysv_streamify_integer_label, "C__streamify_integer");
@@ -1251,6 +1263,37 @@ void Runtime::copy(Address s, Address t, int size) {
     if (size & 1) {
         cx->op(MOVB, R10B, s + (size & ~1));
         cx->op(MOVB, t + (size & ~1), R10B);
+    }
+}
+
+
+void Runtime::swap(Address s, Address t, int size) {
+    for (int i = 0; i < size / 8; i++) {
+        cx->op(MOVQ, R10, s + i * 8);
+        cx->op(MOVQ, R11, t + i * 8);
+        cx->op(MOVQ, t + i * 8, R10);
+        cx->op(MOVQ, s + i * 8, R11);
+    }
+    
+    if (size & 4) {
+        cx->op(MOVD, R10D, s + (size & ~7));
+        cx->op(MOVD, R11D, t + (size & ~7));
+        cx->op(MOVD, t + (size & ~7), R10D);
+        cx->op(MOVD, s + (size & ~7), R11D);
+    }
+    
+    if (size & 2) {
+        cx->op(MOVW, R10W, s + (size & ~3));
+        cx->op(MOVW, R11W, t + (size & ~3));
+        cx->op(MOVW, t + (size & ~3), R10W);
+        cx->op(MOVW, s + (size & ~3), R11W);
+    }
+
+    if (size & 1) {
+        cx->op(MOVB, R10B, s + (size & ~1));
+        cx->op(MOVB, R11B, t + (size & ~1));
+        cx->op(MOVB, t + (size & ~1), R10B);
+        cx->op(MOVB, s + (size & ~1), R11B);
     }
 }
 

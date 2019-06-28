@@ -338,49 +338,84 @@ ArraySortValue::ArraySortValue(Value *l, TypeMatch &match)
 }
 
 Regs ArraySortValue::precompile(Regs preferred) {
-    return left->precompile_tail() | Regs(RAX, RCX, RDX, RSI, RDI) | COMPARE_CLOB;
+    return left->precompile_tail() | Regs(RAX, RBX, RCX, RDX, RSI, RDI) | COMPARE_CLOB;
 }
 
 Storage ArraySortValue::compile(Cx *cx) {
-    auto arg_regs = cx->abi_arg_regs();
-    int elem_size = ContainerType::get_elem_size(elem_ts);
-    Label compar = cx->once->compile(compile_compar, elem_ts);
-    Label done;
+    Label shellsort_label = cx->once->compile(compile_shellsort, elem_ts);
 
     left->compile_and_store(cx, Storage(STACK));
     
-    // base, nmemb, size, compar
-    cx->op(MOVQ, R10, Address(RSP, 0));
-    cx->op(LEA, arg_regs[0], Address(R10, LINEARRAY_ELEMS_OFFSET));
-    cx->op(MOVQ, arg_regs[1], Address(R10, LINEARRAY_LENGTH_OFFSET));
-    cx->op(MOVQ, arg_regs[2], elem_size);
-    cx->op(LEA, arg_regs[3], Address(compar, 0));
-
-    cx->runtime->call_sysv(cx->runtime->sysv_sort_label);
+    cx->op(MOVQ, RAX, Address(RSP, 0));
+    cx->op(CALL, shellsort_label);
     
     left->ts.store(Storage(STACK), Storage(), cx);
     
     return Storage();
 }
 
-void ArraySortValue::compile_compar(Label label, TypeSpec elem_ts, Cx *cx) {
-    // Generate a SysV function to wrap our compare function.
-    // The two arguments contain the pointers to the array elements.
-    auto arg_regs = cx->abi_arg_regs();
-    auto res_regs = cx->abi_res_regs();
-
-    cx->code_label_local(label, elem_ts.prefix(array_type).symbolize("compar"));
+void ArraySortValue::compile_shellsort(Label label, TypeSpec elem_ts, Cx *cx) {
+    int elem_size = ContainerType::get_elem_size(elem_ts);
     
-    cx->runtime->callback_prologue();
+    // RAX - a borrowed array reference
+    cx->code_label_local(label, elem_ts.prefix(array_type).symbolize("shellsort"));
+    cx->prologue();
     
-    Storage a(MEMORY, Address(arg_regs[0], 0));
-    Storage b(MEMORY, Address(arg_regs[1], 0));
-
-    elem_ts.compare(a, b, cx);
+    // RAX - elems base
+    // RBX - gap index
+    // RCX - array length minus gap pointer
+    // RDX - gap offset
+    // RSI - i pointer
+    // RDI - j pointer
+    Label gap_loop, i_loop, i_check, j_loop, j_check, j_break;
     
-    cx->op(MOVSXBQ, res_regs[0], R10B);
+    cx->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(IMUL3Q, RCX, RCX, elem_size);
+    cx->op(LEA, RAX, Address(RAX, LINEARRAY_ELEMS_OFFSET));  // RAX = &a[0]
+    cx->op(ADDQ, RCX, RAX);                                  // RCX = &a[n]
+    cx->op(MOVQ, RBX, 29);  // Using 30 gap numbers, starting from the largest
+    
+    cx->code_label(gap_loop);
+    cx->op(LEA, RDX, Address(cx->runtime->tokuda_gaps_label, 0));
+    cx->op(MOVQ, RDX, Address(RDX, RBX, Address::SCALE_8, 0));
+    cx->op(IMUL3Q, RDX, RDX, elem_size);  // RDX = &a[gap] - &a[0]
+    cx->op(SUBQ, RCX, RDX);               // RCX = &a[n - gap]
+    
+    cx->op(MOVQ, RSI, RAX);               // RSI = &a[0]
+    cx->op(JMP, i_check);
+    
+    cx->code_label(i_loop);               // RSI = &a[i]
+    
+    cx->op(MOVQ, RDI, RSI);               // RDI = &a[i]
+    cx->op(JMP, j_check);
+    
+    cx->code_label(j_loop);               // RDI = &a[j]
+    Storage as(MEMORY, Address(RDI, 0));
+    Storage bs(MEMORY, Address(RDI, RDX, 0));
+    
+    elem_ts.compare(as, bs, cx);
+    cx->op(JLE, j_break);
+    
+    cx->runtime->swap(as.address, bs.address, elem_size);
+    
+    cx->op(SUBQ, RDI, RDX);               // RDI = &a[j - gap]
+    
+    cx->code_label(j_check);
+    cx->op(CMPQ, RDI, RAX);               // &a[j] >= &a[0]
+    cx->op(JAE, j_loop);
+    
+    cx->code_label(j_break);
+    cx->op(ADDQ, RSI, elem_size);         // RSI = &a[i + 1]
+    
+    cx->code_label(i_check);
+    cx->op(CMPQ, RSI, RCX);               // &a[i] < &a[n - gap]
+    cx->op(JB, i_loop);
+    
+    cx->op(ADDQ, RCX, RDX);               // RCX = &a[n]
+    cx->op(DECQ, RBX);
+    cx->op(JGE, gap_loop);
 
-    cx->runtime->callback_epilogue();
+    cx->epilogue();
 }
 
 

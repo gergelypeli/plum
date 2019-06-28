@@ -127,6 +127,7 @@ public:
     
     Label code_start_label, data_start_label, application_label;
     Label zero_label, float_zero_label, float_minus_zero_label;
+    Label tokuda_gaps_label;
     Label allocation_count_label, refcount_balance_label;
     Label die_unmatched_message_label, start_frame_label, task_frame_label;
     Label task_stack_address_label, task_stack_size_label;
@@ -144,7 +145,7 @@ public:
     Label sysv_malloc_label, sysv_aligned_alloc_label, sysv_free_label, sysv_realloc_label, sysv_mprotect_label,  sysv_memcpy_label, sysv_memmove_label;
     Label sysv_log_label, sysv_logref_label, sysv_dump_label;
     Label sysv_die_label, sysv_dies_label, sysv_die_uncaught_label;
-    Label sysv_sort_label, sysv_string_regexp_match_label;
+    Label sysv_string_regexp_match_label;
     Label sysv_streamify_integer_label, sysv_streamify_unteger_label, sysv_streamify_boolean_label;
     Label sysv_streamify_pointer_label, sysv_streamify_float_label;
 
@@ -207,6 +208,7 @@ public:
 
     void r10bcompar(bool is_unsigned);
     void copy(Address s, Address t, int size);
+    void swap(Address s, Address t, int size);
     void push(Address s, int size);
     void fix_address(Address address);
 

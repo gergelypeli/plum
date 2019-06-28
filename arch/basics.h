@@ -104,6 +104,7 @@ public:
     Regs(Register r1, Register r2, Register r3);
     Regs(Register r1, Register r2, Register r3, Register r4);
     Regs(Register r1, Register r2, Register r3, Register r4, Register r5);
+    Regs(Register r1, Register r2, Register r3, Register r4, Register r5, Register r6);
     Regs(FpRegister s);
     Regs operator |(Regs other);
     Regs operator &(Regs other);
@@ -156,6 +157,9 @@ struct Address {
     Address(Register b, Register i, Scale s, int o);
     Address(Label l, int o);
     Address operator + (int x) const;
+    
+private:
+    Address(Register b, Register i, Scale s) {}  // shit
 };
 
 
