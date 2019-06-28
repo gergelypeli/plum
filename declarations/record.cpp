@@ -367,46 +367,39 @@ void StringType::compile_stringeq(Label label, Cx *cx) {
 
 void StringType::compare(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (s.where == MEMORY && t.where == MEMORY) {
-        if (s.address.base == RSP || t.address.base == RSP) {
-            cx->op(MOVQ, R10, s.address);
-            cx->op(MOVQ, R11, t.address);
-            cx->op(PUSHQ, R10);
-            cx->op(PUSHQ, R11);
-        }
-        else {
-            cx->op(PUSHQ, s.address);
-            cx->op(PUSHQ, t.address);
-        }
+        cx->op(MOVQ, R10, s.address);
+        cx->op(MOVQ, R11, t.address);
     }
-    else if ((s.where != STACK) || (t.where != STACK))
+    else if (s.where == STACK && t.where == STACK) {
+        cx->op(MOVQ, R10, Address(RSP, REFERENCE_SIZE));
+        cx->op(MOVQ, R11, Address(RSP, 0));
+    }
+    else
         throw INTERNAL_ERROR;
 
     Label strcmp_label = cx->once->compile(compile_stringcmp);
     cx->op(CALL, strcmp_label);  // R10B, flags as expected
-    
-    if (s.where == MEMORY && t.where == MEMORY) {
-        cx->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
-    }
 }
 
 void StringType::compile_stringcmp(Label label, Cx *cx) {
-    // Expects arguments on the stack, returns R10B/flags.
+    // R10 - left string, R11 - right string
+    // Returns R10B/flags.
     cx->code_label_local(label, "String__comparison");
     cx->prologue();
     
-    cx->op(PUSHQ, RAX);
     cx->op(PUSHQ, RCX);
-    cx->op(PUSHQ, RDX);
     cx->op(PUSHQ, RSI);
     cx->op(PUSHQ, RDI);
     
     Label s_longer, begin, end;
-    cx->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 6 * ADDRESS_SIZE));  // s
-    cx->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 5 * ADDRESS_SIZE));  // t
+
+    cx->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RDI, Address(R11, LINEARRAY_ELEMS_OFFSET));
     
-    cx->op(MOVB, R10B, 0);  // assume equality
-    cx->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    cx->op(CMPQ, RCX, Address(RDX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
+    cx->op(MOVB, R10B, 0);  // assume equality on common equality
+    
+    cx->op(CMPQ, RCX, Address(R11, LINEARRAY_LENGTH_OFFSET));
     cx->op(JE, begin);
     cx->op(JA, s_longer);
     
@@ -415,11 +408,9 @@ void StringType::compile_stringcmp(Label label, Cx *cx) {
 
     cx->code_label(s_longer);
     cx->op(MOVB, R10B, 1);  // s is longer, on common equality s is greater
-    cx->op(MOVQ, RCX, Address(RDX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(MOVQ, RCX, Address(R11, LINEARRAY_LENGTH_OFFSET));
     
     cx->code_label(begin);
-    cx->op(LEA, RSI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
-    cx->op(LEA, RDI, Address(RDX, LINEARRAY_ELEMS_OFFSET));
     cx->op(CMPB, R10B, R10B);  // only to initialize flags for equality
     cx->op(REPECMPSW);  // no flags set if RCX=0
     
@@ -432,9 +423,7 @@ void StringType::compile_stringcmp(Label label, Cx *cx) {
     
     cx->op(POPQ, RDI);
     cx->op(POPQ, RSI);
-    cx->op(POPQ, RDX);
     cx->op(POPQ, RCX);
-    cx->op(POPQ, RAX);
     
     cx->epilogue();
 }
