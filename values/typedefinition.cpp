@@ -107,7 +107,7 @@ Regs TypeDefinitionValue::precompile(Regs) {
     return Regs();
 }
 
-Storage TypeDefinitionValue::compile(X64 *) {
+Storage TypeDefinitionValue::compile(Cx *) {
     return Storage();
 }
 
@@ -729,8 +729,8 @@ Regs ScopedTypeDefinitionValue::precompile(Regs preferred) {
     return block_value->precompile_tail();
 }
 
-Storage ScopedTypeDefinitionValue::compile(X64 *x64) {
-    return block_value->compile(x64);
+Storage ScopedTypeDefinitionValue::compile(Cx *cx) {
+    return block_value->compile(cx);
 }
 
 
@@ -1152,33 +1152,33 @@ Regs FunctorDefinitionValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-void FunctorDefinitionValue::deferred_compile(Label label, X64 *x64) {
-    fdv->compile(x64);
+void FunctorDefinitionValue::deferred_compile(Label label, Cx *cx) {
+    fdv->compile(cx);
 }
 
-Storage FunctorDefinitionValue::compile(X64 *x64) {
+Storage FunctorDefinitionValue::compile(Cx *cx) {
     // Compile the body later, so it does not get inserted here
-    x64->once->compile(this);
+    cx->once->compile(this);
     
-    Storage ps = preinitialize_class({ class_type }, x64);
+    Storage ps = preinitialize_class({ class_type }, cx);
     
     if (ps.where != REGISTER)
         throw INTERNAL_ERROR;
         
-    x64->op(PUSHQ, ps.reg);
+    cx->op(PUSHQ, ps.reg);
     Storage cs = Storage(MEMORY, Address(ps.reg, 0));
     
     // FIXME: handle exceptions!
     for (unsigned i = 0; i < with_vars.size(); i++) {
-        with_values[i]->compile_and_store(x64, Storage(STACK));
+        with_values[i]->compile_and_store(cx, Storage(STACK));
         
-        x64->op(MOVQ, ps.reg, Address(RSP, with_values[i]->ts.measure_stack()));
+        cx->op(MOVQ, ps.reg, Address(RSP, with_values[i]->ts.measure_stack()));
         Storage t = with_vars[i]->get_storage(match, cs);
         
-        with_vars[i]->alloc_ts.create(Storage(STACK), t, x64);
+        with_vars[i]->alloc_ts.create(Storage(STACK), t, cx);
     }
     
-    x64->op(POPQ, ps.reg);
+    cx->op(POPQ, ps.reg);
     
     return ps;
 }

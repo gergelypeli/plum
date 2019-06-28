@@ -19,9 +19,9 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual bool define_code();
     virtual Regs precompile(Regs);
-    virtual void fix_arg(Declaration *d, X64 *x64);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual void fix_arg(Declaration *d, Cx *cx);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
     virtual Declaration *declare(std::string name, Scope *scope);
 };
 
@@ -70,14 +70,14 @@ public:
     
     virtual void be_static(Associable *sr);
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
-    virtual void call_static(X64 *x64, unsigned passed_size);
-    virtual void call_virtual(X64 *x64, unsigned passed_size);
+    virtual void call_static(Cx *cx, unsigned passed_size);
+    virtual void call_virtual(Cx *cx, unsigned passed_size);
     virtual Regs precompile(Regs preferred);
-    virtual void push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64);
-    virtual void pop_arg(X64 *x64);
-    virtual Storage ret_pivot(X64 *x64);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual void push_arg(TypeSpec arg_ts, Value *arg_value, Cx *cx);
+    virtual void pop_arg(Cx *cx);
+    virtual Storage ret_pivot(Cx *cx);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class FunctionReturnValue: public Value {
@@ -93,6 +93,6 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };

@@ -19,27 +19,27 @@ Regs StringRegexpMatcherValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage StringRegexpMatcherValue::compile(X64 *x64) {
-    compile_and_store_both(x64, Storage(STACK), Storage(STACK));
+Storage StringRegexpMatcherValue::compile(Cx *cx) {
+    compile_and_store_both(cx, Storage(STACK), Storage(STACK));
     Label ok;
-    auto arg_regs = x64->abi_arg_regs();
-    auto res_regs = x64->abi_res_regs();
+    auto arg_regs = cx->abi_arg_regs();
+    auto res_regs = cx->abi_res_regs();
 
-    x64->op(MOVQ, arg_regs[0], Address(RSP, ADDRESS_SIZE));
-    x64->op(MOVQ, arg_regs[1], Address(RSP, 0));
+    cx->op(MOVQ, arg_regs[0], Address(RSP, ADDRESS_SIZE));
+    cx->op(MOVQ, arg_regs[1], Address(RSP, 0));
     
     // This uses SIMD instructions on X64, so SysV stack alignment must be ensured
-    x64->runtime->call_sysv(x64->runtime->sysv_string_regexp_match_label);
+    cx->runtime->call_sysv(cx->runtime->sysv_string_regexp_match_label);
 
-    right->ts.store(Storage(STACK), Storage(), x64);
-    left->ts.store(Storage(STACK), Storage(), x64);
+    right->ts.store(Storage(STACK), Storage(), cx);
+    left->ts.store(Storage(STACK), Storage(), cx);
     
-    x64->op(CMPQ, res_regs[0], 0);
-    x64->op(JNE, ok);
+    cx->op(CMPQ, res_regs[0], 0);
+    cx->op(JNE, ok);
     
-    raise("UNMATCHED", x64);
+    raise("UNMATCHED", cx);
     
-    x64->code_label(ok);
+    cx->code_label(ok);
 
     return Storage(REGISTER, res_regs[0]);
 }
@@ -54,14 +54,14 @@ Regs SliceEmptyValue::precompile(Regs preferred) {
     return Regs();
 }
 
-Storage SliceEmptyValue::compile(X64 *x64) {
-    x64->op(LEA, R10, Address(x64->runtime->empty_array_label, 0));
+Storage SliceEmptyValue::compile(Cx *cx) {
+    cx->op(LEA, R10, Address(cx->runtime->empty_array_label, 0));
     TypeSpec heap_ts = ts.reprefix(slice_type, linearray_type);
-    heap_ts.incref(R10, x64);
+    heap_ts.incref(R10, cx);
     
-    x64->op(PUSHQ, 0);  // length
-    x64->op(PUSHQ, 0);  // front
-    x64->op(PUSHQ, R10);  // ptr
+    cx->op(PUSHQ, 0);  // length
+    cx->op(PUSHQ, 0);  // front
+    cx->op(PUSHQ, R10);  // ptr
     
     return Storage(STACK);
 }
@@ -76,9 +76,9 @@ Regs SliceAllValue::precompile(Regs preferred) {
     return right->precompile_tail();
 }
 
-Storage SliceAllValue::compile(X64 *x64) {
+Storage SliceAllValue::compile(Cx *cx) {
     TypeSpec heap_ts = ts.reprefix(slice_type, linearray_type);
-    Storage rs = right->compile(x64);
+    Storage rs = right->compile(cx);
     Register r;
     
     switch (rs.where) {
@@ -86,21 +86,21 @@ Storage SliceAllValue::compile(X64 *x64) {
         r = rs.reg;
         break;
     case STACK:
-        x64->op(POPQ, R10);
+        cx->op(POPQ, R10);
         r = R10;
         break;
     case MEMORY:
-        x64->op(MOVQ, R10, rs.address);
-        heap_ts.incref(R10, x64);
+        cx->op(MOVQ, R10, rs.address);
+        heap_ts.incref(R10, cx);
         r = R10;
         break;
     default:
         throw INTERNAL_ERROR;
     }
     
-    x64->op(PUSHQ, Address(r, LINEARRAY_LENGTH_OFFSET));  // length
-    x64->op(PUSHQ, 0);  // front
-    x64->op(PUSHQ, r);  // ptr
+    cx->op(PUSHQ, Address(r, LINEARRAY_LENGTH_OFFSET));  // length
+    cx->op(PUSHQ, 0);  // front
+    cx->op(PUSHQ, r);  // ptr
     
     return Storage(STACK);
 }
@@ -138,34 +138,34 @@ Regs ArraySliceValue::precompile(Regs preferred) {
     return clob | Regs(RAX, RCX, RDX);
 }
 
-Storage ArraySliceValue::compile(X64 *x64) {
-    array_value->compile_and_store(x64, Storage(STACK));
-    front_value->compile_and_store(x64, Storage(STACK));
-    length_value->compile_and_store(x64, Storage(STACK));
+Storage ArraySliceValue::compile(Cx *cx) {
+    array_value->compile_and_store(cx, Storage(STACK));
+    front_value->compile_and_store(cx, Storage(STACK));
+    length_value->compile_and_store(cx, Storage(STACK));
     
-    x64->op(POPQ, RCX);  // length
-    x64->op(POPQ, R10);  // front
-    x64->op(POPQ, RAX);  // ptr
-    x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(POPQ, RCX);  // length
+    cx->op(POPQ, R10);  // front
+    cx->op(POPQ, RAX);  // ptr
+    cx->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
     
     Label ok, nok;
-    x64->op(CMPQ, R10, RDX);
-    x64->op(JAE, nok);
+    cx->op(CMPQ, R10, RDX);
+    cx->op(JAE, nok);
     
-    x64->op(SUBQ, RDX, R10);
-    x64->op(CMPQ, RCX, RDX);
-    x64->op(JBE, ok);
+    cx->op(SUBQ, RDX, R10);
+    cx->op(CMPQ, RCX, RDX);
+    cx->op(JBE, ok);
     
-    x64->code_label(nok);
+    cx->code_label(nok);
 
     // all popped
-    heap_ts.decref(RAX, x64);
-    raise("NOT_FOUND", x64);
+    heap_ts.decref(RAX, cx);
+    raise("NOT_FOUND", cx);
     
-    x64->code_label(ok);
-    x64->op(PUSHQ, RCX);
-    x64->op(PUSHQ, R10);
-    x64->op(PUSHQ, RAX);  // inherit reference
+    cx->code_label(ok);
+    cx->op(PUSHQ, RCX);
+    cx->op(PUSHQ, R10);
+    cx->op(PUSHQ, RAX);  // inherit reference
     
     return Storage(STACK);
 }
@@ -201,30 +201,30 @@ Regs SliceSliceValue::precompile(Regs preferred) {
     return clob | Regs(RAX, RCX, RDX);
 }
 
-Storage SliceSliceValue::compile(X64 *x64) {
-    slice_value->compile_and_store(x64, Storage(STACK));
-    front_value->compile_and_store(x64, Storage(STACK));
-    length_value->compile_and_store(x64, Storage(STACK));
+Storage SliceSliceValue::compile(Cx *cx) {
+    slice_value->compile_and_store(cx, Storage(STACK));
+    front_value->compile_and_store(cx, Storage(STACK));
+    length_value->compile_and_store(cx, Storage(STACK));
     
-    x64->op(POPQ, RCX);  // length
-    x64->op(POPQ, R10);  // front
-    x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));  // old length
+    cx->op(POPQ, RCX);  // length
+    cx->op(POPQ, R10);  // front
+    cx->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE));  // old length
     
     Label ok, nok;
-    x64->op(CMPQ, R10, RDX);
-    x64->op(JAE, nok);
+    cx->op(CMPQ, R10, RDX);
+    cx->op(JAE, nok);
     
-    x64->op(SUBQ, RDX, R10);
-    x64->op(CMPQ, RCX, RDX);
-    x64->op(JBE, ok);
+    cx->op(SUBQ, RDX, R10);
+    cx->op(CMPQ, RCX, RDX);
+    cx->op(JBE, ok);
     
-    x64->code_label(nok);
+    cx->code_label(nok);
     
-    drop_and_raise(ts, Storage(STACK), "NOT_FOUND", x64);
+    drop_and_raise(ts, Storage(STACK), "NOT_FOUND", cx);
     
-    x64->code_label(ok);
-    x64->op(ADDQ, Address(RSP, ADDRESS_SIZE), R10);  // adjust front
-    x64->op(MOVQ, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE), RCX);  // set length
+    cx->code_label(ok);
+    cx->op(ADDQ, Address(RSP, ADDRESS_SIZE), R10);  // adjust front
+    cx->op(MOVQ, Address(RSP, ADDRESS_SIZE + INTEGER_SIZE), RCX);  // set length
     
     return Storage(STACK);
 }
@@ -256,33 +256,33 @@ Regs SliceIndexValue::precompile(Regs preferred) {
     return clob | Regs(RAX, RBX);
 }
 
-Storage SliceIndexValue::compile(X64 *x64) {
+Storage SliceIndexValue::compile(Cx *cx) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
     // TODO: MEMORY pivot can be much more optimal
-    left->compile_and_store(x64, Storage(STACK));
-    right->compile_and_store(x64, Storage(STACK));
+    left->compile_and_store(cx, Storage(STACK));
+    right->compile_and_store(cx, Storage(STACK));
     
-    x64->op(POPQ, RAX);  // index
-    x64->op(POPQ, RBX);  // ptr
-    x64->op(POPQ, R10);  // front
-    x64->op(POPQ, R11);  // length
+    cx->op(POPQ, RAX);  // index
+    cx->op(POPQ, RBX);  // ptr
+    cx->op(POPQ, R10);  // front
+    cx->op(POPQ, R11);  // length
 
     Label ok;
-    //defer_decref(RBX, x64);
+    //defer_decref(RBX, cx);
     
-    x64->op(CMPQ, RAX, R11);
-    x64->op(JB, ok);
+    cx->op(CMPQ, RAX, R11);
+    cx->op(JB, ok);
 
     // all popped
-    raise("NOT_FOUND", x64);
+    raise("NOT_FOUND", cx);
     
-    x64->code_label(ok);
-    x64->op(ADDQ, RAX, R10);
+    cx->code_label(ok);
+    cx->op(ADDQ, RAX, R10);
     
-    Address addr = x64->runtime->make_address(RBX, RAX, elem_size, LINEARRAY_ELEMS_OFFSET);
+    Address addr = cx->runtime->make_address(RBX, RAX, elem_size, LINEARRAY_ELEMS_OFFSET);
 
-    return compile_contained_lvalue(addr, RBX, ts, x64);
+    return compile_contained_lvalue(addr, RBX, ts, cx);
 }
 
 
@@ -308,37 +308,37 @@ Regs SliceFindValue::precompile(Regs preferred) {
     return clob | Regs(RAX, RCX, RDX) | COMPARE_CLOB;
 }
 
-Storage SliceFindValue::compile(X64 *x64) {
-    left->compile_and_store(x64, Storage(STACK));
-    right->compile_and_store(x64, Storage(STACK));
+Storage SliceFindValue::compile(Cx *cx) {
+    left->compile_and_store(cx, Storage(STACK));
+    right->compile_and_store(cx, Storage(STACK));
     
     Label loop, check, found;
     int elem_size = ContainerType::get_elem_size(elem_ts);
     int stack_size = elem_ts.measure_stack();
 
-    x64->op(MOVQ, RAX, Address(RSP, stack_size));
+    cx->op(MOVQ, RAX, Address(RSP, stack_size));
 
-    x64->op(MOVQ, RCX, 0);
-    x64->op(MOVQ, RDX, Address(RSP, stack_size + ADDRESS_SIZE));  // front index
-    x64->op(IMUL3Q, RDX, RDX, elem_size);
-    x64->op(JMP, check);
+    cx->op(MOVQ, RCX, 0);
+    cx->op(MOVQ, RDX, Address(RSP, stack_size + ADDRESS_SIZE));  // front index
+    cx->op(IMUL3Q, RDX, RDX, elem_size);
+    cx->op(JMP, check);
     
-    x64->code_label(loop);
-    elem_ts.compare(Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), Storage(MEMORY, Address(RSP, 0)), x64);
-    x64->op(JE, found);
+    cx->code_label(loop);
+    elem_ts.compare(Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), Storage(MEMORY, Address(RSP, 0)), cx);
+    cx->op(JE, found);
 
-    x64->op(INCQ, RCX);
-    x64->op(ADDQ, RDX, elem_size);
+    cx->op(INCQ, RCX);
+    cx->op(ADDQ, RDX, elem_size);
     
-    x64->code_label(check);
-    x64->op(CMPQ, RCX, Address(RSP, stack_size + ADDRESS_SIZE + INTEGER_SIZE));  // length
-    x64->op(JB, loop);
+    cx->code_label(check);
+    cx->op(CMPQ, RCX, Address(RSP, stack_size + ADDRESS_SIZE + INTEGER_SIZE));  // length
+    cx->op(JB, loop);
 
-    drop_two_and_raise(elem_ts, Storage(STACK), slice_ts, Storage(STACK), "NOT_FOUND", x64);
+    drop_two_and_raise(elem_ts, Storage(STACK), slice_ts, Storage(STACK), "NOT_FOUND", cx);
 
-    x64->code_label(found);
-    elem_ts.store(Storage(STACK), Storage(), x64);
-    slice_ts.store(Storage(STACK), Storage(), x64);
+    cx->code_label(found);
+    elem_ts.store(Storage(STACK), Storage(), cx);
+    slice_ts.store(Storage(STACK), Storage(), cx);
     
     return Storage(REGISTER, RCX);
 }
@@ -351,10 +351,10 @@ SliceIterValue::SliceIterValue(TypeSpec t, Value *l)
     :SimpleRecordValue(t, l) {
 }
 
-Storage SliceIterValue::compile(X64 *x64) {
-    x64->op(PUSHQ, 0);
+Storage SliceIterValue::compile(Cx *cx) {
+    cx->op(PUSHQ, 0);
 
-    left->compile_and_store(x64, Storage(STACK));
+    left->compile_and_store(cx, Storage(STACK));
     
     return Storage(STACK);
 }
@@ -404,13 +404,13 @@ Regs SliceNextValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage SliceNextValue::postprocess(Register r, Register i, X64 *x64) {
+Storage SliceNextValue::postprocess(Register r, Register i, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
-Storage SliceNextValue::compile(X64 *x64) {
+Storage SliceNextValue::compile(Cx *cx) {
     elem_size = ContainerType::get_elem_size(elem_ts);
-    ls = left->compile(x64);  // iterator
+    ls = left->compile(cx);  // iterator
     Register r = (clob & ~ls.regs()).get_gpr();
     Register i = (clob & ~ls.regs() & ~Regs(r)).get_gpr();
     Label ok;
@@ -420,17 +420,17 @@ Storage SliceNextValue::compile(X64 *x64) {
     
     switch (ls.where) {
     case MEMORY:
-        x64->op(MOVQ, i, ls.address + VALUE_OFFSET);
-        x64->op(MOVQ, r, ls.address); // array ptr
-        x64->op(CMPQ, i, ls.address + LENGTH_OFFSET);
-        x64->op(JNE, ok);
+        cx->op(MOVQ, i, ls.address + VALUE_OFFSET);
+        cx->op(MOVQ, r, ls.address); // array ptr
+        cx->op(CMPQ, i, ls.address + LENGTH_OFFSET);
+        cx->op(JNE, ok);
         
-        raise("ITERATOR_DONE", x64);
+        raise("ITERATOR_DONE", cx);
         
-        x64->code_label(ok);
-        x64->op(is_down ? DECQ : INCQ, ls.address + VALUE_OFFSET);
+        cx->code_label(ok);
+        cx->op(is_down ? DECQ : INCQ, ls.address + VALUE_OFFSET);
         
-        return postprocess(r, i, x64);
+        return postprocess(r, i, cx);
     default:
         throw INTERNAL_ERROR;
     }
@@ -446,14 +446,14 @@ Regs SliceNextElemValue::precompile(Regs preferred) {
     return SliceNextValue::precompile(preferred) | precompile_contained_lvalue();
 }
 
-Storage SliceNextElemValue::postprocess(Register r, Register i, X64 *x64) {
+Storage SliceNextElemValue::postprocess(Register r, Register i, Cx *cx) {
     int FRONT_OFFSET = REFERENCE_SIZE;
     
-    x64->op(ADDQ, i, ls.address + FRONT_OFFSET);
+    cx->op(ADDQ, i, ls.address + FRONT_OFFSET);
     
-    Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
+    Address addr = cx->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
     
-    return compile_contained_lvalue(addr, NOREG, ts, x64);
+    return compile_contained_lvalue(addr, NOREG, ts, cx);
 }
 
 
@@ -462,7 +462,7 @@ SliceNextIndexValue::SliceNextIndexValue(Value *l, TypeMatch &match)
     :SliceNextValue(INTEGER_TUPLE1_TS, match[1], l, false) {
 }
 
-Storage SliceNextIndexValue::postprocess(Register r, Register i, X64 *x64) {
+Storage SliceNextIndexValue::postprocess(Register r, Register i, Cx *cx) {
     return Storage(REGISTER, i);
 }
 
@@ -472,18 +472,18 @@ SliceNextItemValue::SliceNextItemValue(Value *l, TypeMatch &match)
     :SliceNextValue(typesubst(INTEGER_SAME_LVALUE_TUPLE2_TS, match), match[1], l, false) {
 }
 
-Storage SliceNextItemValue::postprocess(Register r, Register i, X64 *x64) {
+Storage SliceNextItemValue::postprocess(Register r, Register i, Cx *cx) {
     int FRONT_OFFSET = REFERENCE_SIZE;
     //int item_stack_size = ts.measure_stack();
 
-    x64->op(PUSHQ, i);
+    cx->op(PUSHQ, i);
 
-    x64->op(ADDQ, i, ls.address + FRONT_OFFSET);
-    Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
+    cx->op(ADDQ, i, ls.address + FRONT_OFFSET);
+    Address addr = cx->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
 
-    x64->op(PUSHQ, 0);
-    x64->op(LEA, R10, addr);
-    x64->op(PUSHQ, R10);
+    cx->op(PUSHQ, 0);
+    cx->op(LEA, R10, addr);
+    cx->op(PUSHQ, R10);
     
     return Storage(STACK);
 }

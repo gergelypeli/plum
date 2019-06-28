@@ -91,7 +91,7 @@ Storage Allocable::get_local_storage() {
     return get_storage(TypeMatch(), get_allocation_scope()->get_local_storage());
 }
 
-void Allocable::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void Allocable::destroy(TypeMatch tm, Storage s, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
@@ -151,52 +151,52 @@ void Variable::allocate() {
     //std::cerr << "Allocated variable " << name << " to " << offset << ".\n";
 }
 
-void Variable::finalize(X64 *x64) {
+void Variable::finalize(Cx *cx) {
     // This method is only called on local variables, and it's an overload
-    Allocable::finalize(x64);  // Place label
-    //x64->runtime->log(std::string("Finalizing local variable ") + name);
+    Allocable::finalize(cx);  // Place label
+    //cx->runtime->log(std::string("Finalizing local variable ") + name);
     
-    alloc_ts.destroy(get_local_storage(), x64);
+    alloc_ts.destroy(get_local_storage(), cx);
 }
 
-void Variable::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void Variable::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     TypeSpec ts = typesubst(alloc_ts, tm);
     int o = allocsubst(offset, tm).concretize();
-    ts.create(s.where == NOWHERE ? s : s + o, t + o, x64);
+    ts.create(s.where == NOWHERE ? s : s + o, t + o, cx);
 }
 
-void Variable::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void Variable::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     TypeSpec ts = typesubst(alloc_ts, tm);
     int o = allocsubst(offset, tm).concretize();
-    ts.store(s.where == NOWHERE ? s : s + o, t + o, x64);
+    ts.store(s.where == NOWHERE ? s : s + o, t + o, cx);
 }
 
-void Variable::destroy(TypeMatch tm, Storage s, X64 *x64) {
-    //x64->runtime->log(std::string("Destroying variable ") + name);
+void Variable::destroy(TypeMatch tm, Storage s, Cx *cx) {
+    //cx->runtime->log(std::string("Destroying variable ") + name);
     TypeSpec ts = typesubst(alloc_ts, tm);
     int o = allocsubst(offset, tm).concretize();
-    ts.destroy(s + o, x64);
+    ts.destroy(s + o, cx);
 }
 
-void Variable::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void Variable::equal(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     TypeSpec ts = typesubst(alloc_ts, tm);
     int o = allocsubst(offset, tm).concretize();
-    ts.equal(s + o, t + o, x64);
+    ts.equal(s + o, t + o, cx);
 }
 
-void Variable::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void Variable::compare(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     TypeSpec ts = typesubst(alloc_ts, tm);
     int o = allocsubst(offset, tm).concretize();
-    ts.compare(s + o, t + o, x64);
+    ts.compare(s + o, t + o, cx);
 }
 
-void Variable::debug(TypeMatch tm, X64 *x64) {
+void Variable::debug(TypeMatch tm, Cx *cx) {
     if (where != MEMORY && where != ALIAS)
         throw INTERNAL_ERROR;
         
     TypeSpec ts = typesubst(alloc_ts, tm);
     bool as_alias = (where == ALIAS);
-    unsigned ts_index = x64->once->type_info(ts, as_alias);
+    unsigned ts_index = cx->once->type_info(ts, as_alias);
 
     bool is_artificial = (name[0] == '$' || name[0] == '<');
     
@@ -205,7 +205,7 @@ void Variable::debug(TypeMatch tm, X64 *x64) {
         if (s.address.base != RBP)
             throw INTERNAL_ERROR;
     
-        x64->dwarf->local_variable_info(name, s.address.offset, ts_index, is_artificial);
+        cx->dwarf->local_variable_info(name, s.address.offset, ts_index, is_artificial);
     }
     else if (outer_scope->type == ARGUMENT_SCOPE) {
         Storage s = get_local_storage();
@@ -214,11 +214,11 @@ void Variable::debug(TypeMatch tm, X64 *x64) {
     
         // gdb treats $ as a history expansion token
         std::string display_name = (name == "$" ? "SELF" : name);
-        x64->dwarf->formal_parameter_info(display_name, s.address.offset, ts_index, is_artificial);
+        cx->dwarf->formal_parameter_info(display_name, s.address.offset, ts_index, is_artificial);
     }
     else if (outer_scope->type == DATA_SCOPE) {
         int o = allocsubst(offset, tm).concretize();
-        x64->dwarf->member_info(name, o, ts_index, is_artificial);
+        cx->dwarf->member_info(name, o, ts_index, is_artificial);
     }
 }
 
@@ -297,12 +297,12 @@ void GlobalVariable::allocate() {
 }
 
 // No initializers are accessible from the language, done by the runtime itself
-Label GlobalVariable::compile_initializer(X64 *x64) {
+Label GlobalVariable::compile_initializer(Cx *cx) {
     Label label;
-    x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
-    x64->prologue();
+    cx->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
+    cx->prologue();
 
-    Storage s = preinitialize_class(class_ts, x64);
+    Storage s = preinitialize_class(class_ts, cx);
     if (s.where != REGISTER)
         throw INTERNAL_ERROR;
 
@@ -310,37 +310,37 @@ Label GlobalVariable::compile_initializer(X64 *x64) {
     if (t.where != MEMORY)
         throw INTERNAL_ERROR;
 
-    alloc_ts.store(s, Storage(STACK), x64);
-    x64->op(CALL, initializer_function->get_label(x64));
-    alloc_ts.create(Storage(STACK), t, x64);
+    alloc_ts.store(s, Storage(STACK), cx);
+    cx->op(CALL, initializer_function->get_label(cx));
+    alloc_ts.create(Storage(STACK), t, cx);
 
-    x64->epilogue();
+    cx->epilogue();
     return label;
 }
 
-Label GlobalVariable::compile_finalizer(X64 *x64) {
+Label GlobalVariable::compile_finalizer(Cx *cx) {
     Label label;
-    x64->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
-    x64->prologue();
+    cx->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
+    cx->prologue();
 
     Storage s = get_local_storage();
     
-    alloc_ts.destroy(s, x64);
+    alloc_ts.destroy(s, cx);
 
-    x64->epilogue();
+    cx->epilogue();
     
     return label;
 }
 
-void GlobalVariable::debug(TypeMatch tm, X64 *x64) {
-    Variable::debug(tm, x64);
+void GlobalVariable::debug(TypeMatch tm, Cx *cx) {
+    Variable::debug(tm, cx);
     
     // We must also trigger the debug info generation of the actual class type,
     // because it is not our declared type. Without this not even the Application
     // class would get debug infos.
     
     TypeSpec ts = typesubst(class_ts, tm);
-    x64->once->type_info(ts);
+    cx->once->type_info(ts);
 }
 
 
@@ -360,28 +360,28 @@ Storage GlobalNamespace::get_local_storage() {
     return Storage();  // TODO: anything uses this?
 }
 
-Label GlobalNamespace::compile_initializer(X64 *x64) {
+Label GlobalNamespace::compile_initializer(Cx *cx) {
     Label label;
-    x64->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
-    x64->prologue();
+    cx->code_label_local(label, name + "_initializer");  // FIXME: ambiguous name!
+    cx->prologue();
 
     if (initializer_function)
-        x64->op(CALL, initializer_function->get_label(x64));
+        cx->op(CALL, initializer_function->get_label(cx));
 
-    x64->epilogue();
+    cx->epilogue();
     return label;
 }
 
-Label GlobalNamespace::compile_finalizer(X64 *x64) {
+Label GlobalNamespace::compile_finalizer(Cx *cx) {
     Label label;
-    x64->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
-    x64->prologue();
-    x64->epilogue();
+    cx->code_label_local(label, name + "_finalizer");  // FIXME: ambiguous name!
+    cx->prologue();
+    cx->epilogue();
     
     return label;
 }
 
-void GlobalNamespace::debug(TypeMatch tm, X64 *x64) {
+void GlobalNamespace::debug(TypeMatch tm, Cx *cx) {
 }
 
 
@@ -393,7 +393,7 @@ RetroVariable::RetroVariable(std::string name, TypeSpec vts)
     as_what = AS_ARGUMENT;
 }
 
-void RetroVariable::finalize(X64 *x64) {
+void RetroVariable::finalize(Cx *cx) {
     // These are not finalized by their scope, because only lived during the
     // invocation of the retro code.
 }
@@ -449,9 +449,9 @@ void Evaluable::allocate() {
     offset = outer_scope->reserve(Allocation(ADDRESS_SIZE));
 }
 
-void Evaluable::debug(TypeMatch tm, X64 *x64) {
+void Evaluable::debug(TypeMatch tm, Cx *cx) {
     Storage s = get_local_storage();
     TypeSpec ts = typesubst(alloc_ts, tm);
-    unsigned ts_index = x64->once->type_info(ts);
-    x64->dwarf->formal_parameter_info(name, s.address.offset, ts_index, false);
+    unsigned ts_index = cx->once->type_info(ts);
+    cx->dwarf->formal_parameter_info(name, s.address.offset, ts_index, false);
 }

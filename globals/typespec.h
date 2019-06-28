@@ -1,7 +1,7 @@
 
 class TypeSpec;
 typedef std::array<TypeSpec,4> TypeMatch;
-class X64;
+class Cx;
 
 enum AsWhat {
     AS_VALUE, AS_VARIABLE, AS_ARGUMENT, AS_LVALUE_ARGUMENT
@@ -24,9 +24,9 @@ public:
     int measure_where(StorageWhere where);
     Storage optimal_value_storage(Regs preferred);
     devector<VirtualEntry *> get_virtual_table();
-    Label get_virtual_table_label(X64 *x64);
-    Label get_interface_table_label(X64 *x64);
-    Label get_finalizer_label(X64 *x64);
+    Label get_virtual_table_label(Cx *cx);
+    Label get_interface_table_label(Cx *cx);
+    Label get_finalizer_label(Cx *cx);
     Value *autoconv(Type *target, Value *orig, TypeSpec &ifts);
     StorageWhere where(AsWhat as_what);
     TypeSpec prefix(Type *t);
@@ -40,19 +40,19 @@ public:
     bool has_meta(MetaType *mt);
     bool is_meta();
     bool is_hyper();
-    Storage store(Storage s, Storage t, X64 *x64);
-    Storage create(Storage s, Storage t, X64 *x64);
-    void destroy(Storage s, X64 *x64);
-    void equal(Storage s, Storage t, X64 *x64);
-    void compare(Storage s, Storage t, X64 *x64);
-    void streamify(X64 *x64);
+    Storage store(Storage s, Storage t, Cx *cx);
+    Storage create(Storage s, Storage t, Cx *cx);
+    void destroy(Storage s, Cx *cx);
+    void equal(Storage s, Storage t, Cx *cx);
+    void compare(Storage s, Storage t, Cx *cx);
+    void streamify(Cx *cx);
     Value *lookup_initializer(std::string name, Scope *scope);
     Value *lookup_matcher(std::string name, Value *pivot, Scope *scope);
     Value *lookup_inner(std::string name, Value *pivot, Scope *scope);
-    void init_vt(Address self_addr, X64 *x64);
-    void incref(Register r, X64 *x64);
-    void decref(Register r, X64 *x64);
-    void type_info(X64 *x64);
+    void init_vt(Address self_addr, Cx *cx);
+    void incref(Register r, Cx *cx);
+    void decref(Register r, Cx *cx);
+    void type_info(Cx *cx);
 };
 
 typedef TypeSpec::iterator TypeSpecIter;

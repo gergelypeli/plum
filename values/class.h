@@ -1,11 +1,11 @@
-Storage preinitialize_class(TypeSpec class_ts, X64 *x64);
+Storage preinitialize_class(TypeSpec class_ts, Cx *cx);
 
 class ClassPreinitializerValue: public Value {
 public:
     ClassPreinitializerValue(TypeSpec rts);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ClassPostinitializerValue: public Value {
@@ -16,7 +16,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ClassWrapperInitializerValue: public Value {
@@ -27,7 +27,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 // TODO: rename to AbstractMatcher, and validate name sooner!
@@ -40,5 +40,5 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

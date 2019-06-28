@@ -21,9 +21,9 @@ public:
     virtual void allocate();
     virtual void override_virtual_entry(int vi, VirtualEntry *ve);
     virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm);
-    virtual void incref(TypeMatch tm, Register r, X64 *x64);
-    virtual void decref(TypeMatch tm, Register r, X64 *x64);
-    virtual void streamify(TypeMatch tm, X64 *x64);
+    virtual void incref(TypeMatch tm, Register r, Cx *cx);
+    virtual void decref(TypeMatch tm, Register r, Cx *cx);
+    virtual void streamify(TypeMatch tm, Cx *cx);
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s);
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s);
 };
@@ -33,9 +33,9 @@ public:
     AbstractType(std::string name, Metatypes param_metatypes);
 
     virtual devector<VirtualEntry *> allocate_vt();
-    virtual Label get_interface_table_label(TypeMatch tm, X64 *x64);
-    static void compile_ift(Label label, TypeSpec ts, X64 *x64);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual Label get_interface_table_label(TypeMatch tm, Cx *cx);
+    static void compile_ift(Label label, TypeSpec ts, Cx *cx);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class ClassType: public IdentityType, public Autoconvertible, public PartialInitializable {
@@ -46,19 +46,19 @@ public:
     ClassType(std::string name, Metatypes param_metatypes);
 
     virtual std::vector<std::string> get_partial_initializable_names();
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope);
     virtual devector<VirtualEntry *> allocate_vt();
     virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm);
-    virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64);
-    static void compile_act(Label label, TypeSpec ts, X64 *x64);
-    virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64);
-    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64);
-    static void compile_vt(Label label, TypeSpec ts, X64 *x64);
-    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64);
-    virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64);
+    virtual Label get_autoconv_table_label(TypeMatch tm, Cx *cx);
+    static void compile_act(Label label, TypeSpec ts, Cx *cx);
+    virtual Label get_virtual_table_label(TypeMatch tm, Cx *cx);
+    virtual Label get_finalizer_label(TypeMatch tm, Cx *cx);
+    static void compile_vt(Label label, TypeSpec ts, Cx *cx);
+    static void compile_finalizer(Label label, TypeSpec ts, Cx *cx);
+    virtual void init_vt(TypeMatch tm, Address self_addr, Cx *cx);
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class Role: public Associable, public Autoconvertible {
@@ -79,10 +79,10 @@ public:
     virtual bool check_provisioning(std::string override_name, Associable *provider_associable);
     virtual void allocate();
     virtual void relocate(Allocation explicit_offset);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
-    virtual void compile_vt(TypeMatch tm, X64 *x64);
-    virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
+    virtual void compile_vt(TypeMatch tm, Cx *cx);
+    virtual void init_vt(TypeMatch tm, Address self_addr, Cx *cx);
     virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm);
-    virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64);
-    void compile_act(TypeMatch tm, X64 *x64);
+    virtual Label get_autoconv_table_label(TypeMatch tm, Cx *cx);
+    void compile_act(TypeMatch tm, Cx *cx);
 };

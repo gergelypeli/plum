@@ -14,27 +14,27 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual void advance(Address addr, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual void advance(Address addr, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 class CountdownNextValue: public CountupNextValue {
 public:
     CountdownNextValue(Value *l, TypeMatch &match);
     
-    virtual void advance(Address addr, X64 *x64);
+    virtual void advance(Address addr, Cx *cx);
 };
 
 class CountupValue: public SimpleRecordValue {
 public:
     CountupValue(Value *l, TypeMatch &match);
     
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class CountdownValue: public SimpleRecordValue {
 public:
     CountdownValue(Value *l, TypeMatch &match);
     
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

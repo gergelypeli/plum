@@ -1,16 +1,16 @@
 #include "../plum.h"
 
 
-static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch tm, Label label, std::string symbol, X64 *x64) {
+static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch tm, Label label, std::string symbol, Cx *cx) {
     // Allow entries to compile some stuff if necessary
     for (int i = vt.low(); i < vt.high(); i++) {
         VirtualEntry *ve = vt.get(i);
-        ve->compile(tm, x64);
+        ve->compile(tm, cx);
     }
 
     std::cerr << "    Virtual table for " << symbol << " (" << vt.high() - vt.low() << ")\n";
 
-    x64->data_align(8);
+    cx->data_align(8);
 
     for (int i = vt.low(); i < vt.high(); i++) {
         VirtualEntry *ve = vt.get(i);
@@ -18,29 +18,29 @@ static void compile_virtual_table(const devector<VirtualEntry *> &vt, TypeMatch 
         ve->out_virtual_entry(std::cerr, tm);
         std::cerr << "\n";
         
-        Label l = vt.get(i)->get_virtual_entry_label(tm, x64);
+        Label l = vt.get(i)->get_virtual_entry_label(tm, cx);
 
         if (i == 0)
-            x64->data_label_local(label, symbol + "__virtual_table");
+            cx->data_label_local(label, symbol + "__virtual_table");
 
-        x64->data_reference(l);
+        cx->data_reference(l);
     }
 }
 
 
-static void compile_autoconv_table(const std::vector<AutoconvEntry> &act, TypeMatch tm, Label label, std::string symbol, X64 *x64) {
+static void compile_autoconv_table(const std::vector<AutoconvEntry> &act, TypeMatch tm, Label label, std::string symbol, Cx *cx) {
     std::cerr << "    Autoconv table for " << symbol << " (" << act.size() << ")\n";
 
-    x64->data_align(8);
-    x64->data_label_local(label, symbol + "__autoconv_table");
+    cx->data_align(8);
+    cx->data_label_local(label, symbol + "__autoconv_table");
 
     for (auto ace : act) {
-        x64->data_reference(ace.role_ts.get_interface_table_label(x64));
-        x64->data_qword(ace.role_offset);
+        cx->data_reference(ace.role_ts.get_interface_table_label(cx));
+        cx->data_qword(ace.role_offset);
     }
 
     // Sentry
-    x64->data_qword(0);
+    cx->data_qword(0);
 }
 
 
@@ -233,29 +233,29 @@ devector<VirtualEntry *> IdentityType::get_virtual_table(TypeMatch tm) {
     return inner_scope->get_virtual_table();
 }
 
-void IdentityType::incref(TypeMatch tm, Register r, X64 *x64) {
+void IdentityType::incref(TypeMatch tm, Register r, Cx *cx) {
     Register q = (r == R10 ? R11 : R10);
     
-    x64->op(MOVQ, q, Address(r, CLASS_VT_OFFSET));
-    x64->op(MOVQ, q, Address(q, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
-    x64->op(ADDQ, q, r);
+    cx->op(MOVQ, q, Address(r, CLASS_VT_OFFSET));
+    cx->op(MOVQ, q, Address(q, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+    cx->op(ADDQ, q, r);
     
-    x64->runtime->incref(q);
+    cx->runtime->incref(q);
 }
 
-void IdentityType::decref(TypeMatch tm, Register r, X64 *x64) {
+void IdentityType::decref(TypeMatch tm, Register r, Cx *cx) {
     Register q = (r == R10 ? R11 : R10);
     
-    x64->op(MOVQ, q, Address(r, CLASS_VT_OFFSET));
-    x64->op(MOVQ, q, Address(q, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
-    x64->op(ADDQ, q, r);
+    cx->op(MOVQ, q, Address(r, CLASS_VT_OFFSET));
+    cx->op(MOVQ, q, Address(q, VT_FASTFORWARD_INDEX * ADDRESS_SIZE));
+    cx->op(ADDQ, q, r);
     
-    x64->runtime->decref(q);
+    cx->runtime->decref(q);
 }
 
-void IdentityType::streamify(TypeMatch tm, X64 *x64) {
+void IdentityType::streamify(TypeMatch tm, Cx *cx) {
     // Try autoconv
-    auto arg_regs = x64->abi_arg_regs();
+    auto arg_regs = cx->abi_arg_regs();
     Associable *streamifiable_associable = NULL;
         
     for (auto a : member_associables) {
@@ -266,7 +266,7 @@ void IdentityType::streamify(TypeMatch tm, X64 *x64) {
     }
 
     if (streamifiable_associable) {
-        streamifiable_associable->streamify(tm, x64);
+        streamifiable_associable->streamify(tm, cx);
         return;
     }
     
@@ -274,10 +274,10 @@ void IdentityType::streamify(TypeMatch tm, X64 *x64) {
     Address value_addr(RSP, ALIAS_SIZE);
     Address alias_addr(RSP, 0);
 
-    x64->op(MOVQ, arg_regs[0], value_addr);
-    x64->op(MOVQ, arg_regs[1], alias_addr);
+    cx->op(MOVQ, arg_regs[0], value_addr);
+    cx->op(MOVQ, arg_regs[1], alias_addr);
 
-    x64->runtime->call_sysv(x64->runtime->sysv_streamify_pointer_label);
+    cx->runtime->call_sysv(cx->runtime->sysv_streamify_pointer_label);
 }
 
 Value *IdentityType::lookup_matcher(TypeMatch tm, std::string n, Value *v, Scope *s) {
@@ -318,26 +318,26 @@ devector<VirtualEntry *> AbstractType::allocate_vt() {
     return vt;
 }
 
-Label AbstractType::get_interface_table_label(TypeMatch tm, X64 *x64) {
-    return x64->once->compile(compile_ift, tm[0]);
+Label AbstractType::get_interface_table_label(TypeMatch tm, Cx *cx) {
+    return cx->once->compile(compile_ift, tm[0]);
 }
 
-void AbstractType::compile_ift(Label label, TypeSpec ts, X64 *x64) {
+void AbstractType::compile_ift(Label label, TypeSpec ts, Cx *cx) {
     std::cerr << "Compiling interface table for " << ts << "\n";
     std::string symbol = ts.symbolize("interface_table");
 
     // We only need this for dynamic type casts
-    x64->data_align(8);
-    x64->data_label_local(label, symbol);
-    x64->data_qword(0);
+    cx->data_align(8);
+    cx->data_label_local(label, symbol);
+    cx->data_qword(0);
 }
 
-void AbstractType::type_info(TypeMatch tm, X64 *x64) {
-    x64->dwarf->begin_interface_type_info(tm[0].symbolize());
+void AbstractType::type_info(TypeMatch tm, Cx *cx) {
+    cx->dwarf->begin_interface_type_info(tm[0].symbolize());
     
-    debug_inner_scopes(tm, x64);
+    debug_inner_scopes(tm, cx);
     
-    x64->dwarf->end_info();
+    cx->dwarf->end_info();
 }
 
 
@@ -352,24 +352,24 @@ std::vector<std::string> ClassType::get_partial_initializable_names() {
     return member_names;
 }
 
-void ClassType::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void ClassType::destroy(TypeMatch tm, Storage s, Cx *cx) {
     if (s.where != MEMORY || s.address.base != RAX || s.address.index != NOREG)
         throw INTERNAL_ERROR;
 
     if (finalizer_function) {
         if (s.address.offset)
-            x64->op(ADDQ, RAX, s.address.offset);
+            cx->op(ADDQ, RAX, s.address.offset);
             
-        x64->op(PUSHQ, RAX);
-        x64->op(CALL, finalizer_function->get_label(x64));
-        x64->op(POPQ, RAX);
+        cx->op(PUSHQ, RAX);
+        cx->op(CALL, finalizer_function->get_label(cx));
+        cx->op(POPQ, RAX);
 
         if (s.address.offset)
-            x64->op(SUBQ, RAX, s.address.offset);
+            cx->op(SUBQ, RAX, s.address.offset);
     }
 
     for (auto &var : member_allocables)  // FIXME: reverse!
-        var->destroy(tm, s, x64);
+        var->destroy(tm, s, cx);
 }
 
 Value *ClassType::lookup_initializer(TypeMatch tm, std::string name, Scope *scope) {
@@ -431,30 +431,30 @@ std::vector<AutoconvEntry> ClassType::get_autoconv_table(TypeMatch tm) {
     return act;
 }
 
-Label ClassType::get_autoconv_table_label(TypeMatch tm, X64 *x64) {
-    return x64->once->compile(compile_act, tm[0]);
+Label ClassType::get_autoconv_table_label(TypeMatch tm, Cx *cx) {
+    return cx->once->compile(compile_act, tm[0]);
 }
 
-void ClassType::compile_act(Label label, TypeSpec ts, X64 *x64) {
+void ClassType::compile_act(Label label, TypeSpec ts, Cx *cx) {
     ClassType *ct = ptr_cast<ClassType>(ts[0]);
     TypeMatch tm = ts.match();
     std::string symbol = ts.symbolize();
 
-    ::compile_autoconv_table(ct->get_autoconv_table(tm), tm, label, symbol, x64);
+    ::compile_autoconv_table(ct->get_autoconv_table(tm), tm, label, symbol, cx);
     
     for (auto &r : ct->member_associables)
-        r->compile_act(tm, x64);
+        r->compile_act(tm, cx);
 }
 
-Label ClassType::get_virtual_table_label(TypeMatch tm, X64 *x64) {
-    return x64->once->compile(compile_vt, tm[0]);
+Label ClassType::get_virtual_table_label(TypeMatch tm, Cx *cx) {
+    return cx->once->compile(compile_vt, tm[0]);
 }
 
-Label ClassType::get_finalizer_label(TypeMatch tm, X64 *x64) {
-    return x64->once->compile(compile_finalizer, tm[0]);
+Label ClassType::get_finalizer_label(TypeMatch tm, Cx *cx) {
+    return cx->once->compile(compile_finalizer, tm[0]);
 }
 
-void ClassType::compile_vt(Label label, TypeSpec ts, X64 *x64) {
+void ClassType::compile_vt(Label label, TypeSpec ts, Cx *cx) {
     std::cerr << "Compiling virtual table for " << ts << "\n";
 
     // Includes main and base, but not regular roles
@@ -462,32 +462,32 @@ void ClassType::compile_vt(Label label, TypeSpec ts, X64 *x64) {
     TypeMatch tm = ts.match();
     std::string symbol = ts.symbolize();
     
-    ::compile_virtual_table(vt, tm, label, symbol, x64);
+    ::compile_virtual_table(vt, tm, label, symbol, cx);
 
     ClassType *ct = ptr_cast<ClassType>(ts[0]);
 
     for (auto &r : ct->member_associables)
-        r->compile_vt(tm, x64);
+        r->compile_vt(tm, cx);
 }
 
-void ClassType::compile_finalizer(Label label, TypeSpec ts, X64 *x64) {
-    x64->code_label_local(label, ts[0]->name + "_finalizer");  // FIXME: ambiguous name!
-    x64->prologue();
+void ClassType::compile_finalizer(Label label, TypeSpec ts, Cx *cx) {
+    cx->code_label_local(label, ts[0]->name + "_finalizer");  // FIXME: ambiguous name!
+    cx->prologue();
 
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE));  // pointer arg
-    ts.destroy(Storage(MEMORY, Address(RAX, 0)), x64);
+    cx->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE));  // pointer arg
+    ts.destroy(Storage(MEMORY, Address(RAX, 0)), cx);
 
-    x64->epilogue();
+    cx->epilogue();
 }
 
-void ClassType::init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
-    Label vt_label = get_virtual_table_label(tm, x64);
-    x64->op(LEA, R10, Address(vt_label, 0));
-    x64->op(MOVQ, self_addr + CLASS_VT_OFFSET, R10);
+void ClassType::init_vt(TypeMatch tm, Address self_addr, Cx *cx) {
+    Label vt_label = get_virtual_table_label(tm, cx);
+    cx->op(LEA, R10, Address(vt_label, 0));
+    cx->op(MOVQ, self_addr + CLASS_VT_OFFSET, R10);
 
     // Roles compute their offsets in terms of the implementor class type parameters
     for (auto &r : member_associables)
-        r->init_vt(tm, self_addr, x64);
+        r->init_vt(tm, self_addr, cx);
 }
 
 Value *ClassType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
@@ -501,15 +501,15 @@ Value *ClassType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) 
     return IdentityType::lookup_inner(tm, n, v, s);
 }
 
-void ClassType::type_info(TypeMatch tm, X64 *x64) {
+void ClassType::type_info(TypeMatch tm, Cx *cx) {
     // This must be a concrete parametrization
     unsigned size = measure_identity(tm).concretize();
     
-    x64->dwarf->begin_class_type_info(tm[0].symbolize(), size);
+    cx->dwarf->begin_class_type_info(tm[0].symbolize(), size);
     
-    debug_inner_scopes(tm, x64);
+    debug_inner_scopes(tm, cx);
     
-    x64->dwarf->end_info();
+    cx->dwarf->end_info();
 }
 
 
@@ -731,16 +731,16 @@ void Role::relocate(Allocation explicit_offset) {
         sr->relocate(explicit_offset);
 }
 
-void Role::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void Role::destroy(TypeMatch tm, Storage s, Cx *cx) {
     if (original_associable)
         throw INTERNAL_ERROR;
         
     TypeSpec ts = typesubst(alloc_ts, tm);
     int o = allocsubst(offset, tm).concretize();
-    ts.destroy(s + o, x64);
+    ts.destroy(s + o, cx);
 }
 
-void Role::compile_vt(TypeMatch tm, X64 *x64) {
+void Role::compile_vt(TypeMatch tm, Cx *cx) {
     if (provider_associable)
         ;  // vt_label is unused
     else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
@@ -748,14 +748,14 @@ void Role::compile_vt(TypeMatch tm, X64 *x64) {
     }
     else {
         std::string symbol = tm[0].symbolize() + QUALIFIER_NAME + name;
-        ::compile_virtual_table(vt, tm, vt_label, symbol, x64);
+        ::compile_virtual_table(vt, tm, vt_label, symbol, cx);
     }
 
     for (auto &sr : shadow_associables)
-        sr->compile_vt(tm, x64);
+        sr->compile_vt(tm, cx);
 }
 
-void Role::init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
+void Role::init_vt(TypeMatch tm, Address self_addr, Cx *cx) {
     if (provider_associable) {
         ;  // Aliases are initialized when the aliased role is initialized
     }
@@ -763,12 +763,12 @@ void Role::init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
         ;  // Base roles have a VT pointer overlapping the main class VT, don't overwrite
     }
     else {
-        x64->op(LEA, R10, Address(vt_label, 0));
-        x64->op(MOVQ, self_addr + allocsubst(offset, tm).concretize() + CLASS_VT_OFFSET, R10);
+        cx->op(LEA, R10, Address(vt_label, 0));
+        cx->op(MOVQ, self_addr + allocsubst(offset, tm).concretize() + CLASS_VT_OFFSET, R10);
     }
 
     for (auto &sr : shadow_associables)
-        sr->init_vt(tm, self_addr, x64);
+        sr->init_vt(tm, self_addr, cx);
 }
 
 std::vector<AutoconvEntry> Role::get_autoconv_table(TypeMatch tm) {
@@ -787,7 +787,7 @@ std::vector<AutoconvEntry> Role::get_autoconv_table(TypeMatch tm) {
     return act;
 }
 
-Label Role::get_autoconv_table_label(TypeMatch tm, X64 *x64) {
+Label Role::get_autoconv_table_label(TypeMatch tm, Cx *cx) {
     if (provider_associable)
         throw INTERNAL_ERROR;
     else if (inherit_as == AS_BASE || inherit_as == AS_MAIN) {
@@ -797,7 +797,7 @@ Label Role::get_autoconv_table_label(TypeMatch tm, X64 *x64) {
         return act_label;
 }
 
-void Role::compile_act(TypeMatch tm, X64 *x64) {
+void Role::compile_act(TypeMatch tm, Cx *cx) {
     if (provider_associable) {
         // act_label is unused
     }
@@ -806,9 +806,9 @@ void Role::compile_act(TypeMatch tm, X64 *x64) {
     }
     else {
         std::string symbol = tm[0].symbolize() + QUALIFIER_NAME + name;
-        ::compile_autoconv_table(get_autoconv_table(tm), tm, act_label, symbol, x64);
+        ::compile_autoconv_table(get_autoconv_table(tm), tm, act_label, symbol, cx);
     }
     
     for (auto &r : shadow_associables)
-        r->compile_act(tm, x64);
+        r->compile_act(tm, cx);
 }

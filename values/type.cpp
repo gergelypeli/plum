@@ -48,7 +48,7 @@ Regs TypeValue::precompile(Regs preferred) {
     return Regs();
 }
 
-Storage TypeValue::compile(X64 *x64) {
+Storage TypeValue::compile(Cx *cx) {
     return Storage();
 }
 
@@ -152,7 +152,7 @@ bool TypeTupleValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
     throw INTERNAL_ERROR;
 }
 
-Storage TypeTupleValue::compile(X64 *x64) {
+Storage TypeTupleValue::compile(Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
@@ -170,10 +170,10 @@ Regs VoidConversionValue::precompile(Regs preferred) {
     return orig->precompile_tail();
 }
 
-Storage VoidConversionValue::compile(X64 *x64) {
-    Storage s = orig->compile(x64);
+Storage VoidConversionValue::compile(Cx *cx) {
+    Storage s = orig->compile(cx);
     Storage t = Storage();
-    orig->ts.store(s, t, x64);
+    orig->ts.store(s, t, cx);
     return t;
 }
 
@@ -194,7 +194,7 @@ ImplementationConversionValue::ImplementationConversionValue(Implementation *imt
     //    ts = ts.lvalue();
 }
 
-void ImplementationConversionValue::streamify(X64 *x64) {
+void ImplementationConversionValue::streamify(Cx *cx) {
     Associable *sable = implementation->autoconv_streamifiable(match);
     
     if (!sable) {
@@ -203,7 +203,7 @@ void ImplementationConversionValue::streamify(X64 *x64) {
     }
 
     // Allow the implementation do this as it likes
-    sable->streamify(match, x64);
+    sable->streamify(match, cx);
 }
 
 Value *ImplementationConversionValue::lookup_inner(std::string name, Scope *scope) {
@@ -234,7 +234,7 @@ Regs ImplementationConversionValue::precompile(Regs preferred) {
     return orig->precompile(preferred);
 }
 
-Storage ImplementationConversionValue::compile(X64 *x64) {
-    return orig->compile(x64);
+Storage ImplementationConversionValue::compile(Cx *cx) {
+    return orig->compile(cx);
 }
 

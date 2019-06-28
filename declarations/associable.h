@@ -65,11 +65,11 @@ public:
     virtual bool is_mainconv();
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts);
     virtual Associable *autoconv_streamifiable(TypeMatch match);
-    virtual void streamify(TypeMatch tm, X64 *x64);
+    virtual void streamify(TypeMatch tm, Cx *cx);
     virtual void relocate(Allocation explicit_offset);
-    virtual void compile_vt(TypeMatch tm, X64 *x64);
-    virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64);
-    virtual void compile_act(TypeMatch tm, X64 *x64);
+    virtual void compile_vt(TypeMatch tm, Cx *cx);
+    virtual void init_vt(TypeMatch tm, Address self_addr, Cx *cx);
+    virtual void compile_act(TypeMatch tm, Cx *cx);
 };
 
 
@@ -79,7 +79,7 @@ public:
     
     DataVirtualEntry(Associable *a);
     
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64);
+    virtual Label get_virtual_entry_label(TypeMatch tm, Cx *cx);
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm);
 };
 

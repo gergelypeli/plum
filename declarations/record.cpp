@@ -55,9 +55,9 @@ Allocation RecordType::measure(TypeMatch tm) {
         return inner_scope->get_size(tm);  // May round up
 }
 
-void RecordType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void RecordType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (is_single) {
-        typesubst(member_tss[0], tm).store(s, t, x64);
+        typesubst(member_tss[0], tm).store(s, t, cx);
         return;
     }
 
@@ -65,37 +65,37 @@ void RecordType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     
     switch (s.where * t.where) {
     case NOWHERE_STACK:
-        x64->op(SUBQ, RSP, stack_size);
-        create(tm, Storage(), Storage(MEMORY, Address(RSP, 0)), x64);
+        cx->op(SUBQ, RSP, stack_size);
+        create(tm, Storage(), Storage(MEMORY, Address(RSP, 0)), cx);
         return;
     case STACK_NOWHERE:
-        destroy(tm, Storage(MEMORY, Address(RSP, 0)), x64);
-        x64->op(ADDQ, RSP, stack_size);
+        destroy(tm, Storage(MEMORY, Address(RSP, 0)), cx);
+        cx->op(ADDQ, RSP, stack_size);
         return;
     case STACK_STACK:
         return;
     case STACK_MEMORY:
-        destroy(tm, t, x64);
-        create(tm, s, t, x64);
+        destroy(tm, t, cx);
+        create(tm, s, t, cx);
         return;
     case MEMORY_NOWHERE:
         return;
     case MEMORY_STACK:
-        x64->op(SUBQ, RSP, stack_size);
-        create(tm, s, Storage(MEMORY, Address(RSP, 0)), x64);
+        cx->op(SUBQ, RSP, stack_size);
+        create(tm, s, Storage(MEMORY, Address(RSP, 0)), cx);
         return;
     case MEMORY_MEMORY:  // duplicates data
         for (auto &var : member_variables)
-            var->store(tm, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
+            var->store(tm, Storage(MEMORY, s.address), Storage(MEMORY, t.address), cx);
         return;
     default:
-        Type::store(tm, s, t, x64);
+        Type::store(tm, s, t, cx);
     }
 }
 
-void RecordType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void RecordType::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (is_single) {
-        typesubst(member_tss[0], tm).create(s, t, x64);
+        typesubst(member_tss[0], tm).create(s, t, cx);
         return;
     }
 
@@ -104,33 +104,33 @@ void RecordType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     switch (s.where * t.where) {
     case NOWHERE_MEMORY:
         for (auto &var : member_variables)
-            var->create(tm, Storage(), Storage(MEMORY, t.address), x64);
+            var->create(tm, Storage(), Storage(MEMORY, t.address), cx);
         return;
     case STACK_MEMORY:
-        x64->runtime->copy(Address(RSP, 0), t.address, tm[0].measure_raw());
-        x64->op(ADDQ, RSP, stack_size);
+        cx->runtime->copy(Address(RSP, 0), t.address, tm[0].measure_raw());
+        cx->op(ADDQ, RSP, stack_size);
         return;
     case MEMORY_MEMORY:  // duplicates data
         for (auto &var : member_variables)
-            var->create(tm, Storage(MEMORY, s.address), Storage(MEMORY, t.address), x64);
+            var->create(tm, Storage(MEMORY, s.address), Storage(MEMORY, t.address), cx);
         return;
     default:
-        Type::create(tm, s, t, x64);
+        Type::create(tm, s, t, cx);
     }
 }
 
-void RecordType::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void RecordType::destroy(TypeMatch tm, Storage s, Cx *cx) {
     if (is_single) {
-        typesubst(member_tss[0], tm).destroy(s, x64);
+        typesubst(member_tss[0], tm).destroy(s, cx);
         return;
     }
 
     if (s.where == MEMORY) {
         for (auto &var : member_variables)  // FIXME: reverse!
-            var->destroy(tm, Storage(MEMORY, s.address), x64);
+            var->destroy(tm, Storage(MEMORY, s.address), cx);
     }
     else
-        Type::destroy(tm, s, x64);
+        Type::destroy(tm, s, cx);
 }
 
 StorageWhere RecordType::where(TypeMatch tm, AsWhat as_what) {
@@ -159,9 +159,9 @@ unsigned RecordType::comparable_member_count() {
     return member_variables.size();
 }
 
-void RecordType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void RecordType::equal(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (is_single) {
-        typesubst(member_tss[0], tm).equal(s, t, x64);
+        typesubst(member_tss[0], tm).equal(s, t, cx);
         return;
     }
 
@@ -172,24 +172,24 @@ void RecordType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         
         for (unsigned i = 0; i < comparable_member_count(); i++) {
             if (i > 0)
-                x64->op(JNE, end);
+                cx->op(JNE, end);
 
-            member_variables[i]->equal(tm, s, t, x64);
+            member_variables[i]->equal(tm, s, t, cx);
         }
         
-        x64->code_label(end);
+        cx->code_label(end);
         return;
     }
     else
         throw INTERNAL_ERROR;
 }
 
-void RecordType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void RecordType::compare(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if ((s.regs() | t.regs()) & COMPARE_CLOB)
         throw INTERNAL_ERROR;
         
     if (is_single) {
-        typesubst(member_tss[0], tm).compare(s, t, x64);
+        typesubst(member_tss[0], tm).compare(s, t, cx);
         return;
     }
 
@@ -198,56 +198,56 @@ void RecordType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
 
         for (unsigned i = 0; i < comparable_member_count(); i++) {
             if (i > 0)
-                x64->op(JNE, end);
+                cx->op(JNE, end);
                 
-            member_variables[i]->compare(tm, s, t, x64);
+            member_variables[i]->compare(tm, s, t, cx);
         }
         
-        x64->code_label(end);
+        cx->code_label(end);
         return;
     }
     else
         throw INTERNAL_ERROR;
 }
 
-void RecordType::streamify(TypeMatch tm, X64 *x64) {
+void RecordType::streamify(TypeMatch tm, Cx *cx) {
     if (streamify_function) {
         // The pivot is on the stack as rvalue, and the stream as lvalue.
-        x64->op(CALL, streamify_function->get_label(x64));
+        cx->op(CALL, streamify_function->get_label(cx));
     }
     else {
         Address value_addr(RSP, ALIAS_SIZE);
         Address alias_addr(RSP, 0);
         
-        streamify_ascii("{", alias_addr, x64);
+        streamify_ascii("{", alias_addr, cx);
         
         bool did = false;
         
         for (auto v : member_variables) {
             if (did)
-                streamify_ascii(",", alias_addr, x64);
+                streamify_ascii(",", alias_addr, cx);
             
             did = true;
             
-            x64->op(LEA, RAX, value_addr);
+            cx->op(LEA, RAX, value_addr);
             
             TypeSpec mts = v->get_typespec(tm);
             Storage s = v->get_storage(tm, Storage(MEMORY, Address(RAX, 0)));
             Storage t = Storage(STACK);
-            mts.store(s, t, x64);
-            x64->op(PUSHQ, 0);
-            x64->op(PUSHQ, Address(RSP, mts.measure_stack() + ADDRESS_SIZE));
+            mts.store(s, t, cx);
+            cx->op(PUSHQ, 0);
+            cx->op(PUSHQ, Address(RSP, mts.measure_stack() + ADDRESS_SIZE));
             
             // Invoking a custom streamification may relocate the stack, so the
             // passed stream alias may be fixed, must propagate it upwards.
-            mts.streamify(x64);
+            mts.streamify(cx);
             
-            x64->op(POPQ, Address(RSP, mts.measure_stack() + ADDRESS_SIZE));
-            x64->op(POPQ, R10);
-            mts.store(t, Storage(), x64);
+            cx->op(POPQ, Address(RSP, mts.measure_stack() + ADDRESS_SIZE));
+            cx->op(POPQ, R10);
+            mts.store(t, Storage(), cx);
         }
 
-        streamify_ascii("}", alias_addr, x64);
+        streamify_ascii("}", alias_addr, cx);
     }
 }
 
@@ -292,15 +292,15 @@ std::vector<std::string> RecordType::get_partial_initializable_names() {
     return member_names;
 }
 
-void RecordType::type_info(TypeMatch tm, X64 *x64) {
+void RecordType::type_info(TypeMatch tm, Cx *cx) {
     // This must be a concrete parametrization
     unsigned size = measure(tm).concretize();
     
-    x64->dwarf->begin_structure_type_info(tm[0].symbolize(), size);
+    cx->dwarf->begin_structure_type_info(tm[0].symbolize(), size);
     
-    debug_inner_scopes(tm, x64);
+    debug_inner_scopes(tm, cx);
     
-    x64->dwarf->end_info();
+    cx->dwarf->end_info();
 }
 
 
@@ -310,178 +310,178 @@ StringType::StringType(std::string n)
     :RecordType(n, Metatypes {}) {
 }
 
-void StringType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void StringType::equal(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (s.where == MEMORY && t.where == MEMORY) {
         if (t.address.base == RSP)
             throw INTERNAL_ERROR;
             
-        x64->op(PUSHQ, s.address);
-        x64->op(PUSHQ, t.address);
+        cx->op(PUSHQ, s.address);
+        cx->op(PUSHQ, t.address);
     }
     else if ((s.where != STACK) || (t.where != STACK))
         throw INTERNAL_ERROR;
     
-    Label streq_label = x64->once->compile(compile_stringeq);
-    x64->op(CALL, streq_label);  // ZF as expected
+    Label streq_label = cx->once->compile(compile_stringeq);
+    cx->op(CALL, streq_label);  // ZF as expected
     
     if (s.where == MEMORY && t.where == MEMORY) {
-        x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
+        cx->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
     }
 }
 
-void StringType::compile_stringeq(Label label, X64 *x64) {
-    x64->code_label_local(label, "String__equality");
-    x64->prologue();
+void StringType::compile_stringeq(Label label, Cx *cx) {
+    cx->code_label_local(label, "String__equality");
+    cx->prologue();
     Label sete, done;
 
-    x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, RCX);
+    cx->op(PUSHQ, RAX);
+    cx->op(PUSHQ, RCX);
     
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 3 * ADDRESS_SIZE));
-    x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 2 * ADDRESS_SIZE));
+    cx->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 3 * ADDRESS_SIZE));
+    cx->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 2 * ADDRESS_SIZE));
     
-    x64->op(CMPQ, RAX, R10);
-    x64->op(JE, done);  // identical, must be equal, ZF as expected
+    cx->op(CMPQ, RAX, R10);
+    cx->op(JE, done);  // identical, must be equal, ZF as expected
     
-    x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(CMPQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
-    x64->op(JNE, done);  // different length, can't be equal, ZF as expected
+    cx->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(CMPQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
+    cx->op(JNE, done);  // different length, can't be equal, ZF as expected
     
-    x64->op(PUSHQ, RSI);
-    x64->op(PUSHQ, RDI);
-    x64->op(LEA, RSI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
-    x64->op(LEA, RDI, Address(R10, LINEARRAY_ELEMS_OFFSET));
-    x64->op(REPECMPSW);  // no flags set if RCX=0
-    x64->op(POPQ, RDI);
-    x64->op(POPQ, RSI);
+    cx->op(PUSHQ, RSI);
+    cx->op(PUSHQ, RDI);
+    cx->op(LEA, RSI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RDI, Address(R10, LINEARRAY_ELEMS_OFFSET));
+    cx->op(REPECMPSW);  // no flags set if RCX=0
+    cx->op(POPQ, RDI);
+    cx->op(POPQ, RSI);
 
-    x64->op(CMPQ, RCX, 0);  // equal, if all compared, ZF as expected
+    cx->op(CMPQ, RCX, 0);  // equal, if all compared, ZF as expected
     
-    x64->code_label(done);
+    cx->code_label(done);
 
-    x64->op(POPQ, RCX);
-    x64->op(POPQ, RAX);
+    cx->op(POPQ, RCX);
+    cx->op(POPQ, RAX);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
-void StringType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void StringType::compare(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (s.where == MEMORY && t.where == MEMORY) {
         if (s.address.base == RSP || t.address.base == RSP) {
-            x64->op(MOVQ, R10, s.address);
-            x64->op(MOVQ, R11, t.address);
-            x64->op(PUSHQ, R10);
-            x64->op(PUSHQ, R11);
+            cx->op(MOVQ, R10, s.address);
+            cx->op(MOVQ, R11, t.address);
+            cx->op(PUSHQ, R10);
+            cx->op(PUSHQ, R11);
         }
         else {
-            x64->op(PUSHQ, s.address);
-            x64->op(PUSHQ, t.address);
+            cx->op(PUSHQ, s.address);
+            cx->op(PUSHQ, t.address);
         }
     }
     else if ((s.where != STACK) || (t.where != STACK))
         throw INTERNAL_ERROR;
 
-    Label strcmp_label = x64->once->compile(compile_stringcmp);
-    x64->op(CALL, strcmp_label);  // R10B, flags as expected
+    Label strcmp_label = cx->once->compile(compile_stringcmp);
+    cx->op(CALL, strcmp_label);  // R10B, flags as expected
     
     if (s.where == MEMORY && t.where == MEMORY) {
-        x64->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
+        cx->op(LEA, RSP, Address(RSP, 2 * ADDRESS_SIZE));  // preserve ZF
     }
 }
 
-void StringType::compile_stringcmp(Label label, X64 *x64) {
+void StringType::compile_stringcmp(Label label, Cx *cx) {
     // Expects arguments on the stack, returns R10B/flags.
-    x64->code_label_local(label, "String__comparison");
-    x64->prologue();
+    cx->code_label_local(label, "String__comparison");
+    cx->prologue();
     
-    x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, RCX);
-    x64->op(PUSHQ, RDX);
-    x64->op(PUSHQ, RSI);
-    x64->op(PUSHQ, RDI);
+    cx->op(PUSHQ, RAX);
+    cx->op(PUSHQ, RCX);
+    cx->op(PUSHQ, RDX);
+    cx->op(PUSHQ, RSI);
+    cx->op(PUSHQ, RDI);
     
     Label s_longer, begin, end;
-    x64->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 6 * ADDRESS_SIZE));  // s
-    x64->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 5 * ADDRESS_SIZE));  // t
+    cx->op(MOVQ, RAX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 6 * ADDRESS_SIZE));  // s
+    cx->op(MOVQ, RDX, Address(RSP, ADDRESS_SIZE + RIP_SIZE + 5 * ADDRESS_SIZE));  // t
     
-    x64->op(MOVB, R10B, 0);  // assume equality
-    x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(CMPQ, RCX, Address(RDX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(JE, begin);
-    x64->op(JA, s_longer);
+    cx->op(MOVB, R10B, 0);  // assume equality
+    cx->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(CMPQ, RCX, Address(RDX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(JE, begin);
+    cx->op(JA, s_longer);
     
-    x64->op(MOVB, R10B, -1);  // s is shorter, on common equality s is less
-    x64->op(JMP, begin);
+    cx->op(MOVB, R10B, -1);  // s is shorter, on common equality s is less
+    cx->op(JMP, begin);
 
-    x64->code_label(s_longer);
-    x64->op(MOVB, R10B, 1);  // s is longer, on common equality s is greater
-    x64->op(MOVQ, RCX, Address(RDX, LINEARRAY_LENGTH_OFFSET));
+    cx->code_label(s_longer);
+    cx->op(MOVB, R10B, 1);  // s is longer, on common equality s is greater
+    cx->op(MOVQ, RCX, Address(RDX, LINEARRAY_LENGTH_OFFSET));
     
-    x64->code_label(begin);
-    x64->op(LEA, RSI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
-    x64->op(LEA, RDI, Address(RDX, LINEARRAY_ELEMS_OFFSET));
-    x64->op(CMPB, R10B, R10B);  // only to initialize flags for equality
-    x64->op(REPECMPSW);  // no flags set if RCX=0
+    cx->code_label(begin);
+    cx->op(LEA, RSI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RDI, Address(RDX, LINEARRAY_ELEMS_OFFSET));
+    cx->op(CMPB, R10B, R10B);  // only to initialize flags for equality
+    cx->op(REPECMPSW);  // no flags set if RCX=0
     
-    x64->op(JE, end);  // common part was equal, result is according to preset R10B
+    cx->op(JE, end);  // common part was equal, result is according to preset R10B
     
-    x64->runtime->r10bcompar(true);  // set R10B according to the detected difference
+    cx->runtime->r10bcompar(true);  // set R10B according to the detected difference
     
-    x64->code_label(end);
-    x64->op(CMPB, R10B, 0);  // must set flags even if R10B was preset
+    cx->code_label(end);
+    cx->op(CMPB, R10B, 0);  // must set flags even if R10B was preset
     
-    x64->op(POPQ, RDI);
-    x64->op(POPQ, RSI);
-    x64->op(POPQ, RDX);
-    x64->op(POPQ, RCX);
-    x64->op(POPQ, RAX);
+    cx->op(POPQ, RDI);
+    cx->op(POPQ, RSI);
+    cx->op(POPQ, RDX);
+    cx->op(POPQ, RCX);
+    cx->op(POPQ, RAX);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
-void StringType::streamify(TypeMatch tm, X64 *x64) {
+void StringType::streamify(TypeMatch tm, Cx *cx) {
     // Escaped and quoted
     Address alias_addr(RSP, 0);
-    Label st_label = x64->once->compile(compile_esc_streamification);
+    Label st_label = cx->once->compile(compile_esc_streamification);
 
-    streamify_ascii("\"", alias_addr, x64);
+    streamify_ascii("\"", alias_addr, cx);
     
-    x64->op(CALL, st_label);  // clobbers all
+    cx->op(CALL, st_label);  // clobbers all
 
-    streamify_ascii("\"", alias_addr, x64);
+    streamify_ascii("\"", alias_addr, cx);
 }
 
-void StringType::compile_esc_streamification(Label label, X64 *x64) {
+void StringType::compile_esc_streamification(Label label, Cx *cx) {
     // RAX - target array, RCX - size, R10 - source array, R11 - alias
-    Label char_str_label = x64->once->compile(CharacterType::compile_str_streamification);
+    Label char_str_label = cx->once->compile(CharacterType::compile_str_streamification);
     Label loop, check;
     Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
     Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
     
-    x64->code_label_local(label, "String__esc_streamification");
+    cx->code_label_local(label, "String__esc_streamification");
     
-    x64->prologue();
+    cx->prologue();
     
-    x64->op(MOVQ, RCX, 0);
-    x64->op(JMP, check);
+    cx->op(MOVQ, RCX, 0);
+    cx->op(JMP, check);
     
-    x64->code_label(loop);
-    x64->op(PUSHQ, RCX);
-    x64->op(MOVW, R10W, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET));
-    x64->op(PUSHQ, R10);
-    x64->op(PUSHQ, 0);
-    x64->op(PUSHQ, alias_addr + 3 * ADDRESS_SIZE);
-    x64->op(CALL, char_str_label);  // clobbers all
-    x64->op(ADDQ, RSP, ADDRESS_SIZE + ALIAS_SIZE);
-    x64->op(POPQ, RCX);
-    x64->op(INCQ, RCX);
+    cx->code_label(loop);
+    cx->op(PUSHQ, RCX);
+    cx->op(MOVW, R10W, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET));
+    cx->op(PUSHQ, R10);
+    cx->op(PUSHQ, 0);
+    cx->op(PUSHQ, alias_addr + 3 * ADDRESS_SIZE);
+    cx->op(CALL, char_str_label);  // clobbers all
+    cx->op(ADDQ, RSP, ADDRESS_SIZE + ALIAS_SIZE);
+    cx->op(POPQ, RCX);
+    cx->op(INCQ, RCX);
     
-    x64->code_label(check);
-    x64->op(MOVQ, RAX, value_addr);  // reference to the string
-    x64->op(CMPQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(JB, loop);
+    cx->code_label(check);
+    cx->op(MOVQ, RAX, value_addr);  // reference to the string
+    cx->op(CMPQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(JB, loop);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 Value *StringType::lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {

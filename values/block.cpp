@@ -17,12 +17,12 @@ Regs CodeScopeValue::precompile(Regs preferred) {
     return value->precompile_tail() | Regs(RAX) | Regs(FPR0);
 }
 
-Storage CodeScopeValue::compile_body(X64 *x64) {
-    x64->add_lineno(token.file_index, token.row);
+Storage CodeScopeValue::compile_body(Cx *cx) {
+    cx->add_lineno(token.file_index, token.row);
 
-    x64->unwind->push(this);
-    Storage s = value->compile(x64);
-    x64->unwind->pop(this);
+    cx->unwind->push(this);
+    Storage s = value->compile(cx);
+    cx->unwind->pop(this);
     
     // NOTE: don't return a MEMORY storage, that may point to a variable we're
     // about to destroy!
@@ -34,22 +34,22 @@ Storage CodeScopeValue::compile_body(X64 *x64) {
         Storage(STACK)
     );
 
-    value->ts.store(s, t, x64);
+    value->ts.store(s, t, cx);
     
     return t;
 }
 
-Storage CodeScopeValue::compile(X64 *x64) {
-    code_scope->initialize_contents(x64);
+Storage CodeScopeValue::compile(Cx *cx) {
+    code_scope->initialize_contents(cx);
 
-    Storage t = compile_body(x64);
+    Storage t = compile_body(cx);
 
-    code_scope->finalize_contents_and_unwind(x64);
+    code_scope->finalize_contents_and_unwind(cx);
 
     return t;
 }
 
-CodeScope *CodeScopeValue::unwind(X64 *x64) {
+CodeScope *CodeScopeValue::unwind(Cx *cx) {
     return code_scope;  // stop unwinding here, and start destroying scoped variables
 }
 
@@ -63,55 +63,55 @@ RetroScopeValue::RetroScopeValue(Value *v, CodeScope *s, TypeSpec ts)
     :CodeScopeValue(v, s, ts) {
 }
 
-void RetroScopeValue::deferred_compile(Label label, X64 *x64) {
+void RetroScopeValue::deferred_compile(Label label, Cx *cx) {
     RetroScope *rs = ptr_cast<RetroScope>(code_scope);
     if (!rs)
         throw INTERNAL_ERROR;
 
     int retro_offset = rs->get_frame_offset();
 
-    x64->code_label_local(label, "<retro>");
-    x64->prologue();
+    cx->code_label_local(label, "<retro>");
+    cx->prologue();
 
     // Create an artificial stack frame at the location that RetroScope has allocated
-    x64->op(POPQ, R11);  // caller RBP
-    x64->op(MOVQ, R10, Address(R11, 0));  // enclosing RBP
-    x64->op(POPQ, Address(R10, retro_offset + ADDRESS_SIZE));
-    x64->op(MOVQ, Address(R10, retro_offset), R11);
-    x64->op(LEA, RBP, Address(R10, retro_offset));
+    cx->op(POPQ, R11);  // caller RBP
+    cx->op(MOVQ, R10, Address(R11, 0));  // enclosing RBP
+    cx->op(POPQ, Address(R10, retro_offset + ADDRESS_SIZE));
+    cx->op(MOVQ, Address(R10, retro_offset), R11);
+    cx->op(LEA, RBP, Address(R10, retro_offset));
 
     code_scope->get_function_scope()->adjust_frame_base_offset(-retro_offset);
-    code_scope->initialize_contents(x64);
+    code_scope->initialize_contents(cx);
 
-    compile_body(x64);
+    compile_body(cx);
     
-    x64->op(MOVQ, RDX, NO_EXCEPTION);
+    cx->op(MOVQ, RDX, NO_EXCEPTION);
 
-    code_scope->finalize_contents(x64);
+    code_scope->finalize_contents(cx);
     code_scope->get_function_scope()->adjust_frame_base_offset(retro_offset);
 
-    x64->code_label(code_scope->got_nothing_label);
-    x64->code_label(code_scope->got_exception_label);
-    x64->code_label(code_scope->got_yield_label);
+    cx->code_label(code_scope->got_nothing_label);
+    cx->code_label(code_scope->got_exception_label);
+    cx->code_label(code_scope->got_yield_label);
     
-    x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
+    cx->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
 
     // Undo artificial frame
-    x64->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
-    x64->op(PUSHQ, Address(RBP, 0));
+    cx->op(PUSHQ, Address(RBP, ADDRESS_SIZE));
+    cx->op(PUSHQ, Address(RBP, 0));
     
-    x64->epilogue();
+    cx->epilogue();
     
     // Generate fixup code for the preceding ALIAS storage retro variables, they're
     // allocated in the middle of the function's stack frame in a RetroArgumentScope,
     // so there's no one else to take care of them. Fortunately they were moved into
     // this code scope by check_retros, so it's easy to find them.
     Label fixup_label;
-    x64->code_label_local(fixup_label, "<retro>__fixup");
-    x64->prologue();
-    x64->runtime->log("Fixing retro arguments of a retro block.");
+    cx->code_label_local(fixup_label, "<retro>__fixup");
+    cx->prologue();
+    cx->runtime->log("Fixing retro arguments of a retro block.");
     
-    x64->op(MOVQ, RBP, Address(RBP, 0));
+    cx->op(MOVQ, RBP, Address(RBP, 0));
     
     for (auto &d : code_scope->contents) {
         RetroArgumentScope *ras = ptr_cast<RetroArgumentScope>(d.get());
@@ -133,8 +133,8 @@ void RetroScopeValue::deferred_compile(Label label, X64 *x64) {
             offset -= ts.measure_where(w);
             
             if (w == ALIAS) {
-                x64->runtime->fix_address(s.address + offset);
-                x64->runtime->log("Fixed retro argument of " + ts.symbolize() + " of a retro block.");
+                cx->runtime->fix_address(s.address + offset);
+                cx->runtime->log("Fixed retro argument of " + ts.symbolize() + " of a retro block.");
                 std::cerr << "Will fix retro argument of " << ts << " of a retro block.\n";
             }
         }
@@ -143,17 +143,17 @@ void RetroScopeValue::deferred_compile(Label label, X64 *x64) {
             throw INTERNAL_ERROR;
     }
     
-    x64->epilogue();
+    cx->epilogue();
     
-    x64->runtime->add_func_info("<retro>", label, fixup_label);
+    cx->runtime->add_func_info("<retro>", label, fixup_label);
 }
 
-Storage RetroScopeValue::compile(X64 *x64) {
-    Label label = x64->once->compile(this);
+Storage RetroScopeValue::compile(Cx *cx) {
+    Label label = cx->once->compile(this);
 
     // Return a pointer to our code
-    x64->op(LEA, R10, Address(label, 0));
-    x64->op(PUSHQ, R10);
+    cx->op(LEA, R10, Address(label, 0));
+    cx->op(PUSHQ, R10);
 
     return Storage(STACK);
 }
@@ -238,9 +238,9 @@ Regs DataBlockValue::precompile(Regs preferred) {
     return Regs();
 }
 
-Storage DataBlockValue::compile(X64 *x64) {
+Storage DataBlockValue::compile(Cx *cx) {
     for (unsigned i = 0; i < statements.size(); i++)
-        statements[i]->compile(x64);
+        statements[i]->compile(cx);
         
     return Storage();
 }
@@ -317,29 +317,29 @@ Regs CodeBlockValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage CodeBlockValue::compile(X64 *x64) {
-    int stack_usage = x64->accounting->mark();
+Storage CodeBlockValue::compile(Cx *cx) {
+    int stack_usage = cx->accounting->mark();
 
     for (unsigned i = 0; i < statements.size() - 1; i++) {
         Token &token = statements[i]->token;
         
         // Dwarves debug info
-        x64->add_lineno(token.file_index, token.row);
+        cx->add_lineno(token.file_index, token.row);
         
-        statements[i]->compile_and_store(x64, Storage());
+        statements[i]->compile_and_store(cx, Storage());
 
-        x64->op(NOP);  // For readability
+        cx->op(NOP);  // For readability
         
-        if (x64->accounting->mark() != stack_usage) {
+        if (cx->accounting->mark() != stack_usage) {
             std::cerr << "Statement stack usage weirdness!\n";
             throw INTERNAL_ERROR;
         }
     }
 
     Token &token = statements.back()->token;
-    x64->add_lineno(token.file_index, token.row);
+    cx->add_lineno(token.file_index, token.row);
     
-    return statements.back()->compile(x64);
+    return statements.back()->compile(cx);
 }
 
 
@@ -385,26 +385,26 @@ Regs TupleBlockValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage TupleBlockValue::compile(X64 *x64) {
-    x64->unwind->push(this);
+Storage TupleBlockValue::compile(Cx *cx) {
+    cx->unwind->push(this);
 
     for (unsigned i = 0; i < statements.size(); i++) {
         StorageWhere where = context_tss[i].where(AS_ARGUMENT);
         Storage s = Storage(stacked(where));
         
-        statements[i]->compile_and_store(x64, s);
+        statements[i]->compile_and_store(cx, s);
         
         pushed_storages.push_back(s);
     }
 
-    x64->unwind->pop(this);
+    cx->unwind->pop(this);
     
     return Storage(STACK);
 }
 
-CodeScope *TupleBlockValue::unwind(X64 *x64) {
+CodeScope *TupleBlockValue::unwind(Cx *cx) {
     for (int i = pushed_storages.size() - 1; i >= 0; i--) {
-        context_tss[i].store(pushed_storages[i], Storage(), x64);
+        context_tss[i].store(pushed_storages[i], Storage(), cx);
     }
 
     return NULL;
@@ -554,9 +554,9 @@ Regs DeclarationValue::precompile(Regs preferred) {
         return Regs();
 }
 
-Storage DeclarationValue::compile(X64 *x64) {
+Storage DeclarationValue::compile(Cx *cx) {
     // value may be unset for retro variables
-    Storage s = (value ? value->compile(x64) : Storage());
+    Storage s = (value ? value->compile(cx) : Storage());
     
     // just to be sure we don't have something nasty here
     if (s.where != NOWHERE)
@@ -631,7 +631,7 @@ Regs RetroArgumentValue::precompile(Regs preferred) {
     return Regs();
 }
 
-Storage RetroArgumentValue::compile(X64 *x64) {
+Storage RetroArgumentValue::compile(Cx *cx) {
     // A MEMORY that points to the beginning of the tuple values.
     // Will be passed as ALISTACK, though.
     return retro_argument_scope->get_local_storage();

@@ -6,23 +6,23 @@ public:
     NosyValueType(std::string name);
 
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
 };
 
 class NosytreeType: public ContainerType {
 public:
     NosytreeType(std::string name);
 
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class NosyrefType: public ContainerType {
 public:
     NosyrefType(std::string name);
 
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class WeakrefType: public RecordType {

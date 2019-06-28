@@ -1,9 +1,9 @@
-void fix_index_overflow(Register r, Register i, X64 *x64);
-void fix_index_underflow(Register r, Register i, X64 *x64);
-void compile_queue_alloc(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_queue_realloc(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_queue_grow(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64);
+void fix_index_overflow(Register r, Register i, Cx *cx);
+void fix_index_underflow(Register r, Register i, Cx *cx);
+void compile_queue_alloc(Label label, TypeSpec elem_ts, Cx *cx);
+void compile_queue_realloc(Label label, TypeSpec elem_ts, Cx *cx);
+void compile_queue_grow(Label label, TypeSpec elem_ts, Cx *cx);
+void compile_queue_clone(Label label, TypeSpec elem_ts, Cx *cx);
 
 class QueueLengthValue: public ContainerLengthValue {
 public:
@@ -14,7 +14,7 @@ class QueueIndexValue: public ContainerIndexValue {
 public:
     QueueIndexValue(Value *pivot, TypeMatch &match);
     
-    virtual void fix_index(Register r, Register i, X64 *x64);
+    virtual void fix_index(Register r, Register i, Cx *cx);
 };
 
 class QueueEmptyValue: public ContainerEmptyValue {
@@ -36,28 +36,28 @@ class QueuePushValue: public ContainerPushValue {
 public:
     QueuePushValue(Value *l, TypeMatch &match);
     
-    virtual void fix_index(Register r, Register i, X64 *x64);
+    virtual void fix_index(Register r, Register i, Cx *cx);
 };
 
 class QueuePopValue: public ContainerPopValue {
 public:
     QueuePopValue(Value *l, TypeMatch &match);
     
-    virtual void fix_index(Register r, Register i, X64 *x64);
+    virtual void fix_index(Register r, Register i, Cx *cx);
 };
 
 class QueueUnshiftValue: public QueuePushValue {
 public:
     QueueUnshiftValue(Value *l, TypeMatch &match);
     
-    virtual void fix_index(Register r, Register i, X64 *x64);
+    virtual void fix_index(Register r, Register i, Cx *cx);
 };
 
 class QueueShiftValue: public QueuePopValue {
 public:
     QueueShiftValue(Value *l, TypeMatch &match);
     
-    virtual void fix_index(Register r, Register i, X64 *x64);
+    virtual void fix_index(Register r, Register i, Cx *cx);
 };
 
 // Iteration
@@ -81,19 +81,19 @@ public:
     QueueNextElemValue(Value *l, TypeMatch &match);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class QueueNextIndexValue: public ContainerNextValue {
 public:
     QueueNextIndexValue(Value *l, TypeMatch &match);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class QueueNextItemValue: public ContainerNextValue {
 public:
     QueueNextItemValue(Value *l, TypeMatch &match);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };

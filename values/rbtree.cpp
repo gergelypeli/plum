@@ -7,142 +7,142 @@
 // offsets, so if RSI points to the tree, then RSI + RAX points to the node. The NIL node
 // value may be 0, which is an invalid offset, since the tree itself has a nonempty header.
 
-void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_alloc(Label label, TypeSpec elem_ts, Cx *cx) {
     // R10 - reservation
     int rbnode_size = RbtreeType::get_rbnode_size(elem_ts);
-    Label finalizer_label = elem_ts.prefix(rbtree_type).get_finalizer_label(x64);
+    Label finalizer_label = elem_ts.prefix(rbtree_type).get_finalizer_label(cx);
     
-    x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("alloc"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("alloc"));
+    cx->prologue();
     
-    container_alloc(RBTREE_HEADER_SIZE, rbnode_size, RBTREE_RESERVATION_OFFSET, finalizer_label, x64);
+    container_alloc(RBTREE_HEADER_SIZE, rbnode_size, RBTREE_RESERVATION_OFFSET, finalizer_label, cx);
 
-    x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), 0);
-    x64->op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RBNODE_NIL);
-    x64->op(MOVQ, Address(RAX, RBTREE_VACANT_OFFSET), RBNODE_NIL);
-    x64->op(MOVQ, Address(RAX, RBTREE_FIRST_OFFSET), RBNODE_NIL);
-    x64->op(MOVQ, Address(RAX, RBTREE_LAST_OFFSET), RBNODE_NIL);
+    cx->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), 0);
+    cx->op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RBNODE_NIL);
+    cx->op(MOVQ, Address(RAX, RBTREE_VACANT_OFFSET), RBNODE_NIL);
+    cx->op(MOVQ, Address(RAX, RBTREE_FIRST_OFFSET), RBNODE_NIL);
+    cx->op(MOVQ, Address(RAX, RBTREE_LAST_OFFSET), RBNODE_NIL);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void compile_rbtree_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_realloc(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - array, R10 - new reservation
     int rbnode_size = RbtreeType::get_rbnode_size(elem_ts);
 
-    x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("realloc"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("realloc"));
+    cx->prologue();
 
-    container_realloc(RBTREE_HEADER_SIZE, rbnode_size, RBTREE_RESERVATION_OFFSET, x64);
+    container_realloc(RBTREE_HEADER_SIZE, rbnode_size, RBTREE_RESERVATION_OFFSET, cx);
 
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_grow(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - array, R10 - new reservation
     // Double the reservation until it's enough
-    Label realloc_label = x64->once->compile(compile_rbtree_realloc, elem_ts);
+    Label realloc_label = cx->once->compile(compile_rbtree_realloc, elem_ts);
 
-    x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("grow"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("grow"));
+    cx->prologue();
 
-    container_grow(RBTREE_RESERVATION_OFFSET, RBTREE_MINIMUM_RESERVATION, realloc_label, x64);
+    container_grow(RBTREE_RESERVATION_OFFSET, RBTREE_MINIMUM_RESERVATION, realloc_label, cx);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void rbtree_preappend2(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
+void rbtree_preappend2(TypeSpec elem_ts, Storage ref_storage, Cx *cx) {
     // R10 - new addition. Returns the Ref in RAX.
     Label ok;
 
-    x64->runtime->load_lvalue(RAX, R11, ref_storage);
+    cx->runtime->load_lvalue(RAX, R11, ref_storage);
     
-    x64->op(ADDQ, R10, Address(RAX, RBTREE_LENGTH_OFFSET));
-    x64->op(CMPQ, R10, Address(RAX, RBTREE_RESERVATION_OFFSET));
-    x64->op(JBE, ok);
+    cx->op(ADDQ, R10, Address(RAX, RBTREE_LENGTH_OFFSET));
+    cx->op(CMPQ, R10, Address(RAX, RBTREE_RESERVATION_OFFSET));
+    cx->op(JBE, ok);
 
-    Label grow_label = x64->once->compile(compile_rbtree_grow, elem_ts);
-    x64->op(CALL, grow_label);  // clobbers all
+    Label grow_label = cx->once->compile(compile_rbtree_grow, elem_ts);
+    cx->op(CALL, grow_label);  // clobbers all
     
-    x64->runtime->store_lvalue(RAX, R11, ref_storage);
+    cx->runtime->store_lvalue(RAX, R11, ref_storage);
     
-    x64->code_label(ok);
+    cx->code_label(ok);
 }
 
 
-void compile_rbtree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_rbtree_clone(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - Rbtree Ref
     // Return a cloned Ref
     Label end, vacancy_check, vacancy_loop, elem_check, elem_loop;
-    Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
+    Label alloc_label = cx->once->compile(compile_rbtree_alloc, elem_ts);
     TypeSpec heap_ts = elem_ts.prefix(rbtree_type);
     
-    x64->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("clone"));
-    x64->prologue();
-    x64->runtime->log("XXX rbtree clone");
+    cx->code_label_local(label, elem_ts.prefix(rbtree_type).symbolize("clone"));
+    cx->prologue();
+    cx->runtime->log("XXX rbtree clone");
     
-    x64->op(PUSHQ, RAX);
-    x64->op(PUSHQ, RDX);
-    x64->op(MOVQ, R10, Address(RAX, RBTREE_RESERVATION_OFFSET));
-    x64->op(CALL, alloc_label);  // clobbers all
-    x64->op(POPQ, RDX);
-    x64->op(POPQ, RBX);  // orig
+    cx->op(PUSHQ, RAX);
+    cx->op(PUSHQ, RDX);
+    cx->op(MOVQ, R10, Address(RAX, RBTREE_RESERVATION_OFFSET));
+    cx->op(CALL, alloc_label);  // clobbers all
+    cx->op(POPQ, RDX);
+    cx->op(POPQ, RBX);  // orig
     
-    x64->op(MOVQ, RCX, Address(RBX, RBTREE_LENGTH_OFFSET));
-    x64->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), RCX);
+    cx->op(MOVQ, RCX, Address(RBX, RBTREE_LENGTH_OFFSET));
+    cx->op(MOVQ, Address(RAX, RBTREE_LENGTH_OFFSET), RCX);
 
-    x64->op(CMPQ, RCX, 0);
-    x64->op(JE, end);
+    cx->op(CMPQ, RCX, 0);
+    cx->op(JE, end);
 
-    x64->op(MOVQ, RCX, Address(RBX, RBTREE_ROOT_OFFSET));
-    x64->op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RCX);
-    x64->op(MOVQ, RCX, Address(RBX, RBTREE_FIRST_OFFSET));
-    x64->op(MOVQ, Address(RAX, RBTREE_FIRST_OFFSET), RCX);
-    x64->op(MOVQ, RCX, Address(RBX, RBTREE_LAST_OFFSET));
-    x64->op(MOVQ, Address(RAX, RBTREE_LAST_OFFSET), RCX);
-    x64->op(MOVQ, RCX, Address(RBX, RBTREE_VACANT_OFFSET));
-    x64->op(MOVQ, Address(RAX, RBTREE_VACANT_OFFSET), RCX);
+    cx->op(MOVQ, RCX, Address(RBX, RBTREE_ROOT_OFFSET));
+    cx->op(MOVQ, Address(RAX, RBTREE_ROOT_OFFSET), RCX);
+    cx->op(MOVQ, RCX, Address(RBX, RBTREE_FIRST_OFFSET));
+    cx->op(MOVQ, Address(RAX, RBTREE_FIRST_OFFSET), RCX);
+    cx->op(MOVQ, RCX, Address(RBX, RBTREE_LAST_OFFSET));
+    cx->op(MOVQ, Address(RAX, RBTREE_LAST_OFFSET), RCX);
+    cx->op(MOVQ, RCX, Address(RBX, RBTREE_VACANT_OFFSET));
+    cx->op(MOVQ, Address(RAX, RBTREE_VACANT_OFFSET), RCX);
     
     // Clone vacancies
-    x64->op(JMP, vacancy_check);
+    cx->op(JMP, vacancy_check);
 
-    x64->code_label(vacancy_loop);
-    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_NEXT_OFFSET));
-    x64->op(MOVQ, Address(RAX, RCX, RBNODE_NEXT_OFFSET), R10);
-    x64->op(MOVQ, RCX, R10);
+    cx->code_label(vacancy_loop);
+    cx->op(MOVQ, R10, Address(RBX, RCX, RBNODE_NEXT_OFFSET));
+    cx->op(MOVQ, Address(RAX, RCX, RBNODE_NEXT_OFFSET), R10);
+    cx->op(MOVQ, RCX, R10);
     
-    x64->code_label(vacancy_check);
-    x64->op(CMPQ, RCX, RBNODE_NIL);
-    x64->op(JNE, vacancy_loop);
+    cx->code_label(vacancy_check);
+    cx->op(CMPQ, RCX, RBNODE_NIL);
+    cx->op(JNE, vacancy_loop);
     
     // Clone elems
-    x64->op(MOVQ, RCX, Address(RBX, RBTREE_FIRST_OFFSET));
-    x64->op(JMP, elem_check);
+    cx->op(MOVQ, RCX, Address(RBX, RBTREE_FIRST_OFFSET));
+    cx->op(JMP, elem_check);
     
-    x64->code_label(elem_loop);
-    elem_ts.create(Storage(MEMORY, Address(RBX, RCX, RBNODE_VALUE_OFFSET)), Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), x64);
+    cx->code_label(elem_loop);
+    elem_ts.create(Storage(MEMORY, Address(RBX, RCX, RBNODE_VALUE_OFFSET)), Storage(MEMORY, Address(RAX, RCX, RBNODE_VALUE_OFFSET)), cx);
 
-    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_LEFT_OFFSET));
-    x64->op(MOVQ, Address(RAX, RCX, RBNODE_LEFT_OFFSET), R10);
-    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_RIGHT_OFFSET));
-    x64->op(MOVQ, Address(RAX, RCX, RBNODE_RIGHT_OFFSET), R10);
-    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_PRED_OFFSET));
-    x64->op(MOVQ, Address(RAX, RCX, RBNODE_PRED_OFFSET), R10);
-    x64->op(MOVQ, R10, Address(RBX, RCX, RBNODE_NEXT_OFFSET));
-    x64->op(MOVQ, Address(RAX, RCX, RBNODE_NEXT_OFFSET), R10);
-    x64->op(MOVQ, RCX, R10);
+    cx->op(MOVQ, R10, Address(RBX, RCX, RBNODE_LEFT_OFFSET));
+    cx->op(MOVQ, Address(RAX, RCX, RBNODE_LEFT_OFFSET), R10);
+    cx->op(MOVQ, R10, Address(RBX, RCX, RBNODE_RIGHT_OFFSET));
+    cx->op(MOVQ, Address(RAX, RCX, RBNODE_RIGHT_OFFSET), R10);
+    cx->op(MOVQ, R10, Address(RBX, RCX, RBNODE_PRED_OFFSET));
+    cx->op(MOVQ, Address(RAX, RCX, RBNODE_PRED_OFFSET), R10);
+    cx->op(MOVQ, R10, Address(RBX, RCX, RBNODE_NEXT_OFFSET));
+    cx->op(MOVQ, Address(RAX, RCX, RBNODE_NEXT_OFFSET), R10);
+    cx->op(MOVQ, RCX, R10);
     
-    x64->code_label(elem_check);
-    x64->op(CMPQ, RCX, RBNODE_NIL);
-    x64->op(JNE, elem_loop);
+    cx->code_label(elem_check);
+    cx->op(CMPQ, RCX, RBNODE_NIL);
+    cx->op(JNE, elem_loop);
 
-    heap_ts.decref(RBX, x64);
+    heap_ts.decref(RBX, cx);
     
-    x64->code_label(end);
-    x64->epilogue();
+    cx->code_label(end);
+    cx->epilogue();
 }
 
 
@@ -159,11 +159,11 @@ Regs RbtreeEmptyValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage RbtreeEmptyValue::compile(X64 *x64) {
-    Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
+Storage RbtreeEmptyValue::compile(Cx *cx) {
+    Label alloc_label = cx->once->compile(compile_rbtree_alloc, elem_ts);
     
-    x64->op(MOVQ, R10, 0);
-    x64->op(CALL, alloc_label);  // clobbers all
+    cx->op(MOVQ, R10, 0);
+    cx->op(CALL, alloc_label);  // clobbers all
     
     return Storage(REGISTER, RAX);
 }
@@ -181,12 +181,12 @@ Regs RbtreeReservedValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage RbtreeReservedValue::compile(X64 *x64) {
-    Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
+Storage RbtreeReservedValue::compile(Cx *cx) {
+    Label alloc_label = cx->once->compile(compile_rbtree_alloc, elem_ts);
 
-    right->compile_and_store(x64, Storage(REGISTER, R10));  // FIXME: may be illegal
+    right->compile_and_store(cx, Storage(REGISTER, R10));  // FIXME: may be illegal
 
-    x64->op(CALL, alloc_label);  // clobbers all
+    cx->op(CALL, alloc_label);  // clobbers all
     
     return Storage(REGISTER, RAX);
 }
@@ -203,29 +203,29 @@ Regs RbtreeInitializerValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage RbtreeInitializerValue::compile(X64 *x64) {
+Storage RbtreeInitializerValue::compile(Cx *cx) {
     // This won't use the base class subcompile method, because that's inappropriate here.
-    Label alloc_label = x64->once->compile(compile_rbtree_alloc, elem_ts);
-    Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
+    Label alloc_label = cx->once->compile(compile_rbtree_alloc, elem_ts);
+    Label add_label = cx->once->compile(compile_rbtree_add, elem_ts);
     int stack_size = elem_ts.measure_stack();
 
-    x64->op(MOVQ, R10, elems.size());
-    x64->op(CALL, alloc_label);  // clobbers all
-    x64->op(PUSHQ, RAX);
+    cx->op(MOVQ, R10, elems.size());
+    cx->op(CALL, alloc_label);  // clobbers all
+    cx->op(PUSHQ, RAX);
     
     for (auto &elem : elems) {
-        elem->compile_and_store(x64, Storage(STACK));
+        elem->compile_and_store(cx, Storage(STACK));
 
-        x64->op(MOVQ, KEYX, RSP);  // save key address for stack usage
-        x64->op(MOVQ, SELFX, Address(RSP, stack_size));  // Rbtree without incref
-        x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+        cx->op(MOVQ, KEYX, RSP);  // save key address for stack usage
+        cx->op(MOVQ, SELFX, Address(RSP, stack_size));  // Rbtree without incref
+        cx->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
 
-        x64->op(CALL, add_label);
+        cx->op(CALL, add_label);
 
-        x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
-        x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
+        cx->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+        cx->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
     
-        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), x64);
+        elem_ts.create(Storage(STACK), Storage(MEMORY, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET)), cx);
     }
     
     return Storage(STACK);
@@ -251,17 +251,17 @@ Regs RbtreeLengthValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage RbtreeLengthValue::compile(X64 *x64) {
-    ls = left->compile(x64);
+Storage RbtreeLengthValue::compile(Cx *cx) {
+    ls = left->compile(cx);
 
     switch (ls.where) {
     case REGISTER:
-        heap_ts.decref(ls.reg, x64);  // FIXME: use after decref
-        x64->op(MOVQ, ls.reg, Address(ls.reg, RBTREE_LENGTH_OFFSET));
+        heap_ts.decref(ls.reg, cx);  // FIXME: use after decref
+        cx->op(MOVQ, ls.reg, Address(ls.reg, RBTREE_LENGTH_OFFSET));
         return Storage(REGISTER, ls.reg);
     case MEMORY:
-        x64->op(MOVQ, reg, ls.address);
-        x64->op(MOVQ, reg, Address(reg, RBTREE_LENGTH_OFFSET));
+        cx->op(MOVQ, reg, ls.address);
+        cx->op(MOVQ, reg, Address(reg, RBTREE_LENGTH_OFFSET));
         return Storage(REGISTER, reg);
     default:
         throw INTERNAL_ERROR;
@@ -294,38 +294,38 @@ Regs RbtreeAddValue::precompile(Regs preferred) {
     return clob | RBTREE_CLOB | COMPARE_CLOB;
 }
 
-Storage RbtreeAddValue::postprocess(Storage s, X64 *x64) {
+Storage RbtreeAddValue::postprocess(Storage s, Cx *cx) {
     return s;
 }
 
-Storage RbtreeAddValue::compile(X64 *x64) {
+Storage RbtreeAddValue::compile(Cx *cx) {
     int elem_arg_size = elem_arg_ts.measure_stack();
-    Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
-    Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
+    Label clone_label = cx->once->compile(compile_rbtree_clone, elem_ts);
+    Label add_label = cx->once->compile(compile_rbtree_add, elem_ts);
 
-    Storage ps = pivot->compile_lvalue(x64);
-    elem->compile_and_store(x64, Storage(STACK));
+    Storage ps = pivot->compile_lvalue(cx);
+    elem->compile_and_store(cx, Storage(STACK));
     Storage aps = ps.access(elem_arg_size);
 
-    container_cow(clone_label, aps, x64);  // leaves borrowed Ref in RAX
+    container_cow(clone_label, aps, cx);  // leaves borrowed Ref in RAX
 
-    x64->op(MOVQ, R10, 1);  // Growth
-    rbtree_preappend2(elem_ts, aps, x64);
-    x64->op(MOVQ, SELFX, RAX);  // TODO: not nice, maybe SELFX should be RAX?
+    cx->op(MOVQ, R10, 1);  // Growth
+    rbtree_preappend2(elem_ts, aps, cx);
+    cx->op(MOVQ, SELFX, RAX);  // TODO: not nice, maybe SELFX should be RAX?
     
-    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(LEA, KEYX, Address(RSP, 0));
-    x64->op(CALL, add_label);
+    cx->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+    cx->op(LEA, KEYX, Address(RSP, 0));
+    cx->op(CALL, add_label);
     
-    x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
-    x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
+    cx->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+    cx->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
 
     Address alias_addr(RSP, elem_arg_size);
     Address elem_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET);
-    elem_ts.create(Storage(STACK), Storage(MEMORY, elem_addr), x64);
+    elem_ts.create(Storage(STACK), Storage(MEMORY, elem_addr), cx);
 
     // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
-    return postprocess(ps, x64);
+    return postprocess(ps, cx);
 }
 
 
@@ -360,47 +360,47 @@ Regs RbtreeAddItemValue::precompile(Regs preferred) {
     return clob | RBTREE_CLOB | COMPARE_CLOB;
 }
 
-Storage RbtreeAddItemValue::postprocess(Storage s, X64 *x64) {
+Storage RbtreeAddItemValue::postprocess(Storage s, Cx *cx) {
     return s;
 }
 
-Storage RbtreeAddItemValue::compile(X64 *x64) {
+Storage RbtreeAddItemValue::compile(Cx *cx) {
     int key_size = key_ts.measure_stack();  // NOTE: as it's in an Item, it is rounded up
     int key_arg_size = key_arg_ts.measure_stack();
     int value_arg_size = value_arg_ts.measure_stack();
-    Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
-    Label add_label = x64->once->compile(compile_rbtree_add, elem_ts);
+    Label clone_label = cx->once->compile(compile_rbtree_clone, elem_ts);
+    Label add_label = cx->once->compile(compile_rbtree_add, elem_ts);
 
-    Storage ps = pivot->compile_lvalue(x64);
-    key->compile_and_store(x64, Storage(STACK));
-    value->compile_and_store(x64, Storage(STACK));
+    Storage ps = pivot->compile_lvalue(cx);
+    key->compile_and_store(cx, Storage(STACK));
+    value->compile_and_store(cx, Storage(STACK));
     Storage aps = ps.access(key_arg_size + value_arg_size);
 
-    container_cow(clone_label, aps, x64);  // leaves borrowed Ref in RAX
+    container_cow(clone_label, aps, cx);  // leaves borrowed Ref in RAX
 
-    x64->op(MOVQ, R10, 1);  // Growth
-    rbtree_preappend2(elem_ts, aps, x64);
-    x64->op(MOVQ, SELFX, RAX);  // TODO: not nice, maybe SELFX should be RAX?
+    cx->op(MOVQ, R10, 1);  // Growth
+    rbtree_preappend2(elem_ts, aps, cx);
+    cx->op(MOVQ, SELFX, RAX);  // TODO: not nice, maybe SELFX should be RAX?
 
-    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(LEA, KEYX, Address(RSP, value_arg_size));
-    x64->op(CALL, add_label);
+    cx->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+    cx->op(LEA, KEYX, Address(RSP, value_arg_size));
+    cx->op(CALL, add_label);
     
-    x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
-    x64->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
+    cx->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+    cx->op(ANDQ, Address(SELFX, R10, RBNODE_PRED_OFFSET), ~RBNODE_RED_BIT);  // blacken root
 
     // NOTE: we use the fact that Item contains index first, and value second,
     // and since they're parametric types, their sizes will be rounded up.
     Address alias_addr1(RSP, key_arg_size + value_arg_size);
     Address value_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
-    value_ts.create(Storage(STACK), Storage(MEMORY, value_addr), x64);
+    value_ts.create(Storage(STACK), Storage(MEMORY, value_addr), cx);
     
     Address alias_addr2(RSP, key_arg_size);
     Address key_addr(SELFX, KEYX, RBNODE_VALUE_OFFSET);
-    key_ts.create(Storage(STACK), Storage(MEMORY, key_addr), x64);
+    key_ts.create(Storage(STACK), Storage(MEMORY, key_addr), cx);
 
     // Leaves ps/SELFX/KEYX point to the new elem, for subclasses
-    return postprocess(ps, x64);
+    return postprocess(ps, cx);
 }
 
 
@@ -429,32 +429,32 @@ Regs RbtreeRemoveValue::precompile(Regs preferred) {
     return clob | RBTREE_CLOB | COMPARE_CLOB;
 }
 
-Storage RbtreeRemoveValue::postprocess(Storage s, X64 *x64) {
+Storage RbtreeRemoveValue::postprocess(Storage s, Cx *cx) {
     return s;
 }
 
-Storage RbtreeRemoveValue::compile(X64 *x64) {
+Storage RbtreeRemoveValue::compile(Cx *cx) {
     int key_arg_size = key_arg_ts.measure_stack();
-    Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
-    Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
+    Label clone_label = cx->once->compile(compile_rbtree_clone, elem_ts);
+    Label remove_label = cx->once->compile(compile_rbtree_remove, elem_ts);
 
-    Storage ps = pivot->compile_lvalue(x64);
-    key->compile_and_store(x64, Storage(STACK));
+    Storage ps = pivot->compile_lvalue(cx);
+    key->compile_and_store(cx, Storage(STACK));
     Storage aps = ps.access(key_arg_size);
 
-    container_cow(clone_label, aps, x64);  // leaves borrowed Ref in RAX
+    container_cow(clone_label, aps, cx);  // leaves borrowed Ref in RAX
 
-    x64->op(MOVQ, SELFX, RAX);
-    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(LEA, KEYX, Address(RSP, 0));  // NOTE: only the index part is present of the Item
-    x64->op(CALL, remove_label);
+    cx->op(MOVQ, SELFX, RAX);
+    cx->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+    cx->op(LEA, KEYX, Address(RSP, 0));  // NOTE: only the index part is present of the Item
+    cx->op(CALL, remove_label);
     
-    x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+    cx->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
 
-    key_arg_ts.store(Storage(STACK), Storage(), x64);
+    key_arg_ts.store(Storage(STACK), Storage(), cx);
 
     // Leaves ps/SELFX/KEYX point to the destroyed elem, for subclasses
-    return postprocess(ps, x64);
+    return postprocess(ps, cx);
 }
 
 
@@ -481,22 +481,22 @@ Regs RbtreeHasValue::precompile(Regs preferred) {
     return clob | RBTREE_CLOB | COMPARE_CLOB;
 }
 
-Storage RbtreeHasValue::compile(X64 *x64) {
-    pivot->compile_and_store(x64, Storage(STACK));
-    key->compile_and_store(x64, Storage(STACK));
+Storage RbtreeHasValue::compile(Cx *cx) {
+    pivot->compile_and_store(cx, Storage(STACK));
+    key->compile_and_store(cx, Storage(STACK));
     
     int key_arg_size = key_arg_ts.measure_stack();
-    Label has_label = x64->once->compile(compile_rbtree_has, elem_ts);
+    Label has_label = cx->once->compile(compile_rbtree_has, elem_ts);
 
-    x64->op(MOVQ, SELFX, Address(RSP, key_arg_size));
-    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(LEA, KEYX, Address(RSP, 0));
-    x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
+    cx->op(MOVQ, SELFX, Address(RSP, key_arg_size));
+    cx->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+    cx->op(LEA, KEYX, Address(RSP, 0));
+    cx->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
     
-    key_arg_ts.store(Storage(STACK), Storage(), x64);
-    pivot->ts.store(Storage(STACK), Storage(), x64);
+    key_arg_ts.store(Storage(STACK), Storage(), cx);
+    pivot->ts.store(Storage(STACK), Storage(), cx);
     
-    x64->op(CMPQ, KEYX, RBNODE_NIL);
+    cx->op(CMPQ, KEYX, RBNODE_NIL);
 
     return Storage(FLAGS, CC_NOT_EQUAL);
 }
@@ -542,50 +542,50 @@ Regs RbtreeIndexValue::precompile(Regs preferred) {
     return clob | RBTREE_CLOB | COMPARE_CLOB;
 }
 
-Storage RbtreeIndexValue::compile(X64 *x64) {
+Storage RbtreeIndexValue::compile(Cx *cx) {
     // Try borrowing the container
-    Storage ps = pivot->compile(x64);
+    Storage ps = pivot->compile(cx);
     bool container_borrowed = false;
     
     if (may_borrow_heap && ps.where == MEMORY) {
-        x64->op(PUSHQ, ps.address);
+        cx->op(PUSHQ, ps.address);
         container_borrowed = true;
     }
     else
-        pivot->ts.store(ps, Storage(STACK), x64);
+        pivot->ts.store(ps, Storage(STACK), cx);
     
-    key->compile_and_store(x64, Storage(STACK));
+    key->compile_and_store(cx, Storage(STACK));
 
     int key_size = key_ts.measure_stack();  // in an Item it's rounded up
     int key_arg_size = key_arg_ts.measure_stack();
-    Label has_label = x64->once->compile(compile_rbtree_has, elem_ts);
+    Label has_label = cx->once->compile(compile_rbtree_has, elem_ts);
 
-    x64->op(MOVQ, SELFX, Address(RSP, key_arg_size));
-    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(LEA, KEYX, Address(RSP, 0));
-    x64->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
+    cx->op(MOVQ, SELFX, Address(RSP, key_arg_size));
+    cx->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+    cx->op(LEA, KEYX, Address(RSP, 0));
+    cx->op(CALL, has_label);  // KEYX is the index of the found item, or NIL
     
-    key_arg_ts.store(Storage(STACK), Storage(), x64);
+    key_arg_ts.store(Storage(STACK), Storage(), cx);
     
     if (container_borrowed)
-        x64->op(POPQ, SELFX);
+        cx->op(POPQ, SELFX);
     else
-        pivot->ts.store(Storage(STACK), Storage(REGISTER, SELFX), x64);
+        pivot->ts.store(Storage(STACK), Storage(REGISTER, SELFX), cx);
 
     Label ok;
-    //defer_decref(SELFX, x64);
+    //defer_decref(SELFX, cx);
     
-    x64->op(CMPQ, KEYX, RBNODE_NIL);
-    x64->op(JNE, ok);
+    cx->op(CMPQ, KEYX, RBNODE_NIL);
+    cx->op(JNE, ok);
 
     if (!container_borrowed)
-        x64->runtime->decref(SELFX);
-    raise("NOT_FOUND", x64);
+        cx->runtime->decref(SELFX);
+    raise("NOT_FOUND", cx);
     
-    x64->code_label(ok);
+    cx->code_label(ok);
     Address addr(SELFX, KEYX, RBNODE_VALUE_OFFSET + key_size);
 
-    return compile_contained_lvalue(addr, container_borrowed ? NOREG : SELFX, ts, x64);
+    return compile_contained_lvalue(addr, container_borrowed ? NOREG : SELFX, ts, cx);
 }
 
 
@@ -595,12 +595,12 @@ RbtreeElemByAgeIterValue::RbtreeElemByAgeIterValue(Value *l, TypeSpec iter_ts)
     :SimpleRecordValue(iter_ts, l) {
 }
 
-Storage RbtreeElemByAgeIterValue::compile(X64 *x64) {
-    left->compile_and_store(x64, Storage(STACK));
+Storage RbtreeElemByAgeIterValue::compile(Cx *cx) {
+    left->compile_and_store(cx, Storage(STACK));
     
-    x64->op(POPQ, R10);
-    x64->op(PUSHQ, Address(R10, RBTREE_FIRST_OFFSET));
-    x64->op(PUSHQ, R10);
+    cx->op(POPQ, R10);
+    cx->op(PUSHQ, Address(R10, RBTREE_FIRST_OFFSET));
+    cx->op(PUSHQ, R10);
     
     return Storage(STACK);
 }
@@ -631,12 +631,12 @@ Regs RbtreeNextElemByAgeValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage RbtreeNextElemByAgeValue::postprocess(Register r, Register i, X64 *x64) {
+Storage RbtreeNextElemByAgeValue::postprocess(Register r, Register i, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
-Storage RbtreeNextElemByAgeValue::compile(X64 *x64) {
-    ls = left->compile_lvalue(x64);  // iterator
+Storage RbtreeNextElemByAgeValue::compile(Cx *cx) {
+    ls = left->compile_lvalue(cx);  // iterator
     Storage als = ls.access(0);
     
     Register r = (clob & ~ls.regs()).get_gpr();
@@ -644,30 +644,30 @@ Storage RbtreeNextElemByAgeValue::compile(X64 *x64) {
     Label ok;
 
     // Load the ref to r, and the index to i
-    x64->runtime->load_lvalue(r, R11, als);
-    x64->runtime->load_lvalue(i, R11, als, REFERENCE_SIZE);
+    cx->runtime->load_lvalue(r, R11, als);
+    cx->runtime->load_lvalue(i, R11, als, REFERENCE_SIZE);
     
-    x64->op(CMPQ, i, RBNODE_NIL);
-    x64->op(JNE, ok);
+    cx->op(CMPQ, i, RBNODE_NIL);
+    cx->op(JNE, ok);
     
-    drop_and_raise(left->ts, ls, "ITERATOR_DONE", x64);
+    drop_and_raise(left->ts, ls, "ITERATOR_DONE", cx);
     
-    x64->code_label(ok);
+    cx->code_label(ok);
     
     if (is_down) {
-        x64->op(MOVQ, R10, Address(r, i, RBNODE_PRED_OFFSET));
-        x64->op(ANDQ, R10, ~RBNODE_RED_BIT);  // remove color bit
+        cx->op(MOVQ, R10, Address(r, i, RBNODE_PRED_OFFSET));
+        cx->op(ANDQ, R10, ~RBNODE_RED_BIT);  // remove color bit
     }
     else {
-        x64->op(MOVQ, R10, Address(r, i, RBNODE_NEXT_OFFSET));
+        cx->op(MOVQ, R10, Address(r, i, RBNODE_NEXT_OFFSET));
     }
 
     // Save new iterator position
-    x64->runtime->store_lvalue(R10, R11, als, REFERENCE_SIZE);
+    cx->runtime->store_lvalue(R10, R11, als, REFERENCE_SIZE);
 
-    left->ts.store(ls, Storage(), x64);
+    left->ts.store(ls, Storage(), cx);
 
-    return postprocess(r, i, x64);
+    return postprocess(r, i, cx);
 }
 
 
@@ -702,36 +702,36 @@ Regs RbtreeNextElemByOrderValue::precompile(Regs preferred) {
     return clob | RAX | RCX | RDX | SELFX;
 }
 
-Storage RbtreeNextElemByOrderValue::postprocess(Register r, Register i, X64 *x64) {
+Storage RbtreeNextElemByOrderValue::postprocess(Register r, Register i, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
-Storage RbtreeNextElemByOrderValue::compile(X64 *x64) {
-    Label next_label = x64->once->compile(compile_rbtree_next);
+Storage RbtreeNextElemByOrderValue::compile(Cx *cx) {
+    Label next_label = cx->once->compile(compile_rbtree_next);
     Label ok;
 
-    ls = left->compile_lvalue(x64);
+    ls = left->compile_lvalue(cx);
     Storage als = ls.access(0);
 
     // Load the ref to SELFX, and the index to RAX
-    x64->runtime->load_lvalue(SELFX, R11, als);
-    x64->runtime->load_lvalue(RAX, R11, als, REFERENCE_SIZE);
+    cx->runtime->load_lvalue(SELFX, R11, als);
+    cx->runtime->load_lvalue(RAX, R11, als, REFERENCE_SIZE);
         
-    x64->op(CALL, next_label);  // RAX - new it, R10 - index
+    cx->op(CALL, next_label);  // RAX - new it, R10 - index
     
-    x64->op(CMPQ, RAX, 0);
-    x64->op(JNE, ok);
+    cx->op(CMPQ, RAX, 0);
+    cx->op(JNE, ok);
 
-    drop_and_raise(left->ts, ls, "ITERATOR_DONE", x64);
+    drop_and_raise(left->ts, ls, "ITERATOR_DONE", cx);
     
-    x64->code_label(ok);
+    cx->code_label(ok);
 
     // Save new iterator position
-    x64->runtime->store_lvalue(RAX, R11, als, REFERENCE_SIZE);
+    cx->runtime->store_lvalue(RAX, R11, als, REFERENCE_SIZE);
 
-    x64->op(MOVQ, RAX, R10);
-    left->ts.store(ls, Storage(), x64);
+    cx->op(MOVQ, RAX, R10);
+    left->ts.store(ls, Storage(), cx);
     
-    return postprocess(SELFX, RAX, x64);
+    return postprocess(SELFX, RAX, cx);
 }
 

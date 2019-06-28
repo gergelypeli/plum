@@ -9,7 +9,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
     virtual Declaration *declare(std::string name, Scope *scope);
 };
 
@@ -32,7 +32,7 @@ public:
     TypeTupleValue(std::vector<std::unique_ptr<Value>> vs);
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class VoidConversionValue: public Value {
@@ -42,7 +42,7 @@ public:
     VoidConversionValue(Value *o);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
     virtual void escape_statement_variables();
 };
 
@@ -54,9 +54,9 @@ public:
 
     ImplementationConversionValue(Implementation *imt, Value *o, TypeMatch tm);
     
-    virtual void streamify(X64 *x64);
+    virtual void streamify(Cx *cx);
     virtual Value *lookup_inner(std::string name, Scope *scope);
     virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

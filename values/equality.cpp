@@ -15,9 +15,9 @@ Regs EqualityValue::precompile(Regs preferred) {
     return value->precompile(preferred);
 }
 
-Storage EqualityValue::compile(X64 *x64) {
+Storage EqualityValue::compile(Cx *cx) {
     // Returns a boolean if the arguments were equal
-    Storage s = value->compile(x64);
+    Storage s = value->compile(cx);
 
     if (!no)
         return s;
@@ -28,10 +28,10 @@ Storage EqualityValue::compile(X64 *x64) {
     case FLAGS:
         return Storage(FLAGS, negated(s.cc));
     case REGISTER:
-        x64->op(CMPB, s.reg, 0);
+        cx->op(CMPB, s.reg, 0);
         return Storage(FLAGS, SETE);
     case MEMORY:
-        x64->op(CMPB, s.address, 0);
+        cx->op(CMPB, s.address, 0);
         return Storage(FLAGS, SETE);
     default:
         throw INTERNAL_ERROR;
@@ -55,16 +55,16 @@ Regs ComparisonValue::precompile(Regs preferred) {
     return value->precompile(preferred);
 }
 
-Storage ComparisonValue::compile(X64 *x64) {
+Storage ComparisonValue::compile(Cx *cx) {
     // Value returns an integer representing the ordering of the arguments
-    Storage s = value->compile(x64);
+    Storage s = value->compile(cx);
 
     switch (s.where) {
     case REGISTER:
-        x64->op(CMPB, s.reg, 0);
+        cx->op(CMPB, s.reg, 0);
         break;
     case MEMORY:
-        x64->op(CMPB, s.address, 0);
+        cx->op(CMPB, s.address, 0);
         break;
     default:
         throw INTERNAL_ERROR;
@@ -110,25 +110,25 @@ Regs BulkEqualityMatcherValue::precompile(Regs preferred) {
     return clob | EQUAL_CLOB;
 }
 
-Storage BulkEqualityMatcherValue::compile(X64 *x64) {
+Storage BulkEqualityMatcherValue::compile(Cx *cx) {
     Label equal;
-    Storage ps = pivot_value->compile(x64);
+    Storage ps = pivot_value->compile(cx);
     
     // The switch variables are read only, no need to push a copy
     if (!am_implicit_matcher) {
-        pivot_value->ts.store(ps, Storage(STACK), x64);
+        pivot_value->ts.store(ps, Storage(STACK), cx);
         ps = Storage(STACK);
     }
 
     for (auto &v : values) {
         int pop = 0;
-        Storage vs = v->compile(x64);
+        Storage vs = v->compile(cx);
         Storage xps = ps;
         
         if (vs.where == STACK) {
             // NOTE: we use that destroy does not change values
             vs = Storage(MEMORY, Address(RSP, 0));
-            v->ts.destroy(vs, x64);
+            v->ts.destroy(vs, cx);
             pop = v->ts.measure_stack();
             
             if (xps.where == STACK)
@@ -139,17 +139,17 @@ Storage BulkEqualityMatcherValue::compile(X64 *x64) {
                 xps = Storage(MEMORY, Address(RSP, 0));
         }
         
-        pivot_value->ts.equal(xps, vs, x64);  // sets flags
+        pivot_value->ts.equal(xps, vs, cx);  // sets flags
         
         if (pop)
-            x64->op(LEA, RSP, Address(RSP, pop));  // preserve flags
+            cx->op(LEA, RSP, Address(RSP, pop));  // preserve flags
         
-        x64->op(JE, equal);
+        cx->op(JE, equal);
     }
 
-    drop_and_raise(pivot_value->ts, ps, "UNMATCHED", x64);
+    drop_and_raise(pivot_value->ts, ps, "UNMATCHED", cx);
     
-    x64->code_label(equal);
+    cx->code_label(equal);
     
     return ps;
 }

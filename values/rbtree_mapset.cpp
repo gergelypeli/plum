@@ -62,7 +62,7 @@ SetNextElemByAgeValue::SetNextElemByAgeValue(Value *l, TypeMatch &tm)
     :RbtreeNextElemByAgeValue(l, tm[1].prefix(tuple1_type)) {
 }
 
-Storage SetNextElemByAgeValue::postprocess(Register r, Register i, X64 *x64) {
+Storage SetNextElemByAgeValue::postprocess(Register r, Register i, Cx *cx) {
     return Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET));
 }
 
@@ -72,7 +72,7 @@ SetNextElemByOrderValue::SetNextElemByOrderValue(Value *l, TypeMatch &tm)
     :RbtreeNextElemByOrderValue(l, tm[1].prefix(tuple1_type)) {
 }
 
-Storage SetNextElemByOrderValue::postprocess(Register r, Register i, X64 *x64) {
+Storage SetNextElemByOrderValue::postprocess(Register r, Register i, Cx *cx) {
     return Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET));
 }
 
@@ -167,12 +167,12 @@ Regs MapNextItemByAgeValue::precompile(Regs preferred) {
     return RbtreeNextElemByAgeValue::precompile(preferred) | Regs(RAX, RBX);
 }
 
-Storage MapNextItemByAgeValue::postprocess(Register r, Register i, X64 *x64) {
-    index_ts.store(Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET)), Storage(STACK), x64);
+Storage MapNextItemByAgeValue::postprocess(Register r, Register i, Cx *cx) {
+    index_ts.store(Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET)), Storage(STACK), cx);
 
-    x64->op(PUSHQ, 0);
-    x64->op(LEA, R10, Address(r, i, RBNODE_VALUE_OFFSET + index_ts.measure_stack()));
-    x64->op(PUSHQ, R10);
+    cx->op(PUSHQ, 0);
+    cx->op(LEA, R10, Address(r, i, RBNODE_VALUE_OFFSET + index_ts.measure_stack()));
+    cx->op(PUSHQ, R10);
 
     return Storage(STACK);
 }
@@ -190,12 +190,12 @@ Regs MapNextItemByOrderValue::precompile(Regs preferred) {
     return RbtreeNextElemByOrderValue::precompile(preferred) | Regs(RAX, RBX);
 }
 
-Storage MapNextItemByOrderValue::postprocess(Register r, Register i, X64 *x64) {
-    index_ts.store(Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET)), Storage(STACK), x64);
+Storage MapNextItemByOrderValue::postprocess(Register r, Register i, Cx *cx) {
+    index_ts.store(Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET)), Storage(STACK), cx);
 
-    x64->op(PUSHQ, 0);
-    x64->op(LEA, R10, Address(r, i, RBNODE_VALUE_OFFSET + index_ts.measure_stack()));
-    x64->op(PUSHQ, R10);
+    cx->op(PUSHQ, 0);
+    cx->op(LEA, R10, Address(r, i, RBNODE_VALUE_OFFSET + index_ts.measure_stack()));
+    cx->op(PUSHQ, R10);
 
     return Storage(STACK);
 }
@@ -206,7 +206,7 @@ MapNextIndexByAgeValue::MapNextIndexByAgeValue(Value *l, TypeMatch &tm)
     :RbtreeNextElemByAgeValue(l, tm[1].prefix(tuple1_type)) {  // NOTE: the index comes first in Item
 }
 
-Storage MapNextIndexByAgeValue::postprocess(Register r, Register i, X64 *x64) {
+Storage MapNextIndexByAgeValue::postprocess(Register r, Register i, Cx *cx) {
     return Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET));
 }
 
@@ -216,6 +216,6 @@ MapNextIndexByOrderValue::MapNextIndexByOrderValue(Value *l, TypeMatch &tm)
     :RbtreeNextElemByOrderValue(l, tm[1].prefix(tuple1_type)) {  // NOTE: the index comes first in Item
 }
 
-Storage MapNextIndexByOrderValue::postprocess(Register r, Register i, X64 *x64) {
+Storage MapNextIndexByOrderValue::postprocess(Register r, Register i, Cx *cx) {
     return Storage(MEMORY, Address(r, i, RBNODE_VALUE_OFFSET));
 }

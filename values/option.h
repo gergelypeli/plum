@@ -3,7 +3,7 @@ public:
     OptionNoneValue(TypeSpec ts);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class OptionSomeValue: public Value {
@@ -15,7 +15,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class OptionOperationValue: public GenericOperationValue {
@@ -29,7 +29,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class OptionSomeMatcherValue: public GenericValue, public Raiser {
@@ -40,7 +40,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class UnionValue: public Value {
@@ -53,7 +53,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class UnionMatcherValue: public GenericValue, public Raiser {
@@ -65,5 +65,5 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

@@ -1,8 +1,8 @@
-void compile_rbtree_alloc(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_rbtree_realloc(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_rbtree_grow(Label label, TypeSpec elem_ts, X64 *x64);
-void rbtree_preappend2(TypeSpec elem_ts, Storage ref_storage, X64 *x64);
-void compile_rbtree_clone(Label label, TypeSpec elem_ts, X64 *x64);
+void compile_rbtree_alloc(Label label, TypeSpec elem_ts, Cx *cx);
+void compile_rbtree_realloc(Label label, TypeSpec elem_ts, Cx *cx);
+void compile_rbtree_grow(Label label, TypeSpec elem_ts, Cx *cx);
+void rbtree_preappend2(TypeSpec elem_ts, Storage ref_storage, Cx *cx);
+void compile_rbtree_clone(Label label, TypeSpec elem_ts, Cx *cx);
 
 // Initializers
 class RbtreeEmptyValue: public GenericValue {
@@ -12,7 +12,7 @@ public:
     RbtreeEmptyValue(TypeSpec ets, TypeSpec rts);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeReservedValue: public GenericValue {
@@ -22,7 +22,7 @@ public:
     RbtreeReservedValue(TypeSpec ets, TypeSpec rts);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeInitializerValue: public ContainerInitializerValue {
@@ -30,7 +30,7 @@ public:
     RbtreeInitializerValue(TypeSpec ets, TypeSpec rts);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 // Methods
@@ -42,7 +42,7 @@ public:
     RbtreeLengthValue(Value *l, TypeSpec ets);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeAddValue: public Value {
@@ -54,8 +54,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Storage s, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual Storage postprocess(Storage s, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeAddItemValue: public Value {
@@ -68,8 +68,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Storage s, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual Storage postprocess(Storage s, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeRemoveValue: public Value {
@@ -81,8 +81,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Storage s, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual Storage postprocess(Storage s, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeHasValue: public Value {
@@ -94,7 +94,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeIndexValue: public Value, public Raiser, public ContainedLvalue {
@@ -108,7 +108,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 // Iteration
@@ -116,7 +116,7 @@ class RbtreeElemByAgeIterValue: public SimpleRecordValue {
 public:
     RbtreeElemByAgeIterValue(Value *l, TypeSpec iter_ts);
     
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeNextElemByAgeValue: public GenericValue, public Raiser {
@@ -128,8 +128,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 class RbtreeElemByOrderIterValue: public ContainerIterValue {
@@ -145,6 +145,6 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };

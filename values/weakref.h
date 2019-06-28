@@ -1,7 +1,7 @@
 // Weakref
-void compile_nosyref_callback(Label label, X64 *x64);
-void compile_nosyref_finalizer(Label label, X64 *x64);
-void alloc_nosyref(X64 *x64);
+void compile_nosyref_callback(Label label, Cx *cx);
+void compile_nosyref_finalizer(Label label, Cx *cx);
+void alloc_nosyref(Cx *cx);
 
 class WeakrefToValue: public Value {
 public:
@@ -12,7 +12,7 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class WeakrefDeadMatcherValue: public GenericValue, public Raiser {
@@ -23,7 +23,7 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class WeakrefLiveMatcherValue: public GenericValue, public Raiser {
@@ -34,5 +34,5 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

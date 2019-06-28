@@ -6,7 +6,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class FrameStuffValue: public Value, public Raiser {
@@ -17,7 +17,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class DoubleStackValue: public Value {
@@ -25,7 +25,7 @@ public:
     DoubleStackValue(Value *, TypeMatch);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class DieValue: public Value {
@@ -33,5 +33,5 @@ public:
     DieValue(Value *p, TypeMatch tm);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

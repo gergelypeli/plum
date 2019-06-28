@@ -100,7 +100,7 @@ void Function::allocate() {
         fn_scope->allocate();
 }
 
-Label Function::get_label(X64 *x64) {
+Label Function::get_label(Cx *cx) {
     if (is_abstract())
         throw INTERNAL_ERROR;
         
@@ -170,8 +170,8 @@ void Function::set_associated(Associable *a) {
     associated = a;
 }
 
-Label Function::get_method_label(X64 *x64) {
-    return get_label(x64);
+Label Function::get_method_label(Cx *cx) {
+    return get_label(cx);
 }
 
 std::string Function::get_method_name() {
@@ -183,12 +183,12 @@ void Function::set_pc_range(int lo, int hi) {
     high_pc = hi;
 }
 
-void Function::debug(TypeMatch tm, X64 *x64) {
+void Function::debug(TypeMatch tm, Cx *cx) {
     bool virtuality = (virtual_index != 0);
 
     if (is_abstract()) {
-        x64->dwarf->begin_abstract_subprogram_info(get_fully_qualified_name(), virtuality);
-        x64->dwarf->end_info();
+        cx->dwarf->begin_abstract_subprogram_info(get_fully_qualified_name(), virtuality);
+        cx->dwarf->end_info();
         return;
     }
     
@@ -201,18 +201,18 @@ void Function::debug(TypeMatch tm, X64 *x64) {
     Label self_label;
     unsigned self_index = self_label.def_index;
     
-    x64->dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, virtuality, self_index);
+    cx->dwarf->begin_subprogram_info(get_fully_qualified_name(), low_pc, high_pc, virtuality, self_index);
     
-    fn_scope->result_scope->debug(tm, x64);
+    fn_scope->result_scope->debug(tm, cx);
     
-    x64->dwarf->info_def(self_index);
-    fn_scope->self_scope->debug(tm, x64);
+    cx->dwarf->info_def(self_index);
+    fn_scope->self_scope->debug(tm, cx);
     
-    fn_scope->head_scope->debug(tm, x64);
+    fn_scope->head_scope->debug(tm, cx);
     
-    fn_scope->body_scope->debug(tm, x64);
+    fn_scope->body_scope->debug(tm, cx);
     
-    x64->dwarf->end_info();
+    cx->dwarf->end_info();
 }
 
 
@@ -223,11 +223,11 @@ SysvFunction::SysvFunction(std::string in, std::string n, PivotRequirement pr, F
     prot = SYSV_FUNCTION;
 }
 
-Label SysvFunction::get_label(X64 *x64) {
-    return x64->once->compile(this);
+Label SysvFunction::get_label(Cx *cx) {
+    return cx->once->compile(this);
 }
 
-void SysvFunction::deferred_compile(Label label, X64 *x64) {
+void SysvFunction::deferred_compile(Label label, Cx *cx) {
     std::vector<TypeSpec> pushed_tss;
     std::vector<unsigned> pushed_sizes;
 
@@ -266,13 +266,13 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
         }
     }
 
-    x64->code_label_local(label, get_fully_qualified_name() + "__sysv_wrapper");
+    cx->code_label_local(label, get_fully_qualified_name() + "__sysv_wrapper");
 
     // Create a proper stack frame for debugging
-    x64->prologue();
+    cx->prologue();
 
-    std::array<Register, 4> arg_regs = x64->abi_arg_regs();
-    std::array<FpRegister, 4> arg_fprs = x64->abi_arg_fprs();
+    std::array<Register, 4> arg_regs = cx->abi_arg_regs();
+    std::array<FpRegister, 4> arg_fprs = cx->abi_arg_fprs();
     unsigned reg_index = 0;
     unsigned fpr_index = 0;
     
@@ -289,51 +289,51 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
         if (optimal_where == NOWHERE)
             ;  // happens for singleton pivots
         else if (optimal_where == FPREGISTER)
-            x64->op(MOVF, arg_fprs[fpr_index++], Address(RBP, stack_offset));
+            cx->op(MOVF, arg_fprs[fpr_index++], Address(RBP, stack_offset));
         else if (pushed_where == ALISTACK)
-            x64->op(MOVQ, arg_regs[reg_index++], Address(RBP, stack_offset));
+            cx->op(MOVQ, arg_regs[reg_index++], Address(RBP, stack_offset));
         else if (pushed_sizes[i] == ADDRESS_SIZE)
-            x64->op(MOVQ, arg_regs[reg_index++], Address(RBP, stack_offset));
+            cx->op(MOVQ, arg_regs[reg_index++], Address(RBP, stack_offset));
         else
-            x64->op(LEA, arg_regs[reg_index++], Address(RBP, stack_offset));
+            cx->op(LEA, arg_regs[reg_index++], Address(RBP, stack_offset));
     }
     
-    Label got_label = x64->once->import_got(import_name);
-    x64->runtime->call_sysv_got(got_label);
+    Label got_label = cx->once->import_got(import_name);
+    cx->runtime->call_sysv_got(got_label);
 
-    //x64->runtime->dump("Returned from SysV.");
+    //cx->runtime->dump("Returned from SysV.");
 
     // We return simple values in RAX and XMM0 like SysV.
     // But simulated exceptions are always received in res_reg[0], and must be
     // put in RDX, so it may need a fix.
     StorageWhere simple_where = (res_tss.size() ? res_tss[0].where(AS_VALUE) : NOWHERE);
-    std::array<Register, 2> res_regs = x64->abi_res_regs();
-    std::array<FpRegister, 2> res_fprs = x64->abi_res_fprs();
+    std::array<Register, 2> res_regs = cx->abi_res_regs();
+    std::array<FpRegister, 2> res_fprs = cx->abi_res_fprs();
 
     switch (simple_where) {
     case NOWHERE:
         if (exception_type) {
-            x64->op(MOVQ, RDX, res_regs[0]);
+            cx->op(MOVQ, RDX, res_regs[0]);
         }
         break;
     case REGISTER:
         if (exception_type) {
-            x64->op(MOVQ, R10, res_regs[0]);  // exc
-            x64->op(MOVQ, R11, res_regs[1]);  // res
-            x64->op(MOVQ, RDX, R10);
-            x64->op(MOVQ, RAX, R11);
+            cx->op(MOVQ, R10, res_regs[0]);  // exc
+            cx->op(MOVQ, R11, res_regs[1]);  // res
+            cx->op(MOVQ, RDX, R10);
+            cx->op(MOVQ, RAX, R11);
         }
         else {
-            x64->op(MOVQ, RAX, res_regs[0]);
+            cx->op(MOVQ, RAX, res_regs[0]);
         }
         break;
     case FPREGISTER:
         if (exception_type) {
-            x64->op(MOVQ, RDX, res_regs[0]);
-            x64->op(MOVF, FPR0, res_fprs[0]);
+            cx->op(MOVQ, RDX, res_regs[0]);
+            cx->op(MOVF, FPR0, res_fprs[0]);
         }
         else {
-            x64->op(MOVF, FPR0, res_fprs[0]);
+            cx->op(MOVF, FPR0, res_fprs[0]);
         }
         break;
     default:
@@ -342,12 +342,12 @@ void SysvFunction::deferred_compile(Label label, X64 *x64) {
 
     // Raised exception in RDX.
     if (exception_type)
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
+        cx->op(CMPQ, RDX, NO_EXCEPTION);
 
-    x64->epilogue();
+    cx->epilogue();
 }
 
-void SysvFunction::debug(TypeMatch tm, X64 *x64) {
+void SysvFunction::debug(TypeMatch tm, Cx *cx) {
     // Empty
 }
 
@@ -364,7 +364,7 @@ Value *ImportedFloatFunction::matched(Value *cpivot, Scope *scope, TypeMatch &ma
     return make<FloatFunctionValue>(this, cpivot, match);
 }
 
-Label ImportedFloatFunction::get_label(X64 *x64) {
-    return x64->once->import_got(import_name);
+Label ImportedFloatFunction::get_label(Cx *cx) {
+    return cx->once->import_got(import_name);
 }
 

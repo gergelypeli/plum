@@ -57,12 +57,12 @@ Regs LvalueTupleValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage LvalueTupleValue::compile(X64 *x64) {
-    x64->unwind->push(this);
+Storage LvalueTupleValue::compile(Cx *cx) {
+    cx->unwind->push(this);
 
     for (unsigned i = 0; i < values.size(); i++) {
         // Since lvalues, these will be MEMORY or ALIAS
-        Storage s = values[i]->compile(x64);
+        Storage s = values[i]->compile(cx);
         if (s.where != MEMORY && s.where != ALIAS)
             throw INTERNAL_ERROR;
 
@@ -72,7 +72,7 @@ Storage LvalueTupleValue::compile(X64 *x64) {
                 throw INTERNAL_ERROR;
             
             Storage t(where);
-            values[i]->ts.store(s, t, x64);
+            values[i]->ts.store(s, t, cx);
             storages.push_back(t);
         }
         else {
@@ -80,14 +80,14 @@ Storage LvalueTupleValue::compile(X64 *x64) {
         }
     }
     
-    x64->unwind->pop(this);
+    cx->unwind->pop(this);
 
     return Storage();  // Well...
 }
 
-CodeScope *LvalueTupleValue::unwind(X64 *x64) {
+CodeScope *LvalueTupleValue::unwind(Cx *cx) {
     for (int i = storages.size() - 1; i >= 0; i--)
-        tss[i].store(storages[i], Storage(), x64);  // dropping a MEMORY is a no-op
+        tss[i].store(storages[i], Storage(), cx);  // dropping a MEMORY is a no-op
         
     return NULL;
 }
@@ -190,8 +190,8 @@ Regs UnpackingValue::precompile(Regs preferred) {
     return clob | RAX;
 }
 
-Storage UnpackingValue::compile(X64 *x64) {
-    left->compile(x64);
+Storage UnpackingValue::compile(Cx *cx) {
+    left->compile(cx);
 
     // A MultiLvalue only stores dynamic addresses as ALISTACK,
     // static addresses are kept as MEMORY or ALIAS, so we're safe for stack relocations.
@@ -211,9 +211,9 @@ Storage UnpackingValue::compile(X64 *x64) {
             throw INTERNAL_ERROR;
     }
     
-    x64->unwind->push(this);
-    right->compile(x64);
-    x64->unwind->pop(this);
+    cx->unwind->push(this);
+    right->compile(cx);
+    cx->unwind->pop(this);
 
     std::vector<Storage> right_storages;
     std::vector<unsigned> right_sizes;
@@ -241,11 +241,11 @@ Storage UnpackingValue::compile(X64 *x64) {
             t = left_storages[i];
             break;
         case ALISTACK:
-            x64->op(MOVQ, RAX, Address(RSP, offset));
+            cx->op(MOVQ, RAX, Address(RSP, offset));
             t = Storage(MEMORY, Address(RAX, 0));
             break;
         case ALIAS:
-            x64->op(MOVQ, RAX, left_storages[i].address);
+            cx->op(MOVQ, RAX, left_storages[i].address);
             t = Storage(MEMORY, Address(RAX, left_storages[i].value));
             break;
         default:
@@ -262,15 +262,15 @@ Storage UnpackingValue::compile(X64 *x64) {
         
         if (i >= left_count) {
             std::cerr << "Dropping multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
-            right_tss[i].store(s, t, x64);
+            right_tss[i].store(s, t, cx);
         }
         else if (left_tss[i][0] == uninitialized_type) {
             std::cerr << "Initializing multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
-            right_tss[i].create(s, t, x64);
+            right_tss[i].create(s, t, cx);
         }
         else {
             std::cerr << "Assigning multi member " << i << " from " << s << " to " << t << " occupying " << right_sizes[i] << " bytes.\n";
-            right_tss[i].store(s, t, x64);
+            right_tss[i].store(s, t, cx);
         }
         
         offset += (i < left_count ? left_sizes[i] : 0);
@@ -282,14 +282,14 @@ Storage UnpackingValue::compile(X64 *x64) {
         
     // Drop potential ALIAS-es from the MultiLvalue.
     // The type itself does not know the number of such items, so we had to compute it.
-    x64->op(ADDQ, RSP, left_total);
+    cx->op(ADDQ, RSP, left_total);
         
     return Storage();
 }
 
-CodeScope *UnpackingValue::unwind(X64 *x64) {
+CodeScope *UnpackingValue::unwind(Cx *cx) {
     if (left_total)
-        x64->op(ADDQ, RSP, left_total);
+        cx->op(ADDQ, RSP, left_total);
         
     return NULL;
 }
@@ -325,8 +325,8 @@ Regs ScalarConversionValue::precompile(Regs preferred) {
     return clob | RAX;
 }
 
-Storage ScalarConversionValue::compile(X64 *x64) {
-    orig->compile(x64);
+Storage ScalarConversionValue::compile(Cx *cx) {
+    orig->compile(cx);
     
     Storage t;
     
@@ -338,7 +338,7 @@ Storage ScalarConversionValue::compile(X64 *x64) {
         
         if (i > 0) {
             std::cerr << "Discarding multi member " << i << " from " << s << ".\n";
-            ts.store(s, Storage(), x64);
+            ts.store(s, Storage(), cx);
         }
         else {
             std::cerr << "Keeping multi member " << i << " as " << s << ".\n";

@@ -5,7 +5,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class SliceEmptyValue: public GenericValue {
@@ -13,7 +13,7 @@ public:
     SliceEmptyValue(TypeMatch &match);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class SliceAllValue: public GenericValue {
@@ -21,7 +21,7 @@ public:
     SliceAllValue(TypeMatch &match);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ArraySliceValue: public Value, public Raiser {
@@ -36,7 +36,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class SliceSliceValue: public Value, public Raiser {
@@ -50,7 +50,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class SliceIndexValue: public GenericValue, public Raiser, public ContainedLvalue {
@@ -63,7 +63,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class SliceFindValue: public GenericValue, public Raiser {
@@ -75,7 +75,7 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 // Iteration
@@ -84,7 +84,7 @@ class SliceIterValue: public SimpleRecordValue {
 public:
     SliceIterValue(TypeSpec t, Value *l);
     
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class SliceElemIterValue: public SliceIterValue {
@@ -113,8 +113,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 class SliceNextElemValue: public SliceNextValue, public ContainedLvalue {
@@ -122,19 +122,19 @@ public:
     SliceNextElemValue(Value *l, TypeMatch &match);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class SliceNextIndexValue: public SliceNextValue {
 public:
     SliceNextIndexValue(Value *l, TypeMatch &match);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class SliceNextItemValue: public SliceNextValue {
 public:
     SliceNextItemValue(Value *l, TypeMatch &match);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };

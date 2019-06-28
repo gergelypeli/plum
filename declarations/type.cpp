@@ -140,7 +140,7 @@ Storage Type::optimal_value_storage(TypeMatch tm, Regs preferred) {
     return Storage(STACK);
 }
 
-void Type::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void Type::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     // Assume MEMORY are initialized
     
     switch (s.where * t.where) {
@@ -153,9 +153,9 @@ void Type::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     case MEMORY_NOWHERE:
         return;
     case MEMORY_ALISTACK:
-        x64->op(LEA, R10, s.address);
-        x64->op(PUSHQ, 0);
-        x64->op(PUSHQ, R10);
+        cx->op(LEA, R10, s.address);
+        cx->op(PUSHQ, 0);
+        cx->op(PUSHQ, R10);
         return;
         
     // ALIAS to ALISTACK is not implemented here, because that may push a stack relative
@@ -164,12 +164,12 @@ void Type::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         
     case ALISTACK_NOWHERE: {
         Label skip;  // TODO: this whole thing must be optimized
-        x64->op(POPQ, R10);
-        x64->op(POPQ, R10);
-        x64->op(CMPQ, R10, 0);
-        x64->op(JE, skip);
-        x64->runtime->decref(R10);
-        x64->code_label(skip);
+        cx->op(POPQ, R10);
+        cx->op(POPQ, R10);
+        cx->op(CMPQ, R10, 0);
+        cx->op(JE, skip);
+        cx->runtime->decref(R10);
+        cx->code_label(skip);
     }
         return;
         
@@ -182,14 +182,14 @@ void Type::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     }
 }
 
-void Type::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void Type::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     // Assume target is uninitialized
     
     std::cerr << "Uncreatable type: " << name << "!\n";
     throw INTERNAL_ERROR;
 }
 
-void Type::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void Type::destroy(TypeMatch tm, Storage s, Cx *cx) {
     // Assume source is initialized
     
     std::cerr << "Undestroyable type: " << name << "!\n";
@@ -198,14 +198,14 @@ void Type::destroy(TypeMatch tm, Storage s, X64 *x64) {
 
 // Allowed to clobber EQUAL_CLOB
 // Returns result in ZF (set iff equal)
-void Type::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void Type::equal(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     std::cerr << "Uncomparable type: " << name << "!\n";
     throw INTERNAL_ERROR;
 }
 
 // Allowed to clobber COMPARE_CLOB
 // Returns result in R10B (-1/0/+1), and the flags (below&less/equal/above&greater)
-void Type::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void Type::compare(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     std::cerr << "Uncomparable type: " << name << "!\n";
     throw INTERNAL_ERROR;
 }
@@ -213,10 +213,10 @@ void Type::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
 // NOTE: allowed to clobber STREAMIFY_CLOB, because it is mostly called
 // from interpolation, which is in Void context, so not much is lost. But
 // nested streamifications must take care!
-void Type::streamify(TypeMatch tm, X64 *x64) {
+void Type::streamify(TypeMatch tm, Cx *cx) {
     Address alias_addr(RSP, 0);
     
-    streamify_ascii("<unstreamifiable>", alias_addr, x64);
+    streamify_ascii("<unstreamifiable>", alias_addr, cx);
 }
 
 Value *Type::lookup_initializer(TypeMatch tm, std::string n, Scope *scope) {
@@ -247,15 +247,15 @@ devector<VirtualEntry *> Type::get_virtual_table(TypeMatch tm) {
     throw INTERNAL_ERROR;
 }
 
-Label Type::get_virtual_table_label(TypeMatch tm, X64 *x64) {
+Label Type::get_virtual_table_label(TypeMatch tm, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
-Label Type::get_interface_table_label(TypeMatch tm, X64 *x64) {
+Label Type::get_interface_table_label(TypeMatch tm, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
-Label Type::get_finalizer_label(TypeMatch tm, X64 *x64) {
+Label Type::get_finalizer_label(TypeMatch tm, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
@@ -294,16 +294,16 @@ Value *Type::autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
     return NULL;
 }
 
-void Type::init_vt(TypeMatch tm, Address addr, X64 *x64) {
+void Type::init_vt(TypeMatch tm, Address addr, Cx *cx) {
     std::cerr << "Unvtinitable type: " << name << "!\n";
     throw INTERNAL_ERROR;
 }
 
-void Type::incref(TypeMatch tm, Register r, X64 *x64) {
+void Type::incref(TypeMatch tm, Register r, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
-void Type::decref(TypeMatch tm, Register r, X64 *x64) {
+void Type::decref(TypeMatch tm, Register r, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
@@ -311,14 +311,14 @@ bool Type::complete_type() {
     return true;
 }
 
-void Type::debug_inner_scopes(TypeMatch tm, X64 *x64) {
+void Type::debug_inner_scopes(TypeMatch tm, Cx *cx) {
     // For generating the Dwarf info for the contents
     
     if (inner_scope)
-        inner_scope->debug(tm, x64);
+        inner_scope->debug(tm, cx);
 }
 
-void Type::type_info(TypeMatch tm, X64 *x64) {
+void Type::type_info(TypeMatch tm, Cx *cx) {
     // For generating the type info for a concrete type
     std::cerr << "Untypeinfoable type: " << name << "!\n";
     throw INTERNAL_ERROR;
@@ -359,7 +359,7 @@ Value *MetaType::match(std::string name, Value *pivot, Scope *scope) {
     return factory();
 }
 
-void MetaType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void MetaType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (s.where != NOWHERE || t.where != NOWHERE) {
         std::cerr << "Invalid metatype store from " << s << " to " << t << "!\n";
         throw INTERNAL_ERROR;
@@ -435,7 +435,7 @@ Allocation SameType::measure(TypeMatch tm) {
         throw INTERNAL_ERROR;
 }
 
-void SameType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void SameType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (s.where != NOWHERE || t.where != NOWHERE) {
         std::cerr << "Invalid Same store from " << s << " to " << t << "!\n";
         throw INTERNAL_ERROR;
@@ -462,28 +462,28 @@ Allocation AttributeType::measure(TypeMatch tm) {
     return tm[1].measure();
 }
 
-void AttributeType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    tm[1].store(s, t, x64);
+void AttributeType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    tm[1].store(s, t, cx);
 }
 
-void AttributeType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    tm[1].create(s, t, x64);
+void AttributeType::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    tm[1].create(s, t, cx);
 }
 
-void AttributeType::destroy(TypeMatch tm, Storage s, X64 *x64) {
-    tm[1].destroy(s, x64);
+void AttributeType::destroy(TypeMatch tm, Storage s, Cx *cx) {
+    tm[1].destroy(s, cx);
 }
 
-void AttributeType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    tm[1].equal(s, t, x64);
+void AttributeType::equal(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    tm[1].equal(s, t, cx);
 }
 
-void AttributeType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    tm[1].compare(s, t, x64);
+void AttributeType::compare(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    tm[1].compare(s, t, cx);
 }
 
-void AttributeType::streamify(TypeMatch tm, X64 *x64) {
-    tm[1].streamify(x64);
+void AttributeType::streamify(TypeMatch tm, Cx *cx) {
+    tm[1].streamify(cx);
 }
 
 Value *AttributeType::lookup_initializer(TypeMatch tm, std::string n, Scope *s) {
@@ -498,17 +498,17 @@ devector<VirtualEntry *> AttributeType::get_virtual_table(TypeMatch tm) {
     return tm[1].get_virtual_table();
 }
 
-Label AttributeType::get_virtual_table_label(TypeMatch tm, X64 *x64) {
-    return tm[1].get_virtual_table_label(x64);
+Label AttributeType::get_virtual_table_label(TypeMatch tm, Cx *cx) {
+    return tm[1].get_virtual_table_label(cx);
 }
 
 Value *AttributeType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
     return tm[1].lookup_inner(n, v, s);
 }
 
-void AttributeType::type_info(TypeMatch tm, X64 *x64) {
-    unsigned ts_index = x64->once->type_info(tm[1]);
-    x64->dwarf->typedef_info(tm[0].symbolize(), ts_index);
+void AttributeType::type_info(TypeMatch tm, Cx *cx) {
+    unsigned ts_index = cx->once->type_info(tm[1]);
+    cx->dwarf->typedef_info(tm[0].symbolize(), ts_index);
 }
 
 
@@ -530,8 +530,8 @@ Allocation DvalueType::measure(TypeMatch tm) {
     return ALIAS_SIZE;
 }
 
-void DvalueType::type_info(TypeMatch tm, X64 *x64) {
-    x64->dwarf->unspecified_type_info(tm[0].symbolize());
+void DvalueType::type_info(TypeMatch tm, Cx *cx) {
+    cx->dwarf->unspecified_type_info(tm[0].symbolize());
 }
 
 
@@ -550,10 +550,10 @@ Allocation CodeType::measure(TypeMatch tm) {
     return ADDRESS_SIZE;
 }
 
-void CodeType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void CodeType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     switch (s.where * t.where) {
     case STACK_NOWHERE:
-        x64->op(ADDQ, RSP, ADDRESS_SIZE);
+        cx->op(ADDQ, RSP, ADDRESS_SIZE);
         break;
     case STACK_STACK:
         break;
@@ -562,8 +562,8 @@ void CodeType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     }
 }
 
-void CodeType::type_info(TypeMatch tm, X64 *x64) {
-    x64->dwarf->unspecified_type_info(tm[0].symbolize());
+void CodeType::type_info(TypeMatch tm, Cx *cx) {
+    cx->dwarf->unspecified_type_info(tm[0].symbolize());
 }
 
 
@@ -617,7 +617,7 @@ Allocation TupleType::measure(TypeMatch tm) {
     return Allocation(size);
 }
 
-void TupleType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void TupleType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (t.where == STACK) {
         if (s.where == STACK)
             return;
@@ -625,7 +625,7 @@ void TupleType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
             return;
         else if (this == tuple1_type) {
             StorageWhere param_where = tm[1].where(AS_ARGUMENT);
-            tm[1].store(s, Storage(stacked(param_where)), x64);
+            tm[1].store(s, Storage(stacked(param_where)), cx);
             return;
         }
     }
@@ -633,7 +633,7 @@ void TupleType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     throw INTERNAL_ERROR;
 }
 
-void TupleType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void TupleType::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     switch (s.where * t.where) {
     case STACK_MEMORY: {
         // Used in :evaluate
@@ -641,7 +641,7 @@ void TupleType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         int offset = 0;
         
         while (offset < size) {
-            x64->op(POPQ, t.address + offset);
+            cx->op(POPQ, t.address + offset);
             offset += ADDRESS_SIZE;
         }
     }
@@ -651,7 +651,7 @@ void TupleType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     }
 }
 
-void TupleType::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void TupleType::destroy(TypeMatch tm, Storage s, Cx *cx) {
     switch (s.where) {
     case MEMORY: {
         // Used in :evaluate
@@ -663,7 +663,7 @@ void TupleType::destroy(TypeMatch tm, Storage s, X64 *x64) {
             StorageWhere param_where = ts.where(AS_ARGUMENT);
             
             if (param_where == MEMORY)
-                ts.destroy(Storage(param_where, s.address + offset), x64);
+                ts.destroy(Storage(param_where, s.address + offset), cx);
                 
             offset += ts.measure_where(param_where);
         }
@@ -691,12 +691,12 @@ Allocation PartialType::measure(TypeMatch tm) {
     return tm[1].measure();
 }
 
-void PartialType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    tm[1].store(s, t, x64);
+void PartialType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    tm[1].store(s, t, cx);
 }
 
-void PartialType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    tm[1].create(s, t, x64);
+void PartialType::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    tm[1].create(s, t, cx);
 }
 
 Value *PartialType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
@@ -795,9 +795,9 @@ Value *PartialType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s
     }
 }
 
-void PartialType::type_info(TypeMatch tm, X64 *x64) {
-    unsigned ts_index = x64->once->type_info(tm[1]);
-    x64->dwarf->typedef_info(tm[0].symbolize(), ts_index);
+void PartialType::type_info(TypeMatch tm, Cx *cx) {
+    unsigned ts_index = cx->once->type_info(tm[1]);
+    cx->dwarf->typedef_info(tm[0].symbolize(), ts_index);
 }
 
 
@@ -829,12 +829,12 @@ Allocation InitializableType::measure(TypeMatch tm) {
     return tm[1].measure();
 }
 
-void InitializableType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    tm[1].store(s, t, x64);
+void InitializableType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    tm[1].store(s, t, cx);
 }
 
-void InitializableType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    tm[1].create(s, t, x64);
+void InitializableType::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    tm[1].create(s, t, cx);
 }
 
 Value *InitializableType::lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s) {
@@ -866,13 +866,13 @@ StorageWhere VoidType::where(TypeMatch tm, AsWhat as_what) {
     return NOWHERE;
 }
 
-void VoidType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void VoidType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     if (s.where != NOWHERE || t.where != NOWHERE)
         throw INTERNAL_ERROR;
 }
 
-void VoidType::type_info(TypeMatch tm, X64 *x64) {
-    x64->dwarf->unspecified_type_info(name);
+void VoidType::type_info(TypeMatch tm, Cx *cx) {
+    cx->dwarf->unspecified_type_info(name);
 }
 
 
@@ -888,23 +888,23 @@ Allocation UnitType::measure(TypeMatch tm) {
     return Allocation();
 }
 
-void UnitType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void UnitType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
 }
 
-void UnitType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void UnitType::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
 }
 
-void UnitType::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void UnitType::destroy(TypeMatch tm, Storage s, Cx *cx) {
 }
 
-void UnitType::streamify(TypeMatch tm, X64 *x64) {
+void UnitType::streamify(TypeMatch tm, Cx *cx) {
     Address alias_addr(RSP, 0);
 
-    streamify_ascii("U", alias_addr, x64);
+    streamify_ascii("U", alias_addr, cx);
 }
 
-void UnitType::type_info(TypeMatch tm, X64 *x64) {
-    x64->dwarf->unspecified_type_info(name);
+void UnitType::type_info(TypeMatch tm, Cx *cx) {
+    cx->dwarf->unspecified_type_info(name);
 }
 
 
@@ -929,7 +929,7 @@ Allocation WhateverType::measure(TypeMatch tm) {
     throw INTERNAL_ERROR;
 }
 
-void WhateverType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void WhateverType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     // STACK storage is faked by Whatever controls
     if ((s.where != NOWHERE && s.where != STACK) || t.where != NOWHERE) {
         std::cerr << "Invalid Whatever store from " << s << " to " << t << "!\n";
@@ -937,12 +937,12 @@ void WhateverType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     }
 }
 
-void WhateverType::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void WhateverType::destroy(TypeMatch tm, Storage s, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
-void WhateverType::type_info(TypeMatch tm, X64 *x64) {
-    x64->dwarf->unspecified_type_info(name);
+void WhateverType::type_info(TypeMatch tm, Cx *cx) {
+    cx->dwarf->unspecified_type_info(name);
 }
 
 

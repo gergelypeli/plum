@@ -24,20 +24,20 @@ bool GenericValue::check(Args &args, Kwargs &kwargs, Scope *scope) {
     return check_arguments(args, kwargs, x);
 }
 
-void GenericValue::compile_and_store_both(X64 *x64, Storage l, Storage r) {
-    left->compile_and_store(x64, l);
+void GenericValue::compile_and_store_both(Cx *cx, Storage l, Storage r) {
+    left->compile_and_store(cx, l);
     ls = l;
     
-    x64->unwind->push(this);
+    cx->unwind->push(this);
     
-    right->compile_and_store(x64, r);
+    right->compile_and_store(cx, r);
     rs = r;
     
-    x64->unwind->pop(this);
+    cx->unwind->pop(this);
 }
 
-CodeScope *GenericValue::unwind(X64 *x64) {
-    left->ts.store(ls, Storage(), x64);
+CodeScope *GenericValue::unwind(Cx *cx) {
+    left->ts.store(ls, Storage(), cx);
     return NULL;
 }
 
@@ -85,7 +85,7 @@ Regs GenericOperationValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage GenericOperationValue::lmemory(X64 *x64) {
+Storage GenericOperationValue::lmemory(Cx *cx) {
     // Load the left side lvalue argument to a temporary MEMORY storage
     
     if (ls.where == ALISTACK) {
@@ -93,12 +93,12 @@ Storage GenericOperationValue::lmemory(X64 *x64) {
         Register r = (clob & ~rs.regs()).get_gpr();
         int offset = (rs.where == STACK ? right->ts.measure_stack() : 0);
         
-        x64->op(MOVQ, r, Address(RSP, offset));
+        cx->op(MOVQ, r, Address(RSP, offset));
         return Storage(MEMORY, Address(r, 0));
     }
     else if (ls.where == ALIAS) {
         Register r = (clob & ~rs.regs()).get_gpr();
-        x64->op(MOVQ, r, ls.address);
+        cx->op(MOVQ, r, ls.address);
         return Storage(MEMORY, Address(r, ls.value));
     }
     else if (ls.where == MEMORY)
@@ -107,46 +107,46 @@ Storage GenericOperationValue::lmemory(X64 *x64) {
         throw INTERNAL_ERROR;
 }
 
-Storage GenericOperationValue::assign_create(X64 *x64) {
-    ls = left->compile(x64);
+Storage GenericOperationValue::assign_create(Cx *cx) {
+    ls = left->compile(cx);
     
     if (ls.where != MEMORY && ls.where != ALIAS)
         throw INTERNAL_ERROR;
 
     if (ls.regs() & rclob) {
         // a clobberable ls must be a MEMORY with a dynamic address
-        x64->op(LEA, R10, ls.address);
-        x64->op(PUSHQ, 0);
-        x64->op(PUSHQ, R10);
+        cx->op(LEA, R10, ls.address);
+        cx->op(PUSHQ, 0);
+        cx->op(PUSHQ, R10);
         ls = Storage(ALISTACK);
     }
 
-    x64->unwind->push(this);
-    rs = right->compile(x64);
-    x64->unwind->pop(this);
+    cx->unwind->push(this);
+    rs = right->compile(cx);
+    cx->unwind->pop(this);
 
-    Storage als = lmemory(x64);
+    Storage als = lmemory(cx);
 
     if (operation == ASSIGN)
-        ts.store(rs, als, x64);
+        ts.store(rs, als, cx);
     else if (operation == CREATE)
-        ts.create(rs, als, x64);
+        ts.create(rs, als, cx);
     else
         throw INTERNAL_ERROR;
     
     return ls;
 }
 
-Storage GenericOperationValue::compare(X64 *x64) {
-    ls = left->compile(x64);
+Storage GenericOperationValue::compare(Cx *cx) {
+    ls = left->compile(cx);
     
     if (ls.regs() & rclob) {
-        ls = left->ts.store(ls, Storage(STACK), x64);
+        ls = left->ts.store(ls, Storage(STACK), cx);
     }
 
-    x64->unwind->push(this);
-    rs = right->compile(x64);
-    x64->unwind->pop(this);
+    cx->unwind->push(this);
+    rs = right->compile(cx);
+    cx->unwind->pop(this);
 
     int stack_size = left->ts.measure_stack();
     Storage s, t;
@@ -171,27 +171,27 @@ Storage GenericOperationValue::compare(X64 *x64) {
         t = rs;
     }
     
-    left->ts.compare(s, t, x64);
+    left->ts.compare(s, t, cx);
 
     Register r = clob.get_gpr();
-    x64->op(MOVSXBQ, r, R10B);  // sign extend byte to qword
+    cx->op(MOVSXBQ, r, R10B);  // sign extend byte to qword
 
-    right->ts.store(rs, Storage(), x64);
-    left->ts.store(ls, Storage(), x64);
+    right->ts.store(rs, Storage(), cx);
+    left->ts.store(ls, Storage(), cx);
 
     return Storage(REGISTER, r);
 }
 
-Storage GenericOperationValue::equal(X64 *x64, bool negate) {
-    ls = left->compile(x64);
+Storage GenericOperationValue::equal(Cx *cx, bool negate) {
+    ls = left->compile(cx);
     
     if (ls.regs() & rclob) {
-        ls = left->ts.store(ls, Storage(STACK), x64);
+        ls = left->ts.store(ls, Storage(STACK), cx);
     }
 
-    x64->unwind->push(this);
-    rs = right->compile(x64);
-    x64->unwind->pop(this);
+    cx->unwind->push(this);
+    rs = right->compile(cx);
+    cx->unwind->pop(this);
 
     int stack_size = left->ts.measure_stack();
     Storage s, t;
@@ -216,36 +216,36 @@ Storage GenericOperationValue::equal(X64 *x64, bool negate) {
         t = rs;
     }
     
-    left->ts.equal(s, t, x64);
+    left->ts.equal(s, t, cx);
 
     Register r = clob.get_gpr();
-    x64->op(negate ? SETNE : SETE, r);
+    cx->op(negate ? SETNE : SETE, r);
 
-    right->ts.store(rs, Storage(), x64);
-    left->ts.store(ls, Storage(), x64);
+    right->ts.store(rs, Storage(), cx);
+    left->ts.store(ls, Storage(), cx);
     
     return Storage(REGISTER, r);
 }
 
-Storage GenericOperationValue::compile(X64 *x64) {
+Storage GenericOperationValue::compile(Cx *cx) {
     switch (operation) {
     case ASSIGN:
-        return assign_create(x64);
+        return assign_create(cx);
     case CREATE:
-        return assign_create(x64);
+        return assign_create(cx);
     case COMPARE:
-        return compare(x64);
+        return compare(cx);
     case EQUAL:
-        return equal(x64, false);
+        return equal(cx, false);
     case NOT_EQUAL:
-        return equal(x64, true);
+        return equal(cx, true);
     default:
         throw INTERNAL_ERROR;
     }
 }
 
-CodeScope *GenericOperationValue::unwind(X64 *x64) {
-    left->ts.store(ls, Storage(), x64);
+CodeScope *GenericOperationValue::unwind(Cx *cx) {
+    left->ts.store(ls, Storage(), cx);
     return NULL;
 }
 
@@ -389,8 +389,8 @@ Regs OptimizedOperationValue::precompile(Regs preferred) {
     return clob;
 }
 
-void OptimizedOperationValue::subcompile(X64 *x64) {
-    ls = left->compile(x64);
+void OptimizedOperationValue::subcompile(Cx *cx) {
+    ls = left->compile(cx);
 
     // Put the left value in a safe place
     if (is_left_lvalue) {
@@ -405,14 +405,14 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
                     // It's possible to store the address into an unclobbered register.
                     // There's no MEMORY_MEMORY store that just converts addresses,
                     // so do a LEA here directly.
-                    x64->op(LEA, auxls.address.base, ls.address);
+                    cx->op(LEA, auxls.address.base, ls.address);
                     ls = auxls;
                 }
                 else {
                     // Spill dynamic address to stack
-                    x64->op(LEA, R10, ls.address);
-                    x64->op(PUSHQ, 0);
-                    x64->op(PUSHQ, R10);
+                    cx->op(LEA, R10, ls.address);
+                    cx->op(PUSHQ, 0);
+                    cx->op(PUSHQ, R10);
                     ls = Storage(ALISTACK);
                 }
             }
@@ -436,20 +436,20 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
             break;
         case FLAGS:
             if (auxls.where == REGISTER) {
-                ls = left->ts.store(ls, auxls, x64);
+                ls = left->ts.store(ls, auxls, cx);
             }
             else {
-                ls = left->ts.store(ls, Storage(STACK), x64);
+                ls = left->ts.store(ls, Storage(STACK), cx);
             }
             break;
         case REGISTER:
         case FPREGISTER:
             if (ls.regs() & rclob) {
                 if (auxls.where == REGISTER || auxls.where == FPREGISTER) {
-                    ls = left->ts.store(ls, auxls, x64);
+                    ls = left->ts.store(ls, auxls, cx);
                 }
                 else {
-                    ls = left->ts.store(ls, Storage(STACK), x64);
+                    ls = left->ts.store(ls, Storage(STACK), cx);
                 }
             }
             break;
@@ -468,11 +468,11 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
             else if (auxls.where == REGISTER || auxls.where == FPREGISTER) {
                 // We already know a register that won't be clobbered, save value there
                 // This may actually reuse the same register, but that's OK
-                ls = left->ts.store(ls, auxls, x64);
+                ls = left->ts.store(ls, auxls, cx);
             }
             else {
                 // Nothing is sure, push the value onto the stack
-                ls = left->ts.store(ls, Storage(STACK), x64);
+                ls = left->ts.store(ls, Storage(STACK), cx);
             }
             break;
         case ALIAS: {
@@ -480,16 +480,16 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
             // Store is only defined from ALIAS to MEMORY, so do this manually.
 
             Register tmpr = clob.get_gpr();
-            x64->op(MOVQ, tmpr, ls.address);
+            cx->op(MOVQ, tmpr, ls.address);
             ls = Storage(MEMORY, Address(tmpr, ls.value));
             
             if (auxls.where == REGISTER || auxls.where == FPREGISTER) {
                 // We already know a register that won't be clobbered, save value there
-                ls = left->ts.store(ls, auxls, x64);
+                ls = left->ts.store(ls, auxls, cx);
             }
             else {
                 // Nothing is sure, push the value onto the stack
-                ls = left->ts.store(ls, Storage(STACK), x64);
+                ls = left->ts.store(ls, Storage(STACK), cx);
             }
             }
             break;
@@ -499,9 +499,9 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
     }
 
     if (right) {
-        x64->unwind->push(this);
-        rs = right->compile(x64);
-        x64->unwind->pop(this);
+        cx->unwind->push(this);
+        rs = right->compile(cx);
+        cx->unwind->pop(this);
     }
     
     // auxls has prference, should be picked first
@@ -521,13 +521,13 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
     case FPREGISTER:
         break;
     case STACK:
-        rs = right->ts.store(rs, pick_auxrs(rsubset), x64);
+        rs = right->ts.store(rs, pick_auxrs(rsubset), cx);
         break;
     case MEMORY:
         break;
     case ALIAS: {
         Storage auxrs = pick_auxrs(PTR_SUBSET);  // MEMORY with 0 offset
-        x64->op(MOVQ, auxrs.address.base, rs.address);
+        cx->op(MOVQ, auxrs.address.base, rs.address);
         rs = auxrs + rs.value;
     }
         break;
@@ -547,7 +547,7 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
         break;
     case STACK:
         if (auxls.where == REGISTER || auxls.where == FPREGISTER) {
-            ls = left->ts.store(ls, auxls, x64);
+            ls = left->ts.store(ls, auxls, cx);
         }
         else
             throw INTERNAL_ERROR;
@@ -565,57 +565,57 @@ void OptimizedOperationValue::subcompile(X64 *x64) {
     }
 }
 
-Storage OptimizedOperationValue::assign(X64 *x64) {
-    subcompile(x64);
+Storage OptimizedOperationValue::assign(Cx *cx) {
+    subcompile(cx);
 
-    Storage als = lmemory(x64);
+    Storage als = lmemory(cx);
 
-    ts.store(rs, als, x64);
+    ts.store(rs, als, cx);
     
     return ls;
 }
 
-Storage OptimizedOperationValue::compare(X64 *x64) {
-    subcompile(x64);
+Storage OptimizedOperationValue::compare(Cx *cx) {
+    subcompile(cx);
 
-    left->ts.compare(ls, rs, x64);
+    left->ts.compare(ls, rs, cx);
     
     if (auxls.where != REGISTER) {
         // This happens when the comparison used FP registers
-        x64->op(MOVSXBQ, R10, R10B);  // sign extend byte to qword
-        x64->op(PUSHQ, R10);
+        cx->op(MOVSXBQ, R10, R10B);  // sign extend byte to qword
+        cx->op(PUSHQ, R10);
         return Storage(STACK);
     }
     else {
-        x64->op(MOVSXBQ, auxls.reg, R10B);  // sign extend byte to qword
+        cx->op(MOVSXBQ, auxls.reg, R10B);  // sign extend byte to qword
         return auxls;
     }
 }
 
-Storage OptimizedOperationValue::equal(X64 *x64, bool negate) {
-    subcompile(x64);
+Storage OptimizedOperationValue::equal(Cx *cx, bool negate) {
+    subcompile(cx);
 
-    left->ts.equal(ls, rs, x64);
+    left->ts.equal(ls, rs, cx);
 
     return Storage(FLAGS, negate ? CC_NOT_EQUAL : CC_EQUAL);
 }
 
-Storage OptimizedOperationValue::compile(X64 *x64) {
+Storage OptimizedOperationValue::compile(Cx *cx) {
     switch (operation) {
     case ASSIGN:
-        return assign(x64);
+        return assign(cx);
     case COMPARE:
-        return compare(x64);
+        return compare(cx);
     case EQUAL:
-        return equal(x64, false);
+        return equal(cx, false);
     case NOT_EQUAL:
-        return equal(x64, true);
+        return equal(cx, true);
     default:
         throw INTERNAL_ERROR;
     }
 }
 
-CodeScope *OptimizedOperationValue::unwind(X64 *x64) {
-    left->ts.store(ls, Storage(), x64);
+CodeScope *OptimizedOperationValue::unwind(Cx *cx) {
+    left->ts.store(ls, Storage(), cx);
     return NULL;
 }

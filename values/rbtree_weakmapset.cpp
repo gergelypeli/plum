@@ -73,72 +73,72 @@ TypeSpec item_value_ts(TypeSpec ts) {
 
 // Helper functions
 
-void nosytree_fcb_action(Label action_label, TypeSpec elem_ts, X64 *x64) {
+void nosytree_fcb_action(Label action_label, TypeSpec elem_ts, Cx *cx) {
     // R10 - callback address, R11 - nosytree address
     int noffset = nosyvalue_offset(elem_ts);
     Label elem_check, elem_loop;
     
-    x64->op(MOVQ, RAX, Address(R11, 0));
-    x64->op(MOVQ, RCX, Address(RAX, RBTREE_FIRST_OFFSET));
-    x64->op(JMP, elem_check);
+    cx->op(MOVQ, RAX, Address(R11, 0));
+    cx->op(MOVQ, RCX, Address(RAX, RBTREE_FIRST_OFFSET));
+    cx->op(JMP, elem_check);
     
-    x64->code_label(elem_loop);
-    x64->op(PUSHQ, Address(RAX, RCX, RBNODE_VALUE_OFFSET + noffset));  // object
-    x64->op(PUSHQ, R10);  // callback
-    x64->op(PUSHQ, R11);  // payload1
-    x64->op(PUSHQ, RCX);  // payload2
+    cx->code_label(elem_loop);
+    cx->op(PUSHQ, Address(RAX, RCX, RBNODE_VALUE_OFFSET + noffset));  // object
+    cx->op(PUSHQ, R10);  // callback
+    cx->op(PUSHQ, R11);  // payload1
+    cx->op(PUSHQ, RCX);  // payload2
     
-    x64->op(CALL, action_label);  // clobbers all, returns nothing
+    cx->op(CALL, action_label);  // clobbers all, returns nothing
     
-    x64->op(POPQ, RCX);
-    x64->op(POPQ, R11);
-    x64->op(POPQ, R10);
-    x64->op(POPQ, RAX);
+    cx->op(POPQ, RCX);
+    cx->op(POPQ, R11);
+    cx->op(POPQ, R10);
+    cx->op(POPQ, RAX);
     
-    x64->op(MOVQ, RAX, Address(R11, 0));
-    x64->op(MOVQ, RCX, Address(RAX, RCX, RBNODE_NEXT_OFFSET));
+    cx->op(MOVQ, RAX, Address(R11, 0));
+    cx->op(MOVQ, RCX, Address(RAX, RCX, RBNODE_NEXT_OFFSET));
     
-    x64->code_label(elem_check);
-    x64->op(CMPQ, RCX, RBNODE_NIL);
-    x64->op(JNE, elem_loop);
+    cx->code_label(elem_check);
+    cx->op(CMPQ, RCX, RBNODE_NIL);
+    cx->op(JNE, elem_loop);
 }
 
 
-void compile_nosytree_callback(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_nosytree_callback(Label label, TypeSpec elem_ts, Cx *cx) {
     Address payload1_arg_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ADDRESS_SIZE);
     Address payload2_arg_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
     
-    Label remove_label = x64->once->compile(compile_rbtree_remove, elem_ts);
+    Label remove_label = cx->once->compile(compile_rbtree_remove, elem_ts);
 
-    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("callback"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("callback"));
+    cx->prologue();
     
     std::stringstream ss;
     ss << elem_ts << " Nosytree callback";
-    x64->runtime->log(ss.str());
+    cx->runtime->log(ss.str());
     
     // arguments: payload1, payload2
     // We may clobber all registers
 
-    x64->op(MOVQ, SELFX, payload1_arg_addr);  // rbtree ref address
-    x64->op(MOVQ, SELFX, Address(SELFX, 0));  // load current rbtree ref
-    x64->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
-    x64->op(MOVQ, KEYX, payload2_arg_addr);  // elem index
-    x64->op(LEA, KEYX, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET));  // use the elem key
+    cx->op(MOVQ, SELFX, payload1_arg_addr);  // rbtree ref address
+    cx->op(MOVQ, SELFX, Address(SELFX, 0));  // load current rbtree ref
+    cx->op(MOVQ, ROOTX, Address(SELFX, RBTREE_ROOT_OFFSET));
+    cx->op(MOVQ, KEYX, payload2_arg_addr);  // elem index
+    cx->op(LEA, KEYX, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET));  // use the elem key
 
-    x64->op(CALL, remove_label);
-    x64->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
+    cx->op(CALL, remove_label);
+    cx->op(MOVQ, Address(SELFX, RBTREE_ROOT_OFFSET), R10);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void nosy_postadd(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
+void nosy_postadd(TypeSpec elem_ts, Storage ref_storage, Cx *cx) {
     // Add an FCB to the newly added rbtree elem, and decreases the reference count.
     // ref_storage - the storage of the rbtree ref
     // SELFX/KEYX - points to the newly added elem
     // Clobbers all registers.
-    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
+    Label callback_label = cx->once->compile(compile_nosytree_callback, elem_ts);
     TypeSpec heap_ts = nosyvalue_heap_ts(elem_ts);
     int noffset = nosyvalue_offset(elem_ts);
     
@@ -146,130 +146,130 @@ void nosy_postadd(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
     if (ref_storage.where != ALISTACK)
         throw INTERNAL_ERROR;
         
-    x64->op(MOVQ, R11, Address(RSP, 0));
+    cx->op(MOVQ, R11, Address(RSP, 0));
     
-    x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
-    x64->op(LEA, R10, Address(callback_label, 0));
-    x64->op(PUSHQ, R10);  // callback
-    x64->op(PUSHQ, R11);  // payload1
-    x64->op(PUSHQ, KEYX);  // payload2
+    cx->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
+    cx->op(LEA, R10, Address(callback_label, 0));
+    cx->op(PUSHQ, R10);  // callback
+    cx->op(PUSHQ, R11);  // payload1
+    cx->op(PUSHQ, KEYX);  // payload2
 
-    x64->op(CALL, x64->runtime->fcb_alloc_label);  // clobbers all
-    x64->op(ADDQ, RSP, 3 * ADDRESS_SIZE);
-    x64->op(POPQ, R10);  // object
+    cx->op(CALL, cx->runtime->fcb_alloc_label);  // clobbers all
+    cx->op(ADDQ, RSP, 3 * ADDRESS_SIZE);
+    cx->op(POPQ, R10);  // object
     
-    heap_ts.decref(R10, x64);
+    heap_ts.decref(R10, cx);
 }
 
 
-void nosy_postremove(TypeSpec elem_ts, Storage ref_storage, X64 *x64) {
+void nosy_postremove(TypeSpec elem_ts, Storage ref_storage, Cx *cx) {
     // Remove an FCB to the newly removed rbtree elem.
     // ref_storage - the storage of the rbtree ref
     // SELFX/KEYX - points to the just removed elem
     // Clobbers all registers.
-    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
+    Label callback_label = cx->once->compile(compile_nosytree_callback, elem_ts);
     int noffset = nosyvalue_offset(elem_ts);
 
     // See above
     if (ref_storage.where != ALISTACK)
         throw INTERNAL_ERROR;
         
-    x64->op(MOVQ, R11, Address(RSP, 0));
+    cx->op(MOVQ, R11, Address(RSP, 0));
     
-    x64->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
-    x64->op(LEA, R10, Address(callback_label, 0));
-    x64->op(PUSHQ, R10);  // callback
-    x64->op(PUSHQ, R11);  // payload1
-    x64->op(PUSHQ, KEYX);  // payload2
+    cx->op(PUSHQ, Address(SELFX, KEYX, RBNODE_VALUE_OFFSET + noffset));  // object
+    cx->op(LEA, R10, Address(callback_label, 0));
+    cx->op(PUSHQ, R10);  // callback
+    cx->op(PUSHQ, R11);  // payload1
+    cx->op(PUSHQ, KEYX);  // payload2
 
-    x64->op(CALL, x64->runtime->fcb_free_label);  // clobbers all
-    x64->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
+    cx->op(CALL, cx->runtime->fcb_free_label);  // clobbers all
+    cx->op(ADDQ, RSP, 4 * ADDRESS_SIZE);
 }
 
 
 // Nosytree basics
 
-void compile_nosytree_finalizer(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_nosytree_finalizer(Label label, TypeSpec elem_ts, Cx *cx) {
     Address ref_arg_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
     
-    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("finalizer"));
-    x64->prologue();
-    x64->runtime->log("Nosytree finalized.");
+    cx->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("finalizer"));
+    cx->prologue();
+    cx->runtime->log("Nosytree finalized.");
 
-    x64->op(MOVQ, RAX, ref_arg_addr);  // pointer arg
+    cx->op(MOVQ, RAX, ref_arg_addr);  // pointer arg
     
-    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
+    Label callback_label = cx->once->compile(compile_nosytree_callback, elem_ts);
         
-    x64->op(LEA, R10, Address(callback_label, 0));
-    x64->op(LEA, R11, Address(RAX, NOSYTREE_MEMBER_OFFSET));
-    nosytree_fcb_action(x64->runtime->fcb_free_label, elem_ts, x64);  // clobbers all
+    cx->op(LEA, R10, Address(callback_label, 0));
+    cx->op(LEA, R11, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+    nosytree_fcb_action(cx->runtime->fcb_free_label, elem_ts, cx);  // clobbers all
         
     // If an iterator is referring to this rbtree, it must have increased all
     // reference counts to make sure they continue to point to a valid object.
     // Once we destroy the Rbtree Ref, only iterator(s) will be the owner(s)
     // of this rbtree.
 
-    x64->op(MOVQ, RAX, ref_arg_addr);
+    cx->op(MOVQ, RAX, ref_arg_addr);
     
     TypeSpec member_ts = elem_ts.prefix(rbtree_type).prefix(ref_type);
-    member_ts.destroy(Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), x64);
+    member_ts.destroy(Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), cx);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void alloc_nosytree(TypeSpec elem_ts, X64 *x64) {
-    Label finalizer_label = x64->once->compile(compile_nosytree_finalizer, elem_ts);
+void alloc_nosytree(TypeSpec elem_ts, Cx *cx) {
+    Label finalizer_label = cx->once->compile(compile_nosytree_finalizer, elem_ts);
 
-    x64->op(PUSHQ, REFERENCE_SIZE);
-    x64->op(LEA, R10, Address(finalizer_label, 0));
-    x64->op(PUSHQ, R10);
-    x64->runtime->heap_alloc();  // clobbers all
-    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+    cx->op(PUSHQ, REFERENCE_SIZE);
+    cx->op(LEA, R10, Address(finalizer_label, 0));
+    cx->op(PUSHQ, R10);
+    cx->runtime->heap_alloc();  // clobbers all
+    cx->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 
     // Ref to Nosytree in RAX
 }
 
 
-void compile_nosytree_clone(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_nosytree_clone(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - Nosytree Ref
     // Return a cloned Ref
     TypeSpec rbtree_heap_ts = elem_ts.prefix(rbtree_type);
     TypeSpec member_ts = rbtree_heap_ts.prefix(ref_type);
     TypeSpec container_heap_ts = member_ts.prefix(nosytree_type);
     
-    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
-    Label clone_label = x64->once->compile(compile_rbtree_clone, elem_ts);
+    Label callback_label = cx->once->compile(compile_nosytree_callback, elem_ts);
+    Label clone_label = cx->once->compile(compile_rbtree_clone, elem_ts);
     
-    x64->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("clone"));
-    x64->prologue();
-    x64->runtime->log("XXX Nosytree clone");
+    cx->code_label_local(label, elem_ts.prefix(nosytree_type).symbolize("clone"));
+    cx->prologue();
+    cx->runtime->log("XXX Nosytree clone");
 
-    x64->op(MOVQ, R10, Address(RAX, NOSYTREE_MEMBER_OFFSET));  // Rbtree ref
-    rbtree_heap_ts.incref(R10, x64);
-    x64->op(PUSHQ, R10);
+    cx->op(MOVQ, R10, Address(RAX, NOSYTREE_MEMBER_OFFSET));  // Rbtree ref
+    rbtree_heap_ts.incref(R10, cx);
+    cx->op(PUSHQ, R10);
     
-    container_heap_ts.decref(RAX, x64);
+    container_heap_ts.decref(RAX, cx);
     
-    alloc_nosytree(elem_ts, x64);  // clobbers all
+    alloc_nosytree(elem_ts, cx);  // clobbers all
     
-    x64->op(XCHGQ, RAX, Address(RSP, 0));  // push new nosy, pop old rbtree
+    cx->op(XCHGQ, RAX, Address(RSP, 0));  // push new nosy, pop old rbtree
     
     // Cloning the rbtree means that only the clone will be managed by FCB-s, so the
     // original must be referred by an iterator that increased all refcounts to make
     // sure they continue to point to valid objects until the end of the iteration.
-    x64->op(CALL, clone_label);
+    cx->op(CALL, clone_label);
     
-    x64->op(POPQ, RBX);
-    member_ts.create(Storage(REGISTER, RAX), Storage(MEMORY, Address(RBX, NOSYTREE_MEMBER_OFFSET)), x64);
-    x64->op(PUSHQ, RBX);
+    cx->op(POPQ, RBX);
+    member_ts.create(Storage(REGISTER, RAX), Storage(MEMORY, Address(RBX, NOSYTREE_MEMBER_OFFSET)), cx);
+    cx->op(PUSHQ, RBX);
 
-    x64->op(LEA, R10, Address(callback_label, 0));
-    x64->op(LEA, R11, Address(RBX, NOSYTREE_MEMBER_OFFSET));
-    nosytree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
+    cx->op(LEA, R10, Address(callback_label, 0));
+    cx->op(LEA, R11, Address(RBX, NOSYTREE_MEMBER_OFFSET));
+    nosytree_fcb_action(cx->runtime->fcb_alloc_label, elem_ts, cx);
     
-    x64->op(POPQ, RAX);
-    x64->epilogue();
+    cx->op(POPQ, RAX);
+    cx->epilogue();
 }
 
 
@@ -306,42 +306,42 @@ Regs NosytreeMemberValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage NosytreeMemberValue::compile(X64 *x64) {
+Storage NosytreeMemberValue::compile(Cx *cx) {
     Register r;
     
     if (!rvalue_needed) {
-        Label clone_label = x64->once->compile(compile_nosytree_clone, elem_ts);
+        Label clone_label = cx->once->compile(compile_nosytree_clone, elem_ts);
 
-        Storage ps = pivot->compile_lvalue(x64);
+        Storage ps = pivot->compile_lvalue(cx);
         Storage aps = ps.access(0);
 
-        container_cow(clone_label, aps, x64);  // leaves borrowed Ref in RAX
+        container_cow(clone_label, aps, cx);  // leaves borrowed Ref in RAX
         r = RAX;
 
-        x64->runtime->incref(r);
+        cx->runtime->incref(r);
         
-        x64->op(PUSHQ, r);
-        x64->op(ADDQ, r, NOSYTREE_MEMBER_OFFSET);
-        x64->op(PUSHQ, r);
+        cx->op(PUSHQ, r);
+        cx->op(ADDQ, r, NOSYTREE_MEMBER_OFFSET);
+        cx->op(PUSHQ, r);
 
         return Storage(ALISTACK);
     }
     else {
         // Until we can make sure the member can be borrowed, return a value copy
-        Storage s = pivot->compile(x64);
+        Storage s = pivot->compile(cx);
     
         switch (s.where) {
         case REGISTER:
             r = (clob & ~Regs(s.reg)).get_gpr();
-            x64->op(MOVQ, r, Address(s.reg, NOSYTREE_MEMBER_OFFSET));
-            x64->runtime->incref(r);
-            x64->runtime->decref(s.reg);
+            cx->op(MOVQ, r, Address(s.reg, NOSYTREE_MEMBER_OFFSET));
+            cx->runtime->incref(r);
+            cx->runtime->decref(s.reg);
             return Storage(REGISTER, r);
         case MEMORY:
             r = clob.get_gpr();
-            x64->op(MOVQ, r, s.address);
-            x64->op(MOVQ, r, Address(r, NOSYTREE_MEMBER_OFFSET));
-            x64->runtime->incref(r);
+            cx->op(MOVQ, r, s.address);
+            cx->op(MOVQ, r, Address(r, NOSYTREE_MEMBER_OFFSET));
+            cx->runtime->incref(r);
             return Storage(REGISTER, r);
         default:
             throw INTERNAL_ERROR;
@@ -367,24 +367,24 @@ Regs WeaktreeValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage WeaktreeValue::compile(X64 *x64) {
+Storage WeaktreeValue::compile(Cx *cx) {
     TypeSpec member_ts = elem_ts.prefix(rbtree_type).prefix(ref_type);
-    Label callback_label = x64->once->compile(compile_nosytree_callback, elem_ts);
+    Label callback_label = cx->once->compile(compile_nosytree_callback, elem_ts);
 
-    member_value->compile_and_store(x64, Storage(STACK));
+    member_value->compile_and_store(cx, Storage(STACK));
 
-    alloc_nosytree(elem_ts, x64);  // clobbers all
+    alloc_nosytree(elem_ts, cx);  // clobbers all
 
-    member_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), x64);
+    member_ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, NOSYTREE_MEMBER_OFFSET)), cx);
     
     // Must set up the FCB-s
-    x64->op(PUSHQ, RAX);
+    cx->op(PUSHQ, RAX);
     
-    x64->op(LEA, R10, Address(callback_label, 0));
-    x64->op(LEA, R11, Address(RAX, NOSYTREE_MEMBER_OFFSET));
-    nosytree_fcb_action(x64->runtime->fcb_alloc_label, elem_ts, x64);
+    cx->op(LEA, R10, Address(callback_label, 0));
+    cx->op(LEA, R11, Address(RAX, NOSYTREE_MEMBER_OFFSET));
+    nosytree_fcb_action(cx->runtime->fcb_alloc_label, elem_ts, cx);
     
-    x64->op(POPQ, RAX);
+    cx->op(POPQ, RAX);
     return Storage(REGISTER, RAX);
 }
 
@@ -405,9 +405,9 @@ Regs NosyRbtreeAddValue::precompile(Regs preferred) {
     return RbtreeAddValue::precompile(preferred) | Regs::all();
 }
 
-Storage NosyRbtreeAddValue::postprocess(Storage ps, X64 *x64) {
+Storage NosyRbtreeAddValue::postprocess(Storage ps, Cx *cx) {
     // Using the ps+SELFX+KEYX
-    nosy_postadd(elem_ts, ps, x64);  // clobbers all
+    nosy_postadd(elem_ts, ps, cx);  // clobbers all
     
     return ps;
 }
@@ -422,9 +422,9 @@ Regs NosyRbtreeAddItemValue::precompile(Regs preferred) {
     return RbtreeAddItemValue::precompile(preferred) | Regs::all();
 }
 
-Storage NosyRbtreeAddItemValue::postprocess(Storage ps, X64 *x64) {
+Storage NosyRbtreeAddItemValue::postprocess(Storage ps, Cx *cx) {
     // Using the ps+SELFX+KEYX
-    nosy_postadd(elem_ts, ps, x64);  // clobbers all
+    nosy_postadd(elem_ts, ps, cx);  // clobbers all
     
     return ps;
 }
@@ -439,9 +439,9 @@ Regs NosyRbtreeRemoveValue::precompile(Regs preferred) {
     return RbtreeRemoveValue::precompile(preferred) | Regs::all();
 }
 
-Storage NosyRbtreeRemoveValue::postprocess(Storage ps, X64 *x64) {
+Storage NosyRbtreeRemoveValue::postprocess(Storage ps, Cx *cx) {
     // Using the ps+SELFX+KEYX
-    nosy_postremove(elem_ts, ps, x64);  // clobbers all
+    nosy_postremove(elem_ts, ps, cx);  // clobbers all
     
     return ps;
 }

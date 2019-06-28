@@ -177,15 +177,15 @@ unsigned Root::allocate_modules() {
     return root_scope->size.concretize();
 }
 
-void Root::compile_modules(X64 *x64) {
-    root_scope->set_application_label(x64->runtime->application_label);
+void Root::compile_modules(Cx *cx) {
+    root_scope->set_application_label(cx->runtime->application_label);
 
     for (Module *m : modules_in_order) {
         m->value_root->precompile_tail();
-        m->value_root->compile(x64);
+        m->value_root->compile(cx);
 
-        //m->collect_initializer_labels(initializer_labels, x64);
-        //m->collect_finalizer_labels(finalizer_labels, x64);
+        //m->collect_initializer_labels(initializer_labels, cx);
+        //m->collect_finalizer_labels(finalizer_labels, cx);
     }
 
     Module *main_module = modules_in_order.back();
@@ -197,8 +197,8 @@ void Root::compile_modules(X64 *x64) {
         if (g->is_called("Main") && g->outer_scope == main_module->module_scope)
             main_global = g;
             
-        initializer_labels.push_back(g->compile_initializer(x64));
-        finalizer_labels.push_back(g->compile_finalizer(x64));
+        initializer_labels.push_back(g->compile_initializer(cx));
+        finalizer_labels.push_back(g->compile_finalizer(cx));
     }
 
     if (!main_global) {
@@ -211,5 +211,5 @@ void Root::compile_modules(X64 *x64) {
     // which implements the Application abstract.
     Storage main_storage = main_global->get_local_storage();
     
-    x64->runtime->compile_start(main_storage, initializer_labels, finalizer_labels);
+    cx->runtime->compile_start(main_storage, initializer_labels, finalizer_labels);
 }

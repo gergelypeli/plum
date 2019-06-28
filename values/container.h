@@ -1,9 +1,9 @@
 TypeSpec container_elem_ts(TypeSpec ts, Type *container_type = NULL);
-void container_alloc(int header_size, int elem_size, int reservation_offset, Label finalizer_label, X64 *x64);
-void container_realloc(int header_size, int elem_size, int reservation_offset, X64 *x64);
-void container_grow(int reservation_offset, int min_reservation, Label realloc_label, X64 *x64);
-void container_preappend2(int reservation_offset, int length_offset, Label grow_label, Storage ref_storage, X64 *x64);
-void container_cow(Label clone_label, Storage ref_storage, X64 *x64);
+void container_alloc(int header_size, int elem_size, int reservation_offset, Label finalizer_label, Cx *cx);
+void container_realloc(int header_size, int elem_size, int reservation_offset, Cx *cx);
+void container_grow(int reservation_offset, int min_reservation, Label realloc_label, Cx *cx);
+void container_preappend2(int reservation_offset, int length_offset, Label grow_label, Storage ref_storage, Cx *cx);
+void container_cow(Label clone_label, Storage ref_storage, Cx *cx);
 
 class ContainerLengthValue: public GenericValue {
 public:
@@ -14,7 +14,7 @@ public:
     ContainerLengthValue(Value *l, TypeMatch &match, TypeSpec hts, int lo);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ContainerIndexValue: public GenericValue, public Raiser, public ContainedLvalue {
@@ -30,9 +30,9 @@ public:
     ContainerIndexValue(Value *pivot, TypeMatch &match, TypeSpec hts, int lo, int eo);
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
-    virtual void fix_index(Register r, Register i, X64 *x64);
+    virtual void fix_index(Register r, Register i, Cx *cx);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ContainerEmptyValue: public GenericValue {
@@ -43,7 +43,7 @@ public:
     ContainerEmptyValue(TypeSpec ts, Once::TypedFunctionCompiler ca);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ContainerReservedValue: public GenericValue {
@@ -54,7 +54,7 @@ public:
     ContainerReservedValue(TypeSpec ts, Once::TypedFunctionCompiler ca);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ContainerAllValue: public Value {
@@ -70,7 +70,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ContainerInitializerValue: public Value {
@@ -85,7 +85,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ContainerEmptiableValue: public GenericValue, public Raiser {
@@ -107,8 +107,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual void fix_index(Register r, Register i, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual void fix_index(Register r, Register i, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 class ContainerPopValue: public ContainerEmptiableValue {
@@ -123,8 +123,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual void fix_index(Register r, Register i, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual void fix_index(Register r, Register i, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 // Iteration
@@ -132,7 +132,7 @@ class ContainerIterValue: public SimpleRecordValue {
 public:
     ContainerIterValue(TypeSpec t, Value *l);
     
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 // Array iterator next methods
@@ -147,6 +147,6 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };

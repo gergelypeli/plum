@@ -102,7 +102,7 @@ Storage ControlValue::get_context_storage() {
     }
 }
 
-Storage ControlValue::nonsense_result(X64 *x64) {
+Storage ControlValue::nonsense_result(Cx *cx) {
     // NOTE: this is not very nice. Even if a control is known not to return, it needs to
     // fake it does, because we'll generate code to process the result. This mean
     // returning some believable Storage, and the corresponding stack accounting.
@@ -113,7 +113,7 @@ Storage ControlValue::nonsense_result(X64 *x64) {
         return Storage();
     }
     else {
-        x64->op(SUBQ, RSP, context_ts.measure_stack());
+        cx->op(SUBQ, RSP, context_ts.measure_stack());
         return Storage(STACK);
     }
 }
@@ -164,11 +164,11 @@ Regs IfValue::precompile(Regs preferred) {
     return clobbered | reg;
 }
 
-Storage IfValue::compile(X64 *x64) {
+Storage IfValue::compile(Cx *cx) {
     Label then_end;
     Label else_end;
     
-    Storage cs = condition->compile(x64);
+    Storage cs = condition->compile(cx);
     
     switch (cs.where) {
     case CONSTANT:
@@ -177,11 +177,11 @@ Storage IfValue::compile(X64 *x64) {
                 ;
             }
             else if (else_branch)
-                x64->op(JMP, else_end);
+                cx->op(JMP, else_end);
         }
         else {
             if (then_branch)
-                x64->op(JMP, then_end);
+                cx->op(JMP, then_end);
             else if (else_branch) {
                 ;
             }
@@ -191,39 +191,39 @@ Storage IfValue::compile(X64 *x64) {
     case FLAGS:
         if (then_branch) {
             BranchOp opcode = branch(negated(cs.cc));
-            x64->op(opcode, then_end);
+            cx->op(opcode, then_end);
         }
         else if (else_branch) {
             BranchOp opcode = branch(cs.cc);
-            x64->op(opcode, else_end);
+            cx->op(opcode, else_end);
         }
         break;
     case REGISTER:
-        x64->op(CMPB, cs.reg, 0);
+        cx->op(CMPB, cs.reg, 0);
         
         if (then_branch)
-            x64->op(JE, then_end);
+            cx->op(JE, then_end);
         else if (else_branch)
-            x64->op(JNE, else_end);
+            cx->op(JNE, else_end);
             
         break;
     case STACK:
-        x64->op(POPQ, reg);
-        x64->op(CMPB, RAX, 0);
+        cx->op(POPQ, reg);
+        cx->op(CMPB, RAX, 0);
         
         if (then_branch)
-            x64->op(JE, then_end);
+            cx->op(JE, then_end);
         else if (else_branch)
-            x64->op(JNE, else_end);
+            cx->op(JNE, else_end);
             
         break;
     case MEMORY:
-        x64->op(CMPB, cs.address, 0);
+        cx->op(CMPB, cs.address, 0);
 
         if (then_branch)
-            x64->op(JE, then_end);
+            cx->op(JE, then_end);
         else if (else_branch)
-            x64->op(JNE, else_end);
+            cx->op(JNE, else_end);
         
         break;
     default:
@@ -236,17 +236,17 @@ Storage IfValue::compile(X64 *x64) {
     //    s = Storage(REGISTER, reg);
 
     if (then_branch) {
-        then_branch->compile_and_store(x64, s);
+        then_branch->compile_and_store(cx, s);
         
         if (else_branch)
-            x64->op(JMP, else_end);
+            cx->op(JMP, else_end);
 
-        x64->code_label(then_end);
+        cx->code_label(then_end);
     }
     
     if (else_branch) {
-        else_branch->compile_and_store(x64, s);
-        x64->code_label(else_end);
+        else_branch->compile_and_store(cx, s);
+        cx->code_label(else_end);
     }
 
     return s;
@@ -311,7 +311,7 @@ Storage YieldableValue::get_yield_storage() {
     }
 }
 
-void YieldableValue::store_yield(Storage s, X64 *x64) {
+void YieldableValue::store_yield(Storage s, Cx *cx) {
     Storage t = get_yield_storage();
     //std::cerr << "Storing " << eval_name << " yield into " << t << "\n";
     
@@ -320,10 +320,10 @@ void YieldableValue::store_yield(Storage s, X64 *x64) {
         break;
     case REGISTER:
     case FPREGISTER:
-        ts.store(s, t, x64);
+        ts.store(s, t, cx);
         break;
     case MEMORY:
-        ts.create(s, t, x64);
+        ts.create(s, t, cx);
         break;
     default:
         throw INTERNAL_ERROR;
@@ -366,44 +366,44 @@ Regs RepeatValue::precompile(Regs preferred) {
     return Regs::all();  // We're Void
 }
 
-Storage RepeatValue::compile(X64 *x64) {
+Storage RepeatValue::compile(Cx *cx) {
     if (setup)
-        setup->compile_and_store(x64, Storage());
+        setup->compile_and_store(cx, Storage());
 
-    x64->code_label(start);
+    cx->code_label(start);
 
     if (condition) {
-        Storage cs = condition->compile(x64);
+        Storage cs = condition->compile(cx);
         
         switch (cs.where) {
         case CONSTANT:
             if (!cs.value)
-                x64->op(JMP, end);
+                cx->op(JMP, end);
             break;
         case FLAGS:
-            x64->op(branch(negated(cs.cc)), end);
+            cx->op(branch(negated(cs.cc)), end);
             break;
         case REGISTER:
-            x64->op(CMPB, cs.reg, 0);
-            x64->op(JE, end);
+            cx->op(CMPB, cs.reg, 0);
+            cx->op(JE, end);
             break;
         case MEMORY:
-            x64->op(CMPB, cs.address, 0);
-            x64->op(JE, end);
+            cx->op(CMPB, cs.address, 0);
+            cx->op(JE, end);
             break;
         default:
             throw INTERNAL_ERROR;
         }
     }
     
-    body->compile_and_store(x64, Storage());
+    body->compile_and_store(cx, Storage());
     
     if (step)
-        step->compile_and_store(x64, Storage());
+        step->compile_and_store(cx, Storage());
     
-    x64->op(JMP, start);
+    cx->op(JMP, start);
     
-    x64->code_label(end);
+    cx->code_label(end);
     return Storage();
 }
 
@@ -501,46 +501,46 @@ Regs ForEachValue::precompile(Regs preferred) {
     return Regs::all();  // We're Void
 }
 
-Storage ForEachValue::compile(X64 *x64) {
-    Storage is = iterator->compile(x64);
+Storage ForEachValue::compile(Cx *cx) {
+    Storage is = iterator->compile(cx);
     Storage var_storage = iterator_var->get_local_storage();
-    iterator->ts.create(is, var_storage, x64);
+    iterator->ts.create(is, var_storage, cx);
     
-    Storage es = each->compile(x64);
+    Storage es = each->compile(cx);
     if (es.where != MEMORY || es.address.base != RBP)
         throw INTERNAL_ERROR;  // FIXME: lame temporary restriction only
     
     Label start, end;
-    x64->code_label(start);
+    cx->code_label(start);
 
-    next_try_scope->initialize_contents(x64);
+    next_try_scope->initialize_contents(cx);
 
-    x64->unwind->push(this);
-    next->compile_and_store(x64, Storage(STACK));
-    x64->unwind->pop(this);
+    cx->unwind->push(this);
+    next->compile_and_store(cx, Storage(STACK));
+    cx->unwind->pop(this);
     
     // Finalize after storing, so the return value won't be lost
-    next->ts.create(Storage(STACK), es, x64);  // create the each variable
+    next->ts.create(Storage(STACK), es, cx);  // create the each variable
 
     // On exception we jump here, so the each variable won't be created
-    next_try_scope->finalize_contents_and_unwind(x64);
+    next_try_scope->finalize_contents_and_unwind(cx);
 
-    x64->code_label(next_try_scope->got_nothing_label);
+    cx->code_label(next_try_scope->got_nothing_label);
     
-    body->compile_and_store(x64, Storage());
+    body->compile_and_store(cx, Storage());
     
-    next->ts.destroy(es, x64);  // destroy the each variable
+    next->ts.destroy(es, cx);  // destroy the each variable
     
-    x64->op(JMP, start);
+    cx->op(JMP, start);
     
-    x64->code_label(next_try_scope->got_exception_label);
-    x64->code_label(end);
+    cx->code_label(next_try_scope->got_exception_label);
+    cx->code_label(end);
     // We don't need to clean up local variables yet (iterator_var is not in our scopes)
     
     return Storage();
 }
 
-CodeScope *ForEachValue::unwind(X64 *x64) {
+CodeScope *ForEachValue::unwind(Cx *cx) {
     // May be called only while executing next
     return next_try_scope;
 }
@@ -592,27 +592,27 @@ Regs SwitchValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage SwitchValue::compile(X64 *x64) {
-    Storage vs = value->compile(x64);
+Storage SwitchValue::compile(Cx *cx) {
+    Storage vs = value->compile(cx);
 
-    switch_scope->initialize_contents(x64);
+    switch_scope->initialize_contents(cx);
 
     Storage switch_storage = switch_var->get_local_storage();
-    value->ts.create(vs, switch_storage, x64);
+    value->ts.create(vs, switch_storage, cx);
 
-    x64->unwind->push(this);
+    cx->unwind->push(this);
     
     if (body)
-        body->compile_and_store(x64, Storage());
+        body->compile_and_store(cx, Storage());
     
-    x64->unwind->pop(this);
+    cx->unwind->pop(this);
 
-    switch_scope->finalize_contents_and_unwind(x64);
+    switch_scope->finalize_contents_and_unwind(cx);
 
     return Storage();
 }
 
-CodeScope *SwitchValue::unwind(X64 *x64) {
+CodeScope *SwitchValue::unwind(Cx *cx) {
     return switch_scope;  // Start finalizing the variable
 }
 
@@ -712,73 +712,73 @@ Regs IsValue::precompile(Regs preferred) {
     return Regs::all();  // We're Void
 }
 
-Storage IsValue::compile(X64 *x64) {
+Storage IsValue::compile(Cx *cx) {
     Label else_label, end;
 
-    then_scope->initialize_contents(x64);
-    x64->unwind->push(this);
+    then_scope->initialize_contents(cx);
+    cx->unwind->push(this);
     
-    match_try_scope->initialize_contents(x64);
+    match_try_scope->initialize_contents(cx);
     
     matching = true;
-    match->compile_and_store(x64, Storage());
+    match->compile_and_store(cx, Storage());
     matching = false;
     
-    match_try_scope->finalize_contents_and_unwind(x64);
+    match_try_scope->finalize_contents_and_unwind(cx);
 
-    x64->code_label(match_try_scope->got_nothing_label);
+    cx->code_label(match_try_scope->got_nothing_label);
     
     Storage t = get_context_storage();
 
     if (then_branch)
-        then_branch->compile_and_store(x64, t);
+        then_branch->compile_and_store(cx, t);
     
-    x64->unwind->pop(this);
+    cx->unwind->pop(this);
     
-    then_scope->finalize_contents_and_unwind(x64);
+    then_scope->finalize_contents_and_unwind(cx);
     
-    x64->op(JMP, end);
+    cx->op(JMP, end);
     
-    x64->code_label(match_try_scope->got_exception_label);
-    x64->code_label(else_label);
+    cx->code_label(match_try_scope->got_exception_label);
+    cx->code_label(else_label);
     
     if (else_branch)
-        else_branch->compile_and_store(x64, t);
+        else_branch->compile_and_store(cx, t);
     else if (match_try_scope->has_implicit_matcher()) {
         // If an implicit matcher was used (within a :switch or :try), then die
         SwitchScope *ss = match_try_scope->get_switch_scope();
         Variable *sv = ss->get_variable();
-        Label clone_label = x64->once->compile(compile_array_clone, CHARACTER_TS);
+        Label clone_label = cx->once->compile(compile_array_clone, CHARACTER_TS);
 
         std::stringstream msg;
         msg << "Fatal unmatched value at " << token << ": ";
 
-        Label message_label = x64->runtime->data_heap_string(decode_utf8(msg.str()));
+        Label message_label = cx->runtime->data_heap_string(decode_utf8(msg.str()));
 
-        x64->op(LEA, RAX, Address(message_label, 0));
-        x64->runtime->incref(RAX);
-        x64->op(CALL, clone_label);
-        x64->op(PUSHQ, RAX);  // Pseudo-variable serving as the message stream
+        cx->op(LEA, RAX, Address(message_label, 0));
+        cx->runtime->incref(RAX);
+        cx->op(CALL, clone_label);
+        cx->op(PUSHQ, RAX);  // Pseudo-variable serving as the message stream
 
-        sv->alloc_ts.store(sv->get_local_storage(), Storage(STACK), x64);
-        x64->op(LEA, R11, Address(RSP, sv->alloc_ts.measure_stack()));
-        x64->op(PUSHQ, R11);
+        sv->alloc_ts.store(sv->get_local_storage(), Storage(STACK), cx);
+        cx->op(LEA, R11, Address(RSP, sv->alloc_ts.measure_stack()));
+        cx->op(PUSHQ, R11);
         
-        sv->alloc_ts.streamify(x64);
+        sv->alloc_ts.streamify(cx);
         
-        x64->op(POPQ, R11);
-        sv->alloc_ts.store(Storage(STACK), Storage(), x64);
+        cx->op(POPQ, R11);
+        sv->alloc_ts.store(Storage(STACK), Storage(), cx);
         
-        x64->op(POPQ, RAX);
-        x64->runtime->dies(RAX);
+        cx->op(POPQ, RAX);
+        cx->runtime->dies(RAX);
     }
         
-    x64->code_label(end);
+    cx->code_label(end);
     
     return t;
 }
 
-CodeScope *IsValue::unwind(X64 *x64) {
+CodeScope *IsValue::unwind(Cx *cx) {
     if (matching)
         return match_try_scope;
     else
@@ -840,23 +840,23 @@ Regs RaiseValue::precompile(Regs preferred) {
     return Regs::all();  // We're Void
 }
 
-Storage RaiseValue::compile(X64 *x64) {
-    Storage s = value->compile(x64);
+Storage RaiseValue::compile(Cx *cx) {
+    Storage s = value->compile(cx);
     
     switch (s.where) {
     case CONSTANT:
-        x64->op(MOVQ, RDX, s.value);
+        cx->op(MOVQ, RDX, s.value);
         break;
     case REGISTER:
-        x64->op(MOVZXBQ, RDX, s.reg);
+        cx->op(MOVZXBQ, RDX, s.reg);
         break;
     default:
         throw INTERNAL_ERROR;
     }
     
-    x64->unwind->initiate(dummy, x64);
+    cx->unwind->initiate(dummy, cx);
 
-    return nonsense_result(x64);
+    return nonsense_result(cx);
 }
 
 
@@ -935,64 +935,64 @@ Regs TryValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage TryValue::compile(X64 *x64) {
-    try_scope->initialize_contents(x64);
+Storage TryValue::compile(Cx *cx) {
+    try_scope->initialize_contents(cx);
 
-    x64->unwind->push(this);
+    cx->unwind->push(this);
     handling = false;
-    Storage s = body->compile(x64);
-    x64->unwind->pop(this);
+    Storage s = body->compile(cx);
+    cx->unwind->pop(this);
 
     // FIXME:
     Storage t = get_context_storage();
-    ts.store(s, t, x64);
-    //XXX store_yield(s, x64);
+    ts.store(s, t, cx);
+    //XXX store_yield(s, cx);
 
-    try_scope->finalize_contents_and_unwind(x64);  // exceptions from body jump here
+    try_scope->finalize_contents_and_unwind(cx);  // exceptions from body jump here
     
     // Caught exception, prepare for handling
-    x64->code_label(try_scope->got_exception_label);
+    cx->code_label(try_scope->got_exception_label);
 
-    switch_scope->initialize_contents(x64);
+    switch_scope->initialize_contents(cx);
     
     if (switch_var) {
         Storage switch_storage = switch_var->get_local_storage();
-        x64->op(MOVQ, switch_storage.address, RDX);
+        cx->op(MOVQ, switch_storage.address, RDX);
     }
     // dropped RDX
 
-    x64->unwind->push(this);
+    cx->unwind->push(this);
     handling = true;
     
     if (handler) {
-        handler->compile_and_store(x64, t);
+        handler->compile_and_store(cx, t);
     }
     else {
         // Normal execution will die here
         TreenumerationType *et = try_scope->get_exception_type();
         
         if (et) {
-            auto arg_regs = x64->abi_arg_regs();
+            auto arg_regs = cx->abi_arg_regs();
             
-            x64->op(MOVQ, R10, switch_var->get_local_storage().address);
-            x64->op(LEA, R11, Address(et->get_stringifications_label(x64), 0));
-            x64->op(MOVQ, arg_regs[0], Address(R11, R10, Address::SCALE_8, 0));  // treenum name
-            x64->op(MOVQ, arg_regs[1], token.row);
-            x64->runtime->call_sysv(x64->runtime->sysv_die_uncaught_label);
-            x64->op(UD2);
+            cx->op(MOVQ, R10, switch_var->get_local_storage().address);
+            cx->op(LEA, R11, Address(et->get_stringifications_label(cx), 0));
+            cx->op(MOVQ, arg_regs[0], Address(R11, R10, Address::SCALE_8, 0));  // treenum name
+            cx->op(MOVQ, arg_regs[1], token.row);
+            cx->runtime->call_sysv(cx->runtime->sysv_die_uncaught_label);
+            cx->op(UD2);
         }
     }
 
-    x64->unwind->pop(this);
+    cx->unwind->pop(this);
 
-    switch_scope->finalize_contents_and_unwind(x64);
+    switch_scope->finalize_contents_and_unwind(cx);
 
-    x64->code_label(try_scope->got_nothing_label);
+    cx->code_label(try_scope->got_nothing_label);
     
     return t;
 }
 
-CodeScope *TryValue::unwind(X64 *x64) {
+CodeScope *TryValue::unwind(Cx *cx) {
     return handling ? (CodeScope *)switch_scope : (CodeScope *)try_scope;
 }
 
@@ -1031,19 +1031,19 @@ Regs EvalValue::precompile(Regs preferred) {
     return body->precompile_tail();
 }
 
-Storage EvalValue::compile(X64 *x64) {
-    eval_scope->initialize_contents(x64);
+Storage EvalValue::compile(Cx *cx) {
+    eval_scope->initialize_contents(cx);
 
-    x64->unwind->push(this);
-    body->compile_and_store(x64, Storage());
-    x64->unwind->pop(this);
+    cx->unwind->push(this);
+    body->compile_and_store(cx, Storage());
+    cx->unwind->pop(this);
 
-    eval_scope->finalize_contents_and_unwind(x64);  // exceptions from body jump here
+    eval_scope->finalize_contents_and_unwind(cx);  // exceptions from body jump here
 
     return get_yield_storage();
 }
 
-CodeScope *EvalValue::unwind(X64 *x64) {
+CodeScope *EvalValue::unwind(Cx *cx) {
     return eval_scope;
 }
 
@@ -1085,14 +1085,14 @@ Regs YieldValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage YieldValue::compile(X64 *x64) {
+Storage YieldValue::compile(Cx *cx) {
     if (value) {
-        Storage s = value->compile(x64);
-        yieldable_value->store_yield(s, x64);
+        Storage s = value->compile(cx);
+        yieldable_value->store_yield(s, cx);
     }
     
-    x64->op(MOVQ, RDX, yieldable_value->eval_scope->get_yield_value());
-    x64->unwind->initiate(dummy, x64);
+    cx->op(MOVQ, RDX, yieldable_value->eval_scope->get_yield_value());
+    cx->unwind->initiate(dummy, cx);
 
-    return nonsense_result(x64);
+    return nonsense_result(cx);
 }

@@ -48,14 +48,14 @@ class SetNextElemByAgeValue: public RbtreeNextElemByAgeValue {
 public:
     SetNextElemByAgeValue(Value *l, TypeMatch &tm);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class SetNextElemByOrderValue: public RbtreeNextElemByOrderValue {
 public:
     SetNextElemByOrderValue(Value *l, TypeMatch &tm);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 // Map
@@ -126,7 +126,7 @@ public:
     MapNextItemByAgeValue(Value *l, TypeMatch &tm);
 
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class MapNextItemByOrderValue: public RbtreeNextElemByOrderValue {
@@ -137,19 +137,19 @@ public:
     MapNextItemByOrderValue(Value *l, TypeMatch &tm);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class MapNextIndexByAgeValue: public RbtreeNextElemByAgeValue {
 public:
     MapNextIndexByAgeValue(Value *l, TypeMatch &tm);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class MapNextIndexByOrderValue: public RbtreeNextElemByOrderValue {
 public:
     MapNextIndexByOrderValue(Value *l, TypeMatch &tm);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };

@@ -10,8 +10,8 @@ public:
     virtual bool complete_type();
     virtual void get_heritage(std::vector<Associable *> &assocs, std::vector<Function *> &funcs);
     virtual Allocation measure_identity(TypeMatch tm);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s);
 };
@@ -25,14 +25,14 @@ public:
     virtual Associable *make_shadow(std::string prefix, TypeMatch explicit_tm);
     virtual void set_outer_scope(Scope *os);
     virtual Value *make_value(Value *orig, TypeMatch match);
-    virtual void streamify(TypeMatch tm, X64 *x64);
+    virtual void streamify(TypeMatch tm, Cx *cx);
     virtual Value *matched(Value *pivot, Scope *scope, TypeMatch &match);
     virtual void allocate();
     virtual void relocate(Allocation explicit_offset);
     virtual void override_virtual_entry(int vi, VirtualEntry *ve);
-    virtual void compile_vt(TypeMatch tm, X64 *x64);
-    virtual void init_vt(TypeMatch tm, Address self_addr, X64 *x64);
-    virtual void compile_act(TypeMatch tm, X64 *x64);
+    virtual void compile_vt(TypeMatch tm, Cx *cx);
+    virtual void init_vt(TypeMatch tm, Address self_addr, Cx *cx);
+    virtual void compile_act(TypeMatch tm, Cx *cx);
 };
 
 class RawStreamifiableImplementation: public Implementation {
@@ -42,19 +42,19 @@ public:
     RawStreamifiableImplementation(std::string name, Once::FunctionCompiler cs);
 
     virtual void check_full_implementation();
-    virtual void streamify(TypeMatch tm, X64 *x64);
+    virtual void streamify(TypeMatch tm, Cx *cx);
 };
 
 class StringRawStreamifiableImplementation: public RawStreamifiableImplementation {
 public:
     StringRawStreamifiableImplementation(std::string name);
 
-    static void compile_raw_streamification(Label label, X64 *x64);
+    static void compile_raw_streamification(Label label, Cx *cx);
 };
 
 class CharacterRawStreamifiableImplementation: public RawStreamifiableImplementation {
 public:
     CharacterRawStreamifiableImplementation(std::string name);
 
-    static void compile_raw_streamification(Label label, X64 *x64);
+    static void compile_raw_streamification(Label label, Cx *cx);
 };

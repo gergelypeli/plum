@@ -2,9 +2,9 @@
 
 
 #if defined __x86_64__
-typedef X64_X64 X64_HOST;
+typedef Cx_X64 Cx_HOST;
 #elif defined __aarch64__
-typedef X64_A64 X64_HOST;
+typedef Cx_A64 Cx_HOST;
 #else
 #error "Must be compiled on x86-64 or aarch64 hosts!"
 #endif
@@ -72,24 +72,24 @@ int main(int argc, char **argv) {
     // Allocate builtins and modules
     unsigned application_size = root->allocate_modules();
     
-    X64 *x64 = new X64_HOST("mymodule");
-    x64->init(application_size, root->source_file_names);
+    Cx *cx = new Cx_HOST("mymodule");
+    cx->init(application_size, root->source_file_names);
 
-    int low_pc = x64->get_pc();
-    root->compile_modules(x64);
-    x64->compile_rest();
-    int high_pc = x64->get_pc();
+    int low_pc = cx->get_pc();
+    root->compile_modules(cx);
+    cx->compile_rest();
+    int high_pc = cx->get_pc();
     
-    x64->dwarf->begin_compile_unit_info(root->source_file_names[1], "plum", low_pc, high_pc);
-    root_scope->debug(TypeMatch(), x64);
-    x64->debug_rest();
-    x64->dwarf->end_info();
+    cx->dwarf->begin_compile_unit_info(root->source_file_names[1], "plum", low_pc, high_pc);
+    root_scope->debug(TypeMatch(), cx);
+    cx->debug_rest();
+    cx->dwarf->end_info();
 
-    x64->dwarf->add_frame_description_entry(low_pc, high_pc);
+    cx->dwarf->add_frame_description_entry(low_pc, high_pc);
 
-    x64->dwarf->finish();
+    cx->dwarf->finish();
     
-    x64->done(output);
+    cx->done(output);
     
     std::cerr << "Done.\n";
     return 0;

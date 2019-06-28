@@ -7,9 +7,9 @@ class StringOperationValue: public RecordOperationValue {
 public:
     StringOperationValue(OperationType o, Value *p, TypeMatch &match);
     
-    virtual void compile_and_stack_both(X64 *x64);
-    virtual Storage compare(X64 *x64);
-    virtual Storage equal(X64 *x64, bool negate);
+    virtual void compile_and_stack_both(Cx *cx);
+    virtual Storage compare(Cx *cx);
+    virtual Storage equal(Cx *cx, bool negate);
 };
 
 class RecordInitializerValue: public Value {
@@ -25,8 +25,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class RecordPreinitializerValue: public Value {
@@ -34,7 +34,7 @@ public:
     RecordPreinitializerValue(TypeSpec ts);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RecordPostinitializerValue: public Value {
@@ -45,7 +45,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RecordUnwrapValue: public Value, public GenericLvalue {
@@ -56,7 +56,7 @@ public:
 
     virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RecordWrapperValue: public Value {
@@ -69,5 +69,5 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

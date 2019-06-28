@@ -8,9 +8,9 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile_body(X64 *x64);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile_body(Cx *cx);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
     virtual void escape_statement_variables();
 };
 
@@ -18,8 +18,8 @@ class RetroScopeValue: public CodeScopeValue, public Deferrable {
 public:
     RetroScopeValue(Value *v, CodeScope *s, TypeSpec ts);
     
-    virtual void deferred_compile(Label label, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual void deferred_compile(Label label, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };
 
 class DataBlockValue: public Value {
@@ -34,7 +34,7 @@ public:
     virtual bool define_data();
     virtual bool define_code();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class CodeBlockValue: public Value {
@@ -47,7 +47,7 @@ public:
     virtual bool add_statement(Value *value, bool result = false);
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class TupleBlockValue: public Value {
@@ -60,8 +60,8 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class DeclarationValue: public Value {
@@ -84,7 +84,7 @@ public:
     virtual bool define_data();
     virtual bool define_code();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
     virtual void escape_statement_variables();
 };
 
@@ -97,7 +97,7 @@ public:
 
     virtual bool check();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class CreateValue: public GenericOperationValue {

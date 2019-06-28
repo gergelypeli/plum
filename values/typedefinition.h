@@ -10,7 +10,7 @@ public:
     TypeDefinitionValue();
     
     virtual Regs precompile(Regs);
-    virtual Storage compile(X64 *);
+    virtual Storage compile(Cx *);
     virtual TypeSpec typize_typespec(Expr *expr, Scope *scope, MetaType *meta_type);
 };
 
@@ -126,7 +126,7 @@ public:
     virtual bool define_data();
     virtual bool define_code();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class RecordDefinitionValue: public ScopedTypeDefinitionValue {
@@ -204,6 +204,6 @@ public:
     virtual bool check_with(Expr *e, CodeScope *cs, DataScope *is);
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual void deferred_compile(Label label, X64 *x64);
-    virtual Storage compile(X64 *x64);
+    virtual void deferred_compile(Label label, Cx *cx);
+    virtual Storage compile(Cx *cx);
 };

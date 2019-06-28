@@ -68,7 +68,7 @@ Allocation InterfaceType::measure_identity(TypeMatch tm) {
     return { 0 };
 }
 
-void InterfaceType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void InterfaceType::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     // Assume the target MEMORY is uninitialized
     
     switch (s.where * t.where) {
@@ -79,7 +79,7 @@ void InterfaceType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     }
 }
 
-void InterfaceType::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void InterfaceType::destroy(TypeMatch tm, Storage s, Cx *cx) {
     if (s.where == MEMORY) {
         return;
     }
@@ -171,7 +171,7 @@ Value *Implementation::make_value(Value *orig, TypeMatch match) {
         return make<ImplementationConversionValue>(this, orig, match);
 }
 
-void Implementation::streamify(TypeMatch tm, X64 *x64) {
+void Implementation::streamify(TypeMatch tm, Cx *cx) {
     // This allows complete built-in implementations of Streamifiable
     if (alloc_ts[0] != streamifiable_type)
         throw INTERNAL_ERROR;
@@ -185,13 +185,13 @@ void Implementation::streamify(TypeMatch tm, X64 *x64) {
     
     if (sf->virtual_index == 0) {
         // Implementation in a value type
-        x64->op(CALL, sf->get_label(x64));
+        cx->op(CALL, sf->get_label(cx));
     }
     else {
         // Implementation in an identity type
-        x64->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
-        x64->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // VT
-        x64->op(CALL, Address(R11, sf->virtual_index * ADDRESS_SIZE));  // select method
+        cx->op(MOVQ, R10, Address(RSP, ALIAS_SIZE));  // Ptr
+        cx->op(MOVQ, R11, Address(R10, CLASS_VT_OFFSET));  // VT
+        cx->op(CALL, Address(R11, sf->virtual_index * ADDRESS_SIZE));  // select method
     }
 }
 
@@ -216,13 +216,13 @@ void Implementation::override_virtual_entry(int vi, VirtualEntry *ve) {
     parent->override_virtual_entry(vi, ve);
 }
 
-void Implementation::compile_vt(TypeMatch tm, X64 *x64) {
+void Implementation::compile_vt(TypeMatch tm, Cx *cx) {
 }
 
-void Implementation::init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
+void Implementation::init_vt(TypeMatch tm, Address self_addr, Cx *cx) {
 }
 
-void Implementation::compile_act(TypeMatch tm, X64 *x64) {
+void Implementation::compile_act(TypeMatch tm, Cx *cx) {
 }
 
 
@@ -238,9 +238,9 @@ void RawStreamifiableImplementation::check_full_implementation() {
     // streamification as a built-in feature.
 }
 
-void RawStreamifiableImplementation::streamify(TypeMatch tm, X64 *x64) {
-    Label st_label = x64->once->compile(compile_streamification);
-    x64->op(CALL, st_label);
+void RawStreamifiableImplementation::streamify(TypeMatch tm, Cx *cx) {
+    Label st_label = cx->once->compile(compile_streamification);
+    cx->op(CALL, st_label);
 }
 
 
@@ -250,34 +250,34 @@ StringRawStreamifiableImplementation::StringRawStreamifiableImplementation(std::
     :RawStreamifiableImplementation(name, compile_raw_streamification) {
 }
 
-void StringRawStreamifiableImplementation::compile_raw_streamification(Label label, X64 *x64) {
+void StringRawStreamifiableImplementation::compile_raw_streamification(Label label, Cx *cx) {
     // RAX - target array, RCX - size, R10 - source array, R11 - alias
     Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
     Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
     
-    x64->code_label_local(label, "String__raw_streamification");
-    x64->prologue();
+    cx->code_label_local(label, "String__raw_streamification");
+    cx->prologue();
     
-    x64->op(MOVQ, R10, value_addr);  // reference to the string
+    cx->op(MOVQ, R10, value_addr);  // reference to the string
     
-    x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
+    cx->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
 
-    stream_preappend2(alias_addr, x64);
+    stream_preappend2(alias_addr, cx);
     
-    x64->op(MOVQ, R10, value_addr);
+    cx->op(MOVQ, R10, value_addr);
 
-    x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
-    x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // Yes, added twice (CHARACTER_SIZE)
+    cx->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+    cx->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(ADDQ, RDI, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // Yes, added twice (CHARACTER_SIZE)
 
-    x64->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
-    x64->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
-    x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
-    x64->op(SHLQ, RCX, 1);
+    cx->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
+    cx->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
+    cx->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
+    cx->op(SHLQ, RCX, 1);
     
-    x64->op(REPMOVSB);
+    cx->op(REPMOVSB);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
@@ -287,20 +287,20 @@ CharacterRawStreamifiableImplementation::CharacterRawStreamifiableImplementation
     :RawStreamifiableImplementation(name, compile_raw_streamification) {
 }
 
-void CharacterRawStreamifiableImplementation::compile_raw_streamification(Label label, X64 *x64) {
+void CharacterRawStreamifiableImplementation::compile_raw_streamification(Label label, Cx *cx) {
     Address value_addr(RSP, ADDRESS_SIZE + RIP_SIZE + ALIAS_SIZE);
     Address alias_addr(RSP, ADDRESS_SIZE + RIP_SIZE);
 
-    x64->code_label_local(label, "Character__raw_streamification");
-    x64->prologue();
+    cx->code_label_local(label, "Character__raw_streamification");
+    cx->prologue();
 
-    x64->op(MOVQ, R10, 1);
-    stream_preappend2(alias_addr, x64);
+    cx->op(MOVQ, R10, 1);
+    stream_preappend2(alias_addr, cx);
 
-    x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(MOVW, R10W, value_addr);  // the character
-    x64->op(MOVW, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET), R10W);  // stream end
-    x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 1);
+    cx->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(MOVW, R10W, value_addr);  // the character
+    cx->op(MOVW, Address(RAX, RCX, Address::SCALE_2, LINEARRAY_ELEMS_OFFSET), R10W);  // stream end
+    cx->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 1);
 
-    x64->epilogue();
+    cx->epilogue();
 }

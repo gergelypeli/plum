@@ -54,24 +54,24 @@ bool Declaration::is_typedefinition(std::string n) {
 void Declaration::allocate() {
 }
 
-void Declaration::finalize(X64 *x64) {
+void Declaration::finalize(Cx *cx) {
     if (is_finalized)
         throw INTERNAL_ERROR;
         
     if (need_finalization_label)
-        x64->code_label(finalization_label);
+        cx->code_label(finalization_label);
         
     is_finalized = true;
 }
 
-void Declaration::jump_to_finalization(X64 *x64) {
+void Declaration::jump_to_finalization(Cx *cx) {
     need_finalization_label = true;
-    x64->op(JMP, finalization_label);
+    cx->op(JMP, finalization_label);
 }
 
 DataScope *Declaration::find_inner_scope(std::string name) {
     return NULL;
 }
 
-void Declaration::debug(TypeMatch tm, X64 *x64) {
+void Declaration::debug(TypeMatch tm, Cx *cx) {
 }

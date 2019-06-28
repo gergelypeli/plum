@@ -7,55 +7,55 @@ FloatOperationValue::FloatOperationValue(OperationType o, Value *p, TypeMatch &m
     ) {
 }
 
-Storage FloatOperationValue::negate(X64 *x64) {
-    ls = left->compile(x64);
+Storage FloatOperationValue::negate(Cx *cx) {
+    ls = left->compile(cx);
 
     switch (ls.where) {
     case FPREGISTER:
-        x64->op(XORF, ls.fpr, Address(x64->runtime->float_minus_zero_label, 0));
+        cx->op(XORF, ls.fpr, Address(cx->runtime->float_minus_zero_label, 0));
         return ls;
     case MEMORY:
-        x64->op(MOVF, auxls.fpr, ls.address);
-        x64->op(XORF, auxls.fpr, Address(x64->runtime->float_minus_zero_label, 0));
+        cx->op(MOVF, auxls.fpr, ls.address);
+        cx->op(XORF, auxls.fpr, Address(cx->runtime->float_minus_zero_label, 0));
         return auxls;
     default:
         throw INTERNAL_ERROR;
     }
 }
 
-Storage FloatOperationValue::binary(X64 *x64, FprFprmemOp opcode) {
+Storage FloatOperationValue::binary(Cx *cx, FprFprmemOp opcode) {
     bool commutative = (opcode == ADDF || opcode == MULF);
 
-    subcompile(x64);
+    subcompile(cx);
 
     switch (ls.where * rs.where) {
     case FPREGISTER_FPREGISTER:
-        x64->op(opcode, ls.fpr, rs.fpr);
+        cx->op(opcode, ls.fpr, rs.fpr);
         return ls;
     case FPREGISTER_MEMORY:
-        x64->op(opcode, ls.fpr, rs.address);
+        cx->op(opcode, ls.fpr, rs.address);
         return ls;
     case MEMORY_FPREGISTER:
         if (commutative) {
-            x64->op(opcode, rs.fpr, ls.address);
+            cx->op(opcode, rs.fpr, ls.address);
             return rs;
         }
         else {
-            x64->op(MOVF, auxls.fpr, ls.address);
-            x64->op(opcode, auxls.fpr, rs.fpr);
+            cx->op(MOVF, auxls.fpr, ls.address);
+            cx->op(opcode, auxls.fpr, rs.fpr);
             return auxls;
         }
     case MEMORY_MEMORY:
-        x64->op(MOVF, auxls.fpr, ls.address);
-        x64->op(opcode, auxls.fpr, rs.address);
+        cx->op(MOVF, auxls.fpr, ls.address);
+        cx->op(opcode, auxls.fpr, rs.address);
         return auxls;
     default:
         throw INTERNAL_ERROR;
     }
 }
 
-Storage FloatOperationValue::compare(X64 *x64, ConditionCode cc) {
-    subcompile(x64);
+Storage FloatOperationValue::compare(Cx *cx, ConditionCode cc) {
+    subcompile(cx);
 
     // NOT_EQUAL is not an ordering status, but the negation of one
     ConditionCode test_cc = (cc == CC_NOT_EQUAL ? CC_EQUAL : cc);
@@ -63,79 +63,79 @@ Storage FloatOperationValue::compare(X64 *x64, ConditionCode cc) {
 
     switch (ls.where * rs.where) {
     case FPREGISTER_FPREGISTER:
-        x64->floatcmp(test_cc, ls.fpr, rs.fpr);
+        cx->floatcmp(test_cc, ls.fpr, rs.fpr);
         return Storage(FLAGS, res_cc);
     case FPREGISTER_MEMORY:
-        x64->op(MOVF, FPR15, rs.address);
-        x64->floatcmp(test_cc, ls.fpr, FPR15);
+        cx->op(MOVF, FPR15, rs.address);
+        cx->floatcmp(test_cc, ls.fpr, FPR15);
         return Storage(FLAGS, res_cc);
     case MEMORY_FPREGISTER:
-        x64->op(MOVF, FPR15, ls.address);
-        x64->floatcmp(test_cc, FPR15, rs.fpr);
+        cx->op(MOVF, FPR15, ls.address);
+        cx->floatcmp(test_cc, FPR15, rs.fpr);
         return Storage(FLAGS, res_cc);
     case MEMORY_MEMORY:
-        x64->op(MOVF, FPR14, ls.address);
-        x64->op(MOVF, FPR15, rs.address);
-        x64->floatcmp(test_cc, FPR14, FPR15);
+        cx->op(MOVF, FPR14, ls.address);
+        cx->op(MOVF, FPR15, rs.address);
+        cx->floatcmp(test_cc, FPR14, FPR15);
         return Storage(FLAGS, res_cc);
     default:
         throw INTERNAL_ERROR;
     }
 }
 
-Storage FloatOperationValue::assign_binary(X64 *x64, FprFprmemOp opcode) {
-    subcompile(x64);
+Storage FloatOperationValue::assign_binary(Cx *cx, FprFprmemOp opcode) {
+    subcompile(cx);
 
     switch (ls.where * rs.where) {
     case MEMORY_FPREGISTER:
-        x64->op(MOVF, FPR15, ls.address);
-        x64->op(opcode, FPR15, rs.fpr);
-        x64->op(MOVF, ls.address, FPR15);
+        cx->op(MOVF, FPR15, ls.address);
+        cx->op(opcode, FPR15, rs.fpr);
+        cx->op(MOVF, ls.address, FPR15);
         return ls;
     case MEMORY_MEMORY:
-        x64->op(MOVF, FPR15, ls.address);
-        x64->op(opcode, FPR15, rs.address);
-        x64->op(MOVF, ls.address, FPR15);
+        cx->op(MOVF, FPR15, ls.address);
+        cx->op(opcode, FPR15, rs.address);
+        cx->op(MOVF, ls.address, FPR15);
         return ls;
     default:
         throw INTERNAL_ERROR;
     }
 }
 
-Storage FloatOperationValue::compile(X64 *x64) {
+Storage FloatOperationValue::compile(Cx *cx) {
     switch (operation) {
     case NEGATE:
-        return negate(x64);
+        return negate(cx);
     case ADD:
-        return binary(x64, ADDF);
+        return binary(cx, ADDF);
     case SUBTRACT:
-        return binary(x64, SUBF);
+        return binary(cx, SUBF);
     case MULTIPLY:
-        return binary(x64, MULF);
+        return binary(cx, MULF);
     case DIVIDE:
-        return binary(x64, DIVF);
+        return binary(cx, DIVF);
     case EQUAL:
-        return compare(x64, CC_EQUAL);
+        return compare(cx, CC_EQUAL);
     case NOT_EQUAL:
-        return compare(x64, CC_NOT_EQUAL);
+        return compare(cx, CC_NOT_EQUAL);
     case LESS:
-        return compare(x64, CC_BELOW);
+        return compare(cx, CC_BELOW);
     case GREATER:
-        return compare(x64, CC_ABOVE);
+        return compare(cx, CC_ABOVE);
     case LESS_EQUAL:
-        return compare(x64, CC_BELOW_EQUAL);
+        return compare(cx, CC_BELOW_EQUAL);
     case GREATER_EQUAL:
-        return compare(x64, CC_ABOVE_EQUAL);
+        return compare(cx, CC_ABOVE_EQUAL);
     case ASSIGN_ADD:
-        return assign_binary(x64, ADDF);
+        return assign_binary(cx, ADDF);
     case ASSIGN_SUBTRACT:
-        return assign_binary(x64, SUBF);
+        return assign_binary(cx, SUBF);
     case ASSIGN_MULTIPLY:
-        return assign_binary(x64, MULF);
+        return assign_binary(cx, MULF);
     case ASSIGN_DIVIDE:
-        return assign_binary(x64, DIVF);
+        return assign_binary(cx, DIVF);
     default:
-        return OptimizedOperationValue::compile(x64);
+        return OptimizedOperationValue::compile(cx);
     }
 }
 
@@ -156,34 +156,34 @@ Regs FloatFunctionValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage FloatFunctionValue::compile(X64 *x64) {
-    auto arg_fprs = x64->abi_arg_fprs();
-    auto res_fprs = x64->abi_res_fprs();
-    Storage ls = left->compile(x64);
+Storage FloatFunctionValue::compile(Cx *cx) {
+    auto arg_fprs = cx->abi_arg_fprs();
+    auto res_fprs = cx->abi_res_fprs();
+    Storage ls = left->compile(cx);
     
     if (ls.regs() & rclob) {
-        ls = left->ts.store(ls, Storage(STACK), x64);
+        ls = left->ts.store(ls, Storage(STACK), cx);
     }
     
     if (right)
-        right->compile_and_store(x64, Storage(FPREGISTER, arg_fprs[1]));
+        right->compile_and_store(cx, Storage(FPREGISTER, arg_fprs[1]));
     
     switch (ls.where) {
     case FPREGISTER:
-        x64->op(MOVF, arg_fprs[0], ls.fpr);
+        cx->op(MOVF, arg_fprs[0], ls.fpr);
         break;
     case STACK:
-        x64->op(MOVF, arg_fprs[0], Address(RSP, 0));
-        x64->op(ADDQ, RSP, FLOAT_SIZE);
+        cx->op(MOVF, arg_fprs[0], Address(RSP, 0));
+        cx->op(ADDQ, RSP, FLOAT_SIZE);
         break;
     case MEMORY:
-        x64->op(MOVF, arg_fprs[0], ls.address);
+        cx->op(MOVF, arg_fprs[0], ls.address);
         break;
     default:
         throw INTERNAL_ERROR;
     }
     
-    x64->runtime->call_sysv_got(function->get_label(x64));
+    cx->runtime->call_sysv_got(function->get_label(cx));
     
     return Storage(FPREGISTER, res_fprs[0]);
 }
@@ -202,16 +202,16 @@ Regs FloatIsnanValue::precompile(Regs preferred) {
     return left->precompile_tail();
 }
 
-Storage FloatIsnanValue::compile(X64 *x64) {
-    ls = left->compile(x64);
+Storage FloatIsnanValue::compile(Cx *cx) {
+    ls = left->compile(cx);
 
     switch (ls.where) {
     case FPREGISTER:
-        x64->floatcmp(CC_EQUAL, ls.fpr, ls.fpr);
+        cx->floatcmp(CC_EQUAL, ls.fpr, ls.fpr);
         return Storage(FLAGS, CC_NOT_EQUAL);
     case MEMORY:
-        x64->op(MOVF, FPR15, ls.address);
-        x64->floatcmp(CC_EQUAL, FPR15, FPR15);
+        cx->op(MOVF, FPR15, ls.address);
+        cx->floatcmp(CC_EQUAL, FPR15, FPR15);
         return Storage(FLAGS, CC_NOT_EQUAL);
     default:
         throw INTERNAL_ERROR;

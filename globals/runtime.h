@@ -1,7 +1,7 @@
 
 class Deferrable {
 public:
-    virtual void deferred_compile(Label label, X64 *x64) {
+    virtual void deferred_compile(Label label, Cx *cx) {
         throw INTERNAL_ERROR;
     }
 };
@@ -9,9 +9,9 @@ public:
 
 class Once {
 public:
-    typedef void (*FunctionCompiler)(Label, X64 *);
+    typedef void (*FunctionCompiler)(Label, Cx *);
     
-    typedef void (*TypedFunctionCompiler)(Label, TypeSpec, X64 *);
+    typedef void (*TypedFunctionCompiler)(Label, TypeSpec, Cx *);
     typedef std::pair<TypedFunctionCompiler, TypeSpec> FunctionCompilerTuple;
 
     typedef std::pair<TypeSpec, bool> TypeSpecTuple;
@@ -57,8 +57,8 @@ public:
     Label import_got(std::string name);
     unsigned type_info(TypeSpec ts, bool as_alias = false);
 
-    void for_all(X64 *x64);
-    void for_debug(X64 *x64);
+    void for_all(Cx *cx);
+    void for_debug(Cx *cx);
 };
 
 
@@ -68,7 +68,7 @@ public:
     
     void push(Value *v);
     void pop(Value *v);
-    void initiate(Declaration *last, X64 *x64);
+    void initiate(Declaration *last, Cx *cx);
 };
 
 
@@ -123,7 +123,7 @@ public:
         Label name_label;
     };
 
-    X64 *x64;
+    Cx *cx;
     
     Label code_start_label, data_start_label, application_label;
     Label zero_label, float_zero_label, float_minus_zero_label;
@@ -156,7 +156,7 @@ public:
     Label call_infos_label, call_infos_length_label;
     std::vector<LineInfo> call_infos;
 
-    Runtime(X64 *x, unsigned application_size, std::vector<std::string> source_file_names);
+    Runtime(Cx *x, unsigned application_size, std::vector<std::string> source_file_names);
 
     void data_heap_header();
     Label data_heap_string(std::ustring characters);
@@ -224,9 +224,7 @@ public:
 };
 
 
-// TODO: rename!
-
-class X64: public virtual Emu {
+class Cx: public virtual Emu {
 public:
     Once *once;
     Unwind *unwind;
@@ -277,11 +275,9 @@ public:
 };
 
 
-// TODO: seriously, rename!
-
-class X64_X64: public Emu_X64, public virtual X64 {
+class Cx_X64: public Emu_X64, public virtual Cx {
 public:
-    X64_X64(std::string module_name)
+    Cx_X64(std::string module_name)
         :Emu_X64(module_name) {
     }
 
@@ -295,11 +291,9 @@ public:
 };
 
 
-// TODO: I mean it, rename!
-
-class X64_A64: public Emu_A64, public virtual X64 {
+class Cx_A64: public Emu_A64, public virtual Cx {
 public:
-    X64_A64(std::string module_name)
+    Cx_A64(std::string module_name)
         :Emu_A64(module_name) {
     }
 

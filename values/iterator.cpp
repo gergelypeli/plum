@@ -34,25 +34,25 @@ Regs CountupNextValue::precompile(Regs preferred) {
     return clob;
 }
 
-void CountupNextValue::advance(Address addr, X64 *x64) {
-    x64->op(INCQ, addr);
+void CountupNextValue::advance(Address addr, Cx *cx) {
+    cx->op(INCQ, addr);
 }
 
-Storage CountupNextValue::compile(X64 *x64) {
-    ls = left->compile(x64);
+Storage CountupNextValue::compile(Cx *cx) {
+    ls = left->compile(cx);
     Register reg = (clob & ~ls.regs()).get_gpr();
     Label ok;
     
     switch (ls.where) {
     case MEMORY:
-        x64->op(MOVQ, reg, ls.address + INTEGER_SIZE);  // value
-        x64->op(CMPQ, reg, ls.address); // limit
-        x64->op(JNE, ok);
+        cx->op(MOVQ, reg, ls.address + INTEGER_SIZE);  // value
+        cx->op(CMPQ, reg, ls.address); // limit
+        cx->op(JNE, ok);
         
-        raise("ITERATOR_DONE", x64);
+        raise("ITERATOR_DONE", cx);
         
-        x64->code_label(ok);
-        advance(ls.address + INTEGER_SIZE, x64);
+        cx->code_label(ok);
+        advance(ls.address + INTEGER_SIZE, cx);
         return Storage(REGISTER, reg);
     default:
         throw INTERNAL_ERROR;
@@ -66,8 +66,8 @@ CountdownNextValue::CountdownNextValue(Value *l, TypeMatch &match)
     :CountupNextValue(l, match) {
 }
 
-void CountdownNextValue::advance(Address addr, X64 *x64) {
-    x64->op(DECQ, addr);
+void CountdownNextValue::advance(Address addr, Cx *cx) {
+    cx->op(DECQ, addr);
 }
 
 
@@ -76,20 +76,20 @@ CountupValue::CountupValue(Value *l, TypeMatch &match)
     :SimpleRecordValue(COUNTUP_TS, l) {
 }
 
-Storage CountupValue::compile(X64 *x64) {
-    ls = left->compile(x64);  // integer limit
+Storage CountupValue::compile(Cx *cx) {
+    ls = left->compile(cx);  // integer limit
     
-    x64->op(PUSHQ, 0);  // value
+    cx->op(PUSHQ, 0);  // value
     
     switch (ls.where) {
     case CONSTANT:
-        x64->op(PUSHQ, ls.value);
+        cx->op(PUSHQ, ls.value);
         break;
     case REGISTER:
-        x64->op(PUSHQ, ls.reg);
+        cx->op(PUSHQ, ls.reg);
         break;
     case MEMORY:
-        x64->op(PUSHQ, ls.address);
+        cx->op(PUSHQ, ls.address);
         break;
     default:
         throw INTERNAL_ERROR;
@@ -104,27 +104,27 @@ CountdownValue::CountdownValue(Value *l, TypeMatch &match)
     :SimpleRecordValue(COUNTDOWN_TS, l) {
 }
 
-Storage CountdownValue::compile(X64 *x64) {
-    ls = left->compile(x64);
+Storage CountdownValue::compile(Cx *cx) {
+    ls = left->compile(cx);
     
     switch (ls.where) {  // value
     case CONSTANT:
-        x64->op(PUSHQ, ls.value - 1);
+        cx->op(PUSHQ, ls.value - 1);
         break;
     case REGISTER:
-        x64->op(DECQ, ls.reg);
-        x64->op(PUSHQ, ls.reg);
+        cx->op(DECQ, ls.reg);
+        cx->op(PUSHQ, ls.reg);
         break;
     case MEMORY:
-        x64->op(MOVQ, R10, ls.address);
-        x64->op(DECQ, R10);
-        x64->op(PUSHQ, R10);
+        cx->op(MOVQ, R10, ls.address);
+        cx->op(DECQ, R10);
+        cx->op(PUSHQ, R10);
         break;
     default:
         throw INTERNAL_ERROR;
     }
     
-    x64->op(PUSHQ, -1);
+    cx->op(PUSHQ, -1);
     
     return Storage(STACK);
 }

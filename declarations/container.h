@@ -4,9 +4,9 @@ public:
     ContainerType(std::string name, Metatypes param_metatypes);
 
     virtual Allocation measure(TypeMatch tm);
-    virtual void incref(TypeMatch tm, Register r, X64 *x64);
-    virtual void decref(TypeMatch tm, Register r, X64 *x64);
-    virtual void streamify(TypeMatch tm, X64 *x64);
+    virtual void incref(TypeMatch tm, Register r, Cx *cx);
+    virtual void decref(TypeMatch tm, Register r, Cx *cx);
+    virtual void streamify(TypeMatch tm, Cx *cx);
     static unsigned get_elem_size(TypeSpec elem_ts);
 };
 
@@ -15,9 +15,9 @@ class LinearrayType: public ContainerType {
 public:
     LinearrayType(std::string name);
 
-    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64);
-    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual Label get_finalizer_label(TypeMatch tm, Cx *cx);
+    static void compile_finalizer(Label label, TypeSpec ts, Cx *cx);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class ArrayType: public RecordType {
@@ -25,8 +25,8 @@ public:
     ArrayType(std::string name);
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope);
-    virtual void streamify(TypeMatch tm, X64 *x64);
-    static void compile_streamification(Label label, TypeSpec elem_ts, X64 *x64);
+    virtual void streamify(TypeMatch tm, Cx *cx);
+    static void compile_streamification(Label label, TypeSpec elem_ts, Cx *cx);
 };
 
 // Circularray based
@@ -34,9 +34,9 @@ class CircularrayType: public ContainerType {
 public:
     CircularrayType(std::string name);
 
-    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64);
-    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual Label get_finalizer_label(TypeMatch tm, Cx *cx);
+    static void compile_finalizer(Label label, TypeSpec ts, Cx *cx);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class QueueType: public RecordType {
@@ -51,10 +51,10 @@ class RbtreeType: public ContainerType {
 public:
     RbtreeType(std::string name);
 
-    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64);
-    static void compile_finalizer(Label label, TypeSpec ts, X64 *x64);
+    virtual Label get_finalizer_label(TypeMatch tm, Cx *cx);
+    static void compile_finalizer(Label label, TypeSpec ts, Cx *cx);
     static unsigned get_rbnode_size(TypeSpec elem_ts);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class TreelikeType: public RecordType {
@@ -64,8 +64,8 @@ public:
     TreelikeType(std::string name, Metatypes param_metatypes, TypeSpec ets);
 
     virtual Value *lookup_initializer(TypeMatch tm, std::string name, Scope *scope);
-    virtual void streamify(TypeMatch tm, X64 *x64);
-    static void compile_streamification(Label label, TypeSpec elem_ts, X64 *x64);
+    virtual void streamify(TypeMatch tm, Cx *cx);
+    static void compile_streamification(Label label, TypeSpec elem_ts, Cx *cx);
 };
 
 class SetType: public TreelikeType {

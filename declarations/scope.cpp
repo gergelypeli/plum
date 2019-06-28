@@ -190,13 +190,13 @@ bool Scope::is_typedefinition(std::string n) {
     return false;
 }
 
-void Scope::debug_contents(TypeMatch tm, X64 *x64) {
+void Scope::debug_contents(TypeMatch tm, Cx *cx) {
     for (auto &content : contents)
-        content->debug(tm, x64);
+        content->debug(tm, cx);
 }
 
-void Scope::debug(TypeMatch tm, X64 *x64) {
-    debug_contents(tm, x64);
+void Scope::debug(TypeMatch tm, Cx *cx) {
+    debug_contents(tm, cx);
 }
 
 
@@ -549,79 +549,79 @@ bool CodeScope::may_omit_content_finalization() {
     return true;
 }
 
-void CodeScope::initialize_contents(X64 *x64) {
-    low_pc = x64->get_pc();
+void CodeScope::initialize_contents(Cx *cx) {
+    low_pc = cx->get_pc();
 }
 
-void CodeScope::finalize_contents(X64 *x64) {
+void CodeScope::finalize_contents(Cx *cx) {
     for (int i = contents.size() - 1; i >= 0; i--)
-        contents[i]->finalize(x64);
+        contents[i]->finalize(cx);
         
-    high_pc = x64->get_pc();
+    high_pc = cx->get_pc();
     contents_finalized = true;
 }
 
-void CodeScope::finalize_contents_and_unwind(X64 *x64) {
+void CodeScope::finalize_contents_and_unwind(Cx *cx) {
     if (unwound == NOT_UNWOUND) {
-        finalize_contents(x64);
+        finalize_contents(cx);
     }
     else if (may_omit_content_finalization()) {
-        finalize_contents(x64);  // formal only
+        finalize_contents(cx);  // formal only
         
-        x64->op(JMP, got_nothing_label);
+        cx->op(JMP, got_nothing_label);
 
-        x64->code_label(got_exception_label);
-        x64->code_label(got_yield_label);
-        x64->unwind->initiate(this, x64);  // exception or yield
+        cx->code_label(got_exception_label);
+        cx->code_label(got_yield_label);
+        cx->unwind->initiate(this, cx);  // exception or yield
 
-        x64->code_label(got_nothing_label);
+        cx->code_label(got_nothing_label);
     }
     else {
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
+        cx->op(MOVQ, RDX, NO_EXCEPTION);
     
-        finalize_contents(x64);
+        finalize_contents(cx);
     
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, got_nothing_label);
+        cx->op(CMPQ, RDX, NO_EXCEPTION);
+        cx->op(JE, got_nothing_label);
         
-        x64->code_label(got_exception_label);
-        x64->code_label(got_yield_label);
-        x64->unwind->initiate(this, x64);  // exception or yield
+        cx->code_label(got_exception_label);
+        cx->code_label(got_yield_label);
+        cx->unwind->initiate(this, cx);  // exception or yield
         
-        x64->code_label(got_nothing_label);
+        cx->code_label(got_nothing_label);
     }
 }
 
-void CodeScope::jump_to_content_finalization(Declaration *last, X64 *x64) {
+void CodeScope::jump_to_content_finalization(Declaration *last, Cx *cx) {
     if (last->outer_scope != this)
         throw INTERNAL_ERROR;
         
     if (unwound == NOT_UNWOUND)
-        x64->op(UD2);
+        cx->op(UD2);
     else if (may_omit_content_finalization()) {
-        x64->op(JMP, got_exception_label);  // or yield, handled the same here
+        cx->op(JMP, got_exception_label);  // or yield, handled the same here
     }
     else {
-        last->jump_to_finalization(x64);
+        last->jump_to_finalization(cx);
     }
 }
 
-void CodeScope::finalize(X64 *x64) {
+void CodeScope::finalize(Cx *cx) {
     if (!contents_finalized)
         throw INTERNAL_ERROR;
         
-    Scope::finalize(x64);
+    Scope::finalize(cx);
 }
 
-void CodeScope::debug(TypeMatch tm, X64 *x64) {
+void CodeScope::debug(TypeMatch tm, Cx *cx) {
     if (low_pc < 0 || high_pc < 0)
         throw INTERNAL_ERROR;
 
     // Don't spam the debug info with empty scopes
     if (contents.size()) {
-        x64->dwarf->begin_lexical_block_info(low_pc, high_pc);
-        debug_contents(tm, x64);
-        x64->dwarf->end_info();
+        cx->dwarf->begin_lexical_block_info(low_pc, high_pc);
+        debug_contents(tm, cx);
+        cx->dwarf->end_info();
     }
 }
 
@@ -672,13 +672,13 @@ SwitchScope *SwitchScope::get_switch_scope() {
     return this;
 }
 
-void SwitchScope::debug(TypeMatch tm, X64 *x64) {
+void SwitchScope::debug(TypeMatch tm, Cx *cx) {
     if (low_pc < 0 || high_pc < 0)
         throw INTERNAL_ERROR;
 
-    x64->dwarf->begin_catch_block_info(low_pc, high_pc);
-    debug_contents(tm, x64);
-    x64->dwarf->end_info();
+    cx->dwarf->begin_catch_block_info(low_pc, high_pc);
+    debug_contents(tm, cx);
+    cx->dwarf->end_info();
 }
 
 
@@ -722,56 +722,56 @@ bool TryScope::has_implicit_matcher() {
     return have_implicit_matcher;
 }
 
-void TryScope::finalize_contents_and_unwind(X64 *x64) {
+void TryScope::finalize_contents_and_unwind(Cx *cx) {
     if (unwound == NOT_UNWOUND) {
-        finalize_contents(x64);
+        finalize_contents(cx);
     }
     else if (may_omit_content_finalization()) {
-        finalize_contents(x64);  // formal only
+        finalize_contents(cx);  // formal only
         
-        x64->op(JMP, got_nothing_label);
+        cx->op(JMP, got_nothing_label);
 
-        x64->code_label(got_yield_label);
-        x64->unwind->initiate(this, x64);  // exception or yield
+        cx->code_label(got_yield_label);
+        cx->unwind->initiate(this, cx);  // exception or yield
     }
     else {
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
+        cx->op(MOVQ, RDX, NO_EXCEPTION);
     
-        finalize_contents(x64);
+        finalize_contents(cx);
     
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, got_nothing_label);
-        x64->op(JG, got_exception_label);
+        cx->op(CMPQ, RDX, NO_EXCEPTION);
+        cx->op(JE, got_nothing_label);
+        cx->op(JG, got_exception_label);
 
-        x64->code_label(got_yield_label);
-        x64->unwind->initiate(this, x64);
+        cx->code_label(got_yield_label);
+        cx->unwind->initiate(this, cx);
     }
 }
 
-void TryScope::jump_to_content_finalization(Declaration *last, X64 *x64) {
+void TryScope::jump_to_content_finalization(Declaration *last, Cx *cx) {
     if (last->outer_scope != this)
         throw INTERNAL_ERROR;
         
     if (unwound == NOT_UNWOUND)
-        x64->op(UD2);
+        cx->op(UD2);
     else if (may_omit_content_finalization()) {
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JG, got_exception_label);
-        x64->op(JL, got_yield_label);
-        x64->op(UD2);
+        cx->op(CMPQ, RDX, NO_EXCEPTION);
+        cx->op(JG, got_exception_label);
+        cx->op(JL, got_yield_label);
+        cx->op(UD2);
     }
     else {
-        last->jump_to_finalization(x64);
+        last->jump_to_finalization(cx);
     }
 }
 
-void TryScope::debug(TypeMatch tm, X64 *x64) {
+void TryScope::debug(TypeMatch tm, Cx *cx) {
     if (low_pc < 0 || high_pc < 0)
         throw INTERNAL_ERROR;
 
-    x64->dwarf->begin_try_block_info(low_pc, high_pc);
-    debug_contents(tm, x64);
-    x64->dwarf->end_info();
+    cx->dwarf->begin_try_block_info(low_pc, high_pc);
+    debug_contents(tm, cx);
+    cx->dwarf->end_info();
 }
 
 
@@ -788,7 +788,7 @@ void TransparentTryScope::add(Declaration *d) {
     outer_scope->add(d);
 }
 
-void TransparentTryScope::jump_to_content_finalization(Declaration *last, X64 *x64) {
+void TransparentTryScope::jump_to_content_finalization(Declaration *last, Cx *cx) {
     // Must tweak this check, as this scope has no content
     if (last->outer_scope != outer_scope)
         throw INTERNAL_ERROR;
@@ -799,12 +799,12 @@ void TransparentTryScope::jump_to_content_finalization(Declaration *last, X64 *x
     // to the handling code directly.
 
     if (unwound == NOT_UNWOUND)
-        x64->op(UD2);
+        cx->op(UD2);
     else if (may_omit_content_finalization()) {
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JG, got_exception_label);
-        x64->op(JL, got_yield_label);
-        x64->op(UD2);
+        cx->op(CMPQ, RDX, NO_EXCEPTION);
+        cx->op(JG, got_exception_label);
+        cx->op(JL, got_yield_label);
+        cx->op(UD2);
     }
     else
         throw INTERNAL_ERROR;
@@ -827,52 +827,52 @@ EvalScope *EvalScope::get_eval_scope() {
     return this;
 }
 
-void EvalScope::finalize_contents_and_unwind(X64 *x64) {
+void EvalScope::finalize_contents_and_unwind(Cx *cx) {
     if (unwound == NOT_UNWOUND) {
-        finalize_contents(x64);
+        finalize_contents(cx);
     }
     else if (may_omit_content_finalization()) {
-        finalize_contents(x64);  // formal only
+        finalize_contents(cx);  // formal only
         
-        x64->op(JMP, got_nothing_label);
+        cx->op(JMP, got_nothing_label);
 
-        x64->code_label(got_exception_label);
-        x64->code_label(got_yield_label);
-        x64->unwind->initiate(this, x64);  // exception or yield
+        cx->code_label(got_exception_label);
+        cx->code_label(got_yield_label);
+        cx->unwind->initiate(this, cx);  // exception or yield
 
-        x64->code_label(got_nothing_label);
+        cx->code_label(got_nothing_label);
     }
     else {
-        x64->op(MOVQ, RDX, NO_EXCEPTION);
+        cx->op(MOVQ, RDX, NO_EXCEPTION);
     
-        finalize_contents(x64);
+        finalize_contents(cx);
 
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JE, got_nothing_label);
-        x64->op(CMPQ, RDX, get_yield_value());
-        x64->op(JE, got_nothing_label);
+        cx->op(CMPQ, RDX, NO_EXCEPTION);
+        cx->op(JE, got_nothing_label);
+        cx->op(CMPQ, RDX, get_yield_value());
+        cx->op(JE, got_nothing_label);
 
-        x64->code_label(got_exception_label);
-        x64->code_label(got_yield_label);
-        x64->unwind->initiate(this, x64);
+        cx->code_label(got_exception_label);
+        cx->code_label(got_yield_label);
+        cx->unwind->initiate(this, cx);
     
-        x64->code_label(got_nothing_label);
+        cx->code_label(got_nothing_label);
     }
 }
 
-void EvalScope::jump_to_content_finalization(Declaration *last, X64 *x64) {
+void EvalScope::jump_to_content_finalization(Declaration *last, Cx *cx) {
     if (last->outer_scope != this)
         throw INTERNAL_ERROR;
         
     if (unwound == NOT_UNWOUND)
-        x64->op(UD2);
+        cx->op(UD2);
     else if (may_omit_content_finalization()) {
-        x64->op(CMPQ, RDX, get_yield_value());  // RDX can't be NO_EXCEPTION here
-        x64->op(JE, got_nothing_label);
-        x64->op(JMP, got_yield_label);
+        cx->op(CMPQ, RDX, get_yield_value());  // RDX can't be NO_EXCEPTION here
+        cx->op(JE, got_nothing_label);
+        cx->op(JMP, got_yield_label);
     }
     else {
-        last->jump_to_finalization(x64);
+        last->jump_to_finalization(cx);
     }
 }
 

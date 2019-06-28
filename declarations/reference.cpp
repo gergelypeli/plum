@@ -9,7 +9,7 @@ Allocation ReferenceType::measure(TypeMatch tm) {
     return Allocation(REFERENCE_SIZE);
 }
 
-void ReferenceType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void ReferenceType::store(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     switch (s.where * t.where) {
     case NOWHERE_REGISTER:
         std::cerr << "Reference must be initialized!\n";
@@ -19,59 +19,59 @@ void ReferenceType::store(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         throw TYPE_ERROR;
     
     case REGISTER_NOWHERE:
-        tm[1].decref(s.reg, x64);
+        tm[1].decref(s.reg, cx);
         return;
     case REGISTER_REGISTER:
         if (s.reg != t.reg)
-            x64->op(MOVQ, t.reg, s.reg);
+            cx->op(MOVQ, t.reg, s.reg);
         return;
     case REGISTER_STACK:
-        x64->op(PUSHQ, s.reg);
+        cx->op(PUSHQ, s.reg);
         return;
     case REGISTER_MEMORY:
-        x64->op(XCHGQ, t.address, s.reg);
-        tm[1].decref(s.reg, x64);
+        cx->op(XCHGQ, t.address, s.reg);
+        tm[1].decref(s.reg, cx);
         return;
 
     case STACK_NOWHERE:
-        x64->op(POPQ, R10);
-        tm[1].decref(R10, x64);
+        cx->op(POPQ, R10);
+        tm[1].decref(R10, cx);
         return;
     case STACK_REGISTER:
-        x64->op(POPQ, t.reg);
+        cx->op(POPQ, t.reg);
         return;
     case STACK_STACK:
         return;
     case STACK_MEMORY:
-        x64->op(POPQ, R10);
-        x64->op(XCHGQ, R10, t.address);
-        tm[1].decref(R10, x64);
+        cx->op(POPQ, R10);
+        cx->op(XCHGQ, R10, t.address);
+        tm[1].decref(R10, cx);
         return;
 
     case MEMORY_NOWHERE:
         return;
     case MEMORY_REGISTER:
-        x64->op(MOVQ, t.reg, s.address);
-        tm[1].incref(t.reg, x64);
+        cx->op(MOVQ, t.reg, s.address);
+        tm[1].incref(t.reg, cx);
         return;
     case MEMORY_STACK:
-        x64->op(MOVQ, R10, s.address);
-        tm[1].incref(R10, x64);
-        x64->op(PUSHQ, R10);
+        cx->op(MOVQ, R10, s.address);
+        tm[1].incref(R10, cx);
+        cx->op(PUSHQ, R10);
         return;
     case MEMORY_MEMORY:  // must work with self-assignment
-        x64->op(MOVQ, R10, s.address);
-        tm[1].incref(R10, x64);
-        x64->op(XCHGQ, R10, t.address);
-        tm[1].decref(R10, x64);
+        cx->op(MOVQ, R10, s.address);
+        tm[1].incref(R10, cx);
+        cx->op(XCHGQ, R10, t.address);
+        tm[1].decref(R10, cx);
         return;
         
     default:
-        Type::store(tm, s, t, x64);
+        Type::store(tm, s, t, cx);
     }
 }
 
-void ReferenceType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void ReferenceType::create(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     // Assume the target MEMORY is uninitialized
     
     switch (s.where * t.where) {
@@ -79,51 +79,51 @@ void ReferenceType::create(TypeMatch tm, Storage s, Storage t, X64 *x64) {
         std::cerr << "Reference must be initialized!\n";
         throw TYPE_ERROR;
     case REGISTER_MEMORY:
-        x64->op(MOVQ, t.address, s.reg);
+        cx->op(MOVQ, t.address, s.reg);
         return;
     case STACK_MEMORY:
-        x64->op(POPQ, t.address);
+        cx->op(POPQ, t.address);
         return;
     case MEMORY_MEMORY:
-        x64->op(MOVQ, R10, s.address);
-        tm[1].incref(R10, x64);
-        x64->op(MOVQ, t.address, R10);
+        cx->op(MOVQ, R10, s.address);
+        tm[1].incref(R10, cx);
+        cx->op(MOVQ, t.address, R10);
         return;
     default:
         throw INTERNAL_ERROR;
     }
 }
 
-void ReferenceType::destroy(TypeMatch tm, Storage s, X64 *x64) {
+void ReferenceType::destroy(TypeMatch tm, Storage s, Cx *cx) {
     if (s.where == MEMORY) {
-        x64->op(MOVQ, R10, s.address);
-        tm[1].decref(R10, x64);
+        cx->op(MOVQ, R10, s.address);
+        tm[1].decref(R10, cx);
     }
     else
         throw INTERNAL_ERROR;
 }
 
-void ReferenceType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
+void ReferenceType::equal(TypeMatch tm, Storage s, Storage t, Cx *cx) {
     // No need to handle STACK here, GenericOperationValue takes care of it
     
     switch (s.where * t.where) {
     case REGISTER_REGISTER:
-        tm[1].decref(s.reg, x64);
-        tm[1].decref(t.reg, x64);
-        x64->op(CMPQ, s.reg, t.reg);
+        tm[1].decref(s.reg, cx);
+        tm[1].decref(t.reg, cx);
+        cx->op(CMPQ, s.reg, t.reg);
         break;
     case REGISTER_MEMORY:
-        tm[1].decref(s.reg, x64);
-        x64->op(CMPQ, s.reg, t.address);
+        tm[1].decref(s.reg, cx);
+        cx->op(CMPQ, s.reg, t.address);
         break;
 
     case MEMORY_REGISTER:
-        tm[1].decref(t.reg, x64);
-        x64->op(CMPQ, s.address, t.reg);
+        tm[1].decref(t.reg, cx);
+        cx->op(CMPQ, s.address, t.reg);
         break;
     case MEMORY_MEMORY:
-        x64->op(MOVQ, R10, s.address);
-        x64->op(CMPQ, R10, t.address);
+        cx->op(MOVQ, R10, s.address);
+        cx->op(CMPQ, R10, t.address);
         break;
         
     default:
@@ -131,13 +131,13 @@ void ReferenceType::equal(TypeMatch tm, Storage s, Storage t, X64 *x64) {
     }
 }
 
-void ReferenceType::compare(TypeMatch tm, Storage s, Storage t, X64 *x64) {
-    equal(tm, s, t, x64);
-    x64->runtime->r10bcompar(true);
+void ReferenceType::compare(TypeMatch tm, Storage s, Storage t, Cx *cx) {
+    equal(tm, s, t, cx);
+    cx->runtime->r10bcompar(true);
 }
 
-void ReferenceType::streamify(TypeMatch tm, X64 *x64) {
-    tm[1].streamify(x64);
+void ReferenceType::streamify(TypeMatch tm, Cx *cx) {
+    tm[1].streamify(cx);
 }
 
 StorageWhere ReferenceType::where(TypeMatch tm, AsWhat as_what) {
@@ -180,21 +180,21 @@ devector<VirtualEntry *> ReferenceType::get_virtual_table(TypeMatch tm) {
     return tm[1].get_virtual_table();
 }
 
-Label ReferenceType::get_virtual_table_label(TypeMatch tm, X64 *x64) {
-    return tm[1].get_virtual_table_label(x64);
+Label ReferenceType::get_virtual_table_label(TypeMatch tm, Cx *cx) {
+    return tm[1].get_virtual_table_label(cx);
 }
 
-Label ReferenceType::get_interface_table_label(TypeMatch tm, X64 *x64) {
-    return tm[1].get_interface_table_label(x64);
+Label ReferenceType::get_interface_table_label(TypeMatch tm, Cx *cx) {
+    return tm[1].get_interface_table_label(cx);
 }
 
 Value *ReferenceType::autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts) {
     return tm[1].autoconv(target, orig, ifts);
 }
 
-void ReferenceType::type_info(TypeMatch tm, X64 *x64) {
-    unsigned ts_index = x64->once->type_info(tm[1]);
-    x64->dwarf->pointer_type_info(tm[0].symbolize(), ts_index);
+void ReferenceType::type_info(TypeMatch tm, Cx *cx) {
+    unsigned ts_index = cx->once->type_info(tm[1]);
+    cx->dwarf->pointer_type_info(tm[0].symbolize(), ts_index);
 }
 
 

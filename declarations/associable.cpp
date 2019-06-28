@@ -392,7 +392,7 @@ Associable *Associable::autoconv_streamifiable(TypeMatch match) {
     return NULL;
 }
 
-void Associable::streamify(TypeMatch tm, X64 *x64) {
+void Associable::streamify(TypeMatch tm, Cx *cx) {
     // Allow roles implement Streamifiable flexibly
     throw INTERNAL_ERROR;
 }
@@ -402,16 +402,16 @@ void Associable::relocate(Allocation explicit_offset) {
     throw INTERNAL_ERROR;
 }
 
-void Associable::compile_vt(TypeMatch tm, X64 *x64) {
+void Associable::compile_vt(TypeMatch tm, Cx *cx) {
     // For Role
     throw INTERNAL_ERROR;
 }
 
-void Associable::init_vt(TypeMatch tm, Address self_addr, X64 *x64) {
+void Associable::init_vt(TypeMatch tm, Address self_addr, Cx *cx) {
     throw INTERNAL_ERROR;
 }
 
-void Associable::compile_act(TypeMatch tm, X64 *x64) {
+void Associable::compile_act(TypeMatch tm, Cx *cx) {
     // For Role
     throw INTERNAL_ERROR;
 }
@@ -423,7 +423,7 @@ DataVirtualEntry::DataVirtualEntry(Associable *a) {
     associable = a;
 }
 
-Label DataVirtualEntry::get_virtual_entry_label(TypeMatch tm, X64 *x64) {
+Label DataVirtualEntry::get_virtual_entry_label(TypeMatch tm, Cx *cx) {
     // Can't create entry that points to an abstract role
     if (associable->where == NOWHERE)
         throw INTERNAL_ERROR;
@@ -431,7 +431,7 @@ Label DataVirtualEntry::get_virtual_entry_label(TypeMatch tm, X64 *x64) {
     int offset = associable->get_offset(tm);
     
     Label label;
-    x64->absolute_label(label, offset);  // forcing an int into an unsigned64...
+    cx->absolute_label(label, offset);  // forcing an int into an unsigned64...
     return label;
 }
 

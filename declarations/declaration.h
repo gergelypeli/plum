@@ -17,8 +17,8 @@ public:
     virtual bool may_omit_finalization();
     virtual bool is_typedefinition(std::string n);
     virtual void allocate();
-    virtual void finalize(X64 *x64);
-    virtual void jump_to_finalization(X64 *x64);
+    virtual void finalize(Cx *cx);
+    virtual void jump_to_finalization(Cx *cx);
     virtual DataScope *find_inner_scope(std::string name);
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };

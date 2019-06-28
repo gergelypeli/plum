@@ -33,5 +33,5 @@ public:
     virtual ModuleScope *import_relative(std::string required_name, Scope *scope);
     virtual void order_modules(std::string name);
     virtual unsigned allocate_modules();
-    virtual void compile_modules(X64 *x64);
+    virtual void compile_modules(Cx *cx);
 };

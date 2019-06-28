@@ -13,16 +13,16 @@ public:
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs);
     virtual Regs precompile_tail();
-    virtual Storage compile(X64 *);
-    virtual void compile_and_store(X64 *x64, Storage t);
-    virtual Storage compile_lvalue(X64 *x64);
+    virtual Storage compile(Cx *);
+    virtual void compile_and_store(Cx *cx, Storage t);
+    virtual Storage compile_lvalue(Cx *cx);
     virtual Declaration *declare(std::string name, Scope *scope);
     virtual void escape_statement_variables();
-    virtual CodeScope *unwind(X64 *x64);
+    virtual CodeScope *unwind(Cx *cx);
     virtual bool define_data();
     virtual bool define_code();
     virtual Value *lookup_inner(std::string name, Scope *scope);
-    virtual void streamify(X64 *x64);
+    virtual void streamify(Cx *cx);
 };
 
 class Raiser {
@@ -36,9 +36,9 @@ public:
     void be_implicit_matcher();
     virtual void make_raising_dummy(Scope *scope);
     virtual bool check_raise(TreenumerationType *exception_type, Scope *scope);
-    virtual void raise(std::string keyword, X64 *x64);
-    virtual void drop_and_raise(TypeSpec left_ts, Storage ls, std::string keyword, X64 *x64);
-    virtual void drop_two_and_raise(TypeSpec right_ts, Storage rs, TypeSpec left_ts, Storage ls, std::string keyword, X64 *x64);
+    virtual void raise(std::string keyword, Cx *cx);
+    virtual void drop_and_raise(TypeSpec left_ts, Storage ls, std::string keyword, Cx *cx);
+    virtual void drop_two_and_raise(TypeSpec right_ts, Storage rs, TypeSpec left_ts, Storage ls, std::string keyword, Cx *cx);
 };
 
 class RvalueCastValue: public Value {
@@ -54,7 +54,7 @@ public:
 
     virtual void need_ralias();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class GenericLvalue {
@@ -69,7 +69,7 @@ class ContainedLvalue: public GenericLvalue {
 public:
     ContainedLvalue();
     virtual Regs precompile_contained_lvalue();
-    virtual Storage compile_contained_lvalue(Address addr, Register container_ref, TypeSpec ts, X64 *x64);
+    virtual Storage compile_contained_lvalue(Address addr, Register container_ref, TypeSpec ts, Cx *cx);
 };
 
 class PassValue: public Value {
@@ -77,7 +77,7 @@ public:
     PassValue(Value *p, TypeMatch tm);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class CastValue: public Value, public GenericLvalue {
@@ -88,7 +88,7 @@ public:
 
     virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class PtrCastValue: public Value {
@@ -99,7 +99,7 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class VariableValue: public Value, public GenericLvalue {
@@ -115,7 +115,7 @@ public:
 
     virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class SelfVariableValue: public VariableValue {
@@ -144,7 +144,7 @@ public:
 
     virtual std::vector<Variable *> get_dvalue_variables();
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class EvaluateValue: public Value, public Raiser {
@@ -160,9 +160,9 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual void destroy_arguments(X64 *x64);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual void destroy_arguments(Cx *cx);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class RoleValue: public Value {
@@ -175,5 +175,5 @@ public:
     RoleValue(Associable *a, Value *p, TypeMatch &tm);
 
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

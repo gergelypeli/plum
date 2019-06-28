@@ -7,8 +7,8 @@ public:
     GenericValue(TypeSpec at, TypeSpec rt, Value *l);
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
-    virtual void compile_and_store_both(X64 *x64, Storage l, Storage r);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual void compile_and_store_both(Cx *cx, Storage l, Storage r);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 // Unoptimized version, but works with STACK valued types
@@ -24,12 +24,12 @@ public:
     static TypeSpec op_ret_ts(OperationType o, TypeMatch &match);
     virtual void need_rvalue();
     virtual Regs precompile(Regs preferred);
-    virtual Storage lmemory(X64 *x64);
-    virtual Storage assign_create(X64 *x64);
-    virtual Storage compare(X64 *x64);
-    virtual Storage equal(X64 *x64, bool negate);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage lmemory(Cx *cx);
+    virtual Storage assign_create(Cx *cx);
+    virtual Storage compare(Cx *cx);
+    virtual Storage equal(Cx *cx, bool negate);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class OptimizedOperationValue: public GenericOperationValue {
@@ -43,10 +43,10 @@ public:
     virtual Storage pick_late_auxls();
     virtual Storage pick_auxrs(RegSubset rss);
     virtual Regs precompile(Regs preferred);
-    virtual void subcompile(X64 *x64);
-    virtual Storage assign(X64 *x64);
-    virtual Storage compare(X64 *x64);
-    virtual Storage equal(X64 *x64, bool negate);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual void subcompile(Cx *cx);
+    virtual Storage assign(Cx *cx);
+    virtual Storage compare(Cx *cx);
+    virtual Storage equal(Cx *cx, bool negate);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };

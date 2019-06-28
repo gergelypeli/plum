@@ -9,8 +9,8 @@ Regs OptionNoneValue::precompile(Regs preferred) {
     return Regs();
 }
 
-Storage OptionNoneValue::compile(X64 *x64) {
-    ts.store(Storage(), Storage(STACK), x64);
+Storage OptionNoneValue::compile(Cx *cx) {
+    ts.store(Storage(), Storage(STACK), cx);
     return Storage(STACK);
 }
 
@@ -31,11 +31,11 @@ Regs OptionSomeValue::precompile(Regs preferred) {
     return some->precompile(preferred);
 }
 
-Storage OptionSomeValue::compile(X64 *x64) {
-    some->compile_and_store(x64, Storage(STACK));
+Storage OptionSomeValue::compile(Cx *cx) {
+    some->compile_and_store(cx, Storage(STACK));
     
     if (flag_size == ADDRESS_SIZE)
-        x64->op(PUSHQ, OPTION_FLAG_NONE + 1);
+        cx->op(PUSHQ, OPTION_FLAG_NONE + 1);
     else if (flag_size)
         throw INTERNAL_ERROR;
         
@@ -67,28 +67,28 @@ Regs OptionNoneMatcherValue::precompile(Regs preferred) {
     return left->precompile(preferred);
 }
 
-Storage OptionNoneMatcherValue::compile(X64 *x64) {
-    Storage ls = left->compile(x64);
+Storage OptionNoneMatcherValue::compile(Cx *cx) {
+    Storage ls = left->compile(cx);
     Label ok;
         
     switch (ls.where) {
     case STACK:
-        left->ts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
-        x64->op(CMPQ, Address(RSP, 0), OPTION_FLAG_NONE);
-        x64->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));  // discard STACK, keep flags
-        x64->op(JE, ok);
+        left->ts.destroy(Storage(MEMORY, Address(RSP, 0)), cx);
+        cx->op(CMPQ, Address(RSP, 0), OPTION_FLAG_NONE);
+        cx->op(LEA, RSP, Address(RSP, left->ts.measure_stack()));  // discard STACK, keep flags
+        cx->op(JE, ok);
         
-        raise("UNMATCHED", x64);
+        raise("UNMATCHED", cx);
 
-        x64->code_label(ok);
+        cx->code_label(ok);
         return Storage();
     case MEMORY:
-        x64->op(CMPQ, ls.address, OPTION_FLAG_NONE);
-        x64->op(JE, ok);
+        cx->op(CMPQ, ls.address, OPTION_FLAG_NONE);
+        cx->op(JE, ok);
 
-        raise("UNMATCHED", x64);
+        raise("UNMATCHED", cx);
         
-        x64->code_label(ok);
+        cx->code_label(ok);
         return Storage();
     default:
         throw INTERNAL_ERROR;
@@ -114,32 +114,32 @@ Regs OptionSomeMatcherValue::precompile(Regs preferred) {
     return left->precompile(preferred);
 }
 
-Storage OptionSomeMatcherValue::compile(X64 *x64) {
-    Storage ls = left->compile(x64);
+Storage OptionSomeMatcherValue::compile(Cx *cx) {
+    Storage ls = left->compile(cx);
     Label ok;
         
     switch (ls.where) {
     case STACK: {
-        x64->op(CMPQ, Address(RSP, 0), OPTION_FLAG_NONE);
-        x64->op(JNE, ok);
+        cx->op(CMPQ, Address(RSP, 0), OPTION_FLAG_NONE);
+        cx->op(JNE, ok);
 
-        drop_and_raise(left->ts, ls, "UNMATCHED", x64);
+        drop_and_raise(left->ts, ls, "UNMATCHED", cx);
 
-        x64->code_label(ok);
+        cx->code_label(ok);
         if (flag_size == ADDRESS_SIZE)
-            x64->op(ADDQ, RSP, ADDRESS_SIZE);
+            cx->op(ADDQ, RSP, ADDRESS_SIZE);
         else if (flag_size)
             throw INTERNAL_ERROR;
             
         return Storage(STACK);
     }
     case MEMORY:
-        x64->op(CMPQ, ls.address, OPTION_FLAG_NONE);
-        x64->op(JNE, ok);
+        cx->op(CMPQ, ls.address, OPTION_FLAG_NONE);
+        cx->op(JNE, ok);
         
-        drop_and_raise(left->ts, ls, "UNMATCHED", x64);
+        drop_and_raise(left->ts, ls, "UNMATCHED", cx);
         
-        x64->code_label(ok);
+        cx->code_label(ok);
         return Storage(MEMORY, ls.address + flag_size);
     default:
         throw INTERNAL_ERROR;
@@ -166,19 +166,19 @@ Regs UnionValue::precompile(Regs preferred) {
         return Regs();
 }
 
-Storage UnionValue::compile(X64 *x64) {
+Storage UnionValue::compile(Cx *cx) {
     unsigned flag_size = UnionType::get_flag_size();
     unsigned full_size = ts.measure_stack();
     unsigned arg_size = arg_ts.measure_stack();
     unsigned pad_count = (full_size - flag_size - arg_size) / ADDRESS_SIZE;
     
     for (unsigned i = 0; i < pad_count; i++)
-        x64->op(PUSHQ, 0);
+        cx->op(PUSHQ, 0);
         
     if (value)
-        value->compile_and_store(x64, Storage(STACK));
+        value->compile_and_store(cx, Storage(STACK));
     
-    x64->op(PUSHQ, tag_index);
+    cx->op(PUSHQ, tag_index);
         
     return Storage(STACK);
 }
@@ -203,18 +203,18 @@ Regs UnionMatcherValue::precompile(Regs preferred) {
     return left->precompile(preferred);
 }
 
-Storage UnionMatcherValue::compile(X64 *x64) {
-    Storage ls = left->compile(x64);
+Storage UnionMatcherValue::compile(Cx *cx) {
+    Storage ls = left->compile(cx);
     Label ok;
         
     switch (ls.where) {
     case STACK: {
-        x64->op(CMPQ, Address(RSP, 0), tag_index);
-        x64->op(JE, ok);
+        cx->op(CMPQ, Address(RSP, 0), tag_index);
+        cx->op(JE, ok);
 
-        drop_and_raise(left->ts, ls, "UNMATCHED", x64);
+        drop_and_raise(left->ts, ls, "UNMATCHED", cx);
 
-        x64->code_label(ok);
+        cx->code_label(ok);
         
         // Since the matched type may be smaller than the maximum of the member sizes,
         // we may need to shift the value up a bit on the stack. Not nice.
@@ -223,21 +223,21 @@ Storage UnionMatcherValue::compile(X64 *x64) {
         int copy_count = ts.measure_stack() / ADDRESS_SIZE;
         
         for (int i = 0; i < copy_count; i++) {
-            x64->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE * (copy_count - i)));
-            x64->op(MOVQ, Address(RSP, ADDRESS_SIZE * (copy_count - i + shift_count)), R10);
+            cx->op(MOVQ, R10, Address(RSP, ADDRESS_SIZE * (copy_count - i)));
+            cx->op(MOVQ, Address(RSP, ADDRESS_SIZE * (copy_count - i + shift_count)), R10);
         }
 
-        x64->op(ADDQ, RSP, ADDRESS_SIZE * (1 + shift_count));
+        cx->op(ADDQ, RSP, ADDRESS_SIZE * (1 + shift_count));
         
         return Storage(STACK);
     }
     case MEMORY:
-        x64->op(CMPQ, ls.address, tag_index);
-        x64->op(JE, ok);
+        cx->op(CMPQ, ls.address, tag_index);
+        cx->op(JE, ok);
         
-        drop_and_raise(left->ts, ls, "UNMATCHED", x64);
+        drop_and_raise(left->ts, ls, "UNMATCHED", cx);
         
-        x64->code_label(ok);
+        cx->code_label(ok);
         return Storage(MEMORY, ls.address + ADDRESS_SIZE);
     default:
         throw INTERNAL_ERROR;

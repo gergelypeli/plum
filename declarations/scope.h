@@ -47,8 +47,8 @@ public:
     virtual void rollback(Allocation checkpoint);
     virtual std::string fully_qualify(std::string n);
     virtual bool is_typedefinition(std::string n);
-    virtual void debug_contents(TypeMatch tm, X64 *x64);
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual void debug_contents(TypeMatch tm, Cx *cx);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };
 
 class NamedScope: public Scope {
@@ -172,12 +172,12 @@ public:
     virtual Storage get_local_storage();
     virtual TypeSpec get_pivot_ts();
     virtual bool may_omit_content_finalization();
-    virtual void initialize_contents(X64 *x64);
-    virtual void finalize_contents(X64 *x64);
-    virtual void finalize_contents_and_unwind(X64 *x64);
-    virtual void jump_to_content_finalization(Declaration *last, X64 *x64);
-    virtual void finalize(X64 *x64);
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual void initialize_contents(Cx *cx);
+    virtual void finalize_contents(Cx *cx);
+    virtual void finalize_contents_and_unwind(Cx *cx);
+    virtual void jump_to_content_finalization(Declaration *last, Cx *cx);
+    virtual void finalize(Cx *cx);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };
 
 class RetroScope: public CodeScope {
@@ -200,7 +200,7 @@ public:
     virtual void set_switch_variable(Variable *sv);
     virtual Variable *get_variable();
     virtual SwitchScope *get_switch_scope();
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };
 
 class TryScope: public CodeScope {
@@ -214,9 +214,9 @@ public:
     virtual bool set_exception_type(TreenumerationType *et, bool is_implicit_matcher);
     virtual TreenumerationType *get_exception_type();
     virtual bool has_implicit_matcher();
-    virtual void finalize_contents_and_unwind(X64 *x64);
-    virtual void jump_to_content_finalization(Declaration *last, X64 *x64);
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual void finalize_contents_and_unwind(Cx *cx);
+    virtual void jump_to_content_finalization(Declaration *last, Cx *cx);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };
 
 class TransparentTryScope: public TryScope {
@@ -224,7 +224,7 @@ public:
     TransparentTryScope();
 
     virtual void add(Declaration *d);
-    virtual void jump_to_content_finalization(Declaration *last, X64 *x64);
+    virtual void jump_to_content_finalization(Declaration *last, Cx *cx);
 };
 
 class EvalScope: public CodeScope {
@@ -233,8 +233,8 @@ public:
 
     virtual int get_yield_value();
     virtual EvalScope *get_eval_scope();
-    virtual void finalize_contents_and_unwind(X64 *x64);
-    virtual void jump_to_content_finalization(Declaration *last, X64 *x64);
+    virtual void finalize_contents_and_unwind(Cx *cx);
+    virtual void jump_to_content_finalization(Declaration *last, Cx *cx);
 };
 
 class ArgumentScope: public Scope {

@@ -11,7 +11,7 @@ public:
     BasicValue(TypeSpec ts, int64 n);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class FloatValue: public Value {
@@ -21,7 +21,7 @@ public:
     FloatValue(TypeSpec ts, double n);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class UnicodeCharacterValue: public Value {
@@ -32,7 +32,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class StringLiteralValue: public Value {
@@ -42,7 +42,7 @@ public:
     StringLiteralValue(std::ustring ut);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class StringTemplateValue: public Value {
@@ -52,7 +52,7 @@ public:
     StringTemplateValue(std::vector<std::ustring> f);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class TreenumerationMatcherValue: public GenericValue, public Raiser {
@@ -63,7 +63,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class TreenumerationAnyMatcherValue: public GenericValue {
@@ -72,5 +72,5 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

@@ -1,20 +1,20 @@
 #include "../plum.h"
 
 
-Storage preinitialize_class(TypeSpec class_ts, X64 *x64) {
-    Label finalizer_label = class_ts.get_finalizer_label(x64);
+Storage preinitialize_class(TypeSpec class_ts, Cx *cx) {
+    Label finalizer_label = class_ts.get_finalizer_label(cx);
     unsigned heap_size = class_ts.measure_identity().concretize();
     
-    x64->op(PUSHQ, heap_size);
+    cx->op(PUSHQ, heap_size);
     //std::cerr << "XXX Allocating " << heap_size << " on the heap.\n";
-    x64->op(LEA, R10, Address(finalizer_label, 0));
-    x64->op(PUSHQ, R10);
+    cx->op(LEA, R10, Address(finalizer_label, 0));
+    cx->op(PUSHQ, R10);
     
-    x64->runtime->heap_alloc();  // clobbers all
+    cx->runtime->heap_alloc();  // clobbers all
     
-    x64->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
+    cx->op(ADDQ, RSP, 2 * ADDRESS_SIZE);
 
-    class_ts.init_vt(Address(RAX, 0), x64);
+    class_ts.init_vt(Address(RAX, 0), cx);
     
     return Storage(REGISTER, RAX);
 }
@@ -28,14 +28,14 @@ Regs ClassPreinitializerValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage ClassPreinitializerValue::compile(X64 *x64) {
+Storage ClassPreinitializerValue::compile(Cx *cx) {
     TypeSpec class_ts = ts.unprefix(initializable_type).unprefix(ptr_type);;
     
     // This is necessary, because if variables can't have concrete class types, then
     // there's nothing to trigger the debug info generation for such types.
-    x64->once->type_info(class_ts);
+    cx->once->type_info(class_ts);
     
-    return preinitialize_class(class_ts, x64);
+    return preinitialize_class(class_ts, cx);
 }
 
 
@@ -54,8 +54,8 @@ Regs ClassPostinitializerValue::precompile(Regs preferred) {
     return pivot->precompile(preferred);
 }
 
-Storage ClassPostinitializerValue::compile(X64 *x64) {
-    return pivot->compile(x64);
+Storage ClassPostinitializerValue::compile(Cx *cx) {
+    return pivot->compile(cx);
 }
 
 
@@ -78,13 +78,13 @@ Regs ClassWrapperInitializerValue::precompile(Regs preferred) {
     return clob | Regs(RAX);
 }
 
-Storage ClassWrapperInitializerValue::compile(X64 *x64) {
-    object->compile_and_store(x64, Storage(STACK));
-    value->compile_and_store(x64, Storage(STACK));
+Storage ClassWrapperInitializerValue::compile(Cx *cx) {
+    object->compile_and_store(cx, Storage(STACK));
+    value->compile_and_store(cx, Storage(STACK));
     
-    x64->op(MOVQ, RAX, Address(RSP, REFERENCE_SIZE));
-    value->ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, CLASS_MEMBERS_OFFSET)), x64);
-    //x64->op(POPQ, Address(R10, CLASS_MEMBERS_OFFSET));  // creating ref from STACK to MEMORY
+    cx->op(MOVQ, RAX, Address(RSP, REFERENCE_SIZE));
+    value->ts.create(Storage(STACK), Storage(MEMORY, Address(RAX, CLASS_MEMBERS_OFFSET)), cx);
+    //cx->op(POPQ, Address(R10, CLASS_MEMBERS_OFFSET));  // creating ref from STACK to MEMORY
 
     return Storage(STACK);
 }
@@ -137,33 +137,33 @@ Regs ClassMatcherValue::precompile(Regs preferred) {
     return value->precompile(preferred);
 }
 
-Storage ClassMatcherValue::compile(X64 *x64) {
+Storage ClassMatcherValue::compile(Cx *cx) {
     Label loop, matched, not_matched;
     
-    value->compile_and_store(x64, Storage(STACK));
+    value->compile_and_store(cx, Storage(STACK));
     
-    x64->op(LEA, R11, Address(ts.get_interface_table_label(x64), 0));  // target ACT
+    cx->op(LEA, R11, Address(ts.get_interface_table_label(cx), 0));  // target ACT
     
-    x64->op(MOVQ, R10, Address(RSP, 0));  // the borrowed reference
-    x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));  // the virtual table
-    x64->op(MOVQ, R10, Address(R10, VT_AUTOCONV_INDEX * ADDRESS_SIZE));  // table start
+    cx->op(MOVQ, R10, Address(RSP, 0));  // the borrowed reference
+    cx->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));  // the virtual table
+    cx->op(MOVQ, R10, Address(R10, VT_AUTOCONV_INDEX * ADDRESS_SIZE));  // table start
     
-    x64->code_label(loop);
-    x64->op(CMPQ, Address(R10, 0), 0);  // check for table end marker
-    x64->op(JE, not_matched);
-    x64->op(CMPQ, Address(R10, 0), R11);  // check for target ACT
-    x64->op(JE, matched);
+    cx->code_label(loop);
+    cx->op(CMPQ, Address(R10, 0), 0);  // check for table end marker
+    cx->op(JE, not_matched);
+    cx->op(CMPQ, Address(R10, 0), R11);  // check for target ACT
+    cx->op(JE, matched);
     
-    x64->op(ADDQ, R10, 2 * ADDRESS_SIZE);
-    x64->op(JMP, loop);
+    cx->op(ADDQ, R10, 2 * ADDRESS_SIZE);
+    cx->op(JMP, loop);
     
-    x64->code_label(not_matched);
+    cx->code_label(not_matched);
     
-    drop_and_raise(ts, Storage(STACK), "UNMATCHED", x64);
+    drop_and_raise(ts, Storage(STACK), "UNMATCHED", cx);
     
-    x64->code_label(matched);
-    x64->op(MOVQ, R11, Address(R10, ADDRESS_SIZE));  // matched role offset
-    x64->op(ADDQ, Address(RSP, 0), R11);  // adjust result reference
+    cx->code_label(matched);
+    cx->op(MOVQ, R11, Address(R10, ADDRESS_SIZE));  // matched role offset
+    cx->op(ADDQ, Address(RSP, 0), R11);  // adjust result reference
     
     return Storage(STACK);
 }

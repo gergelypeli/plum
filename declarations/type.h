@@ -27,34 +27,34 @@ public:
     virtual Allocation measure(TypeMatch tm);
     virtual Allocation measure_identity(TypeMatch tm);
     virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
     // Allowed to clobber EQUAL_CLOB
     // Returns result in ZF (set iff equal)
-    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64);
+    virtual void equal(TypeMatch tm, Storage s, Storage t, Cx *cx);
     // Allowed to clobber COMPARE_CLOB
     // Returns result in R10B (-1/0/+1), and the flags (below&less/equal/above&greater)
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64);
+    virtual void compare(TypeMatch tm, Storage s, Storage t, Cx *cx);
     // NOTE: allowed to clobber STREAMIFY_CLOB, because it is mostly called
     // from interpolation, which is in Void context, so not much is lost. But
     // nested streamifications must take care!
-    virtual void streamify(TypeMatch tm, X64 *x64);
+    virtual void streamify(TypeMatch tm, Cx *cx);
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *scope);
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope);
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s);
     virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm);
-    virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64);
-    virtual Label get_interface_table_label(TypeMatch tm, X64 *x64);
-    virtual Label get_finalizer_label(TypeMatch tm, X64 *x64);
+    virtual Label get_virtual_table_label(TypeMatch tm, Cx *cx);
+    virtual Label get_interface_table_label(TypeMatch tm, Cx *cx);
+    virtual Label get_finalizer_label(TypeMatch tm, Cx *cx);
     virtual Value *autoconv_scope(Scope *scope, TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts);
     virtual Value *autoconv(TypeMatch tm, Type *target, Value *orig, TypeSpec &ifts);
-    virtual void init_vt(TypeMatch tm, Address addr, X64 *x64);
-    virtual void incref(TypeMatch tm, Register r, X64 *x64);
-    virtual void decref(TypeMatch tm, Register r, X64 *x64);
+    virtual void init_vt(TypeMatch tm, Address addr, Cx *cx);
+    virtual void incref(TypeMatch tm, Register r, Cx *cx);
+    virtual void decref(TypeMatch tm, Register r, Cx *cx);
     virtual bool complete_type();
-    virtual void debug_inner_scopes(TypeMatch tm, X64 *x64);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void debug_inner_scopes(TypeMatch tm, Cx *cx);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class MetaType: public Type {
@@ -71,7 +71,7 @@ public:
 
     virtual TypeSpec make_pivot_ts();
     virtual Value *match(std::string name, Value *pivot, Scope *scope);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
     virtual bool is_typedefinition(std::string n);
     virtual bool has_super(MetaType *mt);
 };
@@ -95,7 +95,7 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
 };
 
 class AttributeType: public Type {
@@ -105,18 +105,18 @@ public:
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Storage optimal_value_storage(TypeMatch tm, Regs preferred);
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
-    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void streamify(TypeMatch tm, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
+    virtual void equal(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void compare(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void streamify(TypeMatch tm, Cx *cx);
     virtual Value *lookup_initializer(TypeMatch tm, std::string n, Scope *s);
     virtual Value *lookup_matcher(TypeMatch tm, std::string n, Value *pivot, Scope *scope);
     virtual devector<VirtualEntry *> get_virtual_table(TypeMatch tm);
-    virtual Label get_virtual_table_label(TypeMatch tm, X64 *x64);
+    virtual Label get_virtual_table_label(TypeMatch tm, Cx *cx);
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class DvalueType: public Type {
@@ -125,7 +125,7 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Allocation measure(TypeMatch tm);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class CodeType: public Type {
@@ -134,8 +134,8 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class TupleType: public Type {
@@ -152,9 +152,9 @@ public:
     virtual TypeSpec make_pivot_ts();
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
 };
 
 
@@ -164,10 +164,10 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class UninitializedType: public Type {
@@ -183,8 +183,8 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
     virtual Value *lookup_inner(TypeMatch tm, std::string n, Value *v, Scope *s);
 };
 
@@ -200,8 +200,8 @@ public:
     VoidType(std::string name);
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class UnitType: public Type {
@@ -210,11 +210,11 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
-    virtual void streamify(TypeMatch tm, X64 *x64);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
+    virtual void streamify(TypeMatch tm, Cx *cx);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class ColonType: public UnitType {
@@ -231,9 +231,9 @@ public:
 
     virtual StorageWhere where(TypeMatch tm, AsWhat as_what);
     virtual Allocation measure(TypeMatch tm);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
-    virtual void type_info(TypeMatch tm, X64 *x64);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
+    virtual void type_info(TypeMatch tm, Cx *cx);
 };
 
 class StringtemplateType: public Type {

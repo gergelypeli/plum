@@ -1,87 +1,87 @@
 #include "../plum.h"
 
 
-void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_array_alloc(Label label, TypeSpec elem_ts, Cx *cx) {
     // R10 - reservation
     int elem_size = ContainerType::get_elem_size(elem_ts);
-    Label finalizer_label = elem_ts.prefix(linearray_type).get_finalizer_label(x64);
+    Label finalizer_label = elem_ts.prefix(linearray_type).get_finalizer_label(cx);
     
-    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("alloc"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(array_type).symbolize("alloc"));
+    cx->prologue();
     
-    container_alloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, finalizer_label, x64);
+    container_alloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, finalizer_label, cx);
 
-    x64->op(MOVQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 0);
+    cx->op(MOVQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), 0);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_array_realloc(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - array, R10 - new reservation
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
-    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("realloc"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(array_type).symbolize("realloc"));
+    cx->prologue();
 
-    container_realloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, x64);
+    container_realloc(LINEARRAY_HEADER_SIZE, elem_size, LINEARRAY_RESERVATION_OFFSET, cx);
 
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_array_grow(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - array, R10 - new reservation
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
-    Label realloc_label = x64->once->compile(compile_array_realloc, elem_ts);
+    Label realloc_label = cx->once->compile(compile_array_realloc, elem_ts);
 
-    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("grow"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(array_type).symbolize("grow"));
+    cx->prologue();
     
-    container_grow(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_MINIMUM_RESERVATION, realloc_label, x64);
+    container_grow(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_MINIMUM_RESERVATION, realloc_label, cx);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void compile_array_clone(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_array_clone(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - Linearray Ref
     // Return a cloned Ref
     Label loop, end;
-    Label alloc_label = x64->once->compile(compile_array_alloc, elem_ts);
+    Label alloc_label = cx->once->compile(compile_array_alloc, elem_ts);
     int elem_size = ContainerType::get_elem_size(elem_ts);
     TypeSpec heap_ts = elem_ts.prefix(linearray_type);
     
-    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("clone"));
-    x64->prologue();
-    x64->runtime->log("XXX array clone");
+    cx->code_label_local(label, elem_ts.prefix(array_type).symbolize("clone"));
+    cx->prologue();
+    cx->runtime->log("XXX array clone");
     
-    x64->op(PUSHQ, RAX);
-    x64->op(MOVQ, R10, Address(RAX, LINEARRAY_RESERVATION_OFFSET));
-    x64->op(CALL, alloc_label);  // clobbers all
+    cx->op(PUSHQ, RAX);
+    cx->op(MOVQ, R10, Address(RAX, LINEARRAY_RESERVATION_OFFSET));
+    cx->op(CALL, alloc_label);  // clobbers all
     
-    x64->op(POPQ, RBX);  // orig
-    x64->op(MOVQ, RCX, Address(RBX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(MOVQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
+    cx->op(POPQ, RBX);  // orig
+    cx->op(MOVQ, RCX, Address(RBX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(MOVQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
 
     // And this is the general version
-    x64->op(CMPQ, RCX, 0);
-    x64->op(JE, end);
+    cx->op(CMPQ, RCX, 0);
+    cx->op(JE, end);
 
-    x64->op(LEA, RSI, Address(RBX, LINEARRAY_ELEMS_OFFSET));
-    x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RSI, Address(RBX, LINEARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
     
-    x64->code_label(loop);
-    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
-    x64->op(ADDQ, RSI, elem_size);
-    x64->op(ADDQ, RDI, elem_size);
-    x64->op(DECQ, RCX);
-    x64->op(JNE, loop);
+    cx->code_label(loop);
+    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), cx);
+    cx->op(ADDQ, RSI, elem_size);
+    cx->op(ADDQ, RDI, elem_size);
+    cx->op(DECQ, RCX);
+    cx->op(JNE, loop);
 
-    heap_ts.decref(RBX, x64);
+    heap_ts.decref(RBX, cx);
     
-    x64->code_label(end);
-    x64->epilogue();
+    cx->code_label(end);
+    cx->epilogue();
 }
 
 
@@ -138,8 +138,8 @@ ArrayAutogrowValue::ArrayAutogrowValue(Value *l, TypeMatch &match)
     :ContainerAutogrowValue(l, match) {
 }
 
-Storage compile(X64 *x64) {
-    return subcompile(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, compile_array_grow, x64);
+Storage compile(Cx *cx) {
+    return subcompile(LINEARRAY_RESERVATION_OFFSET, LINEARRAY_LENGTH_OFFSET, compile_array_grow, cx);
 }
 */
 
@@ -158,84 +158,84 @@ Regs ArrayConcatenationValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage ArrayConcatenationValue::compile(X64 *x64) {
-    Label l = x64->once->compile(compile_array_concatenation, elem_ts);
+Storage ArrayConcatenationValue::compile(Cx *cx) {
+    Label l = cx->once->compile(compile_array_concatenation, elem_ts);
 
-    compile_and_store_both(x64, Storage(STACK), Storage(STACK));
+    compile_and_store_both(cx, Storage(STACK), Storage(STACK));
 
-    x64->op(CALL, l);  // result array ref in RAX
+    cx->op(CALL, l);  // result array ref in RAX
     
-    right->ts.store(rs, Storage(), x64);
-    left->ts.store(ls, Storage(), x64);
+    right->ts.store(rs, Storage(), cx);
+    left->ts.store(ls, Storage(), cx);
     
     return Storage(REGISTER, RAX);
 }
 
-void ArrayConcatenationValue::compile_array_concatenation(Label label, TypeSpec elem_ts, X64 *x64) {
+void ArrayConcatenationValue::compile_array_concatenation(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - result, R10 - first, R11 - second
-    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("concatenation"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(array_type).symbolize("concatenation"));
+    cx->prologue();
 
-    Label alloc_array = x64->once->compile(compile_array_alloc, elem_ts);
+    Label alloc_array = cx->once->compile(compile_array_alloc, elem_ts);
     int elem_size = ContainerType::get_elem_size(elem_ts);
     
-    x64->op(MOVQ, R10, Address(RSP, RIP_SIZE + ADDRESS_SIZE + REFERENCE_SIZE));
-    x64->op(MOVQ, R11, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
+    cx->op(MOVQ, R10, Address(RSP, RIP_SIZE + ADDRESS_SIZE + REFERENCE_SIZE));
+    cx->op(MOVQ, R11, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
     
-    x64->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
-    x64->op(ADDQ, R10, Address(R11, LINEARRAY_LENGTH_OFFSET));  // total length
+    cx->op(MOVQ, R10, Address(R10, LINEARRAY_LENGTH_OFFSET));
+    cx->op(ADDQ, R10, Address(R11, LINEARRAY_LENGTH_OFFSET));  // total length
     
-    x64->op(CALL, alloc_array);  // clobbers all
+    cx->op(CALL, alloc_array);  // clobbers all
     
-    x64->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RDI, Address(RAX, LINEARRAY_ELEMS_OFFSET));
     
     // copy left array
-    x64->op(MOVQ, R10, Address(RSP, RIP_SIZE + ADDRESS_SIZE + REFERENCE_SIZE));  // restored
-    x64->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
-    x64->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
-    x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
+    cx->op(MOVQ, R10, Address(RSP, RIP_SIZE + ADDRESS_SIZE + REFERENCE_SIZE));  // restored
+    cx->op(LEA, RSI, Address(R10, LINEARRAY_ELEMS_OFFSET));
+    cx->op(MOVQ, RCX, Address(R10, LINEARRAY_LENGTH_OFFSET));
+    cx->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
     
     // This is the raw bytes version
-    //x64->op(IMUL3Q, RCX, RCX, elem_size);
-    //x64->op(REPMOVSB);
+    //cx->op(IMUL3Q, RCX, RCX, elem_size);
+    //cx->op(REPMOVSB);
     
     // And this is the general version
     Label left_loop, left_end;
-    x64->op(CMPQ, RCX, 0);
-    x64->op(JE, left_end);
+    cx->op(CMPQ, RCX, 0);
+    cx->op(JE, left_end);
     
-    x64->code_label(left_loop);
-    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
-    x64->op(ADDQ, RSI, elem_size);
-    x64->op(ADDQ, RDI, elem_size);
-    x64->op(DECQ, RCX);
-    x64->op(JNE, left_loop);
-    x64->code_label(left_end);
+    cx->code_label(left_loop);
+    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), cx);
+    cx->op(ADDQ, RSI, elem_size);
+    cx->op(ADDQ, RDI, elem_size);
+    cx->op(DECQ, RCX);
+    cx->op(JNE, left_loop);
+    cx->code_label(left_end);
 
     // copy right array
-    x64->op(MOVQ, R11, Address(RSP, RIP_SIZE + ADDRESS_SIZE));  // restored
-    x64->op(LEA, RSI, Address(R11, LINEARRAY_ELEMS_OFFSET));
-    x64->op(MOVQ, RCX, Address(R11, LINEARRAY_LENGTH_OFFSET));
-    x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
+    cx->op(MOVQ, R11, Address(RSP, RIP_SIZE + ADDRESS_SIZE));  // restored
+    cx->op(LEA, RSI, Address(R11, LINEARRAY_ELEMS_OFFSET));
+    cx->op(MOVQ, RCX, Address(R11, LINEARRAY_LENGTH_OFFSET));
+    cx->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
     
     // This is the raw bytes version
-    //x64->op(IMUL3Q, RCX, RCX, elem_size);
-    //x64->op(REPMOVSB);
+    //cx->op(IMUL3Q, RCX, RCX, elem_size);
+    //cx->op(REPMOVSB);
 
     // And this is the general version
     Label right_loop, right_end;
-    x64->op(CMPQ, RCX, 0);
-    x64->op(JE, right_end);
+    cx->op(CMPQ, RCX, 0);
+    cx->op(JE, right_end);
     
-    x64->code_label(right_loop);
-    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
-    x64->op(ADDQ, RSI, elem_size);
-    x64->op(ADDQ, RDI, elem_size);
-    x64->op(DECQ, RCX);
-    x64->op(JNE, right_loop);
-    x64->code_label(right_end);
+    cx->code_label(right_loop);
+    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), cx);
+    cx->op(ADDQ, RSI, elem_size);
+    cx->op(ADDQ, RDI, elem_size);
+    cx->op(DECQ, RCX);
+    cx->op(JNE, right_loop);
+    cx->code_label(right_end);
     
-    x64->epilogue();  // new array in RAX
+    cx->epilogue();  // new array in RAX
 }
 
 
@@ -260,27 +260,27 @@ Regs ArrayExtendValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage ArrayExtendValue::compile(X64 *x64) {
+Storage ArrayExtendValue::compile(Cx *cx) {
     // TODO: This is just a concatenation and an assignment, could be more optimal.
-    Label l = x64->once->compile(ArrayConcatenationValue::compile_array_concatenation, elem_ts);
+    Label l = cx->once->compile(ArrayConcatenationValue::compile_array_concatenation, elem_ts);
 
-    ls = left->compile_lvalue(x64);
+    ls = left->compile_lvalue(cx);
 
-    x64->op(SUBQ, RSP, ADDRESS_SIZE);  // placeholder for borrowed left side Ref
-    right->compile_and_store(x64, Storage(STACK));
+    cx->op(SUBQ, RSP, ADDRESS_SIZE);  // placeholder for borrowed left side Ref
+    right->compile_and_store(cx, Storage(STACK));
 
     Storage als = ls.access(ADDRESS_SIZE * 2);
-    x64->runtime->load_lvalue(R10, R11, als);
-    x64->op(MOVQ, Address(RSP, ADDRESS_SIZE), R10);  // borrow left side Ref
+    cx->runtime->load_lvalue(R10, R11, als);
+    cx->op(MOVQ, Address(RSP, ADDRESS_SIZE), R10);  // borrow left side Ref
 
-    x64->op(CALL, l);  // result array ref in RAX
+    cx->op(CALL, l);  // result array ref in RAX
 
     // Now mimic a ref assignment
-    x64->runtime->exchange_lvalue(RAX, R11, als);
-    x64->runtime->decref(RAX);
+    cx->runtime->exchange_lvalue(RAX, R11, als);
+    cx->runtime->decref(RAX);
     
-    right->ts.store(Storage(STACK), Storage(), x64);
-    x64->op(ADDQ, RSP, ADDRESS_SIZE);
+    right->ts.store(Storage(STACK), Storage(), cx);
+    cx->op(ADDQ, RSP, ADDRESS_SIZE);
     
     return ls;
 }
@@ -304,27 +304,27 @@ Regs ArrayReallocValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage ArrayReallocValue::compile(X64 *x64) {
-    Label realloc_array = x64->once->compile(compile_array_realloc, elem_ts);
+Storage ArrayReallocValue::compile(Cx *cx) {
+    Label realloc_array = cx->once->compile(compile_array_realloc, elem_ts);
 
-    ls = left->compile_lvalue(x64);
+    ls = left->compile_lvalue(cx);
 
     if (right) {
-        right->compile_and_store(x64, Storage(STACK));
-        x64->op(POPQ, R10);
+        right->compile_and_store(cx, Storage(STACK));
+        cx->op(POPQ, R10);
     }
 
     Storage als = ls.access(0);
-    x64->runtime->load_lvalue(RAX, R11, als);
+    cx->runtime->load_lvalue(RAX, R11, als);
     
     if (!right)
-        x64->op(MOVQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // shrink to fit
+        cx->op(MOVQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));  // shrink to fit
         
-    x64->op(CALL, realloc_array);  // clobbers all
+    cx->op(CALL, realloc_array);  // clobbers all
 
     // Although realloc may change the address of the container, it is technically
     // the same object with the same refcount, so we can just store it.
-    x64->runtime->store_lvalue(RAX, R11, als);
+    cx->runtime->store_lvalue(RAX, R11, als);
     
     return ls;
 }
@@ -341,46 +341,46 @@ Regs ArraySortValue::precompile(Regs preferred) {
     return left->precompile_tail() | Regs(RAX, RCX, RDX, RSI, RDI) | COMPARE_CLOB;
 }
 
-Storage ArraySortValue::compile(X64 *x64) {
-    auto arg_regs = x64->abi_arg_regs();
+Storage ArraySortValue::compile(Cx *cx) {
+    auto arg_regs = cx->abi_arg_regs();
     int elem_size = ContainerType::get_elem_size(elem_ts);
-    Label compar = x64->once->compile(compile_compar, elem_ts);
+    Label compar = cx->once->compile(compile_compar, elem_ts);
     Label done;
 
-    left->compile_and_store(x64, Storage(STACK));
+    left->compile_and_store(cx, Storage(STACK));
     
     // base, nmemb, size, compar
-    x64->op(MOVQ, R10, Address(RSP, 0));
-    x64->op(LEA, arg_regs[0], Address(R10, LINEARRAY_ELEMS_OFFSET));
-    x64->op(MOVQ, arg_regs[1], Address(R10, LINEARRAY_LENGTH_OFFSET));
-    x64->op(MOVQ, arg_regs[2], elem_size);
-    x64->op(LEA, arg_regs[3], Address(compar, 0));
+    cx->op(MOVQ, R10, Address(RSP, 0));
+    cx->op(LEA, arg_regs[0], Address(R10, LINEARRAY_ELEMS_OFFSET));
+    cx->op(MOVQ, arg_regs[1], Address(R10, LINEARRAY_LENGTH_OFFSET));
+    cx->op(MOVQ, arg_regs[2], elem_size);
+    cx->op(LEA, arg_regs[3], Address(compar, 0));
 
-    x64->runtime->call_sysv(x64->runtime->sysv_sort_label);
+    cx->runtime->call_sysv(cx->runtime->sysv_sort_label);
     
-    left->ts.store(Storage(STACK), Storage(), x64);
+    left->ts.store(Storage(STACK), Storage(), cx);
     
     return Storage();
 }
 
-void ArraySortValue::compile_compar(Label label, TypeSpec elem_ts, X64 *x64) {
+void ArraySortValue::compile_compar(Label label, TypeSpec elem_ts, Cx *cx) {
     // Generate a SysV function to wrap our compare function.
     // The two arguments contain the pointers to the array elements.
-    auto arg_regs = x64->abi_arg_regs();
-    auto res_regs = x64->abi_res_regs();
+    auto arg_regs = cx->abi_arg_regs();
+    auto res_regs = cx->abi_res_regs();
 
-    x64->code_label_local(label, elem_ts.prefix(array_type).symbolize("compar"));
+    cx->code_label_local(label, elem_ts.prefix(array_type).symbolize("compar"));
     
-    x64->runtime->callback_prologue();
+    cx->runtime->callback_prologue();
     
     Storage a(MEMORY, Address(arg_regs[0], 0));
     Storage b(MEMORY, Address(arg_regs[1], 0));
 
-    elem_ts.compare(a, b, x64);
+    elem_ts.compare(a, b, cx);
     
-    x64->op(MOVSXBQ, res_regs[0], R10B);
+    cx->op(MOVSXBQ, res_regs[0], R10B);
 
-    x64->runtime->callback_epilogue();
+    cx->runtime->callback_epilogue();
 }
 
 
@@ -395,66 +395,66 @@ Regs ArrayRemoveValue::precompile(Regs preferred) {
     return left->precompile_tail() | right->precompile_tail() | Regs::all();  // SysV
 }
 
-Storage ArrayRemoveValue::compile(X64 *x64) {
-    Label remove_label = x64->once->compile(compile_remove, elem_ts);
+Storage ArrayRemoveValue::compile(Cx *cx) {
+    Label remove_label = cx->once->compile(compile_remove, elem_ts);
 
-    left->compile_and_store(x64, Storage(STACK));
-    right->compile_and_store(x64, Storage(STACK));
+    left->compile_and_store(cx, Storage(STACK));
+    right->compile_and_store(cx, Storage(STACK));
     
-    x64->op(CALL, remove_label);
+    cx->op(CALL, remove_label);
     
-    x64->op(POPQ, R10);
+    cx->op(POPQ, R10);
     
     return Storage(STACK);
 }
 
-void ArrayRemoveValue::compile_remove(Label label, TypeSpec elem_ts, X64 *x64) {
-    auto arg_regs = x64->abi_arg_regs();
+void ArrayRemoveValue::compile_remove(Label label, TypeSpec elem_ts, Cx *cx) {
+    auto arg_regs = cx->abi_arg_regs();
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
-    x64->code_label(label);
-    x64->prologue();
+    cx->code_label(label);
+    cx->prologue();
     Label ok, loop, check;
     
-    x64->op(MOVQ, RAX, Address(RSP, RIP_SIZE + ADDRESS_SIZE + INTEGER_SIZE));
-    x64->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(CMPQ, RCX, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
-    x64->op(JAE, ok);
+    cx->op(MOVQ, RAX, Address(RSP, RIP_SIZE + ADDRESS_SIZE + INTEGER_SIZE));
+    cx->op(MOVQ, RCX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(CMPQ, RCX, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
+    cx->op(JAE, ok);
     
-    x64->runtime->die("Array remove length out of bounds!");  // FIXME: raise instead
+    cx->runtime->die("Array remove length out of bounds!");  // FIXME: raise instead
     
     // Destroy the first elements
-    x64->code_label(ok);
-    x64->op(MOVQ, RCX, 0);
-    x64->op(JMP, check);
+    cx->code_label(ok);
+    cx->op(MOVQ, RCX, 0);
+    cx->op(JMP, check);
     
-    x64->code_label(loop);
-    x64->op(IMUL3Q, RDX, RCX, elem_size);
+    cx->code_label(loop);
+    cx->op(IMUL3Q, RDX, RCX, elem_size);
     
-    elem_ts.destroy(Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), x64);
-    x64->op(INCQ, RCX);
+    elem_ts.destroy(Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), cx);
+    cx->op(INCQ, RCX);
     
-    x64->code_label(check);
-    x64->op(CMPQ, RCX, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
-    x64->op(JB, loop);
+    cx->code_label(check);
+    cx->op(CMPQ, RCX, Address(RSP, RIP_SIZE + ADDRESS_SIZE));
+    cx->op(JB, loop);
 
-    x64->op(SUBQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
+    cx->op(SUBQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
 
     // call memmove(dest, src, n)
-    x64->op(MOVQ, R10, RAX);  // borrowed array ref
-    x64->op(MOVQ, R11, RCX);  // remove count
+    cx->op(MOVQ, R10, RAX);  // borrowed array ref
+    cx->op(MOVQ, R11, RCX);  // remove count
     
-    x64->op(LEA, arg_regs[0], Address(R10, LINEARRAY_ELEMS_OFFSET));  // dest
+    cx->op(LEA, arg_regs[0], Address(R10, LINEARRAY_ELEMS_OFFSET));  // dest
     
-    x64->op(IMUL3Q, arg_regs[1], R11, elem_size);
-    x64->op(ADDQ, arg_regs[1], arg_regs[0]);  // src
+    cx->op(IMUL3Q, arg_regs[1], R11, elem_size);
+    cx->op(ADDQ, arg_regs[1], arg_regs[0]);  // src
     
-    x64->op(MOVQ, arg_regs[2], Address(R10, LINEARRAY_LENGTH_OFFSET));
-    x64->op(IMUL3Q, arg_regs[2], arg_regs[2], elem_size);  // n
+    cx->op(MOVQ, arg_regs[2], Address(R10, LINEARRAY_LENGTH_OFFSET));
+    cx->op(IMUL3Q, arg_regs[2], arg_regs[2], elem_size);  // n
     
-    x64->runtime->call_sysv(x64->runtime->sysv_memmove_label);
+    cx->runtime->call_sysv(cx->runtime->sysv_memmove_label);
 
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
@@ -488,48 +488,48 @@ Regs ArrayRefillValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage ArrayRefillValue::compile(X64 *x64) {
+Storage ArrayRefillValue::compile(Cx *cx) {
     Label ok, loop, check;
     int elem_size = ContainerType::get_elem_size(elem_ts);
-    Label realloc_array = x64->once->compile(compile_array_realloc, elem_ts);
+    Label realloc_array = cx->once->compile(compile_array_realloc, elem_ts);
 
-    Storage as = array_value->compile_lvalue(x64);
-    fill_value->compile_and_store(x64, Storage(STACK));
-    length_value->compile_and_store(x64, Storage(STACK));
+    Storage as = array_value->compile_lvalue(cx);
+    fill_value->compile_and_store(cx, Storage(STACK));
+    length_value->compile_and_store(cx, Storage(STACK));
     
     // borrow array ref
     Storage aas = as.access(fill_value->ts.measure_stack() + INTEGER_TS.measure_stack());
-    x64->runtime->load_lvalue(RAX, R11, aas);
+    cx->runtime->load_lvalue(RAX, R11, aas);
     
-    x64->op(MOVQ, R10, Address(RSP, 0));  // extra length (keep on stack)
-    x64->op(ADDQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(CMPQ, R10, Address(RAX, LINEARRAY_RESERVATION_OFFSET));
-    x64->op(JBE, ok);
+    cx->op(MOVQ, R10, Address(RSP, 0));  // extra length (keep on stack)
+    cx->op(ADDQ, R10, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(CMPQ, R10, Address(RAX, LINEARRAY_RESERVATION_OFFSET));
+    cx->op(JBE, ok);
     
     // Need to reallocate
-    x64->op(CALL, realloc_array);  // clobbers all
+    cx->op(CALL, realloc_array);  // clobbers all
 
-    x64->runtime->store_lvalue(RAX, R11, aas);
+    cx->runtime->store_lvalue(RAX, R11, aas);
     
-    x64->code_label(ok);
-    x64->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
-    x64->op(IMUL3Q, RDX, RDX, elem_size);
-    x64->op(POPQ, RCX);  // pop extra length, leave fill value on stack
-    x64->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
-    x64->op(JMP, check);
+    cx->code_label(ok);
+    cx->op(MOVQ, RDX, Address(RAX, LINEARRAY_LENGTH_OFFSET));
+    cx->op(IMUL3Q, RDX, RDX, elem_size);
+    cx->op(POPQ, RCX);  // pop extra length, leave fill value on stack
+    cx->op(ADDQ, Address(RAX, LINEARRAY_LENGTH_OFFSET), RCX);
+    cx->op(JMP, check);
     
-    x64->code_label(loop);
+    cx->code_label(loop);
     // Use MEMORY for the create source, so it won't be popped
-    elem_ts.create(Storage(MEMORY, Address(RSP, 0)), Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), x64);
-    x64->op(ADDQ, RDX, elem_size);
-    x64->op(DECQ, RCX);
+    elem_ts.create(Storage(MEMORY, Address(RSP, 0)), Storage(MEMORY, Address(RAX, RDX, LINEARRAY_ELEMS_OFFSET)), cx);
+    cx->op(ADDQ, RDX, elem_size);
+    cx->op(DECQ, RCX);
     
-    x64->code_label(check);
-    x64->op(CMPQ, RCX, 0);
-    x64->op(JNE, loop);
+    cx->code_label(check);
+    cx->op(CMPQ, RCX, 0);
+    cx->op(JNE, loop);
     
     // drop fill value
-    elem_ts.store(Storage(STACK), Storage(), x64);
+    elem_ts.store(Storage(STACK), Storage(), cx);
     
     return as;
 }
@@ -564,12 +564,12 @@ Regs ArrayNextElemValue::precompile(Regs preferred) {
     return ContainerNextValue::precompile(preferred) | precompile_contained_lvalue();
 }
 
-Storage ArrayNextElemValue::postprocess(Register r, Register i, X64 *x64) {
+Storage ArrayNextElemValue::postprocess(Register r, Register i, Cx *cx) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
     
-    Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
+    Address addr = cx->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
 
-    return compile_contained_lvalue(addr, NOREG, ts, x64);
+    return compile_contained_lvalue(addr, NOREG, ts, cx);
 }
 
 
@@ -578,7 +578,7 @@ ArrayNextIndexValue::ArrayNextIndexValue(Value *l, TypeMatch &match)
     :ContainerNextValue(INTEGER_TUPLE1_TS, match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
 }
 
-Storage ArrayNextIndexValue::postprocess(Register r, Register i, X64 *x64) {
+Storage ArrayNextIndexValue::postprocess(Register r, Register i, Cx *cx) {
     return Storage(REGISTER, i);
 }
 
@@ -588,17 +588,17 @@ ArrayNextItemValue::ArrayNextItemValue(Value *l, TypeMatch &match)
     :ContainerNextValue(typesubst(INTEGER_SAME_LVALUE_TUPLE2_TS, match), match[1], l, LINEARRAY_LENGTH_OFFSET, false) {
 }
 
-Storage ArrayNextItemValue::postprocess(Register r, Register i, X64 *x64) {
+Storage ArrayNextItemValue::postprocess(Register r, Register i, Cx *cx) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
     //int item_stack_size = ts.measure_stack();
 
-    x64->op(PUSHQ, i);
+    cx->op(PUSHQ, i);
     
-    Address addr = x64->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
+    Address addr = cx->runtime->make_address(r, i, elem_size, LINEARRAY_ELEMS_OFFSET);
     
-    x64->op(PUSHQ, 0);
-    x64->op(LEA, R10, addr);
-    x64->op(PUSHQ, R10);
+    cx->op(PUSHQ, 0);
+    cx->op(LEA, R10, addr);
+    cx->op(PUSHQ, R10);
     
     return Storage(STACK);
 }

@@ -251,18 +251,18 @@ devector<VirtualEntry *> TypeSpec::get_virtual_table() {
 }
 
 
-Label TypeSpec::get_virtual_table_label(X64 *x64) {
-    return at(0)->get_virtual_table_label(match(), x64);
+Label TypeSpec::get_virtual_table_label(Cx *cx) {
+    return at(0)->get_virtual_table_label(match(), cx);
 }
 
 
-Label TypeSpec::get_interface_table_label(X64 *x64) {
-    return at(0)->get_interface_table_label(match(), x64);
+Label TypeSpec::get_interface_table_label(Cx *cx) {
+    return at(0)->get_interface_table_label(match(), cx);
 }
 
 
-Label TypeSpec::get_finalizer_label(X64 *x64) {
-    return at(0)->get_finalizer_label(match(), x64);
+Label TypeSpec::get_finalizer_label(Cx *cx) {
+    return at(0)->get_finalizer_label(match(), cx);
 }
 
 
@@ -271,35 +271,35 @@ Value *TypeSpec::autoconv(Type *target, Value *orig, TypeSpec &ifts) {
 }
 
 
-Storage TypeSpec::store(Storage s, Storage t, X64 *x64) {
-    at(0)->store(match(), s, t, x64);
+Storage TypeSpec::store(Storage s, Storage t, Cx *cx) {
+    at(0)->store(match(), s, t, cx);
     return t;
 }
 
 
-Storage TypeSpec::create(Storage s, Storage t, X64 *x64) {
-    at(0)->create(match(), s, t, x64);
+Storage TypeSpec::create(Storage s, Storage t, Cx *cx) {
+    at(0)->create(match(), s, t, cx);
     return t;
 }
 
 
-void TypeSpec::destroy(Storage s, X64 *x64) {
-    at(0)->destroy(match(), s, x64);
+void TypeSpec::destroy(Storage s, Cx *cx) {
+    at(0)->destroy(match(), s, cx);
 }
 
 
-void TypeSpec::equal(Storage s, Storage t, X64 *x64) {
-    at(0)->equal(match(), s, t, x64);
+void TypeSpec::equal(Storage s, Storage t, Cx *cx) {
+    at(0)->equal(match(), s, t, cx);
 }
 
 
-void TypeSpec::compare(Storage s, Storage t, X64 *x64) {
-    at(0)->compare(match(), s, t, x64);
+void TypeSpec::compare(Storage s, Storage t, Cx *cx) {
+    at(0)->compare(match(), s, t, cx);
 }
 
 
-void TypeSpec::streamify(X64 *x64) {
-    at(0)->streamify(match(), x64);
+void TypeSpec::streamify(Cx *cx) {
+    at(0)->streamify(match(), cx);
 }
 
 
@@ -318,23 +318,23 @@ Value *TypeSpec::lookup_inner(std::string name, Value *pivot, Scope *scope) {
 }
 
 
-void TypeSpec::init_vt(Address self_addr, X64 *x64) {
-    at(0)->init_vt(match(), self_addr, x64);
+void TypeSpec::init_vt(Address self_addr, Cx *cx) {
+    at(0)->init_vt(match(), self_addr, cx);
 }
 
 
-void TypeSpec::incref(Register r, X64 *x64) {
-    at(0)->incref(match(), r, x64);
+void TypeSpec::incref(Register r, Cx *cx) {
+    at(0)->incref(match(), r, cx);
 }
 
 
-void TypeSpec::decref(Register r, X64 *x64) {
-    at(0)->decref(match(), r, x64);
+void TypeSpec::decref(Register r, Cx *cx) {
+    at(0)->decref(match(), r, cx);
 }
 
 
-void TypeSpec::type_info(X64 *x64) {
-    at(0)->type_info(match(), x64);
+void TypeSpec::type_info(Cx *cx) {
+    at(0)->type_info(match(), cx);
 }
 
 

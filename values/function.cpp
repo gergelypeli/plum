@@ -256,26 +256,26 @@ Regs FunctionDefinitionValue::precompile(Regs) {
     return Regs();
 }
 
-void FunctionDefinitionValue::fix_arg(Declaration *d, X64 *x64) {
+void FunctionDefinitionValue::fix_arg(Declaration *d, Cx *cx) {
     // RSI - old stack bottom, RDI - old stack top, RDX - relocation difference
     // RBP points to the relocated stack frame
     Allocable *a = ptr_cast<Allocable>(d);
     Storage s = a->get_local_storage();
     
     if (s.where == ALIAS) {
-        x64->runtime->fix_address(s.address);
-        x64->runtime->log("Fixed argument " + a->name + " of " + function->get_fully_qualified_name());
+        cx->runtime->fix_address(s.address);
+        cx->runtime->log("Fixed argument " + a->name + " of " + function->get_fully_qualified_name());
     }
 }
 
-Storage FunctionDefinitionValue::compile(X64 *x64) {
+Storage FunctionDefinitionValue::compile(Cx *cx) {
     if (!function) {
         std::cerr << "Nameless function!\n";
         throw INTERNAL_ERROR;
     }
         
     if (exception_type_value)
-        exception_type_value->compile(x64);  // to compile treenum definitions
+        exception_type_value->compile(cx);  // to compile treenum definitions
 
     int associated_role_offset = 0;
     Associable *assoc = function->associated;
@@ -301,131 +301,131 @@ Storage FunctionDefinitionValue::compile(X64 *x64) {
     }
     else if (function->is_abstract()) {
         std::string msg = "Abstract function " + fqn + " was called";
-        x64->runtime->die(msg);
+        cx->runtime->die(msg);
         return Storage();
     }
     else if (!body) {
         if (function->type != INITIALIZER_FUNCTION && function->type != FINALIZER_FUNCTION)
             throw INTERNAL_ERROR;
             
-        x64->code_label_local(function->get_label(x64), fqn);
-        x64->prologue();
-        x64->epilogue();
+        cx->code_label_local(function->get_label(cx), fqn);
+        cx->prologue();
+        cx->epilogue();
 
         return Storage();
     }
     
-    Label start_label = function->get_label(x64);
-    x64->code_label_global(start_label, fqn);
-    int low_pc = x64->get_pc();
+    Label start_label = function->get_label(cx);
+    cx->code_label_global(start_label, fqn);
+    int low_pc = cx->get_pc();
     
-    x64->prologue();
-    x64->op(SUBQ, RSP, frame_size);
+    cx->prologue();
+    cx->op(SUBQ, RSP, frame_size);
     
-    x64->accounting->start();
+    cx->accounting->start();
     
     // If the result is nonsimple, we'll return it at the given location pointed by RAX
     Storage ras = fn_scope->get_result_alias_storage();
     if (ras.where == MEMORY)
-        x64->op(MOVQ, ras.address, RAX);
+        cx->op(MOVQ, ras.address, RAX);
     
     // If this function has Code arguments, them raising an exception will be raised here
     Storage fes = fn_scope->get_forwarded_exception_storage();
     if (fes.where == MEMORY)
-        x64->op(MOVQ, fes.address, NO_EXCEPTION);
+        cx->op(MOVQ, fes.address, NO_EXCEPTION);
     
     // Overriding functions get the self argument point to the role data area
     Storage aos = fn_scope->get_associated_offset_storage();
     if (aos.where == MEMORY) {
-        x64->op(MOVQ, aos.address, R11);
-        x64->op(SUBQ, self_storage.address, R11);
+        cx->op(MOVQ, aos.address, R11);
+        cx->op(SUBQ, self_storage.address, R11);
     }
     else if (associated_role_offset)
-        x64->op(SUBQ, self_storage.address, associated_role_offset);
+        cx->op(SUBQ, self_storage.address, associated_role_offset);
 
-    fn_scope->body_scope->initialize_contents(x64);
+    fn_scope->body_scope->initialize_contents(cx);
 
-    x64->op(NOP);
+    cx->op(NOP);
 
-    x64->unwind->push(this);
-    x64->add_lineno(body->token.file_index, body->token.row);
-    body->compile_and_store(x64, Storage());
-    x64->unwind->pop(this);
+    cx->unwind->push(this);
+    cx->add_lineno(body->token.file_index, body->token.row);
+    body->compile_and_store(cx, Storage());
+    cx->unwind->pop(this);
     
-    x64->op(NOP);
+    cx->op(NOP);
 
     // This is mandatory, as the epilogue checks for it anyway
-    x64->op(MOVQ, RDX, NO_EXCEPTION);
+    cx->op(MOVQ, RDX, NO_EXCEPTION);
 
-    fn_scope->body_scope->finalize_contents(x64);
+    fn_scope->body_scope->finalize_contents(cx);
     
     if (fn_scope->body_scope->unwound != NOT_UNWOUND) {
         Label caught;
 
-        x64->code_label(fn_scope->body_scope->got_exception_label);
-        x64->code_label(fn_scope->body_scope->got_yield_label);
-        x64->op(CMPQ, RDX, RETURN_EXCEPTION);
-        x64->op(JE, caught);
+        cx->code_label(fn_scope->body_scope->got_exception_label);
+        cx->code_label(fn_scope->body_scope->got_yield_label);
+        cx->op(CMPQ, RDX, RETURN_EXCEPTION);
+        cx->op(JE, caught);
         
-        x64->op(CMPQ, RDX, NO_EXCEPTION);
-        x64->op(JAE, fn_scope->body_scope->got_nothing_label);
+        cx->op(CMPQ, RDX, NO_EXCEPTION);
+        cx->op(JAE, fn_scope->body_scope->got_nothing_label);
         
         // Negative values mean yields, but that would be completely bogus.
         // Check this for debugging.
-        x64->runtime->die("Unhandled yield in the function body!");
+        cx->runtime->die("Unhandled yield in the function body!");
         
-        x64->code_label(caught);
-        x64->op(MOVQ, RDX, NO_EXCEPTION);  // caught
+        cx->code_label(caught);
+        cx->op(MOVQ, RDX, NO_EXCEPTION);  // caught
         
-        x64->code_label(fn_scope->body_scope->got_nothing_label);
+        cx->code_label(fn_scope->body_scope->got_nothing_label);
     }
 
     // If the caller reuses the self pointer, it must continue pointing to the role data
     if (aos.where == MEMORY) {
-        x64->op(MOVQ, R11, aos.address);
-        x64->op(ADDQ, self_storage.address, R11);
+        cx->op(MOVQ, R11, aos.address);
+        cx->op(ADDQ, self_storage.address, R11);
     }
     else if (associated_role_offset)
-        x64->op(ADDQ, self_storage.address, associated_role_offset);
+        cx->op(ADDQ, self_storage.address, associated_role_offset);
 
-    int stack_usage = x64->accounting->stop();
+    int stack_usage = cx->accounting->stop();
     std::cerr << "XXX function " << function->get_fully_qualified_name() << " stack usage is " << stack_usage << " bytes\n";
     
-    x64->op(ADDQ, RSP, frame_size);
+    cx->op(ADDQ, RSP, frame_size);
     
     if (fes.where == MEMORY)
-        x64->op(MOVQ, RDX, fes.address);
+        cx->op(MOVQ, RDX, fes.address);
         
-    x64->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
-    x64->epilogue();
+    cx->op(CMPQ, RDX, NO_EXCEPTION);  // ZF => OK
+    cx->epilogue();
 
-    int high_pc = x64->get_pc();
+    int high_pc = cx->get_pc();
     
     // Generate fixup at end_label.
     // RSI - old stack bottom, RDI - old stack top, RDX - relocation difference
     // RBP points to the relocated stack frame
     Label fixup_label;
-    x64->code_label_global(fixup_label, fqn + "__fixup");
-    x64->prologue();
-    x64->runtime->log("Fixing arguments of " + function->get_fully_qualified_name());
+    cx->code_label_global(fixup_label, fqn + "__fixup");
+    cx->prologue();
+    cx->runtime->log("Fixing arguments of " + function->get_fully_qualified_name());
     
-    x64->op(MOVQ, RBP, Address(RBP, 0));
+    cx->op(MOVQ, RBP, Address(RBP, 0));
     
     for (auto &d : fn_scope->self_scope->contents)
-        fix_arg(d.get(), x64);
+        fix_arg(d.get(), cx);
         
     for (auto &d : fn_scope->head_scope->contents)
-        fix_arg(d.get(), x64);
+        fix_arg(d.get(), cx);
     
-    x64->epilogue();
+    cx->epilogue();
 
     function->set_pc_range(low_pc, high_pc);
-    x64->runtime->add_func_info(fqn, start_label, fixup_label);
+    cx->runtime->add_func_info(fqn, start_label, fixup_label);
     
     return Storage();
 }
 
-CodeScope *FunctionDefinitionValue::unwind(X64 *x64) {
+CodeScope *FunctionDefinitionValue::unwind(Cx *cx) {
     return fn_scope->body_scope;  // stop unwinding here, and start destroying scoped variables
 }
 
@@ -648,9 +648,9 @@ Regs FunctionCallValue::precompile(Regs preferred) {
     return clob | Regs::allregs() | Regs::heapvars();
 }
 
-void FunctionCallValue::call_static(X64 *x64, unsigned passed_size) {
+void FunctionCallValue::call_static(Cx *cx, unsigned passed_size) {
     if (res_total)
-        x64->op(LEA, RAX, Address(RSP, passed_size));
+        cx->op(LEA, RAX, Address(RSP, passed_size));
 
     Label label;
     
@@ -658,15 +658,15 @@ void FunctionCallValue::call_static(X64 *x64, unsigned passed_size) {
         int vi = function->virtual_index;
         TypeSpec static_ts = static_role->alloc_ts;
         VirtualEntry *ve = static_ts.get_virtual_table().get(vi);
-        label = ve->get_virtual_entry_label(static_ts.match(), x64);
+        label = ve->get_virtual_entry_label(static_ts.match(), cx);
     }
     else
-        label = function->get_label(x64);
+        label = function->get_label(cx);
         
-    x64->op(CALL, label);
+    cx->op(CALL, label);
 }
 
-void FunctionCallValue::call_virtual(X64 *x64, unsigned passed_size) {
+void FunctionCallValue::call_virtual(Cx *cx, unsigned passed_size) {
     int vti = function->virtual_index;
     
     if (!pivot)
@@ -678,16 +678,16 @@ void FunctionCallValue::call_virtual(X64 *x64, unsigned passed_size) {
         throw INTERNAL_ERROR;
 
     if (res_total)
-        x64->op(LEA, RAX, Address(RSP, passed_size));
+        cx->op(LEA, RAX, Address(RSP, passed_size));
         
-    x64->op(MOVQ, R10, Address(RSP, passed_size - POINTER_SIZE));  // self pointer
-    x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));  // VMT pointer
-    x64->op(CALL, Address(R10, vti * ADDRESS_SIZE));
+    cx->op(MOVQ, R10, Address(RSP, passed_size - POINTER_SIZE));  // self pointer
+    cx->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));  // VMT pointer
+    cx->op(CALL, Address(R10, vti * ADDRESS_SIZE));
     std::cerr << "Will invoke virtual method of " << pts << " #" << vti << " " << function->name << ".\n";
 }
 
 
-void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
+void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, Cx *cx) {
     Storage s;
     Storage t;
     unsigned size;
@@ -705,7 +705,7 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
 
     if (arg_value) {
         // Specified argument
-        s = arg_value->compile(x64);
+        s = arg_value->compile(cx);
 
         // Pushing a stack relative address onto the stack is illegal.
         // Unless this is done in the last step before invoking a function, when
@@ -715,27 +715,27 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
         if (t.where == ALISTACK) {
             if (s.where == MEMORY && s.address.base == RBP) {
                 // Will add RBP
-                x64->op(PUSHQ, 0);
-                x64->op(PUSHQ, s.address.offset);
+                cx->op(PUSHQ, 0);
+                cx->op(PUSHQ, s.address.offset);
                 is_fixed = true;
             }
             else if (s.where == MEMORY && s.address.base == RSP) {
                 // Will add RBP
-                x64->op(LEA, R10, s.address);
-                x64->op(SUBQ, R10, RBP);
-                x64->op(PUSHQ, 0);
-                x64->op(PUSHQ, R10);
+                cx->op(LEA, R10, s.address);
+                cx->op(SUBQ, R10, RBP);
+                cx->op(PUSHQ, 0);
+                cx->op(PUSHQ, R10);
                 is_fixed = true;
             }
             else if (s.where == ALIAS) {
                 // Will add ALIAS address
-                x64->op(PUSHQ, 0);
-                x64->op(PUSHQ, s.value);
+                cx->op(PUSHQ, 0);
+                cx->op(PUSHQ, s.value);
                 is_fixed = true;
             }
             else {
                 // Other cases all deal with heap locations
-                arg_ts.store(s, t, x64);
+                arg_ts.store(s, t, cx);
             }
         }
         else if (t.where == STACK && s.where == MEMORY && may_borrow_stackvars) {
@@ -745,30 +745,30 @@ void FunctionCallValue::push_arg(TypeSpec arg_ts, Value *arg_value, X64 *x64) {
                 throw INTERNAL_ERROR;
                 
             is_borrowed = true;
-            x64->runtime->push(s.address, size);
+            cx->runtime->push(s.address, size);
         }
         else
-            arg_ts.store(s, t, x64);
+            arg_ts.store(s, t, cx);
     }
     else {
         // Optional argument initialized to default value
-        arg_ts.store(s, t, x64);
+        arg_ts.store(s, t, cx);
     }
 
     pushed_infos.push_back({ arg_ts, s, t, size, is_fixed, is_borrowed });
 }
 
-void FunctionCallValue::pop_arg(X64 *x64) {
+void FunctionCallValue::pop_arg(Cx *cx) {
     PushedInfo pi = pushed_infos.back();
     pushed_infos.pop_back();
     
     if (pi.is_borrowed)
-        x64->op(ADDQ, RSP, pi.size);
+        cx->op(ADDQ, RSP, pi.size);
     else
-        pi.ts.store(pi.storage, Storage(), x64);
+        pi.ts.store(pi.storage, Storage(), cx);
 }
 
-Storage FunctionCallValue::ret_pivot(X64 *x64) {
+Storage FunctionCallValue::ret_pivot(Cx *cx) {
     // Return pivot argument (an ALIAS must be returned as received)
     
     PushedInfo pi = pushed_infos[0];
@@ -783,19 +783,19 @@ Storage FunctionCallValue::ret_pivot(X64 *x64) {
             
             if (pi.orig_storage.address.base == RBP || pi.orig_storage.address.base == RSP) {
                 // Stack relative address, must return the original storage
-                x64->op(ADDQ, RSP, ALIAS_SIZE);
+                cx->op(ADDQ, RSP, ALIAS_SIZE);
                 return pi.orig_storage;
             }
             else {
                 // Heap address, return in a popped register
-                x64->op(POPQ, RAX);
-                x64->op(POPQ, R10);
+                cx->op(POPQ, RAX);
+                cx->op(POPQ, R10);
                 return Storage(MEMORY, Address(RAX, 0));
             }
         }
         else if (pi.orig_storage.where == ALIAS) {
             // Aliased argument passed, must return original storage
-            x64->op(ADDQ, RSP, ALIAS_SIZE);
+            cx->op(ADDQ, RSP, ALIAS_SIZE);
             return pi.orig_storage;
         }
         else if (pi.orig_storage.where == ALISTACK) {
@@ -810,7 +810,7 @@ Storage FunctionCallValue::ret_pivot(X64 *x64) {
         if (pi.orig_storage.where != MEMORY || (pi.orig_storage.address.base != RBP && pi.orig_storage.address.base != NOREG))
             throw INTERNAL_ERROR;
             
-        x64->op(ADDQ, RSP, pi.size);
+        cx->op(ADDQ, RSP, pi.size);
 
         return pi.orig_storage;
     }
@@ -820,7 +820,7 @@ Storage FunctionCallValue::ret_pivot(X64 *x64) {
     }
 }
 
-Storage FunctionCallValue::compile(X64 *x64) {
+Storage FunctionCallValue::compile(Cx *cx) {
     //std::cerr << "Compiling call of " << function->name << "...\n";
     bool is_void = (res_tss.size() == 0);
     StorageWhere simple_where = NOWHERE;
@@ -846,23 +846,23 @@ Storage FunctionCallValue::compile(X64 *x64) {
     }
 
     if (res_total)
-        x64->op(SUBQ, RSP, res_total);
+        cx->op(SUBQ, RSP, res_total);
 
-    x64->unwind->push(this);
+    cx->unwind->push(this);
     
-    //std::cerr << "Function call " << function->name << " stack at " << x64->accounting->mark() << "\n";
+    //std::cerr << "Function call " << function->name << " stack at " << cx->accounting->mark() << "\n";
     
     if (pivot_ts.size()) {
-        push_arg(pivot_ts, pivot.get(), x64);
+        push_arg(pivot_ts, pivot.get(), cx);
         //std::cerr << "Calling " << function->name << " with pivot " << function->get_pivot_typespec() << "\n";
     }
     
     for (unsigned i = 0; i < values.size(); i++) {
-        //std::cerr << "Function call " << function->name << " stack at " << x64->accounting->mark() << "\n";
-        push_arg(arg_tss[i], values[i].get(), x64);
+        //std::cerr << "Function call " << function->name << " stack at " << cx->accounting->mark() << "\n";
+        push_arg(arg_tss[i], values[i].get(), cx);
     }
 
-    //std::cerr << "Function call " << function->name << " stack at " << x64->accounting->mark() << "\n";
+    //std::cerr << "Function call " << function->name << " stack at " << cx->accounting->mark() << "\n";
 
     unsigned passed_size = 0;
     for (PushedInfo &pi : pushed_infos)
@@ -881,12 +881,12 @@ Storage FunctionCallValue::compile(X64 *x64) {
             
             if (os.where == MEMORY) {
                 std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
-                x64->op(ADDQ, Address(RSP, stackfix_offset), RBP);
+                cx->op(ADDQ, Address(RSP, stackfix_offset), RBP);
             }
             else if (os.where == ALIAS) {
                 std::cerr << "XXX stackfix for " << function->get_fully_qualified_name() << " argument " << i << "\n";
-                x64->op(MOVQ, R10, os.address);
-                x64->op(ADDQ, Address(RSP, stackfix_offset), R10);
+                cx->op(MOVQ, R10, os.address);
+                cx->op(ADDQ, Address(RSP, stackfix_offset), R10);
             }
             else
                 throw INTERNAL_ERROR;
@@ -894,34 +894,34 @@ Storage FunctionCallValue::compile(X64 *x64) {
     }
 
     if (function->virtual_index != 0 && !static_role)
-        call_virtual(x64, passed_size);
+        call_virtual(cx, passed_size);
     else
-        call_static(x64, passed_size);
+        call_static(cx, passed_size);
 
     // This must be generated at exactly the return address following the CALL
-    x64->runtime->add_call_info(token.file_index, token.row);
+    cx->runtime->add_call_info(token.file_index, token.row);
 
     if (function->exception_type || has_code_arg) {
         Label noex;
         
-        x64->op(JE, noex);  // Expect ZF if OK
+        cx->op(JE, noex);  // Expect ZF if OK
         
         // Reraise exception in RDX (also exceptions forwarded back from a Code argument)
-        x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
+        cx->unwind->initiate(raising_dummy, cx);  // unwinds ourselves, too
         
-        x64->code_label(noex);
+        cx->code_label(noex);
     }
 
-    x64->unwind->pop(this);
+    cx->unwind->pop(this);
     
     for (int i = values.size() - 1; i >= 0; i--)
-        pop_arg(x64);
+        pop_arg(cx);
         
     if (pivot_ts.size()) {
         if (is_void)
-            return ret_pivot(x64);
+            return ret_pivot(cx);
         
-        pop_arg(x64);
+        pop_arg(cx);
     }
         
     //std::cerr << "Compiled call of " << function->name << ".\n";
@@ -939,18 +939,18 @@ Storage FunctionCallValue::compile(X64 *x64) {
         return Storage(STACK);  // Multiple result values
 }
 
-CodeScope *FunctionCallValue::unwind(X64 *x64) {
+CodeScope *FunctionCallValue::unwind(Cx *cx) {
     //std::cerr << "Unwinding function call " << function->name << " would wipe " << pushed_tss.size() << " arguments.\n";
     for (int i = pushed_infos.size() - 1; i >= 0; i--) {
         if (pushed_infos[i].is_borrowed)
-            x64->op(ADDQ, RSP, pushed_infos[i].size);
+            cx->op(ADDQ, RSP, pushed_infos[i].size);
         else
-            pushed_infos[i].ts.store(pushed_infos[i].storage, Storage(), x64);
+            pushed_infos[i].ts.store(pushed_infos[i].storage, Storage(), cx);
     }
     
     // This area is uninitialized before invoking the function
     if (res_total)
-        x64->op(ADDQ, RSP, res_total);
+        cx->op(ADDQ, RSP, res_total);
         
     return NULL;
 }
@@ -1011,7 +1011,7 @@ Regs FunctionReturnValue::precompile(Regs) {
     return Regs();  // We won't return
 }
 
-Storage FunctionReturnValue::compile(X64 *x64) {
+Storage FunctionReturnValue::compile(Cx *cx) {
     StorageWhere simple_where = (
         result_vars.size() == 0 ? NOWHERE :
         result_vars.size() == 1 ? result_vars[0]->alloc_ts.where(AS_VALUE) :
@@ -1021,10 +1021,10 @@ Storage FunctionReturnValue::compile(X64 *x64) {
     if (simple_where == NOWHERE)
         ;
     else if (simple_where == REGISTER) {
-        values[0]->compile_and_store(x64, Storage(REGISTER, RAX));
+        values[0]->compile_and_store(cx, Storage(REGISTER, RAX));
     }
     else if (simple_where == FPREGISTER) {
-        values[0]->compile_and_store(x64, Storage(FPREGISTER, FPR0));
+        values[0]->compile_and_store(cx, Storage(FPREGISTER, FPR0));
     }
     else {
         // Since we store each result in a variable, upon an exception we must
@@ -1037,37 +1037,37 @@ Storage FunctionReturnValue::compile(X64 *x64) {
         // This must be the result base for unwinding, too
         Storage r = Storage(MEMORY, Address(RAX, 0));
     
-        x64->unwind->push(this);
+        cx->unwind->push(this);
     
         for (unsigned i = 0; i < values.size(); i++) {
             Storage var_storage = result_vars[i]->get_storage(match, r);
             TypeSpec var_ts = result_vars[i]->alloc_ts;
         
-            Storage s = values[i]->compile(x64);
+            Storage s = values[i]->compile(cx);
             Storage t = var_storage;
 
-            x64->op(MOVQ, RAX, ras.address);
-            var_ts.create(s, t, x64);
+            cx->op(MOVQ, RAX, ras.address);
+            var_ts.create(s, t, cx);
             
             var_storages.push_back(var_storage);
         }
 
-        x64->unwind->pop(this);
+        cx->unwind->pop(this);
     }
     
-    x64->op(MOVQ, RDX, RETURN_EXCEPTION);
-    x64->unwind->initiate(dummy, x64);
+    cx->op(MOVQ, RDX, RETURN_EXCEPTION);
+    cx->unwind->initiate(dummy, cx);
     
     return Storage();
 }
 
-CodeScope *FunctionReturnValue::unwind(X64 *x64) {
+CodeScope *FunctionReturnValue::unwind(Cx *cx) {
     Storage ras = fn_scope->get_result_alias_storage();
     if (ras.where == MEMORY)
-        x64->op(MOVQ, RAX, ras.address);  // load result base
+        cx->op(MOVQ, RAX, ras.address);  // load result base
         
     for (int i = var_storages.size() - 1; i >= 0; i--)
-        result_vars[i]->alloc_ts.destroy(var_storages[i], x64);
+        result_vars[i]->alloc_ts.destroy(var_storages[i], cx);
         
     return NULL;
 }

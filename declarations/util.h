@@ -15,13 +15,13 @@ struct AutoconvEntry {
 
 class Autoconvertible {
 public:
-    virtual Label get_autoconv_table_label(TypeMatch tm, X64 *x64);
+    virtual Label get_autoconv_table_label(TypeMatch tm, Cx *cx);
     virtual std::vector<AutoconvEntry> get_autoconv_table(TypeMatch tm);
 };
 
 class Methodlike {
 public:
-    virtual Label get_method_label(X64 *x64);
+    virtual Label get_method_label(Cx *cx);
     virtual std::string get_method_name();
 };
 
@@ -32,8 +32,8 @@ public:
 
 class VirtualEntry {
 public:
-    virtual void compile(TypeMatch tm, X64 *x64);
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64);
+    virtual void compile(TypeMatch tm, Cx *cx);
+    virtual Label get_virtual_entry_label(TypeMatch tm, Cx *cx);
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm);
     virtual ~VirtualEntry();
 };
@@ -44,7 +44,7 @@ public:
 
     AutoconvVirtualEntry(Autoconvertible *a);
 
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64);
+    virtual Label get_virtual_entry_label(TypeMatch tm, Cx *cx);
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm);
 };
 
@@ -54,7 +54,7 @@ public:
 
     FfwdVirtualEntry(Allocation o);
 
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64);
+    virtual Label get_virtual_entry_label(TypeMatch tm, Cx *cx);
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm);
 };
 
@@ -64,7 +64,7 @@ public:
 
     MethodVirtualEntry(Methodlike *m);
 
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64);
+    virtual Label get_virtual_entry_label(TypeMatch tm, Cx *cx);
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm);
 };
 
@@ -76,7 +76,7 @@ public:
 
     PatchMethodVirtualEntry(Methodlike *m, int o);
 
-    virtual void compile(TypeMatch tm, X64 *x64);
-    virtual Label get_virtual_entry_label(TypeMatch tm, X64 *x64);
+    virtual void compile(TypeMatch tm, Cx *cx);
+    virtual Label get_virtual_entry_label(TypeMatch tm, Cx *cx);
     virtual std::ostream &out_virtual_entry(std::ostream &os, TypeMatch tm);
 };

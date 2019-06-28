@@ -1,7 +1,7 @@
-void compile_array_alloc(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_array_realloc(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_array_grow(Label label, TypeSpec elem_ts, X64 *x64);
-void compile_array_clone(Label label, TypeSpec elem_ts, X64 *x64);
+void compile_array_alloc(Label label, TypeSpec elem_ts, Cx *cx);
+void compile_array_realloc(Label label, TypeSpec elem_ts, Cx *cx);
+void compile_array_grow(Label label, TypeSpec elem_ts, Cx *cx);
+void compile_array_clone(Label label, TypeSpec elem_ts, Cx *cx);
 
 class ArrayLengthValue: public ContainerLengthValue {
 public:
@@ -50,8 +50,8 @@ public:
     ArrayConcatenationValue(Value *l, TypeMatch &match);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    static void compile_array_concatenation(Label label, TypeSpec elem_ts, X64 *x64);
+    virtual Storage compile(Cx *cx);
+    static void compile_array_concatenation(Label label, TypeSpec elem_ts, Cx *cx);
 };
 
 class ArrayExtendValue: public GenericValue {
@@ -63,7 +63,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ArrayReallocValue: public GenericOperationValue {
@@ -74,7 +74,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class ArraySortValue: public GenericValue {
@@ -84,8 +84,8 @@ public:
     ArraySortValue(Value *l, TypeMatch &match);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    static void compile_compar(Label label, TypeSpec elem_ts, X64 *x64);
+    virtual Storage compile(Cx *cx);
+    static void compile_compar(Label label, TypeSpec elem_ts, Cx *cx);
 };
 
 class ArrayRemoveValue: public GenericValue {
@@ -95,8 +95,8 @@ public:
     ArrayRemoveValue(Value *l, TypeMatch &match);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    static void compile_remove(Label label, TypeSpec elem_ts, X64 *x64);
+    virtual Storage compile(Cx *cx);
+    static void compile_remove(Label label, TypeSpec elem_ts, Cx *cx);
 };
 
 class ArrayRefillValue: public Value {
@@ -110,7 +110,7 @@ public:
 
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 // Iteration
@@ -134,19 +134,19 @@ public:
     ArrayNextElemValue(Value *l, TypeMatch &match);
 
     virtual Regs precompile(Regs preferred);
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class ArrayNextIndexValue: public ContainerNextValue {
 public:
     ArrayNextIndexValue(Value *l, TypeMatch &match);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };
 
 class ArrayNextItemValue: public ContainerNextValue {
 public:
     ArrayNextItemValue(Value *l, TypeMatch &match);
     
-    virtual Storage postprocess(Register r, Register i, X64 *x64);
+    virtual Storage postprocess(Register r, Register i, Cx *cx);
 };

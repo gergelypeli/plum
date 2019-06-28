@@ -16,23 +16,23 @@ Regs FrameNameValue::precompile(Regs preferred) {
     return value->precompile_tail() | Regs::all();
 }
 
-Storage FrameNameValue::compile(X64 *x64) {
+Storage FrameNameValue::compile(Cx *cx) {
     Label ok;
     
-    value->compile_and_store(x64, Storage(STACK));
+    value->compile_and_store(cx, Storage(STACK));
 
-    x64->op(CALL, x64->runtime->caller_frame_info_label);
+    cx->op(CALL, cx->runtime->caller_frame_info_label);
 
-    x64->op(ADDQ, RSP, INTEGER_SIZE);
+    cx->op(ADDQ, RSP, INTEGER_SIZE);
     
-    x64->op(CMPQ, RAX, 0);
-    x64->op(JNE, ok);
+    cx->op(CMPQ, RAX, 0);
+    cx->op(JNE, ok);
     
-    raise("NOT_FOUND", x64);
+    raise("NOT_FOUND", cx);
     
-    x64->code_label(ok);
-    x64->op(MOVQ, RAX, Address(RAX, FRAME_INFO_NAME_OFFSET));
-    x64->runtime->incref(RAX);
+    cx->code_label(ok);
+    cx->op(MOVQ, RAX, Address(RAX, FRAME_INFO_NAME_OFFSET));
+    cx->runtime->incref(RAX);
     
     return Storage(REGISTER, RAX);
 }
@@ -55,44 +55,44 @@ Regs FrameStuffValue::precompile(Regs preferred) {
     return value->precompile_tail() | Regs::all();
 }
 
-Storage FrameStuffValue::compile(X64 *x64) {
+Storage FrameStuffValue::compile(Cx *cx) {
     Label ok, no_call_info;
     
-    value->compile_and_store(x64, Storage(STACK));
+    value->compile_and_store(cx, Storage(STACK));
 
-    x64->op(CALL, x64->runtime->caller_frame_info_label);
-    x64->runtime->add_call_info(token.file_index, token.row);  // this is kinda funny
+    cx->op(CALL, cx->runtime->caller_frame_info_label);
+    cx->runtime->add_call_info(token.file_index, token.row);  // this is kinda funny
 
-    x64->op(ADDQ, RSP, INTEGER_SIZE);
+    cx->op(ADDQ, RSP, INTEGER_SIZE);
     
-    x64->op(CMPQ, RAX, 0);
-    x64->op(JNE, ok);
+    cx->op(CMPQ, RAX, 0);
+    cx->op(JNE, ok);
     
-    raise("NOT_FOUND", x64);
+    raise("NOT_FOUND", cx);
     
-    x64->code_label(ok);
+    cx->code_label(ok);
     
-    x64->op(MOVQ, R10, Address(RAX, FRAME_INFO_NAME_OFFSET));
-    x64->runtime->incref(R10);
-    x64->op(PUSHQ, R10);  // function name String
+    cx->op(MOVQ, R10, Address(RAX, FRAME_INFO_NAME_OFFSET));
+    cx->runtime->incref(R10);
+    cx->op(PUSHQ, R10);  // function name String
     
     // Must please the stack accounting here
-    x64->op(MOVQ, RSI, 0);
-    x64->op(MOVQ, RDI, 0);
+    cx->op(MOVQ, RSI, 0);
+    cx->op(MOVQ, RDI, 0);
     
-    x64->op(CMPQ, RBX, 0);
-    x64->op(JE, no_call_info);
+    cx->op(CMPQ, RBX, 0);
+    cx->op(JE, no_call_info);
     
-    x64->op(MOVZXWQ, RSI, Address(RBX, 4));
-    x64->op(MOVZXWQ, RDI, Address(RBX, 6));
+    cx->op(MOVZXWQ, RSI, Address(RBX, 4));
+    cx->op(MOVZXWQ, RDI, Address(RBX, 6));
     
-    x64->code_label(no_call_info);
-    x64->op(PUSHQ, RSI);
-    x64->op(CALL, x64->runtime->lookup_source_info_label);
-    x64->op(POPQ, RSI);
+    cx->code_label(no_call_info);
+    cx->op(PUSHQ, RSI);
+    cx->op(CALL, cx->runtime->lookup_source_info_label);
+    cx->op(POPQ, RSI);
     
-    x64->op(PUSHQ, RAX);  // source file name String
-    x64->op(PUSHQ, RDI);  // line number Integer
+    cx->op(PUSHQ, RAX);  // source file name String
+    cx->op(PUSHQ, RDI);  // line number Integer
     
     return Storage(STACK);
 }
@@ -107,8 +107,8 @@ Regs DoubleStackValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-Storage DoubleStackValue::compile(X64 *x64) {
-    x64->op(CALL, x64->runtime->double_stack_label);
+Storage DoubleStackValue::compile(Cx *cx) {
+    cx->op(CALL, cx->runtime->double_stack_label);
 
     return Storage();
 }
@@ -123,7 +123,7 @@ Regs DieValue::precompile(Regs preferred) {
     return Regs();
 }
 
-Storage DieValue::compile(X64 *x64) {
-    x64->runtime->die("As expected.");
+Storage DieValue::compile(Cx *cx) {
+    cx->runtime->die("As expected.");
     return Storage();
 }

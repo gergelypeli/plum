@@ -40,19 +40,19 @@ Regs Value::precompile_tail() {
     return precompile(Regs::all());
 }
 
-Storage Value::compile(X64 *) {
+Storage Value::compile(Cx *) {
     std::cerr << "This Value shouldn't have been compiled!\n";
     throw INTERNAL_ERROR;
 }
 
-void Value::compile_and_store(X64 *x64, Storage t) {
-    Storage s = compile(x64);
+void Value::compile_and_store(Cx *cx, Storage t) {
+    Storage s = compile(cx);
     //std::cerr << "Compiled and storing a " << ts << " from " << s << " to " << t << ".\n";
-    ts.store(s, t, x64);
+    ts.store(s, t, cx);
 }
 
-Storage Value::compile_lvalue(X64 *x64) {
-    Storage s = compile(x64);
+Storage Value::compile_lvalue(Cx *cx) {
+    Storage s = compile(cx);
     
     if (s.where == MEMORY) {
         if (s.address.base == RBP) {
@@ -69,9 +69,9 @@ Storage Value::compile_lvalue(X64 *x64) {
         }
         else {
             // Borrowed dynamic addresses will be stored, and used as an ALISTACK
-            x64->op(LEA, R10, s.address);
-            x64->op(PUSHQ, 0);
-            x64->op(PUSHQ, R10);
+            cx->op(LEA, R10, s.address);
+            cx->op(PUSHQ, 0);
+            cx->op(PUSHQ, R10);
             
             return Storage(ALISTACK);
         }
@@ -100,7 +100,7 @@ void Value::escape_statement_variables() {
     // Not needed in most Value classes
 }
 
-CodeScope *Value::unwind(X64 *x64) {
+CodeScope *Value::unwind(Cx *cx) {
     std::cerr << "This Value can't be unwound!\n";
     throw INTERNAL_ERROR;
 }
@@ -117,8 +117,8 @@ Value *Value::lookup_inner(std::string name, Scope *scope) {
     return ts.lookup_inner(name, this, scope);
 }
 
-void Value::streamify(X64 *x64) {
-    return ts.streamify(x64);
+void Value::streamify(Cx *cx) {
+    return ts.streamify(cx);
 }
 
 
@@ -158,35 +158,35 @@ bool Raiser::check_raise(TreenumerationType *exception_type, Scope *scope) {
     return true;
 }
 
-void Raiser::raise(std::string keyword, X64 *x64) {
+void Raiser::raise(std::string keyword, Cx *cx) {
     if (!raising_dummy) {
         std::cerr << "Oops, a Raiser::check_raise was not called somewhere!\n";
         throw INTERNAL_ERROR;
     }
 
-    //x64->runtime->log("XXX raising " + keyword);
-    x64->op(MOVQ, RDX, raised_type->get_keyword_index(keyword));
-    x64->unwind->initiate(raising_dummy, x64);
+    //cx->runtime->log("XXX raising " + keyword);
+    cx->op(MOVQ, RDX, raised_type->get_keyword_index(keyword));
+    cx->unwind->initiate(raising_dummy, cx);
 }
 
-void Raiser::drop_and_raise(TypeSpec left_ts, Storage ls, std::string keyword, X64 *x64) {
-    int old_stack_usage = x64->accounting->mark();
-    left_ts.store(ls, Storage(), x64);
+void Raiser::drop_and_raise(TypeSpec left_ts, Storage ls, std::string keyword, Cx *cx) {
+    int old_stack_usage = cx->accounting->mark();
+    left_ts.store(ls, Storage(), cx);
     
-    raise(keyword, x64);
+    raise(keyword, cx);
     
-    x64->accounting->rewind(old_stack_usage);
+    cx->accounting->rewind(old_stack_usage);
 }
 
 
-void Raiser::drop_two_and_raise(TypeSpec right_ts, Storage rs, TypeSpec left_ts, Storage ls, std::string keyword, X64 *x64) {
-    int old_stack_usage = x64->accounting->mark();
-    right_ts.store(rs, Storage(), x64);
-    left_ts.store(ls, Storage(), x64);
+void Raiser::drop_two_and_raise(TypeSpec right_ts, Storage rs, TypeSpec left_ts, Storage ls, std::string keyword, Cx *cx) {
+    int old_stack_usage = cx->accounting->mark();
+    right_ts.store(rs, Storage(), cx);
+    left_ts.store(ls, Storage(), cx);
     
-    raise(keyword, x64);
+    raise(keyword, cx);
     
-    x64->accounting->rewind(old_stack_usage);
+    cx->accounting->rewind(old_stack_usage);
 }
 
 
@@ -235,8 +235,8 @@ Regs RvalueCastValue::precompile(Regs preferred) {
     return clob | rvalue_storage.regs();
 }
 
-Storage RvalueCastValue::compile(X64 *x64) {
-    Storage s = pivot->compile(x64);
+Storage RvalueCastValue::compile(Cx *cx) {
+    Storage s = pivot->compile(cx);
     
     switch (s.where) {
     case MEMORY:
@@ -249,7 +249,7 @@ Storage RvalueCastValue::compile(X64 *x64) {
             if (borrow_needed & borrows_allowed)
                 return s;
             else
-                return ts.store(s, rvalue_storage, x64);
+                return ts.store(s, rvalue_storage, cx);
         }
     case ALIAS:
         if (s.address.base != RBP)
@@ -261,10 +261,10 @@ Storage RvalueCastValue::compile(X64 *x64) {
         else {
             // An ALIAS may point to stack-local addresses, so we can't borrow it.
 
-            x64->op(MOVQ, unalias_reg, s.address);
+            cx->op(MOVQ, unalias_reg, s.address);
 
             Storage x(MEMORY, Address(unalias_reg, s.value));
-            ts.store(x, rvalue_storage, x64);
+            ts.store(x, rvalue_storage, cx);
             
             return rvalue_storage;
         }
@@ -273,13 +273,13 @@ Storage RvalueCastValue::compile(X64 *x64) {
         // Assume that the container is always non-NULL, as there should be no reason
         // to return ALISTACK if not.
         
-        x64->op(POPQ, unalias_reg);
-        x64->op(POPQ, container_reg);
+        cx->op(POPQ, unalias_reg);
+        cx->op(POPQ, container_reg);
 
         s = Storage(MEMORY, Address(unalias_reg, s.value));
-        ts.store(s, rvalue_storage, x64);
+        ts.store(s, rvalue_storage, cx);
         
-        x64->runtime->decref(container_reg);
+        cx->runtime->decref(container_reg);
         
         return rvalue_storage;
     default:
@@ -310,16 +310,16 @@ Regs ContainedLvalue::precompile_contained_lvalue() {
     return !rvalue_needed ? Regs::heapvars() : Regs();
 }
 
-Storage ContainedLvalue::compile_contained_lvalue(Address addr, Register container_ref, TypeSpec ts, X64 *x64) {
+Storage ContainedLvalue::compile_contained_lvalue(Address addr, Register container_ref, TypeSpec ts, Cx *cx) {
     if (container_ref == NOREG) {
         // Return borrowable contained value as well
         return Storage(MEMORY, addr);
     }
     else {
         // Return ALISTACK
-        x64->op(PUSHQ, container_ref);
-        x64->op(LEA, R10, addr);
-        x64->op(PUSHQ, R10);
+        cx->op(PUSHQ, container_ref);
+        cx->op(LEA, R10, addr);
+        cx->op(PUSHQ, R10);
         return Storage(ALISTACK);
     }
 }
@@ -334,7 +334,7 @@ Regs PassValue::precompile(Regs preferred) {
     return Regs();
 }
 
-Storage PassValue::compile(X64 *x64) {
+Storage PassValue::compile(Cx *cx) {
     return Storage();
 }
 
@@ -354,8 +354,8 @@ Regs CastValue::precompile(Regs preferred) {
     return pivot->precompile(preferred);
 }
 
-Storage CastValue::compile(X64 *x64) {
-    return pivot->compile(x64);
+Storage CastValue::compile(Cx *cx) {
+    return pivot->compile(cx);
 }
 
 
@@ -377,8 +377,8 @@ Regs PtrCastValue::precompile(Regs preferred) {
     return value->precompile(preferred);
 }
 
-Storage PtrCastValue::compile(X64 *x64) {
-    return value->compile(x64);
+Storage PtrCastValue::compile(Cx *cx) {
+    return value->compile(cx);
 }
 
 
@@ -509,18 +509,18 @@ Regs VariableValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage VariableValue::compile(X64 *x64) {
+Storage VariableValue::compile(Cx *cx) {
     Storage t;
     
     if (pivot) {
-        Storage s = pivot->compile(x64);
+        Storage s = pivot->compile(cx);
         
         if (pts[0] == ptr_type) {
             // The only member variables accessible by a Ptr are self variables.
             // Since $ is a rvalue argument, we can borrow the reference.
             
             if (s.where == MEMORY) {
-                x64->op(MOVQ, record_reg, s.address);  // borrow $
+                cx->op(MOVQ, record_reg, s.address);  // borrow $
                 s = Storage(MEMORY, Address(record_reg, 0));
                 t = variable->get_storage(match, s);  // [unalias_reg + x]
             }
@@ -535,7 +535,7 @@ Storage VariableValue::compile(X64 *x64) {
             else if (s.where == MEMORY || s.where == ALIAS)
                 t = variable->get_storage(match, s);
             else if (s.where == ALISTACK) {
-                x64->op(ADDQ, Address(RSP, 0), variable->get_offset(match));
+                cx->op(ADDQ, Address(RSP, 0), variable->get_offset(match));
                 t = s;
             }
             else
@@ -552,12 +552,12 @@ Storage VariableValue::compile(X64 *x64) {
         // We can save this step for single member records
         if (ts.measure_stack() != pts.measure_stack()) {
             // A store from an RSP-relative address to a STACK is invalid
-            x64->op(MOVQ, record_reg, RSP);
+            cx->op(MOVQ, record_reg, RSP);
             Storage ms = variable->get_storage(match, Storage(MEMORY, Address(record_reg, 0)));
         
             // If the optimal storage is REGISTER, this may overwrite unalias_reg, that's OK
-            ts.store(ms, member_storage, x64);
-            pts.destroy(Storage(MEMORY, Address(RSP, 0)), x64);
+            ts.store(ms, member_storage, cx);
+            pts.destroy(Storage(MEMORY, Address(RSP, 0)), cx);
             
             if (member_storage.where == STACK) {
                 // We must shift up the member (the member size is smaller)
@@ -565,13 +565,13 @@ Storage VariableValue::compile(X64 *x64) {
                 int length = ts.measure_stack();
                 
                 for (int i = 0; i < length; i += ADDRESS_SIZE)
-                    x64->op(POPQ, Address(RSP, offset - ADDRESS_SIZE));  // POP [RSP]!
+                    cx->op(POPQ, Address(RSP, offset - ADDRESS_SIZE));  // POP [RSP]!
                     
-                x64->op(ADDQ, RSP, offset - length);
+                cx->op(ADDQ, RSP, offset - length);
             }
             else {
                 // Just drop the stack value
-                x64->op(ADDQ, RSP, pts.measure_stack());
+                cx->op(ADDQ, RSP, pts.measure_stack());
             }
             
             t = member_storage;
@@ -664,7 +664,7 @@ Regs EvaluableValue::precompile(Regs preferred) {
     return Regs();
 }
 
-Storage EvaluableValue::compile(X64 *x64) {
+Storage EvaluableValue::compile(Cx *cx) {
     return evaluable->get_local_storage();
 }
 
@@ -757,7 +757,7 @@ Regs EvaluateValue::precompile(Regs preferred) {
     return Regs::all();
 }
 
-void EvaluateValue::destroy_arguments(X64 *x64) {
+void EvaluateValue::destroy_arguments(Cx *cx) {
     for (int i = dvalue_variables.size() - 1; i >= 0; i--) {
         Variable *dvalue_var = dvalue_variables[i];
         Storage dvalue_storage = dvalue_var->get_local_storage();
@@ -767,16 +767,16 @@ void EvaluateValue::destroy_arguments(X64 *x64) {
 
         // Must use RBX to load the ALIAS-es to, because RAX is a valid result storage
         Register reg = RBX;
-        x64->op(MOVQ, reg, dvalue_storage.address);
-        tuple_ts.destroy(Storage(MEMORY, Address(reg, 0)), x64);
+        cx->op(MOVQ, reg, dvalue_storage.address);
+        tuple_ts.destroy(Storage(MEMORY, Address(reg, 0)), cx);
     }
 }
 
-Storage EvaluateValue::compile(X64 *x64) {
-    x64->unwind->push(this);
+Storage EvaluateValue::compile(Cx *cx) {
+    cx->unwind->push(this);
     
     for (unsigned i = 0; i < arg_values.size(); i++) {
-        arg_values[i]->compile_and_store(x64, Storage(STACK));
+        arg_values[i]->compile_and_store(cx, Storage(STACK));
         
         Variable *dvalue_var = dvalue_variables[i];
         Storage dvalue_storage = dvalue_var->get_local_storage();
@@ -784,7 +784,7 @@ Storage EvaluateValue::compile(X64 *x64) {
             throw INTERNAL_ERROR;
             
         Register reg = RBX;
-        x64->op(MOVQ, reg, dvalue_storage.address);
+        cx->op(MOVQ, reg, dvalue_storage.address);
 
         TypeSpec dvalue_ts = dvalue_var->get_typespec(TypeMatch());
         TypeSpec tuple_ts = dvalue_ts.unprefix(dvalue_type);
@@ -792,10 +792,10 @@ Storage EvaluateValue::compile(X64 *x64) {
         if (tuple_ts.where(AS_ARGUMENT) != MEMORY)
             throw INTERNAL_ERROR;
         
-        tuple_ts.create(Storage(STACK), Storage(MEMORY, Address(reg, 0)), x64);
+        tuple_ts.create(Storage(STACK), Storage(MEMORY, Address(reg, 0)), cx);
     }
 
-    Storage es = evaluable_value->compile(x64);
+    Storage es = evaluable_value->compile(cx);
     if (es.where != MEMORY)
         throw INTERNAL_ERROR;
 
@@ -807,39 +807,39 @@ Storage EvaluateValue::compile(X64 *x64) {
         Storage(STACK)
     );
     
-    x64->op(CALL, es.address);
+    cx->op(CALL, es.address);
 
     // This is like with function calls
     Label noex;
-    x64->op(JE, noex);  // Expect ZF if OK
+    cx->op(JE, noex);  // Expect ZF if OK
 
     // Store forwarded exception, and replace it with CODE_BREAK
     Storage fes = fn_scope->get_forwarded_exception_storage();
     if (fes.where != MEMORY)
         throw INTERNAL_ERROR;
         
-    x64->op(MOVQ, fes.address, RDX);
-    x64->op(MOVQ, RDX, code_break_exception_type->get_keyword_index("CODE_BREAK"));
-    x64->unwind->initiate(raising_dummy, x64);  // unwinds ourselves, too
+    cx->op(MOVQ, fes.address, RDX);
+    cx->op(MOVQ, RDX, code_break_exception_type->get_keyword_index("CODE_BREAK"));
+    cx->unwind->initiate(raising_dummy, cx);  // unwinds ourselves, too
     
-    x64->unwind->pop(this);
+    cx->unwind->pop(this);
     
-    x64->code_label(noex);
-    destroy_arguments(x64);
+    cx->code_label(noex);
+    destroy_arguments(cx);
 
     // We don't allocate space for the results on the stack, so we must
     // account for the result size manually, but only on success.
     if (t.where == STACK) {
         TypeSpec tuple_ts = evaluable_value->ts.unprefix(code_type);
         int result_stack_size = tuple_ts.measure_where(tuple_ts.where(AS_ARGUMENT));
-        x64->accounting->adjust_stack_usage(result_stack_size);
+        cx->accounting->adjust_stack_usage(result_stack_size);
     }
     
     return t;
 }
 
-CodeScope *EvaluateValue::unwind(X64 *x64) {
-    destroy_arguments(x64);
+CodeScope *EvaluateValue::unwind(Cx *cx) {
+    destroy_arguments(cx);
     
     return NULL;
 }
@@ -880,13 +880,13 @@ Regs RoleValue::precompile(Regs preferred) {
     return clob;
 }
 
-Storage RoleValue::compile(X64 *x64) {
+Storage RoleValue::compile(Cx *cx) {
     // The offset of the role can be determined in 3 ways:
     //   * for BASE and MAIN roles it is constant 0
     //   * for concrete roles, it is the offset they computed in allocate/relocate
     //   * for abstract roles, it can be retrieved from the VT at its virtual index
     
-    Storage s = pivot->compile(x64);
+    Storage s = pivot->compile(cx);
     
     if (associable->inherit_as == AS_BASE || associable->inherit_as == AS_MAIN)
         return s;
@@ -897,14 +897,14 @@ Storage RoleValue::compile(X64 *x64) {
     
         switch (s.where) {
         case REGISTER:
-            x64->op(ADDQ, s.reg, offset);
+            cx->op(ADDQ, s.reg, offset);
             return s;
         case STACK:
-            x64->op(ADDQ, Address(RSP, 0), offset);
+            cx->op(ADDQ, Address(RSP, 0), offset);
             return s;
         case MEMORY:
-            pivot->ts.store(s, Storage(REGISTER, reg), x64);
-            x64->op(ADDQ, reg, offset);
+            pivot->ts.store(s, Storage(REGISTER, reg), cx);
+            cx->op(ADDQ, reg, offset);
             return Storage(REGISTER, reg);
         default:
             throw INTERNAL_ERROR;
@@ -917,20 +917,20 @@ Storage RoleValue::compile(X64 *x64) {
             
         switch (s.where) {
         case REGISTER:
-            x64->op(MOVQ, R10, Address(s.reg, CLASS_VT_OFFSET));
-            x64->op(ADDQ, s.reg, Address(R10, virtual_index * ADDRESS_SIZE));
+            cx->op(MOVQ, R10, Address(s.reg, CLASS_VT_OFFSET));
+            cx->op(ADDQ, s.reg, Address(R10, virtual_index * ADDRESS_SIZE));
             return s;
         case STACK:
-            x64->op(MOVQ, R10, Address(RSP, 0));
-            x64->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));
-            x64->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
-            x64->op(ADDQ, Address(RSP, 0), R10);
+            cx->op(MOVQ, R10, Address(RSP, 0));
+            cx->op(MOVQ, R10, Address(R10, CLASS_VT_OFFSET));
+            cx->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
+            cx->op(ADDQ, Address(RSP, 0), R10);
             return s;
         case MEMORY:
-            pivot->ts.store(s, Storage(REGISTER, reg), x64);
-            x64->op(MOVQ, R10, Address(reg, CLASS_VT_OFFSET));
-            x64->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
-            x64->op(ADDQ, reg, R10);
+            pivot->ts.store(s, Storage(REGISTER, reg), cx);
+            cx->op(MOVQ, R10, Address(reg, CLASS_VT_OFFSET));
+            cx->op(MOVQ, R10, Address(R10, virtual_index * ADDRESS_SIZE));
+            cx->op(ADDQ, reg, R10);
             return Storage(REGISTER, reg);
         default:
             throw INTERNAL_ERROR;

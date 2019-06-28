@@ -11,7 +11,7 @@ public:
     virtual bool check_args(Args &args, ArgInfo arg_info);
     virtual bool check_kwargs(Kwargs &kwargs, ArgInfos arg_infos);
     virtual Storage get_context_storage();
-    virtual Storage nonsense_result(X64 *x64);
+    virtual Storage nonsense_result(Cx *cx);
 };
 
 class IfValue: public ControlValue {
@@ -25,7 +25,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class YieldableValue: public ControlValue {
@@ -39,7 +39,7 @@ public:
     virtual std::string get_yield_label();
     virtual bool setup_yieldable(Scope *scope);
     virtual Storage get_yield_storage();
-    virtual void store_yield(Storage s, X64 *x64);
+    virtual void store_yield(Storage s, Cx *cx);
 };
 
 class RepeatValue: public ControlValue {
@@ -51,7 +51,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 class ForEachValue: public ControlValue {
 public:
@@ -64,8 +64,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class SwitchValue: public ControlValue {
@@ -78,8 +78,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class IsValue: public ControlValue {
@@ -96,8 +96,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 // This class is not a subclass of Raiser, because that is for incoming exceptions
@@ -113,7 +113,7 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
 
 class TryValue: public ControlValue {
@@ -128,8 +128,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 // The Eval-Yield pairs use a different numeric exception range from normal exceptions,
@@ -142,8 +142,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class YieldValue: public ControlValue {
@@ -156,5 +156,5 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

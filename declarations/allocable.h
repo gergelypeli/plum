@@ -16,7 +16,7 @@ public:
     virtual int get_offset(TypeMatch tm);
     virtual Storage get_storage(TypeMatch tm, Storage s);
     virtual Storage get_local_storage();
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
 };
 
 
@@ -30,13 +30,13 @@ public:
     virtual TypeSpec get_typespec(TypeMatch tm);
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match);
     virtual void allocate();
-    virtual void finalize(X64 *x64);
-    virtual void create(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void store(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void destroy(TypeMatch tm, Storage s, X64 *x64);
-    virtual void equal(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void compare(TypeMatch tm, Storage s, Storage t, X64 *x64);
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual void finalize(Cx *cx);
+    virtual void create(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void store(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void destroy(TypeMatch tm, Storage s, Cx *cx);
+    virtual void equal(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void compare(TypeMatch tm, Storage s, Storage t, Cx *cx);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };
 
 
@@ -82,9 +82,9 @@ public:
     virtual bool is_abstract();
     virtual Scope *get_allocation_scope();
     virtual void allocate();
-    virtual Label compile_initializer(X64 *x64);
-    virtual Label compile_finalizer(X64 *x64);
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual Label compile_initializer(Cx *cx);
+    virtual Label compile_finalizer(Cx *cx);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };
 
 
@@ -97,9 +97,9 @@ public:
     virtual Regs borrowing_requirements();
     virtual void allocate();
     virtual Storage get_local_storage();
-    virtual Label compile_initializer(X64 *x64);
-    virtual Label compile_finalizer(X64 *x64);
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual Label compile_initializer(Cx *cx);
+    virtual Label compile_finalizer(Cx *cx);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };
 
 // TODO: remove
@@ -107,7 +107,7 @@ class RetroVariable: public Variable {
 public:
     RetroVariable(std::string name, TypeSpec vts);
     
-    virtual void finalize(X64 *x64);
+    virtual void finalize(Cx *cx);
     virtual void allocate();
 };
 
@@ -122,5 +122,5 @@ public:
     virtual std::vector<Variable *> get_dvalue_variables();
     virtual Value *matched(Value *cpivot, Scope *scope, TypeMatch &match);
     virtual void allocate();
-    virtual void debug(TypeMatch tm, X64 *x64);
+    virtual void debug(TypeMatch tm, Cx *cx);
 };

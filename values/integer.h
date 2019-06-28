@@ -7,20 +7,20 @@ public:
 
     IntegerOperationValue(OperationType o, Value *pivot, TypeMatch &match);
     
-    virtual void exponentiation_by_squaring(X64 *x64, Register BASE, Register EXP, Register RES);
+    virtual void exponentiation_by_squaring(Cx *cx, Register BASE, Register EXP, Register RES);
     virtual bool fits32(int value);
-    virtual Storage unary(X64 *x64, UnaryOp opcode);
-    virtual Storage binary_simple(X64 *x64, BinaryOp opcode);
-    virtual Storage binary_multiply(X64 *x64);
-    virtual Storage binary_divmod(X64 *x64, bool mod);
-    virtual Storage binary_shift(X64 *x64, ShiftOp opcode);
-    virtual Storage binary_exponent(X64 *x64);
-    virtual Storage binary_compare(X64 *x64, ConditionCode cc);
-    virtual Storage assign_binary(X64 *x64, BinaryOp opcode);
-    virtual Storage assign_multiply(X64 *x64);
-    virtual Storage assign_divmod(X64 *x64, bool mod);
-    virtual Storage assign_exponent(X64 *x64);
-    virtual Storage assign_shift(X64 *x64, ShiftOp opcode);
+    virtual Storage unary(Cx *cx, UnaryOp opcode);
+    virtual Storage binary_simple(Cx *cx, BinaryOp opcode);
+    virtual Storage binary_multiply(Cx *cx);
+    virtual Storage binary_divmod(Cx *cx, bool mod);
+    virtual Storage binary_shift(Cx *cx, ShiftOp opcode);
+    virtual Storage binary_exponent(Cx *cx);
+    virtual Storage binary_compare(Cx *cx, ConditionCode cc);
+    virtual Storage assign_binary(Cx *cx, BinaryOp opcode);
+    virtual Storage assign_multiply(Cx *cx);
+    virtual Storage assign_divmod(Cx *cx, bool mod);
+    virtual Storage assign_exponent(Cx *cx);
+    virtual Storage assign_shift(Cx *cx, ShiftOp opcode);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };

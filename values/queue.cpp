@@ -1,200 +1,200 @@
 #include "../plum.h"
 
 
-void fix_index_overflow(Register r, Register i, X64 *x64) {
+void fix_index_overflow(Register r, Register i, Cx *cx) {
     Label ok;
-    x64->op(ADDQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(CMPQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
-    x64->op(JL, ok);
+    cx->op(ADDQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
+    cx->op(CMPQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
+    cx->op(JL, ok);
 
-    //x64->err("Fixing index overflow.");
-    x64->op(SUBQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
+    //cx->err("Fixing index overflow.");
+    cx->op(SUBQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
         
-    x64->code_label(ok);
+    cx->code_label(ok);
 }
 
 
-void fix_index_underflow(Register r, Register i, X64 *x64) {
+void fix_index_underflow(Register r, Register i, Cx *cx) {
     Label ok;
-    x64->op(ADDQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(CMPQ, i, 0);
-    x64->op(JGE, ok);
+    cx->op(ADDQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
+    cx->op(CMPQ, i, 0);
+    cx->op(JGE, ok);
         
-    //x64->err("Fixing index underflow.");
-    x64->op(ADDQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
+    //cx->err("Fixing index underflow.");
+    cx->op(ADDQ, i, Address(r, CIRCULARRAY_RESERVATION_OFFSET));
         
-    x64->code_label(ok);
+    cx->code_label(ok);
 }
 
 
-void compile_queue_alloc(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_queue_alloc(Label label, TypeSpec elem_ts, Cx *cx) {
     // R10 - reservation
     int elem_size = ContainerType::get_elem_size(elem_ts);
-    Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(x64);
+    Label finalizer_label = elem_ts.prefix(circularray_type).get_finalizer_label(cx);
     
-    x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("alloc"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(queue_type).symbolize("alloc"));
+    cx->prologue();
     
-    container_alloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, finalizer_label, x64);
+    container_alloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, finalizer_label, cx);
 
-    x64->op(MOVQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET), 0);
-    x64->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), 0);
+    cx->op(MOVQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET), 0);
+    cx->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), 0);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void compile_queue_realloc(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_queue_realloc(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - array, R10 - new reservation
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
-    x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("realloc"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(queue_type).symbolize("realloc"));
+    cx->prologue();
     
-    container_realloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, x64);
+    container_realloc(CIRCULARRAY_HEADER_SIZE, elem_size, CIRCULARRAY_RESERVATION_OFFSET, cx);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void compile_queue_grow(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_queue_grow(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - array, R10 - new reservation
     // RCX, RSI, RDI - clob
     // Double the reservation until it's enough (can be relaxed to 1.5 times, but not less)
-    Label realloc_label = x64->once->compile(compile_queue_realloc, elem_ts);
+    Label realloc_label = cx->once->compile(compile_queue_realloc, elem_ts);
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
-    x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("grow"));
-    x64->prologue();
+    cx->code_label_local(label, elem_ts.prefix(queue_type).symbolize("grow"));
+    cx->prologue();
     
-    x64->runtime->log("grow_circularray");
-    x64->op(PUSHQ, RCX);
-    x64->op(PUSHQ, RSI);
-    x64->op(PUSHQ, RDI);
-    x64->op(PUSHQ, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
+    cx->runtime->log("grow_circularray");
+    cx->op(PUSHQ, RCX);
+    cx->op(PUSHQ, RSI);
+    cx->op(PUSHQ, RDI);
+    cx->op(PUSHQ, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
     
-    container_grow(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_MINIMUM_RESERVATION, realloc_label, x64);
+    container_grow(CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_MINIMUM_RESERVATION, realloc_label, cx);
 
-    x64->op(POPQ, R10);  // old reservation
+    cx->op(POPQ, R10);  // old reservation
     
     Label high, end;
-    x64->op(MOVQ, RCX, R10);
-    x64->op(SHRQ, RCX, 1);
-    x64->op(CMPQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RCX);
-    x64->op(JAE, high);
+    cx->op(MOVQ, RCX, R10);
+    cx->op(SHRQ, RCX, 1);
+    cx->op(CMPQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RCX);
+    cx->op(JAE, high);
 
     // The front is low, so it's better to unfold the folded part. This requires that
     // the growth rate was at least 1.5 times.
     
-    x64->runtime->log("Unfolding queue circularray.");
+    cx->runtime->log("Unfolding queue circularray.");
     
-    x64->op(LEA, RSI, Address(RAX, CIRCULARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RSI, Address(RAX, CIRCULARRAY_ELEMS_OFFSET));
     
-    x64->op(MOVQ, RDI, R10);
-    x64->op(IMUL3Q, RDI, RDI, elem_size);
-    x64->op(LEA, RDI, Address(RAX, RDI, CIRCULARRAY_ELEMS_OFFSET));
+    cx->op(MOVQ, RDI, R10);
+    cx->op(IMUL3Q, RDI, RDI, elem_size);
+    cx->op(LEA, RDI, Address(RAX, RDI, CIRCULARRAY_ELEMS_OFFSET));
     
-    x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(IMUL3Q, RCX, RCX, elem_size);
+    cx->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
+    cx->op(IMUL3Q, RCX, RCX, elem_size);
     
-    x64->op(REPMOVSB);
-    x64->op(JMP, end);
+    cx->op(REPMOVSB);
+    cx->op(JMP, end);
     
-    x64->code_label(high);
+    cx->code_label(high);
     
     // The front is high, so it's better to move the unfolded part to the end of the
     // new reservation. This also requires 1.5 growth rate so we can copy forward.
 
-    x64->runtime->log("Stretching queue circularray.");
+    cx->runtime->log("Stretching queue circularray.");
     
-    x64->op(MOVQ, RSI, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(IMUL3Q, RSI, RSI, elem_size);
-    x64->op(LEA, RSI, Address(RAX, RSI, CIRCULARRAY_ELEMS_OFFSET));
+    cx->op(MOVQ, RSI, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
+    cx->op(IMUL3Q, RSI, RSI, elem_size);
+    cx->op(LEA, RSI, Address(RAX, RSI, CIRCULARRAY_ELEMS_OFFSET));
 
-    x64->op(MOVQ, RDI, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(SUBQ, RDI, R10);
-    x64->op(ADDQ, RDI, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
-    x64->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RDI);  // must update front index
-    x64->op(IMUL3Q, RDI, RDI, elem_size);
-    x64->op(LEA, RDI, Address(RAX, RDI, CIRCULARRAY_ELEMS_OFFSET));
+    cx->op(MOVQ, RDI, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
+    cx->op(SUBQ, RDI, R10);
+    cx->op(ADDQ, RDI, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
+    cx->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RDI);  // must update front index
+    cx->op(IMUL3Q, RDI, RDI, elem_size);
+    cx->op(LEA, RDI, Address(RAX, RDI, CIRCULARRAY_ELEMS_OFFSET));
     
-    x64->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
-    x64->op(SUBQ, RCX, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(IMUL3Q, RCX, RCX, elem_size);
+    cx->op(MOVQ, RCX, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
+    cx->op(SUBQ, RCX, Address(RAX, CIRCULARRAY_FRONT_OFFSET));
+    cx->op(IMUL3Q, RCX, RCX, elem_size);
     
-    x64->op(REPMOVSB);
+    cx->op(REPMOVSB);
     
-    x64->code_label(end);
-    x64->op(POPQ, RDI);
-    x64->op(POPQ, RSI);
-    x64->op(POPQ, RCX);
+    cx->code_label(end);
+    cx->op(POPQ, RDI);
+    cx->op(POPQ, RSI);
+    cx->op(POPQ, RCX);
     
-    x64->epilogue();
+    cx->epilogue();
 }
 
 
-void compile_queue_clone(Label label, TypeSpec elem_ts, X64 *x64) {
+void compile_queue_clone(Label label, TypeSpec elem_ts, Cx *cx) {
     // RAX - Circularray Ref
     // Return a cloned Ref
     Label loop, end, linear, linear2, loop2;
-    Label alloc_label = x64->once->compile(compile_queue_alloc, elem_ts);
+    Label alloc_label = cx->once->compile(compile_queue_alloc, elem_ts);
     int elem_size = ContainerType::get_elem_size(elem_ts);
     TypeSpec heap_ts = elem_ts.prefix(circularray_type);
     
-    x64->code_label_local(label, elem_ts.prefix(queue_type).symbolize("clone"));
-    x64->prologue();
-    x64->runtime->log("XXX queue clone");
+    cx->code_label_local(label, elem_ts.prefix(queue_type).symbolize("clone"));
+    cx->prologue();
+    cx->runtime->log("XXX queue clone");
     
-    x64->op(PUSHQ, RAX);
-    x64->op(MOVQ, R10, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
-    x64->op(CALL, alloc_label);  // clobbers all
+    cx->op(PUSHQ, RAX);
+    cx->op(MOVQ, R10, Address(RAX, CIRCULARRAY_RESERVATION_OFFSET));
+    cx->op(CALL, alloc_label);  // clobbers all
     
-    x64->op(POPQ, RBX);  // orig
-    x64->op(MOVQ, RCX, Address(RBX, CIRCULARRAY_LENGTH_OFFSET));
-    x64->op(MOVQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET), RCX);
+    cx->op(POPQ, RBX);  // orig
+    cx->op(MOVQ, RCX, Address(RBX, CIRCULARRAY_LENGTH_OFFSET));
+    cx->op(MOVQ, Address(RAX, CIRCULARRAY_LENGTH_OFFSET), RCX);
 
-    x64->op(CMPQ, RCX, 0);
-    x64->op(JE, end);
+    cx->op(CMPQ, RCX, 0);
+    cx->op(JE, end);
 
-    x64->op(MOVQ, RDX, Address(RBX, CIRCULARRAY_FRONT_OFFSET));
-    x64->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RDX);
-    x64->op(IMUL3Q, R10, RDX, elem_size);
+    cx->op(MOVQ, RDX, Address(RBX, CIRCULARRAY_FRONT_OFFSET));
+    cx->op(MOVQ, Address(RAX, CIRCULARRAY_FRONT_OFFSET), RDX);
+    cx->op(IMUL3Q, R10, RDX, elem_size);
 
-    x64->op(LEA, RSI, Address(RBX, R10, CIRCULARRAY_ELEMS_OFFSET));
-    x64->op(LEA, RDI, Address(RAX, R10, CIRCULARRAY_ELEMS_OFFSET));
-    x64->op(ADDQ, RDX, RCX);  // theoretical end index
-    x64->op(SUBQ, RDX, Address(RBX, CIRCULARRAY_RESERVATION_OFFSET));  // wrapped length
-    x64->op(JLE, linear);
+    cx->op(LEA, RSI, Address(RBX, R10, CIRCULARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RDI, Address(RAX, R10, CIRCULARRAY_ELEMS_OFFSET));
+    cx->op(ADDQ, RDX, RCX);  // theoretical end index
+    cx->op(SUBQ, RDX, Address(RBX, CIRCULARRAY_RESERVATION_OFFSET));  // wrapped length
+    cx->op(JLE, linear);
     
-    x64->op(SUBQ, RCX, RDX);  // trim first loop (remains nonempty)
+    cx->op(SUBQ, RCX, RDX);  // trim first loop (remains nonempty)
     
-    x64->code_label(linear);
-    x64->code_label(loop);
-    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
-    x64->op(ADDQ, RSI, elem_size);
-    x64->op(ADDQ, RDI, elem_size);
-    x64->op(DECQ, RCX);
-    x64->op(JNE, loop);
+    cx->code_label(linear);
+    cx->code_label(loop);
+    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), cx);
+    cx->op(ADDQ, RSI, elem_size);
+    cx->op(ADDQ, RDI, elem_size);
+    cx->op(DECQ, RCX);
+    cx->op(JNE, loop);
 
-    x64->op(CMPQ, RDX, 0);
-    x64->op(JLE, linear2);
+    cx->op(CMPQ, RDX, 0);
+    cx->op(JLE, linear2);
     
-    x64->op(LEA, RSI, Address(RBX, CIRCULARRAY_ELEMS_OFFSET));
-    x64->op(LEA, RDI, Address(RAX, CIRCULARRAY_ELEMS_OFFSET));
-    x64->op(MOVQ, RCX, RDX);
+    cx->op(LEA, RSI, Address(RBX, CIRCULARRAY_ELEMS_OFFSET));
+    cx->op(LEA, RDI, Address(RAX, CIRCULARRAY_ELEMS_OFFSET));
+    cx->op(MOVQ, RCX, RDX);
     
-    x64->code_label(loop2);
-    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), x64);
-    x64->op(ADDQ, RSI, elem_size);
-    x64->op(ADDQ, RDI, elem_size);
-    x64->op(DECQ, RCX);
-    x64->op(JNE, loop2);
+    cx->code_label(loop2);
+    elem_ts.create(Storage(MEMORY, Address(RSI, 0)), Storage(MEMORY, Address(RDI, 0)), cx);
+    cx->op(ADDQ, RSI, elem_size);
+    cx->op(ADDQ, RDI, elem_size);
+    cx->op(DECQ, RCX);
+    cx->op(JNE, loop2);
     
-    x64->code_label(linear2);
-    heap_ts.decref(RBX, x64);
+    cx->code_label(linear2);
+    heap_ts.decref(RBX, cx);
     
-    x64->code_label(end);
-    x64->epilogue();
+    cx->code_label(end);
+    cx->epilogue();
 }
 
 
@@ -210,8 +210,8 @@ QueueIndexValue::QueueIndexValue(Value *pivot, TypeMatch &match)
     :ContainerIndexValue(pivot, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET) {
 }
 
-void QueueIndexValue::fix_index(Register r, Register i, X64 *x64) {
-    fix_index_overflow(r, i, x64);
+void QueueIndexValue::fix_index(Register r, Register i, Cx *cx) {
+    fix_index_overflow(r, i, cx);
 }
 
 
@@ -238,8 +238,8 @@ QueuePushValue::QueuePushValue(Value *l, TypeMatch &match)
     :ContainerPushValue(l, match, CIRCULARRAY_RESERVATION_OFFSET, CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone, compile_queue_grow) {
 }
 
-void QueuePushValue::fix_index(Register r, Register i, X64 *x64) {
-    fix_index_overflow(r, i, x64);
+void QueuePushValue::fix_index(Register r, Register i, Cx *cx) {
+    fix_index_overflow(r, i, cx);
 }
 
 
@@ -248,8 +248,8 @@ QueuePopValue::QueuePopValue(Value *l, TypeMatch &match)
     :ContainerPopValue(l, match, match[1].prefix(circularray_type), CIRCULARRAY_LENGTH_OFFSET, CIRCULARRAY_ELEMS_OFFSET, compile_queue_clone) {
 }
 
-void QueuePopValue::fix_index(Register r, Register i, X64 *x64) {
-    fix_index_overflow(r, i, x64);
+void QueuePopValue::fix_index(Register r, Register i, Cx *cx) {
+    fix_index_overflow(r, i, cx);
 }
 
 
@@ -258,11 +258,11 @@ QueueUnshiftValue::QueueUnshiftValue(Value *l, TypeMatch &match)
     :QueuePushValue(l, match) {
 }
 
-void QueueUnshiftValue::fix_index(Register r, Register i, X64 *x64) {
+void QueueUnshiftValue::fix_index(Register r, Register i, Cx *cx) {
     // Compute the new front, and use it for the element index
-    x64->op(MOVQ, i, -1);
-    fix_index_underflow(r, i, x64);
-    x64->op(MOVQ, Address(r, CIRCULARRAY_FRONT_OFFSET), i);
+    cx->op(MOVQ, i, -1);
+    fix_index_underflow(r, i, cx);
+    cx->op(MOVQ, Address(r, CIRCULARRAY_FRONT_OFFSET), i);
 }
 
 
@@ -271,11 +271,11 @@ QueueShiftValue::QueueShiftValue(Value *l, TypeMatch &match)
     :QueuePopValue(l, match) {
 }
 
-void QueueShiftValue::fix_index(Register r, Register i, X64 *x64) {
+void QueueShiftValue::fix_index(Register r, Register i, Cx *cx) {
     // Compute the new front, and use the old one for the element index
-    x64->op(MOVQ, i, 1);
-    fix_index_overflow(r, i, x64);
-    x64->op(XCHGQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
+    cx->op(MOVQ, i, 1);
+    fix_index_overflow(r, i, cx);
+    cx->op(XCHGQ, i, Address(r, CIRCULARRAY_FRONT_OFFSET));
 }
 
 
@@ -307,14 +307,14 @@ Regs QueueNextElemValue::precompile(Regs preferred) {
     return ContainerNextValue::precompile(preferred) | precompile_contained_lvalue();
 }
 
-Storage QueueNextElemValue::postprocess(Register r, Register i, X64 *x64) {
+Storage QueueNextElemValue::postprocess(Register r, Register i, Cx *cx) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
 
-    fix_index_overflow(r, i, x64);
+    fix_index_overflow(r, i, cx);
     
-    Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
+    Address addr = cx->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
     
-    return compile_contained_lvalue(addr, NOREG, ts, x64);
+    return compile_contained_lvalue(addr, NOREG, ts, cx);
 }
 
 
@@ -323,7 +323,7 @@ QueueNextIndexValue::QueueNextIndexValue(Value *l, TypeMatch &match)
     :ContainerNextValue(INTEGER_TUPLE1_TS, match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
 }
 
-Storage QueueNextIndexValue::postprocess(Register r, Register i, X64 *x64) {
+Storage QueueNextIndexValue::postprocess(Register r, Register i, Cx *cx) {
     return Storage(REGISTER, i);
 }
 
@@ -333,19 +333,19 @@ QueueNextItemValue::QueueNextItemValue(Value *l, TypeMatch &match)
     :ContainerNextValue(typesubst(INTEGER_SAME_LVALUE_TUPLE2_TS, match), match[1], l, CIRCULARRAY_LENGTH_OFFSET, false) {
 }
 
-Storage QueueNextItemValue::postprocess(Register r, Register i, X64 *x64) {
+Storage QueueNextItemValue::postprocess(Register r, Register i, Cx *cx) {
     int elem_size = ContainerType::get_elem_size(elem_ts);
     //int item_stack_size = ts.measure_stack();
 
-    x64->op(PUSHQ, i);
+    cx->op(PUSHQ, i);
     
-    fix_index_overflow(r, i, x64);
+    fix_index_overflow(r, i, cx);
 
-    Address addr = x64->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
+    Address addr = cx->runtime->make_address(r, i, elem_size, CIRCULARRAY_ELEMS_OFFSET);
     
-    x64->op(PUSHQ, 0);
-    x64->op(LEA, R10, addr);
-    x64->op(PUSHQ, R10);
+    cx->op(PUSHQ, 0);
+    cx->op(LEA, R10, addr);
+    cx->op(PUSHQ, R10);
     
     return Storage(STACK);
 }

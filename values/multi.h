@@ -11,8 +11,8 @@ public:
     virtual Declaration *get_declaration(int i);
     virtual TypeSpec fix_bare(int i, TypeSpec implicit_ts, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
 };
 
 class UnpackingValue: public Value {
@@ -28,8 +28,8 @@ public:
     
     virtual bool check(Args &args, Kwargs &kwargs, Scope *scope);
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
-    virtual CodeScope *unwind(X64 *x64);
+    virtual Storage compile(Cx *cx);
+    virtual CodeScope *unwind(Cx *cx);
     virtual void escape_statement_variables();
 };
 
@@ -41,5 +41,5 @@ public:
     ScalarConversionValue(Value *p);
     
     virtual Regs precompile(Regs preferred);
-    virtual Storage compile(X64 *x64);
+    virtual Storage compile(Cx *cx);
 };
